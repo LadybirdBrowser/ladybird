@@ -422,6 +422,11 @@ ComputedValuesFFI::AnimatedOverlay* ComputedStyleWorkingSet::prepare_animated_ov
     return const_cast<ComputedValuesFFI::AnimatedOverlay*>(animated_properties.overlay());
 }
 
+ComputedValuesFFI::AnimatedOverlay const* ComputedStyleWorkingSet::animated_overlay(Badge<StyleComputer>) const
+{
+    return m_animated_properties ? m_animated_properties->overlay() : nullptr;
+}
+
 void ComputedStyleWorkingSet::finish_animated_overlay_rust_mutation(Badge<StyleComputer>)
 {
     if (m_animated_properties && m_animated_properties->is_empty())

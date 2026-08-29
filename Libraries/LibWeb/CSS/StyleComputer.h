@@ -52,12 +52,6 @@ public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
     static void for_each_property_expanding_shorthands(PropertyID, StyleValue const&, Function<void(PropertyID, StyleValue const&)> const& set_longhand_property);
-    static NonnullRefPtr<StyleValue const> get_non_animated_inherit_value(PropertyID, DOM::AbstractElement);
-    struct AnimatedInheritValue {
-        NonnullRefPtr<StyleValue const> value;
-        AnimatedPropertyResultOfTransition is_result_of_transition;
-    };
-    static Optional<AnimatedInheritValue> get_animated_inherit_value(PropertyID, DOM::AbstractElement);
 
     static Optional<Utf16String> user_agent_style_sheet_source(Utf16View name);
 
@@ -294,7 +288,7 @@ private:
     [[nodiscard]] RefPtr<ComputedStyleWorkingSet> compute_style_impl(DOM::AbstractElement, ComputeStyleMode, Optional<bool&> did_change_custom_properties, StyleScope const&, IncludeInlineStyle, StyleEngineMatchResult* = nullptr, StyleSharingCandidate* = nullptr) const;
     [[nodiscard]] NonnullRefPtr<CascadedProperties> compute_cascaded_values(DOM::AbstractElement, CascadeInput const&, IncludeInlineStyle, StyleSharingCandidate* sharing = nullptr, Vector<StyleProperty> const* precomputed_presentational_hints = nullptr) const;
     void collect_animation_effects_into(DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&) const;
-    Vector<GC::Ref<Animations::KeyframeEffect>> start_needed_transitions(ComputedValues const& old_style, ComputedStyleWorkingSet& new_style, DOM::AbstractElement) const;
+    Vector<GC::Ref<Animations::KeyframeEffect>> start_needed_transitions(ComputedStyleWorkingSet&, DOM::AbstractElement) const;
     void finalize_style(ComputedStyleWorkingSet&, DOM::AbstractElement, ComputedValuesFFI::FfiStyleFinalizationMode) const;
 
     [[nodiscard]] CSSPixelRect viewport_rect() const { return m_viewport_rect; }
@@ -479,11 +473,6 @@ private:
         GC::Ptr<DOM::Element> element;
         Optional<PseudoElement> pseudo_element;
         PropertyID property_id;
-        // The transition consumer reads only this property's animated before-change value and
-        // whether its specified value was currentColor. Pin those derived values for the
-        // stabilization epoch instead of retaining another complete computed-style projection.
-        RefPtr<StyleValue const> before_change_value;
-        bool before_change_value_originates_from_current_color { false };
         GC::Ptr<CSSTransition> committed_transition;
         GC::Ptr<CSSTransition> proposed_transition;
         ProvisionalTransitionAction action { ProvisionalTransitionAction::None };

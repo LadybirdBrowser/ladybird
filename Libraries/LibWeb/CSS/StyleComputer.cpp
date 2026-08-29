@@ -1320,7 +1320,7 @@ static void compute_transitioned_properties(ComputedValues const& style, DOM::Ab
 }
 
 // https://drafts.csswg.org/css-transitions/#starting
-Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transitions(ComputedValues const& previous_style, ComputedStyleWorkingSet& new_style, DOM::AbstractElement abstract_element) const
+Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transitions(ComputedStyleWorkingSet& new_style, DOM::AbstractElement abstract_element) const
 {
     auto had_pending_animated_style_update = m_document->needs_animated_style_update();
 
@@ -1331,8 +1331,8 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
     Optional<u64> transition_target_key;
     if (style_node_id != 0)
         transition_target_key = (static_cast<u64>(style_node_id.value()) << 8) | pseudo_element_to_ffi(pseudo_element);
-    auto const* transition_baseline = &previous_style;
-    StyleRecordID transition_baseline_style_record;
+    auto transition_baseline_style_record = abstract_element.style_record_identity();
+    VERIFY(transition_baseline_style_record);
     if (transition_target_key.has_value()
         && (abstract_element.style_scope().rule_cache().has_size_container_queries
             || document().is_in_style_stabilization_feedback_epoch())) {
@@ -1342,9 +1342,6 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
         if (auto existing_baseline = m_transition_stabilization_baselines.get(*transition_target_key); existing_baseline.has_value())
             transition_baseline_style_record = *existing_baseline;
     }
-    auto transition_baseline_view = computed_style_record_view(transition_baseline_style_record);
-    if (transition_baseline_view)
-        transition_baseline = &*transition_baseline_view;
     Vector<size_t> existing_stabilization_state_indices;
     if (transition_target_key.has_value()) {
         if (auto indices = m_provisional_transition_state_indices_by_target.get(*transition_target_key); indices.has_value())
@@ -1372,24 +1369,6 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
         && abstract_element.element().property_ids_with_existing_transitions(abstract_element.pseudo_element()).is_empty()
         && existing_stabilization_state_indices.is_empty())
         return {};
-
-    u32 transition_groups_to_build = 0;
-    auto include_transition_property_group = [&](PropertyID property_id) {
-        auto group = ComputedValues::style_group_of_property(property_id);
-        if (!group.has_value()) {
-            transition_groups_to_build = ComputedValues::all_style_groups;
-            return;
-        }
-        transition_groups_to_build |= 1u << to_underlying(*group);
-    };
-    for (auto property_id : element.property_ids_with_matching_transition_property_entry(pseudo_element))
-        include_transition_property_group(property_id);
-    for (auto property_id : element.property_ids_with_existing_transitions(pseudo_element))
-        include_transition_property_group(property_id);
-    for (auto stabilization_state_index : existing_stabilization_state_indices)
-        include_transition_property_group(m_provisional_transition_states[stabilization_state_index].property_id);
-
-    auto after_change_style = build_computed_values(new_style, abstract_element, abstract_element.style_scope(), &previous_style.base_values(), transition_groups_to_build);
 
     auto transition_font_metrics = [](Length::FontMetrics const& metrics) {
         return StyleValueFFI::FfiAnimationFontMetrics {
@@ -1441,10 +1420,6 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
         No,
         Yes,
     };
-    auto originates_from_current_color = [](ComputedValues const& style, PropertyID property_id) {
-        auto value = style.computed_style_value_for_inheritance(property_id, ComputedValues::WithAnimationsApplied::No);
-        return value && value->to_keyword() == Keyword::Currentcolor;
-    };
     auto ensure_stabilization_state = [&](PropertyID property_id) -> size_t {
         Optional<u64> state_key;
         if (transition_target_key.has_value()) {
@@ -1465,8 +1440,6 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
             .element = element,
             .pseudo_element = pseudo_element,
             .property_id = property_id,
-            .before_change_value = transition_baseline->computed_style_value(property_id, ComputedValues::WithAnimationsApplied::Yes),
-            .before_change_value_originates_from_current_color = originates_from_current_color(*transition_baseline, property_id),
             .committed_transition = existing_transition,
             .proposed_transition = nullptr,
             .action = ProvisionalTransitionAction::None,
@@ -1485,11 +1458,6 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
         auto existing_transition = stabilization_state.committed_transition;
         bool has_running_transition = existing_transition && !existing_transition->is_finished() && !existing_transition->is_idle();
         bool has_completed_transition = existing_transition && !has_running_transition;
-        RefPtr<StyleValue const> before_change_value;
-        RefPtr<StyleValue const> after_change_value;
-        RefPtr<StyleValue const> current_value;
-        bool before_change_value_originates_from_current_color = false;
-        bool after_change_value_originates_from_current_color = false;
         bool allow_discrete = false;
         double delay = 0;
         double duration = 0;
@@ -1501,53 +1469,22 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
             delay = transition_attributes.delay;
             duration = transition_attributes.duration;
             allow_discrete = transition_attributes.transition_behavior == TransitionBehavior::AllowDiscrete;
-            // https://drafts.csswg.org/css-transitions-1/#starting
-            // The after-change style excludes styles from CSS Transitions but keeps animation-derived values, and the
-            // before-change style has declarative animations updated to the current time. A property that a
-            // non-transition animation currently applies to therefore carries the same animated value on both sides of
-            // the comparison, so a change to the underlying value cannot start a transition beneath a running
-            // animation.
-            RefPtr<StyleValue const> value_covered_by_animation;
-            if (auto const* animated_properties = after_change_style->animated_properties();
-                animated_properties && animated_properties->has_property(property_id)
-                && !animated_properties->is_property_result_of_transition(property_id))
-                value_covered_by_animation = animated_properties->property(property_id);
-
-            if (value_covered_by_animation) {
-                before_change_value = value_covered_by_animation;
-                after_change_value = value_covered_by_animation;
-                before_change_value_originates_from_current_color = value_covered_by_animation->to_keyword() == Keyword::Currentcolor;
-                after_change_value_originates_from_current_color = before_change_value_originates_from_current_color;
-            } else {
-                before_change_value = stabilization_state.before_change_value;
-                after_change_value = after_change_style->computed_style_value(property_id, ComputedValues::WithAnimationsApplied::No);
-                before_change_value_originates_from_current_color = stabilization_state.before_change_value_originates_from_current_color;
-                after_change_value_originates_from_current_color = originates_from_current_color(*after_change_style, property_id);
-            }
-            VERIFY(before_change_value);
-            VERIFY(after_change_value);
             if (existing_transition) {
                 old_reversing_shortening_factor = existing_transition->reversing_shortening_factor();
                 if (has_running_transition)
                     old_timing_function_output = existing_transition->timing_function_output_at_time(style_change_event_time);
             }
-            if (has_running_transition) {
-                current_value = after_change_style->computed_style_value(property_id, ComputedValues::WithAnimationsApplied::Yes);
-                VERIFY(current_value);
-            }
         }
 
         ffi_properties.append({
             .property_id = to_underlying(property_id),
-            .before_change_value = before_change_value ? before_change_value->rust_style_value_data() : nullptr,
-            .after_change_value = after_change_value ? after_change_value->rust_style_value_data() : nullptr,
-            .current_value = current_value ? current_value->rust_style_value_data() : nullptr,
+            .before_change_value = nullptr,
+            .after_change_value = nullptr,
+            .current_value = nullptr,
             .existing_end_value = existing_transition ? existing_transition->transition_end_value()->rust_style_value_data() : nullptr,
             .reversing_adjusted_start_value = existing_transition ? existing_transition->reversing_adjusted_start_value()->rust_style_value_data() : nullptr,
             .has_matching_transition = has_matching_transition == HasMatchingTransition::Yes,
             .allow_discrete = allow_discrete,
-            .before_change_value_originates_from_current_color = before_change_value_originates_from_current_color,
-            .after_change_value_originates_from_current_color = after_change_value_originates_from_current_color,
             .has_running_transition = has_running_transition,
             .has_completed_transition = has_completed_transition,
             .delay = delay,
@@ -1558,9 +1495,9 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
         prepared_transitions.append({
             .stabilization_state_index = stabilization_state_index,
             .property_id = property_id,
-            .before_change_value = move(before_change_value),
-            .after_change_value = move(after_change_value),
-            .current_value = move(current_value),
+            .before_change_value = {},
+            .after_change_value = {},
+            .current_value = {},
             .existing_transition = existing_transition,
         });
     };
@@ -1602,7 +1539,24 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
     };
     Vector<StyleValueFFI::FfiTransitionAction> actions;
     actions.resize(prepared_transitions.size());
-    StyleValueFFI::rust_decide_transitions(&input, actions.data());
+    m_style_engine.decide_transitions(
+        transition_baseline_style_record,
+        new_style.computed_longhand_table(),
+        new_style.animated_overlay(Badge<StyleComputer> {}),
+        input,
+        actions.data());
+    auto retain_style_value = [](StyleValueFFI::StyleValueData const* value) -> RefPtr<StyleValue const> {
+        if (!value)
+            return {};
+        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(value));
+    };
+    for (size_t index = 0; index < prepared_transitions.size(); ++index) {
+        auto& prepared_transition = prepared_transitions[index];
+        auto const& property = ffi_properties[index];
+        prepared_transition.before_change_value = retain_style_value(property.before_change_value);
+        prepared_transition.after_change_value = retain_style_value(property.after_change_value);
+        prepared_transition.current_value = retain_style_value(property.current_value);
+    }
 
     Vector<GC::Ref<Animations::KeyframeEffect>> newly_started_transition_effects;
     HashTable<Animations::KeyframeEffect*> replaced_transition_effects;
@@ -3079,40 +3033,6 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
     // so they're not done here, but as the final step in compute_properties()
 
     return cascaded_properties;
-}
-
-NonnullRefPtr<StyleValue const> StyleComputer::get_non_animated_inherit_value(PropertyID property_id, DOM::AbstractElement abstract_element)
-{
-    auto parent_element = abstract_element.element_to_inherit_style_from();
-
-    if (!parent_element.has_value() || !parent_element->has_style())
-        return property_initial_value(property_id);
-
-    auto parent_style = parent_element->computed_style();
-    auto value = parent_style->computed_style_value_for_inheritance(property_id, ComputedValues::WithAnimationsApplied::No);
-    VERIFY(value);
-
-    return value.release_nonnull();
-}
-
-Optional<StyleComputer::AnimatedInheritValue> StyleComputer::get_animated_inherit_value(PropertyID property_id, DOM::AbstractElement abstract_element)
-{
-    auto parent_element = abstract_element.element_to_inherit_style_from();
-
-    if (!parent_element.has_value() || !parent_element->has_style())
-        return {};
-
-    auto parent_style = parent_element->computed_style();
-    auto const* animated_properties = parent_style->animated_properties();
-    if (!animated_properties || !animated_properties->has_property(property_id))
-        return {};
-
-    return AnimatedInheritValue {
-        .value = animated_properties->property(property_id),
-        .is_result_of_transition = animated_properties->is_property_result_of_transition(property_id)
-            ? AnimatedPropertyResultOfTransition::Yes
-            : AnimatedPropertyResultOfTransition::No
-    };
 }
 
 Length::FontMetrics StyleComputer::calculate_root_element_font_metrics(ComputedStyleWorkingSet const& style) const
@@ -5444,7 +5364,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
             if (auto previous_style = context.abstract_element.computed_style()) {
                 // https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
                 if (!previous_style->in_display_none_subtree() && !parent_style_in_display_none_subtree)
-                    style_computer.start_needed_transitions(*previous_style, computed_style, context.abstract_element);
+                    style_computer.start_needed_transitions(computed_style, context.abstract_element);
             }
 
             if (style_computer.m_keyframes_inherited_non_inherited_style_groups != 0) {

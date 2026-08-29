@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/StyleValueRustFFI.h>
 
 namespace Web::CSS {
 
@@ -253,6 +254,11 @@ StyleEngine::StyleRecordState StyleEngine::style_record_state(StyleRecordID styl
 StyleEngine::StyleRecordView StyleEngine::style_record_view(StyleRecordID style_record) const
 {
     return StyleEngineFFI::style_engine_style_record_view(m_impl, style_record.value());
+}
+
+void StyleEngine::decide_transitions(StyleRecordID before_style_record, void const* after_longhand_table, void const* after_animated_overlay, StyleValueFFI::FfiTransitionInput& input, StyleValueFFI::FfiTransitionAction* actions) const
+{
+    StyleValueFFI::rust_decide_transitions(m_impl, before_style_record.value(), after_longhand_table, after_animated_overlay, &input, actions);
 }
 
 StyleEngine::StyleRecordDelta StyleEngine::remove_computed_pseudo(StyleNodeID node, u8 pseudo_kind)
