@@ -241,6 +241,9 @@ pub struct DisplayListRecorder {
     builder: DisplayListBuilder,
     // Present only while force-dark is on for this page; every color-bearing command resolves through it.
     force_dark: Option<ForceDarkResolver>,
+    // The color behind whatever is being drawn right now, as authored: the element's own background, set around
+    // the draws whose force-dark result is judged against it (borders and selections). None outside those scopes.
+    contrast_backdrop: Option<Color>,
     context: ContextRef,
     mask_display_lists: Vec<(FrameNodeIndex, DisplayListResourceId)>,
     ambient_inline_clips: Vec<PendingInlineClip>,
@@ -278,10 +281,16 @@ impl DisplayListRecorder {
     }
 
     fn resolve_color(&mut self, color: Color, force_dark_role: ForceDarkRole) -> Color {
+        let backdrop = self.contrast_backdrop;
         match &mut self.force_dark {
-            Some(resolver) => resolver.resolve(color, force_dark_role),
+            Some(resolver) => resolver.resolve_against_backdrop(color, force_dark_role, backdrop),
             None => color,
         }
+    }
+
+    /// Swaps in the backdrop for a scope of draws and hands back what was there, for the caller to restore.
+    pub fn set_contrast_backdrop(&mut self, backdrop: Option<Color>) -> Option<Color> {
+        std::mem::replace(&mut self.contrast_backdrop, backdrop)
     }
 
     // Images use only this much of the role; what happens after is decided by classifying the image itself.

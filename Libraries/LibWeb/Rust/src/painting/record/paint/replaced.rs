@@ -303,11 +303,17 @@ pub(crate) fn paint_image_foreground(recorder: &mut PaintRecorder<'_>, paintable
     if recorder.data(paintable).selection_state != 0 {
         let selection_background_color = facts.selection_background_color;
         if selection_background_color.alpha() > 0 {
+            let backdrop = recorder
+                .layout_arena
+                .node_style_if_live(paintable)
+                .map(|style| libgfx_rust::Color(style.background().background_color));
+            let previous = recorder.recorder.set_contrast_backdrop(backdrop);
             recorder.recorder.fill_rect(
                 image_rect_device_pixels,
                 selection_background_color,
                 ForceDarkRole::Selection,
             );
+            recorder.recorder.set_contrast_backdrop(previous);
         }
     }
 }

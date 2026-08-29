@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="mismatch" href="../expected/force-dark-tones-down-glaring-borders-notref.html">
+<style>
+    body { margin: 0; background: #181818; color: #e8e8e8; }
+    #box { width: 100px; height: 100px; border: 8px solid #dddddd; }
+</style>
+<div id="box"></div>
+<script>
+    // Everything but the border is a fixed point of the filter, and the light gray survives classification too (its
+    // luma is above the foreground threshold). Only the border darkening pass can change it — a match means it's gone.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

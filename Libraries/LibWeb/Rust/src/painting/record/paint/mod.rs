@@ -86,7 +86,9 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
                 paint_base_with(recorder, paintable, phase, fieldset::paint_background);
                 return;
             }
+            let previous = set_own_background_as_contrast_backdrop(recorder, paintable);
             fieldset::paint_border(recorder, paintable);
+            recorder.recorder.set_contrast_backdrop(previous);
         }
         NodeKind::SVGSVGBox
         | NodeKind::SVGGraphicsBox
@@ -152,17 +154,36 @@ pub(crate) fn paint_base_with(
         )
         && !facts.empty_cells_property_applies
     {
+        let previous = set_own_background_as_contrast_backdrop(recorder, paintable);
         border::paint_box_borders_from_style(recorder, paintable, &facts);
+        recorder.recorder.set_contrast_backdrop(previous);
     }
     if phase == PaintPhase::TableCollapsedBorder {
+        let previous = set_own_background_as_contrast_backdrop(recorder, paintable);
         table_borders::paint_table_borders(recorder, paintable);
+        recorder.recorder.set_contrast_backdrop(previous);
     }
     if phase == PaintPhase::Outline {
+        let previous = set_own_background_as_contrast_backdrop(recorder, paintable);
         outline::paint_outline_phase(recorder, paintable);
+        recorder.recorder.set_contrast_backdrop(previous);
     }
     if phase == PaintPhase::Overlay {
         overlay::paint_overlay(recorder, paintable);
     }
+}
+
+/// Hands force-dark the color the box's borders and selections sit against: its own background as authored.
+/// Returns the previous scope for the caller to restore.
+fn set_own_background_as_contrast_backdrop(
+    recorder: &mut PaintRecorder<'_>,
+    paintable: NodeSlotId,
+) -> Option<libgfx_rust::Color> {
+    let backdrop = recorder
+        .layout_arena
+        .node_style_if_live(paintable)
+        .map(|style| libgfx_rust::Color(style.background().background_color));
+    recorder.recorder.set_contrast_backdrop(backdrop)
 }
 
 pub(crate) fn paint_backdrop_filter(

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    body { margin: 0; background: #000000; }
+    fieldset {
+        margin: 20px; padding: 20px; width: 100px; height: 60px;
+        background: #c8c8c8; border: 10px solid #ffffff;
+    }
+    legend { width: 20px; height: 10px; padding: 0; background: #c8c8c8; }
+</style>
+<fieldset><legend></legend></fieldset>
+<script>
+    // The same page with force-dark off.
+    if (window.internals)
+        internals.setForceDarkEnabled(false);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

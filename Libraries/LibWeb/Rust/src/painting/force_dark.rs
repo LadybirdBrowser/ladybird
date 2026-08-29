@@ -95,6 +95,7 @@ const LIGHTNESS_LIFT: f32 = 1.20;
 // The contrast floor selection colors are raised to, against the dark surface color; Chrome's
 // color_utils::kMinimumVisibleContrastRatio.
 const MINIMUM_VISIBLE_CONTRAST_RATIO: f64 = 3.0;
+const MINIMUM_READABLE_CONTRAST_RATIO: f64 = 4.5;
 const DARK_SURFACE: Color = Color::from_rgb(18, 18, 18);
 
 fn srgb_channel_to_linear(c: f32) -> f32 {
@@ -236,18 +237,95 @@ pub fn adjust_for_contrast(color: Color, backdrop: Color, target_ratio: f64) -> 
 /// The color to actually paint. Selection colors are additionally kept visible against the dark surface color, the
 /// way Chrome adjusts ElementRole::kSelection when no contrast background is known.
 pub fn resolve(color: Color, role: ForceDarkRole, settings: &ForceDarkSettings) -> Color {
+    resolve_against_backdrop(color, role, None, settings)
+}
+
+/// The backdrop is the element's own background as authored, run through the background rule so the judgment sees
+/// what actually gets painted there. Absent or not fully opaque, Chrome's stand-in — the dark surface color.
+pub fn resolve_against_backdrop(
+    color: Color,
+    role: ForceDarkRole,
+    backdrop: Option<Color>,
+    settings: &ForceDarkSettings,
+) -> Color {
+    resolve_against_backdrop_with(color, role, backdrop, settings, &mut invert_lightness)
+}
+
+/// The one copy of the role dispatch and the backdrop rule, shared so the memoizing resolver can't drift from the
+/// pure functions — the caller brings the inverter.
+fn resolve_against_backdrop_with(
+    color: Color,
+    role: ForceDarkRole,
+    backdrop: Option<Color>,
+    settings: &ForceDarkSettings,
+    invert: &mut impl FnMut(Color) -> Color,
+) -> Color {
     if role == ForceDarkRole::None || color.alpha() == 0 {
         return color;
     }
     let resolved = if should_invert(color, role, settings) {
-        invert_lightness(color)
+        invert(color)
     } else {
         color
     };
-    if role == ForceDarkRole::Selection {
-        return adjust_for_contrast(resolved, DARK_SURFACE, MINIMUM_VISIBLE_CONTRAST_RATIO);
+    match role {
+        ForceDarkRole::Border => {
+            adjust_border_against_backdrop(resolved, resolve_backdrop_with(backdrop, settings, invert))
+        }
+        ForceDarkRole::Selection => adjust_for_contrast(
+            resolved,
+            resolve_backdrop_with(backdrop, settings, invert),
+            MINIMUM_VISIBLE_CONTRAST_RATIO,
+        ),
+        _ => resolved,
     }
-    resolved
+}
+
+fn resolve_backdrop_with(
+    backdrop: Option<Color>,
+    settings: &ForceDarkSettings,
+    invert: &mut impl FnMut(Color) -> Color,
+) -> Color {
+    let Some(backdrop) = backdrop.filter(|color| color.alpha() == 255) else {
+        return DARK_SURFACE;
+    };
+    if should_invert(backdrop, ForceDarkRole::Background, settings) {
+        invert(backdrop)
+    } else {
+        backdrop
+    }
+}
+
+/// Chrome's border half of AdjustDarkenColor (crbug.com/1263545): a border still clearing the readable mark against
+/// the darkened page reads as glare, so it steps down until it doesn't. Black borders are exempt, matching Chrome.
+pub fn adjust_border_against_backdrop(color: Color, backdrop: Color) -> Color {
+    let mut current = color;
+    loop {
+        if current.red() == 0 && current.green() == 0 && current.blue() == 0 {
+            return current;
+        }
+        if backdrop.blend(current).contrast_ratio(backdrop) < MINIMUM_READABLE_CONTRAST_RATIO {
+            return current;
+        }
+        current = darken(current);
+    }
+}
+
+/// One step of Blink's Color::Dark(): scale every channel so the brightest one drops by a third of full scale.
+/// A step from a channel already at or below that third lands on black, which ends the border loop above.
+fn darken(color: Color) -> Color {
+    let brightest = color.red().max(color.green()).max(color.blue()) as f32 / 255.0;
+    let multiplier = if brightest == 0.0 {
+        0.0
+    } else {
+        ((brightest - 0.33) / brightest).max(0.0)
+    };
+    Color::from_rgba(
+        (color.red() as f32 * multiplier).round() as u8,
+        (color.green() as f32 * multiplier).round() as u8,
+        (color.blue() as f32 * multiplier).round() as u8,
+        color.alpha(),
+    )
 }
 
 /// Resolve every stop in a gradient. Each one goes through the filter on its own, so the gradient darkens while
@@ -278,18 +356,14 @@ impl ForceDarkResolver {
     }
 
     pub fn resolve(&mut self, color: Color, role: ForceDarkRole) -> Color {
-        if role == ForceDarkRole::None || color.alpha() == 0 {
-            return color;
-        }
-        let resolved = if should_invert(color, role, &self.settings) {
+        self.resolve_against_backdrop(color, role, None)
+    }
+
+    pub fn resolve_against_backdrop(&mut self, color: Color, role: ForceDarkRole, backdrop: Option<Color>) -> Color {
+        let settings = self.settings;
+        resolve_against_backdrop_with(color, role, backdrop, &settings, &mut |color| {
             self.invert_memoized(color)
-        } else {
-            color
-        };
-        if role == ForceDarkRole::Selection {
-            return adjust_for_contrast(resolved, DARK_SURFACE, MINIMUM_VISIBLE_CONTRAST_RATIO);
-        }
-        resolved
+        })
     }
 
     pub fn resolve_each(&mut self, colors: &[Color], role: ForceDarkRole) -> Vec<Color> {
@@ -753,6 +827,121 @@ mod tests {
     }
 
     #[test]
+    fn a_pale_border_is_toned_down_against_the_dark_surface() {
+        // A light-gray border passes the foreground rule untouched (its luma is above the threshold), so without a
+        // darkening pass it glares against the darkened page. The pass steps it down until it reads as a border.
+        let pale = Color::from_rgb(0xdd, 0xdd, 0xdd);
+        let resolved = resolve(pale, ForceDarkRole::Border, &ForceDarkSettings::default());
+        assert_ne!(resolved, pale);
+        assert!(resolved.contrast_ratio(DARK_SURFACE) < MINIMUM_READABLE_CONTRAST_RATIO);
+    }
+
+    #[test]
+    fn a_black_border_is_left_alone() {
+        let black = Color::from_rgba(0, 0, 0, 200);
+        assert_eq!(adjust_border_against_backdrop(black, DARK_SURFACE), black);
+    }
+
+    #[test]
+    fn a_border_already_quiet_is_left_alone() {
+        // Mid-gray against a light backdrop is nowhere near the readable mark, so nothing steps it down.
+        let gray = Color::from_rgb(0x80, 0x80, 0x80);
+        assert_eq!(
+            adjust_border_against_backdrop(gray, Color::from_rgb(0xd0, 0xd0, 0xd0)),
+            gray
+        );
+    }
+
+    #[test]
+    fn one_darkening_step_matches_blink_for_white() {
+        // Blink hardcodes Color::Dark() of white as (171, 171, 171); the general formula has to agree with it.
+        assert_eq!(darken(Color::from_rgb(255, 255, 255)), Color::from_rgb(171, 171, 171));
+        // White on white has no contrast to shed, so it survives; the loop needs a backdrop it does contrast with.
+        let stepped = adjust_border_against_backdrop(Color::from_rgb(255, 255, 255), Color::from_rgb(255, 255, 255));
+        assert_eq!(stepped, Color::from_rgb(255, 255, 255));
+        // Against the dark surface the loop keeps stepping down until the glare is gone.
+        let against_dark = adjust_border_against_backdrop(Color::from_rgb(255, 255, 255), DARK_SURFACE);
+        assert!(against_dark.red() <= 171);
+        assert_eq!(against_dark.red(), against_dark.green());
+        assert_eq!(against_dark.green(), against_dark.blue());
+        assert!(against_dark.contrast_ratio(DARK_SURFACE) < MINIMUM_READABLE_CONTRAST_RATIO);
+    }
+
+    #[test]
+    fn a_translucent_border_is_judged_as_painted() {
+        // The raw RGB of a translucent border reads as glare while its composite doesn't; darkening it would
+        // punish a border that already paints quiet.
+        let quiet = Color::from_rgba(200, 200, 200, 100);
+        assert_eq!(adjust_border_against_backdrop(quiet, DARK_SURFACE), quiet);
+    }
+
+    #[test]
+    fn selection_contrast_honors_the_element_backdrop() {
+        // A mid-gray page area doesn't invert under the background rule, so the selection must clear it, not the
+        // dark surface color.
+        let settings = ForceDarkSettings::default();
+        let backdrop = Color::from_rgb(0x80, 0x80, 0x80);
+        let resolved = resolve_against_backdrop(
+            Color::from_rgb(0x66, 0x66, 0x66),
+            ForceDarkRole::Selection,
+            Some(backdrop),
+            &settings,
+        );
+        assert!(resolved.contrast_ratio(backdrop) >= MINIMUM_VISIBLE_CONTRAST_RATIO);
+    }
+
+    #[test]
+    fn a_transparent_backdrop_falls_back_to_the_dark_surface() {
+        let settings = ForceDarkSettings::default();
+        let with_none = resolve_against_backdrop(
+            Color::from_rgb(0xdd, 0xdd, 0xdd),
+            ForceDarkRole::Border,
+            None,
+            &settings,
+        );
+        let with_transparent = resolve_against_backdrop(
+            Color::from_rgb(0xdd, 0xdd, 0xdd),
+            ForceDarkRole::Border,
+            Some(Color::from_rgba(0xff, 0x00, 0x00, 0x00)),
+            &settings,
+        );
+        assert_eq!(with_none, with_transparent);
+    }
+
+    #[test]
+    fn a_translucent_backdrop_is_not_trusted() {
+        // A non-opaque background paints as a blend with its ancestors, which this judgment can't see — so it
+        // falls back to the stand-in rather than judging contrast against a color nobody painted.
+        let settings = ForceDarkSettings::default();
+        let translucent = Color::from_rgba(0xc0, 0xc0, 0xc0, 128);
+        for role in [ForceDarkRole::Border, ForceDarkRole::Selection] {
+            assert_eq!(
+                resolve_against_backdrop(Color::from_rgb(0x66, 0x66, 0x66), role, Some(translucent), &settings),
+                resolve_against_backdrop(Color::from_rgb(0x66, 0x66, 0x66), role, None, &settings)
+            );
+        }
+    }
+
+    #[test]
+    fn selection_darkens_when_the_backdrop_stays_light() {
+        // Against a backdrop the background rule leaves light, no lighter candidate can reach the floor — white
+        // manages only ~1.8:1 here — so the search has to go the other way.
+        let settings = ForceDarkSettings::default();
+        let backdrop = Color::from_rgb(0xc0, 0xc0, 0xc0);
+        let resolved = resolve_against_backdrop(
+            Color::from_rgb(0xa0, 0xa0, 0xa0),
+            ForceDarkRole::Selection,
+            Some(backdrop),
+            &settings,
+        );
+        assert!(
+            resolved.contrast_ratio(backdrop) >= MINIMUM_VISIBLE_CONTRAST_RATIO,
+            "selection landed at {resolved:?}, contrast {}",
+            resolved.contrast_ratio(backdrop)
+        );
+    }
+
+    #[test]
     fn selection_stays_visible_against_the_dark_surface() {
         // A white selection background inverts onto the dark surface color itself, where it would disappear; the
         // contrast floor lifts it back to visibility.
@@ -930,6 +1119,17 @@ mod tests {
                 // Twice, so the second answer comes from the memo.
                 assert_eq!(resolver.resolve(color, role), resolve(color, role, &settings));
                 assert_eq!(resolver.resolve(color, role), resolve(color, role, &settings));
+                // And against live backdrops, so the backdrop rule's two users stay in lockstep too.
+                for backdrop in [
+                    Some(Color::from_rgb(0xc0, 0xc0, 0xc0)),
+                    Some(Color::from_rgb(20, 20, 20)),
+                    Some(WHITE),
+                ] {
+                    assert_eq!(
+                        resolver.resolve_against_backdrop(color, role, backdrop),
+                        resolve_against_backdrop(color, role, backdrop, &settings)
+                    );
+                }
             }
         }
     }

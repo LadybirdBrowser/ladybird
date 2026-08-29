@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/force-dark-judges-fieldset-borders-against-their-own-backdrop-ref.html">
+<style>
+    body { margin: 0; background: #000000; }
+    fieldset {
+        margin: 20px; padding: 20px; width: 100px; height: 60px;
+        background: #c8c8c8; border: 10px solid #ffffff;
+    }
+    legend { width: 20px; height: 10px; padding: 0; background: #c8c8c8; }
+</style>
+<fieldset><legend></legend></fieldset>
+<script>
+    // A fieldset with a legend paints its border through its own path rather than the shared one. The page stays black
+    // and the fieldset's light gray sits under the background threshold, so neither moves; the border is judged for
+    // glare against the fieldset's own light backdrop, which white doesn't outshine, so it stays white. Judged against
+    // the dark surface instead, it would step down to gray.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>
