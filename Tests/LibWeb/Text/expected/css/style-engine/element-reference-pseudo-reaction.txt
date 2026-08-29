@@ -1,0 +1,8 @@
+color: rgb(0, 128, 0)
+content color: rgb(0, 128, 0)
+content background: rgb(4, 5, 6)
+content x delta: 20
+scroll width delta: 20
+element recomputations: 1
+published reactions: 1
+layout style applications: 1

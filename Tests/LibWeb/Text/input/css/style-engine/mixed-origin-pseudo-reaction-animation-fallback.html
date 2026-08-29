@@ -1,9 +1,17 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
 <style>
+    @keyframes hold-after-color {
+        from, to { background-color: blue; }
+    }
+
     .target { background-color: red; }
     .target::before { content: "before"; background-color: green; }
-    .target::after { content: "after"; background-color: blue; }
+    .target::after {
+        content: "after";
+        background-color: blue;
+        animation: hold-after-color 1s paused;
+    }
     .guard .target { background-color: yellow; }
     .guard .target::before { background-color: purple; }
 </style>
@@ -24,5 +32,6 @@
         const counters = internals.getStyleInvalidationCounters();
         println("published reactions: " + counters.styleEnginePublishedReactions);
         println("element recomputations: " + counters.elementStyleRecomputations);
+        println("pseudo layout style applications: " + counters.pseudoElementLayoutStyleApplications);
     });
 </script>

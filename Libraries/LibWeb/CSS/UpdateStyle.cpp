@@ -43,13 +43,25 @@ static void finish_complete_style_update()
 static void update_style(DOM::Document&);
 static bool update_style_for_element(DOM::Document&, DOM::AbstractElement const&, StyleUpdateMode);
 
-static void apply_element_style_invalidation_after_style_change(DOM::Element& element, RequiredInvalidationAfterStyleChange const& invalidation)
+static void apply_element_style_invalidation_after_style_change(DOM::Element& element, RequiredInvalidationAfterStyleChange const& invalidation, Optional<PseudoElement> pseudo_element = {})
 {
-    if (invalidation.accumulated_visual_contexts() == AccumulatedVisualContextInvalidation::UpdateValues)
-        element.document().schedule_accumulated_visual_context_value_update(element);
+    if (invalidation.accumulated_visual_contexts() == AccumulatedVisualContextInvalidation::UpdateValues) {
+        if (pseudo_element.has_value()) {
+            if (auto* layout_node = element.pseudo_element_unsafe_layout_node(*pseudo_element))
+                element.document().schedule_accumulated_visual_context_value_update(*layout_node);
+        } else {
+            element.document().schedule_accumulated_visual_context_value_update(element);
+        }
+    }
 
-    if (invalidation.needs_scrollable_overflow_recalculation())
-        element.document().schedule_scrollable_overflow_recalculation(element);
+    if (invalidation.needs_scrollable_overflow_recalculation()) {
+        if (pseudo_element.has_value()) {
+            if (auto* layout_node = element.pseudo_element_unsafe_layout_node(*pseudo_element))
+                element.document().schedule_scrollable_overflow_recalculation(*layout_node);
+        } else {
+            element.document().schedule_scrollable_overflow_recalculation(element);
+        }
+    }
 
     if (invalidation.needs_scroll_container_resnap)
         element.document().schedule_scroll_container_resnap();
@@ -192,6 +204,27 @@ static void record_assigned_slottable_style_engine_reactions(DOM::Element& eleme
     }
 }
 
+static void record_direct_child_style_engine_reactions_after_style_change(DOM::Element& element, HashMap<u32, StyleEngine::PublishedStyleDelta*>& reaction_batch, RequiredInvalidationAfterStyleChange const& invalidation, u8 common_child_reaction)
+{
+    auto light_tree_child_reaction = common_child_reaction;
+    u8 light_tree_inherited_style_groups = invalidation.inherited_style_groups_changed();
+    if (!invalidation.is_none() && element.children_explicitly_inherited_non_inherited_style_groups() != 0)
+        light_tree_inherited_style_groups = RequiredInvalidationAfterStyleChange::all_inherited_style_groups;
+    if (light_tree_inherited_style_groups != 0)
+        light_tree_child_reaction |= StyleEngine::InheritedStyle;
+    record_direct_child_style_engine_reactions(element, reaction_batch, light_tree_child_reaction, light_tree_inherited_style_groups);
+
+    if (auto shadow_root = element.shadow_root()) {
+        auto shadow_tree_child_reaction = common_child_reaction;
+        u8 shadow_tree_inherited_style_groups = invalidation.inherited_style_groups_changed();
+        if (!invalidation.is_none() && shadow_root->children_explicitly_inherited_non_inherited_style_groups() != 0)
+            shadow_tree_inherited_style_groups = RequiredInvalidationAfterStyleChange::all_inherited_style_groups;
+        if (shadow_tree_inherited_style_groups != 0)
+            shadow_tree_child_reaction |= StyleEngine::InheritedStyle;
+        record_direct_child_style_engine_reactions(*shadow_root, reaction_batch, shadow_tree_child_reaction, shadow_tree_inherited_style_groups);
+    }
+}
+
 // The static inherited-group swap answers a pure inherited-style reaction without recomputing the element. That
 // is only sound while the element's computed style is a pure function of its cascade inputs and the swapped
 // groups: an element with animations may resolve keyframe values (`inherit`, neutral keyframes) against the
@@ -251,9 +284,27 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             auto pseudo_element = pseudo_element_from_ffi(reaction.pseudo_kind);
             VERIFY(pseudo_element.has_value());
             VERIFY(*pseudo_element != PseudoElement::UnknownWebKit);
-            auto invalidation = element->apply_style_engine_pseudo_reaction(*pseudo_element);
-            apply_element_style_invalidation_after_style_change(*element, invalidation);
+            bool did_change_custom_properties = false;
+            auto invalidation = element->apply_style_engine_pseudo_reaction(did_change_custom_properties, *pseudo_element);
+            apply_element_style_invalidation_after_style_change(*element, invalidation, *pseudo_element);
             transaction_invalidation |= invalidation;
+            if (is_element_reference_pseudo_element(*pseudo_element)) {
+                auto referenced_pseudo_element = element->get_pseudo_element(*pseudo_element);
+                VERIFY(referenced_pseudo_element.has_value());
+                auto& referenced_element = as<DOM::ElementReferencePseudoElement>(*referenced_pseudo_element).referenced_element();
+                if (!invalidation.is_none() || did_change_custom_properties) {
+                    referenced_element->invalidate_descendant_styles_depending_on_style_container_query();
+                    record_assigned_slottable_style_engine_reactions(referenced_element, reaction_batch);
+                }
+                u8 common_child_reaction = 0;
+                if (did_change_custom_properties)
+                    common_child_reaction |= StyleEngine::InheritedCustomProperties;
+                if (invalidation.needs_layout_tree_rebuild())
+                    common_child_reaction |= StyleEngine::RecomputeStyle;
+                if (invalidation.recompute_descendant_styles)
+                    common_child_reaction |= StyleEngine::RecomputeDescendantStyles;
+                record_direct_child_style_engine_reactions_after_style_change(referenced_element, reaction_batch, invalidation, common_child_reaction);
+            }
             continue;
         }
 
@@ -385,23 +436,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 && !(document.style_computer().style_engine().style_record_dependency_flags(current_style_record) & to_underlying(StyleRecordDependencyFlag::InDisplayNoneSubtree))))
             common_child_reaction |= StyleEngine::AncestorBecameVisible;
 
-        auto light_tree_child_reaction = common_child_reaction;
-        u8 light_tree_inherited_style_groups = invalidation.inherited_style_groups_changed();
-        if (!invalidation.is_none() && element->children_explicitly_inherited_non_inherited_style_groups() != 0)
-            light_tree_inherited_style_groups = RequiredInvalidationAfterStyleChange::all_inherited_style_groups;
-        if (light_tree_inherited_style_groups != 0)
-            light_tree_child_reaction |= StyleEngine::InheritedStyle;
-        record_direct_child_style_engine_reactions(*element, reaction_batch, light_tree_child_reaction, light_tree_inherited_style_groups);
-
-        if (auto shadow_root = element->shadow_root()) {
-            auto shadow_tree_child_reaction = common_child_reaction;
-            u8 shadow_tree_inherited_style_groups = invalidation.inherited_style_groups_changed();
-            if (!invalidation.is_none() && shadow_root->children_explicitly_inherited_non_inherited_style_groups() != 0)
-                shadow_tree_inherited_style_groups = RequiredInvalidationAfterStyleChange::all_inherited_style_groups;
-            if (shadow_tree_inherited_style_groups != 0)
-                shadow_tree_child_reaction |= StyleEngine::InheritedStyle;
-            record_direct_child_style_engine_reactions(*shadow_root, reaction_batch, shadow_tree_child_reaction, shadow_tree_inherited_style_groups);
-        }
+        record_direct_child_style_engine_reactions_after_style_change(*element, reaction_batch, invalidation, common_child_reaction);
     }
 
     return transaction_invalidation;

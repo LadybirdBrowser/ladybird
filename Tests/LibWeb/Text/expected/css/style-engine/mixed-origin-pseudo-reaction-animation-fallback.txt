@@ -1,0 +1,6 @@
+origin: rgb(255, 255, 0)
+before: rgb(128, 0, 128)
+after: rgb(0, 0, 255)
+published reactions: 1
+element recomputations: 1
+pseudo layout style applications: 2

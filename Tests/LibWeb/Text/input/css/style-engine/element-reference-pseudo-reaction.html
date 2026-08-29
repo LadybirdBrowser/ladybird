@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    details { width: 80px; overflow: auto; }
+    span { display: inline-block; width: 80px; }
+    .target::details-content { color: red; transform: translateX(1px); --accent: rgb(1, 2, 3); }
+    .changed .target::details-content { color: green; transform: translateX(21px); --accent: rgb(4, 5, 6); }
+    span { background-color: var(--accent); }
+</style>
+<div id="guard"><details id="target" class="target" open><span id="content">content</span></details></div>
+<script>
+    test(() => {
+        const guard = document.getElementById("guard");
+        const target = document.getElementById("target");
+        const content = document.getElementById("content");
+        getComputedStyle(target, "::details-content").color;
+        internals.updateStyle();
+        guard.classList.add("changed");
+        internals.updateStyle();
+        guard.classList.remove("changed");
+        internals.updateStyle();
+        target.offsetWidth;
+        const initialContentX = content.getBoundingClientRect().x;
+        const initialScrollWidth = target.scrollWidth;
+
+        internals.resetStyleInvalidationCounters();
+        guard.classList.add("changed");
+        internals.updateStyle();
+
+        println("color: " + getComputedStyle(target, "::details-content").color);
+        println("content color: " + getComputedStyle(content).color);
+        println("content background: " + getComputedStyle(content).backgroundColor);
+        println("content x delta: " + (content.getBoundingClientRect().x - initialContentX));
+        println("scroll width delta: " + (target.scrollWidth - initialScrollWidth));
+        const counters = internals.getStyleInvalidationCounters();
+        println("element recomputations: " + counters.elementStyleRecomputations);
+        println("published reactions: " + counters.styleEnginePublishedReactions);
+        println("layout style applications: " + counters.pseudoElementLayoutStyleApplications);
+    });
+</script>

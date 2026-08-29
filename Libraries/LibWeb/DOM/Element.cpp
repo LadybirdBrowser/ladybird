@@ -1684,13 +1684,12 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     return invalidation;
 }
 
-CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_pseudo_reaction(CSS::PseudoElement pseudo_element)
+CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_pseudo_reaction(bool& did_change_custom_properties, CSS::PseudoElement pseudo_element)
 {
     auto originating_style = computed_style();
     VERIFY(originating_style);
     VERIFY(has_style(pseudo_element));
 
-    bool did_change_custom_properties = false;
     CSS::StyleEngineMatchResult style_engine_matches;
     auto invalidation = recompute_pseudo_element_styles(
         did_change_custom_properties,
@@ -1701,7 +1700,29 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_pseudo_rea
         pseudo_element);
     if (!invalidation.is_none())
         document().style_invalidation_counters().committed_style_observer_consequences++;
-    apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(invalidation);
+    Optional<u8> pseudo_style_application_mask;
+    if (!has_relevant_animations() && !has_css_defined_animations()) {
+        if (CSS::is_synthetic_pseudo_element(pseudo_element)) {
+            auto pseudo_kind = to_underlying(pseudo_element);
+            VERIFY(pseudo_kind < sizeof(u8) * 8);
+            pseudo_style_application_mask = static_cast<u8>(1u << pseudo_kind);
+        } else {
+            pseudo_style_application_mask = 0;
+        }
+    }
+    apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(invalidation, pseudo_style_application_mask);
+
+    if (!invalidation.needs_layout_tree_rebuild() && CSS::is_element_reference_pseudo_element(pseudo_element)) {
+        auto referenced_pseudo_element = get_pseudo_element(pseudo_element);
+        VERIFY(referenced_pseudo_element.has_value());
+        auto& referenced_element = as<ElementReferencePseudoElement>(*referenced_pseudo_element).referenced_element();
+        if (auto* layout_node = referenced_element->unsafe_layout_node()) {
+            document().style_invalidation_counters().pseudo_element_layout_style_applications++;
+            layout_node->apply_style(referenced_element->style_record_identity());
+            if (Painting::has_committed_box(*layout_node))
+                Painting::repaint_after_style_change(*layout_node, invalidation);
+        }
+    }
     return invalidation;
 }
 
@@ -1940,7 +1961,7 @@ bool Element::apply_box_presence_change_in_place(SetNeedsLayoutTreeUpdateReason 
     return true;
 }
 
-void Element::apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalidationAfterStyleChange const& invalidation)
+void Element::apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalidationAfterStyleChange const& invalidation, Optional<u8> pseudo_style_application_mask)
 {
     auto* layout_node = unsafe_layout_node();
     if (invalidation.needs_layout_tree_rebuild() || !layout_node)
@@ -1952,19 +1973,24 @@ void Element::apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalid
     if (Painting::has_committed_box(*layout_node))
         Painting::repaint_after_style_change(*layout_node, invalidation);
 
-    apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(invalidation);
+    apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(invalidation, pseudo_style_application_mask);
 }
 
-void Element::apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(CSS::RequiredInvalidationAfterStyleChange const& invalidation)
+void Element::apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(CSS::RequiredInvalidationAfterStyleChange const& invalidation, Optional<u8> pseudo_style_application_mask)
 {
     if (invalidation.needs_layout_tree_rebuild())
         return;
 
     for_each_synthetic_pseudo_element([&](CSS::PseudoElement pseudo_element_type, SyntheticPseudoElement const& pseudo_element) {
+        auto pseudo_kind = to_underlying(pseudo_element_type);
+        if (pseudo_style_application_mask.has_value()
+            && (pseudo_kind >= sizeof(u8) * 8 || !(*pseudo_style_application_mask & (1u << pseudo_kind))))
+            return;
         if (!has_style(pseudo_element_type))
             return;
 
         if (auto node_with_style = pseudo_element.unsafe_layout_node()) {
+            document().style_invalidation_counters().pseudo_element_layout_style_applications++;
             node_with_style->apply_style(style_record_identity(pseudo_element_type));
             if (Painting::has_committed_box(*node_with_style))
                 Painting::repaint_after_style_change(*node_with_style, invalidation);
@@ -2054,6 +2080,11 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     auto backdrop_style_needs_materialization = [&] {
         return m_rendered_in_top_layer && !computed_style(CSS::PseudoElement::Backdrop);
     };
+    // Animation overlays can change under an unchanged base style record. Keep publishing every
+    // pseudo style when any animation may have updated one independently of this reaction.
+    auto can_mask_pseudo_style_application = [&] {
+        return !has_relevant_animations() && !has_css_defined_animations();
+    };
     ElementDependentInvalidationState old_state {
         .layout_node = unsafe_layout_node(),
         .content_counter_style_dependencies = {},
@@ -2109,7 +2140,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
             counters.element_style_noop_recomputations++;
             return invalidation;
         }
-        apply_computed_style_to_layout_node_if_needed(invalidation);
+        auto pseudo_style_application_mask = can_mask_pseudo_style_application()
+            ? exact_pseudo_recompute_mask
+            : Optional<u8> {};
+        apply_computed_style_to_layout_node_if_needed(invalidation, pseudo_style_application_mask);
         return invalidation;
     }
 
@@ -2254,7 +2288,11 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
         && had_list_marker == new_style->display().is_list_item()
         && style_engine_matches.node != 0
         && style_computer.style_engine().pseudo_cascade_states_are_unchanged(style_engine_matches.node);
-    if (!pseudo_inputs_are_known_unchanged) {
+    Optional<u8> pseudo_style_application_mask;
+    if (pseudo_inputs_are_known_unchanged) {
+        if (can_mask_pseudo_style_application())
+            pseudo_style_application_mask = 0;
+    } else {
         auto exact_pseudo_recompute_mask = recompute_reason == StyleEngineRecomputeReason::ExactPseudoInputs
                 && !backdrop_style_needs_materialization()
                 && !element_custom_properties_changed
@@ -2270,6 +2308,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
             &preserved_pseudo_element_styles,
             {},
             exact_pseudo_recompute_mask);
+        if (can_mask_pseudo_style_application())
+            pseudo_style_application_mask = exact_pseudo_recompute_mask;
     }
 
     if (old_computed_values && (element_style_changed || element_custom_properties_changed))
@@ -2281,7 +2321,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     }
 
     counters.committed_style_observer_consequences++;
-    apply_computed_style_to_layout_node_if_needed(invalidation);
+    apply_computed_style_to_layout_node_if_needed(invalidation, pseudo_style_application_mask);
 
     return invalidation;
 }

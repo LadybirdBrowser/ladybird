@@ -339,7 +339,7 @@ public:
         ExactPseudoInputs,
     };
     CSS::RequiredInvalidationAfterStyleChange apply_style_engine_reaction(bool& did_change_custom_properties, StyleEngineRecomputeReason = StyleEngineRecomputeReason::General, u8 inherited_style_groups = 0, u8 pseudo_recompute_mask = 0);
-    CSS::RequiredInvalidationAfterStyleChange apply_style_engine_pseudo_reaction(CSS::PseudoElement);
+    CSS::RequiredInvalidationAfterStyleChange apply_style_engine_pseudo_reaction(bool& did_change_custom_properties, CSS::PseudoElement);
     CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles_after_animation_update(Badge<Web::Animations::AnimationUpdateContext>);
 
     void set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason, CSS::LayoutTreeRebuildRoot);
@@ -878,8 +878,8 @@ private:
 
     void exit_fullscreen_on_element_removal();
     CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, CSS::StyleEngineMatchResult* = nullptr, PreservedPseudoElementStyles* = nullptr, Optional<CSS::PseudoElement> targeted_pseudo_element = {}, Optional<u8> pseudo_recompute_mask = {});
-    void apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalidationAfterStyleChange const&);
-    void apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(CSS::RequiredInvalidationAfterStyleChange const&);
+    void apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalidationAfterStyleChange const&, Optional<u8> pseudo_style_application_mask = {});
+    void apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(CSS::RequiredInvalidationAfterStyleChange const&, Optional<u8> pseudo_style_application_mask = {});
     void replace_style_record(CSS::StyleRecordID);
     void clear_computed_styles_from_display_none_descendants();
 

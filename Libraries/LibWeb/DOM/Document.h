@@ -1075,6 +1075,7 @@ public:
         // Semantic output cardinalities, distinct from how many elements entered recomputation.
         u64 element_computed_style_changes { 0 };
         u64 committed_style_observer_consequences { 0 };
+        u64 pseudo_element_layout_style_applications { 0 };
         u64 element_style_shared_computations { 0 };
         // Whether a recomputation could have been answered from what its last one read. The record
         // is the sharing key minus the style being replaced, so a recomputation whose input is
