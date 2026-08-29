@@ -481,6 +481,7 @@ fn empty_export(
         kind,
         parent: 0,
         spatial: 0,
+        has_empty_effective_clip: false,
         matrix: FloatMatrix4x4::default(),
         origin: FloatPoint::default(),
         flattens_inherited_transform: false,
@@ -567,6 +568,7 @@ pub fn export_frame_node(node: &FrameNode) -> crate::painting::host::FfiVisualCo
     let mut out = empty_export(node.data.kind());
     out.parent = node.parent.0;
     out.spatial = node.spatial.0;
+    out.has_empty_effective_clip = node.has_empty_effective_clip;
     match &node.data {
         FrameData::Clip(clip) => {
             out.clip_rect = clip.rect;
@@ -593,4 +595,197 @@ pub fn export_frame_node(node: &FrameNode) -> crate::painting::host::FfiVisualCo
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use libgfx_rust::translation_matrix;
+
+    fn transform(translation: f32) -> TransformData {
+        TransformData {
+            matrix: translation_matrix(translation, translation, 0.0),
+            origin: FloatPoint {
+                x: translation,
+                y: translation,
+            },
+            sorting_context_root_index: None,
+            flattens_inherited_transform: false,
+            role: TransformDataRole::CssTransform,
+            synthetic_plane: false,
+        }
+    }
+
+    fn tree() -> VisualContextTree {
+        VisualContextTree::create(transform(0.0))
+    }
+
+    fn effects() -> FrameData {
+        FrameData::Effects(EffectsData {
+            opacity: 1.0,
+            blend_mode: CompositingAndBlendingOperator::Normal,
+            filter: None,
+        })
+    }
+
+    fn mask(rect: IntRect) -> FrameData {
+        FrameData::Mask(MaskData {
+            rect,
+            kind: MaskKind::Alpha,
+            origin: MaskLayerOrigin::CssMaskLayers,
+        })
+    }
+
+    fn clip(rect: FloatRect, mode: ClipMode) -> FrameData {
+        FrameData::Clip(ClipData {
+            rect,
+            corner_radii: CornerRadii::default(),
+            mode,
+        })
+    }
+
+    #[test]
+    fn trees_with_the_same_structure_are_compatible() {
+        let mut tree = VisualContextTree::create(transform(1.0));
+        tree.append_spatial(SpatialData::Transform(transform(2.0)), VISUAL_VIEWPORT_NODE_INDEX);
+
+        let mut updated_tree = VisualContextTree::create(transform(3.0));
+        updated_tree.append_spatial(SpatialData::Transform(transform(4.0)), VISUAL_VIEWPORT_NODE_INDEX);
+
+        assert!(updated_tree.is_compatible_with(&tree));
+    }
+
+    #[test]
+    fn compatibility_requires_the_same_shape() {
+        let mut reference = tree();
+        reference.append_spatial(SpatialData::Transform(transform(1.0)), VISUAL_VIEWPORT_NODE_INDEX);
+
+        let shorter_tree = tree();
+        assert!(!shorter_tree.is_compatible_with(&reference));
+
+        let mut different_type_tree = tree();
+        different_type_tree.append_spatial(
+            SpatialData::Perspective(PerspectiveData {
+                matrix: FloatMatrix4x4::identity(),
+                flattens_inherited_transform: false,
+            }),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        assert!(!different_type_tree.is_compatible_with(&reference));
+
+        let mut frame_tree = tree();
+        frame_tree.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        assert!(!frame_tree.is_compatible_with(&reference));
+
+        let mut mask_tree = tree();
+        mask_tree.append_frame(
+            mask(IntRect {
+                x: 0,
+                y: 0,
+                width: 1,
+                height: 1,
+            }),
+            FrameNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        assert!(!mask_tree.is_compatible_with(&frame_tree));
+
+        let mut different_parent_tree = tree();
+        let parent =
+            different_parent_tree.append_spatial(SpatialData::Transform(transform(1.0)), VISUAL_VIEWPORT_NODE_INDEX);
+        different_parent_tree.append_spatial(SpatialData::Transform(transform(2.0)), parent);
+
+        let mut same_node_count_tree = tree();
+        same_node_count_tree.append_spatial(SpatialData::Transform(transform(1.0)), VISUAL_VIEWPORT_NODE_INDEX);
+        same_node_count_tree.append_spatial(SpatialData::Transform(transform(2.0)), VISUAL_VIEWPORT_NODE_INDEX);
+        assert!(!different_parent_tree.is_compatible_with(&same_node_count_tree));
+
+        let mut frame_under_root_tree = tree();
+        let frame_under_root_spatial =
+            frame_under_root_tree.append_spatial(SpatialData::Transform(transform(1.0)), VISUAL_VIEWPORT_NODE_INDEX);
+        frame_under_root_tree.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+
+        let mut frame_under_transform_tree = tree();
+        let frame_under_transform_spatial = frame_under_transform_tree
+            .append_spatial(SpatialData::Transform(transform(1.0)), VISUAL_VIEWPORT_NODE_INDEX);
+        frame_under_transform_tree.append_frame(effects(), FrameNodeIndex::NONE, frame_under_transform_spatial);
+
+        assert_eq!(frame_under_root_spatial, frame_under_transform_spatial);
+        assert!(!frame_under_root_tree.is_compatible_with(&frame_under_transform_tree));
+    }
+
+    #[test]
+    fn compatibility_requires_the_same_empty_effective_clip() {
+        let mut empty_clip_tree = tree();
+        empty_clip_tree.append_frame(
+            clip(FloatRect::default(), ClipMode::Intersect),
+            FrameNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+
+        let mut non_empty_clip_tree = tree();
+        non_empty_clip_tree.append_frame(
+            clip(FloatRect::new(0.0, 0.0, 1.0, 1.0), ClipMode::Intersect),
+            FrameNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+
+        assert!(!empty_clip_tree.is_compatible_with(&non_empty_clip_tree));
+    }
+
+    #[test]
+    fn compatibility_requires_the_same_root_isolation_frame() {
+        let mut isolated = tree();
+        let isolation_frame = isolated.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        isolated.root_isolation_frame = Some(isolation_frame);
+
+        let mut not_isolated = tree();
+        not_isolated.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        assert!(!isolated.is_compatible_with(&not_isolated));
+
+        let mut also_isolated = tree();
+        let also_isolation_frame =
+            also_isolated.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        also_isolated.root_isolation_frame = Some(also_isolation_frame);
+        assert!(isolated.is_compatible_with(&also_isolated));
+    }
+
+    #[test]
+    fn mask_data_contributes_to_the_empty_effective_clip() {
+        let mut tree = tree();
+        let unit_rect = IntRect {
+            x: 0,
+            y: 0,
+            width: 1,
+            height: 1,
+        };
+        let non_empty_mask = tree.append_frame(mask(unit_rect), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        assert!(!tree.frame_nodes[non_empty_mask.0 as usize].has_empty_effective_clip);
+
+        let empty_mask = tree.append_frame(
+            mask(IntRect::default()),
+            FrameNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        assert!(tree.frame_nodes[empty_mask.0 as usize].has_empty_effective_clip);
+
+        let empty_parent = tree.append_frame(
+            clip(FloatRect::default(), ClipMode::Intersect),
+            FrameNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let inherited_empty_clip = tree.append_frame(mask(unit_rect), empty_parent, VISUAL_VIEWPORT_NODE_INDEX);
+        assert!(tree.frame_nodes[inherited_empty_clip.0 as usize].has_empty_effective_clip);
+    }
+
+    #[test]
+    fn a_difference_clip_with_an_empty_rect_is_not_an_empty_effective_clip() {
+        let mut tree = tree();
+        let frame = tree.append_frame(
+            clip(FloatRect::default(), ClipMode::Difference),
+            FrameNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        assert!(!tree.frame_nodes[frame.0 as usize].has_empty_effective_clip);
+    }
 }
