@@ -129,6 +129,12 @@ pub(crate) struct OwnedCollapsedTableBorders {
     pub(crate) vertical_edges: Vec<CollapsedBorderEdge>,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum TableParticipantPreparation {
+    CreateUsedValues,
+    TrackPercentageDependenciesOnly,
+}
+
 fn grid_line_offsets(sizes: impl ExactSizeIterator<Item = CssPixels>) -> Vec<CssPixels> {
     let mut offsets = Vec::with_capacity(sizes.len() + 1);
     let mut offset = CssPixels::default();
@@ -972,7 +978,7 @@ impl TableFormattingContext {
         self.cell_pre_layout_content_block_sizes = vec![CssPixels::default(); self.cells.len()];
         self.deferred_cell_inside_layouts = vec![false; self.cells.len()];
         self.needs_fixed_mode_row_measurement = false;
-        self.seed_table_participant_used_values();
+        self.prepare_table_participants(TableParticipantPreparation::CreateUsedValues);
         self.border_conflict_resolution();
         self.compute_table_inline_size();
         true
@@ -1227,17 +1233,18 @@ impl TableFormattingContext {
 
     // Participants resolve percentages against the table's input basis inside this context, so
     // their dependency is charged here rather than through child runs.
-    fn seed_table_participant_used_values(&mut self) {
-        let participants: Vec<Node> = self
-            .matching_children(self.table_box, |display| display.is_table_row_group_kind())
+    fn prepare_table_participants(&mut self, preparation: TableParticipantPreparation) {
+        let row_groups = self.matching_children(self.table_box, |display| display.is_table_row_group_kind());
+        let participants = row_groups
             .into_iter()
             .chain(self.rows.iter().map(|row| row.box_))
-            .chain(self.cells.iter().map(|cell| cell.box_))
-            .collect();
+            .chain(self.cells.iter().map(|cell| cell.box_));
         let sizing = self.sizing();
         let table_record = self.used_values(self.table_box);
         for participant in participants {
-            self.create_used_values(participant, self.participant_constraints);
+            if preparation == TableParticipantPreparation::CreateUsedValues {
+                self.create_used_values(participant, self.participant_constraints);
+            }
             if sizing.own_style_depends_on_percentage_block_size(participant) {
                 table_record
                     .has_descendant_that_depends_on_percentage_block_size
@@ -1323,9 +1330,9 @@ impl TableFormattingContext {
             let padding_block_end = style.padding_bottom().to_px(block_basis);
             let padding_inline_start = style.padding_left().to_px(inline_basis);
             let padding_inline_end = style.padding_right().to_px(inline_basis);
-            let used = self.used_values(cell.box_);
             // Implement the collapsing border model https://www.w3.org/TR/CSS22/tables.html#collapsing-borders.
             let (border_block_start, border_block_end, border_inline_start, border_inline_end) = if collapsed {
+                let used = self.used_values(cell.box_);
                 (
                     used.border_top_collapsed(true),
                     used.border_bottom_collapsed(true),
@@ -2065,7 +2072,15 @@ impl TableFormattingContext {
             },
             quirks_mode_percentage_basis_block_size: self.table_constraints.quirks_mode_percentage_basis_block_size,
         };
-        self.seed_table_participant_used_values();
+        let participant_preparation =
+            if skip_row_measurement && self.style(self.table_box).border_collapse() == BORDER_COLLAPSE_SEPARATE {
+                // OPTIMIZATION: Wrapper inline sizing measures cell contents in isolated measurement runs and does not
+                //               otherwise read participant UsedValues in the separated-borders model.
+                TableParticipantPreparation::TrackPercentageDependenciesOnly
+            } else {
+                TableParticipantPreparation::CreateUsedValues
+            };
+        self.prepare_table_participants(participant_preparation);
         self.border_conflict_resolution();
 
         let mut include_rows = !skip_row_measurement;
