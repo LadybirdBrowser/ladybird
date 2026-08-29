@@ -1,5 +1,5 @@
-removed: page target=AREA#area-removed
-removed-over-link: page target=AREA#area-link
-moved: page target=AREA#area-moved
-hidden: page target=AREA#area-hidden
+removed: page target=DIV#behind-removed
+removed-over-link: link target=A#behind-link
+moved: page target=DIV#behind-moved
+hidden: page target=DIV#behind-hidden
 restyled: image target=IMG#img-restyled

@@ -368,7 +368,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     //     matching other engines. The page can still suppress the native context menu by cancelling the
     //     contextmenu event itself.
     if (is_context_menu_trigger && dispatch_result != PointerEventDispatchResult::SwallowedByChromeWidget)
-        maybe_show_context_menu(*node, *target, coordinates, screen_position, viewport_position, buttons, modifiers);
+        maybe_show_context_menu(*node, coordinates, screen_position, viewport_position, buttons, modifiers);
 
     if (dispatch_result != PointerEventDispatchResult::RunDefaultActions)
         return EventResult::Cancelled;
@@ -2547,7 +2547,7 @@ void EventHandler::run_activation_behavior(GC::Ref<DOM::Node> node, unsigned but
 }
 
 // https://w3c.github.io/uievents/#maybe-show-context-menu
-void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, Target const& target, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers)
+void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers)
 {
     // AD-HOC: Allow the user to bypass custom context menus by holding shift, like Firefox.
     if ((modifiers & UIEvents::Mod_Shift) == 0) {
@@ -2573,8 +2573,28 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, Target const
     // NB: Event dispatches above may have run JS that invalidated layout.
     document->update_layout(DOM::UpdateLayoutReason::EventHandlerShowContextMenu);
 
+    // AD-HOC: Retarget the user-agent context menu now that layout has potentially changed.
+    //
+    //         We also prioritize the layout node's DOM node. This gives us the parent of a text fragment instead of
+    //         the containing block. It also gives us the <img> element instead of an associated <map> element that
+    //         other events target, matching how Chromium and WebKit behave.
+    //
+    //         Firefox does not do this retargeting, and also opts not to target an <img> element when the cursor is
+    //         above a <map> element.
+    auto hit = document->hit_test(coordinates.visual_viewport_position);
+    if (!hit.has_value())
+        return;
+    GC::Ref<DOM::Node> node_under_pointer = *hit->dom_node();
+    GC::Ref<DOM::Node> node_of_box_under_pointer = node_under_pointer;
+    if (auto* dom_node = hit->layout_node()->dom_node())
+        node_of_box_under_pointer = *dom_node;
+    else if (!is<DOM::Element>(*node_under_pointer)) {
+        if (auto* parent_element = node_under_pointer->parent_or_shadow_host_element())
+            node_of_box_under_pointer = *parent_element;
+    }
+
     auto top_level_viewport_position = m_navigable->to_top_level_position(viewport_position);
-    if (auto const* link = node->enclosing_link_element()) {
+    if (auto const* link = node_under_pointer->enclosing_link_element()) {
         auto href = link->href();
         auto url = document->encoding_parse_url(href);
         if (url.has_value()) {
@@ -2585,21 +2605,12 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, Target const
         // AD-HOC: Skip up the tree to the first ancestor that is not a UA shadow DOM node, and use its context menu.
         //         Media elements' controls' shadow DOM nodes should not have their own context menu, but rather
         //         activate their parent media element's menu.
-        auto context_menu_node = node;
+        auto context_menu_node = node_of_box_under_pointer;
         while (auto shadow_root = context_menu_node->containing_shadow_root()) {
             if (!shadow_root->is_user_agent_internal())
                 break;
             VERIFY(shadow_root->host() != nullptr);
             context_menu_node = *shadow_root->host();
-        }
-
-        // AD-HOC: Area elements are never rendered, so use the image over which the context menu was requested
-        //         instead. This keeps the image context menu available over image maps.
-        if (is<HTML::HTMLAreaElement>(*context_menu_node)) {
-            if (auto* layout_node = target.layout_node()) {
-                if (auto* image_element = as_if<HTML::HTMLImageElement>(layout_node->dom_node()))
-                    context_menu_node = *image_element;
-            }
         }
 
         if (is<HTML::HTMLImageElement>(*context_menu_node)) {
