@@ -251,6 +251,44 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
     if (first_letter_owner)
         return false;
 
+    if (parent_lays_out_table_rows) {
+        enum class SiblingDirection {
+            Previous,
+            Next,
+        };
+        auto has_table_row_sibling = [&](DOM::Node const* sibling, SiblingDirection direction) {
+            for (; sibling; sibling = direction == SiblingDirection::Next ? sibling->next_sibling() : sibling->previous_sibling()) {
+                if (auto const* sibling_layout_node = sibling->unsafe_layout_node()) {
+                    auto const* node_with_style = as_if<NodeWithStyle>(*sibling_layout_node);
+                    return sibling_layout_node->parent() == layout_node && node_with_style && node_with_style->display().is_table_row();
+                }
+
+                if (auto const* sibling_element = as_if<DOM::Element>(*sibling)) {
+                    auto computed_style = sibling_element->computed_style();
+                    if (!computed_style)
+                        return false;
+                    if (!computed_style->display().is_none())
+                        return sibling->needs_layout_tree_update() && computed_style->display().is_table_row();
+                } else if (auto const* sibling_text = as_if<DOM::Text>(*sibling); sibling_text && !sibling_text->data().is_ascii_whitespace()) {
+                    return false;
+                }
+            }
+            return false;
+        };
+
+        // NB: Table fixup discards whitespace at the edge of a row group. Inserting a row outside
+        //     that whitespace makes it interior, so only a rebuild can create its anonymous table-row box.
+        for (auto const* child = node.first_child(); child; child = child->next_sibling()) {
+            auto const* text = as_if<DOM::Text>(*child);
+            if (!text || child->unsafe_layout_node() || child->needs_layout_tree_update() || !text->data().is_ascii_whitespace())
+                continue;
+            if (has_table_row_sibling(child->previous_sibling(), SiblingDirection::Previous)
+                && has_table_row_sibling(child->next_sibling(), SiblingDirection::Next)) {
+                return false;
+            }
+        }
+    }
+
     bool will_insert_inline_child = false;
     bool will_insert_block_child = false;
     bool has_indirect_existing_child = false;
