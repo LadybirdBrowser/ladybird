@@ -153,6 +153,34 @@ impl FloatRect {
     pub fn bottom(self) -> f32 {
         self.y + self.height
     }
+    pub fn top_left(self) -> FloatPoint {
+        FloatPoint { x: self.x, y: self.y }
+    }
+    pub fn top_right(self) -> FloatPoint {
+        FloatPoint {
+            x: self.right(),
+            y: self.y,
+        }
+    }
+    pub fn bottom_left(self) -> FloatPoint {
+        FloatPoint {
+            x: self.x,
+            y: self.bottom(),
+        }
+    }
+    pub fn bottom_right(self) -> FloatPoint {
+        FloatPoint {
+            x: self.right(),
+            y: self.bottom(),
+        }
+    }
+    pub fn translated(self, dx: f32, dy: f32) -> Self {
+        Self {
+            x: self.x + dx,
+            y: self.y + dy,
+            ..self
+        }
+    }
 }
 
 pub fn enclosing_int_rect(rect: FloatRect) -> IntRect {
