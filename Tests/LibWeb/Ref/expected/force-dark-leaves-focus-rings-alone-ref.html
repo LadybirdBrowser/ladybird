@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    body { margin: 0; background: #000000; }
+    #target { width: 100px; height: 100px; margin: 20px; background: #000000; }
+</style>
+<div id="target" tabindex="0"></div>
+<script>
+    // The focus ring is :focus-visible, which only keyboard focus earns, and it only paints while the window has
+    // focus; a headless run has to fake both, so the page is focused and Tab is pressed through internals.
+    // The reference renders without force-dark, whatever the persisted browser setting says.
+    if (window.internals) {
+        internals.setForceDarkEnabled(false);
+        internals.setPageFocus(true);
+        internals.sendKey(document.body, "Tab");
+    }
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

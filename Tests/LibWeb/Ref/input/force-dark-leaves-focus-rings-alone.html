@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/force-dark-leaves-focus-rings-alone-ref.html">
+<style>
+    body { margin: 0; background: #000000; }
+    #target { width: 100px; height: 100px; margin: 20px; background: #000000; }
+</style>
+<div id="target" tabindex="0"></div>
+<script>
+    // Everything here is already dark, so force-dark leaves it alone, and the one thing left on screen is the focus
+    // ring: the user agent's own accessibility affordance, which has to keep its color rather than be inverted or
+    // toned down like an author's border would be.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    // The focus ring is :focus-visible, which only keyboard focus earns, and it only paints while the window has
+    // focus; a headless run has to fake both, so the page is focused and Tab is pressed through internals.
+    if (window.internals) {
+        internals.setPageFocus(true);
+        internals.sendKey(document.body, "Tab");
+    }
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

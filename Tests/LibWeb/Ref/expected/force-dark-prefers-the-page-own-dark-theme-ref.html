@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; background: #181818; color: #e8e8e8; }
+</style>
+<div>native dark, not filtered</div>
+<script>
+    // The dark theme the test page must arrive at, written out directly, with force-dark off.
+    if (window.internals)
+        internals.setForceDarkEnabled(false);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

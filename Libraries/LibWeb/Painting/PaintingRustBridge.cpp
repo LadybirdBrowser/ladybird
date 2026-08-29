@@ -1306,6 +1306,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     if (auto navigable = document.navigable())
         inputs.css_viewport_rect = navigable->viewport_rect();
     inputs.should_show_line_box_borders = config.should_show_line_box_borders;
+    inputs.force_dark_enabled = config.force_dark_enabled;
     inputs.should_paint_overlay = config.paint_overlay;
     inputs.is_recording_async_scrolling_metadata = true;
     inputs.document_id = document.unique_id().value();

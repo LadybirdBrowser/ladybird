@@ -1,0 +1,9 @@
+force-dark on from the start: no compositor marker: true
+force-dark on from the start: no compositor animation: true
+force-dark on from the start: the main thread keeps ticking: true
+force-dark off: compositor marker: true
+force-dark off: compositor animation: true
+force-dark off: the main thread stops ticking: true
+force-dark turned on mid-animation: no compositor marker: true
+force-dark turned on mid-animation: no compositor animation: true
+force-dark turned on mid-animation: the main thread ticks again: true

@@ -1215,6 +1215,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             if (test_result != TestResult::Crashed) {
                 view->clear_content_blockers();
                 view->reset_zoom();
+                view->reset_force_dark();
                 view->reset_viewport_size(window_size);
             }
 

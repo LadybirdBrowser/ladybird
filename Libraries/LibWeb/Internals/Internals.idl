@@ -4,6 +4,7 @@ interface Internals {
     undefined signalTestIsDone(DOMString text);
     undefined setTestTimeout(double milliseconds);
     undefined forceIncompatibleVisualContextTreeRebuild();
+    undefined setForceDarkEnabled(boolean enabled);
     unsigned long long visualContextTreeNodeCount();
     unsigned long long visualContextPendingDirtyBoxCount();
     unsigned long long accumulatedVisualContextIncrementalUpdateCount();

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta name="color-scheme" content="only light">
+<link rel="match" href="../expected/force-dark-honors-color-scheme-only-meta-ref.html">
+<style>
+    body { margin: 0; background: #ffffff; }
+    #box { width: 100px; height: 100px; background: #ffffff; border: 20px solid #000000; }
+</style>
+<div id="box"></div>
+<script>
+    // The only keyword works the same stated through the meta tag as through the property on the root.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

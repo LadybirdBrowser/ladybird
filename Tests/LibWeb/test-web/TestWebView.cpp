@@ -33,6 +33,12 @@ void TestWebView::clear_content_blockers()
     client().async_set_content_blockers(m_client_state.page_index, MUST(Core::AnonymousBuffer::create_with_size(0)));
 }
 
+// Force-dark rides on the navigable, so a test that turns it on leaves it on for whatever runs next in this view.
+void TestWebView::reset_force_dark()
+{
+    debug_request("set-force-dark"sv, "off"sv);
+}
+
 NonnullRefPtr<Core::Promise<Empty>> TestWebView::reset_session_history()
 {
     return WebView::ViewImplementation::reset_session_history_for_testing();

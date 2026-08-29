@@ -10,6 +10,7 @@ use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::display_list::builder::PendingInlineClip;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
+use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::PaintRecorder;
@@ -75,6 +76,7 @@ pub(crate) fn fieldset_borders_data(
     };
     let none = BorderDataDevicePixels::default();
     let all = BordersDataDevicePixels {
+        force_dark_role: ForceDarkRole::Border,
         top: side(
             style.border_top_color(),
             style.border_top_style(),
@@ -99,10 +101,10 @@ pub(crate) fn fieldset_borders_data(
     FieldsetBordersData {
         without_top: BordersDataDevicePixels { top: none, ..all },
         top_only: BordersDataDevicePixels {
-            top: all.top,
             right: none,
             bottom: none,
             left: none,
+            ..all
         },
     }
 }

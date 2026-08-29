@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/force-dark-blends-isolated-backdrops-like-fills-ref.html">
+<style>
+    body { margin: 0; background: #808080; }
+    div { width: 100px; height: 100px; background-color: #ffffff; }
+    #blended {
+        background-image: url("../data/force-dark-flat-white-square.png");
+        background-size: 100px 100px;
+        background-blend-mode: multiply;
+        image-rendering: pixelated;
+    }
+</style>
+<div id="plain"></div>
+<div id="blended"></div>
+<script>
+    // Multiplying by a white image is the identity, so the blended box must paint exactly like the plain fill:
+    // the lone-layer backdrop resolves through the background role the way every other fill does.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

@@ -6,6 +6,7 @@
 
 use crate::css::css_pixels::CssPixelRect;
 use crate::layout::node_data::NodeSlotId;
+use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::paintable_geometry;
 use crate::painting::record::paint::background_resolution::body_background_is_propagated_to_root;
 use crate::painting::record::paint::border::{paint_box_borders, present_css_border_widths, style_borders_data};
@@ -140,7 +141,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
                     let rect = recorder
                         .converter
                         .rounded_device_rect(crate::css::css_pixels::CssPixelRect::from(cursor.rect));
-                    recorder.recorder.fill_rect(rect, color);
+                    recorder.recorder.fill_rect(rect, color, ForceDarkRole::Foreground);
                 }
             }
         }

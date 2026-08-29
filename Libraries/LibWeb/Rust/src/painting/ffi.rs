@@ -13,6 +13,7 @@ use crate::layout::used_values::FfiCssPixelSize;
 use crate::layout::{grid_formatting_context, svg_formatting_context, used_values};
 use crate::painting::display_list::commands::FrameNodeIndex;
 use crate::painting::display_list::commands::SpatialNodeIndex;
+use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::host::FfiRecordedDisplayList;
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_rows::PaintableRowsRead;
@@ -1905,7 +1906,9 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
         synthetic_plane: false,
         establishes_sorting_context: false,
     });
-    let mut recorder = DisplayListRecorder::new();
+    // Force-dark never reaches here: an image is darkened by classifying the image itself — not by inverting the
+    // fills that raster it.
+    let mut recorder = DisplayListRecorder::new(None);
     let dest_rect = inputs.dest_rect;
     match inputs.kind {
         FfiImagePaintRecordKind::DecodedFrame => recorder.draw_scaled_decoded_image_frame(
@@ -1915,6 +1918,7 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
             inputs.scaling_mode,
             CompositingAndBlendingOperator::Normal,
             None,
+            ForceDarkRole::None,
         ),
         FfiImagePaintRecordKind::NestedDisplayList => recorder.paint_nested_display_list(
             DisplayListResourceId(inputs.nested_display_list_id),
@@ -1945,6 +1949,7 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
                 &resolved,
                 dest_rect,
                 CompositingAndBlendingOperator::Normal,
+                ForceDarkRole::None,
             );
         }
     }

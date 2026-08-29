@@ -11,6 +11,7 @@ use crate::layout::grid_formatting_context;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::{ContextRef, DisplayListGlyph, FontResourceId};
 use crate::painting::display_list::recorder::GlyphRunForRecording;
+use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::host::{FfiFlexOverlayInput, FfiGridOverlayInput};
 use crate::painting::paintable_geometry;
 use crate::painting::record::PaintRecorder;
@@ -82,8 +83,12 @@ fn paint_box_model_highlight(recorder: &mut PaintRecorder<'_>, paintable: NodeSl
     let converter = recorder.converter;
     let paint_inspector_rect = |recorder: &mut PaintRecorder<'_>, rect: CssPixelRect, color: Color| {
         let device_rect = converter.enclosing_device_rect(rect);
-        recorder.recorder.fill_rect(device_rect, color.with_alpha(100));
-        recorder.recorder.draw_rect(device_rect, color, false);
+        recorder
+            .recorder
+            .fill_rect(device_rect, color.with_alpha(100), ForceDarkRole::None);
+        recorder
+            .recorder
+            .draw_rect(device_rect, color, false, ForceDarkRole::None);
     };
     paint_inspector_rect(recorder, margin_rect, Color::from_rgb(255, 255, 0));
     paint_inspector_rect(recorder, padding_rect, Color::from_rgb(0, 255, 255));
@@ -100,10 +105,12 @@ fn paint_box_model_highlight(recorder: &mut PaintRecorder<'_>, paintable: NodeSl
     size_text_rect.height = CssPixels::nearest_value_for_f32(label.css_pixel_size) + CssPixels::from_integer(4);
     let device_rect = converter.enclosing_device_rect(size_text_rect);
     let inputs = recorder.inputs;
-    recorder.recorder.fill_rect(device_rect, inputs.tooltip_color);
     recorder
         .recorder
-        .draw_rect(device_rect, inputs.tooltip_border_color, false);
+        .fill_rect(device_rect, inputs.tooltip_color, ForceDarkRole::None);
+    recorder
+        .recorder
+        .draw_rect(device_rect, inputs.tooltip_border_color, false, ForceDarkRole::None);
     draw_label(recorder, &label, device_rect, inputs.tooltip_text_color);
 }
 
@@ -136,18 +143,23 @@ fn paint_flex_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, i
         if visible_rect.is_empty() {
             return;
         }
-        recorder
-            .recorder
-            .fill_rect(converter.enclosing_device_rect(visible_rect), rect_color);
+        recorder.recorder.fill_rect(
+            converter.enclosing_device_rect(visible_rect),
+            rect_color,
+            ForceDarkRole::None,
+        );
     };
     let paint_outline = |recorder: &mut PaintRecorder<'_>, rect: CssPixelRect, rect_color: Color| {
         let visible_rect = rect.intersected(viewport_rect);
         if visible_rect.is_empty() {
             return;
         }
-        recorder
-            .recorder
-            .draw_rect(converter.enclosing_device_rect(visible_rect), rect_color, false);
+        recorder.recorder.draw_rect(
+            converter.enclosing_device_rect(visible_rect),
+            rect_color,
+            false,
+            ForceDarkRole::None,
+        );
     };
 
     paint_rect(recorder, content_rect, container_fill_color);
@@ -259,7 +271,7 @@ fn paint_grid_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, i
     let paint_rect = |recorder: &mut PaintRecorder<'_>, rect: CssPixelRect, rect_color: Color| {
         recorder
             .recorder
-            .fill_rect(converter.enclosing_device_rect(rect), rect_color);
+            .fill_rect(converter.enclosing_device_rect(rect), rect_color, ForceDarkRole::None);
     };
     let paint_label = |recorder: &mut PaintRecorder<'_>, top_left: CssPixelPoint, text: &[u16]| {
         let label = shape_overlay_label(recorder, text, 10.0);
@@ -272,10 +284,12 @@ fn paint_grid_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, i
         };
         let label_device_rect = converter.enclosing_device_rect(label_rect);
         let label_background = color.with_alpha(235);
-        recorder.recorder.fill_rect(label_device_rect, label_background);
         recorder
             .recorder
-            .draw_rect(label_device_rect, color.with_alpha(255), false);
+            .fill_rect(label_device_rect, label_background, ForceDarkRole::None);
+        recorder
+            .recorder
+            .draw_rect(label_device_rect, color.with_alpha(255), false, ForceDarkRole::None);
         draw_label(recorder, &label, label_device_rect, input.label_foreground_color);
     };
     let paint_centered_label = |recorder: &mut PaintRecorder<'_>, rect: CssPixelRect, text: &[u16]| {
@@ -532,6 +546,7 @@ fn draw_label(recorder: &mut PaintRecorder<'_>, label: &OverlayLabel, rect: IntR
         1.0,
         Orientation::Horizontal,
         glyph_bounding_rect,
+        ForceDarkRole::None,
     );
 }
 
@@ -543,9 +558,15 @@ fn paint_caret_debug_marker(recorder: &mut PaintRecorder<'_>, css_rect: CssPixel
     let marker_color = Color::from_rgb(255, 0, 255);
 
     let mut draw_marker_line = |from: IntPoint, to: IntPoint| {
-        recorder
-            .recorder
-            .draw_line(from, to, marker_color, 2, LineStyle::Solid, Color::TRANSPARENT);
+        recorder.recorder.draw_line(
+            from,
+            to,
+            marker_color,
+            2,
+            LineStyle::Solid,
+            Color::TRANSPARENT,
+            ForceDarkRole::None,
+        );
     };
     draw_marker_line(
         IntPoint {

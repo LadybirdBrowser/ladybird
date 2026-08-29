@@ -242,6 +242,13 @@ GC::Ref<JS::Object> Internals::visual_context_node_indices(DOM::Element& element
     return object;
 }
 
+void Internals::set_force_dark_enabled(bool enabled)
+{
+    auto& document = window().associated_document();
+    if (auto navigable = document.navigable())
+        navigable->set_force_dark_enabled(enabled);
+}
+
 void Internals::send_mismatched_visual_context_tree_update_to_compositor()
 {
     auto& document = window().associated_document();

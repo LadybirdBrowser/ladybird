@@ -12,6 +12,7 @@ use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::node_facts;
 use crate::painting::display_list::recorder::{PaintStyleOrColor, StrokePathParams};
+use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::record::PaintRecorder;
 use libgfx_rust::path::PathBuilder;
 use libgfx_rust::{CapStyle, Color, IntPoint, JoinStyle, LineStyle, ShouldAntiAlias};
@@ -544,6 +545,7 @@ pub(crate) fn paint_decoration_lines(
                     device_line_thickness,
                     style,
                     Color::TRANSPARENT,
+                    ForceDarkRole::Foreground,
                 );
             };
 
@@ -601,6 +603,7 @@ pub(crate) fn paint_decoration_lines(
                     };
                     let path = build_triangle_wave_path(from, to, amplitude as f32).build();
                     recorder.recorder.stroke_path(StrokePathParams {
+                        force_dark_role: ForceDarkRole::Foreground,
                         cap_style: CapStyle::Round,
                         join_style: JoinStyle::Round,
                         miter_limit: 0.0,

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    body { margin: 0; background: white; color: black; }
+    #box { width: 100px; height: 100px; background: white; }
+</style>
+<div id="box">text</div>
+<script>
+    // The harness loads the reference into the same view as the test, and force-dark rides on the navigable rather than
+    // on the document, so it survives that navigation. Turn it off explicitly instead of assuming a fresh default.
+    if (window.internals)
+        internals.setForceDarkEnabled(false);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

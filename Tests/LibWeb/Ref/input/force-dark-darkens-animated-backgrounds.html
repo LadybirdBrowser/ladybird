@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/force-dark-darkens-animated-backgrounds-ref.html">
+<style>
+    body { margin: 0; background: #ffffff; }
+    @keyframes stay-put {
+        from { background-color: rgb(240, 240, 200); }
+        to { background-color: rgb(240, 240, 200); }
+    }
+    .box { width: 80px; height: 40px; margin: 8px; animation: stay-put 1s linear infinite; }
+</style>
+<div class="box"></div>
+<script>
+    // The compositor could drive this animation, and would then sample the authored color at play time, past the
+    // recorder's force-dark resolution. Kept on the main thread, the box darkens like a static one.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>

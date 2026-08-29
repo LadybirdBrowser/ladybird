@@ -750,6 +750,7 @@ pub struct DrawScaledDecodedImageFrame {
     pub scaling_mode: ScalingMode,
     pub compositing_and_blending_operator: CompositingAndBlendingOperator,
     pub isolated_backdrop_color: OptionalColor,
+    pub apply_force_dark: bool,
 }
 ffi_bytes_fields!(DrawScaledDecodedImageFrame {
     dst_rect,
@@ -757,7 +758,8 @@ ffi_bytes_fields!(DrawScaledDecodedImageFrame {
     frame_id,
     scaling_mode,
     compositing_and_blending_operator,
-    isolated_backdrop_color
+    isolated_backdrop_color,
+    apply_force_dark
 });
 
 impl DisplayListCommand for DrawScaledDecodedImageFrame {
@@ -777,6 +779,7 @@ pub struct DrawRepeatedDecodedImageFrame {
     pub repeat: Repeat,
     pub compositing_and_blending_operator: CompositingAndBlendingOperator,
     pub isolated_backdrop_color: OptionalColor,
+    pub apply_force_dark: bool,
 }
 ffi_bytes_fields!(DrawRepeatedDecodedImageFrame {
     dst_rect,
@@ -785,7 +788,8 @@ ffi_bytes_fields!(DrawRepeatedDecodedImageFrame {
     scaling_mode,
     repeat,
     compositing_and_blending_operator,
-    isolated_backdrop_color
+    isolated_backdrop_color,
+    apply_force_dark
 });
 
 impl DisplayListCommand for DrawRepeatedDecodedImageFrame {
@@ -832,6 +836,7 @@ pub struct DrawTiledDecodedImageFrame {
     pub scaling_mode: ScalingMode,
     pub tile_count_x: OptionalU32,
     pub tile_count_y: OptionalU32,
+    pub apply_force_dark: bool,
 }
 ffi_bytes_fields!(DrawTiledDecodedImageFrame {
     tile_rect,
@@ -841,7 +846,8 @@ ffi_bytes_fields!(DrawTiledDecodedImageFrame {
     frame_id,
     scaling_mode,
     tile_count_x,
-    tile_count_y
+    tile_count_y,
+    apply_force_dark
 });
 
 impl DisplayListCommand for DrawTiledDecodedImageFrame {

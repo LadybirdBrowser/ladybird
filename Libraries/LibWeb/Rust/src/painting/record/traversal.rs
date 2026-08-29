@@ -13,6 +13,7 @@ use crate::painting::display_list::builder::{CommandRange, DisplayListBuilder, R
 use crate::painting::display_list::commands::{ContextRef, VISUAL_VIEWPORT_NODE_INDEX};
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
+use crate::painting::force_dark::{ForceDarkRole, ForceDarkSettings};
 use crate::painting::hit_test::*;
 use crate::painting::host::FfiPaintRecordingStats;
 use crate::painting::host::{
@@ -83,13 +84,14 @@ pub(crate) fn record_display_list(
         .per_recording_memo_tables
         .borrow_mut()
         .begin_recording(layout_arena.paintable_row_count());
+    let force_dark_settings = inputs.force_dark_enabled.then_some(ForceDarkSettings::default());
     let mut recorder = PaintRecorder {
         layout_arena: &paintable_rows,
         paint_state,
         host,
         paint_host,
         inputs,
-        recorder: DisplayListRecorder::new(),
+        recorder: DisplayListRecorder::new(force_dark_settings),
         converter: DevicePixelConverter::new(inputs.device_pixels_per_css_pixel),
         draw_svg_geometry_for_clip_path: false,
         visual_context_host,
@@ -126,9 +128,11 @@ pub(crate) fn record_display_list(
         wheel_hit_test_target_cache: HashMap::new(),
     };
     if inputs.canvas_fill_rect.has_value {
-        recorder
-            .recorder
-            .fill_rect(inputs.canvas_fill_rect.value, inputs.canvas_color);
+        recorder.recorder.fill_rect(
+            inputs.canvas_fill_rect.value,
+            inputs.canvas_color,
+            ForceDarkRole::Background,
+        );
     }
     // .. in the case of embedded documents typically rendered over a transparent canvas
     // (such as provided via an HTML iframe element), if the used color scheme of the element
@@ -136,9 +140,13 @@ pub(crate) fn record_display_list(
     // then the UA must use an opaque canvas of the Canvas color appropriate to the
     // embedded document’s used color scheme instead of a transparent canvas.
     if inputs.opaque_canvas {
-        recorder.recorder.fill_rect(inputs.bitmap_rect, inputs.canvas_color);
+        recorder
+            .recorder
+            .fill_rect(inputs.bitmap_rect, inputs.canvas_color, ForceDarkRole::Background);
     }
-    recorder.recorder.fill_rect(inputs.bitmap_rect, inputs.background_color);
+    recorder
+        .recorder
+        .fill_rect(inputs.bitmap_rect, inputs.background_color, ForceDarkRole::Background);
     recorder.prerecord_nested_display_lists();
     recorder.paint_and_capture_as_stacking_context(viewport);
     crate::painting::record::paint::inspector_overlay::record_inspector_overlays(&mut recorder);

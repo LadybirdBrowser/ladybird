@@ -426,6 +426,7 @@ fn participates_in_a_3d_rendering_context(arena: &LayoutNodeArena, node: NodeSlo
 pub(crate) struct OutlineData {
     pub color: u32,
     pub geometry: OutlineGeometry,
+    pub is_auto: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -485,7 +486,11 @@ pub(crate) fn outline_data(
     if color >> 24 == 0 {
         return None;
     }
-    Some(OutlineData { color, geometry })
+    Some(OutlineData {
+        color,
+        geometry,
+        is_auto,
+    })
 }
 
 pub(crate) fn outline_offset(arena: &LayoutNodeArena, node: NodeSlotId) -> CssPixels {

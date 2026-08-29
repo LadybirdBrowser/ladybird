@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    body { margin: 0; background: #808080; }
+    div { width: 100px; height: 100px; background-color: #ffffff; }
+</style>
+<div id="plain"></div>
+<div id="blended"></div>
+<script>
+    // Two plain fills darkened from the first paint. The blended test page must land here.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

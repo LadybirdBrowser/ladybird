@@ -48,6 +48,7 @@ public:
     void signal_test_is_done(Utf16String const& text);
     void set_test_timeout(double milliseconds);
     void force_incompatible_visual_context_tree_rebuild();
+    void set_force_dark_enabled(bool);
     u64 visual_context_tree_node_count();
     u64 visual_context_pending_dirty_box_count();
     u64 accumulated_visual_context_incremental_update_count();

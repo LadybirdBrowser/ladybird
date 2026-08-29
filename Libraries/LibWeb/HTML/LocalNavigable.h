@@ -283,6 +283,10 @@ public:
     bool pending_set_browser_zoom_request() const { return m_pending_set_browser_zoom_request; }
 
     void set_should_show_line_box_borders(bool);
+    void set_force_dark_enabled(bool);
+    bool active_document_opts_out_of_force_dark() const;
+    bool force_dark_applies_to_active_document() const;
+    bool force_dark_enabled() const { return m_force_dark_enabled; }
     void set_should_show_caret_hit_test_debug_overlay(bool);
     bool should_show_caret_hit_test_debug_overlay() const { return m_should_show_caret_hit_test_debug_overlay; }
 
@@ -511,6 +515,13 @@ private:
     bool m_needs_to_record_display_list { true };
     bool m_pending_set_browser_zoom_request { false };
     bool m_should_show_line_box_borders { false };
+    bool m_force_dark_enabled { false };
+    // What the live paint-command cache was recorded under; the recording funnel drops the cache when these move.
+    struct ForceDarkPaintInputs {
+        bool enabled { false };
+        bool operator==(ForceDarkPaintInputs const&) const = default;
+    };
+    Optional<ForceDarkPaintInputs> m_force_dark_inputs_of_cached_paint;
     bool m_should_show_caret_hit_test_debug_overlay { false };
     Optional<PaintConfig> m_compositor_display_list_paint_config;
     RefPtr<Painting::DisplayList> m_compositor_display_list;

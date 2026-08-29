@@ -9,6 +9,7 @@ use super::builder::{
 };
 use super::commands::*;
 use crate::painting::display_list::ffi_bytes::FfiBytes;
+use crate::painting::force_dark::{ForceDarkResolver, ForceDarkRole, ForceDarkSettings};
 use libgfx_rust::*;
 
 pub struct CommandPayloadBuilder {
@@ -208,6 +209,7 @@ pub enum PaintStyleOrColor {
 }
 
 pub struct FillPathParams<'a> {
+    pub force_dark_role: ForceDarkRole,
     pub path: &'a libgfx_rust::path::OwnedPath,
     pub opacity: f32,
     pub paint_style_or_color: PaintStyleOrColor,
@@ -216,6 +218,7 @@ pub struct FillPathParams<'a> {
 }
 
 pub struct StrokePathParams<'a> {
+    pub force_dark_role: ForceDarkRole,
     pub cap_style: CapStyle,
     pub join_style: JoinStyle,
     pub miter_limit: f32,
@@ -236,14 +239,19 @@ pub struct GlyphRunForRecording<'a> {
 #[derive(Default)]
 pub struct DisplayListRecorder {
     builder: DisplayListBuilder,
+    // Present only while force-dark is on for this page; every color-bearing command resolves through it.
+    force_dark: Option<ForceDarkResolver>,
     context: ContextRef,
     mask_display_lists: Vec<(FrameNodeIndex, DisplayListResourceId)>,
     ambient_inline_clips: Vec<PendingInlineClip>,
 }
 
 impl DisplayListRecorder {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(force_dark_settings: Option<ForceDarkSettings>) -> Self {
+        Self {
+            force_dark: force_dark_settings.map(ForceDarkResolver::new),
+            ..Self::default()
+        }
     }
 
     pub fn record_clipped_to(&mut self, clip: IntRect, record: impl FnOnce(&mut Self)) {
@@ -267,6 +275,94 @@ impl DisplayListRecorder {
 
     pub fn truncate_ambient_inline_clips(&mut self, enclosing_scope_clip_count: usize) {
         self.ambient_inline_clips.truncate(enclosing_scope_clip_count);
+    }
+
+    fn resolve_color(&mut self, color: Color, force_dark_role: ForceDarkRole) -> Color {
+        match &mut self.force_dark {
+            Some(resolver) => resolver.resolve(color, force_dark_role),
+            None => color,
+        }
+    }
+
+    // Images use only this much of the role; what happens after is decided by classifying the image itself.
+    fn force_dark_applies(&self, force_dark_role: ForceDarkRole) -> bool {
+        self.force_dark.is_some() && force_dark_role != ForceDarkRole::None
+    }
+
+    /// Resolves a fill or stroke paint through force-dark; None means the authored paint goes out unchanged.
+    fn resolve_paint_style_or_color(
+        &mut self,
+        paint: &PaintStyleOrColor,
+        force_dark_role: ForceDarkRole,
+    ) -> Option<PaintStyleOrColor> {
+        match paint {
+            PaintStyleOrColor::Color(color) => {
+                Some(PaintStyleOrColor::Color(self.resolve_color(*color, force_dark_role)))
+            }
+            PaintStyleOrColor::PaintStyle(style) => self
+                .resolve_paint_style(style, force_dark_role)
+                .map(PaintStyleOrColor::PaintStyle),
+        }
+    }
+
+    /// A gradient paint style resolves stop by stop, like a gradient-painted rectangle; a pattern's colors live in
+    /// its nested display list, which a nested recorder already filters.
+    fn resolve_paint_style(&mut self, style: &PaintStyle, force_dark_role: ForceDarkRole) -> Option<PaintStyle> {
+        match style {
+            PaintStyle::LinearGradient {
+                gradient_transform,
+                spread_method,
+                color_space,
+                color_stops,
+                start_point,
+                end_point,
+            } => Some(PaintStyle::LinearGradient {
+                gradient_transform: *gradient_transform,
+                spread_method: *spread_method,
+                color_space: *color_space,
+                color_stops: self.resolve_color_stops(color_stops, force_dark_role)?,
+                start_point: *start_point,
+                end_point: *end_point,
+            }),
+            PaintStyle::RadialGradient {
+                gradient_transform,
+                spread_method,
+                color_space,
+                color_stops,
+                start_center,
+                start_radius,
+                end_center,
+                end_radius,
+            } => Some(PaintStyle::RadialGradient {
+                gradient_transform: *gradient_transform,
+                spread_method: *spread_method,
+                color_space: *color_space,
+                color_stops: self.resolve_color_stops(color_stops, force_dark_role)?,
+                start_center: *start_center,
+                start_radius: *start_radius,
+                end_center: *end_center,
+                end_radius: *end_radius,
+            }),
+            PaintStyle::Pattern { .. } => None,
+        }
+    }
+
+    fn resolve_color_stops(&mut self, stops: &ColorStops, force_dark_role: ForceDarkRole) -> Option<ColorStops> {
+        if force_dark_role == ForceDarkRole::None {
+            return None;
+        }
+        let resolver = self.force_dark.as_mut()?;
+        Some(ColorStops {
+            colors: resolver.resolve_each(&stops.colors, force_dark_role),
+            positions: stops.positions.clone(),
+            repeating: stops.repeating,
+        })
+    }
+
+    /// What a nested recorder (a mask, an isolated group) must be built with, so content inside it is filtered the
+    /// same way as content outside it.
+    pub fn force_dark_settings(&self) -> Option<ForceDarkSettings> {
+        self.force_dark.as_ref().map(ForceDarkResolver::settings)
     }
 
     pub fn register_mask_display_list(&mut self, frames: &[FrameNodeIndex], display_list_id: DisplayListResourceId) {
@@ -347,11 +443,16 @@ impl DisplayListRecorder {
         }
     }
 
-    pub fn fill_rect(&mut self, rect: IntRect, color: Color) {
+    pub fn fill_rect(&mut self, rect: IntRect, color: Color, force_dark_role: ForceDarkRole) {
         if color.alpha() == 0 {
             return;
         }
-        self.fill_rect_with_compositing_and_blending_operator(rect, color, CompositingAndBlendingOperator::Normal);
+        self.fill_rect_with_compositing_and_blending_operator(
+            rect,
+            color,
+            CompositingAndBlendingOperator::Normal,
+            force_dark_role,
+        );
     }
 
     pub fn fill_rect_with_compositing_and_blending_operator(
@@ -359,10 +460,12 @@ impl DisplayListRecorder {
         rect: IntRect,
         color: Color,
         compositing_and_blending_operator: CompositingAndBlendingOperator,
+        force_dark_role: ForceDarkRole,
     ) {
         if rect.is_empty() {
             return;
         }
+        let color = self.resolve_color(color, force_dark_role);
         self.append_command(
             &FillRect {
                 rect,
@@ -378,6 +481,8 @@ impl DisplayListRecorder {
         if rect.is_empty() || color.alpha() == 0 {
             return;
         }
+        // A caret is text, so it always takes the foreground rule — no caller context could make it anything else.
+        let color = self.resolve_color(color, ForceDarkRole::Foreground);
         self.append_command(
             &PaintCaret {
                 rect,
@@ -435,9 +540,11 @@ impl DisplayListRecorder {
         if path_bounding_rect.is_empty() {
             return;
         }
+        let resolved = self.resolve_paint_style_or_color(&params.paint_style_or_color, params.force_dark_role);
+        let resolved_paint = resolved.as_ref().unwrap_or(&params.paint_style_or_color);
         let mut payload = CommandPayloadBuilder::new::<FillPath>(&self.builder);
         let path_data = payload.append_data(&params.path.serialize_to_bytes(), std::mem::align_of::<u32>());
-        let (paint_kind, color, paint_style) = Self::resolve_paint(&mut payload, &params.paint_style_or_color);
+        let (paint_kind, color, paint_style) = Self::resolve_paint(&mut payload, resolved_paint);
         let command = FillPath {
             path_bounding_rect,
             path_data,
@@ -469,10 +576,12 @@ impl DisplayListRecorder {
         if path_bounding_rect.is_empty() {
             return;
         }
+        let resolved = self.resolve_paint_style_or_color(&params.paint_style_or_color, params.force_dark_role);
+        let resolved_paint = resolved.as_ref().unwrap_or(&params.paint_style_or_color);
         let mut payload = CommandPayloadBuilder::new::<StrokePath>(&self.builder);
         let path_data = payload.append_data(&params.path.serialize_to_bytes(), std::mem::align_of::<u32>());
         let dash_array = payload.append_f32s(&params.dash_array);
-        let (paint_kind, color, paint_style) = Self::resolve_paint(&mut payload, &params.paint_style_or_color);
+        let (paint_kind, color, paint_style) = Self::resolve_paint(&mut payload, resolved_paint);
         let command = StrokePath {
             cap_style: params.cap_style,
             join_style: params.join_style,
@@ -491,10 +600,11 @@ impl DisplayListRecorder {
         self.append_command(&command, payload.inline_data());
     }
 
-    pub fn draw_ellipse(&mut self, rect: IntRect, color: Color, thickness: i32) {
+    pub fn draw_ellipse(&mut self, rect: IntRect, color: Color, thickness: i32, force_dark_role: ForceDarkRole) {
         if rect.is_empty() || color.alpha() == 0 || thickness == 0 {
             return;
         }
+        let color = self.resolve_color(color, force_dark_role);
         self.append_command(&DrawEllipse { rect, color, thickness }, &[]);
     }
 
@@ -503,12 +613,15 @@ impl DisplayListRecorder {
         gradient_rect: IntRect,
         data: &LinearGradientData,
         compositing_and_blending_operator: CompositingAndBlendingOperator,
+        force_dark_role: ForceDarkRole,
     ) {
         if gradient_rect.is_empty() {
             return;
         }
+        let resolved_stops = self.resolve_color_stops(&data.color_stops, force_dark_role);
+        let stops = resolved_stops.as_ref().unwrap_or(&data.color_stops);
         let mut payload = CommandPayloadBuilder::new::<PaintLinearGradient>(&self.builder);
-        let color_stops = data.color_stops.append_to(&mut payload);
+        let color_stops = stops.append_to(&mut payload);
         let command = PaintLinearGradient {
             gradient_rect,
             gradient_angle: data.gradient_angle,
@@ -527,12 +640,15 @@ impl DisplayListRecorder {
         data: &ConicGradientData,
         position: IntPoint,
         compositing_and_blending_operator: CompositingAndBlendingOperator,
+        force_dark_role: ForceDarkRole,
     ) {
         if rect.is_empty() {
             return;
         }
+        let resolved_stops = self.resolve_color_stops(&data.color_stops, force_dark_role);
+        let stops = resolved_stops.as_ref().unwrap_or(&data.color_stops);
         let mut payload = CommandPayloadBuilder::new::<PaintConicGradient>(&self.builder);
-        let color_stops = data.color_stops.append_to(&mut payload);
+        let color_stops = stops.append_to(&mut payload);
         let command = PaintConicGradient {
             rect,
             start_angle: data.start_angle,
@@ -551,12 +667,15 @@ impl DisplayListRecorder {
         center: IntPoint,
         size: IntSize,
         compositing_and_blending_operator: CompositingAndBlendingOperator,
+        force_dark_role: ForceDarkRole,
     ) {
         if rect.is_empty() {
             return;
         }
+        let resolved_stops = self.resolve_color_stops(&data.color_stops, force_dark_role);
+        let stops = resolved_stops.as_ref().unwrap_or(&data.color_stops);
         let mut payload = CommandPayloadBuilder::new::<PaintRadialGradient>(&self.builder);
-        let color_stops = data.color_stops.append_to(&mut payload);
+        let color_stops = stops.append_to(&mut payload);
         let command = PaintRadialGradient {
             rect,
             color_stops,
@@ -568,10 +687,11 @@ impl DisplayListRecorder {
         self.append_command(&command, payload.inline_data());
     }
 
-    pub fn draw_rect(&mut self, rect: IntRect, color: Color, rough: bool) {
+    pub fn draw_rect(&mut self, rect: IntRect, color: Color, rough: bool, force_dark_role: ForceDarkRole) {
         if rect.is_empty() || color.alpha() == 0 {
             return;
         }
+        let color = self.resolve_color(color, force_dark_role);
         self.append_command(&DrawRect { rect, color, rough }, &[]);
     }
 
@@ -634,6 +754,7 @@ impl DisplayListRecorder {
         );
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_scaled_decoded_image_frame(
         &mut self,
         dst_rect: FloatRect,
@@ -642,6 +763,7 @@ impl DisplayListRecorder {
         scaling_mode: ScalingMode,
         compositing_and_blending_operator: CompositingAndBlendingOperator,
         isolated_backdrop_color: Option<Color>,
+        force_dark_role: ForceDarkRole,
     ) {
         if dst_rect.is_empty() {
             return;
@@ -649,6 +771,11 @@ impl DisplayListRecorder {
         if src_rect.is_some_and(|src| src.is_empty()) {
             return;
         }
+        // The lone-layer backdrop paints as this element's background, so it resolves like one; the player then
+        // blends it as handed over and filters only the image.
+        let isolated_backdrop_color =
+            isolated_backdrop_color.map(|color| self.resolve_color(color, ForceDarkRole::Background));
+        let apply_force_dark = self.force_dark_applies(force_dark_role);
         self.append_command(
             &DrawScaledDecodedImageFrame {
                 dst_rect,
@@ -657,6 +784,7 @@ impl DisplayListRecorder {
                 scaling_mode,
                 compositing_and_blending_operator,
                 isolated_backdrop_color: OptionalColor::from(isolated_backdrop_color),
+                apply_force_dark,
             },
             &[],
         );
@@ -673,10 +801,16 @@ impl DisplayListRecorder {
         repeat_y: bool,
         compositing_and_blending_operator: CompositingAndBlendingOperator,
         isolated_backdrop_color: Option<Color>,
+        force_dark_role: ForceDarkRole,
     ) {
         if dst_rect.is_empty() || clip_rect.is_empty() {
             return;
         }
+        // The lone-layer backdrop paints as this element's background, so it resolves like one; the player then
+        // blends it as handed over and filters only the image.
+        let isolated_backdrop_color =
+            isolated_backdrop_color.map(|color| self.resolve_color(color, ForceDarkRole::Background));
+        let apply_force_dark = self.force_dark_applies(force_dark_role);
         self.append_command(
             &DrawRepeatedDecodedImageFrame {
                 dst_rect,
@@ -689,6 +823,7 @@ impl DisplayListRecorder {
                 },
                 compositing_and_blending_operator,
                 isolated_backdrop_color: OptionalColor::from(isolated_backdrop_color),
+                apply_force_dark,
             },
             &[],
         );
@@ -732,10 +867,12 @@ impl DisplayListRecorder {
         scaling_mode: ScalingMode,
         tile_count_x: Option<u32>,
         tile_count_y: Option<u32>,
+        force_dark_role: ForceDarkRole,
     ) {
         if tile_rect.is_empty() || clip_rect.is_empty() || src_rect.is_empty() {
             return;
         }
+        let apply_force_dark = self.force_dark_applies(force_dark_role);
         self.append_command(
             &DrawTiledDecodedImageFrame {
                 tile_rect,
@@ -746,11 +883,13 @@ impl DisplayListRecorder {
                 scaling_mode,
                 tile_count_x: OptionalU32::from(tile_count_x),
                 tile_count_y: OptionalU32::from(tile_count_y),
+                apply_force_dark,
             },
             &[],
         );
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_line(
         &mut self,
         from: IntPoint,
@@ -759,10 +898,13 @@ impl DisplayListRecorder {
         thickness: i32,
         style: LineStyle,
         alternate_color: Color,
+        force_dark_role: ForceDarkRole,
     ) {
         if color.alpha() == 0 || thickness == 0 {
             return;
         }
+        let color = self.resolve_color(color, force_dark_role);
+        let alternate_color = self.resolve_color(alternate_color, force_dark_role);
         self.append_command(
             &DrawLine {
                 color,
@@ -787,10 +929,12 @@ impl DisplayListRecorder {
         scale: f64,
         orientation: Orientation,
         glyph_bounding_rect: IntRect,
+        force_dark_role: ForceDarkRole,
     ) {
         if color.alpha() == 0 {
             return;
         }
+        let color = self.resolve_color(color, force_dark_role);
         let mut payload = CommandPayloadBuilder::new::<DrawGlyphRun>(&self.builder);
         let glyphs = payload.append_objects(run.glyphs);
         let command = DrawGlyphRun {
@@ -821,11 +965,13 @@ impl DisplayListRecorder {
         self.append_command(&command, payload.inline_data());
     }
 
-    pub fn paint_outer_box_shadow(&mut self, shadow: PaintOuterBoxShadow) {
+    pub fn paint_outer_box_shadow(&mut self, mut shadow: PaintOuterBoxShadow, force_dark_role: ForceDarkRole) {
+        shadow.color = self.resolve_color(shadow.color, force_dark_role);
         self.append_command(&shadow, &[]);
     }
 
-    pub fn paint_inner_box_shadow(&mut self, shadow: PaintInnerBoxShadow) {
+    pub fn paint_inner_box_shadow(&mut self, mut shadow: PaintInnerBoxShadow, force_dark_role: ForceDarkRole) {
+        shadow.color = self.resolve_color(shadow.color, force_dark_role);
         self.append_command(&shadow, &[]);
     }
 
@@ -839,7 +985,9 @@ impl DisplayListRecorder {
         glyph_run_scale: f64,
         color: Color,
         draw_location: FloatPoint,
+        force_dark_role: ForceDarkRole,
     ) {
+        let color = self.resolve_color(color, force_dark_role);
         let mut payload = CommandPayloadBuilder::new::<PaintTextShadow>(&self.builder);
         let glyphs = payload.append_objects(run.glyphs);
         let command = PaintTextShadow {
@@ -855,14 +1003,21 @@ impl DisplayListRecorder {
         self.append_command(&command, payload.inline_data());
     }
 
-    pub fn fill_rect_with_rounded_corners(&mut self, rect: IntRect, color: Color, corner_radii: CornerRadii) {
+    pub fn fill_rect_with_rounded_corners(
+        &mut self,
+        rect: IntRect,
+        color: Color,
+        corner_radii: CornerRadii,
+        force_dark_role: ForceDarkRole,
+    ) {
         if rect.is_empty() || color.alpha() == 0 {
             return;
         }
         if !corner_radii.has_any_radius() {
-            self.fill_rect(rect, color);
+            self.fill_rect(rect, color, force_dark_role);
             return;
         }
+        let color = self.resolve_color(color, force_dark_role);
         self.append_command(
             &FillRectWithRoundedCorners {
                 rect,
@@ -880,11 +1035,15 @@ impl DisplayListRecorder {
         color: Color,
         corner_radii: CornerRadii,
         animation_frame: Option<FrameNodeIndex>,
+        force_dark_role: ForceDarkRole,
     ) {
         if rect.is_empty() || (color.alpha() == 0 && animation_frame.is_none()) {
             return;
         }
+        // NB: A frame means the player samples the animated color at play time, past this resolution. So while
+        // force-dark applies, Document::update_compositor_animations() keeps background colors off the compositor.
         let animation_frame = animation_frame.unwrap_or(FrameNodeIndex::NONE);
+        let color = self.resolve_color(color, force_dark_role);
         if !corner_radii.has_any_radius() {
             self.append_command(
                 &FillRect {
@@ -908,8 +1067,14 @@ impl DisplayListRecorder {
         );
     }
 
-    pub fn fill_rect_with_uniform_rounded_corners(&mut self, rect: IntRect, color: Color, radius: i32) {
-        self.fill_rect_with_rounded_corners(rect, color, CornerRadii::uniform(radius));
+    pub fn fill_rect_with_uniform_rounded_corners(
+        &mut self,
+        rect: IntRect,
+        color: Color,
+        radius: i32,
+        force_dark_role: ForceDarkRole,
+    ) {
+        self.fill_rect_with_rounded_corners(rect, color, CornerRadii::uniform(radius), force_dark_role);
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -923,7 +1088,10 @@ impl DisplayListRecorder {
         thumb_color: Color,
         track_color: Color,
         vertical: bool,
+        force_dark_role: ForceDarkRole,
     ) {
+        let thumb_color = self.resolve_color(thumb_color, force_dark_role);
+        let track_color = self.resolve_color(track_color, force_dark_role);
         self.append_command(
             &PaintScrollBar {
                 scroll_node_index,

@@ -8540,6 +8540,11 @@ void Document::update_compositor_animations()
         if (delay > 0 && (!compositor_animation_wakeup_delay_ms.has_value() || delay < *compositor_animation_wakeup_delay_ms))
             compositor_animation_wakeup_delay_ms = delay;
     };
+    // Force-dark resolves colors when the display list is recorded, on the main thread. A compositor-driven
+    // background color is sampled at play time instead, and would paint as authored — so while force-dark applies,
+    // background-color animations stay on the main thread, where every tick re-records the darkened color.
+    auto navigable = this->navigable();
+    bool force_dark_applies = navigable && navigable->force_dark_applies_to_active_document();
     for (auto& animation : m_associated_animations) {
         if (!animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
             continue;
@@ -8594,7 +8599,7 @@ void Document::update_compositor_animations()
         bool background_color_animation_is_valid = false;
         if (selected_for_background_color) {
             if (auto* layout_node = abstract_target->unsafe_layout_node()) {
-                if (Painting::rust_background_color_can_be_compositor_animated(*layout_node)) {
+                if (!force_dark_applies && Painting::rust_background_color_can_be_compositor_animated(*layout_node)) {
                     background_color_layout_node = layout_node;
                     bool missing_visual_context_node = false;
                     background_color_visual_animation = build_compositor_animation(effect, visual_context_tree, Compositor::VisualAnimation::TargetKind::BackgroundColor, only_translates_horizontally, &missing_visual_context_node);

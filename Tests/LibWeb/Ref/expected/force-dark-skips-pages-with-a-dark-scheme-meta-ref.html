@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta name="color-scheme" content="dark">
+
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: #ffffff; }
+</style>
+<div id="box"></div>
+<script>
+    // The same page with force-dark off.
+    if (window.internals)
+        internals.setForceDarkEnabled(false);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

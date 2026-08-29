@@ -11,6 +11,7 @@ use crate::css::css_pixels::{CssPixelRect, CssPixelSize};
 use crate::css::style_value::StyleValueData;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::ImageFrameResourceId;
+use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::host::FfiLayerImageList;
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::paint::background::to_gfx_scaling_mode;
@@ -186,6 +187,13 @@ fn paint_border_image_slice(
         1.max(device_tile_size.height.round_ties_even() as i32),
     );
     let scaling_mode = to_gfx_scaling_mode(image_rendering, source_size, tile_size_for_scaling);
+    let force_dark_role = crate::painting::force_dark::role_for_image(
+        ForceDarkRole::Border,
+        device_tile_size.width,
+        device_tile_size.height,
+        recorder.inputs.device_pixels_per_css_pixel,
+        source_size,
+    );
     recorder.recorder.draw_tiled_decoded_image_frame(
         FloatRect::new(start_x, start_y, device_tile_size.width, device_tile_size.height),
         dest_rect,
@@ -195,6 +203,7 @@ fn paint_border_image_slice(
         scaling_mode,
         tile_count_x,
         tile_count_y,
+        force_dark_role,
     );
 }
 

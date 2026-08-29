@@ -9,6 +9,7 @@ use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::display_list::commands::{DisplayListGlyph, FontResourceId};
 use crate::painting::display_list::recorder::GlyphRunForRecording;
+use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::paintable_data::{FragmentRecord, SELECTION_STATE_NONE, SELECTION_STATE_START_AND_END};
 use crate::painting::record::PaintRecorder;
 use crate::painting::text_fragment::{self, SelectionOffsets};
@@ -263,6 +264,7 @@ pub(crate) fn paint_fragments_foreground(
             recorder.recorder.fill_rect(
                 converter.rounded_device_rect(selection_rect),
                 Color(span.background_color),
+                ForceDarkRole::Selection,
             );
         }
     }
@@ -364,6 +366,7 @@ fn paint_text_shadow(recorder: &mut PaintRecorder<'_>, block: NodeSlotId, span: 
             scale,
             Color(layer.color),
             draw_location,
+            ForceDarkRole::Foreground,
         );
     }
 }
@@ -382,9 +385,12 @@ fn paint_text_fragment(
         let converter = recorder.converter;
         let fragment_absolute_rect = text_fragment::absolute_rect(recorder.layout_arena, fragment);
         let fragment_absolute_device_rect = converter.enclosing_device_rect(fragment_absolute_rect);
-        recorder
-            .recorder
-            .draw_rect(fragment_absolute_device_rect, Color::from_rgb(0, 255, 0), false);
+        recorder.recorder.draw_rect(
+            fragment_absolute_device_rect,
+            Color::from_rgb(0, 255, 0),
+            false,
+            ForceDarkRole::None,
+        );
         let one = crate::css::css_pixels::CssPixels::from_integer(1);
         let baseline_start = converter.rounded_device_point(
             fragment_absolute_rect
@@ -402,6 +408,7 @@ fn paint_text_fragment(
             1,
             libgfx_rust::LineStyle::Solid,
             Color::TRANSPARENT,
+            ForceDarkRole::None,
         );
     }
     let Some(run) = &fragment.glyph_run else {
@@ -435,6 +442,7 @@ fn paint_text_fragment(
             scale,
             orientation,
             glyph_bounding_rect,
+            ForceDarkRole::Foreground,
         );
     } else {
         let range_rect = text_fragment::rect_for_selection_offsets(
@@ -456,6 +464,7 @@ fn paint_text_fragment(
                 scale,
                 orientation,
                 glyph_bounding_rect,
+                ForceDarkRole::Foreground,
             );
         });
         decoration_box.x = range_rect.x;

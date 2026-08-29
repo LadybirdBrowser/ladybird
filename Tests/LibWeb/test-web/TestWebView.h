@@ -23,6 +23,7 @@ public:
     static NonnullOwnPtr<TestWebView> create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size);
 
     void clear_content_blockers();
+    void reset_force_dark();
     NonnullRefPtr<Core::Promise<Empty>> reset_session_history();
     pid_t web_content_pid() const;
 
