@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <html class="reftest-wait">
-
 <style>
     body { margin: 0; background: #181818; color: #e8e8e8; }
-    #box { width: 100px; height: 100px; background: #565656; border: 10px solid #b0b0b0; }
+    #box { width: 100px; height: 100px; border: 8px solid #dddddd; }
 </style>
-<div id="box">dark ui</div>
+<div id="box"></div>
 <script>
-    // The same page with force-dark off. It must render identically to the test.
+    // The same page with force-dark off: the glaring border as authored. The test page must not match this.
     if (window.internals)
         internals.setForceDarkEnabled(false);
     requestAnimationFrame(() => {

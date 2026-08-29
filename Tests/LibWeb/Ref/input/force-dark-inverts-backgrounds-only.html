@@ -4,12 +4,12 @@
 <style>
     /* Mid-gray is the fixed point of the inversion, so the page behind stays put either way. */
     body { margin: 0; background: #808080; }
-    #box { width: 100px; height: 100px; background: #ffffff; border: 20px solid #ff0000; }
+    #box { width: 100px; height: 100px; background: #ffffff; border: 20px solid #cc0000; }
 </style>
 <div id="box"></div>
 <script>
-    // Foreground threshold 0 inverts no foreground; background threshold 0 inverts every background. So only the box
-    // fill should move, and the border should stay exactly the red it was authored as.
+    // Foreground threshold 0 inverts no foreground; background threshold 0 inverts every background, so only the box
+    // fill moves. The red sits under the readable-contrast mark on purpose: the border pass isn't what's pinned here.
     if (window.internals) {
         internals.setForceDarkEnabled(true);
         internals.setForceDarkThresholds(0, 0);

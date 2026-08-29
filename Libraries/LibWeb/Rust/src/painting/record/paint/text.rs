@@ -257,15 +257,21 @@ pub(crate) fn paint_fragments_foreground(
     filter.for_each_owned_fragment_index(fragment_count, |index| owned_fragment_indices.push(index as u32));
     let spans = compute_render_spans(recorder, block, &owned_fragment_indices);
 
+    let selection_backdrop = recorder
+        .layout_arena
+        .node_style_if_live(block)
+        .map(|style| Color(style.background().background_color));
     for span in &spans {
         if Color(span.background_color).alpha() > 0 {
             let selection_rect = selection_rect(recorder, block, span);
             let converter = recorder.converter;
+            let previous = recorder.recorder.set_contrast_backdrop(selection_backdrop);
             recorder.recorder.fill_rect(
                 converter.rounded_device_rect(selection_rect),
                 Color(span.background_color),
                 ForceDarkRole::Selection,
             );
+            recorder.recorder.set_contrast_backdrop(previous);
         }
     }
 

@@ -3,12 +3,12 @@
 <link rel="match" href="../expected/force-dark-preserves-already-dark-pages-ref.html">
 <style>
     body { margin: 0; background: #181818; color: #e8e8e8; }
-    #box { width: 100px; height: 100px; background: #202020; border: 10px solid #d0d0d0; }
+    #box { width: 100px; height: 100px; background: #565656; border: 10px solid #b0b0b0; }
 </style>
 <div id="box">dark ui</div>
 <script>
-    // The shipped thresholds leave already-dark regions alone: a dark page must render identically with
-    // force-dark on, instead of having its dark backgrounds flipped back to light.
+    // The shipped thresholds leave already-dark regions alone: a dark page must render identically with force-dark
+    // on. The border stays under the readable-contrast mark on purpose; the glare pass has a test of its own.
     if (window.internals)
         internals.setForceDarkEnabled(true);
     requestAnimationFrame(() => {
