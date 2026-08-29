@@ -588,6 +588,7 @@ struct SelectorEntryProperties {
     observes_sibling_relation: bool,
     has_prefix_chain: bool,
     prefix_chain_has_only_local_facts: bool,
+    prefix_chain_reaches_beyond_subject: bool,
 }
 
 /// Immutable routing facts derived from one selector entry's IR.
@@ -669,6 +670,11 @@ impl SelectorEntry {
     #[must_use]
     pub(super) fn prefix_chain_has_only_local_facts(self) -> bool {
         self.properties.prefix_chain_has_only_local_facts
+    }
+
+    #[must_use]
+    pub(super) fn prefix_chain_reaches_beyond_subject(self) -> bool {
+        self.properties.prefix_chain_reaches_beyond_subject
     }
 }
 
@@ -1078,6 +1084,8 @@ impl SelectorProgramBuilder {
                             .iter()
                             .all(|step| self.program.prefix_local_has_canonical_form(step.local))
                     }),
+                    prefix_chain_reaches_beyond_subject: unified_chain
+                        .is_some_and(|chain| chain.iter().any(|step| step.axis != SelectorPrefixAxis::Root)),
                 }
             })
             .collect();
@@ -3141,6 +3149,7 @@ struct EntryRouteFacts {
 
 const ENTRY_HAS_PREFIX_CHAIN: u8 = 1 << 0;
 const ENTRY_PREFIX_CHAIN_HAS_ONLY_LOCAL_FACTS: u8 = 1 << 1;
+const ENTRY_PREFIX_CHAIN_REACHES_BEYOND_SUBJECT: u8 = 1 << 2;
 
 /// Stable identity of one canonical transpose route.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -3940,6 +3949,11 @@ impl RoutingRegistry {
     }
 
     #[must_use]
+    pub fn entry_prefix_chain_reaches_beyond_subject(&self, route: RouteID) -> bool {
+        self.entry_facts_of(route).flags & ENTRY_PREFIX_CHAIN_REACHES_BEYOND_SUBJECT != 0
+    }
+
+    #[must_use]
     pub fn path_of(&self, route: RouteID) -> &[InverseStep] {
         let range = self.routes.paths[route.index()];
         &self.paths[range.offset as usize..(range.offset + range.length) as usize]
@@ -4061,6 +4075,9 @@ impl RoutingRegistry {
         }
         if selector_entry.prefix_chain_has_only_local_facts() {
             flags |= ENTRY_PREFIX_CHAIN_HAS_ONLY_LOCAL_FACTS;
+        }
+        if selector_entry.prefix_chain_reaches_beyond_subject() {
+            flags |= ENTRY_PREFIX_CHAIN_REACHES_BEYOND_SUBJECT;
         }
         if let Some(facts) = self.entry_facts[index] {
             debug_assert_eq!(facts.flags, flags);

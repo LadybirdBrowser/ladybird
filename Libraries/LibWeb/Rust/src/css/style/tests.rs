@@ -4805,6 +4805,98 @@ fn retained_prefix_transitions_supply_invalidation_and_matching() {
 }
 
 #[test]
+fn class_additions_rebuild_sparse_prefix_transitions() {
+    let (mut engine, nodes) = nested_document();
+    let guard = StyleAtomID(200);
+    let target = StyleAtomID(201);
+    let pseudo = PseudoElementTarget::new(PseudoElementKind(0));
+    let program = engine.programs.add(test_selector_program_with_metadata(
+        ".guard .target",
+        &[("guard", guard), ("target", target)],
+        Some(Specificity {
+            classes: 2,
+            ..Specificity::default()
+        }),
+        Some(pseudo),
+    ));
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let specific = engine.append_rule(sheet, None, RuleKind::Style);
+    engine.add_routing_rule(specific, program);
+    let mut version = engine.program.rule_version(specific);
+    version.selector_program = Some(program);
+    version.declaration_block = Some(DeclarationBlockID(1));
+    engine.replace_rule_version(specific, version);
+    let base_program = engine.programs.add(test_selector_program_with_metadata(
+        ".target",
+        &[("target", target)],
+        Some(Specificity {
+            classes: 1,
+            ..Specificity::default()
+        }),
+        Some(pseudo),
+    ));
+    let base = engine.append_rule(sheet, None, RuleKind::Style);
+    engine.add_routing_rule(base, base_program);
+    let mut version = engine.program.rule_version(base);
+    version.selector_program = Some(base_program);
+    version.declaration_block = Some(DeclarationBlockID(2));
+    engine.replace_rule_version(base, version);
+    add_feature(&mut engine, nodes[3], LocalFeatureKey::Class(target));
+    discard_transaction(&mut engine);
+
+    assert!(engine.begin_cold_matching_batch(nodes[0]));
+    assert_eq!(
+        engine
+            .match_element_for_cascade(nodes[3])
+            .unwrap()
+            .iter()
+            .map(|matched| matched.rule)
+            .collect::<Vec<_>>(),
+        [base]
+    );
+    engine.end_cold_matching_batch();
+    {
+        let mut caches = engine.prefix_caches.borrow_mut();
+        caches.states.make_scratch(&mut engine.memory);
+        caches.states.mark_sparse();
+    }
+    engine.retain_prefix_states();
+    assert!(engine.prefix_caches.borrow().states.is_sparse());
+
+    add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(guard));
+    engine.record_input(
+        InputKey::LocalFeature(nodes[1], LocalFeatureKey::Attribute(StyleAtomID(202))),
+        InputValue::Feature(FeatureValue::Absent),
+        InputValue::Feature(FeatureValue::Atom(StyleAtomID(203))),
+    );
+    let repairs_before = engine.counters().get(Counter::SelectorTruthRepairUpqueries);
+    let passes_before = engine.counters().get(Counter::PrefixConvergencePasses);
+    let mut planned = Vec::new();
+    assert!(engine.take_style_transaction(nodes[0], |_, _, answers| {
+        planned.extend(answers.iter().map(|answer| answer.style_node));
+    }));
+    assert_eq!(planned, vec![nodes[3].raw()]);
+    assert_eq!(
+        engine
+            .consume_published_match_answer(nodes[3])
+            .unwrap()
+            .iter()
+            .map(|matched| matched.rule)
+            .collect::<Vec<_>>(),
+        [base, specific]
+    );
+    assert_eq!(
+        engine.counters().get(Counter::SelectorTruthRepairUpqueries),
+        repairs_before
+    );
+    assert_eq!(
+        engine.counters().get(Counter::PrefixConvergencePasses),
+        passes_before + 1
+    );
+}
+
+#[test]
 fn covered_prefix_changes_forget_only_the_covered_subtree() {
     let (mut engine, nodes) = nested_document();
     let guard = StyleAtomID(200);

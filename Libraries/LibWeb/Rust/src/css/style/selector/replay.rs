@@ -378,6 +378,7 @@ fn write_entry(entry: SelectorEntry, payload: &mut PayloadWriter) {
     properties |= u8::from(entry.properties.observes_sibling_relation) << 2;
     properties |= u8::from(entry.properties.has_prefix_chain) << 3;
     properties |= u8::from(entry.properties.prefix_chain_has_only_local_facts) << 4;
+    properties |= u8::from(entry.properties.prefix_chain_reaches_beyond_subject) << 5;
     payload.write_u8(properties);
 }
 
@@ -398,7 +399,7 @@ fn read_entry(payload: &mut PayloadReader) -> Result<SelectorEntry, Error> {
         .transpose()?;
     let scope_root = read_optional_node(payload)?;
     let properties = payload.read_u8()?;
-    if properties & !0x1f != 0 {
+    if properties & !0x3f != 0 {
         return Err(Error::InvalidTag {
             category: "selector entry properties",
             value: properties,
@@ -415,6 +416,7 @@ fn read_entry(payload: &mut PayloadReader) -> Result<SelectorEntry, Error> {
             observes_sibling_relation: properties & 4 != 0,
             has_prefix_chain: properties & 8 != 0,
             prefix_chain_has_only_local_facts: properties & 16 != 0,
+            prefix_chain_reaches_beyond_subject: properties & 32 != 0,
         },
     })
 }
@@ -625,6 +627,7 @@ mod tests {
                     observes_sibling_relation: true,
                     has_prefix_chain: true,
                     prefix_chain_has_only_local_facts: false,
+                    prefix_chain_reaches_beyond_subject: true,
                 },
             }],
             relative_queries: vec![RelativeQuery {

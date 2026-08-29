@@ -2817,9 +2817,53 @@ impl StyleEngine {
             }),
             self.programs.entry_capacity(),
         );
-        let had_retained_prefix_states = self.prefix_caches.borrow().states.is_retained();
+        let retained_prefix_program_available = {
+            let caches = self.prefix_caches.borrow();
+            caches.states.is_retained() && caches.states.lookup(scope_program).sparse().is_ok()
+        };
+        let is_class_addition = |input: &NormalizedInput, node| {
+            matches!(
+                (input.key, input.old, input.new),
+                (
+                    InputKey::LocalFeature(candidate, LocalFeatureKey::Class(_)),
+                    InputValue::Feature(FeatureValue::Absent),
+                    InputValue::Feature(new)
+                ) if candidate == node && new.holds()
+            )
+        };
+        // classList changes publish the class atom and the class attribute value together. A
+        // broad batch anchored entirely on class additions can rebuild the selected prefix
+        // relation once more cheaply than repairing every retained descendant answer reached by
+        // those routes. Coalesced attribute changes on the same nodes are safe here because the
+        // bootstrap evaluators read their exact old and new fact views.
+        let transaction_is_anchored_by_class_additions = transaction.inputs.iter().any(|input| {
+            input
+                .key
+                .style_node()
+                .is_some_and(|node| is_class_addition(input, node))
+        }) && transaction.inputs.iter().all(|input| match input.key {
+            InputKey::LocalFeature(node, LocalFeatureKey::Class(_)) => is_class_addition(input, node),
+            InputKey::LocalFeature(node, LocalFeatureKey::Attribute(_)) => transaction
+                .inputs
+                .iter()
+                .any(|candidate| is_class_addition(candidate, node)),
+            _ => false,
+        });
+        let class_addition_routes_reach_beyond_changed_nodes = transaction.inputs.iter().any(|input| {
+            let InputKey::LocalFeature(node, LocalFeatureKey::Class(class)) = input.key else {
+                return false;
+            };
+            is_class_addition(input, node)
+                && routing.routes_for(RoutingKey::Class(class)).iter().any(|&route| {
+                    pending.head(route) != NO_PENDING_ROUTE && routing.entry_prefix_chain_reaches_beyond_subject(route)
+                })
+        });
+        let bootstrap_prefix_states = transaction_is_anchored_by_class_additions
+            && class_addition_routes_reach_beyond_changed_nodes
+            && !tree_relations_changed
+            && (!retained_prefix_program_available || self.prefix_caches.borrow().states.is_sparse());
         let mut local_prefix_producers: HashMap<StyleNodeID, Vec<PrefixProducer>> = HashMap::default();
-        if had_retained_prefix_states {
+        if retained_prefix_program_available || bootstrap_prefix_states {
             for producer in pending_prefix_producers {
                 local_prefix_producers
                     .entry(producer.node)
@@ -2836,7 +2880,7 @@ impl StyleEngine {
                 + local_prefix_producers.values().map(Vec::capacity).sum::<usize>() * size_of::<PrefixProducer>())
                 as u64;
 
-        if had_retained_prefix_states {
+        if retained_prefix_program_available || bootstrap_prefix_states {
             let prefix_caches = Rc::clone(&self.prefix_caches);
             let mut caches = prefix_caches.borrow_mut();
             let PrefixCaches {
@@ -2845,7 +2889,18 @@ impl StyleEngine {
             } = &mut *caches;
             let cache_is_batch_sparse = retained.is_sparse();
             retained.make_scratch(&mut self.memory);
+            if bootstrap_prefix_states {
+                retained.release();
+                answers.release(&mut self.match_answers);
+            }
             retained.prepare_to_mutate(&mut self.memory);
+            if bootstrap_prefix_states {
+                retained.get_or_insert(
+                    scope_program,
+                    self.facts.primary().generation(),
+                    self.facts.primary().row_count(),
+                );
+            }
             // NB: An incomplete cache under departures used to refuse reuse outright, which
             //     released the cache and stranded every later flush on the from-scratch compare
             //     loop, since nothing reseeds the retained states between full batches. The walk
@@ -2859,7 +2914,9 @@ impl StyleEngine {
                     .as_ref()
                     .expect("prefix planning has a transaction fact view");
                 let resident_facts = self.facts.primary();
-                self.counters.bump(Counter::PrefixTransitionCacheHits);
+                if retained_prefix_program_available && !bootstrap_prefix_states {
+                    self.counters.bump(Counter::PrefixTransitionCacheHits);
+                }
                 let nodes_in_preorder = regions.sort_nodes_for_top_down_walk(&mut pending_nodes, &self.tree);
                 if automaton_has_sibling_steps && !nodes_in_preorder {
                     retained.release();
@@ -2878,7 +2935,7 @@ impl StyleEngine {
                     &self.programs,
                     &old_evaluator,
                     None,
-                    None,
+                    bootstrap_prefix_states.then_some(&selection),
                 );
                 let new_evaluator = MatchEvaluator::new(&self.tree, resident_facts)
                     .with_transaction_fact_view(view, TransactionFactSide::After);
@@ -2889,7 +2946,7 @@ impl StyleEngine {
                     &self.programs,
                     &new_evaluator,
                     None,
-                    None,
+                    bootstrap_prefix_states.then_some(&selection),
                 );
                 let workspace_bytes = |pending_node_capacity: usize,
                                        visited_capacity: usize,
@@ -2925,7 +2982,7 @@ impl StyleEngine {
                     // into an upquery would trade its route's exact delta for a cold rematch,
                     // so leave such roots to their routes and walk only where the cache
                     // compares.
-                    if cache_is_batch_sparse {
+                    if cache_is_batch_sparse && !bootstrap_prefix_states {
                         pending_nodes.retain(|&node| states.has_transition(node));
                     }
                     let mut pending_prefix_nodes: Vec<_> = pending_nodes
@@ -2978,6 +3035,41 @@ impl StyleEngine {
                             .flatten()
                             .map(Vec::as_slice)
                             .filter(|steps| !steps.is_empty());
+                        if bootstrap_prefix_states {
+                            // The comparison replaces this node's transition with the after side.
+                            // Seed every directly dependent old transition first, so downward and
+                            // rightward propagation can still compare against exact old truth.
+                            if !matches!(
+                                states.match_set_for(&old_evaluation, node, &mut self.counters),
+                                PrefixTransitionLookup::Known(_)
+                            ) {
+                                complete = false;
+                                break;
+                            }
+                            let mut children_are_complete = true;
+                            for child in self.tree.children(node) {
+                                if !matches!(
+                                    states.match_set_for(&old_evaluation, child, &mut self.counters),
+                                    PrefixTransitionLookup::Known(_)
+                                ) {
+                                    children_are_complete = false;
+                                    break;
+                                }
+                            }
+                            if children_are_complete
+                                && let Some(next) = self.tree.next_element_sibling(node)
+                                && !matches!(
+                                    states.match_set_for(&old_evaluation, next, &mut self.counters),
+                                    PrefixTransitionLookup::Known(_)
+                                )
+                            {
+                                children_are_complete = false;
+                            }
+                            if !children_are_complete {
+                                complete = false;
+                                break;
+                            }
+                        }
                         let difference = match states.compare_and_update(
                             &new_evaluation,
                             &old_evaluation,
@@ -3125,9 +3217,9 @@ impl StyleEngine {
                     }
                     // Subsumption speaks for a route's whole candidate space, so a walk over a
                     // batch-warmed sparse cache keeps every route; the warmth still cut the
-                    // spine re-derivation. The walk has now refreshed the cache, so the sparse
-                    // origin clears either way.
-                    if !cache_is_batch_sparse {
+                    // spine re-derivation. A selected bootstrap covered every eligible route
+                    // directly even though it did not rebuild the whole prefix program.
+                    if !cache_is_batch_sparse || bootstrap_prefix_states {
                         let mut released_route_bytes = 0;
                         pending.retain(|key, routed_regions| {
                             let keep = eligible_keys.binary_search(&key).is_err();
@@ -3140,14 +3232,22 @@ impl StyleEngine {
                     }
                     self.counters.bump(Counter::PrefixConvergencePasses);
                     self.memory.release(MemoryCategory::BatchScratch, charged_bytes);
-                    // The walk refreshed only the nodes it visited, so a batch-sparse cache
-                    // stays sparse until a completing full-batch retention says otherwise.
-                    retained.mark_current();
+                    // A selected bootstrap is an exact delta relation, not a complete prefix
+                    // relation. Release it before matching so an unaffected prefix cannot be
+                    // mistaken for a non-match while completing the published answer.
+                    if bootstrap_prefix_states {
+                        retained.release();
+                        answers.release(&mut self.match_answers);
+                    } else {
+                        retained.mark_current();
+                    }
                     return PrefixConvergenceOutcome {
-                        sibling_routes_are_covered: !cache_is_batch_sparse
+                        sibling_routes_are_covered: !bootstrap_prefix_states
+                            && !cache_is_batch_sparse
                             && automaton_has_sibling_steps
                             && tree_relations_changed,
-                        positional_routes_are_covered: !cache_is_batch_sparse
+                        positional_routes_are_covered: !bootstrap_prefix_states
+                            && !cache_is_batch_sparse
                             && !dispatch.prefixes().positional_tests().is_empty()
                             && tree_relations_changed,
                     };
@@ -3167,7 +3267,7 @@ impl StyleEngine {
         }
         // NB: Prefix answers are keyed by identities minted by the transition cache. They are one
         //     coherent cache and cannot outlive a transition cache that failed to become current.
-        if had_retained_prefix_states {
+        if retained_prefix_program_available {
             self.prefix_caches.borrow_mut().answers.release(&mut self.match_answers);
         }
 
