@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+
+<style>
+    body { margin: 0; background: #181818; color: #e8e8e8; }
+    #box { width: 100px; height: 100px; background: #202020; border: 10px solid #d0d0d0; }
+</style>
+<div id="box">dark ui</div>
+<script>
+    // The same page with force-dark off. It must render identically to the test.
+    if (window.internals)
+        internals.setForceDarkEnabled(false);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

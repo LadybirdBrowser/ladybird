@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html class="reftest-wait" style="color-scheme: dark">
+<link rel="match" href="../expected/force-dark-skips-pages-with-a-dark-scheme-ref.html">
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: #ffffff; }
+</style>
+<div id="box"></div>
+<script>
+    // The page lists dark among its color schemes, so it already has a dark theme of its own. Force-dark should keep
+    // its hands off: darkening this again would fight the author rather than help the reader.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

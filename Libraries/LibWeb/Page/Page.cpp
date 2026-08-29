@@ -209,6 +209,12 @@ CSS::PreferredColorScheme Page::preferred_color_scheme() const
     if (m_preferred_color_scheme_override_for_testing.has_value())
         return *m_preferred_color_scheme_override_for_testing;
 
+    // Force-dark presents a dark preference, the way Android WebView's force-dark does (Chrome itself leaves the
+    // preference alone and darkens per element): a page that can style itself dark does, the color-scheme opt-out keeps
+    // the filter away from it, and only pages with no dark support get filtered.
+    if (top_level_traversable_is_initialized() && top_level_traversable()->force_dark_enabled())
+        return CSS::PreferredColorScheme::Dark;
+
     auto preferred_color_scheme = m_client->preferred_color_scheme();
 
     if (preferred_color_scheme == CSS::PreferredColorScheme::Auto)

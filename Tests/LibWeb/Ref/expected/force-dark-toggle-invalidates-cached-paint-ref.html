@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    body { margin: 0; background: #ffffff; color: #000000; }
+    .box { width: 80px; height: 40px; background: #ffffff; border: 4px solid #000000; margin: 8px; }
+</style>
+<div class="box">one</div>
+<div class="box">two</div>
+<div class="box">three</div>
+<script>
+    // The same page darkened from the very first paint. The test page must land in the same place after its
+    // mid-flight toggle.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes legacy-color {
+        from { background-color: rgba(255, 0, 0, 0); }
+        to { background-color: blue; }
+    }
+
+    #target {
+        width: 20px;
+        height: 20px;
+        animation: legacy-color 1s linear infinite;
+    }
+</style>
+<div id="target"></div>
+<script>
+    // Force-dark resolves colors when the display list is recorded, so a background color the compositor samples at
+    // play time would paint as authored. The animation has to stay on the main thread while force-dark applies —
+    // whether force-dark was on from the start, or got turned on while the compositor already had the animation.
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
+    asyncTest(async done => {
+        const target = document.getElementById("target");
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        let frameTime = performance.now();
+        async function renderFrames(count) {
+            for (let i = 0; i < count; ++i) {
+                frameTime += 16;
+                internals.injectRenderingOpportunity(frameTime);
+                await nextTask();
+            }
+        }
+        function compositorMarkerEverAppears() {
+            let appears = false;
+            for (let i = 0; i < 4; ++i) {
+                internals.updateCompositorAnimations();
+                appears ||= internals.visualContextNodeIndices(target).needsCompositorBackgroundColorFrame;
+            }
+            return appears;
+        }
+        function compositorVisualAnimations() {
+            return internals.getStyleInvalidationCounters().compositorVisualAnimations;
+        }
+        // A main-thread animation asks for a tick every frame; one the compositor drives asks for none.
+        async function mainThreadTicks() {
+            internals.resetStyleInvalidationCounters();
+            await renderFrames(2);
+            return internals.getStyleInvalidationCounters().animationFramePumpRequests;
+        }
+
+        // On from the first frame: the compositor never gets the animation, and the main thread keeps animating it.
+        internals.setForceDarkEnabled(true);
+        await renderFrames(4);
+        const markerWhileOnFromTheStart = compositorMarkerEverAppears();
+        const compositorAnimationsWhileOnFromTheStart = compositorVisualAnimations();
+        const ticksWhileOnFromTheStart = await mainThreadTicks();
+
+        // Off again: the same animation is handed to the compositor, so it's force-dark alone holding it back.
+        internals.setForceDarkEnabled(false);
+        await renderFrames(4);
+        const markerWhileOff = internals.visualContextNodeIndices(target).needsCompositorBackgroundColorFrame;
+        const compositorAnimationsWhileOff = compositorVisualAnimations();
+        const ticksWhileOff = await mainThreadTicks();
+
+        // On while the compositor has it: the frame it was given is dropped, and the animation comes back.
+        internals.setForceDarkEnabled(true);
+        await renderFrames(4);
+        const markerAfterTurningOn = compositorMarkerEverAppears();
+        const compositorAnimationsAfterTurningOn = compositorVisualAnimations();
+        const ticksAfterTurningOn = await mainThreadTicks();
+
+        println(`force-dark on from the start: no compositor marker: ${!markerWhileOnFromTheStart}`);
+        println(`force-dark on from the start: no compositor animation: ${compositorAnimationsWhileOnFromTheStart === 0}`);
+        println(`force-dark on from the start: the main thread keeps ticking: ${ticksWhileOnFromTheStart > 0}`);
+        println(`force-dark off: compositor marker: ${markerWhileOff}`);
+        println(`force-dark off: compositor animation: ${compositorAnimationsWhileOff === 1}`);
+        println(`force-dark off: the main thread stops ticking: ${ticksWhileOff === 0}`);
+        println(`force-dark turned on mid-animation: no compositor marker: ${!markerAfterTurningOn}`);
+        println(`force-dark turned on mid-animation: no compositor animation: ${compositorAnimationsAfterTurningOn === 0}`);
+        println(`force-dark turned on mid-animation: the main thread ticks again: ${ticksAfterTurningOn > 0}`);
+        internals.setForceDarkEnabled(false);
+        internals.setManualRenderingOpportunities(false);
+        done();
+    });
+</script>

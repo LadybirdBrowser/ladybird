@@ -50,6 +50,7 @@
 #include <LibWeb/HTML/DragDataStore.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
+#include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLParagraphElement.h>
@@ -828,6 +829,7 @@ void LocalNavigable::initialize_navigable(NonnullRefPtr<DocumentState> document_
     set_parent(parent);
     if (parent) {
         m_should_show_line_box_borders = parent->m_should_show_line_box_borders;
+        m_force_dark_enabled = parent->m_force_dark_enabled;
         m_should_show_caret_hit_test_debug_overlay = parent->m_should_show_caret_hit_test_debug_overlay;
     }
     if (parent && !m_is_svg_page && has_compositor_context() && parent->has_compositor_context()) {
@@ -5100,6 +5102,23 @@ void LocalNavigable::set_should_show_line_box_borders(bool value)
         child_navigable->set_should_show_line_box_borders(value);
 }
 
+void LocalNavigable::set_force_dark_enabled(bool value)
+{
+    if (m_force_dark_enabled == value)
+        return;
+
+    m_force_dark_enabled = value;
+    set_needs_repaint();
+
+    // The page presents a dark preferred color scheme while the top-level traversable has force-dark on, so flipping
+    // it here changes what every media query and system color in the page resolves to.
+    if (is_top_level_traversable())
+        page().invalidate_style_for_preference_change();
+
+    for (auto const& child_navigable : child_navigables())
+        child_navigable->set_force_dark_enabled(value);
+}
+
 void LocalNavigable::set_should_show_caret_hit_test_debug_overlay(bool value)
 {
     m_should_show_caret_hit_test_debug_overlay = value;
@@ -5132,14 +5151,73 @@ static Painting::DisplayListResourceSet compositor_display_list_resources(Painti
     return resources;
 }
 
+// A page listing 'dark' already offers a dark theme of its own; a page saying 'only' wants its colors kept as
+// written either way — CSS Color Adjust puts UA overrides like force-dark behind exactly that keyword.
+static bool lists_a_dark_scheme(ReadonlySpan<Utf16FlyString> schemes)
+{
+    auto const dark = CSS::preferred_color_scheme_to_utf16_fly_string(CSS::PreferredColorScheme::Dark);
+    for (auto const& scheme : schemes) {
+        if (scheme == dark)
+            return true;
+    }
+    return false;
+}
+
+// Decided the way canvas_color_scheme() decides it: The root element's own list wins outright, and the meta tag only
+// gets to weigh in when the root says nothing.
+bool LocalNavigable::active_document_opts_out_of_force_dark() const
+{
+    auto document = active_document();
+    if (!document)
+        return false;
+
+    if (auto* html_element = document->html_element(); html_element && html_element->layout_node()) {
+        auto const& layout_node = *html_element->layout_node();
+        if (layout_node.color_scheme_only())
+            return true;
+        auto schemes = layout_node.color_schemes();
+        if (!schemes.is_empty())
+            return lists_a_dark_scheme(schemes);
+    }
+
+    if (document->supported_color_schemes_are_only())
+        return true;
+
+    if (auto supported = document->supported_color_schemes(); supported.has_value())
+        return lists_a_dark_scheme(supported->span());
+
+    return false;
+}
+
+// Whether the active document's paint goes through the filter: The user has force-dark on, and the document hasn't
+// opted out of it.
+bool LocalNavigable::force_dark_applies_to_active_document() const
+{
+    return m_force_dark_enabled && !active_document_opts_out_of_force_dark();
+}
+
 bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_config)
 {
+    // force-dark belongs to the navigable, not any one paint. Stamping it here means no call sites where PaintConfig is
+    // built can leave it behind. It stays part of the config so toggling it compares unequal below, and the cached
+    // display list is rebuilt.
+    paint_config.force_dark_enabled = force_dark_applies_to_active_document();
+
     if (!has_compositor_context())
         return false;
 
     auto document = active_document();
     if (!document)
         return false;
+
+    // Cached captures splice in below the recorder's color resolution, so any effective-state change must drop them.
+    // Caught here, not at the producers: the page can flip the state itself via a color-scheme meta or root restyle.
+    ForceDarkPaintInputs force_dark_paint_inputs { paint_config.force_dark_enabled };
+    if (m_force_dark_inputs_of_cached_paint != force_dark_paint_inputs) {
+        if (document->has_committed_viewport_box())
+            document->paint_state().invalidate_all_cached_paint(*document);
+        m_force_dark_inputs_of_cached_paint = force_dark_paint_inputs;
+    }
 
     adopt_pending_async_scroll_offsets();
     document->update_paint_and_hit_testing_properties_if_needed();

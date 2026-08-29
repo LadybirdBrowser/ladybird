@@ -17,6 +17,7 @@ pub struct FfiRecordingInputs {
     pub device_viewport_rect: IntRect,
     pub css_viewport_rect: used_values::FfiCssPixelRect,
     pub should_show_line_box_borders: bool,
+    pub force_dark_enabled: bool,
     pub should_paint_overlay: bool,
     pub is_recording_async_scrolling_metadata: bool,
     pub document_id: i64,

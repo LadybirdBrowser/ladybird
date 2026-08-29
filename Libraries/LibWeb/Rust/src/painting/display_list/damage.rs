@@ -150,7 +150,8 @@ fn display_list_commands_are_equal(a: &CommandReference<'_>, b: &CommandReferenc
                 4,
             )
             && first.optional_color_at(offset_of!(DrawScaledDecodedImageFrame, isolated_backdrop_color))
-                == second.optional_color_at(offset_of!(DrawScaledDecodedImageFrame, isolated_backdrop_color));
+                == second.optional_color_at(offset_of!(DrawScaledDecodedImageFrame, isolated_backdrop_color))
+            && same_field(offset_of!(DrawScaledDecodedImageFrame, apply_force_dark), 1);
     }
 
     if a.header.command_type == DisplayListCommandType::DrawGlyphRun {
@@ -868,6 +869,7 @@ mod tests {
             scaling_mode: ScalingMode::Bilinear,
             compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
             isolated_backdrop_color: OptionalColor::none(),
+            apply_force_dark: false,
         };
         let old_display_list = command_bytes(&command, Some(IntRect::new(0, 0, 100, 100)), ContextRef::default());
         let mut new_display_list = old_display_list.clone();
@@ -877,6 +879,29 @@ mod tests {
         assert_eq!(
             damage(&old_display_list, &tree, &new_display_list, &tree),
             Some(IntRect::default())
+        );
+    }
+
+    #[test]
+    fn force_dark_reach_change_damages_scaled_images() {
+        // A force-dark flip re-records the same image draw with only apply_force_dark moved; the raster output
+        // changes, so the comparison has to see the field.
+        let tree = identity_tree();
+        let mut command = DrawScaledDecodedImageFrame {
+            dst_rect: FloatRect::new(0.0, 0.0, 100.0, 100.0),
+            src_rect: OptionalFloatRect::none(),
+            frame_id: ImageFrameResourceId(1),
+            scaling_mode: ScalingMode::Bilinear,
+            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            isolated_backdrop_color: OptionalColor::none(),
+            apply_force_dark: false,
+        };
+        let old_display_list = command_bytes(&command, Some(IntRect::new(0, 0, 100, 100)), ContextRef::default());
+        command.apply_force_dark = true;
+        let new_display_list = command_bytes(&command, Some(IntRect::new(0, 0, 100, 100)), ContextRef::default());
+        assert_eq!(
+            damage(&old_display_list, &tree, &new_display_list, &tree),
+            Some(IntRect::new(0, 0, 100, 100))
         );
     }
 

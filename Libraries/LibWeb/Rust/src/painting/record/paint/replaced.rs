@@ -12,6 +12,7 @@ use crate::painting::display_list::builder::PendingInlineClip;
 use crate::painting::display_list::commands::{
     CanvasId, CompositorContextId, ImageFrameResourceId, VideoSinkResourceId,
 };
+use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::host::FfiReplacedPaintFacts;
 use crate::painting::paintable_geometry::absolute_rect;
 use crate::painting::record::PaintRecorder;
@@ -302,9 +303,11 @@ pub(crate) fn paint_image_foreground(recorder: &mut PaintRecorder<'_>, paintable
     if recorder.data(paintable).selection_state != 0 {
         let selection_background_color = facts.selection_background_color;
         if selection_background_color.alpha() > 0 {
-            recorder
-                .recorder
-                .fill_rect(image_rect_device_pixels, selection_background_color);
+            recorder.recorder.fill_rect(
+                image_rect_device_pixels,
+                selection_background_color,
+                ForceDarkRole::Selection,
+            );
         }
     }
 }
@@ -386,6 +389,13 @@ pub(crate) fn paint_video_foreground(recorder: &mut PaintRecorder<'_>, paintable
                 if !dst_rect.is_empty() {
                     let scaling_mode =
                         to_gfx_scaling_mode(image_rendering, frame_size, (dst_rect.width, dst_rect.height));
+                    let force_dark_role = crate::painting::force_dark::role_for_image(
+                        ForceDarkRole::Foreground,
+                        dst_rect.width as f32,
+                        dst_rect.height as f32,
+                        recorder.inputs.device_pixels_per_css_pixel,
+                        frame_size,
+                    );
                     recorder.recorder.draw_scaled_decoded_image_frame(
                         dst_rect.to_float(),
                         None,
@@ -393,12 +403,15 @@ pub(crate) fn paint_video_foreground(recorder: &mut PaintRecorder<'_>, paintable
                         scaling_mode,
                         libgfx_rust::CompositingAndBlendingOperator::Normal,
                         None,
+                        force_dark_role,
                     );
                 }
             }
         }
         crate::painting::host::FfiVideoRepresentation::TransparentBlack => {
-            recorder.recorder.fill_rect(video_rect, Color::TRANSPARENT);
+            recorder
+                .recorder
+                .fill_rect(video_rect, Color::TRANSPARENT, ForceDarkRole::Background);
         }
     });
 }

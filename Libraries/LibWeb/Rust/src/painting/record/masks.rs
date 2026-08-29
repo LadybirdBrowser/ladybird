@@ -362,7 +362,9 @@ impl PaintRecorder<'_> {
         });
         let root_context = ContextRef::spatial_only(VISUAL_VIEWPORT_NODE_INDEX);
         let mut session = self.nested_recording_session(
-            DisplayListRecorder::new(),
+            // A mask's output is coverage rather than color anyone sees, and a luminance mask's lightness is its alpha,
+            // so force-dark stays out of it. Patterns are recorded elsewhere and keep it: they render as page content.
+            DisplayListRecorder::new(None),
             Some(NestedRecordingState {
                 assignments: NestedAssignments::default(),
             }),
@@ -402,7 +404,9 @@ impl PaintRecorder<'_> {
             self.inputs.device_pixels_per_css_pixel,
         );
         let mut session = self.nested_recording_session(
-            DisplayListRecorder::new(),
+            // A mask's output is coverage rather than color anyone sees, and a luminance mask's lightness is its alpha,
+            // so force-dark stays out of it. Patterns are recorded elsewhere and keep it: they render as page content.
+            DisplayListRecorder::new(None),
             Some(NestedRecordingState { assignments }),
             Some(tree),
             is_clip_path,

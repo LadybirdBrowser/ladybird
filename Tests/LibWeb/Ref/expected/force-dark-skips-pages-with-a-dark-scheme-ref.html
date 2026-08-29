@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html class="reftest-wait" style="color-scheme: dark">
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: #ffffff; }
+</style>
+<div id="box"></div>
+<script>
+    // The same page with force-dark off. It must render identically to the test, which is the whole claim.
+    if (window.internals)
+        internals.setForceDarkEnabled(false);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

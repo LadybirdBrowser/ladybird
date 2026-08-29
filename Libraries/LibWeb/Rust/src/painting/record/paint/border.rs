@@ -13,6 +13,7 @@ use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::{
     DisplayListRecorder, FillPathParams, PaintStyleOrColor, StrokePathParams,
 };
+use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::paintable_data::{
     FfiPixelBox, PIECE_EDGE_BOTTOM, PIECE_EDGE_LEFT, PIECE_EDGE_RIGHT, PIECE_EDGE_TOP,
 };
@@ -56,6 +57,7 @@ pub(crate) fn style_borders_data(
 ) -> BordersDataDevicePixels {
     let zero = CssPixels::from_raw(0);
     BordersDataDevicePixels {
+        force_dark_role: ForceDarkRole::Border,
         top: border_side(
             converter,
             border.top != zero && present_edges & PIECE_EDGE_TOP != 0,
@@ -121,6 +123,8 @@ pub struct BordersDataDevicePixels {
     pub right: BorderDataDevicePixels,
     pub bottom: BorderDataDevicePixels,
     pub left: BorderDataDevicePixels,
+    /// How force-dark treats the edges: borders take the glare pass, a user agent focus ring keeps its color.
+    pub force_dark_role: ForceDarkRole,
 }
 
 impl BordersDataDevicePixels {
@@ -251,6 +255,7 @@ fn stroke_patterned_path(
     style: LineStyle,
     width: f32,
     color: Color,
+    force_dark_role: ForceDarkRole,
     path_is_closed: bool,
 ) {
     let length = path.length();
@@ -262,6 +267,7 @@ fn stroke_patterned_path(
         length / (2.0 * periods)
     };
     painter.stroke_path(StrokePathParams {
+        force_dark_role,
         cap_style: if dotted { CapStyle::Round } else { CapStyle::Butt },
         join_style: JoinStyle::Miter,
         miter_limit: 4.0,
@@ -793,6 +799,7 @@ pub(crate) fn paint_border(
         }
         let built = path.build();
         painter.fill_path(FillPathParams {
+            force_dark_role: borders_data.force_dark_role,
             path: &built,
             opacity: 1.0,
             paint_style_or_color: PaintStyleOrColor::Color(color),
@@ -983,10 +990,26 @@ pub(crate) fn paint_border(
             if region.shares_a_corner {
                 let solid_edge_region_clip = PendingInlineClip::intersecting_path(&region.path(), WindingRule::EvenOdd);
                 painter.record_with_inline_clips(&[solid_edge_region_clip], |painter| {
-                    stroke_patterned_path(painter, &centerline, gfx_line_style, width_into, color, false);
+                    stroke_patterned_path(
+                        painter,
+                        &centerline,
+                        gfx_line_style,
+                        width_into,
+                        color,
+                        borders_data.force_dark_role,
+                        false,
+                    );
                 });
             } else {
-                stroke_patterned_path(painter, &centerline, gfx_line_style, width_into, color, false);
+                stroke_patterned_path(
+                    painter,
+                    &centerline,
+                    gfx_line_style,
+                    width_into,
+                    color,
+                    borders_data.force_dark_role,
+                    false,
+                );
             }
             return;
         }
@@ -1126,7 +1149,15 @@ fn paint_uniform_patterned_border(
     } else {
         LineStyle::Dashed
     };
-    stroke_patterned_path(painter, &centerline.build(), style, width, borders_data.top.color, true);
+    stroke_patterned_path(
+        painter,
+        &centerline.build(),
+        style,
+        width,
+        borders_data.top.color,
+        borders_data.force_dark_role,
+        true,
+    );
 }
 
 #[derive(Clone, Copy)]

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    body { margin: 0; background: #808080; }
+</style>
+<svg width="120" height="120" viewBox="-10 -10 120 120">
+    <mask id="mask">
+        <rect x="0" y="0" width="100" height="100" fill="white" />
+        <rect x="0" y="0" width="50" height="100" fill="black" />
+    </mask>
+    <rect x="-10" y="-10" width="120" height="120" fill="white" />
+    <rect x="10" y="10" width="80" height="80" fill="#808080" mask="url(#mask)" />
+</svg>
+<script>
+    // The same page with force-dark off.
+    if (window.internals)
+        internals.setForceDarkEnabled(false);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

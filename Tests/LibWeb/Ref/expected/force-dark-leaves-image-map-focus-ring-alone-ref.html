@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    body { margin: 0; background: #000000; }
+    img { display: block; margin: 20px; }
+</style>
+<map name="m">
+    <area shape="poly" coords="20,20,180,20,100,80" href="#target" alt="target">
+</map>
+<img usemap="#m" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" width="200" height="100" alt="image map">
+<script>
+    // The focus ring is :focus-visible, which only keyboard focus earns, and it only paints while the window has
+    // focus; a headless run has to fake both, so the page is focused and Tab is pressed through internals.
+    // The reference renders without force-dark, whatever the persisted browser setting says.
+    if (window.internals) {
+        internals.setForceDarkEnabled(false);
+        internals.setPageFocus(true);
+        internals.sendKey(document.body, "Tab");
+    }
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

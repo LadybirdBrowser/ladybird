@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta name="color-scheme" content="dark">
+<link rel="match" href="../expected/force-dark-skips-pages-with-a-dark-scheme-meta-ref.html">
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: #ffffff; }
+</style>
+<div id="box"></div>
+<script>
+    // Same claim as the sibling test, but the page declares its dark theme through the meta tag instead of a
+    // color-scheme property on the root, which is a separate branch of the check.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

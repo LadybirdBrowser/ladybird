@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/force-dark-meta-change-invalidates-cached-paint-ref.html">
+<style>
+    body { margin: 0; background: #ffffff; color: #000000; }
+    .box { width: 80px; height: 40px; background: #ffffff; border: 4px solid #000000; margin: 8px; }
+</style>
+<div class="box">one</div>
+<div class="box">two</div>
+<div class="box">three</div>
+<script>
+    // A couple of frames paint darkened, so the cache holds dark captures. Then a script-added meta declares
+    // 'only light' — the document opts out with the setting untouched, and a stale cache resplices dark captures.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const meta = document.createElement("meta");
+            meta.name = "color-scheme";
+            meta.content = "only light";
+            document.head.appendChild(meta);
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    document.documentElement.classList.remove("reftest-wait");
+                });
+            });
+        });
+    });
+</script>
+</html>

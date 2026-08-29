@@ -12,6 +12,7 @@ use crate::painting::display_list::commands::DisplayListGradientSpreadMethod;
 use crate::painting::display_list::recorder::{
     ColorStops, FillPathParams, PaintStyle, PaintStyleOrColor, StrokePathParams,
 };
+use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::host::{FfiSvgGradientSpreadMethod, FfiSvgPaintStyle, FfiSvgPaintStyleKind};
 use crate::painting::node_painting;
 use crate::painting::paintable_geometry::absolute_rect;
@@ -327,6 +328,7 @@ pub(crate) fn paint_path(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId
         // https://drafts.fxtf.org/css-masking/#ClipPathElement: the raw geometry of each child
         // element, exclusive of rendering properties, defines a 1-bit mask.
         recorder.recorder.fill_path(FillPathParams {
+            force_dark_role: ForceDarkRole::Svg,
             path: &path,
             opacity: 1.0,
             paint_style_or_color: PaintStyleOrColor::Color(Color::from_rgb(0, 0, 0)),
@@ -358,6 +360,7 @@ pub(crate) fn paint_path(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId
                         .svg_paint_style(recorder.layout_node_shell(paintable), false, &paint_context);
                 if let Some(paint_style) = paint_style_from_ffi(recorder, &style, &stops) {
                     recorder.recorder.fill_path(FillPathParams {
+                        force_dark_role: ForceDarkRole::Svg,
                         path: &path,
                         opacity: fill_opacity,
                         paint_style_or_color: PaintStyleOrColor::PaintStyle(paint_style),
@@ -366,6 +369,7 @@ pub(crate) fn paint_path(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId
                     });
                 } else if let Some(fill_color) = facts.fill_color {
                     recorder.recorder.fill_path(FillPathParams {
+                        force_dark_role: ForceDarkRole::Svg,
                         path: &path,
                         opacity: 1.0,
                         paint_style_or_color: PaintStyleOrColor::Color(Color(fill_color).with_opacity(fill_opacity)),
@@ -397,6 +401,7 @@ pub(crate) fn paint_path(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId
                         .svg_paint_style(recorder.layout_node_shell(paintable), true, &paint_context);
                 if let Some(paint_style) = paint_style_from_ffi(recorder, &style, &stops) {
                     recorder.recorder.stroke_path(StrokePathParams {
+                        force_dark_role: ForceDarkRole::Svg,
                         cap_style: facts.cap_style,
                         join_style: facts.join_style,
                         miter_limit: facts.miter_limit,
@@ -410,6 +415,7 @@ pub(crate) fn paint_path(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId
                     });
                 } else if let Some(stroke_color) = facts.stroke_color {
                     recorder.recorder.stroke_path(StrokePathParams {
+                        force_dark_role: ForceDarkRole::Svg,
                         cap_style: facts.cap_style,
                         join_style: facts.join_style,
                         miter_limit: facts.miter_limit,

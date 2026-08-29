@@ -8,6 +8,7 @@ use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::recorder::{PaintStyleOrColor, StrokePathParams};
+use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::paintable_geometry;
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::paint::border::{BorderDataDevicePixels, BordersDataDevicePixels, paint_all_borders};
@@ -70,6 +71,7 @@ pub(crate) fn outline_border_geometry(
 pub(crate) fn outline_borders_data(
     geometry: OutlineGeometry,
     color: Color,
+    force_dark_role: ForceDarkRole,
     converter: &crate::painting::display_list::device_pixels::DevicePixelConverter,
 ) -> BordersDataDevicePixels {
     let side = BorderDataDevicePixels {
@@ -78,6 +80,7 @@ pub(crate) fn outline_borders_data(
         width: converter.enclosing_device_pixels(geometry.width),
     };
     BordersDataDevicePixels {
+        force_dark_role,
         top: side,
         right: side,
         bottom: side,
@@ -98,7 +101,14 @@ pub(crate) fn paint_outline(
     let converter = recorder.converter;
     let (borders_rect, border_radius_data) =
         outline_border_geometry(outline.geometry.width, outline_offset, border_box_rect, border_radii);
-    let borders_data = outline_borders_data(outline.geometry, Color(outline.color), &converter);
+    // An author's outline is decoration like a border, so it takes the glare pass; the user agent's own focus ring is
+    // an accessibility affordance and keeps its color.
+    let force_dark_role = if outline.is_auto {
+        ForceDarkRole::None
+    } else {
+        ForceDarkRole::Border
+    };
+    let borders_data = outline_borders_data(outline.geometry, Color(outline.color), force_dark_role, &converter);
     paint_all_borders(
         &mut recorder.recorder,
         converter.rounded_device_rect(borders_rect),
@@ -134,6 +144,8 @@ fn paint_focused_area_outline(
         .recorder
         .record_clipped_to(converter.enclosing_device_rect(image_rect), |recorder| {
             recorder.stroke_path(StrokePathParams {
+                // The user agent focus ring keeps its color under force-dark, as in paint_outline.
+                force_dark_role: ForceDarkRole::None,
                 cap_style: CapStyle::Round,
                 join_style: JoinStyle::Round,
                 miter_limit: 4.0,

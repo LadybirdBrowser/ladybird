@@ -7,6 +7,7 @@
 use crate::css::css_enums::line_style;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::table_formatting_context;
+use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::record::PaintRecorder;
 use libgfx_rust::{Color, IntPoint, IntRect, LineStyle};
 use table_formatting_context::CollapsedBorderEdge;
@@ -137,11 +138,14 @@ fn paint_edge(recorder: &mut PaintRecorder<'_>, rect: IntRect, edge: DeviceEdge,
             edge.data.width,
             line_style,
             Color::TRANSPARENT,
+            ForceDarkRole::Border,
         );
         return;
     }
     // FIXME: Support the remaining line styles instead of rendering them as solid.
-    recorder.recorder.fill_rect(rect, edge.data.color);
+    recorder
+        .recorder
+        .fill_rect(rect, edge.data.color, ForceDarkRole::Border);
 }
 
 fn to_device_edge(recorder: &PaintRecorder<'_>, edge: CollapsedBorderEdge) -> DeviceEdge {

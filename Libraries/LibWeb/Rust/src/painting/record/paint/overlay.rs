@@ -12,6 +12,7 @@ use crate::painting::chrome_geometry::{
 use crate::painting::display_list::commands::VISUAL_VIEWPORT_NODE_INDEX;
 use crate::painting::display_list::recorder::{FillPathParams, PaintStyleOrColor};
 use crate::painting::ffi::ScrollDirection;
+use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::record::PaintRecorder;
 use libgfx_rust::{Color, FloatPoint, IntRect, LineStyle, ShouldAntiAlias, WindingRule};
 
@@ -54,6 +55,7 @@ pub(crate) fn paint_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlo
                 thumb_color,
                 track_color,
                 direction == ScrollDirection::Vertical,
+                ForceDarkRole::Background,
             );
         }
     }
@@ -85,9 +87,15 @@ pub(crate) fn paint_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlo
                 x: if bottom_left_resizer { rect.x } else { rect.right() },
                 y: rect.bottom() - step,
             };
-            recorder
-                .recorder
-                .draw_line(from, to, color, 1, LineStyle::Solid, Color::TRANSPARENT);
+            recorder.recorder.draw_line(
+                from,
+                to,
+                color,
+                1,
+                LineStyle::Solid,
+                Color::TRANSPARENT,
+                ForceDarkRole::Foreground,
+            );
         };
         let third = rect.width / 3;
         let mut step = third - 1;
@@ -127,8 +135,10 @@ fn paint_middle_button_scroll_indicator(recorder: &mut PaintRecorder<'_>, painta
     );
     recorder
         .recorder
-        .fill_rect_with_uniform_rounded_corners(circle, CIRCLE_COLOR, RADIUS);
-    recorder.recorder.draw_ellipse(circle, ARROW_COLOR, 1);
+        .fill_rect_with_uniform_rounded_corners(circle, CIRCLE_COLOR, RADIUS, ForceDarkRole::None);
+    recorder
+        .recorder
+        .draw_ellipse(circle, ARROW_COLOR, 1, ForceDarkRole::None);
 
     let x = device_origin.x as f32;
     let y = device_origin.y as f32;
@@ -140,6 +150,7 @@ fn paint_middle_button_scroll_indicator(recorder: &mut PaintRecorder<'_>, painta
         builder.close();
         let path = builder.build();
         recorder.recorder.fill_path(FillPathParams {
+            force_dark_role: ForceDarkRole::None,
             path: &path,
             opacity: 1.0,
             paint_style_or_color: PaintStyleOrColor::Color(ARROW_COLOR),

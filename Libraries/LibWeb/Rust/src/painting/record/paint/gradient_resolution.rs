@@ -12,6 +12,7 @@ use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::{
     ColorStops, ConicGradientData, DisplayListRecorder, LinearGradientData, RadialGradientData,
 };
+use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::record::PaintRecorder;
 use crate::painting::style_queries;
 use crate::painting::visual_context::basic_shapes::{position_resolved, resolve_circle_size, resolve_ellipse_size};
@@ -937,6 +938,7 @@ pub(crate) fn record_gradient_fill(
         paint,
         dest_rect,
         compositing_and_blending_operator,
+        ForceDarkRole::Background,
     );
 }
 
@@ -946,6 +948,7 @@ pub(crate) fn record_resolved_gradient_fill(
     paint: &ResolvedGradientPaint,
     dest_rect: FloatRect,
     compositing_and_blending_operator: CompositingAndBlendingOperator,
+    force_dark_role: ForceDarkRole,
 ) {
     let dest_int_rect = IntRect::new(
         dest_rect.x as i32,
@@ -955,7 +958,12 @@ pub(crate) fn record_resolved_gradient_fill(
     );
     match paint {
         ResolvedGradientPaint::Linear(data) => {
-            recorder.fill_rect_with_linear_gradient(dest_int_rect, data, compositing_and_blending_operator);
+            recorder.fill_rect_with_linear_gradient(
+                dest_int_rect,
+                data,
+                compositing_and_blending_operator,
+                force_dark_role,
+            );
         }
         ResolvedGradientPaint::Radial { data, center, size } => {
             let center = converter.rounded_device_point(*center);
@@ -966,11 +974,18 @@ pub(crate) fn record_resolved_gradient_fill(
                 center,
                 size,
                 compositing_and_blending_operator,
+                force_dark_role,
             );
         }
         ResolvedGradientPaint::Conic { data, position } => {
             let position = converter.rounded_device_point(*position);
-            recorder.fill_rect_with_conic_gradient(dest_int_rect, data, position, compositing_and_blending_operator);
+            recorder.fill_rect_with_conic_gradient(
+                dest_int_rect,
+                data,
+                position,
+                compositing_and_blending_operator,
+                force_dark_role,
+            );
         }
     }
 }

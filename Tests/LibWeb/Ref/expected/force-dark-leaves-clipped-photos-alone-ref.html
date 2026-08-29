@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    body { margin: 0; background: #808080; }
+    #clip {
+        width: 40px;
+        height: 30px;
+        background-image: url("../data/force-dark-flat-white-square.png");
+        background-size: 400px 300px;
+        background-repeat: repeat;
+        image-rendering: pixelated;
+    }
+</style>
+<div id="clip"></div>
+<script>
+    // The same page with force-dark off. It must render identically to the test.
+    if (window.internals)
+        internals.setForceDarkEnabled(false);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

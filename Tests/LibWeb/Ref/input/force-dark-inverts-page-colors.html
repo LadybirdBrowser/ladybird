@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="mismatch" href="../expected/force-dark-inverts-page-colors-notref.html">
+<style>
+    body { margin: 0; background: white; color: black; }
+    #box { width: 100px; height: 100px; background: white; }
+</style>
+<div id="box">text</div>
+<script>
+    // Same markup as the reference. The only difference is force-dark, so a match here would mean the filter never
+    // reached the paint pipeline.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

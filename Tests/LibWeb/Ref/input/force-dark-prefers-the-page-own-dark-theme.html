@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/force-dark-prefers-the-page-own-dark-theme-ref.html">
+<style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; background: #f0f0f0; color: #101010; }
+    @media (prefers-color-scheme: dark) {
+        body { background: #181818; color: #e8e8e8; }
+    }
+</style>
+<div>native dark, not filtered</div>
+<script>
+    // Force-dark presents the page with a dark preference; a page that can style itself dark must come out wearing
+    // its own dark theme, picked by the media query and untouched by the filter.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

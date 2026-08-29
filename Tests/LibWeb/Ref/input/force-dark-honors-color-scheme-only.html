@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html class="reftest-wait" style="color-scheme: only light">
+<link rel="match" href="../expected/force-dark-honors-color-scheme-only-ref.html">
+<style>
+    body { margin: 0; background: #ffffff; }
+    #box { width: 100px; height: 100px; background: #ffffff; border: 20px solid #000000; }
+</style>
+<div id="box"></div>
+<script>
+    // The page has no dark theme to offer, but "only" says it does not want the browser rewriting its colors
+    // regardless. Per CSS Color Adjust 2.3, a UA overriding preference must stand down when "only" is present.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

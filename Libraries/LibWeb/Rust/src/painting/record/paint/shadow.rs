@@ -9,6 +9,7 @@ use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::commands::{PaintInnerBoxShadow, PaintOuterBoxShadow};
+use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::record::PaintRecorder;
 use libgfx_rust::{Color, CornerRadii, IntRect};
 
@@ -108,15 +109,18 @@ fn paint_box_shadow_layers(
             let mut inner_shadow_corner_radii = corner_radii;
             adjust_corners_for_spread_distance(&mut inner_shadow_corner_radii, -spread_distance);
 
-            recorder.recorder.paint_inner_box_shadow(PaintInnerBoxShadow {
-                color: Color(layer.color),
-                blur_radius,
-                device_content_rect,
-                content_corner_radii: corner_radii,
-                outer_shadow_rect,
-                inner_shadow_rect,
-                inner_shadow_corner_radii,
-            });
+            recorder.recorder.paint_inner_box_shadow(
+                PaintInnerBoxShadow {
+                    color: Color(layer.color),
+                    blur_radius,
+                    device_content_rect,
+                    content_corner_radii: corner_radii,
+                    outer_shadow_rect,
+                    inner_shadow_rect,
+                    inner_shadow_corner_radii,
+                },
+                ForceDarkRole::Foreground,
+            );
         } else {
             let mut shadow_rect =
                 device_content_rect.inflated_edges(spread_distance, spread_distance, spread_distance, spread_distance);
@@ -126,14 +130,17 @@ fn paint_box_shadow_layers(
             let mut shadow_corner_radii = corner_radii;
             adjust_corners_for_spread_distance(&mut shadow_corner_radii, spread_distance);
 
-            recorder.recorder.paint_outer_box_shadow(PaintOuterBoxShadow {
-                color: Color(layer.color),
-                blur_radius,
-                device_content_rect,
-                content_corner_radii: corner_radii,
-                shadow_rect,
-                shadow_corner_radii,
-            });
+            recorder.recorder.paint_outer_box_shadow(
+                PaintOuterBoxShadow {
+                    color: Color(layer.color),
+                    blur_radius,
+                    device_content_rect,
+                    content_corner_radii: corner_radii,
+                    shadow_rect,
+                    shadow_corner_radii,
+                },
+                ForceDarkRole::Foreground,
+            );
         }
     }
 }

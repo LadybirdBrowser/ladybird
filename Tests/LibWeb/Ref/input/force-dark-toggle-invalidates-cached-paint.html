@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/force-dark-toggle-invalidates-cached-paint-ref.html">
+<style>
+    body { margin: 0; background: #ffffff; color: #000000; }
+    .box { width: 80px; height: 40px; background: #ffffff; border: 4px solid #000000; margin: 8px; }
+</style>
+<div class="box">one</div>
+<div class="box">two</div>
+<div class="box">three</div>
+<script>
+    // A couple of frames paint with force-dark off first, so the paint-command cache holds light captures. A toggle
+    // that fails to invalidate resplices them into the darkened recording, and the page comes out half and half.
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            if (window.internals)
+                internals.setForceDarkEnabled(true);
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    document.documentElement.classList.remove("reftest-wait");
+                });
+            });
+        });
+    });
+</script>
+</html>

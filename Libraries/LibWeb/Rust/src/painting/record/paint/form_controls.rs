@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::force_dark::ForceDarkRole;
 use libgfx_rust::path::{OwnedPath, PathBuilder};
 
 use crate::css::css_pixels::CssPixelRect;
@@ -133,6 +134,7 @@ pub(crate) fn paint_check_box_foreground(recorder: &mut PaintRecorder<'_>, paint
             checkbox_rect,
             modify_color(background_color),
             checkbox_radius,
+            ForceDarkRole::Background,
         );
         let mut tick_color = increase_contrast(input_colors.base, background_color);
         if !enabled {
@@ -147,6 +149,7 @@ pub(crate) fn paint_check_box_foreground(recorder: &mut PaintRecorder<'_>, paint
             checkbox_rect.y as f32,
         ]);
         recorder.recorder.fill_path(FillPathParams {
+            force_dark_role: ForceDarkRole::Foreground,
             path: &path,
             opacity: 1.0,
             paint_style_or_color: PaintStyleOrColor::Color(tick_color),
@@ -160,11 +163,13 @@ pub(crate) fn paint_check_box_foreground(recorder: &mut PaintRecorder<'_>, paint
             checkbox_rect,
             modify_color(input_colors.border_color(enabled)),
             checkbox_radius,
+            ForceDarkRole::Border,
         );
         recorder.recorder.fill_rect_with_uniform_rounded_corners(
             checkbox_rect.shrunken(border_thickness, border_thickness, border_thickness, border_thickness),
             background_color,
             0.max(checkbox_radius - border_thickness),
+            ForceDarkRole::Background,
         );
         if facts.indeterminate {
             let radius = (0.05 * checkbox_rect.width as f64) as i32;
@@ -173,9 +178,12 @@ pub(crate) fn paint_check_box_foreground(recorder: &mut PaintRecorder<'_>, paint
                 (-0.4 * checkbox_rect.width as f64) as i32,
                 (-0.8 * checkbox_rect.height as f64) as i32,
             );
-            recorder
-                .recorder
-                .fill_rect_with_uniform_rounded_corners(dash_rect, dash_color, radius);
+            recorder.recorder.fill_rect_with_uniform_rounded_corners(
+                dash_rect,
+                dash_color,
+                radius,
+                ForceDarkRole::Foreground,
+            );
         }
     }
 }
@@ -220,22 +228,29 @@ pub(crate) fn paint_radio_button_foreground(recorder: &mut PaintRecorder<'_>, pa
     let outer_border_width = 1.max((radio_button_rect.width as f32 / 13.0).ceil() as i32);
     let inner_border_width = 2.max((radio_button_rect.width as f32 / 4.0).ceil() as i32);
 
-    let draw_circle = |recorder: &mut PaintRecorder<'_>, rect: IntRect, color: Color| {
-        // Note: Doing this is a bit more forgiving than draw_circle() which will round to the nearest even radius.
-        // This will fudge it (which works better here).
-        recorder
-            .recorder
-            .fill_rect_with_uniform_rounded_corners(rect, color, rect.width / 2);
-    };
+    let draw_circle =
+        |recorder: &mut PaintRecorder<'_>, rect: IntRect, color: Color, force_dark_role: ForceDarkRole| {
+            // Note: Doing this is a bit more forgiving than draw_circle() which will round to the nearest even radius.
+            // This will fudge it (which works better here).
+            recorder
+                .recorder
+                .fill_rect_with_uniform_rounded_corners(rect, color, rect.width / 2, force_dark_role);
+        };
     let shrink_all = |rect: IntRect, amount: i32| rect.shrunken(amount, amount, amount, amount);
 
-    draw_circle(recorder, radio_button_rect, fill_color);
+    draw_circle(recorder, radio_button_rect, fill_color, ForceDarkRole::Border);
     draw_circle(
         recorder,
         shrink_all(radio_button_rect, outer_border_width),
         background_color,
+        ForceDarkRole::Background,
     );
     if facts.checked {
-        draw_circle(recorder, shrink_all(radio_button_rect, inner_border_width), fill_color);
+        draw_circle(
+            recorder,
+            shrink_all(radio_button_rect, inner_border_width),
+            fill_color,
+            ForceDarkRole::Foreground,
+        );
     }
 }
