@@ -129,10 +129,6 @@ public:
     // authoritative shared record rather than layout-owned complete computed values.
     [[nodiscard]] StyleRecordID intern_anonymous_layout_style(ComputedValues const&) const;
 
-    // Replace a fully inheriting element's inherited groups without re-running its cascade or
-    // driving every longhand. The result is shared by every element making the same transition.
-    [[nodiscard]] RefPtr<ComputedValues const> inherited_style_group_swap(DOM::Element&, ComputedValues const& old_values, ComputedValues const& new_parent_values) const;
-
     [[nodiscard]] ComputedStyleRecordView computed_style_record_view(StyleRecordID) const;
 
     // Presence and display:none-subtree placement of a style record, read without materializing a full style record view.
@@ -405,12 +401,6 @@ private:
         ComputedStyleInvalidation result;
     };
     mutable HashMap<u32, Vector<ComputedStyleInvalidationCacheEntry>> m_computed_style_invalidation_cache;
-    struct InheritedStyleGroupSwapEntry {
-        StyleRecordID old_style_record;
-        Array<void const*, ComputedValues::inherited_style_group_count> new_parent_groups;
-        NonnullRefPtr<ComputedValues const> result;
-    };
-    mutable Vector<InheritedStyleGroupSwapEntry> m_inherited_style_group_swaps;
     mutable bool m_materializing_for_targeted_style_update { false };
     // The word buffer one element's record gives up, reused by the next element's.
     mutable OwnPtr<StyleInputRecord> m_style_input_record_scratch;

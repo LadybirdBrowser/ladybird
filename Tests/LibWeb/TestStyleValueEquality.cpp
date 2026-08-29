@@ -63,6 +63,57 @@
 
 namespace Web::CSS {
 
+TEST_CASE(computed_longhand_table_publication_identity_includes_sidecars)
+{
+    auto value = NumberStyleValue::create(1);
+    auto* original = ComputedValuesFFI::rust_computed_longhand_table_create();
+    ComputedValuesFFI::rust_computed_longhand_table_set(original, to_underlying(PropertyID::Color), value->rust_style_value_data(), -1);
+
+    auto* copy = ComputedValuesFFI::rust_computed_longhand_table_create();
+    ComputedValuesFFI::rust_computed_longhand_table_copy_from(copy, original);
+    ComputedValuesFFI::rust_computed_longhand_table_clear_seeded_state(copy);
+    ComputedValuesFFI::rust_computed_longhand_table_freeze(original);
+    ComputedValuesFFI::rust_computed_longhand_table_freeze(copy);
+    EXPECT(!ComputedValuesFFI::rust_computed_longhand_tables_equal_for_publication(original, copy));
+    ComputedValuesFFI::rust_computed_longhand_table_release(original);
+    ComputedValuesFFI::rust_computed_longhand_table_release(copy);
+
+    original = ComputedValuesFFI::rust_computed_longhand_table_create();
+    copy = ComputedValuesFFI::rust_computed_longhand_table_create();
+    ComputedValuesFFI::rust_computed_longhand_table_metadata(copy)->display_before_box_type_transformation = 1;
+    ComputedValuesFFI::rust_computed_longhand_table_freeze(original);
+    ComputedValuesFFI::rust_computed_longhand_table_freeze(copy);
+    EXPECT(!ComputedValuesFFI::rust_computed_longhand_tables_equal_for_publication(original, copy));
+    ComputedValuesFFI::rust_computed_longhand_table_release(original);
+    ComputedValuesFFI::rust_computed_longhand_table_release(copy);
+
+    original = ComputedValuesFFI::rust_computed_longhand_table_create();
+    copy = ComputedValuesFFI::rust_computed_longhand_table_create();
+    ComputedValuesFFI::rust_computed_longhand_table_metadata(copy)->effective_color_scheme = 1;
+    ComputedValuesFFI::rust_computed_longhand_table_freeze(original);
+    ComputedValuesFFI::rust_computed_longhand_table_freeze(copy);
+    EXPECT(!ComputedValuesFFI::rust_computed_longhand_tables_equal_for_publication(original, copy));
+    ComputedValuesFFI::rust_computed_longhand_table_release(original);
+    ComputedValuesFFI::rust_computed_longhand_table_release(copy);
+}
+
+TEST_CASE(computed_longhand_table_inherited_copy_refreshes_effective_color_scheme)
+{
+    auto* child = ComputedValuesFFI::rust_computed_longhand_table_create();
+    auto* parent = ComputedValuesFFI::rust_computed_longhand_table_create();
+    ComputedValuesFFI::rust_computed_longhand_table_metadata(child)->effective_color_scheme = 0;
+    ComputedValuesFFI::rust_computed_longhand_table_metadata(parent)->effective_color_scheme = 1;
+    ComputedValuesFFI::rust_computed_longhand_table_freeze(child);
+    ComputedValuesFFI::rust_computed_longhand_table_freeze(parent);
+
+    auto* inherited = ComputedValuesFFI::rust_computed_longhand_table_create_with_inherited_values(child, parent);
+    EXPECT_EQ(ComputedValuesFFI::rust_computed_longhand_table_metadata(inherited)->effective_color_scheme, 1);
+
+    ComputedValuesFFI::rust_computed_longhand_table_release(child);
+    ComputedValuesFFI::rust_computed_longhand_table_release(parent);
+    ComputedValuesFFI::rust_computed_longhand_table_release(inherited);
+}
+
 static StyleValueFFI::StyleValueData const* create_test_image(StringView url)
 {
     auto url_string = MUST(String::from_utf8(url));

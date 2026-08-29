@@ -1261,6 +1261,8 @@ impl StyleEngine {
             let style_delta_bytes = (style_deltas.capacity() * size_of::<PublishedStyleDeltaRecord>()) as u64;
             self.memory
                 .reserve_required(MemoryCategory::BridgeBuffer, style_delta_bytes);
+            let mut unresolved_inheritance_sources = BitColumn::default();
+            let mut unresolved_inheritance_source_bytes = 0;
             for node in published_nodes.iter().copied() {
                 let pseudo_inputs_may_have_changed = pseudo_inputs_may_have_changed
                     || !selector_truth_changes.refreshes_for(node).is_empty()
@@ -1287,6 +1289,11 @@ impl StyleEngine {
                 let direct_inherited_delta = (reaction == transaction::STYLE_REACTION_INHERITED_STYLE)
                     .then(|| self.tree.flat_tree_parent(node))
                     .flatten()
+                    .filter(|parent| {
+                        parent
+                            .element_index()
+                            .is_none_or(|index| !unresolved_inheritance_sources.contains(index as usize))
+                    })
                     .and_then(|parent| {
                         self.computed_group_sets.replace_engine_resolvable_inherited_groups(
                             node,
@@ -1294,6 +1301,14 @@ impl StyleEngine {
                             inherited_style_groups,
                         )
                     });
+                if reaction == transaction::STYLE_REACTION_INHERITED_STYLE && direct_inherited_delta.is_none() {
+                    let index =
+                        node.element_index()
+                            .expect("an inherited style reaction targets an element") as usize;
+                    let (_, growth) = unresolved_inheritance_sources.set(index, true);
+                    self.memory.reserve_required(MemoryCategory::BatchScratch, growth);
+                    unresolved_inheritance_source_bytes += growth;
+                }
                 let (old_style_record, new_style_record, damage, gap) = direct_inherited_delta.map_or(
                     (
                         old_style_record,
@@ -1339,6 +1354,8 @@ impl StyleEngine {
                 MemoryCategory::BatchScratch,
                 (published_nodes.capacity() * size_of::<StyleNodeID>()) as u64,
             );
+            self.memory
+                .release(MemoryCategory::BatchScratch, unresolved_inheritance_source_bytes);
         }
         self.memory
             .release(MemoryCategory::BatchScratch, style_input_reaction_bytes);

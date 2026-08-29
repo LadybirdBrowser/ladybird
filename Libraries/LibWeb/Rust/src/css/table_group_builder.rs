@@ -3225,6 +3225,45 @@ unsafe fn build_animation_group(
     }
 }
 
+/// Rebuilds one non-inherited group whose specified values read the newly
+/// inherited `color`. These groups need no DOM, layout, or font input.
+pub(crate) unsafe fn rebuild_group_for_inherited_current_color(
+    table: &ComputedLonghandTable,
+    group: usize,
+    parent_payload: *const c_void,
+    current_color: u32,
+    used_color_scheme: u8,
+) -> Option<*const c_void> {
+    let values = EffectiveValues {
+        table,
+        animated_overlay: None,
+    };
+    let input = ColorResolutionInput {
+        scheme: Some(used_color_scheme),
+        current_color: Some(Rgba {
+            r: (current_color >> 16) as u8,
+            g: (current_color >> 8) as u8,
+            b: current_color as u8,
+            a: (current_color >> 24) as u8,
+        }),
+        current_color_value: values.value(property_id::COLOR),
+        length: None,
+        channels: None,
+    };
+    let payload = unsafe {
+        match group {
+            group_index::SVG_RESET => build_svg_reset_group(&values, &input, parent_payload),
+            group_index::EFFECTS => build_effects_group(&values, &input, used_color_scheme, parent_payload),
+            group_index::TEXT_RESET => build_text_reset_group(&values, &input, parent_payload),
+            group_index::BACKGROUND => build_background_group(&values, &input, used_color_scheme, parent_payload),
+            group_index::BORDER => build_border_group(&values, &input, used_color_scheme, parent_payload),
+            group_index::MISC_RESET => build_misc_reset_group(&values, &input, used_color_scheme, parent_payload),
+            _ => return None,
+        }
+    };
+    (!payload.is_null()).then_some(payload)
+}
+
 /// Builds every applied group's payload from the longhand table, writing one
 /// payload per applied group into `out_payloads`.
 /// Non-null payloads carry one reference for the caller, with the marshalled

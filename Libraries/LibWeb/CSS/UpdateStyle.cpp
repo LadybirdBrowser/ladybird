@@ -281,6 +281,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 for (size_t index = 0; index < inherited_group_count; ++index)
                     input_record->words[index] = bit_cast<FlatPtr>(payloads[index]);
                 element->set_computed_style({}, StyleRecordID { reaction.new_style_record });
+                ++document.style_invalidation_counters().element_inherited_style_group_swaps;
                 invalidation = RequiredInvalidationAfterStyleChange::full();
                 for (size_t index = 0; index < inherited_group_count; ++index) {
                     if (reaction.inherited_style_groups & (1 << index))

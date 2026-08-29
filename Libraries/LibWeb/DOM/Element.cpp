@@ -1541,11 +1541,6 @@ struct ElementDependentInvalidationState {
     }
 };
 
-enum class ElementDependentInvalidationMode : u8 {
-    Full,
-    InheritedGroupSwap,
-};
-
 static void add_element_dependent_invalidation(CSS::RequiredInvalidationAfterStyleChange& invalidation, CSS::ComputedValues const& new_computed_values, ElementDependentInvalidationState const& old_state, DOM::AbstractElement& abstract_element)
 {
     // NB: Even if the computed value hasn't changed the resolved counter style may have (e.g. if the relevant
@@ -1596,7 +1591,7 @@ static bool element_folds_transform_into_svg_container_layout(DOM::Element const
     return parent && is<SVG::SVGElement>(*parent) && !is<SVG::SVGForeignObjectElement>(*parent);
 }
 
-static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidation_with_cache(CSS::StyleComputer& style_computer, CSS::ComputedValues const& old_computed_values, CSS::ComputedValues const& new_computed_values, ElementDependentInvalidationState const& old_state, DOM::AbstractElement& abstract_element, CSS::StyleEngine::StyleRecordDelta const& style_record_delta, ElementDependentInvalidationMode mode = ElementDependentInvalidationMode::Full)
+static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidation_with_cache(CSS::StyleComputer& style_computer, CSS::ComputedValues const& old_computed_values, CSS::ComputedValues const& new_computed_values, ElementDependentInvalidationState const& old_state, DOM::AbstractElement& abstract_element, CSS::StyleEngine::StyleRecordDelta const& style_record_delta)
 {
     CSS::StyleComputer::ComputedStyleInvalidation result;
     bool element_folds_transform_into_layout = element_folds_transform_into_svg_container_layout(abstract_element.element());
@@ -1650,11 +1645,7 @@ static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidati
         }
     }
 
-    // An unchanged style record already names the same counter-style environment. A group swap
-    // changes only inherited payloads under that environment. In either case, re-resolving through
-    // a temporary record projection can manufacture a change even though the durable inputs did
-    // not change.
-    if (mode == ElementDependentInvalidationMode::Full && !style_record_is_unchanged(style_record_delta))
+    if (!style_record_is_unchanged(style_record_delta))
         add_element_dependent_invalidation(result.invalidation, new_computed_values, old_state, abstract_element);
     return result;
 }
@@ -2140,34 +2131,17 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
         old_computed_values.retain_across_style_record_publication();
     }
     RefPtr<CSS::ComputedValues const> new_style;
-    bool used_inherited_style_group_swap = false;
-    if (recompute_reason == StyleEngineRecomputeReason::InheritedOnly && old_computed_values
-        && !has_relevant_animations() && !has_css_defined_animations()
-        && property_ids_with_existing_transitions({}).is_empty()
-        && property_ids_with_matching_transition_property_entry({}).is_empty()) {
-        auto inheritance_parent = AbstractElement { *this }.element_to_inherit_style_from();
-        auto parent_style = inheritance_parent.has_value() ? inheritance_parent->computed_style() : CSS::ComputedStyleRecordView {};
-        if (parent_style)
-            new_style = style_computer.inherited_style_group_swap(*this, *old_computed_values, *parent_style);
-        if (new_style) {
-            style_record_delta = style_computer.publish_computed_style_inputs({ *this }, *new_style);
-            ++counters.element_inherited_style_group_swaps;
-            used_inherited_style_group_swap = true;
-        }
-    }
-    if (!new_style) {
-        m_style_uses_attr_css_function = false;
-        m_style_uses_var_css_function = false;
-        m_style_uses_if_css_function = false;
-        m_style_uses_custom_function = false;
-        m_style_uses_inherit_css_function = false;
-        m_style_uses_tree_counting_function = false;
-        m_style_depends_on_viewport_metrics = false;
-        m_style_depends_on_size_container_query = false;
-        m_style_depends_on_style_container_query = false;
-        reusable_style_engine_matches = &style_engine_matches;
-        new_style = style_computer.materialize_style_record({ *this }, did_change_custom_properties, reusable_style_engine_matches, style_record_delta, inherited_style_groups);
-    }
+    m_style_uses_attr_css_function = false;
+    m_style_uses_var_css_function = false;
+    m_style_uses_if_css_function = false;
+    m_style_uses_custom_function = false;
+    m_style_uses_inherit_css_function = false;
+    m_style_uses_tree_counting_function = false;
+    m_style_depends_on_viewport_metrics = false;
+    m_style_depends_on_size_container_query = false;
+    m_style_depends_on_style_container_query = false;
+    reusable_style_engine_matches = &style_engine_matches;
+    new_style = style_computer.materialize_style_record({ *this }, did_change_custom_properties, reusable_style_engine_matches, style_record_delta, inherited_style_groups);
     bool root_font_metrics_changed = is_html_html_element()
         && (root_font_metrics_before_recompute != style_computer.root_element_font_metrics()
             || root_font_metrics_depended_on_viewport_before_recompute != style_computer.root_element_font_metrics_depend_on_viewport_metrics());
@@ -2211,8 +2185,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
             *new_style,
             old_state,
             abstract_element,
-            style_record_delta,
-            used_inherited_style_group_swap ? ElementDependentInvalidationMode::InheritedGroupSwap : ElementDependentInvalidationMode::Full);
+            style_record_delta);
         invalidation = result.invalidation;
         element_computed_style_changed = result.any_computed_value_changed;
         had_list_marker = old_computed_values->display().is_list_item();

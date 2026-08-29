@@ -295,6 +295,48 @@ impl ComputedLonghandTable {
             };
             table.set(property_id, value, -1);
         }
+        table.metadata.effective_color_scheme = inherited_source.metadata.effective_color_scheme;
+        let inherited_color = inherited_source
+            .get(property_id::COLOR)
+            .map(RetainedStyleValueData::data);
+        let color_input = crate::css::color_resolution::ColorResolutionInput {
+            scheme: u8::try_from(inherited_source.metadata.effective_color_scheme).ok(),
+            current_color: inherited_color.and_then(|color| {
+                crate::css::color_resolution::to_color(
+                    color,
+                    &crate::css::color_resolution::ColorResolutionInput {
+                        scheme: u8::try_from(inherited_source.metadata.effective_color_scheme).ok(),
+                        current_color: None,
+                        current_color_value: None,
+                        length: None,
+                        channels: None,
+                    },
+                )
+            }),
+            current_color_value: inherited_color,
+            length: None,
+            channels: None,
+        };
+        for index in 0..table.inheritance_dependent.len() {
+            let (property_id, depends_on_current_color) = {
+                let (property_id, value) = &table.inheritance_dependent[index];
+                (*property_id, retained_value_depends_on_current_color(value))
+            };
+            if !property_is_inherited(property_id) && depends_on_current_color {
+                let value = table.inheritance_dependent[index].1.clone();
+                let slot = Self::slot_index(property_id);
+                let resolved = crate::css::color_resolution::to_color(value.data(), &color_input).map(|color| unsafe {
+                    RetainedStyleValueData::from_retained_pointer(Arc::into_raw(Arc::new(
+                        crate::css::color_resolution::resolved_srgb_style_value(color),
+                    )))
+                });
+                let is_resolved = resolved.is_some();
+                let replacement = resolved.unwrap_or(value);
+                table.value_view[slot] = replacement.pointer().cast();
+                table.slots[slot] = Some(replacement);
+                set_bitmap_bit(&mut table.evaluated_bits, slot, is_resolved);
+            }
+        }
         table.load_flag_bitmaps(importance, inheritance);
         table.frozen = true;
         table
@@ -420,6 +462,14 @@ impl ComputedLonghandTable {
         &self.important_bits
     }
 
+    pub(crate) fn publication_sidecars(&self) -> (&[u8; LONGHAND_BITMAP_BYTES], u32, i16) {
+        (
+            &self.evaluated_bits,
+            self.metadata.display_before_box_type_transformation,
+            self.metadata.effective_color_scheme,
+        )
+    }
+
     pub(crate) fn inheritance_bits(&self) -> &[u8] {
         &self.inherited_bits
     }
@@ -450,6 +500,7 @@ impl ComputedLonghandTable {
             .all(|(&first, &second)| values_equal(first, second))
             && self.important_bits == other.important_bits
             && self.inherited_bits == other.inherited_bits
+            && self.publication_sidecars() == other.publication_sidecars()
             && self.publication_dependency_flags() == other.publication_dependency_flags()
             && self.pseudo_element_styles() == other.pseudo_element_styles()
             && self.inheritance_dependent.len() == other.inheritance_dependent.len()

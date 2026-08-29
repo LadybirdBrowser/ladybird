@@ -10,4 +10,4 @@ pseudo width: 50px
 pseudo originating font size: 50px
 pseudo inherited font size: 50px
 root font metrics recompute descendants: true
-inherited recomputations present: true
+inherited recomputations present: false
