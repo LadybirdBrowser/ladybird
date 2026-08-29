@@ -856,7 +856,7 @@ private:
     void handle_attribute_changes(QualifiedName, Optional<Utf16String> old_value, Optional<Utf16String> new_value);
     void remove_attribute_at(size_t index);
 
-    using PreservedPseudoElementStyles = Array<RefPtr<CSS::ComputedValues const>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount)>;
+    using PreservedPseudoElementStyles = Array<CSS::StyleRecordID, to_underlying(CSS::PseudoElement::KnownPseudoElementCount)>;
     using PseudoElementData = HashMap<CSS::PseudoElement, GC::Ref<PseudoElement>>;
 
     virtual OwnPtr<Node::RareData> create_rare_data() const override;

@@ -84,6 +84,7 @@ impl StyleEngine {
             style_record_memory: MemoryLease::new(MemoryCategory::StyleRecord),
             animation_overlay_memory: MemoryLease::new(MemoryCategory::AnimationOverlayRecord),
             computed_pseudo_assignment_memory: MemoryLease::new(MemoryCategory::ComputedPseudoAssignment),
+            style_invalidation_cache: HashMap::default(),
             html_element_namespace: StyleAtomID::NONE,
             match_answers: MatchAnswerCatalog::default(),
             selector_truth_sets: SelectorTruthSetCatalog::default(),

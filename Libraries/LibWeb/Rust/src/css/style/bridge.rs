@@ -74,6 +74,25 @@ fn abort_on_panic<F: FnOnce() -> R, R>(operation: F) -> R {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u32)]
+pub enum FfiStyleInvalidationField {
+    LevelMask = 0x3,
+    VisualContextShift = 2,
+    RebuildRootShift = 4,
+    RebuildStackingContext = 1 << 6,
+    RecalculateScrollableOverflow = 1 << 7,
+    ResnapScrollContainer = 1 << 8,
+    RecomputeDescendants = 1 << 9,
+    InheritedGroupsShift = 10,
+    InheritedGroupsMask = 0x7f,
+    ChangesContainingBlock = 1 << 17,
+    RepaintTextDecorations = 1 << 18,
+    NonInheritedInheritanceSource = 1 << 19,
+    AnyComputedValueChanged = 1 << 20,
+    CacheHit = 1 << 21,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FfiStyleDeltaGap {
     None,
@@ -274,15 +293,6 @@ pub struct FfiMemoryPressureSnapshot {
     pub tier4_refusal_categories: [u64; 2],
     pub tier3_evictions: u64,
     pub category_bytes: [u64; MEMORY_CATEGORY_COUNT],
-}
-
-/// Small by-value state probes for one final style record.
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiStyleRecordState {
-    pub present: bool,
-    pub display_none: bool,
-    pub in_display_none_subtree: bool,
 }
 
 /// A synchronous borrowed view of one final style record.
@@ -2414,26 +2424,38 @@ pub unsafe extern "C" fn style_engine_style_record_payloads(engine: *const c_voi
     })
 }
 
-/// Returns the small state probes used while applying and reusing style records.
+/// Returns the dependency flags of one final style record without accessing its group payloads.
 ///
 /// # Safety
 /// `engine` must be live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_style_record_state(
-    engine: *const c_void,
-    style_record: u64,
-) -> FfiStyleRecordState {
+pub unsafe extern "C" fn style_engine_style_record_dependency_flags(engine: *const c_void, style_record: u64) -> u8 {
     abort_on_panic(|| {
         let engine = unsafe { &*engine.cast::<StyleEngine>() };
-        let Some(view) = engine.style_record_view(style_record) else {
-            return FfiStyleRecordState::default();
-        };
-        let box_values = unsafe { &*view.payloads[22].cast::<crate::css::computed_values::BoxValues>() };
-        FfiStyleRecordState {
-            present: true,
-            display_none: box_values.display == crate::css::display::FfiDisplay::none(),
-            in_display_none_subtree: view.dependency_flags & 4 != 0,
-        }
+        engine.style_record_dependency_flags(style_record).unwrap_or(0)
+    })
+}
+
+/// Computes the property-dependent damage between two final style records.
+///
+/// # Safety
+/// `engine` must be live and both style records must remain pinned or assigned.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_compare_style_records(
+    engine: *mut c_void,
+    old_style_record: u64,
+    new_style_record: u64,
+    font_lists_equal: bool,
+    element_folds_transform_into_layout: bool,
+) -> u32 {
+    abort_on_panic(|| {
+        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        engine.compare_style_records(
+            old_style_record,
+            new_style_record,
+            font_lists_equal,
+            element_folds_transform_into_layout,
+        )
     })
 }
 

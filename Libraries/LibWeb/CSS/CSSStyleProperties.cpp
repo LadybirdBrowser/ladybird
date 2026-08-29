@@ -746,13 +746,13 @@ static Optional<Layout::NodeWithStyle*> prepare_computed_style_and_layout_for_pr
     }
     // Ensure styles are up to date. update_layout()/update_style() skip display:none subtrees,
     // so the leaf and its inheritance ancestors may still be stale at this point.
-    // NB: Only the style record's presence and its display:none-subtree bit matter here — so, probe
-    //     those directly, instead of materializing a full style record view.
-    auto record_status = abstract_element.document().style_computer().style_record_status(abstract_element.style_record_identity());
+    // NB: Only the style record's presence and its display:none-subtree bit matter here, so probe
+    //     those directly instead of materializing a full style record view.
+    auto style_record = abstract_element.style_record_identity();
     bool const style_is_in_display_none_subtree = !layout_node
-        && record_status.present
-        && record_status.in_display_none_subtree;
-    if (!record_status.present || style_is_in_display_none_subtree)
+        && !!style_record
+        && (abstract_element.document().style_computer().style_engine().style_record_dependency_flags(style_record) & to_underlying(StyleRecordDependencyFlag::InDisplayNoneSubtree));
+    if (!style_record || style_is_in_display_none_subtree)
         abstract_element.document().update_style_for_element(abstract_element);
     else
         abstract_element.document().update_style_for_element(abstract_element, DOM::Document::StyleUpdateMode::OnlyIfNeeded);

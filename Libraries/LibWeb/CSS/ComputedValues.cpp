@@ -899,17 +899,6 @@ ComputedStyleRecordView::~ComputedStyleRecordView()
         m_style_computer->unpin_style_record(m_style_record_identity);
 }
 
-void ComputedStyleRecordView::retain_across_style_record_publication()
-{
-    VERIFY(m_present);
-    VERIFY(m_style_computer);
-    VERIFY(m_values.animated_properties());
-    m_retained_values = ComputedValues::Builder { m_values }.build();
-    if (m_owns_style_record_pin)
-        m_style_computer->unpin_style_record(m_style_record_identity);
-    m_style_computer = nullptr;
-}
-
 // The table-driven build and the marshalled build must stay on one numbering with the Rust
 // mirror in table_group_builder.rs.
 static_assert(to_underlying(StyleGroupIndex::InheritedTableValues) == 0);

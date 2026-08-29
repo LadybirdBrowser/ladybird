@@ -242,9 +242,10 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             VERIFY(reaction.damage == StyleEngineFFI::FfiStyleDeltaDamage::Full);
         }
 
-        auto previous_style_state = document.style_computer().style_engine().style_record_state(element->style_record_identity());
-        bool const was_unstyled = !previous_style_state.present;
-        bool const was_display_none = previous_style_state.display_none;
+        auto previous_style_record = element->style_record_identity();
+        bool const was_unstyled = !previous_style_record;
+        auto const* previous_box_values = element->style_group<ComputedValues::BoxValues>();
+        bool const was_display_none = previous_box_values && display_from_ffi_display(previous_box_values->display).is_none();
         bool const needs_regular_style_recompute = reaction.reaction & (StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle | StyleEngine::RecomputeDescendantStyles | StyleEngine::AncestorBecameVisible);
         bool const needs_custom_property_recompute = reaction.reaction & StyleEngine::InheritedCustomProperties;
         bool const needs_inherited_style_recompute = reaction.reaction & StyleEngine::InheritedStyle;
@@ -324,15 +325,17 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
         apply_element_style_invalidation_after_style_change(*element, invalidation);
         transaction_invalidation |= invalidation;
 
-        auto current_style_state = document.style_computer().style_engine().style_record_state(element->style_record_identity());
+        auto current_style_record = element->style_record_identity();
         // A descendant whose style was cleared on entry to display:none can receive a reaction which only
         // updates style-engine bookkeeping, such as a synthetic pseudo-element reaction. Keep the DOM style
         // unmaterialized until a CSSOM read or the ancestor becomes visible.
-        if (!current_style_state.present) {
+        if (!current_style_record) {
             VERIFY(was_unstyled);
             continue;
         }
-        if (current_style_state.display_none) {
+        auto const* current_box_values = element->style_group<ComputedValues::BoxValues>();
+        VERIFY(current_box_values);
+        if (display_from_ffi_display(current_box_values->display).is_none()) {
             if (was_unstyled) {
                 record_direct_child_style_engine_reactions(*element, reaction_batch, StyleEngine::RecomputeStyle);
                 if (auto shadow_root = element->shadow_root())
@@ -360,7 +363,8 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
         if ((reaction.reaction & StyleEngine::RecomputeDescendantStyles) || invalidation.recompute_descendant_styles)
             common_child_reaction |= StyleEngine::RecomputeDescendantStyles;
         if (ancestor_became_visible
-            || (was_display_none && !current_style_state.in_display_none_subtree))
+            || (was_display_none
+                && !(document.style_computer().style_engine().style_record_dependency_flags(current_style_record) & to_underlying(StyleRecordDependencyFlag::InDisplayNoneSubtree))))
             common_child_reaction |= StyleEngine::AncestorBecameVisible;
 
         auto light_tree_child_reaction = common_child_reaction;
@@ -799,8 +803,9 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
     }
 
     if (ran_regular_style_update && mode != StyleUpdateMode::OnlyIfNeeded) {
-        auto const computed_values = abstract_element.computed_style();
-        if (computed_values && !computed_values->in_display_none_subtree())
+        auto style_record = abstract_element.style_record_identity();
+        if (!!style_record
+            && !(document.style_computer().style_engine().style_record_dependency_flags(style_record) & to_underlying(StyleRecordDependencyFlag::InDisplayNoneSubtree)))
             return true;
     }
 
@@ -827,7 +832,8 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
             topmost_element_requiring_style = i - 1;
         }
 
-        if (auto const values = ancestor->computed_style(); values && values->display().is_none()) {
+        auto const* box_values = ancestor->style_group<ComputedValues::BoxValues>();
+        if (box_values && display_from_ffi_display(box_values->display).is_none()) {
             topmost_display_none_index = i - 1;
             if (mode == StyleUpdateMode::StopAtDisplayNone && !topmost_element_requiring_style.has_value())
                 return false;
@@ -859,9 +865,10 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
 
         descendant_style_recompute_needed |= invalidation.recompute_descendant_styles;
 
-        auto style = element->computed_style();
-        VERIFY(style);
-        if (style->display().is_none()) {
+        VERIFY(element->has_style());
+        auto const* box_values = element->style_group<ComputedValues::BoxValues>();
+        VERIFY(box_values);
+        if (display_from_ffi_display(box_values->display).is_none()) {
             if (mode == StyleUpdateMode::StopAtDisplayNone)
                 return false;
             descendant_style_recompute_needed = false;

@@ -350,7 +350,6 @@ void StyleComputer::prepare_for_style_engine_transaction() const
     ++m_style_sharing_transaction_generation;
     if (m_style_sharing_cache_entry_count > maximum_persistent_style_sharing_entries)
         clear_style_sharing_cache();
-    m_computed_style_invalidation_cache.clear();
     m_style_engine_cascade_input_cache.clear();
     sweep_custom_property_environments();
 }
@@ -391,7 +390,6 @@ Parser::ValueParserFFI::FfiMediaEnvironment const* StyleComputer::ensure_media_e
 void StyleComputer::drop_style_sharing_cache() const
 {
     clear_style_sharing_cache();
-    m_computed_style_invalidation_cache.clear();
     m_style_engine_cascade_input_cache.clear();
     sweep_custom_property_environments();
 }
@@ -409,19 +407,6 @@ ComputedStyleRecordView StyleComputer::computed_style_record_view(StyleRecordID 
         ++m_computed_style_record_view_pin_count;
     }
     return ComputedStyleRecordView { view, *this, style_record_identity, owns_style_record_pin };
-}
-
-StyleComputer::StyleRecordStatus StyleComputer::style_record_status(StyleRecordID style_record_identity) const
-{
-    if (!style_record_identity)
-        return {};
-    auto view = m_style_engine.style_record_view(style_record_identity);
-    if (!view.present)
-        return {};
-    return {
-        .present = true,
-        .in_display_none_subtree = (view.dependency_flags & to_underlying(StyleRecordDependencyFlag::InDisplayNoneSubtree)) != 0,
-    };
 }
 
 void const* StyleComputer::style_record_payloads(StyleRecordID style_record_identity) const
@@ -3407,43 +3392,6 @@ static bool style_sharing_keys_are_equal(Vector<u64> const& first, Vector<u64> c
     return true;
 }
 
-static Optional<u32> style_record_transition_key(StyleEngine::StyleRecordDelta const& delta)
-{
-    if (!delta.old_style_record || !delta.new_style_record)
-        return {};
-    return pair_int_hash(Traits<CSS::StyleRecordID>::hash(delta.old_style_record), Traits<CSS::StyleRecordID>::hash(delta.new_style_record));
-}
-
-Optional<StyleComputer::ComputedStyleInvalidation> StyleComputer::cached_computed_style_invalidation(StyleEngine::StyleRecordDelta const& delta, bool element_folds_transform_into_layout) const
-{
-    auto key = style_record_transition_key(delta);
-    if (!key.has_value())
-        return {};
-    auto entries = m_computed_style_invalidation_cache.get(*key);
-    if (!entries.has_value())
-        return {};
-    for (auto const& entry : entries.value()) {
-        if (entry.old_style_record == delta.old_style_record
-            && entry.new_style_record == delta.new_style_record
-            && entry.element_folds_transform_into_layout == element_folds_transform_into_layout)
-            return entry.result;
-    }
-    return {};
-}
-
-void StyleComputer::cache_computed_style_invalidation(StyleEngine::StyleRecordDelta const& delta, bool element_folds_transform_into_layout, ComputedStyleInvalidation result) const
-{
-    auto key = style_record_transition_key(delta);
-    if (!key.has_value())
-        return;
-    m_computed_style_invalidation_cache.ensure(*key).append({
-        .old_style_record = delta.old_style_record,
-        .new_style_record = delta.new_style_record,
-        .element_folds_transform_into_layout = element_folds_transform_into_layout,
-        .result = move(result),
-    });
-}
-
 // Whether an element's own custom properties changed is a question about what it now holds against
 // what it held, and it is answered the same way whether the values were computed or taken from
 // another element.
@@ -4019,8 +3967,8 @@ static StyleInputRecord::Difference compare_style_input_records(StyleInputRecord
 bool StyleComputer::can_reuse_style_after_inherited_custom_property_change(DOM::Element& element) const
 {
     auto* record = element.style_input_record();
-    auto values = element.computed_style();
-    if (!record || record->read_beyond_the_record || !values || values->animated_properties() || values->has_animated_values())
+    auto style_record = element.style_record_identity();
+    if (!record || record->read_beyond_the_record || !style_record || style_record_has_animation_overlay(style_record))
         return false;
     if (element.has_synthetic_pseudo_elements())
         return false;

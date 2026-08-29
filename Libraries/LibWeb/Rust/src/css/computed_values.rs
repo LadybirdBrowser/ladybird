@@ -161,7 +161,7 @@ impl ComputedStyleValueHandle {
         }
     }
 
-    fn data(&self) -> Option<&crate::css::style_value::StyleValueData> {
+    pub(crate) fn data(&self) -> Option<&crate::css::style_value::StyleValueData> {
         unsafe { self.pointer.cast::<crate::css::style_value::StyleValueData>().as_ref() }
     }
 }
@@ -312,7 +312,7 @@ impl RetainedTextDecorationLineList {
         Self { pointer, length }
     }
 
-    fn as_slice(&self) -> &[u8] {
+    pub(crate) fn as_slice(&self) -> &[u8] {
         if self.pointer.is_null() {
             return &[];
         }

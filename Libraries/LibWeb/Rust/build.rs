@@ -1334,6 +1334,11 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
     let mut levels = vec![0u8; (last_longhand - first_longhand + 1) as usize];
     let mut animation_types = vec![0u8; levels.len()];
     let mut layout_geometry_effects = vec![false; levels.len()];
+    let mut affects_layout = vec![false; levels.len()];
+    let mut affects_stacking_context = vec![false; levels.len()];
+    let mut affects_scrollable_overflow = vec![false; levels.len()];
+    let mut affects_accumulated_visual_contexts = vec![false; levels.len()];
+    let mut style_group_indices = vec![u8::MAX; levels.len()];
     let mut initial_values = vec![String::new(); levels.len()];
     let mut numeric_range_rows = vec![String::new(); levels.len()];
     let value_types = [
@@ -1421,6 +1426,38 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
             || metadata_flag("affects-scrollable-overflow", false)
             || metadata_flag("affects-stacking-context", false)
             || may_affect_layout_geometry_indirectly;
+        affects_layout[index] = metadata_flag("affects-layout", true);
+        affects_stacking_context[index] = metadata_flag("affects-stacking-context", false);
+        affects_scrollable_overflow[index] = metadata_flag("affects-scrollable-overflow", false);
+        affects_accumulated_visual_contexts[index] = metadata_flag("affects-accumulated-visual-contexts", false);
+        let style_group = property_field(name, "style-group").and_then(|value| value.as_str().map(str::to_owned));
+        style_group_indices[index] = match style_group.as_deref() {
+            Some("InheritedTableValues") => 0,
+            Some("InheritedListValues") => 1,
+            Some("InheritedUIValues") => 2,
+            Some("InheritedSVGValues") => 3,
+            Some("InheritedTextValues") => 4,
+            Some("InheritedBoxValues") => 5,
+            Some("FontValues") => 6,
+            Some("AnimationValues") => 7,
+            Some("SVGResetValues") => 8,
+            Some("GridValues") => 9,
+            Some("AnchorValues") => 10,
+            Some("EffectsValues") => 11,
+            Some("MaskValues") => 12,
+            Some("TextResetValues") => 13,
+            Some("ContentValues") => 14,
+            Some("TransformValues") => 15,
+            Some("BackgroundValues") => 16,
+            Some("BorderValues") => 17,
+            Some("AlignmentValues") => 18,
+            Some("MiscResetValues") => 19,
+            Some("SizingValues") => 20,
+            Some("SurroundValues") => 21,
+            Some("BoxValues") => 22,
+            Some(group) => return Err(format!("unknown style group '{group}' for {name}").into()),
+            None => u8::MAX,
+        };
 
         initial_values[index] = property_field(name, "initial")
             .and_then(|value| value.as_str().map(str::to_string))
@@ -2114,6 +2151,31 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         "pub(crate) static PROPERTY_MAY_AFFECT_LAYOUT_GEOMETRY: [bool; {}] = {:?};\n",
         layout_geometry_effects.len(),
         layout_geometry_effects
+    ));
+    output.push_str(&format!(
+        "pub(crate) static PROPERTY_AFFECTS_LAYOUT: [bool; {}] = {:?};\n",
+        affects_layout.len(),
+        affects_layout
+    ));
+    output.push_str(&format!(
+        "pub(crate) static PROPERTY_AFFECTS_STACKING_CONTEXT: [bool; {}] = {:?};\n",
+        affects_stacking_context.len(),
+        affects_stacking_context
+    ));
+    output.push_str(&format!(
+        "pub(crate) static PROPERTY_AFFECTS_SCROLLABLE_OVERFLOW: [bool; {}] = {:?};\n",
+        affects_scrollable_overflow.len(),
+        affects_scrollable_overflow
+    ));
+    output.push_str(&format!(
+        "pub(crate) static PROPERTY_AFFECTS_ACCUMULATED_VISUAL_CONTEXTS: [bool; {}] = {:?};\n",
+        affects_accumulated_visual_contexts.len(),
+        affects_accumulated_visual_contexts
+    ));
+    output.push_str(&format!(
+        "pub(crate) static PROPERTY_STYLE_GROUP_INDICES: [u8; {}] = {:?};\n",
+        style_group_indices.len(),
+        style_group_indices
     ));
     output.push_str(&format!(
         "pub(crate) static PROPERTY_INITIAL_VALUES: [&str; {}] = {:?};\n",
@@ -2871,6 +2933,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // engine lifecycle entry points; no string or owning pointer appears in this ABI.
     let mut style_engine_config = base_config.clone();
     style_engine_config.namespaces = Some(vec!["Web".to_string(), "CSS".to_string(), "StyleEngineFFI".to_string()]);
+    style_engine_config.export.include = vec!["FfiStyleInvalidationField".to_string()];
 
     generate_ffi_header(
         style_engine_config,
