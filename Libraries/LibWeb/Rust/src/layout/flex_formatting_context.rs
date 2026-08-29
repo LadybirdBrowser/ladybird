@@ -983,31 +983,35 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn calculate_min_content_main_size(&self, index: usize) -> CssPixels {
-        self.select_main(
-            self.calculate_min_content_inline_size(index),
-            self.calculate_min_content_block_size(index, self.intrinsic_block_inline_size(index)),
-        )
+        if self.main_axis_is_horizontal() {
+            self.calculate_min_content_inline_size(index)
+        } else {
+            self.calculate_min_content_block_size(index, self.intrinsic_block_inline_size(index))
+        }
     }
 
     fn calculate_max_content_main_size(&self, index: usize) -> CssPixels {
-        self.select_main(
-            self.calculate_max_content_inline_size(index),
-            self.calculate_max_content_block_size(index, self.intrinsic_block_inline_size(index)),
-        )
+        if self.main_axis_is_horizontal() {
+            self.calculate_max_content_inline_size(index)
+        } else {
+            self.calculate_max_content_block_size(index, self.intrinsic_block_inline_size(index))
+        }
     }
 
     fn calculate_min_content_cross_size(&self, index: usize) -> CssPixels {
-        self.select_cross(
-            self.calculate_min_content_inline_size(index),
-            self.calculate_min_content_block_size(index, self.intrinsic_block_inline_size(index)),
-        )
+        if self.cross_axis_is_horizontal() {
+            self.calculate_min_content_inline_size(index)
+        } else {
+            self.calculate_min_content_block_size(index, self.intrinsic_block_inline_size(index))
+        }
     }
 
     fn calculate_max_content_cross_size(&self, index: usize) -> CssPixels {
-        self.select_cross(
-            self.calculate_max_content_inline_size(index),
-            self.calculate_max_content_block_size(index, self.intrinsic_block_inline_size(index)),
-        )
+        if self.cross_axis_is_horizontal() {
+            self.calculate_max_content_inline_size(index)
+        } else {
+            self.calculate_max_content_block_size(index, self.intrinsic_block_inline_size(index))
+        }
     }
 
     fn calculate_fit_content_main_size(&self, index: usize) -> CssPixels {
