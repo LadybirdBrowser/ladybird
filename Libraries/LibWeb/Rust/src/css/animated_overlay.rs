@@ -46,10 +46,6 @@ impl AnimatedOverlay {
         self.entries.iter().find(|entry| entry.property == property)
     }
 
-    pub(crate) fn entries(&self) -> &[AnimatedOverlayEntry] {
-        &self.entries
-    }
-
     pub(crate) fn set_owned(
         &mut self,
         property: u16,

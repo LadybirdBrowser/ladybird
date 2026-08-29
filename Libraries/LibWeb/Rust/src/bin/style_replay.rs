@@ -890,6 +890,46 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         old_style_record: event.payload.read_u64()?,
                         new_style_record: event.payload.read_u64()?,
                     };
+                    let publication_longhand_table = if longhand_table.is_null() {
+                        if !inheritance_dependent_values.is_empty() {
+                            return Err("inheritance-dependent values require a computed longhand table".into());
+                        }
+                        std::ptr::null_mut()
+                    } else {
+                        let table = libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_create();
+                        unsafe {
+                            libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_copy_from(
+                                table,
+                                longhand_table,
+                            );
+                            for (&property, &value) in inheritance_dependent_properties
+                                .iter()
+                                .zip(&inheritance_dependent_values)
+                            {
+                                libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_add_inheritance_dependent_value(
+                                    table,
+                                    property,
+                                    value,
+                                );
+                            }
+                            libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_load_flag_bitmaps(
+                                table,
+                                property_importance.as_ptr(),
+                                property_importance.len(),
+                                property_inheritance.as_ptr(),
+                                property_inheritance.len(),
+                            );
+                            let metadata =
+                                &mut *libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_metadata(
+                                    table,
+                                );
+                            metadata.pseudo_element_styles = pseudo_element_styles;
+                            metadata.dependency_flags = dependency_flags & 3;
+                            metadata.in_display_none_subtree = dependency_flags & (1 << 2) != 0;
+                            libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_freeze(table);
+                        }
+                        table
+                    };
                     let actual = unsafe {
                         bridge::style_engine_publish_computed_groups(
                             engine,
@@ -899,24 +939,23 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                             computed_group_payloads.len(),
                             inherited_group_count,
                             custom_property_environment,
-                            pseudo_element_styles,
-                            dependency_flags,
+                            dependency_flags & (1 << 3) != 0,
                             counter_style_environment_identity,
                             animation_overlay_identity,
                             animated_properties,
                             animation_overlay_payloads.as_ptr(),
                             animation_overlay_payloads.len(),
-                            property_importance.as_ptr(),
-                            property_importance.len(),
-                            property_inheritance.as_ptr(),
-                            property_inheritance.len(),
-                            inheritance_dependent_properties.as_ptr(),
-                            inheritance_dependent_values.as_ptr(),
-                            inheritance_dependent_properties.len(),
                             raw_cascaded_font_size,
-                            longhand_table.cast_const().cast(),
+                            publication_longhand_table.cast_const().cast(),
                         )
                     };
+                    if !publication_longhand_table.is_null() {
+                        unsafe {
+                            libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_release(
+                                publication_longhand_table,
+                            );
+                        }
+                    }
                     if actual != expected {
                         return Err(format!(
                             "computed style publication diverged at event {event_count} after {last_benchmark_marker:?} in {active_phase:?} for node {node}: expected {expected:?}, got {actual:?}"
@@ -2212,12 +2251,13 @@ fn style_record_view_matches(
     expected: &RecordedStyleRecordView,
     actual: bridge::FfiStyleRecordView,
 ) -> Result<bool, std::num::TryFromIntError> {
+    let (actual_longhand_values, actual_longhand_value_count) = style_record_longhand_values(actual);
     if actual.payload_count != expected.payloads.len()
         || actual.payload_count != expected.base_payloads.len()
         || actual.property_importance_count != expected.property_importance.len()
         || actual.property_inheritance_count != expected.property_inheritance.len()
         || actual.inheritance_dependent_value_count != expected.inheritance_dependent_values.len()
-        || actual.longhand_value_count != expected.longhand_values.len()
+        || actual_longhand_value_count != expected.longhand_values.len()
     {
         return Ok(false);
     }
@@ -2255,7 +2295,7 @@ fn style_record_view_matches(
     };
     Ok(pointers_match(actual.payloads, expected.payloads)?
         && pointers_match(actual.base_payloads, expected.base_payloads)?
-        && pointers_match(actual.longhand_values, expected.longhand_values)?
+        && pointers_match(actual_longhand_values, expected.longhand_values)?
         && bytes_match(actual.property_importance, &expected.property_importance)
         && bytes_match(actual.property_inheritance, &expected.property_inheritance)
         && inheritance_dependent_values_match
@@ -2270,6 +2310,7 @@ fn style_record_view_matches(
 fn semantic_style_record_view(
     view: bridge::FfiStyleRecordView,
 ) -> Result<OwnedSemanticStyleRecordView, Box<dyn std::error::Error>> {
+    let (longhand_values, longhand_value_count) = style_record_longhand_values(view);
     let pointers = |pointer: *const *const c_void, count: usize| -> Result<Vec<u64>, Box<dyn std::error::Error>> {
         if count == 0 {
             return Ok(Vec::new());
@@ -2298,7 +2339,7 @@ fn semantic_style_record_view(
     Ok(OwnedSemanticStyleRecordView {
         payloads: pointers(view.payloads, view.payload_count)?,
         base_payloads: pointers(view.base_payloads, view.payload_count)?,
-        longhand_values: pointers(view.longhand_values, view.longhand_value_count)?,
+        longhand_values: pointers(longhand_values, longhand_value_count)?,
         property_importance: bytes(view.property_importance, view.property_importance_count),
         property_inheritance: bytes(view.property_inheritance, view.property_inheritance_count),
         inheritance_dependent_values,
@@ -2309,6 +2350,19 @@ fn semantic_style_record_view(
         animation_overlay_identity: view.animation_overlay_identity,
         dependency_flags: view.dependency_flags,
     })
+}
+
+fn style_record_longhand_values(view: bridge::FfiStyleRecordView) -> (*const *const c_void, usize) {
+    if view.longhand_table.is_null() {
+        return (std::ptr::null(), 0);
+    }
+    let count = (libweb_rust::css::property_metadata::LAST_LONGHAND_PROPERTY_ID
+        - libweb_rust::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
+        + 1) as usize;
+    let values = unsafe {
+        libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_values(view.longhand_table.cast())
+    };
+    (values, count)
 }
 
 struct OwnedSemanticStyleRecordView {
