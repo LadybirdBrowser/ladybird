@@ -80,7 +80,7 @@ impl StyleEngine {
             computed_group_set_memory: MemoryLease::new(MemoryCategory::ComputedGroupSet),
             custom_property_environment_memory: MemoryLease::new(MemoryCategory::CustomPropertyEnvironment),
             computed_fixed_metadata_memory: MemoryLease::new(MemoryCategory::ComputedFixedMetadata),
-            computed_reconstruction_metadata_memory: MemoryLease::new(MemoryCategory::ComputedReconstructionMetadata),
+            computed_longhand_table_memory: MemoryLease::new(MemoryCategory::ComputedLonghandTable),
             style_record_memory: MemoryLease::new(MemoryCategory::StyleRecord),
             animation_overlay_memory: MemoryLease::new(MemoryCategory::AnimationOverlayRecord),
             computed_pseudo_assignment_memory: MemoryLease::new(MemoryCategory::ComputedPseudoAssignment),

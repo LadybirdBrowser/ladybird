@@ -676,11 +676,6 @@ fn publish_current_cascade_as_computed(engine: &mut StyleEngine, node: StyleNode
             animated_overlay: std::ptr::null(),
             animation_overlay_payloads: &[],
             longhand_table: std::ptr::null(),
-            reconstruction: computed::ComputedReconstructionMetadataInput {
-                property_importance: &[],
-                property_inheritance: &[],
-                raw_cascaded_font_size: std::ptr::null(),
-            },
         },
     );
     assert_eq!(

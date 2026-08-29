@@ -39,8 +39,7 @@ pub(crate) const LONGHAND_COUNT: usize = (LAST_LONGHAND_PROPERTY_ID - FIRST_LONG
 pub(crate) const LONGHAND_BITMAP_BYTES: usize = LONGHAND_COUNT.div_ceil(8);
 
 /// One sparse inheritance-dependent specified value, exposed to C++ as the
-/// borrowed span behind a style's inheritance-dependent value view. Layout
-/// matches `FfiInheritanceDependentValue` in the style-engine bridge.
+/// borrowed span behind a style's inheritance-dependent value view.
 #[repr(C)]
 pub struct FfiTableInheritanceDependentValue {
     pub property: u16,
@@ -104,6 +103,8 @@ pub struct ComputedLonghandTable {
     evaluated_bits: [u8; LONGHAND_BITMAP_BYTES],
     /// The recorded inheritance-dependent specified values, sparse.
     inheritance_dependent: Vec<(u16, RetainedStyleValueData)>,
+    /// The winning cascaded font-size retained for monospace recascades.
+    raw_cascaded_font_size: Option<RetainedStyleValueData>,
     /// The borrowed view over `inheritance_dependent` handed to C++.
     inheritance_dependent_view: Vec<FfiTableInheritanceDependentValue>,
     /// Viewport dependency flags accumulated by the longhand drive.
@@ -135,6 +136,7 @@ impl ComputedLonghandTable {
             evaluated_bits: [0; LONGHAND_BITMAP_BYTES],
             inheritance_dependent: Vec::new(),
             inheritance_dependent_view: Vec::new(),
+            raw_cascaded_font_size: None,
             metadata: FfiComputedStyleMetadata {
                 display_before_box_type_transformation: 0,
                 pseudo_element_styles: 0,
@@ -255,6 +257,26 @@ impl ComputedLonghandTable {
             .map(|(property, value)| (*property, value.pointer().cast()))
     }
 
+    pub(crate) fn retained_inheritance_dependent_values(&self) -> impl Iterator<Item = (u16, &RetainedStyleValueData)> {
+        self.inheritance_dependent
+            .iter()
+            .map(|(property, value)| (*property, value))
+    }
+
+    pub(crate) fn raw_cascaded_font_size(&self) -> *const c_void {
+        self.raw_cascaded_font_size
+            .as_ref()
+            .map_or(std::ptr::null(), |value| value.pointer().cast())
+    }
+
+    pub(crate) fn set_raw_cascaded_font_size(&mut self, value: Option<RetainedStyleValueData>) {
+        assert!(
+            !self.frozen,
+            "the computed longhand table is immutable once its style is created"
+        );
+        self.raw_cascaded_font_size = value;
+    }
+
     fn copy_from(&mut self, source: &ComputedLonghandTable) {
         assert!(
             !self.frozen,
@@ -268,6 +290,7 @@ impl ComputedLonghandTable {
         self.evaluated_bits = source.evaluated_bits;
         self.metadata = source.metadata;
         self.inheritance_dependent.clone_from(&source.inheritance_dependent);
+        self.raw_cascaded_font_size.clone_from(&source.raw_cascaded_font_size);
         self.rebuild_inheritance_dependent_view();
         self.post_compute_restore_values = None;
     }
@@ -276,6 +299,14 @@ impl ComputedLonghandTable {
         let mut table = Self::new();
         table.copy_from(source);
         table.clear_seeded_state();
+        table
+    }
+
+    pub(crate) fn copied_for_partial_drive(source: &ComputedLonghandTable) -> Self {
+        let mut table = Self::copied_for_drive(source);
+        table.inheritance_dependent.clone_from(&source.inheritance_dependent);
+        table.rebuild_inheritance_dependent_view();
+        table.set_in_display_none_subtree(false);
         table
     }
 
@@ -373,6 +404,7 @@ impl ComputedLonghandTable {
         self.metadata.dependency_flags = 0;
         self.inheritance_dependent.clear();
         self.inheritance_dependent_view.clear();
+        self.raw_cascaded_font_size = None;
         self.post_compute_restore_values = None;
     }
 
@@ -511,6 +543,7 @@ impl ComputedLonghandTable {
             && self.publication_sidecars() == other.publication_sidecars()
             && self.publication_dependency_flags() == other.publication_dependency_flags()
             && self.pseudo_element_styles() == other.pseudo_element_styles()
+            && values_equal(self.raw_cascaded_font_size(), other.raw_cascaded_font_size())
             && self.inheritance_dependent.len() == other.inheritance_dependent.len()
             && self.inheritance_dependent.iter().all(|(property, value)| {
                 other
@@ -793,6 +826,35 @@ pub unsafe extern "C" fn rust_computed_longhand_table_get(
         Some(value) => value.pointer().cast(),
         None => std::ptr::null(),
     })
+}
+
+/// Returns the retained raw cascaded font-size data, or null when none won.
+///
+/// # Safety
+/// `table` must be a valid table.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_computed_longhand_table_raw_cascaded_font_size(
+    table: *const ComputedLonghandTable,
+) -> *const c_void {
+    abort_on_panic(|| unsafe { &*table }.raw_cascaded_font_size())
+}
+
+/// Replaces the retained raw cascaded font-size data.
+///
+/// # Safety
+/// `table` must be a valid, unfrozen, uniquely owned table. `data` must be
+/// null or point at live `StyleValueData`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_computed_longhand_table_set_raw_cascaded_font_size(
+    table: *mut ComputedLonghandTable,
+    data: *const c_void,
+) {
+    abort_on_panic(|| {
+        let value = (!data.is_null()).then(|| unsafe {
+            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(data.cast()))
+        });
+        unsafe { &mut *table }.set_raw_cascaded_font_size(value);
+    });
 }
 
 /// Returns the longhand's recorded cascade source slot, or -1 when its value

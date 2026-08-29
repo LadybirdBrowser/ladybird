@@ -32,12 +32,6 @@ class StyleComputer;
 
 }
 
-namespace Web::CSS::StyleEngineFFI {
-
-struct FfiInheritanceDependentValue;
-
-}
-
 namespace Web::CSS {
 
 enum class AnimatedPropertyResultOfTransition : u8 {
@@ -69,7 +63,7 @@ public:
     };
 
     static NonnullRefPtr<ComputedStyleWorkingSet> create();
-    static NonnullRefPtr<ComputedStyleWorkingSet> create_with_longhand_table(ComputedValuesFFI::ComputedLonghandTable*, void const* raw_cascaded_font_size);
+    static NonnullRefPtr<ComputedStyleWorkingSet> create_with_longhand_table(ComputedValuesFFI::ComputedLonghandTable*);
     static NonnullRefPtr<ComputedStyleWorkingSet> create_with_base_values_from(ComputedStyleWorkingSet const&);
     static NonnullRefPtr<ComputedStyleWorkingSet> create_with_base_values_from(ComputedValues const&);
     ~ComputedStyleWorkingSet();
@@ -106,9 +100,6 @@ public:
 
     void add_inheritance_dependent_specified_value(PropertyID, NonnullRefPtr<StyleValue const> value);
     void remove_inheritance_dependent_specified_value(PropertyID);
-
-    RefPtr<StyleValue const> raw_cascaded_font_size() const { return m_raw_cascaded_font_size; }
-    void set_raw_cascaded_font_size(NonnullRefPtr<StyleValue const> value) { m_raw_cascaded_font_size = move(value); }
 
     RefPtr<AnimatedProperties const> animated_properties_snapshot() const;
     bool has_animated_property(PropertyID property_id) const;
@@ -186,7 +177,7 @@ public:
 
     // The recorded inheritance-dependent specified values, borrowed from the drive's table;
     // the span stays valid while the table does.
-    ReadonlySpan<StyleEngineFFI::FfiInheritanceDependentValue const> inheritance_dependent_value_span() const;
+    ReadonlySpan<ComputedValuesFFI::FfiTableInheritanceDependentValue const> inheritance_dependent_value_span() const;
 
     // Whole-bitmap views over the table's importance and inheritance flags, in FixedBitmap
     // byte layout; valid while the table is.
@@ -213,7 +204,7 @@ private:
     };
 
     ComputedStyleWorkingSet();
-    ComputedStyleWorkingSet(ComputedValuesFFI::ComputedLonghandTable*, void const* raw_cascaded_font_size);
+    explicit ComputedStyleWorkingSet(ComputedValuesFFI::ComputedLonghandTable*);
     // The without-animations copy: shares the frozen table and the mint cache.
     struct ShareFrozenTable { };
     ComputedStyleWorkingSet(ShareFrozenTable, ComputedStyleWorkingSet const&);
@@ -235,8 +226,6 @@ private:
     ComputedValuesFFI::ComputedLonghandTable* m_computed_longhand_table { nullptr };
     NonnullRefPtr<WrapperMintCache> m_mint_cache;
     RefPtr<AnimatedProperties> m_animated_properties;
-
-    RefPtr<StyleValue const> m_raw_cascaded_font_size;
 
     mutable RefPtr<Gfx::FontCascadeList const> m_cached_computed_font_list;
     mutable RefPtr<Gfx::Font const> m_cached_first_available_computed_font;

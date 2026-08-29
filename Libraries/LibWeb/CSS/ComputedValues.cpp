@@ -869,17 +869,10 @@ ComputedStyleRecordView::ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordV
         m_values.m_borrowed_base_values = &*m_base_values;
     }
 
-    VERIFY(view.property_importance_count == m_values.m_property_important.size_in_bytes());
-    VERIFY(view.property_inheritance_count == m_values.m_property_inherited.size_in_bytes());
-    m_values.m_property_important.copy_from({ view.property_importance, view.property_importance_count });
-    m_values.m_property_inherited.copy_from({ view.property_inheritance, view.property_inheritance_count });
-
     m_values.m_pseudo_element_styles = view.pseudo_element_styles;
     m_values.m_depends_on_viewport_metrics = view.dependency_flags & to_underlying(StyleRecordDependencyFlag::DependsOnViewportMetrics);
     m_values.m_font_metrics_depend_on_viewport_metrics = view.dependency_flags & to_underlying(StyleRecordDependencyFlag::FontMetricsDependOnViewportMetrics);
     m_values.m_in_display_none_subtree = view.dependency_flags & to_underlying(StyleRecordDependencyFlag::InDisplayNoneSubtree);
-    m_values.m_borrowed_raw_cascaded_font_size = static_cast<StyleValueFFI::StyleValueData const*>(view.raw_cascaded_font_size);
-    m_values.m_inheritance_dependent_specified_values = { view.inheritance_dependent_values, view.inheritance_dependent_value_count };
     m_values.m_computed_longhand_table = view.longhand_table;
     if (m_values.m_computed_longhand_table)
         m_values.refresh_computed_longhand_table_views();
@@ -892,7 +885,6 @@ ComputedStyleRecordView::ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordV
         m_base_values->m_depends_on_viewport_metrics = m_values.m_depends_on_viewport_metrics;
         m_base_values->m_font_metrics_depend_on_viewport_metrics = m_values.m_font_metrics_depend_on_viewport_metrics;
         m_base_values->m_in_display_none_subtree = m_values.m_in_display_none_subtree;
-        m_base_values->m_borrowed_raw_cascaded_font_size = m_values.m_borrowed_raw_cascaded_font_size;
         m_base_values->m_inheritance_dependent_specified_values = m_values.m_inheritance_dependent_specified_values;
         m_base_values->m_computed_longhand_table = m_values.m_computed_longhand_table;
         if (m_base_values->m_computed_longhand_table)
@@ -1704,7 +1696,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedStyl
             pseudo_element_styles |= 1ull << i;
     }
     computed_values.set_pseudo_element_styles(pseudo_element_styles);
-    computed_values.set_raw_cascaded_font_size(computed_style.raw_cascaded_font_size());
     computed_values.set_computed_longhand_table(computed_style.computed_longhand_table());
 
     return move(builder).build();
@@ -1752,11 +1743,11 @@ void ComputedValues::refresh_computed_longhand_table_views()
     VERIFY(m_computed_longhand_table);
     auto const* table = static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(m_computed_longhand_table);
     m_longhand_values = { ComputedValuesFFI::rust_computed_longhand_table_values(table), number_of_longhand_properties };
+    m_property_important.copy_from({ ComputedValuesFFI::rust_computed_longhand_table_importance_bits(table), m_property_important.size_in_bytes() });
+    m_property_inherited.copy_from({ ComputedValuesFFI::rust_computed_longhand_table_inheritance_bits(table), m_property_inherited.size_in_bytes() });
     size_t inheritance_dependent_value_count = 0;
     auto const* inheritance_dependent_values = ComputedValuesFFI::rust_computed_longhand_table_inheritance_dependent_values(table, &inheritance_dependent_value_count);
-    static_assert(sizeof(StyleEngineFFI::FfiInheritanceDependentValue) == sizeof(ComputedValuesFFI::FfiTableInheritanceDependentValue));
-    static_assert(alignof(StyleEngineFFI::FfiInheritanceDependentValue) == alignof(ComputedValuesFFI::FfiTableInheritanceDependentValue));
-    m_inheritance_dependent_specified_values = { reinterpret_cast<StyleEngineFFI::FfiInheritanceDependentValue const*>(inheritance_dependent_values), inheritance_dependent_value_count };
+    m_inheritance_dependent_specified_values = { inheritance_dependent_values, inheritance_dependent_value_count };
 }
 
 void ComputedValues::clear_computed_longhand_table()
@@ -1900,11 +1891,13 @@ RefPtr<StyleValue const> ComputedValues::color_style_value() const
 
 RefPtr<StyleValue const> ComputedValues::raw_cascaded_font_size() const
 {
-    if (m_raw_cascaded_font_size)
-        return m_raw_cascaded_font_size;
-    if (!m_borrowed_raw_cascaded_font_size)
+    if (!m_computed_longhand_table)
         return {};
-    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(m_borrowed_raw_cascaded_font_size));
+    auto const* data = ComputedValuesFFI::rust_computed_longhand_table_raw_cascaded_font_size(
+        static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(m_computed_longhand_table));
+    if (!data)
+        return {};
+    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data)));
 }
 
 RefPtr<StyleValue const> ComputedValues::background_color_style_value() const

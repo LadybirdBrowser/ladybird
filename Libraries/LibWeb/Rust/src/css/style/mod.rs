@@ -59,7 +59,6 @@ mod catalog;
 mod column;
 pub mod compiler;
 mod computed;
-pub(crate) use computed::InheritanceDependentValue;
 #[cfg(test)]
 mod differential_tests;
 pub mod exact_matcher;
@@ -827,7 +826,7 @@ pub struct StyleEngine {
     computed_group_set_memory: MemoryLease,
     custom_property_environment_memory: MemoryLease,
     computed_fixed_metadata_memory: MemoryLease,
-    computed_reconstruction_metadata_memory: MemoryLease,
+    computed_longhand_table_memory: MemoryLease,
     style_record_memory: MemoryLease,
     animation_overlay_memory: MemoryLease,
     computed_pseudo_assignment_memory: MemoryLease,

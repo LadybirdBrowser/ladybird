@@ -900,7 +900,8 @@ pub unsafe extern "C" fn rust_recascade_font_size_batch(
                 }
                 style_engine
                     .style_record_view(style_record)
-                    .map_or(std::ptr::null(), |view| view.raw_cascaded_font_size)
+                    .and_then(|view| unsafe { view.longhand_table.as_ref() })
+                    .map_or(std::ptr::null(), ComputedLonghandTable::raw_cascaded_font_size)
             },
             start_index,
             current_size_raw,
@@ -2712,7 +2713,6 @@ pub struct FfiComputePropertiesInput {
         *mut c_void,
         *const crate::css::cascaded_properties::FfiStyleComputationRequirements,
         *mut ComputedLonghandTable,
-        *const c_void,
         bool,
         *mut FfiLonghandDriveInput,
     ),
@@ -3000,9 +3000,7 @@ fn compute_transform_origin(value: &StyleValueData) -> Option<Arc<StyleValueData
 }
 
 struct ParentSnapshot<'a> {
-    table_values: &'a [*const c_void],
-    property_importance: &'a [u8],
-    inheritance_dependent_values: &'a [crate::css::style::InheritanceDependentValue],
+    table: &'a ComputedLonghandTable,
     inherited_value_overlay: Option<&'a AnimatedOverlay>,
     stored_animated_overlay: Option<&'a AnimatedOverlay>,
     font_metrics_depend_on_viewport_metrics: bool,
@@ -3011,18 +3009,10 @@ struct ParentSnapshot<'a> {
 
 impl ParentSnapshot<'_> {
     fn is_important(&self, property_id: u16) -> bool {
-        use crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
-
-        let index = usize::from(property_id - FIRST_LONGHAND_PROPERTY_ID);
-        assert!(index < self.table_values.len());
-        self.property_importance[index / 8] & (1 << (index % 8)) != 0
+        self.table.is_important(property_id)
     }
 
     fn value(&self, property_id: u16) -> Option<&StyleValueData> {
-        use crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
-
-        let index = usize::from(property_id - FIRST_LONGHAND_PROPERTY_ID);
-        assert!(index < self.table_values.len());
         if let Some(entry) = self
             .inherited_value_overlay
             .and_then(|overlay| overlay.get(property_id))
@@ -3030,14 +3020,14 @@ impl ParentSnapshot<'_> {
         {
             return Some(entry.value.data());
         }
-        for entry in self.inheritance_dependent_values {
-            if entry.property == property_id
-                && crate::css::style_value::style_value_dependency_flags(entry.value.pointer()) & 1 != 0
+        for (property, value) in self.table.retained_inheritance_dependent_values() {
+            if property == property_id
+                && crate::css::style_value::style_value_dependency_flags(value.pointer()) & 1 != 0
             {
-                return unsafe { entry.value.pointer().cast::<StyleValueData>().as_ref() };
+                return Some(value.data());
             }
         }
-        unsafe { self.table_values[index].cast::<StyleValueData>().as_ref() }
+        self.table.get(property_id).map(RetainedStyleValueData::data)
     }
 
     fn effective_value(&self, property_id: u16) -> Option<&StyleValueData> {
@@ -3076,10 +3066,13 @@ fn parent_snapshot_for_style_record<'a>(
     let view = style_engine
         .style_record_view(style_record)
         .expect("the inheritance parent style record must remain live during computation");
+    let table = unsafe {
+        view.longhand_table
+            .as_ref()
+            .expect("the inheritance parent style record must carry a longhand table")
+    };
     ParentSnapshot {
-        table_values: view.longhand_values,
-        property_importance: view.property_importance,
-        inheritance_dependent_values: view.inheritance_dependent_values,
+        table,
         inherited_value_overlay: animated_overlay,
         stored_animated_overlay: unsafe { view.animated_overlay.as_ref() },
         font_metrics_depend_on_viewport_metrics: view.dependency_flags & (1 << 1) != 0,
@@ -3101,9 +3094,6 @@ fn keyframe_parent_snapshot_for_style_record(
 pub struct FfiLonghandDriverResults {
     /// Longhands whose specified-to-computed evaluation ran in this drive.
     pub longhand_evaluations: u32,
-    /// The raw winning cascaded font-size value data, or null; borrowed from the
-    /// cascaded property store.
-    pub raw_cascaded_font_size_data: *const c_void,
     pub depends_on_viewport_metrics: bool,
     pub font_metrics_depend_on_viewport_metrics: bool,
     /// Groups containing non-inherited properties explicitly inherited from
@@ -3128,7 +3118,6 @@ struct PostComputeAdjustment {
 fn empty_longhand_driver_results() -> FfiLonghandDriverResults {
     FfiLonghandDriverResults {
         longhand_evaluations: 0,
-        raw_cascaded_font_size_data: std::ptr::null(),
         depends_on_viewport_metrics: false,
         font_metrics_depend_on_viewport_metrics: false,
         explicitly_inherited_non_inherited_style_groups: 0,
@@ -3454,14 +3443,18 @@ unsafe fn drive_property_computation(
                 if important {
                     set_longhand_bit(&mut important_words, property_id);
                 }
-                // Keep the raw winning cascaded font-size for the monospace font-size
-                // recascade (see recascade_font_size_if_needed on the C++ side).
                 if property_id == crate::css::property_metadata::property_id::FONT_SIZE {
-                    results.raw_cascaded_font_size_data = value_data;
+                    unsafe { &mut *longhand_table }.set_raw_cascaded_font_size(Some(unsafe {
+                        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
+                            value_data.cast(),
+                        ))
+                    }));
                 }
             } else if property_id == crate::css::property_metadata::property_id::FONT_SIZE && has_new_font_size {
                 // NOTE: The recascaded font-size has already been stored before the loop.
                 continue;
+            } else if property_id == crate::css::property_metadata::property_id::FONT_SIZE {
+                unsafe { &mut *longhand_table }.set_raw_cascaded_font_size(None);
             }
 
             let decision = longhand_decision(
@@ -5004,23 +4997,19 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
         let mut drive_input = std::mem::MaybeUninit::<FfiLonghandDriveInput>::uninit();
         let rebuilds_over_previous_properties = requirements.computed_group_mask != input.all_computed_groups
             || requirements.has_computed_property_selection;
-        let (longhand_table, raw_cascaded_font_size) = if rebuilds_over_previous_properties {
+        let longhand_table = if rebuilds_over_previous_properties {
             let previous_style = previous_style
                 .as_ref()
                 .expect("a partial style drive must have a previous style record");
-            (
-                previous_style.longhand_table_for_partial_drive(),
-                previous_style.raw_cascaded_font_size,
-            )
+            previous_style.longhand_table_for_partial_drive()
         } else {
-            (ComputedLonghandTable::new(), std::ptr::null())
+            ComputedLonghandTable::new()
         };
         unsafe {
             (input.prepare_longhand_drive)(
                 input.callback_context,
                 &raw const requirements,
                 longhand_table.into_raw_shared().cast_mut(),
-                raw_cascaded_font_size,
                 parent_snapshot
                     .as_ref()
                     .is_some_and(ParentSnapshot::has_animated_values),
