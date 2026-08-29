@@ -242,7 +242,10 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
         && (layout_node->children_are_inline() || !parent_has_children);
     auto parent_lays_out_block_children = (parent_display.is_flow_inside() || parent_display.is_flow_root_inside())
         && !layout_node->children_are_inline();
-    if (!parent_lays_out_flex_or_grid_children && !parent_lays_out_inline_children && !parent_lays_out_block_children) {
+    auto parent_lays_out_table_rows = parent_display.is_table_row_group()
+        || parent_display.is_table_header_group()
+        || parent_display.is_table_footer_group();
+    if (!parent_lays_out_flex_or_grid_children && !parent_lays_out_inline_children && !parent_lays_out_block_children && !parent_lays_out_table_rows) {
         return false;
     }
     if (first_letter_owner)
@@ -276,6 +279,8 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
         if (child_element->rendered_in_top_layer() || is<SVG::SVGElement>(*child_element))
             return false;
         if (parent_lays_out_flex_or_grid_children)
+            continue;
+        if (parent_lays_out_table_rows && child_display.is_table_row())
             continue;
         if (parent_lays_out_block_children && child_display.is_block_outside()) {
             will_insert_block_child = true;

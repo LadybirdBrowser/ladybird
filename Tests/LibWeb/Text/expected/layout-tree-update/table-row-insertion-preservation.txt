@@ -1,0 +1,32 @@
+PASS: append row | preserve row group
+PASS: append row | preserve existing row
+PASS: append row | preserve existing cell
+PASS: append row | create inserted row
+PASS: append row | intrinsic measurements=4
+PASS: append row | incremental tree matches full rebuild
+PASS: prepend row | preserve row group
+PASS: prepend row | preserve existing row
+PASS: prepend row | preserve existing cell
+PASS: prepend row | create inserted row
+PASS: prepend row | intrinsic measurements=4
+PASS: prepend row | incremental tree matches full rebuild
+PASS: insert middle row | preserve row group
+PASS: insert middle row | preserve existing row
+PASS: insert middle row | preserve existing cell
+PASS: insert middle row | create inserted row
+PASS: insert middle row | intrinsic measurements=4
+PASS: insert middle row | incremental tree matches full rebuild
+PASS: append header row | preserve row group
+PASS: append header row | preserve existing row
+PASS: append header row | preserve existing cell
+PASS: append header row | create inserted row
+PASS: append header row | intrinsic measurements=4
+PASS: append header row | incremental tree matches full rebuild
+PASS: append footer row | preserve row group
+PASS: append footer row | preserve existing row
+PASS: append footer row | preserve existing cell
+PASS: append footer row | create inserted row
+PASS: append footer row | intrinsic measurements=4
+PASS: append footer row | incremental tree matches full rebuild
+PASS: non-row insertion | rebuild row group
+PASS: non-row insertion | incremental tree matches full rebuild
