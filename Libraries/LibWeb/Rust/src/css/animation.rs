@@ -504,6 +504,7 @@ struct AnimationPropertyConflictCandidate {
     value: RetainedStyleValueData,
     style_sheet_resource_context: FfiAnimationStyleSheetResourceContext,
     use_initial: bool,
+    is_transition: bool,
     suppressed_by_important: bool,
 }
 
@@ -613,6 +614,7 @@ pub struct FfiResolvedAnimationProperty {
     pub value: *const StyleValueData,
     pub value_source: FfiAnimationSpecifiedValueSource,
     pub style_sheet_resource_context: FfiAnimationStyleSheetResourceContext,
+    pub is_transition: bool,
 }
 
 #[repr(C)]
@@ -665,6 +667,7 @@ fn resolve_animation_declarations(
                     },
                     style_sheet_resource_context: declaration.style_sheet_resource_context,
                     use_initial: declaration.use_initial,
+                    is_transition: declaration.is_transition,
                     // OPTIMIZATION: Values resulting from animations other than CSS transitions
                     // are overridden by important properties, so there is no need to compute or
                     // evaluate them.
@@ -692,6 +695,7 @@ fn resolve_animation_declarations(
                 value: candidate.value.pointer(),
                 value_source,
                 style_sheet_resource_context: candidate.style_sheet_resource_context,
+                is_transition: candidate.is_transition,
             });
             retained_values.push(candidate.value);
         }
@@ -7053,6 +7057,7 @@ mod tests {
                 style_sheet_resource_context: FfiAnimationStyleSheetResourceContext::empty(),
                 use_initial: false,
                 suppressed_by_important: false,
+                is_transition: false,
             },
             AnimationPropertyConflictCandidate {
                 keyframe_index: 0,
@@ -7063,6 +7068,7 @@ mod tests {
                 style_sheet_resource_context: FfiAnimationStyleSheetResourceContext::empty(),
                 use_initial: false,
                 suppressed_by_important: false,
+                is_transition: false,
             },
             AnimationPropertyConflictCandidate {
                 keyframe_index: 0,
@@ -7073,6 +7079,7 @@ mod tests {
                 style_sheet_resource_context: FfiAnimationStyleSheetResourceContext::empty(),
                 use_initial: false,
                 suppressed_by_important: false,
+                is_transition: false,
             },
             AnimationPropertyConflictCandidate {
                 keyframe_index: 0,
@@ -7083,6 +7090,7 @@ mod tests {
                 style_sheet_resource_context: FfiAnimationStyleSheetResourceContext::empty(),
                 use_initial: true,
                 suppressed_by_important: false,
+                is_transition: false,
             },
             AnimationPropertyConflictCandidate {
                 keyframe_index: 1,
@@ -7093,6 +7101,7 @@ mod tests {
                 style_sheet_resource_context: FfiAnimationStyleSheetResourceContext::empty(),
                 use_initial: true,
                 suppressed_by_important: false,
+                is_transition: false,
             },
         ];
         let mut selected = [false; 5];
