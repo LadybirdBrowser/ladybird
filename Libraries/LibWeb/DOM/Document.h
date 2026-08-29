@@ -453,8 +453,11 @@ public:
     void set_visited_link_color(Optional<Color>);
 
     Optional<Vector<Utf16FlyString> const&> supported_color_schemes() const;
-    void set_supported_color_schemes(Vector<Utf16FlyString>);
-    void set_supported_color_schemes(Optional<Vector<Utf16FlyString>>);
+    // 'only' is a modifier on the scheme list rather than a member of it, so it travels alongside; both setters
+    // take it so the two can't drift apart.
+    bool supported_color_schemes_are_only() const { return m_supported_color_schemes_are_only; }
+    void set_supported_color_schemes(Vector<Utf16FlyString>, bool only = false);
+    void set_supported_color_schemes(Optional<Vector<Utf16FlyString>>, bool only = false);
     void obtain_supported_color_schemes();
 
     void obtain_theme_color();
@@ -1591,6 +1594,7 @@ private:
     Optional<Color> m_visited_link_color;
 
     Optional<Vector<Utf16FlyString>> m_supported_color_schemes;
+    bool m_supported_color_schemes_are_only { false };
 
     GC::Ptr<HTML::HTMLParser> m_parser;
     u64 m_parser_generation { 0 };

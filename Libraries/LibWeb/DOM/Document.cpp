@@ -2989,17 +2989,18 @@ Optional<Vector<Utf16FlyString> const&> Document::supported_color_schemes() cons
     return m_supported_color_schemes;
 }
 
-void Document::set_supported_color_schemes(Vector<Utf16FlyString> supported_color_schemes)
+void Document::set_supported_color_schemes(Vector<Utf16FlyString> supported_color_schemes, bool only)
 {
-    set_supported_color_schemes(Optional<Vector<Utf16FlyString>> { move(supported_color_schemes) });
+    set_supported_color_schemes(Optional<Vector<Utf16FlyString>> { move(supported_color_schemes) }, only);
 }
 
-void Document::set_supported_color_schemes(Optional<Vector<Utf16FlyString>> supported_color_schemes)
+void Document::set_supported_color_schemes(Optional<Vector<Utf16FlyString>> supported_color_schemes, bool only)
 {
-    if (m_supported_color_schemes == supported_color_schemes)
+    if (m_supported_color_schemes == supported_color_schemes && m_supported_color_schemes_are_only == only)
         return;
 
     m_supported_color_schemes = move(supported_color_schemes);
+    m_supported_color_schemes_are_only = only;
     record_style_environment_change();
     set_needs_media_query_evaluation();
 }
@@ -3008,6 +3009,7 @@ void Document::set_supported_color_schemes(Optional<Vector<Utf16FlyString>> supp
 void Document::obtain_supported_color_schemes()
 {
     Optional<Vector<Utf16FlyString>> supported_color_schemes;
+    auto supported_color_schemes_are_only = false;
 
     // 1. Let candidate elements be the list of all meta elements that meet the following criteria, in tree order:
     for_each_in_subtree_of_type<HTML::HTMLMetaElement>([&](HTML::HTMLMetaElement& element) {
@@ -3025,6 +3027,7 @@ void Document::obtain_supported_color_schemes()
             // 2. If parsed is a valid CSS 'color-scheme' property value, then return parsed.
             if (!parsed.is_null() && parsed->is_color_scheme()) {
                 supported_color_schemes = parsed->as_color_scheme().schemes();
+                supported_color_schemes_are_only = parsed->as_color_scheme().only();
                 return TraversalDecision::Break;
             }
         }
@@ -3033,7 +3036,7 @@ void Document::obtain_supported_color_schemes()
     });
 
     // 3. Return null.
-    set_supported_color_schemes(move(supported_color_schemes));
+    set_supported_color_schemes(move(supported_color_schemes), supported_color_schemes_are_only);
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#meta-theme-color
