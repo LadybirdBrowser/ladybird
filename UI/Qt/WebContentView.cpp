@@ -119,11 +119,11 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
 
     set_page_background_color_to_system_canvas(is_using_dark_system_theme(*this));
 
-    QObject::connect(qGuiApp, &QGuiApplication::screenRemoved, [this](QScreen*) {
+    QObject::connect(qGuiApp, &QGuiApplication::screenRemoved, this, [this](QScreen*) {
         update_screen_rects();
     });
 
-    QObject::connect(qGuiApp, &QGuiApplication::screenAdded, [this](QScreen*) {
+    QObject::connect(qGuiApp, &QGuiApplication::screenAdded, this, [this](QScreen*) {
         update_screen_rects();
     });
 
@@ -136,7 +136,7 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
 
     m_tooltip_hover_timer.setSingleShot(true);
 
-    QObject::connect(&m_tooltip_hover_timer, &QTimer::timeout, [this] {
+    QObject::connect(&m_tooltip_hover_timer, &QTimer::timeout, this, [this] {
         if (m_tooltip_text.has_value())
             QToolTip::showText(
                 QCursor::pos(),
@@ -801,6 +801,9 @@ void WebContentView::update_page_focus()
     // moved to the embedded window). Instead of trusting individual events, evaluate the resulting focus state once
     // the burst has settled.
     QTimer::singleShot(0, this, [this] {
+        if (!m_client_state.client)
+            return;
+
         auto focused = hasFocus();
 #ifdef LADYBIRD_QT_USE_VULKAN_WINDOW
         if (!focused)
@@ -1118,6 +1121,10 @@ void WebContentView::set_crash_overlay_visible(bool visible)
 void WebContentView::resizeEvent(QResizeEvent* event)
 {
     WebContentViewBase::resizeEvent(event);
+
+    if (!m_client_state.client)
+        return;
+
     if (m_crash_overlay)
         m_crash_overlay->setGeometry(rect());
 #ifdef LADYBIRD_QT_USE_RHI_WIDGET
@@ -1268,11 +1275,18 @@ static Core::AnonymousBuffer make_system_theme_from_qt_palette(QWidget& widget, 
 void WebContentView::update_palette(PaletteMode mode)
 {
     set_page_background_color_to_system_canvas(is_using_dark_system_theme(*this));
+
+    if (!m_client_state.client)
+        return;
+
     client().async_update_system_theme(m_client_state.page_index, make_system_theme_from_qt_palette(*this, mode));
 }
 
 void WebContentView::update_screen_rects()
 {
+    if (!m_client_state.client)
+        return;
+
     auto screens = QGuiApplication::screens();
 
     if (!screens.empty()) {
