@@ -961,24 +961,40 @@ impl ComputedGroupSets {
         const STATIC_INHERITED_GROUPS: u8 = (1 << 0) | (1 << 1) | (1 << 3);
         const INHERITED_UI_GROUP: u8 = 1 << 2;
         const INHERITED_TEXT_GROUP: u8 = 1 << 4;
+        const FONT_GROUP: u8 = 1 << 6;
         const ENGINE_RESOLVABLE_INHERITED_GROUPS: u8 =
-            STATIC_INHERITED_GROUPS | INHERITED_UI_GROUP | INHERITED_TEXT_GROUP;
+            STATIC_INHERITED_GROUPS | INHERITED_UI_GROUP | INHERITED_TEXT_GROUP | FONT_GROUP;
         const INHERITED_GROUP_COUNT: usize = 7;
         const INHERITED_GROUP_MASK: u32 = (1 << INHERITED_GROUP_COUNT) - 1;
+        const CURRENT_COLOR_REBUILDABLE_GROUPS: u32 = (1
+            << crate::css::computed_value_types::STYLE_GROUP_INDEX_SVG_RESET)
+            | (1 << crate::css::computed_value_types::STYLE_GROUP_INDEX_EFFECTS)
+            | (1 << crate::css::computed_value_types::STYLE_GROUP_INDEX_TEXT_RESET)
+            | (1 << crate::css::computed_value_types::STYLE_GROUP_INDEX_BACKGROUND)
+            | (1 << crate::css::computed_value_types::STYLE_GROUP_INDEX_BORDER)
+            | (1 << crate::css::computed_value_types::STYLE_GROUP_INDEX_MISC_RESET);
         if inherited_style_groups == 0 || inherited_style_groups & !ENGINE_RESOLVABLE_INHERITED_GROUPS != 0 {
             return None;
         }
         let target = ComputedStyleTarget::new(node, u8::MAX);
-        if inherited_style_groups & INHERITED_TEXT_GROUP != 0
-            && self
-                .current_color_dependency_mask(target)
-                .is_none_or(|dependencies| dependencies & !INHERITED_GROUP_MASK != 0)
-        {
+        let current_color_dependencies = if inherited_style_groups & INHERITED_TEXT_GROUP != 0 {
+            self.current_color_dependency_mask(target)?
+        } else {
+            0
+        };
+        if current_color_dependencies & !(INHERITED_GROUP_MASK | CURRENT_COLOR_REBUILDABLE_GROUPS) != 0 {
             return None;
         }
         if inherited_style_groups & INHERITED_UI_GROUP != 0
             && self
                 .color_scheme_dependency_mask(target)
+                .is_none_or(|dependencies| dependencies & !INHERITED_GROUP_MASK != 0)
+        {
+            return None;
+        }
+        if inherited_style_groups & FONT_GROUP != 0
+            && self
+                .font_dependency_mask(target)
                 .is_none_or(|dependencies| dependencies & !INHERITED_GROUP_MASK != 0)
         {
             return None;
@@ -996,43 +1012,145 @@ impl ComputedGroupSets {
         let old_style_record = *self.style_record_column.get(index)?.as_ref()?;
         let old_record = *self.style_records.get_index(old_style_record.index())?;
         let old_group_set = self.sets.get_index(old_record.groups.0 as usize)?;
+        let old_payloads = old_group_set.payloads.to_vec();
         let parent_inherited = self.columns.inherited_groups(parent_index)?;
-        let parent_groups = self.inherited_sets.get_index(parent_inherited.0 as usize)?;
+        let parent_groups = self.inherited_sets.get_index(parent_inherited.0 as usize)?.to_vec();
         if parent_groups.len() != INHERITED_GROUP_COUNT || old_group_set.payloads.len() < INHERITED_GROUP_COUNT {
             return None;
         }
 
-        let mut groups = self.group_identities(old_record.groups);
-        groups[..INHERITED_GROUP_COUNT].copy_from_slice(parent_groups);
-        let group_set = self.intern_group_set(&groups).0;
-        // The swap is only taken for a fully inheriting element, so every
-        // inherited-by-default longhand's value is the parent's; the swapped
-        // record's table is the old one with those slots replaced by the
-        // parent's, keeping the record a complete inheritance source for a
-        // child's drive. Records without tables on either side (none remain
-        // in practice) publish without one.
+        if current_color_dependencies & !INHERITED_GROUP_MASK != 0 {
+            let inherited_box = unsafe {
+                &*old_payloads[crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_BOX]
+                    .cast::<crate::css::computed_values::InheritedBoxValues>()
+            };
+            let dependencies = self.current_color_dependency_properties(target)?;
+            for property in crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
+                ..=crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID
+            {
+                let slot = usize::from(property - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
+                if dependencies[slot / 64] & (1 << (slot % 64)) == 0
+                    || crate::css::property_metadata::property_is_inherited(property)
+                {
+                    continue;
+                }
+                let physical_property = if crate::css::property_metadata::longhand_is_logical_alias(property) {
+                    crate::css::style_compute::map_logical_alias_to_physical(
+                        property,
+                        inherited_box.writing_mode,
+                        inherited_box.direction,
+                    )
+                } else {
+                    property
+                };
+                if !matches!(
+                    physical_property,
+                    crate::css::property_metadata::property_id::BACKDROP_FILTER
+                        | crate::css::property_metadata::property_id::BACKGROUND_COLOR
+                        | crate::css::property_metadata::property_id::BORDER_BOTTOM_COLOR
+                        | crate::css::property_metadata::property_id::BORDER_LEFT_COLOR
+                        | crate::css::property_metadata::property_id::BORDER_RIGHT_COLOR
+                        | crate::css::property_metadata::property_id::BORDER_TOP_COLOR
+                        | crate::css::property_metadata::property_id::BOX_SHADOW
+                        | crate::css::property_metadata::property_id::FILTER
+                        | crate::css::property_metadata::property_id::FLOOD_COLOR
+                        | crate::css::property_metadata::property_id::OUTLINE_COLOR
+                        | crate::css::property_metadata::property_id::STOP_COLOR
+                        | crate::css::property_metadata::property_id::TEXT_DECORATION_COLOR
+                ) {
+                    return None;
+                }
+            }
+        }
+
         let parent_style_record = self.style_record_column.get(parent_index).copied().flatten();
         let parent_table = parent_style_record
             .and_then(|record| self.style_records.get_index(record.index()))
             .and_then(|record| record.longhand_table);
-        let longhand_table = match (old_record.longhand_table, parent_table) {
-            (Some(old_table), Some(parent_table)) => {
-                let table = self.computed_longhand_tables[old_table]
+        let swapped_table = match (old_record.longhand_table, parent_table) {
+            (Some(old_table), Some(parent_table)) => Some(
+                self.computed_longhand_tables[old_table]
                     .table()
                     .with_inherited_values_and_flags_from(
                         self.computed_longhand_tables[parent_table].table(),
                         &self.computed_reconstruction_metadata[old_record.reconstruction_metadata].property_importance,
                         &self.computed_reconstruction_metadata[old_record.reconstruction_metadata].property_inheritance,
-                    );
-                let table = table.into_raw_shared();
-                let identity = self.intern_longhand_table(unsafe { &*table }, Some(old_table), None);
-                unsafe {
-                    crate::css::computed_longhand_table::rust_computed_longhand_table_release(table.cast_mut());
-                }
-                Some(identity)
-            }
-            _ => None,
+                    )
+                    .into_raw_shared(),
+            ),
+            (None, _) if current_color_dependencies & !INHERITED_GROUP_MASK == 0 => None,
+            _ => return None,
         };
+
+        let mut groups = self.group_identities(old_record.groups);
+        groups[..INHERITED_GROUP_COUNT].copy_from_slice(&parent_groups);
+        if let Some(table) = swapped_table
+            && current_color_dependencies & !INHERITED_GROUP_MASK != 0
+        {
+            let inherited_text = unsafe {
+                &*self.groups[parent_groups[crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_TEXT]]
+                    .payload
+                    .cast::<crate::css::computed_value_types::InheritedTextValues>()
+            };
+            let inherited_ui = unsafe {
+                &*self.groups[parent_groups[crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_UI]]
+                    .payload
+                    .cast::<crate::css::computed_value_types::InheritedUIValues>()
+            };
+            for group in INHERITED_GROUP_COUNT..groups.len() {
+                if current_color_dependencies & (1 << group) == 0 {
+                    continue;
+                }
+                let payload = unsafe {
+                    crate::css::table_group_builder::rebuild_group_for_inherited_current_color(
+                        &*table,
+                        group,
+                        old_payloads[group],
+                        inherited_text.color,
+                        inherited_ui.color_scheme,
+                    )
+                }
+                .expect("a supported currentcolor group rebuilds from its computed table");
+                let identity = if payload == old_payloads[group] {
+                    groups[group]
+                } else if let Some(identity) = self
+                    .groups
+                    .find(content_hash((group, payload as usize)), |_identity, candidate| {
+                        candidate.index == group && candidate.payload == payload
+                    })
+                {
+                    identity
+                } else {
+                    retain_group_payload(group, payload);
+                    let identity = self.groups.take_free_identity().unwrap_or_else(|| {
+                        ComputedGroupID(
+                            u32::try_from(self.groups.len()).expect("computed group identity space exhausted"),
+                        )
+                    });
+                    self.groups.insert(
+                        content_hash((group, payload as usize)),
+                        identity,
+                        ComputedGroup { index: group, payload },
+                    );
+                    self.group_set_nested_memory
+                        .grow_committed(retained_group_payload_bytes(group, payload) as u64);
+                    identity
+                };
+                release_group_payload(group, payload);
+                groups[group] = identity;
+            }
+        }
+        let group_set = self.intern_group_set(&groups).0;
+        // The swap is only taken for a fully inheriting element, so every
+        // inherited-by-default longhand's value is the parent's; the swapped
+        // table keeps the record a complete inheritance source for a child.
+        let longhand_table = swapped_table.map(|table| {
+            let identity = self.intern_longhand_table(unsafe { &*table }, old_record.longhand_table, None);
+            unsafe {
+                crate::css::computed_longhand_table::rust_computed_longhand_table_release(table.cast_mut());
+            }
+            identity
+        });
         let new_record = StyleRecord {
             groups: group_set,
             custom_properties: old_record.custom_properties,
@@ -2708,6 +2826,7 @@ fn longhand_table_hash(table: &ComputedLonghandTable) -> u64 {
     }
     table.importance_bits().hash(&mut hasher);
     table.inheritance_bits().hash(&mut hasher);
+    table.publication_sidecars().hash(&mut hasher);
     table.publication_dependency_flags().hash(&mut hasher);
     table.pseudo_element_styles().hash(&mut hasher);
     unsafe { crate::css::style_value::style_value_content_hash(table.raw_cascaded_font_size().cast()) }

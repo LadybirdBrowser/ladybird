@@ -1,11 +1,11 @@
 plain color: rgb(0, 128, 0)
 declared color: rgb(255, 0, 0)
 border color: rgb(0, 128, 0)
-inherited recomputations: 6
+inherited recomputations: 1
 complete reactions materialized: true
 complete reactions publish inherited handles: true
 complete reactions publish style records: true
 em margin after font-size change: 40px
 plain font-size: 20px
-inherited recomputations: 6
+inherited recomputations: 2
 complete reactions materialized: true

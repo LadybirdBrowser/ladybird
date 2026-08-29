@@ -4492,16 +4492,15 @@ mod replay_tests {
 }
 
 /// Whether a value's computed color depends on the element's used currentcolor: the
-/// currentcolor keyword itself, or a color function, color-mix(), contrast-color() or
-/// light-dark() whose nested colors do.
+/// currentcolor keyword itself, a color function whose nested colors do, or an Effects
+/// list whose shadow or filter colors do.
 pub(crate) fn value_depends_on_current_color(value: &StyleValueData) -> bool {
     let retained_data_depends =
-        |retained: &RetainedStyleValueData| -> bool { value_depends_on_current_color(retained.data()) };
+        |retained: &RetainedStyleValueData| retained.optional_data().is_some_and(value_depends_on_current_color);
+    let list_depends = |values: &RetainedStyleValueDataList| values.as_slice().iter().any(retained_data_depends);
     match value {
         StyleValueData::Keyword { keyword } => *keyword == crate::css::style_compute::keyword::CURRENTCOLOR,
-        StyleValueData::ColorFunction { origin_color, .. } => {
-            origin_color.optional_data().is_some_and(value_depends_on_current_color)
-        }
+        StyleValueData::ColorFunction { origin_color, .. } => retained_data_depends(origin_color),
         StyleValueData::ColorMix {
             first_color,
             second_color,
@@ -4509,6 +4508,9 @@ pub(crate) fn value_depends_on_current_color(value: &StyleValueData) -> bool {
         } => retained_data_depends(first_color) || retained_data_depends(second_color),
         StyleValueData::ContrastColor { color, .. } => retained_data_depends(color),
         StyleValueData::LightDark { light, dark, .. } => retained_data_depends(light) || retained_data_depends(dark),
+        StyleValueData::Shadow { color, .. } => retained_data_depends(color),
+        StyleValueData::Filter { value, .. } => retained_data_depends(value),
+        StyleValueData::ValueList { values, .. } => list_depends(values),
         _ => false,
     }
 }

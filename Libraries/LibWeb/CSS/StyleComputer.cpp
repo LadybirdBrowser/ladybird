@@ -352,7 +352,6 @@ void StyleComputer::prepare_for_style_engine_transaction() const
         clear_style_sharing_cache();
     m_computed_style_invalidation_cache.clear();
     m_style_engine_cascade_input_cache.clear();
-    m_inherited_style_group_swaps.clear();
     sweep_custom_property_environments();
 }
 
@@ -394,7 +393,6 @@ void StyleComputer::drop_style_sharing_cache() const
     clear_style_sharing_cache();
     m_computed_style_invalidation_cache.clear();
     m_style_engine_cascade_input_cache.clear();
-    m_inherited_style_group_swaps.clear();
     sweep_custom_property_environments();
 }
 
@@ -3589,98 +3587,6 @@ void StyleComputer::cache_computed_style_invalidation(StyleEngine::StyleRecordDe
         .element_folds_transform_into_layout = element_folds_transform_into_layout,
         .result = move(result),
     });
-}
-
-// Re-resolve the specified values that read the computed color into a swapped style. Values in
-// inherited groups arrive resolved with the swap itself. Only fields one setter can write are
-// handled; a property outside the switch sends the element down the full path instead.
-static bool rebake_current_color_dependent_values(ComputedValues::Builder& builder, ComputedValues const& old_values, ComputedValues const& parent_values, HashMap<PropertyID, NonnullRefPtr<StyleValue const>> const& entries)
-{
-    ColorResolutionContext color_resolution_context {
-        .color_scheme = old_values.color_scheme(),
-        .current_color = parent_values.color(),
-        .current_color_style_value = parent_values.color_style_value(),
-        .calculation_resolution_context = {},
-    };
-    for (auto const& [property_id, value] : entries) {
-        auto physical_property_id = property_id;
-        if (property_is_logical_alias(property_id))
-            physical_property_id = map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { old_values.writing_mode(), old_values.direction() });
-        if (is_inherited_property(physical_property_id))
-            continue;
-        auto color = value->to_color(color_resolution_context);
-        if (!color.has_value())
-            return false;
-        switch (physical_property_id) {
-        case PropertyID::BorderTopColor:
-            builder->set_border_top_color(color.value());
-            break;
-        case PropertyID::BorderRightColor:
-            builder->set_border_right_color(color.value());
-            break;
-        case PropertyID::BorderBottomColor:
-            builder->set_border_bottom_color(color.value());
-            break;
-        case PropertyID::BorderLeftColor:
-            builder->set_border_left_color(color.value());
-            break;
-        case PropertyID::OutlineColor:
-            builder->set_outline_color(color.value());
-            break;
-        case PropertyID::TextDecorationColor:
-            builder->set_text_decoration_color(color.value());
-            break;
-        case PropertyID::BackgroundColor:
-            builder->set_background_color(color.value());
-            break;
-        default:
-            return false;
-        }
-    }
-    return true;
-}
-
-RefPtr<ComputedValues const> StyleComputer::inherited_style_group_swap(DOM::Element& element, ComputedValues const& old_values, ComputedValues const& new_parent_values) const
-{
-    auto* input_record = element.style_input_record();
-    if (!input_record || !old_values.property_inheritance_is_standard()
-        || old_values.has_animated_values() || old_values.animated_properties()
-        || new_parent_values.has_animated_values() || new_parent_values.animated_properties()
-        || old_values.display().is_list_item()
-        || old_values.color_scheme() != new_parent_values.color_scheme())
-        return nullptr;
-
-    auto new_parent_groups = new_parent_values.inherited_style_group_identities();
-    auto update_input_record = [&] {
-        VERIFY(input_record->words.size() >= new_parent_groups.size());
-        input_record->pinned_parent_groups.set(new_parent_groups.span());
-        for (size_t index = 0; index < new_parent_groups.size(); ++index)
-            input_record->words[index] = bit_cast<FlatPtr>(new_parent_groups[index]);
-    };
-
-    auto old_style_record = element.style_record_identity();
-    for (auto const& entry : m_inherited_style_group_swaps) {
-        if (entry.old_style_record == old_style_record && entry.new_parent_groups == new_parent_groups) {
-            update_input_record();
-            return entry.result;
-        }
-    }
-
-    auto inheritance_dependent_values = old_values.inheritance_dependent_specified_values_snapshot();
-    for (auto const& [_, value] : inheritance_dependent_values) {
-        if (!value->depends_on_current_color())
-            return nullptr;
-    }
-
-    auto builder = ComputedValues::Builder::create_with_inherited_style_replaced(old_values, new_parent_values);
-    if (old_values.color() != new_parent_values.color()
-        && !rebake_current_color_dependent_values(builder, old_values, new_parent_values, inheritance_dependent_values))
-        return nullptr;
-
-    auto result = move(builder).build();
-    m_inherited_style_group_swaps.append({ old_style_record, new_parent_groups, result });
-    update_input_record();
-    return result;
 }
 
 // Whether an element's own custom properties changed is a question about what it now holds against

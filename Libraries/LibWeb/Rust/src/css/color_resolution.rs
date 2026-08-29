@@ -27,7 +27,7 @@ use crate::css::css_enums::keyword_to_channel_keyword;
 use crate::css::serialize::TextSink;
 use crate::css::style_compute::FfiLengthResolutionContext;
 use crate::css::style_value::{
-    RetainedStyleValueData, RetainedUtf16FlyString, StyleValueData, value_depends_on_current_color,
+    ColorBase, RetainedStyleValueData, RetainedUtf16FlyString, StyleValueData, value_depends_on_current_color,
 };
 
 /// Mirrors Gfx::Color: 8-bit unpremultiplied sRGB with alpha 255 meaning fully opaque.
@@ -263,6 +263,25 @@ impl Rgba {
             let fraction = std::str::from_utf8(&digits[..length]).expect("digits are ASCII");
             sink.push_ascii(&format!("rgba({}, {}, {}, 0.{fraction})", self.r, self.g, self.b));
         }
+    }
+}
+
+pub(crate) fn resolved_srgb_style_value(color: Rgba) -> StyleValueData {
+    StyleValueData::ColorFunction {
+        color_base: ColorBase {
+            has_color_type: true,
+            color_type: color_conversion::RGB,
+            color_syntax: 0,
+        },
+        channel_0: retained_value(StyleValueData::Number { value: color.r.into() }),
+        channel_1: retained_value(StyleValueData::Number { value: color.g.into() }),
+        channel_2: retained_value(StyleValueData::Number { value: color.b.into() }),
+        alpha: retained_value(StyleValueData::Number {
+            value: f64::from(color.a) / 255.0,
+        }),
+        has_name: false,
+        name: RetainedUtf16FlyString::none(),
+        origin_color: retained_null(),
     }
 }
 
