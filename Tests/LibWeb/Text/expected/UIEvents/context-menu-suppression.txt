@@ -1,0 +1,4 @@
+without a listener: page target=DIV
+listener calls preventDefault: no request
+preventDefault, but shift held: page target=DIV
+listener removed: page target=DIV

@@ -2597,8 +2597,10 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, Layout::Rust
     if (auto const* link = node->enclosing_link_element()) {
         auto href = link->href();
         auto url = document->encoding_parse_url(href);
-        if (url.has_value())
+        if (url.has_value()) {
+            m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Link, .target = const_cast<DOM::Element&>(link->hyperlink_element_utils_element()) });
             m_navigable->page().client().page_did_request_link_context_menu(top_level_viewport_position, *url, link->target().to_byte_string(), modifiers);
+        }
     } else {
         // AD-HOC: Skip up the tree to the first ancestor that is not a UA shadow DOM node, and use its context menu.
         //         Media elements' controls' shadow DOM nodes should not have their own context menu, but rather
@@ -2628,6 +2630,7 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, Layout::Rust
                 if (auto frame = image_element.current_image_frame(); frame.has_value())
                     bitmap = &frame->bitmap();
 
+                m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Image, .target = image_element });
                 m_navigable->page().client().page_did_request_image_context_menu(top_level_viewport_position, *image_url, "", modifiers, bitmap);
             }
         } else if (is<HTML::HTMLMediaElement>(*context_menu_node)) {
@@ -2644,11 +2647,13 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, Layout::Rust
                 .is_fullscreen = is_video && media_element.is_fullscreen_element(),
             };
 
+            m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Media, .target = media_element });
             m_navigable->page().did_request_media_context_menu(media_element.unique_id(), top_level_viewport_position, "", modifiers, menu);
         } else {
             select_context_menu_text(document, coordinates.visual_viewport_position);
 
             auto for_input_events_target = document->active_input_events_target() ? ContextMenuForInputEventsTarget::Yes : ContextMenuForInputEventsTarget::No;
+            m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Page, .target = context_menu_node });
             m_navigable->page().client().page_did_request_context_menu(top_level_viewport_position, for_input_events_target);
         }
     }
@@ -3635,6 +3640,7 @@ void EventHandler::clear_per_test_input_state(Badge<Internals::Internals>)
     m_effective_legacy_mouse_pointer_position = nullptr;
     m_drag_and_drop_event_handler->reset();
     m_mousemove_previous_screen_position.clear();
+    m_navigable->page().clear_context_menu_request();
 }
 
 }

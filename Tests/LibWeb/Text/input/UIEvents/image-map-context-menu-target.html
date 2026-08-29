@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 20px/40px monospace }
+    .stack { position: relative; width: 200px; height: 100px }
+    .stack > * { position: absolute; inset: 0 }
+    img { width: 200px; height: 100px }
+</style>
+<div class="stack">
+    <img id="mapped" usemap="#plainmap" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGOwmRYAAAI0ASPPlc6iAAAAAElFTkSuQmCC">
+</div>
+<map name="plainmap"><area id="plainarea" shape="rect" coords="0,0,200,100" alt="plain area"></map>
+<div class="stack">
+    <img id="linkmapped" usemap="#linkmap" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGOwiToBAAI0AV8p3ELTAAAAAElFTkSuQmCC">
+</div>
+<map name="linkmap"><area id="linkarea" shape="rect" coords="0,0,200,100" href="https://example.com/area"></map>
+<script>
+    test(() => {
+        // An <area> is never rendered, so a right-click over an image map hit-tests to the area while the user agent
+        // menu describes the image whose box was hit - unless the area is itself a link, which wins.
+        const describe = () => {
+            const request = internals.takeContextMenuRequest();
+            if (!request)
+                return 'no request';
+            const target = request.target;
+            return `${request.kind} target=${target.id ? `${target.nodeName}#${target.id}` : target.nodeName}`;
+        };
+        const rightClickAt = element => {
+            const rect = element.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            internals.mouseDown(x, y, 1, 2);
+            internals.mouseUp(x, y, 2);
+        };
+
+        for (const id of ['mapped', 'linkmapped']) {
+            rightClickAt(document.getElementById(id));
+            println(`right-click #${id}: ${describe()}`);
+        }
+    });
+</script>

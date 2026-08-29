@@ -93,6 +93,8 @@ Compositor::CompositorHost const& Page::compositor_host() const
 void Page::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    if (m_context_menu_request.has_value())
+        visitor.visit(m_context_menu_request->target);
     visitor.visit(m_top_level_traversable);
     visitor.visit(m_client);
     visitor.visit(m_window_rect_observer);
@@ -821,6 +823,18 @@ void Page::notify_all_webgl_contexts_lost()
     for_each_canvas_element([](auto& canvas_element) {
         canvas_element.notify_compositor_connection_lost();
     });
+}
+
+void Page::record_context_menu_request(Badge<EventHandler>, ContextMenuRequest request)
+{
+    m_context_menu_request = request;
+}
+
+Optional<Page::ContextMenuRequest> Page::take_context_menu_request()
+{
+    auto request = m_context_menu_request;
+    m_context_menu_request.clear();
+    return request;
 }
 
 void Page::did_request_media_context_menu(UniqueNodeID media_id, CSSPixelPoint position, ByteString const& target, unsigned modifiers, MediaContextMenu const& menu)

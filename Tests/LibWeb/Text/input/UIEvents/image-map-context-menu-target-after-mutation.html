@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 20px/40px monospace }
+    .stack { position: relative; width: 200px; height: 100px }
+    .stack > * { position: absolute; inset: 0 }
+    img { width: 200px; height: 100px }
+</style>
+<div class="stack" id="removed"><div id="behind-removed">behind</div>
+    <img id="img-removed" usemap="#map-removed" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGM4YWMDAAMQAUEiFmcFAAAAAElFTkSuQmCC"></div>
+<map name="map-removed"><area id="area-removed" shape="rect" coords="0,0,200,100" alt="area"></map>
+
+<div class="stack" id="removed-over-link"><a id="behind-link" href="https://example.com/behind">behind</a>
+    <img id="img-link" usemap="#map-link" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGOwmRYAAAI0ASPPlc6iAAAAAElFTkSuQmCC"></div>
+<map name="map-link"><area id="area-link" shape="rect" coords="0,0,200,100" alt="area"></map>
+
+<div class="stack" id="moved"><div id="behind-moved">behind</div>
+    <img id="img-moved" usemap="#map-moved" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGOwiToBAAI0AV8p3ELTAAAAAElFTkSuQmCC"></div>
+<map name="map-moved"><area id="area-moved" shape="rect" coords="0,0,200,100" alt="area"></map>
+<div id="elsewhere"></div>
+
+<div class="stack" id="hidden"><div id="behind-hidden">behind</div>
+    <img id="img-hidden" usemap="#map-hidden" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGO406MBAAPYAZFIKp08AAAAAElFTkSuQmCC"></div>
+<map name="map-hidden"><area id="area-hidden" shape="rect" coords="0,0,200,100" alt="area"></map>
+
+<div class="stack" id="restyled"><div id="behind-restyled">behind</div>
+    <img id="img-restyled" usemap="#map-restyled" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPocdsCAALoAYfjAOf9AAAAAElFTkSuQmCC"></div>
+<map name="map-restyled"><area id="area-restyled" shape="rect" coords="0,0,200,100" alt="area"></map>
+
+<script>
+    test(() => {
+        const describe = () => {
+            const request = internals.takeContextMenuRequest();
+            if (!request)
+                return 'no request';
+            const target = request.target;
+            return `${request.kind} target=${target.id ? `${target.nodeName}#${target.id}` : target.nodeName}`;
+        };
+
+        // Each listener is on the <area>: the <img> is never in the event's propagation path.
+        const cases = [
+            ['removed', image => image.remove()],
+            ['removed-over-link', image => image.remove()],
+            ['moved', image => document.getElementById('elsewhere').appendChild(image)],
+            ['hidden', image => { image.style.display = 'none'; }],
+            ['restyled', image => { image.style.width = '150px'; }],
+        ];
+
+        for (const [id, mutate] of cases) {
+            const stack = document.getElementById(id);
+            const image = stack.querySelector('img');
+            const rect = image.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+
+            const area = document.querySelector(`map[name="${image.getAttribute('usemap').slice(1)}"] area`);
+            area.addEventListener('contextmenu', () => {
+                mutate(image);
+                // Force layout so the image's box is really gone before the menu is decided.
+                document.body.offsetHeight;
+            });
+
+            internals.mouseDown(x, y, 1, 2);
+            internals.mouseUp(x, y, 2);
+            println(`${id}: ${describe()}`);
+        }
+    });
+</script>
