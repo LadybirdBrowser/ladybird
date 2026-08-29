@@ -646,6 +646,20 @@ pub(crate) struct TableGrid {
     pub(crate) occupancy: HashSet<(usize, usize)>,
 }
 
+pub(crate) struct TableInlineLayout {
+    table_box: Node,
+    table_constraints: ContainingBlockConstraints,
+    cells: Vec<TableCell>,
+    columns: Vec<Column>,
+    rows: Vec<Row>,
+}
+
+impl TableInlineLayout {
+    pub(crate) fn table_box(&self) -> Node {
+        self.table_box
+    }
+}
+
 fn matching_children<T: TableTree>(tree: &T, parent: Node, predicate: impl Fn(FfiDisplay) -> bool) -> Vec<Node> {
     let mut result = Vec::new();
     let mut child = tree.first_child(parent);
@@ -916,6 +930,52 @@ impl TableFormattingContext {
             collapsed_border_grid: None,
             derived_baselines_of_root_box: Cell::new(DerivedBaselines::default()),
         }
+    }
+
+    pub(super) fn take_inline_layout(&mut self) -> TableInlineLayout {
+        TableInlineLayout {
+            table_box: self.table_box,
+            table_constraints: self.table_constraints,
+            cells: std::mem::take(&mut self.cells),
+            columns: std::mem::take(&mut self.columns),
+            rows: std::mem::take(&mut self.rows),
+        }
+    }
+
+    fn reuse_inline_layout(&mut self, input: LayoutInput, layout: TableInlineLayout) -> bool {
+        if layout.table_box != self.table_box || layout.table_constraints != input.containing_block_constraints {
+            return false;
+        }
+
+        self.available_space = input.available_space;
+        self.table_constraints = input.containing_block_constraints;
+        self.participant_constraints = ContainingBlockConstraints {
+            percentage_basis_inline_size: self.table_constraints.percentage_basis_inline_size,
+            percentage_basis_block_size: if self.style(self.table_box).height().is_auto() {
+                None
+            } else {
+                self.table_constraints.percentage_basis_block_size
+            },
+            quirks_mode_percentage_basis_block_size: self.table_constraints.quirks_mode_percentage_basis_block_size,
+        };
+        self.cells = layout.cells;
+        self.columns = layout.columns;
+        self.rows = layout.rows;
+
+        // The wrapper sizing pass deliberately omits intrinsic row measurement. Reusing its
+        // inline result is only sufficient when the committing pass would omit it as well.
+        if !self.can_skip_row_intrinsic_measurement() {
+            return false;
+        }
+
+        self.cell_inside_layout_inputs = vec![AvailableSpace::default(); self.cells.len()];
+        self.cell_pre_layout_content_block_sizes = vec![CssPixels::default(); self.cells.len()];
+        self.deferred_cell_inside_layouts = vec![false; self.cells.len()];
+        self.needs_fixed_mode_row_measurement = false;
+        self.seed_table_participant_used_values();
+        self.border_conflict_resolution();
+        self.compute_table_inline_size();
+        true
     }
 
     fn sizing(&self) -> sizing_context::SizingContext {
@@ -2066,7 +2126,7 @@ impl TableFormattingContext {
         {
             ChildLayoutOutcome::Created(result) => result.baselines,
             ChildLayoutOutcome::ReenterCurrent => {
-                self.run(run, layout_input);
+                self.run(run, layout_input, None);
                 self.used_values(cell.box_).content_baselines_from_cells()
             }
             ChildLayoutOutcome::Skipped => self.used_values(cell.box_).content_baselines_from_cells(),
@@ -2656,14 +2716,21 @@ impl TableFormattingContext {
         }
     }
 
-    pub(super) fn run(&mut self, run: &FormattingContextRun, input: LayoutInput) {
+    pub(super) fn run(
+        &mut self,
+        run: &FormattingContextRun,
+        input: LayoutInput,
+        inline_layout: Option<TableInlineLayout>,
+    ) {
         self.available_space = input.available_space;
         self.min_border_box_block_size_from_flex_item = input.sizing.forced_min_border_box_block_size;
         self.table_box_content_block_offset_in_wrapper = input
             .sizing
             .table_box_content_block_offset_in_wrapper
             .unwrap_or_default();
-        self.run_until_inline_size_calculation(input, false);
+        if inline_layout.is_none_or(|layout| !self.reuse_inline_layout(input, layout)) {
+            self.run_until_inline_size_calculation(input, false);
+        }
         if matches!(
             self.available_space.inline_size,
             AvailableSize::MinContent | AvailableSize::MaxContent

@@ -2251,6 +2251,8 @@ impl SizingContext {
         );
 
         let table_used_inline_size = table_used.border_box_inline_size(table_used.uses_collapsing_borders_model.get());
+        self.records
+            .store_table_inline_layout(wrapper, table.take_inline_layout());
         if table_wrapper_inline_size_mode
             == formatting_context::TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto
             && !table_style.width().is_auto()

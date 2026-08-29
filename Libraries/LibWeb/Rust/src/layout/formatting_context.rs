@@ -192,6 +192,7 @@ impl MeasurementState {
             self.callbacks,
             input,
             None,
+            None,
         )
     }
 
@@ -1591,6 +1592,7 @@ pub(super) fn run_formatting_context(
     callbacks: FfiLayoutFcCallbacks,
     input: LayoutInput,
     parent_block: Option<&block_formatting_context::BlockFormattingContext>,
+    table_inline_layout: Option<table_formatting_context::TableInlineLayout>,
 ) -> ChildLayoutResult {
     let root_cells = used_values::UsedValuesCellState::capture(parent_used);
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
@@ -1632,6 +1634,7 @@ pub(super) fn run_formatting_context(
         input,
         parent_block,
         previous_line_data,
+        table_inline_layout,
     );
     cache_attempt.conclude(&callbacks, box_, &outputs);
     absorb_run_outputs(parent_fragments, parent_used, box_, outputs, false)
@@ -1650,6 +1653,7 @@ fn execute_formatting_context_run(
     input: LayoutInput,
     parent_block: Option<&block_formatting_context::BlockFormattingContext>,
     previous_line_data: Option<std::rc::Rc<used_values::LineData>>,
+    table_inline_layout: Option<table_formatting_context::TableInlineLayout>,
 ) -> RunOutputs {
     assert!(!box_.is_invalid());
     let root_used = std::rc::Rc::new(root_cells.materialize_record());
@@ -1673,6 +1677,10 @@ fn execute_formatting_context_run(
         previous_line_data,
     };
     let run = &run;
+    if let Some(table_inline_layout) = table_inline_layout {
+        run.records
+            .store_table_inline_layout(table_inline_layout.table_box(), table_inline_layout);
+    }
     let body_input = apply_root_sizing_directives(run, &input);
 
     let cached_atomic_block_size = if matches!(
@@ -1747,7 +1755,7 @@ fn execute_formatting_context_run(
                 }
             }
             FormattingContextImplementation::Table(context) => {
-                context.run(run, body_input);
+                context.run(run, body_input, run.records.take_table_inline_layout(run.box_));
                 let baselines = context.derived_baselines_of_root_box();
                 store_derived_baselines(&run.records.used_values(run.box_), baselines);
                 ChildLayoutResult {
@@ -2035,6 +2043,7 @@ pub(crate) fn layout_inside_child(
         run.callbacks,
         input,
         parent_block,
+        run.records.take_table_inline_layout(child),
     );
     propagate_percentage_block_size_dependency_to_containing_block(
         &run.records,
@@ -2203,6 +2212,7 @@ pub unsafe extern "C" fn rust_layout_run_root_layout(
             callbacks,
             input,
             None,
+            None,
         );
         place_child(&entry_run, root_for_layout, FfiCssPixelPoint::default(), None);
         drain_and_commit_entry_pass(
@@ -2314,6 +2324,7 @@ pub unsafe extern "C" fn rust_layout_compute_subtree_layout(
             false,
             callbacks,
             input,
+            None,
             None,
         );
         entry_fragments.normalize_arrivals_for_placement(root);
