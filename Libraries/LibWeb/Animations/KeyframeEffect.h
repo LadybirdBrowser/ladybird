@@ -146,6 +146,10 @@ public:
     virtual bool is_keyframe_effect() const override { return true; }
 
     bool can_skip_per_frame_style_update() const;
+    bool can_skip_per_frame_animation_tick() const;
+    bool per_frame_animation_tick_was_skipped() const { return m_per_frame_animation_tick_was_skipped; }
+    void note_per_frame_animation_tick_was_skipped() { m_per_frame_animation_tick_was_skipped = true; }
+    void clear_per_frame_animation_tick_was_skipped() { m_per_frame_animation_tick_was_skipped = false; }
     virtual void update_computed_properties(AnimationUpdateContext&) override;
     void update_computed_properties_for_style(AnimationUpdateContext&, DOM::AbstractElement);
 
@@ -173,6 +177,7 @@ private:
     Vector<GC::Ref<JS::Object>> m_keyframe_objects_cache {};
 
     RefPtr<KeyFrameSet const> m_key_frame_set {};
+    bool m_per_frame_animation_tick_was_skipped { false };
 };
 
 WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_keyframes(JS::Realm&, GC::Ptr<JS::Object>);

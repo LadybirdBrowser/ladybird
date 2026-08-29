@@ -286,6 +286,46 @@ static void invalidate_compositor_wheel_event_listener_state(EventTarget& event_
     }
 }
 
+static bool is_css_animation_event_listener(DOMEventListener const& listener)
+{
+    return AK::first_is_one_of(listener.type,
+        HTML::EventNames::animationcancel,
+        HTML::EventNames::animationend,
+        HTML::EventNames::animationiteration,
+        HTML::EventNames::animationstart,
+        HTML::EventNames::webkitAnimationEnd,
+        HTML::EventNames::webkitAnimationIteration,
+        HTML::EventNames::webkitAnimationStart);
+}
+
+static void wake_animation_frame_pump_for_animation_event_listener(EventTarget& event_target, DOMEventListener const& listener)
+{
+    if (!is_css_animation_event_listener(listener))
+        return;
+
+    if (auto* window = as_if<HTML::Window>(event_target)) {
+        window->associated_document().page().client().request_frame();
+        return;
+    }
+
+    if (auto* node = as_if<Node>(event_target))
+        node->document().page().client().request_frame();
+}
+
+static void prepare_to_observe_css_animation_events(EventTarget& event_target, DOMEventListener const& listener)
+{
+    if (!is_css_animation_event_listener(listener))
+        return;
+
+    if (auto* window = as_if<HTML::Window>(event_target)) {
+        window->associated_document().prepare_to_observe_css_animation_events();
+        return;
+    }
+
+    if (auto* node = as_if<Node>(event_target))
+        node->document().prepare_to_observe_css_animation_events();
+}
+
 static void update_needs_beforeunload_check(EventTarget& event_target, DOMEventListener const& listener)
 {
     if (listener.type != HTML::EventNames::beforeunload)
@@ -369,8 +409,10 @@ void EventTarget::add_an_event_listener(DOMEventListener& listener)
             && entry->capture == listener.capture;
     });
     if (it == event_listener_list.end()) {
+        prepare_to_observe_css_animation_events(*this, listener);
         event_listener_list.append(listener);
         invalidate_compositor_wheel_event_listener_state(*this, listener);
+        wake_animation_frame_pump_for_animation_event_listener(*this, listener);
         update_needs_beforeunload_check(*this, listener);
         event_listener_list_changed();
     }

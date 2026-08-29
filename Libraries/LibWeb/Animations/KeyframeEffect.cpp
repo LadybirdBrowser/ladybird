@@ -20,7 +20,11 @@
 #include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Slot.h>
+#include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -1067,6 +1071,37 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
         return TraversalDecision::Break;
     });
     if (has_visible_descendant)
+        return false;
+
+    return true;
+}
+
+bool KeyframeEffect::can_skip_per_frame_animation_tick() const
+{
+    if (!can_skip_per_frame_style_update())
+        return false;
+
+    auto has_css_animation_event_listener = [](DOM::EventTarget const& event_target) {
+        return event_target.has_event_listener(HTML::EventNames::animationcancel)
+            || event_target.has_event_listener(HTML::EventNames::animationend)
+            || event_target.has_event_listener(HTML::EventNames::animationiteration)
+            || event_target.has_event_listener(HTML::EventNames::animationstart)
+            || event_target.has_event_listener(HTML::EventNames::webkitAnimationEnd)
+            || event_target.has_event_listener(HTML::EventNames::webkitAnimationIteration)
+            || event_target.has_event_listener(HTML::EventNames::webkitAnimationStart);
+    };
+
+    auto target = this->target();
+    VERIFY(target);
+    for (auto* node = static_cast<DOM::Node*>(target.ptr()); node;) {
+        if (has_css_animation_event_listener(*node))
+            return false;
+        if (auto assigned_slot = DOM::assigned_slot_for_node(*node))
+            node = assigned_slot.ptr();
+        else
+            node = node->parent_or_shadow_host();
+    }
+    if (auto window = target->document().window(); window && has_css_animation_event_listener(*window))
         return false;
 
     return true;
