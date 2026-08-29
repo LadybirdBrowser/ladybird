@@ -353,6 +353,9 @@ void ViewImplementation::set_window_size(Gfx::IntSize size)
 
 void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState visibility_state)
 {
+    if (!m_client_state.client)
+        return;
+
     if (m_top_level_traversable.system_visibility_state() == visibility_state)
         return;
 
