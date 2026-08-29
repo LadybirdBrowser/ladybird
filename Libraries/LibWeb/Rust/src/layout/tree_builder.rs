@@ -22,6 +22,9 @@ pub(crate) struct TreeBuilderState {
     // restructuring that reaches outside every rebuild root downgrades the update to a full one.
     current_rebuild_root: LayoutNode,
     rebuilt_subtree_root_shells: Vec<*mut c_void>,
+    rebuilt_subtree_roots: Vec<LayoutNode>,
+    reused_child_list_update_roots: Vec<LayoutNode>,
+    additional_table_fixup_roots: Vec<LayoutNode>,
     layout_tree_update_escaped_rebuild_roots: bool,
 }
 
@@ -32,6 +35,9 @@ impl Default for TreeBuilderState {
             quote_nesting_level: 0,
             current_rebuild_root: NodeSlotId::INVALID,
             rebuilt_subtree_root_shells: Vec::new(),
+            rebuilt_subtree_roots: Vec::new(),
+            reused_child_list_update_roots: Vec::new(),
+            additional_table_fixup_roots: Vec::new(),
             layout_tree_update_escaped_rebuild_roots: false,
         }
     }
@@ -1521,6 +1527,12 @@ fn update_principal_node_after_entry(
 
         // SAFETY: `has_layout_node` guarantees that the frame owns a live principal layout node.
         let layout_node = unsafe { (host.callbacks.principal_layout_node)(frame) };
+        if entry_facts.needs_layout_tree_update
+            && entry_facts.may_reuse_layout_node_for_child_list_insertion
+            && !entry_decision.should_create_layout_node
+        {
+            update.state.reused_child_list_update_roots.push(layout_node);
+        }
         let adjustment = replaced_element_display_adjustment(&host.layout(), layout_node);
         if adjustment != FfiReplacedElementDisplayAdjustment::None {
             // SAFETY: The frame owns a live NodeWithStyle.
@@ -1556,6 +1568,7 @@ fn update_principal_node_after_entry(
                 .state
                 .rebuilt_subtree_root_shells
                 .push(host.layout().shell(layout_node));
+            update.state.rebuilt_subtree_roots.push(layout_node);
         } else if placement.mark_update_escaped_rebuild_roots {
             update.state.layout_tree_update_escaped_rebuild_roots = true;
         }
@@ -1682,6 +1695,12 @@ fn update_principal_node_after_entry(
             update.state.current_rebuild_root = prior_rebuild_root;
         }
     } else if !construction.handled_display_contents {
+        if !update.old_layout_node.is_invalid() {
+            let old_parent = host.layout().parent(update.old_layout_node);
+            if !old_parent.is_invalid() {
+                update.state.additional_table_fixup_roots.push(old_parent);
+            }
+        }
         // If no layout node was created, remove every stale layout and paint node from the shadow-including subtree.
         // SAFETY: The builder and DOM node remain live throughout cleanup.
         unsafe {
@@ -1786,7 +1805,20 @@ pub unsafe extern "C" fn rust_build_layout_tree(
         // SAFETY: The document remains live and any attached layout root is owned by it and the builder.
         let document_layout_node = unsafe { (host.callbacks.document_layout_node)(document) };
         if !document_layout_node.is_invalid() {
-            fixup_tables(&host.layout(), document_layout_node);
+            let layout_host = host.layout();
+            if entry_facts.document_needs_full_layout_tree_update
+                || !entry_facts.has_layout_node
+                || state.layout_tree_update_escaped_rebuild_roots
+            {
+                fixup_tables(&layout_host, document_layout_node);
+            } else {
+                fixup_tables_in_rebuilt_subtrees(
+                    &layout_host,
+                    &state.rebuilt_subtree_roots,
+                    &state.reused_child_list_update_roots,
+                    &state.additional_table_fixup_roots,
+                );
+            }
         }
 
         // SAFETY: The builder remains live and copies the reported shell pointers before returning.
@@ -3601,8 +3633,22 @@ fn fixup_row(
         // SAFETY: `row` is a live table-row box.
         let cell = host
             .created(unsafe { (host.callbacks.create_missing_table_cell)(host.callbacks.context, host.shell(row)) });
+        host.arena()
+            .set_node_flag(cell.slot(), NodeFlag::IsMissingTableCell, true);
         host.attach_child(row, cell, NodeSlotId::INVALID);
     }
+}
+
+fn remove_missing_table_cells(host: &TreeBuilderHost<'_>, table_root: LayoutNode) {
+    let mut cells = Vec::new();
+    host.for_each_in_inclusive_subtree(table_root, |node| {
+        if node_has_flag(host.data(node), NodeFlag::IsMissingTableCell) {
+            cells.push(node);
+            return TraversalDecision::SkipChildrenAndContinue;
+        }
+        TraversalDecision::Continue
+    });
+    host.remove_nodes(&cells);
 }
 
 fn missing_cells_fixup(host: &TreeBuilderHost<'_>, table_roots: &[LayoutNode]) {
@@ -3611,11 +3657,147 @@ fn missing_cells_fixup(host: &TreeBuilderHost<'_>, table_roots: &[LayoutNode]) {
     // cells to fill all the columns of the table, when taking spans into account. New table-cell anonymous boxes must
     // be appended to its rows content until this condition is met.
     for &table_root in table_roots {
+        remove_missing_table_cells(host, table_root);
         let grid = table_formatting_context::calculate_table_grid(host, table_root);
         for (row_index, row) in grid.rows.iter().enumerate() {
             fixup_row(host, row.box_, &grid, row_index);
         }
     }
+}
+
+fn table_child_is_properly_parented(parent_display: FfiDisplay, child_display: FfiDisplay) -> bool {
+    if parent_display.is_table_inside() {
+        return is_table_track_group(child_display)
+            || is_table_track(child_display)
+            || child_display.is_table_caption();
+    }
+    if parent_display.is_table_row_group()
+        || parent_display.is_table_header_group()
+        || parent_display.is_table_footer_group()
+    {
+        return child_display.is_table_row();
+    }
+    if parent_display.is_table_row() {
+        return child_display.is_table_cell();
+    }
+    if parent_display.is_table_column_group() {
+        return child_display.is_table_column();
+    }
+    false
+}
+
+fn table_fixup_scope_for_rebuilt_subtree(host: &TreeBuilderHost<'_>, root: LayoutNode) -> LayoutNode {
+    let parent = host.parent(root);
+    if parent.is_invalid() {
+        return root;
+    }
+
+    let parent_display = display_for_table_fixup(host, parent);
+    let parent_requires_table_children = is_tabular_container(host, parent) || parent_display.is_table_column_group();
+    let root_data = host.data(root);
+    if node_kind_is_text(root_data.kind) || !node_has_flag(root_data, NodeFlag::HasStyle) {
+        let mut ancestor = parent;
+        while !ancestor.is_invalid() {
+            let ancestor_data = host.data(ancestor);
+            let ancestor_display = display_for_table_fixup(host, ancestor);
+            if is_tabular_container(host, ancestor) || ancestor_display.is_table_column_group() {
+                return ancestor;
+            }
+            if !node_has_flag(ancestor_data, NodeFlag::Anonymous) {
+                break;
+            }
+            ancestor = host.parent(ancestor);
+        }
+        return root;
+    }
+
+    let root_display = display_for_table_fixup(host, root);
+    if table_child_is_properly_parented(parent_display, root_display) {
+        return root;
+    }
+    if parent_requires_table_children || is_table_non_root_box_with_display(root_display) {
+        return parent;
+    }
+    root
+}
+
+fn append_unique_node(nodes: &mut Vec<LayoutNode>, node: LayoutNode) {
+    if !nodes.contains(&node) {
+        nodes.push(node);
+    }
+}
+
+fn nearest_table_root(host: &TreeBuilderHost<'_>, node: LayoutNode) -> Option<LayoutNode> {
+    let mut current = node;
+    while !current.is_invalid() {
+        let data = host.data(current);
+        if node_has_flag(data, NodeFlag::HasStyle) && display_for_table_fixup(host, current).is_table_inside() {
+            return Some(current);
+        }
+        current = host.parent(current);
+    }
+    None
+}
+
+fn fixup_tables_in_rebuilt_subtrees(
+    host: &TreeBuilderHost<'_>,
+    rebuilt_subtree_roots: &[LayoutNode],
+    reused_child_list_update_roots: &[LayoutNode],
+    additional_roots: &[LayoutNode],
+) {
+    let mut roots = Vec::new();
+    for &root in rebuilt_subtree_roots {
+        if host.arena().node_data_if_live(root).is_none() || host.parent(root).is_invalid() {
+            continue;
+        }
+        let scope = table_fixup_scope_for_rebuilt_subtree(host, root);
+        append_unique_node(&mut roots, scope);
+    }
+    for &root in reused_child_list_update_roots {
+        if host.arena().node_data_if_live(root).is_none() || host.parent(root).is_invalid() {
+            continue;
+        }
+        let has_live_rebuilt_descendant = rebuilt_subtree_roots.iter().any(|&rebuilt_root| {
+            host.arena().node_data_if_live(rebuilt_root).is_some()
+                && is_inclusive_layout_ancestor_of(host, root, rebuilt_root)
+        });
+        if !has_live_rebuilt_descendant {
+            append_unique_node(&mut roots, root);
+        }
+    }
+    for &root in additional_roots {
+        if host.arena().node_data_if_live(root).is_none() || host.parent(root).is_invalid() {
+            continue;
+        }
+        append_unique_node(&mut roots, root);
+    }
+
+    let candidate_roots = roots.clone();
+    roots.retain(|&candidate| {
+        !candidate_roots
+            .iter()
+            .any(|&other| other != candidate && is_inclusive_layout_ancestor_of(host, other, candidate))
+    });
+
+    let mut table_roots = Vec::new();
+    for &root in &roots {
+        if let Some(table_root) = nearest_table_root(host, root) {
+            append_unique_node(&mut table_roots, table_root);
+        }
+    }
+
+    for &root in &roots {
+        remove_irrelevant_boxes(host, root);
+    }
+    for &root in &roots {
+        generate_missing_child_wrappers(host, root);
+    }
+    for &root in &roots {
+        for table_root in generate_missing_parents(host, root) {
+            append_unique_node(&mut table_roots, table_root);
+        }
+    }
+    missing_cells_fixup(host, &table_roots);
 }
 
 fn fixup_tables(host: &TreeBuilderHost<'_>, root: LayoutNode) {
