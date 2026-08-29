@@ -246,9 +246,14 @@ void const* StyleEngine::style_record_payloads(StyleRecordID style_record) const
     return StyleEngineFFI::style_engine_style_record_payloads(m_impl, style_record.value());
 }
 
-StyleEngine::StyleRecordState StyleEngine::style_record_state(StyleRecordID style_record) const
+u8 StyleEngine::style_record_dependency_flags(StyleRecordID style_record) const
 {
-    return StyleEngineFFI::style_engine_style_record_state(m_impl, style_record.value());
+    return StyleEngineFFI::style_engine_style_record_dependency_flags(m_impl, style_record.value());
+}
+
+u32 StyleEngine::compare_style_records(StyleRecordID old_style_record, StyleRecordID new_style_record, bool font_lists_equal, bool element_folds_transform_into_layout) const
+{
+    return StyleEngineFFI::style_engine_compare_style_records(m_impl, old_style_record.value(), new_style_record.value(), font_lists_equal, element_folds_transform_into_layout);
 }
 
 StyleEngine::StyleRecordView StyleEngine::style_record_view(StyleRecordID style_record) const

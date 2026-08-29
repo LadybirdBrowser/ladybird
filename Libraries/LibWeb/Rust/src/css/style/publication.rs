@@ -185,6 +185,10 @@ impl StyleEngine {
         self.computed_group_sets.style_record_payloads(style_record)
     }
 
+    pub(crate) fn style_record_dependency_flags(&self, style_record: u64) -> Option<u8> {
+        self.computed_group_sets.style_record_dependency_flags(style_record)
+    }
+
     pub(crate) fn recording_computed_group_identities(&self, style_record: u64) -> Option<Vec<u32>> {
         #[cfg(feature = "style-recording")]
         return self.computed_group_sets.recording_group_identities(style_record);

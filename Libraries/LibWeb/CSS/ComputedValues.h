@@ -2124,25 +2124,22 @@ public:
     ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordView const&, StyleComputer const&, StyleRecordID, bool owns_style_record_pin);
     ~ComputedStyleRecordView();
 
-    void retain_across_style_record_publication();
-
     explicit operator bool() const { return m_present; }
     ComputedValues const* operator->() const
     {
         if (!m_present)
             return nullptr;
-        return m_retained_values ? m_retained_values.ptr() : &m_values;
+        return &m_values;
     }
     ComputedValues const& operator*() const
     {
         VERIFY(m_present);
-        return m_retained_values ? *m_retained_values : m_values;
+        return m_values;
     }
 
 private:
     Optional<ComputedValues> m_base_values;
     ComputedValues m_values { ComputedValues::BorrowedStyleRecord::Yes };
-    RefPtr<ComputedValues const> m_retained_values;
     GC::Ptr<StyleComputer const> m_style_computer;
     StyleRecordID m_style_record_identity;
     bool m_owns_style_record_pin { false };

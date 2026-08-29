@@ -92,7 +92,6 @@ public:
         StyleRecordID new_style_record;
     };
     using StyleRecordView = StyleEngineFFI::FfiStyleRecordView;
-    using StyleRecordState = StyleEngineFFI::FfiStyleRecordState;
     using ExactCascadePublication = StyleEngineFFI::FfiExactCascadePublication;
     // The returned assignments borrow Rust storage until the next mutable engine call or an
     // explicit discard. Consume them synchronously before asking the engine anything else.
@@ -107,7 +106,8 @@ public:
     // The borrowed payload array is stable while a base record exists or an animation-overlay
     // generation remains assigned or pinned.
     [[nodiscard]] void const* style_record_payloads(StyleRecordID style_record) const;
-    [[nodiscard]] StyleRecordState style_record_state(StyleRecordID style_record) const;
+    [[nodiscard]] u8 style_record_dependency_flags(StyleRecordID style_record) const;
+    [[nodiscard]] u32 compare_style_records(StyleRecordID old_style_record, StyleRecordID new_style_record, bool font_lists_equal, bool element_folds_transform_into_layout) const;
     [[nodiscard]] StyleRecordView style_record_view(StyleRecordID style_record) const;
     void decide_transitions(StyleRecordID before_style_record, void const* after_longhand_table, void const* after_animated_overlay, StyleValueFFI::FfiTransitionInput&, StyleValueFFI::FfiTransitionAction*) const;
     // Remove the retained input identities for one pseudo-element kind and return its removal.

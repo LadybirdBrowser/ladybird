@@ -1389,139 +1389,32 @@ void Element::run_attribute_change_steps(Utf16FlyString const& local_name, Optio
     }
 }
 
-static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidation_between_computed_values(CSS::ComputedValues const& old_computed_values, CSS::ComputedValues const& new_computed_values, bool element_folds_transform_into_layout = false)
+static CSS::StyleComputer::ComputedStyleInvalidation decode_style_record_invalidation(u32 packed)
 {
+    using enum CSS::StyleEngineFFI::FfiStyleInvalidationField;
+    static_assert(CSS::ComputedValues::inherited_style_group_count <= 7);
     CSS::StyleComputer::ComputedStyleInvalidation result;
-
-    // Shortcut the per-longhand diff below when every style value group payload of the new style
-    // is (or has just been made) shared with the old style: equal group payloads mean equal
-    // computed values for every longhand. Animated values live outside the groups, so the
-    // shortcut only applies when neither side has any.
-    // NB: The adoption also makes an unchanged element keep sharing group storage with its
-    //     previous style generation, which future diffs turn into pure pointer compares.
-    bool const all_group_payloads_shared = new_computed_values.adopt_identical_group_payloads(old_computed_values);
-    // The computed longhand table, resolved font list and inheritance-dependent specified values
-    // live outside the group payloads, so equal payloads alone cannot prove the diff away. When
-    // all longhands are equal, adopting identical group payloads also adopts the previous table.
-    bool const property_diff_can_be_skipped = all_group_payloads_shared
-        && old_computed_values.computed_longhand_values().data() == new_computed_values.computed_longhand_values().data()
-        && old_computed_values.font_list().equals(new_computed_values.font_list())
-        && !CSS::ComputedValues::either_carries_animated_overlay(old_computed_values, new_computed_values)
-        && old_computed_values.inheritance_dependent_specified_values_equal(new_computed_values);
-    static bool const verify_fast_path = getenv("LIBWEB_VERIFY_STYLE_DIFF_FAST_PATH") != nullptr;
-
-    if (!property_diff_can_be_skipped || verify_fast_path) {
-        if (!old_computed_values.font_list().equals(new_computed_values.font_list())) {
-            result.any_computed_value_changed = true;
-            result.invalidation.ensure_at_least(CSS::InvalidationLevel::Relayout);
-        }
-
-        constexpr auto longhand_count = CSS::number_of_longhand_properties;
-        constexpr auto longhand_bitmap_bytes = (longhand_count + 7) / 8;
-        Array<u16, longhand_count> old_physical_properties;
-        Array<u16, longhand_count> new_physical_properties;
-        for (size_t index = 0; index < longhand_count; ++index) {
-            auto property_id = static_cast<CSS::PropertyID>(to_underlying(CSS::first_longhand_property_id) + index);
-            auto old_physical_property_id = property_id;
-            auto new_physical_property_id = property_id;
-            if (CSS::property_is_logical_alias(property_id)) {
-                old_physical_property_id = CSS::map_logical_alias_to_physical_property(property_id, CSS::LogicalAliasMappingContext { old_computed_values.writing_mode(), old_computed_values.direction() });
-                new_physical_property_id = CSS::map_logical_alias_to_physical_property(property_id, CSS::LogicalAliasMappingContext { new_computed_values.writing_mode(), new_computed_values.direction() });
-            }
-            old_physical_properties[index] = to_underlying(old_physical_property_id);
-            new_physical_properties[index] = to_underlying(new_physical_property_id);
-        }
-
-        auto old_longhands = old_computed_values.computed_longhand_values();
-        auto new_longhands = new_computed_values.computed_longhand_values();
-        VERIFY(old_longhands.size() == longhand_count);
-        VERIFY(new_longhands.size() == longhand_count);
-        auto old_importance = old_computed_values.property_importance_bitmap();
-        auto new_importance = new_computed_values.property_importance_bitmap();
-        Array<u8, longhand_bitmap_bytes> changed_properties;
-        auto const* old_animated_properties = old_computed_values.animated_properties();
-        auto const* new_animated_properties = new_computed_values.animated_properties();
-        VERIFY(CSS::StyleValueFFI::rust_style_value_diff_effective_longhands(
-            old_longhands.data(),
-            new_longhands.data(),
-            old_physical_properties.data(),
-            new_physical_properties.data(),
-            longhand_count,
-            old_animated_properties ? old_animated_properties->overlay() : nullptr,
-            new_animated_properties ? new_animated_properties->overlay() : nullptr,
-            old_importance.data(),
-            new_importance.data(),
-            old_importance.size(),
-            changed_properties.data(),
-            changed_properties.size()));
-
-        for (size_t index = 0; index < longhand_count; ++index) {
-            if (!(changed_properties[index / 8] & (1 << (index % 8))))
-                continue;
-            auto property_id = static_cast<CSS::PropertyID>(to_underlying(CSS::first_longhand_property_id) + index);
-            auto new_physical_property_id = static_cast<CSS::PropertyID>(new_physical_properties[index]);
-            result.any_computed_value_changed = true;
-            if (CSS::is_inherited_property(property_id)) {
-                // Equal groups adopted the old payload above, so a changed value names a group
-                // whose post-adoption identity changed without a separate fixed-size group scan.
-                auto group = CSS::ComputedValues::style_group_of_property(new_physical_property_id);
-                if (group.has_value() && to_underlying(*group) < CSS::ComputedValues::inherited_style_group_count)
-                    result.invalidation.mark_inherited_style_group_changed(to_underlying(*group));
-                else
-                    result.invalidation.mark_all_inherited_style_groups_changed();
-            }
-            auto property_invalidation = CSS::compute_property_invalidation(property_id, old_computed_values, new_computed_values);
-            // SVG layout folds element transforms into container bounding boxes, so a transform
-            // change needs layout there even though it stays paint-only for CSS boxes.
-            if (element_folds_transform_into_layout
-                && AK::first_is_one_of(property_id, CSS::PropertyID::Transform, CSS::PropertyID::Translate, CSS::PropertyID::Rotate, CSS::PropertyID::Scale))
-                property_invalidation.ensure_at_least(CSS::InvalidationLevel::Relayout);
-            result.invalidation |= property_invalidation;
-        }
-
-        // The diff above compares the values that animations produce, so a change to a value that a running
-        // animation overrides is invisible to it. Descendants inherit the overridden value as their base value,
-        // and the after-change style rules start their transitions from it. Diff the longhands an animation
-        // covers separately so the change still invalidates the styles of descendants that inherit the
-        // property, whether by default or through an explicit `inherit`.
-        if (old_animated_properties || new_animated_properties) {
-            for (size_t index = 0; index < longhand_count; ++index) {
-                if (changed_properties[index / 8] & (1 << (index % 8)))
-                    continue;
-                auto property_id = static_cast<CSS::PropertyID>(to_underlying(CSS::first_longhand_property_id) + index);
-                bool const animation_covers_property = (old_animated_properties && old_animated_properties->has_property(property_id))
-                    || (new_animated_properties && new_animated_properties->has_property(property_id));
-                if (!animation_covers_property)
-                    continue;
-                auto old_index = old_physical_properties[index] - to_underlying(CSS::first_longhand_property_id);
-                auto new_index = new_physical_properties[index] - to_underlying(CSS::first_longhand_property_id);
-                auto const* old_value = static_cast<CSS::StyleValueFFI::StyleValueData const*>(old_longhands[old_index]);
-                auto const* new_value = static_cast<CSS::StyleValueFFI::StyleValueData const*>(new_longhands[new_index]);
-                if (old_value == new_value || CSS::StyleValueFFI::rust_style_value_equals(old_value, new_value))
-                    continue;
-                result.any_computed_value_changed = true;
-                if (!CSS::is_inherited_property(property_id)) {
-                    result.invalidation.non_inherited_property_inheritance_sources_changed = true;
-                    continue;
-                }
-                auto group = CSS::ComputedValues::style_group_of_property(static_cast<CSS::PropertyID>(new_physical_properties[index]));
-                if (group.has_value() && to_underlying(*group) < CSS::ComputedValues::inherited_style_group_count) {
-                    result.invalidation.mark_inherited_style_group_changed(to_underlying(*group));
-                } else {
-                    result.invalidation.mark_all_inherited_style_groups_changed();
-                }
-            }
-        }
-
-        // With the verification mode enabled, the full diff must agree that a skippable style
-        // change produces no invalidation at all.
-        if (verify_fast_path && property_diff_can_be_skipped)
-            VERIFY(result.invalidation.is_none());
+    result.invalidation.ensure_at_least(static_cast<CSS::InvalidationLevel>(packed & to_underlying(LevelMask)));
+    result.invalidation.ensure_at_least(static_cast<CSS::AccumulatedVisualContextInvalidation>((packed >> to_underlying(VisualContextShift)) & to_underlying(LevelMask)));
+    if (result.invalidation.needs_layout_tree_rebuild())
+        result.invalidation.set_layout_tree_rebuild_root(static_cast<CSS::LayoutTreeRebuildRoot>((packed >> to_underlying(RebuildRootShift)) & to_underlying(LevelMask)));
+    if (packed & to_underlying(RebuildStackingContext))
+        result.invalidation.set_needs_stacking_context_tree_rebuild();
+    if (packed & to_underlying(RecalculateScrollableOverflow))
+        result.invalidation.set_needs_scrollable_overflow_recalculation();
+    result.invalidation.needs_scroll_container_resnap = packed & to_underlying(ResnapScrollContainer);
+    result.invalidation.recompute_descendant_styles = packed & to_underlying(RecomputeDescendants);
+    auto inherited_groups = static_cast<u8>((packed >> to_underlying(InheritedGroupsShift)) & to_underlying(InheritedGroupsMask));
+    for (u8 group = 0; group < CSS::ComputedValues::inherited_style_group_count; ++group) {
+        if (inherited_groups & (1 << group))
+            result.invalidation.mark_inherited_style_group_changed(group);
     }
-
+    result.invalidation.changes_containing_block_establishment = packed & to_underlying(ChangesContainingBlock);
+    result.invalidation.repaint_propagated_text_decorations = packed & to_underlying(RepaintTextDecorations);
+    result.invalidation.non_inherited_property_inheritance_sources_changed = packed & to_underlying(NonInheritedInheritanceSource);
+    result.any_computed_value_changed = packed & to_underlying(AnyComputedValueChanged);
     return result;
 }
-
 struct ElementDependentInvalidationState {
     Layout::NodeWithStyle const* layout_node { nullptr };
     Optional<Vector<ValueComparingRefPtr<CSS::CounterStyle const>>> content_counter_style_dependencies;
@@ -1597,12 +1490,15 @@ static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidati
     bool element_folds_transform_into_layout = element_folds_transform_into_svg_container_layout(abstract_element.element());
     if (style_record_is_unchanged(style_record_delta)) {
         ++abstract_element.document().style_invalidation_counters().style_record_property_diffs_skipped;
-    } else if (auto cached = style_computer.cached_computed_style_invalidation(style_record_delta, element_folds_transform_into_layout); cached.has_value()) {
-        ++abstract_element.document().style_invalidation_counters().style_record_property_damage_cache_hits;
-        result = cached.release_value();
     } else {
-        result = compute_required_invalidation_between_computed_values(old_computed_values, new_computed_values, element_folds_transform_into_layout);
-        style_computer.cache_computed_style_invalidation(style_record_delta, element_folds_transform_into_layout, result);
+        auto packed = style_computer.style_engine().compare_style_records(
+            style_record_delta.old_style_record,
+            style_record_delta.new_style_record,
+            old_computed_values.font_list().equals(new_computed_values.font_list()),
+            element_folds_transform_into_layout);
+        if (packed & to_underlying(CSS::StyleEngineFFI::FfiStyleInvalidationField::CacheHit))
+            ++abstract_element.document().style_invalidation_counters().style_record_property_damage_cache_hits;
+        result = decode_style_record_invalidation(packed);
     }
 
     // An SVG currentColor stroke stores its resolved color alongside the fact that it came from
@@ -1662,10 +1558,16 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
 
     // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
     auto recompute_pseudo_element_style = [&](CSS::PseudoElement pseudo_element, bool has_implicit_style = false) {
+        auto old_style_record = style_record_identity(pseudo_element);
         auto pseudo_element_style = computed_style(pseudo_element);
-        auto const* pseudo_element_values = pseudo_element_style ? &*pseudo_element_style : nullptr;
-        if (!pseudo_element_values && preserved_pseudo_element_styles)
-            pseudo_element_values = preserved_pseudo_element_styles->at(to_underlying(pseudo_element)).ptr();
+        auto preserved_style_record = preserved_pseudo_element_styles ? preserved_pseudo_element_styles->at(to_underlying(pseudo_element)) : CSS::StyleRecordID {};
+        if (!old_style_record)
+            old_style_record = preserved_style_record;
+        auto preserved_pseudo_element_style = style_computer.computed_style_record_view(preserved_style_record);
+        auto const* pseudo_element_values = pseudo_element_style
+            ? &*pseudo_element_style
+            : preserved_pseudo_element_style ? &*preserved_pseudo_element_style
+                                             : nullptr;
         ElementDependentInvalidationState old_state {
             .layout_node = pseudo_element_unsafe_layout_node(pseudo_element),
             .content_counter_style_dependencies = {},
@@ -1676,12 +1578,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         if (pseudo_element_values && pseudo_element_values->animated_properties()) {
             auto had_layout_node = !!old_state.layout_node;
             old_state.snapshot();
-            if (preserved_pseudo_element_styles)
-                style_to_preserve_for_detachment = preserved_pseudo_element_styles->at(to_underlying(pseudo_element));
-            else if (had_layout_node)
+            if (!!preserved_style_record || had_layout_node)
                 style_to_preserve_for_detachment = CSS::ComputedValues::Builder { *pseudo_element_values }.build();
-            else if (pseudo_element_style)
-                pseudo_element_style.retain_across_style_record_publication();
         }
         auto should_recompute = has_implicit_style
             || pseudo_element_values
@@ -1692,6 +1590,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
 
         CSS::StyleEngine::StyleRecordDelta style_record_delta {};
         auto new_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed({ *this, pseudo_element }, did_change_custom_properties, reusable_matches, style_record_delta);
+        style_record_delta.old_style_record = old_style_record;
         if (style_record_is_unchanged(style_record_delta))
             ++document().style_invalidation_counters().unchanged_style_record_deltas;
 
@@ -2112,6 +2011,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     CSS::StyleEngineMatchResult style_engine_matches;
     CSS::StyleEngineMatchResult* reusable_style_engine_matches = nullptr;
     CSS::StyleEngine::StyleRecordDelta style_record_delta {};
+    auto old_style_record = style_record_identity();
     auto old_computed_values = computed_style();
     auto root_font_metrics_before_recompute = style_computer.root_element_font_metrics();
     auto root_font_metrics_depended_on_viewport_before_recompute = style_computer.root_element_font_metrics_depend_on_viewport_metrics();
@@ -2128,7 +2028,6 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     };
     if (old_computed_values && old_computed_values->animated_properties()) {
         old_state.snapshot();
-        old_computed_values.retain_across_style_record_publication();
     }
     RefPtr<CSS::ComputedValues const> new_style;
     m_style_uses_attr_css_function = false;
@@ -2142,6 +2041,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     m_style_depends_on_style_container_query = false;
     reusable_style_engine_matches = &style_engine_matches;
     new_style = style_computer.materialize_style_record({ *this }, did_change_custom_properties, reusable_style_engine_matches, style_record_delta, inherited_style_groups);
+    style_record_delta.old_style_record = old_style_record;
     bool root_font_metrics_changed = is_html_html_element()
         && (root_font_metrics_before_recompute != style_computer.root_element_font_metrics()
             || root_font_metrics_depended_on_viewport_before_recompute != style_computer.root_element_font_metrics_depend_on_viewport_metrics());
@@ -2261,12 +2161,21 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     auto new_non_animated_display_is_none = new_style->base_values().display().is_none();
 
     PreservedPseudoElementStyles preserved_pseudo_element_styles;
+    ScopeGuard release_preserved_pseudo_element_styles = [&] {
+        for (auto style_record : preserved_pseudo_element_styles) {
+            if (!!style_record)
+                style_computer.unpin_style_record(style_record);
+        }
+    };
     for_each_synthetic_pseudo_element([&](CSS::PseudoElement pseudo_element, SyntheticPseudoElement const& synthetic_pseudo_element) {
         if (!synthetic_pseudo_element.unsafe_layout_node())
             return;
         auto pseudo_element_style = computed_style(pseudo_element);
-        if (pseudo_element_style && pseudo_element_style->animated_properties())
-            preserved_pseudo_element_styles[to_underlying(pseudo_element)] = CSS::ComputedValues::Builder { *pseudo_element_style }.build();
+        if (pseudo_element_style && pseudo_element_style->animated_properties()) {
+            auto style_record = style_record_identity(pseudo_element);
+            style_computer.pin_style_record(style_record);
+            preserved_pseudo_element_styles[to_underlying(pseudo_element)] = style_record;
+        }
     });
 
     set_computed_style({}, style_record_delta.new_style_record);

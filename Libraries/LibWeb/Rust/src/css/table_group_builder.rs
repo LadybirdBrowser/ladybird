@@ -935,7 +935,10 @@ fn matrix_rotation(axis: [f32; 3], angle: f32) -> [f32; 16] {
 /// The TransformationStyleValue::to_matrix port for computed values, which
 /// never carry reference-box percentages here: the translate family's
 /// percentage-bearing values lower into per-axis slots instead.
-fn transformation_to_matrix(function: u8, values: &[crate::css::style_value::RetainedStyleValueData]) -> [f32; 16] {
+pub(crate) fn transformation_to_matrix(
+    function: u8,
+    values: &[crate::css::style_value::RetainedStyleValueData],
+) -> [f32; 16] {
     use crate::css::serialize::transform_function as functions;
 
     let parameters = crate::css::serialize::TRANSFORM_FUNCTION_PARAMETER_TYPES[function as usize];

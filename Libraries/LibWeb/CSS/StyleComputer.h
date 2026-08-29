@@ -110,8 +110,6 @@ public:
         RequiredInvalidationAfterStyleChange invalidation;
         bool any_computed_value_changed { false };
     };
-    [[nodiscard]] Optional<ComputedStyleInvalidation> cached_computed_style_invalidation(StyleEngine::StyleRecordDelta const&, bool element_folds_transform_into_layout) const;
-    void cache_computed_style_invalidation(StyleEngine::StyleRecordDelta const&, bool element_folds_transform_into_layout, ComputedStyleInvalidation) const;
 
     // Publish a computed style built outside the ordinary cascade path, such as an inherited-group
     // swap, so StyleEngine's final node-to-style relation remains authoritative.
@@ -124,14 +122,6 @@ public:
     [[nodiscard]] StyleRecordID intern_anonymous_layout_style(ComputedValues const&) const;
 
     [[nodiscard]] ComputedStyleRecordView computed_style_record_view(StyleRecordID) const;
-
-    // Presence and display:none-subtree placement of a style record, read without materializing a full style record view.
-    struct StyleRecordStatus {
-        bool present { false };
-        bool in_display_none_subtree { false };
-    };
-    [[nodiscard]] StyleRecordStatus style_record_status(StyleRecordID) const;
-
     [[nodiscard]] void const* style_record_payloads(StyleRecordID) const;
     void pin_style_record(StyleRecordID) const;
     void unpin_style_record(StyleRecordID) const;
@@ -386,15 +376,6 @@ private:
     mutable HashMap<u64, Vector<StyleSharingEntry>> m_style_sharing_cache;
     mutable size_t m_style_sharing_cache_entry_count { 0 };
     mutable u64 m_style_sharing_transaction_generation { 0 };
-    // The computed-property consequence of one semantic style transition. Element-dependent
-    // observer consequences are added separately and are never cached by style-record identity.
-    struct ComputedStyleInvalidationCacheEntry {
-        StyleRecordID old_style_record;
-        StyleRecordID new_style_record;
-        bool element_folds_transform_into_layout { false };
-        ComputedStyleInvalidation result;
-    };
-    mutable HashMap<u32, Vector<ComputedStyleInvalidationCacheEntry>> m_computed_style_invalidation_cache;
     mutable bool m_materializing_for_targeted_style_update { false };
     // The word buffer one element's record gives up, reused by the next element's.
     mutable OwnPtr<StyleInputRecord> m_style_input_record_scratch;

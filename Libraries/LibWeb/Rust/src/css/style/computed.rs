@@ -2320,6 +2320,26 @@ impl ComputedGroupSets {
         Some(&self.sets[record.groups].payloads)
     }
 
+    pub fn style_record_dependency_flags(&self, raw_style_record: u64) -> Option<u8> {
+        let final_style_record = FinalStyleRecordID(raw_style_record);
+        let base_style_record = if let Some(style_record) = final_style_record.base_record() {
+            assert!(
+                self.style_record_generation_is_live(style_record, final_style_record.base_generation()),
+                "base style-record is not live"
+            );
+            style_record
+        } else {
+            let slot = *self.animation_overlay_slots_by_record.get(&final_style_record)?;
+            self.animation_overlay_slots[slot as usize].as_ref()?.base_style_record
+        };
+        assert!(
+            self.style_record_is_live(base_style_record),
+            "base style-record is not live"
+        );
+        let record = self.style_records.get_index(base_style_record.index())?;
+        Some(self.computed_fixed_metadata.get(record.fixed_metadata).dependency_flags)
+    }
+
     #[cfg(feature = "style-recording")]
     pub(crate) fn recording_group_identities(&self, raw_style_record: u64) -> Option<Vec<u32>> {
         let final_style_record = FinalStyleRecordID(raw_style_record);
