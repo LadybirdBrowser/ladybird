@@ -1232,6 +1232,12 @@ impl<'context> InlineFormattingContext<'context> {
         line_builder: &mut line_builder::LineBuilder<'_, '_>,
         item: &mut inline_level_iterator::Item,
     ) {
+        if line_builder
+            .remaining_inline_size_for_overflow_break()
+            .is_none_or(|remaining_inline_size| item.border_box_inline_size() <= remaining_inline_size)
+        {
+            return;
+        }
         let style = self.style(self.parent_node(item.node));
         let text_content = self.callbacks.text_content(item.node);
         let letter_spacing = style.letter_spacing().to_double() as f32;
