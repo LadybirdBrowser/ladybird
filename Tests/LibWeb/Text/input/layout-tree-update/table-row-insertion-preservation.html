@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="fixture"></div>
+<script>
+    function createRow(label) {
+        const row = document.createElement("tr");
+        for (let column = 0; column < 2; ++column) {
+            const cell = document.createElement("td");
+            cell.textContent = `${label}-${column}`;
+            row.appendChild(cell);
+        }
+        return row;
+    }
+
+    function runPreservationCase(name, insert, groupTag = "tbody") {
+        const fixture = document.getElementById("fixture");
+        fixture.replaceChildren();
+        const table = document.createElement("table");
+        const body = document.createElement(groupTag);
+        body.append(createRow("before"), createRow("middle"), createRow("after"));
+        table.appendChild(body);
+        fixture.appendChild(table);
+        document.body.offsetHeight;
+
+        const firstRow = body.rows[0];
+        const firstCell = firstRow.cells[0];
+        const bodyIdentity = internals.layoutNodeIdentity(body);
+        const firstRowIdentity = internals.layoutNodeIdentity(firstRow);
+        const firstCellIdentity = internals.layoutNodeIdentity(firstCell);
+        const intrinsicMeasurementsBefore = internals.intrinsicMeasurementCount();
+
+        const insertedRow = createRow("inserted");
+        insert(body, insertedRow);
+        document.body.offsetHeight;
+
+        println(`${internals.layoutNodeIdentity(body) === bodyIdentity ? "PASS" : "FAIL"}: ${name} | preserve row group`);
+        println(`${internals.layoutNodeIdentity(firstRow) === firstRowIdentity ? "PASS" : "FAIL"}: ${name} | preserve existing row`);
+        println(`${internals.layoutNodeIdentity(firstCell) === firstCellIdentity ? "PASS" : "FAIL"}: ${name} | preserve existing cell`);
+        println(`${internals.layoutNodeIdentity(insertedRow) !== 0 ? "PASS" : "FAIL"}: ${name} | create inserted row`);
+        const intrinsicMeasurements = internals.intrinsicMeasurementCount() - intrinsicMeasurementsBefore;
+        println(`${intrinsicMeasurements === 4 ? "PASS" : "FAIL"}: ${name} | intrinsic measurements=${intrinsicMeasurements}`);
+        println(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: ${name} | incremental tree matches full rebuild`);
+    }
+
+    function runFallbackCase() {
+        const fixture = document.getElementById("fixture");
+        fixture.replaceChildren();
+        const table = document.createElement("table");
+        const body = document.createElement("tbody");
+        body.append(createRow("before"), createRow("after"));
+        table.appendChild(body);
+        fixture.appendChild(table);
+        document.body.offsetHeight;
+
+        const bodyIdentity = internals.layoutNodeIdentity(body);
+        const row = createRow("inserted");
+        row.style.display = "block";
+        body.appendChild(row);
+        document.body.offsetHeight;
+
+        println(`${internals.layoutNodeIdentity(body) !== bodyIdentity ? "PASS" : "FAIL"}: non-row insertion | rebuild row group`);
+        println(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: non-row insertion | incremental tree matches full rebuild`);
+    }
+
+    test(() => {
+        runPreservationCase("append row", (body, row) => body.appendChild(row));
+        runPreservationCase("prepend row", (body, row) => body.insertBefore(row, body.firstChild));
+        runPreservationCase("insert middle row", (body, row) => body.insertBefore(row, body.rows[1]));
+        runPreservationCase("append header row", (body, row) => body.appendChild(row), "thead");
+        runPreservationCase("append footer row", (body, row) => body.appendChild(row), "tfoot");
+        runFallbackCase();
+    });
+</script>
