@@ -1330,15 +1330,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 });
             return style;
         },
-        .accumulated_2d_scale = [](void* context_pointer, void const* rust_visual_context_tree, SpatialNodeIndex spatial) -> Gfx::FloatSize {
-            auto& context = *static_cast<PaintHostContext*>(context_pointer);
-            auto scale_in_tree = [&](AccumulatedVisualContextTree const& visual_context_tree) {
-                return visual_context_tree.accumulated_2d_scale(spatial, ScrollStateSnapshot {}, AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
-            };
-            return rust_visual_context_tree
-                ? scale_in_tree(materialize_rust_visual_context_tree(*context.document, rust_visual_context_tree))
-                : scale_in_tree(context.document->visual_context_tree());
-        },
         .materialize_visual_context_tree = [](void* context_pointer, void const* tree) -> void* {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             return new AccumulatedVisualContextTree(materialize_rust_visual_context_tree(*context.document, tree));
