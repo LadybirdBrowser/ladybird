@@ -6,6 +6,7 @@
 
 pub mod caret;
 pub mod query;
+pub mod resolve;
 
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};

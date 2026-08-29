@@ -5,7 +5,9 @@
  */
 
 use super::*;
-use crate::painting::host::FfiHitTestQueryCallbacks;
+use crate::layout::LayoutNodeArena;
+use crate::painting::host::{FfiCaretPositionQueryCallbacks, FfiHitTestQueryCallbacks};
+use crate::painting::text_fragment::CaretMatch;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -137,6 +139,110 @@ impl Default for ClosestLine {
 }
 
 impl HitTestList {
+    pub(crate) fn caret_line_for_position(
+        &self,
+        arena: &LayoutNodeArena,
+        callbacks: &FfiCaretPositionQueryCallbacks,
+        offset: usize,
+        affinity_is_downstream: bool,
+    ) -> Option<usize> {
+        // At a soft wrap, prefer the fragment whose line directly owns the position. Only use the preceding
+        // fragment's fallback match when no direct match exists.
+        for allow_soft_wrap_fallback in [false, true] {
+            for (line_index, line) in self.caret_lines.iter().enumerate() {
+                for caret_item_index in line.first_caret_item_index..=line.last_caret_item_index {
+                    let item_index = self.caret_item_indices[caret_item_index];
+                    let position_match =
+                        self.item_position_match(arena, callbacks, item_index, offset, affinity_is_downstream);
+                    match position_match {
+                        CaretMatch::None => continue,
+                        CaretMatch::SoftWrapFallback if !allow_soft_wrap_fallback => continue,
+                        CaretMatch::Direct | CaretMatch::SoftWrapFallback => return Some(line_index),
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    fn item_position_match(
+        &self,
+        arena: &LayoutNodeArena,
+        callbacks: &FfiCaretPositionQueryCallbacks,
+        item_index: usize,
+        offset: usize,
+        affinity_is_downstream: bool,
+    ) -> CaretMatch {
+        let item = &self.items[item_index];
+        match item.kind {
+            HitTestItemKind::TextFragment => resolve::with_item_fragment(arena, item, |fragment| {
+                let shell = arena.shell_if_live(fragment.layout_node);
+                if shell.is_null() {
+                    return CaretMatch::None;
+                }
+                if callbacks.shell_is_query_node(shell) {
+                    return crate::painting::text_fragment::caret_match(fragment, offset, affinity_is_downstream);
+                }
+                if fragment.dom_start_offset_in_node == 0 && callbacks.query_boundary_descends_to_shell(shell) {
+                    return CaretMatch::Direct;
+                }
+                if callbacks.query_boundary_follows_shell_end(shell, fragment.dom_end_offset_with_trailing_whitespace) {
+                    return CaretMatch::Direct;
+                }
+                CaretMatch::None
+            })
+            .unwrap_or(CaretMatch::None),
+            HitTestItemKind::EmptyLine => {
+                let shell = arena.shell_if_live(item.caret_node);
+                if !shell.is_null() && item.caret_offset == offset && callbacks.shell_is_query_node(shell) {
+                    CaretMatch::Direct
+                } else {
+                    CaretMatch::None
+                }
+            }
+            HitTestItemKind::EmptyEditable => {
+                let shell = arena.shell_if_live(item.paintable);
+                if !shell.is_null() && offset == 0 && callbacks.shell_is_query_node(shell) {
+                    CaretMatch::Direct
+                } else {
+                    CaretMatch::None
+                }
+            }
+            HitTestItemKind::Box => {
+                let shell = arena.shell_if_live(item.paintable);
+                if !shell.is_null() && callbacks.query_is_adjacent_to_shell(shell) {
+                    CaretMatch::Direct
+                } else {
+                    CaretMatch::None
+                }
+            }
+            HitTestItemKind::SvgPath | HitTestItemKind::ChromeWidget => CaretMatch::None,
+        }
+    }
+
+    pub fn box_point_is_before(&self, item_index: usize, local_point: CssPixelPoint) -> bool {
+        let item = &self.items[item_index];
+        debug_assert_eq!(item.kind, HitTestItemKind::Box);
+
+        let block_coordinate = block_axis_coordinate(local_point, item.writing_mode);
+        if block_coordinate < block_axis_start(item.rect, item.writing_mode) {
+            return !item.block_axis_is_reverse;
+        }
+        if block_coordinate >= block_axis_end(item.rect, item.writing_mode) {
+            return item.block_axis_is_reverse;
+        }
+
+        let inline_start = inline_axis_start(item.rect, item.writing_mode);
+        let inline_end = inline_axis_end(item.rect, item.writing_mode);
+        let inline_middle = inline_start + (inline_end - inline_start).scaled(0.5);
+        let inline_coordinate = inline_axis_coordinate(local_point, item.writing_mode);
+        if item.inline_axis_is_reverse {
+            inline_coordinate > inline_middle
+        } else {
+            inline_coordinate <= inline_middle
+        }
+    }
+
     fn first_item_of_line(&self, line: &CaretLine) -> &HitTestItem {
         &self.items[self.caret_item_indices[line.first_caret_item_index]]
     }
@@ -320,8 +426,20 @@ impl HitTestList {
             || inline_axis_end(line.rect, writing_mode) <= inline_axis_start(item.rect, writing_mode)
     }
 
-    pub fn find_closest_line(
+    fn line_in_scope(&self, arena: &LayoutNodeArena, callbacks: &FfiHitTestQueryCallbacks, line_index: usize) -> bool {
+        let line = &self.caret_lines[line_index];
+        for caret_item_index in line.first_caret_item_index..=line.last_caret_item_index {
+            let shell = self.item_target_shell(arena, self.caret_item_indices[caret_item_index]);
+            if !shell.is_null() && callbacks.shell_in_scope(shell) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub(crate) fn find_closest_line(
         &self,
+        arena: &LayoutNodeArena,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
         mode: CaretPositionMode,
@@ -350,7 +468,7 @@ impl HitTestList {
         };
 
         for line_index in 0..self.caret_lines.len() {
-            if scoped && !callbacks.line_in_scope(line_index) {
+            if scoped && !self.line_in_scope(arena, callbacks, line_index) {
                 continue;
             }
             let line = self.caret_lines[line_index].clone();
@@ -472,8 +590,9 @@ impl HitTestList {
         closest_line
     }
 
-    pub fn adjacent_line(
+    pub(crate) fn adjacent_line(
         &self,
+        arena: &LayoutNodeArena,
         callbacks: &FfiHitTestQueryCallbacks,
         current_line_index: usize,
         direction: CaretLineDirection,
@@ -502,7 +621,7 @@ impl HitTestList {
             let line = &self.caret_lines[line_index];
             if line_index == current_line_index
                 || line.context != current_line.context
-                || !callbacks.line_in_scope(line_index)
+                || !self.line_in_scope(arena, callbacks, line_index)
             {
                 continue;
             }

@@ -22,100 +22,37 @@
 
 namespace Web::Painting {
 
-static bool writing_mode_is_horizontal(CSS::WritingMode writing_mode)
-{
-    return writing_mode == CSS::WritingMode::HorizontalTb;
-}
-
-static CSSPixels block_axis_start(CSSPixelRect rect, CSS::WritingMode writing_mode)
-{
-    return writing_mode_is_horizontal(writing_mode) ? rect.top() : rect.left();
-}
-
-static CSSPixels block_axis_end(CSSPixelRect rect, CSS::WritingMode writing_mode)
-{
-    return writing_mode_is_horizontal(writing_mode) ? rect.bottom() : rect.right();
-}
-
-static CSSPixels block_axis_coordinate(CSSPixelPoint point, CSS::WritingMode writing_mode)
-{
-    return writing_mode_is_horizontal(writing_mode) ? point.y() : point.x();
-}
-
-static CSSPixels inline_axis_start(CSSPixelRect rect, CSS::WritingMode writing_mode)
-{
-    return writing_mode_is_horizontal(writing_mode) ? rect.left() : rect.top();
-}
-
-static CSSPixels inline_axis_end(CSSPixelRect rect, CSS::WritingMode writing_mode)
-{
-    return writing_mode_is_horizontal(writing_mode) ? rect.right() : rect.bottom();
-}
-
-static CSSPixels inline_axis_coordinate(CSSPixelPoint point, CSS::WritingMode writing_mode)
-{
-    return writing_mode_is_horizontal(writing_mode) ? point.x() : point.y();
-}
-
-static bool local_point_is_before_box(Layout::NodeWithStyle const& layout_node, CSSPixelRect rect, CSSPixelPoint local_point)
-{
-    auto const& style_source = layout_node;
-    auto writing_mode = style_source.writing_mode();
-
-    auto block_coordinate = block_axis_coordinate(local_point, writing_mode);
-    if (block_coordinate < block_axis_start(rect, writing_mode))
-        return !style_source.block_axis_is_reverse();
-    if (block_coordinate >= block_axis_end(rect, writing_mode))
-        return style_source.block_axis_is_reverse();
-
-    auto inline_start = inline_axis_start(rect, writing_mode);
-    auto inline_end = inline_axis_end(rect, writing_mode);
-    auto inline_middle = inline_start + (inline_end - inline_start).scaled(0.5);
-    auto inline_coordinate = inline_axis_coordinate(local_point, writing_mode);
-    return style_source.inline_axis_is_reverse()
-        ? inline_coordinate > inline_middle
-        : inline_coordinate <= inline_middle;
-}
-
 NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording(u64 visual_context_tree_version, Layout::NodeArena& arena, ChromeWidgetRegistry& chrome_widget_registry)
 {
     auto* arena_handle = arena.handle();
     auto list = adopt_ref(*new HitTestDisplayList(visual_context_tree_version, arena, chrome_widget_registry, Layout::RustFFI::layout_arena_hit_test_list_generation(arena_handle)));
-    auto item_count = Layout::RustFFI::layout_arena_hit_test_item_count(arena_handle);
-    list->m_items.ensure_capacity(item_count);
-    Vector<Layout::RustFFI::FfiHitTestItemExport> exported_items;
-    exported_items.resize(item_count);
-    Layout::RustFFI::layout_arena_export_hit_test_items(arena_handle, exported_items.data(), exported_items.size());
-    for (auto const& exported : exported_items) {
-        VERIFY(exported.paintable.index != Layout::RustFFI::INVALID_NODE_SLOT_INDEX);
-        VERIFY(Layout::RustFFI::layout_arena_paintable_row(arena_handle, exported.paintable));
-        VERIFY(Layout::RustFFI::layout_arena_paintable_row(arena_handle, exported.hit_node));
-        switch (static_cast<ChromeWidgetKind>(exported.chrome_widget_kind)) {
-        case ChromeWidgetKind::None:
-            break;
-        case ChromeWidgetKind::ResizeHandle:
-            (void)chrome_widget_registry.get_or_create_resize_handle(arena, exported.paintable);
-            break;
-        case ChromeWidgetKind::HorizontalScrollbar:
-            (void)chrome_widget_registry.get_or_create_scrollbar(arena, exported.paintable, ScrollDirection::Horizontal);
-            break;
-        case ChromeWidgetKind::VerticalScrollbar:
-            (void)chrome_widget_registry.get_or_create_scrollbar(arena, exported.paintable, ScrollDirection::Vertical);
-            break;
-        }
-        list->m_items.unchecked_append(Item {
-            .kind = static_cast<ItemKind>(exported.kind),
-            .paintable = exported.paintable,
-            .hit_node = exported.hit_node,
-            .chrome_widget_kind = static_cast<ChromeWidgetKind>(exported.chrome_widget_kind),
-            .text_fragment_index = exported.text_fragment_index,
-            .caret_node = exported.caret_node_shell ? static_cast<Layout::Node const*>(exported.caret_node_shell)->dom_node() : nullptr,
-            .caret_offset = exported.caret_offset,
-            .rect = exported.rect,
-            .caret_rect = exported.caret_rect,
-            .context = exported.context,
+    struct VisitContext {
+        HitTestDisplayList& list;
+        Layout::NodeArena& arena;
+        ChromeWidgetRegistry& chrome_widget_registry;
+    };
+    VisitContext visit_context { *list, arena, chrome_widget_registry };
+    Layout::RustFFI::layout_arena_hit_test_visit_caret_roots_and_chrome_widgets(arena_handle, &visit_context,
+        [](void* sink, Layout::RustFFI::NodeSlotId paintable, u8 chrome_widget_kind, void* caret_node_shell) {
+            auto& context = *static_cast<VisitContext*>(sink);
+            if (caret_node_shell) {
+                if (auto* caret_node = static_cast<Layout::Node*>(caret_node_shell)->dom_node())
+                    context.list.m_caret_node_roots.append(caret_node);
+            }
+            switch (static_cast<ChromeWidgetKind>(chrome_widget_kind)) {
+            case ChromeWidgetKind::None:
+                break;
+            case ChromeWidgetKind::ResizeHandle:
+                (void)context.chrome_widget_registry.get_or_create_resize_handle(context.arena, paintable);
+                break;
+            case ChromeWidgetKind::HorizontalScrollbar:
+                (void)context.chrome_widget_registry.get_or_create_scrollbar(context.arena, paintable, ScrollDirection::Horizontal);
+                break;
+            case ChromeWidgetKind::VerticalScrollbar:
+                (void)context.chrome_widget_registry.get_or_create_scrollbar(context.arena, paintable, ScrollDirection::Vertical);
+                break;
+            }
         });
-    }
     return list;
 }
 
@@ -129,8 +66,7 @@ HitTestDisplayList::HitTestDisplayList(u64 visual_context_tree_version, Layout::
 
 void HitTestDisplayList::visit_edges(GC::Cell::Visitor& visitor)
 {
-    for (auto const& item : m_items)
-        visitor.visit(item.caret_node);
+    visitor.visit(m_caret_node_roots);
 }
 
 bool HitTestDisplayList::is_current() const
@@ -138,29 +74,15 @@ bool HitTestDisplayList::is_current() const
     return m_rust_generation != 0 && Layout::RustFFI::layout_arena_hit_test_list_generation(m_arena->handle()) == m_rust_generation;
 }
 
-void HitTestDisplayList::ensure_caret_lines() const
+HitTestDisplayList::Item HitTestDisplayList::item(size_t index) const
 {
-    if (m_caret_lines_materialized)
-        return;
-    m_caret_lines_materialized = true;
-    if (!is_current())
-        return;
-    auto* arena = m_arena->handle();
-    auto caret_item_count = Layout::RustFFI::layout_arena_hit_test_caret_item_count(arena);
-    m_caret_item_indices.ensure_capacity(caret_item_count);
-    for (size_t index = 0; index < caret_item_count; ++index)
-        m_caret_item_indices.unchecked_append(Layout::RustFFI::layout_arena_hit_test_caret_item_index(arena, index));
-    auto line_count = Layout::RustFFI::layout_arena_hit_test_caret_line_count(arena);
-    m_caret_lines.ensure_capacity(line_count);
-    for (size_t index = 0; index < line_count; ++index) {
-        auto exported = Layout::RustFFI::layout_arena_hit_test_caret_line(arena, index);
-        m_caret_lines.unchecked_append(CaretLine {
-            .rect = exported.rect,
-            .context = exported.context,
-            .first_caret_item_index = exported.first_caret_item_index,
-            .last_caret_item_index = exported.last_caret_item_index,
-        });
-    }
+    return { index, Layout::RustFFI::layout_arena_hit_test_item_facts(m_arena->handle(), index) };
+}
+
+static DOM::Node const* dom_node_for_shell(void* shell)
+{
+    auto const* layout_node = static_cast<Layout::Node const*>(shell);
+    return layout_node ? layout_node->dom_node() : nullptr;
 }
 
 static Optional<Gfx::FloatPoint> local_float_point_for_visual_context(ContextRef context, CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel, AccumulatedVisualContextTree::ClipBehavior clip_behavior)
@@ -221,10 +143,11 @@ struct HitTestDisplayList::QueryContext {
                 *out = *local_point;
                 return true;
             },
-            .line_in_scope = [](void* context_pointer, size_t line_index) -> bool {
+            .shell_in_scope = [](void* context_pointer, void* shell) -> bool {
                 auto& context = *static_cast<QueryContext*>(context_pointer);
                 VERIFY(context.scope);
-                return context.list.line_contains_descendant_of(context.list.m_caret_lines[line_index], *context.scope);
+                auto const* dom_node = dom_node_for_shell(shell);
+                return dom_node && context.scope->is_inclusive_ancestor_of(*dom_node);
             },
             .sorting_context_group = [](void* context_pointer, SpatialNodeIndex spatial, size_t* out) -> bool {
                 auto& context = *static_cast<QueryContext*>(context_pointer);
@@ -268,6 +191,47 @@ struct HitTestDisplayList::QueryContext {
             callbacks.viewport_wheel_overflow_y = to_underlying(overflow_value_applied_to_viewport_for_wheel_scrolling(*document, ScrollDirection::Vertical));
         }
         return callbacks;
+    }
+};
+
+struct CaretPositionQueryContext {
+    GC::Ref<DOM::Node const> node;
+    size_t offset { 0 };
+
+    Layout::RustFFI::FfiCaretPositionQueryCallbacks callbacks()
+    {
+        return {
+            .context = this,
+            .shell_is_query_node = [](void* context_pointer, void* shell) -> bool {
+                auto& context = *static_cast<CaretPositionQueryContext*>(context_pointer);
+                return dom_node_for_shell(shell) == context.node.ptr();
+            },
+            .query_boundary_descends_to_shell = [](void* context_pointer, void* shell) -> bool {
+                auto& context = *static_cast<CaretPositionQueryContext*>(context_pointer);
+                auto const* shell_dom_node = dom_node_for_shell(shell);
+                if (!shell_dom_node)
+                    return false;
+                auto* node_after_boundary = context.node->child_at_index(context.offset);
+                while (node_after_boundary && node_after_boundary != shell_dom_node)
+                    node_after_boundary = node_after_boundary->first_child();
+                return node_after_boundary == shell_dom_node;
+            },
+            .query_boundary_follows_shell_end = [](void* context_pointer, void* shell, size_t end_offset_with_whitespace) -> bool {
+                auto& context = *static_cast<CaretPositionQueryContext*>(context_pointer);
+                auto const* shell_dom_node = dom_node_for_shell(shell);
+                return shell_dom_node
+                    && context.offset > 0
+                    && context.node->child_at_index(context.offset - 1) == shell_dom_node
+                    && end_offset_with_whitespace == shell_dom_node->length();
+            },
+            .query_is_adjacent_to_shell = [](void* context_pointer, void* shell) -> bool {
+                auto& context = *static_cast<CaretPositionQueryContext*>(context_pointer);
+                auto const* shell_dom_node = dom_node_for_shell(shell);
+                return shell_dom_node
+                    && shell_dom_node->parent() == context.node.ptr()
+                    && (context.offset == shell_dom_node->index() || context.offset == shell_dom_node->index() + 1);
+            },
+        };
     }
 };
 
@@ -332,112 +296,52 @@ HitTestDisplayList::ClosestLine HitTestDisplayList::find_closest_line(CSSPixelPo
     return closest_line;
 }
 
-static Layout::RustFFI::FfiFragmentTextFacts fragment_text_facts(void* arena_handle, Layout::RustFFI::NodeSlotId box, Optional<u32> const& text_fragment_index)
+Layout::Node const* HitTestDisplayList::layout_node_for_item(Item item) const
 {
-    if (!text_fragment_index.has_value())
-        return {};
-    return Layout::RustFFI::layout_arena_paintable_fragment_text_facts(arena_handle, box, *text_fragment_index);
+    return layout_node_for_committed_slot(*m_arena, item.paintable());
 }
 
-static Layout::Node const* fragment_layout_node(Layout::RustFFI::FfiFragmentTextFacts const& facts)
+RefPtr<ChromeWidget> HitTestDisplayList::chrome_widget_for_item(Item item) const
 {
-    return static_cast<Layout::Node const*>(facts.layout_node);
-}
-
-Layout::Node const* HitTestDisplayList::layout_node_for_item(Item const& item) const
-{
-    return layout_node_for_committed_slot(*m_arena, item.paintable);
-}
-
-RefPtr<ChromeWidget> HitTestDisplayList::chrome_widget_for_item(Item const& item) const
-{
-    switch (item.chrome_widget_kind) {
+    switch (item.chrome_widget_kind()) {
     case ChromeWidgetKind::None:
         return nullptr;
     case ChromeWidgetKind::ResizeHandle:
-        return m_chrome_widget_registry->resize_handle(item.paintable);
+        return m_chrome_widget_registry->resize_handle(item.paintable());
     case ChromeWidgetKind::HorizontalScrollbar:
-        return m_chrome_widget_registry->scrollbar(item.paintable, ScrollDirection::Horizontal);
+        return m_chrome_widget_registry->scrollbar(item.paintable(), ScrollDirection::Horizontal);
     case ChromeWidgetKind::VerticalScrollbar:
-        return m_chrome_widget_registry->scrollbar(item.paintable, ScrollDirection::Vertical);
+        return m_chrome_widget_registry->scrollbar(item.paintable(), ScrollDirection::Vertical);
     }
     VERIFY_NOT_REACHED();
 }
 
-bool HitTestDisplayList::item_can_produce_caret_position(Item const& item) const
+DOM::Node const* HitTestDisplayList::item_dom_node(size_t item_index) const
 {
-    switch (item.kind) {
-    case ItemKind::TextFragment: {
-        auto const* layout_node = fragment_layout_node(fragment_text_facts(m_arena->handle(), item.paintable, item.text_fragment_index));
-        return layout_node && layout_node->dom_node();
-    }
-    case ItemKind::EmptyLine:
-        return !!item.caret_node;
-    case ItemKind::EmptyEditable: {
-        auto const* layout_node = layout_node_for_item(item);
-        return layout_node && layout_node->dom_node();
-    }
-    case ItemKind::Box: {
-        auto const* layout_node = layout_node_for_item(item);
-        if (!layout_node)
-            return false;
-        if (Painting::effective_z_index(*layout_node).value_or(0) < 0)
-            return false;
-        return layout_node->dom_node()
-            && layout_node->dom_node()->parent()
-            && (layout_node->is_atomic_inline() || layout_node->is_replaced_box());
-    }
-    case ItemKind::SvgPath:
-    case ItemKind::ChromeWidget:
-        return false;
-    }
-    VERIFY_NOT_REACHED();
+    return dom_node_for_shell(Layout::RustFFI::layout_arena_hit_test_item_target_shell(m_arena->handle(), item_index));
 }
 
-DOM::Node const* HitTestDisplayList::item_dom_node(Item const& item) const
+static DOM::Node const* dom_node_for_dispatch_shell(void* shell, bool allow_pseudo_fallback)
 {
-    switch (item.kind) {
-    case ItemKind::Box:
-    case ItemKind::SvgPath:
-    case ItemKind::EmptyEditable:
-    case ItemKind::ChromeWidget: {
-        auto const* layout_node = layout_node_for_item(item);
-        return layout_node ? layout_node->dom_node() : nullptr;
-    }
-    case ItemKind::TextFragment: {
-        auto const* layout_node = fragment_layout_node(fragment_text_facts(m_arena->handle(), item.paintable, item.text_fragment_index));
-        return layout_node ? layout_node->dom_node() : nullptr;
-    }
-    case ItemKind::EmptyLine:
-        return item.caret_node.ptr();
-    }
-    VERIFY_NOT_REACHED();
+    if (auto const* node = dom_node_for_shell(shell))
+        return node;
+    auto const* layout_node = static_cast<Layout::Node const*>(shell);
+    if (allow_pseudo_fallback && layout_node && layout_node->is_generated_for_pseudo_element())
+        return layout_node->pseudo_element_generator().ptr();
+    return nullptr;
 }
 
-DOM::Node const* HitTestDisplayList::event_dispatch_dom_node_for_item(Item const& item) const
+DOM::Node const* HitTestDisplayList::event_dispatch_dom_node_for_item(size_t item_index) const
 {
-    if (item.kind == ItemKind::TextFragment) {
-        auto const* layout_node = fragment_layout_node(fragment_text_facts(m_arena->handle(), item.paintable, item.text_fragment_index));
-        if (!layout_node)
-            return nullptr;
-        if (auto const* node = layout_node->dom_node())
-            return node;
-        if (layout_node->is_generated_for_pseudo_element())
-            return layout_node->pseudo_element_generator().ptr();
-        return nullptr;
-    }
-
-    if (item.kind == ItemKind::EmptyLine)
-        return item_dom_node(item);
-
-    auto* layout_node_shell = Layout::RustFFI::layout_arena_paintable_event_dispatch_node_shell(m_arena->handle(), item.paintable);
-    return layout_node_shell ? static_cast<Layout::Node const*>(layout_node_shell)->dom_node() : nullptr;
+    bool allow_pseudo_fallback = false;
+    auto* shell = Layout::RustFFI::layout_arena_hit_test_item_dispatch_shell(m_arena->handle(), item_index, &allow_pseudo_fallback);
+    return dom_node_for_dispatch_shell(shell, allow_pseudo_fallback);
 }
 
-bool HitTestDisplayList::item_is_direct_caret_target(Item const& item) const
+bool HitTestDisplayList::item_is_direct_caret_target(size_t item_index) const
 {
-    auto const* dom_node = item_dom_node(item);
-    return dom_node && dom_node == event_dispatch_dom_node_for_item(item);
+    auto const* dom_node = item_dom_node(item_index);
+    return dom_node && dom_node == event_dispatch_dom_node_for_item(item_index);
 }
 
 // https://html.spec.whatwg.org/multipage/image-maps.html#image-map-processing-model
@@ -457,10 +361,10 @@ static GC::Ptr<DOM::Node> image_map_area_for_point(Layout::Node const& layout_no
     return map_element->area_for_point(local_point - image_rect.location(), image_rect.size());
 }
 
-HitTestResult HitTestDisplayList::hit_test_result_for_item(Item const& item, CSSPixelPoint local_point) const
+HitTestResult HitTestDisplayList::hit_test_result_for_item(Item item, CSSPixelPoint local_point) const
 {
     auto const* paintable_layout_node = layout_node_for_item(item);
-    auto hit_node = item.hit_node;
+    auto hit_node = item.hit_node();
 
     auto const* named_layout_node = layout_node_for_committed_slot(*m_arena, hit_node);
     VERIFY(named_layout_node && as<Layout::NodeWithStyle>(*named_layout_node).pointer_events() != CSS::PointerEvents::None);
@@ -482,278 +386,109 @@ HitTestResult HitTestDisplayList::hit_test_result_for_item(Item const& item, CSS
         }
     }
 
-    switch (item.kind) {
-    case ItemKind::Box: {
-        GC::Ptr<DOM::Node> node = root_element;
-        if (!node && paintable_layout_node)
-            node = image_map_area_for_point(*paintable_layout_node, local_point);
-        if (!node)
-            node = const_cast<DOM::Node*>(event_dispatch_dom_node_for_item(item));
-        return HitTestResult {
-            .node = node,
-            .hit_node = hit_node,
-            .arena = *m_arena,
-        };
-    }
-    case ItemKind::SvgPath:
-        return HitTestResult {
-            .node = const_cast<DOM::Node*>(event_dispatch_dom_node_for_item(item)),
-            .hit_node = hit_node,
-            .arena = *m_arena,
-        };
-    case ItemKind::TextFragment: {
-        VERIFY(item.text_fragment_index.has_value());
-        GC::Ptr<DOM::Node> node = const_cast<DOM::Node*>(event_dispatch_dom_node_for_item(item));
-        if (!node) {
-            auto* layout_node_shell = Layout::RustFFI::layout_arena_paintable_event_dispatch_node_shell(m_arena->handle(), item.paintable);
-            node = layout_node_shell ? static_cast<Layout::Node*>(layout_node_shell)->dom_node() : nullptr;
-        }
-        return HitTestResult {
-            .node = node,
-            .hit_node = hit_node,
-            .arena = *m_arena,
-            .index_in_node = Layout::RustFFI::layout_arena_paintable_fragment_index_in_node_for_point(
-                m_arena->handle(), item.paintable, *item.text_fragment_index,
-                local_point.x(), local_point.y()),
-            .is_text_fragment = true,
-        };
-    }
-    case ItemKind::EmptyLine:
-        // NB: Not reachable through regular hit testing; see item_contains().
-        return HitTestResult {
-            .node = const_cast<DOM::Node*>(event_dispatch_dom_node_for_item(item)),
-            .hit_node = hit_node,
-            .arena = *m_arena,
-        };
-    case ItemKind::EmptyEditable:
-        return HitTestResult {
-            .node = const_cast<DOM::Node*>(event_dispatch_dom_node_for_item(item)),
-            .hit_node = hit_node,
-            .arena = *m_arena,
-            .index_in_node = 0,
-        };
-    case ItemKind::ChromeWidget:
-        return HitTestResult {
-            .node = root_element ? root_element : const_cast<DOM::Node*>(event_dispatch_dom_node_for_item(item)),
-            .hit_node = hit_node,
-            .arena = *m_arena,
-            .chrome_widget = chrome_widget_for_item(item),
-        };
-    }
-    VERIFY_NOT_REACHED();
+    auto resolved = Layout::RustFFI::layout_arena_hit_test_resolve_hit(m_arena->handle(), item.index(), local_point);
+    GC::Ptr<DOM::Node> node = root_element;
+    if (!node && paintable_layout_node)
+        node = image_map_area_for_point(*paintable_layout_node, local_point);
+    if (!node)
+        node = const_cast<DOM::Node*>(dom_node_for_dispatch_shell(resolved.dispatch_shell, resolved.allow_pseudo_fallback));
+    if (!node)
+        node = const_cast<DOM::Node*>(dom_node_for_dispatch_shell(resolved.fallback_dispatch_shell, false));
+
+    // NB: Empty-line items are not reachable through regular hit testing; the descriptor still resolves them for
+    // callers that already hold such an item.
+    auto result = HitTestResult {
+        .node = node,
+        .hit_node = hit_node,
+        .arena = *m_arena,
+        .chrome_widget = chrome_widget_for_item(item),
+        .is_text_fragment = resolved.is_text_fragment,
+    };
+    if (resolved.has_index_in_node)
+        result.index_in_node = resolved.index_in_node;
+    return result;
 }
 
-Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Item const& item, CSSPixelPoint local_point, CaretPositionType type) const
+Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Item item, CSSPixelPoint local_point, CaretPositionType type) const
 {
-    switch (item.kind) {
-    case ItemKind::TextFragment: {
-        VERIFY(item.text_fragment_index.has_value());
-        auto facts = fragment_text_facts(m_arena->handle(), item.paintable, item.text_fragment_index);
-        auto const* fragment_layout = fragment_layout_node(facts);
-        auto const* fragment_dom_node = fragment_layout ? fragment_layout->dom_node() : nullptr;
-        if (!fragment_dom_node)
-            return {};
+    auto resolved = Layout::RustFFI::layout_arena_hit_test_resolve_caret(m_arena->handle(), item.index(), local_point, to_underlying(type));
+    if (!resolved.has_position || !resolved.node_shell)
+        return {};
+    auto* dom_node = static_cast<Layout::Node*>(resolved.node_shell)->dom_node();
+    if (!dom_node)
+        return {};
 
-        auto index_in_node = [&]() -> size_t {
-            switch (type) {
-            case CaretPositionType::Before:
-                return facts.dom_start_offset_in_node;
-            case CaretPositionType::After:
-                return facts.dom_end_offset_with_trailing_whitespace;
-            case CaretPositionType::Closest:
-                return Layout::RustFFI::layout_arena_paintable_fragment_index_in_node_for_point(
-                    m_arena->handle(), item.paintable, *item.text_fragment_index,
-                    local_point.x(), local_point.y());
-            }
-            VERIFY_NOT_REACHED();
-        }();
+    Optional<CSSPixelRect> debug_rect;
+    if (resolved.has_debug_rect)
+        debug_rect = resolved.debug_rect;
 
-        // A position at the fragment's whitespace-extended end may coincide with the start of the next fragment;
-        // Upstream affinity keeps it rendering on this fragment's line.
-        auto affinity = index_in_node >= facts.dom_end_offset_in_node && index_in_node == facts.dom_end_offset_with_trailing_whitespace
-            ? TextAffinity::Upstream
-            : TextAffinity::Downstream;
-
-        auto debug_rect = Layout::RustFFI::layout_arena_paintable_fragment_caret_range_rect(
-            m_arena->handle(), item.paintable, *item.text_fragment_index, index_in_node);
+    switch (resolved.boundary) {
+    case Layout::RustFFI::FfiCaretBoundaryKind::Offset:
         return CaretPosition {
-            .paintable = item.paintable,
+            .paintable = item.paintable(),
             .arena = *m_arena,
-            .boundary = { const_cast<DOM::Node&>(*fragment_dom_node), static_cast<WebIDL::UnsignedLong>(index_in_node) },
-            .affinity = affinity,
+            .boundary = { *dom_node, static_cast<WebIDL::UnsignedLong>(resolved.offset) },
+            .affinity = resolved.affinity_is_upstream ? TextAffinity::Upstream : TextAffinity::Downstream,
             .debug_rect = debug_rect,
         };
+    case Layout::RustFFI::FfiCaretBoundaryKind::BeforeNode:
+    case Layout::RustFFI::FfiCaretBoundaryKind::AfterNode:
+        break;
     }
-    case ItemKind::EmptyLine: {
-        auto const* dom_node = item_dom_node(item);
-        if (!dom_node)
-            return {};
-        // An empty line has a single caret position regardless of where on the line the point is.
-        return CaretPosition {
-            .paintable = item.paintable,
-            .arena = *m_arena,
-            .boundary = { const_cast<DOM::Node&>(*dom_node), static_cast<WebIDL::UnsignedLong>(item.caret_offset) },
-            .debug_rect = item.caret_rect,
-        };
-    }
-    case ItemKind::EmptyEditable: {
-        auto const* layout_node = layout_node_for_item(item);
-        auto* dom_node = const_cast<DOM::Node*>(layout_node ? layout_node->dom_node() : nullptr);
-        if (!dom_node)
-            return {};
-        return CaretPosition {
-            .paintable = item.paintable,
-            .arena = *m_arena,
-            .boundary = { *dom_node, 0 },
-            .debug_rect = item.caret_rect,
-        };
-    }
-    case ItemKind::Box: {
-        auto const* layout_node = layout_node_for_item(item);
-        auto const* layout_node_with_style = layout_node ? as_if<Layout::NodeWithStyle>(*layout_node) : nullptr;
-        auto* dom_node = const_cast<DOM::Node*>(layout_node ? layout_node->dom_node() : nullptr);
-        if (!layout_node_with_style || !dom_node || !dom_node->parent())
-            return {};
 
-        auto before_boundary = DOM::BoundaryPoint { *dom_node->parent(), static_cast<WebIDL::UnsignedLong>(dom_node->index()) };
-        auto after_boundary = DOM::BoundaryPoint { *dom_node->parent(), static_cast<WebIDL::UnsignedLong>(dom_node->index() + 1) };
-        auto point_is_before_box = [&] {
-            switch (type) {
-            case CaretPositionType::Before:
-                return true;
-            case CaretPositionType::After:
-                return false;
-            case CaretPositionType::Closest:
-                return local_point_is_before_box(*layout_node_with_style, item.rect, local_point);
-            }
-            VERIFY_NOT_REACHED();
-        }();
-        return CaretPosition {
-            .paintable = item.paintable,
-            .arena = *m_arena,
-            .boundary = point_is_before_box ? before_boundary : after_boundary,
-            .secondary_boundary = point_is_before_box ? after_boundary : before_boundary,
-            .debug_rect = item.caret_rect,
-        };
-    }
-    case ItemKind::SvgPath:
-    case ItemKind::ChromeWidget:
+    auto* parent = dom_node->parent();
+    if (!parent)
         return {};
-    }
-    VERIFY_NOT_REACHED();
+    auto before_boundary = DOM::BoundaryPoint { *parent, static_cast<WebIDL::UnsignedLong>(dom_node->index()) };
+    auto after_boundary = DOM::BoundaryPoint { *parent, static_cast<WebIDL::UnsignedLong>(dom_node->index() + 1) };
+    auto is_before = resolved.boundary == Layout::RustFFI::FfiCaretBoundaryKind::BeforeNode;
+    return CaretPosition {
+        .paintable = item.paintable(),
+        .arena = *m_arena,
+        .boundary = is_before ? before_boundary : after_boundary,
+        .secondary_boundary = is_before ? after_boundary : before_boundary,
+        .debug_rect = debug_rect,
+    };
 }
 
-Optional<CaretPosition> HitTestDisplayList::caret_position_for_hit_container(Item const& item) const
+Optional<CaretPosition> HitTestDisplayList::caret_position_for_hit_container(Item item) const
 {
-    auto dom_node = item_dom_node(item);
+    auto dom_node = item_dom_node(item.index());
     if (!dom_node)
         return {};
 
     return CaretPosition {
-        .paintable = item.paintable,
+        .paintable = item.paintable(),
         .arena = *m_arena,
         .boundary = { const_cast<DOM::Node&>(*dom_node), 0 },
-        .debug_rect = item.caret_rect,
+        .debug_rect = item.caret_rect(),
     };
-}
-
-bool HitTestDisplayList::item_contains_caret_position(Item const& item, DOM::Node const& node, size_t offset, TextAffinity affinity) const
-{
-    switch (item.kind) {
-    case ItemKind::TextFragment: {
-        VERIFY(item.text_fragment_index.has_value());
-        auto facts = fragment_text_facts(m_arena->handle(), item.paintable, item.text_fragment_index);
-        auto const* fragment_layout = fragment_layout_node(facts);
-        auto const* fragment_dom_node = fragment_layout ? fragment_layout->dom_node() : nullptr;
-        if (!fragment_dom_node)
-            return false;
-        if (fragment_dom_node == &node) {
-            return Layout::RustFFI::layout_arena_paintable_fragment_caret_match(
-                       m_arena->handle(), item.paintable, *item.text_fragment_index,
-                       offset, affinity == TextAffinity::Downstream)
-                != Layout::RustFFI::FfiCaretMatch::None;
-        }
-
-        auto* node_after_boundary = node.child_at_index(offset);
-        while (node_after_boundary && node_after_boundary != fragment_dom_node)
-            node_after_boundary = node_after_boundary->first_child();
-        if (node_after_boundary == fragment_dom_node && facts.dom_start_offset_in_node == 0)
-            return true;
-        return offset > 0
-            && node.child_at_index(offset - 1) == fragment_dom_node
-            && facts.dom_end_offset_with_trailing_whitespace == fragment_dom_node->length();
-    }
-    case ItemKind::EmptyLine:
-        return item_dom_node(item) == &node && item.caret_offset == offset;
-    case ItemKind::EmptyEditable: {
-        auto const* layout_node = layout_node_for_item(item);
-        return layout_node && layout_node->dom_node() == &node && offset == 0;
-    }
-    case ItemKind::Box: {
-        auto const* layout_node = layout_node_for_item(item);
-        auto dom_node = layout_node ? layout_node->dom_node() : nullptr;
-        return dom_node && dom_node->parent() == &node && (offset == dom_node->index() || offset == dom_node->index() + 1);
-    }
-    case ItemKind::SvgPath:
-    case ItemKind::ChromeWidget:
-        return false;
-    }
-    VERIFY_NOT_REACHED();
 }
 
 Optional<CaretPosition> HitTestDisplayList::caret_position_at_line_edge(DOM::Node const& node, size_t offset, TextAffinity affinity, CaretLineEdge edge) const
 {
     if (!is_current())
         return {};
-    ensure_caret_lines();
-
-    auto line_index = caret_line_index_for_position(node, offset, affinity);
-    if (!line_index.has_value())
+    CaretPositionQueryContext context { node, offset };
+    auto line = Layout::RustFFI::layout_arena_hit_test_caret_line_for_position(m_arena->handle(), context.callbacks(), offset, affinity == TextAffinity::Downstream);
+    if (!line.has_line)
         return {};
     auto type = edge == CaretLineEdge::Start ? CaretPositionType::Before : CaretPositionType::After;
-    return caret_position_for_item(m_items[item_index_at_line_edge(*line_index, type)], {}, type);
-}
-
-Optional<size_t> HitTestDisplayList::caret_line_index_for_position(DOM::Node const& node, size_t offset, TextAffinity affinity) const
-{
-    // At a soft wrap, prefer the fragment whose line directly owns the position. Only use the preceding fragment's
-    // fallback match when no direct match exists.
-    for (bool allow_soft_wrap_fallback : { false, true }) {
-        for (size_t line_index = 0; line_index < m_caret_lines.size(); ++line_index) {
-            auto const& line = m_caret_lines[line_index];
-            for (auto caret_item_index = line.first_caret_item_index; caret_item_index <= line.last_caret_item_index; ++caret_item_index) {
-                auto const& item = caret_item(caret_item_index);
-                if (!item_contains_caret_position(item, node, offset, affinity))
-                    continue;
-                if (!allow_soft_wrap_fallback && item.kind == ItemKind::TextFragment && item.text_fragment_index.has_value()) {
-                    auto const* fragment_layout = fragment_layout_node(fragment_text_facts(m_arena->handle(), item.paintable, item.text_fragment_index));
-                    if (fragment_layout && fragment_layout->dom_node() == &node
-                        && Layout::RustFFI::layout_arena_paintable_fragment_caret_match(
-                               m_arena->handle(), item.paintable, *item.text_fragment_index,
-                               offset, affinity == TextAffinity::Downstream)
-                            == Layout::RustFFI::FfiCaretMatch::SoftWrapFallback)
-                        continue;
-                }
-                return line_index;
-            }
-        }
-    }
-    return {};
+    return caret_position_for_item(item(item_index_at_line_edge(line.line_index, type)), {}, type);
 }
 
 Optional<CaretPosition> HitTestDisplayList::caret_position_on_adjacent_line(DOM::Node const& node, size_t offset, TextAffinity affinity, CaretLineDirection direction, CSSPixels inline_coordinate, DOM::Node const& scope) const
 {
     if (!is_current())
         return {};
-    ensure_caret_lines();
-
-    auto current_line_index = caret_line_index_for_position(node, offset, affinity);
-    if (!current_line_index.has_value())
+    CaretPositionQueryContext position_context { node, offset };
+    auto current_line = Layout::RustFFI::layout_arena_hit_test_caret_line_for_position(m_arena->handle(), position_context.callbacks(), offset, affinity == TextAffinity::Downstream);
+    if (!current_line.has_line)
         return {};
 
     // INTEROP: Vertical caret movement in Chromium, WebKit, and Gecko follows rendered line geometry rather than DOM
     QueryContext context { *this, nullptr, 1, nullptr, &scope };
-    auto adjacent = Layout::RustFFI::layout_arena_hit_test_adjacent_line(m_arena->handle(), context.callbacks(), *current_line_index, direction == CaretLineDirection::Next ? 1 : 0, inline_coordinate.raw_value());
+    auto adjacent = Layout::RustFFI::layout_arena_hit_test_adjacent_line(m_arena->handle(), context.callbacks(), current_line.line_index, direction == CaretLineDirection::Next ? 1 : 0, inline_coordinate.raw_value());
     if (!adjacent.has_line)
         return {};
     // Reuse point-to-caret resolution after choosing the line so text, atomic boxes, and empty lines share one rule for
@@ -765,12 +500,11 @@ Optional<CSSPixels> HitTestDisplayList::caret_line_block_coordinate(DOM::Node co
 {
     if (!is_current())
         return {};
-    ensure_caret_lines();
-
-    auto line_index = caret_line_index_for_position(node, offset, affinity);
-    if (!line_index.has_value())
+    CaretPositionQueryContext context { node, offset };
+    auto line = Layout::RustFFI::layout_arena_hit_test_caret_line_for_position(m_arena->handle(), context.callbacks(), offset, affinity == TextAffinity::Downstream);
+    if (!line.has_line)
         return {};
-    return CSSPixels::from_raw(Layout::RustFFI::layout_arena_hit_test_line_block_coordinate(m_arena->handle(), *line_index));
+    return CSSPixels::from_raw(Layout::RustFFI::layout_arena_hit_test_line_block_coordinate(m_arena->handle(), line.line_index));
 }
 
 Optional<CaretPosition> HitTestDisplayList::caret_position_for_line(size_t line_index, CSSPixelPoint local_point, CaretPositionMode mode) const
@@ -778,24 +512,13 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_line(size_t line_
     auto caret_item = caret_item_for_line(line_index, local_point, mode);
     if (!caret_item.has_value())
         return {};
-    return caret_position_for_item(m_items[caret_item->item_index], local_point, caret_item->type);
-}
-
-bool HitTestDisplayList::line_contains_descendant_of(CaretLine const& line, DOM::Node const& ancestor) const
-{
-    for (auto caret_item_index = line.first_caret_item_index; caret_item_index <= line.last_caret_item_index; ++caret_item_index) {
-        if (auto const* dom_node = item_dom_node(caret_item(caret_item_index)); dom_node && ancestor.is_inclusive_ancestor_of(*dom_node))
-            return true;
-    }
-    return false;
+    return caret_position_for_item(item(caret_item->item_index), local_point, caret_item->type);
 }
 
 Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics, CaretPositionMode mode, GC::Ptr<DOM::Node const> constraint_scope) const
 {
     if (m_visual_context_tree_version != document.visual_context_tree().version() || !is_current())
         return {};
-    ensure_caret_lines();
-
     // First find both the topmost hit-test item and the topmost item that can directly produce a caret.
     // Non-caret items are still needed to keep later line fallback scoped to the hit content.
     // FIXME: Caret placement compares items by record order alone, ignoring the depth-sorted paint order of
@@ -804,9 +527,13 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
     Optional<TopmostItem> topmost_hit_item;
     find_topmost_items_for_caret(point, document, device_pixels_per_css_pixel, chrome_metrics, topmost_item, topmost_hit_item);
 
+    Optional<Item> topmost_hit_facts;
+    if (topmost_hit_item.has_value())
+        topmost_hit_facts = item(topmost_hit_item->index);
+
     // A constrained search only accepts direct hits inside the constraint scope.
     if (constraint_scope && topmost_item.has_value()) {
-        auto const* item_node = item_dom_node(m_items[topmost_item->index]);
+        auto const* item_node = item_dom_node(topmost_item->index);
         if (!item_node || !constraint_scope->is_inclusive_ancestor_of(*item_node))
             topmost_item = {};
     }
@@ -815,13 +542,13 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
     auto topmost_caret_item_matches_hit_item = [&] {
         return topmost_hit_item.has_value()
             && topmost_item->index == topmost_hit_item->index
-            && item_is_direct_caret_target(m_items[topmost_item->index]);
+            && item_is_direct_caret_target(topmost_item->index);
     };
     if (topmost_item.has_value() && (constraint_scope || !topmost_hit_item.has_value() || topmost_caret_item_matches_hit_item())) {
-        auto const& item = m_items[topmost_item->index];
-        if (auto caret_position = caret_position_for_item(item, topmost_item->local_point); caret_position.has_value()) {
+        auto item_facts = item(topmost_item->index);
+        if (auto caret_position = caret_position_for_item(item_facts, topmost_item->local_point); caret_position.has_value()) {
             if (caret_position->debug_rect.has_value())
-                caret_position->debug_rect = viewport_rect_for_context(item.context.spatial, *caret_position->debug_rect, document, device_pixels_per_css_pixel);
+                caret_position->debug_rect = viewport_rect_for_context(item_facts.context().spatial, *caret_position->debug_rect, document, device_pixels_per_css_pixel);
             return caret_position;
         }
     }
@@ -832,9 +559,8 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
     if (constraint_scope) {
         line_scope_dom_node = constraint_scope.ptr();
     } else if (topmost_hit_item.has_value()) {
-        auto const& topmost_hit_item_value = m_items[topmost_hit_item->index];
-        if (!item_can_produce_caret_position(topmost_hit_item_value) || !item_is_direct_caret_target(topmost_hit_item_value))
-            line_scope_dom_node = event_dispatch_dom_node_for_item(topmost_hit_item_value);
+        if (!topmost_hit_facts->can_produce_caret_position() || !item_is_direct_caret_target(topmost_hit_item->index))
+            line_scope_dom_node = event_dispatch_dom_node_for_item(topmost_hit_item->index);
     }
 
     // A constrained search must find a line even when the point is outside the scope's clipped area (e.g. dragging
@@ -854,10 +580,9 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
 
     if (!closest_line.index.has_value()) {
         if (!constraint_scope && topmost_hit_item.has_value()) {
-            auto const& item = m_items[topmost_hit_item->index];
-            auto caret_position = caret_position_for_hit_container(item);
+            auto caret_position = caret_position_for_hit_container(*topmost_hit_facts);
             if (caret_position.has_value() && caret_position->debug_rect.has_value())
-                caret_position->debug_rect = viewport_rect_for_context(item.context.spatial, *caret_position->debug_rect, document, device_pixels_per_css_pixel);
+                caret_position->debug_rect = viewport_rect_for_context(topmost_hit_facts->context().spatial, *caret_position->debug_rect, document, device_pixels_per_css_pixel);
             return caret_position;
         }
         return {};
@@ -866,15 +591,14 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
     if (!caret_position.has_value())
         return {};
     if (caret_position->debug_rect.has_value())
-        caret_position->debug_rect = viewport_rect_for_context(m_caret_lines[*closest_line.index].context.spatial, *caret_position->debug_rect, document, device_pixels_per_css_pixel);
+        caret_position->debug_rect = viewport_rect_for_context(caret_line(*closest_line.index).context.spatial, *caret_position->debug_rect, document, device_pixels_per_css_pixel);
 
     if (!constraint_scope && topmost_hit_item.has_value()) {
-        auto const& topmost_hit_item_value = m_items[topmost_hit_item->index];
-        if (auto const* topmost_hit_dom_node = event_dispatch_dom_node_for_item(topmost_hit_item_value); topmost_hit_dom_node && !topmost_hit_dom_node->is_inclusive_ancestor_of(*caret_position->boundary.node)) {
-            if (item_can_produce_caret_position(topmost_hit_item_value) && item_is_direct_caret_target(topmost_hit_item_value)) {
-                auto caret_position_for_topmost_hit_item = caret_position_for_item(topmost_hit_item_value, topmost_hit_item->local_point);
+        if (auto const* topmost_hit_dom_node = event_dispatch_dom_node_for_item(topmost_hit_item->index); topmost_hit_dom_node && !topmost_hit_dom_node->is_inclusive_ancestor_of(*caret_position->boundary.node)) {
+            if (topmost_hit_facts->can_produce_caret_position() && item_is_direct_caret_target(topmost_hit_item->index)) {
+                auto caret_position_for_topmost_hit_item = caret_position_for_item(*topmost_hit_facts, topmost_hit_item->local_point);
                 if (caret_position_for_topmost_hit_item.has_value() && caret_position_for_topmost_hit_item->debug_rect.has_value())
-                    caret_position_for_topmost_hit_item->debug_rect = viewport_rect_for_context(topmost_hit_item_value.context.spatial, *caret_position_for_topmost_hit_item->debug_rect, document, device_pixels_per_css_pixel);
+                    caret_position_for_topmost_hit_item->debug_rect = viewport_rect_for_context(topmost_hit_facts->context().spatial, *caret_position_for_topmost_hit_item->debug_rect, document, device_pixels_per_css_pixel);
                 return caret_position_for_topmost_hit_item;
             }
             if (item_is_inline_adjacent_to_line(topmost_hit_item->index, *closest_line.index))
@@ -894,7 +618,7 @@ Optional<HitTestResult> HitTestDisplayList::hit_test(CSSPixelPoint point, DOM::D
     auto topmost_item = find_topmost_item(point, document, device_pixels_per_css_pixel, chrome_metrics);
     if (!topmost_item.has_value())
         return {};
-    return hit_test_result_for_item(m_items[topmost_item->index], topmost_item->local_point);
+    return hit_test_result_for_item(item(topmost_item->index), topmost_item->local_point);
 }
 
 TraversalDecision HitTestDisplayList::hit_test_all(CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics, Function<TraversalDecision(HitTestResult)> const& callback) const
@@ -903,11 +627,11 @@ TraversalDecision HitTestDisplayList::hit_test_all(CSSPixelPoint point, DOM::Doc
         return TraversalDecision::Continue;
 
     for (auto item_index : hit_item_indices_topmost_first(point, document, device_pixels_per_css_pixel, chrome_metrics)) {
-        auto const& item = m_items[item_index];
-        auto local_point = local_point_for_visual_context(item.context, point, document, device_pixels_per_css_pixel);
+        auto item_facts = item(item_index);
+        auto local_point = local_point_for_visual_context(item_facts.context(), point, document, device_pixels_per_css_pixel);
         if (!local_point.has_value())
             continue;
-        if (callback(hit_test_result_for_item(item, *local_point)) == TraversalDecision::Break)
+        if (callback(hit_test_result_for_item(item_facts, *local_point)) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
 
