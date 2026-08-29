@@ -358,37 +358,35 @@ impl<'a> PaintRecorder<'a> {
         text_fragment::is_block_level_box(self.layout_arena, &self.fragment(owner, index))
     }
 
-    fn text_fragment_is_hit_testable(&mut self, fragment: &FragmentRecord) -> bool {
+    // A text node has no style of its own, so its parent both decides whether the fragment can be hit and is what an
+    // event dispatched from it resolves against. Returns that node, or None when the fragment is not hit-testable.
+    fn hit_node_for_text_fragment(&mut self, fragment: &FragmentRecord) -> Option<NodeSlotId> {
         let node = fragment.layout_node;
-        let Some(kind) = self.layout_arena.node_kind_if_live(node) else {
-            return false;
-        };
-        if !node_facts::kind_is_text(kind) {
-            return false;
+        if !node_facts::kind_is_text(self.layout_arena.node_kind_if_live(node)?) {
+            return None;
         }
-        let Some(parent) = self.layout_arena.node_parent_if_live(node) else {
-            return false;
-        };
+        let parent = self.layout_arena.node_parent_if_live(node)?;
         let parent_visible = self
             .layout_arena
             .node_style_if_live(parent)
             .is_none_or(|style| style.visibility() == css_enums::visibility::VISIBLE);
         if !parent_visible {
-            return false;
+            return None;
         }
-        let Some(parent_style) = self.layout_arena.node_style_if_live(parent) else {
-            return false;
-        };
+        let parent_style = self.layout_arena.node_style_if_live(parent)?;
         if parent_style.effects().opacity == 0.0
             || parent_style.inherited_ui().pointer_events == css_enums::pointer_events::NONE
         {
-            return false;
+            return None;
         }
-        let facts = self.text_node_facts(node);
-        if facts.is_inert {
-            return false;
+        if self.text_node_facts(node).is_inert {
+            return None;
         }
-        true
+        // Resolving the hit needs a committed paintable row; without one there is nothing to resolve against.
+        if !self.layout_arena.paintable_row_is_populated(parent) {
+            return None;
+        }
+        Some(parent)
     }
 
     fn containing_block_margin_rect(&self, containing_block: NodeSlotId) -> Option<CssPixelRect> {
@@ -507,6 +505,7 @@ impl<'a> PaintRecorder<'a> {
         HitTestItem {
             kind,
             paintable: target,
+            hit_node: target,
             chrome_widget_kind: CHROME_WIDGET_NONE,
             text_fragment_index: None,
             caret_node: NodeSlotId::INVALID,
@@ -547,9 +546,9 @@ impl<'a> PaintRecorder<'a> {
 
     fn append_text_fragment(&mut self, owner: NodeSlotId, fragment_index: u32, context: ContextRef) {
         let fragment = self.fragment(owner, fragment_index as usize);
-        if !self.text_fragment_is_hit_testable(&fragment) {
+        let Some(hit_node) = self.hit_node_for_text_fragment(&fragment) else {
             return;
-        }
+        };
         let layout_arena = self.layout_arena;
         let first_available_font = || text_fragment::first_available_font(layout_arena, &fragment);
         let item = HitTestItem {
@@ -563,6 +562,7 @@ impl<'a> PaintRecorder<'a> {
                 .node_containing_block_if_live(fragment.layout_node)
                 .unwrap_or(NodeSlotId::INVALID),
             can_produce_caret_position: self.node_has_dom_node(fragment.layout_node),
+            hit_node,
             ..self.base_hit_test_item(HitTestItemKind::TextFragment, owner, context)
         };
         self.list.append(item);
@@ -578,9 +578,9 @@ impl<'a> PaintRecorder<'a> {
         context: ContextRef,
     ) {
         let fragment = self.fragment(owner, sibling_fragment_index as usize);
-        if !self.text_fragment_is_hit_testable(&fragment) {
+        let Some(hit_node) = self.hit_node_for_text_fragment(&fragment) else {
             return;
-        }
+        };
         // Empty lines are only reachable through caret lines, never through regular hit testing,
         // so they are recorded with the base's empty rect and stay out of the spatial index.
         let item = HitTestItem {
@@ -596,6 +596,7 @@ impl<'a> PaintRecorder<'a> {
                 .node_containing_block_if_live(fragment.layout_node)
                 .unwrap_or(NodeSlotId::INVALID),
             can_produce_caret_position: self.node_has_dom_node(fragment.layout_node),
+            hit_node,
             ..self.base_hit_test_item(HitTestItemKind::EmptyLine, owner, context)
         };
         self.list.append(item);

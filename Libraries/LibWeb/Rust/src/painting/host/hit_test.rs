@@ -171,6 +171,7 @@ pub struct FfiAdjacentLine {
 pub struct FfiHitTestItemExport {
     pub kind: u8,
     pub paintable: NodeSlotId,
+    pub hit_node: NodeSlotId,
     pub chrome_widget_kind: u8,
     pub text_fragment_index: OptionalU32,
     pub caret_node_shell: *mut c_void,

@@ -22,7 +22,7 @@ namespace Web::Painting {
 
 struct HitTestResult {
     GC::Ptr<DOM::Node> node;
-    Layout::RustFFI::NodeSlotId paintable;
+    Layout::RustFFI::NodeSlotId hit_node;
     NonnullRefPtr<Layout::NodeArena> arena;
     RefPtr<ChromeWidget> chrome_widget {};
     size_t index_in_node { 0 };
@@ -30,7 +30,7 @@ struct HitTestResult {
 
     DOM::Node* dom_node() { return node.ptr(); }
     DOM::Node const* dom_node() const { return node.ptr(); }
-    Layout::Node* layout_node() const { return layout_node_for_committed_slot(*arena, paintable); }
+    Layout::Node* layout_node() const { return layout_node_for_committed_slot(*arena, hit_node); }
 };
 
 struct CaretPosition {

@@ -1,0 +1,1 @@
+cursor over inline text: Hand
