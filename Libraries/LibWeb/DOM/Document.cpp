@@ -9312,24 +9312,26 @@ Optional<Painting::HitTestResult> Document::hit_test(CSSPixelPoint position)
     if (!hit_test_display_list)
         return {};
     paint_state().refresh_scroll_state(*this);
+    // https://w3c.github.io/pointerevents/#hit-test
+    // 1. Let pos be the x,y coordinates relative to the viewport
+    // 2. Return [CSSOM-View]'s elementFromPoint() with pos (the frontmost DOM element at pos)
+
+    // https://drafts.csswg.org/cssom-view/#dom-document-elementfrompoint
+    // 1. If either argument is negative, x is greater than the viewport width excluding the size of a rendered scroll
+    //    bar (if any), or y is greater than the viewport height excluding the size of a rendered scroll bar (if any),
+    //    or there is no viewport associated with the document, return null and terminate these steps.
+    // NB: The viewport is its own box in the display list, and its children are clipped to it.
+    // 2. If there is a box in the viewport that would be a target for hit testing at coordinates x,y, when applying
+    //    the transforms that apply to the descendants of the viewport, return the associated element and terminate
+    //    these steps.
     auto result = hit_test_display_list->hit_test(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics());
     if (result.has_value() && (result->chrome_widget || result->node))
         return result;
 
-    auto fallback_result = [](Element* element) -> Optional<Painting::HitTestResult> {
-        auto* layout_node = element ? element->unsafe_layout_node() : nullptr;
-        if (!layout_node || !Painting::has_committed_box(*layout_node))
-            return {};
-        return Painting::HitTestResult {
-            .node = element,
-            .paintable = Painting::committed_row_slot(*layout_node),
-            .arena = layout_node->node_arena(),
-        };
-    };
-    if (auto result = fallback_result(body()); result.has_value())
-        return result;
-    if (auto result = fallback_result(document_element()); result.has_value())
-        return result;
+    // 3. If the document has a root element, return the root element and terminate these steps.
+    // NB: Hit testing already redirects hits that fall through to the viewport onto the root element instead.
+
+    // 4. Return null.
     return {};
 }
 

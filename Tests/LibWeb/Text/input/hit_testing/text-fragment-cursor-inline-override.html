@@ -1,0 +1,20 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 20px SerenitySans, sans-serif; line-height: 32px }
+    #block { cursor: default }
+    #inline { cursor: pointer }
+</style>
+<div id="block">outside <span id="inline">hover this</span></div>
+<script>
+    test(() => {
+        // The text's hit-test item is recorded against the block that owns the line, but its cursor comes from the
+        // inline that contains it.
+        const range = document.createRange();
+        range.selectNodeContents(document.getElementById("inline").firstChild);
+        const rect = range.getBoundingClientRect();
+
+        internals.mouseMove(rect.left + 5, rect.top + rect.height / 2);
+        println(`cursor over inline text: ${internals.currentCursor()}`);
+    });
+</script>

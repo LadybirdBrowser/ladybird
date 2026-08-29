@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; pointer-events: none }
+</style>
+<script>
+    asyncTest(done => {
+        // A position outside the viewport box hits nothing, so the hit test falls back to the body - which the
+        // recording filter never got a say over. The UA keeps sending such positions while a drag leaves the window.
+        const seen = [];
+        document.addEventListener('mousemove', event => seen.push(event.target.id || event.target.nodeName), true);
+        internals.mouseMove(5000, 5000);
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            println(`mousemove delivered to: ${seen.length ? seen.join(', ') : 'nothing'}`);
+            done();
+        }));
+    });
+</script>

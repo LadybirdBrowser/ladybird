@@ -89,6 +89,7 @@ NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording
     for (auto const& exported : exported_items) {
         VERIFY(exported.paintable.index != Layout::RustFFI::INVALID_NODE_SLOT_INDEX);
         VERIFY(Layout::RustFFI::layout_arena_paintable_row(arena_handle, exported.paintable));
+        VERIFY(Layout::RustFFI::layout_arena_paintable_row(arena_handle, exported.hit_node));
         switch (static_cast<ChromeWidgetKind>(exported.chrome_widget_kind)) {
         case ChromeWidgetKind::None:
             break;
@@ -105,6 +106,7 @@ NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording
         list->m_items.unchecked_append(Item {
             .kind = static_cast<ItemKind>(exported.kind),
             .paintable = exported.paintable,
+            .hit_node = exported.hit_node,
             .chrome_widget_kind = static_cast<ChromeWidgetKind>(exported.chrome_widget_kind),
             .text_fragment_index = exported.text_fragment_index,
             .caret_node = exported.caret_node_shell ? static_cast<Layout::Node const*>(exported.caret_node_shell)->dom_node() : nullptr,
@@ -330,11 +332,11 @@ HitTestDisplayList::ClosestLine HitTestDisplayList::find_closest_line(CSSPixelPo
     return closest_line;
 }
 
-static Layout::RustFFI::FfiFragmentTextFacts fragment_text_facts(void* arena_handle, Layout::RustFFI::NodeSlotId paintable, Optional<u32> const& text_fragment_index)
+static Layout::RustFFI::FfiFragmentTextFacts fragment_text_facts(void* arena_handle, Layout::RustFFI::NodeSlotId box, Optional<u32> const& text_fragment_index)
 {
     if (!text_fragment_index.has_value())
         return {};
-    return Layout::RustFFI::layout_arena_paintable_fragment_text_facts(arena_handle, paintable, *text_fragment_index);
+    return Layout::RustFFI::layout_arena_paintable_fragment_text_facts(arena_handle, box, *text_fragment_index);
 }
 
 static Layout::Node const* fragment_layout_node(Layout::RustFFI::FfiFragmentTextFacts const& facts)
@@ -457,23 +459,46 @@ static GC::Ptr<DOM::Node> image_map_area_for_point(Layout::Node const& layout_no
 
 HitTestResult HitTestDisplayList::hit_test_result_for_item(Item const& item, CSSPixelPoint local_point) const
 {
+    auto const* paintable_layout_node = layout_node_for_item(item);
+    auto hit_node = item.hit_node;
+
+    auto const* named_layout_node = layout_node_for_committed_slot(*m_arena, hit_node);
+    VERIFY(named_layout_node && as<Layout::NodeWithStyle>(*named_layout_node).pointer_events() != CSS::PointerEvents::None);
+
+    // https://drafts.csswg.org/cssom-view/#dom-document-elementfrompoint
+    // 2. If there is a box in the viewport that would be a target for hit testing at coordinates x,y, when applying
+    //    the transforms that apply to the descendants of the viewport, return the associated element and terminate
+    //    these steps.
+    // 3. If the document has a root element, return the root element and terminate these steps.
+    // AD-HOC: Our viewport refers to the document instead of the root element. The steps above imply that we should
+    //         not hit test the viewport as a box, and report the root element as hit when we otherwise miss, so we
+    //         correct those hits here. This is where both pointer event hit testing and elementFromPoint() converge.
+    GC::Ptr<DOM::Node> root_element;
+    if (paintable_layout_node && paintable_layout_node->kind() == Layout::RustFFI::NodeKind::Viewport) {
+        auto* named_element = const_cast<DOM::Element*>(paintable_layout_node->document().document_element());
+        if (auto* root_layout_node = named_element ? named_element->unsafe_layout_node() : nullptr; root_layout_node && has_committed_box(*root_layout_node)) {
+            root_element = named_element;
+            hit_node = committed_row_slot(*root_layout_node);
+        }
+    }
+
     switch (item.kind) {
     case ItemKind::Box: {
-        GC::Ptr<DOM::Node> node;
-        if (auto const* layout_node = layout_node_for_item(item))
-            node = image_map_area_for_point(*layout_node, local_point);
+        GC::Ptr<DOM::Node> node = root_element;
+        if (!node && paintable_layout_node)
+            node = image_map_area_for_point(*paintable_layout_node, local_point);
         if (!node)
             node = const_cast<DOM::Node*>(event_dispatch_dom_node_for_item(item));
         return HitTestResult {
             .node = node,
-            .paintable = item.paintable,
+            .hit_node = hit_node,
             .arena = *m_arena,
         };
     }
     case ItemKind::SvgPath:
         return HitTestResult {
             .node = const_cast<DOM::Node*>(event_dispatch_dom_node_for_item(item)),
-            .paintable = item.paintable,
+            .hit_node = hit_node,
             .arena = *m_arena,
         };
     case ItemKind::TextFragment: {
@@ -485,7 +510,7 @@ HitTestResult HitTestDisplayList::hit_test_result_for_item(Item const& item, CSS
         }
         return HitTestResult {
             .node = node,
-            .paintable = item.paintable,
+            .hit_node = hit_node,
             .arena = *m_arena,
             .index_in_node = Layout::RustFFI::layout_arena_paintable_fragment_index_in_node_for_point(
                 m_arena->handle(), item.paintable, *item.text_fragment_index,
@@ -497,20 +522,20 @@ HitTestResult HitTestDisplayList::hit_test_result_for_item(Item const& item, CSS
         // NB: Not reachable through regular hit testing; see item_contains().
         return HitTestResult {
             .node = const_cast<DOM::Node*>(event_dispatch_dom_node_for_item(item)),
-            .paintable = item.paintable,
+            .hit_node = hit_node,
             .arena = *m_arena,
         };
     case ItemKind::EmptyEditable:
         return HitTestResult {
             .node = const_cast<DOM::Node*>(event_dispatch_dom_node_for_item(item)),
-            .paintable = item.paintable,
+            .hit_node = hit_node,
             .arena = *m_arena,
             .index_in_node = 0,
         };
     case ItemKind::ChromeWidget:
         return HitTestResult {
-            .node = const_cast<DOM::Node*>(event_dispatch_dom_node_for_item(item)),
-            .paintable = item.paintable,
+            .node = root_element ? root_element : const_cast<DOM::Node*>(event_dispatch_dom_node_for_item(item)),
+            .hit_node = hit_node,
             .arena = *m_arena,
             .chrome_widget = chrome_widget_for_item(item),
         };

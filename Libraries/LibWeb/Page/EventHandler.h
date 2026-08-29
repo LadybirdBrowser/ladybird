@@ -9,6 +9,7 @@
 
 #include <AK/Forward.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <LibGC/Ptr.h>
@@ -111,11 +112,14 @@ private:
     CSSPixelPoint compute_mouse_event_movement(CSSPixelPoint screen_position) const;
 
     struct Target {
-        Layout::RustFFI::NodeSlotId paintable;
+        Layout::RustFFI::NodeSlotId hit_node;
+        NonnullRefPtr<Layout::NodeArena> arena;
         RefPtr<Painting::ChromeWidget> chrome_widget;
         GC::Ptr<DOM::Node> dom_node;
         Optional<int> index_in_node;
         bool is_text_fragment { false };
+
+        Layout::Node* layout_node() const;
     };
     Optional<Target> target_for_mouse_position(CSSPixelPoint position);
     GC::Ptr<DOM::Node> focus_candidate_for_position(CSSPixelPoint) const;
@@ -123,7 +127,7 @@ private:
     void run_mousedown_default_actions(DOM::Document&, CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position, unsigned button, unsigned modifiers, int click_count);
     void run_activation_behavior(GC::Ref<DOM::Node>, unsigned button, unsigned modifiers);
 
-    void maybe_show_context_menu(GC::Ref<DOM::Node>, Layout::RustFFI::NodeSlotId paintable, MouseEventCoordinates const&, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers);
+    void maybe_show_context_menu(GC::Ref<DOM::Node>, Target const&, MouseEventCoordinates const&, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers);
     bool maybe_request_paste_for_middle_click(DOM::Document&, CSSPixelPoint visual_viewport_position);
 
     Optional<Painting::CaretPosition> prepare_mouse_selection(DOM::Document&, CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position);

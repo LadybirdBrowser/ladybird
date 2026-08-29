@@ -37,6 +37,8 @@ pub use crate::painting::border_radii::BorderRadii;
 pub struct HitTestItem {
     pub kind: HitTestItemKind,
     pub paintable: NodeSlotId,
+    /// The node whose style admitted this hit: a text fragment's parent, otherwise the paintable itself.
+    pub hit_node: NodeSlotId,
     pub chrome_widget_kind: u8,
     pub text_fragment_index: Option<u32>,
     pub caret_node: NodeSlotId,

@@ -78,6 +78,7 @@ private:
     struct Item {
         ItemKind kind;
         Layout::RustFFI::NodeSlotId paintable;
+        Layout::RustFFI::NodeSlotId hit_node;
         ChromeWidgetKind chrome_widget_kind { ChromeWidgetKind::None };
         Optional<u32> text_fragment_index;
         GC::Ptr<DOM::Node const> caret_node { nullptr };

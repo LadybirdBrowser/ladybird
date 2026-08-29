@@ -2460,9 +2460,14 @@ pub unsafe extern "C" fn layout_arena_export_hit_test_items(
                 arena.paintable_row_is_populated(item.paintable),
                 "exporting a hit-test item for a non-live paintable"
             );
+            assert!(
+                arena.paintable_row_is_populated(item.hit_node),
+                "exporting a hit-test item that names a non-live paintable"
+            );
             *output = crate::painting::host::FfiHitTestItemExport {
                 kind: item.kind as u8,
                 paintable: item.paintable,
+                hit_node: item.hit_node,
                 chrome_widget_kind: item.chrome_widget_kind,
                 text_fragment_index: item.text_fragment_index.into(),
                 caret_node_shell: arena.shell_if_live(item.caret_node),
