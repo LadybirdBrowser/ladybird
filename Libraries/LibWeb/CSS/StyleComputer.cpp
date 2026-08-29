@@ -837,6 +837,7 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         NonnullRefPtr<StyleValue const> value;
         StyleValueFFI::FfiAnimationSpecifiedValueSource value_source;
         StyleValueFFI::FfiAnimationStyleSheetResourceContext style_sheet_resource_context;
+        bool is_transition { false };
     };
     if (keyframe_declarations.is_empty())
         return;
@@ -871,6 +872,7 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
                                                                                             .value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(property.value)),
                                                                                             .value_source = property.value_source,
                                                                                             .style_sheet_resource_context = property.style_sheet_resource_context,
+                                                                                            .is_transition = property.is_transition,
                                                                                         });
         }
 
@@ -881,6 +883,10 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
             auto keyframe_index = keyframes_for_computation.size();
             keyframes_for_computation.append(keyframe);
             for (auto const& [physical_property_id, selected_value] : selected_values) {
+                // CSS transition endpoints are computed values captured from the before-change
+                // and after-change styles. They do not need another specified-value computation.
+                if (selected_value.is_transition)
+                    continue;
                 auto source_longhand_id = selected_value.source_longhand_id;
                 auto specified_value = [&]() -> NonnullRefPtr<StyleValue const> {
                     switch (selected_value.value_source) {
@@ -1033,6 +1039,12 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         };
         VERIFY(computed_keyframe_batch.value_count == keyframe_longhands.size());
         HashMap<Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame const*, HashMap<PropertyID, RefPtr<StyleValue const>>> computed_keyframe_values;
+        for (auto const& [keyframe, selected_values] : selected_keyframe_values) {
+            for (auto const& [physical_property_id, selected_value] : selected_values) {
+                if (selected_value.is_transition)
+                    computed_keyframe_values.ensure(keyframe).set(physical_property_id, selected_value.value);
+            }
+        }
         for (size_t index = 0; index < keyframe_longhands.size(); ++index) {
             auto const& longhand = keyframe_longhands[index];
             VERIFY(longhand.keyframe_index < keyframes_for_computation.size());

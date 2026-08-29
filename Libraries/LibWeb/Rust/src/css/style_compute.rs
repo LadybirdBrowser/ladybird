@@ -3321,19 +3321,7 @@ unsafe fn drive_property_computation(
 
         for &property_id in computation_order {
             use crate::css::computed_values::computed_group_output_mask;
-            let required_driver_input = matches!(
-                property_id,
-                prop::COLOR_SCHEME
-                    | prop::DIRECTION
-                    | prop::DISPLAY
-                    | prop::FLOAT
-                    | prop::MATH_DEPTH
-                    | prop::OVERFLOW_X
-                    | prop::OVERFLOW_Y
-                    | prop::POSITION
-                    | prop::TEXT_ALIGN
-                    | prop::WRITING_MODE
-            );
+            let required_driver_input = is_required_driver_input(property_id);
             let output_is_selected = computed_group_output_mask(property_id)
                 .is_none_or(|output_mask| output_mask & computed_group_mask != 0);
             let property_index = usize::from(property_id - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
@@ -4473,6 +4461,23 @@ unsafe fn drive_property_computation(
     })
 }
 
+fn is_required_driver_input(property_id: u16) -> bool {
+    use crate::css::property_metadata::property_id as prop;
+    matches!(
+        property_id,
+        prop::COLOR_SCHEME
+            | prop::DIRECTION
+            | prop::DISPLAY
+            | prop::FLOAT
+            | prop::MATH_DEPTH
+            | prop::OVERFLOW_X
+            | prop::OVERFLOW_Y
+            | prop::POSITION
+            | prop::TEXT_ALIGN
+            | prop::WRITING_MODE
+    )
+}
+
 /// FFI entry for the native longhand driver.
 ///
 /// # Safety
@@ -4606,9 +4611,9 @@ pub unsafe extern "C" fn rust_compute_document_longhands(
 }
 
 /// Computes every selected keyframe longhand through the native longhand
-/// driver. Each keyframe gets a temporary table seeded from the underlying
-/// style, then all of that keyframe's specified values are cascaded together
-/// before its selected properties are evaluated.
+/// driver. Each keyframe gets a temporary table and the driver's coordination
+/// inputs from the underlying style, then all of that keyframe's specified
+/// values are cascaded together before its selected properties are evaluated.
 ///
 /// # Safety
 /// `input` and every range and pointer it contains must remain valid for the
@@ -4664,6 +4669,9 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
             let mut table = ComputedLonghandTable::copied_for_drive(underlying_longhand_table);
             let mut store = CascadedPropertyStore::new();
             for property_id in FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID {
+                if !is_required_driver_input(property_id) {
+                    continue;
+                }
                 if let Some(value) = underlying_longhand_table.get(property_id) {
                     store.seed_retained_property(property_id, value.clone_retained(), false, false);
                 }
