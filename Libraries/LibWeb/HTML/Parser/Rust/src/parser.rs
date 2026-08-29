@@ -3444,7 +3444,7 @@ impl TreeBuilder {
         // 3. If onlyAddToElementStack is false, then run insert an element at the adjusted insertion location with
         //    element.
         if !only_add_to_element_stack {
-            self.insert_element_at_adjusted_insertion_location(element);
+            self.insert_element_at_adjusted_insertion_location(element, None);
         }
         let template_content = if namespace_ == RustFfiHtmlNamespace::Html && local_name == tag_name!("template") {
             Some(self.template_content(element))
@@ -3471,7 +3471,7 @@ impl TreeBuilder {
     ) -> usize {
         let adjusted_insertion_location = self.appropriate_place_for_inserting_node(Some(parent));
         let element = self.create_html_element_for_active_formatting_element(entry, adjusted_insertion_location.parent);
-        self.insert_element_at_adjusted_insertion_location(element);
+        self.insert_element_at_adjusted_insertion_location(element, None);
         self.stack_of_open_elements.push(StackNode {
             handle: element,
             local_name: entry.local_name.clone(),
@@ -3610,7 +3610,16 @@ impl TreeBuilder {
         unsafe { ladybird_html_parser_insert_node(insertion_location.parent, insertion_location.offset, child, false) };
     }
 
-    fn insert_element_at_insertion_location(&mut self, insertion_location: AdjustedInsertionLocation, element: usize) {
+    // https://html.spec.whatwg.org/multipage/parsing.html#insert-an-element-at-the-adjusted-insertion-location
+    fn insert_element_at_adjusted_insertion_location(
+        &mut self,
+        element: usize,
+        insertion_location: Option<AdjustedInsertionLocation>,
+    ) {
+        // 1. Set insertionLocation to the adjusted insertion location given insertionLocation.
+        let insertion_location = self.adjusted_insertion_location(insertion_location);
+
+        // NB: Remaining steps implemented on C++ side.
         let queue_custom_element_reactions = !self.parsing_fragment;
         unsafe {
             ladybird_html_parser_insert_node(
@@ -3620,15 +3629,6 @@ impl TreeBuilder {
                 queue_custom_element_reactions,
             )
         };
-    }
-
-    // https://html.spec.whatwg.org/multipage/parsing.html#insert-an-element-at-the-adjusted-insertion-location
-    fn insert_element_at_adjusted_insertion_location(&mut self, element: usize) {
-        // 1. Let insertionLocation be the adjusted insertion location.
-        let insertion_location = self.adjusted_insertion_location(None);
-
-        // NB: Remaining steps implemented on C++ side.
-        self.insert_element_at_insertion_location(insertion_location, element);
     }
 
     fn parent_node(&self, node: usize) -> usize {
@@ -3703,12 +3703,9 @@ impl TreeBuilder {
         self.stack_of_template_insertion_modes.push(InsertionMode::InTemplate);
 
         // 6. Let the adjustedInsertionLocation be the appropriate place for inserting a node.
-        // 7. Let intendedParent be the element in which the adjustedInsertionLocation finds itself.
-        // 8. Let document be intendedParent's node document.
-        // AD-HOC: These are all technically unused by the spec, but we need this to insert the template at the correct location.
         let adjusted_insertion_location = self.appropriate_place_for_inserting_node(None);
 
-        // 9. If any of the following are false:
+        // 7. If any of the following are false:
         //    - templateStartTag's shadowrootmode is not in the None state;
         let mode = match token.attribute(attribute_name!("shadowrootmode")) {
             Some(value) if value.eq_ignore_ascii_case("open") => Some(RustFfiHtmlShadowRootMode::Open),
@@ -3733,7 +3730,7 @@ impl TreeBuilder {
             return;
         }
 
-        // 10. Otherwise:
+        // 8. Otherwise:
         // 1. Let declarativeShadowHostElement be adjusted current node.
         let declarative_shadow_host_element = adjusted_current_node.unwrap();
 
@@ -3763,10 +3760,9 @@ impl TreeBuilder {
         // 8. Let delegatesFocus be true if templateStartTag has a shadowrootdelegatesfocus attribute; otherwise false.
         let delegates_focus = token.has_attribute(attribute_name!("shadowrootdelegatesfocus"));
 
-        // 9. If declarativeShadowHostElement is a shadow host, then insert an element at the adjusted insertion location with template.
+        // 9. If declarativeShadowHostElement is a shadow host, then insert an element at the adjusted insertion location with template and adjustedInsertionLocation.
         if self.is_shadow_host(declarative_shadow_host_element) {
-            // AD-HOC: Reuse the pre-template insertion location to avoid inserting the template into its own contents.
-            self.insert_element_at_insertion_location(adjusted_insertion_location, template);
+            self.insert_element_at_adjusted_insertion_location(template, Some(adjusted_insertion_location));
         }
         // 10. Otherwise:
         else {
@@ -3787,9 +3783,8 @@ impl TreeBuilder {
 
             // If an exception is thrown, then catch it and:
             if shadow_root == 0 {
-                // 1. Insert an element at the adjusted insertion location with template.
-                // AD-HOC: Reuse the pre-template insertion location to avoid inserting the template into its own contents.
-                self.insert_element_at_insertion_location(adjusted_insertion_location, template);
+                // 1. Insert an element at the adjusted insertion location with template and adjustedInsertionLocation.
+                self.insert_element_at_adjusted_insertion_location(template, Some(adjusted_insertion_location));
 
                 // 2. The user agent may report an error to the developer console.
 
