@@ -39,7 +39,12 @@ pub struct FfiVisualContextTreeInputs {
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiResolvedEffectsFilter {
-    pub gfx_filter: *mut c_void,
+    pub has_filter: bool,
+    pub svg_filter_bounds: OptionalCssPixelRect,
+}
+
+pub(crate) struct ResolvedEffectsFilter {
+    pub filter_bytes: Option<Vec<u8>>,
     pub svg_filter_bounds: OptionalCssPixelRect,
 }
 
@@ -53,7 +58,7 @@ pub struct FfiVisualContextHostCallbacks {
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut libgfx_rust::AffineTransform) -> bool,
     pub root_background_source: unsafe extern "C" fn(*mut c_void) -> FfiRootBackgroundSource,
     pub svg_mask_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiSvgMaskFacts,
-    pub resolve_effects_filter: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiResolvedEffectsFilter,
+    pub resolve_effects_filter: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiResolvedEffectsFilter,
     pub default_scroll_shift_anchor:
         unsafe extern "C" fn(*mut c_void, *mut c_void) -> crate::layout::node_data::NodeSlotId,
 }
@@ -85,9 +90,16 @@ impl FfiVisualContextHostCallbacks {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
         unsafe { (self.svg_mask_facts)(self.context, layout_node_shell) }
     }
-    pub(crate) fn resolve_effects_filter(&self, layout_node_shell: *mut c_void) -> FfiResolvedEffectsFilter {
-        // SAFETY: The C++ host answers synchronously from a live layout node shell.
-        unsafe { (self.resolve_effects_filter)(self.context, layout_node_shell) }
+    pub(crate) fn resolve_effects_filter(&self, layout_node_shell: *mut c_void) -> ResolvedEffectsFilter {
+        let mut bytes: Vec<u8> = Vec::new();
+        // SAFETY: The C++ host answers synchronously from a live layout node shell and only writes
+        // into the Vec whose pointer it receives.
+        let resolved =
+            unsafe { (self.resolve_effects_filter)(self.context, layout_node_shell, (&raw mut bytes).cast()) };
+        ResolvedEffectsFilter {
+            filter_bytes: resolved.has_filter.then_some(bytes),
+            svg_filter_bounds: resolved.svg_filter_bounds,
+        }
     }
     pub(crate) fn default_scroll_shift_anchor(
         &self,
@@ -131,7 +143,6 @@ pub struct FfiVisualContextNodeExport {
     pub clip_mode: ClipMode,
     pub opacity: f32,
     pub blend_mode: CompositingAndBlendingOperator,
-    pub filter: *mut c_void,
     pub filter_bytes: *const u8,
     pub filter_bytes_length: usize,
     pub path: *mut c_void,

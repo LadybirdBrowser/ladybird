@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::{ClipData, EffectsData, EffectsFilter, PerspectiveData, TransformData, TransformDataRole};
+use super::{ClipData, EffectsData, PerspectiveData, TransformData, TransformDataRole};
 use crate::css::computed_value_types::{ComputedClipEdge, ComputedStyleValueHandle};
 use crate::css::computed_value_views::{ComputedValuesView, LengthPercentageRef};
 use crate::css::css_enums;
@@ -538,19 +538,11 @@ pub(crate) fn compute_effects_data(
                 .has_value
                 .then_some(resolved_filter.svg_filter_bounds.value),
         );
-        let filter_raw = resolved_filter.gfx_filter;
-        if filter_raw.is_null() {
-            None
-        } else {
-            // SAFETY: The host hands over a heap-allocated Gfx::Filter for us to own.
-            Some(EffectsFilter::Host(std::rc::Rc::new(unsafe {
-                super::FilterHandle::adopt(filter_raw)
-            })))
-        }
+        resolved_filter.filter_bytes.map(std::rc::Rc::new)
     } else {
         layout_arena.paintable_side_data(slot).svg_filter_bounds.set(None);
         crate::painting::filter_bytes::serialize_non_url_filter(&effects_values.filter, device_pixels_per_css_pixel)
-            .map(|bytes| EffectsFilter::Bytes(std::rc::Rc::new(bytes)))
+            .map(std::rc::Rc::new)
     };
     if filter.is_none() && effects_values.opacity == 1.0 && effects_values.mix_blend_mode == mix_blend_mode::NORMAL {
         return None;

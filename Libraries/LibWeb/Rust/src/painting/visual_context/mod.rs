@@ -19,38 +19,10 @@ use libgfx_rust::{
     WindingRule,
 };
 use scroll_state::{NO_SCROLL_STATE_SLOT, ScrollStateSlot};
-use std::ffi::c_void;
 
 pub use crate::painting::display_list::commands::{
     ContextRef, FrameNodeIndex, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
 };
-
-pub struct FilterHandle {
-    raw: *mut c_void,
-}
-
-unsafe extern "C" {
-    fn ladybird_gfx_filter_destroy(filter: *mut c_void);
-}
-
-impl FilterHandle {
-    /// # Safety
-    ///
-    /// `raw` must be a heap-allocated `Gfx::Filter` owned by nobody else.
-    pub unsafe fn adopt(raw: *mut c_void) -> Self {
-        Self { raw }
-    }
-    pub fn as_raw(&self) -> *mut c_void {
-        self.raw
-    }
-}
-
-impl Drop for FilterHandle {
-    fn drop(&mut self) {
-        // SAFETY: adopt() took sole ownership of the filter.
-        unsafe { ladybird_gfx_filter_destroy(self.raw) };
-    }
-}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -105,13 +77,7 @@ pub struct ClipPathData {
 pub struct EffectsData {
     pub opacity: f32,
     pub blend_mode: CompositingAndBlendingOperator,
-    pub filter: Option<EffectsFilter>,
-}
-
-#[derive(Clone)]
-pub enum EffectsFilter {
-    Bytes(std::rc::Rc<Vec<u8>>),
-    Host(std::rc::Rc<FilterHandle>),
+    pub filter: Option<std::rc::Rc<Vec<u8>>>,
 }
 
 impl FrameData {
@@ -527,7 +493,6 @@ fn empty_export(
         clip_mode: ClipMode::Intersect,
         opacity: 1.0,
         blend_mode: CompositingAndBlendingOperator::Normal,
-        filter: std::ptr::null_mut(),
         filter_bytes: std::ptr::null(),
         filter_bytes_length: 0,
         path: std::ptr::null_mut(),
@@ -616,14 +581,9 @@ pub fn export_frame_node(node: &FrameNode) -> crate::painting::host::FfiVisualCo
         FrameData::Effects(effects) => {
             out.opacity = effects.opacity;
             out.blend_mode = effects.blend_mode;
-            if let Some(filter) = &effects.filter {
-                match filter {
-                    EffectsFilter::Bytes(bytes) => {
-                        out.filter_bytes = bytes.as_ptr();
-                        out.filter_bytes_length = bytes.len();
-                    }
-                    EffectsFilter::Host(filter) => out.filter = filter.as_raw(),
-                }
+            if let Some(bytes) = &effects.filter {
+                out.filter_bytes = bytes.as_ptr();
+                out.filter_bytes_length = bytes.len();
             }
         }
         FrameData::Mask(mask) => {
