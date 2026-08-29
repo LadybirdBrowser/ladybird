@@ -54,4 +54,7 @@ PASS: table fixup: append row to collapsed table
 PASS: table fixup: append nested table
 PASS: table fixup: append row to nested table
 PASS: table fixup: move nested table between cells
-56 cases; 56 matched; 0 mismatched
+PASS: table fixup: append outer row preserves nested missing cells
+PASS: table fixup: remove outer column preserves nested missing cells
+PASS: table fixup: append outer row preserves deeply nested missing cells
+59 cases; 59 matched; 0 mismatched
