@@ -428,6 +428,18 @@ fn replay_style_value_dependency_flags(value: *const StyleValueData) -> Option<u
     }
 }
 
+/// # Safety
+/// `value` must be null, a registered replay token, or point to a live `StyleValueData`.
+pub(crate) unsafe fn style_value_content_hash(value: *const StyleValueData) -> u64 {
+    if value.is_null() {
+        return 0;
+    }
+    if replay_style_value_dependency_flags(value).is_some() {
+        return value as usize as u64;
+    }
+    unsafe { &*value }.content_hash()
+}
+
 /// A strong reference to immutable Rust-owned style value data.
 #[repr(C)]
 pub struct RetainedStyleValueData {

@@ -673,8 +673,8 @@ bool ComputedValues::property_inheritance_is_standard() const
 
 HashMap<PropertyID, NonnullRefPtr<StyleValue const>> ComputedValues::inheritance_dependent_specified_values_snapshot() const
 {
-    auto values = m_inheritance_dependent_specified_values;
-    for (auto const& entry : m_borrowed_inheritance_dependent_values) {
+    HashMap<PropertyID, NonnullRefPtr<StyleValue const>> values;
+    for (auto const& entry : m_inheritance_dependent_specified_values) {
         auto const* data = static_cast<StyleValueFFI::StyleValueData const*>(entry.value);
         values.set(
             static_cast<PropertyID>(entry.property),
@@ -685,45 +685,20 @@ HashMap<PropertyID, NonnullRefPtr<StyleValue const>> ComputedValues::inheritance
 
 bool ComputedValues::inheritance_dependent_specified_values_equal(ComputedValues const& other) const
 {
-    // A borrowed entry overrides an owned entry for the same property, matching the snapshot
-    // the drive publishes from. Comparing raw entries avoids the snapshot's map copies and
-    // per-entry facade allocations on the diff fast path.
-    auto effective_value = [](ComputedValues const& values, PropertyID property_id) -> StyleValueFFI::StyleValueData const* {
-        for (auto const& entry : values.m_borrowed_inheritance_dependent_values) {
-            if (static_cast<PropertyID>(entry.property) == property_id)
-                return static_cast<StyleValueFFI::StyleValueData const*>(entry.value);
-        }
-        if (auto value = values.m_inheritance_dependent_specified_values.get(property_id); value.has_value())
-            return (*value)->rust_style_value_data();
-        return nullptr;
-    };
-    auto borrowed_entry_shadows_property = [](ComputedValues const& values, PropertyID property_id) {
-        for (auto const& entry : values.m_borrowed_inheritance_dependent_values) {
-            if (static_cast<PropertyID>(entry.property) == property_id)
-                return true;
-        }
+    if (m_inheritance_dependent_specified_values.size() != other.m_inheritance_dependent_specified_values.size())
         return false;
-    };
-    auto entries_covered_by = [&](ComputedValues const& mine, ComputedValues const& theirs) {
-        auto entry_matches = [&](PropertyID property_id, StyleValueFFI::StyleValueData const* value) {
-            auto const* other_value = effective_value(theirs, property_id);
-            if (!other_value)
-                return false;
-            return value == other_value || StyleValueFFI::rust_style_value_equals(value, other_value);
-        };
-        for (auto const& entry : mine.m_borrowed_inheritance_dependent_values) {
-            if (!entry_matches(static_cast<PropertyID>(entry.property), static_cast<StyleValueFFI::StyleValueData const*>(entry.value)))
-                return false;
-        }
-        for (auto const& [property_id, value] : mine.m_inheritance_dependent_specified_values) {
-            if (borrowed_entry_shadows_property(mine, property_id))
-                continue;
-            if (!entry_matches(property_id, value->rust_style_value_data()))
-                return false;
-        }
-        return true;
-    };
-    return entries_covered_by(*this, other) && entries_covered_by(other, *this);
+    for (auto const& entry : m_inheritance_dependent_specified_values) {
+        auto other_entry = find_if(other.m_inheritance_dependent_specified_values.begin(), other.m_inheritance_dependent_specified_values.end(), [&](auto const& candidate) {
+            return candidate.property == entry.property;
+        });
+        if (other_entry == other.m_inheritance_dependent_specified_values.end())
+            return false;
+        auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(entry.value);
+        auto const* other_value = static_cast<StyleValueFFI::StyleValueData const*>(other_entry->value);
+        if (value != other_value && !StyleValueFFI::rust_style_value_equals(value, other_value))
+            return false;
+    }
+    return true;
 }
 
 bool ComputedValues::adopt_identical_group_payloads(ComputedValues const& previous) const
@@ -755,17 +730,12 @@ void ComputedValues::adopt_identical_computed_longhand_table(ComputedValues cons
 {
     if (m_is_style_record_view)
         return;
-    if (m_longhand_values.is_empty() || previous.m_longhand_values.is_empty())
+    auto const* table = static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(m_computed_longhand_table);
+    auto const* previous_table = static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(previous.m_computed_longhand_table);
+    if (!table || !previous_table || table == previous_table)
         return;
-    if (m_longhand_values.data() == previous.m_longhand_values.data())
-        return;
-    for (size_t index = 0; index < number_of_longhand_properties; ++index) {
-        if (!StyleValueFFI::rust_style_value_equals(
-                static_cast<StyleValueFFI::StyleValueData const*>(m_longhand_values[index]),
-                static_cast<StyleValueFFI::StyleValueData const*>(previous.m_longhand_values[index])))
-            return;
-    }
-    const_cast<ComputedValues&>(*this).copy_computed_longhand_table_from(previous);
+    if (ComputedValuesFFI::rust_computed_longhand_tables_equal_for_publication(table, previous_table))
+        const_cast<ComputedValues&>(*this).copy_computed_longhand_table_from(previous);
 }
 
 bool ComputedValues::differs_in_any_layout_affecting_group_payload_from(ComputedValues const& other) const
@@ -909,9 +879,10 @@ ComputedStyleRecordView::ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordV
     m_values.m_font_metrics_depend_on_viewport_metrics = view.dependency_flags & to_underlying(StyleRecordDependencyFlag::FontMetricsDependOnViewportMetrics);
     m_values.m_in_display_none_subtree = view.dependency_flags & to_underlying(StyleRecordDependencyFlag::InDisplayNoneSubtree);
     m_values.m_borrowed_raw_cascaded_font_size = static_cast<StyleValueFFI::StyleValueData const*>(view.raw_cascaded_font_size);
-    m_values.m_borrowed_inheritance_dependent_values = { view.inheritance_dependent_values, view.inheritance_dependent_value_count };
-    VERIFY(view.longhand_value_count == 0 || view.longhand_value_count == number_of_longhand_properties);
-    m_values.m_longhand_values = { view.longhand_values, view.longhand_value_count };
+    m_values.m_inheritance_dependent_specified_values = { view.inheritance_dependent_values, view.inheritance_dependent_value_count };
+    m_values.m_computed_longhand_table = view.longhand_table;
+    if (m_values.m_computed_longhand_table)
+        m_values.refresh_computed_longhand_table_views();
     m_values.m_animated_properties = static_cast<AnimatedProperties const*>(view.animated_properties);
     if (view.animation_overlay_identity != 0) {
         m_base_values->m_property_important = m_values.m_property_important;
@@ -921,8 +892,10 @@ ComputedStyleRecordView::ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordV
         m_base_values->m_font_metrics_depend_on_viewport_metrics = m_values.m_font_metrics_depend_on_viewport_metrics;
         m_base_values->m_in_display_none_subtree = m_values.m_in_display_none_subtree;
         m_base_values->m_borrowed_raw_cascaded_font_size = m_values.m_borrowed_raw_cascaded_font_size;
-        m_base_values->m_borrowed_inheritance_dependent_values = m_values.m_borrowed_inheritance_dependent_values;
-        m_base_values->m_longhand_values = m_values.m_longhand_values;
+        m_base_values->m_inheritance_dependent_specified_values = m_values.m_inheritance_dependent_specified_values;
+        m_base_values->m_computed_longhand_table = m_values.m_computed_longhand_table;
+        if (m_base_values->m_computed_longhand_table)
+            m_base_values->refresh_computed_longhand_table_views();
     }
     m_present = true;
 }
@@ -1676,13 +1649,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedStyl
     color_resolution_context.current_color = color;
 
     // Build every group payload the core can map straight from the drive's longhand table.
-    // Effective values living outside the table - the animated overlay and the partial-drive
-    // specified-value preferences - travel as a sparse override span, so the build sees exactly
-    // the values property() returns.
     auto const* longhand_table = computed_style.computed_longhand_table();
-    Vector<u16> override_properties;
-    Vector<void const*> override_values;
-    computed_style.collect_effective_longhand_overrides(override_properties, override_values);
+    auto animated_properties = computed_style.animated_properties_snapshot();
     Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_context_storage;
     auto ffi_color_input = make_rust_color_resolution_input(color_resolution_context, length_context_storage);
     Optional<ComputedValuesFFI::FfiFontGroupBuildInputs> font_group_inputs;
@@ -1712,9 +1680,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedStyl
     ComputedValuesFFI::FfiTableGroupBuildInputs table_build_inputs {
         .color_input = &ffi_color_input,
         .used_color_scheme = static_cast<u8>(to_underlying(color_scheme)),
-        .override_properties = override_properties.data(),
-        .override_values = override_values.data(),
-        .override_count = override_properties.size(),
+        .animated_overlay = animated_properties ? animated_properties->overlay() : nullptr,
         .box_display_before_transformation_raw = bit_cast<u32>(computed_style.display_before_box_type_transformation()),
         .font = font_group_inputs.has_value() ? &font_group_inputs.value() : nullptr,
     };
@@ -1738,16 +1704,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedStyl
     }
     computed_values.set_pseudo_element_styles(pseudo_element_styles);
     computed_values.set_raw_cascaded_font_size(computed_style.raw_cascaded_font_size());
-    // The drive records its inheritance-dependent specified values on the table; the style
-    // takes owned wrappers, because its own table reference can later be canonicalized onto a
-    // value-equal donor table whose recorded values are not this style's.
-    HashMap<PropertyID, NonnullRefPtr<StyleValue const>> inheritance_dependent_specified_values;
-    for (auto const& entry : computed_style.inheritance_dependent_value_span()) {
-        inheritance_dependent_specified_values.set(
-            static_cast<PropertyID>(entry.property),
-            StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(entry.value))));
-    }
-    computed_values.set_inheritance_dependent_specified_values(move(inheritance_dependent_specified_values));
     computed_values.set_computed_longhand_table(computed_style.computed_longhand_table());
 
     return move(builder).build();
@@ -1769,9 +1725,12 @@ ComputedValues::ComputedValues(BorrowedStyleRecord)
 
 ComputedValues::~ComputedValues()
 {
-    clear_computed_longhand_table();
-    if (!m_is_style_record_view)
+    if (m_is_style_record_view)
+        m_computed_longhand_table = nullptr;
+    else {
+        clear_computed_longhand_table();
         --s_statistics.live_instance_count;
+    }
 }
 
 void ComputedValues::adopt_computed_longhand_table(void const* table)
@@ -1784,7 +1743,19 @@ void ComputedValues::adopt_computed_longhand_table(void const* table)
     auto const* typed_table = ComputedValuesFFI::rust_computed_longhand_table_retain(static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(table));
     clear_computed_longhand_table();
     m_computed_longhand_table = typed_table;
-    m_longhand_values = { ComputedValuesFFI::rust_computed_longhand_table_values(typed_table), number_of_longhand_properties };
+    refresh_computed_longhand_table_views();
+}
+
+void ComputedValues::refresh_computed_longhand_table_views()
+{
+    VERIFY(m_computed_longhand_table);
+    auto const* table = static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(m_computed_longhand_table);
+    m_longhand_values = { ComputedValuesFFI::rust_computed_longhand_table_values(table), number_of_longhand_properties };
+    size_t inheritance_dependent_value_count = 0;
+    auto const* inheritance_dependent_values = ComputedValuesFFI::rust_computed_longhand_table_inheritance_dependent_values(table, &inheritance_dependent_value_count);
+    static_assert(sizeof(StyleEngineFFI::FfiInheritanceDependentValue) == sizeof(ComputedValuesFFI::FfiTableInheritanceDependentValue));
+    static_assert(alignof(StyleEngineFFI::FfiInheritanceDependentValue) == alignof(ComputedValuesFFI::FfiTableInheritanceDependentValue));
+    m_inheritance_dependent_specified_values = { reinterpret_cast<StyleEngineFFI::FfiInheritanceDependentValue const*>(inheritance_dependent_values), inheritance_dependent_value_count };
 }
 
 void ComputedValues::clear_computed_longhand_table()
@@ -1793,6 +1764,7 @@ void ComputedValues::clear_computed_longhand_table()
         ComputedValuesFFI::rust_computed_longhand_table_release(const_cast<ComputedValuesFFI::ComputedLonghandTable*>(static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(m_computed_longhand_table)));
     m_computed_longhand_table = nullptr;
     m_longhand_values = {};
+    m_inheritance_dependent_specified_values = {};
 }
 
 void ComputedValues::copy_computed_longhand_table_from(ComputedValues const& other)
@@ -1806,34 +1778,27 @@ void ComputedValues::copy_computed_longhand_table_from(ComputedValues const& oth
         return;
     auto* table = ComputedValuesFFI::rust_computed_longhand_table_create();
     ComputedValuesFFI::rust_computed_longhand_table_copy_from_values(table, other.m_longhand_values.data(), other.m_longhand_values.size());
+    for (auto const& entry : other.m_inheritance_dependent_specified_values)
+        ComputedValuesFFI::rust_computed_longhand_table_add_inheritance_dependent_value(table, entry.property, entry.value);
     ComputedValuesFFI::rust_computed_longhand_table_freeze(table);
     // The freshly created table already carries the one reference this style owns.
     m_computed_longhand_table = table;
-    m_longhand_values = { ComputedValuesFFI::rust_computed_longhand_table_values(table), number_of_longhand_properties };
+    refresh_computed_longhand_table_views();
 }
 
 void ComputedValues::adopt_swapped_computed_longhand_table(ComputedValues const& old_values, ComputedValues const& inherited_source)
 {
-    auto old_longhand_values = old_values.computed_longhand_values();
-    auto parent_longhand_values = inherited_source.computed_longhand_values();
-    if (old_longhand_values.is_empty() || parent_longhand_values.is_empty()) {
+    auto const* old_table = static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(old_values.computed_longhand_table());
+    auto const* inherited_source_table = static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(inherited_source.computed_longhand_table());
+    if (!old_table || !inherited_source_table) {
         clear_computed_longhand_table();
         return;
     }
-    auto* table = ComputedValuesFFI::rust_computed_longhand_table_create();
-    ComputedValuesFFI::rust_computed_longhand_table_copy_from_values(table, old_longhand_values.data(), old_longhand_values.size());
-    for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
-        auto property_id = static_cast<PropertyID>(i);
-        if (!is_inherited_property(property_id))
-            continue;
-        if (auto const* data = parent_longhand_values[i - to_underlying(first_longhand_property_id)])
-            ComputedValuesFFI::rust_computed_longhand_table_set(table, i, data, -1);
-    }
-    ComputedValuesFFI::rust_computed_longhand_table_freeze(table);
+    auto* table = ComputedValuesFFI::rust_computed_longhand_table_create_with_inherited_values(old_table, inherited_source_table);
     clear_computed_longhand_table();
     // The freshly created table already carries the one reference this style owns.
     m_computed_longhand_table = table;
-    m_longhand_values = { ComputedValuesFFI::rust_computed_longhand_table_values(table), number_of_longhand_properties };
+    refresh_computed_longhand_table_views();
 }
 
 void ComputedValues::Mutator::set_animated_properties(AnimatedProperties const* value)
@@ -2022,10 +1987,7 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value_for_inheritance(Pr
     if (with_animations_applied == WithAnimationsApplied::No && has_animated_values())
         return base_values().computed_style_value_for_inheritance(property_id);
 
-    if (auto value = m_inheritance_dependent_specified_values.get(property_id); value.has_value() && value.value()->depends_on_current_color())
-        return *value;
-
-    for (auto const& entry : m_borrowed_inheritance_dependent_values) {
+    for (auto const& entry : m_inheritance_dependent_specified_values) {
         if (entry.property != to_underlying(property_id))
             continue;
         auto const* data = static_cast<StyleValueFFI::StyleValueData const*>(entry.value);

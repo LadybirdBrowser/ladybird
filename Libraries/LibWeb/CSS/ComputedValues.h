@@ -1245,9 +1245,8 @@ public:
     bool in_display_none_subtree() const { return m_in_display_none_subtree; }
     bool has_pseudo_element_style(PseudoElement pseudo_element) const { return m_pseudo_element_styles & (1ull << to_underlying(pseudo_element)); }
     u64 pseudo_element_style_mask() const { return m_pseudo_element_styles; }
-    HashMap<PropertyID, NonnullRefPtr<StyleValue const>> const& inheritance_dependent_specified_values() const { return m_inheritance_dependent_specified_values; }
+    ReadonlySpan<StyleEngineFFI::FfiInheritanceDependentValue const> inheritance_dependent_specified_values() const { return m_inheritance_dependent_specified_values; }
     bool inheritance_dependent_specified_values_equal(ComputedValues const& other) const;
-    ReadonlySpan<StyleEngineFFI::FfiInheritanceDependentValue const> borrowed_inheritance_dependent_values() const { return m_borrowed_inheritance_dependent_values; }
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> inheritance_dependent_specified_values_snapshot() const;
     RefPtr<StyleValue const> raw_cascaded_font_size() const;
 
@@ -2080,8 +2079,9 @@ private:
 
     // Retains `table` (releasing any table held before) and points the value span at it.
     void adopt_computed_longhand_table(void const* table);
-    // Takes `previous`'s table when every slot holds an equal value, so the next publication
-    // interns the same pointers and keeps the style-record identity.
+    void refresh_computed_longhand_table_views();
+    // Takes `previous`'s table when every slot and the inheritance inventory hold equal values,
+    // so the next publication interns the same pointers and keeps the style-record identity.
     void adopt_identical_computed_longhand_table(ComputedValues const& previous) const;
     void clear_computed_longhand_table();
     // Takes `other`'s table by reference count, or materializes an owned table from `other`'s
@@ -2095,11 +2095,10 @@ private:
     NonInheritedValues m_noninherited;
     AK::FixedBitmap<number_of_longhand_properties> m_property_important { false };
     AK::FixedBitmap<number_of_longhand_properties> m_property_inherited { false };
-    HashMap<PropertyID, NonnullRefPtr<StyleValue const>> m_inheritance_dependent_specified_values;
+    ReadonlySpan<StyleEngineFFI::FfiInheritanceDependentValue const> m_inheritance_dependent_specified_values;
     mutable OwnPtr<HashMap<PropertyID, NonnullRefPtr<StyleValue const>>> m_style_value_cache;
     RefPtr<StyleValue const> m_raw_cascaded_font_size;
     StyleValueFFI::StyleValueData const* m_borrowed_raw_cascaded_font_size { nullptr };
-    ReadonlySpan<StyleEngineFFI::FfiInheritanceDependentValue const> m_borrowed_inheritance_dependent_values;
     // The drive's frozen computed longhand table, retained when this style owns a reference;
     // null for borrowed style-record views and for styles built without a drive.
     void const* m_computed_longhand_table { nullptr };
@@ -2206,7 +2205,6 @@ public:
     void set_font_metrics_depend_on_viewport_metrics(bool value) { m_values.m_font_metrics_depend_on_viewport_metrics = value; }
     void set_in_display_none_subtree(bool value) { m_values.m_in_display_none_subtree = value; }
     void set_pseudo_element_styles(u64 value) { m_values.m_pseudo_element_styles = value; }
-    void set_inheritance_dependent_specified_values(HashMap<PropertyID, NonnullRefPtr<StyleValue const>> value) { m_values.m_inheritance_dependent_specified_values = move(value); }
     void set_raw_cascaded_font_size(RefPtr<StyleValue const> value) { m_values.m_raw_cascaded_font_size = move(value); }
     void set_computed_longhand_table(void const* table) { m_values.adopt_computed_longhand_table(table); }
     void set_base_values(NonnullRefPtr<ComputedValues const> value)
@@ -2573,13 +2571,6 @@ public:
         m_values->m_noninherited = values.m_noninherited;
         m_values->m_property_important = values.m_property_important;
         m_values->m_property_inherited = values.m_property_inherited;
-        m_values->m_inheritance_dependent_specified_values = values.m_inheritance_dependent_specified_values;
-        for (auto const& entry : values.m_borrowed_inheritance_dependent_values) {
-            auto const* data = static_cast<StyleValueFFI::StyleValueData const*>(entry.value);
-            m_values->m_inheritance_dependent_specified_values.set(
-                static_cast<PropertyID>(entry.property),
-                StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(data)));
-        }
         m_values->m_raw_cascaded_font_size = values.raw_cascaded_font_size();
         m_values->copy_computed_longhand_table_from(values);
         if (values.m_borrowed_base_values)

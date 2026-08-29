@@ -679,8 +679,6 @@ fn publish_current_cascade_as_computed(engine: &mut StyleEngine, node: StyleNode
             reconstruction: computed::ComputedReconstructionMetadataInput {
                 property_importance: &[],
                 property_inheritance: &[],
-                inheritance_dependent_properties: &[],
-                inheritance_dependent_values: &[],
                 raw_cascaded_font_size: std::ptr::null(),
             },
         },

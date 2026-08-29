@@ -19,6 +19,7 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 
 use crate::abort_on_panic;
+use crate::css::animated_overlay::AnimatedOverlay;
 use crate::css::calc::{resolve_calculated_flex_without_context, resolve_calculated_integer_without_context};
 use crate::css::color_resolution::{
     ColorResolutionInput, FfiColorResolutionInput, PREFERRED_COLOR_SCHEME_DARK, Rgba, accent_color,
@@ -84,8 +85,7 @@ mod group_index {
 
 /// The pre-resolved inputs one table-driven group build needs from C++: the
 /// color resolution context (whose current color is the element's own
-/// resolved color), the used color-scheme, and the sparse effective-value
-/// overrides.
+/// resolved color), the used color-scheme, and platform font data.
 #[repr(C)]
 pub struct FfiTableGroupBuildInputs {
     /// A marshalled StyleValueFFI::FfiColorResolutionInput whose current
@@ -94,12 +94,7 @@ pub struct FfiTableGroupBuildInputs {
     pub color_input: *const c_void,
     /// The used color-scheme code (PreferredColorScheme underlying value).
     pub used_color_scheme: u8,
-    /// Longhands whose effective computed value differs from the table slot -
-    /// the animated overlay and partial-drive specified-value preferences -
-    /// as parallel property-id and value-data spans.
-    pub override_properties: *const u16,
-    pub override_values: *const *const c_void,
-    pub override_count: usize,
+    pub animated_overlay: *const AnimatedOverlay,
     /// The raw bits of the C++ Display value before the box type
     /// transformation, a C++-side member the table does not hold.
     pub box_display_before_transformation_raw: u32,
@@ -130,8 +125,7 @@ pub struct FfiFontGroupBuildInputs {
 /// values `ComputedStyleWorkingSet::property()` returns during a group build.
 struct EffectiveValues<'a> {
     table: &'a ComputedLonghandTable,
-    override_properties: &'a [u16],
-    override_values: &'a [*const c_void],
+    animated_overlay: Option<&'a AnimatedOverlay>,
 }
 
 const MAX_GROUP_FIELD_COUNT: usize = 40;
@@ -170,13 +164,9 @@ impl std::ops::Deref for GroupValueEntries {
 
 impl EffectiveValues<'_> {
     fn pointer(&self, property_id: u16) -> *const c_void {
-        if let Some(index) = self.override_properties.iter().position(|id| *id == property_id) {
-            return self.override_values[index];
-        }
-        match self.table.get(property_id) {
-            Some(value) => value.pointer().cast(),
-            None => std::ptr::null(),
-        }
+        self.table
+            .effective_value(self.animated_overlay, property_id, true)
+            .value
     }
 
     fn value(&self, property_id: u16) -> Option<&StyleValueData> {
@@ -3244,8 +3234,7 @@ unsafe fn build_animation_group(
 /// `table` must be a valid frozen table holding the style's computed values;
 /// `parent_payloads` and `out_payloads` must each hold `group_count` entries,
 /// with each parent entry a valid payload of its group or null; `inputs` must
-/// be valid with its pointers live across the call, and its override values
-/// must point at live style value data.
+/// be valid with its pointers live across the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_build_group_payloads_from_table(
     table: *const ComputedLonghandTable,
@@ -3267,10 +3256,7 @@ pub unsafe extern "C" fn rust_build_group_payloads_from_table(
         let out = unsafe { std::slice::from_raw_parts_mut(out_payloads, group_count) };
         let values = EffectiveValues {
             table,
-            override_properties: unsafe {
-                std::slice::from_raw_parts(inputs.override_properties, inputs.override_count)
-            },
-            override_values: unsafe { std::slice::from_raw_parts(inputs.override_values, inputs.override_count) },
+            animated_overlay: unsafe { inputs.animated_overlay.as_ref() },
         };
         let color_input = unsafe { &*inputs.color_input.cast::<FfiColorResolutionInput>() };
         let channels = relative_color_context_from_ffi(color_input);

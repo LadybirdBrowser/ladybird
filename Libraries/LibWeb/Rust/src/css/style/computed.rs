@@ -35,7 +35,6 @@ use super::tree::PseudoElementKind;
 use super::tree::PseudoElementTarget;
 use super::tree::StyleNodeID;
 use crate::css::computed_longhand_table::ComputedLonghandTable;
-use crate::css::computed_longhand_table::LONGHAND_COUNT;
 use crate::css::computed_values::computed_group_output_mask;
 use crate::css::computed_values::release_group_payload;
 use crate::css::computed_values::replay_style_group_identity;
@@ -53,7 +52,7 @@ use crate::css::style_value::rust_style_value_equals;
 
 // The high bit is a node-local production capability carried with publication and stripped before
 // the semantic fixed metadata is interned or exposed through a style-record view.
-const INHERITED_GROUP_SWAP_ELIGIBLE: u8 = 1 << 3;
+pub(crate) const INHERITED_GROUP_SWAP_ELIGIBLE: u8 = 1 << 3;
 const COMPUTED_VALUE_DEPENDENCY_FLAGS: u8 = INHERITED_GROUP_SWAP_ELIGIBLE - 1;
 
 define_id! { pub struct ComputedGroupID(); }
@@ -165,48 +164,27 @@ impl ComputedReconstructionMetadata {
     }
 }
 
-/// The interned form of one drive's computed longhand table: one retained
-/// data pointer per longhand (null where the drive stored no value), which is
-/// also the borrowed span the record view hands out. Provenance (the
-/// source-slot sidecar) stays on the drive table and is not retained here,
-/// so equal value tuples share one identity.
+/// The interned form of one drive's computed longhand table. Provenance in
+/// the source-slot sidecar is per-drive and does not participate in identity.
 struct RetainedLonghandTable {
-    storage: RetainedLonghandTableStorage,
-}
-
-fn longhand_value_views_equal(first: &[*const c_void], second: &[*const c_void]) -> bool {
-    first
-        .iter()
-        .zip(second)
-        .all(|(&first, &second)| first == second || unsafe { rust_style_value_equals(first.cast(), second.cast()) })
-}
-
-enum RetainedLonghandTableStorage {
-    Shared(*const ComputedLonghandTable),
-    Values(Box<[*const c_void]>),
+    table: *const ComputedLonghandTable,
 }
 
 impl RetainedLonghandTable {
     fn value_view(&self) -> &[*const c_void] {
-        match &self.storage {
-            RetainedLonghandTableStorage::Shared(table) => unsafe { &**table }.value_pointers(),
-            RetainedLonghandTableStorage::Values(values) => values,
-        }
+        unsafe { &*self.table }.value_pointers()
+    }
+
+    fn table(&self) -> &ComputedLonghandTable {
+        unsafe { &*self.table }
     }
 }
 
 impl Drop for RetainedLonghandTable {
     fn drop(&mut self) {
-        match &self.storage {
-            RetainedLonghandTableStorage::Shared(table) => unsafe {
-                crate::css::computed_longhand_table::rust_computed_longhand_table_release(table.cast_mut());
-            },
-            RetainedLonghandTableStorage::Values(values) => {
-                for &value in values {
-                    if !value.is_null() {
-                        unsafe { crate::css::style_value::release_style_value(value.cast()) };
-                    }
-                }
+        if !self.table.is_null() {
+            unsafe {
+                crate::css::computed_longhand_table::rust_computed_longhand_table_release(self.table.cast_mut());
             }
         }
     }
@@ -218,9 +196,8 @@ pub(crate) struct StyleRecordView<'a> {
     pub property_importance: &'a [u8],
     pub property_inheritance: &'a [u8],
     pub inheritance_dependent_values: &'a [super::bridge::FfiInheritanceDependentValue],
-    /// One entry per longhand (null where the drive stored no value), or
-    /// empty when the record was published without a longhand table. Always
-    /// the base record's table: animation overlays store no table entries.
+    /// Always the base record's table: animation overlays store no table entries.
+    pub longhand_table: *const ComputedLonghandTable,
     pub longhand_values: &'a [*const c_void],
     pub raw_cascaded_font_size: *const c_void,
     pub animated_properties: *const c_void,
@@ -262,8 +239,6 @@ impl Drop for RetainedAnimatedProperties {
 pub struct ComputedReconstructionMetadataInput<'a> {
     pub property_importance: &'a [u8],
     pub property_inheritance: &'a [u8],
-    pub inheritance_dependent_properties: &'a [u16],
-    pub inheritance_dependent_values: &'a [*const c_void],
     pub raw_cascaded_font_size: *const c_void,
 }
 
@@ -936,12 +911,9 @@ impl ComputedGroupSets {
         FinalStyleRecordID::base(identity, self.style_record_generations[identity.index()])
     }
 
-    /// Interns the values of one drive's frozen computed longhand table, so
-    /// equal value tuples share one identity and one retained copy. A
-    /// value-equal previous table keeps its identity even when the fresh
-    /// drive re-allocated equal values. The table's provenance sidecar is
-    /// deliberately not part of the identity, nor retained here at all: its
-    /// cascade source slots are per-drive data.
+    /// Interns one frozen computed longhand table. Values and publication
+    /// metadata participate in identity; the per-drive provenance sidecar
+    /// does not.
     fn intern_longhand_table(
         &mut self,
         table: &ComputedLonghandTable,
@@ -949,17 +921,19 @@ impl ComputedGroupSets {
         canonical: Option<ComputedLonghandTableID>,
     ) -> ComputedLonghandTableID {
         debug_assert!(table.is_frozen(), "only frozen longhand tables are published");
-        let values = table.value_pointers();
         for candidate in [previous, canonical].into_iter().flatten() {
-            let candidate_values = self.computed_longhand_tables[candidate].value_view();
-            if longhand_value_views_equal(candidate_values, values) {
+            if self.computed_longhand_tables[candidate]
+                .table()
+                .publication_equals(table)
+            {
                 return candidate;
             }
         }
-        let hash = longhand_table_hash(values);
-        if let Some(identity) = self.computed_longhand_tables.find(hash, |_identity, candidate| {
-            longhand_value_views_equal(candidate.value_view(), values)
-        }) {
+        let hash = longhand_table_hash(table);
+        if let Some(identity) = self
+            .computed_longhand_tables
+            .find(hash, |_identity, candidate| candidate.table().publication_equals(table))
+        {
             return identity;
         }
         let identity = self.computed_longhand_tables.take_free_identity().unwrap_or_else(|| {
@@ -970,57 +944,9 @@ impl ComputedGroupSets {
         });
         let retained = unsafe { crate::css::computed_longhand_table::rust_computed_longhand_table_retain(table) };
         self.reconstruction_nested_memory
-            .grow_committed(size_of_val(values) as u64);
-        self.computed_longhand_tables.insert(
-            hash,
-            identity,
-            RetainedLonghandTable {
-                storage: RetainedLonghandTableStorage::Shared(retained),
-            },
-        );
-        identity
-    }
-
-    fn intern_longhand_values(
-        &mut self,
-        values: &[*const c_void],
-        previous: Option<ComputedLonghandTableID>,
-    ) -> ComputedLonghandTableID {
-        assert_eq!(values.len(), LONGHAND_COUNT);
-        if let Some(previous) = previous {
-            let previous_values = self.computed_longhand_tables[previous].value_view();
-            if longhand_value_views_equal(previous_values, values) {
-                return previous;
-            }
-        }
-        let hash = longhand_table_hash(values);
-        if let Some(identity) = self.computed_longhand_tables.find(hash, |_identity, candidate| {
-            longhand_value_views_equal(candidate.value_view(), values)
-        }) {
-            return identity;
-        }
-        let identity = self.computed_longhand_tables.take_free_identity().unwrap_or_else(|| {
-            ComputedLonghandTableID(
-                u32::try_from(self.computed_longhand_tables.len())
-                    .expect("computed longhand-table identity space exhausted"),
-            )
-        });
-        let value_view: Box<[*const c_void]> = values
-            .iter()
-            .map(|&value| match value.is_null() {
-                true => value,
-                false => unsafe { retain_style_value_reference(value.cast()) }.cast(),
-            })
-            .collect();
-        self.reconstruction_nested_memory
-            .grow_committed(size_of_val(value_view.as_ref()) as u64);
-        self.computed_longhand_tables.insert(
-            hash,
-            identity,
-            RetainedLonghandTable {
-                storage: RetainedLonghandTableStorage::Values(value_view),
-            },
-        );
+            .grow_committed(size_of_val(table.value_pointers()) as u64);
+        self.computed_longhand_tables
+            .insert(hash, identity, RetainedLonghandTable { table: retained });
         identity
     }
 
@@ -1091,15 +1017,19 @@ impl ComputedGroupSets {
             .and_then(|record| record.longhand_table);
         let longhand_table = match (old_record.longhand_table, parent_table) {
             (Some(old_table), Some(parent_table)) => {
-                use crate::css::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, property_is_inherited};
-                let mut values = self.computed_longhand_tables[old_table].value_view().to_vec();
-                let parent_values = self.computed_longhand_tables[parent_table].value_view();
-                for (index, value) in values.iter_mut().enumerate() {
-                    if property_is_inherited(FIRST_LONGHAND_PROPERTY_ID + index as u16) {
-                        *value = parent_values[index];
-                    }
+                let table = self.computed_longhand_tables[old_table]
+                    .table()
+                    .with_inherited_values_and_flags_from(
+                        self.computed_longhand_tables[parent_table].table(),
+                        &self.computed_reconstruction_metadata[old_record.reconstruction_metadata].property_importance,
+                        &self.computed_reconstruction_metadata[old_record.reconstruction_metadata].property_inheritance,
+                    );
+                let table = table.into_raw_shared();
+                let identity = self.intern_longhand_table(unsafe { &*table }, Some(old_table), None);
+                unsafe {
+                    crate::css::computed_longhand_table::rust_computed_longhand_table_release(table.cast_mut());
                 }
-                Some(self.intern_longhand_values(&values, Some(old_table)))
+                Some(identity)
             }
             _ => None,
         };
@@ -1492,30 +1422,11 @@ impl ComputedGroupSets {
             self.sets[identity].canonical_longhand_table = longhand_table_identity;
         }
 
-        assert_eq!(
-            reconstruction_metadata.inheritance_dependent_properties.len(),
-            reconstruction_metadata.inheritance_dependent_values.len()
-        );
-        let mut inheritance_dependent_values: Vec<_> = reconstruction_metadata
-            .inheritance_dependent_properties
-            .iter()
-            .copied()
-            .zip(reconstruction_metadata.inheritance_dependent_values.iter().copied())
-            .map(|(property, value)| (property, value, 1u8))
-            .collect();
-        if let Some(longhand_table) = longhand_table {
-            inheritance_dependent_values.extend(
-                longhand_table
-                    .inheritance_dependent_values()
-                    .map(|(property, value)| (property, value, 0u8)),
-            );
-        }
-        inheritance_dependent_values.sort_unstable_by_key(|&(property, _, source_rank)| (property, source_rank));
-        inheritance_dependent_values.dedup_by_key(|(property, _, _)| *property);
-        let inheritance_dependent_values: Vec<_> = inheritance_dependent_values
+        let mut inheritance_dependent_values: Vec<_> = longhand_table
             .into_iter()
-            .map(|(property, value, _)| (property, value))
+            .flat_map(ComputedLonghandTable::inheritance_dependent_values)
             .collect();
+        inheritance_dependent_values.sort_unstable_by_key(|&(property, _)| property);
         let reconstruction_hash = reconstruction_metadata_hash(
             reconstruction_metadata.property_importance,
             reconstruction_metadata.property_inheritance,
@@ -2453,11 +2364,11 @@ impl ComputedGroupSets {
             if reachable.longhand_tables[identity.index()] {
                 continue;
             }
-            let hash = longhand_table_hash(self.computed_longhand_tables[identity].value_view());
+            let hash = longhand_table_hash(self.computed_longhand_tables[identity].table());
             let table = std::mem::replace(
                 self.computed_longhand_tables.get_mut(identity),
                 RetainedLonghandTable {
-                    storage: RetainedLonghandTableStorage::Values(Box::default()),
+                    table: std::ptr::null(),
                 },
             );
             self.reconstruction_nested_memory
@@ -2626,16 +2537,18 @@ impl ComputedGroupSets {
         let reconstruction_metadata = self
             .computed_reconstruction_metadata
             .get_index(record.reconstruction_metadata.0 as usize)?;
-        let longhand_values = record
+        let retained_longhand_table = record
             .longhand_table
-            .and_then(|identity| self.computed_longhand_tables.get_index(identity.0 as usize))
-            .map_or(&[][..], RetainedLonghandTable::value_view);
+            .and_then(|identity| self.computed_longhand_tables.get_index(identity.0 as usize));
+        let longhand_table = retained_longhand_table.map_or(std::ptr::null(), |table| table.table);
+        let longhand_values = retained_longhand_table.map_or(&[][..], RetainedLonghandTable::value_view);
         Some(StyleRecordView {
             payloads,
             base_payloads,
             property_importance: &reconstruction_metadata.property_importance,
             property_inheritance: &reconstruction_metadata.property_inheritance,
             inheritance_dependent_values: reconstruction_metadata.inheritance_dependent_value_view(),
+            longhand_table,
             longhand_values,
             raw_cascaded_font_size: reconstruction_metadata
                 .raw_cascaded_font_size
@@ -2788,10 +2701,22 @@ fn content_hash(content: impl Hash) -> u64 {
     hasher.finish()
 }
 
-fn longhand_table_hash(values: &[*const c_void]) -> u64 {
+fn longhand_table_hash(table: &ComputedLonghandTable) -> u64 {
     let mut hasher = fast_hasher();
-    for &value in values {
-        (value as usize).hash(&mut hasher);
+    for &value in table.value_pointers() {
+        unsafe { crate::css::style_value::style_value_content_hash(value.cast()) }.hash(&mut hasher);
+    }
+    table.importance_bits().hash(&mut hasher);
+    table.inheritance_bits().hash(&mut hasher);
+    table.publication_dependency_flags().hash(&mut hasher);
+    table.pseudo_element_styles().hash(&mut hasher);
+    unsafe { crate::css::style_value::style_value_content_hash(table.raw_cascaded_font_size().cast()) }
+        .hash(&mut hasher);
+    let mut inheritance_dependent = table.inheritance_dependent_values().collect::<Vec<_>>();
+    inheritance_dependent.sort_unstable_by_key(|(property, _)| *property);
+    for (property, value) in inheritance_dependent {
+        property.hash(&mut hasher);
+        unsafe { crate::css::style_value::style_value_content_hash(value.cast()) }.hash(&mut hasher);
     }
     hasher.finish()
 }
@@ -2867,8 +2792,6 @@ mod tests {
             reconstruction: ComputedReconstructionMetadataInput {
                 property_importance,
                 property_inheritance,
-                inheritance_dependent_properties: &[],
-                inheritance_dependent_values: &[],
                 raw_cascaded_font_size: std::ptr::null(),
             },
         }
@@ -2895,6 +2818,58 @@ mod tests {
         );
 
         assert_eq!(sets.viewport_dependent_nodes(), vec![2, 4]);
+    }
+
+    #[test]
+    fn equal_longhand_tables_have_equal_hashes() {
+        let mut first = ComputedLonghandTable::new();
+        let mut second = ComputedLonghandTable::new();
+        for table in [&mut first, &mut second] {
+            table.set(
+                crate::css::property_metadata::property_id::OPACITY,
+                crate::css::style_value::RetainedStyleValueData::from_owned(
+                    crate::css::style_value::StyleValueData::Number { value: 0.5 },
+                ),
+                -1,
+            );
+        }
+        first.append_drive_inheritance_dependent_value(
+            crate::css::property_metadata::property_id::COLOR,
+            crate::css::style_value::RetainedStyleValueData::from_owned(
+                crate::css::style_value::StyleValueData::Keyword {
+                    keyword: crate::css::style_compute::keyword::CURRENTCOLOR,
+                },
+            ),
+        );
+        first.append_drive_inheritance_dependent_value(
+            crate::css::property_metadata::property_id::BACKGROUND_COLOR,
+            crate::css::style_value::RetainedStyleValueData::from_owned(
+                crate::css::style_value::StyleValueData::Keyword {
+                    keyword: crate::css::style_compute::keyword::CURRENTCOLOR,
+                },
+            ),
+        );
+        second.append_drive_inheritance_dependent_value(
+            crate::css::property_metadata::property_id::BACKGROUND_COLOR,
+            crate::css::style_value::RetainedStyleValueData::from_owned(
+                crate::css::style_value::StyleValueData::Keyword {
+                    keyword: crate::css::style_compute::keyword::CURRENTCOLOR,
+                },
+            ),
+        );
+        second.append_drive_inheritance_dependent_value(
+            crate::css::property_metadata::property_id::COLOR,
+            crate::css::style_value::RetainedStyleValueData::from_owned(
+                crate::css::style_value::StyleValueData::Keyword {
+                    keyword: crate::css::style_compute::keyword::CURRENTCOLOR,
+                },
+            ),
+        );
+        first.finish_drive_inheritance_dependent_values();
+        second.finish_drive_inheritance_dependent_values();
+
+        assert!(first.publication_equals(&second));
+        assert_eq!(longhand_table_hash(&first), longhand_table_hash(&second));
     }
 
     #[test]

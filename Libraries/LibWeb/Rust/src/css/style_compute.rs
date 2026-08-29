@@ -19,7 +19,7 @@ use std::ffi::c_void;
 use std::sync::{Arc, OnceLock};
 
 use crate::abort_on_panic;
-use crate::css::animated_overlay::AnimatedOverlay;
+use crate::css::animated_overlay::{AnimatedOverlay, overlay_wins};
 use crate::css::cascaded_properties::{
     CascadedPropertyStore, FfiCustomPropertyDriveInput, FfiCustomPropertyResolutionStats, FfiResolvedCustomProperties,
 };
@@ -2593,7 +2593,6 @@ pub struct FfiLonghandStoreBatch {
 pub struct FfiLonghandDriveInput {
     pub longhand_table: *mut ComputedLonghandTable,
     pub store: *const CascadedPropertyStore,
-    pub parent_snapshot: *const FfiParentSnapshot,
     pub environment: *const FfiStyleComputationEnvironment,
     pub computed_group_mask: u32,
     pub computed_property_words: *const u64,
@@ -2732,7 +2731,9 @@ pub struct FfiDocumentLonghandResult {
 #[repr(C)]
 pub struct FfiAnimationKeyframeLonghandInput {
     pub underlying_longhand_table: *const ComputedLonghandTable,
-    pub parent_snapshot: *const FfiParentSnapshot,
+    pub style_engine: *const c_void,
+    pub inheritance_parent_style_record: u64,
+    pub inheritance_parent_animated_overlay: *const AnimatedOverlay,
     pub resolved_properties: *const c_void,
     pub property_count: usize,
     pub environment: *const FfiStyleComputationEnvironment,
@@ -2981,23 +2982,52 @@ fn compute_transform_origin(value: &StyleValueData) -> Option<Arc<StyleValueData
     }))
 }
 
-/// The parent's computed values, handed to the drive as the parent style's own
-/// longhand table span: one shared Rust data identity per longhand in property
-/// id order, null where the parent stored none. Everything the span points at
-/// is owned by the parent style, which outlives the drive, so nothing is pinned.
-///
-/// The sparse override list carries the parent's recorded specified values that
-/// depend on currentColor, which take precedence over the stored computed value
-/// exactly as `computed_style_value_for_inheritance` prefers them on the C++
-/// side; the owning maps also outlive the drive.
-#[repr(C)]
-pub struct FfiParentSnapshot {
-    pub table_values: *const *const c_void,
-    pub table_value_count: usize,
-    pub override_properties: *const u16,
-    pub override_values: *const *const c_void,
-    pub override_count: usize,
-    pub font_metrics_depend_on_viewport_metrics: bool,
+struct ParentSnapshot<'a> {
+    table_values: &'a [*const c_void],
+    property_importance: &'a [u8],
+    inheritance_dependent_values: &'a [crate::css::style::bridge::FfiInheritanceDependentValue],
+    animated_overlay: Option<&'a AnimatedOverlay>,
+    font_metrics_depend_on_viewport_metrics: bool,
+}
+
+impl ParentSnapshot<'_> {
+    fn value(&self, property_id: u16) -> Option<&StyleValueData> {
+        use crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
+
+        let index = usize::from(property_id - FIRST_LONGHAND_PROPERTY_ID);
+        assert!(index < self.table_values.len());
+        let is_important = self.property_importance[index / 8] & (1 << (index % 8)) != 0;
+        if let Some(entry) = self.animated_overlay.and_then(|overlay| overlay.get(property_id))
+            && overlay_wins(entry, is_important)
+        {
+            return Some(entry.value.data());
+        }
+        for entry in self.inheritance_dependent_values {
+            if entry.property == property_id
+                && crate::css::style_value::style_value_dependency_flags(entry.value.cast()) & 1 != 0
+            {
+                return unsafe { entry.value.cast::<StyleValueData>().as_ref() };
+            }
+        }
+        unsafe { self.table_values[index].cast::<StyleValueData>().as_ref() }
+    }
+}
+
+fn parent_snapshot_for_style_record<'a>(
+    style_engine: &'a crate::css::style::StyleEngine,
+    style_record: u64,
+    animated_overlay: Option<&'a AnimatedOverlay>,
+) -> ParentSnapshot<'a> {
+    let view = style_engine
+        .style_record_view(style_record)
+        .expect("the inheritance parent style record must remain live during computation");
+    ParentSnapshot {
+        table_values: view.longhand_values,
+        property_importance: view.property_importance,
+        inheritance_dependent_values: view.inheritance_dependent_values,
+        animated_overlay,
+        font_metrics_depend_on_viewport_metrics: view.dependency_flags & (1 << 1) != 0,
+    }
 }
 
 /// Results of one longhand drive that remain outside the Rust longhand table.
@@ -3211,8 +3241,7 @@ unsafe fn take_longhand_store_batch(batch: FfiLonghandStoreBatch) -> Vec<FfiComp
 ///
 /// # Safety
 /// `longhand_table` must point at the drive's live mutable computed longhand
-/// table, `store` at a valid cascaded property store, `parent_snapshot` at a
-/// valid snapshot or null,
+/// table, `store` at a valid cascaded property store,
 /// `environment` at valid element and document facts,
 /// `length_resolution_context` at the context for this stage or null for the
 /// color-scheme stage, `input_line_height_metrics` at the metrics for the
@@ -3223,7 +3252,7 @@ unsafe fn take_longhand_store_batch(batch: FfiLonghandStoreBatch) -> Vec<FfiComp
 unsafe fn drive_property_computation(
     longhand_table: *mut ComputedLonghandTable,
     store: *const CascadedPropertyStore,
-    parent_snapshot: *const FfiParentSnapshot,
+    snapshot: Option<&ParentSnapshot<'_>>,
     environment: *const FfiStyleComputationEnvironment,
     computed_group_mask: u32,
     computed_property_words: *const u64,
@@ -3242,11 +3271,6 @@ unsafe fn drive_property_computation(
         };
 
         let store = unsafe { &*store };
-        let snapshot = if parent_snapshot.is_null() {
-            None
-        } else {
-            Some(unsafe { &*parent_snapshot })
-        };
         let has_inheritance_parent = snapshot.is_some();
         let environment = unsafe { &*environment };
         let box_type_input = &environment.box_type_input;
@@ -3294,25 +3318,6 @@ unsafe fn drive_property_computation(
         // The element's used color scheme, produced by the preceding color-scheme
         // stage for generic absolutizations.
         let current_effective_color_scheme = u8::try_from(*effective_color_scheme).ok();
-        /// The parent's computed value for a longhand: a recorded specified value
-        /// that depends on currentColor wins over the stored computed value, in
-        /// exactly the order computed_style_value_for_inheritance applies.
-        fn snapshot_entry_data(snapshot: &FfiParentSnapshot, property_id: u16) -> Option<&StyleValueData> {
-            use crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
-            for index in 0..snapshot.override_count {
-                // SAFETY: The override lists are valid for the drive.
-                if unsafe { *snapshot.override_properties.add(index) } != property_id {
-                    continue;
-                }
-                // SAFETY: Override values are owned by the parent style, which outlives the drive.
-                return unsafe { ((*snapshot.override_values.add(index)) as *const StyleValueData).as_ref() };
-            }
-            let index = (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize;
-            assert!(index < snapshot.table_value_count);
-            // SAFETY: The span borrows the parent style's longhand table, which outlives the drive.
-            unsafe { ((*snapshot.table_values.add(index)) as *const StyleValueData).as_ref() }
-        }
-
         // The computed math-depth, remembered for the font-size rule. A partial font restyle
         // may reuse the value already stored in the working table instead.
         let mut computed_math_depth: Option<i32> = None;
@@ -3445,7 +3450,8 @@ unsafe fn drive_property_computation(
                 // Both the inherited-by-default read and an explicit `inherit` of a
                 // non-inherited property take the parent's stored computed value for
                 // `inherited_property_id` straight from the snapshot's table span.
-                value = snapshot_entry_data(snapshot, inherited_property_id)
+                value = snapshot
+                    .value(inherited_property_id)
                     .map_or(std::ptr::null(), |data| (data as *const StyleValueData).cast());
                 if property_affects_font_metrics(inherited_property_id)
                     && snapshot.font_metrics_depend_on_viewport_metrics
@@ -3756,12 +3762,12 @@ unsafe fn drive_property_computation(
                         // (math-depth 0, math-style normal).
                         let (inherited_math_depth, inherited_math_style_is_compact) = match snapshot {
                             Some(snapshot) => {
-                                let math_depth = match snapshot_entry_data(snapshot, prop::MATH_DEPTH) {
+                                let math_depth = match snapshot.value(prop::MATH_DEPTH) {
                                     Some(StyleValueData::Integer { value }) => *value,
                                     _ => 0,
                                 };
                                 let compact = matches!(
-                                    snapshot_entry_data(snapshot, prop::MATH_STYLE),
+                                    snapshot.value(prop::MATH_STYLE),
                                     Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::COMPACT
                                 );
                                 (math_depth, compact)
@@ -3801,9 +3807,9 @@ unsafe fn drive_property_computation(
                                 results.font_metrics_depend_on_viewport_metrics = true;
                             }
                             let inherited = match snapshot {
-                                Some(snapshot) => match snapshot_entry_data(snapshot, prop::FONT_SIZE) {
+                                Some(snapshot) => match snapshot.value(prop::FONT_SIZE) {
                                     Some(StyleValueData::Length { value, unit }) if *unit == px_length_unit() => {
-                                        let math_depth = match snapshot_entry_data(snapshot, prop::MATH_DEPTH) {
+                                        let math_depth = match snapshot.value(prop::MATH_DEPTH) {
                                             Some(StyleValueData::Integer { value }) => *value,
                                             _ => 0,
                                         };
@@ -3848,7 +3854,7 @@ unsafe fn drive_property_computation(
                             || matches!(value_data, StyleValueData::Calculated { .. }) =>
                     {
                         let inherited_font_weight = match snapshot {
-                            Some(snapshot) => match snapshot_entry_data(snapshot, prop::FONT_WEIGHT) {
+                            Some(snapshot) => match snapshot.value(prop::FONT_WEIGHT) {
                                 Some(StyleValueData::Number { value }) => Some(*value),
                                 _ => None,
                             },
@@ -4305,11 +4311,11 @@ unsafe fn drive_property_computation(
                 computed_text_align_before_adjustment = Some(*text_align);
                 let (has_parent_with_computed_values, parent_text_align, parent_direction_is_ltr) =
                     if let Some(snapshot) = snapshot {
-                        let parent_text_align = match snapshot_entry_data(snapshot, prop::TEXT_ALIGN) {
+                        let parent_text_align = match snapshot.value(prop::TEXT_ALIGN) {
                             Some(StyleValueData::Keyword { keyword }) => *keyword,
                             _ => unreachable!("parent text-align must be a keyword"),
                         };
-                        let parent_direction_is_ltr = match snapshot_entry_data(snapshot, prop::DIRECTION) {
+                        let parent_direction_is_ltr = match snapshot.value(prop::DIRECTION) {
                             Some(StyleValueData::Keyword {
                                 keyword: parent_direction,
                             }) => *parent_direction == keyword::LTR,
@@ -4498,7 +4504,10 @@ fn is_required_driver_input(property_id: u16) -> bool {
     )
 }
 
-unsafe fn compute_longhands(input: &FfiLonghandDriveInput) -> FfiLonghandDriveResult {
+unsafe fn compute_longhands(
+    input: &FfiLonghandDriveInput,
+    parent_snapshot: Option<&ParentSnapshot<'_>>,
+) -> FfiLonghandDriveResult {
     let mut driver_results = empty_longhand_driver_results();
     let driver_results_pointer = &raw mut driver_results;
     let mut effective_color_scheme = -1;
@@ -4507,7 +4516,7 @@ unsafe fn compute_longhands(input: &FfiLonghandDriveInput) -> FfiLonghandDriveRe
             drive_property_computation(
                 input.longhand_table,
                 input.store,
-                input.parent_snapshot,
+                parent_snapshot,
                 input.environment,
                 input.computed_group_mask,
                 input.computed_property_words,
@@ -4886,33 +4895,17 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
                 drive_input.as_mut_ptr(),
             );
         }
-        let mut drive_input = unsafe { drive_input.assume_init() };
-        let mut parent_override_properties = Vec::new();
-        let mut parent_override_values = Vec::new();
+        let drive_input = unsafe { drive_input.assume_init() };
         let parent_snapshot = if input.inheritance_parent_style_record != 0 {
-            let view = style_engine
-                .style_record_view(input.inheritance_parent_style_record)
-                .expect("the inheritance parent style record must remain live during computation");
-            for entry in view.inheritance_dependent_values {
-                if crate::css::style_value::style_value_dependency_flags(entry.value.cast()) & 1 == 0 {
-                    continue;
-                }
-                parent_override_properties.push(entry.property);
-                parent_override_values.push(entry.value);
-            }
-            Some(FfiParentSnapshot {
-                table_values: view.longhand_values.as_ptr(),
-                table_value_count: view.longhand_values.len(),
-                override_properties: parent_override_properties.as_ptr(),
-                override_values: parent_override_values.as_ptr(),
-                override_count: parent_override_properties.len(),
-                font_metrics_depend_on_viewport_metrics: view.dependency_flags & (1 << 1) != 0,
-            })
+            Some(parent_snapshot_for_style_record(
+                style_engine,
+                input.inheritance_parent_style_record,
+                None,
+            ))
         } else {
             None
         };
-        drive_input.parent_snapshot = parent_snapshot.as_ref().map_or(std::ptr::null(), std::ptr::from_ref);
-        let mut result = unsafe { compute_longhands(&drive_input) };
+        let mut result = unsafe { compute_longhands(&drive_input, parent_snapshot.as_ref()) };
         if !input.stop_after_longhand_drive {
             result.transitions = build_computed_transition_list(unsafe { &*drive_input.longhand_table });
             result.animations = build_computed_animation_list(unsafe { &*drive_input.longhand_table });
@@ -5026,7 +5019,7 @@ pub unsafe extern "C" fn rust_compute_document_longhands(
                 drive_property_computation(
                     longhand_table,
                     &raw const store,
-                    std::ptr::null(),
+                    None,
                     &raw const environment,
                     u32::MAX,
                     std::ptr::null(),
@@ -5096,6 +5089,16 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
         assert!(!input.line_height_length_resolution_context.is_null());
         assert!(!input.remaining_length_resolution_context.is_null());
         let underlying_longhand_table = unsafe { &*input.underlying_longhand_table };
+        let parent_snapshot = if input.inheritance_parent_style_record == 0 {
+            None
+        } else {
+            let style_engine = unsafe { &*input.style_engine.cast::<crate::css::style::StyleEngine>() };
+            Some(parent_snapshot_for_style_record(
+                style_engine,
+                input.inheritance_parent_style_record,
+                unsafe { input.inheritance_parent_animated_overlay.as_ref() },
+            ))
+        };
         let mut longhands_by_keyframe = std::collections::BTreeMap::<usize, Vec<usize>>::new();
         for (index, property) in properties.iter().enumerate() {
             assert!((FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property.physical_property_id));
@@ -5145,18 +5148,9 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
                         .expect("an animated longhand must have an underlying value")
                         .clone_retained(),
                     FfiAnimationSpecifiedValueSource::Inherited => {
-                        let inherited = unsafe { input.parent_snapshot.as_ref() }.and_then(|snapshot| {
-                            for index in 0..snapshot.override_count {
-                                if unsafe { *snapshot.override_properties.add(index) } == property.source_longhand_id {
-                                    return unsafe {
-                                        (*snapshot.override_values.add(index)).cast::<StyleValueData>().as_ref()
-                                    };
-                                }
-                            }
-                            let index = usize::from(property.source_longhand_id - FIRST_LONGHAND_PROPERTY_ID);
-                            assert!(index < snapshot.table_value_count);
-                            unsafe { (*snapshot.table_values.add(index)).cast::<StyleValueData>().as_ref() }
-                        });
+                        let inherited = parent_snapshot
+                            .as_ref()
+                            .and_then(|snapshot| snapshot.value(property.source_longhand_id));
                         let inherited =
                             inherited.unwrap_or_else(|| unsafe { &*initial_value_data(property.source_longhand_id) });
                         unsafe {
@@ -5219,7 +5213,7 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
                     drive_property_computation(
                         &raw mut table,
                         &raw const store,
-                        input.parent_snapshot,
+                        parent_snapshot.as_ref(),
                         &raw const environment,
                         u32::MAX,
                         selected_longhands.as_ptr(),

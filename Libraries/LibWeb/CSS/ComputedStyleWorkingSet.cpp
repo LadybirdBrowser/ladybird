@@ -119,9 +119,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_base
     auto importance = base.property_importance_bitmap();
     auto inheritance = base.property_inheritance_bitmap();
     ComputedValuesFFI::rust_computed_longhand_table_load_flag_bitmaps(working_set->m_computed_longhand_table, importance.data(), importance.size(), inheritance.data(), inheritance.size());
-    for (auto const& [property_id, value] : base.inheritance_dependent_specified_values())
-        ComputedValuesFFI::rust_computed_longhand_table_add_inheritance_dependent_value(working_set->m_computed_longhand_table, to_underlying(property_id), value->rust_style_value_data());
-    for (auto const& entry : base.borrowed_inheritance_dependent_values())
+    for (auto const& entry : base.inheritance_dependent_specified_values())
         ComputedValuesFFI::rust_computed_longhand_table_add_inheritance_dependent_value(working_set->m_computed_longhand_table, entry.property, entry.value);
     working_set->set_display_before_box_type_transformation(base.display_before_box_type_transformation());
     working_set->set_has_pseudo_element_styles(base.pseudo_element_style_mask());
@@ -566,20 +564,6 @@ void const* ComputedStyleWorkingSet::effective_property_data(PropertyID property
         return_animated_value == WithAnimationsApplied::Yes);
     VERIFY(effective.value);
     return effective.value;
-}
-
-void ComputedStyleWorkingSet::collect_effective_longhand_overrides(Vector<u16>& properties, Vector<void const*>& values) const
-{
-    auto const* table = m_computed_longhand_table;
-    auto const* overlay = m_animated_properties ? m_animated_properties->overlay() : nullptr;
-    auto capacity = ComputedValuesFFI::rust_computed_longhand_table_effective_override_capacity(table, overlay);
-    if (capacity == 0)
-        return;
-    properties.resize(capacity);
-    values.resize(capacity);
-    auto count = ComputedValuesFFI::rust_computed_longhand_table_collect_effective_overrides(table, overlay, properties.data(), values.data(), capacity);
-    properties.resize(count);
-    values.resize(count);
 }
 
 Color ComputedStyleWorkingSet::color(PropertyID id, ColorResolutionContext color_resolution_context) const

@@ -411,8 +411,6 @@ fn style_record_for_winners(engine: &mut StyleEngine, winners: &[PropertyWinner]
                 reconstruction: ComputedReconstructionMetadataInput {
                     property_importance: &[],
                     property_inheritance: &[],
-                    inheritance_dependent_properties: &[],
-                    inheritance_dependent_values: &[],
                     raw_cascaded_font_size: std::ptr::null(),
                 },
             },

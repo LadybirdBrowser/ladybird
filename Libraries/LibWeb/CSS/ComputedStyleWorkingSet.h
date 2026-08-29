@@ -203,12 +203,6 @@ public:
     ComputedValuesFFI::ComputedLonghandTable* mutable_computed_longhand_table() { return m_computed_longhand_table; }
     ComputedValuesFFI::ComputedLonghandTable const* computed_longhand_table() const { return m_computed_longhand_table; }
 
-    // The sparse set of longhands whose effective value differs from the table's stored value:
-    // the animated overlay and the unevaluated longhands' currentcolor-dependent specified-value
-    // preference. Exactly what property() returns, without minting a wrapper per longhand to
-    // find out.
-    void collect_effective_longhand_overrides(Vector<u16>& properties, Vector<void const*>& values) const;
-
 private:
     // The sparse per-longhand mint cache over the effective values: an entry holds the
     // wrapper a store funnel carried or the one property() minted on demand, and is replaced
