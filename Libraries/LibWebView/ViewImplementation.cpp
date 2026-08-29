@@ -709,6 +709,9 @@ void ViewImplementation::reset_zoom()
 
 void ViewImplementation::enqueue_input_event(Web::InputEvent event)
 {
+    if (!m_client_state.client)
+        return;
+
     auto* key_event = event.get_pointer<Web::KeyEvent>();
     auto* mouse_event = event.get_pointer<Web::MouseEvent>();
     auto* pinch_event = event.get_pointer<Web::PinchEvent>();
