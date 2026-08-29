@@ -3842,8 +3842,8 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
             // FIXME: Do we need to update layout before checking this? If so we can avoid using the unsafe layout node
             //        getter here.
             if (auto before = element->pseudo_element_unsafe_layout_node(CSS::PseudoElement::Before)) {
-                // NB: We know that content has a value since we set it immediately when creating a ::before pseudo
-                //     element node.
+                // NB: The build that registers this box also resolves its content — and it stays put until the box is
+                //     rebuilt. So, a registered box in an up-to-date layout tree always has one.
                 auto const& content = before->content().value();
 
                 if (content.alt_text.has_value()) {
@@ -3908,8 +3908,7 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
             // FIXME: Do we need to update layout before checking this? If so we can avoid using the unsafe layout node
             //        getter here.
             if (auto after = element->pseudo_element_unsafe_layout_node(CSS::PseudoElement::After)) {
-                // NB: We know that content has a value since we set it immediately when creating an ::after pseudo
-                //     element node.
+                // NB: See the ::before case above.
                 auto const& content = after->content().value();
 
                 if (content.alt_text.has_value()) {

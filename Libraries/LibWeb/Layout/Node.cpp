@@ -639,7 +639,6 @@ void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
     m_mask_layers.clear();
     m_border_image.clear();
     m_list_style_image.clear();
-    m_content.clear();
     m_owned_computed_values = nullptr;
     m_style_record_identity = style_record_identity;
     publish_style_record_to_node_data();
@@ -945,7 +944,6 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
     m_mask_layers.clear();
     m_border_image.clear();
     m_list_style_image.clear();
-    m_content.clear();
     Optional<DOM::AbstractElement> abstract_element;
     if (is_generated_for_pseudo_element())
         abstract_element = DOM::AbstractElement { *pseudo_element_generator(), generated_for_pseudo_element() };
@@ -1008,7 +1006,6 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
     m_mask_layers.clear();
     m_border_image.clear();
     m_list_style_image.clear();
-    m_content.clear();
     m_owned_computed_values = nullptr;
     m_style_record_identity = style_record_identity;
     set_flag(RustFFI::NodeFlag::HasAnchorNames, !new_record_view->anchor_names().is_empty());

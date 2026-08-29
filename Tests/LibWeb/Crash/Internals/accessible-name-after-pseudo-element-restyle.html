@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<style>
+    #target::before { content: "x"; }
+    #target.recolored::before { color: red; }
+</style>
+<a id="target" href="#">link</a>
+<script>
+    // Let the layout tree build; the ::before box gets its content resolved during that build.
+    document.body.offsetWidth;
+    // A style-only change to the pseudo element lands on the live box in place, with no tree rebuild.
+    target.classList.add("recolored");
+    document.body.offsetWidth;
+    // Computing the accessible name reads the ::before box's resolved content.
+    internals.dumpAccessibilityTree();
+</script>

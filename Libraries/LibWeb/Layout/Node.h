@@ -761,6 +761,8 @@ private:
     mutable Optional<CSS::BorderImageData> m_border_image;
     mutable Optional<CSS::ListStyleType> m_list_style_type;
     mutable Optional<RefPtr<CSS::AbstractImageStyleValue const>> m_list_style_image;
+    // The generated content this box was built from, kept for the accessible-name code. Not derived from the style
+    // record: An in-place restyle must leave it alone — since only a layout-tree rebuild can re-resolve it.
     Optional<CSS::ContentData> m_content;
 };
 
