@@ -96,7 +96,6 @@ SpatialNodeIndex AccumulatedVisualContextTree::append_spatial(SpatialData data, 
 
 FrameNodeIndex AccumulatedVisualContextTree::append_frame(FrameData data, FrameNodeIndex parent, SpatialNodeIndex spatial)
 {
-    VERIFY(spatial.value() < m_spatial_nodes.size());
     bool empty_clip = false;
     if (parent != NO_FRAME_NODE) {
         VERIFY(parent.value() < m_frame_nodes.size());
@@ -110,9 +109,15 @@ FrameNodeIndex AccumulatedVisualContextTree::append_frame(FrameData data, FrameN
         else if (data.has<MaskData>())
             empty_clip = data.get<MaskData>().rect.is_empty();
     }
+    return append_frame(move(data), parent, spatial, empty_clip);
+}
 
+FrameNodeIndex AccumulatedVisualContextTree::append_frame(FrameData data, FrameNodeIndex parent, SpatialNodeIndex spatial, bool has_empty_effective_clip)
+{
+    VERIFY(spatial.value() < m_spatial_nodes.size());
+    VERIFY(parent == NO_FRAME_NODE || parent.value() < m_frame_nodes.size());
     auto index = FrameNodeIndex(m_frame_nodes.size());
-    m_frame_nodes.append({ move(data), parent, spatial, empty_clip });
+    m_frame_nodes.append({ move(data), parent, spatial, has_empty_effective_clip });
     return index;
 }
 
@@ -123,35 +128,10 @@ void AccumulatedVisualContextTree::set_visual_viewport_transform(TransformData t
     m_spatial_nodes[VISUAL_VIEWPORT_NODE_INDEX.value()].data = move(transform);
 }
 
-bool AccumulatedVisualContextTree::is_compatible_with(AccumulatedVisualContextTree const& other) const
-{
-    if (m_spatial_nodes.size() != other.m_spatial_nodes.size() || m_frame_nodes.size() != other.m_frame_nodes.size())
-        return false;
-    if (m_root_isolation_frame != other.m_root_isolation_frame)
-        return false;
-
-    for (size_t i = 0; i < m_spatial_nodes.size(); ++i) {
-        auto const& node = m_spatial_nodes[i];
-        auto const& other_node = other.m_spatial_nodes[i];
-        if (node.parent != other_node.parent || node.data.index() != other_node.data.index())
-            return false;
-    }
-    for (size_t i = 0; i < m_frame_nodes.size(); ++i) {
-        auto const& node = m_frame_nodes[i];
-        auto const& other_node = other.m_frame_nodes[i];
-        if (node.parent != other_node.parent || node.spatial != other_node.spatial)
-            return false;
-        if (node.has_empty_effective_clip != other_node.has_empty_effective_clip)
-            return false;
-        if (node.data.index() != other_node.data.index())
-            return false;
-    }
-    return true;
-}
-
 void AccumulatedVisualContextTree::reuse_version_from(AccumulatedVisualContextTree const& other)
 {
-    VERIFY(is_compatible_with(other));
+    VERIFY(m_spatial_nodes.size() == other.m_spatial_nodes.size());
+    VERIFY(m_frame_nodes.size() == other.m_frame_nodes.size());
     m_version = other.m_version;
 }
 

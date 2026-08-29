@@ -201,8 +201,8 @@ public:
 
     WEB_API SpatialNodeIndex append_spatial(SpatialData, SpatialNodeIndex parent);
     WEB_API FrameNodeIndex append_frame(FrameData, FrameNodeIndex parent, SpatialNodeIndex spatial);
+    WEB_API FrameNodeIndex append_frame(FrameData, FrameNodeIndex parent, SpatialNodeIndex spatial, bool has_empty_effective_clip);
     WEB_API void set_visual_viewport_transform(TransformData);
-    WEB_API bool is_compatible_with(AccumulatedVisualContextTree const&) const;
     WEB_API void reuse_version_from(AccumulatedVisualContextTree const&);
 
     SpatialNode const& spatial_node_at(SpatialNodeIndex index) const { return m_spatial_nodes[index.value()]; }
