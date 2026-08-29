@@ -1,0 +1,2 @@
+right-click #mapped: image target=IMG#mapped
+right-click #linkmapped: link target=AREA#linkarea

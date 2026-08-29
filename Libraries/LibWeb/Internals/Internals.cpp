@@ -1703,6 +1703,35 @@ static GC::Ref<JS::Object> create_hit_testing_result(JS::Realm& realm, Painting:
     return hit_testing_result;
 }
 
+static Utf16String context_menu_kind_to_string(Page::ContextMenuRequest::Kind kind)
+{
+    switch (kind) {
+    case Page::ContextMenuRequest::Kind::Page:
+        return "page"_utf16;
+    case Page::ContextMenuRequest::Kind::Image:
+        return "image"_utf16;
+    case Page::ContextMenuRequest::Kind::Link:
+        return "link"_utf16;
+    case Page::ContextMenuRequest::Kind::Media:
+        return "media"_utf16;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+GC::Ptr<JS::Object> Internals::take_context_menu_request()
+{
+    auto request = page().take_context_menu_request();
+    if (!request.has_value())
+        return nullptr;
+
+    auto& realm = HTML::relevant_realm(window());
+    auto object = JS::Object::create(realm, nullptr);
+    object->define_direct_property("kind"_utf16_fly_string, JS::PrimitiveString::create(vm(), context_menu_kind_to_string(request->kind)), JS::default_attributes);
+    auto target = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, request->target);
+    object->define_direct_property("target"_utf16_fly_string, target, JS::default_attributes);
+    return object;
+}
+
 GC::Ptr<JS::Object> Internals::hit_test_result(double x, double y)
 {
     auto& realm = HTML::relevant_realm(window());

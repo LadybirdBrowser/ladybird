@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>body { margin: 0; font: 20px/40px monospace }</style>
+<div id="target">right-click me</div>
+<script>
+    test(() => {
+        const describe = () => {
+            const request = internals.takeContextMenuRequest();
+            if (!request)
+                return 'no request';
+            return `${request.kind} target=${request.target.nodeName}`;
+        };
+        const rightClick = modifiers => {
+            internals.mouseDown(20, 20, 1, 2, modifiers);
+            internals.mouseUp(20, 20, 2, modifiers);
+        };
+        const SHIFT = 4;
+
+        rightClick(0);
+        println(`without a listener: ${describe()}`);
+
+        const cancel = event => event.preventDefault();
+        document.addEventListener('contextmenu', cancel);
+        rightClick(0);
+        println(`listener calls preventDefault: ${describe()}`);
+
+        rightClick(SHIFT);
+        println(`preventDefault, but shift held: ${describe()}`);
+
+        document.removeEventListener('contextmenu', cancel);
+        rightClick(0);
+        println(`listener removed: ${describe()}`);
+    });
+</script>

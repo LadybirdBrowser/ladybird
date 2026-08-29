@@ -1,0 +1,5 @@
+removed: page target=AREA#area-removed
+removed-over-link: page target=AREA#area-link
+moved: page target=AREA#area-moved
+hidden: page target=AREA#area-hidden
+restyled: image target=IMG#img-restyled

@@ -1,0 +1,8 @@
+right-click #text: page target=DIV#text
+right-click #link: link target=A#link
+right-click #image: image target=IMG#image
+right-click #media: media target=VIDEO#media
+right-click text inside a span: page target=SPAN#span
+right-click text in an anonymous block: page target=DIV#anonymous
+right-click ::before generated text: page target=DIV#generated
+right-click text in a shadow root's anonymous block: page target=DIV#shadow-host

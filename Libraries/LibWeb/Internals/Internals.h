@@ -66,6 +66,7 @@ public:
     GC::Ref<XHR::XMLHttpRequest> create_xml_http_request_for_document(DOM::Document&);
     Optional<Painting::HitTestResult> hit_test(double x, double y);
     GC::Ptr<JS::Object> hit_test_result(double x, double y);
+    GC::Ptr<JS::Object> take_context_menu_request();
 
     void send_text(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers);
     void send_key(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers, WebIDL::UnsignedLong repeat_count);

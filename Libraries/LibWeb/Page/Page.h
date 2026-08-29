@@ -268,6 +268,20 @@ public:
     void notify_all_canvas_elements_of_lost_backing_storage();
     void notify_all_webgl_contexts_lost();
 
+    struct ContextMenuRequest {
+        enum class Kind : u8 {
+            Page,
+            Image,
+            Link,
+            Media,
+        };
+        Kind kind { Kind::Page };
+        GC::Ref<DOM::Node> target;
+    };
+    void record_context_menu_request(Badge<EventHandler>, ContextMenuRequest);
+    void clear_context_menu_request() { m_context_menu_request.clear(); }
+    Optional<ContextMenuRequest> take_context_menu_request();
+
     struct MediaContextMenu {
         URL::URL media_url;
         bool is_video { false };
@@ -409,6 +423,8 @@ private:
     Optional<UniqueNodeID> m_media_context_menu_element_id;
 
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
+
+    Optional<ContextMenuRequest> m_context_menu_request;
     size_t m_active_screen_wake_lock_count { 0 };
 
     Optional<Utf16String> m_user_style_sheet_source;

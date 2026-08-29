@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 20px/40px monospace }
+    img { display: block; width: 200px; height: 100px }
+    video { display: block; width: 200px; height: 100px; background: #ccc }
+    #generated::before { content: "generated text" }
+</style>
+<div id="text">plain text</div>
+<div id="anonymous">bare text<div id="anonymous-child">block child</div></div>
+<div id="inline-parent">plain <span id="span">span text</span></div>
+<div id="generated"></div>
+<div id="shadow-host"></div>
+<a id="link" href="https://example.com/link">a link</a>
+<img id="image" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGM4YWMDAAMQAUEiFmcFAAAAAElFTkSuQmCC">
+<video id="media" src="does-not-exist.webm"></video>
+<script>
+    test(() => {
+        const describe = () => {
+            const request = internals.takeContextMenuRequest();
+            if (!request)
+                return 'no request';
+            const target = request.target;
+            return `${request.kind} target=${target.id ? `${target.nodeName}#${target.id}` : target.nodeName}`;
+        };
+        const rightClickAt = element => {
+            const rect = element.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            internals.mouseDown(x, y, 1, 2);
+            internals.mouseUp(x, y, 2);
+        };
+
+        for (const id of ['text', 'link', 'image', 'media']) {
+            rightClickAt(document.getElementById(id));
+            println(`right-click #${id}: ${describe()}`);
+        }
+
+        // The menu describes the element whose box was hit, which for text is the box of its parent rather than
+        // the text itself. Bare text beside a block child sits in an anonymous block and generated content has no
+        // node at all, so both fall back to the nearest element.
+        const rightClickText = node => {
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            const rect = range.getBoundingClientRect();
+            internals.mouseDown(rect.left + 5, rect.top + rect.height / 2, 1, 2);
+            internals.mouseUp(rect.left + 5, rect.top + rect.height / 2, 2);
+        };
+
+        rightClickText(document.getElementById('span').firstChild);
+        println(`right-click text inside a span: ${describe()}`);
+
+        rightClickText(document.getElementById('anonymous').firstChild);
+        println(`right-click text in an anonymous block: ${describe()}`);
+
+        rightClickAt(document.getElementById('generated'));
+        println(`right-click ::before generated text: ${describe()}`);
+
+        // Inside a shadow root the anonymous block's fallback has to cross the shadow boundary to reach an element.
+        const shadow = document.getElementById('shadow-host').attachShadow({ mode: 'open' });
+        shadow.innerHTML = 'bare text<div>block child</div>';
+        document.body.offsetWidth;
+        rightClickText(shadow.firstChild);
+        println(`right-click text in a shadow root's anonymous block: ${describe()}`);
+    });
+</script>

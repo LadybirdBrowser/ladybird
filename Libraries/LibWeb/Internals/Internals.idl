@@ -23,6 +23,7 @@ interface Internals {
     boolean messagePortsAreDirectlyEntangled(MessagePort first, MessagePort second);
     XMLHttpRequest createXMLHttpRequestForDocument(Document document);
     [ImplementedAs=hit_test_result] object hitTest(double x, double y);
+    object? takeContextMenuRequest();
 
     const unsigned short MOD_NONE = 0;
     const unsigned short MOD_ALT = 1;
