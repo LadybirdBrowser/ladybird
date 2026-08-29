@@ -16,6 +16,9 @@ pub(crate) struct RunRecords {
     arena: *mut c_void,
     nonce: u64,
     undo: RefCell<Vec<UndoEntry>>,
+    // Wrapper sizing hands this state to the wrapper's child run, which consumes it while laying
+    // out the table box. Keeping it on the run prevents measurement state from escaping a pass.
+    table_inline_layouts: RefCell<HashMap<Node, table_formatting_context::TableInlineLayout>>,
 }
 
 struct UndoEntry {
@@ -39,6 +42,7 @@ impl RunRecords {
             arena,
             nonce,
             undo: RefCell::new(Vec::new()),
+            table_inline_layouts: RefCell::new(HashMap::default()),
         }
     }
 
@@ -88,6 +92,14 @@ impl RunRecords {
 
     pub(crate) fn root(&self) -> Node {
         self.root
+    }
+
+    pub(crate) fn store_table_inline_layout(&self, table: Node, layout: table_formatting_context::TableInlineLayout) {
+        self.table_inline_layouts.borrow_mut().insert(table, layout);
+    }
+
+    pub(crate) fn take_table_inline_layout(&self, table: Node) -> Option<table_formatting_context::TableInlineLayout> {
+        self.table_inline_layouts.borrow_mut().remove(&table)
     }
 }
 
