@@ -200,6 +200,19 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Core::EventLoop::current().spin_until([&] { return history_boundary_traversal_ready; });
     VERIFY(browser_history_traversals_completed == completed_traversals_before_history_boundary + 1);
 
+    // Closing a view may synchronously cause the UI to generate an input event while removing the view from its
+    // container. Input received after the browsing context closes must be discarded.
+    bool did_close = false;
+    view->on_close = [&] {
+        Web::MouseEvent event {};
+        event.type = Web::MouseEvent::Type::MouseLeave;
+        view->enqueue_input_event(move(event));
+        did_close = true;
+    };
+    view->request_close();
+    Core::EventLoop::current().spin_until([&] { return did_close; });
+    Core::EventLoop::current().spin_until([&] { return app->has_ready_spare_web_content_process(); });
+
     outln("PASS: browser history traversal");
     return 0;
 }
