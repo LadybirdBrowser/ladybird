@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .changed { background-color: blue }
+</style>
+<span id="first"></span>
+<span id="second"></span>
+<script>
+    test(() => {
+        internals.updateStyle();
+
+        const before = internals.getStyleInvalidationCounters();
+        second.className = "changed";
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+
+        println(`shared initial style: ${before.elementStyleSharedComputations >= 1}`);
+        println(`longhand evaluations: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations}`);
+        println(`first background: ${getComputedStyle(first).backgroundColor}`);
+        println(`second background: ${getComputedStyle(second).backgroundColor}`);
+    });
+</script>
