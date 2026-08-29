@@ -120,6 +120,9 @@ pub(crate) struct RootSizingDirectives {
     pub(crate) forced_content_inline_size: Option<CssPixels>,
     pub(crate) forced_content_block_size: Option<CssPixels>,
     pub(crate) forced_min_border_box_block_size: Option<CssPixels>,
+    // Input-only: the parent block formatting context supplies the inline size it resolved while
+    // positioning an independent child, so the child's run prelude can commit it without resolving it again.
+    pub(crate) block_parent_resolved_content_inline_size: Option<CssPixels>,
     // Input-only: the table formatting context supplies the cell's intrinsic block padding
     // (the vertical-alignment stretch) before laying out the cell's contents.
     pub(crate) table_cell_intrinsic_block_padding: Option<(CssPixels, CssPixels)>,

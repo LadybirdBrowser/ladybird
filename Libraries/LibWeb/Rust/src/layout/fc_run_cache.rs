@@ -89,6 +89,7 @@ fn sizing_directives_match_ignoring_percentage_block_size(a: &RootSizingDirectiv
         forced_content_inline_size,
         forced_content_block_size,
         forced_min_border_box_block_size,
+        block_parent_resolved_content_inline_size,
         table_cell_intrinsic_block_padding,
         table_box_content_block_offset_in_wrapper,
         adopt_automatic_content_block_size,
@@ -100,6 +101,7 @@ fn sizing_directives_match_ignoring_percentage_block_size(a: &RootSizingDirectiv
     forced_content_inline_size == b.forced_content_inline_size
         && forced_content_block_size == b.forced_content_block_size
         && forced_min_border_box_block_size == b.forced_min_border_box_block_size
+        && block_parent_resolved_content_inline_size == b.block_parent_resolved_content_inline_size
         && table_cell_intrinsic_block_padding == b.table_cell_intrinsic_block_padding
         && table_box_content_block_offset_in_wrapper == b.table_box_content_block_offset_in_wrapper
         && adopt_automatic_content_block_size == b.adopt_automatic_content_block_size
