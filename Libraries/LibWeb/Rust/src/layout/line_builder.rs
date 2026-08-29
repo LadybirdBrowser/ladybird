@@ -64,6 +64,10 @@ pub(crate) struct LineBuilder<'builder, 'context> {
     should_advance_to_last_line_box_block_end: bool,
     current_line_committed_pending_margin: bool,
     pending_margin_follows_block_level_box: bool,
+    containing_style: StyleValues<'static>,
+    fragment_facts_cache: Option<(Node, line_box_fragment::FragmentBuildFacts)>,
+    style_cache: Cell<Option<(Node, StyleValues<'static>)>>,
+    facts_cache: Cell<Option<(Node, NodeFacts<'builder>)>>,
 }
 
 impl<'builder, 'context> LineBuilder<'builder, 'context> {
@@ -91,6 +95,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             should_advance_to_last_line_box_block_end: false,
             current_line_committed_pending_margin: false,
             pending_margin_follows_block_level_box: false,
+            containing_style: style,
+            fragment_facts_cache: None,
+            style_cache: Cell::new(None),
+            facts_cache: Cell::new(None),
         }
     }
 
@@ -139,26 +147,55 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     }
 
     fn containing_style(&self) -> StyleValues<'_> {
-        self.context().style(self.context().containing_block)
+        self.containing_style
     }
 
-    fn fragment_facts(&self, node: Node) -> line_box_fragment::FragmentBuildFacts {
+    fn style(&self, node: Node) -> StyleValues<'static> {
+        if let Some((cached_node, style)) = self.style_cache.get()
+            && cached_node == node
+        {
+            return style;
+        }
+        let style = self.context().style(node);
+        self.style_cache.set(Some((node, style)));
+        style
+    }
+
+    fn facts(&self, node: Node) -> NodeFacts<'builder> {
+        if let Some((cached_node, facts)) = self.facts_cache.get()
+            && cached_node == node
+        {
+            return facts;
+        }
+        let facts = NodeFacts::new(&self.context.callbacks, node);
+        self.facts_cache.set(Some((node, facts)));
+        facts
+    }
+
+    fn fragment_facts(&mut self, node: Node) -> line_box_fragment::FragmentBuildFacts {
+        if let Some((cached_node, facts)) = self.fragment_facts_cache
+            && cached_node == node
+        {
+            return facts;
+        }
         let style_source = self.context().style_source(node);
-        let style = self.context().style(style_source);
-        let facts = self.context().facts(node);
+        let style = self.style(style_source);
+        let facts = self.facts(node);
         let (text_utf16, text_length) = if facts.is_text_node() {
             let text = &self.context().callbacks.text_content(node).text;
             (text.as_ptr(), text.len())
         } else {
             (std::ptr::null(), 0)
         };
-        line_box_fragment::FragmentBuildFacts {
+        let facts = line_box_fragment::FragmentBuildFacts {
             style_source,
             is_atomic_inline: facts.is_atomic_inline(),
             white_space_collapse: style.white_space_collapse(),
             text_utf16,
             text_length_in_code_units: text_length,
-        }
+        };
+        self.fragment_facts_cache = Some((node, facts));
+        facts
     }
 
     fn begin_new_line(&mut self, advance: bool, first_in_sequence: bool, forced: ForcedBreak) {
@@ -308,8 +345,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         let line_index = self.ensure_last_line_index();
         let fragment_index = self.line(line_index).fragments.len();
         let fragment_facts = self.fragment_facts(node);
-        let text_align_is_justify =
-            self.context().style(fragment_facts.style_source).text_align() == text_align::JUSTIFY;
+        let text_align_is_justify = self.style(fragment_facts.style_source).text_align() == text_align::JUSTIFY;
         self.line_mut(line_index).add_fragment(
             node,
             0,
@@ -365,7 +401,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         self.prepare_to_append_inline_content();
         let line_index = self.ensure_last_line_index();
         let facts = self.fragment_facts(node);
-        let text_align_is_justify = self.context().style(facts.style_source).text_align() == text_align::JUSTIFY;
+        let text_align_is_justify = self.style(facts.style_source).text_align() == text_align::JUSTIFY;
         self.line_mut(line_index).add_fragment(
             node,
             offset_in_node,
@@ -570,7 +606,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         if parent.is_invalid() {
             self.containing_style()
         } else {
-            self.context().style(parent)
+            self.style(parent)
         }
     }
 
@@ -641,14 +677,11 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         let containing_block = self.context().containing_block;
         let mut node = style_source;
         while !node.is_invalid() && node != containing_block {
-            if let Some(alignment) = line_relative_alignment(self.context().style(node)) {
+            if let Some(alignment) = line_relative_alignment(self.style(node)) {
                 return Some((node, alignment));
             }
             let parent = self.context().parent_node(node);
-            if !parent.is_invalid()
-                && parent != containing_block
-                && !self.context().facts(parent).is_fragmented_inline()
-            {
+            if !parent.is_invalid() && parent != containing_block && !self.facts(parent).is_fragmented_inline() {
                 break;
             }
             node = parent;
@@ -668,7 +701,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     }
 
     fn inline_box_alignment_metrics(&self, node: Node) -> VerticalAlignMetrics {
-        let style = self.context().style(node);
+        let style = self.style(node);
         let used = self.context().used(node);
         VerticalAlignMetrics {
             baseline: Self::baseline_for_style(style, style.line_height()),
@@ -740,8 +773,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 let fragment = &self.line(line_index).fragments[fragment_index];
                 (fragment.layout_node, fragment.style_source, fragment.content_baselines)
             };
-            let style = self.context().style(style_source);
-            let fragment_baseline = if self.context().facts(node).is_text_node() {
+            let style = self.style(style_source);
+            let fragment_baseline = if self.facts(node).is_text_node() {
                 Self::baseline_for_style(style, style.line_height())
             } else if let Some(content_baselines) = content_baselines {
                 formatting_context::box_baseline_with_content_baselines(
@@ -769,7 +802,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 fragment_baseline + style.vertical_align_value().to_px(style.line_height())
             };
             if adjusted_baseline > line_box_baseline {
-                if !self.context().facts(node).is_text_node() && style.vertical_align_is_keyword() {
+                if !self.facts(node).is_text_node() && style.vertical_align_is_keyword() {
                     // https://drafts.csswg.org/css2/#line-height
                     // The minimum height consists of a minimum height above the baseline and a minimum depth below
                     // it, exactly as if each line box starts with a zero-width inline box with the element's font and
@@ -811,7 +844,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                     block_offset: fragment.block_offset,
                 }
             };
-            let style = self.context().style(snapshot.style_source);
+            let style = self.style(snapshot.style_source);
             let mut metrics = VerticalAlignMetrics {
                 baseline: snapshot.baseline,
                 block_size: snapshot.block_size,
@@ -852,9 +885,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                     line_box_baseline,
                 )
             };
-            if snapshot.style_source != containing_block
-                && self.context().facts(snapshot.style_source).is_fragmented_inline()
-            {
+            if snapshot.style_source != containing_block && self.facts(snapshot.style_source).is_fragmented_inline() {
                 inline_box_alignments.push(InlineBoxAlignment {
                     box_: snapshot.style_source,
                     vertical_shift: new_block_offset - baseline_aligned_block_offset,
@@ -867,10 +898,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             };
             while !own_alignment_is_line_relative
                 && !ancestor.is_invalid()
-                && self.context().facts(ancestor).is_fragmented_inline()
+                && self.facts(ancestor).is_fragmented_inline()
                 && ancestor != containing_block
             {
-                let ancestor_style = self.context().style(ancestor);
+                let ancestor_style = self.style(ancestor);
                 if line_relative_alignment(ancestor_style).is_some() {
                     break;
                 }
@@ -957,7 +988,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 latest = latest.max(inline_box_end);
             }
 
-            let is_text_node = self.context().facts(snapshot.layout_node).is_text_node();
+            let is_text_node = self.facts(snapshot.layout_node).is_text_node();
             if is_text_node && self.writing_mode == writing_mode::HORIZONTAL_TB {
                 let font_box_size = normal_line_height(style);
                 let font_baseline = Self::baseline_for_style(style, font_box_size);
