@@ -992,6 +992,46 @@ mod tests {
         assert!(!image_size_allows_classification(800.0, 600.0, (1024, 768)));
     }
 
+    // Run with: cargo test --release --lib force_dark -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn timing_resolver_against_the_pure_functions() {
+        use std::time::Instant;
+        let settings = ForceDarkSettings::default();
+        let palette: Vec<Color> = (0..50)
+            .map(|i: u32| Color::from_rgb((i * 5) as u8, (i * 3 + 40) as u8, (i * 7 + 10) as u8))
+            .collect();
+        const RESOLVES: usize = 20_000;
+
+        let mut sink = 0u32;
+        let start = Instant::now();
+        for i in 0..RESOLVES {
+            sink ^= resolve(palette[i % palette.len()], ForceDarkRole::Foreground, &settings).0;
+        }
+        let uncached = start.elapsed();
+
+        let mut resolver = ForceDarkResolver::new(settings);
+        let start = Instant::now();
+        for i in 0..RESOLVES {
+            sink ^= resolver
+                .resolve(palette[i % palette.len()], ForceDarkRole::Foreground)
+                .0;
+        }
+        let memoized = start.elapsed();
+
+        let mut resolver = ForceDarkResolver::new(settings);
+        let start = Instant::now();
+        for i in 0..RESOLVES {
+            sink ^= resolver.resolve(palette[i % palette.len()], ForceDarkRole::None).0;
+        }
+        let role_none = start.elapsed();
+
+        eprintln!(
+            "{RESOLVES} resolves over a {}-color palette: uncached {uncached:?}, memoized {memoized:?}, role None {role_none:?} (sink {sink})",
+            palette.len()
+        );
+    }
+
     fn solid(n: usize, color: Color) -> Vec<Color> {
         vec![color; n]
     }
