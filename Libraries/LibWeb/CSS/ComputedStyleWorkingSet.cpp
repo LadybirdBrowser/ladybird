@@ -35,27 +35,12 @@
 
 namespace Web::CSS {
 
-extern "C" void ladybird_animated_properties_ref(void const*);
-extern "C" void ladybird_animated_properties_unref(void const*);
-extern "C" void style_engine_recording_pointer_will_die(void const*);
-
 static Atomic<u64> s_next_animated_properties_identity { 1 };
 static u64 s_longhand_wrappers_minted { 0 };
 
 AnimatedProperties::~AnimatedProperties()
 {
-    style_engine_recording_pointer_will_die(this);
     ComputedValuesFFI::rust_animated_overlay_free(m_overlay);
-}
-
-extern "C" void ladybird_animated_properties_ref(void const* values)
-{
-    static_cast<AnimatedProperties const*>(values)->ref();
-}
-
-extern "C" void ladybird_animated_properties_unref(void const* values)
-{
-    static_cast<AnimatedProperties const*>(values)->unref();
 }
 
 static_assert(to_underlying(PseudoElement::KnownPseudoElementCount) <= sizeof(u64) * 8);
@@ -153,6 +138,12 @@ AnimatedProperties::AnimatedProperties(AnimatedProperties const& other)
     : m_identity(s_next_animated_properties_identity.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
     , m_overlay(ComputedValuesFFI::rust_animated_overlay_clone(other.m_overlay))
     , m_wrapper_cache(other.m_wrapper_cache)
+{
+}
+
+AnimatedProperties::AnimatedProperties(ComputedValuesFFI::AnimatedOverlay const* overlay)
+    : m_identity(s_next_animated_properties_identity.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
+    , m_overlay(ComputedValuesFFI::rust_animated_overlay_clone(overlay))
 {
 }
 

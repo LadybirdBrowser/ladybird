@@ -831,7 +831,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let dependency_flags = event.payload.read_u8()?;
                     let counter_style_environment_identity = event.payload.read_u64()?;
                     let animation_overlay_identity = event.payload.read_u64()?;
-                    let animated_properties = replay_pointer(event.payload.read_u64()?);
+                    let animated_overlay = match event.payload.read_u64()? {
+                        0 => std::ptr::null_mut(),
+                        _ => libweb_rust::css::animated_overlay::rust_animated_overlay_create(),
+                    };
                     let overlay_count = event.payload.read_length()?;
                     animation_overlay_payloads.clear();
                     animation_overlay_payloads.reserve(overlay_count);
@@ -957,7 +960,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                             dependency_flags & (1 << 3) != 0,
                             counter_style_environment_identity,
                             animation_overlay_identity,
-                            animated_properties,
+                            animated_overlay.cast(),
                             animation_overlay_payloads.as_ptr(),
                             animation_overlay_payloads.len(),
                             raw_cascaded_font_size,
@@ -969,6 +972,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                             libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_release(
                                 publication_longhand_table,
                             );
+                        }
+                    }
+                    if !animated_overlay.is_null() {
+                        unsafe {
+                            libweb_rust::css::animated_overlay::rust_animated_overlay_free(animated_overlay);
                         }
                     }
                     if actual != expected {
@@ -2228,7 +2236,7 @@ struct RecordedStyleRecordView<'a> {
     property_inheritance: &'a [u8],
     inheritance_dependent_values: EncodedInheritanceDependentValues<'a>,
     raw_cascaded_font_size: u64,
-    animated_properties: u64,
+    animated_overlay_present: bool,
     pseudo_element_styles: u64,
     counter_style_environment_identity: u64,
     animation_overlay_identity: u64,
@@ -2253,7 +2261,7 @@ fn read_style_record_view<'a>(
         property_inheritance,
         inheritance_dependent_values,
         raw_cascaded_font_size: payload.read_u64()?,
-        animated_properties: payload.read_u64()?,
+        animated_overlay_present: payload.read_u64()? != 0,
         pseudo_element_styles: payload.read_u64()?,
         counter_style_environment_identity: payload.read_u64()?,
         animation_overlay_identity: payload.read_u64()?,
@@ -2315,7 +2323,7 @@ fn style_record_view_matches(
         && bytes_match(actual.property_inheritance, &expected.property_inheritance)
         && inheritance_dependent_values_match
         && pointer_value(actual.raw_cascaded_font_size)? == expected.raw_cascaded_font_size
-        && pointer_value(actual.animated_properties)? == expected.animated_properties
+        && !actual.animated_overlay.is_null() == expected.animated_overlay_present
         && actual.pseudo_element_styles == expected.pseudo_element_styles
         && actual.counter_style_environment_identity == expected.counter_style_environment_identity
         && actual.animation_overlay_identity == expected.animation_overlay_identity
@@ -2359,7 +2367,7 @@ fn semantic_style_record_view(
         property_inheritance: bytes(view.property_inheritance, view.property_inheritance_count),
         inheritance_dependent_values,
         raw_cascaded_font_size: pointer_value(view.raw_cascaded_font_size)?,
-        animated_properties: pointer_value(view.animated_properties)?,
+        animated_overlay_present: !view.animated_overlay.is_null(),
         pseudo_element_styles: view.pseudo_element_styles,
         counter_style_environment_identity: view.counter_style_environment_identity,
         animation_overlay_identity: view.animation_overlay_identity,
@@ -2388,7 +2396,7 @@ struct OwnedSemanticStyleRecordView {
     property_inheritance: Vec<u8>,
     inheritance_dependent_values: Vec<(u16, u64)>,
     raw_cascaded_font_size: u64,
-    animated_properties: u64,
+    animated_overlay_present: bool,
     pseudo_element_styles: u64,
     counter_style_environment_identity: u64,
     animation_overlay_identity: u64,
@@ -2406,7 +2414,7 @@ impl std::fmt::Debug for OwnedSemanticStyleRecordView {
             .field("property_inheritance", &self.property_inheritance)
             .field("inheritance_dependent_values", &self.inheritance_dependent_values)
             .field("raw_cascaded_font_size", &self.raw_cascaded_font_size)
-            .field("animated_properties", &self.animated_properties)
+            .field("animated_overlay_present", &self.animated_overlay_present)
             .field("pseudo_element_styles", &self.pseudo_element_styles)
             .field(
                 "counter_style_environment_identity",
@@ -2514,12 +2522,6 @@ unsafe extern "C" fn ladybird_rust_realloc(
     }
     new_pointer
 }
-
-#[unsafe(no_mangle)]
-extern "C" fn ladybird_animated_properties_ref(_values: *const c_void) {}
-
-#[unsafe(no_mangle)]
-extern "C" fn ladybird_animated_properties_unref(_values: *const c_void) {}
 
 #[unsafe(no_mangle)]
 extern "C" fn ladybird_string_unref(_raw: usize) {}

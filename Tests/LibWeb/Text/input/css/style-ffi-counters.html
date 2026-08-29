@@ -47,10 +47,7 @@
             internals.resetStyleFfiCounters();
             internals.updateStyle();
             const updateCounters = internals.styleFfiCounters();
-            println(`${label} stayed callback-free: ${
-                updateCounters.stringRetainReleaseCallbacks === 0
-                && updateCounters.animatedPropertiesRetainReleaseCallbacks === 0
-            }`);
+            println(`${label} stayed callback-free: ${updateCounters.stringRetainReleaseCallbacks === 0}`);
             return mergeCounters(mutationCounters, updateCounters);
         }
 

@@ -405,7 +405,7 @@ fn style_record_for_winners(engine: &mut StyleEngine, winners: &[PropertyWinner]
                 dependency_flags: 0,
                 counter_style_environment_identity: 0,
                 animation_overlay_identity: 0,
-                animated_properties: std::ptr::null(),
+                animated_overlay: std::ptr::null(),
                 animation_overlay_payloads: &[],
                 longhand_table: std::ptr::null(),
                 reconstruction: ComputedReconstructionMetadataInput {

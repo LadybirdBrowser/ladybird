@@ -27,6 +27,7 @@ use crate::css::computed_longhand_table::ComputedLonghandTable;
 use crate::css::css_pixels::CssPixels;
 use crate::css::display::FfiDisplay;
 use crate::css::property_metadata::longhands_for_shorthand;
+use crate::css::property_metadata::property_id;
 use crate::css::property_metadata::property_is_inherited;
 use crate::css::property_metadata::property_is_shorthand;
 use crate::css::style_value::{GridTrackEntryKind, RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData};
@@ -747,17 +748,135 @@ pub struct FfiFontSizeRecascadeBatch {
 /// ends up with `font-family: monospace` through as many ancestors as Rust can
 /// resolve without another DOM-dependent length context.
 ///
-/// A non-null `length_resolution_context` applies only to `values[start_index]`.
+/// A non-null `length_resolution_context` applies only to the value at
+/// `start_index`.
 /// Building it involves font work, so the caller does so lazily after a batch
 /// reports `NeedsLengthResolution` and resumes at the reported index.
 ///
+fn recascade_font_size_batch(
+    value_count: usize,
+    mut value_at: impl FnMut(usize) -> *const c_void,
+    start_index: usize,
+    current_size_raw: i32,
+    current_depends_on_viewport_metrics: bool,
+    default_size_raw: i32,
+    length_resolution_context: *const FfiLengthResolutionContext,
+) -> FfiFontSizeRecascadeBatch {
+    assert!(start_index <= value_count);
+    let mut current_size = CssPixels::from_raw(current_size_raw);
+    let mut depends_on_viewport_metrics = current_depends_on_viewport_metrics;
+    let default_size = CssPixels::from_raw(default_size_raw);
+    let supplied_length_resolution_context = unsafe { length_resolution_context.as_ref() };
+    let mut skipped_calculated_value = false;
+    let stopped =
+        |status, next_index, current_size: CssPixels, depends_on_viewport_metrics, skipped_calculated_value| {
+            FfiFontSizeRecascadeBatch {
+                status,
+                next_index,
+                current_size_raw: current_size.raw_value(),
+                depends_on_viewport_metrics,
+                skipped_calculated_value,
+            }
+        };
+
+    for index in start_index..value_count {
+        let value = value_at(index);
+        if value.is_null() {
+            continue;
+        }
+        let value = unsafe { &*value.cast::<StyleValueData>() };
+        match value {
+            StyleValueData::Keyword { keyword } => {
+                if *keyword == keyword::INITIAL || *keyword == keyword::UNSET {
+                    current_size = default_size;
+                    depends_on_viewport_metrics = false;
+                    continue;
+                }
+                if *keyword == keyword::INHERIT {
+                    continue;
+                }
+                if let Some(px) = absolute_size_font_mapping(*keyword, default_size) {
+                    current_size = px;
+                    depends_on_viewport_metrics = false;
+                    continue;
+                }
+                if let Some(px) = relative_size_font_mapping(*keyword, current_size) {
+                    current_size = px;
+                    continue;
+                }
+                // FIXME: Resolve `font-size: math`
+                if *keyword == keyword::MATH {
+                    continue;
+                }
+            }
+            StyleValueData::Percentage { value } => {
+                current_size = CssPixels::nearest_value_for(value / 100.0 * current_size.to_double());
+                continue;
+            }
+            StyleValueData::Length { value, unit } => {
+                let Some(length_resolution_context) = (index == start_index)
+                    .then_some(supplied_length_resolution_context)
+                    .flatten()
+                else {
+                    return stopped(
+                        FontSizeRecascadeStatus::NeedsLengthResolution,
+                        index,
+                        current_size,
+                        depends_on_viewport_metrics,
+                        skipped_calculated_value,
+                    );
+                };
+                let result = absolutize_length(*value, *unit as usize, length_resolution_context);
+                if !result.handled {
+                    return stopped(
+                        FontSizeRecascadeStatus::NeedsCppLengthResolution,
+                        index,
+                        current_size,
+                        depends_on_viewport_metrics,
+                        skipped_calculated_value,
+                    );
+                }
+                current_size = CssPixels::nearest_value_for(result.px);
+                depends_on_viewport_metrics = result.resolved_viewport_relative_length;
+                continue;
+            }
+            StyleValueData::Calculated { .. } => {
+                skipped_calculated_value = true;
+                continue;
+            }
+            _ => {}
+        }
+        let status = if index == start_index && supplied_length_resolution_context.is_some() {
+            FontSizeRecascadeStatus::NeedsCppLengthResolution
+        } else {
+            FontSizeRecascadeStatus::NeedsLengthResolution
+        };
+        return stopped(
+            status,
+            index,
+            current_size,
+            depends_on_viewport_metrics,
+            skipped_calculated_value,
+        );
+    }
+    stopped(
+        FontSizeRecascadeStatus::Complete,
+        value_count,
+        current_size,
+        depends_on_viewport_metrics,
+        skipped_calculated_value,
+    )
+}
+
 /// # Safety
-/// `values` must contain `value_count` valid StyleValueData pointers, and
+/// `style_engine` must point at a live StyleEngine, `style_records` must contain
+/// `style_record_count` live or null style record IDs, and
 /// `length_resolution_context` must be null or valid.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_recascade_font_size_batch(
-    values: *const *const c_void,
-    value_count: usize,
+    style_engine: *const c_void,
+    style_records: *const u64,
+    style_record_count: usize,
     start_index: usize,
     current_size_raw: i32,
     current_depends_on_viewport_metrics: bool,
@@ -766,110 +885,28 @@ pub unsafe extern "C" fn rust_recascade_font_size_batch(
 ) -> FfiFontSizeRecascadeBatch {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
-        let values = if value_count == 0 {
+        let style_engine = unsafe { &*style_engine.cast::<crate::css::style::StyleEngine>() };
+        let style_records = if style_record_count == 0 {
             &[]
         } else {
-            unsafe { std::slice::from_raw_parts(values, value_count) }
+            unsafe { std::slice::from_raw_parts(style_records, style_record_count) }
         };
-        assert!(start_index <= values.len());
-        let mut current_size = CssPixels::from_raw(current_size_raw);
-        let mut depends_on_viewport_metrics = current_depends_on_viewport_metrics;
-        let default_size = CssPixels::from_raw(default_size_raw);
-        let supplied_length_resolution_context = unsafe { length_resolution_context.as_ref() };
-        let mut skipped_calculated_value = false;
-        let stopped =
-            |status, next_index, current_size: CssPixels, depends_on_viewport_metrics, skipped_calculated_value| {
-                FfiFontSizeRecascadeBatch {
-                    status,
-                    next_index,
-                    current_size_raw: current_size.raw_value(),
-                    depends_on_viewport_metrics,
-                    skipped_calculated_value,
+        recascade_font_size_batch(
+            style_records.len(),
+            |index| {
+                let style_record = style_records[index];
+                if style_record == 0 {
+                    return std::ptr::null();
                 }
-            };
-
-        for (index, value) in values.iter().enumerate().skip(start_index) {
-            let value = unsafe { &*value.cast::<StyleValueData>() };
-            match value {
-                StyleValueData::Keyword { keyword } => {
-                    if *keyword == keyword::INITIAL || *keyword == keyword::UNSET {
-                        current_size = default_size;
-                        depends_on_viewport_metrics = false;
-                        continue;
-                    }
-                    if *keyword == keyword::INHERIT {
-                        continue;
-                    }
-                    if let Some(px) = absolute_size_font_mapping(*keyword, default_size) {
-                        current_size = px;
-                        depends_on_viewport_metrics = false;
-                        continue;
-                    }
-                    if let Some(px) = relative_size_font_mapping(*keyword, current_size) {
-                        current_size = px;
-                        continue;
-                    }
-                    // FIXME: Resolve `font-size: math`
-                    if *keyword == keyword::MATH {
-                        continue;
-                    }
-                }
-                StyleValueData::Percentage { value } => {
-                    current_size = CssPixels::nearest_value_for(value / 100.0 * current_size.to_double());
-                    continue;
-                }
-                StyleValueData::Length { value, unit } => {
-                    let Some(length_resolution_context) = (index == start_index)
-                        .then_some(supplied_length_resolution_context)
-                        .flatten()
-                    else {
-                        return stopped(
-                            FontSizeRecascadeStatus::NeedsLengthResolution,
-                            index,
-                            current_size,
-                            depends_on_viewport_metrics,
-                            skipped_calculated_value,
-                        );
-                    };
-                    let result = absolutize_length(*value, *unit as usize, length_resolution_context);
-                    if !result.handled {
-                        return stopped(
-                            FontSizeRecascadeStatus::NeedsCppLengthResolution,
-                            index,
-                            current_size,
-                            depends_on_viewport_metrics,
-                            skipped_calculated_value,
-                        );
-                    }
-                    current_size = CssPixels::nearest_value_for(result.px);
-                    depends_on_viewport_metrics = result.resolved_viewport_relative_length;
-                    continue;
-                }
-                StyleValueData::Calculated { .. } => {
-                    skipped_calculated_value = true;
-                    continue;
-                }
-                _ => {}
-            }
-            let status = if index == start_index && supplied_length_resolution_context.is_some() {
-                FontSizeRecascadeStatus::NeedsCppLengthResolution
-            } else {
-                FontSizeRecascadeStatus::NeedsLengthResolution
-            };
-            return stopped(
-                status,
-                index,
-                current_size,
-                depends_on_viewport_metrics,
-                skipped_calculated_value,
-            );
-        }
-        stopped(
-            FontSizeRecascadeStatus::Complete,
-            values.len(),
-            current_size,
-            depends_on_viewport_metrics,
-            skipped_calculated_value,
+                style_engine
+                    .style_record_view(style_record)
+                    .map_or(std::ptr::null(), |view| view.raw_cascaded_font_size)
+            },
+            start_index,
+            current_size_raw,
+            current_depends_on_viewport_metrics,
+            default_size_raw,
+            length_resolution_context,
         )
     })
 }
@@ -2533,14 +2570,11 @@ pub extern "C" fn rust_map_physical_to_logical_alias(property_id: u16, writing_m
     map_physical_to_logical_alias(property_id, writing_mode, direction)
 }
 
-/// One deferred side-effect operation for a longhand result. Rust stores
-/// native results before returning the batch; the entry also carries the selected
-/// value and flags needed for animated inheritance, inheritance-dependence
-/// bookkeeping, and C++ side effects.
+/// One longhand result. Rust stores native values and animated inheritance
+/// before returning the entries that still need C++ stylesheet side effects.
 #[repr(C)]
 pub struct FfiComputedStoreEntry {
     pub property_id: u16,
-    pub inherited_property_id: u16,
     /// The selected specified value; also the stored value when
     /// `computed_kind` is `COMPUTED_KIND_UNCHANGED`.
     pub data: *const c_void,
@@ -2549,7 +2583,6 @@ pub struct FfiComputedStoreEntry {
     /// Whether the selected cascaded facade carried stylesheet context.
     pub has_style_sheet_context: bool,
     pub inheritance_dependent: bool,
-    pub inherited: bool,
     /// An owned replacement style value when `computed_kind` is
     /// `COMPUTED_KIND_STYLE_VALUE`. The Rust table adopts this reference before
     /// returning the batch.
@@ -2592,14 +2625,14 @@ pub struct FfiLonghandStoreBatch {
 #[repr(C)]
 pub struct FfiLonghandDriveInput {
     pub longhand_table: *mut ComputedLonghandTable,
+    pub animated_overlay: *mut AnimatedOverlay,
     pub store: *const CascadedPropertyStore,
     pub environment: *const FfiStyleComputationEnvironment,
     pub computed_group_mask: u32,
     pub computed_property_words: *const u64,
     pub font_length_resolution_context: FfiLengthResolutionContext,
     pub callback_context: *mut c_void,
-    pub prepare_phase_context:
-        unsafe extern "C" fn(*mut c_void, u8, *const FfiComputedStoreEntry, usize, *mut FfiLonghandPhaseContext),
+    pub prepare_phase_context: unsafe extern "C" fn(*mut c_void, u8, *mut FfiLonghandPhaseContext),
 }
 
 #[repr(C)]
@@ -2692,11 +2725,10 @@ pub struct FfiComputePropertiesInput {
         *const crate::css::cascaded_properties::FfiStyleComputationRequirements,
         *mut FfiLonghandDriveInput,
     ),
-    pub finish_longhand_drive: unsafe extern "C" fn(*mut c_void, *const FfiLonghandDriveResult) -> bool,
+    pub finish_longhand_drive: unsafe extern "C" fn(*mut c_void, *const FfiLonghandDriveResult),
     pub process_animation_definitions: unsafe extern "C" fn(*mut c_void),
     pub prepare_animations: unsafe extern "C" fn(*mut c_void) -> bool,
     pub apply_animations: unsafe extern "C" fn(*mut c_void),
-    pub parent_text_align_input_is_animated: unsafe extern "C" fn(*mut c_void) -> bool,
     pub did_restore_post_compute: unsafe extern "C" fn(*mut c_void, u16),
     pub finalize_animated_style: unsafe extern "C" fn(*mut c_void, FfiStyleFinalizationMode),
     pub finish_properties: unsafe extern "C" fn(*mut c_void),
@@ -2733,7 +2765,6 @@ pub struct FfiAnimationKeyframeLonghandInput {
     pub underlying_longhand_table: *const ComputedLonghandTable,
     pub style_engine: *const c_void,
     pub inheritance_parent_style_record: u64,
-    pub inheritance_parent_animated_overlay: *const AnimatedOverlay,
     pub resolved_properties: *const c_void,
     pub property_count: usize,
     pub environment: *const FfiStyleComputationEnvironment,
@@ -2778,7 +2809,6 @@ pub struct FfiStyleComputationEnvironment {
     pub color_scheme_input: FfiEffectiveColorSchemeInput,
     pub is_th_element: bool,
     pub has_new_font_size: bool,
-    pub has_animated_inheritance_parent: bool,
     pub has_tree_counting_context: bool,
     pub sibling_count: u64,
     pub sibling_index: u64,
@@ -2986,7 +3016,8 @@ struct ParentSnapshot<'a> {
     table_values: &'a [*const c_void],
     property_importance: &'a [u8],
     inheritance_dependent_values: &'a [crate::css::style::bridge::FfiInheritanceDependentValue],
-    animated_overlay: Option<&'a AnimatedOverlay>,
+    inherited_value_overlay: Option<&'a AnimatedOverlay>,
+    stored_animated_overlay: Option<&'a AnimatedOverlay>,
     font_metrics_depend_on_viewport_metrics: bool,
 }
 
@@ -2997,7 +3028,9 @@ impl ParentSnapshot<'_> {
         let index = usize::from(property_id - FIRST_LONGHAND_PROPERTY_ID);
         assert!(index < self.table_values.len());
         let is_important = self.property_importance[index / 8] & (1 << (index % 8)) != 0;
-        if let Some(entry) = self.animated_overlay.and_then(|overlay| overlay.get(property_id))
+        if let Some(entry) = self
+            .inherited_value_overlay
+            .and_then(|overlay| overlay.get(property_id))
             && overlay_wins(entry, is_important)
         {
             return Some(entry.value.data());
@@ -3010,6 +3043,18 @@ impl ParentSnapshot<'_> {
             }
         }
         unsafe { self.table_values[index].cast::<StyleValueData>().as_ref() }
+    }
+
+    fn has_animated_property(&self, property_id: u16) -> bool {
+        self.inherited_value_overlay
+            .or(self.stored_animated_overlay)
+            .is_some_and(|overlay| overlay.get(property_id).is_some())
+    }
+
+    fn animated_property(&self, property_id: u16) -> Option<&crate::css::animated_overlay::AnimatedOverlayEntry> {
+        self.inherited_value_overlay
+            .or(self.stored_animated_overlay)
+            .and_then(|overlay| overlay.get(property_id))
     }
 }
 
@@ -3025,9 +3070,19 @@ fn parent_snapshot_for_style_record<'a>(
         table_values: view.longhand_values,
         property_importance: view.property_importance,
         inheritance_dependent_values: view.inheritance_dependent_values,
-        animated_overlay,
+        inherited_value_overlay: animated_overlay,
+        stored_animated_overlay: unsafe { view.animated_overlay.as_ref() },
         font_metrics_depend_on_viewport_metrics: view.dependency_flags & (1 << 1) != 0,
     }
+}
+
+fn keyframe_parent_snapshot_for_style_record(
+    style_engine: &crate::css::style::StyleEngine,
+    style_record: u64,
+) -> ParentSnapshot<'_> {
+    let mut snapshot = parent_snapshot_for_style_record(style_engine, style_record, None);
+    snapshot.inherited_value_overlay = snapshot.stored_animated_overlay;
+    snapshot
 }
 
 /// Results of one longhand drive that remain outside the Rust longhand table.
@@ -3206,10 +3261,6 @@ fn store_computed_value(longhand_table: &mut ComputedLonghandTable, entry: &FfiC
     longhand_table.set(entry.property_id, retained, source_slot);
 }
 
-fn requires_cpp_store_side_effect(entry: &FfiComputedStoreEntry, has_animated_inheritance_parent: bool) -> bool {
-    entry.has_style_sheet_context || entry.inherited && has_animated_inheritance_parent
-}
-
 fn publish_longhand_store_batch(entries: Vec<FfiComputedStoreEntry>) -> FfiLonghandStoreBatch {
     let entries = Box::new(entries);
     let pointer = entries.as_ptr();
@@ -3221,10 +3272,6 @@ fn publish_longhand_store_batch(entries: Vec<FfiComputedStoreEntry>) -> FfiLongh
     }
 }
 
-unsafe fn take_longhand_store_batch(batch: FfiLonghandStoreBatch) -> Vec<FfiComputedStoreEntry> {
-    *unsafe { Box::from_raw(batch.storage.cast::<Vec<FfiComputedStoreEntry>>()) }
-}
-
 /// Drives the property computation loop: iterates every longhand in
 /// computation order, resolves logical pairing, reads the winning cascaded
 /// declarations straight from the store, selects between the cascaded,
@@ -3232,12 +3279,6 @@ unsafe fn take_longhand_store_batch(batch: FfiLonghandStoreBatch) -> Vec<FfiComp
 /// native results and their metadata directly in the computed longhand table.
 /// Other per-element side effects accumulate in `results` for bulk application
 /// after the loop.
-///
-/// Returns one owned batch of ordered C++ side effects after storing the native
-/// results. Every entry's borrowed value stays alive until the returned batch is
-/// destroyed: cascaded data is retained by the store, initial values are
-/// immortal, and parent values are owned by the parent style behind the
-/// snapshot, which outlives the drive.
 ///
 /// # Safety
 /// `longhand_table` must point at the drive's live mutable computed longhand
@@ -3251,6 +3292,7 @@ unsafe fn take_longhand_store_batch(batch: FfiLonghandStoreBatch) -> Vec<FfiComp
 #[allow(clippy::too_many_arguments)]
 unsafe fn drive_property_computation(
     longhand_table: *mut ComputedLonghandTable,
+    animated_overlay: *mut AnimatedOverlay,
     store: *const CascadedPropertyStore,
     snapshot: Option<&ParentSnapshot<'_>>,
     environment: *const FfiStyleComputationEnvironment,
@@ -3263,7 +3305,8 @@ unsafe fn drive_property_computation(
     results: *mut FfiLonghandDriverResults,
     effective_color_scheme: &mut i16,
     coordinate_overflow_keywords: bool,
-) -> FfiLonghandStoreBatch {
+    style_sheet_side_effects: &mut Vec<FfiComputedStoreEntry>,
+) {
     abort_on_panic(|| {
         use crate::css::property_metadata::{
             NUMBER_OF_LONGHAND_PROPERTIES, REQUIRES_COMPUTATION_ALWAYS, REQUIRES_COMPUTATION_CASCADED,
@@ -3312,7 +3355,6 @@ unsafe fn drive_property_computation(
         let mut cached_writing_mode_and_direction: Option<(u8, u8)> = None;
 
         let computation_order = property_computation_order_for_phase(phase);
-        let mut cpp_store_side_effects = Vec::new();
         let mut pending_overflow_x_store: Option<FfiComputedStoreEntry> = None;
         let mut pending_effective_color_scheme: i16 = -1;
         // The element's used color scheme, produced by the preceding color-scheme
@@ -4250,12 +4292,10 @@ unsafe fn drive_property_computation(
                 };
                 FfiComputedStoreEntry {
                     property_id,
-                    inherited_property_id,
                     data: value,
                     source_slot,
                     has_style_sheet_context,
                     inheritance_dependent,
-                    inherited: inherit_fetch_attempted,
                     computed_data,
                     computed_kind,
                     value: computed_value,
@@ -4263,17 +4303,28 @@ unsafe fn drive_property_computation(
             } else {
                 FfiComputedStoreEntry {
                     property_id,
-                    inherited_property_id,
                     data: value,
                     source_slot,
                     has_style_sheet_context,
                     inheritance_dependent,
-                    inherited: inherit_fetch_attempted,
                     computed_data: std::ptr::null(),
                     computed_kind: COMPUTED_KIND_UNCHANGED,
                     value: 0.0,
                 }
             };
+
+            if inherit_fetch_attempted
+                && let Some(animated_property) =
+                    snapshot.and_then(|snapshot| snapshot.animated_property(inherited_property_id))
+                && let Some(animated_overlay) = unsafe { animated_overlay.as_mut() }
+            {
+                animated_overlay.set_owned(
+                    property_id,
+                    animated_property.value.clone(),
+                    true,
+                    animated_property.result_of_transition,
+                );
+            }
 
             if property_id == prop::OVERFLOW_X {
                 if let StyleValueData::Keyword { keyword } = value_data {
@@ -4375,8 +4426,8 @@ unsafe fn drive_property_computation(
             let longhand_table = unsafe { &mut *longhand_table };
             let mut store_and_collect_side_effect = |entry: FfiComputedStoreEntry| {
                 store_computed_value(longhand_table, &entry);
-                if requires_cpp_store_side_effect(&entry, environment.has_animated_inheritance_parent) {
-                    cpp_store_side_effects.push(entry);
+                if entry.has_style_sheet_context {
+                    style_sheet_side_effects.push(entry);
                 }
             };
             if property_id == prop::OVERFLOW_X {
@@ -4407,8 +4458,11 @@ unsafe fn drive_property_computation(
         if pending_effective_color_scheme >= 0 {
             longhand_table.set_effective_color_scheme(pending_effective_color_scheme);
         }
+        if let Some(animated_overlay) = unsafe { animated_overlay.as_mut() } {
+            animated_overlay.refresh_ffi_entries();
+        }
         if phase != LONGHAND_DRIVE_PHASE_REMAINING {
-            return publish_longhand_store_batch(cpp_store_side_effects);
+            return;
         }
         let display_before = computed_display.expect("display must be computed by the longhand driver");
         longhand_table.set_display_before_box_type_transformation(display_before.encoded());
@@ -4483,8 +4537,7 @@ unsafe fn drive_property_computation(
                     &*input_line_height_metrics
                 });
         }
-        publish_longhand_store_batch(cpp_store_side_effects)
-    })
+    });
 }
 
 fn is_required_driver_input(property_id: u16) -> bool {
@@ -4511,10 +4564,12 @@ unsafe fn compute_longhands(
     let mut driver_results = empty_longhand_driver_results();
     let driver_results_pointer = &raw mut driver_results;
     let mut effective_color_scheme = -1;
+    let mut style_sheet_side_effects = Vec::new();
     let mut drive_phase =
         |phase, length_resolution_context, input_line_height_metrics, line_height_before_adjustments| unsafe {
             drive_property_computation(
                 input.longhand_table,
+                input.animated_overlay,
                 input.store,
                 parent_snapshot,
                 input.environment,
@@ -4527,47 +4582,39 @@ unsafe fn compute_longhands(
                 driver_results_pointer,
                 &mut effective_color_scheme,
                 true,
-            )
+                &mut style_sheet_side_effects,
+            );
         };
-    let prepare_phase_context = |phase, batch: FfiLonghandStoreBatch| {
+    let prepare_phase_context = |phase| {
         crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandDriverPhaseCallback);
         let mut context = std::mem::MaybeUninit::<FfiLonghandPhaseContext>::uninit();
         unsafe {
-            (input.prepare_phase_context)(
-                input.callback_context,
-                phase,
-                batch.entries,
-                batch.count,
-                context.as_mut_ptr(),
-            );
-            (context.assume_init(), take_longhand_store_batch(batch))
+            (input.prepare_phase_context)(input.callback_context, phase, context.as_mut_ptr());
+            context.assume_init()
         }
     };
 
-    let font_batch = drive_phase(
+    drive_phase(
         LONGHAND_DRIVE_PHASE_FONT,
         &raw const input.font_length_resolution_context,
         std::ptr::null(),
         std::ptr::null(),
     );
-    let (line_height_context, _) = prepare_phase_context(LONGHAND_PHASE_CONTEXT_AFTER_FONT, font_batch);
-    let line_height_batch = drive_phase(
+    let line_height_context = prepare_phase_context(LONGHAND_PHASE_CONTEXT_AFTER_FONT);
+    drive_phase(
         LONGHAND_DRIVE_PHASE_LINE_HEIGHT,
         &raw const line_height_context.length_resolution_context,
         std::ptr::null(),
         std::ptr::null(),
     );
-    let color_scheme_batch = drive_phase(
+    drive_phase(
         LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
         std::ptr::null(),
         std::ptr::null(),
         std::ptr::null(),
     );
-    let mut intermediate_entries = unsafe { take_longhand_store_batch(line_height_batch) };
-    intermediate_entries.extend(unsafe { take_longhand_store_batch(color_scheme_batch) });
-    let intermediate_batch = publish_longhand_store_batch(intermediate_entries);
-    let (remaining_context, _) = prepare_phase_context(LONGHAND_PHASE_CONTEXT_AFTER_LINE_HEIGHT, intermediate_batch);
-    let store_batch = drive_phase(
+    let remaining_context = prepare_phase_context(LONGHAND_PHASE_CONTEXT_AFTER_LINE_HEIGHT);
+    drive_phase(
         LONGHAND_DRIVE_PHASE_REMAINING,
         &raw const remaining_context.length_resolution_context,
         &raw const remaining_context.input_line_height_metrics,
@@ -4592,7 +4639,7 @@ unsafe fn compute_longhands(
         }
     };
     FfiLonghandDriveResult {
-        store_batch,
+        store_batch: publish_longhand_store_batch(style_sheet_side_effects),
         driver_results,
         custom_properties,
         transitions: FfiComputedTransitionList {
@@ -4905,13 +4952,18 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
         } else {
             None
         };
+        let parent_text_align_input_is_animated = parent_snapshot.as_ref().is_some_and(|snapshot| {
+            snapshot.has_animated_property(property_id::TEXT_ALIGN)
+                || snapshot.has_animated_property(property_id::DIRECTION)
+        });
         let mut result = unsafe { compute_longhands(&drive_input, parent_snapshot.as_ref()) };
         if !input.stop_after_longhand_drive {
             result.transitions = build_computed_transition_list(unsafe { &*drive_input.longhand_table });
             result.animations = build_computed_animation_list(unsafe { &*drive_input.longhand_table });
         }
         let mut animation_values_applied =
-            unsafe { (input.finish_longhand_drive)(input.callback_context, &raw const result) };
+            unsafe { drive_input.animated_overlay.as_ref() }.is_some_and(|overlay| !overlay.is_empty());
+        unsafe { (input.finish_longhand_drive)(input.callback_context, &raw const result) };
         unsafe { destroy_style_computation_result(&result) };
         unsafe { crate::css::cascaded_properties::destroy_style_computation_requirements(requirements.storage) };
         if input.stop_after_longhand_drive {
@@ -4930,8 +4982,6 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
             animation_values_applied = true;
         }
 
-        let parent_text_align_input_is_animated =
-            unsafe { (input.parent_text_align_input_is_animated)(input.callback_context) };
         if parent_text_align_input_is_animated && !animation_values_applied {
             let invalidated = unsafe { restore_post_compute_values(&mut *drive_input.longhand_table, true) };
             unsafe { (input.did_restore_post_compute)(input.callback_context, invalidated) };
@@ -4988,7 +5038,6 @@ pub unsafe extern "C" fn rust_compute_document_longhands(
             color_scheme_input: input.color_scheme_input,
             is_th_element: false,
             has_new_font_size: false,
-            has_animated_inheritance_parent: false,
             has_tree_counting_context: false,
             sibling_count: 0,
             sibling_index: 0,
@@ -5004,6 +5053,7 @@ pub unsafe extern "C" fn rust_compute_document_longhands(
         };
         let mut results = empty_longhand_driver_results();
         let mut effective_color_scheme = -1;
+        let mut style_sheet_side_effects = Vec::new();
         for phase in [
             LONGHAND_DRIVE_PHASE_FONT,
             LONGHAND_DRIVE_PHASE_LINE_HEIGHT,
@@ -5015,9 +5065,10 @@ pub unsafe extern "C" fn rust_compute_document_longhands(
             } else {
                 &raw const input.length_resolution_context
             };
-            let batch = unsafe {
+            unsafe {
                 drive_property_computation(
                     longhand_table,
+                    std::ptr::null_mut(),
                     &raw const store,
                     None,
                     &raw const environment,
@@ -5030,11 +5081,14 @@ pub unsafe extern "C" fn rust_compute_document_longhands(
                     &raw mut results,
                     &mut effective_color_scheme,
                     true,
-                )
-            };
-            assert_eq!(batch.count, 0, "document initialization has no C++ store side effects");
-            unsafe { destroy_longhand_store_batch(batch.storage) };
+                    &mut style_sheet_side_effects,
+                );
+            }
         }
+        assert!(
+            style_sheet_side_effects.is_empty(),
+            "document initialization has no stylesheet side effects"
+        );
         FfiDocumentLonghandResult {
             depends_on_viewport_metrics: results.depends_on_viewport_metrics,
             font_metrics_depend_on_viewport_metrics: results.font_metrics_depend_on_viewport_metrics,
@@ -5093,10 +5147,9 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
             None
         } else {
             let style_engine = unsafe { &*input.style_engine.cast::<crate::css::style::StyleEngine>() };
-            Some(parent_snapshot_for_style_record(
+            Some(keyframe_parent_snapshot_for_style_record(
                 style_engine,
                 input.inheritance_parent_style_record,
-                unsafe { input.inheritance_parent_animated_overlay.as_ref() },
             ))
         };
         let mut longhands_by_keyframe = std::collections::BTreeMap::<usize, Vec<usize>>::new();
@@ -5196,6 +5249,7 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
 
             let mut results = empty_longhand_driver_results();
             let mut effective_color_scheme = -1;
+            let mut style_sheet_side_effects = Vec::new();
             for phase in [
                 LONGHAND_DRIVE_PHASE_FONT,
                 LONGHAND_DRIVE_PHASE_LINE_HEIGHT,
@@ -5209,9 +5263,10 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
                     LONGHAND_DRIVE_PHASE_REMAINING => input.remaining_length_resolution_context,
                     _ => unreachable!(),
                 };
-                let batch = unsafe {
+                unsafe {
                     drive_property_computation(
                         &raw mut table,
+                        std::ptr::null_mut(),
                         &raw const store,
                         parent_snapshot.as_ref(),
                         &raw const environment,
@@ -5224,9 +5279,9 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
                         &raw mut results,
                         &mut effective_color_scheme,
                         false,
-                    )
-                };
-                unsafe { destroy_longhand_store_batch(batch.storage) };
+                        &mut style_sheet_side_effects,
+                    );
+                }
             }
             depends_on_viewport_metrics |= results.depends_on_viewport_metrics;
             font_metrics_depend_on_viewport_metrics |= results.font_metrics_depend_on_viewport_metrics;
@@ -5308,12 +5363,10 @@ fn apply_post_compute_adjustments(
     };
     let adjusted_entry = |property_id, computed_kind, value| FfiComputedStoreEntry {
         property_id,
-        inherited_property_id: property_id,
         data: initial_value_data(property_id).cast(),
         source_slot: -1,
         has_style_sheet_context: false,
         inheritance_dependent: false,
-        inherited: false,
         computed_data: std::ptr::null(),
         computed_kind,
         value,
@@ -6347,8 +6400,6 @@ mod ffi_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]
-    extern "C" fn ladybird_animated_properties_unref(_values: *const std::ffi::c_void) {}
-    #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_font_cascade_list_unref(_raw: *const std::ffi::c_void) {}
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_font_unref(_raw: *const std::ffi::c_void) {}
@@ -6624,41 +6675,38 @@ mod tests {
             unit: unit_code("em") as u8,
         };
         let final_percentage = StyleValueData::Percentage { value: 50.0 };
-        let values: [*const std::ffi::c_void; 3] = [
+        let values: [*const std::ffi::c_void; 4] = [
+            std::ptr::null(),
             (&percentage as *const StyleValueData).cast(),
             (&em as *const StyleValueData).cast(),
             (&final_percentage as *const StyleValueData).cast(),
         ];
         let default_size = CssPixels::from_integer(13);
 
-        let first_batch = unsafe {
-            rust_recascade_font_size_batch(
-                values.as_ptr(),
-                values.len(),
-                0,
-                default_size.raw_value(),
-                false,
-                default_size.raw_value(),
-                std::ptr::null(),
-            )
-        };
+        let first_batch = recascade_font_size_batch(
+            values.len(),
+            |index| values[index],
+            0,
+            default_size.raw_value(),
+            false,
+            default_size.raw_value(),
+            std::ptr::null(),
+        );
         assert!(first_batch.status == FontSizeRecascadeStatus::NeedsLengthResolution);
-        assert_eq!(first_batch.next_index, 1);
+        assert_eq!(first_batch.next_index, 2);
         assert_eq!(first_batch.current_size_raw, CssPixels::from_integer(26).raw_value());
 
         let mut context = test_context();
         context.font_metrics.font_size = 26.0;
-        let resumed_batch = unsafe {
-            rust_recascade_font_size_batch(
-                values.as_ptr(),
-                values.len(),
-                first_batch.next_index,
-                first_batch.current_size_raw,
-                first_batch.depends_on_viewport_metrics,
-                default_size.raw_value(),
-                &context,
-            )
-        };
+        let resumed_batch = recascade_font_size_batch(
+            values.len(),
+            |index| values[index],
+            first_batch.next_index,
+            first_batch.current_size_raw,
+            first_batch.depends_on_viewport_metrics,
+            default_size.raw_value(),
+            &context,
+        );
         assert!(resumed_batch.status == FontSizeRecascadeStatus::Complete);
         assert_eq!(resumed_batch.next_index, values.len());
         assert_eq!(resumed_batch.current_size_raw, CssPixels::from_integer(26).raw_value());

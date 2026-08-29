@@ -252,6 +252,7 @@ class AnimatedProperties final : public RefCounted<AnimatedProperties> {
 public:
     AnimatedProperties();
     AnimatedProperties(AnimatedProperties const&);
+    explicit AnimatedProperties(ComputedValuesFFI::AnimatedOverlay const*);
     ~AnimatedProperties();
 
     u64 identity() const { return m_identity; }

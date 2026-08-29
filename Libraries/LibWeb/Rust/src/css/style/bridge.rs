@@ -304,7 +304,7 @@ pub struct FfiStyleRecordView {
     /// The base record's borrowed table, matching `WithAnimationsApplied::No`.
     pub longhand_table: *const c_void,
     pub raw_cascaded_font_size: *const c_void,
-    pub animated_properties: *const c_void,
+    pub animated_overlay: *const c_void,
     pub payload_count: usize,
     pub property_importance_count: usize,
     pub property_inheritance_count: usize,
@@ -343,7 +343,7 @@ impl FfiStyleRecordView {
             inheritance_dependent_values: std::ptr::null(),
             longhand_table: std::ptr::null(),
             raw_cascaded_font_size: std::ptr::null(),
-            animated_properties: std::ptr::null(),
+            animated_overlay: std::ptr::null(),
             payload_count: 0,
             property_importance_count: 0,
             property_inheritance_count: 0,
@@ -1001,10 +1001,6 @@ pub extern "C" fn style_engine_verification_gate_bits() -> u8 {
     super::verification_gate_bits()
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn style_engine_recording_pointer_will_die(pointer: *const c_void) {
-    super::record_replay::invalidate_pointer(pointer as usize);
-}
 /// # Safety
 /// `engine` must be a pointer returned by `style_engine_create` and not yet destroyed.
 #[unsafe(no_mangle)]
@@ -2190,8 +2186,8 @@ pub unsafe fn replay_memory_pressure_snapshot(engine: *const c_void) -> FfiMemor
 ///
 /// # Safety
 /// `engine` must be live. Every non-empty array must have its reported number of readable entries.
-/// Group payloads and style values must remain live for this call. `animated_properties` must be
-/// null or transfer one leaked C++ reference. `longhand_table` must be null for an anonymous
+/// Group payloads and style values must remain live for this call. `animated_overlay` must be
+/// null or point at a live Rust animation overlay. `longhand_table` must be null for an anonymous
 /// layout style or point to a live, frozen `ComputedLonghandTable`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_publish_computed_groups(
@@ -2205,7 +2201,7 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
     inherited_group_swap_candidate: bool,
     counter_style_environment_identity: u64,
     animation_overlay_identity: u64,
-    animated_properties: *const c_void,
+    animated_overlay: *const c_void,
     animation_overlay_payloads: *const *const c_void,
     animation_overlay_payload_count: usize,
     raw_cascaded_font_size: *const c_void,
@@ -2249,7 +2245,7 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
             .flat_map(crate::css::computed_longhand_table::ComputedLonghandTable::inheritance_dependent_values)
             .collect();
         let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        if animation_overlay_identity != 0 && animated_properties.is_null() {
+        if animation_overlay_identity != 0 && animated_overlay.is_null() {
             return FfiStyleRecordDelta::default();
         }
         let metadata_input = super::computed::ComputedMetadataInput {
@@ -2257,7 +2253,7 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
             dependency_flags,
             counter_style_environment_identity,
             animation_overlay_identity,
-            animated_properties,
+            animated_overlay: animated_overlay.cast(),
             animation_overlay_payloads,
             longhand_table: longhand_table.map_or(std::ptr::null(), std::ptr::from_ref),
             reconstruction: super::computed::ComputedReconstructionMetadataInput {
@@ -2315,7 +2311,7 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
             payload.write_u8(dependency_flags);
             payload.write_u64(counter_style_environment_identity);
             payload.write_u64(animation_overlay_identity);
-            payload.write_u64(pointer_token(animated_properties));
+            payload.write_u64(u64::from(!animated_overlay.is_null()));
             payload.write_length(animation_overlay_payloads.len());
             for &pointer in animation_overlay_payloads {
                 payload.write_u64(pointer_token(pointer));
@@ -2496,7 +2492,7 @@ pub unsafe extern "C" fn style_engine_style_record_view(
                 inheritance_dependent_values: view.inheritance_dependent_values.as_ptr(),
                 longhand_table: view.longhand_table.cast(),
                 raw_cascaded_font_size: view.raw_cascaded_font_size,
-                animated_properties: view.animated_properties,
+                animated_overlay: view.animated_overlay.cast(),
                 payload_count: view.payloads.len(),
                 property_importance_count: view.property_importance.len(),
                 property_inheritance_count: view.property_inheritance.len(),
@@ -2562,12 +2558,7 @@ pub unsafe extern "C" fn style_engine_style_record_view(
                     .recording_pointer_token(view.raw_cascaded_font_size as usize)
                     .expect("an enabled recorder must tokenize the pointer"),
             });
-            payload.write_u64(match view.animated_properties.is_null() {
-                true => 0,
-                false => engine
-                    .recording_pointer_token(view.animated_properties as usize)
-                    .expect("an enabled recorder must tokenize the pointer"),
-            });
+            payload.write_u64(u64::from(!view.animated_overlay.is_null()));
             payload.write_u64(view.pseudo_element_styles);
             payload.write_u64(view.counter_style_environment_identity);
             payload.write_u64(view.animation_overlay_identity);
