@@ -7,7 +7,7 @@ shorthand expansion entered Rust: true
 inherited partial restyle stayed callback-free: true
 pseudo-element stayed callback-free: true
 custom properties stayed callback-free: true
-custom-property cascade entered Rust: true
+custom-property cascade used the bulk Rust entry: true
 font and viewport lengths stayed callback-free: true
 animations and transitions stayed callback-free: true
 animation evaluation returned without callbacks: true

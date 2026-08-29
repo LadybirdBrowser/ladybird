@@ -1134,18 +1134,6 @@ pub struct FfiCascadedCustomProperty {
     pub data: *const c_void,
 }
 
-/// The custom-property winners for one cascade. `storage` owns the property
-/// array until `rust_cascaded_custom_properties_destroy` releases it.
-#[repr(C)]
-pub struct FfiCascadedCustomProperties {
-    pub applies: bool,
-    pub properties: *const FfiCascadedCustomProperty,
-    pub count: usize,
-    /// Transfers one strong custom-property store reference to C++.
-    pub rust_store: *const c_void,
-    pub storage: *mut c_void,
-}
-
 /// Main-thread services used while resolving substituted values inside the Rust cascade.
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -1164,6 +1152,9 @@ pub struct FfiCascadeResolutionContext {
     pub custom_function_count: usize,
     pub custom_function_scope_identity: usize,
     pub callback_context: *mut c_void,
+    pub install_custom_properties: Option<
+        unsafe extern "C" fn(*mut c_void, *const FfiCascadedCustomProperty, usize, *mut *const c_void) -> *const c_void,
+    >,
     pub resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> usize>,
     pub evaluate_style_query: Option<unsafe extern "C" fn(*mut c_void, FfiUtf16View) -> u8>,
     pub note_substitution: Option<unsafe extern "C" fn(*mut c_void, *const c_void)>,
@@ -1462,141 +1453,82 @@ fn cascade_application_order(blocks: &[FfiCascadeBlock], author_context_count: u
     application_order
 }
 
-/// Selects the custom-property winners before the longhand cascade so C++ can
-/// install their environment without a callback from Rust.
-///
-/// # Safety
-/// `blocks` must point at `block_count` valid blocks whose custom-property
-/// declaration lists stay live for this call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_cascade_custom_properties(
-    blocks: *const FfiCascadeBlock,
-    block_count: usize,
+fn cascade_custom_properties(
+    blocks: &[FfiCascadeBlock],
     author_context_count: u32,
     pseudo_element: u8,
     parent_store: *const c_void,
-) -> FfiCascadedCustomProperties {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadeCustomPropertyEntry);
-    abort_on_panic(|| {
-        let blocks = if block_count == 0 {
+) -> (bool, Vec<FfiCascadedCustomProperty>, *const c_void) {
+    let applies = pseudo_element == NO_PSEUDO_ELEMENT
+        || crate::css::property_metadata::pseudo_element_supports_property(
+            pseudo_element,
+            crate::css::property_metadata::property_id::CUSTOM,
+        );
+    if !applies || !blocks.iter().any(|block| block.custom_property_declaration_count != 0) {
+        return (applies, Vec::new(), std::ptr::null());
+    }
+
+    let mut property_indices = HashMap::new();
+    let mut properties: Vec<(FfiCascadedCustomProperty, FfiUtf16View)> = Vec::new();
+    for (block_index, important, _) in cascade_application_order(blocks, author_context_count) {
+        let block = &blocks[block_index];
+        let declarations = if block.custom_property_declaration_count == 0 {
             &[]
         } else {
-            unsafe { std::slice::from_raw_parts(blocks, block_count) }
+            unsafe {
+                std::slice::from_raw_parts(
+                    block.custom_property_declarations,
+                    block.custom_property_declaration_count,
+                )
+            }
         };
-        let applies = pseudo_element == NO_PSEUDO_ELEMENT
-            || crate::css::property_metadata::pseudo_element_supports_property(
-                pseudo_element,
-                crate::css::property_metadata::property_id::CUSTOM,
-            );
-        if !applies || !blocks.iter().any(|block| block.custom_property_declaration_count != 0) {
-            return FfiCascadedCustomProperties {
-                applies,
-                properties: std::ptr::null(),
-                count: 0,
-                rust_store: std::ptr::null(),
-                storage: std::ptr::null_mut(),
+        for declaration in declarations {
+            if declaration.important != important || declaration.is_revert_layer {
+                continue;
+            }
+            let property = FfiCascadedCustomProperty {
+                name_raw: declaration.name_raw,
+                important,
+                data: declaration.data,
             };
-        }
-
-        let mut property_indices = HashMap::new();
-        let mut properties: Vec<(FfiCascadedCustomProperty, FfiUtf16View)> = Vec::new();
-        for (block_index, important, _) in cascade_application_order(blocks, author_context_count) {
-            let block = &blocks[block_index];
-            let declarations = if block.custom_property_declaration_count == 0 {
-                &[]
+            if let Some(index) = property_indices.get(&declaration.name_raw) {
+                properties[*index] = (property, declaration.name);
             } else {
-                unsafe {
-                    std::slice::from_raw_parts(
-                        block.custom_property_declarations,
-                        block.custom_property_declaration_count,
-                    )
-                }
-            };
-            for declaration in declarations {
-                if declaration.important != important || declaration.is_revert_layer {
-                    continue;
-                }
-                let property = FfiCascadedCustomProperty {
-                    name_raw: declaration.name_raw,
-                    important,
-                    data: declaration.data,
-                };
-                if let Some(index) = property_indices.get(&declaration.name_raw) {
-                    properties[*index] = (property, declaration.name);
-                } else {
-                    property_indices.insert(declaration.name_raw, properties.len());
-                    properties.push((property, declaration.name));
-                }
+                property_indices.insert(declaration.name_raw, properties.len());
+                properties.push((property, declaration.name));
             }
         }
-
-        let parent = if parent_store.is_null() {
-            None
-        } else {
-            Some(unsafe { &*parent_store.cast::<CustomPropertyStore>() })
-        };
-        let mut store_values = Vec::with_capacity(properties.len());
-        let properties: Vec<FfiCascadedCustomProperty> = properties
-            .into_iter()
-            .map(|(property, name)| {
-                if !parent.is_some_and(|parent| parent.value_is_identical(property.name_raw, property.data)) {
-                    store_values.push((
-                        property.name_raw,
-                        unsafe { name.to_utf16() }.expect("invalid custom property name"),
-                        property.important,
-                        property.data,
-                    ));
-                }
-                property
-            })
-            .collect();
-        let properties = properties.into_boxed_slice();
-        let count = properties.len();
-        if count == 0 {
-            return FfiCascadedCustomProperties {
-                applies,
-                properties: std::ptr::null(),
-                count,
-                rust_store: std::ptr::null(),
-                storage: std::ptr::null_mut(),
-            };
-        }
-        let rust_store = if store_values.is_empty() {
-            std::ptr::null()
-        } else {
-            unsafe { CustomPropertyStore::cascaded_child(parent_store, store_values) }
-        };
-        let storage = Box::into_raw(properties);
-        FfiCascadedCustomProperties {
-            applies,
-            properties: storage.cast::<FfiCascadedCustomProperty>(),
-            count,
-            rust_store,
-            storage: storage.cast(),
-        }
-    })
-}
-
-/// # Safety
-/// `storage` and `count` must come from `rust_cascade_custom_properties` and must not already have
-/// been released. `unadopted_store` must be null or the store reference from the same result.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_cascaded_custom_properties_destroy(
-    storage: *mut c_void,
-    count: usize,
-    unadopted_store: *const c_void,
-) {
-    if !storage.is_null() {
-        drop(unsafe {
-            Box::from_raw(std::ptr::slice_from_raw_parts_mut(
-                storage.cast::<FfiCascadedCustomProperty>(),
-                count,
-            ))
-        });
     }
-    if !unadopted_store.is_null() {
-        drop(unsafe { std::sync::Arc::from_raw(unadopted_store.cast::<CustomPropertyStore>()) });
+
+    let parent = if parent_store.is_null() {
+        None
+    } else {
+        Some(unsafe { &*parent_store.cast::<CustomPropertyStore>() })
+    };
+    let mut store_values = Vec::with_capacity(properties.len());
+    let properties: Vec<FfiCascadedCustomProperty> = properties
+        .into_iter()
+        .map(|(property, name)| {
+            if !parent.is_some_and(|parent| parent.value_is_identical(property.name_raw, property.data)) {
+                store_values.push((
+                    property.name_raw,
+                    unsafe { name.to_utf16() }.expect("invalid custom property name"),
+                    property.important,
+                    property.data,
+                ));
+            }
+            property
+        })
+        .collect();
+    if properties.is_empty() {
+        return (applies, properties, std::ptr::null());
     }
+    let rust_store = if store_values.is_empty() {
+        std::ptr::null()
+    } else {
+        unsafe { CustomPropertyStore::cascaded_child(parent_store, store_values) }
+    };
+    (applies, properties, rust_store)
 }
 
 #[allow(clippy::arc_with_non_send_sync)]
@@ -1940,9 +1872,8 @@ pub unsafe extern "C" fn rust_resolve_unresolved_style_values(
 /// `store` must be a valid store, `blocks` must point at `block_count` valid
 /// blocks whose declaration lists stay live for the call and whose nonzero
 /// layer names each transfer one leaked fly-string reference,
-/// and a non-null `resolution_context` must point at live parser and callback
-/// state for the duration of this call. `resolution_context` may only be null
-/// when none of the declarations contain an unresolved value.
+/// and `resolution_context` must point at live parser and callback state for
+/// the duration of this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_cascade_matched_blocks(
     store: *mut CascadedPropertyStore,
@@ -1961,16 +1892,33 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
         } else {
             unsafe { std::slice::from_raw_parts(blocks, block_count) }
         };
-        let resolution_context = unsafe { resolution_context.as_ref() };
-        let mut resolution_environment = resolution_context.and_then(|resolution_context| unsafe {
-            crate::css::custom_properties::prepare_var_resolution_environment(
-                resolution_context.attributes,
-                resolution_context.attribute_count,
-                resolution_context.custom_functions,
-                resolution_context.custom_function_count,
-                resolution_context.custom_function_scope_identity,
-            )
-        });
+        let resolution_context = unsafe { &*resolution_context };
+
+        let (custom_properties_apply, custom_properties, mut unadopted_custom_property_store) =
+            cascade_custom_properties(
+                blocks,
+                author_context_count,
+                pseudo_element,
+                resolution_context.custom_property_store,
+            );
+        let mut resolution_context = *resolution_context;
+        if custom_properties_apply {
+            resolution_context.custom_property_store = unsafe {
+                (resolution_context
+                    .install_custom_properties
+                    .expect("missing custom property installer"))(
+                    resolution_context.callback_context,
+                    custom_properties.as_ptr(),
+                    custom_properties.len(),
+                    &raw mut unadopted_custom_property_store,
+                )
+            };
+        }
+        if !unadopted_custom_property_store.is_null() {
+            drop(unsafe { std::sync::Arc::from_raw(unadopted_custom_property_store.cast::<CustomPropertyStore>()) });
+        }
+
+        let mut resolution_environment = None;
 
         let application_order = cascade_application_order(blocks, author_context_count);
         let has_pseudo_element = pseudo_element != NO_PSEUDO_ELEMENT;
@@ -2011,8 +1959,17 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                 unset_data,
                 &is_property_disallowed,
                 &mut |style_engine_rule_id, property_id, unresolved_data, has_style_sheet_context| {
+                    let resolution_environment = resolution_environment.get_or_insert_with(|| unsafe {
+                        crate::css::custom_properties::prepare_var_resolution_environment(
+                            resolution_context.attributes,
+                            resolution_context.attribute_count,
+                            resolution_context.custom_functions,
+                            resolution_context.custom_function_count,
+                            resolution_context.custom_function_scope_identity,
+                        )
+                    });
                     resolve_cascade_value(
-                        resolution_context.expect("unresolved declarations require a resolution context"),
+                        &resolution_context,
                         resolution_environment.as_mut(),
                         style_engine_rule_id,
                         property_id,

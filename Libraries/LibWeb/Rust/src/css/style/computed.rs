@@ -147,23 +147,6 @@ struct ComputedReconstructionMetadata {
     raw_cascaded_font_size: Option<RetainedStyleValueData>,
 }
 
-impl ComputedReconstructionMetadata {
-    fn inheritance_dependent_value_view(&self) -> &[super::bridge::FfiInheritanceDependentValue] {
-        const {
-            assert!(size_of::<InheritanceDependentValue>() == size_of::<super::bridge::FfiInheritanceDependentValue>());
-            assert!(
-                align_of::<InheritanceDependentValue>() == align_of::<super::bridge::FfiInheritanceDependentValue>()
-            );
-        }
-        unsafe {
-            std::slice::from_raw_parts(
-                self.inheritance_dependent_values.as_ptr().cast(),
-                self.inheritance_dependent_values.len(),
-            )
-        }
-    }
-}
-
 /// The interned form of one drive's computed longhand table. Provenance in
 /// the source-slot sidecar is per-drive and does not participate in identity.
 struct RetainedLonghandTable {
@@ -195,7 +178,7 @@ pub(crate) struct StyleRecordView<'a> {
     pub base_payloads: &'a [*const c_void],
     pub property_importance: &'a [u8],
     pub property_inheritance: &'a [u8],
-    pub inheritance_dependent_values: &'a [super::bridge::FfiInheritanceDependentValue],
+    pub inheritance_dependent_values: &'a [InheritanceDependentValue],
     /// Always the base record's table: animation overlays store no table entries.
     pub longhand_table: *const ComputedLonghandTable,
     pub longhand_values: &'a [*const c_void],
@@ -205,6 +188,23 @@ pub(crate) struct StyleRecordView<'a> {
     pub counter_style_environment_identity: u64,
     pub animation_overlay_identity: u64,
     pub dependency_flags: u8,
+}
+
+impl StyleRecordView<'_> {
+    pub(crate) fn longhand_table_for_partial_drive(&self) -> ComputedLonghandTable {
+        let source = unsafe {
+            self.longhand_table
+                .as_ref()
+                .expect("a retained style record must carry a longhand table")
+        };
+        let mut table = ComputedLonghandTable::copied_for_drive(source);
+        table.load_flag_bitmaps(self.property_importance, self.property_inheritance);
+        for entry in self.inheritance_dependent_values {
+            table.add_inheritance_dependent_value(entry.property, entry.value.clone_retained());
+        }
+        table.set_in_display_none_subtree(false);
+        table
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -2645,7 +2645,7 @@ impl ComputedGroupSets {
             base_payloads,
             property_importance: &reconstruction_metadata.property_importance,
             property_inheritance: &reconstruction_metadata.property_inheritance,
-            inheritance_dependent_values: reconstruction_metadata.inheritance_dependent_value_view(),
+            inheritance_dependent_values: &reconstruction_metadata.inheritance_dependent_values,
             longhand_table,
             longhand_values,
             raw_cascaded_font_size: reconstruction_metadata
