@@ -5213,12 +5213,12 @@ bool LocalNavigable::force_dark_applies_to_active_document() const
 
 bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_config)
 {
-    // force-dark belongs to the navigable, not any one paint. Stamping it here means no call sites where PaintConfig is
-    // built can leave it behind. It stays part of the config so toggling it compares unequal below, and the cached
-    // display list is rebuilt.
+    // Per-navigable state is stamped here rather than where PaintConfig is built, so no call site (the headless
+    // screenshot path above all) can leave it behind; kept in the config so a change compares unequal below.
     paint_config.force_dark_enabled = force_dark_applies_to_active_document();
     paint_config.force_dark_foreground_threshold = m_force_dark_foreground_threshold;
     paint_config.force_dark_background_threshold = m_force_dark_background_threshold;
+    paint_config.should_show_line_box_borders = m_should_show_line_box_borders;
 
     if (!has_compositor_context())
         return false;
@@ -5318,7 +5318,7 @@ void LocalNavigable::paint_next_frame()
     }
 
     auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
-    PaintConfig paint_config { .paint_overlay = true, .should_show_line_box_borders = m_should_show_line_box_borders, .should_show_caret_hit_test_debug_overlay = m_should_show_caret_hit_test_debug_overlay };
+    PaintConfig paint_config { .paint_overlay = true, .should_show_caret_hit_test_debug_overlay = m_should_show_caret_hit_test_debug_overlay };
     if (is_top_level_traversable()) {
         paint_config.canvas_fill_rect = Gfx::IntRect { {}, viewport_rect.size() };
     } else {

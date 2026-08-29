@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    body { margin: 0; background: #181818; color: #e8e8e8; }
+</style>
+<div>chrome stays chrome</div>
+<script>
+    // Same page and same overlay, with force-dark off. The harness resets both flags after every test, but the
+    // navigable is shared with the test page, so force-dark is turned off explicitly rather than assumed off.
+    if (window.internals) {
+        internals.setShowLineBoxBorders(true);
+        internals.setForceDarkEnabled(false);
+    }
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

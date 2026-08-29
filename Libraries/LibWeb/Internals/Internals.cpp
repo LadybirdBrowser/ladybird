@@ -249,6 +249,13 @@ void Internals::set_force_dark_enabled(bool enabled)
         navigable->set_force_dark_enabled(enabled);
 }
 
+void Internals::set_show_line_box_borders(bool enabled)
+{
+    auto& document = window().associated_document();
+    if (auto navigable = document.navigable())
+        navigable->set_should_show_line_box_borders(enabled);
+}
+
 void Internals::set_force_dark_thresholds(i32 foreground, i32 background)
 {
     auto& document = window().associated_document();

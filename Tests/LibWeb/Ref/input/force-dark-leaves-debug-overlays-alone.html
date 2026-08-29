@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/force-dark-leaves-debug-overlays-alone-ref.html">
+<style>
+    body { margin: 0; background: #181818; color: #e8e8e8; }
+</style>
+<div>chrome stays chrome</div>
+<script>
+    // The page's colors are fixed points of the filter, so only the line-box debug rects can differ from the
+    // reference. Their green is one luma below the foreground threshold: lose the exemption, and the rects invert.
+    if (window.internals) {
+        internals.setShowLineBoxBorders(true);
+        internals.setForceDarkEnabled(true);
+    }
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>
