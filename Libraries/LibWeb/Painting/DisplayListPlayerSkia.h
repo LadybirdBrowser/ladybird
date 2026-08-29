@@ -14,9 +14,16 @@
 #include <LibWeb/Painting/DisplayListCommand.h>
 
 class GrDirectContext;
+class SkColorFilter;
 class SkPaint;
+template<typename T>
+class sk_sp;
 
 namespace Web::Painting {
+
+// The color filter force-dark runs classified images through: the same Oklab lightness inversion the solid colors
+// take — as a Skia runtime effect. Exposed so a benchmark can time the shipped effect, rather than a copy of it.
+WEB_API sk_sp<SkColorFilter> force_dark_image_color_filter();
 
 class WEB_API DisplayListPlayerSkia final : public DisplayListPlayer {
 public:
