@@ -298,7 +298,7 @@ Optional<SVGPatternElement::PaintGeometry> SVGPatternElement::resolve_paint_geom
                                   .translate(-tile_rect.location())
                                   .multiply(content_to_tile_transform);
     }
-    Painting::TransformData tile_content_transform { recorded_to_surface.to_matrix(), {} };
+    auto tile_content_transform = recorded_to_surface.to_matrix();
 
     Optional<Gfx::AffineTransform> user_space_pattern_transform;
     auto style = computed_style();

@@ -1299,7 +1299,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 [&](SVG::SVGGraphicsElement::PatternPaintServer const& pattern) {
                     style.kind = Layout::RustFFI::FfiSvgPaintStyleKind::Pattern;
                     style.pattern_paintable = committed_row_slot(*pattern.pattern_layout_node);
-                    style.tile_content_transform = pattern.tile_content_transform.matrix;
+                    style.tile_content_transform = pattern.tile_content_transform;
                     style.tile_rect = pattern.tile_rect;
                     style.content_scale = pattern.content_scale;
                     style.pattern_transform = pattern.device_pattern_transform;
