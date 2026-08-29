@@ -117,6 +117,7 @@ public:
     void set_animated_property(Badge<StyleComputer>, PropertyID, NonnullRefPtr<StyleValue const> value, AnimatedPropertyResultOfTransition, Inherited = Inherited::No);
     ComputedValuesFFI::AnimatedOverlay* prepare_animated_overlay_for_rust_mutation(Badge<StyleComputer>);
     ComputedValuesFFI::AnimatedOverlay* prepare_animated_overlay_for_rust_finalization(Badge<StyleComputer>, CreateAnimatedOverlay);
+    ComputedValuesFFI::AnimatedOverlay const* animated_overlay(Badge<StyleComputer>) const;
     void finish_animated_overlay_rust_mutation(Badge<StyleComputer>);
     void did_apply_style_finalization_from_rust(u16 invalidated_longhands);
     void clear_animated_properties(Badge<StyleComputer>);

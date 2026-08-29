@@ -24,6 +24,13 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/StyleEngineRustFFI.h>
 
+namespace Web::CSS::StyleValueFFI {
+
+struct FfiTransitionAction;
+struct FfiTransitionInput;
+
+}
+
 namespace Web::CSS {
 
 class StyleComputer;
@@ -102,6 +109,7 @@ public:
     [[nodiscard]] void const* style_record_payloads(StyleRecordID style_record) const;
     [[nodiscard]] StyleRecordState style_record_state(StyleRecordID style_record) const;
     [[nodiscard]] StyleRecordView style_record_view(StyleRecordID style_record) const;
+    void decide_transitions(StyleRecordID before_style_record, void const* after_longhand_table, void const* after_animated_overlay, StyleValueFFI::FfiTransitionInput&, StyleValueFFI::FfiTransitionAction*) const;
     // Remove the retained input identities for one pseudo-element kind and return its removal.
     [[nodiscard]] StyleRecordDelta remove_computed_pseudo(StyleNodeID node, u8 pseudo_kind);
     // The `@namespace` declarations in scope for a rule's selectors. A prefix means whatever its
