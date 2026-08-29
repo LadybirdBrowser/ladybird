@@ -1849,6 +1849,7 @@ impl BlockFormattingContext {
                     } else {
                         None
                     },
+                    block_parent_resolved_content_inline_size: probe.content_inline_size,
                     table_box_content_block_offset_in_wrapper: is_table_formatting_context
                         .then_some(content_block_offset),
                     float_avoidance_inline_size,
@@ -2393,10 +2394,13 @@ impl BlockFormattingContext {
         )
     }
 
-    // Run-prelude inline sizing for a block-level root: reproduces the
-    // parent's winning float-avoidance probe candidate from the directive
-    // carried by the input, and commits it.
+    // Run-prelude inline sizing for a block-level root: commits the result of the parent's winning
+    // float-avoidance probe, or reproduces that probe when it did not resolve an inline size.
     pub(crate) fn commit_block_level_root_inline_size(&self, node: Node, input: &LayoutInput) {
+        if let Some(content_inline_size) = input.sizing.block_parent_resolved_content_inline_size {
+            self.used(node).set_content_inline_size(content_inline_size);
+            return;
+        }
         if let Some(content_inline_size) = self.resolve_root_inline_metrics_and_content_size(
             node,
             input.available_space,
