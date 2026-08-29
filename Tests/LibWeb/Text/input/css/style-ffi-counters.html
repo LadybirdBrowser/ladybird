@@ -92,7 +92,10 @@
             `;
             document.body.appendChild(variables);
         });
-        println(`custom-property cascade entered Rust: ${customPropertyCounters.cascadeCustomPropertyEntries > 0}`);
+        println(`custom-property cascade used the bulk Rust entry: ${
+            customPropertyCounters.cascadeBulkEntries > 0
+            && !("cascadeCustomPropertyEntries" in customPropertyCounters)
+        }`);
 
         const relativeLengths = document.createElement("div");
         measureUpdate("font and viewport lengths", () => {

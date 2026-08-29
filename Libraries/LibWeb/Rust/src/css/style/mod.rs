@@ -59,6 +59,7 @@ mod catalog;
 mod column;
 pub mod compiler;
 mod computed;
+pub(crate) use computed::InheritanceDependentValue;
 #[cfg(test)]
 mod differential_tests;
 pub mod exact_matcher;

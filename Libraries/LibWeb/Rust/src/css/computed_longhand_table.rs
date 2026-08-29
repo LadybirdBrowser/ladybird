@@ -125,7 +125,7 @@ pub struct FfiComputedStyleMetadata {
 }
 
 impl ComputedLonghandTable {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             slots: std::array::from_fn(|_| None),
             value_view: [std::ptr::null(); LONGHAND_COUNT],
@@ -239,6 +239,14 @@ impl ComputedLonghandTable {
 
     pub(crate) fn set_display_before_box_type_transformation(&mut self, display: u32) {
         self.metadata.display_before_box_type_transformation = display;
+    }
+
+    pub(crate) fn set_in_display_none_subtree(&mut self, in_display_none_subtree: bool) {
+        self.metadata.in_display_none_subtree = in_display_none_subtree;
+    }
+
+    pub(crate) fn display_before_box_type_transformation(&self) -> u32 {
+        self.metadata.display_before_box_type_transformation
     }
 
     pub(crate) fn inheritance_dependent_values(&self) -> impl Iterator<Item = (u16, *const c_void)> + '_ {
@@ -599,7 +607,7 @@ impl ComputedLonghandTable {
         restored
     }
 
-    fn freeze(&mut self) {
+    pub(crate) fn freeze(&mut self) {
         self.post_compute_restore_values = None;
         self.frozen = true;
     }

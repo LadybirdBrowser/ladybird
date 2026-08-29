@@ -39,7 +39,6 @@ macro_rules! define_ffi_ops {
 define_ffi_ops! {
     // Entries: C++ -> Rust.
     CascadeBulkEntry => "cascadeBulkEntries",
-    CascadeCustomPropertyEntry => "cascadeCustomPropertyEntries",
     CascadedStoreQueryEntry => "cascadedStoreQueryEntries",
     CustomPropertyStoreLifecycleEntry => "customPropertyStoreLifecycleEntries",
     CustomPropertyStoreQueryEntry => "customPropertyStoreQueryEntries",

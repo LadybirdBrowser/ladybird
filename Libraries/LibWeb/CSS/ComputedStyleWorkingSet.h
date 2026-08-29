@@ -69,6 +69,7 @@ public:
     };
 
     static NonnullRefPtr<ComputedStyleWorkingSet> create();
+    static NonnullRefPtr<ComputedStyleWorkingSet> create_with_longhand_table(ComputedValuesFFI::ComputedLonghandTable*, void const* raw_cascaded_font_size);
     static NonnullRefPtr<ComputedStyleWorkingSet> create_with_base_values_from(ComputedStyleWorkingSet const&);
     static NonnullRefPtr<ComputedStyleWorkingSet> create_with_base_values_from(ComputedValues const&);
     ~ComputedStyleWorkingSet();
@@ -87,21 +88,15 @@ public:
     void set_depends_on_viewport_metrics();
     void set_font_metrics_depend_on_viewport_metrics();
     void set_in_display_none_subtree();
-    void clear_in_display_none_subtree();
 
     void set_property(PropertyID, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No, Important = Important::No);
     // The wrapper-carrying store funnel: dual-writes the Rust table and the wrapper cache.
     // `style_sheet_source_slot` is the winning declaration's cascade source slot when its
-    // value carries style sheet context, and -1 otherwise; only the longhand drive's batch
-    // executor passes one.
+    // value carries style sheet context, and -1 otherwise.
     void set_property_without_modifying_flags(PropertyID, NonnullRefPtr<StyleValue const> value, i64 style_sheet_source_slot = -1);
-    // The wrapper-free store the longhand drive uses for values it already holds as Rust
-    // data: writes the table and invalidates the cached wrapper; property() mints one on
-    // demand. `style_sheet` is the sheet whose rule supplied the winning declaration, kept
-    // for stamping sheet context onto the wrapper the mint produces.
-    void set_property_data_from_drive(PropertyID, void const* value_data, i64 style_sheet_source_slot, GC::Ptr<CSSStyleSheet> style_sheet);
     // Invalidates C++ sidecars after the Rust driver stores a value directly in the table.
-    void did_store_property_data_from_drive(PropertyID, GC::Ptr<CSSStyleSheet> style_sheet);
+    void did_store_property_data_from_drive(PropertyID);
+    void set_style_sheet_for_source_slot(u32, GC::Ptr<CSSStyleSheet>);
     void cache_property_wrapper_from_drive(PropertyID, NonnullRefPtr<StyleValue const>);
     void set_display_before_box_type_transformation(Display);
 
@@ -212,14 +207,13 @@ private:
     // once, preserving wrapper identity for values with side effects (image loads).
     struct WrapperMintCache final : public RefCounted<WrapperMintCache> {
         HashMap<PropertyID, NonnullRefPtr<StyleValue const>> wrappers;
-        // The style sheet whose rule supplied a longhand's winning declaration, for longhands
-        // whose stored value carries style sheet context and awaits an on-demand wrapper mint.
-        // Held weakly, like the cascade's own declaration sources; the wrappers themselves
-        // only extract state from the sheet, so a collected sheet degrades to no stamping.
-        HashMap<PropertyID, GC::Weak<CSSStyleSheet>> style_sheet_sources;
+        // Style sheets are indexed by the source slots stored in the Rust longhand table.
+        // Held weakly, like the cascade's own declaration sources.
+        Vector<GC::Weak<CSSStyleSheet>> style_sheet_source_slots;
     };
 
     ComputedStyleWorkingSet();
+    ComputedStyleWorkingSet(ComputedValuesFFI::ComputedLonghandTable*, void const* raw_cascaded_font_size);
     // The without-animations copy: shares the frozen table and the mint cache.
     struct ShareFrozenTable { };
     ComputedStyleWorkingSet(ShareFrozenTable, ComputedStyleWorkingSet const&);

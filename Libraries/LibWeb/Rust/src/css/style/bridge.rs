@@ -2480,6 +2480,16 @@ pub unsafe extern "C" fn style_engine_style_record_view(
     style_record: u64,
 ) -> FfiStyleRecordView {
     abort_on_panic(|| {
+        const {
+            assert!(
+                std::mem::size_of::<super::InheritanceDependentValue>()
+                    == std::mem::size_of::<FfiInheritanceDependentValue>()
+            );
+            assert!(
+                std::mem::align_of::<super::InheritanceDependentValue>()
+                    == std::mem::align_of::<FfiInheritanceDependentValue>()
+            );
+        }
         let engine = unsafe { &*engine.cast::<StyleEngine>() };
         let view = engine.style_record_view(style_record);
         let result = match &view {
@@ -2489,7 +2499,7 @@ pub unsafe extern "C" fn style_engine_style_record_view(
                 base_payloads: view.base_payloads.as_ptr(),
                 property_importance: view.property_importance.as_ptr(),
                 property_inheritance: view.property_inheritance.as_ptr(),
-                inheritance_dependent_values: view.inheritance_dependent_values.as_ptr(),
+                inheritance_dependent_values: view.inheritance_dependent_values.as_ptr().cast(),
                 longhand_table: view.longhand_table.cast(),
                 raw_cascaded_font_size: view.raw_cascaded_font_size,
                 animated_overlay: view.animated_overlay.cast(),
@@ -2548,7 +2558,7 @@ pub unsafe extern "C" fn style_engine_style_record_view(
                 payload.write_u16(entry.property);
                 payload.write_u64(
                     engine
-                        .recording_pointer_token(entry.value as usize)
+                        .recording_pointer_token(entry.value.pointer() as usize)
                         .expect("an enabled recorder must tokenize the pointer"),
                 );
             }
