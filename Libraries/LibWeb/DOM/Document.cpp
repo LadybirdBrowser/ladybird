@@ -8122,6 +8122,7 @@ void Document::update_compositor_animations()
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_compositor_driven_effects;
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_compositor_replaced_effects;
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_published_effects;
+    GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_offscreen_throttled_effects;
     HashMap<DOM::AbstractElement, CompetingEffects> competing_effects;
     HashMap<GC::Ptr<Animations::KeyframeEffect>, bool> only_translates_horizontally_cache;
     HashMap<GC::Ptr<Animations::KeyframeEffect>, bool> animated_transform_preserves_axes_cache;
@@ -8252,9 +8253,11 @@ void Document::update_compositor_animations()
 
             bool has_content_clip = ancestor_box->overflow_x() != CSS::Overflow::Visible
                 || ancestor_box->overflow_y() != CSS::Overflow::Visible;
-            auto clip_rect = Painting::transform_rect_to_viewport(*ancestor_box, Painting::absolute_padding_box_rect(*ancestor_box), Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
-            if (has_content_clip && !clip_rect.edge_adjacent_intersects(root_bounds))
-                has_disjoint_clip = true;
+            if (has_content_clip) {
+                auto clip_rect = Painting::transform_rect_to_viewport(*ancestor_box, Painting::absolute_padding_box_rect(*ancestor_box), Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
+                if (!clip_rect.edge_adjacent_intersects(root_bounds))
+                    has_disjoint_clip = true;
+            }
 
             // A transform outside the disjoint clip could move the clip into the observation root without updating
             // its main-thread geometry. Transforms inside the clip can only move content within the clipped region.
@@ -8327,12 +8330,15 @@ void Document::update_compositor_animations()
             previously_compositor_replaced_effects.set(effect);
         if (!effect.retained_compositor_animations().is_empty())
             previously_published_effects.set(effect);
+        if (effect.is_offscreen_throttled())
+            previously_offscreen_throttled_effects.set(effect);
         if (auto target = effect.target_abstract_element(); target.has_value()) {
             if (auto* layout_node = target->unsafe_layout_node())
                 layout_node->set_retains_compositor_animated_content(false);
         }
         effect.set_is_compositor_driven(false);
         effect.set_is_compositor_replaced(false);
+        effect.set_is_offscreen_throttled(false);
         effect.set_is_observation_relevant_compositor_animation(false);
 
         if (animation.is_idle() || !effect.is_in_effect())
@@ -8402,8 +8408,9 @@ void Document::update_compositor_animations()
             if (effect.is_observation_relevant_compositor_animation())
                 has_observation_relevant_compositor_animation = true;
             bool was_throttled = previously_compositor_driven_effects.contains(GC::Ref { effect })
-                || previously_compositor_replaced_effects.contains(GC::Ref { effect });
-            if (was_throttled && !effect.is_compositor_driven() && !effect.is_compositor_replaced()) {
+                || previously_compositor_replaced_effects.contains(GC::Ref { effect })
+                || previously_offscreen_throttled_effects.contains(GC::Ref { effect });
+            if (was_throttled && !effect.is_compositor_driven() && !effect.is_compositor_replaced() && !effect.is_offscreen_throttled()) {
                 effect.request_observation_sample();
                 requested_withdrawn_effect_sample = true;
             }
@@ -8489,6 +8496,9 @@ void Document::update_compositor_animations()
         }
 
         if (effect_visual_animations.is_empty()) {
+            auto viewport_bounds = CSSPixelRect { { 0, 0 }, viewport_rect().size() };
+            if (selected_for_transform && !transform_affects_observation && transform_subtree_is_clipped_outside(target, viewport_bounds))
+                effect.set_is_offscreen_throttled(true);
             continue;
         }
         // OPTIMIZATION: Ordinary rendering updates advance the WebContent timeline without changing compositor
