@@ -25,6 +25,7 @@ unsafe extern "C" {
     fn ladybird_gfx_path_contains(path: *const c_void, x: f32, y: f32, winding_rule: i32) -> bool;
     fn ladybird_gfx_path_length(path: *const c_void) -> f32;
     fn ladybird_gfx_path_create_from_ops(kinds: *const u8, values: *const f32, count: usize) -> *mut c_void;
+    fn ladybird_gfx_path_create_from_serialized_bytes(bytes: *const u8, count: usize) -> *mut c_void;
     fn ladybird_gfx_path_copy_transformed(path: *const c_void, affine_values: *const f32) -> *mut c_void;
 }
 
@@ -220,6 +221,14 @@ impl OwnedPath {
                 affine_values.as_ptr(),
             ))
         }
+    }
+
+    pub fn from_serialized_bytes(bytes: &[u8]) -> OwnedPath {
+        // SAFETY: The bytes are live for the call, and the result is a fresh heap-allocated Gfx::Path;
+        // malformed bytes yield an empty path rather than a failure.
+        let raw = unsafe { ladybird_gfx_path_create_from_serialized_bytes(bytes.as_ptr(), bytes.len()) };
+        // SAFETY: The host handed over sole ownership of the fresh path.
+        unsafe { OwnedPath::adopt(raw) }
     }
 
     pub fn serialize_to_bytes(&self) -> Vec<u8> {
