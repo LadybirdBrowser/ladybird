@@ -1030,6 +1030,7 @@ void KeyframeEffect::invalidate_effect()
     m_is_compositor_driven = false;
     m_is_compositor_replaced = false;
     m_retained_compositor_animations.clear();
+    m_is_observation_relevant_compositor_animation = false;
     m_can_skip_per_frame_style_update_cache.clear();
     if (m_target_element)
         m_target_element->document().set_needs_animated_style_update(*this);
@@ -1145,7 +1146,7 @@ bool KeyframeEffect::can_skip_per_frame_animation_tick() const
         return false;
 
     // A compositor-handled one-iteration effect has a document timer that wakes the main thread at its active end.
-    if ((m_is_compositor_driven || m_is_compositor_replaced) && !isinf(iteration_count()))
+    if ((m_is_compositor_driven || m_is_compositor_replaced) && (!isinf(iteration_count()) || m_is_observation_relevant_compositor_animation))
         return true;
 
     // An infinite effect cannot reach its natural end, so animationend listeners do not require a continuous tick.

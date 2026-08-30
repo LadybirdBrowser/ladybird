@@ -11,6 +11,7 @@
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/IntersectionObserver.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserverEntry.h>
 #include <LibWeb/PixelUnits.h>
 
@@ -60,7 +61,7 @@ public:
     Variant<GC::Ref<DOM::Element>, GC::Ref<DOM::Document>> intersection_root() const;
     GC::Ref<DOM::Node> intersection_root_node() const;
     bool is_implicit_root() const { return !m_root; }
-    CSSPixelRect root_intersection_rectangle() const;
+    CSSPixelRect root_intersection_rectangle(Painting::AccumulatedVisualContextTree const* = nullptr) const;
 
     void queue_entry(Badge<DOM::Document>, GC::Ref<IntersectionObserverEntry>);
 

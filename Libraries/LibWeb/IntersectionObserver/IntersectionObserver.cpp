@@ -209,8 +209,8 @@ void IntersectionObserver::observe(DOM::Element& target)
         .previous_is_intersecting = false,
     });
 
-    // AD-HOC: Intersection geometry is computed from WebContent's visual-context tree. Ensure an animation that was
-    //         sampled only by the compositor catches up before the rendering update requested below.
+    // AD-HOC: Registering an observation changes whether transforms can remain compositor driven. Bring any pending
+    //         throttled animation state to a point where compositor eligibility can be updated by the requested frame.
     target.document().flush_throttled_animation_style_update();
     m_document->page().client().request_frame();
 }
@@ -332,7 +332,7 @@ GC::Ref<DOM::Node> IntersectionObserver::intersection_root_node() const
 }
 
 // https://www.w3.org/TR/intersection-observer/#intersectionobserver-root-intersection-rectangle
-CSSPixelRect IntersectionObserver::root_intersection_rectangle() const
+CSSPixelRect IntersectionObserver::root_intersection_rectangle(Painting::AccumulatedVisualContextTree const* visual_context_tree) const
 {
     // If the IntersectionObserver is an implicit root observer,
     //    it’s treated as if the root were the top-level browsing context’s document, according to the following rule for document.
@@ -365,7 +365,9 @@ CSSPixelRect IntersectionObserver::root_intersection_rectangle() const
 
         // Otherwise,
         //    it’s the result of getting the bounding box for the intersection root.
-        rect = element->bounding_client_rect_assuming_layout_clean();
+        rect = visual_context_tree
+            ? element->bounding_client_rect_assuming_layout_clean(*visual_context_tree)
+            : element->bounding_client_rect_assuming_layout_clean();
         if (auto const* layout_node = element->layout_node(); layout_node && Painting::has_committed_box(*layout_node))
             intersection_root_is_scrollable = layout_node->is_scroll_container();
     }

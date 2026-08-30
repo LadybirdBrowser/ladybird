@@ -1844,6 +1844,7 @@ private:
     RefPtr<Core::Timer> m_active_refresh_timer;
     RefPtr<Core::Timer> m_compositor_animation_wakeup_timer;
     Optional<MonotonicTime> m_compositor_animation_wakeup_deadline;
+    RefPtr<Core::Timer> m_compositor_animation_observation_timer;
 
     bool m_temporary_document_for_fragment_parsing { false };
 
