@@ -921,6 +921,12 @@ AnimationUpdateContext::~AnimationUpdateContext()
                 continue;
             effects_to_collect.append(effect);
         }
+        // A dirty effect may have just become irrelevant. Include it once so rebuilding the
+        // animated overlay removes its terminal contribution.
+        for (auto& dirty_effect : it.value.effects) {
+            if (!effects_to_collect.contains_slow(dirty_effect))
+                effects_to_collect.append(dirty_effect);
+        }
         if (!effects_to_collect.is_empty())
             target->document().style_computer().collect_animations_into(element, effects_to_collect.span(), *style, CSS::StyleComputer::AnimationRefresh::Yes);
         auto animated_properties_after_update = style->animated_properties_snapshot();

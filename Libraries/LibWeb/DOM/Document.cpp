@@ -2632,7 +2632,7 @@ void Document::invalidate_style_for_viewport_change()
     });
 }
 
-void Document::update_animated_style_if_needed()
+void Document::sample_animation_effects_needing_style_update()
 {
     if (!m_needs_animated_style_update)
         return;
@@ -2640,16 +2640,14 @@ void Document::update_animated_style_if_needed()
     Animations::AnimationUpdateContext context;
 
     GC::RootVector<GC::Ref<Animations::Animation>> animations;
-
-    for (auto& animation : m_associated_animations) {
-        if (animation.is_idle())
+    for (auto& effect : m_effects_needing_animated_style_update) {
+        auto animation = effect.associated_animation();
+        if (!animation || animation->is_idle())
             continue;
-
-        if (!animation.effect())
-            continue;
-
-        animations.append(animation);
+        animations.append(*animation);
     }
+    m_effects_needing_animated_style_update.clear();
+    m_needs_animated_style_update = false;
 
     quick_sort(animations, [](GC::Ref<Animations::Animation>& a, GC::Ref<Animations::Animation>& b) {
         auto& a_effect = as<Animations::KeyframeEffect>(*a->effect());
@@ -2659,12 +2657,11 @@ void Document::update_animated_style_if_needed()
 
     for (auto& animation : animations)
         animation->effect()->update_computed_properties(context);
-
-    m_needs_animated_style_update = false;
 }
 
-void Document::set_needs_animated_style_update()
+void Document::set_needs_animated_style_update(Animations::KeyframeEffect& effect)
 {
+    m_effects_needing_animated_style_update.set(effect);
     if (m_needs_animated_style_update)
         return;
 
@@ -7380,6 +7377,8 @@ void Document::associate_with_animation(GC::Ref<Animations::Animation> animation
 
 void Document::disassociate_with_animation(GC::Ref<Animations::Animation> animation)
 {
+    if (animation->effect() && is<Animations::KeyframeEffect>(*animation->effect()))
+        m_effects_needing_animated_style_update.remove(static_cast<Animations::KeyframeEffect&>(*animation->effect()));
     m_associated_animations.remove(animation);
 }
 

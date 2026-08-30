@@ -1014,7 +1014,7 @@ KeyframeEffect::KeyframeEffect() = default;
 void KeyframeEffect::invalidate_effect()
 {
     if (m_target_element)
-        m_target_element->document().set_needs_animated_style_update();
+        m_target_element->document().set_needs_animated_style_update(*this);
 }
 
 void KeyframeEffect::visit_edges(GC::Cell::Visitor& visitor)

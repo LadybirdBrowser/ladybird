@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function nextFrame() {
+        return new Promise(requestAnimationFrame);
+    }
+
+    asyncTest(async done => {
+        const completedTargets = [];
+        for (let i = 0; i < 20; ++i) {
+            const target = document.createElement("div");
+            target.style.transformOrigin = "center center 1px";
+            document.body.append(target);
+            const animation = target.animate([
+                { transform: "translateX(0px)" },
+                { transform: "translateX(10px)" },
+            ], { duration: 1, fill: "forwards" });
+            await animation.finished;
+            completedTargets.push(target);
+        }
+
+        const activeTarget = document.createElement("div");
+        activeTarget.style.transformOrigin = "center center 1px";
+        document.body.append(activeTarget);
+        activeTarget.animate([
+            { transform: "translateX(0px)" },
+            { transform: "translateX(100px)" },
+        ], { duration: 100000, iterations: Infinity });
+
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+        internals.resetStyleInvalidationCounters();
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+        const steadyCounters = internals.getStyleInvalidationCounters();
+        println(`completed effects stay out of animated style updates: ${steadyCounters.animatedStyleOverlayBuilds <= 6}`);
+
+        const siblingTarget = document.createElement("div");
+        siblingTarget.style.cssText = "opacity: 0; transform-origin: center center 1px";
+        document.body.append(siblingTarget);
+        const filledAnimation = siblingTarget.animate([
+            { opacity: 0.4 },
+            { opacity: 0.4 },
+        ], { duration: 1, fill: "forwards" });
+        await filledAnimation.finished;
+        siblingTarget.animate([
+            { transform: "translateX(0px)" },
+            { transform: "translateX(100px)" },
+        ], { duration: 100000, iterations: Infinity });
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+        println(`finished sibling contribution is retained: ${getComputedStyle(siblingTarget).opacity === "0.4"}`);
+
+        const mixedTarget = document.createElement("div");
+        mixedTarget.style.opacity = "1";
+        document.body.append(mixedTarget);
+        mixedTarget.animate([
+            { opacity: 0.2 },
+            { opacity: 0.8 },
+        ], { duration: 100000 });
+        mixedTarget.animate([
+            { color: "rgb(0, 0, 0)" },
+            { color: "rgb(255, 0, 0)" },
+        ], { duration: 100000 });
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+        println(`active sibling contributes to computed style: ${getComputedStyle(mixedTarget).opacity !== "1"}`);
+
+        for (const animation of document.getAnimations())
+            animation.cancel();
+        await nextFrame();
+
+        const pausedTarget = document.createElement("div");
+        document.body.append(pausedTarget);
+        const pausedAnimation = pausedTarget.animate([
+            { color: "rgb(0, 0, 0)" },
+            { color: "rgb(255, 0, 0)" },
+        ], { duration: 100000 });
+        await pausedAnimation.ready;
+        pausedAnimation.pause();
+        await pausedAnimation.ready;
+        await nextFrame();
+        internals.resetStyleInvalidationCounters();
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+        println(`paused animation builds no overlays: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 0}`);
+
+        done();
+    });
+</script>

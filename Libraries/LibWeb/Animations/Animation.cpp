@@ -13,6 +13,7 @@
 #include <LibWeb/Animations/AnimationPlaybackEvent.h>
 #include <LibWeb/Animations/BindingsGlue.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
+#include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/CSSAnimation.h>
@@ -1173,8 +1174,14 @@ void Animation::update()
 
     // Prevent unnecessary work if the animation is already finished and can't exit the finished state due to timeline
     // changes
-    if (!m_is_finished || !m_timeline->is_monotonically_increasing())
-        update_finished_state(DidSeek::No, SynchronouslyNotify::Yes);
+    if (!m_is_finished || !m_timeline->is_monotonically_increasing()) {
+        bool was_finished = m_is_finished;
+        update_finished_state(DidSeek::No, SynchronouslyNotify::Yes, ShouldInvalidate::No);
+        if (play_state() == AnimationPlayState::Running && !pending())
+            invalidate_effect();
+        else if (m_is_finished != was_finished)
+            invalidate_effect();
+    }
 
     // Act on the pending play or pause task
     if (m_pending_play_task == TaskState::Scheduled && is_ready()) {
@@ -1628,8 +1635,12 @@ void Animation::invalidate_effect()
     if (!m_effect)
         return;
 
-    if (auto target = m_effect->target())
-        target->document().set_needs_animated_style_update();
+    if (!is<KeyframeEffect>(*m_effect))
+        return;
+
+    auto& effect = static_cast<KeyframeEffect&>(*m_effect);
+    if (auto target = effect.target())
+        target->document().set_needs_animated_style_update(effect);
 }
 
 Animation::Animation(HTML::EnvironmentSettingsObject& environment)
