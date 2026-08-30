@@ -8,29 +8,56 @@ use std::cmp::Ordering;
 
 use crate::{FloatMatrix4x4, FloatRect, FloatVector3};
 
-const ON_PLANE_THRESHOLD: f32 = 0.05;
+const ON_PLANE_THRESHOLD_DEVICE_PIXELS: f32 = 0.05;
+const PLANE_DISTANCE_NOISE_FLOOR_FACTOR: f32 = 1e-6;
 
-// A convex polygon in the shared post-projection space of a three-dimensional scene, where x and y
-// are surface coordinates and the positive z-axis points toward the viewer. The plane index
-// identifies the plane the polygon was built from and is preserved on pieces produced by splitting.
+struct OnPlaneThreshold {
+    context_to_device: FloatMatrix4x4,
+    noise_floor: f32,
+}
+
+impl OnPlaneThreshold {
+    fn for_polygons(context_to_device: FloatMatrix4x4, polygons: &[PartitionedPolygon]) -> Self {
+        let mut largest_coordinate: f32 = 0.0;
+        for polygon in polygons {
+            for vertex in &polygon.polygon.vertices {
+                largest_coordinate = largest_coordinate
+                    .max(vertex.x.abs())
+                    .max(vertex.y.abs())
+                    .max(vertex.z.abs());
+            }
+        }
+        Self {
+            context_to_device,
+            noise_floor: largest_coordinate * PLANE_DISTANCE_NOISE_FLOOR_FACTOR,
+        }
+    }
+
+    fn for_normal(&self, normal: FloatVector3) -> f32 {
+        let mapped = self.context_to_device.map_vector4([normal.x, normal.y, normal.z, 0.0]);
+        let device_depth_per_unit = FloatVector3 {
+            x: mapped[0],
+            y: mapped[1],
+            z: mapped[2],
+        }
+        .length();
+        (ON_PLANE_THRESHOLD_DEVICE_PIXELS / device_depth_per_unit.max(1e-6)).max(self.noise_floor)
+    }
+}
+
+// A convex polygon in the shared three-dimensional space of a scene. The plane index identifies
+// the plane the polygon was built from and is preserved on pieces produced by splitting.
 pub struct BspPolygon {
     pub vertices: Vec<FloatVector3>,
     pub plane_index: usize,
     pub clipped: bool,
 }
 
-pub fn map_rect_through_projection(matrix: FloatMatrix4x4, rect: FloatRect) -> Vec<FloatVector3> {
-    // Projecting a point divides it by w, which only works in front of the eye plane where w is positive.
-    // Edges crossing behind the eye are clipped at this small positive w so the divide stays finite.
-    const MINIMUM_PROJECTION_W: f32 = 0.00001;
+// Projecting a point divides it by w, which only works in front of the eye plane where w is positive.
+// Edges crossing behind the eye are clipped at this small positive w so the divide stays finite.
+const MINIMUM_PROJECTION_W: f32 = 0.00001;
 
-    let corners = [
-        matrix.map_vector4([rect.x, rect.y, 0.0, 1.0]),
-        matrix.map_vector4([rect.right(), rect.y, 0.0, 1.0]),
-        matrix.map_vector4([rect.right(), rect.bottom(), 0.0, 1.0]),
-        matrix.map_vector4([rect.x, rect.bottom(), 0.0, 1.0]),
-    ];
-
+fn clip_and_project(corners: &[[f32; 4]]) -> Vec<FloatVector3> {
     let mut result = Vec::with_capacity(8);
     let append_projected = |result: &mut Vec<FloatVector3>, vertex: [f32; 4]| {
         result.push(FloatVector3 {
@@ -60,6 +87,24 @@ pub fn map_rect_through_projection(matrix: FloatMatrix4x4, rect: FloatRect) -> V
     result
 }
 
+pub fn map_rect_through_projection(matrix: FloatMatrix4x4, rect: FloatRect) -> Vec<FloatVector3> {
+    let corners = [
+        matrix.map_vector4([rect.x, rect.y, 0.0, 1.0]),
+        matrix.map_vector4([rect.right(), rect.y, 0.0, 1.0]),
+        matrix.map_vector4([rect.right(), rect.bottom(), 0.0, 1.0]),
+        matrix.map_vector4([rect.x, rect.bottom(), 0.0, 1.0]),
+    ];
+    clip_and_project(&corners)
+}
+
+pub fn map_polygon_through_projection(matrix: FloatMatrix4x4, vertices: &[FloatVector3]) -> Vec<FloatVector3> {
+    let mut corners = Vec::with_capacity(vertices.len());
+    for vertex in vertices {
+        corners.push(matrix.map_vector4([vertex.x, vertex.y, vertex.z, 1.0]));
+    }
+    clip_and_project(&corners)
+}
+
 fn polygon_normal(vertices: &[FloatVector3]) -> Option<FloatVector3> {
     if vertices.len() < 3 {
         return None;
@@ -86,6 +131,7 @@ const NO_BSP_NODE: usize = usize::MAX;
 
 struct BspTreeNode {
     plane_normal: FloatVector3,
+    plane_distance: f32,
     coplanar_polygons: Vec<BspPolygon>,
     front: usize,
     back: usize,
@@ -103,7 +149,7 @@ struct PolygonSplit {
     back_piece: Option<PartitionedPolygon>,
 }
 
-fn split_polygon(polygon: PartitionedPolygon, vertex_distances: &[f32]) -> PolygonSplit {
+fn split_polygon(polygon: PartitionedPolygon, vertex_distances: &[f32], on_plane_threshold: f32) -> PolygonSplit {
     let mut front_vertices = Vec::with_capacity(8);
     let mut back_vertices = Vec::with_capacity(8);
     let vertices = &polygon.polygon.vertices;
@@ -111,14 +157,14 @@ fn split_polygon(polygon: PartitionedPolygon, vertex_distances: &[f32]) -> Polyg
         let next_index = (index + 1) % vertices.len();
         let current_distance = vertex_distances[index];
         let next_distance = vertex_distances[next_index];
-        if current_distance >= -ON_PLANE_THRESHOLD {
+        if current_distance >= -on_plane_threshold {
             front_vertices.push(vertices[index]);
         }
-        if current_distance <= ON_PLANE_THRESHOLD {
+        if current_distance <= on_plane_threshold {
             back_vertices.push(vertices[index]);
         }
-        let edge_crosses_plane = (current_distance > ON_PLANE_THRESHOLD && next_distance < -ON_PLANE_THRESHOLD)
-            || (current_distance < -ON_PLANE_THRESHOLD && next_distance > ON_PLANE_THRESHOLD);
+        let edge_crosses_plane = (current_distance > on_plane_threshold && next_distance < -on_plane_threshold)
+            || (current_distance < -on_plane_threshold && next_distance > on_plane_threshold);
         if edge_crosses_plane {
             let t = current_distance / (current_distance - next_distance);
             let intersection = vertices[index] + (vertices[next_index] - vertices[index]) * t;
@@ -147,7 +193,7 @@ fn split_polygon(polygon: PartitionedPolygon, vertex_distances: &[f32]) -> Polyg
     }
 }
 
-fn build_bsp_tree(polygons: Vec<PartitionedPolygon>) -> Vec<BspTreeNode> {
+fn build_bsp_tree(polygons: Vec<PartitionedPolygon>, threshold: &OnPlaneThreshold) -> Vec<BspTreeNode> {
     let mut nodes: Vec<BspTreeNode> = Vec::new();
     let mut pending_subtrees = Vec::new();
     if !polygons.is_empty() {
@@ -172,6 +218,7 @@ fn build_bsp_tree(polygons: Vec<PartitionedPolygon>) -> Vec<BspTreeNode> {
         let splitter_index = subtree.polygons.len() / 2;
         let plane_normal = subtree.polygons[splitter_index].plane_normal;
         let plane_distance = subtree.polygons[splitter_index].plane_distance;
+        let on_plane_threshold = threshold.for_normal(plane_normal);
 
         let mut coplanar_polygons = Vec::new();
         let mut front_list = Vec::new();
@@ -187,9 +234,9 @@ fn build_bsp_tree(polygons: Vec<PartitionedPolygon>) -> Vec<BspTreeNode> {
             for vertex in &polygon.polygon.vertices {
                 let distance = plane_normal.dot(*vertex) - plane_distance;
                 vertex_distances.push(distance);
-                if distance > ON_PLANE_THRESHOLD {
+                if distance > on_plane_threshold {
                     front_count += 1;
-                } else if distance < -ON_PLANE_THRESHOLD {
+                } else if distance < -on_plane_threshold {
                     back_count += 1;
                 }
             }
@@ -201,7 +248,7 @@ fn build_bsp_tree(polygons: Vec<PartitionedPolygon>) -> Vec<BspTreeNode> {
             } else if front_count == 0 {
                 back_list.push(polygon);
             } else {
-                let split = split_polygon(polygon, &vertex_distances);
+                let split = split_polygon(polygon, &vertex_distances, on_plane_threshold);
                 if let Some(front_piece) = split.front_piece {
                     front_list.push(front_piece);
                 }
@@ -212,6 +259,7 @@ fn build_bsp_tree(polygons: Vec<PartitionedPolygon>) -> Vec<BspTreeNode> {
         }
         nodes.push(BspTreeNode {
             plane_normal,
+            plane_distance,
             coplanar_polygons,
             front: NO_BSP_NODE,
             back: NO_BSP_NODE,
@@ -235,7 +283,16 @@ fn build_bsp_tree(polygons: Vec<PartitionedPolygon>) -> Vec<BspTreeNode> {
     nodes
 }
 
-fn collect_back_to_front(mut nodes: Vec<BspTreeNode>) -> Vec<BspPolygon> {
+fn eye_is_in_front_of_plane(eye: [f32; 4], plane_normal: FloatVector3, plane_distance: f32) -> bool {
+    plane_normal.dot(FloatVector3 {
+        x: eye[0],
+        y: eye[1],
+        z: eye[2],
+    }) - plane_distance * eye[3]
+        > 0.0
+}
+
+fn collect_back_to_front(mut nodes: Vec<BspTreeNode>, eye: [f32; 4]) -> Vec<BspPolygon> {
     if nodes.is_empty() {
         return Vec::new();
     }
@@ -255,16 +312,9 @@ fn collect_back_to_front(mut nodes: Vec<BspTreeNode>) -> Vec<BspPolygon> {
         let node = &nodes[step.node_index];
         // The subtree on the side of the plane the viewer is on paints last. Coplanar polygons paint in their stored
         // paint order regardless of which way the plane faces.
-        let far_subtree = if node.plane_normal.z > 0.0 {
-            node.back
-        } else {
-            node.front
-        };
-        let near_subtree = if node.plane_normal.z > 0.0 {
-            node.front
-        } else {
-            node.back
-        };
+        let eye_in_front = eye_is_in_front_of_plane(eye, node.plane_normal, node.plane_distance);
+        let far_subtree = if eye_in_front { node.back } else { node.front };
+        let near_subtree = if eye_in_front { node.front } else { node.back };
         if !step.ready_to_emit {
             traversal_stack.push(TraversalStep {
                 node_index: step.node_index,
@@ -303,11 +353,15 @@ fn all_planes_are_parallel(polygons: &[PartitionedPolygon]) -> bool {
     true
 }
 
-fn sort_parallel_polygons_back_to_front(mut polygons: Vec<PartitionedPolygon>) -> Vec<BspPolygon> {
+fn sort_parallel_polygons_back_to_front(
+    mut polygons: Vec<PartitionedPolygon>,
+    eye: [f32; 4],
+    threshold: &OnPlaneThreshold,
+) -> Vec<BspPolygon> {
     // Fast path for parallel planes, where no splitting is needed.
 
     let mut axis = polygons[0].plane_normal;
-    if axis.z < 0.0 {
+    if !eye_is_in_front_of_plane(eye, axis, polygons[0].plane_distance) {
         axis = -axis;
     }
 
@@ -331,6 +385,16 @@ fn sort_parallel_polygons_back_to_front(mut polygons: Vec<PartitionedPolygon>) -
             .then_with(|| a.input_index.cmp(&b.input_index))
     });
 
+    let on_plane_threshold = threshold.for_normal(axis);
+    let mut cluster_begin = 0;
+    for index in 1..=order.len() {
+        if index < order.len() && order[index].depth - order[cluster_begin].depth <= on_plane_threshold {
+            continue;
+        }
+        order[cluster_begin..index].sort_unstable_by_key(|entry| entry.input_index);
+        cluster_begin = index;
+    }
+
     let mut ordered = Vec::with_capacity(order.len());
     let mut polygons_by_index: Vec<Option<PartitionedPolygon>> = polygons.drain(..).map(Some).collect();
     for entry in order {
@@ -339,7 +403,11 @@ fn sort_parallel_polygons_back_to_front(mut polygons: Vec<PartitionedPolygon>) -
     ordered
 }
 
-pub fn split_and_sort_polygons_back_to_front(polygons: Vec<BspPolygon>) -> Vec<BspPolygon> {
+pub fn split_and_sort_polygons_back_to_front(
+    polygons: Vec<BspPolygon>,
+    eye: [f32; 4],
+    context_to_device: FloatMatrix4x4,
+) -> Vec<BspPolygon> {
     let mut partitioned = Vec::with_capacity(polygons.len());
     for polygon in polygons {
         let Some(normal) = polygon_normal(&polygon.vertices) else {
@@ -353,11 +421,12 @@ pub fn split_and_sort_polygons_back_to_front(polygons: Vec<BspPolygon>) -> Vec<B
         });
     }
 
+    let threshold = OnPlaneThreshold::for_polygons(context_to_device, &partitioned);
     if !partitioned.is_empty() && all_planes_are_parallel(&partitioned) {
-        return sort_parallel_polygons_back_to_front(partitioned);
+        return sort_parallel_polygons_back_to_front(partitioned, eye, &threshold);
     }
 
-    collect_back_to_front(build_bsp_tree(partitioned))
+    collect_back_to_front(build_bsp_tree(partitioned, &threshold), eye)
 }
 
 #[cfg(test)]
@@ -432,6 +501,78 @@ mod tests {
     }
 
     #[test]
+    fn map_polygon_through_projection_clips_the_region_behind_the_eye() {
+        let mut matrix = FloatMatrix4x4::identity();
+        matrix.elements[3][0] = -0.03125;
+        let vertices = [
+            vector(0.0, 0.0, 0.0),
+            vector(64.0, 0.0, 0.0),
+            vector(64.0, 32.0, 0.0),
+            vector(0.0, 32.0, 0.0),
+        ];
+        let projected = map_polygon_through_projection(matrix, &vertices);
+        assert_eq!(projected.len(), 4);
+        assert_eq!(projected[0], vector(0.0, 0.0, 0.0));
+        assert!(projected[1].x > 100_000.0);
+        assert!(projected[2].x > 100_000.0);
+        assert!(projected[2].y > 100_000.0);
+        assert_eq!(projected[3], vector(0.0, 32.0, 0.0));
+    }
+
+    fn make_x_plane_polygon(x: f32, plane_index: usize) -> BspPolygon {
+        BspPolygon {
+            vertices: vec![
+                vector(x, -10.0, -10.0),
+                vector(x, 10.0, -10.0),
+                vector(x, 10.0, 10.0),
+                vector(x, -10.0, 10.0),
+            ],
+            plane_index,
+            clipped: false,
+        }
+    }
+
+    #[test]
+    fn parallel_planes_sort_away_from_the_eye_position() {
+        let polygons = vec![make_x_plane_polygon(0.0, 0), make_x_plane_polygon(5.0, 1)];
+        let sorted = split_and_sort_polygons_back_to_front(polygons, [10.0, 0.0, 0.0, 1.0], FloatMatrix4x4::identity());
+        assert_eq!(sorted[0].plane_index, 0);
+        assert_eq!(sorted[1].plane_index, 1);
+
+        let polygons = vec![make_x_plane_polygon(0.0, 0), make_x_plane_polygon(5.0, 1)];
+        let sorted =
+            split_and_sort_polygons_back_to_front(polygons, [-10.0, 0.0, 0.0, 1.0], FloatMatrix4x4::identity());
+        assert_eq!(sorted[0].plane_index, 1);
+        assert_eq!(sorted[1].plane_index, 0);
+    }
+
+    #[test]
+    fn split_pieces_sort_away_from_the_eye_position() {
+        let polygons = vec![
+            make_z_plane_polygon(0.0, 0),
+            BspPolygon {
+                vertices: vec![
+                    vector(-10.0, -10.0, -10.0),
+                    vector(10.0, -10.0, 10.0),
+                    vector(10.0, 10.0, 10.0),
+                    vector(-10.0, 10.0, -10.0),
+                ],
+                plane_index: 1,
+                clipped: false,
+            },
+        ];
+
+        let sorted =
+            split_and_sort_polygons_back_to_front(polygons, [0.0, 0.0, -100.0, 1.0], FloatMatrix4x4::identity());
+        assert_eq!(sorted.len(), 3);
+        assert_eq!(sorted[0].plane_index, 0);
+        assert!(centroid_of(&sorted[0]).x < 0.0);
+        assert_eq!(sorted[1].plane_index, 1);
+        assert_eq!(sorted[2].plane_index, 0);
+        assert!(centroid_of(&sorted[2]).x > 0.0);
+    }
+
+    #[test]
     fn parallel_planes_sort_back_to_front_for_any_paint_order() {
         let mut polygons = Vec::new();
         for index in 0..20 {
@@ -439,7 +580,7 @@ mod tests {
         }
 
         // Painting proceeds in ascending z, where the largest z is nearest the viewer and paints last.
-        let sorted = split_and_sort_polygons_back_to_front(polygons);
+        let sorted = split_and_sort_polygons_back_to_front(polygons, [0.0, 0.0, 1.0, 0.0], FloatMatrix4x4::identity());
         assert_eq!(sorted.len(), 20);
         for (index, polygon) in sorted.iter().enumerate() {
             assert!(!polygon.clipped);
@@ -463,7 +604,7 @@ mod tests {
             make_z_plane_polygon(-5.0, 1),
         ];
 
-        let sorted = split_and_sort_polygons_back_to_front(polygons);
+        let sorted = split_and_sort_polygons_back_to_front(polygons, [0.0, 0.0, 1.0, 0.0], FloatMatrix4x4::identity());
         assert_eq!(sorted.len(), 2);
         assert_eq!(sorted[0].plane_index, 1);
         assert_eq!(sorted[1].plane_index, 0);
@@ -473,11 +614,37 @@ mod tests {
     fn coplanar_polygons_keep_paint_order() {
         let polygons = (0..3).map(|index| make_z_plane_polygon(0.0, index)).collect();
 
-        let sorted = split_and_sort_polygons_back_to_front(polygons);
+        let sorted = split_and_sort_polygons_back_to_front(polygons, [0.0, 0.0, 1.0, 0.0], FloatMatrix4x4::identity());
         assert_eq!(sorted.len(), 3);
         for (index, polygon) in sorted.iter().enumerate() {
             assert_eq!(polygon.plane_index, index);
         }
+    }
+
+    #[test]
+    fn nearly_coplanar_polygons_keep_paint_order() {
+        let polygons = vec![
+            make_z_plane_polygon(5.001, 0),
+            make_z_plane_polygon(4.999, 1),
+            make_z_plane_polygon(5.0, 2),
+        ];
+
+        let sorted = split_and_sort_polygons_back_to_front(polygons, [0.0, 0.0, 1.0, 0.0], FloatMatrix4x4::identity());
+        assert_eq!(sorted.len(), 3);
+        for (index, polygon) in sorted.iter().enumerate() {
+            assert_eq!(polygon.plane_index, index);
+        }
+    }
+
+    #[test]
+    fn a_depth_scale_on_the_context_tightens_the_coplanarity_threshold() {
+        let polygons = vec![make_z_plane_polygon(0.01, 0), make_z_plane_polygon(-0.03, 1)];
+
+        let sorted =
+            split_and_sort_polygons_back_to_front(polygons, [0.0, 0.0, 1.0, 0.0], crate::scale_matrix(1.0, 1.0, 100.0));
+        assert_eq!(sorted.len(), 2);
+        assert_eq!(sorted[0].plane_index, 1);
+        assert_eq!(sorted[1].plane_index, 0);
     }
 
     #[test]
@@ -498,7 +665,7 @@ mod tests {
             },
         ];
 
-        let sorted = split_and_sort_polygons_back_to_front(polygons);
+        let sorted = split_and_sort_polygons_back_to_front(polygons, [0.0, 0.0, 1.0, 0.0], FloatMatrix4x4::identity());
         assert_eq!(sorted.len(), 3);
         assert_eq!(sorted[0].plane_index, 2);
         assert_eq!(sorted[1].plane_index, 0);
@@ -522,7 +689,7 @@ mod tests {
             },
         ];
 
-        let sorted = split_and_sort_polygons_back_to_front(polygons);
+        let sorted = split_and_sort_polygons_back_to_front(polygons, [0.0, 0.0, 1.0, 0.0], FloatMatrix4x4::identity());
         assert_eq!(sorted.len(), 3);
 
         // The crossing polygon stays whole and the flat one is cut into a piece on either side of it. The
@@ -550,7 +717,7 @@ mod tests {
             make_z_plane_polygon(0.0, 1),
         ];
 
-        let sorted = split_and_sort_polygons_back_to_front(polygons);
+        let sorted = split_and_sort_polygons_back_to_front(polygons, [0.0, 0.0, 1.0, 0.0], FloatMatrix4x4::identity());
         assert_eq!(sorted.len(), 1);
         assert_eq!(sorted[0].plane_index, 1);
     }
@@ -581,7 +748,7 @@ mod tests {
             },
         ];
 
-        let sorted = split_and_sort_polygons_back_to_front(polygons);
+        let sorted = split_and_sort_polygons_back_to_front(polygons, [0.0, 0.0, 1.0, 0.0], FloatMatrix4x4::identity());
         assert_eq!(sorted.len(), 2);
         assert_eq!(sorted[0].plane_index, 1);
         assert!(!sorted[0].clipped);

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/css/3d-rendering-context-eye-plane-crossing-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+    .viewport {
+        position: absolute;
+        inset: 0;
+        perspective: 640px;
+        overflow: hidden;
+        background: white;
+    }
+    .scene {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        transform-style: preserve-3d;
+        transform: translate3d(-1888px, 41px, -2060px);
+    }
+    .scene > div {
+        position: absolute;
+        transform-origin: 50%;
+    }
+    .eye-crossing-floor {
+        width: 832px;
+        height: 640px;
+        transform: translate3d(1664px, -320px, 2432px) rotateX(90deg);
+        background: red;
+    }
+    .lit-floor {
+        width: 5200px;
+        height: 7932px;
+        transform: translate3d(-712px, -3966px, -1334px) rotateX(90deg);
+        background: green;
+    }
+    .far-ceiling {
+        width: 296px;
+        height: 392px;
+        transform: translate3d(2752px, -372px, 2852px) rotateX(90deg);
+        background: blue;
+    }
+    .horizon-mask {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 800px;
+        height: 308px;
+        background: white;
+    }
+</style>
+<div class="viewport">
+    <div class="scene">
+        <div class="eye-crossing-floor"></div>
+        <div class="lit-floor"></div>
+        <div class="far-ceiling"></div>
+    </div>
+    <div class="horizon-mask"></div>
+</div>

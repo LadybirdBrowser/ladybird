@@ -9,7 +9,8 @@ use crate::painting::display_list::commands::{
 };
 use crate::painting::display_list::depth_sorted_plan::{DepthSortedReplayStepKind, build_depth_sorted_replay_plan};
 use crate::painting::visual_context::{
-    FrameData, SpatialData, VisualContextTree, device_offset_for_index, should_cull_back_face,
+    FrameData, SpatialData, VisualContextTree, device_offset_for_index, resolve_leaf_to_context_matrices,
+    should_cull_back_face,
 };
 use libgfx_rust::path::OwnedPath;
 use libgfx_rust::{FloatMatrix4x4, FloatPoint, FloatVector3, IntRect, WindingRule, translation_matrix};
@@ -38,8 +39,10 @@ pub trait ReplayPainter {
 #[derive(Default)]
 struct ReplayPaletteStorage {
     to_root_matrices: Vec<FloatMatrix4x4>,
+    local_matrices: Vec<FloatMatrix4x4>,
     draw_spaces: Vec<SpatialNodeIndex>,
     backface_culled: Vec<bool>,
+    flattens_inherited_transform: Vec<bool>,
 }
 
 // Steady-state replays reuse the previous frame's capacity. Taking the storage out of the slot
@@ -63,8 +66,10 @@ fn take_replay_scratch_storage() -> ReplayScratchStorage {
 
 fn return_replay_scratch_storage(mut storage: ReplayScratchStorage) {
     storage.palette.to_root_matrices.clear();
+    storage.palette.local_matrices.clear();
     storage.palette.draw_spaces.clear();
     storage.palette.backface_culled.clear();
+    storage.palette.flattens_inherited_transform.clear();
     storage.frame_has_empty_effective_clip.clear();
     storage.applied_frames.clear();
     storage.target_frames.clear();
@@ -140,8 +145,10 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
         let spatial_nodes = &tree.spatial_nodes;
         let palette = &mut self.palette;
         palette.to_root_matrices.reserve(spatial_nodes.len());
+        palette.local_matrices.reserve(spatial_nodes.len());
         palette.draw_spaces.reserve(spatial_nodes.len());
         palette.backface_culled.reserve(spatial_nodes.len());
+        palette.flattens_inherited_transform.reserve(spatial_nodes.len());
         let replay_base_matrix = self.replay_base_matrix;
         for (i, node) in spatial_nodes.iter().enumerate() {
             let parent = node.parent.0 as usize;
@@ -159,6 +166,8 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
                     parent_matrix
                 };
                 palette.to_root_matrices.push(inherited.multiplied(local_matrix));
+                palette.local_matrices.push(local_matrix);
+                palette.flattens_inherited_transform.push(flattens_inherited_transform);
                 palette.draw_spaces.push(SpatialNodeIndex(i as u32));
                 palette
                     .backface_culled
@@ -196,6 +205,10 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
                     } else {
                         parent_matrix
                     });
+                    palette.local_matrices.push(FloatMatrix4x4::identity());
+                    palette
+                        .flattens_inherited_transform
+                        .push(backface.flattens_inherited_transform);
                     palette.draw_spaces.push(palette.draw_spaces[parent]);
                     let mut culled = palette.backface_culled[parent];
                     if !culled {
@@ -364,10 +377,18 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
             let root_isolation_frame = tree.root_isolation_frame;
             let plane_clip_base_length = usize::from(root_isolation_frame.is_some());
             let contexts = tree.resolve_sorting_contexts();
+            let parent_by_node: Vec<SpatialNodeIndex> = tree.spatial_nodes.iter().map(|node| node.parent).collect();
+            let leaf_to_context_palette = resolve_leaf_to_context_matrices(
+                &contexts,
+                &parent_by_node,
+                &self.palette.local_matrices,
+                &self.palette.flattens_inherited_transform,
+            );
             let plan = build_depth_sorted_replay_plan(
                 self.command_runs,
                 &contexts,
                 &self.palette.to_root_matrices,
+                &leaf_to_context_palette,
                 &self.palette.draw_spaces,
                 &self.palette.backface_culled,
                 &self.frame_has_empty_effective_clip,

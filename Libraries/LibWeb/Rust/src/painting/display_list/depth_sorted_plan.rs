@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use libgfx_rust::bsp_tree::{BspPolygon, map_rect_through_projection, split_and_sort_polygons_back_to_front};
+use libgfx_rust::bsp_tree::{
+    BspPolygon, map_polygon_through_projection, map_rect_through_projection, split_and_sort_polygons_back_to_front,
+};
 use libgfx_rust::{FloatMatrix4x4, FloatRect, FloatVector3};
 
 use super::commands::{DisplayListCommandRun, SpatialNodeIndex};
@@ -56,6 +58,7 @@ pub struct DepthSortedReplayPlan {
 struct DepthSortedPlanBuilder<'a> {
     contexts: &'a SortingContexts,
     transform_palette: &'a [FloatMatrix4x4],
+    leaf_to_context_palette: &'a [FloatMatrix4x4],
     steps: Vec<DepthSortedReplayStep>,
     vertices: Vec<FloatVector3>,
 }
@@ -154,7 +157,17 @@ impl DepthSortedPlanBuilder<'_> {
             return;
         }
 
-        // Runs that are fully backface-culled, that project entirely behind the eye, or whose content bounds are empty
+        let context_to_device = self.transform_palette[sorting_context.0 as usize];
+        let Some(device_to_context) = context_to_device.inverse() else {
+            self.emit_chunks(chunks, sorting_context);
+            return;
+        };
+        let mut eye = device_to_context.map_vector4([0.0, 0.0, 1.0, 0.0]);
+        if eye[3] < 0.0 {
+            eye = [-eye[0], -eye[1], -eye[2], -eye[3]];
+        }
+
+        // Runs that are fully backface-culled, that lie entirely behind the eye, or whose content bounds are empty
         // draw nothing and are dropped rather than sorted. The bounds are inflated so a split piece's clip stays clear of
         // the anti-aliased fringe of the content's own edges.
         let mut polygons = Vec::new();
@@ -162,11 +175,12 @@ impl DepthSortedPlanBuilder<'_> {
             if run.bounds.is_empty() {
                 continue;
             }
-            let vertices = map_rect_through_projection(
-                self.transform_palette[run.leaf.0 as usize],
-                run.bounds.inflated(4.0, 4.0),
-            );
+            let leaf_to_context = self.leaf_to_context_palette[run.leaf.0 as usize];
+            let vertices = map_rect_through_projection(leaf_to_context, run.bounds.inflated(4.0, 4.0));
             if vertices.len() < 3 {
+                continue;
+            }
+            if map_polygon_through_projection(context_to_device, &vertices).len() < 3 {
                 continue;
             }
             polygons.push(BspPolygon {
@@ -178,14 +192,18 @@ impl DepthSortedPlanBuilder<'_> {
 
         // FIXME: Pieces of a split plane whose content carries filter effects render incorrectly: each piece filters its
         //        clipped content independently, truncating filter output at the piece boundary and seaming it along the cut.
-        for polygon in split_and_sort_polygons_back_to_front(polygons) {
+        for polygon in split_and_sort_polygons_back_to_front(polygons, eye, context_to_device) {
             let run = &runs[polygon.plane_index];
             if polygon.clipped {
-                self.append_plane_clip(polygon.vertices);
-            }
-            self.emit_chunks(&chunks[run.begin..run.end], sorting_context);
-            if polygon.clipped {
+                let clip_vertices = map_polygon_through_projection(context_to_device, &polygon.vertices);
+                if clip_vertices.len() < 3 {
+                    continue;
+                }
+                self.append_plane_clip(clip_vertices);
+                self.emit_chunks(&chunks[run.begin..run.end], sorting_context);
                 self.append_pop_plane_clip();
+            } else {
+                self.emit_chunks(&chunks[run.begin..run.end], sorting_context);
             }
         }
     }
@@ -393,6 +411,7 @@ pub fn build_depth_sorted_replay_plan(
     command_runs: &[DisplayListCommandRun],
     contexts: &SortingContexts,
     transform_palette: &[FloatMatrix4x4],
+    leaf_to_context_palette: &[FloatMatrix4x4],
     draw_space: &[SpatialNodeIndex],
     backface_culled: &[bool],
     frame_has_empty_effective_clip: &[bool],
@@ -408,6 +427,7 @@ pub fn build_depth_sorted_replay_plan(
     let mut builder = DepthSortedPlanBuilder {
         contexts,
         transform_palette,
+        leaf_to_context_palette,
         steps: Vec::new(),
         vertices: Vec::new(),
     };
@@ -433,6 +453,23 @@ mod tests {
                 sorting_context_roots[index].map(SpatialNodeIndex),
             )
         })
+    }
+
+    fn leaf_to_context_palette(contexts: &SortingContexts, palette: &[FloatMatrix4x4]) -> Vec<FloatMatrix4x4> {
+        palette
+            .iter()
+            .enumerate()
+            .map(|(index, matrix)| {
+                let context = contexts.context_by_node[index];
+                if context == NO_SORTING_CONTEXT {
+                    return *matrix;
+                }
+                palette[context.0 as usize]
+                    .inverse()
+                    .unwrap_or(FloatMatrix4x4::identity())
+                    .multiplied(*matrix)
+            })
+            .collect()
     }
 
     fn command_run(spatial: u32) -> DisplayListCommandRun {
@@ -477,8 +514,15 @@ mod tests {
         let contexts = sorting_contexts(&[0, 0, 1], &[None, None, Some(1)]);
         let command_runs = [command_run(0), command_run(0)];
         let (palette, draw_space, backface_culled) = identity_inputs(3);
-        let plan =
-            build_depth_sorted_replay_plan(&command_runs, &contexts, &palette, &draw_space, &backface_culled, &[]);
+        let plan = build_depth_sorted_replay_plan(
+            &command_runs,
+            &contexts,
+            &palette,
+            &leaf_to_context_palette(&contexts, &palette),
+            &draw_space,
+            &backface_culled,
+            &[],
+        );
         assert_eq!(run_spans(&plan), vec![(0, 2)]);
         assert!(plan.vertices.is_empty());
     }
@@ -490,8 +534,15 @@ mod tests {
         let (mut palette, draw_space, backface_culled) = identity_inputs(4);
         palette[2] = translation_matrix(0.0, 0.0, 100.0);
         palette[3] = translation_matrix(0.0, 0.0, -100.0);
-        let plan =
-            build_depth_sorted_replay_plan(&command_runs, &contexts, &palette, &draw_space, &backface_culled, &[]);
+        let plan = build_depth_sorted_replay_plan(
+            &command_runs,
+            &contexts,
+            &palette,
+            &leaf_to_context_palette(&contexts, &palette),
+            &draw_space,
+            &backface_culled,
+            &[],
+        );
         assert_eq!(run_spans(&plan), vec![(1, 1), (0, 1)]);
         assert!(
             plan.steps
@@ -506,8 +557,15 @@ mod tests {
         let command_runs = [command_run(2), command_run(3)];
         let (mut palette, draw_space, backface_culled) = identity_inputs(4);
         palette[3] = rotate_y(std::f32::consts::FRAC_PI_4);
-        let plan =
-            build_depth_sorted_replay_plan(&command_runs, &contexts, &palette, &draw_space, &backface_culled, &[]);
+        let plan = build_depth_sorted_replay_plan(
+            &command_runs,
+            &contexts,
+            &palette,
+            &leaf_to_context_palette(&contexts, &palette),
+            &draw_space,
+            &backface_culled,
+            &[],
+        );
         let push_steps: Vec<_> = plan
             .steps
             .iter()
@@ -531,8 +589,15 @@ mod tests {
         let command_runs = [command_run(3), command_run(4)];
         let (mut palette, draw_space, backface_culled) = identity_inputs(5);
         palette[2] = scale_matrix(0.0, 1.0, 1.0);
-        let plan =
-            build_depth_sorted_replay_plan(&command_runs, &contexts, &palette, &draw_space, &backface_culled, &[]);
+        let plan = build_depth_sorted_replay_plan(
+            &command_runs,
+            &contexts,
+            &palette,
+            &leaf_to_context_palette(&contexts, &palette),
+            &draw_space,
+            &backface_culled,
+            &[],
+        );
         assert_eq!(run_spans(&plan), vec![(0, 1), (1, 1)]);
         assert!(
             plan.steps
@@ -546,8 +611,15 @@ mod tests {
         let contexts = sorting_contexts(&[0, 0, 1, 1], &[None, None, Some(1), Some(1)]);
         let command_runs = [command_run(3), command_run(2)];
         let (palette, draw_space, backface_culled) = identity_inputs(4);
-        let plan =
-            build_depth_sorted_replay_plan(&command_runs, &contexts, &palette, &draw_space, &backface_culled, &[]);
+        let plan = build_depth_sorted_replay_plan(
+            &command_runs,
+            &contexts,
+            &palette,
+            &leaf_to_context_palette(&contexts, &palette),
+            &draw_space,
+            &backface_culled,
+            &[],
+        );
         assert_eq!(run_spans(&plan), vec![(0, 1), (1, 1)]);
     }
 
@@ -564,8 +636,15 @@ mod tests {
         palette[4] = translation_matrix(0.0, 0.0, 90.0);
         palette[5] = translation_matrix(0.0, 0.0, 110.0);
         palette[6] = translation_matrix(0.0, 0.0, -100.0);
-        let plan =
-            build_depth_sorted_replay_plan(&command_runs, &contexts, &palette, &draw_space, &backface_culled, &[]);
+        let plan = build_depth_sorted_replay_plan(
+            &command_runs,
+            &contexts,
+            &palette,
+            &leaf_to_context_palette(&contexts, &palette),
+            &draw_space,
+            &backface_culled,
+            &[],
+        );
         assert_eq!(run_spans(&plan), vec![(2, 1), (1, 1), (0, 1)]);
     }
 }
