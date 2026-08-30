@@ -29,6 +29,8 @@ namespace Web::Painting {
 
 class ScrollStateSnapshot;
 
+enum class ClipMode : u8;
+
 // The node's own SpatialNodeIndex keys its entry in the scroll offset snapshot.
 struct ScrollData { };
 
@@ -51,15 +53,10 @@ struct StickyData {
     bool operator==(StickyData const&) const = default;
 };
 
-enum class ClipMode : u8 {
-    Intersect,
-    Difference,
-};
-
 struct ClipData {
     Gfx::FloatRect rect;
     Gfx::CornerRadii corner_radii;
-    ClipMode mode { ClipMode::Intersect };
+    ClipMode mode;
 
     bool contains(Gfx::FloatPoint) const;
 };

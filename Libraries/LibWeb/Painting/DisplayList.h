@@ -56,6 +56,8 @@ protected:
         return { reinterpret_cast<T const*>(bytes.data()), bytes.size() / sizeof(T) };
     }
     void execute_impl(DisplayList const&, ScrollStateSnapshot const& scroll_state);
+    void execute_run_commands(DisplayListCommandRun const&, ScrollStateSnapshot const& scroll_state);
+    Gfx::Filter const& layer_filter(ReplayLayer const&);
     void execute_display_list_into_surface(DisplayList const&, AccumulatedVisualContextTree const&, Gfx::PaintingSurface&);
     void execute_nested_display_list(DisplayList const&, AccumulatedVisualContextTree const&, ScrollStateSnapshot const&);
 
@@ -68,11 +70,11 @@ private:
     virtual Gfx::FloatMatrix4x4 canvas_matrix() const = 0;
     virtual bool would_be_fully_clipped_by_painter(Gfx::IntRect) const = 0;
 
-    virtual void push_clip(ClipData const&) = 0;
+    virtual void push_clip(ReplayClip const&) = 0;
     virtual void push_clip_path(Gfx::Path const&, Gfx::WindingRule) = 0;
-    virtual void push_layer(EffectsData const&) = 0;
-    virtual void push_mask(MaskData const&) = 0;
-    virtual void pop_mask(MaskData const&, Optional<DisplayListResourceId> mask_content) = 0;
+    virtual void push_layer(ReplayLayer const&) = 0;
+    virtual void push_mask(ReplayMask const&) = 0;
+    virtual void pop_mask(ReplayMask const&, Optional<DisplayListResourceId> mask_content) = 0;
     virtual void pop() = 0;
     virtual void push_device_space_plane_clip(Gfx::Path const&) = 0;
 
@@ -83,15 +85,12 @@ private:
     RefPtr<Gfx::PaintingSurface> m_surface;
     ReadonlyBytes m_current_command_payload;
 
-    // Scratch for the per-replay transform palette, retained so steady-state replays reuse warm
-    // capacity; execute_impl moves it out for the duration of a replay, letting re-entrant nested
-    // replays build their own palettes without clobbering the outer one.
-    struct ReplayPaletteStorage {
-        Vector<Gfx::FloatMatrix4x4> to_root_matrices;
-        Vector<SpatialNodeIndex> draw_spaces;
-        Vector<bool> backface_culled;
+    struct CachedLayerFilter {
+        ByteBuffer filter_bytes;
+        Gfx::Filter filter;
     };
-    ReplayPaletteStorage m_replay_palette_storage;
+    HashMap<u64, HashMap<u32, CachedLayerFilter>> m_layer_filters_by_tree_version_and_frame;
+    u64 m_layer_filter_cache_tree_version { 0 };
 };
 
 class DisplayList : public AtomicRefCounted<DisplayList> {

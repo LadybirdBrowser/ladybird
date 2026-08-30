@@ -18,6 +18,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/ContextRef.h>
+#include <LibWeb/Painting/DisplayListCommand.h>
 
 namespace Web::Painting {
 

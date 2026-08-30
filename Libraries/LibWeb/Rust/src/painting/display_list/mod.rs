@@ -10,3 +10,4 @@ pub mod depth_sorted_plan;
 pub mod device_pixels;
 pub mod ffi_bytes;
 pub mod recorder;
+pub mod replay;
