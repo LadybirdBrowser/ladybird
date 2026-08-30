@@ -150,6 +150,28 @@ struct FrameNode {
 
 class AccumulatedVisualContextTree {
 public:
+    struct VisualAnimationOriginalValues {
+        struct Opacity {
+            FrameNodeIndex node_index;
+            float value { 1 };
+        };
+
+        struct Transform {
+            SpatialNodeIndex node_index;
+            Gfx::FloatMatrix4x4 value;
+        };
+
+        bool is_empty() const { return opacities.is_empty() && transforms.is_empty(); }
+        void clear()
+        {
+            opacities.clear();
+            transforms.clear();
+        }
+
+        Vector<Opacity> opacities;
+        Vector<Transform> transforms;
+    };
+
     enum class IncludeVisualViewportTransform {
         No,
         Yes,
@@ -194,6 +216,8 @@ public:
     Optional<FrameNodeIndex> root_isolation_frame() const { return m_root_isolation_frame; }
     ReadonlySpan<Compositor::VisualAnimation> visual_animations() const { return m_visual_animations; }
     void set_visual_animations(Vector<Compositor::VisualAnimation> animations) { m_visual_animations = move(animations); }
+    WEB_API void sample_visual_animations(i64 monotonic_time_ns, VisualAnimationOriginalValues&);
+    WEB_API void restore_visual_animation_original_values(VisualAnimationOriginalValues&);
     void set_root_isolation_frame(FrameNodeIndex frame)
     {
         VERIFY(frame.value() < m_frame_nodes.size());

@@ -679,7 +679,10 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id)
 
         if (auto animation_frame = context.advance_smooth_scroll_animations(now); animation_frame.has_value())
             context.queue_present_frame(ContextState::PendingFrame::repainting_changes(*animation_frame));
-        if (context.advance_visual_animations(now)) {
+        if (context.has_active_visual_animations()) {
+            context.advance_visual_animations(now);
+            // Visual animation damage deliberately covers the full viewport until we track the animated nodes' bounds
+            // before and after sampling.
             if (auto viewport_rect = context.viewport_rect_for_ui_overlay(); viewport_rect.has_value())
                 context.queue_present_frame(ContextState::PendingFrame::repainting_changes(*viewport_rect));
         }
