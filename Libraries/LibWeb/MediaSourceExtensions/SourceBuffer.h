@@ -9,6 +9,7 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <AK/Types.h>
+#include <LibMedia/TimeRanges.h>
 #include <LibWeb/Bindings/SourceBuffer.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -56,6 +57,7 @@ public:
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-buffered
     GC::Ref<HTML::TimeRanges> buffered();
+    Media::TimeRanges buffered_ranges() const;
 
     void set_content_type(Utf16View type);
 

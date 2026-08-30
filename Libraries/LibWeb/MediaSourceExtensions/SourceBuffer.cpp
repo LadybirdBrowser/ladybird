@@ -253,11 +253,16 @@ GC::Ref<HTML::TimeRanges> SourceBuffer::buffered()
 
     // NB: Further steps to intersect the buffered ranges of the track buffers are implemented within
     //     SourceBufferProcessor::buffered_ranges() below, since it has access to the track buffers.
-    auto ranges = m_processor->buffered_ranges();
+    auto ranges = buffered_ranges();
     for (auto const& range : ranges)
         time_ranges->add_range(range.start.to_seconds_f64(), range.end.to_seconds_f64());
 
     return time_ranges;
+}
+
+Media::TimeRanges SourceBuffer::buffered_ranges() const
+{
+    return m_processor->buffered_ranges();
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-mode

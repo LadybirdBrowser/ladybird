@@ -36,7 +36,9 @@
 
             mediaSource.addEventListener("sourceopen", async () => {
                 try {
+                    mediaSource.duration = 20;
                     const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
+                    step(`video before append: ${formatRanges(video.buffered)}`);
 
                     const response = await fetch("../../../Assets/test-webm.webm");
                     if (!response.ok) {

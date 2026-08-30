@@ -56,6 +56,8 @@
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/MediaSourceExtensions/MediaSource.h>
+#include <LibWeb/MediaSourceExtensions/SourceBuffer.h>
+#include <LibWeb/MediaSourceExtensions/SourceBufferList.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/ScreenWakeLockHandle.h>
@@ -431,6 +433,58 @@ GC::Ref<TimeRanges> HTMLMediaElement::buffered() const
     // The buffered attribute must return a new static normalized TimeRanges object that represents the ranges of the
     // media resource, if any, that the user agent has buffered, at the time the attribute is evaluated.
     auto time_ranges = TimeRanges::create();
+
+    // https://w3c.github.io/media-source/#htmlmediaelement-extensions-buffered
+    // The HTMLMediaElement's buffered attribute returns a static normalized TimeRanges object based on the following steps.
+    if (m_attached_media_source) {
+        // Let recent intersection ranges equal an empty TimeRanges object.
+        Media::TimeRanges recent_intersection_ranges;
+
+        // If activeSourceBuffers.length does not equal 0 then run the following steps:
+        auto active_source_buffers = m_attached_media_source->active_source_buffers();
+        if (active_source_buffers->length() == 0)
+            return time_ranges;
+
+        // Let active ranges be the ranges returned by buffered for each SourceBuffer object in activeSourceBuffers.
+        Vector<Media::TimeRanges> active_ranges;
+        active_ranges.ensure_capacity(active_source_buffers->length());
+        Optional<AK::Duration> highest_end_time;
+        for (u32 i = 0; i < active_source_buffers->length(); ++i) {
+            auto ranges = active_source_buffers->item(i)->buffered_ranges();
+            if (!ranges.is_empty()) {
+                auto range_end_time = ranges.highest_end_time();
+                if (!highest_end_time.has_value() || range_end_time > highest_end_time.value())
+                    highest_end_time = range_end_time;
+            }
+            active_ranges.append(move(ranges));
+        }
+
+        // Let highest end time be the largest range end time in the active ranges.
+        // INTEROP: Chromium and WebKit return an empty TimeRanges object if every active range is empty.
+        if (!highest_end_time.has_value())
+            return time_ranges;
+
+        // Let recent intersection ranges equal a TimeRanges object containing a single range from 0 to highest end time.
+        recent_intersection_ranges.add_range(AK::Duration::zero(), highest_end_time.value());
+
+        // For each SourceBuffer object in activeSourceBuffers run the following steps:
+        for (auto& source_ranges : active_ranges) {
+            // Let source ranges equal the ranges returned by the buffered attribute on the current SourceBuffer.
+
+            // If readyState is "ended", then set the end time on the last range in source ranges to highest end time.
+            if (m_attached_media_source->ready_state() == MediaSourceExtensions::ReadyState::Ended && !source_ranges.is_empty())
+                source_ranges.add_range(source_ranges[source_ranges.size() - 1].start, highest_end_time.value());
+
+            // Let new intersection ranges equal the intersection between the recent intersection ranges and the source ranges.
+            // Replace the ranges in recent intersection ranges with the new intersection ranges.
+            recent_intersection_ranges = recent_intersection_ranges.intersection(source_ranges);
+        }
+
+        for (auto const& range : recent_intersection_ranges)
+            time_ranges->add_range(range.start.to_seconds_f64(), range.end.to_seconds_f64());
+        return time_ranges;
+    }
+
     if (m_playback_manager) {
         for (auto const& range : m_playback_manager->buffered_time_ranges())
             time_ranges->add_range(range.start.to_seconds_f64(), range.end.to_seconds_f64());
