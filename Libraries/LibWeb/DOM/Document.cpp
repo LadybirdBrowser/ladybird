@@ -6718,6 +6718,8 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
             // isIntersecting be false.
             bool is_intersecting = false;
 
+            bool intersection_geometry_intersects = false;
+
             // targetRect be a DOMRectReadOnly with x, y, width, and height set to 0.
             CSSPixelRect target_rect { 0, 0, 0, 0 };
 
@@ -6750,20 +6752,20 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
 
                 // 8. Let isIntersecting be true if targetRect and rootBounds intersect or are edge-adjacent, even if the
                 //    intersection has zero area (because rootBounds or targetRect have zero area).
-                is_intersecting = target_rect.edge_adjacent_intersects(root_bounds);
+                intersection_geometry_intersects = target_rect.edge_adjacent_intersects(root_bounds);
 
                 // 9. If targetArea is non-zero, let intersectionRatio be intersectionArea divided by targetArea.
                 //    Otherwise, let intersectionRatio be 1 if isIntersecting is true, or 0 if isIntersecting is false.
                 if (target_area != 0.0)
                     intersection_ratio = (intersection_area / target_area).to_double();
                 else
-                    intersection_ratio = is_intersecting ? 1.0 : 0.0;
+                    intersection_ratio = intersection_geometry_intersects ? 1.0 : 0.0;
 
                 // 10. Set thresholdIndex to the index of the first entry in observer.thresholds whose value is greater
                 //     than intersectionRatio, or the length of observer.thresholds if intersectionRatio is greater than
                 //     or equal to the last entry in observer.thresholds.
                 // NB: Thresholds are sorted in ascending order, so we use binary search.
-                {
+                if (intersection_geometry_intersects) {
                     auto const& thresholds = observer->thresholds();
                     size_t lo = 0;
                     size_t hi = thresholds.size();
@@ -6776,6 +6778,10 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
                     }
                     threshold_index = lo;
                 }
+
+                // INTEROP: All other engines report isIntersecting as false when the intersection ratio is below the
+                //          first threshold. See https://github.com/w3c/IntersectionObserver/issues/432.
+                is_intersecting = threshold_index > 0;
             }
 
             // 11. Let intersectionObserverRegistration be the IntersectionObserverRegistration record in target’s

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #root {
+        width: 200px;
+        height: 200px;
+    }
+
+    #target {
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<div id="root"><div id="target"></div></div>
+<script>
+    asyncTest(done => {
+        const root = document.getElementById("root");
+        const target = document.getElementById("target");
+        const observer = new IntersectionObserver(entries => {
+            const entry = entries[0];
+            println(`isIntersecting=${entry.isIntersecting} ratio=${entry.intersectionRatio}`);
+
+            if (entry.intersectionRatio < 1) {
+                target.style.transform = "translateY(1px)";
+                return;
+            }
+
+            done();
+        }, {
+            root,
+            rootMargin: "-1px 0px -1px 0px",
+            threshold: [1],
+        });
+        observer.observe(target);
+    });
+</script>
