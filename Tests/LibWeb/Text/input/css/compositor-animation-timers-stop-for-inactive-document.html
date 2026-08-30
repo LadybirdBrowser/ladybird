@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    async function createFrameWithArmedTimers() {
+        const frame = document.createElement("iframe");
+        frame.srcdoc = "child document";
+        document.body.append(frame);
+        await new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        frame.contentWindow.internals.armCompositorAnimationTimersForTesting();
+        return frame;
+    }
+
+    function timersAreArmed(frame) {
+        const counters = frame.contentWindow.internals.getStyleInvalidationCounters();
+        return counters.compositorAnimationWakeupTimerActive
+            && counters.compositorAnimationObservationTimerActive;
+    }
+
+    function timersAreStopped(oldInternals) {
+        const counters = oldInternals.getStyleInvalidationCounters();
+        return !counters.compositorAnimationWakeupTimerActive
+            && !counters.compositorAnimationObservationTimerActive;
+    }
+
+    asyncTest(async done => {
+        const navigatedFrame = await createFrameWithArmedTimers();
+        println(`timers armed before navigation: ${timersAreArmed(navigatedFrame)}`);
+        const navigatedInternals = navigatedFrame.contentWindow.internals;
+        navigatedFrame.srcdoc = "replacement";
+        await new Promise(resolve => navigatedFrame.addEventListener("load", resolve, { once: true }));
+        println(`timers stopped after navigation: ${timersAreStopped(navigatedInternals)}`);
+
+        const removedFrame = await createFrameWithArmedTimers();
+        println(`timers armed before destruction: ${timersAreArmed(removedFrame)}`);
+        const removedInternals = removedFrame.contentWindow.internals;
+        removedFrame.remove();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        println(`timers stopped after destruction: ${timersAreStopped(removedInternals)}`);
+        done();
+    });
+</script>

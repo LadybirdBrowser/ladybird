@@ -1,0 +1,4 @@
+timers armed before navigation: true
+timers stopped after navigation: true
+timers armed before destruction: true
+timers stopped after destruction: true

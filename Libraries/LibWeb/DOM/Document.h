@@ -473,8 +473,12 @@ public:
     void flush_throttled_animation_style_update();
     void flush_throttled_animation_style_update_for_node(Node const&);
     void schedule_compositor_animation_wakeup(double delay_ms);
+    void stop_compositor_animation_timers();
+    void arm_compositor_animation_timers_for_testing(Badge<Internals::Internals>);
     void request_reentrant_animation_style_flush_for_testing(Badge<Internals::Internals>, Node const&);
     bool run_empty_animation_style_update_for_testing(Badge<Internals::Internals>);
+    bool compositor_animation_wakeup_timer_is_active() const;
+    bool compositor_animation_observation_timer_is_active() const;
     void throttled_animation_visibility_changed();
     void invalidate_style_for_viewport_change();
     bool suppresses_attribute_style_invalidation() const { return m_suppresses_attribute_style_invalidation; }

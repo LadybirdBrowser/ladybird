@@ -712,6 +712,7 @@ void Document::record_layout_tree_build(u64 rebuilt_subtree_root_count, bool esc
 
 void Document::finalize()
 {
+    stop_compositor_animation_timers();
     if (m_layout_node_arena)
         Layout::RustFFI::layout_arena_clear_chrome_state_callback(m_layout_node_arena->handle());
     CSS::ComputedValuesFFI::rust_custom_property_registry_destroy(m_rust_custom_property_registry);
@@ -2780,6 +2781,34 @@ bool Document::run_empty_animation_style_update_for_testing(Badge<Internals::Int
     m_effects_needing_animated_style_update.clear();
     sample_animation_effects_needing_style_update();
     return m_has_throttled_animation_style_update;
+}
+
+void Document::stop_compositor_animation_timers()
+{
+    if (m_compositor_animation_wakeup_timer) {
+        m_compositor_animation_wakeup_timer->stop();
+        m_compositor_animation_wakeup_deadline.clear();
+    }
+    if (m_compositor_animation_observation_timer)
+        m_compositor_animation_observation_timer->stop();
+}
+
+void Document::arm_compositor_animation_timers_for_testing(Badge<Internals::Internals>)
+{
+    stop_compositor_animation_timers();
+    schedule_compositor_animation_wakeup(NumericLimits<int>::max());
+    m_compositor_animation_observation_timer = Core::Timer::create_single_shot(NumericLimits<int>::max(), GC::weak_callback(*this, [](auto&) { }));
+    m_compositor_animation_observation_timer->start();
+}
+
+bool Document::compositor_animation_wakeup_timer_is_active() const
+{
+    return m_compositor_animation_wakeup_timer && m_compositor_animation_wakeup_timer->is_active();
+}
+
+bool Document::compositor_animation_observation_timer_is_active() const
+{
+    return m_compositor_animation_observation_timer && m_compositor_animation_observation_timer->is_active();
 }
 
 void Document::throttled_animation_visibility_changed()
@@ -6004,6 +6033,7 @@ void Document::destroy()
 
     // 2. Abort document.
     abort();
+    stop_compositor_animation_timers();
 
     // AD-HOC: Notify document observers that this document became inactive.
     //         This handles iframe-removal destruction, which doesn't otherwise go through
@@ -6485,6 +6515,7 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
 
 void Document::did_stop_being_active_document_in_navigable()
 {
+    stop_compositor_animation_timers();
     clear_layout_nodes_for_inactive_document();
     tear_down_layout_tree();
 
@@ -8053,6 +8084,8 @@ void Document::schedule_compositor_animation_wakeup(double delay_ms)
     m_compositor_animation_wakeup_deadline = deadline;
     if (!m_compositor_animation_wakeup_timer) {
         m_compositor_animation_wakeup_timer = Core::Timer::create_single_shot(static_cast<int>(timer_delay_ms), GC::weak_callback(*this, [](auto& document) {
+            // Cancelling a finite effect can leave this deadline armed. The single wake-up is harmless: it finds
+            // nothing due and leaves the timer idle unless another effect supplies a deadline.
             document.m_compositor_animation_wakeup_deadline.clear();
             auto timestamp = HighResolutionTime::relative_high_resolution_time(
                 HighResolutionTime::unsafe_shared_current_time(), document.relevant_settings_object().global_object());
@@ -8421,6 +8454,7 @@ void Document::update_compositor_animations()
         if (animation.is_idle() || !effect.is_in_effect())
             continue;
         auto& target = abstract_target->element();
+
         bool targets_opacity = effect.target_properties().contains(CSS::PropertyID::Opacity);
         bool targets_transform = any_of(effect.target_properties(), is_transform_family_property);
         bool targets_unsupported_property = any_of(effect.target_properties(), [&](auto property_id) { return property_id != CSS::PropertyID::Opacity && !is_transform_family_property(property_id); });
