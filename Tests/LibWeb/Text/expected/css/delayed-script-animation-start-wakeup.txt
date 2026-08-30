@@ -1,0 +1,4 @@
+delayed script animation receives its start wake-up: true
+zero-delay animation wakes after rewind: true
+animationstart fires near the active boundary: true
+delayed script animation uses a bounded frame pump: true

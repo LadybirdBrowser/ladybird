@@ -1208,10 +1208,15 @@ void Animation::update()
         update_finished_state(DidSeek::No, SynchronouslyNotify::Yes, ShouldInvalidate::No);
         if (play_state() == AnimationPlayState::Running && m_effect && is<KeyframeEffect>(*m_effect)) {
             auto& effect = static_cast<KeyframeEffect&>(*m_effect);
+            bool output_is_constant_before_active_start = !pending()
+                && effect.is_in_the_before_phase()
+                && m_timeline
+                && m_timeline->is_monotonically_increasing()
+                && playback_rate() > 0;
             if (effect.can_skip_per_frame_style_update()) {
                 if (auto target = effect.target())
                     target->document().note_throttled_animation_style_update();
-            } else if (!pending()) {
+            } else if (!pending() && !output_is_constant_before_active_start) {
                 invalidate_effect();
             }
         } else if (m_is_finished != was_finished) {
@@ -1228,6 +1233,23 @@ void Animation::update()
     if (m_pending_pause_task == TaskState::Scheduled && is_ready_to_run_pending_pause_task()) {
         m_pending_pause_task = TaskState::None;
         run_pending_pause_task();
+    }
+
+    if (play_state() == AnimationPlayState::Running && !pending() && m_effect && is<KeyframeEffect>(*m_effect)) {
+        auto& effect = static_cast<KeyframeEffect&>(*m_effect);
+        if (effect.is_in_the_before_phase()
+            && m_timeline && m_timeline->is_monotonically_increasing()
+            && playback_rate() > 0
+            && effect.start_delay().type == TimeValue::Type::Milliseconds) {
+            auto animation_current_time = current_time();
+            if (animation_current_time.has_value() && animation_current_time->type == TimeValue::Type::Milliseconds) {
+                auto delay = (effect.start_delay().value - animation_current_time->value) / playback_rate();
+                if (delay > 0) {
+                    if (auto target = effect.target())
+                        target->document().schedule_animation_wakeup(delay);
+                }
+            }
+        }
     }
 }
 

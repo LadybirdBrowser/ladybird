@@ -1,0 +1,52 @@
+<!doctype html>
+<style>
+    @keyframes delayed-css-start {
+        from { color: rgb(10, 0, 0); }
+        to { color: rgb(20, 0, 0); }
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const target = document.createElement("div");
+        document.body.append(target);
+
+        const cssTarget = document.createElement("div");
+        let cssAnimationStartTime;
+        cssTarget.addEventListener("animationstart", () => {
+            cssAnimationStartTime = performance.now();
+        });
+        cssTarget.style.animation = "delayed-css-start 100s 500ms";
+        document.body.append(cssTarget);
+
+        const animation = target.animate([
+            { color: "rgb(10, 0, 0)" },
+            { color: "rgb(20, 0, 0)" },
+        ], { delay: 500, duration: 100000, fill: "backwards" });
+        await animation.ready;
+
+        const rewoundTarget = document.createElement("div");
+        rewoundTarget.style.visibility = "hidden";
+        document.body.append(rewoundTarget);
+        const rewoundAnimation = rewoundTarget.animate([
+            { transform: "translateX(0px)" },
+            { transform: "translateX(100px)" },
+        ], { duration: 100000, fill: "backwards", iterations: Infinity });
+        await rewoundAnimation.ready;
+        rewoundAnimation.currentTime = -100;
+
+        const readyTime = performance.now();
+        internals.resetStyleInvalidationCounters();
+        await new Promise(resolve => setTimeout(resolve, 625));
+        const counters = internals.getStyleInvalidationCounters();
+
+        println(`delayed script animation receives its start wake-up: ${animation.currentTime >= 500 && counters.animationFramePumpRequests >= 1}`);
+        println(`zero-delay animation wakes after rewind: ${rewoundAnimation.currentTime >= 0 && counters.animationFramePumpRequests >= 2}`);
+        println(`animationstart fires near the active boundary: ${cssAnimationStartTime !== undefined && cssAnimationStartTime - readyTime <= 625}`);
+        println(`delayed script animation uses a bounded frame pump: ${counters.animationFramePumpRequests >= 2 && counters.animationFramePumpRequests <= 16}`);
+
+        animation.cancel();
+        rewoundAnimation.cancel();
+        done();
+    });
+</script>
