@@ -1,0 +1,2 @@
+transition started: true
+script animation wins: 0.75

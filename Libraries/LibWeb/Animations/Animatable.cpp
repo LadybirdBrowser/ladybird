@@ -151,6 +151,35 @@ WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations_inter
     return relevant_animations;
 }
 
+ReadonlySpan<GC::Ref<Animation>> Animatable::associated_animations_in_composite_order()
+{
+    if (!m_impl)
+        return {};
+
+    if (!m_impl->is_sorted_by_composite_order) {
+        quick_sort(m_impl->associated_animations, [](auto const& a, auto const& b) {
+            auto a_effect = a->effect();
+            auto b_effect = b->effect();
+            bool a_is_keyframe_effect = a_effect && is<KeyframeEffect>(*a_effect);
+            bool b_is_keyframe_effect = b_effect && is<KeyframeEffect>(*b_effect);
+            if (a_is_keyframe_effect && b_is_keyframe_effect)
+                return KeyframeEffect::composite_order(static_cast<KeyframeEffect&>(*a_effect), static_cast<KeyframeEffect&>(*b_effect)) < 0;
+            if (a_is_keyframe_effect != b_is_keyframe_effect)
+                return !a_is_keyframe_effect;
+            return a->global_animation_list_order() < b->global_animation_list_order();
+        });
+        m_impl->is_sorted_by_composite_order = true;
+    }
+
+    return m_impl->associated_animations.span();
+}
+
+void Animatable::invalidate_associated_animation_composite_order()
+{
+    if (m_impl)
+        m_impl->is_sorted_by_composite_order = false;
+}
+
 bool Animatable::has_relevant_animations() const
 {
     if (!m_impl)
@@ -177,6 +206,7 @@ void Animatable::disassociate_with_animation(GC::Ref<Animation> animation)
 {
     auto& impl = *m_impl;
     impl.associated_animations.remove_first_matching([&](auto element) { return animation == element; });
+    impl.is_sorted_by_composite_order = false;
 
     as<DOM::Element>(*this).document().disassociate_with_animation(animation);
 }

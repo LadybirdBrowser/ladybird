@@ -29,7 +29,7 @@ public:
 
     void apply_css_properties(AnimationProperties const&);
 
-    void set_animation_name_index(size_t index) { m_animation_name_index = index; }
+    void set_animation_name_index(size_t index);
 
     EasingFunction const& default_easing() const { return m_default_easing; }
 

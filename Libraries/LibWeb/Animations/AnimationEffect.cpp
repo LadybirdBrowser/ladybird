@@ -913,7 +913,14 @@ AnimationUpdateContext::~AnimationUpdateContext()
         target->document().style_computer().for_each_provisional_transition_effect(element, [&](KeyframeEffect& effect) {
             effects_to_collect.append(effect);
         });
-        effects_to_collect.extend(it.value.effects);
+        for (auto& animation : target->associated_animations_in_composite_order()) {
+            if (animation->is_idle() || !animation->effect() || !is<KeyframeEffect>(*animation->effect()))
+                continue;
+            auto& effect = static_cast<KeyframeEffect&>(*animation->effect());
+            if (effect.target() != target || effect.pseudo_element_type() != element.pseudo_element())
+                continue;
+            effects_to_collect.append(effect);
+        }
         if (!effects_to_collect.is_empty())
             target->document().style_computer().collect_animations_into(element, effects_to_collect.span(), *style, CSS::StyleComputer::AnimationRefresh::Yes);
         auto animated_properties_after_update = style->animated_properties_snapshot();
