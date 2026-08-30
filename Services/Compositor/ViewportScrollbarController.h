@@ -44,6 +44,7 @@ public:
     void set_scrollbars(Vector<Web::Compositor::ViewportScrollbar> const&);
 
     bool is_empty() const { return m_scrollbars.is_empty(); }
+    Vector<Web::Compositor::ViewportScrollbar> const& scrollbars() const { return m_scrollbars; }
     bool has_captured_scrollbar() const { return m_captured_scrollbar_index.has_value(); }
 
     Optional<size_t> hit_test(Web::Compositor::AsyncScrollTree const&, Web::Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position) const;
