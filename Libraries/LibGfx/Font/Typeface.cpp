@@ -7,6 +7,7 @@
 #include <harfbuzz/hb.h>
 
 #include <LibGfx/Font/Font.h>
+#include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/FontVariationSettings.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/TypefaceSkia.h>
@@ -19,6 +20,14 @@ ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_resource(Core::Resource
 {
     auto typeface = TRY(try_load_from_externally_owned_memory(resource.data(), ttc_index));
     typeface->set_resource_font_data(resource);
+    return typeface;
+}
+
+ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_mapped_file(NonnullOwnPtr<Core::MappedFile> mapped_file, u32 ttc_index)
+{
+    auto shared_mapped_file = make_ref_counted<Core::SharedMappedFile>(move(mapped_file));
+    auto typeface = TRY(try_load_from_externally_owned_memory(shared_mapped_file->operator->().bytes(), ttc_index));
+    typeface->set_mapped_font_data(move(shared_mapped_file));
     return typeface;
 }
 
@@ -50,6 +59,11 @@ Typeface::~Typeface()
         hb_face_destroy(m_harfbuzz_face);
     if (m_harfbuzz_blob)
         hb_blob_destroy(m_harfbuzz_blob);
+}
+
+void Typeface::clear_font_cache() const
+{
+    m_fonts.clear();
 }
 
 NonnullRefPtr<Font> Typeface::font(float point_size, FontVariationSettings const& variations, Gfx::ShapeFeatures const& shape_features) const
@@ -123,6 +137,13 @@ hb_face_t* Typeface::create_harfbuzz_face() const
 
 void Typeface::encode_font_data_for_ipc(IPC::Encoder& encoder) const
 {
+    if (m_system_font_identifier.has_value()) {
+        MUST(encoder.encode(FontDataFormat::SystemFontId));
+        MUST(encoder.encode(m_system_font_identifier->generation));
+        MUST(encoder.encode(m_system_font_identifier->face_id));
+        return;
+    }
+
     VERIFY(m_font_data.has_value());
 
     m_font_data->visit(
@@ -135,7 +156,15 @@ void Typeface::encode_font_data_for_ipc(IPC::Encoder& encoder) const
             MUST(encoder.encode(FontDataFormat::ResourceFontData));
             MUST(encoder.encode(resource->uri()));
             MUST(encoder.encode(ttc_index()));
+        },
+        [&](NonnullRefPtr<Core::SharedMappedFile> const&) {
+            VERIFY_NOT_REACHED();
         });
+}
+
+void Typeface::set_mapped_font_data(NonnullRefPtr<Core::SharedMappedFile> mapped_file)
+{
+    m_font_data = FontDataBacking { move(mapped_file) };
 }
 
 void Typeface::set_anonymous_font_data(Core::AnonymousBuffer anonymous_buffer)
@@ -151,6 +180,7 @@ void Typeface::set_resource_font_data(Core::Resource const& resource)
 void Typeface::copy_font_data_from(Typeface const& other)
 {
     m_font_data = other.m_font_data;
+    m_system_font_identifier = other.m_system_font_identifier;
 }
 
 }
@@ -203,6 +233,14 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface const>> decode(Decoder& decoder)
         auto width = TRY(decoder.decode<u16>());
         auto slope = TRY(decoder.decode<u8>());
         return match_system_typeface(system_ui_font_kind, move(family_name), weight, width, slope);
+    }
+    case Gfx::Typeface::FontDataFormat::SystemFontId: {
+        auto generation = TRY(decoder.decode<u64>());
+        auto face_id = TRY(decoder.decode<u64>());
+        auto matched_typeface = Gfx::FontDatabase::the().get_typeface_by_id(generation, face_id);
+        if (!matched_typeface)
+            return Error::from_string_literal("Typeface IPC data referred to an unavailable system font");
+        return matched_typeface.release_nonnull();
     }
     }
 

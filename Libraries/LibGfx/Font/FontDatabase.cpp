@@ -24,6 +24,24 @@ namespace Gfx {
 // Key function for SystemFontProvider to emit the vtable here
 SystemFontProvider::~SystemFontProvider() = default;
 
+RefPtr<Typeface> SystemFontProvider::get_typeface_by_id(u64, u64)
+{
+    return nullptr;
+}
+
+RefPtr<Gfx::Font> SystemFontProvider::get_font_for_code_point(u32 code_point, float point_size, u16 weight, u16 width, u8 slope, bool prefer_color_emoji)
+{
+    auto typeface_or_error = TypefaceSkia::find_typeface_for_code_point(code_point, weight, width, slope, prefer_color_emoji);
+    if (typeface_or_error.is_error() || !typeface_or_error.value())
+        return nullptr;
+    return typeface_or_error.release_value()->font(point_size, {});
+}
+
+Optional<FlyString> SystemFontProvider::resolve_generic_family(StringView family_name, u16 weight, u8 slope)
+{
+    return TypefaceSkia::resolve_generic_family(family_name, weight, slope);
+}
+
 FontDatabase& FontDatabase::the()
 {
     static FontDatabase& database = *new FontDatabase;
@@ -52,21 +70,17 @@ RefPtr<Gfx::Font> FontDatabase::get(FlyString const& family, float point_size, u
 
 RefPtr<Gfx::Font> FontDatabase::get_font_for_code_point(u32 code_point, float point_size, u16 weight, u16 width, u8 slope, bool prefer_color_emoji)
 {
-    CodePointFallbackKey key { code_point, weight, width, slope, prefer_color_emoji };
-    auto& entry = m_code_point_fallback_cache.ensure(key, [&]() -> CodePointFallbackEntry {
-        auto typeface_or_error = TypefaceSkia::find_typeface_for_code_point(code_point, weight, width, slope, prefer_color_emoji);
-        if (typeface_or_error.is_error() || !typeface_or_error.value())
-            return { {}, nullptr };
+    return m_system_font_provider->get_font_for_code_point(code_point, point_size, weight, width, slope, prefer_color_emoji);
+}
 
-        auto typeface = typeface_or_error.release_value();
-        return { typeface->family(), typeface };
-    });
+RefPtr<Typeface> FontDatabase::get_typeface_by_id(u64 generation, u64 face_id)
+{
+    return m_system_font_provider->get_typeface_by_id(generation, face_id);
+}
 
-    // FIXME: Does it matter that we don't pass a FontVariationSettings or ShapeFeatures here?
-    if (entry.typeface)
-        return entry.typeface->font(point_size, {});
-
-    return nullptr;
+Optional<FlyString> FontDatabase::resolve_generic_family(StringView family_name, u16 weight, u8 slope)
+{
+    return m_system_font_provider->resolve_generic_family(family_name, weight, slope);
 }
 
 void FontDatabase::for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)> callback)

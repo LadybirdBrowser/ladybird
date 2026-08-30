@@ -83,7 +83,7 @@ static SkFontMgr& font_manager()
     auto& font_manager = skia_font_manager();
     if (!font_manager) {
 #ifdef AK_OS_MACOS
-        if (Gfx::FontDatabase::the().system_font_provider_name() != "FontConfig"sv) {
+        if (!Gfx::FontDatabase::the().force_freetype_rasterization() && (!Gfx::FontDatabase::the().has_system_font_provider() || Gfx::FontDatabase::the().system_font_provider_name() != "FontConfig"sv)) {
             font_manager = SkFontMgr_New_CoreText(nullptr);
         }
 #endif

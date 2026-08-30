@@ -30,6 +30,13 @@ namespace Gfx {
 
 class Font;
 
+struct SystemFontIdentifier {
+    u64 generation { 0 };
+    u64 face_id { 0 };
+
+    bool operator==(SystemFontIdentifier const&) const = default;
+};
+
 struct FontCacheKey {
     float point_size;
     Vector<FontVariationAxis> axes;
@@ -53,6 +60,7 @@ struct FontCacheKey {
 class Typeface : public RefCounted<Typeface> {
 public:
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_resource(Core::Resource const&, u32 ttc_index = 0);
+    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_mapped_file(NonnullOwnPtr<Core::MappedFile>, u32 ttc_index = 0);
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_anonymous_buffer(Core::AnonymousBuffer, u32 ttc_index = 0);
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_temporary_memory(ReadonlyBytes bytes, u32 ttc_index = 0);
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_externally_owned_memory(ReadonlyBytes bytes, u32 ttc_index = 0);
@@ -68,6 +76,9 @@ public:
     virtual u8 slope() const = 0;
 
     [[nodiscard]] NonnullRefPtr<Font> font(float point_size, FontVariationSettings const& variations = {}, Gfx::ShapeFeatures const& shape_features = {}) const;
+
+    void set_system_font_identifier(SystemFontIdentifier identifier) { m_system_font_identifier = identifier; }
+    Optional<SystemFontIdentifier> system_font_identifier() const { return m_system_font_identifier; }
 
     hb_face_t* harfbuzz_typeface() const;
 
@@ -94,6 +105,7 @@ protected:
         RawFontData,
         ResourceFontData,
         SystemFont,
+        SystemFontId,
     };
 
     Typeface();
@@ -105,18 +117,24 @@ protected:
 
     void set_anonymous_font_data(Core::AnonymousBuffer);
     void set_resource_font_data(Core::Resource const&);
+    void set_mapped_font_data(NonnullRefPtr<Core::SharedMappedFile>);
     void copy_font_data_from(Typeface const&);
     bool has_font_data_backing() const { return m_font_data.has_value(); }
 
 private:
+    friend class SharedFontProvider;
+
     template<typename T>
     friend ErrorOr<void> IPC::encode(IPC::Encoder&, T const&);
 
     template<typename T>
     friend ErrorOr<T> IPC::decode(IPC::Decoder&);
 
-    using FontDataBacking = Variant<Core::AnonymousBuffer, NonnullRefPtr<Core::Resource const>>;
+    using FontDataBacking = Variant<Core::AnonymousBuffer, NonnullRefPtr<Core::Resource const>, NonnullRefPtr<Core::SharedMappedFile>>;
     Optional<FontDataBacking> m_font_data;
+    Optional<SystemFontIdentifier> m_system_font_identifier;
+
+    void clear_font_cache() const;
 
     mutable HashMap<FontCacheKey, NonnullRefPtr<Font>> m_fonts;
     mutable hb_blob_t* m_harfbuzz_blob { nullptr };
