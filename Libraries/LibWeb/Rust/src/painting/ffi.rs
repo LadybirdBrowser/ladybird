@@ -373,6 +373,57 @@ unsafe fn tree_from_handle<'a>(tree: *const c_void) -> &'a crate::painting::visu
 
 /// # Safety
 ///
+/// Both trees must be live retained tree handles and every pointer must address the stated number of
+/// bytes or points for the call. Writes the damage rect through `out_damage_rect` and returns whether
+/// the damage is bounded; unbounded damage means the whole viewport must repaint.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn display_list_compute_damage(
+    old_command_bytes: *const u8,
+    old_command_bytes_length: usize,
+    old_tree: *const c_void,
+    old_scroll_offsets: *const libgfx_rust::FloatPoint,
+    old_scroll_offsets_len: usize,
+    new_command_bytes: *const u8,
+    new_command_bytes_length: usize,
+    new_tree: *const c_void,
+    new_scroll_offsets: *const libgfx_rust::FloatPoint,
+    new_scroll_offsets_len: usize,
+    viewport_rect: libgfx_rust::IntRect,
+    out_damage_rect: *mut libgfx_rust::IntRect,
+) -> bool {
+    abort_on_panic(|| {
+        let (old_tree, new_tree) = unsafe { (tree_from_handle(old_tree), tree_from_handle(new_tree)) };
+        // SAFETY: The caller guarantees the slices address the stated number of values.
+        let (old_command_bytes, old_scroll_offsets, new_command_bytes, new_scroll_offsets) = unsafe {
+            (
+                ffi_slice(old_command_bytes, old_command_bytes_length),
+                ffi_slice(old_scroll_offsets, old_scroll_offsets_len),
+                ffi_slice(new_command_bytes, new_command_bytes_length),
+                ffi_slice(new_scroll_offsets, new_scroll_offsets_len),
+            )
+        };
+        let damage = crate::painting::display_list::damage::compute_display_list_damage(
+            old_command_bytes,
+            old_tree,
+            old_scroll_offsets,
+            new_command_bytes,
+            new_tree,
+            new_scroll_offsets,
+            viewport_rect,
+        );
+        match damage {
+            Some(damage_rect) => {
+                // SAFETY: The caller guarantees `out_damage_rect` is writable.
+                unsafe { *out_damage_rect = damage_rect };
+                true
+            }
+            None => false,
+        }
+    })
+}
+
+/// # Safety
+///
 /// `tree` must be a live retained tree handle, `command_runs` must address `command_run_count`
 /// runs and `scroll_offsets` `scroll_offsets_len` points for the call, and `callbacks` must be
 /// live. The painter callbacks run synchronously and may re-enter this function for a nested
