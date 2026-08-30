@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    asyncTest(async done => {
+        target.animate({ opacity: [0.2, 0.8] }, 100000);
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+
+        internals.resetStyleInvalidationCounters();
+        internals.requestReentrantAnimationStyleFlushForTesting(target);
+        await new Promise(requestAnimationFrame);
+
+        println(`reentrant style read queues a follow-up sample: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 1}`);
+        done();
+    });
+</script>

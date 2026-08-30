@@ -2637,6 +2637,12 @@ void Document::sample_animation_effects_needing_style_update()
     if (!m_needs_animated_style_update)
         return;
 
+    VERIFY(!m_is_updating_animated_style);
+    m_is_updating_animated_style = true;
+    ScopeGuard clear_is_updating_animated_style = [&] {
+        finish_animated_style_update();
+    };
+
     Animations::AnimationUpdateContext context;
 
     GC::RootVector<GC::Ref<Animations::Animation>> animations;
@@ -2661,6 +2667,11 @@ void Document::sample_animation_effects_needing_style_update()
 
 void Document::set_needs_animated_style_update(Animations::KeyframeEffect& effect)
 {
+    if (m_is_updating_animated_style) {
+        m_effects_needing_animated_style_update_after_current_update.set(effect);
+        return;
+    }
+
     m_effects_needing_animated_style_update.set(effect);
     if (m_needs_animated_style_update)
         return;
@@ -2672,6 +2683,37 @@ void Document::set_needs_animated_style_update(Animations::KeyframeEffect& effec
         return;
 
     page().client().request_frame();
+}
+
+void Document::finish_animated_style_update()
+{
+    VERIFY(m_is_updating_animated_style);
+    m_is_updating_animated_style = false;
+
+    GC::RootVector<GC::Ref<Animations::KeyframeEffect>> effects;
+    for (auto& effect : m_effects_needing_animated_style_update_after_current_update)
+        effects.append(effect);
+    m_effects_needing_animated_style_update_after_current_update.clear();
+
+    for (auto& effect : effects)
+        set_needs_animated_style_update(*effect);
+}
+
+void Document::request_reentrant_animation_style_flush_for_testing(Badge<Internals::Internals>, Node const& node)
+{
+    VERIFY(!m_is_updating_animated_style);
+    m_is_updating_animated_style = true;
+    ScopeGuard clear_is_updating_animated_style = [&] {
+        finish_animated_style_update();
+    };
+    for (auto& animation : m_associated_animations) {
+        if (!animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
+            continue;
+        auto& effect = static_cast<Animations::KeyframeEffect&>(*animation.effect());
+        auto target = effect.target();
+        if (target && target->is_shadow_including_inclusive_ancestor_of(node))
+            set_needs_animated_style_update(effect);
+    }
 }
 
 void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates derived_structure_updates, ReadonlySpan<Layout::Box const*> boxes_needing_eager_measurement)
@@ -7377,8 +7419,11 @@ void Document::associate_with_animation(GC::Ref<Animations::Animation> animation
 
 void Document::disassociate_with_animation(GC::Ref<Animations::Animation> animation)
 {
-    if (animation->effect() && is<Animations::KeyframeEffect>(*animation->effect()))
-        m_effects_needing_animated_style_update.remove(static_cast<Animations::KeyframeEffect&>(*animation->effect()));
+    if (animation->effect() && is<Animations::KeyframeEffect>(*animation->effect())) {
+        auto& effect = static_cast<Animations::KeyframeEffect&>(*animation->effect());
+        m_effects_needing_animated_style_update.remove(effect);
+        m_effects_needing_animated_style_update_after_current_update.remove(effect);
+    }
     m_associated_animations.remove(animation);
 }
 
