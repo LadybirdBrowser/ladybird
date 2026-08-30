@@ -4,9 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteBuffer.h>
 #include <LibTest/TestCase.h>
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
+#include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/ScrollState.h>
 
 static Web::Compositor::AsyncScrollNodeID const viewport_node_id { .document_id = Web::UniqueNodeID { 1 }, .scroll_node_index = Web::Painting::SpatialNodeIndex { 1 } };
@@ -28,6 +30,64 @@ static Web::Compositor::AsyncScrollTree make_scroll_tree_with_viewport_scroll_no
     Web::Compositor::AsyncScrollTree scroll_tree;
     scroll_tree.set_state(move(state));
     return scroll_tree;
+}
+
+static NonnullRefPtr<Web::Painting::DisplayList> make_empty_display_list(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree)
+{
+    return Web::Painting::DisplayList::create_from_command_bytes(visual_context_tree, ByteBuffer {}, {});
+}
+
+TEST_CASE(wheel_hit_testing_rejects_a_different_visual_context_tree_version)
+{
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    Web::Compositor::AsyncScrollingState state;
+    state.main_thread_wheel_event_regions.append({
+        .context = { Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Web::Painting::NO_FRAME_NODE },
+        .rect = { 0, 0, 100, 100 },
+    });
+
+    Web::Compositor::AsyncScrollTree scroll_tree;
+    scroll_tree.set_state(move(state));
+    scroll_tree.rebuild_wheel_hit_test_targets(make_empty_display_list(visual_context_tree), &visual_context_tree, {});
+    auto current_result = scroll_tree.hit_test_scroll_node_for_wheel(
+        visual_context_tree, { 20, 20 }, { 0, 10 }, Web::Compositor::SnapContainerHandling::ScrollOnCompositor);
+    EXPECT(current_result.blocked_by_main_thread_region);
+
+    auto replacement_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto replacement_result = scroll_tree.hit_test_scroll_node_for_wheel(
+        replacement_tree, { 20, 20 }, { 0, 10 }, Web::Compositor::SnapContainerHandling::ScrollOnCompositor);
+    EXPECT(!replacement_result.blocked_by_main_thread_region);
+}
+
+TEST_CASE(wheel_hit_testing_ignores_invalid_visual_context_indices)
+{
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    Web::Compositor::AsyncScrollingState state;
+    state.main_thread_wheel_event_regions.append({
+        .context = { Web::Painting::SpatialNodeIndex { 100 }, Web::Painting::NO_FRAME_NODE },
+        .rect = { 0, 0, 100, 100 },
+    });
+
+    Web::Compositor::AsyncScrollTree scroll_tree;
+    scroll_tree.set_state(move(state));
+    scroll_tree.rebuild_wheel_hit_test_targets(make_empty_display_list(visual_context_tree), &visual_context_tree, {});
+    auto result = scroll_tree.hit_test_scroll_node_for_wheel(
+        visual_context_tree, { 20, 20 }, { 0, 10 }, Web::Compositor::SnapContainerHandling::ScrollOnCompositor);
+    EXPECT(!result.blocked_by_main_thread_region);
+}
+
+TEST_CASE(blocking_wheel_event_hit_testing_fails_closed_for_invalid_visual_context_indices)
+{
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    Web::Compositor::AsyncScrollingState state;
+    state.has_blocking_wheel_event_listeners = true;
+    state.blocking_wheel_event_regions.append({
+        .context = { Web::Painting::SpatialNodeIndex { 100 }, Web::Painting::NO_FRAME_NODE },
+        .rect = { 0, 0, 100, 100 },
+    });
+
+    EXPECT(Web::Compositor::blocks_wheel_event_at_position(
+        state, make_empty_display_list(visual_context_tree), &visual_context_tree, {}, { 20, 20 }));
 }
 
 TEST_CASE(async_scrolling_resolves_sticky_offsets_from_the_visual_context_tree)

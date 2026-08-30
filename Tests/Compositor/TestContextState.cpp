@@ -94,7 +94,7 @@ static Web::Painting::AccumulatedVisualContextTree make_scrollable_viewport_visu
     return visual_context_tree;
 }
 
-static NonnullRefPtr<Web::Painting::DisplayList> make_scrollable_viewport_display_list(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, bool with_viewport_scrollbar = true)
+static NonnullRefPtr<Web::Painting::DisplayList> make_scrollable_viewport_display_list(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, bool with_viewport_scrollbar = true, Optional<Web::Painting::ContextRef> wheel_hit_test_context = {})
 {
     ByteBuffer command_bytes;
     Web::UniqueNodeID document_id { 1 };
@@ -119,6 +119,18 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_scrollable_viewport_displa
             .snaps_scroll_position_horizontally = false,
             .snaps_scroll_position_vertically = false,
         });
+
+    if (wheel_hit_test_context.has_value()) {
+        append_display_list_command(
+            command_bytes,
+            Web::Painting::CompositorWheelHitTestTarget {
+                .document_id = document_id,
+                .target_scroll_node_index = scroll_node_index,
+                .rect = { 0, 0, 100, 100 },
+            },
+            {},
+            *wheel_hit_test_context);
+    }
 
     if (with_viewport_scrollbar) {
         append_display_list_command(
@@ -194,6 +206,37 @@ TEST_CASE(rasterization_clears_damaged_pixels_to_the_canvas_color_in_presentatio
     paint_frame(make_display_list(visual_context_tree, {}));
     bitmap = context.latest_rendered_surface()->snapshot_bitmap();
     EXPECT_EQ(bitmap->get_pixel(0, 0), Gfx::Color::Transparent);
+}
+
+TEST_CASE(wheel_hit_testing_ignores_targets_from_a_larger_visual_context_tree)
+{
+    TestWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { 0, client, canvas_surface_registry, true };
+    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
+    auto removed_transform = visual_context_tree.append_spatial(
+        Web::Painting::TransformData { Gfx::FloatMatrix4x4::identity(), {} },
+        Web::Painting::SpatialNodeIndex { 1 });
+
+    context.install_display_list_update(
+        make_scrollable_viewport_display_list(visual_context_tree, false, Web::Painting::ContextRef { removed_transform, Web::Painting::NO_FRAME_NODE }),
+        visual_context_tree,
+        {});
+
+    auto smaller_visual_context_tree = make_scrollable_viewport_visual_context_tree();
+    context.install_display_list_update(
+        make_scrollable_viewport_display_list(smaller_visual_context_tree, false, Web::Painting::ContextRef { removed_transform, Web::Painting::NO_FRAME_NODE }),
+        smaller_visual_context_tree,
+        {});
+
+    auto result = context.async_scroll_by(
+        Web::UniqueNodeID { 1 },
+        { 20, 20 },
+        { 0, 10 },
+        { 0, 0, 100, 100 },
+        Web::Compositor::SnapContainerHandling::ScrollOnCompositor,
+        Web::Compositor::AsyncScrollOperationTracking::No);
+    EXPECT(result.enqueue_result.accepted);
 }
 
 TEST_CASE(oversized_backing_stores_are_rejected)
