@@ -127,6 +127,8 @@ public:
     void cancel_smooth_scroll(Web::Compositor::AsyncScrollNodeStableID);
     Optional<Gfx::IntRect> advance_smooth_scroll_animations(MonotonicTime now);
     bool has_active_smooth_scroll_animations() const { return !m_smooth_scroll_animations.is_empty(); }
+    bool advance_visual_animations(MonotonicTime now);
+    bool has_active_visual_animations() const { return m_visual_context_tree.has_value() && !m_visual_context_tree->visual_animations().is_empty(); }
     ContextUpdateResult async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::Compositor::SnapContainerHandling);
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
 
@@ -242,6 +244,7 @@ private:
     u64 m_wheel_event_listener_state_generation { 0 };
     Web::Compositor::WheelRoutingAdmission m_wheel_routing_admission { Web::Compositor::WheelRoutingAdmission::NoAsyncScrollingState };
     Optional<Web::Painting::TransformData> m_async_visual_viewport_transform;
+    Optional<i64> m_visual_animation_sample_time_ns;
 
     Gfx::IntSize m_viewport_size;
     bool m_paused_debugger_overlay_visible { false };

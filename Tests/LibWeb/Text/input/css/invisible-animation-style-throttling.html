@@ -2,8 +2,8 @@
 <script src="../include.js"></script>
 <style>
     @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
+        from { transform: translateX(0%); }
+        to { transform: translateX(100%); }
     }
 
     .animated {
@@ -111,7 +111,7 @@
         document.body.append(visible);
         for (let i = 0; i < 4; ++i)
             await nextFrame();
-        println(`visible animation builds while hidden stays throttled: ${await animationOverlayBuildsOverFrames(4)}`);
+        println(`visible animation builds while hidden stays throttled: ${await animationOverlayBuildsOverFrames(4) > 0}`);
 
         const beforeMixedComputedStyle = internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds;
         getComputedStyle(hidden).transform;

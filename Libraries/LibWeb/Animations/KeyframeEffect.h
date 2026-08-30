@@ -148,6 +148,8 @@ public:
     bool can_skip_per_frame_style_update() const;
     void clear_per_frame_style_update_cache() { m_can_skip_per_frame_style_update_cache.clear(); }
     bool can_skip_per_frame_animation_tick() const;
+    bool is_compositor_driven() const { return m_is_compositor_driven; }
+    void set_is_compositor_driven(bool value) { m_is_compositor_driven = value; }
     void request_observation_sample();
     bool request_element_scoped_observation_sample(u64 task_generation)
     {
@@ -189,6 +191,7 @@ private:
     Vector<GC::Ref<JS::Object>> m_keyframe_objects_cache {};
 
     RefPtr<KeyFrameSet const> m_key_frame_set {};
+    bool m_is_compositor_driven { false };
     bool m_needs_observation_sample { false };
     struct CanSkipPerFrameStyleUpdateCache {
         u64 target_style_generation { 0 };

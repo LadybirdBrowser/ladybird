@@ -1010,6 +1010,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::Painting::AccumulatedVisualContextTr
     TRY(encoder.encode(tree.m_frame_nodes));
     TRY(encoder.encode(tree.m_root_is_visual_viewport));
     TRY(encoder.encode(tree.m_root_isolation_frame));
+    TRY(encoder.encode(tree.m_visual_animations));
     return {};
 }
 
@@ -1022,6 +1023,7 @@ ErrorOr<Web::Painting::AccumulatedVisualContextTree> decode(Decoder& decoder)
     auto frame_nodes = TRY(decoder.decode<Vector<FrameNode>>());
     auto root_is_visual_viewport = TRY(decoder.decode<bool>());
     auto root_isolation_frame = TRY(decoder.decode<Optional<FrameNodeIndex>>());
+    auto visual_animations = TRY(decoder.decode<Vector<Web::Compositor::VisualAnimation>>());
     if (spatial_nodes.is_empty())
         return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree missing visual viewport node");
     if (!spatial_nodes[VISUAL_VIEWPORT_NODE_INDEX.value()].data.has<TransformData>())
@@ -1055,9 +1057,26 @@ ErrorOr<Web::Painting::AccumulatedVisualContextTree> decode(Decoder& decoder)
     }
     if (root_isolation_frame.has_value() && (root_isolation_frame->value() >= frame_nodes.size() || !frame_nodes[root_isolation_frame->value()].data.has<EffectsData>()))
         return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree root isolation frame is not an effects frame");
+    for (auto const& animation : visual_animations) {
+        if (!animation.is_valid())
+            return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree has an invalid visual animation");
+        for (auto node_index : animation.visual_context_node_indices) {
+            if (animation.target_kind == Web::Compositor::VisualAnimation::TargetKind::Opacity) {
+                if (node_index >= frame_nodes.size() || !frame_nodes[node_index].data.has<EffectsData>())
+                    return Error::from_string_literal("IPC decode: Opacity animation target is not an effects frame");
+            } else {
+                if (node_index >= spatial_nodes.size())
+                    return Error::from_string_literal("IPC decode: Transform animation target is not a transform node");
+                auto const* transform = spatial_nodes[node_index].data.get_pointer<TransformData>();
+                if (!transform || transform->role != TransformDataRole::CssTransform || transform->synthetic_plane)
+                    return Error::from_string_literal("IPC decode: Transform animation target is not a CSS transform node");
+            }
+        }
+    }
     AccumulatedVisualContextTree tree { version, move(spatial_nodes), move(frame_nodes), root_is_visual_viewport };
     if (root_isolation_frame.has_value())
         tree.set_root_isolation_frame(*root_isolation_frame);
+    tree.set_visual_animations(move(visual_animations));
     return tree;
 }
 

@@ -39,6 +39,7 @@ public:
     void assign_accumulated_visual_contexts(DOM::Document&);
     bool update_accumulated_visual_context_values(DOM::Document&, Layout::RustFFI::NodeSlotId);
     void update_visual_viewport_accumulated_visual_context(DOM::Document&);
+    void set_visual_animations(DOM::Document&, Vector<Compositor::VisualAnimation>);
     bool visual_context_tree_needs_compositor_update() const { return m_visual_context_tree_needs_compositor_update; }
     void did_update_visual_context_tree_in_compositor() { m_visual_context_tree_needs_compositor_update = false; }
     void set_force_incompatible_visual_context_tree_rebuild_for_testing() { m_force_incompatible_visual_context_tree_rebuild_for_testing = true; }

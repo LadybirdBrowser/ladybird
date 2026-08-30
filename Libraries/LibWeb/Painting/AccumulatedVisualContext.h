@@ -19,6 +19,7 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/WindingRule.h>
 #include <LibIPC/Forward.h>
+#include <LibWeb/Compositor/VisualAnimation.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Painting/ScrollState.h>
 #include <LibWeb/PixelUnits.h>
@@ -185,11 +186,14 @@ public:
     SpatialNode const& spatial_node_at(SpatialNodeIndex index) const { return m_spatial_nodes[index.value()]; }
     SpatialNode& spatial_node_at(SpatialNodeIndex index) { return m_spatial_nodes[index.value()]; }
     FrameNode const& frame_node_at(FrameNodeIndex index) const { return m_frame_nodes[index.value()]; }
+    FrameNode& frame_node_at(FrameNodeIndex index) { return m_frame_nodes[index.value()]; }
     WEB_API void set_frame_data(FrameNodeIndex, FrameData);
     ReadonlySpan<SpatialNode> spatial_nodes() const { return m_spatial_nodes.span(); }
     ReadonlySpan<FrameNode> frame_nodes() const { return m_frame_nodes.span(); }
     bool root_is_visual_viewport() const { return m_root_is_visual_viewport; }
     Optional<FrameNodeIndex> root_isolation_frame() const { return m_root_isolation_frame; }
+    ReadonlySpan<Compositor::VisualAnimation> visual_animations() const { return m_visual_animations; }
+    void set_visual_animations(Vector<Compositor::VisualAnimation> animations) { m_visual_animations = move(animations); }
     void set_root_isolation_frame(FrameNodeIndex frame)
     {
         VERIFY(frame.value() < m_frame_nodes.size());
@@ -220,6 +224,7 @@ private:
     Vector<FrameNode> m_frame_nodes;
     bool m_root_is_visual_viewport { true };
     Optional<FrameNodeIndex> m_root_isolation_frame;
+    Vector<Compositor::VisualAnimation> m_visual_animations;
 
     template<typename T>
     friend ErrorOr<void> IPC::encode(IPC::Encoder&, T const&);

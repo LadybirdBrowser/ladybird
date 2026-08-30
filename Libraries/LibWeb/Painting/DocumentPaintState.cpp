@@ -149,6 +149,13 @@ void DocumentPaintState::update_visual_viewport_accumulated_visual_context(DOM::
     m_visual_context_tree_needs_compositor_update = true;
 }
 
+void DocumentPaintState::set_visual_animations(DOM::Document& document, Vector<Compositor::VisualAnimation> animations)
+{
+    ensure_visual_context_tree(document);
+    m_visual_context_tree->set_visual_animations(move(animations));
+    m_visual_context_tree_needs_compositor_update = true;
+}
+
 void DocumentPaintState::append_paint_command_cache_source_resources(DisplayListResourceSet& retained_resources) const
 {
     retained_resources.include(m_paint_command_cache_source_referenced_resources);

@@ -1,0 +1,3 @@
+compositor visual animations: 2
+main-thread animation overlay builds: 0
+main-thread animation frame pump requests: 0

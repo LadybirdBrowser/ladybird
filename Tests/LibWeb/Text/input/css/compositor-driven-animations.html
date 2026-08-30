@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes fade {
+        from { opacity: 0.2; }
+        to { opacity: 0.8; }
+    }
+
+    @keyframes move {
+        from { transform: translateX(0px) rotate(0deg); }
+        to { transform: translateX(100px) rotate(360deg); }
+    }
+
+    #opacity {
+        width: 20px;
+        height: 20px;
+        background: red;
+        animation: fade 1s linear infinite;
+    }
+
+    #transform {
+        width: 20px;
+        height: 20px;
+        background: blue;
+        animation: move 1s linear infinite;
+    }
+</style>
+<div id="opacity"></div>
+<div id="transform"></div>
+<script>
+    asyncTest(async done => {
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+
+        println(`compositor visual animations: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+
+        internals.resetStyleInvalidationCounters();
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+        const counters = internals.getStyleInvalidationCounters();
+        println(`main-thread animation overlay builds: ${counters.animatedStyleOverlayBuilds}`);
+        println(`main-thread animation frame pump requests: ${counters.animationFramePumpRequests}`);
+        done();
+    });
+</script>
