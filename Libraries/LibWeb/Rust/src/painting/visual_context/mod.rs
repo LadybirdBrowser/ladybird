@@ -19,7 +19,6 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::painting::display_list::commands::OptionalF32;
 use crate::painting::paintable_data::BorderEdge;
 use libgfx_rust::{
     CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, IntPoint, IntRect,
@@ -238,16 +237,29 @@ pub enum FrameData {
     Mask(MaskData),
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum VisualContextNodeKind {
+    Scroll,
+    Sticky,
+    Transform,
+    Perspective,
+    BackfaceVisibility,
+    AnchorScrollShift,
+    Clip,
+    ClipPath,
+    Effects,
+    Mask,
+}
+
 impl SpatialData {
-    fn kind(&self) -> crate::painting::host::FfiVisualContextNodeKind {
-        use crate::painting::host::FfiVisualContextNodeKind;
+    fn kind(&self) -> VisualContextNodeKind {
         match self {
-            Self::Scroll(_) => FfiVisualContextNodeKind::Scroll,
-            Self::Sticky(_) => FfiVisualContextNodeKind::Sticky,
-            Self::Transform(_) => FfiVisualContextNodeKind::Transform,
-            Self::Perspective(_) => FfiVisualContextNodeKind::Perspective,
-            Self::BackfaceVisibility(_) => FfiVisualContextNodeKind::BackfaceVisibility,
-            Self::AnchorScrollShift(_) => FfiVisualContextNodeKind::AnchorScrollShift,
+            Self::Scroll(_) => VisualContextNodeKind::Scroll,
+            Self::Sticky(_) => VisualContextNodeKind::Sticky,
+            Self::Transform(_) => VisualContextNodeKind::Transform,
+            Self::Perspective(_) => VisualContextNodeKind::Perspective,
+            Self::BackfaceVisibility(_) => VisualContextNodeKind::BackfaceVisibility,
+            Self::AnchorScrollShift(_) => VisualContextNodeKind::AnchorScrollShift,
         }
     }
 
@@ -269,13 +281,12 @@ impl FrameData {
         }
     }
 
-    fn kind(&self) -> crate::painting::host::FfiVisualContextNodeKind {
-        use crate::painting::host::FfiVisualContextNodeKind;
+    fn kind(&self) -> VisualContextNodeKind {
         match self {
-            Self::Clip(_) => FfiVisualContextNodeKind::Clip,
-            Self::ClipPath(_) => FfiVisualContextNodeKind::ClipPath,
-            Self::Effects(_) => FfiVisualContextNodeKind::Effects,
-            Self::Mask(_) => FfiVisualContextNodeKind::Mask,
+            Self::Clip(_) => VisualContextNodeKind::Clip,
+            Self::ClipPath(_) => VisualContextNodeKind::ClipPath,
+            Self::Effects(_) => VisualContextNodeKind::Effects,
+            Self::Mask(_) => VisualContextNodeKind::Mask,
         }
     }
 }
@@ -741,127 +752,6 @@ impl VisualContextTree {
             _ => panic!("spatial node {} is not a scroll-like node", index.0),
         }
     }
-}
-
-fn empty_export(
-    kind: crate::painting::host::FfiVisualContextNodeKind,
-) -> crate::painting::host::FfiVisualContextNodeExport {
-    crate::painting::host::FfiVisualContextNodeExport {
-        kind,
-        parent: 0,
-        spatial: 0,
-        matrix: FloatMatrix4x4::default(),
-        origin: FloatPoint::default(),
-        flattens_inherited_transform: false,
-        transform_role: TransformDataRole::CssTransform,
-        has_sorting_context_root: false,
-        synthetic_plane: false,
-        rect: IntRect::default(),
-        corner_radii: CornerRadii::default(),
-        clip_rect: FloatRect::default(),
-        clip_mode: ClipMode::Intersect,
-        opacity: 1.0,
-        blend_mode: CompositingAndBlendingOperator::Normal,
-        filter_bytes: std::ptr::null(),
-        filter_bytes_length: 0,
-        path: std::ptr::null_mut(),
-        winding_rule: WindingRule::Nonzero,
-        mask_kind: MaskKind::Alpha,
-        mask_origin: MaskLayerOrigin::CssMaskLayers,
-        index_value: 0,
-        sticky_parent_sticky_index: 0,
-        sticky_position_relative_to_scroller: FloatPoint::default(),
-        sticky_border_box_size: FloatSize::default(),
-        sticky_scrollport_size: FloatSize::default(),
-        sticky_containing_block_region: FloatRect::default(),
-        sticky_needs_parent_offset_adjustment: false,
-        sticky_inset_top: OptionalF32::none(),
-        sticky_inset_right: OptionalF32::none(),
-        sticky_inset_bottom: OptionalF32::none(),
-        sticky_inset_left: OptionalF32::none(),
-        negate: false,
-        compensate_horizontal_scroll: false,
-        compensate_vertical_scroll: false,
-    }
-}
-
-pub fn export_spatial_node(node: &SpatialNode) -> crate::painting::host::FfiVisualContextNodeExport {
-    let mut out = empty_export(node.data.kind());
-    out.parent = node.parent.0;
-    match &node.data {
-        SpatialData::Scroll(_) => {}
-        SpatialData::Sticky(sticky) => {
-            out.index_value = sticky.scroller.0;
-            out.sticky_parent_sticky_index = sticky.parent_sticky.map_or(0, |index| index.0);
-            out.sticky_position_relative_to_scroller = sticky.position_relative_to_scroller;
-            out.sticky_border_box_size = sticky.border_box_size;
-            out.sticky_scrollport_size = sticky.scrollport_size;
-            out.sticky_containing_block_region = sticky.containing_block_region;
-            out.sticky_needs_parent_offset_adjustment = sticky.needs_parent_offset_adjustment;
-            out.sticky_inset_top = sticky.inset_top.into();
-            out.sticky_inset_right = sticky.inset_right.into();
-            out.sticky_inset_bottom = sticky.inset_bottom.into();
-            out.sticky_inset_left = sticky.inset_left.into();
-        }
-        SpatialData::Transform(transform) => {
-            out.matrix = transform.matrix;
-            out.origin = transform.origin;
-            out.flattens_inherited_transform = transform.flattens_inherited_transform;
-            out.transform_role = transform.role;
-            if let Some(root) = transform.sorting_context_root_index {
-                out.has_sorting_context_root = true;
-                out.index_value = root.0;
-            }
-            out.synthetic_plane = transform.synthetic_plane;
-        }
-        SpatialData::Perspective(perspective) => {
-            out.matrix = perspective.matrix;
-            out.flattens_inherited_transform = perspective.flattens_inherited_transform;
-        }
-        SpatialData::BackfaceVisibility(backface) => {
-            out.index_value = backface.plane_root_index.0;
-            out.flattens_inherited_transform = backface.flattens_inherited_transform;
-        }
-        SpatialData::AnchorScrollShift(shift) => {
-            out.index_value = shift.scroll_node_index.0;
-            out.negate = shift.negate;
-            out.compensate_horizontal_scroll = shift.compensate_horizontal_scroll;
-            out.compensate_vertical_scroll = shift.compensate_vertical_scroll;
-        }
-    }
-    out
-}
-
-pub fn export_frame_node(node: &FrameNode) -> crate::painting::host::FfiVisualContextNodeExport {
-    let mut out = empty_export(node.data.kind());
-    out.parent = node.parent.0;
-    out.spatial = node.spatial.0;
-    match &node.data {
-        FrameData::Clip(clip) => {
-            out.clip_rect = clip.rect;
-            out.corner_radii = clip.corner_radii;
-            out.clip_mode = clip.mode;
-        }
-        FrameData::ClipPath(clip_path) => {
-            out.path = clip_path.path.as_raw();
-            out.rect = clip_path.bounding_rect;
-            out.winding_rule = clip_path.fill_rule;
-        }
-        FrameData::Effects(effects) => {
-            out.opacity = effects.opacity;
-            out.blend_mode = effects.blend_mode;
-            if let Some(bytes) = &effects.filter {
-                out.filter_bytes = bytes.as_ptr();
-                out.filter_bytes_length = bytes.len();
-            }
-        }
-        FrameData::Mask(mask) => {
-            out.rect = mask.rect;
-            out.mask_kind = mask.kind;
-            out.mask_origin = mask.origin;
-        }
-    }
-    out
 }
 
 #[cfg(test)]

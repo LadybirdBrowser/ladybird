@@ -76,7 +76,7 @@ AccumulatedVisualContextTree VisualContextTreeTestBuilder::finish()
 {
     VERIFY(m_builder);
     auto const* retained_tree = Layout::RustFFI::visual_context_tree_test_builder_finish(exchange(m_builder, nullptr));
-    return AccumulatedVisualContextTree::materialize_from_rust(retained_tree);
+    return AccumulatedVisualContextTree::adopt_rust_handle(retained_tree);
 }
 
 }

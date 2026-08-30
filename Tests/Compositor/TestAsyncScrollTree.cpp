@@ -86,10 +86,10 @@ TEST_CASE(wheel_hit_testing_ignores_invalid_visual_context_indices)
 
 TEST_CASE(wheel_hit_testing_prefilters_static_targets_but_tracks_animated_targets)
 {
-    auto make_tree_and_spatial = [] {
+    auto make_tree_and_spatial = [](Gfx::FloatMatrix4x4 const& matrix = Gfx::FloatMatrix4x4::identity(), Optional<u64> version = {}) {
         Web::Painting::VisualContextTreeTestBuilder builder;
-        auto spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
-        return Tuple { builder.finish(), spatial };
+        auto spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, matrix);
+        return Tuple { version.has_value() ? builder.finish_with_version(*version) : builder.finish(), spatial };
     };
     auto make_scroll_tree = [](Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Web::Painting::SpatialNodeIndex spatial) {
         Web::Compositor::AsyncScrollingState state;
@@ -111,8 +111,10 @@ TEST_CASE(wheel_hit_testing_prefilters_static_targets_but_tracks_animated_target
     auto static_spatial = static_tree_and_spatial.get<1>();
     auto static_tree = move(static_tree_and_spatial.get<0>());
     auto static_scroll_tree = make_scroll_tree(static_tree, static_spatial);
-    static_tree.spatial_node_at(static_spatial).data.get<Web::Painting::TransformData>().matrix[0, 3] = 10;
-    EXPECT(!hit_test(static_scroll_tree, static_tree).blocked_by_main_thread_region);
+    auto moved_matrix = Gfx::FloatMatrix4x4::identity();
+    moved_matrix[0, 3] = 10;
+    auto moved_static_tree = move(make_tree_and_spatial(moved_matrix, static_tree.version()).get<0>());
+    EXPECT(!hit_test(static_scroll_tree, moved_static_tree).blocked_by_main_thread_region);
 
     auto animated_tree_and_spatial = make_tree_and_spatial();
     auto animated_spatial = animated_tree_and_spatial.get<1>();
@@ -131,9 +133,8 @@ TEST_CASE(wheel_hit_testing_prefilters_static_targets_but_tracks_animated_target
         },
     });
     auto animated_scroll_tree = make_scroll_tree(animated_tree, animated_spatial);
-    Web::Painting::AccumulatedVisualContextTree::VisualAnimationOriginalValues original_values;
-    animated_tree.sample_visual_animations(50'000'000, original_values);
-    EXPECT(hit_test(animated_scroll_tree, animated_tree).blocked_by_main_thread_region);
+    auto sampled_animated_tree = animated_tree.with_visual_animation_samples(50'000'000);
+    EXPECT(hit_test(animated_scroll_tree, sampled_animated_tree).blocked_by_main_thread_region);
 }
 
 TEST_CASE(blocking_wheel_event_hit_testing_fails_closed_for_invalid_visual_context_indices)

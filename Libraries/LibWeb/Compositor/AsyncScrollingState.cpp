@@ -205,8 +205,8 @@ bool blocks_wheel_event_at_position(AsyncScrollingState const& async_scrolling_s
 
     VERIFY(display_list->compatible_visual_context_tree_version() == visual_context_tree->version());
     for (auto const& region : async_scrolling_state.blocking_wheel_event_regions) {
-        if (region.context.spatial.value() >= visual_context_tree->spatial_nodes().size()
-            || (region.context.frame != Painting::NO_FRAME_NODE && region.context.frame.value() >= visual_context_tree->frame_nodes().size()))
+        if (region.context.spatial.value() >= visual_context_tree->spatial_node_count()
+            || (region.context.frame != Painting::NO_FRAME_NODE && region.context.frame.value() >= visual_context_tree->frame_node_count()))
             return true;
         auto position_in_context = visual_context_tree->transform_point_for_hit_test(region.context, position, scroll_state_snapshot);
         if (position_in_context.has_value() && region.rect.contains(*position_in_context))

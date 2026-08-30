@@ -43,7 +43,7 @@ public:
     bool visual_context_tree_needs_compositor_update() const { return m_visual_context_tree_needs_compositor_update; }
     void did_update_visual_context_tree_in_compositor() { m_visual_context_tree_needs_compositor_update = false; }
     void set_force_incompatible_visual_context_tree_rebuild_for_testing() { m_force_incompatible_visual_context_tree_rebuild_for_testing = true; }
-    bool has_visual_context_tree() const { return m_visual_context_tree.has_value(); }
+    bool has_visual_context_tree() const;
     u64 accumulated_visual_context_tree_build_count() const { return m_accumulated_visual_context_tree_build_count; }
 
     void recompute_selection_states(DOM::Document&, DOM::Range&);
@@ -58,8 +58,8 @@ public:
     void set_boxes_with_auto_content_visibility(Vector<Layout::RustFFI::NodeSlotId> boxes) { m_boxes_with_auto_content_visibility = move(boxes); }
     Vector<Layout::RustFFI::NodeSlotId> const& boxes_with_auto_content_visibility() const { return m_boxes_with_auto_content_visibility; }
 
-    AccumulatedVisualContextTree const& visual_context_tree(DOM::Document const&) const;
-    AccumulatedVisualContextTree& visual_context_tree(DOM::Document&);
+    AccumulatedVisualContextTree visual_context_tree(DOM::Document const&) const;
+    u64 visual_context_tree_version(DOM::Document const&) const;
 
     void set_display_list_used_as_paint_command_cache_source(RefPtr<DisplayList const> display_list, DisplayListResourceSet referenced_resources)
     {
@@ -73,6 +73,7 @@ public:
 
 private:
     void ensure_visual_context_tree(DOM::Document const&) const;
+    AccumulatedVisualContextTree visual_context_tree_without_update(DOM::Document const&) const;
     void clear_scroll_state(DOM::Document&);
 
     NonnullRefPtr<Layout::NodeArena> m_layout_node_arena;
@@ -86,8 +87,8 @@ private:
     RefPtr<DisplayList const> m_display_list_used_as_paint_command_cache_source;
     DisplayListResourceSet m_paint_command_cache_source_referenced_resources;
 
-    Optional<AccumulatedVisualContextTree> m_visual_context_tree;
     Vector<Compositor::VisualAnimation> m_visual_animations;
+    RefPtr<VisualAnimationList const> m_visual_context_tree_visual_animations;
     u64 m_accumulated_visual_context_tree_build_count { 0 };
     bool m_visual_context_tree_needs_compositor_update { false };
     bool m_force_incompatible_visual_context_tree_rebuild_for_testing { false };

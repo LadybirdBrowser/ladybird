@@ -130,7 +130,7 @@ public:
     bool advance_visual_animations(MonotonicTime now);
     bool has_active_visual_animations() const { return m_has_active_visual_animations; }
     Web::Painting::AccumulatedVisualContextTree const& visual_context_tree_for_testing() const { return current_visual_context_tree(); }
-    bool has_sampled_visual_animation_values_for_testing() const { return m_visual_animation_sample_is_current; }
+    bool has_sampled_visual_animation_values_for_testing() const { return m_sampled_visual_context_tree.has_value(); }
     u64 visual_context_tree_copy_count_for_testing() const { return m_visual_context_tree_copy_count; }
     ContextUpdateResult async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::Compositor::SnapContainerHandling);
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
@@ -201,7 +201,7 @@ private:
     void note_user_scroll_gesture_end_if_drag_ended(bool was_dragging_viewport_scrollbar);
     Optional<PendingFrame> apply_viewport_scrollbar_drag(ViewportScrollbarController::Drag const&);
     void rebuild_wheel_hit_test_targets();
-    void restore_visual_animation_original_values();
+    void discard_sampled_visual_context_tree();
     void invalidate_visual_context_tree_for_compositing();
     bool is_present_blocked() const;
     bool can_render_frame() const;
@@ -226,8 +226,7 @@ private:
     RefPtr<Web::Painting::DisplayList const> m_display_list;
     Optional<Web::Painting::AccumulatedVisualContextTree> m_visual_context_tree;
     Optional<Web::Painting::AccumulatedVisualContextTree> m_visual_context_tree_for_compositing;
-    Web::Painting::AccumulatedVisualContextTree::VisualAnimationOriginalValues m_visual_animation_original_values;
-    bool m_visual_animation_sample_is_current { false };
+    Optional<Web::Painting::AccumulatedVisualContextTree> m_sampled_visual_context_tree;
     u64 m_visual_context_tree_copy_count { 0 };
     bool m_has_active_visual_animations { false };
     Web::Painting::DisplayListResourceStorage m_display_list_resource_storage;

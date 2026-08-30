@@ -98,7 +98,7 @@ ContextState::ContextState(Optional<u64> page_id, CompositorStateWebContentClien
 
 ContextState::~ContextState()
 {
-    restore_visual_animation_original_values();
+    discard_sampled_visual_context_tree();
     stop_backing_store_shrink_timer();
 }
 
@@ -1045,39 +1045,33 @@ bool ContextState::can_render_frame() const
     return m_display_list && m_backing_store_manager.is_valid();
 }
 
-void ContextState::restore_visual_animation_original_values()
+void ContextState::discard_sampled_visual_context_tree()
 {
-    if (!m_visual_animation_sample_is_current)
-        return;
-    auto& sampled_tree = m_visual_context_tree_for_compositing.has_value()
-        ? *m_visual_context_tree_for_compositing
-        : *m_visual_context_tree;
-    sampled_tree.restore_visual_animation_original_values(m_visual_animation_original_values);
-    m_visual_animation_sample_is_current = false;
+    m_sampled_visual_context_tree.clear();
 }
 
 void ContextState::invalidate_visual_context_tree_for_compositing()
 {
-    restore_visual_animation_original_values();
+    discard_sampled_visual_context_tree();
     m_visual_context_tree_for_compositing.clear();
 }
 
 Web::Painting::AccumulatedVisualContextTree const& ContextState::visual_context_tree_for_compositing()
 {
     if (m_async_visual_viewport_transform.has_value() && !m_visual_context_tree_for_compositing.has_value()) {
-        restore_visual_animation_original_values();
+        discard_sampled_visual_context_tree();
         m_visual_context_tree_for_compositing = current_visual_context_tree().with_visual_viewport_transform(*m_async_visual_viewport_transform);
         ++m_visual_context_tree_copy_count;
     }
 
-    auto& tree = m_visual_context_tree_for_compositing.has_value()
+    auto const& unsampled_tree = m_visual_context_tree_for_compositing.has_value()
         ? *m_visual_context_tree_for_compositing
         : *m_visual_context_tree;
-    if (m_visual_animation_sample_time_ns.has_value() && !m_visual_animation_sample_is_current) {
-        tree.sample_visual_animations(*m_visual_animation_sample_time_ns, m_visual_animation_original_values);
-        m_visual_animation_sample_is_current = true;
-    }
-    return tree;
+    if (!m_visual_animation_sample_time_ns.has_value())
+        return unsampled_tree;
+    if (!m_sampled_visual_context_tree.has_value())
+        m_sampled_visual_context_tree = unsampled_tree.with_visual_animation_samples(*m_visual_animation_sample_time_ns);
+    return *m_sampled_visual_context_tree;
 }
 
 Gfx::IntRect ContextState::frame_damage_for(PendingFrame const& pending_frame)
@@ -1166,7 +1160,7 @@ bool ContextState::advance_visual_animations(MonotonicTime now)
 {
     if (!has_active_visual_animations())
         return false;
-    restore_visual_animation_original_values();
+    discard_sampled_visual_context_tree();
     m_visual_animation_sample_time_ns = now.nanoseconds();
     visual_context_tree_for_compositing();
 

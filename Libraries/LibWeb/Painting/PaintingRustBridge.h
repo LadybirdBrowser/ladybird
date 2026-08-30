@@ -26,12 +26,9 @@ WEB_API void rust_build_stacking_context_tree(DOM::Document&);
 WEB_API void dump_stacking_context_tree(StringBuilder&, DOM::Document const&);
 
 WEB_API bool rust_assign_accumulated_visual_contexts(DOM::Document&, bool forced_incompatible_rebuild);
-WEB_API void const* retain_rust_main_visual_context_tree(DOM::Document&);
-WEB_API AccumulatedVisualContextTree materialize_rust_main_visual_context_tree(DOM::Document&);
-WEB_API void patch_rust_visual_context_nodes(DOM::Document&, AccumulatedVisualContextTree&, u32 spatial_begin, u32 spatial_end, u32 frame_begin, u32 frame_end);
-WEB_API bool patch_rust_sticky_visual_context_nodes(DOM::Document&, AccumulatedVisualContextTree&);
+WEB_API void const* retain_rust_main_visual_context_tree(DOM::Document const&);
 WEB_API bool rust_update_accumulated_visual_context_values(DOM::Document&, Layout::RustFFI::NodeSlotId);
-WEB_API Optional<TransformData> rust_compute_css_transform(Layout::Node const&, double pixel_ratio);
+WEB_API Optional<TransformWithOrigin> rust_compute_css_transform(Layout::Node const&, double pixel_ratio);
 WEB_API Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Layout::Node const&);
 WEB_API void rust_measure_scrollable_overflow(Layout::Node const&);
 WEB_API CSS::ResolvedImage rust_resolve_gradient_for_size(CSS::StyleValue const&, Layout::NodeWithStyle const&, CSSPixelSize);

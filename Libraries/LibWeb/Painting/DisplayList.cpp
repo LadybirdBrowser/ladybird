@@ -236,7 +236,7 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
 
     auto command_runs = display_list.command_runs();
     auto scroll_offsets = scroll_state.device_offsets();
-    Layout::RustFFI::display_list_replay(visual_context_tree.rust_tree(), command_runs.data(), command_runs.size(), scroll_offsets.data(), scroll_offsets.size(), &callbacks);
+    Layout::RustFFI::display_list_replay(visual_context_tree.rust_handle(), command_runs.data(), command_runs.size(), scroll_offsets.data(), scroll_offsets.size(), &callbacks);
 }
 
 }

@@ -97,8 +97,7 @@ Optional<CSSPixelPoint> HitTestDisplayList::local_point_for_visual_context(Conte
 CSSPixelRect HitTestDisplayList::viewport_rect_for_context(SpatialNodeIndex spatial, CSSPixelRect const& rect, DOM::Document const& document, double device_pixels_per_css_pixel) const
 {
     auto pixel_ratio = static_cast<float>(device_pixels_per_css_pixel);
-    auto const& visual_context_tree = document.visual_context_tree();
-    auto result = visual_context_tree.transform_rect_to_viewport(spatial, rect.to_type<float>() * pixel_ratio, document.scroll_state_snapshot());
+    auto result = document.visual_context_tree().transform_rect_to_viewport(spatial, rect.to_type<float>() * pixel_ratio, document.scroll_state_snapshot());
     return result.scaled(1.0f / pixel_ratio).to_type<CSSPixels>();
 }
 
@@ -460,7 +459,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_line(size_t line_
 
 Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics, CaretPositionMode mode, GC::Ptr<DOM::Node const> constraint_scope) const
 {
-    if (m_visual_context_tree_version != document.visual_context_tree().version() || !is_current())
+    if (m_visual_context_tree_version != document.visual_context_tree_version() || !is_current())
         return {};
     // First find both the topmost hit-test item and the topmost item that can directly produce a caret.
     // Non-caret items are still needed to keep later line fallback scoped to the hit content.
@@ -555,7 +554,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
 
 Optional<HitTestResult> HitTestDisplayList::hit_test(CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics) const
 {
-    if (m_visual_context_tree_version != document.visual_context_tree().version() || !is_current())
+    if (m_visual_context_tree_version != document.visual_context_tree_version() || !is_current())
         return {};
 
     auto topmost_item = find_topmost_item(point, document, device_pixels_per_css_pixel, chrome_metrics);
@@ -566,7 +565,7 @@ Optional<HitTestResult> HitTestDisplayList::hit_test(CSSPixelPoint point, DOM::D
 
 TraversalDecision HitTestDisplayList::hit_test_all(CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
-    if (m_visual_context_tree_version != document.visual_context_tree().version() || !is_current())
+    if (m_visual_context_tree_version != document.visual_context_tree_version() || !is_current())
         return TraversalDecision::Continue;
 
     for (auto item_index : hit_item_indices_topmost_first(point, document, device_pixels_per_css_pixel, chrome_metrics)) {

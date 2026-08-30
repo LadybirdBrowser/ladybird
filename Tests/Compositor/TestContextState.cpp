@@ -103,9 +103,9 @@ TEST_CASE(visual_context_trees_round_trip_through_ipc_and_reject_corrupted_bytes
     IPC::Decoder decoder { stream, attachments };
     auto decoded_tree = MUST(decoder.decode<Web::Painting::AccumulatedVisualContextTree>());
     EXPECT_EQ(decoded_tree.version(), visual_context_tree.version());
-    EXPECT_EQ(decoded_tree.spatial_nodes().size(), 2u);
-    EXPECT_EQ(decoded_tree.frame_nodes().size(), 1u);
-    EXPECT_EQ(decoded_tree.frame_node_at(Web::Painting::FrameNodeIndex { 0 }).spatial, scroll_node);
+    EXPECT_EQ(decoded_tree.spatial_node_count(), 2u);
+    EXPECT_EQ(decoded_tree.frame_node_count(), 1u);
+    EXPECT_EQ(decoded_tree.serialize_to_bytes(), visual_context_tree.serialize_to_bytes());
 
     auto corrupted_bytes = visual_context_tree.serialize_to_bytes();
     corrupted_bytes[0] ^= 0xff;
@@ -130,7 +130,7 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_scrollable_viewport_displa
     ByteBuffer command_bytes;
     Web::UniqueNodeID document_id { 1 };
     Web::Painting::SpatialNodeIndex scroll_node_index { 1 };
-    VERIFY(visual_context_tree.spatial_nodes().size() > scroll_node_index.value());
+    VERIFY(visual_context_tree.spatial_node_count() > scroll_node_index.value());
 
     append_display_list_command(
         command_bytes,
@@ -283,15 +283,10 @@ TEST_CASE(visual_animations_advance_without_a_web_content_update)
         visual_context_tree,
         {});
 
-    auto const* spatial_node_storage = context.visual_context_tree_for_testing().spatial_nodes().data();
-    auto const* frame_node_storage = context.visual_context_tree_for_testing().frame_nodes().data();
     EXPECT(context.advance_visual_animations(anchor + AK::Duration::from_milliseconds(250)));
-    EXPECT_EQ(context.visual_context_tree_for_testing().spatial_nodes().data(), spatial_node_storage);
-    EXPECT_EQ(context.visual_context_tree_for_testing().frame_nodes().data(), frame_node_storage);
     EXPECT(context.advance_visual_animations(anchor + AK::Duration::from_milliseconds(500)));
-    EXPECT_EQ(context.visual_context_tree_for_testing().spatial_nodes().data(), spatial_node_storage);
-    EXPECT_EQ(context.visual_context_tree_for_testing().frame_nodes().data(), frame_node_storage);
     EXPECT(context.has_sampled_visual_animation_values_for_testing());
+    EXPECT_EQ(context.visual_context_tree_copy_count_for_testing(), 0u);
     context.queue_present_frame({ viewport_rect, viewport_rect });
     EXPECT(context.present_synchronously(display_list_player, nullptr));
 
@@ -306,9 +301,9 @@ TEST_CASE(visual_animations_advance_without_a_web_content_update)
     context.update_visual_context_tree(visual_context_tree, {});
     EXPECT(!context.has_sampled_visual_animation_values_for_testing());
     auto const& restored_tree = context.visual_context_tree_for_testing();
-    auto restored_translation = restored_tree.spatial_node_at(spatial).data.get<Web::Painting::TransformData>().matrix[0, 3];
+    auto restored_translation = restored_tree.accumulated_matrix(spatial, {}, Web::Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::Yes)[0, 3];
     EXPECT_EQ(restored_translation, 0.0f);
-    EXPECT_EQ(restored_tree.frame_node_at(frame).data.get<Web::Painting::EffectsData>().opacity, 1.0f);
+    EXPECT_EQ(restored_tree.effects_opacity(frame), Optional<float> { 1.0f });
 }
 
 TEST_CASE(wheel_hit_testing_uses_the_current_visual_animation_tree)
@@ -1194,14 +1189,16 @@ TEST_CASE(clip_path_frames_round_trip_through_serialized_tree_bytes)
 
     auto serialized_bytes = visual_context_tree.serialize_to_bytes();
     auto decoded_tree = MUST(Web::Painting::AccumulatedVisualContextTree::from_serialized_bytes(serialized_bytes));
-    auto const& decoded_clip_path = decoded_tree.frame_node_at(clip_path_frame).data.get<Web::Painting::ClipPathData>();
-    EXPECT_EQ(decoded_clip_path.path.serialize_to_bytes(), star.serialize_to_bytes());
-    EXPECT_EQ(decoded_clip_path.bounding_rect, (Web::DevicePixelRect { 25, 0, 80, 80 }));
-    EXPECT_EQ(decoded_clip_path.fill_rule, Gfx::WindingRule::EvenOdd);
-    EXPECT(!decoded_tree.frames_with_empty_effective_clip()[clip_path_frame.value()]);
+    EXPECT_EQ(decoded_tree.serialize_to_bytes(), serialized_bytes);
+
+    Web::Painting::ScrollStateSnapshot unscrolled;
+    Web::Painting::ContextRef clip_path_context { Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, clip_path_frame };
+    EXPECT(decoded_tree.transform_point_for_hit_test(clip_path_context, Gfx::FloatPoint { 65, 5 }, unscrolled).has_value());
+    EXPECT(!decoded_tree.transform_point_for_hit_test(clip_path_context, Gfx::FloatPoint { 26, 1 }, unscrolled).has_value());
+    EXPECT(!decoded_tree.transform_point_for_hit_test(clip_path_context, Gfx::FloatPoint { 10, 40 }, unscrolled).has_value());
 }
 
-TEST_CASE(visual_animation_samples_restore_original_node_values)
+TEST_CASE(visual_animation_samples_derive_a_tree_and_leave_the_source_untouched)
 {
     auto matrix = Gfx::FloatMatrix4x4::identity();
     matrix[0, 3] = 12;
@@ -1235,15 +1232,15 @@ TEST_CASE(visual_animation_samples_restore_original_node_values)
         },
     });
 
-    Web::Painting::AccumulatedVisualContextTree::VisualAnimationOriginalValues original_values;
-    tree.sample_visual_animations(0, original_values);
-    auto sampled_translation = tree.spatial_node_at(spatial).data.get<Web::Painting::TransformData>().matrix[0, 3];
+    auto include_viewport = Web::Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::Yes;
+    auto sampled_tree = tree.with_visual_animation_samples(0);
+    EXPECT_EQ(sampled_tree.version(), tree.version());
+    auto sampled_translation = sampled_tree.accumulated_matrix(spatial, {}, include_viewport)[0, 3];
     EXPECT_EQ(sampled_translation, 4.0f);
-    EXPECT_EQ(tree.frame_node_at(frame).data.get<Web::Painting::EffectsData>().opacity, 0.5f);
+    EXPECT_EQ(sampled_tree.effects_opacity(frame), Optional<float> { 0.5f });
+    EXPECT_EQ(sampled_tree.visual_animations().size(), 2u);
 
-    tree.restore_visual_animation_original_values(original_values);
-    EXPECT(original_values.is_empty());
-    auto restored_translation = tree.spatial_node_at(spatial).data.get<Web::Painting::TransformData>().matrix[0, 3];
-    EXPECT_EQ(restored_translation, 12.0f);
-    EXPECT_EQ(tree.frame_node_at(frame).data.get<Web::Painting::EffectsData>().opacity, 0.75f);
+    auto source_translation = tree.accumulated_matrix(spatial, {}, include_viewport)[0, 3];
+    EXPECT_EQ(source_translation, 12.0f);
+    EXPECT_EQ(tree.effects_opacity(frame), Optional<float> { 0.75f });
 }
