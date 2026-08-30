@@ -265,6 +265,8 @@ Optional<Gfx::IntRect> compute_display_list_damage(
     auto old_commands = collect_display_list_command_references(old_display_list_commands);
     auto new_commands = collect_display_list_command_references(new_display_list_commands);
     TreeChainComparison chains { old_visual_context_tree, old_scroll_state, spatial_depths(old_visual_context_tree), new_visual_context_tree, new_scroll_state, spatial_depths(new_visual_context_tree) };
+    auto old_frames_with_empty_effective_clip = old_visual_context_tree.frames_with_empty_effective_clip();
+    auto new_frames_with_empty_effective_clip = new_visual_context_tree.frames_with_empty_effective_clip();
     auto commands_are_equal = [&](DisplayListCommandReference const& old_command, DisplayListCommandReference const& new_command) {
         return display_list_commands_are_equal(old_command, new_command)
             && chains.chains_are_compatible(old_command.header.context, new_command.header.context);
@@ -280,7 +282,9 @@ Optional<Gfx::IntRect> compute_display_list_damage(
         ++common_suffix_length;
     Optional<Gfx::IntRect> damage_rect;
     bool changed_unbounded_command = false;
-    auto add_command_damage = [&](DisplayListCommandReference const& command, auto const& visual_context_tree, auto const& scroll_state) {
+    auto add_command_damage = [&](DisplayListCommandReference const& command, auto const& visual_context_tree, auto const& scroll_state, Vector<bool> const& frames_with_empty_effective_clip) {
+        if (command.header.context.frame != NO_FRAME_NODE && frames_with_empty_effective_clip[command.header.context.frame.value()])
+            return;
         if (!command.header.has_bounding_rect) {
             if (display_list_command_is_compositor_metadata(command.header.command_type))
                 return;
@@ -316,8 +320,8 @@ Optional<Gfx::IntRect> compute_display_list_damage(
                 changed_unbounded_command = true;
             return;
         }
-        add_command_damage(old_command, old_visual_context_tree, old_scroll_state);
-        add_command_damage(new_command, new_visual_context_tree, new_scroll_state);
+        add_command_damage(old_command, old_visual_context_tree, old_scroll_state, old_frames_with_empty_effective_clip);
+        add_command_damage(new_command, new_visual_context_tree, new_scroll_state, new_frames_with_empty_effective_clip);
     };
 
     for (size_t i = 0; i < common_prefix_length; ++i)
@@ -355,22 +359,22 @@ Optional<Gfx::IntRect> compute_display_list_damage(
 
         if (skipped_old_commands.has_value() && (!skipped_new_commands.has_value() || *skipped_old_commands <= *skipped_new_commands)) {
             for (size_t i = 0; i < *skipped_old_commands; ++i)
-                add_command_damage(old_commands[old_index++], old_visual_context_tree, old_scroll_state);
+                add_command_damage(old_commands[old_index++], old_visual_context_tree, old_scroll_state, old_frames_with_empty_effective_clip);
             continue;
         }
         if (skipped_new_commands.has_value()) {
             for (size_t i = 0; i < *skipped_new_commands; ++i)
-                add_command_damage(new_commands[new_index++], new_visual_context_tree, new_scroll_state);
+                add_command_damage(new_commands[new_index++], new_visual_context_tree, new_scroll_state, new_frames_with_empty_effective_clip);
             continue;
         }
 
-        add_command_damage(old_commands[old_index++], old_visual_context_tree, old_scroll_state);
-        add_command_damage(new_commands[new_index++], new_visual_context_tree, new_scroll_state);
+        add_command_damage(old_commands[old_index++], old_visual_context_tree, old_scroll_state, old_frames_with_empty_effective_clip);
+        add_command_damage(new_commands[new_index++], new_visual_context_tree, new_scroll_state, new_frames_with_empty_effective_clip);
     }
     while (old_index < old_end)
-        add_command_damage(old_commands[old_index++], old_visual_context_tree, old_scroll_state);
+        add_command_damage(old_commands[old_index++], old_visual_context_tree, old_scroll_state, old_frames_with_empty_effective_clip);
     while (new_index < new_end)
-        add_command_damage(new_commands[new_index++], new_visual_context_tree, new_scroll_state);
+        add_command_damage(new_commands[new_index++], new_visual_context_tree, new_scroll_state, new_frames_with_empty_effective_clip);
 
     for (size_t i = 0; i < common_suffix_length; ++i)
         add_visual_context_damage(old_commands[old_commands.size() - common_suffix_length + i], new_commands[new_commands.size() - common_suffix_length + i]);

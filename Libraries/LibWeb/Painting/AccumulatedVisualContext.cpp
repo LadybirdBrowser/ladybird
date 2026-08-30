@@ -94,13 +94,39 @@ SpatialNodeIndex AccumulatedVisualContextTree::append_spatial(SpatialData data, 
     return index;
 }
 
+static bool frame_data_clips_everything(FrameData const& data)
+{
+    return data.visit(
+        [](ClipData const& clip) { return clip.mode == ClipMode::Intersect && clip.rect.is_empty(); },
+        [](ClipPathData const& clip_path) { return clip_path.path.bounding_box().is_empty(); },
+        [](EffectsData const&) { return false; },
+        [](MaskData const& mask) { return mask.rect.is_empty(); });
+}
+
 FrameNodeIndex AccumulatedVisualContextTree::append_frame(FrameData data, FrameNodeIndex parent, SpatialNodeIndex spatial)
 {
     VERIFY(spatial.value() < m_spatial_nodes.size());
     VERIFY(parent == NO_FRAME_NODE || parent.value() < m_frame_nodes.size());
     auto index = FrameNodeIndex(m_frame_nodes.size());
-    m_frame_nodes.append({ move(data), parent, spatial });
+    bool clips_everything = frame_data_clips_everything(data);
+    m_frame_nodes.append({ move(data), parent, spatial, clips_everything });
     return index;
+}
+
+void AccumulatedVisualContextTree::set_frame_data(FrameNodeIndex index, FrameData data)
+{
+    auto& node = m_frame_nodes[index.value()];
+    node.clips_everything = frame_data_clips_everything(data);
+    node.data = move(data);
+}
+
+Vector<bool> AccumulatedVisualContextTree::frames_with_empty_effective_clip() const
+{
+    Vector<bool> empty;
+    empty.ensure_capacity(m_frame_nodes.size());
+    for (auto const& node : m_frame_nodes)
+        empty.unchecked_append(node.clips_everything || (node.parent != NO_FRAME_NODE && empty[node.parent.value()]));
+    return empty;
 }
 
 void AccumulatedVisualContextTree::set_visual_viewport_transform(TransformData transform)
@@ -947,10 +973,15 @@ ErrorOr<void> encode(Encoder& encoder, Web::Painting::FrameNode const& node)
 template<>
 ErrorOr<Web::Painting::FrameNode> decode(Decoder& decoder)
 {
+    auto data = TRY(decoder.decode<Web::Painting::FrameData>());
+    auto parent = TRY(decoder.decode<Web::Painting::FrameNodeIndex>());
+    auto spatial = TRY(decoder.decode<Web::Painting::SpatialNodeIndex>());
+    bool clips_everything = Web::Painting::frame_data_clips_everything(data);
     return Web::Painting::FrameNode {
-        .data = TRY(decoder.decode<Web::Painting::FrameData>()),
-        .parent = TRY(decoder.decode<Web::Painting::FrameNodeIndex>()),
-        .spatial = TRY(decoder.decode<Web::Painting::SpatialNodeIndex>()),
+        .data = move(data),
+        .parent = parent,
+        .spatial = spatial,
+        .clips_everything = clips_everything,
     };
 }
 

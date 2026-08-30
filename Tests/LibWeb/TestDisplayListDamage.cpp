@@ -182,6 +182,38 @@ TEST_CASE(mask_visual_context_damages_affected_commands)
     EXPECT_EQ(*damage, (Gfx::IntRect { 9, 9, 22, 22 }));
 }
 
+TEST_CASE(commands_under_an_empty_effective_clip_do_not_damage)
+{
+    auto old_visual_context_tree = AccumulatedVisualContextTree::create();
+    auto old_frame = old_visual_context_tree.append_frame(ClipData { Gfx::FloatRect {}, {} }, NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX);
+    auto new_visual_context_tree = AccumulatedVisualContextTree::create();
+    auto new_frame = new_visual_context_tree.append_frame(ClipData { Gfx::FloatRect {}, {} }, NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX);
+
+    auto old_display_list = command_bytes(FillRect { { 10, 10, 20, 20 }, Gfx::Color::Red }, Gfx::IntRect { 10, 10, 20, 20 }, ContextRef { VISUAL_VIEWPORT_NODE_INDEX, old_frame });
+    auto new_display_list = command_bytes(FillRect { { 30, 30, 20, 20 }, Gfx::Color::Blue }, Gfx::IntRect { 30, 30, 20, 20 }, ContextRef { VISUAL_VIEWPORT_NODE_INDEX, new_frame });
+    ScrollStateSnapshot scroll_state;
+
+    auto damage = compute_display_list_damage(old_display_list, old_visual_context_tree, scroll_state, new_display_list, new_visual_context_tree, scroll_state, { 0, 0, 100, 100 });
+    EXPECT(damage.has_value());
+    EXPECT(damage->is_empty());
+}
+
+TEST_CASE(a_clip_growing_from_empty_damages_the_commands_it_reveals)
+{
+    auto old_visual_context_tree = AccumulatedVisualContextTree::create();
+    auto old_frame = old_visual_context_tree.append_frame(ClipData { Gfx::FloatRect {}, {} }, NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX);
+    auto new_visual_context_tree = AccumulatedVisualContextTree::create();
+    auto new_frame = new_visual_context_tree.append_frame(ClipData { Gfx::FloatRect { 0, 0, 100, 100 }, {} }, NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX);
+
+    auto old_display_list = command_bytes(FillRect { { 10, 10, 20, 20 }, Gfx::Color::Red }, Gfx::IntRect { 10, 10, 20, 20 }, ContextRef { VISUAL_VIEWPORT_NODE_INDEX, old_frame });
+    auto new_display_list = command_bytes(FillRect { { 10, 10, 20, 20 }, Gfx::Color::Red }, Gfx::IntRect { 10, 10, 20, 20 }, ContextRef { VISUAL_VIEWPORT_NODE_INDEX, new_frame });
+    ScrollStateSnapshot scroll_state;
+
+    auto damage = compute_display_list_damage(old_display_list, old_visual_context_tree, scroll_state, new_display_list, new_visual_context_tree, scroll_state, { 0, 0, 100, 100 });
+    EXPECT(damage.has_value());
+    EXPECT_EQ(*damage, (Gfx::IntRect { 9, 9, 22, 22 }));
+}
+
 TEST_CASE(unrelated_inserted_visual_context_does_not_damage_commands)
 {
     auto old_visual_context_tree = AccumulatedVisualContextTree::create();

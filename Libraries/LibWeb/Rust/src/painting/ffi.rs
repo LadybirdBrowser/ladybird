@@ -370,6 +370,8 @@ pub unsafe extern "C" fn display_list_build_depth_sorted_replay_plan(
     transform_palette: *const libgfx_rust::FloatMatrix4x4,
     draw_space: *const crate::painting::display_list::commands::SpatialNodeIndex,
     backface_culled: *const bool,
+    frame_has_empty_effective_clip: *const bool,
+    frame_count: usize,
     node_count: usize,
     parent_by_node: *const crate::painting::display_list::commands::SpatialNodeIndex,
     sorting_context_root_by_node: *const crate::painting::display_list::commands::SpatialNodeIndex,
@@ -381,6 +383,7 @@ pub unsafe extern "C" fn display_list_build_depth_sorted_replay_plan(
             transform_palette,
             draw_space,
             backface_culled,
+            frame_has_empty_effective_clip,
             parent_by_node,
             sorting_context_root_by_node,
         ) = unsafe {
@@ -389,6 +392,7 @@ pub unsafe extern "C" fn display_list_build_depth_sorted_replay_plan(
                 ffi_slice(transform_palette, node_count),
                 ffi_slice(draw_space, node_count),
                 ffi_slice(backface_culled, node_count),
+                ffi_slice(frame_has_empty_effective_clip, frame_count),
                 ffi_slice(parent_by_node, node_count),
                 ffi_slice(sorting_context_root_by_node, node_count),
             )
@@ -406,6 +410,7 @@ pub unsafe extern "C" fn display_list_build_depth_sorted_replay_plan(
             transform_palette,
             draw_space,
             backface_culled,
+            frame_has_empty_effective_clip,
         );
         Box::into_raw(Box::new(plan)).cast()
     })
