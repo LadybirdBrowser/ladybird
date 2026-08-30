@@ -12,7 +12,7 @@
 
 namespace Gfx {
 
-ErrorOr<NonnullOwnPtr<SharedFontProvider>> SharedFontProvider::create(NonnullOwnPtr<Core::MappedFile> mapping, u64 generation, SharedFontProviderCallbacks callbacks)
+ErrorOr<NonnullOwnPtr<SharedFontProvider>> SharedFontProvider::create(NonnullOwnPtr<Core::MappedFile> mapping, u64 generation, SharedFontProviderCallbacks&& callbacks)
 {
     auto catalog = TRY(FontCatalog::parse(mapping->bytes(), generation));
     return adopt_nonnull_own_or_enomem(new (nothrow) SharedFontProvider(move(mapping), move(catalog), move(callbacks)));
