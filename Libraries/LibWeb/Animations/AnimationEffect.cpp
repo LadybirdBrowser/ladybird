@@ -10,6 +10,7 @@
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Animations/AnimationTimeline.h>
+#include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/Bindings/AnimationEffect.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
@@ -370,6 +371,9 @@ WebIDL::ExceptionOr<void> AnimationEffect::update_timing(Bindings::OptionalEffec
 
     // 6. Follow the procedure to normalize specified timing.
     normalize_specified_timing();
+
+    if (auto* keyframe_effect = as_if<KeyframeEffect>(*this))
+        keyframe_effect->clear_per_frame_style_update_cache();
 
     // AD-HOC: Notify the associated animation that the effect timing has changed.
     if (auto animation = m_associated_animation)

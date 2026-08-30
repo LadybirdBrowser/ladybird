@@ -1018,6 +1018,7 @@ KeyframeEffect::KeyframeEffect() = default;
 
 void KeyframeEffect::invalidate_effect()
 {
+    m_can_skip_per_frame_style_update_cache.clear();
     if (m_target_element)
         m_target_element->document().set_needs_animated_style_update(*this);
 }
@@ -1031,18 +1032,44 @@ void KeyframeEffect::visit_edges(GC::Cell::Visitor& visitor)
 
 bool KeyframeEffect::can_skip_per_frame_style_update() const
 {
+    auto target = this->target();
+    auto cache_result = [&](bool result) {
+        if (target && target->document().layout_is_up_to_date()) {
+            m_can_skip_per_frame_style_update_cache = CanSkipPerFrameStyleUpdateCache {
+                .target_style_generation = target->animation_style_generation(),
+                .target_subtree_style_generation = target->animation_subtree_style_generation(),
+                .target_is_connected = target->is_connected(),
+                .layout_node = target->unsafe_layout_node(),
+                .result = result,
+            };
+        }
+        return result;
+    };
+    if (target && target->document().layout_is_up_to_date()) {
+        auto const* layout_node = target->unsafe_layout_node();
+        if (m_can_skip_per_frame_style_update_cache.has_value()
+            && m_can_skip_per_frame_style_update_cache->target_style_generation == target->animation_style_generation()
+            && m_can_skip_per_frame_style_update_cache->target_subtree_style_generation == target->animation_subtree_style_generation()
+            && m_can_skip_per_frame_style_update_cache->target_is_connected == target->is_connected()
+            && m_can_skip_per_frame_style_update_cache->layout_node == layout_node) {
+            ++target->document().style_invalidation_counters().animation_style_skip_cache_hits;
+            return m_can_skip_per_frame_style_update_cache->result;
+        }
+        if (m_can_skip_per_frame_style_update_cache.has_value())
+            ++target->document().style_invalidation_counters().animation_style_skip_cache_misses;
+    }
+
     // INTEROP: Other engines suppress main-thread style sampling for invisible transform animations. Restrict this
     // optimization to the infinite transform-only case until animation overflow updates can also be throttled safely.
     if (!isinf(iteration_count()) || pseudo_element_type().has_value())
-        return false;
+        return cache_result(false);
 
-    auto target = this->target();
     if (!target)
         return false;
     if (!target->is_connected())
-        return true;
+        return cache_result(true);
     if (target->namespace_uri() == Namespace::SVG)
-        return false;
+        return cache_result(false);
 
     bool has_animated_property = false;
     auto const* key_frame_set = m_key_frame_set.ptr();
@@ -1056,17 +1083,17 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
                     CSS::PropertyID::Translate,
                     CSS::PropertyID::Rotate,
                     CSS::PropertyID::Scale))
-                return false;
+                return cache_result(false);
         }
     }
     if (!has_animated_property)
-        return false;
+        return cache_result(false);
 
     if (!target->document().layout_is_up_to_date())
         return false;
     auto const* layout_node = target->unsafe_layout_node();
     if (!layout_node || layout_node->visibility() != CSS::Visibility::Hidden)
-        return false;
+        return cache_result(false);
 
     bool has_visible_descendant = false;
     layout_node->for_each_in_inclusive_subtree_of_type<Layout::NodeWithStyle>([&](auto const& descendant) {
@@ -1076,9 +1103,9 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
         return TraversalDecision::Break;
     });
     if (has_visible_descendant)
-        return false;
+        return cache_result(false);
 
-    return true;
+    return cache_result(true);
 }
 
 bool KeyframeEffect::can_skip_per_frame_animation_tick() const

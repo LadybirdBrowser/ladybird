@@ -1,4 +1,8 @@
 completed effects stay out of animated style updates: true
+stable skip eligibility is cached: true
+unrelated style changes preserve skip eligibility: true
+timing changes invalidate skip eligibility: true
+descendant style changes invalidate skip eligibility: true
 finished sibling contribution is retained: true
 active sibling contributes to computed style: true
 paused animation builds no overlays: true

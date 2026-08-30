@@ -1111,6 +1111,8 @@ public:
         u64 animated_style_full_builds { 0 };
         u64 animation_frame_pump_requests { 0 };
         u64 animation_timeline_associated_animation_updates { 0 };
+        u64 animation_style_skip_cache_hits { 0 };
+        u64 animation_style_skip_cache_misses { 0 };
         u64 animation_timeline_synchronizations { 0 };
         u64 base_style_partial_builds { 0 };
         u64 base_style_full_builds { 0 };

@@ -27,6 +27,14 @@
             { transform: "translateX(100px)" },
         ], { duration: 100000, iterations: Infinity });
 
+        const hiddenTarget = document.createElement("div");
+        hiddenTarget.style.visibility = "hidden";
+        document.body.append(hiddenTarget);
+        const hiddenAnimation = hiddenTarget.animate([
+            { transform: "translateX(0px)" },
+            { transform: "translateX(100px)" },
+        ], { duration: 100000, iterations: Infinity });
+
         for (let i = 0; i < 4; ++i)
             await nextFrame();
         internals.resetStyleInvalidationCounters();
@@ -34,6 +42,33 @@
             await nextFrame();
         const steadyCounters = internals.getStyleInvalidationCounters();
         println(`completed effects stay out of animated style updates: ${steadyCounters.animatedStyleOverlayBuilds <= 6}`);
+        println(`stable skip eligibility is cached: ${steadyCounters.animationStyleSkipCacheHits > 0}`);
+
+        const unrelatedTarget = document.createElement("div");
+        document.body.append(unrelatedTarget);
+        internals.resetStyleInvalidationCounters();
+        for (let i = 0; i < 4; ++i) {
+            unrelatedTarget.style.color = `rgb(${i}, 0, 0)`;
+            await nextFrame();
+        }
+        const unrelatedStyleCounters = internals.getStyleInvalidationCounters();
+        println(`unrelated style changes preserve skip eligibility: ${unrelatedStyleCounters.animationStyleSkipCacheHits > 0 && unrelatedStyleCounters.animationStyleSkipCacheMisses === 0}`);
+
+        hiddenAnimation.effect.updateTiming({ iterations: 1 });
+        internals.resetStyleInvalidationCounters();
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+        println(`timing changes invalidate skip eligibility: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds > 0}`);
+        hiddenAnimation.effect.updateTiming({ iterations: Infinity });
+        await nextFrame();
+
+        const visibleChild = document.createElement("div");
+        visibleChild.style.visibility = "visible";
+        hiddenTarget.append(visibleChild);
+        internals.resetStyleInvalidationCounters();
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+        println(`descendant style changes invalidate skip eligibility: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds > 4}`);
 
         const siblingTarget = document.createElement("div");
         siblingTarget.style.cssText = "opacity: 0; transform-origin: center center 1px";

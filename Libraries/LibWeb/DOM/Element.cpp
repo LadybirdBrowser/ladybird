@@ -4904,6 +4904,8 @@ void Element::replace_style_record(CSS::StyleRecordID style_record_identity)
 
 void Element::set_computed_style(Optional<CSS::PseudoElement> pseudo_element_type, CSS::StyleRecordID style_record_identity)
 {
+    for (auto* element = this; element; element = element->parent_or_shadow_host_element())
+        ++element->m_animation_subtree_style_generation;
     if (pseudo_element_type.has_value()) {
         VERIFY(is_synthetic_pseudo_element(*pseudo_element_type));
         if (!!style_record_identity)
@@ -4912,6 +4914,7 @@ void Element::set_computed_style(Optional<CSS::PseudoElement> pseudo_element_typ
             existing_pseudo_element->set_computed_style(0);
         return;
     }
+    ++m_animation_style_generation;
     replace_style_record(style_record_identity);
     computed_properties_changed();
 }
