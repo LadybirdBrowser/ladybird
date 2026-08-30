@@ -908,6 +908,13 @@ void KeyframeEffect::set_key_frame_set(RefPtr<KeyFrameSet const> key_frame_set)
     if (m_key_frame_set == key_frame_set)
         return;
 
+    m_target_properties.clear();
+    if (key_frame_set) {
+        for (auto const& keyframe : key_frame_set->keyframes_by_key) {
+            for (auto const& property : keyframe.properties)
+                m_target_properties.set(property.key);
+        }
+    }
     m_key_frame_set = move(key_frame_set);
     invalidate_effect();
 }
@@ -1018,6 +1025,7 @@ KeyframeEffect::KeyframeEffect() = default;
 
 void KeyframeEffect::invalidate_effect()
 {
+    m_is_compositor_driven = false;
     m_can_skip_per_frame_style_update_cache.clear();
     if (m_target_element)
         m_target_element->document().set_needs_animated_style_update(*this);
@@ -1032,6 +1040,9 @@ void KeyframeEffect::visit_edges(GC::Cell::Visitor& visitor)
 
 bool KeyframeEffect::can_skip_per_frame_style_update() const
 {
+    if (m_is_compositor_driven)
+        return true;
+
     auto target = this->target();
     auto cache_result = [&](bool result) {
         if (target && target->document().layout_is_up_to_date()) {
@@ -1117,7 +1128,7 @@ bool KeyframeEffect::can_skip_per_frame_animation_tick() const
         && is_in_the_before_phase())
         return true;
 
-    if (!can_skip_per_frame_style_update())
+    if (!m_is_compositor_driven && !can_skip_per_frame_style_update())
         return false;
 
     // An infinite effect cannot reach its natural end, so animationend listeners do not require a continuous tick.

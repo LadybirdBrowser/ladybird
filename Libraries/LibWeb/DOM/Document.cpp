@@ -45,6 +45,7 @@
 #include <LibWeb/Bindings/Document.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/AnimationEvent.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSImportRule.h>
@@ -62,6 +63,7 @@
 #include <LibWeb/CSS/Invalidation/LinkInvalidator.h>
 #include <LibWeb/CSS/Invalidation/MediaQueryInvalidator.h>
 #include <LibWeb/CSS/Invalidation/PseudoClassInvalidator.h>
+#include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/MediaQueryList.h>
 #include <LibWeb/CSS/MediaQueryListEvent.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -74,10 +76,13 @@
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
+#include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/CSS/TransitionEvent.h>
 #include <LibWeb/CSS/VisualViewport.h>
+#include <LibWeb/Compositor/VisualAnimation.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
@@ -7581,6 +7586,295 @@ void Document::disassociate_with_animation(GC::Ref<Animations::Animation> animat
         m_effects_needing_animated_style_update_after_current_update.remove(effect);
     }
     m_associated_animations.remove(animation);
+}
+
+static Optional<Compositor::VisualAnimationTransformOperationKind> compositor_transform_operation_kind(CSS::TransformFunction function)
+{
+    using CSS::TransformFunction;
+    using Kind = Compositor::VisualAnimationTransformOperationKind;
+    switch (function) {
+    case TransformFunction::Translate:
+        return Kind::Translate;
+    case TransformFunction::Translate3d:
+        return Kind::Translate3d;
+    case TransformFunction::TranslateX:
+        return Kind::TranslateX;
+    case TransformFunction::TranslateY:
+        return Kind::TranslateY;
+    case TransformFunction::TranslateZ:
+        return Kind::TranslateZ;
+    case TransformFunction::Scale:
+        return Kind::Scale;
+    case TransformFunction::Scale3d:
+        return Kind::Scale3d;
+    case TransformFunction::ScaleX:
+        return Kind::ScaleX;
+    case TransformFunction::ScaleY:
+        return Kind::ScaleY;
+    case TransformFunction::ScaleZ:
+        return Kind::ScaleZ;
+    case TransformFunction::Rotate:
+        return Kind::Rotate;
+    case TransformFunction::RotateX:
+        return Kind::RotateX;
+    case TransformFunction::RotateY:
+        return Kind::RotateY;
+    case TransformFunction::RotateZ:
+        return Kind::RotateZ;
+    case TransformFunction::Skew:
+        return Kind::Skew;
+    case TransformFunction::SkewX:
+        return Kind::SkewX;
+    case TransformFunction::SkewY:
+        return Kind::SkewY;
+    case TransformFunction::Matrix:
+    case TransformFunction::Matrix3d:
+    case TransformFunction::Perspective:
+    case TransformFunction::Rotate3d:
+        return {};
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static Optional<Compositor::VisualAnimationTransformOperation> compositor_transform_operation(CSS::TransformationStyleValue const& transformation, float device_pixels_per_css_pixel)
+{
+    if (!transformation.can_be_converted_to_matrix_without_reference_box())
+        return {};
+    auto kind = compositor_transform_operation_kind(transformation.transform_function());
+    if (!kind.has_value())
+        return {};
+
+    auto metadata = CSS::transform_function_metadata(transformation.transform_function());
+    auto style_values = transformation.values();
+    Vector<float> values;
+    values.ensure_capacity(style_values.size());
+    for (size_t index = 0; index < style_values.size(); ++index) {
+        auto const& style_value = style_values[index];
+        auto value = [&]() -> float {
+            switch (metadata.parameters[index].type) {
+            case CSS::TransformFunctionParameterType::Angle:
+                return CSS::Angle::from_style_value(style_value, {}).to_radians();
+            case CSS::TransformFunctionParameterType::Length:
+            case CSS::TransformFunctionParameterType::LengthNone:
+            case CSS::TransformFunctionParameterType::LengthPercentage:
+                return CSS::Length::from_style_value(style_value, {}).absolute_length_to_px().to_float() * device_pixels_per_css_pixel;
+            case CSS::TransformFunctionParameterType::Number:
+            case CSS::TransformFunctionParameterType::NumberPercentage:
+                return CSS::number_from_style_value(style_value, 1);
+            }
+            VERIFY_NOT_REACHED();
+        }();
+        if (!isfinite(value))
+            return {};
+        values.unchecked_append(value);
+    }
+    Compositor::VisualAnimationTransformOperation operation { *kind, move(values) };
+    if (!operation.is_valid())
+        return {};
+    return operation;
+}
+
+static Optional<Compositor::VisualAnimationEasing> compositor_animation_easing(Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame const& keyframe, Animations::Animation const& animation)
+{
+    return keyframe.easing.visit(
+        [&](Empty) -> Optional<Compositor::VisualAnimationEasing> {
+            auto easing = animation.is_css_animation()
+                ? static_cast<CSS::CSSAnimation const&>(animation).default_easing()
+                : CSS::EasingFunction::linear();
+            return Compositor::VisualAnimationEasing::from_css(easing);
+        },
+        [](CSS::EasingFunction const& easing) -> Optional<Compositor::VisualAnimationEasing> {
+            return Compositor::VisualAnimationEasing::from_css(easing);
+        },
+        [](CSS::RustStyleValueHandle const&) -> Optional<Compositor::VisualAnimationEasing> {
+            return {};
+        });
+}
+
+static Optional<Compositor::VisualAnimationValue> compositor_animation_value(CSS::PropertyID property_id, CSS::RustStyleValueHandle const& value, float device_pixels_per_css_pixel)
+{
+    auto style_value = CSS::StyleValue::adopt_rust_style_value_data(CSS::StyleValueFFI::rust_style_value_retain(value.data()));
+    if (property_id == CSS::PropertyID::Opacity) {
+        if (!style_value->is_opacity_value())
+            return {};
+        auto opacity = style_value->as_opacity_value().resolved();
+        if (!isfinite(opacity))
+            return {};
+        return opacity;
+    }
+
+    VERIFY(property_id == CSS::PropertyID::Transform);
+    auto transformations = CSS::transformations_for_style_value(*style_value);
+    if (transformations.is_empty())
+        return {};
+    Compositor::VisualAnimationTransformList operations;
+    operations.ensure_capacity(transformations.size());
+    for (auto const& transformation : transformations) {
+        auto operation = compositor_transform_operation(*transformation, device_pixels_per_css_pixel);
+        if (!operation.has_value())
+            return {};
+        operations.unchecked_append(operation.release_value());
+    }
+    return operations;
+}
+
+static Optional<Compositor::VisualAnimation> build_compositor_animation(Animations::KeyframeEffect& effect, Painting::AccumulatedVisualContextTree const& visual_context_tree)
+{
+    auto animation = effect.associated_animation();
+    if (!animation || animation->play_state() != Bindings::AnimationPlayState::Running || animation->pending())
+        return {};
+    auto timeline = animation->timeline();
+    if (!timeline || !timeline->is_monotonically_increasing() || !effect.is_in_the_active_phase())
+        return {};
+    if (!isinf(effect.iteration_count()) || effect.composite() != Bindings::CompositeOperation::Replace)
+        return {};
+    if (animation->playback_rate() <= 0 || !isfinite(animation->playback_rate()))
+        return {};
+    if (effect.start_delay().type != Animations::TimeValue::Type::Milliseconds
+        || effect.iteration_duration().type != Animations::TimeValue::Type::Milliseconds
+        || effect.iteration_duration().value <= 0)
+        return {};
+    auto current_time = animation->current_time();
+    if (!current_time.has_value() || current_time->type != Animations::TimeValue::Type::Milliseconds)
+        return {};
+    if (effect.pseudo_element_type().has_value() || effect.target_properties().size() != 1)
+        return {};
+
+    auto property_id = *effect.target_properties().begin();
+    if (!first_is_one_of(property_id, CSS::PropertyID::Opacity, CSS::PropertyID::Transform))
+        return {};
+    auto target = effect.target();
+    if (!target || target->namespace_uri() == Namespace::SVG)
+        return {};
+    auto const* layout_node = target->unsafe_layout_node();
+    if (!layout_node)
+        return {};
+    if (property_id == CSS::PropertyID::Transform
+        && (layout_node->has_translate() || layout_node->has_rotate() || layout_node->has_scale()
+            || layout_node->transform_origin().z.to_px(CSSPixels { 0 }) != CSSPixels { 0 }))
+        return {};
+    auto const* row = Painting::committed_row(*layout_node);
+    if (!row)
+        return {};
+
+    Vector<u32> visual_context_node_indices;
+    if (property_id == CSS::PropertyID::Opacity) {
+        for (auto index = row->frame_nodes_begin; index < row->frame_nodes_end; ++index) {
+            if (!visual_context_tree.frame_node_at(Painting::FrameNodeIndex { index }).data.has<Painting::EffectsData>())
+                continue;
+            visual_context_node_indices.append(index);
+        }
+    } else {
+        for (auto index = row->spatial_nodes_begin; index < row->spatial_nodes_end; ++index) {
+            auto const* transform = visual_context_tree.spatial_node_at(Painting::SpatialNodeIndex { index }).data.get_pointer<Painting::TransformData>();
+            if (!transform || transform->role != Painting::TransformDataRole::CssTransform || transform->synthetic_plane)
+                continue;
+            visual_context_node_indices.append(index);
+        }
+    }
+    if (visual_context_node_indices.is_empty())
+        return {};
+
+    auto const* key_frame_set = effect.key_frame_set();
+    if (!key_frame_set || key_frame_set->keyframes_by_key.size() < 2)
+        return {};
+    Vector<Compositor::VisualAnimationKeyframe> keyframes;
+    auto device_pixels_per_css_pixel = static_cast<float>(target->document().page().client().device_pixels_per_css_pixel());
+    for (auto it = key_frame_set->keyframes_by_key.begin(); it != key_frame_set->keyframes_by_key.end(); ++it) {
+        auto const& entry = *it;
+        auto composite = [&] {
+            switch (entry.composite) {
+            case Bindings::CompositeOperationOrAuto::Replace:
+                return Bindings::CompositeOperation::Replace;
+            case Bindings::CompositeOperationOrAuto::Add:
+                return Bindings::CompositeOperation::Add;
+            case Bindings::CompositeOperationOrAuto::Accumulate:
+                return Bindings::CompositeOperation::Accumulate;
+            case Bindings::CompositeOperationOrAuto::Auto:
+                return effect.composite();
+            }
+            VERIFY_NOT_REACHED();
+        }();
+        if (composite != Bindings::CompositeOperation::Replace)
+            return {};
+        auto property = entry.properties.get(property_id);
+        if (!property.has_value() || !property->has<CSS::RustStyleValueHandle>()) {
+            continue;
+        }
+        auto easing = compositor_animation_easing(entry, *animation);
+        auto value = compositor_animation_value(property_id, property->get<CSS::RustStyleValueHandle>(), device_pixels_per_css_pixel);
+        if (!easing.has_value() || !value.has_value()) {
+            return {};
+        }
+        keyframes.append({
+            .offset = static_cast<double>(it.key()) / (100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor),
+            .easing = easing.release_value(),
+            .value = value.release_value(),
+        });
+    }
+
+    Compositor::VisualAnimation visual_animation {
+        .target_kind = property_id == CSS::PropertyID::Opacity
+            ? Compositor::VisualAnimation::TargetKind::Opacity
+            : Compositor::VisualAnimation::TargetKind::Transform,
+        .visual_context_node_indices = move(visual_context_node_indices),
+        .monotonic_time_at_anchor_ns = MonotonicTime::now().nanoseconds(),
+        .local_time_at_anchor_ms = current_time->value,
+        .playback_rate = animation->playback_rate(),
+        .start_delay_ms = effect.start_delay().value,
+        .iteration_duration_ms = effect.iteration_duration().value,
+        .iteration_start = effect.iteration_start(),
+        .playback_direction = static_cast<Compositor::VisualAnimationPlaybackDirection>(to_underlying(effect.playback_direction())),
+        .easing = Compositor::VisualAnimationEasing::from_css(effect.timing_function()),
+        .keyframes = move(keyframes),
+    };
+    if (!visual_animation.is_valid())
+        return {};
+    return visual_animation;
+}
+
+void Document::update_compositor_animations()
+{
+    auto& visual_context_tree = paint_state().visual_context_tree(*this);
+    Vector<Compositor::VisualAnimation> visual_animations;
+
+    for (auto& animation : m_associated_animations) {
+        if (!animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
+            continue;
+        static_cast<Animations::KeyframeEffect&>(*animation.effect()).set_is_compositor_driven(false);
+    }
+
+    for (auto& animation : m_associated_animations) {
+        if (!animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
+            continue;
+        auto& effect = static_cast<Animations::KeyframeEffect&>(*animation.effect());
+        auto target = effect.target();
+        if (!target || effect.target_properties().size() != 1)
+            continue;
+        auto property_id = *effect.target_properties().begin();
+
+        size_t competing_effect_count = 0;
+        for (auto& other_animation : m_associated_animations) {
+            if (other_animation.is_idle() || !other_animation.effect() || !is<Animations::KeyframeEffect>(*other_animation.effect()))
+                continue;
+            auto& other_effect = static_cast<Animations::KeyframeEffect&>(*other_animation.effect());
+            if (other_effect.target() == target
+                && other_effect.pseudo_element_type() == effect.pseudo_element_type()
+                && other_effect.is_in_effect()
+                && other_effect.target_properties().contains(property_id))
+                ++competing_effect_count;
+        }
+        if (competing_effect_count != 1)
+            continue;
+
+        auto visual_animation = build_compositor_animation(effect, visual_context_tree);
+        if (!visual_animation.has_value())
+            continue;
+        effect.set_is_compositor_driven(true);
+        visual_animations.append(visual_animation.release_value());
+    }
+
+    paint_state().set_visual_animations(*this, move(visual_animations));
 }
 
 size_t Document::associated_animation_count() const
