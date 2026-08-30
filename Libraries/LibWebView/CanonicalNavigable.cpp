@@ -352,9 +352,21 @@ void CanonicalNavigable::set_ongoing_navigation(OngoingNavigation ongoing_naviga
     m_ongoing_navigation = move(ongoing_navigation);
 }
 
+void CanonicalNavigable::set_ongoing_navigation_to_traversal(Web::HTML::CrossProcessId operation_id)
+{
+    m_ongoing_navigation_traversal_operation_id = operation_id;
+}
+
+void CanonicalNavigable::clear_ongoing_navigation_traversal(Web::HTML::CrossProcessId operation_id)
+{
+    if (m_ongoing_navigation_traversal_operation_id == operation_id)
+        m_ongoing_navigation_traversal_operation_id.clear();
+}
+
 void CanonicalNavigable::clear_ongoing_navigation()
 {
     m_ongoing_navigation.clear();
+    m_ongoing_navigation_traversal_operation_id.clear();
 }
 
 void CanonicalNavigable::set_navigation_population_worker(WebContentClient& client, u64 page_id)

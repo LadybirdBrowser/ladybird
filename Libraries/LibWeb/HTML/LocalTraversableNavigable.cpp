@@ -528,8 +528,9 @@ static void deactivate_a_document_for_cross_document_navigation(GC::Ref<DOM::Doc
         // FIXME: 1. Let firePageSwapBeforeUnload be the following step
         //            1. Fire the pageswap event given displayedDocument, targetEntry, navigationType, and null.
 
-        // 2. Set the ongoing navigation for navigable to null.
-        navigable->set_ongoing_navigation({});
+        // 2. Set navigable's ongoing navigation to null.
+        // AD-HOC: This implements https://github.com/whatwg/html/pull/12838.
+        navigable->set_ongoing_navigation_without_informing_navigation_api({});
 
         // 3. Unload a document and its descendants given displayedDocument, targetEntry's document, afterPotentialUnloads, and firePageSwapBeforeUnload.
         (void)target_entry; // FIXME: Used by pageswap and view-transition steps above.
@@ -539,7 +540,7 @@ static void deactivate_a_document_for_cross_document_navigation(GC::Ref<DOM::Doc
     else {
         // FIXME: 1. Let proceedWithNavigationAfterViewTransitionCapture be the following step:
         //            1. Append the following session history traversal steps to navigable's traversable navigable:
-        //               1. Set the ongoing navigation for navigable to null.
+        //               1. Set navigable's ongoing navigation to null.
         //               2. Unload a document and its descendants given displayedDocument, targetEntry's document, and afterPotentialUnloads.
 
         // FIXME: 2. Let viewTransition be the result of setting up a cross-document view-transition given displayedDocument,
@@ -563,7 +564,6 @@ struct ChangingNavigableContinuationState : public JS::Cell {
     GC::Ptr<LocalNavigable> navigable;
     bool update_only = false;
     Optional<Bindings::NavigationType> navigation_type;
-    LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior { LocalNavigable::NavigationAPIAbortBehavior::Abort };
     UserNavigationInvolvement user_involvement { UserNavigationInvolvement::None };
 
     GC::Ptr<DOM::Document> pending_document;
@@ -667,14 +667,14 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
     // 2. Set navigable's current session history entry to targetEntry.
     navigable->set_current_session_history_entry(claimed_target_entry);
 
-    // 3. Set navigable's ongoing navigation to "traversal".
-    // AD-HOC: A same-document push or replace can reach this point after a
-    //         later cross-document navigation has claimed the navigable. Keep
-    //         that navigation's ID; the history update must not cancel it.
+    // AD-HOC: The UI operation owns the authoritative traversal tracker. LocalNavigable still uses this process-local
+    //         value to serialize pending navigations, so mirror it when the already-required changing job begins. A
+    //         same-document push or replace can arrive after a newer navigation installed its local ID, in which case
+    //         that navigation wins.
     auto preserve_ongoing_navigation = applies_same_document_push_or_replace
         && navigable->ongoing_navigation().has<Utf16String>();
     if (!preserve_ongoing_navigation)
-        navigable->set_ongoing_navigation(HTML::LocalNavigable::Traversal::Tag, job.navigation_api_abort_behavior);
+        navigable->set_ongoing_navigation_without_informing_navigation_api(HTML::LocalNavigable::Traversal::Tag);
 
     queue_apply_history_step_task(*navigable, navigable->active_document(), GC::create_function(heap(), [this, job = move(job), source_snapshot_params, pending_document, claimed_target_entry = move(claimed_target_entry), navigable, on_complete] {
         // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
@@ -716,7 +716,6 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
         changing_navigable_continuation->navigable = navigable;
         changing_navigable_continuation->update_only = false;
         changing_navigable_continuation->navigation_type = job.navigation_type;
-        changing_navigable_continuation->navigation_api_abort_behavior = job.navigation_api_abort_behavior;
         changing_navigable_continuation->user_involvement = job.user_involvement;
         changing_navigable_continuation->pending_document = pending_document;
         changing_navigable_continuation->population_output = nullptr;
@@ -915,20 +914,14 @@ static bool changing_navigable_is_still_current(GC::Ptr<LocalNavigable> navigabl
         || (allow_ongoing_navigation && navigable->ongoing_navigation().has<Utf16String>());
 }
 
-static void clear_ongoing_history_traversal(GC::Ptr<LocalNavigable> navigable, LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior)
+static void clear_ongoing_history_traversal(GC::Ptr<LocalNavigable> navigable)
 {
     if (!navigable || navigable->has_been_destroyed())
         return;
 
-    if (!navigable->ongoing_navigation().has<LocalNavigable::Traversal>())
-        return;
-
-    // AD-HOC: The HTML Standard's traversal queue normally reaches one of the per-navigable "Set the ongoing
-    //         navigation for navigable to null" steps before this state completes. Our stale-task exits deliberately
-    //         skip the rest of the history step so newer navigations win like they do in Chromium, WebKit, and Gecko,
-    //         but we still have to remove the traversal sentinel. Use the shared setter so pending navigations queued
-    //         behind this traversal are drained in one place.
-    navigable->set_ongoing_navigation({}, navigation_api_abort_behavior);
+    // AD-HOC: Only clear the process-local traversal projection. A newer navigation can already own the navigable.
+    if (navigable->ongoing_navigation().has<LocalNavigable::Traversal>())
+        navigable->set_ongoing_navigation_without_informing_navigation_api({});
 }
 
 void LocalTraversableNavigable::apply_changing_navigable_history_step_continuation_impl(GC::Ref<ChangingNavigableContinuationState> continuation, LocalApplyChangingNavigableHistoryStepContinuation command, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>> on_complete)
@@ -966,14 +959,14 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
     bool const update_only = continuation->update_only;
     RefPtr<SessionHistoryEntry> const target_entry = continuation->target_entry;
     auto const displayed_document_id = continuation->displayed_document_id;
-    auto after_potential_unload = GC::create_function(heap(), [this, navigable, update_only, target_entry, continuation, population_output, old_origin, displayed_document_id, script_history_length, script_history_index, entries_for_navigation_api = move(command.entries_for_navigation_api), system_visibility_state = command.system_visibility_state, navigation_type = continuation->navigation_type, navigation_api_abort_behavior = continuation->navigation_api_abort_behavior, on_complete] {
+    auto after_potential_unload = GC::create_function(heap(), [this, navigable, update_only, target_entry, continuation, population_output, old_origin, displayed_document_id, script_history_length, script_history_index, entries_for_navigation_api = move(command.entries_for_navigation_api), system_visibility_state = command.system_visibility_state, navigation_type = continuation->navigation_type, on_complete] {
         if (update_only || continuation->resolved_document.ptr() == continuation->displayed_document.ptr()) {
             auto applies_same_document_push_or_replace = is_same_document_push_or_replace(
                 navigation_type, *target_entry, displayed_document_id);
 
             if (applies_same_document_push_or_replace
                 && navigable->active_session_history_entry() != target_entry) {
-                clear_ongoing_history_traversal(navigable, navigation_api_abort_behavior);
+                clear_ongoing_history_traversal(navigable);
                 on_complete->function()({}, {});
                 return;
             }
@@ -983,7 +976,7 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
             //         child frame was destroyed or after a newer navigation claimed the frame. Browser engines let
             //         the newer frame state win, so skip this stale continuation in that case.
             if (!changing_navigable_is_still_current(navigable, displayed_document_id, applies_same_document_push_or_replace)) {
-                clear_ongoing_history_traversal(navigable, navigation_api_abort_behavior);
+                clear_ongoing_history_traversal(navigable);
                 on_complete->function()({}, {});
                 return;
             }
@@ -1082,11 +1075,9 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
 
     // 10. If changingNavigableContinuation's update-only is true, or targetEntry's document is displayedDocument, then:
     if (continuation->update_only || continuation->resolved_document.ptr() == displayed_document.ptr()) {
-        // 1. Set the ongoing navigation for navigable to null.
-        // AD-HOC: Only clear the traversal marker installed by this history
-        //         operation. A pending cross-document navigation can already
-        //         own the navigable when a synchronous update reaches here.
-        clear_ongoing_history_traversal(navigable, continuation->navigation_api_abort_behavior);
+        // 1. Set navigable's ongoing navigation to null.
+        // AD-HOC: This implements https://github.com/whatwg/html/pull/12838.
+        clear_ongoing_history_traversal(navigable);
 
         // 2. Queue a global task on the navigation and traversal task source given navigable's active window to perform afterPotentialUnloads.
         queue_apply_history_step_task(*navigable, navigable->active_document(), after_potential_unload);
@@ -1511,7 +1502,29 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(Cross
         }));
 }
 
-void LocalTraversableNavigable::run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior, bool superseded_by_newer_navigation, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete)
+// AD-HOC: This implements https://github.com/whatwg/html/pull/12838.
+void LocalTraversableNavigable::queue_navigation_api_state_clear_task(CrossProcessId navigable_id)
+{
+    auto navigable = local_navigable_with_id(navigable_id);
+    if (!navigable || navigable->has_been_destroyed() || !navigable->active_window())
+        return;
+
+    queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*navigable->active_window()), GC::create_function(heap(), [navigable] {
+        if (navigable->has_been_destroyed() || !navigable->active_window())
+            return;
+
+        // 1. Let navigation be navigable's active window's navigation API.
+        auto navigation = navigable->active_window()->navigation();
+
+        // 2. Set navigation's ongoing navigate event to null.
+        navigation->set_ongoing_navigate_event(nullptr);
+
+        // 3. Set navigation's ongoing API method tracker to null.
+        navigation->set_ongoing_api_method_tracker(nullptr);
+    }));
+}
+
+void LocalTraversableNavigable::run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, bool superseded_by_newer_navigation, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete)
 {
     auto& operation = m_history_operations.ensure(operation_id);
     auto source_snapshot_params = operation.source_snapshot_params;
@@ -1559,11 +1572,10 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(CrossProce
             .target_entry = local_target_entry.release_nonnull(),
             .user_involvement = user_involvement,
             .navigation_type = navigation_type,
-            .navigation_api_abort_behavior = navigation_api_abort_behavior,
             .superseded_by_newer_navigation = superseded_by_newer_navigation,
         },
         source_snapshot_params, pending_document,
-        GC::create_function(heap(), [this, operation_id, navigable_id, navigation_api_abort_behavior, on_complete](LocalChangingNavigableHistoryStepJobResult result) {
+        GC::create_function(heap(), [this, operation_id, navigable_id, on_complete](LocalChangingNavigableHistoryStepJobResult result) {
             if (auto operation = m_history_operations.find(operation_id); operation != m_history_operations.end()) {
                 if (result.disposition == ChangingNavigableHistoryStepJobDisposition::Ready) {
                     VERIFY(result.continuation);
@@ -1572,15 +1584,15 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(CrossProce
                     operation->value.claimed_navigables_awaiting_continuation.remove(navigable_id);
                 }
             }
-            // NB: A job can have claimed its navigable before becoming stale, or can finish after its operation was
-            //     abandoned. Release the claim so nothing remains blocked behind its "traversal" sentinel.
+            // AD-HOC: A job can claim its navigable before becoming stale, or finish after its operation was
+            //         abandoned. Release the document-local projection so pending navigations can resume.
             if (result.disposition != ChangingNavigableHistoryStepJobDisposition::Ready
                 || !m_history_operations.contains(operation_id))
-                clear_ongoing_history_traversal(local_navigable_with_id(navigable_id), navigation_api_abort_behavior);
+                clear_ongoing_history_traversal(local_navigable_with_id(navigable_id));
             on_complete->function()(result.disposition);
         }));
     if (did_claim_navigable)
-        operation.claimed_navigables_awaiting_continuation.set(navigable_id, navigation_api_abort_behavior);
+        operation.claimed_navigables_awaiting_continuation.set(navigable_id);
 }
 
 static Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_navigation_api_from_ui_process(LocalNavigable& navigable, Vector<SessionHistoryEntryDescriptor> entry_descriptors)
@@ -1657,10 +1669,9 @@ void LocalTraversableNavigable::complete_ui_history_operation(CrossProcessId ope
     if (!operation.has_value())
         return;
 
-    // AD-HOC: A canceled or stale operation can leave claimed navigables behind whose continuations never
-    //         applied; release their "traversal" sentinels so newer navigations are not blocked.
-    for (auto const& claim : operation->claimed_navigables_awaiting_continuation)
-        clear_ongoing_history_traversal(local_navigable_with_id(claim.key), claim.value);
+    // AD-HOC: A canceled or stale operation can leave a claimed navigable whose continuation was never applied.
+    for (auto navigable_id : operation->claimed_navigables_awaiting_continuation)
+        clear_ongoing_history_traversal(local_navigable_with_id(navigable_id));
 
     if (committed_step.has_value()
         && operation->local_target_navigable_id.has_value()

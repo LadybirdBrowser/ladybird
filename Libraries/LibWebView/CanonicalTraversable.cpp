@@ -993,24 +993,6 @@ bool CanonicalTraversable::select_changing_navigable_history_step_job_endpoint(H
     if (!navigable.has_value())
         return false;
 
-    if (job.navigation_type == Web::Bindings::NavigationType::Traverse) {
-        if (auto& ongoing_navigation = navigable->ongoing_navigation(); ongoing_navigation.has_value()) {
-            auto traversal_crosses_documents = !navigable->active_document_is(job.target_entry)
-                || job.target_entry.document_state.reload_pending;
-            if (ongoing_navigation->sequence_number > operation.sequence_number
-                && !traversal_crosses_documents) {
-                // A newer navigation takes precedence over a same-document traversal. Cross-document traversals
-                // set the ongoing navigation to "traversal" before their changing jobs run, so newer navigations
-                // are blocked instead of superseding them.
-                job.superseded_by_newer_navigation = true;
-            } else {
-                // Supersede the older navigation, or reject a navigation admitted after a cross-document traversal,
-                // so its late callbacks cannot replace the traversal's target document.
-                navigable->clear_ongoing_navigation();
-            }
-        }
-    }
-
     if (navigable->is_top_level_traversable() && job.navigation_type == Web::Bindings::NavigationType::Traverse) {
         auto view = ViewImplementation::find_view_for_traversable(*this);
         if (!view.has_value())
@@ -1061,7 +1043,6 @@ void CanonicalTraversable::dispatch_changing_navigable_history_step_job(HistoryO
         endpoint->page_id, operation.operation_id, navigable_id,
         move(target_entry), pending_job.value()->job.user_involvement,
         pending_job.value()->job.navigation_type,
-        pending_job.value()->job.navigation_api_abort_behavior,
         pending_job.value()->job.superseded_by_newer_navigation);
 }
 
@@ -1101,7 +1082,6 @@ void CanonicalTraversable::dispatch_crash_recovery_changing_job(HistoryOperation
             .target_entry = *target_entry,
             .user_involvement = parameters.user_involvement,
             .navigation_type = Web::Bindings::NavigationType::Traverse,
-            .navigation_api_abort_behavior = Web::HTML::LocalNavigable::NavigationAPIAbortBehavior::Abort,
         },
         [this, operation_id = operation.operation_id, navigable_id = id()](Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition) {
             if (disposition != Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready)
@@ -1179,6 +1159,16 @@ ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(Web::H
             VERIFY(operation->initiating_client);
             operation->pending_unload_cancelation = move(on_complete);
             operation->initiating_client->async_run_history_step_unload_cancelation_job(operation->initiating_page_id, operation_id, move(job.target_entry), move(job.navigables_crossing_documents), job.user_involvement); },
+        .queue_navigation_api_state_clear_task = [this, operation_id](Web::HTML::CrossProcessId navigable_id) {
+            auto* operation = find_history_operation(operation_id);
+            auto navigable = find(navigable_id);
+            if (!operation || !navigable.has_value())
+                return;
+            auto endpoint = history_job_endpoint_for(*navigable);
+            if (!endpoint.client)
+                return;
+            add_history_operation_completion_endpoint(*operation, endpoint);
+            endpoint.client->async_queue_navigation_api_state_clear_task(endpoint.page_id, operation_id, navigable_id); },
         .select_changing_navigable_history_step_job_endpoint = [this, operation_id](ApplyHistoryStepJobs::ChangingNavigableHistoryStepJob& job) {
             auto* operation = find_history_operation(operation_id);
             return operation && select_changing_navigable_history_step_job_endpoint(*operation, job); },
@@ -1337,6 +1327,7 @@ void CanonicalTraversable::apply_history_step(HistoryOperation& operation, i32 s
     auto operation_id = operation.operation_id;
     operation.algorithm = make<ApplyHistoryStep>(
         m_session_history, *this, m_history_traversal_queue, m_apply_history_step_traversable_state, create_apply_history_step_jobs(operation_id),
+        operation_id, operation.sequence_number,
         step, check_for_cancelation, initiator_to_check, initiator_source_snapshot, user_involvement, navigation_type,
         [this, operation_id](Web::HTML::HistoryStepResult result) {
             auto* operation = find_history_operation(operation_id);

@@ -1128,24 +1128,31 @@ GC::Ptr<LocalTraversableNavigable> LocalNavigable::traversable_navigable() const
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#set-the-ongoing-navigation
-void LocalNavigable::set_ongoing_navigation(Variant<Empty, Traversal, Utf16String> ongoing_navigation, NavigationAPIAbortBehavior navigation_api_abort_behavior)
+void LocalNavigable::set_ongoing_navigation(Variant<Empty, Traversal, Utf16String> ongoing_navigation)
 {
     // 1. If navigable's ongoing navigation is equal to newValue, then return.
     if (m_ongoing_navigation == ongoing_navigation)
         return;
 
     // 2. Inform the navigation API about aborting navigation given navigable.
-    if (navigation_api_abort_behavior == NavigationAPIAbortBehavior::Abort)
-        inform_the_navigation_api_about_aborting_navigation();
+    inform_the_navigation_api_about_aborting_navigation();
 
-    // A UI-approved traversal supersedes any older navigation parked while the UI process
-    // coordinates population. Do not let that navigation resume after the traversal finishes.
+    // 3. Set navigable's ongoing navigation to newValue.
+    set_ongoing_navigation_without_informing_navigation_api(move(ongoing_navigation));
+}
+
+void LocalNavigable::set_ongoing_navigation_without_informing_navigation_api(Variant<Empty, Traversal, Utf16String> ongoing_navigation)
+{
+    if (m_ongoing_navigation == ongoing_navigation)
+        return;
+
+    // AD-HOC: A UI-approved traversal supersedes any older navigation parked while the UI process coordinates
+    //         population. Do not let that navigation resume after the traversal finishes.
     if (ongoing_navigation.has<Traversal>() && m_ongoing_navigation.has<Utf16String>()) {
         if (take_navigation_parked_for_population(m_ongoing_navigation.get<Utf16String>()).has_value())
             set_delaying_load_events(false);
     }
 
-    // 3. Set navigable's ongoing navigation to newValue.
     auto was_traversal = m_ongoing_navigation.has<Traversal>();
     m_ongoing_navigation = ongoing_navigation;
 
@@ -3014,7 +3021,7 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
             //         to finish. Preserve the Navigation API state: an intercepted navigate event stays ongoing
             //         until its handlers settle.
             if (ongoing_navigation() == navigation_id)
-                set_ongoing_navigation(Empty {}, NavigationAPIAbortBehavior::Preserve);
+                set_ongoing_navigation_without_informing_navigation_api(Empty {});
             return;
         }
     }

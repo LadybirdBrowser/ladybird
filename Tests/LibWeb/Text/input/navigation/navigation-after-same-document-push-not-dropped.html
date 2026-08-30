@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+
+        async function pushThenNavigate(name, navigateStatement) {
+            const finalPageUrl = await server.createEcho("GET", `/${name}-final`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>parent.postMessage({ page: "final", href: location.href }, "*");<\/script>`,
+            });
+
+            const startPageUrl = await server.createEcho("GET", `/${name}-start`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    history.pushState({}, "", "#pushed");
+                    ${navigateStatement.replace("FINAL_URL", JSON.stringify(finalPageUrl))}
+                <\/script>`,
+            });
+
+            const iframe = document.createElement("iframe");
+            document.body.append(iframe);
+
+            const href = await new Promise(resolve => {
+                window.addEventListener("message", function handler(event) {
+                    if (event.source !== iframe.contentWindow || event.data.page !== "final")
+                        return;
+                    window.removeEventListener("message", handler);
+                    resolve(event.data.href);
+                });
+                iframe.src = startPageUrl;
+            });
+
+            iframe.remove();
+            println(href.endsWith(`/${name}-final`) ? `${name}: PASS` : `${name}: FAIL (${href})`);
+        }
+
+        // A navigation started in the same task as a same-document push must not be dropped by the push's queued
+        // finalization claiming the navigable.
+        await pushThenNavigate("navigate-in-same-task", "location.href = FINAL_URL;");
+
+        // Nor may a navigation that starts while the push's finalization is being applied.
+        await pushThenNavigate("navigate-in-later-task", "setTimeout(() => { location.href = FINAL_URL; }, 0);");
+    });
+</script>

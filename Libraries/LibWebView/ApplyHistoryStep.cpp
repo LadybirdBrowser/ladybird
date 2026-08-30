@@ -15,6 +15,8 @@ ApplyHistoryStep::ApplyHistoryStep(
     SessionHistoryTraversalQueue& session_history_traversal_queue,
     TraversableApplyHistoryStepState& traversable_state,
     ApplyHistoryStepJobs jobs,
+    Web::HTML::CrossProcessId operation_id,
+    u64 operation_sequence_number,
     i32 step,
     bool check_for_cancelation,
     Optional<Web::HTML::CrossProcessId> initiator_to_check,
@@ -27,6 +29,8 @@ ApplyHistoryStep::ApplyHistoryStep(
     , m_session_history_traversal_queue(session_history_traversal_queue)
     , m_traversable_state(traversable_state)
     , m_jobs(move(jobs))
+    , m_operation_id(operation_id)
+    , m_operation_sequence_number(operation_sequence_number)
     , m_step(step)
     , m_check_for_cancelation(check_for_cancelation)
     , m_initiator_to_check(initiator_to_check)
@@ -40,6 +44,7 @@ ApplyHistoryStep::ApplyHistoryStep(
 
 ApplyHistoryStep::~ApplyHistoryStep()
 {
+    clear_all_ongoing_navigation_traversals();
     if (m_running_synchronous_navigation_steps)
         m_traversable_state.running_nested_apply_history_step = false;
 }
@@ -143,25 +148,24 @@ void ApplyHistoryStep::get_changing_and_nonchanging_navigables()
 
         // 2. Set navigable's current session history entry to targetEntry.
         navigable->set_current_session_history_entry(*target_entry);
+
+        // 3. If targetEntry's document is not navigable's active document, then queue a global task on the navigation
+        //    and traversal task source of navigable's active window to run these steps:
+        // AD-HOC: This implements https://github.com/whatwg/html/pull/12838.
+        if (!navigable->active_document_is(*target_entry))
+            m_jobs.queue_navigation_api_state_clear_task(navigable_id);
+
+        // 4. Set navigable's ongoing navigation to "traversal".
+        // AD-HOC: This implements https://github.com/whatwg/html/pull/12838.
+        if (set_ongoing_navigation_to_traversal(*navigable, *target_entry))
+            m_navigables_superseded_by_newer_navigation.set(navigable_id);
     }
 
-    // NB: Steps 8.3 and 8.4 happen inside each dispatched job, because they mutate state owned by the process running
-    //     the job. The changing set is complete before the first job is dispatched, so job completions cannot advance
-    //     the algorithm early.
     run_changing_navigable_jobs();
 }
 
 void ApplyHistoryStep::run_changing_navigable_jobs()
 {
-    auto navigation_api_abort_behavior = Web::HTML::LocalNavigable::NavigationAPIAbortBehavior::Abort;
-    // Same-document traversals and same-document push or replace finalizations finish their NavigateEvent while
-    // updating the Navigation API entry. This decision is traversable-wide, so derive it from canonical history
-    // before dispatching per-document jobs.
-    if (m_navigation_type.has_value()
-        && first_is_one_of(*m_navigation_type, Web::Bindings::NavigationType::Traverse, Web::Bindings::NavigationType::Push, Web::Bindings::NavigationType::Replace)
-        && m_session_history.get_all_navigables_that_might_experience_a_cross_document_traversal(m_traversable_navigable, m_target_step).is_empty())
-        navigation_api_abort_behavior = Web::HTML::LocalNavigable::NavigationAPIAbortBehavior::Preserve;
-
     // 12. For each navigable of changingNavigables, queue a global task on the navigation and traversal task source.
     for (auto navigable_id : m_changing_navigables) {
         auto const* navigable = find_navigable(navigable_id);
@@ -178,7 +182,7 @@ void ApplyHistoryStep::run_changing_navigable_jobs()
             .target_entry = *target_entry,
             .user_involvement = m_user_involvement,
             .navigation_type = m_navigation_type,
-            .navigation_api_abort_behavior = navigation_api_abort_behavior,
+            .superseded_by_newer_navigation = m_navigables_superseded_by_newer_navigation.contains(navigable_id),
         };
         if (!m_jobs.select_changing_navigable_history_step_job_endpoint(job)) {
             changing_navigable_job_completed(navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition::Skipped);
@@ -200,6 +204,9 @@ void ApplyHistoryStep::changing_navigable_job_completed(Web::HTML::CrossProcessI
 {
     if (m_completed)
         return;
+
+    if (disposition != Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready)
+        clear_ongoing_navigation_traversal(navigable_id);
 
     switch (disposition) {
     case Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready:
@@ -309,6 +316,7 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
         if (!navigable || !history_object_length_and_index.has_value() || !entries_for_navigation_api.has_value()) {
             // AD-HOC: The navigable is gone, or the canonical mirror is reconciling it. Its continuation cannot be
             //         applied; count the job as completed and move on.
+            clear_ongoing_navigation_traversal(navigable_id);
             m_completed_change_jobs++;
             continue;
         }
@@ -321,9 +329,10 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
                 .history_object_length_and_index = *history_object_length_and_index,
                 .entries_for_navigation_api = entries_for_navigation_api.release_value(),
             },
-            [this] {
+            [this, navigable_id] {
                 if (m_completed)
                     return;
+                clear_ongoing_navigation_traversal(navigable_id);
                 // 10. Increment completedChangeJobs.
                 m_completed_change_jobs++;
                 process_changing_navigable_continuations();
@@ -387,8 +396,69 @@ void ApplyHistoryStep::return_result(Web::HTML::HistoryStepResult result)
     if (m_completed)
         return;
     m_completed = true;
+    clear_all_ongoing_navigation_traversals();
     if (m_on_complete)
         m_on_complete(result);
+}
+
+bool ApplyHistoryStep::set_ongoing_navigation_to_traversal(CanonicalNavigable& navigable, Web::HTML::SessionHistoryEntryDescriptor const& target_entry)
+{
+    auto target_document_is_active_document = navigable.active_document_is(target_entry);
+    auto traversal_crosses_documents = !target_document_is_active_document
+        || target_entry.document_state.reload_pending;
+
+    // AD-HOC: A navigation admitted after a same-document traversal takes precedence. The specification's traversal
+    //         queue does not model Ladybird's independently admitted UI-process navigation transactions.
+    if (m_navigation_type == Web::Bindings::NavigationType::Traverse
+        && navigable.ongoing_navigation().has_value()
+        && navigable.ongoing_navigation()->sequence_number > m_operation_sequence_number
+        && !traversal_crosses_documents) {
+        return true;
+    }
+
+    // AD-HOC: Same-document push/replace finalization can run while its NavigateEvent handlers are settling.
+    if (m_navigation_type.has_value()
+        && first_is_one_of(*m_navigation_type, Web::Bindings::NavigationType::Push, Web::Bindings::NavigationType::Replace)
+        && target_document_is_active_document
+        && navigable.ongoing_navigation().has_value()) {
+        return false;
+    }
+
+    // AD-HOC: A navigable creation/destruction update skips a navigable already claimed by its requested navigation.
+    //         See https://github.com/whatwg/html/issues/12724.
+    if (!m_navigation_type.has_value() && navigable.ongoing_navigation().has_value())
+        return false;
+
+    if (m_navigation_type == Web::Bindings::NavigationType::Traverse)
+        navigable.clear_ongoing_navigation();
+
+    // AD-HOC: The installed marker cancels navigation-start requests that arrive while this operation is on the
+    //         traversal queue, matching navigate()'s "if navigable's ongoing navigation is 'traversal', then return".
+    //         A same-document push or replace finalization must not install it. A navigation racing it genuinely
+    //         started before this step ran in its own process. Its navigate() saw no traversal, and the admission
+    //         recheck must not misattribute that ordering and drop the navigation the finalization has to yield to.
+    if (m_navigation_type == Web::Bindings::NavigationType::Traverse || traversal_crosses_documents) {
+        navigable.set_ongoing_navigation_to_traversal(m_operation_id);
+        m_navigables_with_ongoing_history_traversal.set(navigable.id());
+    }
+    return false;
+}
+
+void ApplyHistoryStep::clear_ongoing_navigation_traversal(Web::HTML::CrossProcessId navigable_id)
+{
+    if (!m_navigables_with_ongoing_history_traversal.remove(navigable_id))
+        return;
+    if (auto* navigable = find_navigable(navigable_id))
+        navigable->clear_ongoing_navigation_traversal(m_operation_id);
+}
+
+void ApplyHistoryStep::clear_all_ongoing_navigation_traversals()
+{
+    for (auto navigable_id : m_navigables_with_ongoing_history_traversal) {
+        if (auto* navigable = find_navigable(navigable_id))
+            navigable->clear_ongoing_navigation_traversal(m_operation_id);
+    }
+    m_navigables_with_ongoing_history_traversal.clear();
 }
 
 CanonicalNavigable* ApplyHistoryStep::find_navigable(Web::HTML::CrossProcessId navigable_id)
