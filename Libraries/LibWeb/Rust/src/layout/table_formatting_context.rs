@@ -132,7 +132,7 @@ pub(crate) struct OwnedCollapsedTableBorders {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum TableParticipantPreparation {
     CreateUsedValues,
-    TrackPercentageDependenciesOnly,
+    CreateCellUsedValuesOnly,
 }
 
 fn grid_line_offsets(sizes: impl ExactSizeIterator<Item = CssPixels>) -> Vec<CssPixels> {
@@ -1235,14 +1235,16 @@ impl TableFormattingContext {
     // their dependency is charged here rather than through child runs.
     fn prepare_table_participants(&mut self, preparation: TableParticipantPreparation) {
         let row_groups = self.matching_children(self.table_box, |display| display.is_table_row_group_kind());
+        let create_row_used_values = preparation == TableParticipantPreparation::CreateUsedValues;
         let participants = row_groups
             .into_iter()
             .chain(self.rows.iter().map(|row| row.box_))
-            .chain(self.cells.iter().map(|cell| cell.box_));
+            .map(|participant| (participant, create_row_used_values))
+            .chain(self.cells.iter().map(|cell| (cell.box_, true)));
         let sizing = self.sizing();
         let table_record = self.used_values(self.table_box);
-        for participant in participants {
-            if preparation == TableParticipantPreparation::CreateUsedValues {
+        for (participant, create_used_values) in participants {
+            if create_used_values {
                 self.create_used_values(participant, self.participant_constraints);
             }
             if sizing.own_style_depends_on_percentage_block_size(participant) {
@@ -2075,8 +2077,8 @@ impl TableFormattingContext {
         let participant_preparation =
             if skip_row_measurement && self.style(self.table_box).border_collapse() == BORDER_COLLAPSE_SEPARATE {
                 // OPTIMIZATION: Wrapper inline sizing measures cell contents in isolated measurement runs and does not
-                //               otherwise read participant UsedValues in the separated-borders model.
-                TableParticipantPreparation::TrackPercentageDependenciesOnly
+                //               read row or row group UsedValues in the separated-borders model.
+                TableParticipantPreparation::CreateCellUsedValuesOnly
             } else {
                 TableParticipantPreparation::CreateUsedValues
             };
