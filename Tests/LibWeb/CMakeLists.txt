@@ -35,6 +35,7 @@ set(TEST_SOURCES
     TestStyleStructRef.cpp
     TestTextureUpload.cpp
     TestTrackBufferDemuxer.cpp
+    TestVisualAnimation.cpp
     TestWebGLSpanWithStorage.cpp
     TestWebIDLBuffers.cpp
     TestWindowProxyWorld.cpp
