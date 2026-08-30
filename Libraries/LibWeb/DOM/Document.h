@@ -1116,6 +1116,7 @@ public:
         u64 animation_timeline_synchronizations { 0 };
         u64 animation_timeline_associated_animation_updates { 0 };
         u64 compositor_visual_animation_updates { 0 };
+        u64 compositor_keyframe_value_resolutions { 0 };
         u64 base_style_partial_builds { 0 };
         u64 base_style_full_builds { 0 };
         u64 computed_longhand_evaluations { 0 };

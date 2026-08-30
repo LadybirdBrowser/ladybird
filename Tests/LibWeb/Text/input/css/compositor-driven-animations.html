@@ -11,6 +11,11 @@
         to { transform: translateX(100px) rotate(360deg); }
     }
 
+    @keyframes relative-move {
+        from { transform: translateX(calc(100vw + var(--distance))); }
+        to { transform: translateX(calc(100vw + 100% + var(--distance))); }
+    }
+
     @keyframes visual-node-churn {
         from { display: block; }
         to { display: none; }
@@ -38,16 +43,37 @@
         background: blue;
         animation: move 1s linear infinite;
     }
+
+    #relative-transform {
+        --distance: 10px;
+        width: 20px;
+        height: 20px;
+        animation: relative-move 1s linear infinite;
+    }
+
 </style>
 <div id="visual-node-churn"></div>
 <div id="opacity"></div>
 <div id="transform"></div>
+<div id="relative-transform"></div>
 <script>
     asyncTest(async done => {
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
 
         const initialCounters = internals.getStyleInvalidationCounters();
+
+        internals.resetStyleInvalidationCounters();
+        document.querySelector("#relative-transform").style.width = "40px";
+        for (let i = 0; i < 2; ++i)
+            await new Promise(requestAnimationFrame);
+        const resizeCounters = internals.getStyleInvalidationCounters();
+
+        internals.resetStyleInvalidationCounters();
+        document.querySelector("#relative-transform").style.setProperty("--distance", "20px");
+        for (let i = 0; i < 2; ++i)
+            await new Promise(requestAnimationFrame);
+        const styleChangeCounters = internals.getStyleInvalidationCounters();
 
         internals.resetStyleInvalidationCounters();
         for (let i = 0; i < 4; ++i)
@@ -91,8 +117,13 @@
         const finiteCounters = internals.getStyleInvalidationCounters();
 
         println(`compositor visual animations: ${initialCounters.compositorVisualAnimations}`);
+        println(`reference box resize updates compositor animation: ${resizeCounters.compositorVisualAnimationUpdates > 0}`);
+        println(`reference box resize resolves keyframes: ${resizeCounters.compositorKeyframeValueResolutions > 0}`);
+        println(`style change resolves keyframes: ${styleChangeCounters.compositorKeyframeValueResolutions > 0}`);
+        println(`style change updates compositor animation: ${styleChangeCounters.compositorVisualAnimationUpdates > 0}`);
         println(`main-thread animation overlay builds: ${counters.animatedStyleOverlayBuilds}`);
         println(`main-thread animation frame pump requests: ${counters.animationFramePumpRequests}`);
+        println(`stable compositor animations reuse resolved keyframes: ${counters.compositorKeyframeValueResolutions === 0}`);
         println(`stable compositor animation updates: ${counters.compositorVisualAnimationUpdates}`);
         println(`stable compositor animation updates with changing visual nodes: ${visualNodeCounters.compositorVisualAnimationUpdates}`);
         println(`cancel removes compositor animations: ${cancellationCounters.compositorVisualAnimations}`);
