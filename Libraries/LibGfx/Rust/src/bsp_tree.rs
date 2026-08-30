@@ -105,6 +105,20 @@ pub fn map_polygon_through_projection(matrix: FloatMatrix4x4, vertices: &[FloatV
     clip_and_project(&corners)
 }
 
+pub fn polygon_crosses_eye_plane(matrix: FloatMatrix4x4, vertices: &[FloatVector3]) -> bool {
+    let mut any_in_front = false;
+    let mut any_behind = false;
+    for vertex in vertices {
+        let w = matrix.map_vector4([vertex.x, vertex.y, vertex.z, 1.0])[3];
+        if w > MINIMUM_PROJECTION_W {
+            any_in_front = true;
+        } else {
+            any_behind = true;
+        }
+    }
+    any_in_front && any_behind
+}
+
 fn polygon_normal(vertices: &[FloatVector3]) -> Option<FloatVector3> {
     if vertices.len() < 3 {
         return None;
