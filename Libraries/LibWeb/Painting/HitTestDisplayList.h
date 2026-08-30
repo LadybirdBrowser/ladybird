@@ -101,7 +101,6 @@ private:
 
     struct QueryContext;
     static Optional<TopmostItem> topmost_item_from(Layout::RustFFI::FfiTopmostItem const&);
-    SortingContexts const& ensure_sorting_contexts(DOM::Document const&) const;
     [[nodiscard]] Item item(size_t index) const;
     [[nodiscard]] Layout::RustFFI::FfiCaretLineExport caret_line(size_t line_index) const { return Layout::RustFFI::layout_arena_hit_test_caret_line(m_arena->handle(), line_index); }
 
@@ -130,7 +129,6 @@ private:
     NonnullRefPtr<ChromeWidgetRegistry> m_chrome_widget_registry;
     u64 m_rust_generation { 0 };
     Vector<GC::Ptr<DOM::Node>> m_caret_node_roots;
-    mutable Optional<SortingContexts> m_sorting_contexts;
 };
 
 }
