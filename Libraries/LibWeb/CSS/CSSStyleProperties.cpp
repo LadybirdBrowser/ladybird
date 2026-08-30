@@ -741,7 +741,7 @@ static Optional<Layout::NodeWithStyle*> prepare_computed_style_and_layout_for_pr
     if (needs_layout || needs_layout_node) {
         // Properties that need layout computation or layout node for special resolution
         // always need update_layout() to ensure both style and layout tree are up to date.
-        abstract_element.document().update_layout(DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
+        abstract_element.document().update_layout_if_needed_for_node(abstract_element.element(), DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
         layout_node = abstract_element.layout_node();
     }
     // Ensure styles are up to date. update_layout()/update_style() skip display:none subtrees,
@@ -769,7 +769,7 @@ static Optional<Layout::NodeWithStyle*> prepare_computed_style_and_layout_for_pr
     bool const needs_layout_for_container_queries = style_or_inheritance_ancestor_depends_on_size_container_query
         && !abstract_element.document().layout_is_up_to_date();
     if (needs_layout_for_container_queries) {
-        abstract_element.document().update_layout(DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
+        abstract_element.document().update_layout_if_needed_for_node(abstract_element.element(), DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
         layout_node = abstract_element.layout_node();
         // A synthetic pseudo which is not rendered is not part of the layout-driven pseudo
         // recomputation above. Refresh its CSSOM-only style against the settled container size.

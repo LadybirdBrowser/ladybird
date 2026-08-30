@@ -147,6 +147,17 @@ public:
 
     bool can_skip_per_frame_style_update() const;
     bool can_skip_per_frame_animation_tick() const;
+    void request_observation_sample();
+    bool request_element_scoped_observation_sample(u64 task_generation)
+    {
+        if (m_last_element_scoped_observation_sample_task_generation == task_generation)
+            return false;
+        m_last_element_scoped_observation_sample_task_generation = task_generation;
+        request_observation_sample();
+        return true;
+    }
+    bool observation_sample_requested() const { return m_needs_observation_sample; }
+    bool consume_observation_sample_request() { return exchange(m_needs_observation_sample, false); }
     bool per_frame_animation_tick_was_skipped() const { return m_per_frame_animation_tick_was_skipped; }
     void note_per_frame_animation_tick_was_skipped() { m_per_frame_animation_tick_was_skipped = true; }
     void clear_per_frame_animation_tick_was_skipped() { m_per_frame_animation_tick_was_skipped = false; }
@@ -177,6 +188,8 @@ private:
     Vector<GC::Ref<JS::Object>> m_keyframe_objects_cache {};
 
     RefPtr<KeyFrameSet const> m_key_frame_set {};
+    bool m_needs_observation_sample { false };
+    Optional<u64> m_last_element_scoped_observation_sample_task_generation;
     bool m_per_frame_animation_tick_was_skipped { false };
 };
 

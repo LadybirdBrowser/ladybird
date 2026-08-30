@@ -471,6 +471,7 @@ public:
     void update_style();
     void note_throttled_animation_style_update() { m_has_throttled_animation_style_update = true; }
     void flush_throttled_animation_style_update();
+    void flush_throttled_animation_style_update_for_node(Node const&);
     void throttled_animation_visibility_changed();
     void invalidate_style_for_viewport_change();
     bool suppresses_attribute_style_invalidation() const { return m_suppresses_attribute_style_invalidation; }
@@ -482,7 +483,12 @@ public:
     };
     bool update_style_for_element(AbstractElement const&);
     bool update_style_for_element(AbstractElement const&, StyleUpdateMode);
+    enum class ThrottledAnimationSamplingScope : u8 {
+        Document,
+        Element,
+    };
     void update_layout(UpdateLayoutReason);
+    void update_layout(UpdateLayoutReason, ThrottledAnimationSamplingScope);
     void note_content_visibility_auto_style() { m_may_have_content_visibility_auto_style = true; }
     void note_default_scroll_shift_anchor() { m_may_have_default_scroll_shift_anchor = true; }
     [[nodiscard]] bool may_have_default_scroll_shift_anchor() const { return m_may_have_default_scroll_shift_anchor; }

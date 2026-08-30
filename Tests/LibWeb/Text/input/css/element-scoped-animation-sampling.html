@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes move {
+        from { transform: translateX(0px); }
+        to { transform: translateX(100px); }
+    }
+
+    #animated {
+        width: 20px;
+        height: 20px;
+        animation: move 10s linear infinite;
+        visibility: hidden;
+    }
+
+    #overflow-container {
+        width: 20px;
+        overflow: auto;
+    }
+
+    #overflow-animated {
+        width: 20px;
+        height: 20px;
+        visibility: hidden;
+    }
+</style>
+<div id="animated"><div id="descendant"></div></div>
+<div id="unrelated"></div>
+<div id="overflow-container"><div id="overflow-animated"></div></div>
+<script>
+    asyncTest(async done => {
+        const overflowAnimated = document.getElementById("overflow-animated");
+        const overflowContainer = document.getElementById("overflow-container");
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        await new Promise(resolve => setTimeout(resolve, 0));
+        unrelated.getBoundingClientRect();
+        internals.resetStyleInvalidationCounters();
+        for (let i = 0; i < 100; ++i) {
+            unrelated.getBoundingClientRect();
+            getComputedStyle(unrelated).width;
+        }
+        println(`unrelated reads do not sample animation: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 0}`);
+
+        descendant.getBoundingClientRect();
+        descendant.getBoundingClientRect();
+        println(`related reads sample once per task: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 1}`);
+
+        await new Promise(requestAnimationFrame);
+        descendant.getBoundingClientRect();
+        println(`related read samples in a later task: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 2}`);
+
+        const timeline = internals.createInternalAnimationTimeline();
+        const overflowAnimation = new Animation(new KeyframeEffect(overflowAnimated, [
+            { transform: "translateX(0px)" },
+            { transform: "translateX(100px)" },
+        ], { duration: 100, iterations: Infinity }), timeline);
+        overflowAnimation.play();
+        timeline.setTime(0);
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        timeline.setTimeForObservation(50);
+        internals.resetStyleInvalidationCounters();
+        const scrollWidth = overflowContainer.scrollWidth;
+        const counters = internals.getStyleInvalidationCounters();
+        println(`ancestor reads sample descendant animations: ${counters.animatedStyleOverlayBuilds > 0 && scrollWidth > 20}`);
+        done();
+    });
+</script>
