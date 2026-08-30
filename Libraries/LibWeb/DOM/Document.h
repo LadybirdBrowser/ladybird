@@ -1722,6 +1722,7 @@ private:
     bool m_is_updating_animated_style { false };
     bool m_has_throttled_animation_style_update { false };
     bool m_force_throttled_animation_style_update { false };
+    Optional<u64> m_last_forced_throttled_animation_style_update_task_generation;
 
     HashTable<GC::Ptr<NodeIterator>> m_node_iterators;
 
