@@ -6764,7 +6764,7 @@ void Document::queue_an_intersection_observer_entry(IntersectionObserver::Inters
 }
 
 // https://www.w3.org/TR/intersection-observer/#compute-the-intersection
-static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect target_rect, IntersectionObserver::IntersectionObserver const& observer, Layout::Box const* root_layout_box, CSSPixelRect const& root_bounds)
+static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect target_rect, IntersectionObserver::IntersectionObserver const& observer, Layout::Box const* root_layout_box, CSSPixelRect const& root_bounds, Painting::AccumulatedVisualContextTree const& visual_context_tree)
 {
     // 1. Let intersectionRect be the result of getting the bounding box for target.
     auto intersection_rect = target_rect;
@@ -6797,7 +6797,7 @@ static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect t
             auto overflow_y = container_box->overflow_y();
             bool has_content_clip = overflow_x != CSS::Overflow::Visible || overflow_y != CSS::Overflow::Visible;
             if (has_content_clip) {
-                auto clip_rect = Painting::transform_rect_to_viewport(*container_box, Painting::absolute_padding_box_rect(*container_box), Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
+                auto clip_rect = Painting::transform_rect_to_viewport(*container_box, Painting::absolute_padding_box_rect(*container_box), visual_context_tree, Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
 
                 // Apply scroll margin to expand the scrollport for scroll containers.
                 auto& scroll_margin = observer.scroll_margin_values();
@@ -6839,9 +6839,31 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
 
     update_paint_and_hit_testing_properties_if_needed();
 
+    HashMap<Document*, Painting::AccumulatedVisualContextTree::VisualAnimationOriginalValues> observation_visual_animation_original_values;
+    ScopeGuard restore_observation_visual_context_trees = [&] {
+        for (auto& entry : observation_visual_animation_original_values)
+            entry.key->paint_state().visual_context_tree(*entry.key).restore_visual_animation_original_values(entry.value);
+    };
+    auto sample_time_ns = MonotonicTime::now().nanoseconds();
+    auto sampled_visual_context_tree = [&](Document& document) -> Optional<Painting::AccumulatedVisualContextTree const&> {
+        if (!document.m_paint_state)
+            return {};
+        auto& committed_tree = document.paint_state().visual_context_tree(document);
+        if (committed_tree.visual_animations().is_empty())
+            return committed_tree;
+        if (!observation_visual_animation_original_values.contains(&document)) {
+            auto& original_values = observation_visual_animation_original_values.ensure(&document);
+            committed_tree.sample_visual_animations(sample_time_ns, original_values);
+        }
+        return committed_tree;
+    };
+
     for (auto& observer : intersection_observers) {
         // 1. Let rootBounds be observer’s root intersection rectangle.
-        auto root_bounds = observer->root_intersection_rectangle();
+        auto root_visual_context_tree = sampled_visual_context_tree(observer->intersection_root_node()->document());
+        if (!root_visual_context_tree.has_value())
+            continue;
+        auto root_bounds = observer->root_intersection_rectangle(&*root_visual_context_tree);
 
         // Pre-compute per-observer values to avoid repeated work in the per-target loop.
         auto intersection_root_node = observer->intersection_root_node();
@@ -6881,12 +6903,16 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
             // AD-HOC: A target whose document was excluded from this rendering update has stale layout; treat it as
             //         not intersecting like other engines instead of reading its geometry.
             if (target->document().layout_is_up_to_date() && target->layout_node() && (is_implicit_root || &target->document() == &intersection_root_node->document()) && !(root_is_element && !target->is_descendant_of(*intersection_root_node))) {
+                auto target_visual_context_tree = sampled_visual_context_tree(target->document());
+                if (!target_visual_context_tree.has_value())
+                    continue;
+
                 // 4. Set targetRect to the DOMRectReadOnly obtained by getting the bounding box for target.
-                target_rect = target->bounding_client_rect_assuming_layout_clean();
+                target_rect = target->bounding_client_rect_assuming_layout_clean(*target_visual_context_tree);
 
                 // 5. Let intersectionRect be the result of running the compute the intersection algorithm on target and
                 //    observer’s intersection root.
-                intersection_rect = compute_intersection(target, target_rect, *observer, root_layout_box, root_bounds);
+                intersection_rect = compute_intersection(target, target_rect, *observer, root_layout_box, root_bounds, *target_visual_context_tree);
 
                 // 6. Let targetArea be targetRect’s area.
                 auto target_area = target_rect.width() * target_rect.height();
@@ -8295,6 +8321,7 @@ void Document::update_compositor_animations()
         }
         effect.set_is_compositor_driven(false);
         effect.set_is_compositor_replaced(false);
+        effect.set_is_observation_relevant_compositor_animation(false);
 
         if (animation.is_idle() || !effect.is_in_effect())
             continue;
@@ -8335,6 +8362,7 @@ void Document::update_compositor_animations()
         validate_winner(effects.transform);
     }
 
+    bool has_observation_relevant_compositor_animation = false;
     bool requested_withdrawn_effect_sample = false;
     auto schedule_active_end_wakeup = [&](Animations::KeyframeEffect const& effect, Animations::Animation const& animation) {
         if (isinf(effect.iteration_count())
@@ -8357,6 +8385,8 @@ void Document::update_compositor_animations()
         ScopeGuard collect_effect_bookkeeping = [&] {
             if (!published_compositor_animation)
                 effect.clear_retained_compositor_animations();
+            if (effect.is_observation_relevant_compositor_animation())
+                has_observation_relevant_compositor_animation = true;
             bool was_throttled = previously_compositor_driven_effects.contains(GC::Ref { effect })
                 || previously_compositor_replaced_effects.contains(GC::Ref { effect });
             if (was_throttled && !effect.is_compositor_driven() && !effect.is_compositor_replaced()) {
@@ -8447,8 +8477,6 @@ void Document::update_compositor_animations()
         if (effect_visual_animations.is_empty()) {
             continue;
         }
-        if (transform_affects_observation)
-            continue;
         // OPTIMIZATION: Ordinary rendering updates advance the WebContent timeline without changing compositor
         //               playback. Retain the existing descriptor and its anchor unless the effect was invalidated or
         //               one of its non-anchor parameters changed.
@@ -8465,6 +8493,7 @@ void Document::update_compositor_animations()
         }
         if (all_targeted_properties_have_replace_winners && opacity_was_handed_off && transform_was_handed_off)
             effect.set_is_compositor_driven(true);
+        effect.set_is_observation_relevant_compositor_animation(transform_affects_observation);
         schedule_active_end_wakeup(effect, animation);
         for (auto const& visual_animation : effect_visual_animations)
             visual_animations.append(visual_animation);
@@ -8478,6 +8507,22 @@ void Document::update_compositor_animations()
 
     if (compositor_animation_wakeup_delay_ms.has_value())
         schedule_compositor_animation_wakeup(*compositor_animation_wakeup_delay_ms);
+
+    if (!has_observation_relevant_compositor_animation) {
+        if (m_compositor_animation_observation_timer)
+            m_compositor_animation_observation_timer->stop();
+    } else {
+        if (!m_compositor_animation_observation_timer) {
+            m_compositor_animation_observation_timer = Core::Timer::create_single_shot(100, GC::weak_callback(*this, [](auto& document) {
+                ++document.m_style_invalidation_counters.animation_frame_pump_requests;
+                document.page().client().request_frame();
+                document.m_compositor_animation_observation_timer->start();
+            }));
+        }
+        if (!m_compositor_animation_observation_timer->is_active()) {
+            m_compositor_animation_observation_timer->start();
+        }
+    }
 
     if (requested_withdrawn_effect_sample) {
         ++m_style_invalidation_counters.animation_frame_pump_requests;

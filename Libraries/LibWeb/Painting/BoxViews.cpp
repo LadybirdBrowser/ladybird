@@ -763,6 +763,11 @@ CSSPixelRect apply_css_transform_to_rect(Layout::Node const& box, CSSPixelRect c
 
 CSSPixelRect transform_rect_to_viewport(Layout::Node const& node, CSSPixelRect const& rect, AccumulatedVisualContextTree::IncludeVisualViewportTransform include_visual_viewport_transform)
 {
+    return transform_rect_to_viewport(node, rect, node.document().visual_context_tree(), include_visual_viewport_transform);
+}
+
+CSSPixelRect transform_rect_to_viewport(Layout::Node const& node, CSSPixelRect const& rect, AccumulatedVisualContextTree const& visual_context_tree, AccumulatedVisualContextTree::IncludeVisualViewportTransform include_visual_viewport_transform)
+{
     auto const* row = committed_row(node);
     if (!row)
         return {};
@@ -770,7 +775,7 @@ CSSPixelRect transform_rect_to_viewport(Layout::Node const& node, CSSPixelRect c
     if (!document.layout_node() || !has_committed_box(*document.layout_node()))
         return rect;
     auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
-    auto result = document.visual_context_tree().transform_rect_to_viewport(
+    auto result = visual_context_tree.transform_rect_to_viewport(
         row->accumulated_visual_context.spatial, rect.to_type<float>() * pixel_ratio,
         document.scroll_state_snapshot(), include_visual_viewport_transform);
     return (result * (1.f / pixel_ratio)).to_type<CSSPixels>();

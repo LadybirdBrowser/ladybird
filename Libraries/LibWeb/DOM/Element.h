@@ -575,6 +575,7 @@ public:
 
     [[nodiscard]] Vector<CSSPixelRect> client_rects_assuming_layout_clean() const;
     [[nodiscard]] CSSPixelRect bounding_client_rect_assuming_layout_clean() const;
+    [[nodiscard]] CSSPixelRect bounding_client_rect_assuming_layout_clean(Painting::AccumulatedVisualContextTree const&) const;
 
     virtual RefPtr<Layout::Node> create_layout_node(CSS::LayoutStyle);
 

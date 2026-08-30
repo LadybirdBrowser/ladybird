@@ -168,6 +168,8 @@ public:
     Vector<Compositor::VisualAnimation> const& retained_compositor_animations() const { return m_retained_compositor_animations; }
     void set_retained_compositor_animations(Vector<Compositor::VisualAnimation> animations) { m_retained_compositor_animations = move(animations); }
     void clear_retained_compositor_animations() { m_retained_compositor_animations.clear(); }
+    void set_is_observation_relevant_compositor_animation(bool value) { m_is_observation_relevant_compositor_animation = value; }
+    bool is_observation_relevant_compositor_animation() const { return m_is_observation_relevant_compositor_animation; }
     void request_observation_sample();
     bool request_element_scoped_observation_sample(u64 task_generation)
     {
@@ -230,6 +232,7 @@ private:
     Vector<Compositor::VisualAnimation> m_retained_compositor_animations;
     bool m_is_compositor_driven { false };
     bool m_is_compositor_replaced { false };
+    bool m_is_observation_relevant_compositor_animation { false };
     bool m_needs_observation_sample { false };
     struct CanSkipPerFrameStyleUpdateCache {
         u64 target_style_generation { 0 };

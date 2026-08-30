@@ -4,8 +4,7 @@
      synchronous XHR. Removing the iframe queues a deferred task that detaches the child document
      from its navigable, and the sync XHR spins the event loop from inside the rendering update,
      running that task before the update's style/layout step. That document is still in the
-     update's docs set, so the style/layout step processes a detached document with no paintable,
-     which the content-visibility step used to dereference. -->
+     update's docs set, so later rendering steps process a detached document with no paint state. -->
 <html class="test-wait">
 <body>
 <script>
@@ -14,6 +13,7 @@
             const iframe = document.createElement("iframe");
             iframe.style.display = "none";
             document.body.appendChild(iframe);
+            window.observer = new IntersectionObserver(() => {}, { root: iframe.contentDocument });
             requestAnimationFrame(() => {
                 iframe.remove();
                 try {
