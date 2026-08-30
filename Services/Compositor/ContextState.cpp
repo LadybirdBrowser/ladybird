@@ -203,7 +203,7 @@ void ContextState::install_display_list_update(
     m_has_async_scrolling_state = true;
 }
 
-void ContextState::update_visual_context_tree(Web::Painting::AccumulatedVisualContextTree visual_context_tree)
+void ContextState::update_visual_context_tree(Web::Painting::AccumulatedVisualContextTree visual_context_tree, Web::Painting::DisplayListResourceTransaction&& resource_transaction)
 {
     if (!m_display_list || m_display_list->compatible_visual_context_tree_version() != visual_context_tree.version()) {
         dbgln("Compositor: Dropping stale visual context tree update (tree version {}, display list version {})",
@@ -212,6 +212,7 @@ void ContextState::update_visual_context_tree(Web::Painting::AccumulatedVisualCo
         return;
     }
     invalidate_visual_context_tree_for_compositing();
+    apply_display_list_resource_transaction(move(resource_transaction));
     m_visual_context_tree = move(visual_context_tree);
     m_visual_animation_sample_time_ns.clear();
     m_has_active_visual_animations = !m_visual_context_tree->visual_animations().is_empty();

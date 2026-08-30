@@ -1127,8 +1127,12 @@ void DisplayListPlayerSkia::push_layer(EffectsData const& effects)
     if (effects.blend_mode != Gfx::CompositingAndBlendingOperator::Normal)
         paint.setBlender(Gfx::to_skia_blender(effects.blend_mode));
 
-    if (effects.gfx_filter.has_value())
-        paint.setImageFilter(to_skia_image_filter(*effects.gfx_filter));
+    if (effects.filter_bytes.has_value()) {
+        auto filter = Gfx::deserialize_filter(*effects.filter_bytes, [&](u64 image_id) {
+            return resource_storage().image_frame(ImageFrameResourceId { image_id });
+        });
+        paint.setImageFilter(to_skia_image_filter(filter));
+    }
 
     canvas.saveLayer(nullptr, &paint);
 }

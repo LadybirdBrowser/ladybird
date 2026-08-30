@@ -40,9 +40,9 @@ void CompositorContextHandle::update_display_list(NonnullRefPtr<Painting::Displa
     m_host.update_display_list(m_context_id, move(display_list), move(visual_context_tree), move(resource_transaction), move(scroll_state_snapshot));
 }
 
-void CompositorContextHandle::update_visual_context_tree(Painting::AccumulatedVisualContextTree visual_context_tree)
+void CompositorContextHandle::update_visual_context_tree(Painting::AccumulatedVisualContextTree visual_context_tree, Painting::DisplayListResourceTransaction&& resource_transaction)
 {
-    m_host.update_visual_context_tree(m_context_id, move(visual_context_tree));
+    m_host.update_visual_context_tree(m_context_id, move(visual_context_tree), move(resource_transaction));
 }
 
 void CompositorContextHandle::add_video_sink(Media::VideoSinkHandle video_sink_handle)

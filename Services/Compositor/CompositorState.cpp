@@ -160,12 +160,12 @@ void CompositorState::update_image_frame_resources(Web::Compositor::CompositorCo
     context->update_image_frame_resources(move(image_frames));
 }
 
-void CompositorState::update_visual_context_tree(Web::Compositor::CompositorContextId context_id, Web::Painting::AccumulatedVisualContextTree visual_context_tree)
+void CompositorState::update_visual_context_tree(Web::Compositor::CompositorContextId context_id, Web::Painting::AccumulatedVisualContextTree visual_context_tree, Web::Painting::DisplayListResourceTransaction&& resource_transaction)
 {
     auto* context = context_if_present(context_id);
     VERIFY(context);
 
-    context->update_visual_context_tree(move(visual_context_tree));
+    context->update_visual_context_tree(move(visual_context_tree), move(resource_transaction));
 }
 
 void CompositorState::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)

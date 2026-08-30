@@ -219,10 +219,10 @@ void CompositorHostBase::update_display_list(Web::Compositor::CompositorContextI
         connection->update_display_list(context_id, display_list, visual_context_tree, resource_transaction, scroll_state_snapshot);
 }
 
-void CompositorHostBase::update_visual_context_tree(Web::Compositor::CompositorContextId context_id, Web::Painting::AccumulatedVisualContextTree visual_context_tree)
+void CompositorHostBase::update_visual_context_tree(Web::Compositor::CompositorContextId context_id, Web::Painting::AccumulatedVisualContextTree visual_context_tree, Web::Painting::DisplayListResourceTransaction&& resource_transaction)
 {
     if (auto* connection = compositor_connection())
-        connection->update_visual_context_tree(context_id, visual_context_tree);
+        connection->update_visual_context_tree(context_id, visual_context_tree, move(resource_transaction));
 }
 
 void CompositorHostBase::add_video_sink(Media::VideoSinkHandle video_sink_handle)

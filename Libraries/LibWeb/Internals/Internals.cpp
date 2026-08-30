@@ -182,7 +182,7 @@ void Internals::send_mismatched_visual_context_tree_update_to_compositor()
 
     // Send a bare visual-context-tree update carrying that new version *without* re-recording the display list —
     // deliberately reproducing the peer inconsistency behind issue #10368.
-    navigable->compositor_context().update_visual_context_tree(document_paint_state.visual_context_tree(document));
+    navigable->compositor_context().update_visual_context_tree(document_paint_state.visual_context_tree(document), {});
 }
 
 // https://web-platform-tests.org/writing-tests/reftests.html#components-of-a-reftest

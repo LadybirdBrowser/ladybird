@@ -619,6 +619,22 @@ void DisplayListResourceStorage::add_referenced_display_list(DisplayListResource
     if (!has_display_list(id))
         return;
     collect_referenced_resources(display_list(id), referenced_resources);
+    collect_referenced_resources(display_list_visual_context_tree(id), referenced_resources);
+}
+
+void DisplayListResourceStorage::collect_referenced_resources(
+    AccumulatedVisualContextTree const& visual_context_tree,
+    DisplayListResourceSet& referenced_resources) const
+{
+    for (auto const& frame_node : visual_context_tree.frame_nodes()) {
+        auto const* effects = frame_node.data.get_pointer<EffectsData>();
+        if (!effects || !effects->filter_bytes.has_value())
+            continue;
+        Gfx::deserialize_filter(*effects->filter_bytes, [&](u64 image_id) {
+            referenced_resources.image_frames.set(ImageFrameResourceId { image_id }, AK::HashSetExistingEntryBehavior::Keep);
+            return image_frame(ImageFrameResourceId { image_id });
+        });
+    }
 }
 
 DisplayListResourceSet DisplayListResourceStorage::collect_referenced_resources(ReadonlyBytes command_bytes) const
@@ -632,6 +648,21 @@ DisplayListResourceSet DisplayListResourceStorage::collect_referenced_resources(
 {
     DisplayListResourceSet referenced_resources;
     collect_referenced_resources(display_list, referenced_resources);
+    return referenced_resources;
+}
+
+DisplayListResourceSet DisplayListResourceStorage::collect_referenced_resources(DisplayList const& display_list, AccumulatedVisualContextTree const& visual_context_tree) const
+{
+    DisplayListResourceSet referenced_resources;
+    collect_referenced_resources(display_list, referenced_resources);
+    collect_referenced_resources(visual_context_tree, referenced_resources);
+    return referenced_resources;
+}
+
+DisplayListResourceSet DisplayListResourceStorage::collect_referenced_resources(AccumulatedVisualContextTree const& visual_context_tree) const
+{
+    DisplayListResourceSet referenced_resources;
+    collect_referenced_resources(visual_context_tree, referenced_resources);
     return referenced_resources;
 }
 

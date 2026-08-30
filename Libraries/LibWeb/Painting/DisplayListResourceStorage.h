@@ -118,6 +118,8 @@ public:
     void apply_transaction(DisplayListResourceTransaction&&);
     DisplayListResourceTransaction create_transaction(DisplayListResourceSet const& previous, DisplayListResourceSet const& current) const;
     DisplayListResourceSet collect_referenced_resources(DisplayList const&) const;
+    DisplayListResourceSet collect_referenced_resources(DisplayList const&, AccumulatedVisualContextTree const&) const;
+    DisplayListResourceSet collect_referenced_resources(AccumulatedVisualContextTree const&) const;
     DisplayListResourceSet collect_referenced_resources(ReadonlyBytes command_bytes) const;
     void retain_only(DisplayListResourceSet const&);
     void set_video_sink(VideoSinkResourceId, RefPtr<Media::VideoSink>);
@@ -142,6 +144,7 @@ public:
 private:
     void collect_referenced_resources(ReadonlyBytes command_bytes, DisplayListResourceSet&) const;
     void collect_referenced_resources(DisplayList const&, DisplayListResourceSet&) const;
+    void collect_referenced_resources(AccumulatedVisualContextTree const&, DisplayListResourceSet&) const;
     void add_referenced_display_list(DisplayListResourceId, DisplayListResourceSet&) const;
     bool nested_display_list_requires_direct_replay(DisplayListResourceId, HashTable<u64>& visited_display_lists) const;
     void remove_text_blobs_without_font();

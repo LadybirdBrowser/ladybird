@@ -409,7 +409,7 @@ static DisplayListResourceStorage* visual_context_filter_image_storage(DOM::Docu
     return &navigable->display_list_resource_storage();
 }
 
-static FrameData frame_data_from_export(Layout::RustFFI::FfiVisualContextNodeExport const& node, DisplayListResourceStorage const* filter_image_storage)
+static FrameData frame_data_from_export(Layout::RustFFI::FfiVisualContextNodeExport const& node)
 {
     auto rect = [&] { return node.rect.to_type<DevicePixels>(); };
     switch (node.kind) {
@@ -418,13 +418,9 @@ static FrameData frame_data_from_export(Layout::RustFFI::FfiVisualContextNodeExp
     case Layout::RustFFI::FfiVisualContextNodeKind::ClipPath:
         return ClipPathData { .path = *static_cast<Gfx::Path const*>(node.path), .bounding_rect = rect(), .fill_rule = node.winding_rule };
     case Layout::RustFFI::FfiVisualContextNodeKind::Effects: {
-        EffectsData effects { .opacity = node.opacity, .blend_mode = node.blend_mode, .gfx_filter = {} };
-        if (node.filter_bytes_length) {
-            effects.gfx_filter = Gfx::deserialize_filter({ node.filter_bytes, node.filter_bytes_length }, [&](u64 image_id) -> Gfx::DecodedImageFrame {
-                VERIFY(filter_image_storage);
-                return filter_image_storage->image_frame(ImageFrameResourceId { image_id });
-            });
-        }
+        EffectsData effects { .opacity = node.opacity, .blend_mode = node.blend_mode, .filter_bytes = {} };
+        if (node.filter_bytes_length)
+            effects.filter_bytes = MUST(ByteBuffer::copy(node.filter_bytes, node.filter_bytes_length));
         return effects;
     }
     case Layout::RustFFI::FfiVisualContextNodeKind::Mask:
@@ -451,7 +447,7 @@ static Vector<Layout::RustFFI::FfiVisualContextNodeExport> exported_visual_conte
     return nodes;
 }
 
-static AccumulatedVisualContextTree materialize_rust_visual_context_tree(DisplayListResourceStorage const* filter_image_storage, void const* tree)
+static AccumulatedVisualContextTree materialize_rust_visual_context_tree(void const* tree)
 {
     auto spatial_nodes = exported_visual_context_nodes(tree, 0, Layout::RustFFI::layout_arena_visual_context_tree_spatial_node_count(tree), Layout::RustFFI::layout_arena_visual_context_tree_export_spatial_nodes);
     auto frame_nodes = exported_visual_context_nodes(tree, 0, Layout::RustFFI::layout_arena_visual_context_tree_frame_node_count(tree), Layout::RustFFI::layout_arena_visual_context_tree_export_frame_nodes);
@@ -464,15 +460,10 @@ static AccumulatedVisualContextTree materialize_rust_visual_context_tree(Display
     for (size_t index = 1; index < spatial_nodes.size(); ++index)
         visual_context_tree.append_spatial(spatial_data_from_export(spatial_nodes[index]), SpatialNodeIndex { spatial_nodes[index].parent });
     for (auto const& node : frame_nodes)
-        visual_context_tree.append_frame(frame_data_from_export(node, filter_image_storage), FrameNodeIndex { node.parent }, SpatialNodeIndex { node.spatial });
+        visual_context_tree.append_frame(frame_data_from_export(node), FrameNodeIndex { node.parent }, SpatialNodeIndex { node.spatial });
     if (auto root_isolation_frame = Layout::RustFFI::layout_arena_visual_context_tree_root_isolation_frame(tree); root_isolation_frame != NO_FRAME_NODE.value())
         visual_context_tree.set_root_isolation_frame(FrameNodeIndex { root_isolation_frame });
     return visual_context_tree;
-}
-
-static AccumulatedVisualContextTree materialize_rust_visual_context_tree(DOM::Document const& document, void const* tree)
-{
-    return materialize_rust_visual_context_tree(visual_context_filter_image_storage(document), tree);
 }
 
 struct LayerImage {
@@ -627,7 +618,7 @@ AccumulatedVisualContextTree materialize_rust_main_visual_context_tree(DOM::Docu
 {
     auto const* tree = Layout::RustFFI::layout_arena_main_visual_context_tree(layout_arena_handle(document));
     VERIFY(tree);
-    return materialize_rust_visual_context_tree(document, tree);
+    return materialize_rust_visual_context_tree(tree);
 }
 
 void patch_rust_visual_context_nodes(DOM::Document& document, AccumulatedVisualContextTree& visual_context_tree, u32 spatial_begin, u32 spatial_end, u32 frame_begin, u32 frame_end)
@@ -640,9 +631,8 @@ void patch_rust_visual_context_nodes(DOM::Document& document, AccumulatedVisualC
     for (size_t i = 0; i < spatial_nodes.size(); ++i)
         visual_context_tree.spatial_node_at(SpatialNodeIndex { static_cast<u32>(spatial_begin + i) }).data = spatial_data_from_export(spatial_nodes[i]);
     auto frame_nodes = exported_visual_context_nodes(tree, frame_begin, frame_end, Layout::RustFFI::layout_arena_visual_context_tree_export_frame_nodes);
-    auto const* filter_image_storage = visual_context_filter_image_storage(document);
     for (size_t i = 0; i < frame_nodes.size(); ++i)
-        visual_context_tree.set_frame_data(FrameNodeIndex { static_cast<u32>(frame_begin + i) }, frame_data_from_export(frame_nodes[i], filter_image_storage));
+        visual_context_tree.set_frame_data(FrameNodeIndex { static_cast<u32>(frame_begin + i) }, frame_data_from_export(frame_nodes[i]));
 }
 
 bool patch_rust_sticky_visual_context_nodes(DOM::Document& document, AccumulatedVisualContextTree& visual_context_tree)
@@ -1329,9 +1319,8 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 });
             return style;
         },
-        .materialize_visual_context_tree = [](void* context_pointer, void const* tree) -> void* {
-            auto& context = *static_cast<PaintHostContext*>(context_pointer);
-            return new AccumulatedVisualContextTree(materialize_rust_visual_context_tree(*context.document, tree));
+        .materialize_visual_context_tree = [](void*, void const* tree) -> void* {
+            return new AccumulatedVisualContextTree(materialize_rust_visual_context_tree(tree));
         },
         .nested_display_list_from_tree = [](void* context_pointer, Layout::RustFFI::FfiRecordedDisplayList recorded, void* tree_handle, u64 const* mask_pairs, size_t mask_pair_count) -> u64 {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
@@ -1546,13 +1535,12 @@ DisplayListResource record_image_paint_display_list(ImagePaint const& paint, Gfx
             inputs.interpolation_method = gradient.data.interpolation_method;
         });
     struct ImagePaintRecordingContext {
-        DisplayListResourceStorage const& resource_storage;
         Optional<DisplayListResource> recorded_display_list;
-    } recording_context { resource_storage, {} };
+    } recording_context;
     Layout::RustFFI::ladybird_web_record_image_paint_display_list(&inputs, &recording_context,
         [](void* context, Layout::RustFFI::FfiRecordedDisplayList recorded, void const* tree) {
             auto& recording_context = *static_cast<ImagePaintRecordingContext*>(context);
-            auto visual_context_tree = materialize_rust_visual_context_tree(&recording_context.resource_storage, tree);
+            auto visual_context_tree = materialize_rust_visual_context_tree(tree);
             auto display_list = display_list_from_rust_recording(visual_context_tree, recorded);
             recording_context.recorded_display_list = DisplayListResource { move(display_list), move(visual_context_tree) };
         });
