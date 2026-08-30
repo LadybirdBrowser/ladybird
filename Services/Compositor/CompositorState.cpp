@@ -569,12 +569,11 @@ void CompositorState::resume_presentation_after_becoming_visible(Web::Compositor
         schedule_present_frame(root_context_id, root_context, *frame_rect_to_present);
 }
 
-void CompositorState::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect, Gfx::IntRect damage_rect)
+void CompositorState::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect)
 {
     auto* context = context_if_present(context_id);
     VERIFY(context);
-    damage_rect.intersect({ {}, viewport_rect.size() });
-    schedule_present_frame(context_id, *context, ContextState::PendingFrame { viewport_rect, damage_rect });
+    schedule_present_frame(context_id, *context, ContextState::PendingFrame { viewport_rect, {} });
 }
 
 void CompositorState::present_frame(Web::Compositor::CompositorContextId context_id, ContextState& context, ContextState::PendingFrame pending_frame)

@@ -296,8 +296,8 @@ TEST_CASE(hidden_context_coalesces_presents_and_presents_once_when_shown)
     compositor_state->update_display_list(context_id, make_display_list(visual_context_tree, Gfx::Color::Red), visual_context_tree, {}, {});
 
     compositor_state->set_context_visibility(context_id, Web::Compositor::ContextVisibility::Hidden);
-    compositor_state->present_frame(context_id, viewport_rect, { 0, 0, 2, 2 });
-    compositor_state->present_frame(context_id, viewport_rect, { 2, 2, 2, 2 });
+    compositor_state->present_frame(context_id, viewport_rect);
+    compositor_state->present_frame(context_id, viewport_rect);
     compositor_state->presented_bitmap_ready_to_paint(context_id, compositor_client.allocated_bitmap_ids[0]);
     EXPECT(!spin_event_loop_until(event_loop, 100, [&] { return !compositor_client.presented_frames.is_empty(); }));
 
@@ -473,7 +473,7 @@ struct PresentingContextFixture {
     TestCompositorClient::PresentedFrame present(Optional<Gfx::IntRect> rect = {})
     {
         auto already_presented = compositor_client.presented_frames.size();
-        compositor_state->present_frame(context_id, rect.value_or(viewport_rect), {});
+        compositor_state->present_frame(context_id, rect.value_or(viewport_rect));
         return wait_for_frame(already_presented);
     }
 };
@@ -634,7 +634,7 @@ TEST_CASE(viewport_size_change_forces_full_damage)
     Gfx::IntRect resized_viewport_rect { 0, 0, 20, 20 };
     auto already_presented = fixture.compositor_client.presented_frames.size();
     fixture.compositor_state->viewport_size_updated(fixture.context_id, resized_viewport_rect.size(), Web::Compositor::WindowResizingInProgress::No);
-    fixture.compositor_state->present_frame(fixture.context_id, resized_viewport_rect, {});
+    fixture.compositor_state->present_frame(fixture.context_id, resized_viewport_rect);
     auto frame = fixture.wait_for_frame(already_presented);
     EXPECT_EQ(frame.content_rect, resized_viewport_rect);
     EXPECT_EQ(frame.damage_rect, resized_viewport_rect);
@@ -698,9 +698,9 @@ TEST_CASE(updates_between_rasters_are_diffed_against_the_last_rasterized_frame)
 
     auto already_presented = fixture.compositor_client.presented_frames.size();
     fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red }, { { 10, 10, 4, 4 }, Gfx::Color::Green } }), visual_context_tree);
-    fixture.compositor_state->present_frame(fixture.context_id, fixture.viewport_rect, {});
+    fixture.compositor_state->present_frame(fixture.context_id, fixture.viewport_rect);
     fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Blue }, { { 10, 10, 4, 4 }, Gfx::Color::Green } }), visual_context_tree);
-    fixture.compositor_state->present_frame(fixture.context_id, fixture.viewport_rect, {});
+    fixture.compositor_state->present_frame(fixture.context_id, fixture.viewport_rect);
 
     auto frame = fixture.wait_for_frame(already_presented);
     EXPECT(!fixture.presents_another_frame(already_presented + 1));
@@ -776,12 +776,12 @@ TEST_CASE(child_context_presents_repaint_the_parent)
     auto child_visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
     Gfx::IntRect child_viewport_rect { 0, 0, 8, 8 };
     fixture.compositor_state->update_display_list(child_context_id, make_fills_display_list(child_visual_context_tree, { { child_viewport_rect, Gfx::Color::Red } }), child_visual_context_tree, {}, {});
-    fixture.compositor_state->present_frame(child_context_id, child_viewport_rect, {});
+    fixture.compositor_state->present_frame(child_context_id, child_viewport_rect);
     fixture.present();
     EXPECT(fixture.present().damage_rect.is_empty());
 
     fixture.compositor_state->update_display_list(child_context_id, make_fills_display_list(child_visual_context_tree, { { child_viewport_rect, Gfx::Color::Blue } }), child_visual_context_tree, {}, {});
     auto already_presented = fixture.compositor_client.presented_frames.size();
-    fixture.compositor_state->present_frame(child_context_id, child_viewport_rect, {});
+    fixture.compositor_state->present_frame(child_context_id, child_viewport_rect);
     EXPECT_EQ(fixture.wait_for_frame(already_presented).damage_rect, fixture.viewport_rect);
 }

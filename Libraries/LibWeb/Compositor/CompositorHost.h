@@ -49,7 +49,7 @@ public:
     void cancel_smooth_scroll(AsyncScrollNodeStableID);
     PendingAsyncScrollUpdates take_pending_async_scroll_updates();
     void viewport_size_updated(Gfx::IntSize, WindowResizingInProgress);
-    void present_frame(Gfx::IntRect viewport_rect, Gfx::IntRect damage_rect);
+    void present_frame(Gfx::IntRect viewport_rect);
     void request_screenshot(NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback);
 
 private:
@@ -95,7 +95,7 @@ public:
     virtual void cancel_smooth_scroll(CompositorContextId, AsyncScrollNodeStableID) = 0;
     virtual PendingAsyncScrollUpdates take_pending_async_scroll_updates(CompositorContextId) = 0;
     virtual void viewport_size_updated(CompositorContextId, Gfx::IntSize, WindowResizingInProgress) = 0;
-    virtual void present_frame(CompositorContextId, Gfx::IntRect viewport_rect, Gfx::IntRect damage_rect) = 0;
+    virtual void present_frame(CompositorContextId, Gfx::IntRect viewport_rect) = 0;
     virtual void request_screenshot(CompositorContextId, NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback) = 0;
 
 protected:
