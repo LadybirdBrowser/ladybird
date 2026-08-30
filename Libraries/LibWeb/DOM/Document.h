@@ -500,10 +500,14 @@ public:
     };
     void update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates, ReadonlySpan<Layout::Box const*> boxes_needing_eager_measurement = {});
     void update_paint_and_hit_testing_properties_if_needed();
-    void update_animated_style_if_needed();
+    void sample_animation_effects_needing_style_update();
     void update_style_computer_viewport_rect();
     bool needs_animated_style_update() const { return m_needs_animated_style_update; }
-    void clear_needs_animated_style_update() { m_needs_animated_style_update = false; }
+    void clear_needs_animated_style_update()
+    {
+        m_needs_animated_style_update = false;
+        m_effects_needing_animated_style_update.clear();
+    }
     bool is_running_update_layout() const { return m_is_running_update_layout; }
 
     void invalidate_layout_tree(InvalidateLayoutTreeReason);
@@ -1054,7 +1058,7 @@ public:
     GC::RootVector<GC::Ref<Element>> elements_from_point(double x, double y);
     GC::Ptr<Element const> scrolling_element() const;
 
-    void set_needs_animated_style_update();
+    void set_needs_animated_style_update(Animations::KeyframeEffect&);
 
     CSS::SheetSetStyleCacheRegistry& sheet_set_style_cache_registry() { return m_sheet_set_style_cache_registry; }
 
@@ -1702,6 +1706,7 @@ private:
     u64 m_full_layout_count { 0 };
 
     bool m_needs_animated_style_update { false };
+    GC::WeakHashSet<Animations::KeyframeEffect> m_effects_needing_animated_style_update;
 
     HashTable<GC::Ptr<NodeIterator>> m_node_iterators;
 

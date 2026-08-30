@@ -449,7 +449,7 @@ static void update_style(DOM::Document& document)
     record_non_author_stylesheets(document);
     if (document.has_completed_style_update()
         && !document.style_computer().style_engine().has_pending_transaction()) {
-        document.update_animated_style_if_needed();
+        document.sample_animation_effects_needing_style_update();
         if (!document.style_computer().style_engine().has_pending_transaction())
             return;
     }
@@ -466,7 +466,7 @@ static void update_style(DOM::Document& document)
 
     if (!style_engine_transaction.reactions.is_empty())
         document.note_style_stabilization_has_style_reactions();
-    document.update_animated_style_if_needed();
+    document.sample_animation_effects_needing_style_update();
 
     auto style_engine_reactions = move(style_engine_transaction.reactions);
     auto prefers_broad_matching_batch = style_engine_transaction.prefers_broad_matching_batch;
@@ -627,7 +627,7 @@ static void update_style(DOM::Document& document)
 
     document.set_has_completed_style_update();
     apply_document_style_invalidation_after_style_change(document, invalidation);
-    document.update_animated_style_if_needed();
+    document.sample_animation_effects_needing_style_update();
 }
 
 static void apply_targeted_style_invalidation(DOM::Element& element, RequiredInvalidationAfterStyleChange const& invalidation, bool did_change_custom_properties, bool descendant_style_recompute_needed, Optional<StyleNodeID> child_materialized_by_targeted_update)
@@ -782,7 +782,7 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
             update_style(document);
             ran_regular_style_update = true;
         } else {
-            document.update_animated_style_if_needed();
+            document.sample_animation_effects_needing_style_update();
             if (!document.is_running_update_layout()
                 && document.style_computer().style_engine().has_pending_transaction()) {
                 update_style(document);

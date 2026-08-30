@@ -1,0 +1,4 @@
+completed effects stay out of animated style updates: true
+finished sibling contribution is retained: true
+active sibling contributes to computed style: true
+paused animation builds no overlays: true
