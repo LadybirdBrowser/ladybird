@@ -5,7 +5,7 @@
  */
 
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
-use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::display_list::commands::{DisplayListGlyph, FontResourceId};
 use crate::painting::display_list::recorder::GlyphRunForRecording;
@@ -98,8 +98,10 @@ fn compute_render_spans(
         let Some(parent_style) = arena.node_style_if_live(parent) else {
             continue;
         };
+        let parent_retains_animated_content =
+            arena.node_flags_if_live(parent) & NodeFlag::HasAnimatedOpacityOrTransform as u32 != 0;
         if parent_style.visibility() != crate::css::css_enums::visibility::VISIBLE
-            || parent_style.effects().opacity == 0.0
+            || (parent_style.effects().opacity == 0.0 && !parent_retains_animated_content)
         {
             continue;
         }

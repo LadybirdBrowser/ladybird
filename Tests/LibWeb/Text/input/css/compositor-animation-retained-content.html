@@ -12,11 +12,13 @@
     }
 
     #opacity {
-        animation: reveal-opacity 100s linear infinite;
+        background: rgb(21, 22, 23);
+        animation: reveal-opacity 100s linear;
     }
 
     #transform {
-        animation: reveal-transform 100s linear infinite;
+        background: rgb(24, 25, 26);
+        animation: reveal-transform 100s linear;
     }
 </style>
 <div id="opacity">opacity</div>
@@ -29,13 +31,16 @@
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
 
-        println(`culled animations stay on main thread: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+        println(`culled animations move immediately to compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+        const displayList = internals.dumpDisplayList();
+        println(`opacity-zero animation content is retained: ${displayList.includes("rgb(21, 22, 23)")}`);
+        println(`singular-transform animation content is retained: ${displayList.includes("rgb(24, 25, 26)")}`);
 
-        animations.forEach(animation => animation.currentTime = 75000);
+        internals.resetStyleInvalidationCounters();
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
 
-        println(`paintable animations move to compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+        println(`culled compositor animations build no overlays: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 0}`);
         done();
     });
 </script>

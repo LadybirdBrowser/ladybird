@@ -12,8 +12,8 @@ pub mod paint;
 pub mod traversal;
 
 use crate::css::css_enums;
-use crate::layout::node_data::NodeKind;
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_data::{NodeFlag, NodeKind};
 use crate::layout::used_values;
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::builder::RecordedDisplayList;
@@ -271,7 +271,10 @@ impl<'a> PaintRecorder<'a> {
             return facts;
         };
         let effects = style.effects();
-        let is_visible = style.visibility() == crate::css::css_enums::visibility::VISIBLE && effects.opacity != 0.0;
+        let retains_animated_content =
+            self.layout_arena.node_flags_if_live(paintable) & NodeFlag::HasAnimatedOpacityOrTransform as u32 != 0;
+        let is_visible = style.visibility() == crate::css::css_enums::visibility::VISIBLE
+            && (effects.opacity != 0.0 || retains_animated_content);
         let empty_cells_property_applies = self.display(paintable).is_internal_table()
             && style.empty_cells() == crate::css::css_enums::empty_cells::HIDE
             && crate::painting::paint_order::first_paint_child(self.layout_arena, paintable).is_none();

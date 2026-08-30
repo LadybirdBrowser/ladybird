@@ -1,2 +1,4 @@
-culled animations stay on main thread: 0
-paintable animations move to compositor: 2
+culled animations move immediately to compositor: 2
+opacity-zero animation content is retained: true
+singular-transform animation content is retained: true
+culled compositor animations build no overlays: true
