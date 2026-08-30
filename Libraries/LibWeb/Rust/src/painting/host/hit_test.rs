@@ -71,30 +71,10 @@ pub struct FfiHitTestQueryCallbacks {
     pub chrome_metrics: crate::painting::ffi::FfiChromeMetrics,
     pub viewport_wheel_overflow_x: u8,
     pub viewport_wheel_overflow_y: u8,
-    pub local_point_for_visual_context: unsafe extern "C" fn(
-        *mut c_void,
-        ContextRef,
-        used_values::FfiCssPixelPoint,
-        bool,
-        *mut libgfx_rust::FloatPoint,
-    ) -> bool,
     pub shell_in_scope: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
 }
 
 impl FfiHitTestQueryCallbacks {
-    pub(crate) fn local_point_for_visual_context(
-        &self,
-        context: ContextRef,
-        point: used_values::FfiCssPixelPoint,
-        respect_clip: bool,
-    ) -> Option<(f32, f32)> {
-        let mut local = libgfx_rust::FloatPoint::default();
-        // SAFETY: The C++ host writes the point synchronously when it returns true.
-        let has_local = unsafe {
-            (self.local_point_for_visual_context)(self.context, context, point, respect_clip, &raw mut local)
-        };
-        has_local.then_some((local.x, local.y))
-    }
     pub(crate) fn shell_in_scope(&self, shell: *mut c_void) -> bool {
         // SAFETY: The C++ host answers synchronously.
         unsafe { (self.shell_in_scope)(self.context, shell) }

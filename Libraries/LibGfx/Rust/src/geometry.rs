@@ -150,6 +150,9 @@ impl IntRect {
     pub const fn contains_rect(self, other: Self) -> bool {
         self.x <= other.x && self.right() >= other.right() && self.y <= other.y && self.bottom() >= other.bottom()
     }
+    pub const fn contains_point(self, point: IntPoint) -> bool {
+        point.x >= self.x && point.x < self.right() && point.y >= self.y && point.y < self.bottom()
+    }
     pub const fn shrunken(self, top: i32, right: i32, bottom: i32, left: i32) -> Self {
         Self::new(
             self.x + left,
@@ -243,6 +246,9 @@ impl FloatRect {
     }
     pub fn contains_rect(self, other: Self) -> bool {
         self.x <= other.x && self.right() >= other.right() && self.y <= other.y && self.bottom() >= other.bottom()
+    }
+    pub fn contains_point(self, point: FloatPoint) -> bool {
+        point.x >= self.x && point.x < self.right() && point.y >= self.y && point.y < self.bottom()
     }
     pub fn right(self) -> f32 {
         self.x + self.width

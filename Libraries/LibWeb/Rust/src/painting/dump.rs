@@ -179,3 +179,83 @@ pub(crate) fn dump_inline_piece_fragments(
         }
     }
 }
+
+pub(crate) fn format_float_like_ak(value: f32) -> String {
+    if value.is_nan() {
+        return "nan".to_string();
+    }
+    if value.is_infinite() {
+        return if value < 0.0 {
+            "-inf".to_string()
+        } else {
+            "inf".to_string()
+        };
+    }
+    if value == 0.0 {
+        return "0".to_string();
+    }
+    let shortest_scientific = format!("{:e}", value.abs());
+    let (mantissa_text, exponent_text) = shortest_scientific
+        .split_once('e')
+        .expect("Rust scientific formatting always contains an exponent");
+    let mantissa_digits: String = mantissa_text.chars().filter(|c| *c != '.').collect();
+    let decimal_exponent: i32 = exponent_text.parse().expect("exponent is an integer");
+    let exponent = decimal_exponent - (mantissa_digits.len() as i32 - 1);
+    let n = exponent + mantissa_digits.len() as i32;
+    let sign = if value < 0.0 { "-" } else { "" };
+
+    // NOTE: Range from ECMA262, seems like an okay default.
+    if !(-5..=21).contains(&n) {
+        let exponent_sign = if n < 0 { '-' } else { '+' };
+        let exponent_magnitude = (n - 1).abs();
+        if mantissa_digits.len() == 1 {
+            return format!("{sign}{mantissa_digits}e{exponent_sign}{exponent_magnitude}");
+        }
+        return format!(
+            "{sign}{}.{}e{exponent_sign}{exponent_magnitude}",
+            &mantissa_digits[..1],
+            &mantissa_digits[1..]
+        );
+    }
+
+    let mut text = String::from(sign);
+    if exponent >= 0 {
+        text.push_str(&mantissa_digits);
+        for _ in 0..exponent {
+            text.push('0');
+        }
+    } else if n > 0 {
+        text.push_str(&mantissa_digits[..n as usize]);
+        text.push('.');
+        text.push_str(&mantissa_digits[n as usize..]);
+    } else {
+        text.push_str("0.");
+        for _ in 0..(-n) {
+            text.push('0');
+        }
+        text.push_str(&mantissa_digits);
+    }
+    text
+}
+
+#[cfg(test)]
+mod tests {
+    use super::format_float_like_ak;
+
+    #[test]
+    fn floats_format_like_ak() {
+        assert_eq!(format_float_like_ak(0.8660254), "0.8660254");
+        assert_eq!(format_float_like_ak(0.5), "0.5");
+        assert_eq!(format_float_like_ak(20.0), "20");
+        assert_eq!(format_float_like_ak(1.5), "1.5");
+        assert_eq!(format_float_like_ak(-1.5), "-1.5");
+        assert_eq!(format_float_like_ak(0.0), "0");
+        assert_eq!(format_float_like_ak(-0.0), "0");
+        assert_eq!(format_float_like_ak(100000.0), "100000");
+        assert_eq!(format_float_like_ak(0.001), "0.001");
+        assert_eq!(format_float_like_ak(1e-7), "1e-7");
+        assert_eq!(format_float_like_ak(1.5e22), "1.5e+22");
+        assert_eq!(format_float_like_ak(f32::INFINITY), "inf");
+        assert_eq!(format_float_like_ak(f32::NEG_INFINITY), "-inf");
+    }
+}
