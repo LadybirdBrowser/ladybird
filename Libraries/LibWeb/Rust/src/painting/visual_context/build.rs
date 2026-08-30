@@ -102,6 +102,7 @@ pub(crate) fn compute_svg_viewport_transform_data(
         flattens_inherited_transform: false,
         role: TransformDataRole::SvgViewportTransform,
         synthetic_plane: false,
+        establishes_sorting_context: false,
     }
 }
 
@@ -542,6 +543,8 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
         if let Some(mut transform) = transform_data {
             transform.flattens_inherited_transform = flattens_inherited_transform;
             transform.sorting_context_root_index = inherited.sorting_context_root;
+            transform.establishes_sorting_context =
+                facts.establishes_or_extends_3d_rendering_context && inherited.sorting_context_root.is_none();
             self.assignment_mut(slot).has_non_invertible_css_transform = !facts.transform_is_invertible;
             own_state = self
                 .tree
@@ -558,6 +561,31 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
         } else {
             inherited.normal_plane_root
         };
+        let establishes_or_extends_3d_rendering_context = facts.establishes_or_extends_3d_rendering_context;
+        let node_data_flags = self.layout_arena.node_flags_if_live(layout_node);
+        let invisible_to_3d_rendering_contexts = node_data_flags & NodeFlag::Anonymous as u32 != 0
+            && !self.layout_arena.node_is_generated_for_pseudo_element(layout_node);
+
+        let mut appended_synthetic_plane = false;
+        if !invisible_to_3d_rendering_contexts
+            && establishes_or_extends_3d_rendering_context
+            && !appended_transform_node
+        {
+            own_state = self.tree.append_spatial_under(
+                own_state,
+                SpatialData::Transform(TransformData {
+                    matrix: libgfx_rust::FloatMatrix4x4::identity(),
+                    origin: FloatPoint::default(),
+                    sorting_context_root_index: inherited.sorting_context_root,
+                    flattens_inherited_transform,
+                    role: TransformDataRole::CssTransform,
+                    synthetic_plane: true,
+                    establishes_sorting_context: inherited.sorting_context_root.is_none(),
+                }),
+            );
+            appended_synthetic_plane = true;
+        }
+
         let mut appended_backface_marker = false;
         // https://drafts.csswg.org/css-transforms-2/#backface-visibility-property
         // NB: Whether the element's backface is visible depends on its accumulated 3D transformation matrix, which
@@ -572,7 +600,9 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
                 own_state,
                 SpatialData::BackfaceVisibility(BackfaceVisibilityData {
                     plane_root_index: inherited_plane_root,
-                    flattens_inherited_transform: !appended_transform_node && flattens_inherited_transform,
+                    flattens_inherited_transform: !appended_transform_node
+                        && !appended_synthetic_plane
+                        && flattens_inherited_transform,
                 }),
             );
             appended_backface_marker = true;
@@ -587,18 +617,16 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
         //     rendering contexts, so they pass the inherited plane through unchanged. Pseudo-element boxes carry
         //     their own style and participate normally. An inherited flatten is only materialized by an appended
         //     node, so an element that appends none keeps it pending for its descendants.
-        let establishes_or_extends_3d_rendering_context = facts.establishes_or_extends_3d_rendering_context;
-        let node_data_flags = self.layout_arena.node_flags_if_live(layout_node);
-        let invisible_to_3d_rendering_contexts = node_data_flags & NodeFlag::Anonymous as u32 != 0
-            && !self.layout_arena.node_is_generated_for_pseudo_element(layout_node);
         let plane_root_for_descendants =
             if establishes_or_extends_3d_rendering_context || invisible_to_3d_rendering_contexts {
                 inherited_plane_root
             } else {
                 own_state.spatial
             };
-        let inherited_flatten_still_pending =
-            flattens_inherited_transform && !appended_transform_node && !appended_backface_marker;
+        let inherited_flatten_still_pending = flattens_inherited_transform
+            && !appended_transform_node
+            && !appended_synthetic_plane
+            && !appended_backface_marker;
         let mut descendants_flatten_inherited_transform = if invisible_to_3d_rendering_contexts {
             flattens_inherited_transform
         } else {
@@ -609,31 +637,15 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
         // A 3D rendering context is established by a transformable element whose used value for transform-style
         // is preserve-3d and which itself is not part of a 3D rendering context. An element that establishes a
         // 3D rendering context also participates in that context.
-        // NB: Every preserve-3d element renders into its own plane, so one without a transform of its own
-        //     appends an identity transform node to provide that plane. The establishing element's own state
-        //     serves as the context's root; replay sorts the content recorded under it as the context's z=0
-        //     plane alongside the planes of the participants, whose transform nodes reference the root.
+        // NB: The establishing element's own state serves as the context's root; replay sorts the content
+        //     recorded under it as the context's z=0 plane alongside the planes of the participants, whose
+        //     transform nodes reference the root.
         let mut sorting_context_root_for_descendants = inherited.sorting_context_root;
         if !invisible_to_3d_rendering_contexts {
             if !establishes_or_extends_3d_rendering_context {
                 sorting_context_root_for_descendants = None;
-            } else {
-                if !appended_transform_node {
-                    own_state = self.tree.append_spatial_under(
-                        own_state,
-                        SpatialData::Transform(TransformData {
-                            matrix: libgfx_rust::FloatMatrix4x4::identity(),
-                            origin: FloatPoint::default(),
-                            sorting_context_root_index: sorting_context_root_for_descendants,
-                            flattens_inherited_transform,
-                            role: TransformDataRole::CssTransform,
-                            synthetic_plane: true,
-                        }),
-                    );
-                }
-                if sorting_context_root_for_descendants.is_none() {
-                    sorting_context_root_for_descendants = Some(own_state.spatial);
-                }
+            } else if sorting_context_root_for_descendants.is_none() {
+                sorting_context_root_for_descendants = Some(own_state.spatial);
             }
         }
 
@@ -1061,6 +1073,7 @@ pub(crate) fn update_visual_context_values(
                     };
                     new_data.flattens_inherited_transform = transform_data.flattens_inherited_transform;
                     new_data.sorting_context_root_index = transform_data.sorting_context_root_index;
+                    new_data.establishes_sorting_context = transform_data.establishes_sorting_context;
                     *transform_data = new_data;
                     found_css_transform = true;
                 }

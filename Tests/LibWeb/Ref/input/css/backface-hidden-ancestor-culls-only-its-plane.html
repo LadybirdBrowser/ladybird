@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/css/backface-hidden-ancestor-culls-only-its-plane-ref.html" />
+<style>
+    .viewport {
+        perspective: 500px;
+        width: 400px;
+        height: 400px;
+    }
+    .scene {
+        position: relative;
+        transform-style: preserve-3d;
+        width: 400px;
+        height: 400px;
+        transform: rotateY(142deg);
+    }
+    .wrapper {
+        position: absolute;
+        top: 150px;
+        left: 150px;
+        width: 100px;
+        height: 100px;
+        transform-style: preserve-3d;
+        backface-visibility: hidden;
+        background: red;
+    }
+    .card {
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        background: green;
+        transform: rotateY(-142deg);
+        backface-visibility: hidden;
+    }
+</style>
+<div class="viewport">
+    <div class="scene">
+        <div class="wrapper"><div class="card"></div></div>
+    </div>
+</div>

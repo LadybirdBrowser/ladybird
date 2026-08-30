@@ -332,6 +332,7 @@ impl PaintRecorder<'_> {
             flattens_inherited_transform: false,
             role: TransformDataRole::CssTransform,
             synthetic_plane: false,
+            establishes_sorting_context: false,
         };
         self.record_nested_svg_display_list(paintable, root_transform, true, is_clip_path)
     }
@@ -358,6 +359,7 @@ impl PaintRecorder<'_> {
             flattens_inherited_transform: false,
             role: TransformDataRole::CssTransform,
             synthetic_plane: false,
+            establishes_sorting_context: false,
         });
         let root_context = ContextRef::spatial_only(VISUAL_VIEWPORT_NODE_INDEX);
         let local_frames = LocalFrameBuilder::new(

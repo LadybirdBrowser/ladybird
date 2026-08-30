@@ -328,6 +328,7 @@ mod node_dump_tests {
             flattens_inherited_transform: false,
             role: TransformDataRole::CssTransform,
             synthetic_plane: false,
+            establishes_sorting_context: false,
         })
     }
 
@@ -349,6 +350,7 @@ mod node_dump_tests {
                 flattens_inherited_transform: false,
                 role: TransformDataRole::CssTransform,
                 synthetic_plane: false,
+                establishes_sorting_context: false,
             }),
             VISUAL_VIEWPORT_NODE_INDEX,
         );
@@ -360,6 +362,7 @@ mod node_dump_tests {
                 flattens_inherited_transform: false,
                 role: TransformDataRole::SvgViewportTransform,
                 synthetic_plane: false,
+                establishes_sorting_context: false,
             }),
             VISUAL_VIEWPORT_NODE_INDEX,
         );
@@ -549,6 +552,7 @@ mod section_dump_tests {
             flattens_inherited_transform: false,
             role: TransformDataRole::CssTransform,
             synthetic_plane: false,
+            establishes_sorting_context: false,
         });
         let scroll_node = tree.append_spatial(
             SpatialData::Scroll(ScrollData {
