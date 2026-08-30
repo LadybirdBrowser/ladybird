@@ -21,11 +21,23 @@ class AnimationTimeline : public Bindings::GCAllocatedWrappable {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    NullableCSSNumberish current_time_for_bindings() const
-    {
-        return NullableCSSNumberish::from_optional_css_numberish_time(current_time());
-    }
+    class CurrentTimeOverrideScope {
+    public:
+        CurrentTimeOverrideScope(AnimationTimeline&, Optional<TimeValue>);
+        ~CurrentTimeOverrideScope();
+
+        CurrentTimeOverrideScope(CurrentTimeOverrideScope const&) = delete;
+        CurrentTimeOverrideScope& operator=(CurrentTimeOverrideScope const&) = delete;
+
+    private:
+        GC::Ref<AnimationTimeline> m_timeline;
+        Optional<TimeValue> m_previous_current_time_override;
+        bool m_had_previous_current_time_override { false };
+    };
+
+    NullableCSSNumberish current_time_for_bindings();
     Optional<TimeValue> current_time() const;
+    Optional<TimeValue> current_time_for_observation();
 
     virtual void update_current_time(double timestamp) = 0;
 
@@ -54,6 +66,8 @@ protected:
 
     void set_current_time(Optional<TimeValue> value);
     void update_associated_animations();
+    virtual bool can_sample_current_time_at_timestamp() const { return false; }
+    virtual Optional<TimeValue> current_time_at_timestamp(double) const { return current_time(); }
 
     // https://www.w3.org/TR/web-animations-1/#dom-animationtimeline-currenttime
     Optional<TimeValue> m_current_time {};
@@ -65,6 +79,23 @@ protected:
     GC::Ref<DOM::Document> m_associated_document;
 
     GC::WeakHashSet<Animation> m_associated_animations;
+    Optional<u64> m_last_current_time_update_task_generation;
+    Optional<TimeValue> m_observed_current_time;
+
+private:
+    friend class DOM::Document;
+
+    void set_current_time_override_for_style_sampling(Optional<TimeValue> value)
+    {
+        m_current_time_override_for_style_sampling = move(value);
+        m_has_current_time_override_for_style_sampling = true;
+    }
+    void clear_current_time_override_for_style_sampling() { m_has_current_time_override_for_style_sampling = false; }
+
+    Optional<TimeValue> effective_current_time() const;
+
+    Optional<TimeValue> m_current_time_override_for_style_sampling;
+    bool m_has_current_time_override_for_style_sampling { false };
 };
 
 }

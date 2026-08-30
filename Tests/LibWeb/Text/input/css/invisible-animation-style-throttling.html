@@ -80,6 +80,32 @@
         println(`detached animation listener keeps frame pump active: ${internals.getStyleInvalidationCounters().animationFramePumpRequests > 0}`);
         println(`detached animation dispatches iteration event: ${detachedIterationEvents}`);
 
+        const sampled = document.createElement("div");
+        sampled.style.visibility = "hidden";
+        document.body.append(sampled);
+        const timeline = internals.createInternalAnimationTimeline();
+        const sampledAnimation = new Animation(new KeyframeEffect(sampled, [
+            { transform: "translateX(0px)" },
+            { transform: "translateX(100px)" },
+        ], { duration: 100, iterations: Infinity }), timeline);
+        sampledAnimation.play();
+        timeline.setTime(0);
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+
+        timeline.setTimeForObservation(50);
+        const sampledProgress = sampledAnimation.effect.getComputedTiming().progress;
+        const initialTransform = new DOMMatrix(getComputedStyle(sampled).transform);
+        const initialRect = sampled.getBoundingClientRect();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        timeline.setTimeForObservation(75);
+        const sampledRect = sampled.getBoundingClientRect();
+        const sampledTransform = new DOMMatrix(getComputedStyle(sampled).transform);
+        println(`computed style uses current timeline sample: ${initialTransform.e === 50 && sampledTransform.e === 75}`);
+        println(`computed timing uses current timeline sample: ${sampledProgress === 0.5}`);
+        println(`geometry uses current timeline sample: ${sampledRect.x - initialRect.x === 25}`);
+        sampled.remove();
+
         const visible = document.createElement("div");
         visible.className = "animated";
         document.body.append(visible);

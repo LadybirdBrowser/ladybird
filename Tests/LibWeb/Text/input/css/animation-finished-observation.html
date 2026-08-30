@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target" style="visibility: hidden"></div>
+<script>
+    asyncTest(async done => {
+        const timeline = internals.createInternalAnimationTimeline();
+        const skippedTarget = document.createElement("div");
+        skippedTarget.style.visibility = "hidden";
+        document.body.append(skippedTarget);
+        const skippedAnimation = new Animation(new KeyframeEffect(skippedTarget, [
+            { transform: "translateX(0px)" },
+            { transform: "translateX(100px)" },
+        ], { duration: 10000, iterations: Infinity }), timeline);
+        const animation = new Animation(new KeyframeEffect(target, [
+            { transform: "translateX(0px)" },
+            { transform: "translateX(100px)" },
+        ], { delay: 100, duration: 100, fill: "forwards" }), timeline);
+        skippedAnimation.play();
+        animation.play();
+        timeline.setTime(0);
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        timeline.setTimeForObservation(250);
+        const playState = animation.playState;
+        let finishEvent;
+        animation.addEventListener("finish", event => finishEvent = event, { once: true });
+        const finishedPromise = animation.finished;
+        await finishedPromise;
+        await new Promise(requestAnimationFrame);
+
+        println(`observed play state is finished: ${playState === "finished"}`);
+        println(`finished getter observes the same state: ${animation.playState === "finished"}`);
+        println(`finish event current time is effect end: ${finishEvent.currentTime === 200}`);
+        println(`finish event timeline time is observation time: ${finishEvent.timelineTime === 250}`);
+        skippedAnimation.cancel();
+        animation.cancel();
+        done();
+    });
+</script>

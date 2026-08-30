@@ -1,0 +1,4 @@
+observed play state is finished: true
+finished getter observes the same state: true
+finish event current time is effect end: true
+finish event timeline time is observation time: true

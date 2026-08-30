@@ -1,4 +1,5 @@
 [Exposed=Nobody]
 interface InternalAnimationTimeline : AnimationTimeline {
     undefined setTime(double? time);
+    undefined setTimeForObservation(double time);
 };

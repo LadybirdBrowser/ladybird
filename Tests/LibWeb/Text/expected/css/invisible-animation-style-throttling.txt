@@ -9,6 +9,9 @@ detached animation current time advances: true
 unreachable end listener leaves detached animation throttled: true
 detached animation listener keeps frame pump active: true
 detached animation dispatches iteration event: 1
+computed style uses current timeline sample: true
+computed timing uses current timeline sample: true
+geometry uses current timeline sample: true
 visible animation builds while hidden stays throttled: 4
 computed style samples hidden animation alongside visible animation: true
 style-only visibility change samples animation: true

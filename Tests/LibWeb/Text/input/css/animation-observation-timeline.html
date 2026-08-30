@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes move {
+        from { transform: translateX(0px); }
+        to { transform: translateX(100px); }
+    }
+
+    #target {
+        animation: move 100s linear infinite;
+        visibility: hidden;
+    }
+</style>
+<div id="target"></div>
+<script>
+    asyncTest(async done => {
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+        internals.resetStyleInvalidationCounters();
+
+        const animation = document.getAnimations()[0];
+        animation.effect.getComputedTiming();
+        animation.playState;
+        animation.finished;
+        document.timeline.currentTime;
+        animation.currentTime;
+        document.timeline.currentTime;
+        println(`one synchronization in a task: ${internals.getStyleInvalidationCounters().animationTimelineSynchronizations}`);
+        println(`getter updates associated animations: ${internals.getStyleInvalidationCounters().animationTimelineAssociatedAnimationUpdates}`);
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+        animation.currentTime;
+        println(`next task synchronizes again: ${internals.getStyleInvalidationCounters().animationTimelineSynchronizations}`);
+        done();
+    });
+</script>
