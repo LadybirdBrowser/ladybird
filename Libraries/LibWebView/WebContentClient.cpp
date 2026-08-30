@@ -550,9 +550,14 @@ void WebContentClient::did_request_navigation_start(u64 page_id, Web::HTML::Cros
         target_navigable = child_frame.has_value() ? &*child_frame : nullptr;
     }
 
+    // AD-HOC: The local ongoing-navigation check can run before the UI traversal queue sets its canonical value.
+    //         Recheck it here so navigation admission and history traversal remain ordered by the UI process.
+    auto navigation_is_blocked_by_history_traversal = target_navigable
+        && target_navigable->ongoing_navigation_is_traversal();
     if (!target_navigable
         || target_navigable->id() != navigable_id
-        || (start_request.has_value() && start_request->navigable_id != navigable_id)) {
+        || (start_request.has_value() && start_request->navigable_id != navigable_id)
+        || navigation_is_blocked_by_history_traversal) {
         async_cancel_navigation_params_creation(page_id, navigable_id, navigation_id);
         return;
     }
@@ -641,9 +646,14 @@ void WebContentClient::did_request_navigation_population(u64 page_id, Web::HTML:
         target_navigable = child_frame.has_value() ? &*child_frame : nullptr;
     }
 
+    // AD-HOC: A population request can race with the UI traversal queue in the same way as a navigation-start
+    //         request, so validate the canonical ongoing-navigation value before admitting it.
+    auto navigation_is_blocked_by_history_traversal = target_navigable
+        && target_navigable->ongoing_navigation_is_traversal();
     if (!target_navigable
         || target_navigable->id() != navigable_id
-        || request.navigable_id != navigable_id) {
+        || request.navigable_id != navigable_id
+        || navigation_is_blocked_by_history_traversal) {
         async_cancel_navigation_params_creation(page_id, navigable_id, request.navigation_id);
         return;
     }

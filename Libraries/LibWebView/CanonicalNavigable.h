@@ -153,8 +153,11 @@ public:
 
     Optional<OngoingNavigation>& ongoing_navigation() { return m_ongoing_navigation; }
     Optional<OngoingNavigation> const& ongoing_navigation() const { return m_ongoing_navigation; }
+    bool ongoing_navigation_is_traversal() const { return m_ongoing_navigation_traversal_operation_id.has_value(); }
     OngoingNavigation& ensure_ongoing_navigation();
     void set_ongoing_navigation(OngoingNavigation);
+    void set_ongoing_navigation_to_traversal(Web::HTML::CrossProcessId operation_id);
+    void clear_ongoing_navigation_traversal(Web::HTML::CrossProcessId operation_id);
     void clear_ongoing_navigation();
     void set_navigation_population_worker(WebContentClient&, u64 page_id);
     bool navigation_population_matches(WebContentClient const&, u64 page_id, Utf16String const& navigation_id) const;
@@ -184,6 +187,7 @@ private:
     Optional<Web::HTML::SessionHistoryEntryIdentity> m_active_session_history_entry_identity;
     Vector<PendingSameDocumentSessionHistoryEntry> m_pending_same_document_session_history_entries;
     Optional<OngoingNavigation> m_ongoing_navigation;
+    Optional<Web::HTML::CrossProcessId> m_ongoing_navigation_traversal_operation_id;
     ActiveDocumentLoad m_active_document_load;
     Optional<Web::DevicePixelRect> m_viewport_rect;
     double m_device_pixel_ratio { 1 };

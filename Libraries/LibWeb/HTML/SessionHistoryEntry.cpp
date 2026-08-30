@@ -31,6 +31,16 @@ SessionHistoryEntry::~SessionHistoryEntry() = default;
 RefPtr<DocumentState> SessionHistoryEntry::document_state() const { return m_document_state; }
 void SessionHistoryEntry::set_document_state(RefPtr<DocumentState> document_state) { m_document_state = move(document_state); }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-document
+UniqueNodeID SessionHistoryEntry::document_id() const
+{
+    // To get a session history entry's document, return its document state's document.
+    VERIFY(m_document_state);
+    auto id = m_document_state->document_id();
+    VERIFY(id.has_value());
+    return id.release_value();
+}
+
 SessionHistoryEntry::SessionHistoryEntry()
     : m_classic_history_api_state(MUST(structured_serialize_for_storage(JS::VM::the(), JS::js_null())))
     , m_navigation_api_state(MUST(structured_serialize_for_storage(JS::VM::the(), JS::js_undefined())))

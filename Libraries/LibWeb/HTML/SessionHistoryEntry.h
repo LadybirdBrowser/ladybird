@@ -130,6 +130,8 @@ public:
     [[nodiscard]] RefPtr<HTML::DocumentState> document_state() const;
     void set_document_state(RefPtr<HTML::DocumentState>);
 
+    [[nodiscard]] UniqueNodeID document_id() const;
+
     [[nodiscard]] StorageSerializationRecord const& classic_history_api_state() const { return m_classic_history_api_state; }
     void set_classic_history_api_state(StorageSerializationRecord classic_history_api_state) { m_classic_history_api_state = move(classic_history_api_state); }
 

@@ -459,7 +459,13 @@ void ConnectionFromClient::run_history_step_unload_cancelation_job(u64 page_id, 
         }));
 }
 
-void ConnectionFromClient::run_changing_navigable_history_job(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, Web::HTML::LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior, bool superseded_by_newer_navigation)
+void ConnectionFromClient::queue_navigation_api_state_clear_task(u64 page_id, Web::HTML::CrossProcessId, Web::HTML::CrossProcessId navigable_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().top_level_traversable()->queue_navigation_api_state_clear_task(navigable_id);
+}
+
+void ConnectionFromClient::run_changing_navigable_history_job(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, bool superseded_by_newer_navigation)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -467,7 +473,7 @@ void ConnectionFromClient::run_changing_navigable_history_job(u64 page_id, Web::
         return;
     }
 
-    page->page().top_level_traversable()->run_ui_changing_navigable_history_job(operation_id, navigable_id, move(target_entry), user_involvement, navigation_type, navigation_api_abort_behavior, superseded_by_newer_navigation,
+    page->page().top_level_traversable()->run_ui_changing_navigable_history_job(operation_id, navigable_id, move(target_entry), user_involvement, navigation_type, superseded_by_newer_navigation,
         GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition) {
             async_changing_navigable_history_job_ready(page_id, operation_id, navigable_id, disposition);
         }));

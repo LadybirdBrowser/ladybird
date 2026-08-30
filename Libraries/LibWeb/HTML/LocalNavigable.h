@@ -151,13 +151,9 @@ public:
         Tag
     };
 
-    enum class NavigationAPIAbortBehavior {
-        Abort,
-        Preserve
-    };
-
     Variant<Empty, Traversal, Utf16String> ongoing_navigation() const { return m_ongoing_navigation; }
-    void set_ongoing_navigation(Variant<Empty, Traversal, Utf16String> ongoing_navigation, NavigationAPIAbortBehavior = NavigationAPIAbortBehavior::Abort);
+    void set_ongoing_navigation(Variant<Empty, Traversal, Utf16String> ongoing_navigation);
+    void set_ongoing_navigation_without_informing_navigation_api(Variant<Empty, Traversal, Utf16String> ongoing_navigation);
 
     bool resume_navigation_params_creation(Utf16String const& navigation_id, Optional<NavigationPopulationRequest>);
     void run_navigation_unload_check(Utf16String const& navigation_id, GC::Ref<GC::Function<void(bool)>> completion_steps);
