@@ -16,6 +16,8 @@ pub mod scroll_state;
 pub mod serialize;
 
 use std::collections::HashMap;
+use std::rc::Rc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::painting::display_list::commands::OptionalF32;
 use crate::painting::paintable_data::BorderEdge;
@@ -440,23 +442,23 @@ pub fn resolve_sorting_contexts_over_nodes(
     contexts
 }
 
+static NEXT_TREE_VERSION: AtomicU64 = AtomicU64::new(1);
+
+pub fn allocate_tree_version() -> u64 {
+    NEXT_TREE_VERSION.fetch_add(1, Ordering::Relaxed)
+}
+
 #[derive(Default)]
 pub struct VisualContextState {
-    pub tree: Option<VisualContextTree>,
+    pub tree: Option<Rc<VisualContextTree>>,
     pub paintables_with_mask_nodes: Vec<crate::layout::node_data::NodeSlotId>,
     pub scroll_state: scroll_state::ScrollState,
     pub scroll_state_snapshot: Vec<FloatPoint>,
     pub needs_to_refresh_scroll_state: bool,
     pub build_count: u64,
-    pub next_tree_version: u64,
 }
 
 impl VisualContextState {
-    pub fn allocate_tree_version(&mut self) -> u64 {
-        self.next_tree_version += 1;
-        self.next_tree_version
-    }
-
     pub fn tree_version(&self) -> u64 {
         self.tree.as_ref().map_or(0, |tree| tree.version)
     }
@@ -501,7 +503,7 @@ impl VisualContextTree {
             frame_nodes: Vec::new(),
             root_is_visual_viewport,
             root_isolation_frame: None,
-            version: 0,
+            version: allocate_tree_version(),
             reused_previous_version: false,
         }
     }

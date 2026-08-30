@@ -706,7 +706,7 @@ fn paint_image_layer(
             x: -tile_device_rect.x,
             y: -tile_device_rect.y,
         });
-        let tile_tree_handle = recorder.paint_host.materialize_visual_context_tree(&tile_tree);
+        let tile_tree_handle = recorder.paint_host.materialize_visual_context_tree(tile_tree);
         let tile_display_list_id = recorder
             .paint_host
             .nested_display_list_from_tree(&tile, tile_tree_handle, &[]);

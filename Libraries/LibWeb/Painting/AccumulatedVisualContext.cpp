@@ -18,6 +18,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/Layout/Box.h>
+#include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/Blending.h>
@@ -128,11 +129,71 @@ void AccumulatedVisualContextTree::set_visual_viewport_transform(TransformData t
     m_spatial_nodes[VISUAL_VIEWPORT_NODE_INDEX.value()].data = move(transform);
 }
 
-void AccumulatedVisualContextTree::reuse_version_from(AccumulatedVisualContextTree const& other)
+AccumulatedVisualContextTree::AccumulatedVisualContextTree(AccumulatedVisualContextTree const& other)
+    : m_version(other.m_version)
+    , m_rust_tree(other.m_rust_tree ? Layout::RustFFI::visual_context_tree_retain(other.m_rust_tree) : nullptr)
+    , m_spatial_nodes(other.m_spatial_nodes)
+    , m_frame_nodes(other.m_frame_nodes)
+    , m_root_is_visual_viewport(other.m_root_is_visual_viewport)
+    , m_root_isolation_frame(other.m_root_isolation_frame)
 {
-    VERIFY(m_spatial_nodes.size() == other.m_spatial_nodes.size());
-    VERIFY(m_frame_nodes.size() == other.m_frame_nodes.size());
+}
+
+AccumulatedVisualContextTree& AccumulatedVisualContextTree::operator=(AccumulatedVisualContextTree const& other)
+{
+    if (this == &other)
+        return *this;
+    adopt_rust_tree(other.m_rust_tree ? Layout::RustFFI::visual_context_tree_retain(other.m_rust_tree) : nullptr);
     m_version = other.m_version;
+    m_spatial_nodes = other.m_spatial_nodes;
+    m_frame_nodes = other.m_frame_nodes;
+    m_root_is_visual_viewport = other.m_root_is_visual_viewport;
+    m_root_isolation_frame = other.m_root_isolation_frame;
+    return *this;
+}
+
+AccumulatedVisualContextTree::AccumulatedVisualContextTree(AccumulatedVisualContextTree&& other)
+    : m_version(other.m_version)
+    , m_rust_tree(exchange(other.m_rust_tree, nullptr))
+    , m_spatial_nodes(move(other.m_spatial_nodes))
+    , m_frame_nodes(move(other.m_frame_nodes))
+    , m_root_is_visual_viewport(other.m_root_is_visual_viewport)
+    , m_root_isolation_frame(other.m_root_isolation_frame)
+{
+}
+
+AccumulatedVisualContextTree& AccumulatedVisualContextTree::operator=(AccumulatedVisualContextTree&& other)
+{
+    if (this == &other)
+        return *this;
+    adopt_rust_tree(exchange(other.m_rust_tree, nullptr));
+    m_version = other.m_version;
+    m_spatial_nodes = move(other.m_spatial_nodes);
+    m_frame_nodes = move(other.m_frame_nodes);
+    m_root_is_visual_viewport = other.m_root_is_visual_viewport;
+    m_root_isolation_frame = other.m_root_isolation_frame;
+    return *this;
+}
+
+AccumulatedVisualContextTree::~AccumulatedVisualContextTree()
+{
+    release_rust_tree();
+}
+
+void AccumulatedVisualContextTree::adopt_rust_tree(void const* retained_tree)
+{
+    release_rust_tree();
+    m_rust_tree = retained_tree;
+    if (m_rust_tree)
+        m_version = Layout::RustFFI::visual_context_tree_version(m_rust_tree);
+}
+
+void AccumulatedVisualContextTree::release_rust_tree()
+{
+    if (!m_rust_tree)
+        return;
+    Layout::RustFFI::visual_context_tree_release(m_rust_tree);
+    m_rust_tree = nullptr;
 }
 
 Vector<SpatialNodeIndex, 8> AccumulatedVisualContextTree::build_ancestor_chain(SpatialNodeIndex index) const

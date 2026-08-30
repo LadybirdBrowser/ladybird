@@ -357,7 +357,7 @@ impl<'a> PaintRecorder<'a> {
                 .map(|frames| frames.iter().copied().collect())
                 .unwrap_or_default();
         }
-        let Some(tree) = self.paint_state.visual_context.tree.as_ref() else {
+        let Some(tree) = self.paint_state.visual_context.tree.as_deref() else {
             return HashMap::new();
         };
         let (begin, end) = self.data(paintable).local_frame_range();
@@ -398,7 +398,7 @@ impl<'a> PaintRecorder<'a> {
         let tree = self
             .nested_tree
             .as_ref()
-            .or(self.paint_state.visual_context.tree.as_ref())
+            .or(self.paint_state.visual_context.tree.as_deref())
             .expect("recording runs against a visual context tree");
         tree.accumulated_2d_scale(
             spatial,

@@ -16,6 +16,7 @@ use crate::painting::host::FfiRecordedDisplayList;
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use std::ffi::c_void;
+use std::rc::Rc;
 
 /// SAFETY: `arena` must be a live handle from `layout_arena_create`, borrowed for this call on
 /// the document thread.
@@ -358,6 +359,14 @@ unsafe fn ffi_slice<'a, T>(data: *const T, length: usize) -> &'a [T] {
     // SAFETY: The caller guarantees `data` points at `length` valid values for
     // the duration of the borrow.
     unsafe { std::slice::from_raw_parts(data, length) }
+}
+
+/// # Safety
+///
+/// `tree` must be a live retained tree handle.
+unsafe fn tree_from_handle<'a>(tree: *const c_void) -> &'a crate::painting::visual_context::VisualContextTree {
+    // SAFETY: The caller guarantees `tree` is a live retained handle.
+    unsafe { &*tree.cast::<crate::painting::visual_context::VisualContextTree>() }
 }
 
 /// # Safety
@@ -931,15 +940,13 @@ pub unsafe extern "C" fn layout_arena_assign_accumulated_visual_contexts(
         let is_compatible = !force_incompatible_rebuild
             && state
                 .tree
-                .as_ref()
+                .as_deref()
                 .is_some_and(|previous| tree.is_compatible_with(previous));
         tree.reused_previous_version = is_compatible;
-        tree.version = if is_compatible {
-            state.tree_version()
-        } else {
-            state.allocate_tree_version()
-        };
-        state.tree = Some(tree);
+        if is_compatible {
+            tree.version = state.tree_version();
+        }
+        state.tree = Some(Rc::new(tree));
         state.paintables_with_mask_nodes = paintables_with_mask_nodes;
         state.scroll_state = scroll_state;
         state.scroll_state_snapshot.clear();
@@ -1011,7 +1018,7 @@ pub unsafe extern "C" fn layout_arena_update_visual_context_values(
             crate::painting::visual_context::build::update_visual_context_values(
                 &paintable_rows,
                 &callbacks,
-                tree,
+                Rc::make_mut(tree),
                 paintable,
                 pixel_ratio,
             )
@@ -1042,7 +1049,7 @@ pub unsafe extern "C" fn layout_arena_update_visual_viewport_transform(
             return false;
         };
         let inputs = callbacks.tree_inputs();
-        tree.set_visual_viewport_transform(
+        Rc::make_mut(tree).set_visual_viewport_transform(
             crate::painting::visual_context::node_values::visual_viewport_transform_data(&inputs),
         );
         true
@@ -1086,14 +1093,15 @@ pub unsafe extern "C" fn layout_arena_clear_scroll_state(arena: *mut c_void) {
 pub unsafe extern "C" fn layout_arena_refresh_sticky_constraints(
     arena: *mut c_void,
     callbacks: FfiVisualContextHostCallbacks,
-) {
+) -> bool {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintable_rows = arena.paintable_rows();
         let mut paint_state = arena.paint_state().borrow_mut();
         let state = &mut paint_state.visual_context;
+        let mut any_sticky_payload_changed = false;
         if let Some(tree) = state.tree.as_mut() {
-            crate::painting::visual_context::refresh::refresh_sticky_constraints(
+            any_sticky_payload_changed = crate::painting::visual_context::refresh::refresh_sticky_constraints(
                 &paintable_rows,
                 &state.scroll_state,
                 tree,
@@ -1101,7 +1109,8 @@ pub unsafe extern "C" fn layout_arena_refresh_sticky_constraints(
             );
         }
         state.needs_to_refresh_scroll_state = true;
-    });
+        any_sticky_payload_changed
+    })
 }
 
 /// # Safety
@@ -1278,7 +1287,8 @@ pub struct FfiImagePaintRecordInputs {
 /// # Safety
 ///
 /// `inputs` and its arrays must be live for the call; `consume` is called synchronously with a
-/// recording and a visual context tree pointer that are only valid during that call.
+/// recording that is only valid during that call and a retained visual context tree handle the
+/// host takes ownership of.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
     inputs: *const FfiImagePaintRecordInputs,
@@ -1383,7 +1393,7 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
             }
         }
         let recorded = recorder.into_builder().finish();
-        unsafe { consume(context, (&recorded).into(), std::ptr::from_ref(&tree).cast()) };
+        unsafe { consume(context, (&recorded).into(), Rc::into_raw(Rc::new(tree)).cast()) };
     });
 }
 
@@ -2342,9 +2352,11 @@ pub unsafe extern "C" fn layout_arena_stacking_context_tree_child(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread. The
+/// returned tree is retained; the caller owns one reference and releases it with
+/// `visual_context_tree_release`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_main_visual_context_tree(arena: *mut c_void) -> *const c_void {
+pub unsafe extern "C" fn layout_arena_main_visual_context_tree_retain(arena: *mut c_void) -> *const c_void {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paint_state = arena.paint_state().borrow();
@@ -2352,8 +2364,43 @@ pub unsafe extern "C" fn layout_arena_main_visual_context_tree(arena: *mut c_voi
             .visual_context
             .tree
             .as_ref()
-            .map_or(std::ptr::null(), |tree| std::ptr::from_ref(tree).cast())
+            .map_or(std::ptr::null(), |tree| Rc::into_raw(Rc::clone(tree)).cast())
     })
+}
+
+/// # Safety
+///
+/// `tree` must be a retained tree handle (from `layout_arena_main_visual_context_tree_retain`,
+/// a host callback, or an earlier retain), used on the thread that owns it.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn visual_context_tree_retain(tree: *const c_void) -> *const c_void {
+    abort_on_panic(|| {
+        // SAFETY: The caller guarantees `tree` is a live retained handle, so the strong count is at least one.
+        unsafe { Rc::increment_strong_count(tree.cast::<crate::painting::visual_context::VisualContextTree>()) };
+        tree
+    })
+}
+
+/// # Safety
+///
+/// `tree` must be null or a retained tree handle that the caller gives up with this call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn visual_context_tree_release(tree: *const c_void) {
+    abort_on_panic(|| {
+        if tree.is_null() {
+            return;
+        }
+        // SAFETY: The caller gives up the reference it retained, and the strong count is at least one.
+        unsafe { Rc::decrement_strong_count(tree.cast::<crate::painting::visual_context::VisualContextTree>()) };
+    });
+}
+
+/// # Safety
+///
+/// `tree` must be a live retained tree handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn visual_context_tree_version(tree: *const c_void) -> u64 {
+    abort_on_panic(|| unsafe { tree_from_handle(tree) }.version)
 }
 
 /// # Safety
@@ -2689,7 +2736,7 @@ fn with_hit_test_list_and_visual_context_tree<R>(
         return default;
     };
     list.build_derived_structures_if_needed();
-    let Some(tree) = visual_context.tree.as_ref() else {
+    let Some(tree) = visual_context.tree.as_deref() else {
         return default;
     };
     query(list, tree, arena)

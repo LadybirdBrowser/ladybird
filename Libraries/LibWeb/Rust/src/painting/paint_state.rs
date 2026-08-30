@@ -22,10 +22,8 @@ pub struct PaintState {
 
 impl PaintState {
     pub(crate) fn reset_visual_context_state(&mut self) {
-        let next_tree_version = self.visual_context.next_tree_version;
         self.visual_context = crate::painting::visual_context::VisualContextState {
             needs_to_refresh_scroll_state: true,
-            next_tree_version,
             ..Default::default()
         };
     }
