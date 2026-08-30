@@ -73,12 +73,8 @@ void CompositorConnection::destroy_context(Web::Compositor::CompositorContextId 
 
 static constexpr size_t max_image_frames_per_message = 100;
 
-void CompositorConnection::update_display_list(Web::Compositor::CompositorContextId context_id, NonnullRefPtr<Web::Painting::DisplayList> const& display_list, Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Web::Painting::DisplayListResourceTransaction resource_transaction, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot)
+bool CompositorConnection::post_image_frame_resources_in_batches(Web::Compositor::CompositorContextId context_id, Vector<Web::Painting::DisplayListImageFrameResource> image_frames)
 {
-    if (!can_send_message_to_compositor())
-        return;
-
-    auto image_frames = move(resource_transaction.image_frames);
     for (size_t start = 0; start < image_frames.size(); start += max_image_frames_per_message) {
         auto count = min(max_image_frames_per_message, image_frames.size() - start);
         Vector<Web::Painting::DisplayListImageFrameResource> batch;
@@ -88,20 +84,36 @@ void CompositorConnection::update_display_list(Web::Compositor::CompositorContex
         auto encoded_batch = MUST(Messages::CompositorWebContentServer::UpdateImageFrameResources::static_encode(context_id, batch));
         if (post_message(encoded_batch).is_error()) {
             did_lose_compositor();
-            return;
+            return false;
         }
     }
+    return true;
+}
+
+void CompositorConnection::update_display_list(Web::Compositor::CompositorContextId context_id, NonnullRefPtr<Web::Painting::DisplayList> const& display_list, Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Web::Painting::DisplayListResourceTransaction resource_transaction, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot)
+{
+    if (!can_send_message_to_compositor())
+        return;
+
+    if (!post_image_frame_resources_in_batches(context_id, move(resource_transaction.image_frames)))
+        return;
 
     auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateDisplayList::static_encode(context_id, display_list, visual_context_tree, resource_transaction, scroll_state_snapshot));
     if (post_message(encoded_message).is_error())
         did_lose_compositor();
 }
 
-void CompositorConnection::update_visual_context_tree(Web::Compositor::CompositorContextId context_id, Web::Painting::AccumulatedVisualContextTree const& visual_context_tree)
+void CompositorConnection::update_visual_context_tree(Web::Compositor::CompositorContextId context_id, Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Web::Painting::DisplayListResourceTransaction resource_transaction)
 {
     if (!can_send_message_to_compositor())
         return;
-    async_update_visual_context_tree(context_id, visual_context_tree);
+
+    if (!post_image_frame_resources_in_batches(context_id, move(resource_transaction.image_frames)))
+        return;
+
+    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateVisualContextTree::static_encode(context_id, visual_context_tree, resource_transaction));
+    if (post_message(encoded_message).is_error())
+        did_lose_compositor();
 }
 
 void CompositorConnection::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot)

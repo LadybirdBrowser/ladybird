@@ -271,7 +271,7 @@ TEST_CASE(visual_animations_advance_without_a_web_content_update)
     EXPECT_EQ(animated_pixel.blue(), 0);
     EXPECT_EQ(animated_pixel.alpha(), 128);
 
-    context.update_visual_context_tree(visual_context_tree);
+    context.update_visual_context_tree(visual_context_tree, {});
     EXPECT(!context.has_sampled_visual_animation_values_for_testing());
     auto const& restored_tree = context.visual_context_tree_for_testing();
     auto restored_translation = restored_tree.spatial_node_at(spatial).data.get<Web::Painting::TransformData>().matrix[0, 3];
@@ -379,7 +379,7 @@ TEST_CASE(culled_initial_animation_content_becomes_visible)
     auto opacity_frame = visual_context_tree.append_frame(Web::Painting::EffectsData {
                                                               .opacity = 0,
                                                               .blend_mode = Gfx::CompositingAndBlendingOperator::Normal,
-                                                              .gfx_filter = {},
+                                                              .filter_bytes = {},
                                                           },
         Web::Painting::NO_FRAME_NODE, opacity_spatial);
     Web::Compositor::VisualAnimationTransformOperation initial_scale {
@@ -881,10 +881,10 @@ TEST_CASE(tree_only_update_damages_transformed_commands)
 
     auto translated_tree = make_translated_visual_context_tree({ 4, 0 });
     translated_tree.reuse_version_from(visual_context_tree);
-    fixture.compositor_state->update_visual_context_tree(fixture.context_id, translated_tree);
+    fixture.compositor_state->update_visual_context_tree(fixture.context_id, translated_tree, {});
     EXPECT_EQ(fixture.present().damage_rect, (Gfx::IntRect { 1, 1, 10, 6 }));
 
-    fixture.compositor_state->update_visual_context_tree(fixture.context_id, make_translated_visual_context_tree({ 8, 0 }));
+    fixture.compositor_state->update_visual_context_tree(fixture.context_id, make_translated_visual_context_tree({ 8, 0 }), {});
     EXPECT(fixture.present().damage_rect.is_empty());
 }
 

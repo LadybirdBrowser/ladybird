@@ -164,18 +164,10 @@ static bool frame_data_is_equal(FrameData const& a, FrameData const& b)
         },
         [&](EffectsData const& data) {
             auto const* other = b.get_pointer<EffectsData>();
-            if (!other || data.gfx_filter.has_value() != other->gfx_filter.has_value())
-                return false;
-            if (data.gfx_filter.has_value()) {
-                Function<u64(Gfx::DecodedImageFrame const&)> encode_image = [](Gfx::DecodedImageFrame const& image) -> u64 {
-                    return reinterpret_cast<FlatPtr>(&image);
-                };
-                if (Gfx::serialize_filter(*data.gfx_filter, encode_image) != Gfx::serialize_filter(*other->gfx_filter, encode_image))
-                    return false;
-            }
             return other
                 && data.opacity == other->opacity
-                && data.blend_mode == other->blend_mode;
+                && data.blend_mode == other->blend_mode
+                && data.filter_bytes == other->filter_bytes;
         },
         [&](MaskData const&) {
             // Mask content is per-recording and invisible here, so mask chains always damage.

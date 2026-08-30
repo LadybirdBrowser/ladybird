@@ -298,8 +298,9 @@ Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list
     auto& document_paint_state = m_document->paint_state();
     VERIFY(document_paint_state.display_list_used_as_paint_command_cache_source() == display_list.ptr());
     auto referenced_resources = document_paint_state.paint_command_cache_source_referenced_resources();
-    copy_referenced_resources_to(destination_resource_storage, resource_storage, referenced_resources);
     auto visual_context_tree = document_paint_state.visual_context_tree(*m_document);
+    referenced_resources.include(resource_storage.collect_referenced_resources(visual_context_tree));
+    copy_referenced_resources_to(destination_resource_storage, resource_storage, referenced_resources);
     auto display_list_resource = Painting::DisplayListResource { *display_list, visual_context_tree };
     m_cached_display_lists.set(key, CachedDisplayList { NonnullRefPtr<Painting::DisplayList> { *display_list }, move(visual_context_tree), move(referenced_resources) });
     prune_cached_display_list_resources();

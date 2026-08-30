@@ -37,7 +37,7 @@ public:
     void stop_presenting_to_client();
 
     void update_display_list(NonnullRefPtr<Painting::DisplayList>, Painting::AccumulatedVisualContextTree, Painting::DisplayListResourceTransaction&&, Painting::ScrollStateSnapshot&&);
-    void update_visual_context_tree(Painting::AccumulatedVisualContextTree);
+    void update_visual_context_tree(Painting::AccumulatedVisualContextTree, Painting::DisplayListResourceTransaction&&);
     void add_video_sink(Media::VideoSinkHandle);
     void remove_video_sink(Media::VideoSinkHandle);
     void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick);
@@ -82,7 +82,7 @@ public:
     virtual void stop_presenting_to_client(CompositorContextId) = 0;
 
     virtual void update_display_list(CompositorContextId, NonnullRefPtr<Painting::DisplayList>, Painting::AccumulatedVisualContextTree, Painting::DisplayListResourceTransaction&&, Painting::ScrollStateSnapshot&&) = 0;
-    virtual void update_visual_context_tree(CompositorContextId, Painting::AccumulatedVisualContextTree) = 0;
+    virtual void update_visual_context_tree(CompositorContextId, Painting::AccumulatedVisualContextTree, Painting::DisplayListResourceTransaction&&) = 0;
     virtual void add_video_sink(Media::VideoSinkHandle) = 0;
     virtual void remove_video_sink(Media::VideoSinkHandle) = 0;
     virtual void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick) = 0;

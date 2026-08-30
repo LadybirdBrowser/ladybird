@@ -540,6 +540,7 @@ private:
     u64 m_compositor_display_list_visual_context_tree_version { 0 };
     Painting::DisplayListResourceStorage m_display_list_resource_storage;
     Painting::DisplayListResourceSet m_compositor_display_list_resources;
+    Painting::DisplayListResourceSet m_compositor_display_list_command_resources;
     OwnPtr<Compositor::CompositorContextHandle> m_compositor_context;
     RefPtr<Core::Timer> m_async_scroll_hover_update_timer;
     Vector<PendingUserScrollendTarget> m_pending_user_scrollend_targets;

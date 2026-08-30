@@ -5114,6 +5114,7 @@ void LocalNavigable::repaint_after_compositor_process_reconnect()
         m_needs_to_record_display_list = true;
         m_compositor_display_list_paint_config.clear();
         m_compositor_display_list_resources = {};
+        m_compositor_display_list_command_resources = {};
     }
 
     for (auto const& child_navigable : child_navigables())
@@ -5144,6 +5145,23 @@ void LocalNavigable::set_should_show_caret_hit_test_debug_overlay(bool value)
         child_navigable->set_should_show_caret_hit_test_debug_overlay(value);
 }
 
+static Painting::DisplayListResourceSet command_resources_of_display_list(Painting::DisplayListResourceStorage const& resource_storage, Painting::DocumentPaintState const& document_paint_state, Painting::DisplayList const& display_list)
+{
+    if (document_paint_state.display_list_used_as_paint_command_cache_source() == &display_list)
+        return document_paint_state.paint_command_cache_source_referenced_resources();
+    return resource_storage.collect_referenced_resources(display_list);
+}
+
+static Painting::DisplayListResourceSet compositor_display_list_resources(Painting::DisplayListResourceStorage const& resource_storage, Painting::DocumentPaintState const& document_paint_state, Painting::DisplayListResourceSet const& display_list_command_resources, Painting::AccumulatedVisualContextTree const& visual_context_tree)
+{
+    auto resources = display_list_command_resources;
+    // A recording downgraded to cache-read-only leaves the retained source and the cached ranges
+    // into it live, so the resources they reference must survive the pruning that follows.
+    document_paint_state.append_paint_command_cache_source_resources(resources);
+    resources.include(resource_storage.collect_referenced_resources(visual_context_tree));
+    return resources;
+}
+
 bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_config)
 {
     if (!has_compositor_context())
@@ -5162,6 +5180,7 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
         || !(m_compositor_display_list_paint_config.value() == paint_config);
 
     RefPtr<Painting::DisplayList> display_list;
+    Painting::DisplayListResourceSet display_list_command_resources;
     Painting::DisplayListResourceSet display_list_resources;
     Painting::DisplayListResourceTransaction resource_transaction;
     Optional<Painting::AccumulatedVisualContextTree> visual_context_tree;
@@ -5172,14 +5191,8 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
             return false;
         VERIFY(document->has_committed_viewport_box());
         visual_context_tree = document_paint_state.visual_context_tree(*document);
-        if (document_paint_state.display_list_used_as_paint_command_cache_source() == display_list.ptr()) {
-            display_list_resources.include(document_paint_state.paint_command_cache_source_referenced_resources());
-        } else {
-            // A recording downgraded to cache-read-only leaves the retained source and the cached ranges
-            // into it live, so the resources they reference must survive the pruning below.
-            display_list_resources = m_display_list_resource_storage.collect_referenced_resources(*display_list);
-            document_paint_state.append_paint_command_cache_source_resources(display_list_resources);
-        }
+        display_list_command_resources = command_resources_of_display_list(m_display_list_resource_storage, document_paint_state, *display_list);
+        display_list_resources = compositor_display_list_resources(m_display_list_resource_storage, document_paint_state, display_list_command_resources, *visual_context_tree);
         resource_transaction = m_display_list_resource_storage.create_transaction(
             m_compositor_display_list_resources,
             display_list_resources);
@@ -5195,14 +5208,20 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
         compositor_context().update_display_list(*display_list, visual_context_tree.release_value(), move(resource_transaction), move(scroll_state_snapshot));
         document_paint_state.did_update_visual_context_tree_in_compositor();
         m_display_list_resource_storage.retain_only(display_list_resources);
+        m_compositor_display_list_command_resources = move(display_list_command_resources);
         m_compositor_display_list_resources = move(display_list_resources);
         m_needs_to_record_display_list = false;
         m_compositor_display_list_paint_config = paint_config;
     } else {
         if (visual_context_tree_needs_compositor_update) {
-            VERIFY(document_paint_state.visual_context_tree(*document).version() == m_compositor_display_list_visual_context_tree_version);
-            compositor_context().update_visual_context_tree(document_paint_state.visual_context_tree(*document));
+            auto const& updated_visual_context_tree = document_paint_state.visual_context_tree(*document);
+            VERIFY(updated_visual_context_tree.version() == m_compositor_display_list_visual_context_tree_version);
+            auto updated_display_list_resources = compositor_display_list_resources(m_display_list_resource_storage, document_paint_state, m_compositor_display_list_command_resources, updated_visual_context_tree);
+            auto updated_resource_transaction = m_display_list_resource_storage.create_transaction(m_compositor_display_list_resources, updated_display_list_resources);
+            compositor_context().update_visual_context_tree(updated_visual_context_tree, move(updated_resource_transaction));
             document_paint_state.did_update_visual_context_tree_in_compositor();
+            m_display_list_resource_storage.retain_only(updated_display_list_resources);
+            m_compositor_display_list_resources = move(updated_display_list_resources);
         }
         compositor_context().update_scroll_state(move(scroll_state_snapshot));
     }

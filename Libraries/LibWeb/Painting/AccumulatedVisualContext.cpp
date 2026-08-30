@@ -725,7 +725,7 @@ void AccumulatedVisualContextTree::dump_frame_node(FrameNodeIndex index, StringB
                 builder.appendff("blend_mode={}", static_cast<int>(effects.blend_mode));
                 has_content = true;
             }
-            if (effects.gfx_filter.has_value()) {
+            if (effects.filter_bytes.has_value()) {
                 if (has_content)
                     builder.append(' ');
                 builder.append("filter"sv);
@@ -919,7 +919,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::Painting::EffectsData const& data)
 {
     TRY(encoder.encode(data.opacity));
     TRY(encoder.encode(data.blend_mode));
-    TRY(encoder.encode(data.gfx_filter));
+    TRY(encoder.encode(data.filter_bytes));
     return {};
 }
 
@@ -929,7 +929,7 @@ ErrorOr<Web::Painting::EffectsData> decode(Decoder& decoder)
     return Web::Painting::EffectsData {
         .opacity = TRY(decoder.decode<float>()),
         .blend_mode = TRY(decoder.decode<Gfx::CompositingAndBlendingOperator>()),
-        .gfx_filter = TRY(decoder.decode<Optional<Gfx::Filter>>()),
+        .filter_bytes = TRY(decoder.decode<Optional<ByteBuffer>>()),
     };
 }
 

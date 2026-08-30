@@ -6,12 +6,12 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
 #include <AK/DistinctNumeric.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/CornerRadii.h>
-#include <LibGfx/Filter.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Matrix4x4.h>
 #include <LibGfx/Path.h>
@@ -103,7 +103,7 @@ struct ClipPathData {
 struct EffectsData {
     float opacity { 1.0f };
     Gfx::CompositingAndBlendingOperator blend_mode { Gfx::CompositingAndBlendingOperator::Normal };
-    Optional<Gfx::Filter> gfx_filter;
+    Optional<ByteBuffer> filter_bytes;
 };
 
 enum class MaskLayerOrigin : u8 {
