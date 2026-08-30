@@ -1,0 +1,14 @@
+mid-animation: needsRepaint=true needsDisplayListRecord=false
+zero-area end: needsRepaint=true needsDisplayListRecord=false
+Display list at the zero-area end:
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  frames:
+    [f0 in s0] effects=[]
+      [f1 in s1] clip_path=[bounds: 8,8 100x100, path: M58 58L58 58L58 58L58 58Z] (BlockContainer<DIV>#box)
+
+DisplayList:
+FillRect@s1/f1 rect=[8,8 100x100] color=rgb(0, 128, 0)
+

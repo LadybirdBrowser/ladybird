@@ -1,0 +1,43 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #box {
+        width: 100px;
+        height: 100px;
+        background: green;
+    }
+</style>
+<div id="box"></div>
+<script>
+    promiseTest(async () => {
+        const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+        const box = document.getElementById("box");
+        const animation = box.animate([
+            { clipPath: "inset(0px)" },
+            { clipPath: "inset(50%)" },
+        ], { duration: 1000, fill: "forwards" });
+        animation.pause();
+        animation.currentTime = 0;
+        await nextFrame();
+        await nextFrame();
+
+        const lines = [];
+        animation.currentTime = 500;
+        document.body.offsetWidth;
+        lines.push(`mid-animation: needsRepaint=${internals.needsRepaint} needsDisplayListRecord=${internals.needsDisplayListRecord}`);
+        await nextFrame();
+        await nextFrame();
+
+        animation.currentTime = 1000;
+        document.body.offsetWidth;
+        lines.push(`zero-area end: needsRepaint=${internals.needsRepaint} needsDisplayListRecord=${internals.needsDisplayListRecord}`);
+        await nextFrame();
+        await nextFrame();
+        const displayListAtEnd = internals.dumpDisplayList();
+
+        for (const line of lines)
+            println(line);
+        println("Display list at the zero-area end:");
+        println(displayListAtEnd);
+    });
+</script>

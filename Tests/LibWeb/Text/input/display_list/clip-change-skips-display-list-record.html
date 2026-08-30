@@ -1,0 +1,65 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #box {
+        width: 100px;
+        height: 100px;
+        background: green;
+        clip-path: inset(10px);
+    }
+    #clipped {
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        background: blue;
+        clip: rect(0px, 50px, 50px, 0px);
+    }
+</style>
+<svg width="0" height="0"><clipPath id="svg-clip"><rect width="50" height="50" /></clipPath></svg>
+<div id="box"></div>
+<div id="clipped"></div>
+<script>
+    promiseTest(async () => {
+        const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+        const settle = async () => {
+            await nextFrame();
+            await nextFrame();
+        };
+        const report = (label) => {
+            document.body.offsetWidth;
+            println(`${label}: needsRepaint=${internals.needsRepaint} needsDisplayListRecord=${internals.needsDisplayListRecord}`);
+        };
+
+        await settle();
+        box.style.clipPath = "inset(20px)";
+        report("clip-path basic shape -> basic shape");
+
+        await settle();
+        box.style.clipPath = "inset(50%)";
+        report("clip-path basic shape -> zero-area basic shape");
+
+        await settle();
+        box.style.clipPath = "inset(0px)";
+        report("clip-path zero-area basic shape -> basic shape");
+
+        await settle();
+        box.style.clipPath = "url(#svg-clip)";
+        report("clip-path basic shape -> url()");
+
+        await settle();
+        box.style.clipPath = "inset(10px)";
+        report("clip-path url() -> basic shape");
+
+        await settle();
+        box.style.clipPath = "none";
+        report("clip-path basic shape -> none");
+
+        await settle();
+        clipped.style.clip = "rect(0px, 20px, 20px, 0px)";
+        report("clip rect -> rect");
+
+        await settle();
+        clipped.style.clip = "auto";
+        report("clip rect -> auto");
+    });
+</script>

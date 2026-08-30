@@ -1,0 +1,8 @@
+clip-path basic shape -> basic shape: needsRepaint=true needsDisplayListRecord=false
+clip-path basic shape -> zero-area basic shape: needsRepaint=true needsDisplayListRecord=false
+clip-path zero-area basic shape -> basic shape: needsRepaint=true needsDisplayListRecord=false
+clip-path basic shape -> url(): needsRepaint=true needsDisplayListRecord=true
+clip-path url() -> basic shape: needsRepaint=true needsDisplayListRecord=true
+clip-path basic shape -> none: needsRepaint=true needsDisplayListRecord=true
+clip rect -> rect: needsRepaint=true needsDisplayListRecord=false
+clip rect -> auto: needsRepaint=true needsDisplayListRecord=true
