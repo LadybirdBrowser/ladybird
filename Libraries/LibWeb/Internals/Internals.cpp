@@ -1201,6 +1201,16 @@ bool Internals::run_empty_animation_style_update_for_testing()
     return window().associated_document().run_empty_animation_style_update_for_testing({});
 }
 
+void Internals::arm_compositor_animation_timers_for_testing()
+{
+    window().associated_document().arm_compositor_animation_timers_for_testing({});
+}
+
+void Internals::request_reentrant_animation_style_flush_for_testing(GC::Ref<DOM::Node> node)
+{
+    window().associated_document().request_reentrant_animation_style_flush_for_testing({}, node);
+}
+
 GC::Ref<JS::Object> Internals::layout_tree_build_stats()
 {
     auto object = JS::Object::create(window().principal_realm(), nullptr);
@@ -1790,6 +1800,8 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
         ? document.paint_state().visual_context_tree(document).visual_animations().size()
         : 0;
     object->define_direct_property("compositorVisualAnimations"_utf16_fly_string, JS::Value(compositor_visual_animation_count), JS::default_attributes);
+    object->define_direct_property("compositorAnimationWakeupTimerActive"_utf16_fly_string, JS::Value(document.compositor_animation_wakeup_timer_is_active()), JS::default_attributes);
+    object->define_direct_property("compositorAnimationObservationTimerActive"_utf16_fly_string, JS::Value(document.compositor_animation_observation_timer_is_active()), JS::default_attributes);
     object->define_direct_property("baseStylePartialBuilds"_utf16_fly_string, JS::Value(counters.base_style_partial_builds), JS::default_attributes);
     object->define_direct_property("baseStyleFullBuilds"_utf16_fly_string, JS::Value(counters.base_style_full_builds), JS::default_attributes);
     object->define_direct_property("computedLonghandEvaluations"_utf16_fly_string, JS::Value(counters.computed_longhand_evaluations), JS::default_attributes);
