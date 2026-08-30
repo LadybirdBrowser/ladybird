@@ -1259,12 +1259,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             Layout::RustFFI::layout_arena_paint_push_bytes(sink, filter_data.data(), filter_data.size());
             return true;
         },
-        .nested_display_list_from_bytes = [](void* context_pointer, Layout::RustFFI::FfiRecordedDisplayList recorded, Gfx::IntPoint content_offset) -> u64 {
-            auto& context = *static_cast<PaintHostContext*>(context_pointer);
-            auto visual_context_tree = AccumulatedVisualContextTree::create_with_content_offset(content_offset);
-            auto display_list = display_list_from_rust_recording(visual_context_tree, recorded);
-            return context.resource_storage.add_display_list(move(display_list), visual_context_tree).value();
-        },
         .svg_image_facts = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiSvgImageFacts {
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
             auto const* row = committed_row(layout_node);

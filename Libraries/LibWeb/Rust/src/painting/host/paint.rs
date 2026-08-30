@@ -10,9 +10,7 @@ use crate::layout::used_values;
 use crate::painting::display_list::builder::RecordedDisplayList;
 use crate::painting::display_list::commands::{DisplayListCommandRun, DisplayListResourceId, FrameNodeIndex};
 use crate::painting::display_list::commands::{OptionalAffineTransform, OptionalColor};
-use libgfx_rust::{
-    AffineTransform, Color, FloatMatrix4x4, FloatRect, FloatSize, IntPoint, IntRect, InterpolationColorSpace,
-};
+use libgfx_rust::{AffineTransform, Color, FloatMatrix4x4, FloatRect, FloatSize, IntRect, InterpolationColorSpace};
 use std::ffi::c_void;
 
 #[derive(Clone, Copy, Debug)]
@@ -403,7 +401,6 @@ pub struct FfiPaintHostCallbacks {
     pub replaced_image_paint:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FloatRect, FloatSize) -> FfiImagePaintFacts,
     pub backdrop_filter_bytes: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> bool,
-    pub nested_display_list_from_bytes: unsafe extern "C" fn(*mut c_void, FfiRecordedDisplayList, IntPoint) -> u64,
     pub svg_image_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiSvgImageFacts,
     pub svg_paint_style: unsafe extern "C" fn(
         *mut c_void,
@@ -588,15 +585,6 @@ impl FfiPaintHostCallbacks {
         let has_filter =
             unsafe { (self.backdrop_filter_bytes)(self.context, layout_node_shell, (&raw mut bytes).cast()) };
         has_filter.then_some(bytes)
-    }
-    pub(crate) fn nested_display_list_from_bytes(
-        &self,
-        recorded: &RecordedDisplayList,
-        content_offset: libgfx_rust::IntPoint,
-    ) -> DisplayListResourceId {
-        // SAFETY: The C++ host copies the recording synchronously.
-        let id = unsafe { (self.nested_display_list_from_bytes)(self.context, recorded.into(), content_offset) };
-        DisplayListResourceId(id)
     }
     pub(crate) fn svg_image_facts(&self, layout_node_shell: *mut c_void) -> FfiSvgImageFacts {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
