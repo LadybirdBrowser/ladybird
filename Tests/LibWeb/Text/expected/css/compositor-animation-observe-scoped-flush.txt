@@ -1,0 +1,3 @@
+animation uses compositor: true
+unrelated observation skips animation sample: true
+descendant observation samples ancestor animation: true

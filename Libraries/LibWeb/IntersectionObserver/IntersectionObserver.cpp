@@ -211,7 +211,7 @@ void IntersectionObserver::observe(DOM::Element& target)
 
     // AD-HOC: Registering an observation changes whether transforms can remain compositor driven. Bring any pending
     //         throttled animation state to a point where compositor eligibility can be updated by the requested frame.
-    target.document().flush_throttled_animation_style_update();
+    target.document().flush_throttled_animation_style_update_for_node(target);
     m_document->page().client().request_frame();
 }
 
