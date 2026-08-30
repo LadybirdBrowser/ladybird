@@ -40,6 +40,8 @@ public:
     };
     static ErrorOr<Paired> create_paired();
 
+    static void raise_receive_queue_limit(Core::MachPort const&);
+
     TransportMachPort(Core::MachPort receive_right, Core::MachPort send_right);
     ~TransportMachPort();
 

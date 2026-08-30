@@ -1,4 +1,7 @@
 if (UNIX AND NOT APPLE)
     ladybird_test("TestTransportSocket.cpp" LibIPC LIBS LibIPC LibSync)
 endif()
+if (APPLE)
+    ladybird_test("TestTransportMachPort.cpp" LibIPC LIBS LibIPC LibCore)
+endif()
 ladybird_test("TestConnection.cpp" LibIPC LIBS LibIPC LibThreading)
