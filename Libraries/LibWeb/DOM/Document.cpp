@@ -8267,6 +8267,18 @@ void Document::update_compositor_animations()
         return false;
     };
 
+    auto opacity_affects_visibility_observation = [&](Element const& animated_target) {
+        for (auto const& observer : m_intersection_observers) {
+            if (!observer.track_visibility())
+                continue;
+            for (auto const& observation : observer.observation_targets()) {
+                if (animated_target.is_shadow_including_inclusive_ancestor_of(*observation.target))
+                    return true;
+            }
+        }
+        return false;
+    };
+
     for (auto& animation : m_associated_animations) {
         if (!animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
             continue;
@@ -8407,6 +8419,13 @@ void Document::update_compositor_animations()
         }
         if (only_translates_horizontally.has_value())
             only_translates_horizontally_cache.set(effect, *only_translates_horizontally);
+
+        if (selected_for_opacity && opacity_affects_visibility_observation(target)) {
+            effect_visual_animations.remove_all_matching([](auto const& animation) {
+                return animation.target_kind == Compositor::VisualAnimation::TargetKind::Opacity;
+            });
+            opacity_was_handed_off = false;
+        }
 
         bool transform_affects_observation = false;
         bool requires_main_thread_observation_sampling = false;
