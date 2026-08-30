@@ -5,7 +5,8 @@
  */
 
 use libgfx_rust::bsp_tree::{
-    BspPolygon, map_polygon_through_projection, map_rect_through_projection, split_and_sort_polygons_back_to_front,
+    BspPolygon, map_polygon_through_projection, map_rect_through_projection, polygon_crosses_eye_plane,
+    split_and_sort_polygons_back_to_front,
 };
 use libgfx_rust::{FloatMatrix4x4, FloatRect, FloatVector3};
 
@@ -194,7 +195,7 @@ impl DepthSortedPlanBuilder<'_> {
         //        clipped content independently, truncating filter output at the piece boundary and seaming it along the cut.
         for polygon in split_and_sort_polygons_back_to_front(polygons, eye, context_to_device) {
             let run = &runs[polygon.plane_index];
-            if polygon.clipped {
+            if polygon.clipped || polygon_crosses_eye_plane(context_to_device, &polygon.vertices) {
                 let clip_vertices = map_polygon_through_projection(context_to_device, &polygon.vertices);
                 if clip_vertices.len() < 3 {
                     continue;
@@ -581,6 +582,40 @@ mod tests {
         assert!(push_steps.iter().all(|step| {
             step.vertex_count >= 3 && step.vertex_offset as usize + step.vertex_count as usize <= plan.vertices.len()
         }));
+    }
+
+    #[test]
+    fn a_plane_crossing_the_eye_plane_emits_a_clip_without_splitting() {
+        let contexts = sorting_contexts(&[0, 0, 1], &[None, None, Some(1)]);
+        let command_runs = [command_run(2)];
+        let (mut palette, draw_space, backface_culled) = identity_inputs(3);
+        let mut perspective = FloatMatrix4x4::identity();
+        perspective.elements[3][2] = -0.0025;
+        palette[1] = perspective;
+        palette[2] =
+            perspective.multiplied(rotate_y(std::f32::consts::FRAC_PI_2).multiplied(scale_matrix(100.0, 100.0, 100.0)));
+        let plan = build_depth_sorted_replay_plan(
+            &command_runs,
+            &contexts,
+            &palette,
+            &leaf_to_context_palette(&contexts, &palette),
+            &draw_space,
+            &backface_culled,
+            &[],
+        );
+        let push_count = plan
+            .steps
+            .iter()
+            .filter(|step| step.kind == DepthSortedReplayStepKind::PushPlaneClip)
+            .count();
+        let pop_count = plan
+            .steps
+            .iter()
+            .filter(|step| step.kind == DepthSortedReplayStepKind::PopPlaneClip)
+            .count();
+        assert_eq!(push_count, 1);
+        assert_eq!(pop_count, 1);
+        assert_eq!(run_spans(&plan), vec![(0, 1)]);
     }
 
     #[test]
