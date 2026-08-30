@@ -2683,12 +2683,18 @@ void Document::sample_animation_effects_needing_style_update()
     }
 
     m_has_throttled_animation_style_update = has_throttled_animation_style_update;
+    if (m_force_throttled_animation_style_update)
+        m_last_forced_throttled_animation_style_update_task_generation = relevant_settings_object().responsible_event_loop().task_generation();
     m_force_throttled_animation_style_update = false;
 }
 
 void Document::flush_throttled_animation_style_update()
 {
     if (!m_has_throttled_animation_style_update)
+        return;
+    auto task_generation = relevant_settings_object().responsible_event_loop().task_generation();
+    if (!m_needs_animated_style_update
+        && m_last_forced_throttled_animation_style_update_task_generation == task_generation)
         return;
     m_has_throttled_animation_style_update = false;
     m_force_throttled_animation_style_update = true;
