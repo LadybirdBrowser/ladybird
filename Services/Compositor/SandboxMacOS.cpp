@@ -9,7 +9,6 @@
 #include <Compositor/Sandbox.h>
 #include <LibCore/Directory.h>
 #include <LibCore/System.h>
-#include <LibGfx/Font/FontDatabase.h>
 #include <LibSandbox/Sandbox.h>
 #include <LibWebView/Utilities.h>
 #include <limits.h>
@@ -31,8 +30,6 @@ ErrorOr<void> apply_sandbox(StringView cache_path)
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, LexicalPath::join(build_root, "lib"sv).string(), Sandbox::SeatbeltPath::Access::ReadAndExecute));
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, LexicalPath::join(build_root, "vcpkg_installed"sv).string(), Sandbox::SeatbeltPath::Access::ReadAndExecute));
 
-    for (auto const& path : TRY(Gfx::FontDatabase::font_directories()))
-        TRY(Sandbox::add_seatbelt_path_if_exists(paths, path, Sandbox::SeatbeltPath::Access::ReadOnly));
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, TRY(String::formatted("{}/fonts", WebView::s_ladybird_resource_root)), Sandbox::SeatbeltPath::Access::ReadOnly));
 
     TRY(Core::Directory::create(cache_path, Core::Directory::CreateDirectories::Yes));

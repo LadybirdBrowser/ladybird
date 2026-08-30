@@ -75,6 +75,9 @@ public:
     virtual u16 width() const = 0;
     virtual u8 slope() const = 0;
 
+    ReadonlyBytes font_data() const LIFETIME_BOUND { return buffer(); }
+    u32 collection_index() const { return ttc_index(); }
+
     [[nodiscard]] NonnullRefPtr<Font> font(float point_size, FontVariationSettings const& variations = {}, Gfx::ShapeFeatures const& shape_features = {}) const;
 
     void set_system_font_identifier(SystemFontIdentifier identifier) { m_system_font_identifier = identifier; }

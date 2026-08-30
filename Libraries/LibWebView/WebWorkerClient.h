@@ -49,6 +49,10 @@ public:
     virtual void did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage) override;
     virtual Messages::WebWorkerClient::StartWorkerAgentResponse start_worker_agent(Web::HTML::WorkerAgentStartRequest request) override;
     virtual void close_worker_agent(Web::HTML::WorkerAgentId, Web::HTML::WorkerAgentOwnerToken) override;
+    virtual Messages::WebWorkerClient::OpenSystemFontResponse open_system_font(u64 generation, u64 face_id) override;
+    virtual Messages::WebWorkerClient::MatchSystemFontResponse match_system_font(String family, u16 weight, u16 width, u8 slope) override;
+    virtual Messages::WebWorkerClient::MatchSystemFontForCodePointResponse match_system_font_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) override;
+    virtual Messages::WebWorkerClient::ResolveGenericFontResponse resolve_generic_font(String family, u16 weight, u8 slope) override;
 
 private:
     virtual void die() override;

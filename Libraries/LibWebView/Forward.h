@@ -26,6 +26,7 @@ class CookieJar;
 class DownloadStore;
 class ExternalURLHandler;
 class FaviconStore;
+class FontService;
 class HistoryStore;
 class HSTSStore;
 class Menu;

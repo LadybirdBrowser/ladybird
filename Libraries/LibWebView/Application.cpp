@@ -36,6 +36,7 @@
 #include <LibWebView/CompositorClient.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/FaviconStore.h>
+#include <LibWebView/FontService.h>
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/HelperProcess.h>
@@ -682,6 +683,8 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     };
 
     create_platform_options(m_browser_options, m_request_server_options, m_web_content_options);
+
+    m_font_service = FontService::create();
 
     // Test mode implies experimental interfaces and internals object are exposed and the Skia CPU backend is used.
     if (m_web_content_options.is_test_mode == IsTestMode::Yes) {

@@ -8,7 +8,6 @@
 #include <LibCore/Directory.h>
 #include <LibCore/Environment.h>
 #include <LibCore/StandardPaths.h>
-#include <LibGfx/Font/FontDatabase.h>
 #include <LibSandbox/Sandbox.h>
 #include <LibSandbox/Seccomp.h>
 #include <LibWebView/Utilities.h>
@@ -21,8 +20,6 @@ ErrorOr<void> apply_sandbox(StringView)
     TRY(Sandbox::configure_runtime());
 
     Vector<Sandbox::LandlockPath> paths;
-    for (auto const& path : TRY(Gfx::FontDatabase::font_directories()))
-        TRY(Sandbox::add_landlock_path_if_exists(paths, path, Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, TRY(String::formatted("{}/fonts", WebView::s_ladybird_resource_root)), Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/lib"sv, Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/lib64"sv, Sandbox::LandlockPath::Access::ReadOnly));

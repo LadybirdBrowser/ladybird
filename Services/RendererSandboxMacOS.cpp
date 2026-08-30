@@ -7,7 +7,6 @@
 #include <AK/LexicalPath.h>
 #include <LibCore/Directory.h>
 #include <LibCore/System.h>
-#include <LibGfx/Font/FontDatabase.h>
 #include <LibSandbox/Sandbox.h>
 #include <LibWebView/Utilities.h>
 #include <Services/RendererSandbox.h>
@@ -32,9 +31,6 @@ ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringVie
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, LexicalPath::join(build_root, "bin"sv).string(), Sandbox::SeatbeltPath::Access::ReadOnly));
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, LexicalPath::join(build_root, "lib"sv).string(), Sandbox::SeatbeltPath::Access::ReadAndExecute));
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, LexicalPath::join(build_root, "vcpkg_installed"sv).string(), Sandbox::SeatbeltPath::Access::ReadAndExecute));
-
-    for (auto const& path : TRY(Gfx::FontDatabase::font_directories()))
-        TRY(Sandbox::add_seatbelt_path_if_exists(paths, path, Sandbox::SeatbeltPath::Access::ReadOnly));
 
     if (cache_path.has_value()) {
         TRY(Core::Directory::create(*cache_path, Core::Directory::CreateDirectories::Yes));

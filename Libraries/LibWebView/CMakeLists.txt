@@ -24,6 +24,7 @@ set(SOURCES
     ExternalURLHandler.cpp
     FaviconStore.cpp
     FileDownloader.cpp
+    FontService.cpp
     Geolocation.cpp
     HeadlessWebView.cpp
     HelperProcess.cpp

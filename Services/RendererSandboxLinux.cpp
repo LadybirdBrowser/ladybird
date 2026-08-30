@@ -8,7 +8,6 @@
 #include <LibCore/Directory.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
-#include <LibGfx/Font/FontDatabase.h>
 #include <LibSandbox/Sandbox.h>
 #include <LibSandbox/Seccomp.h>
 #include <LibWebView/Utilities.h>
@@ -32,9 +31,6 @@ ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringVie
     TRY(Sandbox::add_landlock_path_if_exists(paths, executable_path, Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, LexicalPath::join(build_root, "lib"sv).string(), Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/proc/self"sv, Sandbox::LandlockPath::Access::ReadOnly));
-    for (auto const& path : TRY(Gfx::FontDatabase::font_directories()))
-        TRY(Sandbox::add_landlock_path_if_exists(paths, path, Sandbox::LandlockPath::Access::ReadOnly));
-
     auto pulse_runtime_path = LexicalPath::join(TRY(Core::StandardPaths::runtime_directory()), "pulse"sv).string();
     TRY(Core::Directory::create(pulse_runtime_path, Core::Directory::CreateDirectories::Yes, 0700));
     TRY(Sandbox::add_landlock_path_if_exists(paths, pulse_runtime_path, Sandbox::LandlockPath::Access::ReadWrite));
