@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::builder::{AppendContext, CommandRange, ContextRewrite, DisplayListBuilder, HEADER_SIZE};
+use super::builder::{CommandRange, ContextRewrite, DisplayListBuilder, HEADER_SIZE};
 use super::commands::*;
 use crate::painting::display_list::ffi_bytes::FfiBytes;
 use libgfx_rust::*;
@@ -231,23 +231,17 @@ pub struct GlyphRunForRecording<'a> {
     pub glyphs: &'a [DisplayListGlyph],
 }
 
+#[derive(Default)]
 pub struct DisplayListRecorder {
     builder: DisplayListBuilder,
-    empty_effective_clips_by_frame: Vec<bool>,
     context: ContextRef,
     mask_display_lists: Vec<(FrameNodeIndex, DisplayListResourceId)>,
     confining_clip: Option<IntRect>,
 }
 
 impl DisplayListRecorder {
-    pub fn new(empty_effective_clips_by_frame: Vec<bool>) -> Self {
-        Self {
-            builder: DisplayListBuilder::new(),
-            empty_effective_clips_by_frame,
-            context: ContextRef::default(),
-            mask_display_lists: Vec::new(),
-            confining_clip: None,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn record_clipped_to(&mut self, clip: IntRect, record: impl FnOnce(&mut Self)) {
@@ -291,24 +285,9 @@ impl DisplayListRecorder {
         self.context = context;
     }
 
-    pub fn has_empty_effective_clip(&self, frame: FrameNodeIndex) -> bool {
-        self.empty_effective_clips_by_frame
-            .get(frame.0 as usize)
-            .copied()
-            .unwrap_or(false)
-    }
-
-    fn append_context(&self) -> AppendContext {
-        AppendContext {
-            context: self.context,
-            has_empty_effective_clip: self.has_empty_effective_clip(self.context.frame),
-        }
-    }
-
     fn append_command<C: DisplayListCommand>(&mut self, command: &C, inline_data: &[u8]) {
-        let context = self.append_context();
         self.builder
-            .append_confined_to_clip(command, inline_data, context, self.confining_clip);
+            .append_confined_to_clip(command, inline_data, self.context, self.confining_clip);
     }
 
     pub fn append_cached_command_range(

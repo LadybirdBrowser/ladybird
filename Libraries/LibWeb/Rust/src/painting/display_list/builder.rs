@@ -23,12 +23,6 @@ impl CommandRange {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct AppendContext {
-    pub context: ContextRef,
-    pub has_empty_effective_clip: bool,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ContextRewrite {
     pub recorded_context: ContextRef,
     pub current_context: ContextRef,
@@ -98,20 +92,17 @@ impl DisplayListBuilder {
         self.bytes.len()
     }
 
-    pub fn append<C: DisplayListCommand>(&mut self, command: &C, inline_data: &[u8], context: AppendContext) -> bool {
-        self.append_confined_to_clip(command, inline_data, context, None)
+    pub fn append<C: DisplayListCommand>(&mut self, command: &C, inline_data: &[u8], context: ContextRef) {
+        self.append_confined_to_clip(command, inline_data, context, None);
     }
 
     pub fn append_confined_to_clip<C: DisplayListCommand>(
         &mut self,
         command: &C,
         inline_data: &[u8],
-        context: AppendContext,
+        context: ContextRef,
         confining_clip: Option<libgfx_rust::IntRect>,
-    ) -> bool {
-        if context.has_empty_effective_clip {
-            return false;
-        }
+    ) {
         debug_assert_eq!(self.bytes.len() % COMMAND_ALIGNMENT, 0);
         let payload_size = std::mem::size_of::<C>() + inline_data.len();
         let padded_record_size = (HEADER_SIZE + payload_size).next_multiple_of(COMMAND_ALIGNMENT);
@@ -125,7 +116,7 @@ impl DisplayListBuilder {
             has_bounding_rect: bounding_rect.is_some(),
             clips_to_bounding_rect: confining_clip.is_some(),
             payload_size: u32::try_from(padded_record_size - HEADER_SIZE).expect("display list payload exceeds u32"),
-            context: context.context,
+            context,
             bounding_rect: bounding_rect.unwrap_or_default(),
         };
         let start = self.bytes.len();
@@ -136,7 +127,6 @@ impl DisplayListBuilder {
         let inline_start = payload_start + std::mem::size_of::<C>();
         self.bytes[inline_start..inline_start + inline_data.len()].copy_from_slice(inline_data);
         note_command(&mut self.runs, &header, start, padded_record_size);
-        true
     }
 
     pub fn append_command_range(&mut self, source: &[u8], range: CommandRange, rewrite: Option<ContextRewrite>) -> u32 {
@@ -263,13 +253,6 @@ mod tests {
         }
     }
 
-    fn appendable(context: ContextRef) -> AppendContext {
-        AppendContext {
-            context,
-            has_empty_effective_clip: false,
-        }
-    }
-
     fn fill_rect(x: i32, y: i32, width: i32, height: i32) -> FillRect {
         FillRect {
             rect: IntRect::new(x, y, width, height),
@@ -318,13 +301,13 @@ mod tests {
     #[test]
     fn consecutive_commands_in_one_context_share_a_run() {
         let mut builder = DisplayListBuilder::new();
-        let root = appendable(context(0, None));
+        let root = context(0, None);
         builder.append(&fill_rect(0, 0, 10, 10), &[], root);
         builder.append(&fill_rect(20, 20, 10, 10), &[], root);
         assert_runs_cover_tape(&builder);
         let runs = builder.command_runs();
         assert_eq!(runs.len(), 1);
-        assert_eq!(runs[0].context, root.context);
+        assert_eq!(runs[0].context, root);
         assert_eq!(runs[0].ink_bounds, IntRect::new(0, 0, 30, 30));
         assert!(!runs[0].has_unbounded_draw);
         assert!(!runs[0].has_compositor_metadata);
@@ -333,21 +316,21 @@ mod tests {
     #[test]
     fn context_changes_start_new_runs() {
         let mut builder = DisplayListBuilder::new();
-        let a = appendable(context(1, None));
-        let b = appendable(context(1, Some(0)));
+        let a = context(1, None);
+        let b = context(1, Some(0));
         builder.append(&fill_rect(0, 0, 10, 10), &[], a);
         builder.append(&fill_rect(0, 0, 10, 10), &[], b);
         builder.append(&fill_rect(0, 0, 10, 10), &[], b);
         builder.append(&fill_rect(0, 0, 10, 10), &[], a);
         assert_runs_cover_tape(&builder);
         let contexts: Vec<_> = builder.command_runs().iter().map(|run| run.context).collect();
-        assert_eq!(contexts, vec![a.context, b.context, a.context]);
+        assert_eq!(contexts, vec![a, b, a]);
     }
 
     #[test]
     fn ink_bounds_skip_metadata() {
         let mut builder = DisplayListBuilder::new();
-        let root = appendable(context(0, None));
+        let root = context(0, None);
         builder.append(&fill_rect(5, 5, 10, 10), &[], root);
         let metadata = CompositorBlockingWheelEventRegion {
             rect: FloatRect::new(0.0, 0.0, 900.0, 900.0),
@@ -362,7 +345,7 @@ mod tests {
     #[test]
     fn a_confining_clip_narrows_the_header_and_flags_the_draw() {
         let mut builder = DisplayListBuilder::new();
-        let root = appendable(context(0, None));
+        let root = context(0, None);
         builder.append_confined_to_clip(
             &fill_rect(0, 0, 100, 100),
             &[],
@@ -380,46 +363,31 @@ mod tests {
     }
 
     #[test]
-    fn commands_under_an_empty_effective_clip_leave_no_run() {
-        let mut builder = DisplayListBuilder::new();
-        let dropped = AppendContext {
-            context: context(0, Some(3)),
-            has_empty_effective_clip: true,
-        };
-        assert!(!builder.append(&fill_rect(0, 0, 10, 10), &[], dropped));
-        assert!(builder.command_runs().is_empty());
-        assert_eq!(builder.byte_size(), 0);
-    }
-
-    #[test]
     fn a_rewritten_splice_merges_into_the_current_run() {
         let mut source = DisplayListBuilder::new();
-        let recorded = appendable(context(4, None));
+        let recorded = context(4, None);
         source.append(&fill_rect(0, 0, 10, 10), &[], recorded);
         source.append(&fill_rect(50, 50, 10, 10), &[], recorded);
 
         let mut builder = DisplayListBuilder::new();
-        let current = appendable(context(7, Some(1)));
+        let current = context(7, Some(1));
         builder.append(&fill_rect(100, 100, 10, 10), &[], current);
-        let destination_offset = builder.append_command_range(
-            source.bytes(),
-            whole_tape(&source),
-            Some(rewrite(recorded.context, current.context)),
-        );
+        let destination_offset =
+            builder.append_command_range(source.bytes(), whole_tape(&source), Some(rewrite(recorded, current)));
         assert_ne!(destination_offset, 0);
         assert_runs_cover_tape(&builder);
         let runs = builder.command_runs();
         assert_eq!(runs.len(), 1);
-        assert_eq!(runs[0].context, current.context);
+        assert_eq!(runs[0].context, current);
         assert_eq!(runs[0].ink_bounds, IntRect::new(0, 0, 110, 110));
     }
 
     #[test]
     fn a_spliced_capture_rebases_the_frames_of_its_own_range() {
         let mut source = DisplayListBuilder::new();
-        source.append(&fill_rect(0, 0, 10, 10), &[], appendable(context(2, Some(5))));
-        source.append(&fill_rect(20, 20, 10, 10), &[], appendable(context(2, Some(6))));
-        source.append(&fill_rect(40, 40, 10, 10), &[], appendable(context(2, None)));
+        source.append(&fill_rect(0, 0, 10, 10), &[], context(2, Some(5)));
+        source.append(&fill_rect(20, 20, 10, 10), &[], context(2, Some(6)));
+        source.append(&fill_rect(40, 40, 10, 10), &[], context(2, None));
 
         let mut builder = DisplayListBuilder::new();
         builder.append_command_range(
@@ -443,7 +411,7 @@ mod tests {
     #[test]
     fn a_spliced_phase_frame_outside_the_range_maps_to_the_current_phase_frame() {
         let mut source = DisplayListBuilder::new();
-        source.append(&fill_rect(0, 0, 10, 10), &[], appendable(context(2, Some(1))));
+        source.append(&fill_rect(0, 0, 10, 10), &[], context(2, Some(1)));
 
         let mut builder = DisplayListBuilder::new();
         builder.append_command_range(
@@ -462,8 +430,8 @@ mod tests {
     #[test]
     fn a_verbatim_splice_reproduces_the_source_runs_rebased() {
         let mut source = DisplayListBuilder::new();
-        let a = appendable(context(2, None));
-        let b = appendable(context(3, Some(0)));
+        let a = context(2, None);
+        let b = context(3, Some(0));
         source.append(&fill_rect(0, 0, 10, 10), &[], a);
         source.append(&fill_rect(20, 20, 10, 10), &[], b);
         source.append(&fill_rect(40, 40, 10, 10), &[], b);
@@ -471,7 +439,7 @@ mod tests {
         assert_eq!(source_runs.len(), 2);
 
         let mut builder = DisplayListBuilder::new();
-        builder.append(&fill_rect(0, 0, 1, 1), &[], appendable(context(9, None)));
+        builder.append(&fill_rect(0, 0, 1, 1), &[], context(9, None));
         let destination_offset = builder.append_command_range(source.bytes(), whole_tape(&source), None);
         assert_runs_cover_tape(&builder);
         let spliced_runs = &builder.command_runs()[1..];

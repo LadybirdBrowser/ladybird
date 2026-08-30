@@ -81,7 +81,6 @@ pub struct ClipPathData {
     pub path: std::rc::Rc<libgfx_rust::path::OwnedPath>,
     pub bounding_rect: IntRect,
     pub fill_rule: WindingRule,
-    pub path_bounds_are_empty: bool,
 }
 
 pub struct EffectsData {
@@ -264,15 +263,6 @@ impl FrameData {
             Self::Mask(_) => FfiVisualContextNodeKind::Mask,
         }
     }
-
-    fn is_empty_clip(&self) -> bool {
-        match self {
-            Self::Clip(clip) => clip.mode == ClipMode::Intersect && clip.rect.is_empty(),
-            Self::ClipPath(clip_path) => clip_path.path_bounds_are_empty,
-            Self::Mask(mask) => mask.rect.is_empty(),
-            Self::Effects(_) => false,
-        }
-    }
 }
 
 pub struct SpatialNode {
@@ -343,7 +333,6 @@ pub struct FrameNode {
     pub data: FrameData,
     pub parent: FrameNodeIndex,
     pub spatial: SpatialNodeIndex,
-    pub has_empty_effective_clip: bool,
     pub role: FrameRole,
 }
 
@@ -532,15 +521,11 @@ impl VisualContextTree {
         role: FrameRole,
     ) -> FrameNodeIndex {
         assert!((spatial.0 as usize) < self.spatial_nodes.len());
-        let inherited_empty_clip = if parent.is_none() {
-            false
-        } else {
+        if !parent.is_none() {
             let parent_node = &self.frame_nodes[parent.0 as usize];
             debug_assert!(self.spatial_is_ancestor_or_self(parent_node.spatial, spatial));
-            parent_node.has_empty_effective_clip
-        };
+        }
         self.frame_nodes.push(FrameNode {
-            has_empty_effective_clip: inherited_empty_clip || data.is_empty_clip(),
             data,
             parent,
             spatial,
@@ -589,7 +574,6 @@ impl VisualContextTree {
                 .all(|(node, other_node)| {
                     node.parent == other_node.parent
                         && node.spatial == other_node.spatial
-                        && node.has_empty_effective_clip == other_node.has_empty_effective_clip
                         && node.data.kind() == other_node.data.kind()
                 })
     }
@@ -710,13 +694,6 @@ impl VisualContextTree {
             _ => panic!("spatial node {} is not a scroll-like node", index.0),
         }
     }
-
-    pub fn empty_effective_clips_by_frame(&self) -> Vec<bool> {
-        self.frame_nodes
-            .iter()
-            .map(|node| node.has_empty_effective_clip)
-            .collect()
-    }
 }
 
 fn empty_export(
@@ -726,7 +703,6 @@ fn empty_export(
         kind,
         parent: 0,
         spatial: 0,
-        has_empty_effective_clip: false,
         matrix: FloatMatrix4x4::default(),
         origin: FloatPoint::default(),
         flattens_inherited_transform: false,
@@ -813,7 +789,6 @@ pub fn export_frame_node(node: &FrameNode) -> crate::painting::host::FfiVisualCo
     let mut out = empty_export(node.data.kind());
     out.parent = node.parent.0;
     out.spatial = node.spatial.0;
-    out.has_empty_effective_clip = node.has_empty_effective_clip;
     match &node.data {
         FrameData::Clip(clip) => {
             out.clip_rect = clip.rect;
@@ -967,25 +942,6 @@ mod tests {
     }
 
     #[test]
-    fn compatibility_requires_the_same_empty_effective_clip() {
-        let mut empty_clip_tree = tree();
-        empty_clip_tree.append_frame(
-            clip(FloatRect::default(), ClipMode::Intersect),
-            FrameNodeIndex::NONE,
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
-
-        let mut non_empty_clip_tree = tree();
-        non_empty_clip_tree.append_frame(
-            clip(FloatRect::new(0.0, 0.0, 1.0, 1.0), ClipMode::Intersect),
-            FrameNodeIndex::NONE,
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
-
-        assert!(!empty_clip_tree.is_compatible_with(&non_empty_clip_tree));
-    }
-
-    #[test]
     fn compatibility_requires_the_same_root_isolation_frame() {
         let mut isolated = tree();
         let isolation_frame = isolated.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
@@ -1000,34 +956,6 @@ mod tests {
             also_isolated.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
         also_isolated.root_isolation_frame = Some(also_isolation_frame);
         assert!(isolated.is_compatible_with(&also_isolated));
-    }
-
-    #[test]
-    fn mask_data_contributes_to_the_empty_effective_clip() {
-        let mut tree = tree();
-        let unit_rect = IntRect {
-            x: 0,
-            y: 0,
-            width: 1,
-            height: 1,
-        };
-        let non_empty_mask = tree.append_frame(mask(unit_rect), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
-        assert!(!tree.frame_nodes[non_empty_mask.0 as usize].has_empty_effective_clip);
-
-        let empty_mask = tree.append_frame(
-            mask(IntRect::default()),
-            FrameNodeIndex::NONE,
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
-        assert!(tree.frame_nodes[empty_mask.0 as usize].has_empty_effective_clip);
-
-        let empty_parent = tree.append_frame(
-            clip(FloatRect::default(), ClipMode::Intersect),
-            FrameNodeIndex::NONE,
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
-        let inherited_empty_clip = tree.append_frame(mask(unit_rect), empty_parent, VISUAL_VIEWPORT_NODE_INDEX);
-        assert!(tree.frame_nodes[inherited_empty_clip.0 as usize].has_empty_effective_clip);
     }
 
     fn scaled(scale: f32) -> TransformData {
@@ -1110,7 +1038,6 @@ mod tests {
             }
         );
     }
-
     #[test]
     fn a_tree_without_sorting_context_roots_resolves_to_empty_contexts() {
         assert!(tree().resolve_sorting_contexts().is_empty());
@@ -1229,14 +1156,4 @@ mod tests {
         );
     }
 
-    #[test]
-    fn a_difference_clip_with_an_empty_rect_is_not_an_empty_effective_clip() {
-        let mut tree = tree();
-        let frame = tree.append_frame(
-            clip(FloatRect::default(), ClipMode::Difference),
-            FrameNodeIndex::NONE,
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
-        assert!(!tree.frame_nodes[frame.0 as usize].has_empty_effective_clip);
-    }
 }

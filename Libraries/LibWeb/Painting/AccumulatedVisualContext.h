@@ -144,7 +144,6 @@ struct FrameNode {
     FrameData data;
     FrameNodeIndex parent { NO_FRAME_NODE };
     SpatialNodeIndex spatial {};
-    bool has_empty_effective_clip { false };
 };
 
 class AccumulatedVisualContextTree {
@@ -179,7 +178,6 @@ public:
 
     WEB_API SpatialNodeIndex append_spatial(SpatialData, SpatialNodeIndex parent);
     WEB_API FrameNodeIndex append_frame(FrameData, FrameNodeIndex parent, SpatialNodeIndex spatial);
-    WEB_API FrameNodeIndex append_frame(FrameData, FrameNodeIndex parent, SpatialNodeIndex spatial, bool has_empty_effective_clip);
     WEB_API void set_visual_viewport_transform(TransformData);
     WEB_API void reuse_version_from(AccumulatedVisualContextTree const&);
 
@@ -206,8 +204,6 @@ public:
     Gfx::FloatSize accumulated_2d_scale(SpatialNodeIndex, ScrollStateSnapshot const&, IncludeVisualViewportTransform) const;
     void dump_spatial_node(SpatialNodeIndex, StringBuilder&) const;
     void dump_frame_node(FrameNodeIndex, StringBuilder&) const;
-
-    bool has_empty_effective_clip(FrameNodeIndex index) const { return index != NO_FRAME_NODE && m_frame_nodes[index.value()].has_empty_effective_clip; }
 
 private:
     AccumulatedVisualContextTree(u64 version, TransformData root_transform, bool root_is_visual_viewport);

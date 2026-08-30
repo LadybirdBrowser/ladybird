@@ -31,28 +31,6 @@ TEST_CASE(compatible_trees_can_reuse_versions)
     EXPECT_EQ(updated_tree.version(), tree.version());
 }
 
-TEST_CASE(mask_data_contributes_to_empty_effective_clip)
-{
-    auto tree = AccumulatedVisualContextTree::create();
-    auto non_empty_mask = tree.append_frame(MaskData { .rect = Web::DevicePixelRect { 0, 0, 1, 1 } }, NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX);
-    EXPECT(!tree.has_empty_effective_clip(non_empty_mask));
-
-    auto empty_mask = tree.append_frame(MaskData { .rect = Web::DevicePixelRect {} }, NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX);
-    EXPECT(tree.has_empty_effective_clip(empty_mask));
-
-    auto empty_parent = tree.append_frame(ClipData { Gfx::FloatRect {}, {} }, NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX);
-    auto inherited_empty_clip = tree.append_frame(MaskData { .rect = Web::DevicePixelRect { 0, 0, 1, 1 } }, empty_parent, VISUAL_VIEWPORT_NODE_INDEX);
-    EXPECT(tree.has_empty_effective_clip(inherited_empty_clip));
-    EXPECT(!tree.has_empty_effective_clip(NO_FRAME_NODE));
-}
-
-TEST_CASE(a_difference_clip_with_an_empty_rect_is_not_an_empty_effective_clip)
-{
-    auto tree = AccumulatedVisualContextTree::create();
-    auto frame = tree.append_frame(ClipData { Gfx::FloatRect {}, {}, ClipMode::Difference }, NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX);
-    EXPECT(!tree.has_empty_effective_clip(frame));
-}
-
 TEST_CASE(a_difference_clip_passes_only_points_outside_its_rect)
 {
     auto tree = AccumulatedVisualContextTree::create();

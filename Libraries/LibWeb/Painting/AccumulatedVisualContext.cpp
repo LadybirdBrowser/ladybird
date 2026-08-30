@@ -96,28 +96,10 @@ SpatialNodeIndex AccumulatedVisualContextTree::append_spatial(SpatialData data, 
 
 FrameNodeIndex AccumulatedVisualContextTree::append_frame(FrameData data, FrameNodeIndex parent, SpatialNodeIndex spatial)
 {
-    bool empty_clip = false;
-    if (parent != NO_FRAME_NODE) {
-        VERIFY(parent.value() < m_frame_nodes.size());
-        empty_clip = m_frame_nodes[parent.value()].has_empty_effective_clip;
-    }
-    if (!empty_clip) {
-        if (auto const* clip = data.get_pointer<ClipData>())
-            empty_clip = clip->mode == ClipMode::Intersect && clip->rect.is_empty();
-        else if (data.has<ClipPathData>())
-            empty_clip = data.get<ClipPathData>().path.bounding_box().is_empty();
-        else if (data.has<MaskData>())
-            empty_clip = data.get<MaskData>().rect.is_empty();
-    }
-    return append_frame(move(data), parent, spatial, empty_clip);
-}
-
-FrameNodeIndex AccumulatedVisualContextTree::append_frame(FrameData data, FrameNodeIndex parent, SpatialNodeIndex spatial, bool has_empty_effective_clip)
-{
     VERIFY(spatial.value() < m_spatial_nodes.size());
     VERIFY(parent == NO_FRAME_NODE || parent.value() < m_frame_nodes.size());
     auto index = FrameNodeIndex(m_frame_nodes.size());
-    m_frame_nodes.append({ move(data), parent, spatial, has_empty_effective_clip });
+    m_frame_nodes.append({ move(data), parent, spatial });
     return index;
 }
 
@@ -959,7 +941,6 @@ ErrorOr<void> encode(Encoder& encoder, Web::Painting::FrameNode const& node)
     TRY(encoder.encode(node.data));
     TRY(encoder.encode(node.parent));
     TRY(encoder.encode(node.spatial));
-    TRY(encoder.encode(node.has_empty_effective_clip));
     return {};
 }
 
@@ -970,7 +951,6 @@ ErrorOr<Web::Painting::FrameNode> decode(Decoder& decoder)
         .data = TRY(decoder.decode<Web::Painting::FrameData>()),
         .parent = TRY(decoder.decode<Web::Painting::FrameNodeIndex>()),
         .spatial = TRY(decoder.decode<Web::Painting::SpatialNodeIndex>()),
-        .has_empty_effective_clip = TRY(decoder.decode<bool>()),
     };
 }
 

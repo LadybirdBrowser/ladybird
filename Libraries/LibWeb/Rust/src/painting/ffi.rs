@@ -1286,7 +1286,7 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
     use libgfx_rust::{CompositingAndBlendingOperator, IntRect};
     abort_on_panic(|| {
         let inputs = unsafe { &*inputs };
-        let mut recorder = DisplayListRecorder::new(Vec::new());
+        let mut recorder = DisplayListRecorder::new();
         let dest_rect = inputs.dest_rect;
         let dest_int_rect = IntRect::new(
             inputs.dest_rect.x as i32,

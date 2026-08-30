@@ -370,9 +370,8 @@ impl PaintRecorder<'_> {
         .build_css_mask_layer_frames(root_context, style, mask_rect, is_root_element);
         let mut assignments = NestedAssignments::default();
         assignments.local_frames.insert(paintable.index, local_frames);
-        let empty_effective_clips = tree.empty_effective_clips_by_frame();
         let mut session = self.nested_recording_session(
-            DisplayListRecorder::new(empty_effective_clips),
+            DisplayListRecorder::new(),
             Some(NestedRecordingState { assignments }),
             Some(tree),
             false,
@@ -416,10 +415,8 @@ impl PaintRecorder<'_> {
             include_root_element_transform,
             self.inputs.device_pixels_per_css_pixel,
         );
-        let empty_effective_clips = tree.empty_effective_clips_by_frame();
-
         let mut session = self.nested_recording_session(
-            DisplayListRecorder::new(empty_effective_clips),
+            DisplayListRecorder::new(),
             Some(NestedRecordingState { assignments }),
             Some(tree),
             is_clip_path,

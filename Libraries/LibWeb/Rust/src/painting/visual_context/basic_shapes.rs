@@ -427,7 +427,7 @@ pub(crate) fn compute_basic_shape_clip_path_data(
     layout_arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
     pixel_ratio: f64,
-) -> Option<(OwnedPath, libgfx_rust::IntRect, WindingRule, bool)> {
+) -> Option<(OwnedPath, libgfx_rust::IntRect, WindingRule)> {
     let node = slot;
     let style = layout_arena.node_style_if_live(node)?;
     let clip_path = style_queries::handle_value(&style.mask().clip_path)?;
@@ -473,7 +473,5 @@ pub(crate) fn compute_basic_shape_clip_path_data(
     let device_path = translated_path.copy_transformed([scale, 0.0, 0.0, scale, 0.0, 0.0]);
     let converter = DevicePixelConverter::new(pixel_ratio);
     let device_bounding_rect = converter.rounded_device_rect(masking_area);
-    let [_, _, bounds_width, bounds_height] = device_path.bounding_box();
-    let bounds_are_empty = bounds_width <= 0.0 || bounds_height <= 0.0;
-    Some((device_path, device_bounding_rect, resolved_fill_rule, bounds_are_empty))
+    Some((device_path, device_bounding_rect, resolved_fill_rule))
 }

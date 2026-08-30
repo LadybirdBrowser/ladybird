@@ -679,7 +679,7 @@ fn paint_image_layer(
             tile_device_rect.height = 1;
         }
 
-        let outer_recorder = std::mem::replace(&mut recorder.recorder, DisplayListRecorder::new(vec![false]));
+        let outer_recorder = std::mem::replace(&mut recorder.recorder, DisplayListRecorder::new());
         let tile_dest_rect = tile_device_rect.to_float();
         if let Some(gradient) = &resolved_gradient {
             record_gradient_fill(recorder, gradient, tile_dest_rect);

@@ -244,8 +244,7 @@ struct TreeChainComparison {
         for (auto old_index = old_context.frame, new_index = new_context.frame; old_index != NO_FRAME_NODE;) {
             auto const& old_node = old_tree.frame_node_at(old_index);
             auto const& new_node = new_tree.frame_node_at(new_index);
-            if (old_node.has_empty_effective_clip != new_node.has_empty_effective_clip
-                || !frame_data_is_equal(old_node.data, new_node.data))
+            if (!frame_data_is_equal(old_node.data, new_node.data))
                 return false;
             old_index = old_node.parent;
             new_index = new_node.parent;

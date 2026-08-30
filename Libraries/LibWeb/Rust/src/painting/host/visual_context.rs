@@ -131,7 +131,6 @@ pub struct FfiVisualContextNodeExport {
     pub kind: FfiVisualContextNodeKind,
     pub parent: u32,
     pub spatial: u32,
-    pub has_empty_effective_clip: bool,
     pub matrix: FloatMatrix4x4,
     pub origin: FloatPoint,
     pub flattens_inherited_transform: bool,

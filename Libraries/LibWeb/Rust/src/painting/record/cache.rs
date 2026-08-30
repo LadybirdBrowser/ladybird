@@ -21,9 +21,6 @@ pub struct CachedCommands {
     pub range: CommandRange,
     pub recorded_context: ContextRef,
     pub recorded_local_frame_range: (u32, u32),
-    // Commands recorded under an empty effective clip are dropped at append time, so a cached range is
-    // usable only while the emptiness of the phase's effective clip matches what it was at capture time.
-    pub captured_under_empty_effective_clip: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
