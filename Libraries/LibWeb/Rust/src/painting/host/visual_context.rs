@@ -134,6 +134,20 @@ pub struct FfiVisualViewportTransform {
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
+pub struct FfiFrameOpacitySample {
+    pub frame: u32,
+    pub opacity: f32,
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiSpatialTransformSample {
+    pub spatial: u32,
+    pub matrix: FloatMatrix4x4,
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
 pub struct FfiTestStickyConstraints {
     pub scroller: u32,
     pub has_parent_sticky: bool,

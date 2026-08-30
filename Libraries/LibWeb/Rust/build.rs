@@ -2607,6 +2607,7 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
             "ReplayClip",
             "ReplayLayer",
             "ReplayMask",
+            "FfiVisualViewportTransform",
         ]
         .map(String::from),
     );
@@ -2652,6 +2653,7 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
         ("ReplayClip", "Web::Painting::ReplayClip"),
         ("ReplayLayer", "Web::Painting::ReplayLayer"),
         ("ReplayMask", "Web::Painting::ReplayMask"),
+        ("FfiVisualViewportTransform", "Web::Painting::TransformWithOrigin"),
     ] {
         config.export.rename.insert(rust_name.to_string(), cpp_name.to_string());
     }

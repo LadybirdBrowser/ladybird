@@ -5,35 +5,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/AllOf.h>
-#include <AK/AnyOf.h>
-#include <AK/Array.h>
-#include <AK/Atomic.h>
-#include <AK/HashTable.h>
 #include <AK/StringBuilder.h>
 #include <LibGfx/Matrix4x4.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibWeb/CSS/ComputedValues.h>
-#include <LibWeb/DOM/Document.h>
-#include <LibWeb/HTML/HTMLHtmlElement.h>
-#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
-#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/Painting/Blending.h>
-#include <LibWeb/Painting/ResolvedCSSFilter.h>
 #include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::Painting {
-
-bool ClipData::contains(Gfx::FloatPoint point) const
-{
-    auto integral_rect = rect.to_type<int>();
-    if (integral_rect.to_type<float>() == rect)
-        return corner_radii.contains(point.to_type<int>(), integral_rect);
-    return corner_radii.contains(point, rect);
-}
 
 // Whole-tree transform root: the visual viewport transform for document trees, the content
 // placement for nested display list trees.
@@ -118,13 +98,6 @@ Vector<bool> AccumulatedVisualContextTree::frames_with_empty_effective_clip() co
     return empty;
 }
 
-void AccumulatedVisualContextTree::set_visual_viewport_transform(TransformData transform)
-{
-    VERIFY(!m_spatial_nodes.is_empty());
-    VERIFY(m_spatial_nodes[VISUAL_VIEWPORT_NODE_INDEX.value()].data.has<TransformData>());
-    m_spatial_nodes[VISUAL_VIEWPORT_NODE_INDEX.value()].data = move(transform);
-}
-
 AccumulatedVisualContextTree::AccumulatedVisualContextTree(AccumulatedVisualContextTree const& other)
     : m_rust_tree(other.m_rust_tree ? Layout::RustFFI::visual_context_tree_retain(other.m_rust_tree) : nullptr)
     , m_spatial_nodes(other.m_spatial_nodes)
@@ -186,367 +159,103 @@ void AccumulatedVisualContextTree::release_rust_tree()
     m_rust_tree = nullptr;
 }
 
-Vector<SpatialNodeIndex, 8> AccumulatedVisualContextTree::build_ancestor_chain(SpatialNodeIndex index) const
+size_t AccumulatedVisualContextTree::spatial_node_count() const
 {
-    VERIFY(index.value() < m_spatial_nodes.size());
-    Vector<SpatialNodeIndex, 8> chain;
-    for (auto i = index;; i = m_spatial_nodes[i.value()].parent) {
-        chain.append(i);
-        if (i == VISUAL_VIEWPORT_NODE_INDEX)
-            break;
-    }
-    return chain;
+    return Layout::RustFFI::visual_context_tree_spatial_node_count(m_rust_tree);
 }
 
-struct LocalSpatialMatrix {
-    Gfx::FloatMatrix4x4 matrix;
-    bool flattens_inherited_transform { false };
-};
-
-static LocalSpatialMatrix local_spatial_matrix(SpatialNode const& node, SpatialNodeIndex node_index, ScrollStateSnapshot const& scroll_state)
+size_t AccumulatedVisualContextTree::frame_node_count() const
 {
-    return node.data.visit(
-        [&](TransformData const& transform) {
-            return LocalSpatialMatrix { transform.matrix_including_origin(), transform.flattens_inherited_transform };
-        },
-        [&](PerspectiveData const& perspective) {
-            return LocalSpatialMatrix { perspective.matrix, perspective.flattens_inherited_transform };
-        },
-        [&](ScrollData const&) {
-            auto offset = scroll_state.device_offset_for_index(node_index);
-            return LocalSpatialMatrix { Gfx::translation_matrix(Vector3 { offset.x(), offset.y(), 0.f }) };
-        },
-        [&](StickyData const&) {
-            auto offset = scroll_state.device_offset_for_index(node_index);
-            return LocalSpatialMatrix { Gfx::translation_matrix(Vector3 { offset.x(), offset.y(), 0.f }) };
-        },
-        [&](AnchorScrollShift const& shift) {
-            auto offset = shift.masked_offset(scroll_state);
-            return LocalSpatialMatrix { Gfx::translation_matrix(Vector3 { offset.x(), offset.y(), 0.f }) };
-        },
-        [&](BackfaceVisibilityData const& backface) { return LocalSpatialMatrix { Gfx::FloatMatrix4x4::identity(), backface.flattens_inherited_transform }; });
+    return Layout::RustFFI::visual_context_tree_frame_node_count(m_rust_tree);
 }
 
-bool AccumulatedVisualContextTree::chain_contains_3d_transform(SpatialNodeIndex index) const
+TransformWithOrigin AccumulatedVisualContextTree::visual_viewport_transform() const
 {
-    for (auto i = index;; i = m_spatial_nodes[i.value()].parent) {
-        auto const& node = m_spatial_nodes[i.value()];
-        if (auto const* transform = node.data.get_pointer<TransformData>()) {
-            if (!Gfx::is_2d_affine_transform(transform->matrix))
-                return true;
-        } else if (node.data.has<PerspectiveData>()) {
-            return true;
+    return Layout::RustFFI::visual_context_tree_visual_viewport_transform(m_rust_tree);
+}
+
+AccumulatedVisualContextTree AccumulatedVisualContextTree::with_visual_viewport_transform(TransformWithOrigin const& transform) const
+{
+    auto tree = materialize_from_rust(Layout::RustFFI::visual_context_tree_with_visual_viewport_transform(m_rust_tree, transform));
+    tree.m_visual_animations = m_visual_animations;
+    return tree;
+}
+
+AccumulatedVisualContextTree AccumulatedVisualContextTree::with_visual_animation_samples(i64 monotonic_time_ns) const
+{
+    Vector<Layout::RustFFI::FfiFrameOpacitySample> opacity_samples;
+    Vector<Layout::RustFFI::FfiSpatialTransformSample> transform_samples;
+    for (auto const& animation : m_visual_animations) {
+        auto elapsed_nanoseconds = monotonic_time_ns > animation.monotonic_time_at_anchor_ns
+            ? monotonic_time_ns - animation.monotonic_time_at_anchor_ns
+            : 0;
+        auto sample = animation.sample(AK::Duration::from_nanoseconds(elapsed_nanoseconds));
+        if (!sample.has_value())
+            continue;
+        for (auto node_index : animation.visual_context_node_indices) {
+            if (animation.target_kind == Compositor::VisualAnimation::TargetKind::Opacity)
+                opacity_samples.append({ .frame = node_index, .opacity = sample->opacity });
+            else
+                transform_samples.append({ .spatial = node_index, .matrix = sample->transform });
         }
-        if (i == VISUAL_VIEWPORT_NODE_INDEX)
-            break;
     }
-    return false;
+    auto tree = materialize_from_rust(Layout::RustFFI::visual_context_tree_with_sampled_values(m_rust_tree, opacity_samples.data(), opacity_samples.size(), transform_samples.data(), transform_samples.size()));
+    tree.m_visual_animations = m_visual_animations;
+    return tree;
 }
 
-// Homogeneous coordinates this close to the eye plane have no meaningful projection.
-static constexpr float minimum_projection_w = 0.0001f;
-
-static Gfx::FloatRect map_rect_through_matrix(Gfx::FloatMatrix4x4 const& matrix, Gfx::FloatRect const& rect)
+bool AccumulatedVisualContextTree::visual_animation_targets_are_valid(Compositor::VisualAnimation const& animation) const
 {
-    auto map_corner = [&](Gfx::FloatPoint point) {
-        return matrix * Gfx::FloatVector4 { point.x(), point.y(), 0, 1 };
-    };
-    Array<Gfx::FloatVector4, 4> mapped_corners {
-        map_corner(rect.top_left()),
-        map_corner(rect.top_right()),
-        map_corner(rect.bottom_left()),
-        map_corner(rect.bottom_right()),
-    };
-    bool all_corners_behind_eye_plane = all_of(mapped_corners, [](auto const& corner) { return corner.w() <= 0; });
-    // A rect entirely behind the eye plane divides through its negative homogeneous coordinates, matching the
-    // geometry other engines report. A rect that crosses the eye plane projects without bound, so the corners
-    // behind it are clamped to keep the result conservatively covering the rendered region.
-    auto project_corner = [&](Gfx::FloatVector4 const& corner) -> Gfx::FloatPoint {
-        auto w = all_corners_behind_eye_plane ? min(corner.w(), -minimum_projection_w) : max(corner.w(), minimum_projection_w);
-        return { corner.x() / w, corner.y() / w };
-    };
-    auto top_left = project_corner(mapped_corners[0]);
-    auto top_right = project_corner(mapped_corners[1]);
-    auto bottom_left = project_corner(mapped_corners[2]);
-    auto bottom_right = project_corner(mapped_corners[3]);
-    auto left = min(min(top_left.x(), top_right.x()), min(bottom_left.x(), bottom_right.x()));
-    auto right = max(max(top_left.x(), top_right.x()), max(bottom_left.x(), bottom_right.x()));
-    auto top = min(min(top_left.y(), top_right.y()), min(bottom_left.y(), bottom_right.y()));
-    auto bottom = max(max(top_left.y(), top_right.y()), max(bottom_left.y(), bottom_right.y()));
-    return { left, top, right - left, bottom - top };
+    auto const& targets = animation.visual_context_node_indices;
+    return Layout::RustFFI::visual_context_tree_visual_animation_targets_are_valid(m_rust_tree, animation.target_kind == Compositor::VisualAnimation::TargetKind::Opacity, targets.data(), targets.size());
 }
 
-// One root path of spatial nodes with the screen point mapped down it one inverse step at a time. Frames attach
-// to a path in non-decreasing depth order, so the steps still to apply before a frame always start where the
-// previous frame left off.
-struct SpatialChainWalk {
-    Vector<SpatialNodeIndex, 8> chain;
-    bool needs_accumulated_matrices { false };
-    bool has_3d_transform { false };
-    Vector<Gfx::FloatMatrix4x4, 8> accumulated_matrices;
-    Gfx::FloatPoint point;
-    size_t applied_steps { 0 };
-};
+Optional<float> AccumulatedVisualContextTree::effects_opacity(FrameNodeIndex frame) const
+{
+    float opacity = 1;
+    if (!Layout::RustFFI::visual_context_tree_effects_opacity(m_rust_tree, frame, &opacity))
+        return {};
+    return opacity;
+}
+
+Vector<bool> AccumulatedVisualContextTree::spatial_nodes_in_subtrees_of(ReadonlySpan<SpatialNodeIndex> roots) const
+{
+    Vector<bool> in_subtree;
+    in_subtree.resize(spatial_node_count());
+    Layout::RustFFI::visual_context_tree_mark_spatial_subtrees(m_rust_tree, roots.data(), roots.size(), in_subtree.data(), in_subtree.size());
+    return in_subtree;
+}
 
 Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_test(ContextRef context, Gfx::FloatPoint screen_point, ScrollStateSnapshot const& scroll_state, ClipBehavior clip_behavior) const
 {
-    Vector<FrameNodeIndex, 8> frame_chain;
-    for (auto frame = context.frame; frame != NO_FRAME_NODE; frame = m_frame_nodes[frame.value()].parent)
-        frame_chain.append(frame);
-    frame_chain.reverse();
-
-    // The backface test needs forward matrices, but this walk only applies inverses. When the chain contains
-    // backface markers, we accumulate the forward matrices as we walk, from the root down, so a marker can look up
-    // the matrix at its plane root by chain position.
-    auto begin_walk = [&](SpatialNodeIndex leaf) {
-        SpatialChainWalk walk;
-        walk.chain = build_ancestor_chain(leaf);
-        walk.chain.reverse();
-        bool chain_has_backface_marker = any_of(walk.chain, [&](SpatialNodeIndex index) {
-            return m_spatial_nodes[index.value()].data.has<BackfaceVisibilityData>();
-        });
-        walk.has_3d_transform = chain_contains_3d_transform(leaf);
-        walk.needs_accumulated_matrices = chain_has_backface_marker || walk.has_3d_transform;
-        if (walk.needs_accumulated_matrices)
-            walk.accumulated_matrices.ensure_capacity(walk.chain.size());
-        walk.point = screen_point;
-        return walk;
-    };
-
-    auto apply_spatial_step = [&](SpatialChainWalk& walk, size_t position) -> bool {
-        auto node_index = walk.chain[position];
-        auto const& node = m_spatial_nodes[node_index.value()];
-
-        if (walk.needs_accumulated_matrices) {
-            auto local = local_spatial_matrix(node, node_index, scroll_state);
-            if (position == 0) {
-                walk.accumulated_matrices.unchecked_append(local.matrix);
-            } else {
-                auto const& parent_matrix = walk.accumulated_matrices.last();
-                walk.accumulated_matrices.unchecked_append((local.flattens_inherited_transform ? Gfx::flattened(parent_matrix) : parent_matrix) * local.matrix);
-            }
-        }
-
-        if (walk.has_3d_transform && !node.data.has<BackfaceVisibilityData>()) {
-            auto inverse = Gfx::flattened(walk.accumulated_matrices.last()).inverse();
-            if (!inverse.has_value())
-                return false;
-            auto mapped = *inverse * Gfx::FloatVector4 { screen_point.x(), screen_point.y(), 0, 1 };
-            if (mapped.w() < minimum_projection_w)
-                return false;
-            walk.point = { mapped.x() / mapped.w(), mapped.y() / mapped.w() };
-            return true;
-        }
-
-        return node.data.visit(
-            [&](PerspectiveData const& perspective) {
-                auto affine = Gfx::extract_2d_affine_transform(perspective.matrix);
-                auto inverse = affine.inverse();
-                if (!inverse.has_value())
-                    return false;
-                walk.point = inverse->map(walk.point);
-                return true;
-            },
-            [&](BackfaceVisibilityData const& backface) {
-                auto plane_root_position = walk.chain.find_first_index(backface.plane_root_index).value();
-                return !should_cull_back_face(walk.accumulated_matrices.last(), walk.accumulated_matrices[plane_root_position]);
-            },
-            [&](ScrollData const&) {
-                walk.point.translate_by(-scroll_state.device_offset_for_index(node_index));
-                return true;
-            },
-            [&](StickyData const&) {
-                walk.point.translate_by(-scroll_state.device_offset_for_index(node_index));
-                return true;
-            },
-            [&](TransformData const& transform) {
-                auto affine = Gfx::extract_2d_affine_transform(transform.matrix);
-                auto inverse = affine.inverse();
-                if (!inverse.has_value())
-                    return false;
-
-                auto offset_point = walk.point - transform.origin;
-                auto transformed = inverse->map(offset_point);
-                walk.point = transformed + transform.origin;
-                return true;
-            },
-            [&](AnchorScrollShift const& shift) {
-                walk.point.translate_by(-shift.masked_offset(scroll_state));
-                return true;
-            });
-    };
-
-    auto apply_spatial_steps_through_node = [&](SpatialChainWalk& walk, SpatialNodeIndex node_index) -> bool {
-        if (walk.applied_steps > 0 && walk.chain[walk.applied_steps - 1] == node_index)
-            return true;
-        for (;; ++walk.applied_steps) {
-            VERIFY(walk.applied_steps < walk.chain.size());
-            if (!apply_spatial_step(walk, walk.applied_steps))
-                return false;
-            if (walk.chain[walk.applied_steps] == node_index) {
-                ++walk.applied_steps;
-                return true;
-            }
-        }
-    };
-
-    auto point_passes_frame = [&](FrameNode const& frame, Gfx::FloatPoint point) {
-        return frame.data.visit(
-            [&](ClipData const& clip) {
-                if (clip_behavior == ClipBehavior::Ignore)
-                    return true;
-                // NOTE: The clip rect is in absolute device-pixel coordinates. After inverse-transforming, `point`
-                //       is also in device-pixel coordinates, so we compare them directly.
-                bool inside = clip.contains(point);
-                return clip.mode == ClipMode::Intersect ? inside : !inside;
-            },
-            [&](ClipPathData const& clip_path) {
-                if (clip_behavior == ClipBehavior::Ignore)
-                    return true;
-                // NOTE: The clip path is in absolute device-pixel coordinates. After inverse-transforming, `point`
-                //       is also in device-pixel coordinates, so we compare them directly.
-                if (!clip_path.bounding_rect.contains(point.to_type<int>().to_type<DevicePixels>()))
-                    return false;
-                return clip_path.path.contains(point, clip_path.fill_rule);
-            },
-            [&](EffectsData const&) { return true; },
-            [&](MaskData const&) { return true; });
-    };
-
-    auto context_walk = begin_walk(context.spatial);
-    for (auto frame_index : frame_chain) {
-        auto const& frame = m_frame_nodes[frame_index.value()];
-        if (context_walk.chain.contains_slow(frame.spatial)) {
-            if (!apply_spatial_steps_through_node(context_walk, frame.spatial) || !point_passes_frame(frame, context_walk.point))
-                return {};
-            continue;
-        }
-        // A fixed-background context is rooted above the scroll nodes its frames record in, so such a frame hangs
-        // below the context's node and takes its own walk from the root.
-        auto frame_walk = begin_walk(frame.spatial);
-        if (!apply_spatial_steps_through_node(frame_walk, frame.spatial) || !point_passes_frame(frame, frame_walk.point))
-            return {};
-    }
-    if (!apply_spatial_steps_through_node(context_walk, context.spatial))
+    auto scroll_offsets = scroll_state.device_offsets();
+    Gfx::FloatPoint local_point;
+    if (!Layout::RustFFI::visual_context_tree_transform_point_for_hit_test(m_rust_tree, context, screen_point, scroll_offsets.data(), scroll_offsets.size(), clip_behavior == ClipBehavior::Respect, &local_point))
         return {};
-
-    return context_walk.point;
+    return local_point;
 }
 
 Gfx::FloatPoint AccumulatedVisualContextTree::inverse_transform_point(SpatialNodeIndex index, Gfx::FloatPoint screen_point) const
 {
-    auto chain = build_ancestor_chain(index);
-
-    // This walk deliberately skips translation-only nodes. Callers resolve offsets and scroll positions
-    // themselves. The per-node inverses below are only exact for chains of 2D transforms, so a chain containing a
-    // 3D transform inverts the flattened accumulated matrix, mapping the screen point onto the plane the content
-    // was rendered into.
-    if (chain_contains_3d_transform(index)) {
-        auto matrix = Gfx::FloatMatrix4x4::identity();
-        for (size_t i = chain.size(); i > 0; --i) {
-            auto const& node = m_spatial_nodes[chain[i - 1].value()];
-            node.data.visit(
-                [&](TransformData const& transform) {
-                    matrix = (transform.flattens_inherited_transform ? Gfx::flattened(matrix) : matrix) * transform.matrix_including_origin();
-                },
-                [&](PerspectiveData const& perspective) {
-                    matrix = (perspective.flattens_inherited_transform ? Gfx::flattened(matrix) : matrix) * perspective.matrix;
-                },
-                [&](auto const&) {});
-        }
-        auto inverse = Gfx::flattened(matrix).inverse();
-        if (!inverse.has_value())
-            return screen_point;
-        auto mapped = *inverse * Gfx::FloatVector4 { screen_point.x(), screen_point.y(), 0, 1 };
-        if (mapped.w() < minimum_projection_w)
-            return screen_point;
-        return { mapped.x() / mapped.w(), mapped.y() / mapped.w() };
-    }
-
-    auto point = screen_point;
-    for (size_t i = chain.size(); i > 0; --i) {
-        auto const& node = m_spatial_nodes[chain[i - 1].value()];
-
-        node.data.visit(
-            [&](PerspectiveData const& perspective) {
-                auto affine = Gfx::extract_2d_affine_transform(perspective.matrix);
-                auto inverse = affine.inverse();
-                if (inverse.has_value())
-                    point = inverse->map(point);
-            },
-            [&](TransformData const& transform) {
-                auto affine = Gfx::extract_2d_affine_transform(transform.matrix);
-                auto inverse = affine.inverse();
-                if (inverse.has_value()) {
-                    auto offset_point = point - transform.origin;
-                    auto transformed = inverse->map(offset_point);
-                    point = transformed + transform.origin;
-                }
-            },
-            [&](auto const&) {});
-    }
-
-    return point;
-}
-
-Gfx::FloatMatrix4x4 AccumulatedVisualContextTree::accumulated_matrix(SpatialNodeIndex index, ScrollStateSnapshot const& scroll_state, IncludeVisualViewportTransform include_visual_viewport_transform) const
-{
-    auto chain = build_ancestor_chain(index);
-    auto matrix = Gfx::FloatMatrix4x4::identity();
-    for (size_t i = chain.size(); i > 0; --i) {
-        auto node_index = chain[i - 1];
-        if (node_index == VISUAL_VIEWPORT_NODE_INDEX && m_root_is_visual_viewport && include_visual_viewport_transform == IncludeVisualViewportTransform::No)
-            continue;
-        auto local = local_spatial_matrix(m_spatial_nodes[node_index.value()], node_index, scroll_state);
-        matrix = (local.flattens_inherited_transform ? Gfx::flattened(matrix) : matrix) * local.matrix;
-    }
-    return matrix;
-}
-
-Gfx::FloatSize AccumulatedVisualContextTree::accumulated_2d_scale(SpatialNodeIndex index, ScrollStateSnapshot const& scroll_state, IncludeVisualViewportTransform include_visual_viewport_transform) const
-{
-    auto affine = Gfx::extract_2d_affine_transform(accumulated_matrix(index, scroll_state, include_visual_viewport_transform));
-    return { affine.x_scale(), affine.y_scale() };
+    return Layout::RustFFI::visual_context_tree_inverse_transform_point(m_rust_tree, index, screen_point);
 }
 
 Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(SpatialNodeIndex index, Gfx::FloatRect const& source_rect, ScrollStateSnapshot const& scroll_state, IncludeVisualViewportTransform include_visual_viewport_transform) const
 {
-    // A chain with three-dimensional transforms cannot be applied one two-dimensional projection at a time.
-    if (chain_contains_3d_transform(index)) {
-        return map_rect_through_matrix(accumulated_matrix(index, scroll_state, include_visual_viewport_transform), source_rect);
-    }
+    auto scroll_offsets = scroll_state.device_offsets();
+    return Layout::RustFFI::visual_context_tree_transform_rect_to_viewport(m_rust_tree, index, source_rect, scroll_offsets.data(), scroll_offsets.size(), include_visual_viewport_transform == IncludeVisualViewportTransform::Yes);
+}
 
-    auto rect = source_rect;
-    for (auto i = index;; i = m_spatial_nodes[i.value()].parent) {
-        auto const& node = m_spatial_nodes[i.value()];
-        if (i != VISUAL_VIEWPORT_NODE_INDEX || !m_root_is_visual_viewport || include_visual_viewport_transform == IncludeVisualViewportTransform::Yes) {
-            node.data.visit(
-                [&](TransformData const& transform) {
-                    auto affine = Gfx::extract_2d_affine_transform(transform.matrix);
-                    rect.translate_by(-transform.origin);
-                    rect = affine.map(rect);
-                    rect.translate_by(transform.origin);
-                },
-                [&](PerspectiveData const& perspective) {
-                    auto affine = Gfx::extract_2d_affine_transform(perspective.matrix);
-                    rect = affine.map(rect);
-                },
-                [&](ScrollData const&) {
-                    rect.translate_by(scroll_state.device_offset_for_index(i));
-                },
-                [&](StickyData const&) {
-                    rect.translate_by(scroll_state.device_offset_for_index(i));
-                },
-                [&](AnchorScrollShift const& shift) {
-                    rect.translate_by(shift.masked_offset(scroll_state));
-                },
-                [&](BackfaceVisibilityData const&) {});
-        }
-        if (i == VISUAL_VIEWPORT_NODE_INDEX)
-            break;
-    }
+Gfx::FloatPoint AccumulatedVisualContextTree::cumulative_scroll_chain_offset(SpatialNodeIndex index, ScrollStateSnapshot const& scroll_state) const
+{
+    auto scroll_offsets = scroll_state.device_offsets();
+    return Layout::RustFFI::visual_context_tree_cumulative_scroll_chain_offset(m_rust_tree, index, scroll_offsets.data(), scroll_offsets.size());
+}
 
-    return rect;
+Gfx::FloatMatrix4x4 AccumulatedVisualContextTree::accumulated_matrix(SpatialNodeIndex index, ScrollStateSnapshot const& scroll_state, IncludeVisualViewportTransform include_visual_viewport_transform) const
+{
+    auto scroll_offsets = scroll_state.device_offsets();
+    return Layout::RustFFI::visual_context_tree_accumulated_matrix(m_rust_tree, index, scroll_offsets.data(), scroll_offsets.size(), include_visual_viewport_transform == IncludeVisualViewportTransform::Yes);
 }
 
 void AccumulatedVisualContextTree::sample_visual_animations(i64 monotonic_time_ns, VisualAnimationOriginalValues& original_values)
@@ -586,219 +295,52 @@ void AccumulatedVisualContextTree::restore_visual_animation_original_values(Visu
     original_values.clear();
 }
 
-Gfx::FloatMatrix4x4 TransformData::matrix_including_origin() const
+bool AccumulatedVisualContextTree::frame_is_isolated_by_layer_frame(FrameNodeIndex frame) const
 {
-    auto origin_translation = Gfx::translation_matrix(Gfx::Vector3<float> { origin.x(), origin.y(), 0 });
-    auto inverse_origin_translation = Gfx::translation_matrix(Gfx::Vector3<float> { -origin.x(), -origin.y(), 0 });
-    return origin_translation * matrix * inverse_origin_translation;
+    return Layout::RustFFI::visual_context_tree_frame_is_isolated_by_layer_frame(m_rust_tree, frame);
 }
 
-bool should_cull_back_face(Gfx::FloatMatrix4x4 const& accumulated_matrix, Gfx::FloatMatrix4x4 const& plane_root_matrix)
+bool AccumulatedVisualContextTree::has_unisolated_blending_frame() const
 {
-    auto inverse_plane_root_matrix = Gfx::flattened(plane_root_matrix).inverse();
-    if (!inverse_plane_root_matrix.has_value())
-        return false;
-    return Gfx::is_back_face_visible(*inverse_plane_root_matrix * accumulated_matrix);
+    return Layout::RustFFI::visual_context_tree_has_unisolated_blending_frame(m_rust_tree);
 }
 
-Gfx::FloatPoint AnchorScrollShift::masked_offset(ScrollStateSnapshot const& scroll_state) const
+void AccumulatedVisualContextTree::for_each_effects_filter_bytes(Function<void(ReadonlyBytes)> const& visit) const
 {
-    auto offset = scroll_state.device_offset_for_index(scroll_node_index);
-    if (!compensate_horizontal_scroll)
-        offset.set_x(0);
-    if (!compensate_vertical_scroll)
-        offset.set_y(0);
-    return negate ? -offset : offset;
+    struct FilterBytesVisitor {
+        Function<void(ReadonlyBytes)> const& visit;
+    } visitor { visit };
+    Layout::RustFFI::visual_context_tree_for_each_effects_filter_bytes(m_rust_tree, &visitor, [](void* context, u8 const* bytes, size_t size) {
+        static_cast<FilterBytesVisitor*>(context)->visit(ReadonlyBytes { bytes, size });
+    });
 }
 
-Gfx::FloatPoint AccumulatedVisualContextTree::cumulative_scroll_chain_offset(SpatialNodeIndex index, ScrollStateSnapshot const& scroll_state) const
+void AccumulatedVisualContextTree::dump(StringBuilder& builder, ReadonlySpan<DisplayListCommandRun> command_runs, Function<Optional<String>(SpatialNodeIndex)> const& spatial_node_owner_label, Function<Optional<String>(FrameNodeIndex)> const& frame_node_owner_label) const
 {
-    auto nearest_scroll_like_ancestor = [&](SpatialNodeIndex from) -> Optional<SpatialNodeIndex> {
-        for (auto i = from; i != VISUAL_VIEWPORT_NODE_INDEX;) {
-            i = m_spatial_nodes[i.value()].parent;
-            if (i == VISUAL_VIEWPORT_NODE_INDEX)
-                return {};
-            auto const& data = m_spatial_nodes[i.value()].data;
-            if (data.has<ScrollData>() || data.has<StickyData>())
-                return i;
-        }
-        return {};
-    };
-
-    Gfx::FloatPoint offset;
-    for (Optional<SpatialNodeIndex> current = index; current.has_value() && *current != VISUAL_VIEWPORT_NODE_INDEX;) {
-        offset.translate_by(scroll_state.device_offset_for_index(*current));
-        if (auto const* sticky = m_spatial_nodes[current->value()].data.get_pointer<StickyData>())
-            current = sticky->parent_sticky.has_value() ? sticky->parent_sticky : Optional<SpatialNodeIndex> { sticky->scroller };
-        else
-            current = nearest_scroll_like_ancestor(*current);
-    }
-    return offset;
+    struct OwnerLabelSource {
+        Function<Optional<String>(SpatialNodeIndex)> const& spatial_node_owner_label;
+        Function<Optional<String>(FrameNodeIndex)> const& frame_node_owner_label;
+    } owner_label_source { spatial_node_owner_label, frame_node_owner_label };
+    Layout::RustFFI::visual_context_tree_dump(
+        m_rust_tree, command_runs.data(), command_runs.size(),
+        &owner_label_source, [](void* context, bool is_frame, u32 index, void* label_sink) -> bool {
+            auto& source = *static_cast<OwnerLabelSource*>(context);
+            auto label = is_frame ? source.frame_node_owner_label(FrameNodeIndex { index }) : source.spatial_node_owner_label(SpatialNodeIndex { index });
+            if (!label.has_value())
+                return false;
+            auto label_bytes = label->bytes();
+            Layout::RustFFI::layout_arena_paint_push_bytes(label_sink, label_bytes.data(), label_bytes.size());
+            return true; },
+        &builder, [](void* sink, u8 const* bytes, size_t size) { static_cast<StringBuilder*>(sink)->append(StringView { bytes, size }); });
 }
 
 void resolve_sticky_offsets(AccumulatedVisualContextTree const& tree, ScrollStateSnapshot& scroll_state)
 {
-    auto spatial_nodes = tree.spatial_nodes();
-    for (size_t i = 0; i < spatial_nodes.size(); ++i) {
-        auto const* sticky = spatial_nodes[i].data.get_pointer<StickyData>();
-        if (!sticky)
-            continue;
-        auto node_index = SpatialNodeIndex { static_cast<u32>(i) };
-        if (sticky->scroller == VISUAL_VIEWPORT_NODE_INDEX) {
-            scroll_state.set_device_offset_for_index(node_index, {});
-            continue;
-        }
-        VERIFY(sticky->scroller.value() < i);
-
-        // Sticky ancestors along the containing block chain precede this node, so their entries are
-        // already resolved in this pass.
-        Gfx::FloatPoint parent_sticky_offset;
-        for (auto ancestor = sticky->parent_sticky; ancestor.has_value(); ancestor = spatial_nodes[ancestor->value()].data.get<StickyData>().parent_sticky) {
-            VERIFY(ancestor->value() < i);
-            parent_sticky_offset.translate_by(scroll_state.device_offset_for_index(*ancestor));
-        }
-
-        auto position_in_scroller = sticky->position_relative_to_scroller.translated(parent_sticky_offset);
-        auto containing_block_region = sticky->containing_block_region;
-        if (sticky->needs_parent_offset_adjustment)
-            containing_block_region.translate_by(parent_sticky_offset);
-        auto min_offset_within_containing_block = containing_block_region.top_left();
-        Gfx::FloatPoint max_offset_within_containing_block {
-            containing_block_region.right() - sticky->border_box_size.width(),
-            containing_block_region.bottom() - sticky->border_box_size.height()
-        };
-
-        // A scroll container's entry is its negated scroll offset.
-        auto scroller_entry = scroll_state.device_offset_for_index(sticky->scroller);
-        Gfx::FloatRect scrollport_rect { { -scroller_entry.x(), -scroller_entry.y() }, sticky->scrollport_size };
-
-        Gfx::FloatPoint sticky_offset;
-        if (sticky->inset_top.has_value() && scrollport_rect.top() > position_in_scroller.y() - *sticky->inset_top)
-            sticky_offset.set_y(min(scrollport_rect.top() + *sticky->inset_top, max_offset_within_containing_block.y()) - position_in_scroller.y());
-        if (sticky->inset_left.has_value() && scrollport_rect.left() > position_in_scroller.x() - *sticky->inset_left)
-            sticky_offset.set_x(min(scrollport_rect.left() + *sticky->inset_left, max_offset_within_containing_block.x()) - position_in_scroller.x());
-        if (sticky->inset_bottom.has_value() && scrollport_rect.bottom() < position_in_scroller.y() + sticky->border_box_size.height() + *sticky->inset_bottom)
-            sticky_offset.set_y(max(scrollport_rect.bottom() - sticky->border_box_size.height() - *sticky->inset_bottom, min_offset_within_containing_block.y()) - position_in_scroller.y());
-        if (sticky->inset_right.has_value() && scrollport_rect.right() < position_in_scroller.x() + sticky->border_box_size.width() + *sticky->inset_right)
-            sticky_offset.set_x(max(scrollport_rect.right() - sticky->border_box_size.width() - *sticky->inset_right, min_offset_within_containing_block.x()) - position_in_scroller.x());
-
-        scroll_state.set_device_offset_for_index(node_index, sticky_offset);
-    }
-}
-
-void AccumulatedVisualContextTree::dump_spatial_node(SpatialNodeIndex index, StringBuilder& builder) const
-{
-    m_spatial_nodes[index.value()].data.visit(
-        [&](PerspectiveData const&) {
-            builder.append("perspective"sv);
-        },
-        [&](BackfaceVisibilityData const& backface) {
-            builder.appendff("backface-hidden plane_root={}", backface.plane_root_index);
-        },
-        [&](ScrollData const&) {
-            builder.append("scroll"sv);
-        },
-        [&](StickyData const& sticky) {
-            builder.appendff("sticky scroller={}", sticky.scroller);
-            if (sticky.parent_sticky.has_value())
-                builder.appendff(" parent_sticky={}", *sticky.parent_sticky);
-            builder.appendff(" position_relative_to_scroller={} border_box_size={} scrollport_size={} containing_block_region={} needs_parent_offset_adjustment={} insets=[",
-                sticky.position_relative_to_scroller, sticky.border_box_size, sticky.scrollport_size, sticky.containing_block_region, sticky.needs_parent_offset_adjustment);
-            bool is_first_inset = true;
-            auto append_inset = [&](StringView side, Optional<float> inset) {
-                if (!inset.has_value())
-                    return;
-                if (!is_first_inset)
-                    builder.append(", "sv);
-                builder.appendff("{}={}", side, *inset);
-                is_first_inset = false;
-            };
-            append_inset("top"sv, sticky.inset_top);
-            append_inset("right"sv, sticky.inset_right);
-            append_inset("bottom"sv, sticky.inset_bottom);
-            append_inset("left"sv, sticky.inset_left);
-            builder.append(']');
-        },
-        [&](TransformData const& transform) {
-            auto const& matrix = transform.matrix.elements();
-            auto const& origin = transform.origin;
-            builder.appendff("{}=[{},{},{},{},{},{}] origin=({},{})",
-                transform.role == TransformDataRole::SvgViewportTransform ? "svg-viewport-transform"sv : "transform"sv,
-                matrix[0][0], matrix[0][1], matrix[1][0], matrix[1][1], matrix[0][3], matrix[1][3], origin.x(), origin.y());
-        },
-        [&](AnchorScrollShift const& shift) {
-            builder.appendff("anchor_scroll_shift(node_index={}{}{}{})", shift.scroll_node_index,
-                shift.negate ? ", negate"sv : ""sv,
-                shift.compensate_horizontal_scroll ? ""sv : ", no-x"sv,
-                shift.compensate_vertical_scroll ? ""sv : ", no-y"sv);
-        });
-}
-
-void AccumulatedVisualContextTree::dump_frame_node(FrameNodeIndex index, StringBuilder& builder) const
-{
-    m_frame_nodes[index.value()].data.visit(
-        [&](ClipData const& clip) {
-            auto const& rect = clip.rect;
-            builder.appendff("clip=[{},{} {}x{}]", rect.x(), rect.y(), rect.width(), rect.height());
-
-            if (clip.corner_radii.has_any_radius()) {
-                auto const& corner_radii = clip.corner_radii;
-                builder.appendff(" radii=({},{},{},{})", corner_radii.top_left.horizontal_radius, corner_radii.top_right.horizontal_radius, corner_radii.bottom_right.horizontal_radius, corner_radii.bottom_left.horizontal_radius);
-            }
-            if (clip.mode == ClipMode::Difference)
-                builder.append(" mode=difference"sv);
-        },
-        [&](ClipPathData const& clip_path) {
-            auto const& rect = clip_path.bounding_rect;
-            auto svg_path = clip_path.path.to_svg_string();
-            bool const has_curves_with_host_dependent_control_points = svg_path.contains('Q') || svg_path.contains('C');
-            if (has_curves_with_host_dependent_control_points) {
-                size_t command_count = 0;
-                for (auto code_point : svg_path.code_points()) {
-                    if (code_point == 'M' || code_point == 'L' || code_point == 'Q' || code_point == 'C' || code_point == 'Z')
-                        ++command_count;
-                }
-                builder.appendff("clip_path=[bounds: {},{} {}x{}, curved path: {} commands]", rect.x(), rect.y(), rect.width(), rect.height(), command_count);
-            } else {
-                builder.appendff("clip_path=[bounds: {},{} {}x{}, path: {}]", rect.x(), rect.y(), rect.width(), rect.height(), svg_path);
-            }
-        },
-        [&](EffectsData const& effects) {
-            builder.append("effects=["sv);
-            bool has_content = false;
-            if (effects.opacity < 1.0f) {
-                builder.appendff("opacity={}", effects.opacity);
-                has_content = true;
-            }
-            if (effects.blend_mode != Gfx::CompositingAndBlendingOperator::Normal) {
-                if (has_content)
-                    builder.append(' ');
-                builder.appendff("blend_mode={}", static_cast<int>(effects.blend_mode));
-                has_content = true;
-            }
-            if (effects.filter_bytes.has_value()) {
-                if (has_content)
-                    builder.append(' ');
-                builder.append("filter"sv);
-                has_content = true;
-            }
-            builder.append("]"sv);
-        },
-        [&](MaskData const& mask) {
-            auto const& rect = mask.rect;
-            auto kind = mask.kind == Gfx::MaskKind::Alpha ? "alpha"sv : "luminance"sv;
-            auto origin = [&] {
-                switch (mask.origin) {
-                case MaskLayerOrigin::CssMaskLayers:
-                    return "css-mask-layers"sv;
-                case MaskLayerOrigin::SvgMask:
-                    return "svg-mask"sv;
-                case MaskLayerOrigin::SvgClip:
-                    return "svg-clip"sv;
-                }
-                VERIFY_NOT_REACHED();
-            }();
-            builder.appendff("mask=[{},{} {}x{}] kind={} origin={}", rect.x(), rect.y(), rect.width(), rect.height(), kind, origin);
+    auto scroll_offsets = scroll_state.device_offsets();
+    Layout::RustFFI::visual_context_tree_resolve_sticky_offsets(
+        tree.rust_tree(), scroll_offsets.data(), scroll_offsets.size(),
+        &scroll_state, [](void* sink, SpatialNodeIndex index, Gfx::FloatPoint offset) {
+            static_cast<ScrollStateSnapshot*>(sink)->set_device_offset_for_index(index, offset);
         });
 }
 

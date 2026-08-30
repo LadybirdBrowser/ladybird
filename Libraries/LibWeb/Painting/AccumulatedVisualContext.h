@@ -9,6 +9,9 @@
 #include <AK/ByteBuffer.h>
 #include <AK/DistinctNumeric.h>
 #include <AK/Error.h>
+#include <AK/Forward.h>
+#include <AK/Function.h>
+#include <AK/String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
@@ -22,6 +25,7 @@
 #include <LibIPC/Forward.h>
 #include <LibWeb/Compositor/VisualAnimation.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Painting/ScrollState.h>
 #include <LibWeb/PixelUnits.h>
 
@@ -30,6 +34,11 @@ namespace Web::Painting {
 class ScrollStateSnapshot;
 
 enum class ClipMode : u8;
+
+struct TransformWithOrigin {
+    Gfx::FloatMatrix4x4 matrix;
+    Gfx::FloatPoint origin;
+};
 
 // The node's own SpatialNodeIndex keys its entry in the scroll offset snapshot.
 struct ScrollData { };
@@ -57,8 +66,6 @@ struct ClipData {
     Gfx::FloatRect rect;
     Gfx::CornerRadii corner_radii;
     ClipMode mode;
-
-    bool contains(Gfx::FloatPoint) const;
 };
 
 // Distinguishes the two producers of transform nodes so value-only updates can patch each from its
@@ -76,8 +83,6 @@ struct TransformData {
     bool flattens_inherited_transform { false };
     TransformDataRole role { TransformDataRole::CssTransform };
     bool synthetic_plane { false };
-
-    Gfx::FloatMatrix4x4 matrix_including_origin() const;
 };
 
 struct PerspectiveData {
@@ -89,8 +94,6 @@ struct BackfaceVisibilityData {
     SpatialNodeIndex plane_root_index;
     bool flattens_inherited_transform { false };
 };
-
-bool should_cull_back_face(Gfx::FloatMatrix4x4 const& accumulated_matrix, Gfx::FloatMatrix4x4 const& plane_root_matrix);
 
 struct ClipPathData {
     Gfx::Path path;
@@ -123,8 +126,6 @@ struct AnchorScrollShift {
     bool negate { false };
     bool compensate_horizontal_scroll { true };
     bool compensate_vertical_scroll { true };
-
-    Gfx::FloatPoint masked_offset(ScrollStateSnapshot const&) const;
 };
 
 using SpatialData = Variant<ScrollData, StickyData, TransformData, PerspectiveData, BackfaceVisibilityData, AnchorScrollShift>;
@@ -206,7 +207,6 @@ public:
 
     WEB_API SpatialNodeIndex append_spatial(SpatialData, SpatialNodeIndex parent);
     WEB_API FrameNodeIndex append_frame(FrameData, FrameNodeIndex parent, SpatialNodeIndex spatial);
-    WEB_API void set_visual_viewport_transform(TransformData);
 
     SpatialNode const& spatial_node_at(SpatialNodeIndex index) const { return m_spatial_nodes[index.value()]; }
     SpatialNode& spatial_node_at(SpatialNodeIndex index) { return m_spatial_nodes[index.value()]; }
@@ -227,23 +227,31 @@ public:
         m_root_isolation_frame = frame;
     }
 
+    WEB_API size_t spatial_node_count() const;
+    WEB_API size_t frame_node_count() const;
+    WEB_API TransformWithOrigin visual_viewport_transform() const;
+    WEB_API AccumulatedVisualContextTree with_visual_viewport_transform(TransformWithOrigin const&) const;
+    WEB_API AccumulatedVisualContextTree with_visual_animation_samples(i64 monotonic_time_ns) const;
+    WEB_API bool visual_animation_targets_are_valid(Compositor::VisualAnimation const&) const;
+    WEB_API Optional<float> effects_opacity(FrameNodeIndex) const;
+    WEB_API Vector<bool> spatial_nodes_in_subtrees_of(ReadonlySpan<SpatialNodeIndex> roots) const;
+
     WEB_API Optional<Gfx::FloatPoint> transform_point_for_hit_test(ContextRef, Gfx::FloatPoint, ScrollStateSnapshot const&, ClipBehavior = ClipBehavior::Respect) const;
-    Gfx::FloatPoint inverse_transform_point(SpatialNodeIndex, Gfx::FloatPoint) const;
+    WEB_API Gfx::FloatPoint inverse_transform_point(SpatialNodeIndex, Gfx::FloatPoint) const;
     WEB_API Gfx::FloatRect transform_rect_to_viewport(SpatialNodeIndex, Gfx::FloatRect const&, ScrollStateSnapshot const&, IncludeVisualViewportTransform = IncludeVisualViewportTransform::Yes) const;
     // Sum of the snapshot entries along the scroll-parent chain from the given scroll-like node.
-    Gfx::FloatPoint cumulative_scroll_chain_offset(SpatialNodeIndex, ScrollStateSnapshot const&) const;
-    Gfx::FloatMatrix4x4 accumulated_matrix(SpatialNodeIndex, ScrollStateSnapshot const&, IncludeVisualViewportTransform) const;
-    Gfx::FloatSize accumulated_2d_scale(SpatialNodeIndex, ScrollStateSnapshot const&, IncludeVisualViewportTransform) const;
-    void dump_spatial_node(SpatialNodeIndex, StringBuilder&) const;
-    void dump_frame_node(FrameNodeIndex, StringBuilder&) const;
+    WEB_API Gfx::FloatPoint cumulative_scroll_chain_offset(SpatialNodeIndex, ScrollStateSnapshot const&) const;
+    WEB_API Gfx::FloatMatrix4x4 accumulated_matrix(SpatialNodeIndex, ScrollStateSnapshot const&, IncludeVisualViewportTransform) const;
+
+    WEB_API bool frame_is_isolated_by_layer_frame(FrameNodeIndex) const;
+    WEB_API bool has_unisolated_blending_frame() const;
+    WEB_API void for_each_effects_filter_bytes(Function<void(ReadonlyBytes)> const&) const;
+    WEB_API void dump(StringBuilder&, ReadonlySpan<DisplayListCommandRun>, Function<Optional<String>(SpatialNodeIndex)> const& spatial_node_owner_label, Function<Optional<String>(FrameNodeIndex)> const& frame_node_owner_label) const;
 
     WEB_API Vector<bool> frames_with_empty_effective_clip() const;
 
 private:
     AccumulatedVisualContextTree(TransformData root_transform, bool root_is_visual_viewport);
-
-    Vector<SpatialNodeIndex, 8> build_ancestor_chain(SpatialNodeIndex index) const;
-    bool chain_contains_3d_transform(SpatialNodeIndex index) const;
 
     void const* m_rust_tree { nullptr };
     Vector<SpatialNode> m_spatial_nodes;
