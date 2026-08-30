@@ -29,6 +29,7 @@
 
         const hiddenTarget = document.createElement("div");
         hiddenTarget.style.visibility = "hidden";
+        hiddenTarget.style.transformOrigin = "center center 1px";
         document.body.append(hiddenTarget);
         const hiddenAnimation = hiddenTarget.animate([
             { transform: "translateX(0px)" },
@@ -104,6 +105,26 @@
         for (const animation of document.getAnimations())
             animation.cancel();
         await nextFrame();
+
+        const retainedTarget = document.createElement("div");
+        retainedTarget.style.cssText = "visibility: hidden; transform-origin: center center 1px";
+        document.body.append(retainedTarget);
+        const retainedTimeline = internals.createInternalAnimationTimeline();
+        const retainedAnimation = new Animation(new KeyframeEffect(retainedTarget, [
+            { transform: "translateX(0px)" },
+            { transform: "translateX(100px)" },
+        ], { duration: 100, iterations: Infinity }), retainedTimeline);
+        retainedAnimation.play();
+        retainedTimeline.setTime(0);
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+        retainedTimeline.setTimeForObservation(50);
+        const retainedThrottledUpdate = internals.runEmptyAnimationStyleUpdateForTesting();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const retainedTransform = new DOMMatrix(getComputedStyle(retainedTarget).transform);
+        println(`empty dirty updates preserve throttled reads: ${retainedThrottledUpdate && retainedTransform.e === 50}`);
+        retainedAnimation.cancel();
+        retainedTarget.remove();
 
         const pausedTarget = document.createElement("div");
         document.body.append(pausedTarget);

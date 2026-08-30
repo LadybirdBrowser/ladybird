@@ -1,0 +1,9 @@
+finite effects use the compositor: true
+finished promises resolve: true
+animationend events fire: true
+animationend sees terminal style: true
+finite effects request one end frame: true
+wake-up timer leaves animation updates to frames: true
+forwards fill retains opacity: true
+no fill restores transform: true
+terminal values remain stable: true

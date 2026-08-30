@@ -16,6 +16,11 @@
         to { display: none; }
     }
 
+    @keyframes finite-move {
+        from { opacity: 0.2; transform: translateX(0px); }
+        to { opacity: 0.8; transform: translateX(100px); }
+    }
+
     #visual-node-churn {
         animation: visual-node-churn 1s steps(1) infinite;
     }
@@ -42,11 +47,11 @@
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
 
-        println(`compositor visual animations: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+        const initialCounters = internals.getStyleInvalidationCounters();
 
         internals.resetStyleInvalidationCounters();
         for (let i = 0; i < 4; ++i)
-            await new Promise(requestAnimationFrame);
+            internals.updateCompositorAnimations();
         const counters = internals.getStyleInvalidationCounters();
 
         internals.resetStyleInvalidationCounters();
@@ -57,9 +62,47 @@
         }
         const visualNodeCounters = internals.getStyleInvalidationCounters();
 
+        for (const animation of document.getAnimations())
+            animation.cancel();
+        internals.updateCompositorAnimations();
+        const cancellationCounters = internals.getStyleInvalidationCounters();
+
+        internals.resetStyleInvalidationCounters();
+        for (let i = 0; i < 4; ++i)
+            internals.updateCompositorAnimations();
+        const emptyCounters = internals.getStyleInvalidationCounters();
+
+        const finiteTarget = document.createElement("div");
+        finiteTarget.style.width = "20px";
+        finiteTarget.style.height = "20px";
+        finiteTarget.style.background = "green";
+        finiteTarget.style.animation = "finite-move 500ms linear forwards";
+        document.body.appendChild(finiteTarget);
+        for (let i = 0; i < 2; ++i)
+            await new Promise(requestAnimationFrame);
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const finiteAnimation = finiteTarget.getAnimations()[0];
+        const finiteUsesCompositor = internals.getStyleInvalidationCounters().compositorVisualAnimations > 0;
+        let receivedAnimationEnd = false;
+        finiteTarget.addEventListener("animationend", () => receivedAnimationEnd = true);
+        internals.resetStyleInvalidationCounters();
+        await finiteAnimation.finished;
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const finiteCounters = internals.getStyleInvalidationCounters();
+
+        println(`compositor visual animations: ${initialCounters.compositorVisualAnimations}`);
         println(`main-thread animation overlay builds: ${counters.animatedStyleOverlayBuilds}`);
         println(`main-thread animation frame pump requests: ${counters.animationFramePumpRequests}`);
+        println(`stable compositor animation updates: ${counters.compositorVisualAnimationUpdates}`);
         println(`stable compositor animation updates with changing visual nodes: ${visualNodeCounters.compositorVisualAnimationUpdates}`);
+        println(`cancel removes compositor animations: ${cancellationCounters.compositorVisualAnimations}`);
+        println(`cancel updates compositor animations: ${cancellationCounters.compositorVisualAnimationUpdates > 0}`);
+        println(`empty compositor animation updates: ${emptyCounters.compositorVisualAnimationUpdates}`);
+        println(`finite animation uses compositor: ${finiteUsesCompositor}`);
+        println(`finite animation requests only end frames: ${finiteCounters.animationFramePumpRequests <= 2}`);
+        println(`finite animation dispatches end event: ${receivedAnimationEnd}`);
+        println(`finite animation reaches end opacity: ${getComputedStyle(finiteTarget).opacity === "0.8"}`);
+        println(`finite animation reaches end style: ${getComputedStyle(finiteTarget).transform.includes("100")}`);
         done();
     });
 </script>

@@ -52,34 +52,6 @@
         const afterComputedStyle = internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds;
         println(`computed style samples hidden animation: ${afterComputedStyle > beforeComputedStyle}`);
 
-        const detached = document.createElement("div");
-        detached.className = "animated";
-        document.body.append(detached);
-        const detachedAnimation = detached.getAnimations()[0];
-        for (let i = 0; i < 4; ++i)
-            await nextFrame();
-        detached.remove();
-        detachedAnimation.play();
-        await detachedAnimation.ready;
-        for (let i = 0; i < 4; ++i)
-            await nextFrame();
-        const detachedTimeBeforeWait = detachedAnimation.currentTime;
-        internals.resetStyleInvalidationCounters();
-        await new Promise(resolve => setTimeout(resolve, 120));
-        println(`detached animation stops frame pump: ${internals.getStyleInvalidationCounters().animationFramePumpRequests}`);
-        println(`detached animation current time advances: ${detachedAnimation.currentTime > detachedTimeBeforeWait}`);
-        detached.addEventListener("animationend", () => {});
-        internals.resetStyleInvalidationCounters();
-        await new Promise(resolve => setTimeout(resolve, 120));
-        println(`unreachable end listener leaves detached animation throttled: ${internals.getStyleInvalidationCounters().animationFramePumpRequests <= 1}`);
-        let detachedIterationEvents = 0;
-        detached.addEventListener("animationiteration", () => ++detachedIterationEvents);
-        detachedAnimation.currentTime = 99950;
-        internals.resetStyleInvalidationCounters();
-        await new Promise(resolve => setTimeout(resolve, 120));
-        println(`detached animation listener keeps frame pump active: ${internals.getStyleInvalidationCounters().animationFramePumpRequests > 0}`);
-        println(`detached animation dispatches iteration event: ${detachedIterationEvents}`);
-
         const sampled = document.createElement("div");
         sampled.style.visibility = "hidden";
         document.body.append(sampled);
@@ -105,6 +77,48 @@
         println(`computed timing uses current timeline sample: ${sampledProgress === 0.5}`);
         println(`geometry uses current timeline sample: ${sampledRect.x - initialRect.x === 25}`);
         sampled.remove();
+
+        const visibilityTarget = document.createElement("div");
+        visibilityTarget.style.cssText = "visibility: hidden; transform-origin: center center 1px";
+        document.body.append(visibilityTarget);
+        const visibilityTimeline = internals.createInternalAnimationTimeline();
+        const visibilityAnimation = new Animation(new KeyframeEffect(visibilityTarget, [
+            { transform: "translateX(0px)" },
+            { transform: "translateX(100px)" },
+        ], { duration: 100, iterations: Infinity }), visibilityTimeline);
+        visibilityAnimation.play();
+        visibilityTimeline.setTime(0);
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+        getComputedStyle(visibilityTarget).transform;
+        await new Promise(resolve => setTimeout(resolve, 0));
+        await setSystemVisibilityState("hidden");
+        visibilityTimeline.setTimeForObservation(50);
+        internals.resetStyleInvalidationCounters();
+        await setSystemVisibilityState("visible");
+        await new Promise(resolve => setTimeout(resolve, 0));
+        internals.updateStyle();
+        println(`becoming visible flushes throttled animations: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds > 0}`);
+        visibilityAnimation.cancel();
+        visibilityTarget.remove();
+
+        const detached = document.createElement("div");
+        detached.style.transformOrigin = "center center 1px";
+        document.body.append(detached);
+        const detachedAnimation = detached.animate([
+            { transform: "translateX(0%)" },
+            { transform: "translateX(100%)" },
+        ], { duration: 100000, iterations: Infinity });
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+        detached.remove();
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+        const detachedTimeBeforeWait = detachedAnimation.currentTime;
+        internals.resetStyleInvalidationCounters();
+        await new Promise(resolve => setTimeout(resolve, 120));
+        println(`detached animation stops frame pump: ${internals.getStyleInvalidationCounters().animationFramePumpRequests}`);
+        println(`detached animation current time advances: ${detachedAnimation.currentTime > detachedTimeBeforeWait}`);
 
         const visible = document.createElement("div");
         visible.className = "animated";

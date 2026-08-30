@@ -163,7 +163,7 @@ interface Internals {
     [ImplementedAs=style_invalidation_counters_object] object getStyleInvalidationCounters();
     undefined resetStyleInvalidationCounters();
     undefined updateCompositorAnimations();
-    undefined requestReentrantAnimationStyleFlushForTesting(Node node);
+    boolean runEmptyAnimationStyleUpdateForTesting();
     // Returns the confinement report of the most recent layout tree build for the current
     // document. Keys: builds (cumulative build count), lastBuildRebuiltSubtreeRoots (number of
     // subtrees rebuilt in place), lastBuildEscapedRebuildRoots (whether any tree mutation

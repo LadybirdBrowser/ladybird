@@ -1,0 +1,2 @@
+culled animations stay on main thread: 0
+paintable animations move to compositor: 2

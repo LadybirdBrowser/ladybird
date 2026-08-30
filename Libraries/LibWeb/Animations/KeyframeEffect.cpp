@@ -1026,7 +1026,7 @@ KeyframeEffect::KeyframeEffect() = default;
 void KeyframeEffect::invalidate_effect()
 {
     m_is_compositor_driven = false;
-    m_retained_compositor_animation.clear();
+    m_retained_compositor_animations.clear();
     m_can_skip_per_frame_style_update_cache.clear();
     if (m_target_element)
         m_target_element->document().set_needs_animated_style_update(*this);
@@ -1120,6 +1120,15 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
     return cache_result(true);
 }
 
+void KeyframeEffect::request_observation_sample()
+{
+    if (m_needs_observation_sample)
+        return;
+    m_needs_observation_sample = true;
+    if (m_target_element)
+        m_target_element->document().set_needs_animated_style_update(*this);
+}
+
 bool KeyframeEffect::can_skip_per_frame_animation_tick() const
 {
     if (auto animation = associated_animation(); animation && !animation->pending()
@@ -1131,6 +1140,10 @@ bool KeyframeEffect::can_skip_per_frame_animation_tick() const
 
     if (!m_is_compositor_driven && !can_skip_per_frame_style_update())
         return false;
+
+    // A compositor-driven one-iteration effect has a document timer that wakes the main thread at its active end.
+    if (m_is_compositor_driven && !isinf(iteration_count()))
+        return true;
 
     // An infinite effect cannot reach its natural end, so animationend listeners do not require a continuous tick.
     auto has_css_animation_event_listener_requiring_animation_tick = [](DOM::EventTarget const& event_target) {
@@ -1155,15 +1168,6 @@ bool KeyframeEffect::can_skip_per_frame_animation_tick() const
         return false;
 
     return true;
-}
-
-void KeyframeEffect::request_observation_sample()
-{
-    if (m_needs_observation_sample)
-        return;
-    m_needs_observation_sample = true;
-    if (m_target_element)
-        m_target_element->document().set_needs_animated_style_update(*this);
 }
 
 void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)

@@ -1246,7 +1246,7 @@ void Animation::update()
                 auto delay = (effect.start_delay().value - animation_current_time->value) / playback_rate();
                 if (delay > 0) {
                     if (auto target = effect.target())
-                        target->document().schedule_animation_wakeup(delay);
+                        target->document().schedule_compositor_animation_wakeup(delay);
                 }
             }
         }

@@ -5,4 +5,5 @@ timing changes invalidate skip eligibility: true
 descendant style changes invalidate skip eligibility: true
 finished sibling contribution is retained: true
 active sibling contributes to computed style: true
+empty dirty updates preserve throttled reads: true
 paused animation builds no overlays: true

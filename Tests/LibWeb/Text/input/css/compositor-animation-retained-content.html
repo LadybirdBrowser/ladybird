@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes reveal-opacity {
+        0%, 50% { opacity: 0; }
+        100% { opacity: 1; }
+    }
+
+    @keyframes reveal-transform {
+        0%, 50% { transform: scale(0); }
+        100% { transform: scale(1); }
+    }
+
+    #opacity {
+        animation: reveal-opacity 100s linear infinite;
+    }
+
+    #transform {
+        animation: reveal-transform 100s linear infinite;
+    }
+</style>
+<div id="opacity">opacity</div>
+<div id="transform">transform</div>
+<script>
+    asyncTest(async done => {
+        const animations = document.getAnimations();
+        animations.forEach(animation => animation.currentTime = 0);
+
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+
+        println(`culled animations stay on main thread: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+
+        animations.forEach(animation => animation.currentTime = 75000);
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+
+        println(`paintable animations move to compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+        done();
+    });
+</script>

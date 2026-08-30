@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes pulse {
+        from { opacity: 0.2; }
+        to { opacity: 0.8; }
+    }
+
+    .infinite {
+        width: 10px;
+        height: 10px;
+        animation: pulse 10s linear infinite;
+    }
+
+    #finite {
+        width: 10px;
+        height: 10px;
+        animation: pulse 300ms linear forwards;
+    }
+</style>
+<div class="infinite"></div>
+<div class="infinite"></div>
+<div class="infinite"></div>
+<div class="infinite"></div>
+<div class="infinite"></div>
+<div id="finite"></div>
+<script>
+    asyncTest(async done => {
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        const ended = new Promise(resolve => finite.addEventListener("animationend", resolve, { once: true }));
+        println(`all effects use the compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 6}`);
+
+        internals.resetStyleInvalidationCounters();
+        await ended;
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const counters = internals.getStyleInvalidationCounters();
+
+        println(`finite end samples only its target: ${counters.animatedStyleOverlayBuilds === 1}`);
+        println(`finite end requests one frame: ${counters.animationFramePumpRequests === 1}`);
+        println(`infinite effects remain on the compositor: ${counters.compositorVisualAnimations === 5}`);
+        done();
+    });
+</script>

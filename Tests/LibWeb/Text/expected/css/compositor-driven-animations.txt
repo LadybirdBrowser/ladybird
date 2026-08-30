@@ -1,4 +1,13 @@
 compositor visual animations: 2
 main-thread animation overlay builds: 0
 main-thread animation frame pump requests: 0
+stable compositor animation updates: 0
 stable compositor animation updates with changing visual nodes: 0
+cancel removes compositor animations: 0
+cancel updates compositor animations: true
+empty compositor animation updates: 0
+finite animation uses compositor: true
+finite animation requests only end frames: true
+finite animation dispatches end event: true
+finite animation reaches end opacity: true
+finite animation reaches end style: true
