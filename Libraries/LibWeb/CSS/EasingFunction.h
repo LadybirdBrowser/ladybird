@@ -12,7 +12,7 @@ namespace Web::CSS {
 
 struct LinearEasingFunction {
     struct ControlPoint {
-        Optional<double> input;
+        double input;
         double output;
 
         bool operator==(ControlPoint const&) const = default;

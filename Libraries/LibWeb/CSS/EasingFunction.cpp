@@ -21,10 +21,8 @@ double LinearEasingFunction::evaluate_at(double input_progress, bool before_flag
 {
     Vector<StyleValueFFI::FfiLinearEasingPoint> points;
     points.ensure_capacity(control_points.size());
-    for (auto const& point : control_points) {
-        VERIFY(point.input.has_value());
-        points.unchecked_append({ .input = *point.input, .output = point.output });
-    }
+    for (auto const& point : control_points)
+        points.unchecked_append({ .input = point.input, .output = point.output });
     StyleValueFFI::FfiEasingDescriptor descriptor {
         .kind = StyleValueFFI::FfiEasingKind::Linear,
         .linear_points = points.data(),
@@ -74,10 +72,15 @@ double StepsEasingFunction::evaluate_at(double input_progress, bool before_flag)
 }
 
 // https://drafts.csswg.org/css-easing/#linear-canonicalization
-static Vector<LinearEasingFunction::ControlPoint> canonicalize_linear_easing_function_control_points(Vector<LinearEasingFunction::ControlPoint> control_points)
+struct UnresolvedLinearEasingControlPoint {
+    Optional<double> input;
+    double output;
+};
+
+static Vector<LinearEasingFunction::ControlPoint> canonicalize_linear_easing_function_control_points(Vector<UnresolvedLinearEasingControlPoint> control_points)
 {
     // To canonicalize a linear() function’s control points, perform the following:
-    Vector<LinearEasingFunction::ControlPoint> canonicalized_control_points = control_points;
+    auto canonicalized_control_points = move(control_points);
 
     // 1. If the first control point lacks an input progress value, set its input progress value to 0.
     if (!canonicalized_control_points.first().input.has_value())
@@ -125,7 +128,11 @@ static Vector<LinearEasingFunction::ControlPoint> canonicalize_linear_easing_fun
         }
     }
 
-    return canonicalized_control_points;
+    Vector<LinearEasingFunction::ControlPoint> resolved_control_points;
+    resolved_control_points.ensure_capacity(canonicalized_control_points.size());
+    for (auto const& control_point : canonicalized_control_points)
+        resolved_control_points.unchecked_append({ control_point.input.value(), control_point.output });
+    return resolved_control_points;
 }
 
 // https://drafts.csswg.org/css-easing-2/#linear-easing-function
@@ -168,7 +175,7 @@ EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
     if (style_value.is_easing()) {
         return style_value.as_easing().function().visit(
             [&](EasingStyleValue::Linear const& linear) -> EasingFunction {
-                Vector<LinearEasingFunction::ControlPoint> resolved_control_points;
+                Vector<UnresolvedLinearEasingControlPoint> unresolved_control_points;
 
                 for (auto const& control_point : linear.stops) {
                     double output = number_from_style_value(control_point.output, {});
@@ -177,13 +184,13 @@ EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
                     if (control_point.input)
                         input = Percentage::from_style_value(*control_point.input).as_fraction();
 
-                    resolved_control_points.append({ input, output });
+                    unresolved_control_points.append({ input, output });
                 }
 
                 // https://drafts.csswg.org/css-easing-2/#funcdef-linear
                 // If an argument lacks a <percentage>, its input progress value is initially empty. This is corrected
                 // at used value time by linear() canonicalization.
-                resolved_control_points = canonicalize_linear_easing_function_control_points(resolved_control_points);
+                auto resolved_control_points = canonicalize_linear_easing_function_control_points(move(unresolved_control_points));
 
                 return LinearEasingFunction { resolved_control_points, linear.to_utf16_string(SerializationMode::ResolvedValue) };
             },
@@ -237,9 +244,7 @@ NonnullRefPtr<StyleValue const> EasingFunction::to_style_value() const
         [](LinearEasingFunction const& linear) -> NonnullRefPtr<StyleValue const> {
             Vector<EasingStyleValue::Linear::Stop> stops;
             for (auto const& point : linear.control_points) {
-                ValueComparingRefPtr<StyleValue const> input;
-                if (point.input.has_value())
-                    input = PercentageStyleValue::create(Percentage { *point.input * 100 });
+                auto input = PercentageStyleValue::create(Percentage { point.input * 100 });
                 stops.append({ NumberStyleValue::create(point.output), move(input) });
             }
             return EasingStyleValue::create(EasingStyleValue::Linear { move(stops) });

@@ -760,10 +760,8 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         return easing.visit(
             [&](LinearEasingFunction const& linear) {
                 points.ensure_capacity(linear.control_points.size());
-                for (auto const& point : linear.control_points) {
-                    VERIFY(point.input.has_value());
-                    points.unchecked_append({ .input = *point.input, .output = point.output });
-                }
+                for (auto const& point : linear.control_points)
+                    points.unchecked_append({ .input = point.input, .output = point.output });
                 return StyleValueFFI::FfiEasingDescriptor {
                     .kind = StyleValueFFI::FfiEasingKind::Linear,
                     .linear_points = points.data(),
