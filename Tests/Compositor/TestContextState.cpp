@@ -387,3 +387,401 @@ TEST_CASE(ui_overlay_hover_changes_require_repainting)
     EXPECT(!context.set_paused_debugger_overlay(true, 1.0, {}, WebView::PausedDebuggerOverlayAction::StepOver));
     EXPECT(context.set_paused_debugger_overlay(true, 1.0, {}, {}));
 }
+
+struct Fill {
+    Gfx::IntRect rect;
+    Gfx::Color color;
+    Web::Painting::ContextRef context {};
+    bool bounded { true };
+};
+
+static NonnullRefPtr<Web::Painting::DisplayList> make_fills_display_list(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Vector<Fill> const& fills, Optional<Gfx::Color> surface_clear_color = {}, Optional<Web::Painting::DisplayList::AsyncScrollingMetadata> async_scrolling_metadata = {})
+{
+    ByteBuffer command_bytes;
+    for (auto const& fill : fills) {
+        Web::Painting::FillRect command { fill.rect, fill.color };
+        append_display_list_command(command_bytes, command, fill.bounded ? Optional<Gfx::IntRect> { fill.rect } : Optional<Gfx::IntRect> {}, fill.context);
+    }
+    return decode_display_list(visual_context_tree, move(command_bytes), surface_clear_color, async_scrolling_metadata);
+}
+
+static Web::Painting::AccumulatedVisualContextTree make_translated_visual_context_tree(Gfx::FloatPoint translation)
+{
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto matrix = Gfx::translation_matrix(Gfx::FloatVector3 { translation.x(), translation.y(), 0 });
+    visual_context_tree.append_spatial(Web::Painting::TransformData { .matrix = matrix, .origin = {} }, Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    return visual_context_tree;
+}
+
+static Web::Painting::ScrollStateSnapshot scroll_state_snapshot_with_offset(Web::Painting::SpatialNodeIndex index, Gfx::FloatPoint device_offset)
+{
+    Web::Painting::ScrollStateSnapshot scroll_state_snapshot;
+    scroll_state_snapshot.set_device_offset_for_index(index, device_offset);
+    return scroll_state_snapshot;
+}
+
+static constexpr Web::Painting::ContextRef in_spatial_node(u32 index)
+{
+    return { Web::Painting::SpatialNodeIndex { index }, Web::Painting::NO_FRAME_NODE };
+}
+
+static Gfx::IntRect const test_viewport_rect { 0, 0, 16, 16 };
+
+struct PresentingContextFixture {
+    Core::EventLoop event_loop;
+    TestCompositorClient compositor_client;
+    TestWebContentClient web_content_client;
+    NonnullRefPtr<Compositor::CompositorState> compositor_state;
+    Web::Compositor::CompositorContextId context_id;
+    Gfx::IntRect viewport_rect;
+
+    explicit PresentingContextFixture(Gfx::IntSize viewport_size = test_viewport_rect.size(), bool async_scrolling_enabled = false)
+        : compositor_state(Compositor::CompositorState::create({}, async_scrolling_enabled))
+        , context_id(Web::Compositor::compositor_context_id_for_page(1))
+        , viewport_rect({}, viewport_size)
+    {
+        compositor_state->set_client(compositor_client);
+        compositor_state->create_context(context_id, 1, web_content_client);
+        compositor_state->viewport_size_updated(context_id, viewport_size, Web::Compositor::WindowResizingInProgress::No);
+        VERIFY(!compositor_client.allocated_bitmap_ids.is_empty());
+        release_all_buffers();
+    }
+
+    void release_all_buffers()
+    {
+        for (auto bitmap_id : compositor_client.allocated_bitmap_ids)
+            compositor_state->presented_bitmap_ready_to_paint(context_id, bitmap_id);
+    }
+
+    void install(NonnullRefPtr<Web::Painting::DisplayList> display_list, Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Web::Painting::ScrollStateSnapshot scroll_state_snapshot = {})
+    {
+        compositor_state->update_display_list(context_id, move(display_list), visual_context_tree, {}, move(scroll_state_snapshot));
+    }
+
+    TestCompositorClient::PresentedFrame wait_for_frame(size_t already_presented)
+    {
+        VERIFY(spin_event_loop_until(event_loop, 2000, [&] { return compositor_client.presented_frames.size() > already_presented; }));
+        release_all_buffers();
+        return compositor_client.presented_frames.last();
+    }
+
+    bool presents_another_frame(size_t already_presented)
+    {
+        return spin_event_loop_until(event_loop, 100, [&] { return compositor_client.presented_frames.size() > already_presented; });
+    }
+
+    TestCompositorClient::PresentedFrame present(Optional<Gfx::IntRect> rect = {})
+    {
+        auto already_presented = compositor_client.presented_frames.size();
+        compositor_state->present_frame(context_id, rect.value_or(viewport_rect), {});
+        return wait_for_frame(already_presented);
+    }
+};
+
+struct RasterizingContextFixture {
+    TestWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context;
+    Web::Painting::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
+    Gfx::IntRect viewport_rect;
+
+    explicit RasterizingContextFixture(Gfx::IntSize viewport_size = test_viewport_rect.size())
+        : context(1, client, canvas_surface_registry, false)
+        , viewport_rect({}, viewport_size)
+    {
+        context.viewport_size_updated(viewport_size, Web::Compositor::WindowResizingInProgress::No);
+        auto publication = context.resize_backing_stores_if_needed({}, Compositor::BackingStoreManager::GpuSharing::Disallowed);
+        VERIFY(publication.has_value());
+        VERIFY(context.acknowledge_presented_bitmap(publication->bitmap_ids[0]));
+    }
+
+    Optional<Compositor::ContextState::PreparedFrame> prepare(Gfx::IntRect forced_damage_rect = {})
+    {
+        return context.prepare_frame(display_list_player, { viewport_rect, forced_damage_rect }, nullptr);
+    }
+
+    void finish(Compositor::ContextState::PreparedFrame const& prepared_frame)
+    {
+        display_list_player.flush(*prepared_frame.rendered_surface);
+        context.did_submit_prepared_frame(viewport_rect);
+        context.did_finish_gpu_present(prepared_frame.bitmap_id);
+        VERIFY(context.acknowledge_presented_bitmap(prepared_frame.bitmap_id));
+    }
+
+    Gfx::IntRect rasterize(Gfx::IntRect forced_damage_rect = {})
+    {
+        auto prepared_frame = prepare(forced_damage_rect);
+        VERIFY(prepared_frame.has_value());
+        finish(*prepared_frame);
+        return prepared_frame->damage_rect;
+    }
+
+    Gfx::Color pixel(int x, int y)
+    {
+        return context.latest_rendered_surface()->snapshot_bitmap()->get_pixel(x, y);
+    }
+};
+
+TEST_CASE(re_presenting_identical_state_reports_empty_damage)
+{
+    PresentingContextFixture fixture;
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }), visual_context_tree);
+
+    auto first_frame = fixture.present();
+    EXPECT_EQ(first_frame.damage_rect, fixture.viewport_rect);
+    EXPECT_EQ(first_frame.content_rect, fixture.viewport_rect);
+
+    EXPECT(fixture.present().damage_rect.is_empty());
+
+    fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }), visual_context_tree);
+    EXPECT(fixture.present().damage_rect.is_empty());
+}
+
+TEST_CASE(changed_command_reports_its_inflated_rect)
+{
+    PresentingContextFixture fixture;
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }), visual_context_tree);
+    fixture.present();
+
+    fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Blue } }), visual_context_tree);
+    EXPECT_EQ(fixture.present().damage_rect, (Gfx::IntRect { 1, 1, 6, 6 }));
+
+    fixture.install(make_fills_display_list(visual_context_tree, { { { 8, 8, 4, 4 }, Gfx::Color::Blue } }), visual_context_tree);
+    EXPECT_EQ(fixture.present().damage_rect, (Gfx::IntRect { 1, 1, 12, 12 }));
+}
+
+TEST_CASE(changed_command_is_repainted_within_its_damage)
+{
+    RasterizingContextFixture fixture;
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    fixture.context.install_display_list_update(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }, Gfx::Color::Green), visual_context_tree, {});
+    EXPECT_EQ(fixture.rasterize(), fixture.viewport_rect);
+    EXPECT_EQ(fixture.pixel(3, 3), Gfx::Color::Red);
+    EXPECT_EQ(fixture.pixel(0, 0), Gfx::Color::Green);
+
+    fixture.context.install_display_list_update(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Blue } }, Gfx::Color::Green), visual_context_tree, {});
+    EXPECT_EQ(fixture.rasterize(), (Gfx::IntRect { 1, 1, 6, 6 }));
+    EXPECT_EQ(fixture.pixel(3, 3), Gfx::Color::Blue);
+    EXPECT_EQ(fixture.pixel(0, 0), Gfx::Color::Green);
+}
+
+TEST_CASE(scroll_state_only_update_damages_only_moved_commands)
+{
+    PresentingContextFixture fixture;
+    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
+    Web::Painting::SpatialNodeIndex scroll_node_index { 1 };
+    auto display_list = make_fills_display_list(visual_context_tree, {
+                                                                         { { 0, 0, 4, 4 }, Gfx::Color::Green },
+                                                                         { { 0, 8, 4, 2 }, Gfx::Color::Red, in_spatial_node(1) },
+                                                                     });
+    fixture.install(display_list, visual_context_tree, scroll_state_snapshot_with_offset(scroll_node_index, { 0, 0 }));
+    fixture.present();
+
+    fixture.compositor_state->update_scroll_state(fixture.context_id, scroll_state_snapshot_with_offset(scroll_node_index, { 0, -2 }));
+    EXPECT_EQ(fixture.present().damage_rect, (Gfx::IntRect { 0, 5, 5, 6 }));
+}
+
+TEST_CASE(tree_only_update_damages_transformed_commands)
+{
+    PresentingContextFixture fixture;
+    auto visual_context_tree = make_translated_visual_context_tree({ 0, 0 });
+    fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red, in_spatial_node(1) } }), visual_context_tree);
+    fixture.present();
+
+    auto translated_tree = make_translated_visual_context_tree({ 4, 0 });
+    translated_tree.reuse_version_from(visual_context_tree);
+    fixture.compositor_state->update_visual_context_tree(fixture.context_id, translated_tree);
+    EXPECT_EQ(fixture.present().damage_rect, (Gfx::IntRect { 1, 1, 10, 6 }));
+
+    fixture.compositor_state->update_visual_context_tree(fixture.context_id, make_translated_visual_context_tree({ 8, 0 }));
+    EXPECT(fixture.present().damage_rect.is_empty());
+}
+
+TEST_CASE(surface_clear_color_change_forces_full_damage)
+{
+    PresentingContextFixture fixture;
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }, Gfx::Color::Green), visual_context_tree);
+    fixture.present();
+
+    fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }, Gfx::Color::Blue), visual_context_tree);
+    EXPECT_EQ(fixture.present().damage_rect, fixture.viewport_rect);
+}
+
+TEST_CASE(surface_clear_color_change_repaints_the_background)
+{
+    RasterizingContextFixture fixture;
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    fixture.context.install_display_list_update(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }, Gfx::Color::Green), visual_context_tree, {});
+    fixture.rasterize();
+    EXPECT_EQ(fixture.pixel(0, 0), Gfx::Color::Green);
+
+    fixture.context.install_display_list_update(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }, Gfx::Color::Blue), visual_context_tree, {});
+    EXPECT_EQ(fixture.rasterize(), fixture.viewport_rect);
+    EXPECT_EQ(fixture.pixel(0, 0), Gfx::Color::Blue);
+    EXPECT_EQ(fixture.pixel(3, 3), Gfx::Color::Red);
+}
+
+TEST_CASE(viewport_size_change_forces_full_damage)
+{
+    PresentingContextFixture fixture;
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }), visual_context_tree);
+    fixture.present();
+
+    Gfx::IntRect resized_viewport_rect { 0, 0, 20, 20 };
+    auto already_presented = fixture.compositor_client.presented_frames.size();
+    fixture.compositor_state->viewport_size_updated(fixture.context_id, resized_viewport_rect.size(), Web::Compositor::WindowResizingInProgress::No);
+    fixture.compositor_state->present_frame(fixture.context_id, resized_viewport_rect, {});
+    auto frame = fixture.wait_for_frame(already_presented);
+    EXPECT_EQ(frame.content_rect, resized_viewport_rect);
+    EXPECT_EQ(frame.damage_rect, resized_viewport_rect);
+}
+
+TEST_CASE(viewport_location_change_reports_only_the_diff)
+{
+    PresentingContextFixture fixture;
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }), visual_context_tree);
+    fixture.present();
+
+    Gfx::IntRect moved_viewport_rect { 0, 4, 16, 16 };
+    auto frame = fixture.present(moved_viewport_rect);
+    EXPECT_EQ(frame.content_rect, moved_viewport_rect);
+    EXPECT(frame.damage_rect.is_empty());
+}
+
+TEST_CASE(screenshot_between_presents_does_not_advance_the_baseline)
+{
+    PresentingContextFixture fixture;
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }), visual_context_tree);
+    fixture.present();
+
+    fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Blue } }), visual_context_tree);
+    auto bitmap = MUST(Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, fixture.viewport_rect.size()));
+    Gfx::ShareableBitmap target_bitmap { bitmap, Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap };
+    EXPECT(fixture.compositor_state->request_screenshot(fixture.context_id, target_bitmap));
+    EXPECT_EQ(bitmap->get_pixel(3, 3), Gfx::Color::Blue);
+
+    EXPECT_EQ(fixture.present().damage_rect, (Gfx::IntRect { 1, 1, 6, 6 }));
+}
+
+TEST_CASE(blocked_present_does_not_advance_the_baseline)
+{
+    RasterizingContextFixture fixture;
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    fixture.context.install_display_list_update(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }), visual_context_tree, {});
+    auto first_frame = fixture.prepare();
+    VERIFY(first_frame.has_value());
+    EXPECT_EQ(first_frame->damage_rect, fixture.viewport_rect);
+    fixture.display_list_player.flush(*first_frame->rendered_surface);
+    fixture.context.did_submit_prepared_frame(fixture.viewport_rect);
+
+    fixture.context.install_display_list_update(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Blue } }), visual_context_tree, {});
+    EXPECT(!fixture.prepare().has_value());
+    EXPECT(fixture.context.pending_present_frame_viewport_rect().has_value());
+
+    fixture.context.did_finish_gpu_present(first_frame->bitmap_id);
+    VERIFY(fixture.context.acknowledge_presented_bitmap(first_frame->bitmap_id));
+    EXPECT_EQ(fixture.rasterize(), (Gfx::IntRect { 1, 1, 6, 6 }));
+}
+
+TEST_CASE(updates_between_rasters_are_diffed_against_the_last_rasterized_frame)
+{
+    PresentingContextFixture fixture;
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }), visual_context_tree);
+    fixture.present();
+
+    auto already_presented = fixture.compositor_client.presented_frames.size();
+    fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red }, { { 10, 10, 4, 4 }, Gfx::Color::Green } }), visual_context_tree);
+    fixture.compositor_state->present_frame(fixture.context_id, fixture.viewport_rect, {});
+    fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Blue }, { { 10, 10, 4, 4 }, Gfx::Color::Green } }), visual_context_tree);
+    fixture.compositor_state->present_frame(fixture.context_id, fixture.viewport_rect, {});
+
+    auto frame = fixture.wait_for_frame(already_presented);
+    EXPECT(!fixture.presents_another_frame(already_presented + 1));
+    EXPECT_EQ(frame.damage_rect, (Gfx::IntRect { 1, 1, 14, 14 }));
+}
+
+TEST_CASE(unbounded_change_reports_full_damage)
+{
+    PresentingContextFixture fixture;
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }), visual_context_tree);
+    fixture.present();
+
+    fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red, {}, false } }), visual_context_tree);
+    EXPECT_EQ(fixture.present().damage_rect, fixture.viewport_rect);
+}
+
+TEST_CASE(canvas_content_changes_damage_the_canvas_rect)
+{
+    PresentingContextFixture fixture;
+    auto& canvas_surface_registry = fixture.compositor_state->canvas_surface_registry();
+    auto make_canvas_surface = [] { return Gfx::PaintingSurface::create_with_size({ 4, 4 }, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied); };
+    auto canvas_id = canvas_surface_registry.create_canvas_surface(make_canvas_surface());
+
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    ByteBuffer command_bytes;
+    Web::Painting::DrawCanvas draw_canvas {
+        .dst_rect = { 4, 4, 4, 4 },
+        .canvas_id = canvas_id,
+        .content_generation = 1,
+        .scaling_mode = Gfx::ScalingMode::NearestNeighbor,
+    };
+    append_display_list_command(command_bytes, draw_canvas, draw_canvas.dst_rect);
+    fixture.install(decode_display_list(visual_context_tree, move(command_bytes)), visual_context_tree);
+    fixture.present();
+    EXPECT(fixture.present().damage_rect.is_empty());
+
+    canvas_surface_registry.set_canvas_surface(canvas_id, make_canvas_surface());
+    EXPECT_EQ(fixture.present().damage_rect, (Gfx::IntRect { 3, 3, 6, 6 }));
+    EXPECT(fixture.present().damage_rect.is_empty());
+}
+
+TEST_CASE(compositor_initiated_presents_request_full_damage)
+{
+    PresentingContextFixture fixture { { 100, 100 }, true };
+    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
+    fixture.install(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree);
+    fixture.present();
+
+    auto already_presented = fixture.compositor_client.presented_frames.size();
+    EXPECT(fixture.compositor_state->handle_mouse_event(fixture.context_id, mouse_event(Web::MouseEvent::Type::MouseMove, 98, 10)));
+    EXPECT_EQ(fixture.wait_for_frame(already_presented).damage_rect, fixture.viewport_rect);
+}
+
+TEST_CASE(child_context_presents_repaint_the_parent)
+{
+    PresentingContextFixture fixture;
+    Web::Compositor::CompositorContextId child_context_id { 2 };
+    fixture.compositor_state->create_context(child_context_id, {}, fixture.web_content_client);
+    fixture.compositor_state->set_parent_context(child_context_id, fixture.context_id);
+    fixture.compositor_state->viewport_size_updated(child_context_id, { 8, 8 }, Web::Compositor::WindowResizingInProgress::No);
+
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    ByteBuffer command_bytes;
+    Web::Painting::DrawCompositedContext draw_composited_context {
+        .dst_rect = { 4, 4, 8, 8 },
+        .child_context_id = child_context_id,
+        .scaling_mode = Gfx::ScalingMode::NearestNeighbor,
+    };
+    append_display_list_command(command_bytes, draw_composited_context, draw_composited_context.dst_rect);
+    fixture.install(decode_display_list(visual_context_tree, move(command_bytes)), visual_context_tree);
+
+    auto child_visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    Gfx::IntRect child_viewport_rect { 0, 0, 8, 8 };
+    fixture.compositor_state->update_display_list(child_context_id, make_fills_display_list(child_visual_context_tree, { { child_viewport_rect, Gfx::Color::Red } }), child_visual_context_tree, {}, {});
+    fixture.compositor_state->present_frame(child_context_id, child_viewport_rect, {});
+    fixture.present();
+    EXPECT(fixture.present().damage_rect.is_empty());
+
+    fixture.compositor_state->update_display_list(child_context_id, make_fills_display_list(child_visual_context_tree, { { child_viewport_rect, Gfx::Color::Blue } }), child_visual_context_tree, {}, {});
+    auto already_presented = fixture.compositor_client.presented_frames.size();
+    fixture.compositor_state->present_frame(child_context_id, child_viewport_rect, {});
+    EXPECT_EQ(fixture.wait_for_frame(already_presented).damage_rect, fixture.viewport_rect);
+}

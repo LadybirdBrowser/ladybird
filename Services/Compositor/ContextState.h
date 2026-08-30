@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/HashMap.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
@@ -74,11 +75,12 @@ public:
     struct PreparedFrame {
         Gfx::PaintingSurface* rendered_surface { nullptr };
         i32 bitmap_id { 0 };
+        Gfx::IntRect damage_rect;
     };
 
     struct PendingFrame {
         Gfx::IntRect viewport_rect;
-        Gfx::IntRect damage_rect;
+        Gfx::IntRect forced_damage_rect;
     };
 
     ContextState(Optional<u64> page_id, CompositorStateWebContentClient&, Web::Painting::CanvasSurfaceRegistry const&, bool async_scrolling_enabled);
@@ -123,7 +125,6 @@ public:
     Optional<Gfx::IntRect> advance_smooth_scroll_animations(MonotonicTime now);
     bool has_active_smooth_scroll_animations() const { return !m_smooth_scroll_animations.is_empty(); }
     ContextUpdateResult async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::Compositor::SnapContainerHandling);
-    bool should_defer_main_thread_present_for_async_scroll() const;
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
 
     void viewport_size_updated(Gfx::IntSize, Web::Compositor::WindowResizingInProgress);
@@ -150,7 +151,7 @@ public:
     bool can_schedule_pending_present_frame_if_unblocked() const;
     Optional<PendingFrame> take_pending_present_frame_if_unblocked();
     bool needs_rasterization() const;
-    Optional<Gfx::IntRect> current_frame_rect_to_present() const;
+    Optional<Gfx::IntRect> frame_rect_to_repaint() const;
     Optional<Gfx::IntRect> video_present_rect() const;
     Optional<PreparedFrame> prepare_frame(Web::Painting::DisplayListPlayerSkia&, PendingFrame, CompositedContextResolver const*);
     void did_submit_prepared_frame(Gfx::IntRect);
@@ -173,6 +174,14 @@ private:
         Gfx::FloatPoint consumed_delta;
     };
 
+    struct RasterizedFrame {
+        NonnullRefPtr<Web::Painting::DisplayList const> display_list;
+        Web::Painting::AccumulatedVisualContextTree visual_context_tree;
+        Web::Painting::ScrollStateSnapshot scroll_state_snapshot;
+        Gfx::IntSize viewport_size;
+        HashMap<Web::Painting::CanvasId, u64> canvas_content_generations;
+    };
+
     void stop_backing_store_shrink_timer();
     Web::Painting::AccumulatedVisualContextTree const& current_visual_context_tree() const;
     Optional<Gfx::FloatPoint> viewport_scroll_offset_from(Vector<Web::Compositor::AsyncScrollOffset> const&) const;
@@ -192,6 +201,9 @@ private:
         Yes,
     };
     void paint_current_display_list(Web::Painting::DisplayListPlayerSkia&, Gfx::PaintingSurface&, CompositedContextResolver const*, Optional<Gfx::IntRect> damage_rect = {}, PaintUIOverlay = PaintUIOverlay::Yes);
+    Gfx::IntRect frame_damage_for(PendingFrame const&) const;
+    Gfx::IntRect damage_since_last_raster(Gfx::IntSize viewport_size) const;
+    void remember_rasterized_frame(Gfx::IntSize viewport_size);
 
     CompositorStateWebContentClient& m_web_content_client;
     Web::Painting::CanvasSurfaceRegistry const& m_canvas_surface_registry;
@@ -209,6 +221,7 @@ private:
     BackingStoreManager m_backing_store_manager;
     RefPtr<Gfx::PaintingSurface> m_latest_rendered_surface;
     RefPtr<Gfx::PaintingSurface> m_damage_surface;
+    Optional<RasterizedFrame> m_last_rasterized_frame;
 
     Web::Compositor::AsyncScrollTree m_async_scroll_tree;
     ViewportScrollbarController m_viewport_scrollbar_controller;

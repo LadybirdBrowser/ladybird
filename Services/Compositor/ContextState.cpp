@@ -14,11 +14,23 @@
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SkiaUtils.h>
 #include <LibWeb/Page/InputEvent.h>
+#include <LibWeb/Painting/DisplayListDamage.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <core/SkCanvas.h>
 #include <core/SkImage.h>
+#include <math.h>
 
 namespace Compositor {
+
+template<typename Callback>
+static void for_each_drawn_canvas(Web::Painting::DisplayList const& display_list, Callback callback)
+{
+    display_list.for_each_command_header([&](Web::Painting::DisplayListCommandHeader const& header, ReadonlyBytes payload) {
+        if (header.command_type != Web::Painting::DisplayListCommandType::DrawCanvas)
+            return;
+        callback(header, Web::Painting::read_display_list_object<Web::Painting::DrawCanvas>(payload));
+    });
+}
 
 static void set_or_append_pending_scroll_offset(
     Vector<Web::Compositor::AsyncScrollOffset>& pending_scroll_offsets,
@@ -598,14 +610,6 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
     return { .accepted = true, .frame_to_present = async_scroll_viewport_rect, .should_request_rendering_update = true };
 }
 
-bool ContextState::should_defer_main_thread_present_for_async_scroll() const
-{
-    if (m_pending_async_scroll_offsets.is_empty())
-        return false;
-    return m_pending_present_frame.has_value()
-        || is_present_blocked();
-}
-
 Web::Compositor::PendingAsyncScrollUpdates ContextState::take_pending_async_scroll_updates()
 {
     Web::Compositor::PendingAsyncScrollUpdates updates;
@@ -719,12 +723,12 @@ void ContextState::queue_present_frame(PendingFrame pending_frame)
     if (m_pending_present_frame->viewport_rect != pending_frame.viewport_rect) {
         m_pending_present_frame = PendingFrame {
             .viewport_rect = pending_frame.viewport_rect,
-            .damage_rect = { {}, pending_frame.viewport_rect.size() },
+            .forced_damage_rect = { {}, pending_frame.viewport_rect.size() },
         };
         return;
     }
 
-    m_pending_present_frame->damage_rect.unite(pending_frame.damage_rect);
+    m_pending_present_frame->forced_damage_rect.unite(pending_frame.forced_damage_rect);
 }
 
 void ContextState::mark_pending_present_frame_scheduled()
@@ -764,20 +768,15 @@ bool ContextState::needs_rasterization() const
         || (!m_latest_rendered_surface && m_presented_frame.has_value());
 }
 
-Optional<Gfx::IntRect> ContextState::current_frame_rect_to_present() const
+Optional<Gfx::IntRect> ContextState::frame_rect_to_repaint() const
 {
     if (m_pending_present_frame.has_value())
-        return {};
-    if (!m_presented_frame.has_value())
-        return {};
+        return m_pending_present_frame->viewport_rect;
     return m_presented_frame;
 }
 
 Optional<Gfx::IntRect> ContextState::video_present_rect() const
 {
-    // The viewport to present a hosted video frame into. Unlike current_frame_rect_to_present this is not gated on a
-    // present already being in flight: a new frame must always (re)queue a present so the latest frame lands once the
-    // outstanding one completes.
     if (m_presented_frame.has_value())
         return m_presented_frame;
     if (!m_viewport_size.is_empty())
@@ -797,19 +796,22 @@ Optional<ContextState::PreparedFrame> ContextState::prepare_frame(Web::Painting:
         return {};
     }
 
-    auto render_target = m_backing_store_manager.acquire_render_target(pending_frame.damage_rect);
+    auto damage_rect = frame_damage_for(pending_frame);
+    auto render_target = m_backing_store_manager.acquire_render_target(damage_rect);
     if (!render_target.has_value()) {
         queue_present_frame(pending_frame);
         return {};
     }
     auto& back_store = render_target->surface;
     paint_current_display_list(display_list_player, back_store, composited_context_resolver, render_target->damage_rect);
+    remember_rasterized_frame(pending_frame.viewport_rect.size());
 
     auto rendered_bitmap_id = render_target->bitmap_id;
     m_gpu_present_bitmap_id_awaiting_completion = rendered_bitmap_id;
     return PreparedFrame {
         .rendered_surface = &back_store,
         .bitmap_id = rendered_bitmap_id,
+        .damage_rect = damage_rect,
     };
 }
 
@@ -830,17 +832,18 @@ bool ContextState::present_synchronously(Web::Painting::DisplayListPlayerSkia& d
     if (!pending_frame.has_value() && m_presented_frame.has_value()) {
         pending_frame = PendingFrame {
             .viewport_rect = *m_presented_frame,
-            .damage_rect = { {}, m_presented_frame->size() },
+            .forced_damage_rect = { {}, m_presented_frame->size() },
         };
     }
     if (!pending_frame.has_value())
         return false;
 
-    auto render_target = m_backing_store_manager.acquire_render_target(pending_frame->damage_rect);
+    auto render_target = m_backing_store_manager.acquire_render_target(frame_damage_for(*pending_frame));
     if (!render_target.has_value())
         return false;
     auto& back_store = render_target->surface;
     paint_current_display_list(display_list_player, back_store, composited_context_resolver, render_target->damage_rect);
+    remember_rasterized_frame(pending_frame->viewport_rect.size());
     display_list_player.flush(back_store);
     m_backing_store_manager.complete_rendering(render_target->bitmap_id, false);
     m_latest_rendered_surface = m_backing_store_manager.latest_rendered_surface();
@@ -1058,6 +1061,88 @@ Web::Painting::AccumulatedVisualContextTree const& ContextState::visual_context_
     m_visual_context_tree_for_compositing = current_visual_context_tree();
     m_visual_context_tree_for_compositing->set_visual_viewport_transform(*m_async_visual_viewport_transform);
     return *m_visual_context_tree_for_compositing;
+}
+
+Gfx::IntRect ContextState::frame_damage_for(PendingFrame const& pending_frame) const
+{
+    Gfx::IntRect viewport_rect { {}, pending_frame.viewport_rect.size() };
+    auto forced_damage_rect = pending_frame.forced_damage_rect.intersected(viewport_rect);
+    if (forced_damage_rect.contains(viewport_rect))
+        return viewport_rect;
+    auto damage_rect = damage_since_last_raster(viewport_rect.size());
+    damage_rect.unite(forced_damage_rect);
+    return damage_rect;
+}
+
+Gfx::IntRect ContextState::damage_since_last_raster(Gfx::IntSize viewport_size) const
+{
+    Gfx::IntRect viewport_rect { {}, viewport_size };
+    if (!m_last_rasterized_frame.has_value())
+        return viewport_rect;
+    auto const& last_frame = *m_last_rasterized_frame;
+    if (last_frame.viewport_size != viewport_size)
+        return viewport_rect;
+    if (last_frame.display_list->surface_clear_color() != m_display_list->surface_clear_color())
+        return viewport_rect;
+    if (auto viewport_scroll_node_id = m_async_scroll_tree.viewport_scroll_node_id(); viewport_scroll_node_id.has_value()) {
+        auto index = viewport_scroll_node_id->scroll_node_index;
+        if (last_frame.scroll_state_snapshot.device_offset_for_index(index) != m_scroll_state_snapshot.device_offset_for_index(index))
+            return viewport_rect;
+    }
+
+    auto const& visual_context_tree = visual_context_tree_for_compositing();
+    auto display_list_damage = Web::Painting::compute_display_list_damage(
+        last_frame.display_list->command_bytes(),
+        last_frame.visual_context_tree,
+        last_frame.scroll_state_snapshot,
+        m_display_list->command_bytes(),
+        visual_context_tree,
+        m_scroll_state_snapshot,
+        viewport_rect);
+    if (!display_list_damage.has_value())
+        return viewport_rect;
+
+    auto damage_rect = *display_list_damage;
+    for (auto const& scrollbar : m_viewport_scrollbar_controller.scrollbars()) {
+        if (last_frame.scroll_state_snapshot.device_offset_for_index(scrollbar.scroll_node_index) == m_scroll_state_snapshot.device_offset_for_index(scrollbar.scroll_node_index))
+            continue;
+        damage_rect.unite(scrollbar.gutter_rect.united(scrollbar.expanded_gutter_rect));
+    }
+    for_each_drawn_canvas(*m_display_list, [&](auto const& header, auto const& draw_canvas) {
+        auto last_content_generation = last_frame.canvas_content_generations.get(draw_canvas.canvas_id);
+        if (last_content_generation.has_value() && *last_content_generation == m_canvas_surface_registry.canvas_content_generation(draw_canvas.canvas_id))
+            return;
+        if (!header.has_bounding_rect) {
+            damage_rect = viewport_rect;
+            return;
+        }
+        auto canvas_rect = visual_context_tree.transform_rect_to_viewport(header.context.spatial, header.bounding_rect.template to_type<float>(), m_scroll_state_snapshot);
+        if (!isfinite(canvas_rect.x()) || !isfinite(canvas_rect.y()) || !isfinite(canvas_rect.width()) || !isfinite(canvas_rect.height())) {
+            damage_rect = viewport_rect;
+            return;
+        }
+        canvas_rect.intersect(viewport_rect.to_type<float>());
+        if (canvas_rect.is_empty())
+            return;
+        damage_rect.unite(Gfx::enclosing_int_rect(canvas_rect).inflated(1, 1, 1, 1));
+    });
+    damage_rect.intersect(viewport_rect);
+    return damage_rect;
+}
+
+void ContextState::remember_rasterized_frame(Gfx::IntSize viewport_size)
+{
+    HashMap<Web::Painting::CanvasId, u64> canvas_content_generations;
+    for_each_drawn_canvas(*m_display_list, [&](auto const&, auto const& draw_canvas) {
+        canvas_content_generations.set(draw_canvas.canvas_id, m_canvas_surface_registry.canvas_content_generation(draw_canvas.canvas_id));
+    });
+    m_last_rasterized_frame = RasterizedFrame {
+        .display_list = NonnullRefPtr { *m_display_list },
+        .visual_context_tree = visual_context_tree_for_compositing(),
+        .scroll_state_snapshot = m_scroll_state_snapshot,
+        .viewport_size = viewport_size,
+        .canvas_content_generations = move(canvas_content_generations),
+    };
 }
 
 void ContextState::paint_current_display_list(Web::Painting::DisplayListPlayerSkia& display_list_player, Gfx::PaintingSurface& surface, CompositedContextResolver const* composited_context_resolver, Optional<Gfx::IntRect> damage_rect, PaintUIOverlay paint_ui_overlay)
