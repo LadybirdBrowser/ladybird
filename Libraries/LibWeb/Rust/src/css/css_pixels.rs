@@ -83,6 +83,13 @@ impl CssPixels {
         Self(clamp_f64_to_i32(value * FIXED_POINT_DENOMINATOR as f64))
     }
 
+    pub fn truncated_value_for(value: f64) -> Self {
+        if value.is_nan() {
+            return Self(0);
+        }
+        Self(clamp_f64_to_i32((value * FIXED_POINT_DENOMINATOR as f64).trunc()))
+    }
+
     /// Matches `CSSPixels::nearest_value_for(float)`: the scaling and
     /// ties-to-even conversion both stay on the f32 path.
     pub fn nearest_value_for_f32(value: f32) -> Self {
@@ -505,6 +512,15 @@ mod tests {
         // 0.0234375 * 64 = 1.5: ties to even -> 2.
         assert_eq!(CssPixels::nearest_value_for(0.0234375).raw_value(), 2);
         assert_eq!(CssPixels::nearest_value_for(f64::NAN).raw_value(), 0);
+    }
+
+    #[test]
+    fn truncated_value_rounds_toward_zero() {
+        assert_eq!(CssPixels::truncated_value_for(0.0234375).raw_value(), 1);
+        assert_eq!(CssPixels::truncated_value_for(-0.0234375).raw_value(), -1);
+        assert_eq!(CssPixels::truncated_value_for(f64::NAN).raw_value(), 0);
+        assert_eq!(CssPixels::truncated_value_for(f64::INFINITY).raw_value(), i32::MAX);
+        assert_eq!(CssPixels::truncated_value_for(f64::NEG_INFINITY).raw_value(), i32::MIN);
     }
 
     #[test]

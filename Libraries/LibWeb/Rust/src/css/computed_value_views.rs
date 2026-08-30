@@ -30,17 +30,6 @@ use crate::css::display::FfiDisplay;
 use crate::css::style_value::StyleValueData;
 use std::ffi::c_void;
 
-/// The used-value truncation the C++ layout engine applies when resolving
-/// percentages: truncate toward zero at 1/64 precision, collapse NaN to zero,
-/// and saturate the raw value.
-pub(crate) fn truncated_css_pixels(value: f64) -> CssPixels {
-    if value.is_nan() {
-        return CssPixels::default();
-    }
-    let raw = (value * 64.0).trunc();
-    CssPixels::from_raw(raw.clamp(i32::MIN as f64, i32::MAX as f64) as i32)
-}
-
 pub(crate) fn px_calc_resolution_context(percentage_basis: CssPixels) -> calc::FfiCalcResolutionContext {
     calc::FfiCalcResolutionContext {
         basis_kind: 3,
@@ -52,13 +41,16 @@ pub(crate) fn px_calc_resolution_context(percentage_basis: CssPixels) -> calc::F
     }
 }
 
-pub(crate) fn resolve_calc_to_px(calculated: *const c_void, percentage_basis: CssPixels) -> CssPixels {
+pub(crate) fn resolve_calc_to_px_without_rounding(calculated: *const c_void, percentage_basis: CssPixels) -> f64 {
     assert!(!calculated.is_null());
     // SAFETY: The style value stays alive for the pass.
     let value = unsafe { &*calculated.cast::<StyleValueData>() };
-    let resolved = crate::css::calc::resolve_calculated_length_without_context(value, percentage_basis.to_double())
-        .expect("computed length-percentage calc failed to resolve");
-    CssPixels::nearest_value_for(resolved)
+    crate::css::calc::resolve_calculated_length_without_context(value, percentage_basis.to_double())
+        .expect("computed length-percentage calc failed to resolve")
+}
+
+pub(crate) fn resolve_calc_to_px(calculated: *const c_void, percentage_basis: CssPixels) -> CssPixels {
+    CssPixels::truncated_value_for(resolve_calc_to_px_without_rounding(calculated, percentage_basis))
 }
 
 /// A borrowed computed `<length-percentage>`: a retained length, percentage
@@ -128,7 +120,9 @@ impl LengthPercentageRef<'_> {
     pub(crate) fn to_px(self, reference: CssPixels) -> CssPixels {
         match self.value {
             StyleValueData::Length { .. } => self.absolute_length_to_px(),
-            StyleValueData::Percentage { .. } => truncated_css_pixels(reference.to_double() * self.as_fraction()),
+            StyleValueData::Percentage { .. } => {
+                CssPixels::truncated_value_for(reference.to_double() * self.as_fraction())
+            }
             StyleValueData::Calculated { .. } => resolve_calc_to_px(self.calculated_pointer(), reference),
             _ => unreachable!("computed length-percentage holds a non-length-percentage style value"),
         }

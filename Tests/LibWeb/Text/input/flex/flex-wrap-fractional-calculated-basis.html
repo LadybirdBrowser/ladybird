@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #container {
+        display: flex;
+        flex-wrap: wrap;
+        column-gap: 16px;
+    }
+
+    .item {
+        flex: 0 0 calc((100% - 32px) / 3);
+        height: 10px;
+    }
+</style>
+<div id="container">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<script>
+    test(() => {
+        const container = document.getElementById("container");
+        const items = document.querySelectorAll(".item");
+        for (const width of [100, 101, 102, 100]) {
+            container.style.width = `${width}px`;
+            if (items[0].offsetTop !== items[2].offsetTop) {
+                println(`FAIL: Items wrapped in a ${width}px container`);
+                return;
+            }
+        }
+        println("PASS");
+    });
+</script>

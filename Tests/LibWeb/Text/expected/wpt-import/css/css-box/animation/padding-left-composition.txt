@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 40 tests
 
-38 Pass
-2 Fail
+40 Pass
 Pass	Compositing CSS Animations: property <padding-left> underlying [50px] from add [100px] to add [200px] at (-0.3) should be [120px]
 Pass	Compositing CSS Animations: property <padding-left> underlying [50px] from add [100px] to add [200px] at (0) should be [150px]
 Pass	Compositing CSS Animations: property <padding-left> underlying [50px] from add [100px] to add [200px] at (0.5) should be [200px]
@@ -27,12 +26,12 @@ Pass	Compositing Web Animations: property <padding-left> underlying [100px] from
 Pass	Compositing CSS Animations: property <padding-left> underlying [10%] from add [100px] to add [20%] at (-0.3) should be [calc(130px + 4%)]
 Pass	Compositing CSS Animations: property <padding-left> underlying [10%] from add [100px] to add [20%] at (0) should be [calc(100px + 10%)]
 Pass	Compositing CSS Animations: property <padding-left> underlying [10%] from add [100px] to add [20%] at (0.5) should be [calc(50px + 20%)]
-Fail	Compositing CSS Animations: property <padding-left> underlying [10%] from add [100px] to add [20%] at (1) should be [30%]
+Pass	Compositing CSS Animations: property <padding-left> underlying [10%] from add [100px] to add [20%] at (1) should be [30%]
 Pass	Compositing CSS Animations: property <padding-left> underlying [10%] from add [100px] to add [20%] at (1.5) should be [calc(-50px + 40%)]
 Pass	Compositing Web Animations: property <padding-left> underlying [10%] from add [100px] to add [20%] at (-0.3) should be [calc(130px + 4%)]
 Pass	Compositing Web Animations: property <padding-left> underlying [10%] from add [100px] to add [20%] at (0) should be [calc(100px + 10%)]
 Pass	Compositing Web Animations: property <padding-left> underlying [10%] from add [100px] to add [20%] at (0.5) should be [calc(50px + 20%)]
-Fail	Compositing Web Animations: property <padding-left> underlying [10%] from add [100px] to add [20%] at (1) should be [30%]
+Pass	Compositing Web Animations: property <padding-left> underlying [10%] from add [100px] to add [20%] at (1) should be [30%]
 Pass	Compositing Web Animations: property <padding-left> underlying [10%] from add [100px] to add [20%] at (1.5) should be [calc(-50px + 40%)]
 Pass	Compositing CSS Animations: property <padding-left> underlying [50px] from add [100px] to replace [200px] at (-0.3) should be [135px]
 Pass	Compositing CSS Animations: property <padding-left> underlying [50px] from add [100px] to replace [200px] at (0) should be [150px]
