@@ -736,6 +736,18 @@ GC::Ref<WebIDL::Promise> Internals::delete_all_cookies()
     return promise;
 }
 
+WebIDL::ExceptionOr<bool> Internals::has_cookie_for_url(Utf16String const& url, String const& name, String const& value)
+{
+    auto parsed_url = URL::Parser::basic_parse(url.utf16_view());
+    if (!parsed_url.has_value())
+        return WebIDL::SimpleException { .type = WebIDL::SimpleExceptionType::TypeError, .message = Utf16String::formatted("Invalid URL: '{}'", url) };
+
+    auto cookies = page().client().page_did_request_all_cookies_webdriver(parsed_url.value());
+    return any_of(cookies, [&](auto const& cookie) {
+        return cookie.name == name && cookie.value == value;
+    });
+}
+
 bool Internals::set_http_memory_cache_enabled(bool enabled)
 {
     auto was_enabled = Web::Fetch::Fetching::http_memory_cache_enabled();
