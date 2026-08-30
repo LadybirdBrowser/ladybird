@@ -6,12 +6,14 @@
 
 #include <AK/Atomic.h>
 #include <AK/Debug.h>
+#include <AK/NumericLimits.h>
+#include <AK/ScopeGuard.h>
 #include <AK/TemporaryChange.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Path.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibWeb/Painting/DepthSortedReplayPlan.h>
+#include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Painting/DisplayList.h>
 
 namespace Web::Painting {
@@ -367,29 +369,53 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
     } else {
         auto root_isolation_frame = visual_context_tree.root_isolation_frame();
         size_t const plane_clip_base_length = root_isolation_frame.has_value() ? 1 : 0;
-        for (auto const& step : build_depth_sorted_replay_plan(command_runs, visual_context_tree, transform_palette, draw_space, backface_culled)) {
-            step.visit(
-                [&](ReadonlySpan<DisplayListCommandRun> runs) {
-                    for (auto const& run : runs)
-                        execute_run(run);
-                },
-                [&](PushPlaneClip const& clip) {
-                    if (root_isolation_frame.has_value())
-                        switch_to_context(ContextRef { visual_context_tree.frame_node_at(*root_isolation_frame).spatial, *root_isolation_frame });
-                    restore_to_length(plane_clip_base_length);
-                    Gfx::Path path;
-                    path.move_to({ clip.vertices[0].x(), clip.vertices[0].y() });
-                    for (size_t i = 1; i < clip.vertices.size(); ++i)
-                        path.line_to({ clip.vertices[i].x(), clip.vertices[i].y() });
-                    path.close();
-                    push_device_space_plane_clip(path);
-                    current_ctm_space = {};
-                },
-                [&](PopPlaneClip const&) {
-                    restore_to_length(plane_clip_base_length);
-                    pop();
-                    current_ctm_space = {};
-                });
+        static constexpr SpatialNodeIndex no_sorting_context { NumericLimits<u32>::max() };
+        Vector<SpatialNodeIndex> parent_by_node;
+        Vector<SpatialNodeIndex> sorting_context_root_by_node;
+        parent_by_node.ensure_capacity(spatial_nodes.size());
+        sorting_context_root_by_node.ensure_capacity(spatial_nodes.size());
+        for (auto const& node : spatial_nodes) {
+            parent_by_node.unchecked_append(node.parent);
+            sorting_context_root_by_node.unchecked_append(node.data.visit(
+                [&](TransformData const& transform) { return transform.sorting_context_root_index.value_or(no_sorting_context); },
+                [&](auto const&) { return no_sorting_context; }));
+        }
+
+        auto* depth_sorted_plan = Layout::RustFFI::display_list_build_depth_sorted_replay_plan(
+            command_runs.data(), command_runs.size(), transform_palette.data(), draw_space.data(), backface_culled.data(),
+            spatial_nodes.size(), parent_by_node.data(), sorting_context_root_by_node.data());
+        ScopeGuard destroy_depth_sorted_plan = [&] { Layout::RustFFI::display_list_depth_sorted_replay_plan_destroy(depth_sorted_plan); };
+        size_t step_count = 0;
+        ReadonlySpan<Layout::RustFFI::FfiDepthSortedReplayStep> steps { Layout::RustFFI::display_list_depth_sorted_replay_plan_steps(depth_sorted_plan, &step_count), step_count };
+        size_t vertex_count = 0;
+        ReadonlySpan<Gfx::FloatVector3> vertices { Layout::RustFFI::display_list_depth_sorted_replay_plan_vertices(depth_sorted_plan, &vertex_count), vertex_count };
+
+        for (auto const& step : steps) {
+            switch (step.kind) {
+            case Layout::RustFFI::DepthSortedReplayStepKind::RunSpan:
+                for (auto const& run : command_runs.slice(step.first_run, step.run_count))
+                    execute_run(run);
+                break;
+            case Layout::RustFFI::DepthSortedReplayStepKind::PushPlaneClip: {
+                if (root_isolation_frame.has_value())
+                    switch_to_context(ContextRef { visual_context_tree.frame_node_at(*root_isolation_frame).spatial, *root_isolation_frame });
+                restore_to_length(plane_clip_base_length);
+                auto clip_vertices = vertices.slice(step.vertex_offset, step.vertex_count);
+                Gfx::Path path;
+                path.move_to({ clip_vertices[0].x(), clip_vertices[0].y() });
+                for (size_t i = 1; i < clip_vertices.size(); ++i)
+                    path.line_to({ clip_vertices[i].x(), clip_vertices[i].y() });
+                path.close();
+                push_device_space_plane_clip(path);
+                current_ctm_space = {};
+                break;
+            }
+            case Layout::RustFFI::DepthSortedReplayStepKind::PopPlaneClip:
+                restore_to_length(plane_clip_base_length);
+                pop();
+                current_ctm_space = {};
+                break;
+            }
         }
     }
 
