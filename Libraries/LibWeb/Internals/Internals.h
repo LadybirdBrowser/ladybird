@@ -119,6 +119,7 @@ public:
 
     void expire_cookies_with_time_offset(WebIDL::LongLong seconds);
     GC::Ref<WebIDL::Promise> delete_all_cookies();
+    WebIDL::ExceptionOr<bool> has_cookie_for_url(Utf16String const& url, String const& name, String const& value);
 
     bool set_http_memory_cache_enabled(bool enabled);
     void simulate_request_server_connection_loss();

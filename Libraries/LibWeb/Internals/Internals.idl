@@ -100,6 +100,7 @@ interface Internals {
 
     undefined expireCookiesWithTimeOffset(long long seconds);
     Promise<undefined> deleteAllCookies();
+    boolean hasCookieForURL(DOMString url, ByteString name, ByteString value);
 
     boolean setHttpMemoryCacheEnabled(boolean enabled);
     undefined simulateRequestServerConnectionLoss();
