@@ -11,7 +11,7 @@ interface WorkerNavigator {
     [SecureContext, SameObject] readonly attribute ServiceWorkerContainer serviceWorker;
 
     // https://w3c.github.io/permissions/#navigator-and-workernavigator-extension
-    [SameObject, Experimental] readonly attribute Permissions permissions;
+    [SameObject] readonly attribute Permissions permissions;
 };
 
 Navigator includes GlobalPrivacyControl;

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Pins the query() contract: An unsupported name rejects, and a supported one resolves to a PermissionStatus.
+    asyncTest(async done => {
+        println(`navigator.permissions: ${Object.prototype.toString.call(navigator.permissions)}`);
+        println(`query is a function: ${typeof navigator.permissions.query === "function"}`);
+
+        try {
+            await navigator.permissions.query({ name: "surely-not-a-permission" });
+            println("unsupported name: resolved (unexpected)");
+        } catch (error) {
+            println(`unsupported name rejects: ${error.name}`);
+        }
+
+        const status = await navigator.permissions.query({ name: "geolocation" });
+        println(`geolocation status: ${Object.prototype.toString.call(status)}`);
+        println(`state is a permission state: ${["granted", "denied", "prompt"].includes(status.state)}`);
+        done();
+    });
+</script>

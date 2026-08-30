@@ -1,0 +1,5 @@
+navigator.permissions: [object Permissions]
+query is a function: true
+unsupported name rejects: TypeError
+geolocation status: [object PermissionStatus]
+state is a permission state: true
