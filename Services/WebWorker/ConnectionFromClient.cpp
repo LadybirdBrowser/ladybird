@@ -6,6 +6,8 @@
 
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
+#include <LibGfx/Font/FontDatabase.h>
+#include <LibGfx/Font/SharedFontProvider.h>
 #include <LibWeb/HTML/BroadcastChannel.h>
 #include <LibWeb/HTML/WorkerAgentParent.h>
 #include <LibWeb/Platform/FontPlugin.h>
@@ -130,6 +132,70 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
 }
 
 ConnectionFromClient::~ConnectionFromClient() = default;
+
+void ConnectionFromClient::set_font_catalog(IPC::File file, u64 size, u64 generation)
+{
+    if (m_font_provider) {
+        if (auto result = m_font_provider->replace_catalog(move(file), size, generation); result.is_error())
+            dbgln("WebWorker: Unable to replace font catalog: {}", result.error());
+        else
+            Web::Platform::FontPlugin::the().update_generic_fonts();
+        return;
+    }
+
+    Gfx::SharedFontProviderCallbacks callbacks;
+    callbacks.open_font = [this](u64 requested_generation, u64 face_id) {
+        auto response = send_sync_but_allow_failure<Messages::WebWorkerClient::OpenSystemFont>(requested_generation, face_id);
+        if (!response || response->format() > to_underlying(Gfx::FontFileFormat::WOFF))
+            return Gfx::BrokeredFont {};
+        return Gfx::BrokeredFont {
+            .face_id = response->matched_face_id(),
+            .ttc_index = response->ttc_index(),
+            .format = static_cast<Gfx::FontFileFormat>(response->format()),
+            .file = response->take_file(),
+        };
+    };
+    callbacks.match_font = [this](String const& family, u16 weight, u16 width, u8 slope) {
+        auto response = send_sync_but_allow_failure<Messages::WebWorkerClient::MatchSystemFont>(family, weight, width, slope);
+        if (!response || response->format() > to_underlying(Gfx::FontFileFormat::WOFF))
+            return Gfx::BrokeredFont {};
+        return Gfx::BrokeredFont {
+            .face_id = response->face_id(),
+            .ttc_index = response->ttc_index(),
+            .format = static_cast<Gfx::FontFileFormat>(response->format()),
+            .file = response->take_file(),
+        };
+    };
+    callbacks.match_font_for_code_point = [this](u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) {
+        auto response = send_sync_but_allow_failure<Messages::WebWorkerClient::MatchSystemFontForCodePoint>(code_point, weight, width, slope, prefer_color_emoji);
+        if (!response || response->format() > to_underlying(Gfx::FontFileFormat::WOFF))
+            return Gfx::BrokeredFont {};
+        return Gfx::BrokeredFont {
+            .face_id = response->face_id(),
+            .ttc_index = response->ttc_index(),
+            .format = static_cast<Gfx::FontFileFormat>(response->format()),
+            .file = response->take_file(),
+        };
+    };
+    callbacks.resolve_generic_family = [this](String const& family, u16 weight, u8 slope) -> Optional<FlyString> {
+        auto response = send_sync_but_allow_failure<Messages::WebWorkerClient::ResolveGenericFont>(family, weight, slope);
+        if (!response)
+            return {};
+        auto resolved_family = response->take_resolved_family();
+        if (!resolved_family.has_value())
+            return {};
+        return FlyString { resolved_family.release_value() };
+    };
+
+    auto provider = Gfx::SharedFontProvider::create_from_catalog_file_or_empty(move(file), size, generation, move(callbacks));
+    if (provider.is_error()) {
+        dbgln("WebWorker: Unable to install fallback font catalog: {}", provider.error());
+        return;
+    }
+    m_font_provider = provider.value().ptr();
+    Gfx::FontDatabase::the().install_system_font_provider(provider.release_value());
+    Web::Platform::FontPlugin::install(*new Web::Platform::FontPlugin(false, m_font_provider));
+}
 
 Web::Page& ConnectionFromClient::page()
 {

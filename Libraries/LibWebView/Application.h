@@ -88,6 +88,7 @@ public:
     static BrowserOptions const& browser_options() { return the().m_browser_options; }
     static RequestServerOptions const& request_server_options() { return the().m_request_server_options; }
     static WebContentOptions& web_content_options() { return the().m_web_content_options; }
+    static FontService& font_service() { return *the().m_font_service; }
     JsonValue const& site_compatibility_data() const { return m_site_compatibility_data; }
     ErrorOr<void> reload_site_compatibility_data();
 
@@ -482,6 +483,7 @@ private:
     Vector<int> m_cpu_profiler_signal_handlers;
     RequestServerOptions m_request_server_options;
     WebContentOptions m_web_content_options;
+    OwnPtr<FontService> m_font_service;
     JsonValue m_site_compatibility_data;
     Optional<Core::AnonymousBuffer> m_content_blocker_list_buffer;
 

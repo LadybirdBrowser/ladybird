@@ -7,9 +7,37 @@
 #include <LibWebView/CompositorClient.h>
 
 #include <LibCore/EventLoop.h>
+#include <LibWebView/Application.h>
+#include <LibWebView/FontService.h>
 #include <LibWebView/WebContentClient.h>
 
 namespace WebView {
+
+Messages::CompositorControlClient::OpenSystemFontResponse CompositorClient::open_system_font(u64 generation, u64 face_id)
+{
+    auto font = Application::font_service().open_font(generation, face_id);
+    return { font.face_id, font.ttc_index, to_underlying(font.format), move(font.file) };
+}
+
+Messages::CompositorControlClient::MatchSystemFontResponse CompositorClient::match_system_font(String family, u16 weight, u16 width, u8 slope)
+{
+    auto font = Application::font_service().match_font(family, weight, width, slope);
+    return { font.face_id, font.ttc_index, to_underlying(font.format), move(font.file) };
+}
+
+Messages::CompositorControlClient::MatchSystemFontForCodePointResponse CompositorClient::match_system_font_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji)
+{
+    auto font = Application::font_service().match_font_for_code_point(code_point, weight, width, slope, prefer_color_emoji);
+    return { font.face_id, font.ttc_index, to_underlying(font.format), move(font.file) };
+}
+
+Messages::CompositorControlClient::ResolveGenericFontResponse CompositorClient::resolve_generic_font(String family, u16 weight, u8 slope)
+{
+    auto resolved = Application::font_service().resolve_generic_family(family, weight, slope);
+    if (!resolved.has_value())
+        return Optional<String> {};
+    return Optional<String> { resolved->to_string() };
+}
 
 CompositorClient::CompositorClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<CompositorControlClientEndpoint, CompositorControlServerEndpoint>(*this, move(transport))

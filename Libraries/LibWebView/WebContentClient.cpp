@@ -23,6 +23,7 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/CookieJar.h>
+#include <LibWebView/FontService.h>
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
@@ -35,6 +36,32 @@
 #include <LibWebView/WorkerProcessManager.h>
 
 namespace WebView {
+
+Messages::WebContentClient::OpenSystemFontResponse WebContentClient::open_system_font(u64 generation, u64 face_id)
+{
+    auto font = Application::font_service().open_font(generation, face_id);
+    return { font.face_id, font.ttc_index, to_underlying(font.format), move(font.file) };
+}
+
+Messages::WebContentClient::MatchSystemFontResponse WebContentClient::match_system_font(String family, u16 weight, u16 width, u8 slope)
+{
+    auto font = Application::font_service().match_font(family, weight, width, slope);
+    return { font.face_id, font.ttc_index, to_underlying(font.format), move(font.file) };
+}
+
+Messages::WebContentClient::MatchSystemFontForCodePointResponse WebContentClient::match_system_font_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji)
+{
+    auto font = Application::font_service().match_font_for_code_point(code_point, weight, width, slope, prefer_color_emoji);
+    return { font.face_id, font.ttc_index, to_underlying(font.format), move(font.file) };
+}
+
+Messages::WebContentClient::ResolveGenericFontResponse WebContentClient::resolve_generic_font(String family, u16 weight, u8 slope)
+{
+    auto resolved = Application::font_service().resolve_generic_family(family, weight, slope);
+    if (!resolved.has_value())
+        return Optional<String> {};
+    return Optional<String> { resolved->to_string() };
+}
 
 HashTable<WebContentClient*>& WebContentClient::clients()
 {

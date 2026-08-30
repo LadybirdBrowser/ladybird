@@ -17,6 +17,12 @@
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 
+namespace Gfx {
+
+class SharedFontProvider;
+
+}
+
 namespace Compositor {
 
 class ConnectionFromClient final
@@ -36,6 +42,7 @@ private:
     virtual void did_present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id) override;
 
     virtual Messages::CompositorControlServer::InitTransportResponse init_transport(int peer_pid) override;
+    virtual void set_font_catalog(IPC::File, u64 size, u64 generation) override;
     virtual Messages::CompositorControlServer::ConnectWebContentResponse connect_web_content() override;
     virtual void create_context(Web::Compositor::CompositorContextId, Optional<u64> page_id, i32 web_content_connection_id) override;
     virtual void viewport_size_updated(Web::Compositor::CompositorContextId, Gfx::IntSize, Web::Compositor::WindowResizingInProgress) override;
@@ -54,6 +61,7 @@ private:
 
     HashMap<i32, NonnullRefPtr<ConnectionFromWebContent>> m_web_content_connections;
     NonnullRefPtr<CompositorState> m_compositor_state;
+    Gfx::SharedFontProvider* m_font_provider { nullptr };
 };
 
 }

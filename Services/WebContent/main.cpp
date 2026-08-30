@@ -14,7 +14,6 @@
 #include <LibCore/TimeZone.h>
 #include <LibCrypto/OpenSSLForward.h>
 #include <LibGfx/Font/FontDatabase.h>
-#include <LibGfx/Font/PathFontProvider.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibMain/Main.h>
@@ -30,7 +29,6 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
-#include <LibWeb/Platform/FontPlugin.h>
 #include <LibWebView/Plugins/ImageCodecPlugin.h>
 #include <LibWebView/SiteIsolation.h>
 #include <LibWebView/Utilities.h>
@@ -203,12 +201,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (file_origins_are_tuple_origins)
         URL::set_file_scheme_urls_have_tuple_origins();
 
-    auto& font_provider = static_cast<Gfx::PathFontProvider&>(Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::PathFontProvider>()));
-    if (force_fontconfig) {
-        font_provider.set_name_but_fixme_should_create_custom_system_font_provider("FontConfig"_string);
+    if (force_fontconfig)
         Gfx::FontDatabase::the().set_force_freetype_rasterization(true);
-    }
-    font_provider.load_all_fonts_from_uri("resource://fonts"sv);
 
     WebContent::PageClient::set_is_headless(is_headless);
 
@@ -233,8 +227,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Web::HTML::Window::set_internals_object_exposed(expose_internals_object);
     Web::HTML::UniversalGlobalScopeMixin::set_experimental_interfaces_exposed(expose_experimental_interfaces);
 
-    Web::Platform::FontPlugin::install(*new Web::Platform::FontPlugin(enable_test_mode, &font_provider));
-
     Web::Bindings::initialize_main_thread_vm(Web::HTML::AgentType::SimilarOriginWindow);
 
     if (collect_garbage_on_every_allocation)
@@ -251,9 +243,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto browser_port = TRY(Core::MachPort::look_up_from_bootstrap_server(ByteString { mach_server_name }));
     auto transport_ports = TRY(IPC::bootstrap_transport_from_server_port(browser_port));
     auto webcontent_client = WebContent::ConnectionFromClient::construct(
-        make<IPC::Transport>(move(transport_ports.receive_right), move(transport_ports.send_right)));
+        make<IPC::Transport>(move(transport_ports.receive_right), move(transport_ports.send_right)), enable_test_mode);
 #else
-    auto webcontent_client = TRY(IPC::take_over_accepted_client_from_system_server<WebContent::ConnectionFromClient>(mach_server_name));
+    auto webcontent_client = TRY(IPC::take_over_accepted_client_from_system_server<WebContent::ConnectionFromClient>(mach_server_name, enable_test_mode));
 #endif
 
     auto& heap = Web::Bindings::main_thread_vm().heap();

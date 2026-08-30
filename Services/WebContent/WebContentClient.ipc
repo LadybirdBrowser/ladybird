@@ -1,6 +1,7 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Color.h>
 #include <LibIPC/TransportHandle.h>
+#include <LibIPC/File.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibHTTP/Cookie/Cookie.h>
@@ -58,6 +59,11 @@
 
 endpoint WebContentClient
 {
+    open_system_font(u64 generation, u64 face_id) => (u64 matched_face_id, u32 ttc_index, u8 format, Optional<IPC::File> file)
+    match_system_font(String family, u16 weight, u16 width, u8 slope) => (u64 face_id, u32 ttc_index, u8 format, Optional<IPC::File> file)
+    match_system_font_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) => (u64 face_id, u32 ttc_index, u8 format, Optional<IPC::File> file)
+    resolve_generic_font(String family, u16 weight, u8 slope) => (Optional<String> resolved_family)
+
     allocate_compositor_context_id(u64 page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration) => (Web::Compositor::CompositorContextId context_id)
     did_destroy_compositor_context(Web::Compositor::CompositorContextId context_id) =|
 

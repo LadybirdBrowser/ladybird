@@ -43,6 +43,12 @@
 #include <WebContent/WebContentConsoleClient.h>
 #include <WebContent/WebContentServerEndpoint.h>
 
+namespace Gfx {
+
+class SharedFontProvider;
+
+}
+
 namespace WebContent {
 
 class ConnectionFromClient final
@@ -71,12 +77,13 @@ public:
     void update_input_method_state(u64 page_id);
 
 private:
-    explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
+    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, bool enable_test_mode);
 
     Optional<PageClient&> page(u64 index, SourceLocation = SourceLocation::current());
     Optional<PageClient const&> page(u64 index, SourceLocation = SourceLocation::current()) const;
 
     virtual Messages::WebContentServer::InitTransportResponse init_transport(int peer_pid) override;
+    virtual void set_font_catalog(IPC::File, u64 size, u64 generation) override;
     virtual void initialize(u64 initial_page_id, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::CrossProcessId initial_document_state_id, Web::HTML::VisibilityState system_visibility_state) override;
     virtual void close_server() override;
     virtual Messages::WebContentServer::GetWindowHandleResponse get_window_handle(u64 page_id) override;
@@ -272,6 +279,8 @@ private:
     void enqueue_input_event(Web::QueuedInputEvent);
 
     Queue<Web::QueuedInputEvent> m_input_event_queue;
+    Gfx::SharedFontProvider* m_font_provider { nullptr };
+    bool m_enable_test_mode { false };
 };
 
 }

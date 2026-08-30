@@ -11,6 +11,7 @@
 #include <LibCore/System.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CompositorClient.h>
+#include <LibWebView/FontService.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/Utilities.h>
 
@@ -275,6 +276,8 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(IsP
     }
 
     auto client = TRY(launch_server_process<WebView::WebContentClient>("WebContent"sv, move(arguments), is_private, initial_page_id, root_navigable_id));
+    auto font_catalog = TRY(WebView::Application::font_service().clone_catalog());
+    client->async_set_font_catalog(move(font_catalog.file), font_catalog.size, font_catalog.generation);
     if (auto system_font_family = WebView::Application::the().system_font_family(); system_font_family.has_value())
         client->async_set_system_font_family(system_font_family.release_value());
     return client;
@@ -338,7 +341,10 @@ ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process()
         arguments.append(server.value());
     }
 
-    return launch_server_process<WebView::CompositorClient>("Compositor"sv, move(arguments));
+    auto client = TRY(launch_server_process<WebView::CompositorClient>("Compositor"sv, move(arguments)));
+    auto font_catalog = TRY(WebView::Application::font_service().clone_catalog());
+    client->async_set_font_catalog(move(font_catalog.file), font_catalog.size, font_catalog.generation);
+    return client;
 }
 
 ErrorOr<NonnullRefPtr<WebWorkerClient>> launch_web_worker_process(Web::HTML::AgentType type, IsPrivate is_private, Web::HTML::WorkerAgentId agent_id)
@@ -383,6 +389,8 @@ ErrorOr<NonnullRefPtr<WebWorkerClient>> launch_web_worker_process(Web::HTML::Age
     }
 
     auto client = TRY(launch_server_process<WebWorkerClient>("WebWorker"sv, move(arguments), is_private, agent_id));
+    auto font_catalog = TRY(WebView::Application::font_service().clone_catalog());
+    client->async_set_font_catalog(move(font_catalog.file), font_catalog.size, font_catalog.generation);
     if (auto system_font_family = WebView::Application::the().system_font_family(); system_font_family.has_value())
         client->async_set_system_font_family(system_font_family.release_value());
     return client;
