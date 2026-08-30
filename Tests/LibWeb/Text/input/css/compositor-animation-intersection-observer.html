@@ -40,7 +40,44 @@
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
         println(`disconnect restores compositor animation: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+        animation.cancel();
+        for (let i = 0; i < 2; ++i)
+            await new Promise(requestAnimationFrame);
 
+        const spacer = document.createElement("div");
+        spacer.style.height = "100vh";
+        const clip = document.createElement("div");
+        clip.style.cssText = "width: 100px; height: 100px; overflow: hidden";
+        const clippedTarget = document.createElement("div");
+        clippedTarget.style.cssText = "width: 20px; height: 20px; animation: move 100s linear infinite";
+        clip.append(clippedTarget);
+        document.body.append(spacer, clip);
+        const clippedAnimation = clippedTarget.getAnimations()[0];
+        clippedAnimation.currentTime = 0;
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+
+        let resolveClippedObservation;
+        let clippedObservation = new Promise(resolve => resolveClippedObservation = resolve);
+        const clippedObserver = new IntersectionObserver(entries => resolveClippedObservation(entries.at(-1)));
+        clippedObserver.observe(clippedTarget);
+        const initialClippedObservation = await clippedObservation;
+        println(`offscreen observed clip uses compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 1}`);
+        println(`offscreen clipped target is not intersecting: ${!initialClippedObservation.isIntersecting}`);
+
+        clippedObservation = new Promise(resolve => resolveClippedObservation = resolve);
+        internals.resetStyleInvalidationCounters();
+        clip.scrollIntoView();
+        const scrolledObservation = await clippedObservation;
+        await new Promise(resolve => setTimeout(() => setTimeout(resolve, 0), 0));
+        println(`scrolling observed clip restores main thread: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+        println(`withdrawn compositor animation requests frame: ${internals.getStyleInvalidationCounters().animationFramePumpRequests > 0}`);
+        println(`scrolled clipped target enters viewport: ${scrolledObservation.isIntersecting}`);
+
+        clippedObservation = new Promise(resolve => resolveClippedObservation = resolve);
+        clippedAnimation.currentTime = 75000;
+        const movedClippedObservation = await clippedObservation;
+        println(`observed animation still updates intersection: ${!movedClippedObservation.isIntersecting}`);
         done();
     });
 </script>

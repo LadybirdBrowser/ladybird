@@ -1,0 +1,3 @@
+target starts outside root: true
+animation stays on main thread: true
+target enters root: true

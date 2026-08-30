@@ -12,7 +12,8 @@
     }
 
     @keyframes relative-move {
-        from { transform: translateX(calc(100vw + var(--distance))); }
+        from { transform: translate(calc(-100% + 100vw + var(--distance))); }
+        50% { animation-timing-function: ease-in; }
         to { transform: translateX(calc(100vw + 100% + var(--distance))); }
     }
 
