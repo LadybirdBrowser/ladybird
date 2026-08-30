@@ -209,6 +209,9 @@ void IntersectionObserver::observe(DOM::Element& target)
         .previous_is_intersecting = false,
     });
 
+    // AD-HOC: Intersection geometry is computed from WebContent's visual-context tree. Ensure an animation that was
+    //         sampled only by the compositor catches up before the rendering update requested below.
+    target.document().flush_throttled_animation_style_update();
     m_document->page().client().request_frame();
 }
 
