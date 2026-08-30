@@ -157,6 +157,14 @@ public:
         m_is_compositor_driven = value;
         m_can_skip_per_frame_style_update_cache.clear();
     }
+    bool is_compositor_replaced() const { return m_is_compositor_replaced; }
+    void set_is_compositor_replaced(bool value)
+    {
+        if (m_is_compositor_replaced == value)
+            return;
+        m_is_compositor_replaced = value;
+        m_can_skip_per_frame_style_update_cache.clear();
+    }
     Vector<Compositor::VisualAnimation> const& retained_compositor_animations() const { return m_retained_compositor_animations; }
     void set_retained_compositor_animations(Vector<Compositor::VisualAnimation> animations) { m_retained_compositor_animations = move(animations); }
     void clear_retained_compositor_animations() { m_retained_compositor_animations.clear(); }
@@ -221,6 +229,7 @@ private:
     Optional<CompositorKeyframeValueCache> m_compositor_transform_keyframe_value_cache;
     Vector<Compositor::VisualAnimation> m_retained_compositor_animations;
     bool m_is_compositor_driven { false };
+    bool m_is_compositor_replaced { false };
     bool m_needs_observation_sample { false };
     struct CanSkipPerFrameStyleUpdateCache {
         u64 target_style_generation { 0 };

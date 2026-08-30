@@ -1698,6 +1698,7 @@ void Animation::invalidate_effect()
 
     auto& effect = static_cast<KeyframeEffect&>(*m_effect);
     effect.set_is_compositor_driven(false);
+    effect.set_is_compositor_replaced(false);
     if (auto target = effect.target())
         target->document().set_needs_animated_style_update(effect);
 }

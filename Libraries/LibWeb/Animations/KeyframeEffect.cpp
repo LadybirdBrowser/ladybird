@@ -1028,6 +1028,7 @@ void KeyframeEffect::invalidate_effect()
     m_compositor_opacity_keyframe_value_cache.clear();
     m_compositor_transform_keyframe_value_cache.clear();
     m_is_compositor_driven = false;
+    m_is_compositor_replaced = false;
     m_retained_compositor_animations.clear();
     m_can_skip_per_frame_style_update_cache.clear();
     if (m_target_element)
@@ -1043,7 +1044,7 @@ void KeyframeEffect::visit_edges(GC::Cell::Visitor& visitor)
 
 bool KeyframeEffect::can_skip_per_frame_style_update() const
 {
-    if (m_is_compositor_driven)
+    if (m_is_compositor_driven || m_is_compositor_replaced)
         return true;
 
     auto target = this->target();
@@ -1140,11 +1141,11 @@ bool KeyframeEffect::can_skip_per_frame_animation_tick() const
         && is_in_the_before_phase())
         return true;
 
-    if (!m_is_compositor_driven && !can_skip_per_frame_style_update())
+    if (!m_is_compositor_driven && !m_is_compositor_replaced && !can_skip_per_frame_style_update())
         return false;
 
-    // A compositor-driven one-iteration effect has a document timer that wakes the main thread at its active end.
-    if (m_is_compositor_driven && !isinf(iteration_count()))
+    // A compositor-handled one-iteration effect has a document timer that wakes the main thread at its active end.
+    if ((m_is_compositor_driven || m_is_compositor_replaced) && !isinf(iteration_count()))
         return true;
 
     // An infinite effect cannot reach its natural end, so animationend listeners do not require a continuous tick.

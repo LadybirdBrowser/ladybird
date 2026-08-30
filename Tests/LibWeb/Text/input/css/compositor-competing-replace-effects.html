@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes slide-up {
+        from { opacity: 0; transform: translateY(100px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .azure-pair {
+        animation: fade-in 100s, slide-up 100s ease-in-out;
+    }
+
+    .double-fade {
+        animation: fade-in 100s, fade-in 100s;
+    }
+
+    .split-winners {
+        animation: slide-up 100s ease-in-out, fade-in 100s;
+    }
+
+    .finite-pair {
+        opacity: 0.35;
+        animation: fade-in 100s linear, slide-up 100s linear;
+    }
+
+    .infinite-pair {
+        animation: fade-in 100s linear infinite, slide-up 100s linear infinite;
+    }
+
+    .finite-loser-infinite-winner {
+        animation: fade-in 100s linear, slide-up 100s linear infinite;
+    }
+
+    .css-fade {
+        animation: fade-in 100s;
+    }
+
+    #pseudo.enabled::before {
+        content: "";
+        display: block;
+        width: 10px;
+        height: 10px;
+        animation: fade-in 100s, slide-up 100s ease-in-out;
+    }
+</style>
+<div id="target"></div>
+<div id="pseudo"></div>
+<script>
+    asyncTest(async done => {
+        const target = document.querySelector("#target");
+        const nextFrames = async (count = 3) => {
+            for (let i = 0; i < count; ++i)
+                await new Promise(requestAnimationFrame);
+        };
+        const descriptorCount = () => internals.getStyleInvalidationCounters().compositorVisualAnimations;
+        const clearTarget = async () => {
+            for (const animation of target.getAnimations())
+                animation.cancel();
+            target.className = "";
+            target.removeAttribute("style");
+            await nextFrames(2);
+        };
+
+        target.className = "azure-pair";
+        await nextFrames();
+        internals.resetStyleInvalidationCounters();
+        await nextFrames(4);
+        println(`Azure pair publishes opacity and transform: ${descriptorCount() === 2}`);
+        println(`Azure pair avoids main-thread overlays: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 0}`);
+
+        await clearTarget();
+        target.className = "double-fade";
+        await nextFrames();
+        println(`later duplicate fade wins opacity: ${descriptorCount() === 1}`);
+
+        await clearTarget();
+        const loser = target.animate([{ opacity: 0.1 }, { opacity: 0.9 }], { duration: 100000 });
+        const winner = target.animate([{ opacity: 0.2 }, { opacity: 0.4 }], { duration: 1000 });
+        loser.currentTime = 500;
+        winner.currentTime = 500;
+        await nextFrames();
+        const winnerOpacity = parseFloat(getComputedStyle(target).opacity);
+        internals.resetStyleInvalidationCounters();
+        winner.currentTime = 1001;
+        await nextFrames();
+        const loserOpacity = parseFloat(getComputedStyle(target).opacity);
+        println(`short winner controls the boundary sample: ${Math.abs(winnerOpacity - 0.3) < 0.02}`);
+        println(`loser is published when winner ends: ${descriptorCount() === 1 && loserOpacity < 0.2}`);
+        println(`winner change republishes descriptors: ${internals.getStyleInvalidationCounters().compositorVisualAnimationUpdates > 0}`);
+
+        await clearTarget();
+        target.className = "css-fade";
+        await nextFrames();
+        const cssAnimationWasPublished = descriptorCount() === 1;
+        const scriptWinner = target.animate([{ opacity: 0.25 }, { opacity: 0.75 }], { duration: 100000 });
+        scriptWinner.currentTime = 50000;
+        await nextFrames();
+        println(`later script animation wins over CSS animation: ${cssAnimationWasPublished && descriptorCount() === 1 && Math.abs(parseFloat(getComputedStyle(target).opacity) - 0.5) < 0.02}`);
+        scriptWinner.pause();
+        await nextFrames();
+        println(`paused winner is sampled on the main thread: ${descriptorCount() === 0 && Math.abs(parseFloat(getComputedStyle(target).opacity) - 0.5) < 0.02}`);
+        scriptWinner.cancel();
+        await nextFrames();
+        println(`cancelling winner republishes CSS animation: ${descriptorCount() === 1}`);
+
+        await clearTarget();
+        target.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 100000 });
+        target.animate([{ opacity: 0 }, { opacity: 0.5 }], { duration: 100000, composite: "add" });
+        await nextFrames();
+        println(`add competitor stays on the main thread: ${descriptorCount() === 0}`);
+
+        await clearTarget();
+        target.className = "split-winners";
+        await nextFrames();
+        println(`opacity loser still hands off transform: ${descriptorCount() === 2}`);
+
+        await clearTarget();
+        document.querySelector("#pseudo").className = "enabled";
+        await nextFrames();
+        println(`pseudo-element pair publishes opacity and transform: ${descriptorCount() === 2}`);
+        for (const animation of document.getAnimations())
+            animation.cancel();
+
+        await clearTarget();
+        target.className = "finite-loser-infinite-winner";
+        await nextFrames(2);
+        const finiteLoser = target.getAnimations().find(animation => animation.animationName === "fade-in");
+        println(`finite loser receives an end wake-up: ${internals.getStyleInvalidationCounters().compositorAnimationWakeupTimerActive}`);
+        finiteLoser.currentTime = 100001;
+        await finiteLoser.finished;
+        println(`finite loser finishes after deterministic advance: ${finiteLoser.playState === "finished"}`);
+
+        await clearTarget();
+        let finiteAnimationEndEvents = 0;
+        target.addEventListener("animationend", () => ++finiteAnimationEndEvents);
+        target.className = "finite-pair";
+        await nextFrames(2);
+        const finiteAnimations = target.getAnimations();
+        const losingFiniteAnimation = finiteAnimations.find(animation => animation.animationName === "fade-in");
+        internals.resetStyleInvalidationCounters();
+        println(`competing finite effects register an end wake-up: ${internals.getStyleInvalidationCounters().compositorAnimationWakeupTimerActive}`);
+        for (const animation of finiteAnimations)
+            animation.currentTime = 100001;
+        await losingFiniteAnimation.finished;
+        await nextFrames(2);
+        println(`losing finite effect finishes after deterministic advance: ${losingFiniteAnimation.playState === "finished"}`);
+        println(`both competing finite effects dispatch animationend: ${finiteAnimationEndEvents === 2}`);
+        println(`losing finite effect restores base opacity: ${getComputedStyle(target).opacity === "0.35"}`);
+
+        await clearTarget();
+        let losingInfiniteIterations = 0;
+        const losingInfiniteIterationsObserved = new Promise(resolve => {
+            target.addEventListener("animationiteration", event => {
+                if (event.animationName !== "fade-in" || ++losingInfiniteIterations !== 2)
+                    return;
+                resolve(true);
+            });
+        });
+        target.className = "infinite-pair";
+        await nextFrames(2);
+        const losingInfiniteAnimation = target.getAnimations().find(animation => animation.animationName === "fade-in");
+        internals.resetStyleInvalidationCounters();
+        losingInfiniteAnimation.currentTime = 150000;
+        await nextFrames(2);
+        losingInfiniteAnimation.currentTime = 250000;
+        await losingInfiniteIterationsObserved;
+        println(`losing infinite effect dispatches iteration events: ${losingInfiniteIterations === 2}`);
+        println(`losing infinite listener keeps the frame pump active: ${internals.getStyleInvalidationCounters().animationFramePumpRequests > 0}`);
+        for (const animation of target.getAnimations())
+            animation.cancel();
+        done();
+    });
+</script>

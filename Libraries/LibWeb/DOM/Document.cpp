@@ -7979,7 +7979,10 @@ void Document::schedule_compositor_animation_wakeup(double delay_ms)
                     reached_wakeup = true;
                     continue;
                 }
-                if ((!effect.is_compositor_driven() && effect.retained_compositor_animations().is_empty()) || isinf(effect.iteration_count()))
+                bool is_compositor_handled = effect.is_compositor_driven()
+                    || effect.is_compositor_replaced()
+                    || !effect.retained_compositor_animations().is_empty();
+                if (!is_compositor_handled || isinf(effect.iteration_count()))
                     continue;
                 auto active_end = effect.start_delay().value + effect.iteration_duration().value * effect.iteration_count();
                 if (current_time->value < active_end) {
@@ -8004,12 +8007,21 @@ void Document::schedule_compositor_animation_wakeup(double delay_ms)
 
 void Document::update_compositor_animations()
 {
+    struct CompetingPropertyEffects {
+        GC::Ptr<Animations::KeyframeEffect> winner;
+        bool all_effects_use_replace { true };
+    };
+    struct CompetingEffects {
+        CompetingPropertyEffects opacity;
+        CompetingPropertyEffects transform;
+    };
+
     auto& visual_context_tree = paint_state().visual_context_tree(*this);
     Vector<Compositor::VisualAnimation> visual_animations;
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_compositor_driven_effects;
+    GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_compositor_replaced_effects;
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_published_effects;
-    HashMap<DOM::AbstractElement, HashMap<CSS::PropertyID, size_t>> competing_effect_counts;
-    HashMap<DOM::AbstractElement, size_t> transform_family_effect_counts;
+    HashMap<DOM::AbstractElement, CompetingEffects> competing_effects;
     Optional<double> compositor_animation_wakeup_delay_ms;
     for (auto& animation : m_associated_animations) {
         if (!animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
@@ -8017,24 +8029,50 @@ void Document::update_compositor_animations()
         auto& effect = static_cast<Animations::KeyframeEffect&>(*animation.effect());
         if (effect.is_compositor_driven())
             previously_compositor_driven_effects.set(effect);
+        if (effect.is_compositor_replaced())
+            previously_compositor_replaced_effects.set(effect);
         if (!effect.retained_compositor_animations().is_empty())
             previously_published_effects.set(effect);
         effect.set_is_compositor_driven(false);
+        effect.set_is_compositor_replaced(false);
 
         if (animation.is_idle() || !effect.is_in_effect())
             continue;
         auto target = effect.target_abstract_element();
         if (!target.has_value())
             continue;
-        auto& property_counts = competing_effect_counts.ensure(*target);
-        bool targets_transform_family = false;
-        for (auto property_id : effect.target_properties()) {
-            ++property_counts.ensure(property_id, [] { return 0; });
-            if (is_transform_family_property(property_id))
-                targets_transform_family = true;
-        }
-        if (targets_transform_family)
-            ++transform_family_effect_counts.ensure(*target, [] { return 0; });
+        auto& effects = competing_effects.ensure(*target);
+        auto add_competing_effect = [&](CompetingPropertyEffects& property_effects) {
+            if (effect.composite() != Bindings::CompositeOperation::Replace)
+                property_effects.all_effects_use_replace = false;
+            if (!property_effects.winner || Animations::KeyframeEffect::composite_order(*property_effects.winner, effect) < 0)
+                property_effects.winner = effect;
+        };
+        if (effect.target_properties().contains(CSS::PropertyID::Opacity))
+            add_competing_effect(effects.opacity);
+        if (any_of(effect.target_properties(), is_transform_family_property))
+            add_competing_effect(effects.transform);
+    }
+
+    auto winner_uses_replace_keyframes = [](Animations::KeyframeEffect& effect) {
+        auto const* key_frame_set = effect.key_frame_set();
+        if (!key_frame_set)
+            return false;
+        return all_of(key_frame_set->keyframes_by_key, [](auto const& entry) {
+            return first_is_one_of(entry.composite,
+                Bindings::CompositeOperationOrAuto::Auto,
+                Bindings::CompositeOperationOrAuto::Replace);
+        });
+    };
+    for (auto& [target, effects] : competing_effects) {
+        (void)target;
+        auto validate_winner = [&](CompetingPropertyEffects& property_effects) {
+            if (!property_effects.all_effects_use_replace
+                || (property_effects.winner && !winner_uses_replace_keyframes(*property_effects.winner)))
+                property_effects.winner = nullptr;
+        };
+        validate_winner(effects.opacity);
+        validate_winner(effects.transform);
     }
 
     bool requested_withdrawn_effect_sample = false;
@@ -8059,8 +8097,9 @@ void Document::update_compositor_animations()
         ScopeGuard collect_effect_bookkeeping = [&] {
             if (!published_compositor_animation)
                 effect.clear_retained_compositor_animations();
-            bool was_throttled = previously_compositor_driven_effects.contains(GC::Ref { effect });
-            if (was_throttled && !effect.is_compositor_driven()) {
+            bool was_throttled = previously_compositor_driven_effects.contains(GC::Ref { effect })
+                || previously_compositor_replaced_effects.contains(GC::Ref { effect });
+            if (was_throttled && !effect.is_compositor_driven() && !effect.is_compositor_replaced()) {
                 effect.request_observation_sample();
                 requested_withdrawn_effect_sample = true;
             }
@@ -8075,25 +8114,41 @@ void Document::update_compositor_animations()
         bool targets_unsupported_property = any_of(effect.target_properties(), [&](auto property_id) { return property_id != CSS::PropertyID::Opacity && !is_transform_family_property(property_id); });
         if (targets_unsupported_property)
             continue;
-        if (targets_opacity) {
-            auto property_counts = competing_effect_counts.get(*abstract_target);
-            if (!property_counts.has_value() || property_counts->get(CSS::PropertyID::Opacity).value_or(0) != 1)
-                continue;
-        }
-        if (targets_transform && transform_family_effect_counts.get(*abstract_target).value_or(0) != 1)
+        auto target_effects = competing_effects.get(*abstract_target);
+        VERIFY(target_effects.has_value());
+        bool opacity_has_replace_winner = !targets_opacity || target_effects->opacity.winner;
+        bool transform_has_replace_winner = !targets_transform || target_effects->transform.winner;
+        bool selected_for_opacity = targets_opacity && target_effects->opacity.winner.ptr() == &effect;
+        bool selected_for_transform = targets_transform && target_effects->transform.winner.ptr() == &effect;
+        bool all_targeted_properties_have_replace_winners = opacity_has_replace_winner && transform_has_replace_winner;
+
+        if (!selected_for_opacity && !selected_for_transform) {
+            bool can_throttle_replaced_effect = animation.play_state() == Bindings::AnimationPlayState::Running
+                && !animation.pending()
+                && animation.playback_rate() > 0
+                && animation.timeline() && animation.timeline()->is_monotonically_increasing()
+                && effect.is_in_the_active_phase()
+                && (isinf(effect.iteration_count()) || effect.iteration_count() == 1)
+                && effect.start_delay().type == Animations::TimeValue::Type::Milliseconds
+                && effect.iteration_duration().type == Animations::TimeValue::Type::Milliseconds;
+            if (all_targeted_properties_have_replace_winners && can_throttle_replaced_effect) {
+                effect.set_is_compositor_replaced(true);
+                schedule_active_end_wakeup(effect, animation);
+            }
             continue;
+        }
 
         Vector<Compositor::VisualAnimation> effect_visual_animations;
-        bool opacity_was_handed_off = !targets_opacity;
-        if (targets_opacity) {
+        bool opacity_was_handed_off = !selected_for_opacity;
+        if (selected_for_opacity) {
             auto visual_animation = build_compositor_animation(effect, visual_context_tree, Compositor::VisualAnimation::TargetKind::Opacity);
             if (visual_animation.has_value()) {
                 effect_visual_animations.append(visual_animation.release_value());
                 opacity_was_handed_off = true;
             }
         }
-        bool transform_was_handed_off = !targets_transform;
-        if (targets_transform) {
+        bool transform_was_handed_off = !selected_for_transform;
+        if (selected_for_transform) {
             auto visual_animation = build_compositor_animation(effect, visual_context_tree, Compositor::VisualAnimation::TargetKind::Transform);
             if (visual_animation.has_value()) {
                 effect_visual_animations.append(visual_animation.release_value());
@@ -8117,7 +8172,7 @@ void Document::update_compositor_animations()
                 }
             }
         }
-        if (opacity_was_handed_off && transform_was_handed_off)
+        if (all_targeted_properties_have_replace_winners && opacity_was_handed_off && transform_was_handed_off)
             effect.set_is_compositor_driven(true);
         schedule_active_end_wakeup(effect, animation);
         for (auto const& visual_animation : effect_visual_animations)
