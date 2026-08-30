@@ -8,6 +8,7 @@
 
     .animated {
         animation: spin 100s linear infinite;
+        transform-origin: center center 1px;
     }
 </style>
 <script>
@@ -51,6 +52,28 @@
         getComputedStyle(hidden).transform;
         const afterComputedStyle = internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds;
         println(`computed style samples hidden animation: ${afterComputedStyle > beforeComputedStyle}`);
+
+        const offscreenClip = document.createElement("div");
+        offscreenClip.style.cssText = "position: absolute; top: 200vh; width: 100px; height: 100px; overflow: hidden";
+        const offscreenAnimation = document.createElement("div");
+        offscreenAnimation.className = "animated";
+        offscreenClip.append(offscreenAnimation);
+        document.body.append(offscreenClip);
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+        internals.resetStyleInvalidationCounters();
+        println(`offscreen clipped animation overlay builds: ${await animationOverlayBuildsOverFrames(4)}`);
+        println(`offscreen clipped animation frame pump requests: ${internals.getStyleInvalidationCounters().animationFramePumpRequests}`);
+        internals.resetStyleInvalidationCounters();
+        offscreenClip.scrollIntoView();
+        await new Promise(resolve => setTimeout(() => setTimeout(resolve, 0), 0));
+        const revealedCounters = internals.getStyleInvalidationCounters();
+        println(`revealed clipped animation resumes: ${revealedCounters.animatedStyleOverlayBuilds > 0}`);
+        println(`revealed clipped animation requests frame: ${revealedCounters.animationFramePumpRequests > 0}`);
+        offscreenAnimation.getAnimations()[0].cancel();
+        offscreenClip.remove();
+        scrollTo(0, 0);
+        await nextFrame();
 
         const sampled = document.createElement("div");
         sampled.style.visibility = "hidden";

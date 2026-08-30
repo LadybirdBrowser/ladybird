@@ -168,6 +168,14 @@ public:
     Vector<Compositor::VisualAnimation> const& retained_compositor_animations() const { return m_retained_compositor_animations; }
     void set_retained_compositor_animations(Vector<Compositor::VisualAnimation> animations) { m_retained_compositor_animations = move(animations); }
     void clear_retained_compositor_animations() { m_retained_compositor_animations.clear(); }
+    void set_is_offscreen_throttled(bool value)
+    {
+        if (m_is_offscreen_throttled == value)
+            return;
+        m_is_offscreen_throttled = value;
+        m_can_skip_per_frame_style_update_cache.clear();
+    }
+    bool is_offscreen_throttled() const { return m_is_offscreen_throttled; }
     void set_is_observation_relevant_compositor_animation(bool value) { m_is_observation_relevant_compositor_animation = value; }
     bool is_observation_relevant_compositor_animation() const { return m_is_observation_relevant_compositor_animation; }
     void request_observation_sample();
@@ -204,6 +212,8 @@ public:
     void update_computed_properties_for_style(AnimationUpdateContext&, DOM::AbstractElement);
 
 private:
+    friend class Animation;
+
     KeyframeEffect();
     virtual ~KeyframeEffect() override = default;
 
@@ -232,6 +242,7 @@ private:
     Vector<Compositor::VisualAnimation> m_retained_compositor_animations;
     bool m_is_compositor_driven { false };
     bool m_is_compositor_replaced { false };
+    bool m_is_offscreen_throttled { false };
     bool m_is_observation_relevant_compositor_animation { false };
     bool m_needs_observation_sample { false };
     struct CanSkipPerFrameStyleUpdateCache {

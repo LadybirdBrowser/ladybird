@@ -4,6 +4,10 @@ animation event listener keeps frame pump active: true
 animation event listener skips past events: 0
 removing animation event listener stops frame pump: 0
 computed style samples hidden animation: true
+offscreen clipped animation overlay builds: 0
+offscreen clipped animation frame pump requests: 0
+revealed clipped animation resumes: true
+revealed clipped animation requests frame: true
 computed style uses current timeline sample: true
 computed timing uses current timeline sample: true
 geometry uses current timeline sample: true

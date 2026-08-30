@@ -1030,6 +1030,7 @@ void KeyframeEffect::invalidate_effect()
     m_is_compositor_driven = false;
     m_is_compositor_replaced = false;
     m_retained_compositor_animations.clear();
+    m_is_offscreen_throttled = false;
     m_is_observation_relevant_compositor_animation = false;
     m_can_skip_per_frame_style_update_cache.clear();
     if (m_target_element)
@@ -1104,6 +1105,9 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
     }
     if (!has_animated_property)
         return cache_result(false);
+
+    if (m_is_offscreen_throttled)
+        return cache_result(true);
 
     if (!target->document().layout_is_up_to_date())
         return false;

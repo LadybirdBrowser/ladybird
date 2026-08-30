@@ -1697,10 +1697,7 @@ void Animation::invalidate_effect()
         return;
 
     auto& effect = static_cast<KeyframeEffect&>(*m_effect);
-    effect.set_is_compositor_driven(false);
-    effect.set_is_compositor_replaced(false);
-    if (auto target = effect.target())
-        target->document().set_needs_animated_style_update(effect);
+    effect.invalidate_effect();
 }
 
 Animation::Animation(HTML::EnvironmentSettingsObject& environment)
