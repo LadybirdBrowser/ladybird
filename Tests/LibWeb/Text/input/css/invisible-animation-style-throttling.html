@@ -52,6 +52,34 @@
         const afterComputedStyle = internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds;
         println(`computed style samples hidden animation: ${afterComputedStyle > beforeComputedStyle}`);
 
+        const detached = document.createElement("div");
+        detached.className = "animated";
+        document.body.append(detached);
+        const detachedAnimation = detached.getAnimations()[0];
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+        detached.remove();
+        detachedAnimation.play();
+        await detachedAnimation.ready;
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+        const detachedTimeBeforeWait = detachedAnimation.currentTime;
+        internals.resetStyleInvalidationCounters();
+        await new Promise(resolve => setTimeout(resolve, 120));
+        println(`detached animation stops frame pump: ${internals.getStyleInvalidationCounters().animationFramePumpRequests}`);
+        println(`detached animation current time advances: ${detachedAnimation.currentTime > detachedTimeBeforeWait}`);
+        detached.addEventListener("animationend", () => {});
+        internals.resetStyleInvalidationCounters();
+        await new Promise(resolve => setTimeout(resolve, 120));
+        println(`unreachable end listener leaves detached animation throttled: ${internals.getStyleInvalidationCounters().animationFramePumpRequests <= 1}`);
+        let detachedIterationEvents = 0;
+        detached.addEventListener("animationiteration", () => ++detachedIterationEvents);
+        detachedAnimation.currentTime = 99950;
+        internals.resetStyleInvalidationCounters();
+        await new Promise(resolve => setTimeout(resolve, 120));
+        println(`detached animation listener keeps frame pump active: ${internals.getStyleInvalidationCounters().animationFramePumpRequests > 0}`);
+        println(`detached animation dispatches iteration event: ${detachedIterationEvents}`);
+
         const visible = document.createElement("div");
         visible.className = "animated";
         document.body.append(visible);
