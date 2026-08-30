@@ -431,8 +431,15 @@ AK::Duration calculate_freshness_lifetime(u32 status_code, HeaderList const& hea
         heuristics_allowed = true;
     }
 
-    if (heuristics_allowed)
+    if (heuristics_allowed) {
+        // INTEROP: Chromium treats 301 and 308 responses without explicit freshness as indefinitely fresh, while
+        //          WebKit assigns 301 responses a one-year lifetime. Use the more conservative one-year lifetime for
+        //          both permanent redirect status codes.
+        if (status_code == 301 || status_code == 308)
+            return AK::Duration::from_seconds(365 * 24 * 60 * 60);
+
         return calculate_heuristic_freshness_lifetime(headers, current_time_offset_for_testing);
+    }
 
     // No explicit expiration time, and heuristics not allowed or not applicable.
     return {};

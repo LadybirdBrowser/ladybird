@@ -117,3 +117,36 @@ TEST_CASE(javascript_bytecode_cache_can_be_added_after_memory_cache_entry_is_com
     EXPECT_EQ(entry->javascript_bytecode_cache->bytes(), bytecode.bytes());
     EXPECT_EQ(entry->javascript_bytecode_cache_vary_key, Optional<u64> { 0 });
 }
+
+TEST_CASE(permanent_redirects_without_explicit_freshness_are_reused)
+{
+    for (auto status_code : Array<u32, 2> { 301, 308 }) {
+        auto cache = HTTP::MemoryCache::create();
+        auto url = parse_url(MUST(String::formatted("https://example.com/redirect/{}", status_code)));
+        auto request_headers = create_cacheable_request_headers();
+        auto response_headers = HTTP::HeaderList::create({ { "Location"sv, "https://example.com/target"sv } });
+
+        cache->create_entry(url, "GET"sv, *request_headers, UnixDateTime::now(), status_code, "Permanent Redirect"sv, *response_headers);
+        cache->finalize_entry(url, "GET"sv, *request_headers, status_code, *response_headers, immutable_bytes({}));
+
+        auto entry = cache->open_entry(url, "GET"sv, *request_headers, HTTP::CacheMode::Default);
+        VERIFY(entry.has_value());
+        EXPECT_EQ(entry->status_code, status_code);
+    }
+}
+
+TEST_CASE(no_store_permanent_redirects_are_not_reused)
+{
+    auto cache = HTTP::MemoryCache::create();
+    auto url = parse_url("https://example.com/redirect"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto response_headers = HTTP::HeaderList::create({
+        { "Cache-Control"sv, "no-store"sv },
+        { "Location"sv, "https://example.com/target"sv },
+    });
+
+    cache->create_entry(url, "GET"sv, *request_headers, UnixDateTime::now(), 301, "Moved Permanently"sv, *response_headers);
+    cache->finalize_entry(url, "GET"sv, *request_headers, 301, *response_headers, immutable_bytes({}));
+
+    EXPECT(!cache->open_entry(url, "GET"sv, *request_headers, HTTP::CacheMode::Default).has_value());
+}
