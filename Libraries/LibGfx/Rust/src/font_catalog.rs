@@ -70,7 +70,7 @@ pub struct FontCatalog {
     generation: u64,
     faces: Vec<ParsedFace>,
     face_by_id: HashMap<u64, usize>,
-    faces_by_family: HashMap<Vec<u8>, Vec<usize>>,
+    faces_by_family: HashMap<u64, Vec<usize>>,
 }
 
 fn valid_face(face_id: u64, family: &[u8], weight: u16, width: u16, slope: u8, format: u8) -> bool {
@@ -83,8 +83,18 @@ fn valid_face(face_id: u64, family: &[u8], weight: u16, width: u16, slope: u8, f
         && format <= 1
 }
 
-fn ascii_lowercase(bytes: &[u8]) -> Vec<u8> {
-    bytes.iter().map(u8::to_ascii_lowercase).collect()
+fn family_hash(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xcbf29ce484222325, |hash, byte| {
+        (hash ^ u64::from(byte.to_ascii_lowercase())).wrapping_mul(0x100000001b3)
+    })
+}
+
+fn family_names_equal(left: &[u8], right: &[u8]) -> bool {
+    left.len() == right.len()
+        && left
+            .iter()
+            .zip(right)
+            .all(|(left, right)| left.eq_ignore_ascii_case(right))
 }
 
 fn push_u16(output: &mut Vec<u8>, value: u16) {
@@ -187,7 +197,7 @@ impl FontCatalog {
 
         let mut faces = Vec::with_capacity(face_count);
         let mut face_by_id = HashMap::with_capacity(face_count);
-        let mut faces_by_family: HashMap<Vec<u8>, Vec<usize>> = HashMap::new();
+        let mut faces_by_family: HashMap<u64, Vec<usize>> = HashMap::new();
 
         for index in 0..face_count {
             let offset = records_offset.checked_add(index.checked_mul(RECORD_SIZE)?)?;
@@ -224,7 +234,7 @@ impl FontCatalog {
             };
             faces.push(face);
             face_by_id.insert(face_id, index);
-            faces_by_family.entry(ascii_lowercase(family)).or_default().push(index);
+            faces_by_family.entry(family_hash(family)).or_default().push(index);
         }
 
         Some(Self {
@@ -254,6 +264,55 @@ impl FontCatalog {
             slope: face.slope,
             format: face.format,
         })
+    }
+
+    fn family_bytes(&self, index: usize) -> Option<&[u8]> {
+        let face = *self.faces.get(index)?;
+        let family_end = face.family_offset.checked_add(face.family_length)?;
+        if family_end > self.data_length {
+            return None;
+        }
+        // SAFETY: parse() validated this range and the snapshot outlives the catalog.
+        Some(unsafe { std::slice::from_raw_parts(self.data.add(face.family_offset), face.family_length) })
+    }
+
+    fn family_face_count(&self, family: &[u8]) -> usize {
+        self.faces_by_family
+            .get(&family_hash(family))
+            .into_iter()
+            .flatten()
+            .filter(|index| {
+                self.family_bytes(**index)
+                    .is_some_and(|candidate| family_names_equal(candidate, family))
+            })
+            .count()
+    }
+
+    fn family_face_index_at(&self, family: &[u8], family_index: usize) -> Option<usize> {
+        self.faces_by_family
+            .get(&family_hash(family))?
+            .iter()
+            .copied()
+            .filter(|index| {
+                self.family_bytes(*index)
+                    .is_some_and(|candidate| family_names_equal(candidate, family))
+            })
+            .nth(family_index)
+    }
+
+    fn match_style_index(&self, family: &[u8], weight: u16, width: u16, slope: u8) -> Option<usize> {
+        self.faces_by_family
+            .get(&family_hash(family))?
+            .iter()
+            .copied()
+            .find(|index| {
+                let face = self.faces[*index];
+                self.family_bytes(*index)
+                    .is_some_and(|candidate| family_names_equal(candidate, family))
+                    && face.weight == weight
+                    && face.width == width
+                    && face.slope == slope
+            })
     }
 }
 
@@ -418,10 +477,7 @@ pub unsafe extern "C" fn font_catalog_family_face_count(
         return 0;
     }
     let family = unsafe { std::slice::from_raw_parts(family, family_length) };
-    catalog
-        .faces_by_family
-        .get(&ascii_lowercase(family))
-        .map_or(0, Vec::len)
+    catalog.family_face_count(family)
 }
 
 /// # Safety
@@ -442,14 +498,10 @@ pub unsafe extern "C" fn font_catalog_family_face_at(
         return false;
     }
     let family = unsafe { std::slice::from_raw_parts(family, family_length) };
-    let Some(face_index) = catalog
-        .faces_by_family
-        .get(&ascii_lowercase(family))
-        .and_then(|faces| faces.get(index))
-    else {
+    let Some(face_index) = catalog.family_face_index_at(family, index) else {
         return false;
     };
-    let Some(face) = catalog.face_for_ffi(*face_index) else {
+    let Some(face) = catalog.face_for_ffi(face_index) else {
         return false;
     };
     *output = face;
@@ -497,16 +549,10 @@ pub unsafe extern "C" fn font_catalog_match_style(
         return false;
     }
     let family = unsafe { std::slice::from_raw_parts(family, family_length) };
-    let Some(indices) = catalog.faces_by_family.get(&ascii_lowercase(family)) else {
+    let Some(index) = catalog.match_style_index(family, weight, width, slope) else {
         return false;
     };
-    let Some(index) = indices.iter().find(|index| {
-        let face = catalog.faces[**index];
-        face.weight == weight && face.width == width && face.slope == slope
-    }) else {
-        return false;
-    };
-    let Some(face) = catalog.face_for_ffi(*index) else {
+    let Some(face) = catalog.face_for_ffi(index) else {
         return false;
     };
     *output = face;
@@ -540,8 +586,8 @@ mod tests {
     fn round_trip_and_case_insensitive_style_match() {
         let bytes = serialized_catalog();
         let catalog = FontCatalog::parse(&bytes, 7).unwrap();
-        let indices = catalog.faces_by_family.get(b"example sans" as &[u8]).unwrap();
-        assert_eq!(indices, &[0]);
+        assert_eq!(catalog.family_face_count(b"example sans"), 1);
+        assert_eq!(catalog.match_style_index(b"EXAMPLE SANS", 400, 5, 0), Some(0));
         assert_eq!(catalog.faces[0].face_id, 11);
         assert_eq!(catalog.faces[0].ttc_index, 2);
     }
@@ -556,7 +602,8 @@ mod tests {
     #[test]
     fn rejects_out_of_range_strings_and_duplicate_ids() {
         let mut bytes = serialized_catalog();
-        bytes[16..24].copy_from_slice(&(bytes.len() as u64).to_le_bytes());
+        let serialized_size = bytes.len() as u64;
+        bytes[16..24].copy_from_slice(&serialized_size.to_le_bytes());
         bytes[56..64].copy_from_slice(&u64::MAX.to_le_bytes());
         assert!(FontCatalog::parse(&bytes, 7).is_none());
 
@@ -578,5 +625,24 @@ mod tests {
         }
         let bytes = builder.serialize().unwrap();
         assert!(FontCatalog::parse(&bytes, 9).is_none());
+    }
+
+    #[test]
+    fn rejects_invalid_strings_and_face_fields() {
+        let original = serialized_catalog();
+
+        let mut invalid_utf8 = original.clone();
+        invalid_utf8[HEADER_SIZE + RECORD_SIZE] = 0xff;
+        assert!(FontCatalog::parse(&invalid_utf8, 7).is_none());
+
+        let mut invalid_weight = original.clone();
+        invalid_weight[72..74].copy_from_slice(&0_u16.to_le_bytes());
+        assert!(FontCatalog::parse(&invalid_weight, 7).is_none());
+
+        for (offset, value) in [(48, 0_u8), (76, 3), (77, 2), (78, 1)] {
+            let mut bytes = original.clone();
+            bytes[offset] = value;
+            assert!(FontCatalog::parse(&bytes, 7).is_none());
+        }
     }
 }

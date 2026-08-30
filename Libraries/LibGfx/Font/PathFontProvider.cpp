@@ -9,6 +9,7 @@
 #include <AK/Format.h>
 #include <AK/LexicalPath.h>
 #include <LibCore/Resource.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/PathFontProvider.h>
 #include <LibGfx/Font/WOFF/Loader.h>
@@ -70,6 +71,12 @@ void PathFontProvider::for_each_typeface_in_uri(StringView uri, HashTable<String
             return IterationDecision::Continue;
 
         auto filesystem_path = resource.filesystem_path();
+        auto canonical_path = FileSystem::real_path(filesystem_path.bytes_as_string_view());
+        if (canonical_path.is_error()) {
+            dbgln("PathFontProvider: Unable to canonicalize '{}': {}", filesystem_path, canonical_path.error());
+            return IterationDecision::Continue;
+        }
+        filesystem_path = MUST(String::from_byte_string(canonical_path.release_value()));
         if (loaded_paths.set(filesystem_path, AK::HashSetExistingEntryBehavior::Keep) != AK::HashSetResult::InsertedNewEntry)
             return IterationDecision::Continue;
 
