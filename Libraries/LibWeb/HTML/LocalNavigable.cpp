@@ -82,7 +82,6 @@
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
-#include <LibWeb/Painting/DisplayListDamage.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Painting/ScrollSnap.h>
@@ -5114,9 +5113,6 @@ void LocalNavigable::repaint_after_compositor_process_reconnect()
         m_needs_repaint = true;
         m_needs_to_record_display_list = true;
         m_compositor_display_list_paint_config.clear();
-        m_compositor_display_list.clear();
-        m_compositor_visual_context_tree.clear();
-        m_compositor_scroll_state_snapshot.clear();
         m_compositor_display_list_resources = {};
     }
 
@@ -5148,7 +5144,7 @@ void LocalNavigable::set_should_show_caret_hit_test_debug_overlay(bool value)
         child_navigable->set_should_show_caret_hit_test_debug_overlay(value);
 }
 
-bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_config, Gfx::IntRect* damage_rect)
+bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_config)
 {
     if (!has_compositor_context())
         return false;
@@ -5193,32 +5189,7 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
     document_paint_state.refresh_scroll_state(*document);
 
     Painting::ScrollStateSnapshot scroll_state_snapshot { document_paint_state.scroll_state_snapshot() };
-    auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
-    Gfx::IntRect surface_rect { {}, viewport_rect.size() };
-    if (damage_rect)
-        *damage_rect = surface_rect;
     if (should_record_display_list) {
-        if (damage_rect
-            && m_compositor_display_list
-            && m_compositor_visual_context_tree.has_value()
-            && m_compositor_scroll_state_snapshot.has_value()
-            && m_compositor_scroll_state_snapshot->device_offsets() == scroll_state_snapshot.device_offsets()
-            && m_compositor_display_list_paint_config == paint_config) {
-            auto computed_damage = Painting::compute_display_list_damage(
-                m_compositor_display_list->command_bytes(),
-                *m_compositor_visual_context_tree,
-                *m_compositor_scroll_state_snapshot,
-                display_list->command_bytes(),
-                *visual_context_tree,
-                scroll_state_snapshot,
-                surface_rect);
-            if (computed_damage.has_value())
-                *damage_rect = *computed_damage;
-        }
-
-        m_compositor_display_list = display_list;
-        m_compositor_visual_context_tree = *visual_context_tree;
-        m_compositor_scroll_state_snapshot = scroll_state_snapshot;
         m_compositor_display_list_visual_context_tree_version = display_list->compatible_visual_context_tree_version();
         compositor_context().update_display_list(*display_list, visual_context_tree.release_value(), move(resource_transaction), move(scroll_state_snapshot));
         document_paint_state.did_update_visual_context_tree_in_compositor();
@@ -5259,11 +5230,10 @@ void LocalNavigable::paint_next_frame()
 
     m_needs_repaint = false;
 
-    Gfx::IntRect damage_rect;
-    if (!record_display_list_and_scroll_state(paint_config, &damage_rect))
+    if (!record_display_list_and_scroll_state(paint_config))
         return;
     viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
-    compositor_context().present_frame(viewport_rect, damage_rect);
+    compositor_context().present_frame(viewport_rect);
 }
 
 void LocalNavigable::render_screenshot(Gfx::PaintingSurface& painting_surface, PaintConfig paint_config, Function<void()>&& callback)

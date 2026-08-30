@@ -105,7 +105,7 @@ public:
     void set_paused_debugger_overlay(Web::Compositor::CompositorContextId, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<WebView::PausedDebuggerOverlayAction> hovered_action);
     void set_display_metadata(Web::Compositor::CompositorContextId, Optional<u64> display_id, double refresh_rate);
     void set_context_visibility(Web::Compositor::CompositorContextId, Web::Compositor::ContextVisibility);
-    void present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect viewport_rect, Gfx::IntRect damage_rect);
+    void present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect viewport_rect);
     bool request_screenshot(Web::Compositor::CompositorContextId, Gfx::ShareableBitmap&);
     void presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId, i32 bitmap_id);
     void set_client_gpu_presentation_capability(bool supported, u64 adapter_luid);

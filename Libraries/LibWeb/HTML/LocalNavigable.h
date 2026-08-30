@@ -278,7 +278,7 @@ public:
     void clear_pending_navigations();
     void prepare_to_populate_reconstructed_history_entry(Utf16String navigation_api_key);
 
-    bool record_display_list_and_scroll_state(PaintConfig, Gfx::IntRect* damage_rect = nullptr);
+    bool record_display_list_and_scroll_state(PaintConfig);
     void paint_next_frame();
     void render_screenshot(Gfx::PaintingSurface&, PaintConfig, Function<void()>&& callback);
     Painting::DisplayListResourceStorage& display_list_resource_storage() { return m_display_list_resource_storage; }
@@ -538,9 +538,6 @@ private:
     bool m_should_show_caret_hit_test_debug_overlay { false };
     Optional<PaintConfig> m_compositor_display_list_paint_config;
     u64 m_compositor_display_list_visual_context_tree_version { 0 };
-    RefPtr<Painting::DisplayList> m_compositor_display_list;
-    Optional<Painting::AccumulatedVisualContextTree> m_compositor_visual_context_tree;
-    Optional<Painting::ScrollStateSnapshot> m_compositor_scroll_state_snapshot;
     Painting::DisplayListResourceStorage m_display_list_resource_storage;
     Painting::DisplayListResourceSet m_compositor_display_list_resources;
     OwnPtr<Compositor::CompositorContextHandle> m_compositor_context;
