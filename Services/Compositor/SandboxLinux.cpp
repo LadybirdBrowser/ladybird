@@ -9,20 +9,51 @@
 #include <LibCore/Environment.h>
 #include <LibCore/StandardPaths.h>
 #include <LibGfx/Font/FontDatabase.h>
+#include <LibGfx/Font/GlobalFontConfig.h>
+#include <LibGfx/Font/TypefaceSkia.h>
 #include <LibSandbox/Sandbox.h>
 #include <LibSandbox/Seccomp.h>
 #include <LibWebView/Utilities.h>
+#include <fontconfig/fontconfig.h>
 
 namespace Compositor {
+
+static ErrorOr<void> add_landlock_paths_for_fontconfig(Vector<Sandbox::LandlockPath>& paths)
+{
+    TRY(Sandbox::add_landlock_path_if_exists(paths, "/etc/fonts"sv, Sandbox::LandlockPath::Access::ReadOnly));
+
+    FcConfig* config = Gfx::GlobalFontConfig::the().get();
+
+    FcStrList* font_directories = FcConfigGetFontDirs(config);
+    while (FcChar8* directory = FcStrListNext(font_directories)) {
+        char const* directory_cstring = reinterpret_cast<char const*>(directory);
+        TRY(Sandbox::add_landlock_path_if_exists(paths, StringView { directory_cstring, strlen(directory_cstring) }, Sandbox::LandlockPath::Access::ReadOnly));
+    }
+    FcStrListDone(font_directories);
+
+    FcStrList* cache_directories = FcConfigGetCacheDirs(config);
+    while (FcChar8* directory = FcStrListNext(cache_directories)) {
+        char const* directory_cstring = reinterpret_cast<char const*>(directory);
+        TRY(Sandbox::add_landlock_path_if_exists(paths, StringView { directory_cstring, strlen(directory_cstring) }, Sandbox::LandlockPath::Access::ReadOnly));
+    }
+    FcStrListDone(cache_directories);
+
+    return {};
+}
 
 ErrorOr<void> apply_sandbox(StringView)
 {
     TRY(Sandbox::install_no_new_privileges());
     TRY(Sandbox::configure_runtime());
 
+    // Load Skia's font manager, and with it fontconfig's configuration and font caches, while filesystem access and
+    // the syscalls fontconfig needs are still unrestricted.
+    Gfx::TypefaceSkia::initialize_font_manager();
+
     Vector<Sandbox::LandlockPath> paths;
     for (auto const& path : TRY(Gfx::FontDatabase::font_directories()))
         TRY(Sandbox::add_landlock_path_if_exists(paths, path, Sandbox::LandlockPath::Access::ReadOnly));
+    TRY(add_landlock_paths_for_fontconfig(paths));
     TRY(Sandbox::add_landlock_path_if_exists(paths, TRY(String::formatted("{}/fonts", WebView::s_ladybird_resource_root)), Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/lib"sv, Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/lib64"sv, Sandbox::LandlockPath::Access::ReadOnly));
@@ -64,6 +95,7 @@ ErrorOr<void> apply_sandbox(StringView)
     TRY(Sandbox::restrict_filesystem_with_landlock(paths.span()));
 
     Sandbox::SeccompPolicy policy;
+    policy.deny_file_mode_changes();
     policy.allow_readonly_file_opens();
     policy.allow_filesystem_metadata_queries();
     policy.allow_filesystem_writes();

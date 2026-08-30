@@ -104,6 +104,11 @@ static SkFontMgr& font_manager()
     return *font_manager;
 }
 
+void TypefaceSkia::initialize_font_manager()
+{
+    font_manager();
+}
+
 static std::unique_ptr<SkMemoryStream> copy_stream_to_memory_stream(SkStreamAsset& stream)
 {
     auto stream_copy = stream.duplicate();
@@ -307,6 +312,23 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::match_family_style(StringView family
 {
     auto skia_typeface = font_manager().matchFamilyStyle(ByteString(family_name).characters(), SkFontStyle { weight, width, slope_to_skia_slant(slope) });
     return typeface_from_skia_typeface(move(skia_typeface));
+}
+
+void TypefaceSkia::for_each_typeface_in_family(StringView family_name, Function<void(NonnullRefPtr<TypefaceSkia>)> callback)
+{
+    auto style_set = font_manager().matchFamily(ByteString(family_name).characters());
+    if (!style_set)
+        return;
+
+    auto style_count = style_set->count();
+    for (int style_index = 0; style_index < style_count; ++style_index) {
+        auto skia_typeface = style_set->createTypeface(style_index);
+        auto typeface_or_error = typeface_from_skia_typeface(move(skia_typeface));
+        if (typeface_or_error.is_error())
+            continue;
+        if (auto typeface = typeface_or_error.release_value())
+            callback(typeface.release_nonnull());
+    }
 }
 
 ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::find_typeface_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji)

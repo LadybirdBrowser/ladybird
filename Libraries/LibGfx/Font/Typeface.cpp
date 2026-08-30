@@ -157,16 +157,17 @@ void Typeface::copy_font_data_from(Typeface const& other)
 
 namespace IPC {
 
-static NonnullRefPtr<Gfx::Typeface const> match_system_typeface(Optional<Gfx::SystemUIFontKind> system_ui_font_kind, String family_name, u16 weight, u16 width, u8 slope)
+static ErrorOr<NonnullRefPtr<Gfx::Typeface const>> match_system_typeface(Optional<Gfx::SystemUIFontKind> system_ui_font_kind, String family_name, u16 weight, u16 width, u8 slope)
 {
     if (system_ui_font_kind.has_value()) {
-        auto typeface = MUST(Gfx::TypefaceSkia::match_system_ui(system_ui_font_kind.value(), 0, weight, width, slope));
+        auto typeface = TRY(Gfx::TypefaceSkia::match_system_ui(system_ui_font_kind.value(), 0, weight, width, slope));
         if (typeface)
             return typeface.release_nonnull();
     }
 
-    auto typeface = MUST(Gfx::TypefaceSkia::match_family_style(family_name.bytes_as_string_view(), weight, width, slope));
-    VERIFY(typeface);
+    auto typeface = TRY(Gfx::TypefaceSkia::match_family_style(family_name.bytes_as_string_view(), weight, width, slope));
+    if (!typeface)
+        return Error::from_string_literal("Typeface IPC data referenced an unknown system font");
     return typeface.release_nonnull();
 }
 

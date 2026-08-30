@@ -33,6 +33,9 @@ struct CodePointFallbackKey {
     }
 };
 
+FontVariationSettings default_font_variation_settings(float point_size, unsigned weight, unsigned width);
+ShapeFeatures default_shape_features();
+
 class SystemFontProvider {
 public:
     virtual ~SystemFontProvider();

@@ -41,6 +41,7 @@ add_executable(WebContent main.cpp)
 
 if (LINUX)
     target_sources(WebContent PRIVATE ../RendererSandboxLinux.cpp)
+    target_link_libraries(WebContent PRIVATE Fontconfig::Fontconfig)
 elseif (APPLE)
     target_sources(WebContent PRIVATE ../RendererSandboxMacOS.cpp)
 else()

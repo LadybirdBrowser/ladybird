@@ -1323,8 +1323,4 @@ if(NOT BUILD_SHARED_LIBS)
     set_property(SOURCE Loader/ContentBlocker.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_content_blocker_rust_lib})
 endif()
 
-if (HAS_FONTCONFIG)
-    target_link_libraries(LibWeb PRIVATE Fontconfig::Fontconfig)
-endif()
-
 generate_js_bindings(LibWeb)

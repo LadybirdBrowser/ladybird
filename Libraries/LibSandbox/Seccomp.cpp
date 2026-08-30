@@ -553,6 +553,9 @@ static char const* syscall_name(long syscall_number)
 #ifdef __NR_bind
         CASE_SYSCALL_NAME(bind);
 #endif
+#ifdef __NR_chmod
+        CASE_SYSCALL_NAME(chmod);
+#endif
 #ifdef __NR_clone
         CASE_SYSCALL_NAME(clone);
 #endif
@@ -576,6 +579,12 @@ static char const* syscall_name(long syscall_number)
 #endif
 #ifdef __NR_fallocate
         CASE_SYSCALL_NAME(fallocate);
+#endif
+#ifdef __NR_fchmod
+        CASE_SYSCALL_NAME(fchmod);
+#endif
+#ifdef __NR_fchmodat
+        CASE_SYSCALL_NAME(fchmodat);
 #endif
 #ifdef __NR_fcntl
         CASE_SYSCALL_NAME(fcntl);
@@ -905,6 +914,25 @@ void SeccompPolicy::allow_filesystem_writes()
     append(SECCOMP_ALLOW);
     append(SECCOMP_LOAD_SYSCALL_NR);
     append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
+}
+
+void SeccompPolicy::deny_file_mode_changes()
+{
+    // Fontconfig changes the mode of any font cache files it rebuilds. Cache rebuilds normally happen before the
+    // sandbox is installed. If one happens later, fail these calls rather than terminating the process, as fontconfig
+    // tolerates a cache that it cannot update.
+#ifdef __NR_chmod
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_chmod, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
+#endif
+#ifdef __NR_fchmod
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fchmod, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
+#endif
+#ifdef __NR_fchmodat
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fchmodat, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
+#endif
 }
 
 void SeccompPolicy::allow_file_descriptor_operations()
