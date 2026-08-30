@@ -190,7 +190,6 @@ public:
     // becomes the root node. Unlike a document tree's visual viewport root, this root is real
     // content placement, so queries asked to exclude the visual viewport transform include it.
     static WEB_API AccumulatedVisualContextTree create_with_content_root(TransformData content_transform);
-    static WEB_API AccumulatedVisualContextTree create_with_content_offset(Gfx::IntPoint content_offset);
 
     AccumulatedVisualContextTree(AccumulatedVisualContextTree const&) = default;
     AccumulatedVisualContextTree& operator=(AccumulatedVisualContextTree const&) = default;

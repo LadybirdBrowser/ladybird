@@ -17,8 +17,8 @@ use std::collections::HashMap;
 use crate::painting::display_list::commands::OptionalF32;
 use crate::painting::paintable_data::BorderEdge;
 use libgfx_rust::{
-    CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, IntRect, MaskKind,
-    WindingRule, translation_matrix,
+    CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, IntPoint, IntRect,
+    MaskKind, WindingRule, translation_matrix,
 };
 use scroll_state::{NO_SCROLL_STATE_SLOT, ScrollStateSlot};
 
@@ -468,6 +468,17 @@ impl VisualContextTree {
 
     pub fn create_with_content_root(content_transform: TransformData) -> Self {
         Self::with_root(content_transform, false)
+    }
+
+    pub fn create_with_content_offset(content_offset: IntPoint) -> Self {
+        Self::create_with_content_root(TransformData {
+            matrix: translation_matrix(content_offset.x as f32, content_offset.y as f32, 0.0),
+            origin: FloatPoint::default(),
+            sorting_context_root_index: None,
+            flattens_inherited_transform: false,
+            role: TransformDataRole::CssTransform,
+            synthetic_plane: false,
+        })
     }
 
     fn with_root(root_transform: TransformData, root_is_visual_viewport: bool) -> Self {

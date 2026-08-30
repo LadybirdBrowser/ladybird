@@ -78,14 +78,6 @@ AccumulatedVisualContextTree AccumulatedVisualContextTree::create_with_content_r
     return AccumulatedVisualContextTree { next_accumulated_visual_context_tree_version(), move(content_transform), false };
 }
 
-AccumulatedVisualContextTree AccumulatedVisualContextTree::create_with_content_offset(Gfx::IntPoint content_offset)
-{
-    return create_with_content_root(TransformData {
-        Gfx::translation_matrix(Vector3<float>(static_cast<float>(content_offset.x()), static_cast<float>(content_offset.y()), 0)),
-        {},
-    });
-}
-
 SpatialNodeIndex AccumulatedVisualContextTree::append_spatial(SpatialData data, SpatialNodeIndex parent)
 {
     VERIFY(parent.value() < m_spatial_nodes.size());

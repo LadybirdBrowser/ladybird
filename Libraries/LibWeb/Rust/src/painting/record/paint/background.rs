@@ -21,7 +21,7 @@ use crate::painting::record::paint::background_resolution::{
     BackgroundPaintInputs, ResolvedBackgroundLayer, resolve_background_for_paint, resolve_background_layers,
 };
 use crate::painting::record::paint::gradient_resolution::{gradient_paint_value, record_gradient_fill};
-use crate::painting::visual_context::{FrameRole, PieceKey};
+use crate::painting::visual_context::{FrameRole, PieceKey, VisualContextTree};
 use libgfx_rust::{
     CompositingAndBlendingOperator, FloatRect, IntPoint, IntRect, IntSize, ScalingMode, ShouldAntiAlias, WindingRule,
 };
@@ -702,13 +702,14 @@ fn paint_image_layer(
         }
         let tile_recorder = std::mem::replace(&mut recorder.recorder, outer_recorder);
         let tile = tile_recorder.into_builder().finish();
-        let tile_display_list_id = recorder.paint_host.nested_display_list_from_bytes(
-            &tile,
-            IntPoint {
-                x: -tile_device_rect.x,
-                y: -tile_device_rect.y,
-            },
-        );
+        let tile_tree = VisualContextTree::create_with_content_offset(IntPoint {
+            x: -tile_device_rect.x,
+            y: -tile_device_rect.y,
+        });
+        let tile_tree_handle = recorder.paint_host.materialize_visual_context_tree(&tile_tree);
+        let tile_display_list_id = recorder
+            .paint_host
+            .nested_display_list_from_tree(&tile, tile_tree_handle, &[]);
 
         // A pattern repeats along both axes. On any non-repeating axis, constrain the coverage to a single tile.
         let mut coverage = clip_rect;
