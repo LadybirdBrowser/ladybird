@@ -1277,20 +1277,30 @@ pub struct FfiImagePaintRecordInputs {
 
 /// # Safety
 ///
-/// `inputs` and its arrays must be live for the call; `consume` is called synchronously.
+/// `inputs` and its arrays must be live for the call; `consume` is called synchronously with a
+/// recording and a visual context tree pointer that are only valid during that call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
     inputs: *const FfiImagePaintRecordInputs,
     context: *mut c_void,
-    consume: unsafe extern "C" fn(*mut c_void, FfiRecordedDisplayList),
+    consume: unsafe extern "C" fn(*mut c_void, FfiRecordedDisplayList, *const c_void),
 ) {
     use crate::painting::display_list::commands::{DisplayListResourceId, ImageFrameResourceId};
     use crate::painting::display_list::recorder::{
         ColorStops, ConicGradientData, DisplayListRecorder, LinearGradientData, RadialGradientData,
     };
-    use libgfx_rust::{CompositingAndBlendingOperator, IntRect};
+    use crate::painting::visual_context::{TransformData, TransformDataRole, VisualContextTree};
+    use libgfx_rust::{CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, IntRect};
     abort_on_panic(|| {
         let inputs = unsafe { &*inputs };
+        let tree = VisualContextTree::create(TransformData {
+            matrix: FloatMatrix4x4::identity(),
+            origin: FloatPoint::default(),
+            sorting_context_root_index: None,
+            flattens_inherited_transform: false,
+            role: TransformDataRole::CssTransform,
+            synthetic_plane: false,
+        });
         let mut recorder = DisplayListRecorder::new();
         let dest_rect = inputs.dest_rect;
         let dest_int_rect = IntRect::new(
@@ -1373,7 +1383,7 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
             }
         }
         let recorded = recorder.into_builder().finish();
-        unsafe { consume(context, (&recorded).into()) };
+        unsafe { consume(context, (&recorded).into(), std::ptr::from_ref(&tree).cast()) };
     });
 }
 
