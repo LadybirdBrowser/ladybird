@@ -384,6 +384,63 @@ impl SortingContexts {
     }
 }
 
+pub fn resolve_sorting_contexts_over_nodes(
+    node_count: usize,
+    parent_and_sorting_context_root_of_node: impl Fn(usize) -> (SpatialNodeIndex, Option<SpatialNodeIndex>),
+) -> SortingContexts {
+    let mut is_sorting_context_root = vec![false; node_count];
+    let mut has_sorting_context_roots = false;
+    for index in 0..node_count {
+        let (_, sorting_context_root) = parent_and_sorting_context_root_of_node(index);
+        if let Some(root) = sorting_context_root {
+            is_sorting_context_root[root.0 as usize] = true;
+            has_sorting_context_roots = true;
+        }
+    }
+    if !has_sorting_context_roots {
+        return SortingContexts::default();
+    }
+
+    // Roots always precede their contexts' nodes, so a single forward walk resolves every node.
+    let mut contexts = SortingContexts {
+        links: HashMap::new(),
+        leaf_by_node: Vec::with_capacity(node_count),
+        context_by_node: Vec::with_capacity(node_count),
+    };
+    for (index, is_sorting_context_root) in is_sorting_context_root.iter().copied().enumerate() {
+        let spatial_index = SpatialNodeIndex(index as u32);
+        let (parent, sorting_context_root) = parent_and_sorting_context_root_of_node(index);
+        let inherited_leaf = if index == 0 {
+            NO_SORTING_CONTEXT
+        } else {
+            contexts.leaf_by_node[parent.0 as usize]
+        };
+        let inherited_context = if index == 0 {
+            NO_SORTING_CONTEXT
+        } else {
+            contexts.context_by_node[parent.0 as usize]
+        };
+        if let Some(root) = sorting_context_root {
+            contexts.leaf_by_node.push(spatial_index);
+            contexts.context_by_node.push(root);
+        } else if is_sorting_context_root {
+            contexts.links.insert(
+                spatial_index.0,
+                SortingContextLink {
+                    parent_context: inherited_context,
+                    parent_leaf: inherited_leaf,
+                },
+            );
+            contexts.leaf_by_node.push(spatial_index);
+            contexts.context_by_node.push(spatial_index);
+        } else {
+            contexts.leaf_by_node.push(inherited_leaf);
+            contexts.context_by_node.push(inherited_context);
+        }
+    }
+    contexts
+}
+
 #[derive(Default)]
 pub struct VisualContextState {
     pub tree: Option<VisualContextTree>,
@@ -632,62 +689,15 @@ impl VisualContextTree {
     }
 
     pub fn resolve_sorting_contexts(&self) -> SortingContexts {
-        let node_count = self.spatial_nodes.len();
-
-        let mut is_sorting_context_root = vec![false; node_count];
-        let mut has_sorting_context_roots = false;
-        for node in &self.spatial_nodes {
-            if let SpatialData::Transform(transform) = &node.data
-                && let Some(root) = transform.sorting_context_root_index
-            {
-                is_sorting_context_root[root.0 as usize] = true;
-                has_sorting_context_roots = true;
-            }
-        }
-        if !has_sorting_context_roots {
-            return SortingContexts::default();
-        }
-
-        // Roots always precede their contexts' nodes, so a single forward walk resolves every node.
-        let mut contexts = SortingContexts {
-            links: HashMap::new(),
-            leaf_by_node: Vec::with_capacity(node_count),
-            context_by_node: Vec::with_capacity(node_count),
-        };
-        for (index, node) in self.spatial_nodes.iter().enumerate() {
-            let spatial_index = SpatialNodeIndex(index as u32);
-            let parent = node.parent.0 as usize;
-            let inherited_leaf = if index == 0 {
-                NO_SORTING_CONTEXT
+        resolve_sorting_contexts_over_nodes(self.spatial_nodes.len(), |index| {
+            let node = &self.spatial_nodes[index];
+            let sorting_context_root = if let SpatialData::Transform(transform) = &node.data {
+                transform.sorting_context_root_index
             } else {
-                contexts.leaf_by_node[parent]
+                None
             };
-            let inherited_context = if index == 0 {
-                NO_SORTING_CONTEXT
-            } else {
-                contexts.context_by_node[parent]
-            };
-            if let SpatialData::Transform(transform) = &node.data
-                && let Some(root) = transform.sorting_context_root_index
-            {
-                contexts.leaf_by_node.push(spatial_index);
-                contexts.context_by_node.push(root);
-            } else if is_sorting_context_root[index] {
-                contexts.links.insert(
-                    spatial_index.0,
-                    SortingContextLink {
-                        parent_context: inherited_context,
-                        parent_leaf: inherited_leaf,
-                    },
-                );
-                contexts.leaf_by_node.push(spatial_index);
-                contexts.context_by_node.push(spatial_index);
-            } else {
-                contexts.leaf_by_node.push(inherited_leaf);
-                contexts.context_by_node.push(inherited_context);
-            }
-        }
-        contexts
+            (node.parent, sorting_context_root)
+        })
     }
 
     pub fn scroll_state_slot_for_node(&self, index: SpatialNodeIndex) -> ScrollStateSlot {

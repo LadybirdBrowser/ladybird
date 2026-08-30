@@ -220,6 +220,27 @@ impl FloatRect {
     pub fn is_empty(self) -> bool {
         self.width <= 0.0 || self.height <= 0.0
     }
+    pub fn united(self, other: Self) -> Self {
+        if self.is_empty() {
+            return other;
+        }
+        if other.is_empty() {
+            return self;
+        }
+        let left = if other.x < self.x { other.x } else { self.x };
+        let top = if other.y < self.y { other.y } else { self.y };
+        let right = if self.right() < other.right() {
+            other.right()
+        } else {
+            self.right()
+        };
+        let bottom = if self.bottom() < other.bottom() {
+            other.bottom()
+        } else {
+            self.bottom()
+        };
+        Self::new(left, top, right - left, bottom - top)
+    }
     pub fn contains_rect(self, other: Self) -> bool {
         self.x <= other.x && self.right() >= other.right() && self.y <= other.y && self.bottom() >= other.bottom()
     }
