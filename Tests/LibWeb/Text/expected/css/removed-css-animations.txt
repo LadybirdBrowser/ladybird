@@ -1,0 +1,10 @@
+large animation-free subtree is removed: true
+animations are associated after insertion: true
+removed CSS animations are cancelled: true
+removed CSS transitions are cancelled: true
+removed CSS animations are disassociated: true
+reinsertion creates a fresh animation: true
+reinserted animation starts near the beginning: true
+reinsertion dispatches animationstart: true
+retargeted animation is associated once: true
+display none cancels transition-only elements: true

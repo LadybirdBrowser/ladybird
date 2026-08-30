@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes spin {
+        to { transform: rotate(1turn); }
+    }
+
+    .spinner {
+        width: 20px;
+        height: 20px;
+        animation: spin 10s linear infinite;
+    }
+
+    .transitioner {
+        opacity: 1;
+        transition: opacity 10s linear;
+    }
+</style>
+<script>
+    asyncTest(async done => {
+        const animationFreeContainer = document.createElement("div");
+        for (let i = 0; i < 10_000; ++i)
+            animationFreeContainer.append(document.createElement("div"));
+        document.body.append(animationFreeContainer);
+        animationFreeContainer.remove();
+        println(`large animation-free subtree is removed: ${animationFreeContainer.childElementCount === 10_000 && !animationFreeContainer.isConnected}`);
+
+        const initialCount = internals.getStyleInvalidationCounters().associatedAnimations;
+        const container = document.createElement("div");
+        for (let i = 0; i < 5; ++i) {
+            const spinner = document.createElement("div");
+            spinner.className = "spinner";
+            container.append(spinner);
+        }
+        const transitioner = document.createElement("div");
+        transitioner.className = "transitioner";
+        container.append(transitioner);
+        document.body.append(container);
+        await new Promise(requestAnimationFrame);
+        transitioner.style.opacity = "0";
+        await new Promise(requestAnimationFrame);
+
+        const spinner = container.firstElementChild;
+        const removedAnimation = spinner.getAnimations()[0];
+        const removedTransition = transitioner.getAnimations()[0];
+        println(`animations are associated after insertion: ${internals.getStyleInvalidationCounters().associatedAnimations === initialCount + 6}`);
+
+        container.remove();
+        println(`removed CSS animations are cancelled: ${removedAnimation.playState === "idle"}`);
+        println(`removed CSS transitions are cancelled: ${removedTransition.playState === "idle"}`);
+        await new Promise(requestAnimationFrame);
+        println(`removed CSS animations are disassociated: ${internals.getStyleInvalidationCounters().associatedAnimations === initialCount}`);
+
+        let starts = 0;
+        spinner.addEventListener("animationstart", () => ++starts);
+        document.body.append(spinner);
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        const reinsertedAnimation = spinner.getAnimations()[0];
+        println(`reinsertion creates a fresh animation: ${reinsertedAnimation !== removedAnimation}`);
+        println(`reinserted animation starts near the beginning: ${reinsertedAnimation.currentTime < 1000}`);
+        println(`reinsertion dispatches animationstart: ${starts === 1}`);
+
+        const retargetedElement = document.createElement("div");
+        document.body.append(retargetedElement);
+        removedAnimation.effect.target = retargetedElement;
+        removedAnimation.play();
+        println(`retargeted animation is associated once: ${retargetedElement.getAnimations().filter(animation => animation === removedAnimation).length === 1}`);
+
+        const displayNoneTransitioner = document.createElement("div");
+        displayNoneTransitioner.className = "transitioner";
+        document.body.append(displayNoneTransitioner);
+        await new Promise(requestAnimationFrame);
+        displayNoneTransitioner.style.opacity = "0";
+        await new Promise(requestAnimationFrame);
+        const displayNoneTransition = displayNoneTransitioner.getAnimations()[0];
+        displayNoneTransitioner.style.display = "none";
+        await new Promise(requestAnimationFrame);
+        println(`display none cancels transition-only elements: ${displayNoneTransition.playState === "idle"}`);
+        done();
+    });
+</script>

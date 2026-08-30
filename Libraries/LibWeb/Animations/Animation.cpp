@@ -799,6 +799,13 @@ WebIDL::ExceptionOr<void> Animation::play(ShouldInvalidate should_invalidate)
 // https://drafts.csswg.org/web-animations-2/#play-an-animation
 WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind, ShouldInvalidate should_invalidate)
 {
+    m_css_cancellation_disassociation_pending = false;
+    if (m_needs_target_reassociation && m_effect) {
+        if (auto target = m_effect->target())
+            target->associate_with_animation(*this);
+        m_needs_target_reassociation = false;
+    }
+
     // 1. Let aborted pause be a boolean flag that is true if animation has a pending pause task, and false otherwise.
     auto aborted_pause = m_pending_pause_task == TaskState::Scheduled;
 
@@ -903,6 +910,15 @@ WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind, S
     update_finished_state(DidSeek::No, SynchronouslyNotify::No, should_invalidate);
 
     return {};
+}
+
+void Animation::disassociate_from_target_after_css_cancellation()
+{
+    m_css_cancellation_disassociation_pending = false;
+    if (!m_effect || !m_effect->target())
+        return;
+    m_effect->target()->disassociate_with_animation(*this);
+    m_needs_target_reassociation = true;
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-animation-pause

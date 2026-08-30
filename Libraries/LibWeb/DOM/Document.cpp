@@ -7383,6 +7383,14 @@ void Document::disassociate_with_animation(GC::Ref<Animations::Animation> animat
     m_associated_animations.remove(animation);
 }
 
+size_t Document::associated_animation_count() const
+{
+    size_t count = 0;
+    for ([[maybe_unused]] auto& animation : m_associated_animations)
+        ++count;
+    return count;
+}
+
 void Document::append_pending_animation_event(Web::DOM::Document::PendingAnimationEvent const& event)
 {
     if (m_style_stabilization_epoch_depth > 0) {
@@ -7411,8 +7419,11 @@ void Document::update_animations_and_send_events(double timestamp)
         for (auto& animation : m_associated_animations)
             animations.append(animation);
 
-        for (auto& animation : animations)
+        for (auto& animation : animations) {
             dispatch_events_for_animation_if_necessary(animation);
+            if (animation->css_cancellation_disassociation_pending())
+                animation->disassociate_from_target_after_css_cancellation();
+        }
 
         // 2. Remove replaced animations for doc.
         remove_replaced_animations();

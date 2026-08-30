@@ -1369,6 +1369,10 @@ void Node::remove(bool suppress_observers)
         removal_style_record_pins.pin_layout_style_records(*this);
 
     // 11. Run the removing steps with node, true, and parent.
+    if (was_connected) {
+        if (auto* element = as_if<Element>(*this))
+            element->cancel_css_animations_and_transitions();
+    }
     removed_from(IsSubtreeRoot::Yes, parent, parent_root);
 
     // A subtree holding the focused or hovered node takes `:focus-within` and `:hover` out of the
@@ -1389,6 +1393,11 @@ void Node::remove(bool suppress_observers)
 
     // 14. For each shadow-including descendant descendant of node, in shadow-including tree order:
     for_each_shadow_including_descendant([&](Node& descendant) {
+        if (was_connected) {
+            if (auto* element = as_if<Element>(descendant))
+                element->cancel_css_animations_and_transitions();
+        }
+
         // 1. Run the removing steps with descendant, false, and parent.
         descendant.removed_from(IsSubtreeRoot::No, parent, parent_root);
 
