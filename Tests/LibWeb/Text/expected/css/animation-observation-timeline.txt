@@ -1,0 +1,3 @@
+one synchronization in a task: 1
+getter updates associated animations: 0
+next task synchronizes again: 2

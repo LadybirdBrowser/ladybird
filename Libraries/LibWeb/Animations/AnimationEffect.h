@@ -205,6 +205,9 @@ protected:
     // https://www.w3.org/TR/web-animations-1/#time-transformations
     CSS::EasingFunction m_timing_function { CSS::EasingFunction::linear() };
 
+    mutable bool m_has_local_time_override_for_observation { false };
+    mutable Optional<TimeValue> m_local_time_override_for_observation;
+
     // Used for calculating transitions in StyleComputer
     Phase m_previous_phase { Phase::Idle };
     double m_previous_current_iteration { 0.0 };

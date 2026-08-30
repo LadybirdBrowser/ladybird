@@ -66,6 +66,13 @@ void DocumentTimeline::update_current_time(double timestamp)
         m_is_monotonically_increasing = true;
 }
 
+Optional<TimeValue> DocumentTimeline::current_time_at_timestamp(double timestamp) const
+{
+    if (is_inactive())
+        return {};
+    return TimeValue { TimeValue::Type::Milliseconds, timestamp - m_origin_time };
+}
+
 // https://www.w3.org/TR/web-animations-1/#document-timelines
 bool DocumentTimeline::is_inactive() const
 {

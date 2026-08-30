@@ -24,10 +24,17 @@ public:
     virtual void update_current_time(double timestamp) override;
 
     void set_time(Optional<double> time);
+    void set_time_for_observation(double time);
+
+protected:
+    virtual bool can_sample_current_time_at_timestamp() const override { return m_time_for_observation.has_value(); }
+    virtual Optional<Animations::TimeValue> current_time_at_timestamp(double) const override { return m_time_for_observation; }
 
 private:
     explicit InternalAnimationTimeline(GC::Ref<DOM::Document>);
     virtual ~InternalAnimationTimeline() override = default;
+
+    Optional<Animations::TimeValue> m_time_for_observation;
 };
 
 }

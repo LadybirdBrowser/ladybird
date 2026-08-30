@@ -5,6 +5,7 @@
  */
 
 #include <AK/Bitmap.h>
+#include <AK/ScopeGuard.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/AnimationEffect.h>
@@ -118,6 +119,14 @@ Bindings::EffectTiming AnimationEffect::get_timing() const
 Bindings::ComputedEffectTiming AnimationEffect::get_computed_timing() const
 {
     update_style_if_needed();
+
+    if (m_associated_animation) {
+        m_has_local_time_override_for_observation = true;
+        m_local_time_override_for_observation = m_associated_animation->current_time_for_observation();
+    }
+    ScopeGuard clear_local_time_override = [&] {
+        m_has_local_time_override_for_observation = false;
+    };
 
     // 1. Returns the calculated timing properties for this animation effect.
 
@@ -411,6 +420,9 @@ TimeValue AnimationEffect::end_time() const
 // https://www.w3.org/TR/web-animations-1/#local-time
 Optional<TimeValue> AnimationEffect::local_time() const
 {
+    if (m_has_local_time_override_for_observation)
+        return m_local_time_override_for_observation;
+
     // The local time of an animation effect at a given moment is based on the first matching condition from the
     // following:
 

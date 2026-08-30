@@ -42,6 +42,10 @@ public:
     virtual Optional<double> convert_a_timeline_time_to_an_origin_relative_time(Optional<TimeValue>) override;
     virtual bool can_convert_a_timeline_time_to_an_origin_relative_time() const override { return true; }
 
+protected:
+    virtual bool can_sample_current_time_at_timestamp() const override { return true; }
+    virtual Optional<TimeValue> current_time_at_timestamp(double) const override;
+
 private:
     DocumentTimeline(DOM::Document&, HighResolutionTime::DOMHighResTimeStamp origin_time);
     virtual ~DocumentTimeline() override = default;

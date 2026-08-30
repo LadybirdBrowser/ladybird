@@ -29,6 +29,12 @@ void InternalAnimationTimeline::set_time(Optional<double> time)
     set_current_time(time.map([](double value) -> Animations::TimeValue { return { Animations::TimeValue::Type::Milliseconds, value }; }));
 }
 
+void InternalAnimationTimeline::set_time_for_observation(double time)
+{
+    m_time_for_observation = Animations::TimeValue { Animations::TimeValue::Type::Milliseconds, time };
+    m_last_current_time_update_task_generation = {};
+}
+
 InternalAnimationTimeline::InternalAnimationTimeline(GC::Ref<DOM::Document> document)
     : AnimationTimeline(document)
 {

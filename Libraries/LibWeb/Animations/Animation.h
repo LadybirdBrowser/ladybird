@@ -68,12 +68,10 @@ public:
     void calculate_auto_aligned_start_time();
 
     // https://drafts.csswg.org/web-animations-2/#dom-animation-currenttime
-    NullableCSSNumberish current_time_for_bindings() const
-    {
-        update_style_if_needed();
-        return NullableCSSNumberish::from_optional_css_numberish_time(current_time());
-    }
+    NullableCSSNumberish current_time_for_bindings() const;
     Optional<TimeValue> current_time() const;
+    Optional<TimeValue> current_time_for_observation() const;
+    Optional<TimeValue> current_time_at(Optional<TimeValue> timeline_time) const;
     virtual WebIDL::ExceptionOr<void> set_current_time_for_bindings(NullableCSSNumberish const&);
 
     double playback_rate() const { return m_playback_rate; }
@@ -101,7 +99,7 @@ public:
     }
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-finished
-    GC::Ref<WebIDL::Promise> finished_for_bindings() const;
+    GC::Ref<WebIDL::Promise> finished_for_bindings();
     GC::Ref<WebIDL::Promise> finished() const { return current_finished_promise(); }
     bool is_finished() const { return m_is_finished; }
 
@@ -169,6 +167,8 @@ protected:
     virtual void finalize() override;
 
 private:
+    AnimationPlayState play_state_at(Optional<TimeValue> current_time) const;
+
     virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
 
     enum class TaskState {
@@ -192,7 +192,7 @@ private:
 
     void apply_any_pending_playback_rate();
     WebIDL::ExceptionOr<void> silently_set_current_time(Optional<TimeValue>);
-    void update_finished_state(DidSeek, SynchronouslyNotify, ShouldInvalidate = ShouldInvalidate::Yes);
+    void update_finished_state(DidSeek, SynchronouslyNotify, ShouldInvalidate = ShouldInvalidate::Yes, Optional<TimeValue> observed_current_time = {});
     void reset_an_animations_pending_tasks();
 
     bool is_ready() const;
