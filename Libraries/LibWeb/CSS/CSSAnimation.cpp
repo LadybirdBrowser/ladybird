@@ -56,6 +56,17 @@ int CSSAnimation::class_specific_composite_order(GC::Ref<Animations::Animation> 
     return global_animation_list_order() - other->global_animation_list_order();
 }
 
+void CSSAnimation::set_animation_name_index(size_t index)
+{
+    if (m_animation_name_index == index)
+        return;
+    m_animation_name_index = index;
+    if (auto effect = this->effect(); effect && is<Animations::KeyframeEffect>(*effect)) {
+        if (auto target = static_cast<Animations::KeyframeEffect&>(*effect).target())
+            target->invalidate_associated_animation_composite_order();
+    }
+}
+
 Animations::AnimationClass CSSAnimation::animation_class() const
 {
     if (owning_element().has_value())

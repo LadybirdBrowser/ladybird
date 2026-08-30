@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    #target {
+        opacity: 0;
+        transition: opacity 100000s step-end;
+    }
+
+    #target.changed {
+        opacity: 0.25;
+    }
+</style>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    promiseTest(async () => {
+        const opacityAnimation = target.animate(
+            { opacity: [0.75, 0.75] },
+            { delay: 100000, duration: 100000 },
+        );
+        target.animate({ color: ["red", "red"] }, 100000);
+        await animationFrame();
+        await animationFrame();
+
+        // The color animation populates the element's composite-order cache while the
+        // delayed opacity animation does not yet hide the underlying style change.
+        getComputedStyle(target).opacity;
+        target.classList.add("changed");
+
+        println(`transition started: ${target.getAnimations().some(animation => animation instanceof CSSTransition)}`);
+        opacityAnimation.currentTime = 100000;
+        println(`script animation wins: ${getComputedStyle(target).opacity}`);
+    });
+</script>
