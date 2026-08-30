@@ -1,6 +1,5 @@
 set(SOURCES
     AffineTransform.cpp
-    BSPTree.cpp
     Bitmap.cpp
     BitmapExport.cpp
     BitmapSequence.cpp
