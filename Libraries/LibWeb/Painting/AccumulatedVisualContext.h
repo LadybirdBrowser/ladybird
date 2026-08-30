@@ -7,8 +7,6 @@
 #pragma once
 
 #include <AK/DistinctNumeric.h>
-#include <AK/HashMap.h>
-#include <AK/NumericLimits.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
@@ -149,26 +147,6 @@ struct FrameNode {
     bool has_empty_effective_clip { false };
 };
 
-// Marks a spatial node whose content belongs to no 3D rendering context.
-static constexpr SpatialNodeIndex NO_SORTING_CONTEXT { NumericLimits<u32>::max() };
-
-// The plane and 3D rendering context that an established context's own plane renders into.
-struct SortingContextLink {
-    SpatialNodeIndex parent_context;
-    SpatialNodeIndex parent_leaf;
-};
-
-// Per-spatial-node 3D rendering context membership: the plane each node's content renders into and the context that
-// sorts that plane. A tree without 3D rendering contexts resolves to empty per-node vectors.
-struct SortingContexts {
-    HashMap<u32, SortingContextLink> links;
-    Vector<SpatialNodeIndex> leaf_by_node;
-    Vector<SpatialNodeIndex> context_by_node;
-
-    bool is_empty() const { return leaf_by_node.is_empty(); }
-    SpatialNodeIndex outermost_context_of(SpatialNodeIndex) const;
-};
-
 class AccumulatedVisualContextTree {
 public:
     enum class IncludeVisualViewportTransform {
@@ -219,7 +197,6 @@ public:
         m_root_isolation_frame = frame;
     }
 
-    SortingContexts resolve_sorting_contexts() const;
     WEB_API Optional<Gfx::FloatPoint> transform_point_for_hit_test(ContextRef, Gfx::FloatPoint, ScrollStateSnapshot const&, ClipBehavior = ClipBehavior::Respect) const;
     Gfx::FloatPoint inverse_transform_point(SpatialNodeIndex, Gfx::FloatPoint) const;
     Gfx::FloatRect transform_rect_to_viewport(SpatialNodeIndex, Gfx::FloatRect const&, ScrollStateSnapshot const&, IncludeVisualViewportTransform = IncludeVisualViewportTransform::Yes) const;

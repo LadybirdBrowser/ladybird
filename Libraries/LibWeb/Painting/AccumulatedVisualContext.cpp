@@ -382,57 +382,6 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
     return context_walk.point;
 }
 
-SpatialNodeIndex SortingContexts::outermost_context_of(SpatialNodeIndex context) const
-{
-    for (;;) {
-        auto link = links.get(context.value());
-        if (!link.has_value() || link->parent_context == NO_SORTING_CONTEXT)
-            return context;
-        context = link->parent_context;
-    }
-}
-
-SortingContexts AccumulatedVisualContextTree::resolve_sorting_contexts() const
-{
-    auto node_count = m_spatial_nodes.size();
-
-    Vector<bool> is_sorting_context_root;
-    is_sorting_context_root.resize(node_count);
-    bool has_sorting_context_roots = false;
-    for (auto const& node : m_spatial_nodes) {
-        if (auto const* transform = node.data.get_pointer<TransformData>(); transform && transform->sorting_context_root_index.has_value()) {
-            is_sorting_context_root[transform->sorting_context_root_index->value()] = true;
-            has_sorting_context_roots = true;
-        }
-    }
-    if (!has_sorting_context_roots)
-        return {};
-
-    // Roots always precede their contexts' nodes, so a single forward walk resolves every node.
-    SortingContexts contexts;
-    contexts.leaf_by_node.ensure_capacity(node_count);
-    contexts.context_by_node.ensure_capacity(node_count);
-    for (size_t i = 0; i < node_count; ++i) {
-        auto index = SpatialNodeIndex { static_cast<u32>(i) };
-        auto parent = m_spatial_nodes[i].parent.value();
-        auto inherited_leaf = i == 0 ? NO_SORTING_CONTEXT : contexts.leaf_by_node[parent];
-        auto inherited_context = i == 0 ? NO_SORTING_CONTEXT : contexts.context_by_node[parent];
-        auto const* transform = m_spatial_nodes[i].data.get_pointer<TransformData>();
-        if (transform && transform->sorting_context_root_index.has_value()) {
-            contexts.leaf_by_node.unchecked_append(index);
-            contexts.context_by_node.unchecked_append(*transform->sorting_context_root_index);
-        } else if (is_sorting_context_root[i]) {
-            contexts.links.set(index.value(), { inherited_context, inherited_leaf });
-            contexts.leaf_by_node.unchecked_append(index);
-            contexts.context_by_node.unchecked_append(index);
-        } else {
-            contexts.leaf_by_node.unchecked_append(inherited_leaf);
-            contexts.context_by_node.unchecked_append(inherited_context);
-        }
-    }
-    return contexts;
-}
-
 Gfx::FloatPoint AccumulatedVisualContextTree::inverse_transform_point(SpatialNodeIndex index, Gfx::FloatPoint screen_point) const
 {
     auto chain = build_ancestor_chain(index);

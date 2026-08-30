@@ -2612,6 +2612,7 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
         ("FloatPoint", "Gfx::FloatPoint"),
         ("IntSize", "Gfx::IntSize"),
         ("FloatSize", "Gfx::FloatSize"),
+        ("FloatVector3", "Gfx::FloatVector3"),
         ("IntRect", "Gfx::IntRect"),
         ("FloatRect", "Gfx::FloatRect"),
         ("Color", "Gfx::Color"),
@@ -2663,6 +2664,7 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
             "LibGfx/Rect.h",
             "LibGfx/ScalingMode.h",
             "LibGfx/Size.h",
+            "LibGfx/Vector3.h",
             "LibGfx/WindingRule.h",
             "LibWeb/Forward.h",
             "LibWeb/Painting/AccumulatedVisualContext.h",
@@ -3083,6 +3085,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         .includes
         .push("LibWeb/Layout/TreeBuilderRustFFI.h".to_string());
     layout_config.export.include = vec![
+        "DepthSortedReplayStepKind".to_string(),
+        "FfiDepthSortedReplayStep".to_string(),
         "FfiFormattingContextType".to_string(),
         "FilterOperationType".to_string(),
     ];
@@ -3112,6 +3116,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/painting/host/visual_context.rs"),
             manifest_dir.join("src/painting/host/hit_test.rs"),
             manifest_dir.join("src/painting/host/paint.rs"),
+            manifest_dir.join("src/painting/display_list/depth_sorted_plan.rs"),
             manifest_dir.join("src/painting/ffi.rs"),
         ],
         &out_dir,
