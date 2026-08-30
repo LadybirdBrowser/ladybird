@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes finite-opacity {
+        from { opacity: 0.2; }
+        to { opacity: 0.8; }
+    }
+
+    @keyframes finite-transform {
+        from { transform: translateX(0px); }
+        to { transform: translateX(100px); }
+    }
+
+    #opacity {
+        opacity: 0.3;
+        animation: finite-opacity 300ms linear forwards;
+    }
+
+    #transform {
+        transform: translateX(7px);
+        animation: finite-transform 300ms linear none;
+    }
+</style>
+<div id="opacity"></div>
+<div id="transform"></div>
+<script>
+    asyncTest(async done => {
+        let animationEndEvents = 0;
+        let eventHandlerSawTerminalStyle = false;
+        let animationUpdatesAtEndEvent = 0;
+        opacity.addEventListener("animationend", () => {
+            ++animationEndEvents;
+            animationUpdatesAtEndEvent = internals.getStyleInvalidationCounters().animationTimelineAssociatedAnimationUpdates;
+            eventHandlerSawTerminalStyle = getComputedStyle(opacity).opacity === "0.8";
+        });
+        transform.addEventListener("animationend", () => ++animationEndEvents);
+
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        const animations = [...opacity.getAnimations(), ...transform.getAnimations()];
+        println(`finite effects use the compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 2}`);
+
+        internals.resetStyleInvalidationCounters();
+        let finishedPromises = 0;
+        await Promise.all(animations.map(animation => animation.finished.then(() => ++finishedPromises)));
+        await new Promise(requestAnimationFrame);
+
+        println(`finished promises resolve: ${finishedPromises === 2}`);
+        println(`animationend events fire: ${animationEndEvents === 2}`);
+        println(`animationend sees terminal style: ${eventHandlerSawTerminalStyle}`);
+        println(`finite effects request one end frame: ${internals.getStyleInvalidationCounters().animationFramePumpRequests === 1}`);
+        println(`wake-up timer leaves animation updates to frames: ${animationUpdatesAtEndEvent === 2}`);
+        println(`forwards fill retains opacity: ${getComputedStyle(opacity).opacity === "0.8"}`);
+        println(`no fill restores transform: ${getComputedStyle(transform).transform === "matrix(1, 0, 0, 1, 7, 0)"}`);
+        await Promise.resolve();
+        println(`terminal values remain stable: ${getComputedStyle(opacity).opacity === "0.8" && getComputedStyle(transform).transform === "matrix(1, 0, 0, 1, 7, 0)"}`);
+        done();
+    });
+</script>

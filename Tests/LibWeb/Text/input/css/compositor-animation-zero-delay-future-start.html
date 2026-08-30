@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    asyncTest(async done => {
+        const animation = target.animate([
+            { opacity: 0.2 },
+            { opacity: 0.8 },
+        ], { duration: 20, fill: "forwards" });
+        animation.startTime = document.timeline.currentTime + 20;
+        await animation.finished;
+        println(`zero-delay future start reaches completion: ${getComputedStyle(target).opacity === "0.8"}`);
+        done();
+    });
+</script>

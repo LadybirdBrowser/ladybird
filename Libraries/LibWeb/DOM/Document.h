@@ -472,8 +472,9 @@ public:
     void note_throttled_animation_style_update() { m_has_throttled_animation_style_update = true; }
     void flush_throttled_animation_style_update();
     void flush_throttled_animation_style_update_for_node(Node const&);
-    void schedule_animation_wakeup(double delay_ms);
-    void stop_animation_wakeup_timer();
+    void schedule_compositor_animation_wakeup(double delay_ms);
+    void request_reentrant_animation_style_flush_for_testing(Badge<Internals::Internals>, Node const&);
+    bool run_empty_animation_style_update_for_testing(Badge<Internals::Internals>);
     void throttled_animation_visibility_changed();
     void invalidate_style_for_viewport_change();
     bool suppresses_attribute_style_invalidation() const { return m_suppresses_attribute_style_invalidation; }
@@ -1073,7 +1074,6 @@ public:
     GC::Ptr<Element const> scrolling_element() const;
 
     void set_needs_animated_style_update(Animations::KeyframeEffect&);
-    void request_reentrant_animation_style_flush_for_testing(Badge<Internals::Internals>, Node const&);
 
     CSS::SheetSetStyleCacheRegistry& sheet_set_style_cache_registry() { return m_sheet_set_style_cache_registry; }
 
@@ -1111,11 +1111,11 @@ public:
         u64 animated_style_overlay_builds { 0 };
         u64 animated_style_full_builds { 0 };
         u64 animation_frame_pump_requests { 0 };
-        u64 animation_timeline_associated_animation_updates { 0 };
-        u64 compositor_visual_animation_updates { 0 };
         u64 animation_style_skip_cache_hits { 0 };
         u64 animation_style_skip_cache_misses { 0 };
         u64 animation_timeline_synchronizations { 0 };
+        u64 animation_timeline_associated_animation_updates { 0 };
+        u64 compositor_visual_animation_updates { 0 };
         u64 base_style_partial_builds { 0 };
         u64 base_style_full_builds { 0 };
         u64 computed_longhand_evaluations { 0 };
@@ -1841,8 +1841,8 @@ private:
     bool m_will_declaratively_refresh { false };
 
     RefPtr<Core::Timer> m_active_refresh_timer;
-    RefPtr<Core::Timer> m_animation_wakeup_timer;
-    Optional<MonotonicTime> m_animation_wakeup_deadline;
+    RefPtr<Core::Timer> m_compositor_animation_wakeup_timer;
+    Optional<MonotonicTime> m_compositor_animation_wakeup_deadline;
 
     bool m_temporary_document_for_fragment_parsing { false };
 

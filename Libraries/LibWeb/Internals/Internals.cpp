@@ -1196,9 +1196,9 @@ void Internals::update_compositor_animations()
     window().associated_document().update_compositor_animations();
 }
 
-void Internals::request_reentrant_animation_style_flush_for_testing(GC::Ref<DOM::Node> node)
+bool Internals::run_empty_animation_style_update_for_testing()
 {
-    window().associated_document().request_reentrant_animation_style_flush_for_testing({}, node);
+    return window().associated_document().run_empty_animation_style_update_for_testing({});
 }
 
 GC::Ref<JS::Object> Internals::layout_tree_build_stats()
@@ -1777,18 +1777,18 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     object->define_direct_property("elementInheritedStyleGroupSwaps"_utf16_fly_string, JS::Value(counters.element_inherited_style_group_swaps), JS::default_attributes);
     object->define_direct_property("animatedStyleReconstructionFallbacks"_utf16_fly_string, JS::Value(counters.animated_style_reconstruction_fallbacks), JS::default_attributes);
     object->define_direct_property("animatedStyleOverlayBuilds"_utf16_fly_string, JS::Value(counters.animated_style_overlay_builds), JS::default_attributes);
-    object->define_direct_property("associatedAnimations"_utf16_fly_string, JS::Value(document.associated_animation_count()), JS::default_attributes);
     object->define_direct_property("animatedStyleFullBuilds"_utf16_fly_string, JS::Value(counters.animated_style_full_builds), JS::default_attributes);
     object->define_direct_property("animationFramePumpRequests"_utf16_fly_string, JS::Value(counters.animation_frame_pump_requests), JS::default_attributes);
+    object->define_direct_property("animationStyleSkipCacheHits"_utf16_fly_string, JS::Value(counters.animation_style_skip_cache_hits), JS::default_attributes);
+    object->define_direct_property("animationStyleSkipCacheMisses"_utf16_fly_string, JS::Value(counters.animation_style_skip_cache_misses), JS::default_attributes);
+    object->define_direct_property("animationTimelineSynchronizations"_utf16_fly_string, JS::Value(counters.animation_timeline_synchronizations), JS::default_attributes);
+    object->define_direct_property("animationTimelineAssociatedAnimationUpdates"_utf16_fly_string, JS::Value(counters.animation_timeline_associated_animation_updates), JS::default_attributes);
+    object->define_direct_property("associatedAnimations"_utf16_fly_string, JS::Value(document.associated_animation_count()), JS::default_attributes);
+    object->define_direct_property("compositorVisualAnimationUpdates"_utf16_fly_string, JS::Value(counters.compositor_visual_animation_updates), JS::default_attributes);
     auto compositor_visual_animation_count = document.has_committed_viewport_box() && document.paint_state().has_visual_context_tree()
         ? document.paint_state().visual_context_tree(document).visual_animations().size()
         : 0;
     object->define_direct_property("compositorVisualAnimations"_utf16_fly_string, JS::Value(compositor_visual_animation_count), JS::default_attributes);
-    object->define_direct_property("animationTimelineAssociatedAnimationUpdates"_utf16_fly_string, JS::Value(counters.animation_timeline_associated_animation_updates), JS::default_attributes);
-    object->define_direct_property("compositorVisualAnimationUpdates"_utf16_fly_string, JS::Value(counters.compositor_visual_animation_updates), JS::default_attributes);
-    object->define_direct_property("animationStyleSkipCacheHits"_utf16_fly_string, JS::Value(counters.animation_style_skip_cache_hits), JS::default_attributes);
-    object->define_direct_property("animationStyleSkipCacheMisses"_utf16_fly_string, JS::Value(counters.animation_style_skip_cache_misses), JS::default_attributes);
-    object->define_direct_property("animationTimelineSynchronizations"_utf16_fly_string, JS::Value(counters.animation_timeline_synchronizations), JS::default_attributes);
     object->define_direct_property("baseStylePartialBuilds"_utf16_fly_string, JS::Value(counters.base_style_partial_builds), JS::default_attributes);
     object->define_direct_property("baseStyleFullBuilds"_utf16_fly_string, JS::Value(counters.base_style_full_builds), JS::default_attributes);
     object->define_direct_property("computedLonghandEvaluations"_utf16_fly_string, JS::Value(counters.computed_longhand_evaluations), JS::default_attributes);

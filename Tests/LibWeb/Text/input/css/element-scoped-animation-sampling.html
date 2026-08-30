@@ -61,6 +61,8 @@
         await new Promise(requestAnimationFrame);
         timeline.setTimeForObservation(50);
         internals.resetStyleInvalidationCounters();
+        getComputedStyle(overflowContainer).width;
+        println(`ancestor style reads sample descendant animations: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds > 0}`);
         const scrollWidth = overflowContainer.scrollWidth;
         const counters = internals.getStyleInvalidationCounters();
         println(`ancestor reads sample descendant animations: ${counters.animatedStyleOverlayBuilds > 0 && scrollWidth > 20}`);
