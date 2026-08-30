@@ -13,6 +13,7 @@ use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::host::FfiHitTestQueryCallbacks;
+use crate::painting::visual_context::{ClipBehavior, VisualContextTree};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -295,6 +296,7 @@ pub fn inline_axis_coordinate(point: CssPixelPoint, writing_mode: u8) -> CssPixe
 }
 
 pub(crate) fn local_float_point(
+    visual_context_tree: &VisualContextTree,
     callbacks: &FfiHitTestQueryCallbacks,
     context: ContextRef,
     point: CssPixelPoint,
@@ -303,7 +305,19 @@ pub(crate) fn local_float_point(
     // Returned in float local units: fixed-point CSSPixels quantization here would be magnified by the
     // accumulated transform for content in scaled-down local spaces, such as SVG user units under a
     // small viewBox.
-    callbacks.local_point_for_visual_context(context, point.into(), respect_clip)
+    let pixel_ratio = callbacks.device_pixels_per_css_pixel as f32;
+    let screen_point = libgfx_rust::FloatPoint {
+        x: point.x.to_float() * pixel_ratio,
+        y: point.y.to_float() * pixel_ratio,
+    };
+    let clip_behavior = ClipBehavior::from_respect_clip(respect_clip);
+    let local = visual_context_tree.transform_point_for_hit_test(
+        context,
+        screen_point,
+        callbacks.scroll_offsets(),
+        clip_behavior,
+    )?;
+    Some((local.x / pixel_ratio, local.y / pixel_ratio))
 }
 
 pub(crate) fn to_css_point(local: (f32, f32)) -> CssPixelPoint {

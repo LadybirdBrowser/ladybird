@@ -6,9 +6,11 @@
 
 pub mod basic_shapes;
 pub mod build;
+pub mod dump;
 pub mod local_frames;
 pub mod nested;
 pub mod node_values;
+pub mod queries;
 pub mod refresh;
 pub mod scroll_state;
 
@@ -25,6 +27,7 @@ use scroll_state::{NO_SCROLL_STATE_SLOT, ScrollStateSlot};
 pub use crate::painting::display_list::commands::{
     ContextRef, FrameNodeIndex, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
 };
+pub use queries::{ClipBehavior, should_cull_back_face};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -77,12 +80,14 @@ pub struct ClipData {
     pub mode: ClipMode,
 }
 
+#[derive(Clone)]
 pub struct ClipPathData {
     pub path: std::rc::Rc<libgfx_rust::path::OwnedPath>,
     pub bounding_rect: IntRect,
     pub fill_rule: WindingRule,
 }
 
+#[derive(Clone)]
 pub struct EffectsData {
     pub opacity: f32,
     pub blend_mode: CompositingAndBlendingOperator,
@@ -219,6 +224,7 @@ struct LocalSpatialMatrix {
     flattens_inherited_transform: bool,
 }
 
+#[derive(Clone)]
 pub enum SpatialData {
     Scroll(ScrollData),
     Sticky(StickyData),
@@ -228,6 +234,7 @@ pub enum SpatialData {
     AnchorScrollShift(AnchorScrollShift),
 }
 
+#[derive(Clone)]
 pub enum FrameData {
     Clip(ClipData),
     ClipPath(ClipPathData),
@@ -265,6 +272,7 @@ impl FrameData {
     }
 }
 
+#[derive(Clone)]
 pub struct SpatialNode {
     pub data: SpatialData,
     pub parent: SpatialNodeIndex,
@@ -329,6 +337,7 @@ pub enum PatternedEdgeOwner {
     Outline,
 }
 
+#[derive(Clone)]
 pub struct FrameNode {
     pub data: FrameData,
     pub parent: FrameNodeIndex,
@@ -452,6 +461,7 @@ impl VisualContextState {
     }
 }
 
+#[derive(Clone)]
 pub struct VisualContextTree {
     pub spatial_nodes: Vec<SpatialNode>,
     pub frame_nodes: Vec<FrameNode>,

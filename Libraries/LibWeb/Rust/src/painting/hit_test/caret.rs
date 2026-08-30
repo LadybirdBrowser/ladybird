@@ -437,9 +437,11 @@ impl HitTestList {
         false
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn find_closest_line(
         &self,
         arena: &LayoutNodeArena,
+        visual_context_tree: &VisualContextTree,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
         mode: CaretPositionMode,
@@ -472,7 +474,8 @@ impl HitTestList {
                 continue;
             }
             let line = self.caret_lines[line_index].clone();
-            let Some(local) = local_float_point(callbacks, line.context, point, respect_clip) else {
+            let Some(local) = local_float_point(visual_context_tree, callbacks, line.context, point, respect_clip)
+            else {
                 continue;
             };
             let local_point = to_css_point(local);

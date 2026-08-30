@@ -6610,6 +6610,22 @@ mod ffi_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_path_destroy(_path: *mut std::ffi::c_void) {}
     #[unsafe(no_mangle)]
+    extern "C" fn ladybird_gfx_path_contains(
+        _path: *const std::ffi::c_void,
+        _x: f32,
+        _y: f32,
+        _winding_rule: i32,
+    ) -> bool {
+        false
+    }
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_gfx_path_append_svg_string(
+        _path: *const std::ffi::c_void,
+        _append: unsafe extern "C" fn(*mut std::ffi::c_void, *const u8, usize),
+        _context: *mut std::ffi::c_void,
+    ) {
+    }
+    #[unsafe(no_mangle)]
     extern "C" fn unicode_layout_segmenter_destroy(_handle: *mut std::ffi::c_void) {}
 }
 

@@ -2732,8 +2732,8 @@ pub unsafe extern "C" fn layout_arena_hit_test_find_topmost_items_for_caret(
     point: FfiCssPixelPoint,
 ) -> crate::painting::host::FfiTopmostItemsForCaret {
     abort_on_panic(|| {
-        with_hit_test_list(arena, Default::default(), |list, arena| {
-            let (caret_item, hit_item) = list.find_topmost_items_for_caret(arena, &callbacks, point.into());
+        with_hit_test_list_and_visual_context_tree(arena, Default::default(), |list, tree, arena| {
+            let (caret_item, hit_item) = list.find_topmost_items_for_caret(arena, tree, &callbacks, point.into());
             crate::painting::host::FfiTopmostItemsForCaret {
                 caret_item: ffi_topmost(caret_item),
                 hit_item: ffi_topmost(hit_item),
@@ -2846,9 +2846,10 @@ pub unsafe extern "C" fn layout_arena_hit_test_find_closest_line(
     respect_clip: bool,
 ) -> crate::painting::host::FfiClosestLine {
     abort_on_panic(|| {
-        with_hit_test_list(arena, Default::default(), |list, arena| {
+        with_hit_test_list_and_visual_context_tree(arena, Default::default(), |list, tree, arena| {
             let closest = list.find_closest_line(
                 arena,
+                tree,
                 &callbacks,
                 point.into(),
                 crate::painting::hit_test::caret::CaretPositionMode::from_u8(mode),

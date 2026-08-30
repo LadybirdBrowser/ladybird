@@ -185,6 +185,7 @@ impl HitTestList {
     fn find_topmost(
         &self,
         layout_arena: &LayoutNodeArena,
+        visual_context_tree: &VisualContextTree,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
         with_caret_item: bool,
@@ -195,7 +196,7 @@ impl HitTestList {
         let mut topmost_hit_index: Option<usize> = None;
         let mut topmost_caret_index: Option<usize> = None;
         for (context, spatial_index) in &self.spatial_indexes_by_context {
-            let Some(local) = local_float_point(callbacks, *context, point, true) else {
+            let Some(local) = local_float_point(visual_context_tree, callbacks, *context, point, true) else {
                 continue;
             };
             let local_point = to_css_point(local);
@@ -265,7 +266,7 @@ impl HitTestList {
             if depth_sorting.group_for(context.spatial) != Some(group) {
                 continue;
             }
-            let Some(local) = local_float_point(callbacks, *context, point, true) else {
+            let Some(local) = local_float_point(visual_context_tree, callbacks, *context, point, true) else {
                 continue;
             };
             let local_point = to_css_point(local);
@@ -300,7 +301,9 @@ impl HitTestList {
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
     ) -> Option<TopmostItem> {
-        let topmost = self.find_topmost(layout_arena, callbacks, point, false).0?;
+        let topmost = self
+            .find_topmost(layout_arena, visual_context_tree, callbacks, point, false)
+            .0?;
         // Record order misranks content inside a 3D rendering context, whose planes paint depth sorted. A winner
         // on such a plane is re-resolved against every hit plane of its outermost context. Content outside the
         // context keeps record order, which stays correct because a context's items are recorded contiguously.
@@ -310,10 +313,11 @@ impl HitTestList {
     pub(crate) fn find_topmost_items_for_caret(
         &self,
         layout_arena: &LayoutNodeArena,
+        visual_context_tree: &VisualContextTree,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
     ) -> (Option<TopmostItem>, Option<TopmostItem>) {
-        let (hit, caret) = self.find_topmost(layout_arena, callbacks, point, true);
+        let (hit, caret) = self.find_topmost(layout_arena, visual_context_tree, callbacks, point, true);
         (caret, hit)
     }
 
@@ -327,7 +331,7 @@ impl HitTestList {
         debug_assert!(self.derived_structures_built);
         let mut hit_item_indices: Vec<usize> = Vec::new();
         for (context, spatial_index) in &self.spatial_indexes_by_context {
-            let Some(local) = local_float_point(callbacks, *context, point, true) else {
+            let Some(local) = local_float_point(visual_context_tree, callbacks, *context, point, true) else {
                 continue;
             };
             let local_point = to_css_point(local);
