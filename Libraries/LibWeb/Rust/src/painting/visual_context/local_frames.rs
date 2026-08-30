@@ -604,7 +604,6 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
                 parent,
                 FrameData::ClipPath(ClipPathData {
                     path: Rc::new(path),
-                    path_bounds_are_empty: bounding_rect.is_empty(),
                     bounding_rect,
                     fill_rule: WindingRule::EvenOdd,
                 }),

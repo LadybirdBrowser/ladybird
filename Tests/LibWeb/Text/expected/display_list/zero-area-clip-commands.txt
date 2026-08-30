@@ -1,0 +1,17 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+        [s2] scroll (BlockContainer<DIV>.zero-width)
+        [s3] scroll (BlockContainer<DIV>.zero-height)
+  frames:
+    [f0 in s0] effects=[]
+      [f1 in s1] clip=[8,8 0x100] (BlockContainer<DIV>.zero-width)
+      [f2 in s1] clip=[8,108 100x0] (BlockContainer<DIV>.zero-height)
+      [f3 in s1] clip=[8,108 100x100] (BlockContainer<DIV>.visible)
+
+DisplayList:
+FillRect@s2/f1 rect=[8,8 50x50] color=rgb(255, 0, 0)
+FillRect@s3/f2 rect=[8,108 50x50] color=rgb(255, 0, 0)
+FillRect@s1/f3 rect=[8,108 50x50] color=rgb(255, 0, 0)
+

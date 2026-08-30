@@ -73,12 +73,6 @@ pub(crate) fn record_display_list(
         .stacking_context_tree
         .as_ref()
         .expect("recording needs a built stacking context tree");
-    let empty_effective_clips = paint_state
-        .visual_context
-        .tree
-        .as_ref()
-        .map(|tree| tree.empty_effective_clips_by_frame())
-        .unwrap_or_default();
     let visual_context_tree_version = paint_state.visual_context.tree_version();
     // NB: Some commands embed visual context indices in their payloads. Those indices can change
     //     when the visual context tree is rebuilt, so commands from an incompatible tree must be
@@ -97,7 +91,7 @@ pub(crate) fn record_display_list(
         host,
         paint_host,
         inputs,
-        recorder: DisplayListRecorder::new(empty_effective_clips),
+        recorder: DisplayListRecorder::new(),
         converter: DevicePixelConverter::new(inputs.device_pixels_per_css_pixel),
         draw_svg_geometry_for_clip_path: false,
         visual_context_host,
@@ -745,11 +739,10 @@ impl PaintRecorder<'_> {
 
         // SVG subtrees are recorded outside per-paintable captures, so path-bearing items are never spliced.
         let phase_context = self.recorder.accumulated_visual_context();
-        let phase_has_empty_effective_clip = self.recorder.has_empty_effective_clip(phase_context.frame);
         let cached_commands = if skip_cache || is_nested {
             None
         } else {
-            self.valid_cached_commands(paintable, phase, phase_has_empty_effective_clip)
+            self.valid_cached_commands(paintable, phase)
         };
         if let Some((source, cached)) = cached_commands {
             let destination_range = self.recorder.append_cached_command_range(
@@ -760,13 +753,7 @@ impl PaintRecorder<'_> {
                 self.local_frame_range(paintable),
             );
             if cache_writes_enabled {
-                self.set_cached_commands(
-                    paintable,
-                    phase,
-                    destination_range,
-                    phase_context,
-                    phase_has_empty_effective_clip,
-                );
+                self.set_cached_commands(paintable, phase, destination_range, phase_context);
             }
             self.spliced_capture_count += 1;
         } else {
@@ -781,13 +768,7 @@ impl PaintRecorder<'_> {
                 size: (command_range_end - command_range_start) as u32,
             };
             if !skip_cache && cache_writes_enabled {
-                self.set_cached_commands(
-                    paintable,
-                    phase,
-                    command_range,
-                    phase_context,
-                    phase_has_empty_effective_clip,
-                );
+                self.set_cached_commands(paintable, phase, command_range, phase_context);
             }
         }
 
@@ -798,7 +779,6 @@ impl PaintRecorder<'_> {
         &self,
         paintable: NodeSlotId,
         phase: PaintPhase,
-        phase_has_empty_effective_clip: bool,
     ) -> Option<(Rc<RecordingOutput>, crate::painting::record::cache::CachedCommands)> {
         let source = self.command_cache_source.as_ref()?;
         let cache = self.layout_arena.paintable_paint_cache_if_allocated(paintable)?;
@@ -808,9 +788,7 @@ impl PaintRecorder<'_> {
             return None;
         }
         let entry = cache.commands(phase)?;
-        if entry.source_display_list_id != source.id
-            || entry.captured_under_empty_effective_clip != phase_has_empty_effective_clip
-        {
+        if entry.source_display_list_id != source.id {
             return None;
         }
         drop(cache);
@@ -852,7 +830,6 @@ impl PaintRecorder<'_> {
         phase: PaintPhase,
         range: CommandRange,
         recorded_context: ContextRef,
-        captured_under_empty_effective_clip: bool,
     ) {
         let recorded_local_frame_range = self.local_frame_range(paintable);
         let cache = self.layout_arena.paintable_paint_cache(paintable);
@@ -864,7 +841,6 @@ impl PaintRecorder<'_> {
                 range,
                 recorded_context,
                 recorded_local_frame_range,
-                captured_under_empty_effective_clip,
             },
         );
     }

@@ -122,7 +122,7 @@ pub(crate) struct BoxFacts {
     pub effects: Option<std::rc::Rc<EffectsData>>,
     pub overflow_clip: Option<ClipData>,
     pub css_clip: Option<ClipData>,
-    pub clip_path: Option<(std::rc::Rc<libgfx_rust::path::OwnedPath>, IntRect, WindingRule, bool)>,
+    pub clip_path: Option<(std::rc::Rc<libgfx_rust::path::OwnedPath>, IntRect, WindingRule)>,
     pub mask_layers: Vec<MaskData>,
     pub establishes_absolute_containing_block: bool,
     pub establishes_fixed_containing_block: bool,
@@ -186,11 +186,8 @@ impl BoxFacts {
             crate::painting::style_queries::establishes_positioning_containing_blocks(layout_arena, node);
         facts.establishes_absolute_containing_block = establishes_absolute;
         facts.establishes_fixed_containing_block = establishes_fixed;
-        facts.clip_path = super::basic_shapes::compute_basic_shape_clip_path_data(layout_arena, slot, pixel_ratio).map(
-            |(path, bounding_rect, fill_rule, bounds_are_empty)| {
-                (std::rc::Rc::new(path), bounding_rect, fill_rule, bounds_are_empty)
-            },
-        );
+        facts.clip_path = super::basic_shapes::compute_basic_shape_clip_path_data(layout_arena, slot, pixel_ratio)
+            .map(|(path, bounding_rect, fill_rule)| (std::rc::Rc::new(path), bounding_rect, fill_rule));
         let converter = crate::painting::display_list::device_pixels::DevicePixelConverter::new(pixel_ratio);
         facts.mask_layers = super::node_values::mask_layer_presence(layout_arena, callbacks, slot, true)
             .into_iter()
@@ -213,11 +210,10 @@ impl BoxFacts {
     fn clip_path_data(&self) -> Option<ClipPathData> {
         self.clip_path
             .as_ref()
-            .map(|(path, bounding_rect, fill_rule, empty)| ClipPathData {
+            .map(|(path, bounding_rect, fill_rule)| ClipPathData {
                 path: path.clone(),
                 bounding_rect: *bounding_rect,
                 fill_rule: *fill_rule,
-                path_bounds_are_empty: *empty,
             })
     }
 }
