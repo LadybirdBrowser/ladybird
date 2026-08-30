@@ -100,10 +100,18 @@ ErrorOr<TransportMachPort::Paired> TransportMachPort::create_paired()
     auto port_b_recv = TRY(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
     auto port_b_send = TRY(port_b_recv.insert_right(Core::MachPort::MessageRight::MakeSend));
 
+    // The peer may receive messages before it has constructed its transport.
+    raise_receive_queue_limit(port_b_recv);
+
     return Paired {
         make<TransportMachPort>(move(port_a_recv), move(port_b_send)),
         TransportHandle { move(port_b_recv), move(port_a_send) },
     };
+}
+
+void TransportMachPort::raise_receive_queue_limit(Core::MachPort const& receive_right)
+{
+    set_mach_port_queue_limit(receive_right.port());
 }
 
 TransportMachPort::TransportMachPort(Core::MachPort receive_right, Core::MachPort send_right)

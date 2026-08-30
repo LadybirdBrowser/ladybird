@@ -11,6 +11,7 @@
 #include <LibCore/System.h>
 #include <LibIPC/MachBootstrapMessages.h>
 #include <LibIPC/TransportBootstrapMach.h>
+#include <LibIPC/TransportMachPort.h>
 #include <LibSync/Mutex.h>
 
 #include <mach/mach.h>
@@ -91,6 +92,10 @@ ErrorOr<TransportBootstrapMachPorts> TransportBootstrapMachServer::create_on_dem
 
     auto remote_receive_right = TRY(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
     auto remote_send_right = TRY(remote_receive_right.insert_right(Core::MachPort::MessageRight::MakeSend));
+
+    // Either peer may send messages before the other has constructed its transport.
+    TransportMachPort::raise_receive_queue_limit(local_receive_right);
+    TransportMachPort::raise_receive_queue_limit(remote_receive_right);
 
     send_transport_ports_to_child(move(reply_port), TransportBootstrapMachPorts {
                                                         .receive_right = move(remote_receive_right),
