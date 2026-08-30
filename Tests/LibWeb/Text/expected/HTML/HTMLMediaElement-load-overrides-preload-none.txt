@@ -1,0 +1,3 @@
+source error event fired after load() call
+server saw media request after load() call: true
+server saw media request after automatic load: false

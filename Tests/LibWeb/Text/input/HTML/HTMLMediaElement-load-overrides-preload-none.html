@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const mediaPath = `/echo/HTMLMediaElement-load-overrides-preload-none-${crypto.randomUUID()}.mp3`;
+    const automaticMediaPath = `/echo/HTMLMediaElement-automatic-load-honors-preload-none-${crypto.randomUUID()}.mp3`;
+    document.write(`<audio id="audio" preload="none"><source id="source" type="audio/mpeg"></audio>`);
+
+    asyncTest(done => {
+        window.addEventListener("load", async () => {
+            source.src = mediaPath;
+
+            const sourceErrorPromise = new Promise(resolve => {
+                source.addEventListener("error", resolve, { once: true });
+            });
+            audio.load();
+            await sourceErrorPromise;
+
+            println("source error event fired after load() call");
+            const response = await fetch(`/recorded-request-headers${mediaPath}`);
+            println(`server saw media request after load() call: ${response.status === 200}`);
+
+            const suspendPromise = new Promise(resolve => {
+                audio.addEventListener("suspend", resolve, { once: true });
+            });
+            audio.src = automaticMediaPath;
+            await suspendPromise;
+
+            const automaticResponse = await fetch(`/recorded-request-headers${automaticMediaPath}`);
+            println(`server saw media request after automatic load: ${automaticResponse.status === 200}`);
+            done();
+        });
+    });
+</script>

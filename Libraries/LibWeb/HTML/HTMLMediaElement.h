@@ -224,6 +224,8 @@ private:
     void set_assigned_media_provider_object(MediaProviderObject const&);
 
     WebIDL::ExceptionOr<void> load_element();
+    void select_resource_for_current_load();
+    void promote_current_resource_selection_to_explicit();
 
     void load_url_resource(URL::URL const&, ESCAPING Function<void(Utf16String)> failure_callback);
     void load_remote_resource(ByteRange const&);
@@ -419,6 +421,7 @@ private:
     OwnPtr<RemoteFetchData> m_remote_fetch_data;
     u32 m_current_fetch_generation { 0 };
     bool m_waiting_for_an_implementation_defined_event_to_fetch_the_resource { false };
+    bool m_current_resource_selection_is_explicit { false };
 
     OwnPtr<Media::PlaybackManager> m_playback_manager;
 

@@ -370,7 +370,7 @@ void HTMLMediaElement::adopted_from(DOM::Document& old_document)
             main_thread_event_loop().task_queue().remove_tasks_matching([&](auto const& task) {
                 return task.source() == media_element_event_task_source();
             });
-            select_resource();
+            select_resource_for_current_load();
         }
     }
 
@@ -499,6 +499,10 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load()
 {
     // When the load() method on a media element is invoked, the user agent must run the media element load algorithm.
     TRY(load_element());
+
+    // INTEROP: This is not specified, but matches Chromium and Firefox. An explicit load() call requests that the
+    //          pending resource selection start fetching even if preload=none.
+    promote_current_resource_selection_to_explicit();
     return {};
 }
 
@@ -1084,6 +1088,12 @@ void HTMLMediaElement::children_changed(ChildrenChangedMetadata const& metadata)
 // https://html.spec.whatwg.org/multipage/media.html#concept-media-load-algorithm
 void HTMLMediaElement::select_resource()
 {
+    m_current_resource_selection_is_explicit = false;
+    select_resource_for_current_load();
+}
+
+void HTMLMediaElement::select_resource_for_current_load()
+{
     // 1. Set the element's networkState attribute to the NETWORK_NO_SOURCE value.
     m_network_state = NetworkState::NoSource;
 
@@ -1319,6 +1329,11 @@ bool HTMLMediaElement::preload_attribute_is_in_none_state() const
 
 bool HTMLMediaElement::should_wait_for_an_implementation_defined_event_before_fetching_the_resource() const
 {
+    // INTEROP: This is not specified, but matches Chromium and Firefox. An explicit load() call requests that loading
+    //          start, so do not run the optional preload=none deferral steps.
+    if (m_current_resource_selection_is_explicit)
+        return false;
+
     if (!preload_attribute_is_in_none_state())
         return false;
 
@@ -1329,6 +1344,11 @@ bool HTMLMediaElement::should_wait_for_an_implementation_defined_event_before_fe
         return false;
 
     return true;
+}
+
+void HTMLMediaElement::promote_current_resource_selection_to_explicit()
+{
+    m_current_resource_selection_is_explicit = true;
 }
 
 void HTMLMediaElement::wait_for_an_implementation_defined_event_before_fetching_the_resource(u32 fetch_generation)
