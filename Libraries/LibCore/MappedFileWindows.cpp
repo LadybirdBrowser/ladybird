@@ -46,18 +46,23 @@ ErrorOr<NonnullOwnPtr<MappedFile>> MappedFile::map_from_fd_range_and_close(int f
     if (offset < 0 || !AK::is_within_range<size_t>(offset))
         return Error::from_errno(EINVAL);
 
-    LARGE_INTEGER large_file_size = {};
-    if (!GetFileSizeEx(to_handle(fd), &large_file_size))
-        return Error::from_windows_error();
-
-    auto file_size = static_cast<size_t>(large_file_size.QuadPart);
     auto requested_offset = static_cast<size_t>(offset);
-    if (requested_offset > file_size)
-        return Error::from_errno(EINVAL);
-    if (size == to_end_of_file)
-        size = file_size - requested_offset;
-    else if (size > file_size - requested_offset)
-        return Error::from_errno(EINVAL);
+    LARGE_INTEGER large_file_size = {};
+    auto is_file_handle = GetFileSizeEx(to_handle(fd), &large_file_size);
+    if (is_file_handle) {
+        auto file_size = static_cast<size_t>(large_file_size.QuadPart);
+        if (requested_offset > file_size)
+            return Error::from_errno(EINVAL);
+        if (size == to_end_of_file)
+            size = file_size - requested_offset;
+        else if (size > file_size - requested_offset)
+            return Error::from_errno(EINVAL);
+    } else {
+        // AnonymousBuffer descriptors are file mapping handles rather than file handles on Windows. Their size cannot
+        // be queried with GetFileSizeEx, so callers must provide the mapped range explicitly.
+        if (size == to_end_of_file)
+            return Error::from_windows_error();
+    }
 
     if (size == 0)
         return adopt_own(*new MappedFile(nullptr, 0, nullptr, 0, mode));
@@ -71,12 +76,18 @@ ErrorOr<NonnullOwnPtr<MappedFile>> MappedFile::map_from_fd_range_and_close(int f
     if (view_size.has_overflow())
         return Error::from_errno(EOVERFLOW);
 
-    // Like the POSIX backend, read-only mappings are shared and writable mappings are
-    // copy-on-write, so writes through a MappedFile never reach the underlying file.
-    HANDLE file_mapping = CreateFileMappingW(to_handle(fd), nullptr, mode == Mode::ReadOnly ? PAGE_READONLY : PAGE_WRITECOPY, 0, 0, nullptr);
-    if (!file_mapping)
-        return Error::from_windows_error();
-    ScopeGuard file_mapping_guard = [&] { CloseHandle(file_mapping); };
+    // Like the POSIX backend, read-only mappings are shared and writable mappings are copy-on-write, so writes through
+    // a MappedFile never reach the underlying file. AnonymousBuffer descriptors already refer to a file mapping object.
+    HANDLE file_mapping = to_handle(fd);
+    if (is_file_handle) {
+        file_mapping = CreateFileMappingW(to_handle(fd), nullptr, mode == Mode::ReadOnly ? PAGE_READONLY : PAGE_WRITECOPY, 0, 0, nullptr);
+        if (!file_mapping)
+            return Error::from_windows_error();
+    }
+    ScopeGuard file_mapping_guard = [&] {
+        if (is_file_handle)
+            CloseHandle(file_mapping);
+    };
 
     void* view = MapViewOfFile(file_mapping, mode == Mode::ReadOnly ? FILE_MAP_READ : FILE_MAP_COPY, static_cast<DWORD>(aligned_offset >> 32), static_cast<DWORD>(aligned_offset & 0xFFFFFFFF), view_size.value());
     if (!view)
