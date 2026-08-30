@@ -10,3 +10,4 @@ normal inline vs host: 1px
 important inline vs host: 2px
 revert-layer preserves shadow host context: rgb(255, 0, 0)
 revert-layer preserves slotted host context: 7px
+important slotted after normal: rgb(0, 128, 0)

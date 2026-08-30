@@ -242,24 +242,41 @@ impl CascadedPropertyStore {
         // The chain runs newest first, so this walks it exactly as scanning a property's entries in
         // reverse did.
         let head = last_entry_index.entry(property_id).or_insert(NO_ENTRY);
+        let mut previous = NO_ENTRY;
         let mut current = *head;
         while current != NO_ENTRY {
-            let entry = &mut arena[current as usize];
-            if entry.origin == origin
-                && entry.layer_name.equals(&layer_name)
-                && entry.source_shadow_root_identity == source_shadow_root_identity
-            {
-                if entry.important && !important {
+            let entry_matches = {
+                let entry = &arena[current as usize];
+                entry.origin == origin
+                    && entry.layer_name.equals(&layer_name)
+                    && entry.source_shadow_root_identity == source_shadow_root_identity
+            };
+            if entry_matches {
+                if arena[current as usize].important && !important {
                     return -1;
                 }
-                entry.value = value;
-                entry.dependencies.set(None);
-                entry.has_style_sheet_context = has_style_sheet_context;
-                entry.important = important;
-                entry.cascade_index = cascade_index;
-                return entry.source_slot as i64;
+                let previous_for_property = arena[current as usize].previous_for_property;
+                let source_slot = {
+                    let entry = &mut arena[current as usize];
+                    entry.value = value;
+                    entry.dependencies.set(None);
+                    entry.has_style_sheet_context = has_style_sheet_context;
+                    entry.important = important;
+                    entry.cascade_index = cascade_index;
+                    entry.source_slot
+                };
+                // This declaration was applied after the current head, so make it the newest entry
+                // even when it reused the same cascade origin, layer, and shadow context.
+                if previous != NO_ENTRY {
+                    arena[previous as usize].previous_for_property = previous_for_property;
+                    arena[current as usize].previous_for_property = *head;
+                    *head = current;
+                }
+                return source_slot as i64;
             }
-            current = entry.previous_for_property;
+            let next = arena[current as usize].previous_for_property;
+            previous = current;
+            current = next;
         }
 
         let source_slot = free_source_slots.pop().unwrap_or_else(|| {
