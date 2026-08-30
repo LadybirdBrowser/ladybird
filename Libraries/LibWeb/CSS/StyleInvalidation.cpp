@@ -126,6 +126,16 @@ static Optional<bool> animated_transform_value_is_invertible(StyleValue const* v
     return {};
 }
 
+static bool clip_path_value_is_a_visual_context_frame(StyleValue const* value)
+{
+    return value && value->is_basic_shape();
+}
+
+static bool clip_value_is_a_visual_context_frame(StyleValue const* value)
+{
+    return value && value->is_rect();
+}
+
 static bool accumulated_visual_context_property_always_requires_repaint(CSS::PropertyID property_id)
 {
     switch (property_id) {
@@ -143,8 +153,6 @@ static bool accumulated_visual_context_property_always_requires_repaint(CSS::Pro
     case CSS::PropertyID::BorderTopRightRadius:
     case CSS::PropertyID::BorderTopStyle:
     case CSS::PropertyID::BoxShadow:
-    case CSS::PropertyID::Clip:
-    case CSS::PropertyID::ClipPath:
     case CSS::PropertyID::MaskClip:
     case CSS::PropertyID::MaskComposite:
     case CSS::PropertyID::MaskImage:
@@ -230,6 +238,10 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
             auto old_invertible = animated_transform_value_is_invertible(old_value);
             auto new_invertible = animated_transform_value_is_invertible(new_value);
             requires_repaint = !old_invertible.has_value() || !new_invertible.has_value() || old_invertible.value() != new_invertible.value();
+        } else if (property_id == PropertyID::ClipPath) {
+            requires_repaint = !clip_path_value_is_a_visual_context_frame(old_value) || !clip_path_value_is_a_visual_context_frame(new_value);
+        } else if (property_id == PropertyID::Clip) {
+            requires_repaint = !clip_value_is_a_visual_context_frame(old_value) || !clip_value_is_a_visual_context_frame(new_value);
         } else if (accumulated_visual_context_property_always_requires_repaint(property_id)) {
             requires_repaint = true;
         }

@@ -325,8 +325,6 @@ fn accumulated_visual_context_property_always_requires_repaint(property: u16) ->
             | property_id::BORDER_TOP_RIGHT_RADIUS
             | property_id::BORDER_TOP_STYLE
             | property_id::BOX_SHADOW
-            | property_id::CLIP
-            | property_id::CLIP_PATH
             | property_id::MASK_CLIP
             | property_id::MASK_COMPOSITE
             | property_id::MASK_IMAGE
@@ -337,6 +335,10 @@ fn accumulated_visual_context_property_always_requires_repaint(property: u16) ->
             | property_id::OUTLINE_WIDTH
             | property_id::PERSPECTIVE
     )
+}
+
+fn clip_path_value_is_a_visual_context_frame(values: ComputedValuesView<'_>) -> bool {
+    matches!(values.mask().clip_path.data(), Some(StyleValueData::BasicShape { .. }))
 }
 
 fn accumulated_visual_context_change_requires_repaint(
@@ -353,6 +355,12 @@ fn accumulated_visual_context_change_requires_repaint(
         if old_invertible.is_none() || new_invertible.is_none() || old_invertible != new_invertible {
             return true;
         }
+    }
+    if property == property_id::CLIP_PATH {
+        return !clip_path_value_is_a_visual_context_frame(old) || !clip_path_value_is_a_visual_context_frame(new);
+    }
+    if property == property_id::CLIP {
+        return !old.effects().clip_is_rect || !new.effects().clip_is_rect;
     }
     accumulated_visual_context_property_always_requires_repaint(property)
 }
