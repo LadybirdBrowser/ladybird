@@ -146,6 +146,7 @@ public:
     virtual bool is_keyframe_effect() const override { return true; }
 
     bool can_skip_per_frame_style_update() const;
+    void clear_per_frame_style_update_cache() { m_can_skip_per_frame_style_update_cache.clear(); }
     bool can_skip_per_frame_animation_tick() const;
     void request_observation_sample();
     bool request_element_scoped_observation_sample(u64 task_generation)
@@ -189,6 +190,14 @@ private:
 
     RefPtr<KeyFrameSet const> m_key_frame_set {};
     bool m_needs_observation_sample { false };
+    struct CanSkipPerFrameStyleUpdateCache {
+        u64 target_style_generation { 0 };
+        u64 target_subtree_style_generation { 0 };
+        bool target_is_connected { false };
+        Layout::Node const* layout_node { nullptr };
+        bool result { false };
+    };
+    mutable Optional<CanSkipPerFrameStyleUpdateCache> m_can_skip_per_frame_style_update_cache;
     Optional<u64> m_last_element_scoped_observation_sample_task_generation;
     bool m_per_frame_animation_tick_was_skipped { false };
 };
