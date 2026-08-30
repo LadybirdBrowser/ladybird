@@ -58,6 +58,7 @@
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFaceSet.h>
+#include <LibWeb/CSS/HypotheticalElement.h>
 #include <LibWeb/CSS/Invalidation/AdoptedStyleSheetInvalidator.h>
 #include <LibWeb/CSS/Invalidation/ContainerQueryInvalidator.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
@@ -69,12 +70,14 @@
 #include <LibWeb/CSS/MediaQueryListEvent.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ComputationContext.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
@@ -7585,10 +7588,27 @@ static Optional<Compositor::VisualAnimationTransformOperationKind> compositor_tr
     VERIFY_NOT_REACHED();
 }
 
-static Optional<Compositor::VisualAnimationTransformOperation> compositor_transform_operation(CSS::TransformationStyleValue const& transformation, float device_pixels_per_css_pixel)
+static Optional<CSS::Length> compositor_transform_percentage_basis(CSS::TransformFunction function, size_t argument_index, CSSPixelSize reference_size)
 {
-    if (!transformation.can_be_converted_to_matrix_without_reference_box())
+    switch (function) {
+    case CSS::TransformFunction::Translate:
+    case CSS::TransformFunction::Translate3d:
+        if (argument_index == 0)
+            return CSS::Length::make_px(reference_size.width());
+        if (argument_index == 1)
+            return CSS::Length::make_px(reference_size.height());
         return {};
+    case CSS::TransformFunction::TranslateX:
+        return CSS::Length::make_px(reference_size.width());
+    case CSS::TransformFunction::TranslateY:
+        return CSS::Length::make_px(reference_size.height());
+    default:
+        return {};
+    }
+}
+
+static Optional<Compositor::VisualAnimationTransformOperation> compositor_transform_operation(CSS::TransformationStyleValue const& transformation, CSSPixelSize reference_size, float device_pixels_per_css_pixel)
+{
     auto kind = compositor_transform_operation_kind(transformation.transform_function());
     if (!kind.has_value())
         return {};
@@ -7606,7 +7626,7 @@ static Optional<Compositor::VisualAnimationTransformOperation> compositor_transf
             case CSS::TransformFunctionParameterType::Length:
             case CSS::TransformFunctionParameterType::LengthNone:
             case CSS::TransformFunctionParameterType::LengthPercentage:
-                return CSS::Length::from_style_value(style_value, {}).absolute_length_to_px().to_float() * device_pixels_per_css_pixel;
+                return CSS::Length::from_style_value(style_value, compositor_transform_percentage_basis(transformation.transform_function(), index, reference_size)).absolute_length_to_px().to_float() * device_pixels_per_css_pixel;
             case CSS::TransformFunctionParameterType::Number:
             case CSS::TransformFunctionParameterType::NumberPercentage:
                 return CSS::number_from_style_value(style_value, 1);
@@ -7640,32 +7660,53 @@ static Optional<Compositor::VisualAnimationEasing> compositor_animation_easing(A
         });
 }
 
-static Optional<Compositor::VisualAnimationValue> compositor_animation_value(CSS::PropertyID property_id, CSS::RustStyleValueHandle const& value, float device_pixels_per_css_pixel)
+static RefPtr<CSS::StyleValue const> resolved_compositor_animation_style_value(CSS::PropertyID property_id, CSS::RustStyleValueHandle const& value, DOM::AbstractElement target)
 {
+    ++target.document().style_invalidation_counters().compositor_keyframe_value_resolutions;
     auto style_value = CSS::StyleValue::adopt_rust_style_value_data(CSS::StyleValueFFI::rust_style_value_retain(value.data()));
-    if (property_id == CSS::PropertyID::Opacity) {
-        if (!style_value->is_opacity_value())
-            return {};
-        auto opacity = style_value->as_opacity_value().resolved();
-        if (!isfinite(opacity))
-            return {};
-        return opacity;
-    }
+    if (style_value->is_unresolved())
+        style_value = target.document().style_computer().resolve_unresolved_style_value(target, CSS::PropertyNameAndID::from_id(property_id), style_value->as_unresolved());
+    if (style_value->is_guaranteed_invalid() || style_value->is_unresolved() || style_value->is_pending_substitution())
+        return nullptr;
+    CSS::ComputationContext computation_context {
+        .length_resolution_context = CSS::Length::ResolutionContext::for_element(target),
+        .abstract_element = target,
+    };
+    return style_value->absolutized(computation_context);
+}
 
-    VERIFY(property_id == CSS::PropertyID::Transform);
-    auto transformations = CSS::transformations_for_style_value(*style_value);
+static Optional<Compositor::VisualAnimationTransformList> compositor_transform_animation_value(CSS::PropertyID property_id, CSS::StyleValue const& style_value, Layout::Node const& layout_node, float device_pixels_per_css_pixel)
+{
+    Vector<NonnullRefPtr<CSS::TransformationStyleValue const>> transformations;
+    if (property_id == CSS::PropertyID::Transform) {
+        transformations = CSS::transformations_for_style_value(style_value);
+    } else {
+        if (!style_value.is_transformation())
+            return {};
+        transformations.append(style_value.as_transformation());
+    }
     if (transformations.is_empty())
         return {};
 
     Compositor::VisualAnimationTransformList operations;
     operations.ensure_capacity(transformations.size());
     for (auto const& transformation : transformations) {
-        auto operation = compositor_transform_operation(*transformation, device_pixels_per_css_pixel);
+        auto operation = compositor_transform_operation(*transformation, Painting::transform_reference_box(layout_node).size(), device_pixels_per_css_pixel);
         if (!operation.has_value())
             return {};
         operations.unchecked_append(operation.release_value());
     }
     return operations;
+}
+
+static Optional<float> compositor_opacity_animation_value(CSS::StyleValue const& style_value)
+{
+    if (!style_value.is_opacity_value())
+        return {};
+    auto opacity = style_value.as_opacity_value().resolved();
+    if (!isfinite(opacity))
+        return {};
+    return opacity;
 }
 
 static Optional<Compositor::VisualAnimation> build_compositor_animation(Animations::KeyframeEffect& effect, Painting::AccumulatedVisualContextTree const& visual_context_tree, Compositor::VisualAnimation::TargetKind target_kind)
@@ -7720,6 +7761,82 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
     if (!key_frame_set || key_frame_set->keyframes_by_key.size() < 2)
         return {};
     auto device_pixels_per_css_pixel = static_cast<float>(target->document().page().client().device_pixels_per_css_pixel());
+    auto reference_box_size = Painting::transform_reference_box(*layout_node).size();
+    auto resolved_values_for_target = [&](Compositor::VisualAnimation::TargetKind target_kind) -> Animations::KeyframeEffect::CompositorKeyframeValueCache const& {
+        auto& cached_values = effect.compositor_keyframe_value_cache(target_kind);
+        auto reference_width = target_kind == Compositor::VisualAnimation::TargetKind::Transform ? reference_box_size.width().to_float() : 0;
+        auto reference_height = target_kind == Compositor::VisualAnimation::TargetKind::Transform ? reference_box_size.height().to_float() : 0;
+        auto target_style_generation = target->element().animation_style_generation();
+        auto style_environment_version = target->document().style_environment_version();
+        if (cached_values.has_value()
+            && cached_values->key_frame_set == key_frame_set
+            && cached_values->target_style_generation == target_style_generation
+            && cached_values->style_environment_version == style_environment_version
+            && cached_values->reference_width == reference_width
+            && cached_values->reference_height == reference_height
+            && cached_values->device_pixels_per_css_pixel == device_pixels_per_css_pixel)
+            return *cached_values;
+
+        Animations::KeyframeEffect::CompositorKeyframeValueCache new_cache {
+            .key_frame_set = key_frame_set,
+            .target_style_generation = target_style_generation,
+            .style_environment_version = style_environment_version,
+            .reference_width = reference_width,
+            .reference_height = reference_height,
+            .device_pixels_per_css_pixel = device_pixels_per_css_pixel,
+            .is_valid = true,
+            .values = {},
+        };
+        new_cache.values.ensure_capacity(key_frame_set->keyframes_by_key.size());
+        for (auto const& entry : key_frame_set->keyframes_by_key) {
+            Optional<Compositor::VisualAnimationValue> value;
+            if (target_kind == Compositor::VisualAnimation::TargetKind::Opacity) {
+                auto property = entry.properties.get(CSS::PropertyID::Opacity);
+                if (!property.has_value() || !property->has<CSS::RustStyleValueHandle>()) {
+                    new_cache.values.append({});
+                    continue;
+                }
+                auto style_value = resolved_compositor_animation_style_value(CSS::PropertyID::Opacity, property->get<CSS::RustStyleValueHandle>(), *target);
+                if (style_value) {
+                    auto opacity = compositor_opacity_animation_value(*style_value);
+                    if (opacity.has_value())
+                        value = Compositor::VisualAnimationValue { opacity.release_value() };
+                }
+            } else {
+                Compositor::VisualAnimationTransformList operations;
+                for (auto property_id : { CSS::PropertyID::Translate, CSS::PropertyID::Rotate, CSS::PropertyID::Scale, CSS::PropertyID::Transform }) {
+                    if (!effect.target_properties().contains(property_id))
+                        continue;
+                    auto property = entry.properties.get(property_id);
+                    if (!property.has_value() || !property->has<CSS::RustStyleValueHandle>()) {
+                        new_cache.is_valid = false;
+                        break;
+                    }
+                    auto style_value = resolved_compositor_animation_style_value(property_id, property->get<CSS::RustStyleValueHandle>(), *target);
+                    if (!style_value) {
+                        new_cache.is_valid = false;
+                        break;
+                    }
+                    auto property_operations = compositor_transform_animation_value(property_id, *style_value, *layout_node, device_pixels_per_css_pixel);
+                    if (!property_operations.has_value()) {
+                        new_cache.is_valid = false;
+                        break;
+                    }
+                    operations.extend(property_operations.release_value());
+                }
+                if (!new_cache.is_valid)
+                    break;
+                value = Compositor::VisualAnimationValue { move(operations) };
+            }
+            if (!value.has_value()) {
+                new_cache.is_valid = false;
+                break;
+            }
+            new_cache.values.append(value.release_value());
+        }
+        cached_values = move(new_cache);
+        return *cached_values;
+    };
     auto build_animation_for_target = [&](Compositor::VisualAnimation::TargetKind target_kind) -> Optional<Compositor::VisualAnimation> {
         Vector<u32> visual_context_node_indices;
         if (target_kind == Compositor::VisualAnimation::TargetKind::Opacity) {
@@ -7748,7 +7865,8 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
         if (visual_context_node_indices.is_empty())
             return {};
 
-        Vector<Compositor::VisualAnimationKeyframe> keyframes;
+        Vector<Compositor::VisualAnimationEasing> keyframe_easings;
+        keyframe_easings.ensure_capacity(key_frame_set->keyframes_by_key.size());
         for (auto it = key_frame_set->keyframes_by_key.begin(); it != key_frame_set->keyframes_by_key.end(); ++it) {
             auto const& entry = *it;
             auto composite = [&] {
@@ -7767,17 +7885,26 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
             if (composite != Bindings::CompositeOperation::Replace)
                 return {};
             auto easing = compositor_animation_easing(entry, *animation);
-            auto property_id = target_kind == Compositor::VisualAnimation::TargetKind::Opacity ? CSS::PropertyID::Opacity : CSS::PropertyID::Transform;
-            auto property = entry.properties.get(property_id);
-            if (!property.has_value() || !property->has<CSS::RustStyleValueHandle>())
-                continue;
-            auto value = compositor_animation_value(property_id, property->get<CSS::RustStyleValueHandle>(), device_pixels_per_css_pixel);
-            if (!easing.has_value() || !value.has_value())
+            if (!easing.has_value())
                 return {};
+            keyframe_easings.append(easing.release_value());
+        }
+
+        auto const& cached_values = resolved_values_for_target(target_kind);
+        if (!cached_values.is_valid)
+            return {};
+        VERIFY(cached_values.values.size() == key_frame_set->keyframes_by_key.size());
+
+        Vector<Compositor::VisualAnimationKeyframe> keyframes;
+        size_t keyframe_index = 0;
+        for (auto it = key_frame_set->keyframes_by_key.begin(); it != key_frame_set->keyframes_by_key.end(); ++it, ++keyframe_index) {
+            auto const& value = cached_values.values[keyframe_index];
+            if (!value.has_value())
+                continue;
             keyframes.append({
                 .offset = static_cast<double>(it.key()) / (100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor),
-                .easing = easing.release_value(),
-                .value = value.release_value(),
+                .easing = keyframe_easings[keyframe_index],
+                .value = *value,
             });
         }
 

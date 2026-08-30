@@ -1025,6 +1025,8 @@ KeyframeEffect::KeyframeEffect() = default;
 
 void KeyframeEffect::invalidate_effect()
 {
+    m_compositor_opacity_keyframe_value_cache.clear();
+    m_compositor_transform_keyframe_value_cache.clear();
     m_is_compositor_driven = false;
     m_retained_compositor_animations.clear();
     m_can_skip_per_frame_style_update_cache.clear();

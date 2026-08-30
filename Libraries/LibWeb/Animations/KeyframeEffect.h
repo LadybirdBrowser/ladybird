@@ -174,6 +174,22 @@ public:
     bool per_frame_animation_tick_was_skipped() const { return m_per_frame_animation_tick_was_skipped; }
     void note_per_frame_animation_tick_was_skipped() { m_per_frame_animation_tick_was_skipped = true; }
     void clear_per_frame_animation_tick_was_skipped() { m_per_frame_animation_tick_was_skipped = false; }
+    struct CompositorKeyframeValueCache {
+        KeyFrameSet const* key_frame_set { nullptr };
+        u64 target_style_generation { 0 };
+        u64 style_environment_version { 0 };
+        float reference_width { 0 };
+        float reference_height { 0 };
+        float device_pixels_per_css_pixel { 0 };
+        bool is_valid { false };
+        Vector<Optional<Compositor::VisualAnimationValue>> values;
+    };
+    Optional<CompositorKeyframeValueCache>& compositor_keyframe_value_cache(Compositor::VisualAnimation::TargetKind target_kind)
+    {
+        return target_kind == Compositor::VisualAnimation::TargetKind::Opacity
+            ? m_compositor_opacity_keyframe_value_cache
+            : m_compositor_transform_keyframe_value_cache;
+    }
     virtual void update_computed_properties(AnimationUpdateContext&) override;
     void update_computed_properties_for_style(AnimationUpdateContext&, DOM::AbstractElement);
 
@@ -201,6 +217,8 @@ private:
     Vector<GC::Ref<JS::Object>> m_keyframe_objects_cache {};
 
     RefPtr<KeyFrameSet const> m_key_frame_set {};
+    Optional<CompositorKeyframeValueCache> m_compositor_opacity_keyframe_value_cache;
+    Optional<CompositorKeyframeValueCache> m_compositor_transform_keyframe_value_cache;
     Vector<Compositor::VisualAnimation> m_retained_compositor_animations;
     bool m_is_compositor_driven { false };
     bool m_needs_observation_sample { false };

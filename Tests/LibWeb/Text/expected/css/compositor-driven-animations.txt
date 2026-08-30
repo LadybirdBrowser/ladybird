@@ -1,6 +1,11 @@
-compositor visual animations: 2
+compositor visual animations: 3
+reference box resize updates compositor animation: true
+reference box resize resolves keyframes: true
+style change resolves keyframes: true
+style change updates compositor animation: true
 main-thread animation overlay builds: 0
 main-thread animation frame pump requests: 0
+stable compositor animations reuse resolved keyframes: true
 stable compositor animation updates: 0
 stable compositor animation updates with changing visual nodes: 0
 cancel removes compositor animations: 0
