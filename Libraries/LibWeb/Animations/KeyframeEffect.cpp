@@ -9,6 +9,7 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibWeb/Animations/Animation.h>
+#include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/Animations/PseudoElementParsing.h>
 #include <LibWeb/Bindings/KeyframeEffect.h>
@@ -1082,6 +1083,13 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
 
 bool KeyframeEffect::can_skip_per_frame_animation_tick() const
 {
+    if (auto animation = associated_animation(); animation && !animation->pending()
+        && animation->play_state() == Bindings::AnimationPlayState::Running
+        && animation->playback_rate() > 0
+        && animation->timeline() && animation->timeline()->is_monotonically_increasing()
+        && is_in_the_before_phase())
+        return true;
+
     if (!can_skip_per_frame_style_update())
         return false;
 

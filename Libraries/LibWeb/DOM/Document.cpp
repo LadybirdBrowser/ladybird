@@ -703,6 +703,7 @@ void Document::record_layout_tree_build(u64 rebuilt_subtree_root_count, bool esc
 
 void Document::finalize()
 {
+    stop_animation_wakeup_timer();
     if (m_layout_node_arena)
         Layout::RustFFI::layout_arena_clear_chrome_state_callback(m_layout_node_arena->handle());
     CSS::ComputedValuesFFI::rust_custom_property_registry_destroy(m_rust_custom_property_registry);
@@ -2752,6 +2753,67 @@ void Document::flush_throttled_animation_style_update_for_node(Node const& node)
         else
             effect->request_element_scoped_observation_sample(task_generation);
     }
+}
+
+void Document::stop_animation_wakeup_timer()
+{
+    if (!m_animation_wakeup_timer)
+        return;
+    m_animation_wakeup_timer->stop();
+    m_animation_wakeup_deadline.clear();
+}
+
+void Document::schedule_animation_wakeup(double delay_ms)
+{
+    auto timer_delay_ms = clamp(static_cast<i64>(ceil(delay_ms)), 1, static_cast<i64>(NumericLimits<int>::max()));
+    auto deadline = MonotonicTime::now() + AK::Duration::from_milliseconds(timer_delay_ms);
+    if (m_animation_wakeup_timer && m_animation_wakeup_timer->is_active()
+        && m_animation_wakeup_deadline.has_value() && *m_animation_wakeup_deadline <= deadline)
+        return;
+
+    m_animation_wakeup_deadline = deadline;
+    if (!m_animation_wakeup_timer) {
+        m_animation_wakeup_timer = Core::Timer::create_single_shot(static_cast<int>(timer_delay_ms), GC::weak_callback(*this, [](auto& document) {
+            document.m_animation_wakeup_deadline.clear();
+            auto timestamp = HighResolutionTime::relative_high_resolution_time(
+                HighResolutionTime::unsafe_shared_current_time(), document.relevant_settings_object().global_object());
+            Optional<double> next_wakeup_delay_ms;
+            bool reached_wakeup = false;
+            for (auto& animation : document.m_associated_animations) {
+                if (!animation.effect())
+                    continue;
+                auto* effect = as_if<Animations::KeyframeEffect>(*animation.effect());
+                if (!effect)
+                    continue;
+                if (animation.play_state() != Bindings::AnimationPlayState::Running
+                    || animation.pending()
+                    || animation.playback_rate() <= 0
+                    || !animation.timeline()
+                    || !animation.timeline()->is_monotonically_increasing()
+                    || effect->start_delay().type != Animations::TimeValue::Type::Milliseconds)
+                    continue;
+                auto timeline_time = animation.timeline()->current_time_at_timestamp(timestamp);
+                auto current_time = animation.current_time_at(timeline_time);
+                if (!current_time.has_value() || current_time->type != Animations::TimeValue::Type::Milliseconds)
+                    continue;
+                if (current_time->value < effect->start_delay().value) {
+                    auto delay = (effect->start_delay().value - current_time->value) / animation.playback_rate();
+                    if (!next_wakeup_delay_ms.has_value() || delay < *next_wakeup_delay_ms)
+                        next_wakeup_delay_ms = delay;
+                    continue;
+                }
+                effect->request_observation_sample();
+                reached_wakeup = true;
+            }
+            if (next_wakeup_delay_ms.has_value())
+                document.schedule_animation_wakeup(*next_wakeup_delay_ms);
+            if (reached_wakeup) {
+                ++document.m_style_invalidation_counters.animation_frame_pump_requests;
+                document.page().client().request_frame();
+            }
+        }));
+    }
+    m_animation_wakeup_timer->restart(static_cast<int>(timer_delay_ms));
 }
 
 void Document::throttled_animation_visibility_changed()
@@ -5991,6 +6053,7 @@ void Document::destroy()
 
     // 2. Abort document.
     abort();
+    stop_animation_wakeup_timer();
 
     // AD-HOC: Notify document observers that this document became inactive.
     //         This handles iframe-removal destruction, which doesn't otherwise go through
@@ -6472,6 +6535,7 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
 
 void Document::did_stop_being_active_document_in_navigable()
 {
+    stop_animation_wakeup_timer();
     clear_layout_nodes_for_inactive_document();
     tear_down_layout_tree();
 

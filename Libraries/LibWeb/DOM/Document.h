@@ -472,6 +472,8 @@ public:
     void note_throttled_animation_style_update() { m_has_throttled_animation_style_update = true; }
     void flush_throttled_animation_style_update();
     void flush_throttled_animation_style_update_for_node(Node const&);
+    void schedule_animation_wakeup(double delay_ms);
+    void stop_animation_wakeup_timer();
     void throttled_animation_visibility_changed();
     void invalidate_style_for_viewport_change();
     bool suppresses_attribute_style_invalidation() const { return m_suppresses_attribute_style_invalidation; }
@@ -1835,6 +1837,8 @@ private:
     bool m_will_declaratively_refresh { false };
 
     RefPtr<Core::Timer> m_active_refresh_timer;
+    RefPtr<Core::Timer> m_animation_wakeup_timer;
+    Optional<MonotonicTime> m_animation_wakeup_deadline;
 
     bool m_temporary_document_for_fragment_parsing { false };
 
