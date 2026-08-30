@@ -1,0 +1,20 @@
+Azure pair publishes opacity and transform: true
+Azure pair avoids main-thread overlays: true
+later duplicate fade wins opacity: true
+short winner controls the boundary sample: true
+loser is published when winner ends: true
+winner change republishes descriptors: true
+later script animation wins over CSS animation: true
+paused winner is sampled on the main thread: true
+cancelling winner republishes CSS animation: true
+add competitor stays on the main thread: true
+opacity loser still hands off transform: true
+pseudo-element pair publishes opacity and transform: true
+finite loser receives an end wake-up: true
+finite loser finishes after deterministic advance: true
+competing finite effects register an end wake-up: true
+losing finite effect finishes after deterministic advance: true
+both competing finite effects dispatch animationend: true
+losing finite effect restores base opacity: true
+losing infinite effect dispatches iteration events: true
+losing infinite listener keeps the frame pump active: true
