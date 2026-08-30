@@ -205,6 +205,9 @@ bool blocks_wheel_event_at_position(AsyncScrollingState const& async_scrolling_s
 
     VERIFY(display_list->compatible_visual_context_tree_version() == visual_context_tree->version());
     for (auto const& region : async_scrolling_state.blocking_wheel_event_regions) {
+        if (region.context.spatial.value() >= visual_context_tree->spatial_nodes().size()
+            || (region.context.frame != Painting::NO_FRAME_NODE && region.context.frame.value() >= visual_context_tree->frame_nodes().size()))
+            return true;
         auto position_in_context = visual_context_tree->transform_point_for_hit_test(region.context, position, scroll_state_snapshot);
         if (position_in_context.has_value() && region.rect.contains(*position_in_context))
             return true;
@@ -221,7 +224,7 @@ static WheelHitTestResult hit_test_scroll_node_at_position(AsyncScrollingState c
     auto async_scrolling_state_copy = async_scrolling_state;
     scroll_tree.set_state(move(async_scrolling_state_copy));
     scroll_tree.rebuild_wheel_hit_test_targets(display_list, visual_context_tree, scroll_state_snapshot);
-    return scroll_tree.hit_test_scroll_node_for_wheel(position, delta, snap_container_handling);
+    return scroll_tree.hit_test_scroll_node_for_wheel(*visual_context_tree, position, delta, snap_container_handling);
 }
 
 WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const& async_scrolling_state, RefPtr<Painting::DisplayList const> const& display_list, Painting::AccumulatedVisualContextTree const* visual_context_tree, Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position, Gfx::FloatPoint delta, SnapContainerHandling snap_container_handling, bool blocking_wheel_event_regions_are_current)
