@@ -1,0 +1,501 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#include <AK/Math.h>
+#include <LibGfx/Matrix4x4.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
+#include <LibWeb/Animations/AnimationEffect.h>
+#include <LibWeb/CSS/EasingFunction.h>
+#include <LibWeb/Compositor/VisualAnimation.h>
+#include <LibWeb/ComputedValuesRustFFI.h>
+
+namespace Web::Compositor {
+
+static_assert(to_underlying(VisualAnimationEasing::Kind::Linear) == to_underlying(CSS::StyleValueFFI::FfiEasingKind::Linear));
+static_assert(to_underlying(VisualAnimationEasing::Kind::CubicBezier) == to_underlying(CSS::StyleValueFFI::FfiEasingKind::CubicBezier));
+static_assert(to_underlying(VisualAnimationEasing::Kind::Steps) == to_underlying(CSS::StyleValueFFI::FfiEasingKind::Steps));
+static_assert(to_underlying(VisualAnimationPlaybackDirection::Normal) == to_underlying(Animations::PlaybackDirection::Normal));
+static_assert(to_underlying(VisualAnimationPlaybackDirection::Reverse) == to_underlying(Animations::PlaybackDirection::Reverse));
+static_assert(to_underlying(VisualAnimationPlaybackDirection::Alternate) == to_underlying(Animations::PlaybackDirection::Alternate));
+static_assert(to_underlying(VisualAnimationPlaybackDirection::AlternateReverse) == to_underlying(Animations::PlaybackDirection::AlternateReverse));
+
+VisualAnimationEasing VisualAnimationEasing::from_css(CSS::EasingFunction const& easing)
+{
+    return easing.visit(
+        [](CSS::LinearEasingFunction const& linear) {
+            VisualAnimationEasing result;
+            result.kind = Kind::Linear;
+            result.linear_points.clear();
+            result.linear_points.ensure_capacity(linear.control_points.size());
+            for (auto const& point : linear.control_points)
+                result.linear_points.unchecked_append({ point.input, point.output });
+            return result;
+        },
+        [](CSS::CubicBezierEasingFunction const& cubic_bezier) {
+            return VisualAnimationEasing {
+                .kind = Kind::CubicBezier,
+                .linear_points = {},
+                .x1 = cubic_bezier.x1,
+                .y1 = cubic_bezier.y1,
+                .x2 = cubic_bezier.x2,
+                .y2 = cubic_bezier.y2,
+            };
+        },
+        [](CSS::StepsEasingFunction const& steps) {
+            return VisualAnimationEasing {
+                .kind = Kind::Steps,
+                .linear_points = {},
+                .interval_count = steps.interval_count,
+                .step_position = to_underlying(steps.position),
+            };
+        });
+}
+
+double VisualAnimationEasing::evaluate_at(double input_progress, bool before_flag) const
+{
+    Vector<CSS::StyleValueFFI::FfiLinearEasingPoint> points;
+    if (kind == Kind::Linear) {
+        points.ensure_capacity(linear_points.size());
+        for (auto const& point : linear_points)
+            points.unchecked_append({ .input = point.input, .output = point.output });
+    }
+
+    CSS::StyleValueFFI::FfiEasingDescriptor descriptor {
+        .kind = static_cast<CSS::StyleValueFFI::FfiEasingKind>(to_underlying(kind)),
+        .linear_points = points.data(),
+        .linear_point_count = points.size(),
+        .x1 = x1,
+        .y1 = y1,
+        .x2 = x2,
+        .y2 = y2,
+        .interval_count = interval_count,
+        .step_position = step_position,
+    };
+    return CSS::StyleValueFFI::rust_evaluate_easing(&descriptor, input_progress, before_flag);
+}
+
+bool VisualAnimationEasing::is_valid() const
+{
+    if (!first_is_one_of(kind, Kind::Linear, Kind::CubicBezier, Kind::Steps))
+        return false;
+    if (!isfinite(x1) || !isfinite(y1) || !isfinite(x2) || !isfinite(y2))
+        return false;
+
+    switch (kind) {
+    case Kind::Linear: {
+        if (linear_points.size() < 2)
+            return false;
+        double previous_input = -NumericLimits<double>::max();
+        for (auto const& point : linear_points) {
+            if (!isfinite(point.input) || !isfinite(point.output) || point.input < previous_input)
+                return false;
+            previous_input = point.input;
+        }
+        return true;
+    }
+    case Kind::CubicBezier:
+        return x1 >= 0 && x1 <= 1 && x2 >= 0 && x2 <= 1;
+    case Kind::Steps:
+        return interval_count > 0 && step_position <= 5;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+Gfx::FloatMatrix4x4 VisualAnimationTransformOperation::to_matrix() const
+{
+    using Kind = VisualAnimationTransformOperationKind;
+    switch (kind) {
+    case Kind::Translate:
+        VERIFY(values.size() == 1 || values.size() == 2);
+        return Gfx::translation_matrix(Gfx::FloatVector3 { values[0], values.size() == 2 ? values[1] : 0, 0 });
+    case Kind::Translate3d:
+        VERIFY(values.size() == 3);
+        return Gfx::translation_matrix(Gfx::FloatVector3 { values[0], values[1], values[2] });
+    case Kind::TranslateX:
+        VERIFY(values.size() == 1);
+        return Gfx::translation_matrix(Gfx::FloatVector3 { values[0], 0, 0 });
+    case Kind::TranslateY:
+        VERIFY(values.size() == 1);
+        return Gfx::translation_matrix(Gfx::FloatVector3 { 0, values[0], 0 });
+    case Kind::TranslateZ:
+        VERIFY(values.size() == 1);
+        return Gfx::translation_matrix(Gfx::FloatVector3 { 0, 0, values[0] });
+    case Kind::Scale: {
+        VERIFY(values.size() == 1 || values.size() == 2);
+        auto y = values.size() == 2 ? values[1] : values[0];
+        return Gfx::scale_matrix(Gfx::FloatVector3 { values[0], y, 1 });
+    }
+    case Kind::Scale3d:
+        VERIFY(values.size() == 3);
+        return Gfx::scale_matrix(Gfx::FloatVector3 { values[0], values[1], values[2] });
+    case Kind::ScaleX:
+        VERIFY(values.size() == 1);
+        return Gfx::scale_matrix(Gfx::FloatVector3 { values[0], 1, 1 });
+    case Kind::ScaleY:
+        VERIFY(values.size() == 1);
+        return Gfx::scale_matrix(Gfx::FloatVector3 { 1, values[0], 1 });
+    case Kind::ScaleZ:
+        VERIFY(values.size() == 1);
+        return Gfx::scale_matrix(Gfx::FloatVector3 { 1, 1, values[0] });
+    case Kind::Rotate:
+    case Kind::RotateZ:
+        VERIFY(values.size() == 1);
+        return Gfx::rotation_matrix(Gfx::FloatVector3 { 0, 0, 1 }, values[0]);
+    case Kind::RotateX:
+        VERIFY(values.size() == 1);
+        return Gfx::rotation_matrix(Gfx::FloatVector3 { 1, 0, 0 }, values[0]);
+    case Kind::RotateY:
+        VERIFY(values.size() == 1);
+        return Gfx::rotation_matrix(Gfx::FloatVector3 { 0, 1, 0 }, values[0]);
+    case Kind::Skew:
+        VERIFY(values.size() == 1 || values.size() == 2);
+        return Gfx::FloatMatrix4x4(
+            1, tanf(values[0]), 0, 0,
+            values.size() == 2 ? tanf(values[1]) : 0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1);
+    case Kind::SkewX:
+        VERIFY(values.size() == 1);
+        return Gfx::FloatMatrix4x4(
+            1, tanf(values[0]), 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1);
+    case Kind::SkewY:
+        VERIFY(values.size() == 1);
+        return Gfx::FloatMatrix4x4(
+            1, 0, 0, 0,
+            tanf(values[0]), 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1);
+    }
+    VERIFY_NOT_REACHED();
+}
+
+bool VisualAnimationTransformOperation::is_valid() const
+{
+    size_t expected_value_count = 0;
+    switch (kind) {
+    case VisualAnimationTransformOperationKind::Translate:
+    case VisualAnimationTransformOperationKind::Scale:
+    case VisualAnimationTransformOperationKind::Skew:
+        if (values.size() != 1 && values.size() != 2)
+            return false;
+        expected_value_count = values.size();
+        break;
+    case VisualAnimationTransformOperationKind::Translate3d:
+    case VisualAnimationTransformOperationKind::Scale3d:
+        expected_value_count = 3;
+        break;
+    case VisualAnimationTransformOperationKind::TranslateX:
+    case VisualAnimationTransformOperationKind::TranslateY:
+    case VisualAnimationTransformOperationKind::TranslateZ:
+    case VisualAnimationTransformOperationKind::ScaleX:
+    case VisualAnimationTransformOperationKind::ScaleY:
+    case VisualAnimationTransformOperationKind::ScaleZ:
+    case VisualAnimationTransformOperationKind::Rotate:
+    case VisualAnimationTransformOperationKind::RotateX:
+    case VisualAnimationTransformOperationKind::RotateY:
+    case VisualAnimationTransformOperationKind::RotateZ:
+    case VisualAnimationTransformOperationKind::SkewX:
+    case VisualAnimationTransformOperationKind::SkewY:
+        expected_value_count = 1;
+        break;
+    default:
+        return false;
+    }
+    if (values.size() != expected_value_count)
+        return false;
+    return all_of(values, [](float value) { return isfinite(value); });
+}
+
+static VisualAnimationValue interpolate_value(VisualAnimationValue const& from, VisualAnimationValue const& to, double progress)
+{
+    VERIFY(from.index() == to.index());
+    return from.visit(
+        [&](float from_opacity) -> VisualAnimationValue {
+            auto to_opacity = to.get<float>();
+            return static_cast<float>(from_opacity + (to_opacity - from_opacity) * progress);
+        },
+        [&](VisualAnimationTransformList const& from_transforms) -> VisualAnimationValue {
+            auto const& to_transforms = to.get<VisualAnimationTransformList>();
+            VERIFY(from_transforms.size() == to_transforms.size());
+            VisualAnimationTransformList transforms;
+            transforms.ensure_capacity(from_transforms.size());
+            for (size_t operation_index = 0; operation_index < from_transforms.size(); ++operation_index) {
+                auto const& from_operation = from_transforms[operation_index];
+                auto const& to_operation = to_transforms[operation_index];
+                VERIFY(from_operation.kind == to_operation.kind);
+                VERIFY(from_operation.values.size() == to_operation.values.size());
+                Vector<float> values;
+                values.ensure_capacity(from_operation.values.size());
+                for (size_t value_index = 0; value_index < from_operation.values.size(); ++value_index) {
+                    auto from_value = from_operation.values[value_index];
+                    auto to_value = to_operation.values[value_index];
+                    values.unchecked_append(static_cast<float>(from_value + (to_value - from_value) * progress));
+                }
+                transforms.unchecked_append({ from_operation.kind, move(values) });
+            }
+            return transforms;
+        });
+}
+
+Optional<VisualAnimation::Sample> VisualAnimation::sample(AK::Duration elapsed_since_anchor) const
+{
+    if (iteration_duration_ms <= 0 || playback_rate <= 0 || keyframes.size() < 2)
+        return {};
+
+    auto local_time = local_time_at_anchor_ms + elapsed_since_anchor.to_seconds_f64() * 1000.0 * playback_rate;
+    if (!isfinite(local_time))
+        return {};
+    auto overall_progress = (local_time - start_delay_ms) / iteration_duration_ms + iteration_start;
+    if (!isfinite(overall_progress) || overall_progress < 0)
+        return {};
+
+    auto current_iteration = floor(overall_progress);
+    auto simple_iteration_progress = fmod(overall_progress, 1.0);
+    bool going_forwards = true;
+    switch (playback_direction) {
+    case VisualAnimationPlaybackDirection::Normal:
+        break;
+    case VisualAnimationPlaybackDirection::Reverse:
+        going_forwards = false;
+        break;
+    case VisualAnimationPlaybackDirection::Alternate:
+        going_forwards = fmod(current_iteration, 2.0) == 0;
+        break;
+    case VisualAnimationPlaybackDirection::AlternateReverse:
+        going_forwards = fmod(current_iteration + 1.0, 2.0) == 0;
+        break;
+    }
+
+    auto directed_progress = going_forwards ? simple_iteration_progress : 1.0 - simple_iteration_progress;
+    auto transformed_progress = easing.evaluate_at(directed_progress, false);
+    if (!isfinite(transformed_progress))
+        return {};
+
+    auto const* from_keyframe = &keyframes.first();
+    auto const* to_keyframe = &keyframes[1];
+    for (size_t index = 1; index < keyframes.size(); ++index) {
+        if (transformed_progress < keyframes[index].offset) {
+            from_keyframe = &keyframes[index - 1];
+            to_keyframe = &keyframes[index];
+            break;
+        }
+        from_keyframe = &keyframes[index - 1];
+        to_keyframe = &keyframes[index];
+    }
+
+    auto interval_width = to_keyframe->offset - from_keyframe->offset;
+    VERIFY(interval_width > 0);
+    auto interval_progress = (transformed_progress - from_keyframe->offset) / interval_width;
+    auto eased_interval_progress = from_keyframe->easing.evaluate_at(interval_progress, false);
+    if (!isfinite(eased_interval_progress))
+        return {};
+    auto value = interpolate_value(from_keyframe->value, to_keyframe->value, eased_interval_progress);
+
+    Sample sample;
+    value.visit(
+        [&](float opacity) { sample.opacity = opacity; },
+        [&](VisualAnimationTransformList const& transforms) {
+            for (auto const& transform : transforms)
+                sample.transform = sample.transform * transform.to_matrix();
+        });
+    if (target_kind == TargetKind::Opacity) {
+        if (!isfinite(sample.opacity))
+            return {};
+        sample.opacity = clamp(sample.opacity, 0.0f, 1.0f);
+        return sample;
+    }
+    for (size_t row = 0; row < 4; ++row) {
+        for (size_t column = 0; column < 4; ++column) {
+            if (!isfinite(sample.transform[row, column]))
+                return {};
+        }
+    }
+    return sample;
+}
+
+bool VisualAnimation::is_valid() const
+{
+    if (!first_is_one_of(target_kind, TargetKind::Opacity, TargetKind::Transform))
+        return false;
+    if (visual_context_node_indices.is_empty())
+        return false;
+    if (!first_is_one_of(playback_direction,
+            VisualAnimationPlaybackDirection::Normal,
+            VisualAnimationPlaybackDirection::Reverse,
+            VisualAnimationPlaybackDirection::Alternate,
+            VisualAnimationPlaybackDirection::AlternateReverse))
+        return false;
+    if (monotonic_time_at_anchor_ns < 0 || !isfinite(local_time_at_anchor_ms) || !isfinite(playback_rate) || playback_rate <= 0
+        || !isfinite(start_delay_ms) || !isfinite(iteration_duration_ms) || iteration_duration_ms <= 0
+        || !isfinite(iteration_start) || iteration_start < 0 || !easing.is_valid() || keyframes.size() < 2)
+        return false;
+    if (keyframes.first().offset != 0 || keyframes.last().offset != 1)
+        return false;
+
+    Optional<size_t> transform_operation_count;
+    for (size_t keyframe_index = 0; keyframe_index < keyframes.size(); ++keyframe_index) {
+        auto const& keyframe = keyframes[keyframe_index];
+        if (!isfinite(keyframe.offset) || keyframe.offset < 0 || keyframe.offset > 1 || !keyframe.easing.is_valid())
+            return false;
+        if (keyframe_index > 0 && keyframe.offset <= keyframes[keyframe_index - 1].offset)
+            return false;
+
+        if (target_kind == TargetKind::Opacity) {
+            if (!keyframe.value.has<float>() || !isfinite(keyframe.value.get<float>())
+                || keyframe.value.get<float>() < 0 || keyframe.value.get<float>() > 1)
+                return false;
+            continue;
+        }
+
+        if (!keyframe.value.has<VisualAnimationTransformList>())
+            return false;
+        auto const& transforms = keyframe.value.get<VisualAnimationTransformList>();
+        if (transforms.is_empty())
+            return false;
+        if (!transform_operation_count.has_value())
+            transform_operation_count = transforms.size();
+        if (transforms.size() != *transform_operation_count)
+            return false;
+        for (size_t operation_index = 0; operation_index < transforms.size(); ++operation_index) {
+            auto const& operation = transforms[operation_index];
+            if (!operation.is_valid())
+                return false;
+            if (keyframe_index > 0) {
+                auto const& previous_operation = keyframes[keyframe_index - 1].value.get<VisualAnimationTransformList>()[operation_index];
+                if (operation.kind != previous_operation.kind || operation.values.size() != previous_operation.values.size())
+                    return false;
+            }
+        }
+    }
+    return true;
+}
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Compositor::VisualAnimationEasing::LinearPoint const& point)
+{
+    TRY(encoder.encode(point.input));
+    TRY(encoder.encode(point.output));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Compositor::VisualAnimationEasing::LinearPoint> decode(Decoder& decoder)
+{
+    return Web::Compositor::VisualAnimationEasing::LinearPoint {
+        .input = TRY(decoder.decode<double>()),
+        .output = TRY(decoder.decode<double>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Compositor::VisualAnimationEasing const& easing)
+{
+    TRY(encoder.encode(easing.kind));
+    TRY(encoder.encode(easing.linear_points));
+    TRY(encoder.encode(easing.x1));
+    TRY(encoder.encode(easing.y1));
+    TRY(encoder.encode(easing.x2));
+    TRY(encoder.encode(easing.y2));
+    TRY(encoder.encode(easing.interval_count));
+    TRY(encoder.encode(easing.step_position));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Compositor::VisualAnimationEasing> decode(Decoder& decoder)
+{
+    return Web::Compositor::VisualAnimationEasing {
+        .kind = TRY(decoder.decode<Web::Compositor::VisualAnimationEasing::Kind>()),
+        .linear_points = TRY(decoder.decode<Vector<Web::Compositor::VisualAnimationEasing::LinearPoint>>()),
+        .x1 = TRY(decoder.decode<double>()),
+        .y1 = TRY(decoder.decode<double>()),
+        .x2 = TRY(decoder.decode<double>()),
+        .y2 = TRY(decoder.decode<double>()),
+        .interval_count = TRY(decoder.decode<i32>()),
+        .step_position = TRY(decoder.decode<u8>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Compositor::VisualAnimationTransformOperation const& operation)
+{
+    TRY(encoder.encode(operation.kind));
+    TRY(encoder.encode(operation.values));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Compositor::VisualAnimationTransformOperation> decode(Decoder& decoder)
+{
+    return Web::Compositor::VisualAnimationTransformOperation {
+        .kind = TRY(decoder.decode<Web::Compositor::VisualAnimationTransformOperationKind>()),
+        .values = TRY(decoder.decode<Vector<float>>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Compositor::VisualAnimationKeyframe const& keyframe)
+{
+    TRY(encoder.encode(keyframe.offset));
+    TRY(encoder.encode(keyframe.easing));
+    TRY(encoder.encode(keyframe.value));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Compositor::VisualAnimationKeyframe> decode(Decoder& decoder)
+{
+    return Web::Compositor::VisualAnimationKeyframe {
+        .offset = TRY(decoder.decode<double>()),
+        .easing = TRY(decoder.decode<Web::Compositor::VisualAnimationEasing>()),
+        .value = TRY(decoder.decode<Web::Compositor::VisualAnimationValue>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Compositor::VisualAnimation const& animation)
+{
+    TRY(encoder.encode(animation.target_kind));
+    TRY(encoder.encode(animation.visual_context_node_indices));
+    TRY(encoder.encode(animation.monotonic_time_at_anchor_ns));
+    TRY(encoder.encode(animation.local_time_at_anchor_ms));
+    TRY(encoder.encode(animation.playback_rate));
+    TRY(encoder.encode(animation.start_delay_ms));
+    TRY(encoder.encode(animation.iteration_duration_ms));
+    TRY(encoder.encode(animation.iteration_start));
+    TRY(encoder.encode(animation.playback_direction));
+    TRY(encoder.encode(animation.easing));
+    TRY(encoder.encode(animation.keyframes));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Compositor::VisualAnimation> decode(Decoder& decoder)
+{
+    return Web::Compositor::VisualAnimation {
+        .target_kind = TRY(decoder.decode<Web::Compositor::VisualAnimation::TargetKind>()),
+        .visual_context_node_indices = TRY(decoder.decode<Vector<u32>>()),
+        .monotonic_time_at_anchor_ns = TRY(decoder.decode<i64>()),
+        .local_time_at_anchor_ms = TRY(decoder.decode<double>()),
+        .playback_rate = TRY(decoder.decode<double>()),
+        .start_delay_ms = TRY(decoder.decode<double>()),
+        .iteration_duration_ms = TRY(decoder.decode<double>()),
+        .iteration_start = TRY(decoder.decode<double>()),
+        .playback_direction = TRY(decoder.decode<Web::Compositor::VisualAnimationPlaybackDirection>()),
+        .easing = TRY(decoder.decode<Web::Compositor::VisualAnimationEasing>()),
+        .keyframes = TRY(decoder.decode<Vector<Web::Compositor::VisualAnimationKeyframe>>()),
+    };
+}
+
+}

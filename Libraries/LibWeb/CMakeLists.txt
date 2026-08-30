@@ -37,6 +37,7 @@ set(SOURCES
     Compositor/CompositorHost.cpp
     Compositor/SmoothScrollAnimation.cpp
     Compositor/Types.cpp
+    Compositor/VisualAnimation.cpp
     Compression/CompressionStream.cpp
     Compression/DecompressionStream.cpp
     ContentSecurityPolicy/BlockingAlgorithms.cpp
