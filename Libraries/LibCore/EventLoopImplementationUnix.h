@@ -34,6 +34,7 @@ public:
 
 private:
     void dispatch_signal(int signal_number);
+    void dispatch_pending_signals();
     static void handle_signal(int signal_number);
 };
 

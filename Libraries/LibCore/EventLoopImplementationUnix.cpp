@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericShorthands.h>
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Singleton.h>
@@ -22,10 +23,16 @@
 #include <LibSync/Once.h>
 #include <LibSync/RWLock.h>
 #include <pthread.h>
+#include <signal.h>
 #include <sys/select.h>
 #include <unistd.h>
 
 namespace Core {
+
+// Signals remain bound to the first event loop that registers a handler.
+static Atomic<int> s_signal_wake_pipe_write_fd { -1 };
+static Atomic<pid_t> s_signal_wake_pipe_pid { 0 };
+static Atomic<unsigned> s_pending_signal_counts[NSIG];
 
 namespace {
 
@@ -144,9 +151,8 @@ struct ThreadData {
     ThreadData()
     {
         thread_id = pthread_self();
-        pid = getpid();
 
-        auto result = Core::System::pipe2(O_CLOEXEC);
+        auto result = Core::System::pipe2(O_CLOEXEC | O_NONBLOCK);
         if (result.is_error()) {
             warnln("\033[31;1mFailed to create event loop pipe:\033[0m {}", result.error());
             VERIFY_NOT_REACHED();
@@ -161,8 +167,11 @@ struct ThreadData {
 
     ~ThreadData()
     {
-        close(wake_pipe_fds[0]);
-        close(wake_pipe_fds[1]);
+        // Keep signal pipes open so an in-flight handler cannot write to a reused descriptor.
+        if (!wake_pipe_is_signal_target) {
+            close(wake_pipe_fds[0]);
+            close(wake_pipe_fds[1]);
+        }
 
         Sync::RWLockLocker<Sync::LockMode::Write> locker(thread_data_lock());
         thread_data().remove(thread_id);
@@ -178,10 +187,9 @@ struct ThreadData {
     Vector<pollfd, 32> poll_fds;
 
     // The wake pipe is used to notify another event loop that someone has called wake(), or a signal has been received.
-    // wake() writes 0i32 into the pipe, signals write the signal number (guaranteed non-zero).
     Array<int, 2> wake_pipe_fds { -1, -1 };
+    bool wake_pipe_is_signal_target { false };
 
-    pid_t pid { 0 };
     pthread_t thread_id { 0 };
 };
 
@@ -227,10 +235,11 @@ void EventLoopImplementationUnix::wake()
 {
     int wake_event = 0;
     auto result = Core::System::write(m_wake_pipe_write_fd, { &wake_event, sizeof(wake_event) });
-    // EBADF here just indicates that the ThreadData is destroyed, so we must be exiting the thread.
-    // Ignore it.
-    if (result.is_error() && result.error().code() == EBADF)
-        return;
+    if (result.is_error()) {
+        // EBADF means the thread data is gone. EAGAIN means a pending event already fills the pipe.
+        if (first_is_one_of(result.error().code(), EBADF, EAGAIN))
+            return;
+    }
     MUST(move(result));
 }
 
@@ -239,7 +248,6 @@ void EventLoopManagerUnix::wait_for_events(EventLoopImplementation::PumpMode mod
     auto& thread_data = ThreadData::the();
     Sync::MutexLocker locker(thread_data.mutex);
 
-retry:
     bool has_pending_events = ThreadEventQueue::current().has_pending_events();
 
     auto time_at_iteration_start = MonotonicTime::now_coarse();
@@ -292,17 +300,8 @@ try_select_again:
             VERIFY_NOT_REACHED();
         }
         VERIFY(nread > 0);
-        bool wake_requested = false;
-        int event_count = nread / sizeof(wake_events[0]);
-        for (int i = 0; i < event_count; i++) {
-            if (wake_events[i] != 0)
-                dispatch_signal(wake_events[i]);
-            else
-                wake_requested = true;
-        }
-
-        if (!wake_requested && nread == sizeof(wake_events))
-            goto retry;
+        if (thread_data.wake_pipe_fds[1] == s_signal_wake_pipe_write_fd.load(AK::MemoryOrder::memory_order_acquire))
+            dispatch_pending_signals();
     }
 
     if (error_or_marked_fd_count.value() != 0) {
@@ -405,6 +404,15 @@ void EventLoopManagerUnix::dispatch_signal(int signal_number)
     }
 }
 
+void EventLoopManagerUnix::dispatch_pending_signals()
+{
+    for (int signal_number = 1; signal_number < NSIG; ++signal_number) {
+        auto pending_count = s_pending_signal_counts[signal_number].exchange(0, AK::MemoryOrder::memory_order_acq_rel);
+        for (unsigned i = 0; i < pending_count; ++i)
+            dispatch_signal(signal_number);
+    }
+}
+
 SignalHandlers::SignalHandlers(int signal_number, void (*handle_signal)(int))
     : m_signal_number(signal_number)
     , m_original_handler(signal(signal_number, handle_signal))
@@ -469,33 +477,47 @@ bool SignalHandlers::remove(int handler_id)
 
 void EventLoopManagerUnix::handle_signal(int signal_number)
 {
-    VERIFY(signal_number != 0);
+    VERIFY(signal_number > 0 && signal_number < NSIG);
 
-    // Use the thread-local directly instead of ThreadData::the() to avoid
-    // taking a write lock on thread_data_lock(). Signal handlers must not
-    // acquire locks, as we may already be holding one on this thread.
-    if (!s_this_thread_data)
+    auto saved_errno = errno;
+
+    auto current_pid = getpid();
+    if (current_pid != s_signal_wake_pipe_pid.load(AK::MemoryOrder::memory_order_acquire)) {
+        // Do not forward a signal to the parent process's pipe between fork() and exec().
+        errno = saved_errno;
         return;
-    auto& thread_data = *s_this_thread_data;
-
-    // We MUST check if the current pid still matches, because there
-    // is a window between fork() and exec() where a signal delivered
-    // to our fork could be inadvertently routed to the parent process!
-    if (getpid() == thread_data.pid) {
-        int nwritten = write(thread_data.wake_pipe_fds[1], &signal_number, sizeof(signal_number));
-        if (nwritten < 0) {
-            perror("EventLoopImplementationUnix::register_signal: write");
-            VERIFY_NOT_REACHED();
-        }
-    } else {
-        // We're a fork who received a signal, reset thread_data.pid.
-        thread_data.pid = getpid();
     }
+
+    s_pending_signal_counts[signal_number].fetch_add(1, AK::MemoryOrder::memory_order_release);
+
+    auto wake_pipe_write_fd = s_signal_wake_pipe_write_fd.load(AK::MemoryOrder::memory_order_acquire);
+    if (wake_pipe_write_fd >= 0) {
+        int wake_event = 0;
+        while (write(wake_pipe_write_fd, &wake_event, sizeof(wake_event)) < 0 && errno == EINTR) {
+        }
+    }
+
+    errno = saved_errno;
 }
 
 int EventLoopManagerUnix::register_signal(int signal_number, Function<void(int)> handler)
 {
-    VERIFY(signal_number != 0);
+    VERIFY(signal_number > 0 && signal_number < NSIG);
+
+    auto& thread_data = ThreadData::the();
+    auto current_pid = getpid();
+    if (s_signal_wake_pipe_pid.load(AK::MemoryOrder::memory_order_acquire) != current_pid) {
+        s_signal_wake_pipe_write_fd.store(-1, AK::MemoryOrder::memory_order_release);
+        for (auto& pending_signal_count : s_pending_signal_counts)
+            pending_signal_count.store(0, AK::MemoryOrder::memory_order_relaxed);
+        thread_data.wake_pipe_is_signal_target = true;
+        s_signal_wake_pipe_write_fd.store(thread_data.wake_pipe_fds[1], AK::MemoryOrder::memory_order_release);
+        s_signal_wake_pipe_pid.store(current_pid, AK::MemoryOrder::memory_order_release);
+    } else {
+        // Signal handlers are process-wide, so they must share one event loop.
+        VERIFY(s_signal_wake_pipe_write_fd.load(AK::MemoryOrder::memory_order_acquire) == thread_data.wake_pipe_fds[1]);
+    }
+
     auto& info = *signals_info();
     auto handlers = info.signal_handlers.find(signal_number);
     if (handlers == info.signal_handlers.end()) {

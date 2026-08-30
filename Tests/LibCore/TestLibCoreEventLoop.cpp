@@ -13,6 +13,12 @@
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 
+#if !defined(AK_OS_WINDOWS)
+#    include <LibCore/System.h>
+#    include <pthread.h>
+#    include <signal.h>
+#endif
+
 TEST_CASE(test_poll_for_events)
 {
     Core::EventLoop event_loop;
@@ -170,3 +176,54 @@ TEST_CASE(stopped_timer_does_not_fire)
     loop.exec();
     EXPECT_EQ(stopped_count, 0);
 }
+
+#if !defined(AK_OS_WINDOWS)
+// Signals delivered to threads without event-loop state must wake the registering event loop.
+TEST_CASE(signal_delivered_on_thread_without_event_loop)
+{
+    Core::EventLoop event_loop;
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA bool handled = false;
+    auto handler_id = Core::EventLoop::register_signal(SIGUSR1, [&](int) { handled = true; });
+
+    auto thread = Threading::Thread::construct("SignalRaiser"sv, []() -> intptr_t {
+        VERIFY(pthread_kill(pthread_self(), SIGUSR1) == 0);
+        return 0;
+    });
+    thread->start();
+    (void)thread->join();
+
+    for (int i = 0; i < 400 && !handled; ++i) {
+        (void)event_loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+        MUST(Core::System::sleep_ms(5));
+    }
+
+    EXPECT(handled);
+    Core::EventLoop::unregister_signal(handler_id);
+}
+
+TEST_CASE(repeated_signal_deliveries_are_preserved)
+{
+    Core::EventLoop event_loop;
+
+    static constexpr int signal_count = 4;
+    IGNORE_USE_IN_ESCAPING_LAMBDA int handled_count = 0;
+    auto handler_id = Core::EventLoop::register_signal(SIGUSR2, [&](int) { ++handled_count; });
+
+    auto thread = Threading::Thread::construct("SignalRaiser"sv, []() -> intptr_t {
+        for (int i = 0; i < signal_count; ++i)
+            VERIFY(pthread_kill(pthread_self(), SIGUSR2) == 0);
+        return 0;
+    });
+    thread->start();
+    MUST(thread->join());
+
+    for (int i = 0; i < 400 && handled_count < signal_count; ++i) {
+        (void)event_loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+        MUST(Core::System::sleep_ms(5));
+    }
+
+    EXPECT_EQ(handled_count, signal_count);
+    Core::EventLoop::unregister_signal(handler_id);
+}
+#endif
