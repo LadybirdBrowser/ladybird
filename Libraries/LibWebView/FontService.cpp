@@ -22,8 +22,12 @@ NonnullOwnPtr<FontService> FontService::create()
 
 FontService::FontService()
     : m_worker(Threading::Thread::construct("Font catalog"sv, [this] {
-        if (auto result = build_catalog(); result.is_error())
-            m_build_error = MUST(String::formatted("{}", result.error()));
+        if (auto result = build_catalog(); result.is_error()) {
+            dbgln("Unable to discover system fonts: {}. Using an empty catalog.", result.error());
+            m_font_sources.clear();
+            if (auto fallback_result = build_empty_catalog(); fallback_result.is_error())
+                m_build_error = MUST(String::formatted("{}", fallback_result.error()));
+        }
         return 0;
     }))
 {
@@ -95,6 +99,15 @@ ErrorOr<void> FontService::build_catalog()
             return callback_error.release_value();
     }
 
+    auto serialized = TRY(builder->serialize());
+    m_catalog_size = serialized.size();
+    m_catalog_file = TRY(create_immutable_font_data(serialized.bytes()));
+    return {};
+}
+
+ErrorOr<void> FontService::build_empty_catalog()
+{
+    auto builder = TRY(Gfx::FontCatalogBuilder::create(m_generation));
     auto serialized = TRY(builder->serialize());
     m_catalog_size = serialized.size();
     m_catalog_file = TRY(create_immutable_font_data(serialized.bytes()));

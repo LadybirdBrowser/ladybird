@@ -53,6 +53,7 @@ private:
     };
 
     ErrorOr<void> build_catalog();
+    ErrorOr<void> build_empty_catalog();
     ErrorOr<void> wait_until_ready();
     ErrorOr<IPC::File> create_immutable_font_data(ReadonlyBytes);
     Gfx::BrokeredFont materialize_typeface(NonnullRefPtr<Gfx::TypefaceSkia>, String cache_key);
