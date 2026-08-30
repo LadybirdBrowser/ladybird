@@ -6263,8 +6263,8 @@ Utf16FlyString const& Element::html_uppercased_qualified_name() const
 
 void Element::play_or_cancel_animations_after_display_property_change()
 {
-    // OPTIMIZATION: We don't care about elements with no CSS defined animations
-    if (!has_css_defined_animations())
+    // OPTIMIZATION: We don't care about elements with no CSS animations or transitions.
+    if (!has_css_animations_or_transitions())
         return;
 
     // OPTIMIZATION: We don't care about animations in disconnected subtrees.
@@ -6286,21 +6286,22 @@ void Element::play_or_cancel_animations_after_display_property_change()
 
     auto has_inclusive_ancestor_with_display_none_ignoring_animations = this->has_inclusive_ancestor_with_display_none_ignoring_animations();
 
+    if (has_inclusive_ancestor_with_display_none_ignoring_animations) {
+        cancel_css_animations_and_transitions();
+        return;
+    }
+
     auto play_or_cancel_depending_on_display = [&](Vector<GC::Ref<CSS::CSSAnimation>> const& animations) {
         for (auto& animation : animations) {
-            if (has_inclusive_ancestor_with_display_none_ignoring_animations) {
-                animation->cancel();
-            } else {
-                // NOTE: It is safe to assume this has a value as it is set when creating a CSS defined animation
-                auto play_state = animation->last_css_animation_play_state().value();
+            // NOTE: It is safe to assume this has a value as it is set when creating a CSS defined animation
+            auto play_state = animation->last_css_animation_play_state().value();
 
-                if (play_state == CSS::AnimationPlayState::Running) {
-                    HTML::TemporaryExecutionContext context(document().relevant_settings_object());
-                    animation->play_from_css();
-                } else if (play_state == CSS::AnimationPlayState::Paused) {
-                    HTML::TemporaryExecutionContext context(document().relevant_settings_object());
-                    animation->pause_from_css();
-                }
+            if (play_state == CSS::AnimationPlayState::Running) {
+                HTML::TemporaryExecutionContext context(document().relevant_settings_object());
+                animation->play_from_css();
+            } else if (play_state == CSS::AnimationPlayState::Paused) {
+                HTML::TemporaryExecutionContext context(document().relevant_settings_object());
+                animation->pause_from_css();
             }
         }
     };

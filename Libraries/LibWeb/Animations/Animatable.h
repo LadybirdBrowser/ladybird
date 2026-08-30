@@ -62,8 +62,10 @@ public:
     void associate_with_animation(GC::Ref<Animation>);
     void disassociate_with_animation(GC::Ref<Animation>);
     void on_document_changed(DOM::Document& old_document, DOM::Document& new_document);
+    void cancel_css_animations_and_transitions();
 
     bool has_css_defined_animations() const;
+    bool has_css_animations_or_transitions() const;
     Vector<GC::Ref<CSS::CSSAnimation>> const* css_defined_animations(Optional<CSS::PseudoElement>);
     void set_css_defined_animations(Optional<CSS::PseudoElement>, Vector<GC::Ref<CSS::CSSAnimation>>&&);
 

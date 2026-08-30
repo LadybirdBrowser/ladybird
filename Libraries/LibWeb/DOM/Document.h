@@ -1005,6 +1005,7 @@ public:
     void disassociate_with_timeline(GC::Ref<Animations::AnimationTimeline>);
     void associate_with_animation(GC::Ref<Animations::Animation>);
     void disassociate_with_animation(GC::Ref<Animations::Animation>);
+    size_t associated_animation_count() const;
 
     struct PendingAnimationEvent {
         GC::Ref<DOM::Event> event;

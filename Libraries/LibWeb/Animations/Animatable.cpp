@@ -196,6 +196,8 @@ bool Animatable::has_relevant_animations() const
 void Animatable::associate_with_animation(GC::Ref<Animation> animation)
 {
     auto& impl = ensure_impl();
+    if (impl.associated_animations.contains_slow(animation))
+        return;
     impl.associated_animations.append(animation);
     impl.is_sorted_by_composite_order = false;
 
@@ -219,6 +221,36 @@ void Animatable::on_document_changed(DOM::Document& old_document, DOM::Document&
     for (auto const& animation : m_impl->associated_animations) {
         old_document.disassociate_with_animation(animation);
         new_document.associate_with_animation(animation);
+    }
+}
+
+void Animatable::cancel_css_animations_and_transitions()
+{
+    if (!m_impl)
+        return;
+
+    GC::RootVector<GC::Ref<Animation>> animations_to_cancel;
+    for (auto& animations : m_impl->css_defined_animations) {
+        if (!animations)
+            continue;
+        for (auto& animation : *animations)
+            animations_to_cancel.append(animation);
+        animations->clear();
+    }
+    for (auto& transition : m_impl->transitions) {
+        if (!transition)
+            continue;
+        for (auto& animation : transition->associated_transitions)
+            animations_to_cancel.append(animation.value);
+        transition->associated_transitions.clear();
+        transition->transition_attribute_indices.clear();
+        transition->transition_attributes.clear();
+    }
+    m_impl->has_css_defined_animations = false;
+
+    for (auto& animation : animations_to_cancel) {
+        animation->cancel(Animation::ShouldInvalidate::No);
+        animation->schedule_disassociation_from_target_after_css_cancellation();
     }
 }
 
@@ -337,6 +369,19 @@ bool Animatable::has_css_defined_animations() const
         return false;
 
     return m_impl->has_css_defined_animations;
+}
+
+bool Animatable::has_css_animations_or_transitions() const
+{
+    if (!m_impl)
+        return false;
+    if (m_impl->has_css_defined_animations)
+        return true;
+    for (auto const& transition : m_impl->transitions) {
+        if (transition && !transition->associated_transitions.is_empty())
+            return true;
+    }
+    return false;
 }
 
 Vector<GC::Ref<CSS::CSSAnimation>> const* Animatable::css_defined_animations(Optional<CSS::PseudoElement> pseudo_element)

@@ -140,6 +140,9 @@ public:
 
     Optional<DOM::AbstractElement> owning_element() const { return m_owning_element; }
     void set_owning_element(Optional<DOM::AbstractElement>&& value) { m_owning_element = move(value); }
+    void schedule_disassociation_from_target_after_css_cancellation() { m_css_cancellation_disassociation_pending = true; }
+    bool css_cancellation_disassociation_pending() const { return m_css_cancellation_disassociation_pending; }
+    void disassociate_from_target_after_css_cancellation();
     void update_style_if_needed() const;
 
     virtual AnimationClass animation_class() const { return AnimationClass::None; }
@@ -253,6 +256,8 @@ private:
 
     // https://www.w3.org/TR/css-animations-2/#owning-element-section
     Optional<DOM::AbstractElement> m_owning_element;
+    bool m_css_cancellation_disassociation_pending { false };
+    bool m_needs_target_reassociation { false };
 
     Optional<HTML::TaskID> m_pending_finish_microtask_id;
 
