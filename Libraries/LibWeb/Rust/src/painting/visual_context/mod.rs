@@ -479,6 +479,43 @@ pub fn allocate_tree_version() -> u64 {
     NEXT_TREE_VERSION.fetch_add(1, Ordering::Relaxed)
 }
 
+pub fn resolve_leaf_to_context_matrices(
+    contexts: &SortingContexts,
+    parent_by_node: &[SpatialNodeIndex],
+    local_matrix_by_node: &[FloatMatrix4x4],
+    flattens_inherited_transform_by_node: &[bool],
+) -> Vec<FloatMatrix4x4> {
+    if contexts.is_empty() {
+        return Vec::new();
+    }
+    let mut matrices = Vec::with_capacity(local_matrix_by_node.len());
+    for (index, local_matrix) in local_matrix_by_node.iter().enumerate() {
+        let context = contexts.context_by_node[index];
+        if context.0 as usize == index || index == 0 {
+            matrices.push(FloatMatrix4x4::identity());
+            continue;
+        }
+        let parent = parent_by_node[index].0 as usize;
+        if parent == context.0 as usize {
+            matrices.push(*local_matrix);
+            continue;
+        }
+        let mut base = matrices[parent];
+        if flattens_inherited_transform_by_node[index] {
+            base = base.flattened();
+        }
+        if context != NO_SORTING_CONTEXT && contexts.context_by_node[parent] != context {
+            let root_matrix = matrices[context.0 as usize];
+            base = root_matrix
+                .inverse()
+                .unwrap_or(FloatMatrix4x4::identity())
+                .multiplied(base);
+        }
+        matrices.push(base.multiplied(*local_matrix));
+    }
+    matrices
+}
+
 #[derive(Default)]
 pub struct VisualContextState {
     pub tree: Option<Rc<VisualContextTree>>,
@@ -1094,5 +1131,42 @@ mod tests {
             tree.plane_depth_at_point_for_hit_test(plane, FloatPoint { x: 25.0, y: 50.0 }, &[]),
             None
         );
+    }
+
+    fn resolve_matrices(parents: &[u32], roots: &[Option<u32>], locals: &[FloatMatrix4x4]) -> Vec<FloatMatrix4x4> {
+        let contexts = resolve_sorting_contexts_over_nodes(parents.len(), |index| {
+            (SpatialNodeIndex(parents[index]), roots[index].map(SpatialNodeIndex))
+        });
+        let parent_by_node: Vec<SpatialNodeIndex> = parents.iter().map(|parent| SpatialNodeIndex(*parent)).collect();
+        resolve_leaf_to_context_matrices(&contexts, &parent_by_node, locals, &vec![false; parents.len()])
+    }
+
+    #[test]
+    fn leaf_to_context_matrices_compose_from_the_context_root() {
+        let locals = [
+            FloatMatrix4x4::identity(),
+            translation_matrix(1.0, 0.0, 0.0),
+            translation_matrix(0.0, 2.0, 0.0),
+            translation_matrix(0.0, 0.0, 3.0),
+        ];
+        let matrices = resolve_matrices(&[0, 0, 1, 2], &[None, None, Some(1), None], &locals);
+        assert_eq!(matrices[1], FloatMatrix4x4::identity());
+        assert_eq!(matrices[2], locals[2]);
+        assert_eq!(matrices[3], locals[2].multiplied(locals[3]));
+    }
+
+    #[test]
+    fn leaf_to_context_matrices_rebase_through_a_nested_context_root() {
+        let locals = [
+            FloatMatrix4x4::identity(),
+            translation_matrix(1.0, 0.0, 0.0),
+            translation_matrix(0.0, 2.0, 0.0),
+            translation_matrix(0.0, 0.0, 3.0),
+            translation_matrix(4.0, 0.0, 0.0),
+        ];
+        let matrices = resolve_matrices(&[0, 0, 1, 2, 3], &[None, None, Some(1), None, Some(2)], &locals);
+        assert_eq!(matrices[2], locals[2]);
+        assert_eq!(matrices[3], locals[2].multiplied(locals[3]));
+        assert_eq!(matrices[4], locals[3].multiplied(locals[4]));
     }
 }
