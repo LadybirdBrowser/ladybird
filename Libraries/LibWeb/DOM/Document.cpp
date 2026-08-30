@@ -7675,6 +7675,15 @@ static RefPtr<CSS::StyleValue const> resolved_compositor_animation_style_value(C
     return style_value->absolutized(computation_context);
 }
 
+static bool is_transform_family_property(CSS::PropertyID property_id)
+{
+    return first_is_one_of(property_id,
+        CSS::PropertyID::Translate,
+        CSS::PropertyID::Rotate,
+        CSS::PropertyID::Scale,
+        CSS::PropertyID::Transform);
+}
+
 static Optional<Compositor::VisualAnimationTransformList> compositor_transform_animation_value(CSS::PropertyID property_id, CSS::StyleValue const& style_value, Layout::Node const& layout_node, float device_pixels_per_css_pixel)
 {
     Vector<NonnullRefPtr<CSS::TransformationStyleValue const>> transformations;
@@ -7728,13 +7737,14 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
     auto current_time = animation->current_time();
     if (!current_time.has_value() || current_time->type != Animations::TimeValue::Type::Milliseconds)
         return {};
-    if (effect.target_properties().size() != 1)
+    if (effect.target_properties().is_empty())
         return {};
 
-    auto property_id = *effect.target_properties().begin();
-    bool targets_opacity = target_kind == Compositor::VisualAnimation::TargetKind::Opacity && property_id == CSS::PropertyID::Opacity;
-    bool targets_transform = target_kind == Compositor::VisualAnimation::TargetKind::Transform && property_id == CSS::PropertyID::Transform;
+    bool targets_opacity = target_kind == Compositor::VisualAnimation::TargetKind::Opacity && effect.target_properties().contains(CSS::PropertyID::Opacity);
+    bool targets_transform = target_kind == Compositor::VisualAnimation::TargetKind::Transform && any_of(effect.target_properties(), is_transform_family_property);
     if (!targets_opacity && !targets_transform)
+        return {};
+    if (any_of(effect.target_properties(), [&](auto property_id) { return property_id != CSS::PropertyID::Opacity && !is_transform_family_property(property_id); }))
         return {};
     auto target = effect.target_abstract_element();
     if (!target.has_value() || target->element().namespace_uri() == Namespace::SVG)
@@ -7747,9 +7757,10 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
     if (!layout_node)
         return {};
     if (targets_transform) {
-        if (layout_node->has_translate()
-            || layout_node->has_rotate()
-            || layout_node->has_scale()
+        if ((!effect.target_properties().contains(CSS::PropertyID::Translate) && layout_node->has_translate())
+            || (!effect.target_properties().contains(CSS::PropertyID::Rotate) && layout_node->has_rotate())
+            || (!effect.target_properties().contains(CSS::PropertyID::Scale) && layout_node->has_scale())
+            || (!effect.target_properties().contains(CSS::PropertyID::Transform) && layout_node->has_transformations())
             || layout_node->transform_origin().z.to_px(CSSPixels { 0 }) != CSSPixels { 0 })
             return {};
     }
@@ -7998,6 +8009,7 @@ void Document::update_compositor_animations()
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_compositor_driven_effects;
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_published_effects;
     HashMap<DOM::AbstractElement, HashMap<CSS::PropertyID, size_t>> competing_effect_counts;
+    HashMap<DOM::AbstractElement, size_t> transform_family_effect_counts;
     Optional<double> compositor_animation_wakeup_delay_ms;
     for (auto& animation : m_associated_animations) {
         if (!animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
@@ -8015,9 +8027,14 @@ void Document::update_compositor_animations()
         if (!target.has_value())
             continue;
         auto& property_counts = competing_effect_counts.ensure(*target);
+        bool targets_transform_family = false;
         for (auto property_id : effect.target_properties()) {
             ++property_counts.ensure(property_id, [] { return 0; });
+            if (is_transform_family_property(property_id))
+                targets_transform_family = true;
         }
+        if (targets_transform_family)
+            ++transform_family_effect_counts.ensure(*target, [] { return 0; });
     }
 
     bool requested_withdrawn_effect_sample = false;
@@ -8053,23 +8070,18 @@ void Document::update_compositor_animations()
             continue;
         if (animation.is_idle() || !effect.is_in_effect())
             continue;
-        if (effect.target_properties().size() != 1)
-            continue;
-        auto property_id = *effect.target_properties().begin();
-        bool targets_opacity = property_id == CSS::PropertyID::Opacity;
-        bool targets_transform = property_id == CSS::PropertyID::Transform;
-        if (!targets_opacity && !targets_transform)
+        bool targets_opacity = effect.target_properties().contains(CSS::PropertyID::Opacity);
+        bool targets_transform = any_of(effect.target_properties(), is_transform_family_property);
+        bool targets_unsupported_property = any_of(effect.target_properties(), [&](auto property_id) { return property_id != CSS::PropertyID::Opacity && !is_transform_family_property(property_id); });
+        if (targets_unsupported_property)
             continue;
         if (targets_opacity) {
             auto property_counts = competing_effect_counts.get(*abstract_target);
             if (!property_counts.has_value() || property_counts->get(CSS::PropertyID::Opacity).value_or(0) != 1)
                 continue;
         }
-        if (targets_transform) {
-            auto property_counts = competing_effect_counts.get(*abstract_target);
-            if (!property_counts.has_value() || property_counts->get(CSS::PropertyID::Transform).value_or(0) != 1)
-                continue;
-        }
+        if (targets_transform && transform_family_effect_counts.get(*abstract_target).value_or(0) != 1)
+            continue;
 
         Vector<Compositor::VisualAnimation> effect_visual_animations;
         bool opacity_was_handed_off = !targets_opacity;

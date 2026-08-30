@@ -16,6 +16,21 @@
         to { transform: translateX(calc(100vw + 100% + var(--distance))); }
     }
 
+    @keyframes individual-move {
+        from { translate: 0px; rotate: 0deg; }
+        to { translate: 100px; rotate: 360deg; }
+    }
+
+    @keyframes individual-translate {
+        from { translate: 0px; }
+        to { translate: 100px; }
+    }
+
+    @keyframes individual-rotate {
+        from { rotate: 0deg; }
+        to { rotate: 360deg; }
+    }
+
     @keyframes visual-node-churn {
         from { display: block; }
         to { display: none; }
@@ -51,17 +66,35 @@
         animation: relative-move 1s linear infinite;
     }
 
+    #individual-transform {
+        width: 20px;
+        height: 20px;
+        animation: individual-move 1s linear infinite;
+    }
+
+    #competing-transform-effects {
+        width: 20px;
+        height: 20px;
+        animation: individual-translate 1s linear infinite, individual-rotate 1s linear infinite;
+    }
 </style>
 <div id="visual-node-churn"></div>
 <div id="opacity"></div>
 <div id="transform"></div>
 <div id="relative-transform"></div>
+<div id="individual-transform"></div>
+<div id="competing-transform-effects"></div>
 <script>
     asyncTest(async done => {
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
 
         const initialCounters = internals.getStyleInvalidationCounters();
+
+        for (const animation of document.querySelector("#competing-transform-effects").getAnimations())
+            animation.cancel();
+        for (let i = 0; i < 2; ++i)
+            await new Promise(requestAnimationFrame);
 
         internals.resetStyleInvalidationCounters();
         document.querySelector("#relative-transform").style.width = "40px";

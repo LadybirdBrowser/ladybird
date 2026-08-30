@@ -1,4 +1,4 @@
-compositor visual animations: 3
+compositor visual animations: 4
 reference box resize updates compositor animation: true
 reference box resize resolves keyframes: true
 style change resolves keyframes: true
