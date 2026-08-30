@@ -867,6 +867,7 @@ set(SOURCES
     Painting/Scrolling.cpp
     Painting/ScrollSnap.cpp
     Painting/ScrollState.cpp
+    Painting/VisualContextTreeTestBuilder.cpp
     Painting/SVGMasking.cpp
     PerformanceTimeline/EntryTypes.cpp
     PerformanceTimeline/EventNames.cpp

@@ -606,6 +606,11 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM
 
 }
 
+AccumulatedVisualContextTree AccumulatedVisualContextTree::materialize_from_rust(void const* retained_tree)
+{
+    return materialize_rust_visual_context_tree(retained_tree);
+}
+
 static void* layout_arena_handle(DOM::Document const& document)
 {
     return const_cast<DOM::Document&>(document).layout_node_arena().handle();
@@ -625,7 +630,7 @@ void const* retain_rust_main_visual_context_tree(DOM::Document& document)
 
 AccumulatedVisualContextTree materialize_rust_main_visual_context_tree(DOM::Document& document)
 {
-    return materialize_rust_visual_context_tree(retain_rust_main_visual_context_tree(document));
+    return AccumulatedVisualContextTree::materialize_from_rust(retain_rust_main_visual_context_tree(document));
 }
 
 void patch_rust_visual_context_nodes(DOM::Document& document, AccumulatedVisualContextTree& visual_context_tree, u32 spatial_begin, u32 spatial_end, u32 frame_begin, u32 frame_end)
@@ -1327,7 +1332,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             return style;
         },
         .materialize_visual_context_tree = [](void*, void const* retained_tree) -> void* {
-            return new AccumulatedVisualContextTree(materialize_rust_visual_context_tree(retained_tree));
+            return new AccumulatedVisualContextTree(AccumulatedVisualContextTree::materialize_from_rust(retained_tree));
         },
         .nested_display_list_from_tree = [](void* context_pointer, Layout::RustFFI::FfiRecordedDisplayList recorded, void* tree_handle, u64 const* mask_pairs, size_t mask_pair_count) -> u64 {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
@@ -1547,7 +1552,7 @@ DisplayListResource record_image_paint_display_list(ImagePaint const& paint, Gfx
     Layout::RustFFI::ladybird_web_record_image_paint_display_list(&inputs, &recording_context,
         [](void* context, Layout::RustFFI::FfiRecordedDisplayList recorded, void const* retained_tree) {
             auto& recording_context = *static_cast<ImagePaintRecordingContext*>(context);
-            auto visual_context_tree = materialize_rust_visual_context_tree(retained_tree);
+            auto visual_context_tree = AccumulatedVisualContextTree::materialize_from_rust(retained_tree);
             auto display_list = display_list_from_rust_recording(visual_context_tree, recorded);
             recording_context.recorded_display_list = DisplayListResource { move(display_list), move(visual_context_tree) };
         });

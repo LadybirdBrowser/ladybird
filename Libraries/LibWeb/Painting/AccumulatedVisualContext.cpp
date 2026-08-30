@@ -35,48 +35,44 @@ bool ClipData::contains(Gfx::FloatPoint point) const
     return corner_radii.contains(point, rect);
 }
 
-static Atomic<u64> s_next_accumulated_visual_context_tree_version { 1 };
-
-static TransformData identity_visual_viewport_transform()
-{
-    return { Gfx::FloatMatrix4x4::identity(), { 0.f, 0.f } };
-}
-
-static u64 next_accumulated_visual_context_tree_version()
-{
-    return s_next_accumulated_visual_context_tree_version.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
-}
-
 // Whole-tree transform root: the visual viewport transform for document trees, the content
-// placement for nested display list trees, identity otherwise.
-AccumulatedVisualContextTree::AccumulatedVisualContextTree(u64 version, TransformData root_transform, bool root_is_visual_viewport)
-    : m_version(version)
-    , m_root_is_visual_viewport(root_is_visual_viewport)
+// placement for nested display list trees.
+AccumulatedVisualContextTree::AccumulatedVisualContextTree(TransformData root_transform, bool root_is_visual_viewport)
+    : m_root_is_visual_viewport(root_is_visual_viewport)
 {
     m_spatial_nodes.append({ move(root_transform), VISUAL_VIEWPORT_NODE_INDEX });
 }
 
-AccumulatedVisualContextTree::AccumulatedVisualContextTree(u64 version, Vector<SpatialNode>&& spatial_nodes, Vector<FrameNode>&& frame_nodes, bool root_is_visual_viewport)
-    : m_version(version)
-    , m_spatial_nodes(move(spatial_nodes))
-    , m_frame_nodes(move(frame_nodes))
-    , m_root_is_visual_viewport(root_is_visual_viewport)
-{
-}
-
-AccumulatedVisualContextTree AccumulatedVisualContextTree::create()
-{
-    return create(identity_visual_viewport_transform());
-}
-
 AccumulatedVisualContextTree AccumulatedVisualContextTree::create(TransformData visual_viewport_transform)
 {
-    return AccumulatedVisualContextTree { next_accumulated_visual_context_tree_version(), move(visual_viewport_transform), true };
+    return AccumulatedVisualContextTree { move(visual_viewport_transform), true };
 }
 
 AccumulatedVisualContextTree AccumulatedVisualContextTree::create_with_content_root(TransformData content_transform)
 {
-    return AccumulatedVisualContextTree { next_accumulated_visual_context_tree_version(), move(content_transform), false };
+    return AccumulatedVisualContextTree { move(content_transform), false };
+}
+
+ErrorOr<AccumulatedVisualContextTree> AccumulatedVisualContextTree::from_serialized_bytes(ReadonlyBytes bytes)
+{
+    auto const* retained_tree = Layout::RustFFI::visual_context_tree_deserialize(bytes.data(), bytes.size());
+    if (!retained_tree)
+        return Error::from_string_literal("Malformed visual context tree bytes");
+    return materialize_from_rust(retained_tree);
+}
+
+u64 AccumulatedVisualContextTree::version() const
+{
+    return Layout::RustFFI::visual_context_tree_version(m_rust_tree);
+}
+
+ByteBuffer AccumulatedVisualContextTree::serialize_to_bytes() const
+{
+    ByteBuffer bytes;
+    Layout::RustFFI::visual_context_tree_serialize(m_rust_tree, &bytes, [](void* sink, u8 const* data, size_t size) {
+        MUST(static_cast<ByteBuffer*>(sink)->try_append(data, size));
+    });
+    return bytes;
 }
 
 SpatialNodeIndex AccumulatedVisualContextTree::append_spatial(SpatialData data, SpatialNodeIndex parent)
@@ -130,8 +126,7 @@ void AccumulatedVisualContextTree::set_visual_viewport_transform(TransformData t
 }
 
 AccumulatedVisualContextTree::AccumulatedVisualContextTree(AccumulatedVisualContextTree const& other)
-    : m_version(other.m_version)
-    , m_rust_tree(other.m_rust_tree ? Layout::RustFFI::visual_context_tree_retain(other.m_rust_tree) : nullptr)
+    : m_rust_tree(other.m_rust_tree ? Layout::RustFFI::visual_context_tree_retain(other.m_rust_tree) : nullptr)
     , m_spatial_nodes(other.m_spatial_nodes)
     , m_frame_nodes(other.m_frame_nodes)
     , m_root_is_visual_viewport(other.m_root_is_visual_viewport)
@@ -144,7 +139,6 @@ AccumulatedVisualContextTree& AccumulatedVisualContextTree::operator=(Accumulate
     if (this == &other)
         return *this;
     adopt_rust_tree(other.m_rust_tree ? Layout::RustFFI::visual_context_tree_retain(other.m_rust_tree) : nullptr);
-    m_version = other.m_version;
     m_spatial_nodes = other.m_spatial_nodes;
     m_frame_nodes = other.m_frame_nodes;
     m_root_is_visual_viewport = other.m_root_is_visual_viewport;
@@ -153,8 +147,7 @@ AccumulatedVisualContextTree& AccumulatedVisualContextTree::operator=(Accumulate
 }
 
 AccumulatedVisualContextTree::AccumulatedVisualContextTree(AccumulatedVisualContextTree&& other)
-    : m_version(other.m_version)
-    , m_rust_tree(exchange(other.m_rust_tree, nullptr))
+    : m_rust_tree(exchange(other.m_rust_tree, nullptr))
     , m_spatial_nodes(move(other.m_spatial_nodes))
     , m_frame_nodes(move(other.m_frame_nodes))
     , m_root_is_visual_viewport(other.m_root_is_visual_viewport)
@@ -167,7 +160,6 @@ AccumulatedVisualContextTree& AccumulatedVisualContextTree::operator=(Accumulate
     if (this == &other)
         return *this;
     adopt_rust_tree(exchange(other.m_rust_tree, nullptr));
-    m_version = other.m_version;
     m_spatial_nodes = move(other.m_spatial_nodes);
     m_frame_nodes = move(other.m_frame_nodes);
     m_root_is_visual_viewport = other.m_root_is_visual_viewport;
@@ -184,8 +176,6 @@ void AccumulatedVisualContextTree::adopt_rust_tree(void const* retained_tree)
 {
     release_rust_tree();
     m_rust_tree = retained_tree;
-    if (m_rust_tree)
-        m_version = Layout::RustFFI::visual_context_tree_version(m_rust_tree);
 }
 
 void AccumulatedVisualContextTree::release_rust_tree()
@@ -817,289 +807,9 @@ void AccumulatedVisualContextTree::dump_frame_node(FrameNodeIndex index, StringB
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, Web::Painting::ScrollData const&)
-{
-    return {};
-}
-
-template<>
-ErrorOr<Web::Painting::ScrollData> decode(Decoder&)
-{
-    return Web::Painting::ScrollData {};
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Web::Painting::StickyData const& data)
-{
-    TRY(encoder.encode(data.scroller));
-    TRY(encoder.encode(data.parent_sticky));
-    TRY(encoder.encode(data.position_relative_to_scroller));
-    TRY(encoder.encode(data.border_box_size.width()));
-    TRY(encoder.encode(data.border_box_size.height()));
-    TRY(encoder.encode(data.scrollport_size.width()));
-    TRY(encoder.encode(data.scrollport_size.height()));
-    TRY(encoder.encode(data.containing_block_region));
-    TRY(encoder.encode(data.needs_parent_offset_adjustment));
-    TRY(encoder.encode(data.inset_top));
-    TRY(encoder.encode(data.inset_right));
-    TRY(encoder.encode(data.inset_bottom));
-    TRY(encoder.encode(data.inset_left));
-    return {};
-}
-
-template<>
-ErrorOr<Web::Painting::StickyData> decode(Decoder& decoder)
-{
-    auto scroller = TRY(decoder.decode<Web::Painting::SpatialNodeIndex>());
-    auto parent_sticky = TRY(decoder.decode<Optional<Web::Painting::SpatialNodeIndex>>());
-    auto position_relative_to_scroller = TRY(decoder.decode<Gfx::FloatPoint>());
-    auto border_box_width = TRY(decoder.decode<float>());
-    auto border_box_height = TRY(decoder.decode<float>());
-    auto scrollport_width = TRY(decoder.decode<float>());
-    auto scrollport_height = TRY(decoder.decode<float>());
-    auto containing_block_region = TRY(decoder.decode<Gfx::FloatRect>());
-    auto needs_parent_offset_adjustment = TRY(decoder.decode<bool>());
-    auto inset_top = TRY(decoder.decode<Optional<float>>());
-    auto inset_right = TRY(decoder.decode<Optional<float>>());
-    auto inset_bottom = TRY(decoder.decode<Optional<float>>());
-    auto inset_left = TRY(decoder.decode<Optional<float>>());
-    return Web::Painting::StickyData {
-        .scroller = scroller,
-        .parent_sticky = parent_sticky,
-        .position_relative_to_scroller = position_relative_to_scroller,
-        .border_box_size = { border_box_width, border_box_height },
-        .scrollport_size = { scrollport_width, scrollport_height },
-        .containing_block_region = containing_block_region,
-        .needs_parent_offset_adjustment = needs_parent_offset_adjustment,
-        .inset_top = inset_top,
-        .inset_right = inset_right,
-        .inset_bottom = inset_bottom,
-        .inset_left = inset_left,
-    };
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Web::Painting::ClipData const& data)
-{
-    TRY(encoder.encode(data.rect));
-    TRY(encoder.encode(data.corner_radii));
-    TRY(encoder.encode(data.mode));
-    return {};
-}
-
-template<>
-ErrorOr<Web::Painting::ClipData> decode(Decoder& decoder)
-{
-    return Web::Painting::ClipData {
-        .rect = TRY(decoder.decode<Gfx::FloatRect>()),
-        .corner_radii = TRY(decoder.decode<Gfx::CornerRadii>()),
-        .mode = TRY(decoder.decode<Web::Painting::ClipMode>()),
-    };
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Web::Painting::TransformData const& data)
-{
-    TRY(encoder.encode(data.matrix));
-    TRY(encoder.encode(data.origin));
-    TRY(encoder.encode(data.sorting_context_root_index));
-    TRY(encoder.encode(data.flattens_inherited_transform));
-    TRY(encoder.encode(data.role));
-    TRY(encoder.encode(data.synthetic_plane));
-    return {};
-}
-
-template<>
-ErrorOr<Web::Painting::TransformData> decode(Decoder& decoder)
-{
-    return Web::Painting::TransformData {
-        .matrix = TRY(decoder.decode<Gfx::FloatMatrix4x4>()),
-        .origin = TRY(decoder.decode<Gfx::FloatPoint>()),
-        .sorting_context_root_index = TRY(decoder.decode<Optional<Web::Painting::SpatialNodeIndex>>()),
-        .flattens_inherited_transform = TRY(decoder.decode<bool>()),
-        .role = TRY(decoder.decode<Web::Painting::TransformDataRole>()),
-        .synthetic_plane = TRY(decoder.decode<bool>()),
-    };
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Web::Painting::PerspectiveData const& data)
-{
-    TRY(encoder.encode(data.matrix));
-    TRY(encoder.encode(data.flattens_inherited_transform));
-    return {};
-}
-
-template<>
-ErrorOr<Web::Painting::PerspectiveData> decode(Decoder& decoder)
-{
-    return Web::Painting::PerspectiveData {
-        .matrix = TRY(decoder.decode<Gfx::FloatMatrix4x4>()),
-        .flattens_inherited_transform = TRY(decoder.decode<bool>()),
-    };
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Web::Painting::BackfaceVisibilityData const& data)
-{
-    TRY(encoder.encode(data.plane_root_index));
-    TRY(encoder.encode(data.flattens_inherited_transform));
-    return {};
-}
-
-template<>
-ErrorOr<Web::Painting::BackfaceVisibilityData> decode(Decoder& decoder)
-{
-    return Web::Painting::BackfaceVisibilityData {
-        .plane_root_index = TRY(decoder.decode<Web::Painting::SpatialNodeIndex>()),
-        .flattens_inherited_transform = TRY(decoder.decode<bool>()),
-    };
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Web::Painting::ClipPathData const& data)
-{
-    TRY(encoder.encode(data.path));
-    TRY(encoder.encode(data.bounding_rect));
-    TRY(encoder.encode(data.fill_rule));
-    return {};
-}
-
-template<>
-ErrorOr<Web::Painting::ClipPathData> decode(Decoder& decoder)
-{
-    return Web::Painting::ClipPathData {
-        .path = TRY(decoder.decode<Gfx::Path>()),
-        .bounding_rect = TRY(decoder.decode<Web::DevicePixelRect>()),
-        .fill_rule = TRY(decoder.decode<Gfx::WindingRule>()),
-    };
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Web::Painting::EffectsData const& data)
-{
-    TRY(encoder.encode(data.opacity));
-    TRY(encoder.encode(data.blend_mode));
-    TRY(encoder.encode(data.filter_bytes));
-    return {};
-}
-
-template<>
-ErrorOr<Web::Painting::EffectsData> decode(Decoder& decoder)
-{
-    return Web::Painting::EffectsData {
-        .opacity = TRY(decoder.decode<float>()),
-        .blend_mode = TRY(decoder.decode<Gfx::CompositingAndBlendingOperator>()),
-        .filter_bytes = TRY(decoder.decode<Optional<ByteBuffer>>()),
-    };
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Web::Painting::MaskData const& data)
-{
-    TRY(encoder.encode(data.rect));
-    TRY(encoder.encode(data.kind));
-    TRY(encoder.encode(data.origin));
-    return {};
-}
-
-template<>
-ErrorOr<Web::Painting::MaskData> decode(Decoder& decoder)
-{
-    return Web::Painting::MaskData {
-        .rect = TRY(decoder.decode<Web::DevicePixelRect>()),
-        .kind = TRY(decoder.decode<Gfx::MaskKind>()),
-        .origin = TRY(decoder.decode<Web::Painting::MaskLayerOrigin>()),
-    };
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Web::Painting::AnchorScrollShift const& data)
-{
-    TRY(encoder.encode(data.scroll_node_index));
-    TRY(encoder.encode(data.negate));
-    TRY(encoder.encode(data.compensate_horizontal_scroll));
-    TRY(encoder.encode(data.compensate_vertical_scroll));
-    return {};
-}
-
-template<>
-ErrorOr<Web::Painting::AnchorScrollShift> decode(Decoder& decoder)
-{
-    return Web::Painting::AnchorScrollShift {
-        .scroll_node_index = TRY(decoder.decode<Web::Painting::SpatialNodeIndex>()),
-        .negate = TRY(decoder.decode<bool>()),
-        .compensate_horizontal_scroll = TRY(decoder.decode<bool>()),
-        .compensate_vertical_scroll = TRY(decoder.decode<bool>()),
-    };
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Web::Painting::SpatialNode const& node)
-{
-    TRY(encoder.encode(node.data));
-    TRY(encoder.encode(node.parent));
-    return {};
-}
-
-template<>
-ErrorOr<Web::Painting::SpatialNode> decode(Decoder& decoder)
-{
-    return Web::Painting::SpatialNode {
-        .data = TRY(decoder.decode<Web::Painting::SpatialData>()),
-        .parent = TRY(decoder.decode<Web::Painting::SpatialNodeIndex>()),
-    };
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Web::Painting::FrameNode const& node)
-{
-    TRY(encoder.encode(node.data));
-    TRY(encoder.encode(node.parent));
-    TRY(encoder.encode(node.spatial));
-    return {};
-}
-
-template<>
-ErrorOr<Web::Painting::FrameNode> decode(Decoder& decoder)
-{
-    auto data = TRY(decoder.decode<Web::Painting::FrameData>());
-    auto parent = TRY(decoder.decode<Web::Painting::FrameNodeIndex>());
-    auto spatial = TRY(decoder.decode<Web::Painting::SpatialNodeIndex>());
-    bool clips_everything = Web::Painting::frame_data_clips_everything(data);
-    return Web::Painting::FrameNode {
-        .data = move(data),
-        .parent = parent,
-        .spatial = spatial,
-        .clips_everything = clips_everything,
-    };
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Web::Painting::ContextRef const& context)
-{
-    TRY(encoder.encode(context.spatial));
-    TRY(encoder.encode(context.frame));
-    return {};
-}
-
-template<>
-ErrorOr<Web::Painting::ContextRef> decode(Decoder& decoder)
-{
-    return Web::Painting::ContextRef {
-        .spatial = TRY(decoder.decode<Web::Painting::SpatialNodeIndex>()),
-        .frame = TRY(decoder.decode<Web::Painting::FrameNodeIndex>()),
-    };
-}
-
-template<>
 ErrorOr<void> encode(Encoder& encoder, Web::Painting::AccumulatedVisualContextTree const& tree)
 {
-    TRY(encoder.encode(tree.m_version));
-    TRY(encoder.encode(tree.m_spatial_nodes));
-    TRY(encoder.encode(tree.m_frame_nodes));
-    TRY(encoder.encode(tree.m_root_is_visual_viewport));
-    TRY(encoder.encode(tree.m_root_isolation_frame));
+    TRY(encoder.encode(tree.serialize_to_bytes()));
     TRY(encoder.encode(tree.m_visual_animations));
     return {};
 }
@@ -1107,65 +817,27 @@ ErrorOr<void> encode(Encoder& encoder, Web::Painting::AccumulatedVisualContextTr
 template<>
 ErrorOr<Web::Painting::AccumulatedVisualContextTree> decode(Decoder& decoder)
 {
-    using namespace Web::Painting;
-    auto version = TRY(decoder.decode<u64>());
-    auto spatial_nodes = TRY(decoder.decode<Vector<SpatialNode>>());
-    auto frame_nodes = TRY(decoder.decode<Vector<FrameNode>>());
-    auto root_is_visual_viewport = TRY(decoder.decode<bool>());
-    auto root_isolation_frame = TRY(decoder.decode<Optional<FrameNodeIndex>>());
+    auto bytes = TRY(decoder.decode<ByteBuffer>());
+    auto tree = TRY(Web::Painting::AccumulatedVisualContextTree::from_serialized_bytes(bytes));
     auto visual_animations = TRY(decoder.decode<Vector<Web::Compositor::VisualAnimation>>());
-    if (spatial_nodes.is_empty())
-        return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree missing visual viewport node");
-    if (!spatial_nodes[VISUAL_VIEWPORT_NODE_INDEX.value()].data.has<TransformData>())
-        return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree visual viewport node is not a transform");
-    auto spatial_count = spatial_nodes.size();
-    for (size_t i = 0; i < spatial_count; ++i) {
-        if (spatial_nodes[i].parent.value() >= max(i, static_cast<size_t>(1)))
-            return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree spatial node parent does not precede it");
-        auto referenced_spatial_precedes_node = spatial_nodes[i].data.visit(
-            [&](TransformData const& transform) { return !transform.sorting_context_root_index.has_value() || transform.sorting_context_root_index->value() < i; },
-            [&](BackfaceVisibilityData const& backface) { return backface.plane_root_index.value() < i; },
-            [&](StickyData const& sticky) {
-                // resolve_sticky_offsets() reads the referenced nodes by kind, so a hostile tree must not
-                // get past this point with references of the wrong kind or order.
-                bool scroller_is_valid = sticky.scroller.value() < i
-                    && (sticky.scroller == VISUAL_VIEWPORT_NODE_INDEX || spatial_nodes[sticky.scroller.value()].data.has<ScrollData>());
-                bool parent_sticky_is_valid = !sticky.parent_sticky.has_value()
-                    || (sticky.parent_sticky->value() < i && spatial_nodes[sticky.parent_sticky->value()].data.has<StickyData>());
-                return scroller_is_valid && parent_sticky_is_valid;
-            },
-            [&](AnchorScrollShift const& shift) { return shift.scroll_node_index.value() < i; },
-            [&](auto const&) { return true; });
-        if (!referenced_spatial_precedes_node)
-            return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree spatial node references a node that does not precede it");
-    }
-    for (size_t i = 0; i < frame_nodes.size(); ++i) {
-        if (frame_nodes[i].parent != NO_FRAME_NODE && frame_nodes[i].parent.value() >= i)
-            return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree frame node parent does not precede it");
-        if (frame_nodes[i].spatial.value() >= spatial_count)
-            return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree frame node spatial index out of range");
-    }
-    if (root_isolation_frame.has_value() && (root_isolation_frame->value() >= frame_nodes.size() || !frame_nodes[root_isolation_frame->value()].data.has<EffectsData>()))
-        return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree root isolation frame is not an effects frame");
+    auto spatial_nodes = tree.spatial_nodes();
+    auto frame_nodes = tree.frame_nodes();
     for (auto const& animation : visual_animations) {
         if (!animation.is_valid())
             return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree has an invalid visual animation");
         for (auto node_index : animation.visual_context_node_indices) {
             if (animation.target_kind == Web::Compositor::VisualAnimation::TargetKind::Opacity) {
-                if (node_index >= frame_nodes.size() || !frame_nodes[node_index].data.has<EffectsData>())
+                if (node_index >= frame_nodes.size() || !frame_nodes[node_index].data.has<Web::Painting::EffectsData>())
                     return Error::from_string_literal("IPC decode: Opacity animation target is not an effects frame");
             } else {
                 if (node_index >= spatial_nodes.size())
                     return Error::from_string_literal("IPC decode: Transform animation target is not a transform node");
-                auto const* transform = spatial_nodes[node_index].data.get_pointer<TransformData>();
-                if (!transform || transform->role != TransformDataRole::CssTransform || transform->synthetic_plane)
+                auto const* transform = spatial_nodes[node_index].data.get_pointer<Web::Painting::TransformData>();
+                if (!transform || transform->role != Web::Painting::TransformDataRole::CssTransform || transform->synthetic_plane)
                     return Error::from_string_literal("IPC decode: Transform animation target is not a CSS transform node");
             }
         }
     }
-    AccumulatedVisualContextTree tree { version, move(spatial_nodes), move(frame_nodes), root_is_visual_viewport };
-    if (root_isolation_frame.has_value())
-        tree.set_root_isolation_frame(*root_isolation_frame);
     tree.set_visual_animations(move(visual_animations));
     return tree;
 }

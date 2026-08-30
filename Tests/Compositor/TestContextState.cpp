@@ -16,6 +16,7 @@
 #include <LibTest/TestCase.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
+#include <LibWeb/Painting/VisualContextTreeTestBuilder.h>
 #include <LibWebView/PausedDebuggerOverlay.h>
 #include <Tests/LibWeb/DisplayListTestHelpers.h>
 
@@ -87,11 +88,41 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_display_list(Web::Painting
     return decode_display_list(visual_context_tree, move(command_bytes), surface_clear_color);
 }
 
+TEST_CASE(visual_context_trees_round_trip_through_ipc_and_reject_corrupted_bytes)
+{
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    auto scroll_node = builder.append_scroll(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    builder.append_clip_frame(Web::Painting::NO_FRAME_NODE, scroll_node, { 1, 2, 3, 4 });
+    auto visual_context_tree = builder.finish();
+
+    IPC::MessageBuffer buffer;
+    IPC::Encoder encoder { buffer };
+    MUST(encoder.encode(visual_context_tree));
+    FixedMemoryStream stream { buffer.data().span() };
+    Queue<IPC::Attachment> attachments;
+    IPC::Decoder decoder { stream, attachments };
+    auto decoded_tree = MUST(decoder.decode<Web::Painting::AccumulatedVisualContextTree>());
+    EXPECT_EQ(decoded_tree.version(), visual_context_tree.version());
+    EXPECT_EQ(decoded_tree.spatial_nodes().size(), 2u);
+    EXPECT_EQ(decoded_tree.frame_nodes().size(), 1u);
+    EXPECT_EQ(decoded_tree.frame_node_at(Web::Painting::FrameNodeIndex { 0 }).spatial, scroll_node);
+
+    auto corrupted_bytes = visual_context_tree.serialize_to_bytes();
+    corrupted_bytes[0] ^= 0xff;
+    EXPECT(Web::Painting::AccumulatedVisualContextTree::from_serialized_bytes(corrupted_bytes).is_error());
+}
+
+static Web::Painting::AccumulatedVisualContextTree make_visual_context_tree()
+{
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    return builder.finish();
+}
+
 static Web::Painting::AccumulatedVisualContextTree make_scrollable_viewport_visual_context_tree()
 {
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
-    visual_context_tree.append_spatial(Web::Painting::ScrollData {}, Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
-    return visual_context_tree;
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    builder.append_scroll(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    return builder.finish();
 }
 
 static NonnullRefPtr<Web::Painting::DisplayList> make_scrollable_viewport_display_list(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, bool with_viewport_scrollbar = true, Optional<Web::Painting::ContextRef> wheel_hit_test_context = {})
@@ -181,7 +212,7 @@ TEST_CASE(rasterization_clears_damaged_pixels_to_the_canvas_color_in_presentatio
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
     Compositor::ContextState context { 0, client, canvas_surface_registry, false };
     Web::Painting::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto visual_context_tree = Web::Painting::VisualContextTreeTestBuilder().finish();
     auto viewport_rect = Gfx::IntRect { 0, 0, 4, 4 };
 
     context.viewport_size_updated(viewport_rect.size(), Web::Compositor::WindowResizingInProgress::No);
@@ -214,9 +245,10 @@ TEST_CASE(visual_animations_advance_without_a_web_content_update)
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
     Compositor::ContextState context { 0, client, canvas_surface_registry, false };
     Web::Painting::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
-    auto spatial = visual_context_tree.append_spatial(Web::Painting::TransformData { Gfx::FloatMatrix4x4::identity(), {} }, Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
-    auto frame = visual_context_tree.append_frame(Web::Painting::EffectsData {}, Web::Painting::NO_FRAME_NODE, spatial);
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    auto spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
+    auto frame = builder.append_effects_frame(Web::Painting::NO_FRAME_NODE, spatial);
+    auto visual_context_tree = builder.finish();
     auto anchor = MonotonicTime::now();
     visual_context_tree.set_visual_animations({
         {
@@ -284,10 +316,10 @@ TEST_CASE(wheel_hit_testing_uses_the_current_visual_animation_tree)
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
     Compositor::ContextState context { 0, client, canvas_surface_registry, true };
-    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
-    auto animated_transform = visual_context_tree.append_spatial(
-        Web::Painting::TransformData { Gfx::FloatMatrix4x4::identity(), {} },
-        Web::Painting::SpatialNodeIndex { 1 });
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    auto scroll_node = builder.append_scroll(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    auto animated_transform = builder.append_transform(scroll_node, Gfx::FloatMatrix4x4::identity());
+    auto visual_context_tree = builder.finish();
     auto anchor = MonotonicTime::now();
     visual_context_tree.set_visual_animations({
         {
@@ -324,10 +356,10 @@ TEST_CASE(wheel_hit_testing_ignores_targets_from_a_larger_visual_context_tree)
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
     Compositor::ContextState context { 0, client, canvas_surface_registry, true };
-    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
-    auto removed_transform = visual_context_tree.append_spatial(
-        Web::Painting::TransformData { Gfx::FloatMatrix4x4::identity(), {} },
-        Web::Painting::SpatialNodeIndex { 1 });
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    auto scroll_node = builder.append_scroll(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    auto removed_transform = builder.append_transform(scroll_node, Gfx::FloatMatrix4x4::identity());
+    auto visual_context_tree = builder.finish();
 
     context.install_display_list_update(
         make_scrollable_viewport_display_list(visual_context_tree, false, Web::Painting::ContextRef { removed_transform, Web::Painting::NO_FRAME_NODE }),
@@ -374,19 +406,15 @@ TEST_CASE(culled_initial_animation_content_becomes_visible)
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
     Compositor::ContextState context { 0, client, canvas_surface_registry, false };
     Web::Painting::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
-    auto opacity_spatial = visual_context_tree.append_spatial(Web::Painting::TransformData { Gfx::FloatMatrix4x4::identity(), {} }, Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
-    auto opacity_frame = visual_context_tree.append_frame(Web::Painting::EffectsData {
-                                                              .opacity = 0,
-                                                              .blend_mode = Gfx::CompositingAndBlendingOperator::Normal,
-                                                              .filter_bytes = {},
-                                                          },
-        Web::Painting::NO_FRAME_NODE, opacity_spatial);
     Web::Compositor::VisualAnimationTransformOperation initial_scale {
         Web::Compositor::VisualAnimationTransformOperationKind::Scale,
         { 0 },
     };
-    auto scale_spatial = visual_context_tree.append_spatial(Web::Painting::TransformData { initial_scale.to_matrix(), {} }, Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    auto opacity_spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
+    auto opacity_frame = builder.append_effects_frame(Web::Painting::NO_FRAME_NODE, opacity_spatial, 0);
+    auto scale_spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, initial_scale.to_matrix());
+    auto visual_context_tree = builder.finish();
     auto anchor = MonotonicTime::now();
     visual_context_tree.set_visual_animations({
         {
@@ -446,8 +474,9 @@ TEST_CASE(finite_visual_animations_stop_after_their_terminal_sample)
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
     Compositor::ContextState context { 0, client, canvas_surface_registry, false };
     Web::Painting::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
-    auto spatial = visual_context_tree.append_spatial(Web::Painting::TransformData { Gfx::FloatMatrix4x4::identity(), {} }, Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    auto spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
+    auto visual_context_tree = builder.finish();
     auto anchor = MonotonicTime::now();
     visual_context_tree.set_visual_animations({
         {
@@ -577,7 +606,7 @@ TEST_CASE(hidden_context_coalesces_presents_and_presents_once_when_shown)
     u64 page_id = 1;
     auto context_id = Web::Compositor::compositor_context_id_for_page(page_id);
     auto viewport_rect = Gfx::IntRect { 0, 0, 4, 4 };
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto visual_context_tree = Web::Painting::VisualContextTreeTestBuilder().finish();
 
     compositor_state->create_context(context_id, page_id, web_content_client);
     compositor_state->viewport_size_updated(context_id, viewport_rect.size(), Web::Compositor::WindowResizingInProgress::No);
@@ -694,12 +723,13 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_fills_display_list(Web::Pa
     return decode_display_list(visual_context_tree, move(command_bytes), surface_clear_color, async_scrolling_metadata);
 }
 
-static Web::Painting::AccumulatedVisualContextTree make_translated_visual_context_tree(Gfx::FloatPoint translation)
+static Web::Painting::AccumulatedVisualContextTree make_translated_visual_context_tree(Gfx::FloatPoint translation, Optional<u64> version = {})
 {
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
-    auto matrix = Gfx::translation_matrix(Gfx::FloatVector3 { translation.x(), translation.y(), 0 });
-    visual_context_tree.append_spatial(Web::Painting::TransformData { .matrix = matrix, .origin = {} }, Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
-    return visual_context_tree;
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::translation_matrix(Gfx::FloatVector3 { translation.x(), translation.y(), 0 }));
+    if (version.has_value())
+        return builder.finish_with_version(*version);
+    return builder.finish();
 }
 
 static Web::Painting::ScrollStateSnapshot scroll_state_snapshot_with_offset(Web::Painting::SpatialNodeIndex index, Gfx::FloatPoint device_offset)
@@ -814,7 +844,7 @@ struct RasterizingContextFixture {
 TEST_CASE(re_presenting_identical_state_reports_empty_damage)
 {
     PresentingContextFixture fixture;
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto visual_context_tree = make_visual_context_tree();
     fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }), visual_context_tree);
 
     auto first_frame = fixture.present();
@@ -830,7 +860,7 @@ TEST_CASE(re_presenting_identical_state_reports_empty_damage)
 TEST_CASE(changed_command_reports_its_inflated_rect)
 {
     PresentingContextFixture fixture;
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto visual_context_tree = make_visual_context_tree();
     fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }), visual_context_tree);
     fixture.present();
 
@@ -844,7 +874,7 @@ TEST_CASE(changed_command_reports_its_inflated_rect)
 TEST_CASE(changed_command_is_repainted_within_its_damage)
 {
     RasterizingContextFixture fixture;
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto visual_context_tree = make_visual_context_tree();
     fixture.context.install_display_list_update(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }, Gfx::Color::Green), visual_context_tree, {});
     EXPECT_EQ(fixture.rasterize(), fixture.viewport_rect);
     EXPECT_EQ(fixture.pixel(3, 3), Gfx::Color::Red);
@@ -879,8 +909,7 @@ TEST_CASE(tree_only_update_damages_transformed_commands)
     fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red, in_spatial_node(1) } }), visual_context_tree);
     fixture.present();
 
-    auto translated_tree = make_translated_visual_context_tree({ 4, 0 });
-    translated_tree.reuse_version_from(visual_context_tree);
+    auto translated_tree = make_translated_visual_context_tree({ 4, 0 }, visual_context_tree.version());
     fixture.compositor_state->update_visual_context_tree(fixture.context_id, translated_tree, {});
     EXPECT_EQ(fixture.present().damage_rect, (Gfx::IntRect { 1, 1, 10, 6 }));
 
@@ -891,7 +920,7 @@ TEST_CASE(tree_only_update_damages_transformed_commands)
 TEST_CASE(surface_clear_color_change_forces_full_damage)
 {
     PresentingContextFixture fixture;
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto visual_context_tree = make_visual_context_tree();
     fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }, Gfx::Color::Green), visual_context_tree);
     fixture.present();
 
@@ -902,7 +931,7 @@ TEST_CASE(surface_clear_color_change_forces_full_damage)
 TEST_CASE(surface_clear_color_change_repaints_the_background)
 {
     RasterizingContextFixture fixture;
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto visual_context_tree = make_visual_context_tree();
     fixture.context.install_display_list_update(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }, Gfx::Color::Green), visual_context_tree, {});
     fixture.rasterize();
     EXPECT_EQ(fixture.pixel(0, 0), Gfx::Color::Green);
@@ -916,7 +945,7 @@ TEST_CASE(surface_clear_color_change_repaints_the_background)
 TEST_CASE(viewport_size_change_forces_full_damage)
 {
     PresentingContextFixture fixture;
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto visual_context_tree = make_visual_context_tree();
     fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }), visual_context_tree);
     fixture.present();
 
@@ -932,7 +961,7 @@ TEST_CASE(viewport_size_change_forces_full_damage)
 TEST_CASE(viewport_location_change_reports_only_the_diff)
 {
     PresentingContextFixture fixture;
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto visual_context_tree = make_visual_context_tree();
     fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }), visual_context_tree);
     fixture.present();
 
@@ -945,7 +974,7 @@ TEST_CASE(viewport_location_change_reports_only_the_diff)
 TEST_CASE(screenshot_between_presents_does_not_advance_the_baseline)
 {
     PresentingContextFixture fixture;
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto visual_context_tree = make_visual_context_tree();
     fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }), visual_context_tree);
     fixture.present();
 
@@ -961,7 +990,7 @@ TEST_CASE(screenshot_between_presents_does_not_advance_the_baseline)
 TEST_CASE(blocked_present_does_not_advance_the_baseline)
 {
     RasterizingContextFixture fixture;
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto visual_context_tree = make_visual_context_tree();
     fixture.context.install_display_list_update(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }), visual_context_tree, {});
     auto first_frame = fixture.prepare();
     VERIFY(first_frame.has_value());
@@ -981,7 +1010,7 @@ TEST_CASE(blocked_present_does_not_advance_the_baseline)
 TEST_CASE(updates_between_rasters_are_diffed_against_the_last_rasterized_frame)
 {
     PresentingContextFixture fixture;
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto visual_context_tree = make_visual_context_tree();
     fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }), visual_context_tree);
     fixture.present();
 
@@ -999,7 +1028,7 @@ TEST_CASE(updates_between_rasters_are_diffed_against_the_last_rasterized_frame)
 TEST_CASE(unbounded_change_reports_full_damage)
 {
     PresentingContextFixture fixture;
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto visual_context_tree = make_visual_context_tree();
     fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }), visual_context_tree);
     fixture.present();
 
@@ -1014,7 +1043,7 @@ TEST_CASE(canvas_content_changes_damage_the_canvas_rect)
     auto make_canvas_surface = [] { return Gfx::PaintingSurface::create_with_size({ 4, 4 }, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied); };
     auto canvas_id = canvas_surface_registry.create_canvas_surface(make_canvas_surface());
 
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto visual_context_tree = make_visual_context_tree();
     ByteBuffer command_bytes;
     Web::Painting::DrawCanvas draw_canvas {
         .dst_rect = { 4, 4, 4, 4 },
@@ -1052,7 +1081,7 @@ TEST_CASE(child_context_presents_repaint_the_parent)
     fixture.compositor_state->set_parent_context(child_context_id, fixture.context_id);
     fixture.compositor_state->viewport_size_updated(child_context_id, { 8, 8 }, Web::Compositor::WindowResizingInProgress::No);
 
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto visual_context_tree = make_visual_context_tree();
     ByteBuffer command_bytes;
     Web::Painting::DrawCompositedContext draw_composited_context {
         .dst_rect = { 4, 4, 8, 8 },
@@ -1062,7 +1091,7 @@ TEST_CASE(child_context_presents_repaint_the_parent)
     append_display_list_command(command_bytes, draw_composited_context, draw_composited_context.dst_rect);
     fixture.install(decode_display_list(visual_context_tree, move(command_bytes)), visual_context_tree);
 
-    auto child_visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto child_visual_context_tree = make_visual_context_tree();
     Gfx::IntRect child_viewport_rect { 0, 0, 8, 8 };
     fixture.compositor_state->update_display_list(child_context_id, make_fills_display_list(child_visual_context_tree, { { child_viewport_rect, Gfx::Color::Red } }), child_visual_context_tree, {}, {});
     fixture.compositor_state->present_frame(child_context_id, child_viewport_rect);
@@ -1078,9 +1107,10 @@ TEST_CASE(child_context_presents_repaint_the_parent)
 TEST_CASE(async_scroll_presents_report_the_damage_of_the_scrolled_content)
 {
     PresentingContextFixture fixture { { 100, 100 }, true };
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
-    auto viewport_scroll_node_index = visual_context_tree.append_spatial(Web::Painting::ScrollData {}, Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
-    auto nested_scroll_node_index = visual_context_tree.append_spatial(Web::Painting::ScrollData {}, viewport_scroll_node_index);
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    auto viewport_scroll_node_index = builder.append_scroll(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    auto nested_scroll_node_index = builder.append_scroll(viewport_scroll_node_index);
+    auto visual_context_tree = builder.finish();
     Web::UniqueNodeID document_id { 1 };
 
     ByteBuffer command_bytes;
@@ -1147,4 +1177,73 @@ TEST_CASE(async_scroll_presents_report_the_damage_of_the_scrolled_content)
     auto viewport_scroll_frame = fixture.wait_for_frame(already_presented);
     EXPECT_EQ(viewport_scroll_frame.content_rect, (Gfx::IntRect { 0, 10, 100, 100 }));
     EXPECT_EQ(viewport_scroll_frame.damage_rect, fixture.viewport_rect);
+}
+
+TEST_CASE(clip_path_frames_round_trip_through_serialized_tree_bytes)
+{
+    Gfx::Path star;
+    star.move_to({ 65, 0 });
+    star.line_to({ 35, 80 });
+    star.line_to({ 105, 30 });
+    star.line_to({ 25, 30 });
+    star.line_to({ 95, 80 });
+    star.close();
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    auto clip_path_frame = builder.append_clip_path_frame(Web::Painting::NO_FRAME_NODE, Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, star, { 25, 0, 80, 80 }, Gfx::WindingRule::EvenOdd);
+    auto visual_context_tree = builder.finish();
+
+    auto serialized_bytes = visual_context_tree.serialize_to_bytes();
+    auto decoded_tree = MUST(Web::Painting::AccumulatedVisualContextTree::from_serialized_bytes(serialized_bytes));
+    auto const& decoded_clip_path = decoded_tree.frame_node_at(clip_path_frame).data.get<Web::Painting::ClipPathData>();
+    EXPECT_EQ(decoded_clip_path.path.serialize_to_bytes(), star.serialize_to_bytes());
+    EXPECT_EQ(decoded_clip_path.bounding_rect, (Web::DevicePixelRect { 25, 0, 80, 80 }));
+    EXPECT_EQ(decoded_clip_path.fill_rule, Gfx::WindingRule::EvenOdd);
+    EXPECT(!decoded_tree.frames_with_empty_effective_clip()[clip_path_frame.value()]);
+}
+
+TEST_CASE(visual_animation_samples_restore_original_node_values)
+{
+    auto matrix = Gfx::FloatMatrix4x4::identity();
+    matrix[0, 3] = 12;
+    matrix[1, 3] = 12;
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    auto spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, matrix, { 12, 12 });
+    auto frame = builder.append_effects_frame(Web::Painting::NO_FRAME_NODE, spatial, 0.75f);
+    auto tree = builder.finish();
+    tree.set_visual_animations({
+        {
+            .target_kind = Web::Compositor::VisualAnimation::TargetKind::Transform,
+            .visual_context_node_indices = { spatial.value() },
+            .local_time_at_anchor_ms = 500,
+            .iteration_duration_ms = 1000,
+            .easing = {},
+            .keyframes = {
+                { 0, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::TranslateX, { 0 } } } },
+                { 1, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::TranslateX, { 8 } } } },
+            },
+        },
+        {
+            .target_kind = Web::Compositor::VisualAnimation::TargetKind::Opacity,
+            .visual_context_node_indices = { frame.value() },
+            .local_time_at_anchor_ms = 500,
+            .iteration_duration_ms = 1000,
+            .easing = {},
+            .keyframes = {
+                { 0, {}, 1.0f },
+                { 1, {}, 0.0f },
+            },
+        },
+    });
+
+    Web::Painting::AccumulatedVisualContextTree::VisualAnimationOriginalValues original_values;
+    tree.sample_visual_animations(0, original_values);
+    auto sampled_translation = tree.spatial_node_at(spatial).data.get<Web::Painting::TransformData>().matrix[0, 3];
+    EXPECT_EQ(sampled_translation, 4.0f);
+    EXPECT_EQ(tree.frame_node_at(frame).data.get<Web::Painting::EffectsData>().opacity, 0.5f);
+
+    tree.restore_visual_animation_original_values(original_values);
+    EXPECT(original_values.is_empty());
+    auto restored_translation = tree.spatial_node_at(spatial).data.get<Web::Painting::TransformData>().matrix[0, 3];
+    EXPECT_EQ(restored_translation, 12.0f);
+    EXPECT_EQ(tree.frame_node_at(frame).data.get<Web::Painting::EffectsData>().opacity, 0.75f);
 }

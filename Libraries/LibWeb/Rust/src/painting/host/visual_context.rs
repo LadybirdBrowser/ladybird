@@ -127,6 +127,30 @@ pub enum FfiVisualContextNodeKind {
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
+pub struct FfiVisualViewportTransform {
+    pub matrix: FloatMatrix4x4,
+    pub origin: FloatPoint,
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiTestStickyConstraints {
+    pub scroller: u32,
+    pub has_parent_sticky: bool,
+    pub parent_sticky: u32,
+    pub position_relative_to_scroller: FloatPoint,
+    pub border_box_size: FloatSize,
+    pub scrollport_size: FloatSize,
+    pub containing_block_region: FloatRect,
+    pub needs_parent_offset_adjustment: bool,
+    pub inset_top: OptionalF32,
+    pub inset_right: OptionalF32,
+    pub inset_bottom: OptionalF32,
+    pub inset_left: OptionalF32,
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
 pub struct FfiVisualContextNodeExport {
     pub kind: FfiVisualContextNodeKind,
     pub parent: u32,

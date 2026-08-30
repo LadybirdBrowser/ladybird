@@ -8,6 +8,7 @@
 #include <LibTest/TestCase.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/DisplayListDamage.h>
+#include <LibWeb/Painting/VisualContextTreeTestBuilder.h>
 #include <Tests/LibWeb/DisplayListTestHelpers.h>
 
 using namespace Web::Painting;
@@ -18,6 +19,11 @@ static ByteBuffer command_bytes(Command const& command, Optional<Gfx::IntRect> b
     ByteBuffer bytes;
     append_display_list_command(bytes, command, bounding_rect, context);
     return bytes;
+}
+
+static AccumulatedVisualContextTree identity_tree()
+{
+    return VisualContextTreeTestBuilder().finish();
 }
 
 static ByteBuffer fill_command_bytes(Gfx::IntRect rect, Gfx::Color color)
@@ -58,7 +64,7 @@ static ByteBuffer glyph_run_command_bytes(size_t inline_padding)
 
 TEST_CASE(identical_display_lists_have_no_damage)
 {
-    auto visual_context_tree = AccumulatedVisualContextTree::create();
+    auto visual_context_tree = identity_tree();
     auto display_list = fill_command_bytes({ 10, 10, 20, 20 }, Gfx::Color::Red);
     ScrollStateSnapshot scroll_state;
 
@@ -69,7 +75,7 @@ TEST_CASE(identical_display_lists_have_no_damage)
 
 TEST_CASE(inactive_optional_storage_does_not_damage_scaled_images)
 {
-    auto visual_context_tree = AccumulatedVisualContextTree::create();
+    auto visual_context_tree = identity_tree();
     DrawScaledDecodedImageFrame command {
         .dst_rect = { 0, 0, 100, 100 },
         .src_rect = {},
@@ -93,7 +99,7 @@ TEST_CASE(inactive_optional_storage_does_not_damage_scaled_images)
 
 TEST_CASE(inline_payload_alignment_does_not_damage_glyph_runs)
 {
-    auto visual_context_tree = AccumulatedVisualContextTree::create();
+    auto visual_context_tree = identity_tree();
     auto old_display_list = glyph_run_command_bytes(0);
     auto new_display_list = glyph_run_command_bytes(4);
     ScrollStateSnapshot scroll_state;
@@ -105,7 +111,7 @@ TEST_CASE(inline_payload_alignment_does_not_damage_glyph_runs)
 
 TEST_CASE(damage_contains_old_and_new_command_bounds)
 {
-    auto visual_context_tree = AccumulatedVisualContextTree::create();
+    auto visual_context_tree = identity_tree();
     auto old_display_list = fill_command_bytes({ 10, 10, 20, 20 }, Gfx::Color::Red);
     auto new_display_list = fill_command_bytes({ 40, 40, 20, 20 }, Gfx::Color::Blue);
     ScrollStateSnapshot scroll_state;
@@ -117,7 +123,7 @@ TEST_CASE(damage_contains_old_and_new_command_bounds)
 
 TEST_CASE(confining_a_draw_to_its_bounds_damages_the_draw)
 {
-    auto visual_context_tree = AccumulatedVisualContextTree::create();
+    auto visual_context_tree = identity_tree();
     Gfx::IntRect rect { 10, 10, 20, 20 };
     auto old_display_list = fill_command_bytes(rect, Gfx::Color::Red);
     ByteBuffer new_display_list;
@@ -131,7 +137,7 @@ TEST_CASE(confining_a_draw_to_its_bounds_damages_the_draw)
 
 TEST_CASE(changed_unbounded_commands_require_full_repaint)
 {
-    auto visual_context_tree = AccumulatedVisualContextTree::create();
+    auto visual_context_tree = identity_tree();
     auto old_display_list = command_bytes(FillRect { { 0, 0, 10, 10 }, Gfx::Color::Red });
     auto new_display_list = command_bytes(FillRect { { 0, 0, 10, 10 }, Gfx::Color::Blue });
     ScrollStateSnapshot scroll_state;
@@ -142,7 +148,7 @@ TEST_CASE(changed_unbounded_commands_require_full_repaint)
 
 TEST_CASE(changed_compositor_metadata_has_no_raster_damage)
 {
-    auto visual_context_tree = AccumulatedVisualContextTree::create();
+    auto visual_context_tree = identity_tree();
     auto old_display_list = command_bytes(CompositorMainThreadWheelEventRegion { { 0, 0, 10, 10 } });
     auto new_display_list = command_bytes(CompositorMainThreadWheelEventRegion { { 20, 20, 10, 10 } });
     ScrollStateSnapshot scroll_state;
@@ -154,10 +160,10 @@ TEST_CASE(changed_compositor_metadata_has_no_raster_damage)
 
 TEST_CASE(changed_visual_context_damages_affected_commands)
 {
-    auto old_visual_context_tree = AccumulatedVisualContextTree::create();
+    auto old_visual_context_tree = identity_tree();
     auto transform = Gfx::FloatMatrix4x4::identity();
     transform[0, 3] = 10;
-    auto new_visual_context_tree = AccumulatedVisualContextTree::create({ transform, {} });
+    auto new_visual_context_tree = VisualContextTreeTestBuilder(transform).finish();
     auto display_list = fill_command_bytes({ 10, 10, 20, 20 }, Gfx::Color::Red);
     ScrollStateSnapshot scroll_state;
 
@@ -168,11 +174,13 @@ TEST_CASE(changed_visual_context_damages_affected_commands)
 
 TEST_CASE(mask_visual_context_damages_affected_commands)
 {
-    auto old_visual_context_tree = AccumulatedVisualContextTree::create();
-    auto old_mask_frame = old_visual_context_tree.append_frame(MaskData { .rect = Web::DevicePixelRect { 0, 0, 100, 100 } }, NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX);
+    VisualContextTreeTestBuilder old_tree_builder;
+    auto old_mask_frame = old_tree_builder.append_mask_frame(NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX, { 0, 0, 100, 100 });
+    auto old_visual_context_tree = old_tree_builder.finish();
 
-    auto new_visual_context_tree = AccumulatedVisualContextTree::create();
-    new_visual_context_tree.append_frame(MaskData { .rect = Web::DevicePixelRect { 0, 0, 100, 100 } }, NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX);
+    VisualContextTreeTestBuilder new_tree_builder;
+    new_tree_builder.append_mask_frame(NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX, { 0, 0, 100, 100 });
+    auto new_visual_context_tree = new_tree_builder.finish();
 
     auto display_list = command_bytes(FillRect { { 10, 10, 20, 20 }, Gfx::Color::Red }, Gfx::IntRect { 10, 10, 20, 20 }, ContextRef { VISUAL_VIEWPORT_NODE_INDEX, old_mask_frame });
     ScrollStateSnapshot scroll_state;
@@ -184,10 +192,12 @@ TEST_CASE(mask_visual_context_damages_affected_commands)
 
 TEST_CASE(commands_under_an_empty_effective_clip_do_not_damage)
 {
-    auto old_visual_context_tree = AccumulatedVisualContextTree::create();
-    auto old_frame = old_visual_context_tree.append_frame(ClipData { Gfx::FloatRect {}, {} }, NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX);
-    auto new_visual_context_tree = AccumulatedVisualContextTree::create();
-    auto new_frame = new_visual_context_tree.append_frame(ClipData { Gfx::FloatRect {}, {} }, NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX);
+    VisualContextTreeTestBuilder old_tree_builder;
+    auto old_frame = old_tree_builder.append_clip_frame(NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX, {});
+    auto old_visual_context_tree = old_tree_builder.finish();
+    VisualContextTreeTestBuilder new_tree_builder;
+    auto new_frame = new_tree_builder.append_clip_frame(NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX, {});
+    auto new_visual_context_tree = new_tree_builder.finish();
 
     auto old_display_list = command_bytes(FillRect { { 10, 10, 20, 20 }, Gfx::Color::Red }, Gfx::IntRect { 10, 10, 20, 20 }, ContextRef { VISUAL_VIEWPORT_NODE_INDEX, old_frame });
     auto new_display_list = command_bytes(FillRect { { 30, 30, 20, 20 }, Gfx::Color::Blue }, Gfx::IntRect { 30, 30, 20, 20 }, ContextRef { VISUAL_VIEWPORT_NODE_INDEX, new_frame });
@@ -200,10 +210,12 @@ TEST_CASE(commands_under_an_empty_effective_clip_do_not_damage)
 
 TEST_CASE(a_clip_growing_from_empty_damages_the_commands_it_reveals)
 {
-    auto old_visual_context_tree = AccumulatedVisualContextTree::create();
-    auto old_frame = old_visual_context_tree.append_frame(ClipData { Gfx::FloatRect {}, {} }, NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX);
-    auto new_visual_context_tree = AccumulatedVisualContextTree::create();
-    auto new_frame = new_visual_context_tree.append_frame(ClipData { Gfx::FloatRect { 0, 0, 100, 100 }, {} }, NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX);
+    VisualContextTreeTestBuilder old_tree_builder;
+    auto old_frame = old_tree_builder.append_clip_frame(NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX, {});
+    auto old_visual_context_tree = old_tree_builder.finish();
+    VisualContextTreeTestBuilder new_tree_builder;
+    auto new_frame = new_tree_builder.append_clip_frame(NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX, { 0, 0, 100, 100 });
+    auto new_visual_context_tree = new_tree_builder.finish();
 
     auto old_display_list = command_bytes(FillRect { { 10, 10, 20, 20 }, Gfx::Color::Red }, Gfx::IntRect { 10, 10, 20, 20 }, ContextRef { VISUAL_VIEWPORT_NODE_INDEX, old_frame });
     auto new_display_list = command_bytes(FillRect { { 10, 10, 20, 20 }, Gfx::Color::Red }, Gfx::IntRect { 10, 10, 20, 20 }, ContextRef { VISUAL_VIEWPORT_NODE_INDEX, new_frame });
@@ -216,12 +228,14 @@ TEST_CASE(a_clip_growing_from_empty_damages_the_commands_it_reveals)
 
 TEST_CASE(unrelated_inserted_visual_context_does_not_damage_commands)
 {
-    auto old_visual_context_tree = AccumulatedVisualContextTree::create();
-    auto old_command_spatial = old_visual_context_tree.append_spatial(TransformData { Gfx::FloatMatrix4x4::identity(), {} }, VISUAL_VIEWPORT_NODE_INDEX);
+    VisualContextTreeTestBuilder old_tree_builder;
+    auto old_command_spatial = old_tree_builder.append_transform(VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
+    auto old_visual_context_tree = old_tree_builder.finish();
 
-    auto new_visual_context_tree = AccumulatedVisualContextTree::create();
-    new_visual_context_tree.append_frame(EffectsData { .opacity = 0.5f, .blend_mode = Gfx::CompositingAndBlendingOperator::Normal, .filter_bytes = {} }, NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX);
-    auto new_command_spatial = new_visual_context_tree.append_spatial(TransformData { Gfx::FloatMatrix4x4::identity(), {} }, VISUAL_VIEWPORT_NODE_INDEX);
+    VisualContextTreeTestBuilder new_tree_builder;
+    new_tree_builder.append_effects_frame(NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX, 0.5f);
+    auto new_command_spatial = new_tree_builder.append_transform(VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
+    auto new_visual_context_tree = new_tree_builder.finish();
 
     auto old_display_list = command_bytes(FillRect { { 10, 10, 20, 20 }, Gfx::Color::Red }, Gfx::IntRect { 10, 10, 20, 20 }, ContextRef { old_command_spatial, NO_FRAME_NODE });
     auto new_display_list = command_bytes(FillRect { { 10, 10, 20, 20 }, Gfx::Color::Red }, Gfx::IntRect { 10, 10, 20, 20 }, ContextRef { new_command_spatial, NO_FRAME_NODE });
@@ -245,7 +259,7 @@ static ByteBuffer canvas_command_bytes(Gfx::IntRect rect, u64 content_generation
 
 TEST_CASE(changed_canvas_content_generation_damages_canvas_rect)
 {
-    auto visual_context_tree = AccumulatedVisualContextTree::create();
+    auto visual_context_tree = identity_tree();
     auto old_display_list = canvas_command_bytes({ 10, 10, 20, 20 }, 1);
     auto new_display_list = canvas_command_bytes({ 10, 10, 20, 20 }, 2);
     ScrollStateSnapshot scroll_state;
@@ -257,7 +271,7 @@ TEST_CASE(changed_canvas_content_generation_damages_canvas_rect)
 
 TEST_CASE(unchanged_canvas_content_generation_does_not_damage_canvas)
 {
-    auto visual_context_tree = AccumulatedVisualContextTree::create();
+    auto visual_context_tree = identity_tree();
     auto canvas = canvas_command_bytes({ 10, 10, 20, 20 }, 1);
     auto old_fill = fill_command_bytes({ 50, 50, 10, 10 }, Gfx::Color::Red);
     auto new_fill = fill_command_bytes({ 50, 50, 10, 10 }, Gfx::Color::Blue);
@@ -276,7 +290,7 @@ TEST_CASE(unchanged_canvas_content_generation_does_not_damage_canvas)
 
 TEST_CASE(inserted_and_removed_commands_do_not_damage_shifted_commands)
 {
-    auto visual_context_tree = AccumulatedVisualContextTree::create();
+    auto visual_context_tree = identity_tree();
     auto first = fill_command_bytes({ 10, 10, 10, 10 }, Gfx::Color::Red);
     auto second = fill_command_bytes({ 30, 10, 10, 10 }, Gfx::Color::Green);
     auto third = fill_command_bytes({ 50, 10, 10, 10 }, Gfx::Color::Blue);
