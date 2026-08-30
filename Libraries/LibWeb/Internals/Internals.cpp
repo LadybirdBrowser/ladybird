@@ -1191,6 +1191,11 @@ void Internals::reset_style_invalidation_counters()
     window().associated_document().reset_style_invalidation_counters();
 }
 
+void Internals::request_reentrant_animation_style_flush_for_testing(GC::Ref<DOM::Node> node)
+{
+    window().associated_document().request_reentrant_animation_style_flush_for_testing({}, node);
+}
+
 GC::Ref<JS::Object> Internals::layout_tree_build_stats()
 {
     auto object = JS::Object::create(window().principal_realm(), nullptr);

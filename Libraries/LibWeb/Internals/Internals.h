@@ -181,6 +181,7 @@ public:
     DOM::Document::StyleInvalidationCounters const& style_invalidation_counters() const;
     GC::Ref<JS::Object> style_invalidation_counters_object() const;
     void reset_style_invalidation_counters();
+    void request_reentrant_animation_style_flush_for_testing(GC::Ref<DOM::Node>);
     GC::Ref<JS::Object> layout_tree_build_stats();
     GC::Ref<JS::Object> compare_layout_tree_with_full_rebuild();
     GC::Ref<JS::Object> computed_values_stats();

@@ -507,6 +507,7 @@ public:
     {
         m_needs_animated_style_update = false;
         m_effects_needing_animated_style_update.clear();
+        m_effects_needing_animated_style_update_after_current_update.clear();
     }
     bool is_running_update_layout() const { return m_is_running_update_layout; }
 
@@ -1059,6 +1060,7 @@ public:
     GC::Ptr<Element const> scrolling_element() const;
 
     void set_needs_animated_style_update(Animations::KeyframeEffect&);
+    void request_reentrant_animation_style_flush_for_testing(Badge<Internals::Internals>, Node const&);
 
     CSS::SheetSetStyleCacheRegistry& sheet_set_style_cache_registry() { return m_sheet_set_style_cache_registry; }
 
@@ -1450,6 +1452,8 @@ protected:
 private:
     friend struct AdoptedStyleSheetsAccess;
 
+    void finish_animated_style_update();
+
     GC::Ref<WebIDL::ObservableArray> adopted_style_sheets() const;
 
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
@@ -1707,6 +1711,8 @@ private:
 
     bool m_needs_animated_style_update { false };
     GC::WeakHashSet<Animations::KeyframeEffect> m_effects_needing_animated_style_update;
+    GC::WeakHashSet<Animations::KeyframeEffect> m_effects_needing_animated_style_update_after_current_update;
+    bool m_is_updating_animated_style { false };
 
     HashTable<GC::Ptr<NodeIterator>> m_node_iterators;
 
