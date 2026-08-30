@@ -6632,6 +6632,12 @@ mod ffi_test_stubs {
         Box::into_raw(Box::new(0u8)).cast()
     }
     #[unsafe(no_mangle)]
+    extern "C" fn ladybird_gfx_path_bounding_box(_path: *const std::ffi::c_void, out_x_y_width_height: *mut f32) {
+        let stand_in_bounding_box = [0.0f32, 0.0, 1.0, 1.0];
+        // SAFETY: The caller hands a writable array of four floats.
+        unsafe { std::ptr::copy_nonoverlapping(stand_in_bounding_box.as_ptr(), out_x_y_width_height, 4) };
+    }
+    #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_path_contains(
         _path: *const std::ffi::c_void,
         _x: f32,

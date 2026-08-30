@@ -28,7 +28,7 @@ use libgfx_rust::{
 use scroll_state::{NO_SCROLL_STATE_SLOT, ScrollStateSlot};
 
 pub use crate::painting::display_list::commands::{
-    ContextRef, FrameNodeIndex, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
+    ClipMode, ContextRef, FrameNodeIndex, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
 };
 pub use queries::{ClipBehavior, should_cull_back_face};
 
@@ -67,13 +67,6 @@ pub struct PerspectiveData {
 pub struct BackfaceVisibilityData {
     pub plane_root_index: SpatialNodeIndex,
     pub flattens_inherited_transform: bool,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum ClipMode {
-    Intersect,
-    Difference,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -264,6 +257,18 @@ impl SpatialData {
 }
 
 impl FrameData {
+    pub fn clips_everything(&self) -> bool {
+        match self {
+            Self::Clip(clip) => clip.mode == ClipMode::Intersect && (clip.rect.width <= 0.0 || clip.rect.height <= 0.0),
+            Self::ClipPath(clip_path) => {
+                let [_, _, width, height] = clip_path.path.bounding_box();
+                width <= 0.0 || height <= 0.0
+            }
+            Self::Effects(_) => false,
+            Self::Mask(mask) => mask.rect.is_empty(),
+        }
+    }
+
     fn kind(&self) -> crate::painting::host::FfiVisualContextNodeKind {
         use crate::painting::host::FfiVisualContextNodeKind;
         match self {
@@ -346,6 +351,20 @@ pub struct FrameNode {
     pub parent: FrameNodeIndex,
     pub spatial: SpatialNodeIndex,
     pub role: FrameRole,
+    pub clips_everything: bool,
+}
+
+impl FrameNode {
+    pub fn new(data: FrameData, parent: FrameNodeIndex, spatial: SpatialNodeIndex, role: FrameRole) -> Self {
+        let clips_everything = data.clips_everything();
+        Self {
+            data,
+            parent,
+            spatial,
+            role,
+            clips_everything,
+        }
+    }
 }
 
 // Marks a spatial node whose content belongs to no 3D rendering context.
@@ -549,12 +568,7 @@ impl VisualContextTree {
             let parent_node = &self.frame_nodes[parent.0 as usize];
             debug_assert!(self.spatial_is_ancestor_or_self(parent_node.spatial, spatial));
         }
-        self.frame_nodes.push(FrameNode {
-            data,
-            parent,
-            spatial,
-            role,
-        });
+        self.frame_nodes.push(FrameNode::new(data, parent, spatial, role));
         FrameNodeIndex((self.frame_nodes.len() - 1) as u32)
     }
 

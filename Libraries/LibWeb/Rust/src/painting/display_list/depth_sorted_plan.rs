@@ -40,7 +40,7 @@ pub enum DepthSortedReplayStepKind {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
-pub struct FfiDepthSortedReplayStep {
+pub struct DepthSortedReplayStep {
     pub kind: DepthSortedReplayStepKind,
     pub first_run: u32,
     pub run_count: u32,
@@ -49,20 +49,20 @@ pub struct FfiDepthSortedReplayStep {
 }
 
 pub struct DepthSortedReplayPlan {
-    pub steps: Vec<FfiDepthSortedReplayStep>,
+    pub steps: Vec<DepthSortedReplayStep>,
     pub vertices: Vec<FloatVector3>,
 }
 
 struct DepthSortedPlanBuilder<'a> {
     contexts: &'a SortingContexts,
     transform_palette: &'a [FloatMatrix4x4],
-    steps: Vec<FfiDepthSortedReplayStep>,
+    steps: Vec<DepthSortedReplayStep>,
     vertices: Vec<FloatVector3>,
 }
 
 impl DepthSortedPlanBuilder<'_> {
     fn append_run_span(&mut self, chunk: &CommandChunk) {
-        self.steps.push(FfiDepthSortedReplayStep {
+        self.steps.push(DepthSortedReplayStep {
             kind: DepthSortedReplayStepKind::RunSpan,
             first_run: chunk.first_run,
             run_count: chunk.run_count,
@@ -75,7 +75,7 @@ impl DepthSortedPlanBuilder<'_> {
         let vertex_offset = self.vertices.len() as u32;
         let vertex_count = vertices.len() as u32;
         self.vertices.extend(vertices);
-        self.steps.push(FfiDepthSortedReplayStep {
+        self.steps.push(DepthSortedReplayStep {
             kind: DepthSortedReplayStepKind::PushPlaneClip,
             first_run: 0,
             run_count: 0,
@@ -85,7 +85,7 @@ impl DepthSortedPlanBuilder<'_> {
     }
 
     fn append_pop_plane_clip(&mut self) {
-        self.steps.push(FfiDepthSortedReplayStep {
+        self.steps.push(DepthSortedReplayStep {
             kind: DepthSortedReplayStepKind::PopPlaneClip,
             first_run: 0,
             run_count: 0,

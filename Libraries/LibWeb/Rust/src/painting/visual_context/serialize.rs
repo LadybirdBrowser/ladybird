@@ -519,12 +519,7 @@ impl VisualContextTree {
             if (!parent.is_none() && parent.0 as usize >= index) || spatial.0 as usize >= spatial_count {
                 return None;
             }
-            frame_nodes.push(FrameNode {
-                data,
-                parent,
-                spatial,
-                role: FrameRole::Structural,
-            });
+            frame_nodes.push(FrameNode::new(data, parent, spatial, FrameRole::Structural));
         }
 
         let root_isolation_frame = if root_isolation_frame.is_none() {

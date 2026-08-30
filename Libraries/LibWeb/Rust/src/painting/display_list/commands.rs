@@ -149,6 +149,38 @@ pub struct ContextRef {
 }
 ffi_bytes_fields!(ContextRef { spatial, frame });
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum ClipMode {
+    Intersect,
+    Difference,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct ReplayClip {
+    pub rect: FloatRect,
+    pub corner_radii: CornerRadii,
+    pub mode: ClipMode,
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct ReplayLayer {
+    pub opacity: f32,
+    pub blend_mode: CompositingAndBlendingOperator,
+    pub filter_bytes: *const u8,
+    pub filter_bytes_size: usize,
+    pub frame: FrameNodeIndex,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub struct ReplayMask {
+    pub rect: IntRect,
+    pub kind: MaskKind,
+}
+
 impl ContextRef {
     pub const fn spatial_only(spatial: SpatialNodeIndex) -> Self {
         Self {

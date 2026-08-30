@@ -7,7 +7,6 @@
 #include <AK/Atomic.h>
 #include <AK/Debug.h>
 #include <AK/NumericLimits.h>
-#include <AK/ScopeGuard.h>
 #include <AK/TemporaryChange.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Path.h>
@@ -97,6 +96,10 @@ void DisplayListPlayer::execute(
     CanvasSurfaceRegistry const* canvas_surface_registry)
 {
     VERIFY(display_list.compatible_visual_context_tree_version() == visual_context_tree.version());
+    if (m_layer_filter_cache_tree_version != visual_context_tree.version()) {
+        m_layer_filters_by_tree_version_and_frame.clear();
+        m_layer_filter_cache_tree_version = visual_context_tree.version();
+    }
     m_surface = surface;
     m_active_display_list = &display_list;
     m_active_visual_context_tree = &visual_context_tree;
@@ -133,179 +136,22 @@ void DisplayListPlayer::execute_nested_display_list(
     execute_impl(display_list, scroll_state_snapshot);
 }
 
-void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStateSnapshot const& scroll_state)
+Gfx::Filter const& DisplayListPlayer::layer_filter(ReplayLayer const& layer)
 {
-    auto const& visual_context_tree = active_visual_context_tree();
-    VERIFY(display_list.compatible_visual_context_tree_version() == visual_context_tree.version());
+    ReadonlyBytes filter_bytes { layer.filter_bytes, layer.filter_bytes_size };
+    auto& filters_by_frame = m_layer_filters_by_tree_version_and_frame.ensure(active_visual_context_tree().version());
+    if (auto cached = filters_by_frame.get(layer.frame.value()); cached.has_value() && cached->filter_bytes.bytes() == filter_bytes)
+        return cached->filter;
+    auto filter = Gfx::deserialize_filter(filter_bytes, [&](u64 image_id) {
+        return resource_storage().image_frame(ImageFrameResourceId { image_id });
+    });
+    filters_by_frame.set(layer.frame.value(), CachedLayerFilter { MUST(ByteBuffer::copy(filter_bytes)), move(filter) });
+    return filters_by_frame.get(layer.frame.value())->filter;
+}
 
-    VERIFY(m_surface);
-    auto command_runs = display_list.command_runs();
-
-    // Cumulative to-root matrices for every spatial node, resolved against the live scroll offsets
-    // and folded onto the canvas matrix at replay entry, so any node's space can be entered
-    // absolutely with a single set_matrix(). Spatial nodes therefore never touch the canvas save
-    // stack; only frames do. A backface marker's entry carries the flattened matrix that feeds its
-    // cull test and its descendants, while content recorded directly under the marker belongs to
-    // its parent's plane, so draw_space redirects the marker to the parent's entry. The storage
-    // lives on the player so steady-state replays reuse warm capacity; moving it out for the
-    // duration of the replay keeps re-entrant nested replays from clobbering the outer palette.
-    auto palette_storage = move(m_replay_palette_storage);
-    auto& transform_palette = palette_storage.to_root_matrices;
-    auto& draw_space = palette_storage.draw_spaces;
-    auto const& spatial_nodes = visual_context_tree.spatial_nodes();
-    transform_palette.clear_with_capacity();
-    transform_palette.ensure_capacity(spatial_nodes.size());
-    draw_space.clear_with_capacity();
-    draw_space.ensure_capacity(spatial_nodes.size());
-    auto& backface_culled = palette_storage.backface_culled;
-    backface_culled.clear_with_capacity();
-    backface_culled.ensure_capacity(spatial_nodes.size());
-    auto const replay_base_matrix = canvas_matrix();
-    auto const frame_has_empty_effective_clip = visual_context_tree.frames_with_empty_effective_clip();
-    bool tree_has_sorting_contexts = false;
-    for (size_t i = 0; i < spatial_nodes.size(); ++i) {
-        auto const& node = spatial_nodes[i];
-        auto parent = node.parent.value();
-        auto append_spatial = [&](Gfx::FloatMatrix4x4 const& local_matrix, bool flattens_inherited_transform = false) {
-            auto const& parent_matrix = i == 0 ? replay_base_matrix : transform_palette[parent];
-            transform_palette.unchecked_append((flattens_inherited_transform ? Gfx::flattened(parent_matrix) : parent_matrix) * local_matrix);
-            draw_space.unchecked_append(SpatialNodeIndex { static_cast<u32>(i) });
-            backface_culled.unchecked_append(i == 0 ? false : backface_culled[parent]);
-        };
-        auto append_spatial_translation = [&](Gfx::IntPoint offset) {
-            // Whole device pixels, so scrolled content never lands on subpixel positions.
-            append_spatial(Gfx::translation_matrix(Vector3<float>(static_cast<float>(offset.x()), static_cast<float>(offset.y()), 0)));
-        };
-        node.data.visit(
-            [&](TransformData const& transform) {
-                tree_has_sorting_contexts |= transform.sorting_context_root_index.has_value();
-                append_spatial(transform.matrix_including_origin(), transform.flattens_inherited_transform);
-            },
-            [&](PerspectiveData const& perspective) {
-                append_spatial(perspective.matrix, perspective.flattens_inherited_transform);
-            },
-            [&](BackfaceVisibilityData const& backface) {
-                auto const& parent_matrix = transform_palette[parent];
-                transform_palette.unchecked_append(backface.flattens_inherited_transform ? Gfx::flattened(parent_matrix) : parent_matrix);
-                draw_space.unchecked_append(draw_space[parent]);
-                bool culled = backface_culled[parent];
-                if (!culled) {
-                    auto const& plane_root_matrix = transform_palette[backface.plane_root_index.value()];
-                    culled = should_cull_back_face(transform_palette.last(), plane_root_matrix);
-                }
-                backface_culled.unchecked_append(culled);
-            },
-            [&](ScrollData const&) {
-                append_spatial_translation(scroll_state.device_offset_for_index(SpatialNodeIndex { static_cast<u32>(i) }).to_type<int>());
-            },
-            [&](StickyData const&) {
-                append_spatial_translation(scroll_state.device_offset_for_index(SpatialNodeIndex { static_cast<u32>(i) }).to_type<int>());
-            },
-            [&](AnchorScrollShift const& shift) {
-                append_spatial_translation(shift.masked_offset(scroll_state).to_type<int>());
-            });
-    }
-
-    // The palette entry the canvas matrix currently equals, if known; popping a frame resets the
-    // matrix to its save point, so unwinding applied frames invalidates it. Recorded streams
-    // contain no matrix-mutating commands, so playing commands never invalidates the cache.
-    Optional<SpatialNodeIndex> current_ctm_space;
-    auto ensure_ctm_space = [&](SpatialNodeIndex spatial) {
-        auto space = draw_space[spatial.value()];
-        if (current_ctm_space == space)
-            return;
-        set_matrix(transform_palette[space.value()]);
-        current_ctm_space = space;
-    };
-
-    // Each applied/target frame pushes and pops the canvas state according to its node kind;
-    // a context without a frame targets an empty frame list and takes its coordinates from the palette.
-    Vector<FrameNodeIndex, 16> applied_frames;
-    Vector<FrameNodeIndex, 16> target_frames;
-    Optional<ContextRef> applied_context;
-
-    auto build_target_frames = [&](FrameNodeIndex target_frame) {
-        target_frames.clear_with_capacity();
-        for (auto frame = target_frame; frame != NO_FRAME_NODE; frame = visual_context_tree.frame_node_at(frame).parent)
-            target_frames.append(frame);
-        target_frames.reverse();
-    };
-
-    size_t applied_mask_frame_count = 0;
-    auto restore_to_length = [&](size_t length) {
-        applied_context = {};
-        while (applied_frames.size() > length) {
-            auto frame_index = applied_frames.take_last();
-            auto const& frame_node = visual_context_tree.frame_node_at(frame_index);
-            auto const* mask = applied_mask_frame_count > 0 ? frame_node.data.get_pointer<MaskData>() : nullptr;
-            if (mask) {
-                --applied_mask_frame_count;
-                ensure_ctm_space(frame_node.spatial);
-                Optional<DisplayListResourceId> mask_content;
-                if (auto display_list_id = display_list.mask_display_list_id(frame_index);
-                    display_list_id.has_value() && resource_storage().has_display_list(*display_list_id))
-                    mask_content = *display_list_id;
-                pop_mask(*mask, mask_content);
-            } else {
-                pop();
-            }
-            current_ctm_space = {};
-        }
-    };
-
-    // OPTIMIZATION: When walking down to layer-pushing frames (effects and masks), check culling before pushing
-    //               each one. Effects don't affect clip state and a mask push only narrows it, so testing against
-    //               the pre-push clip is conservative and valid. This avoids expensive saveLayer/restore cycles
-    //               for off-screen elements.
-    enum class SwitchResult : u8 {
-        Switched,
-        CulledByEffect,
-    };
-    auto switch_to_context = [&](ContextRef target, Optional<Gfx::IntRect> bounding_rect = {}) -> SwitchResult {
-        if (applied_context == target)
-            return SwitchResult::Switched;
-
-        build_target_frames(target.frame);
-
-        auto common_prefix_length = applied_frames.span().matching_prefix_length(target_frames);
-
-        restore_to_length(common_prefix_length);
-
-        for (size_t i = common_prefix_length; i < target_frames.size(); ++i) {
-            auto frame_index = target_frames[i];
-            auto const& frame_node = visual_context_tree.frame_node_at(frame_index);
-            bool pushes_layer = frame_node.data.has<EffectsData>() || frame_node.data.has<MaskData>();
-            if (pushes_layer && bounding_rect.has_value()) {
-                bool culled_by_layer_frame = bounding_rect->is_empty();
-                if (!culled_by_layer_frame) {
-                    ensure_ctm_space(target.spatial);
-                    culled_by_layer_frame = would_be_fully_clipped_by_painter(*bounding_rect);
-                }
-                if (culled_by_layer_frame) {
-                    restore_to_length(common_prefix_length);
-                    // The canvas is unwound to the shared prefix; clearing the applied context
-                    // keeps the fast path from reusing the pre-cull context while the frame
-                    // vector still enables prefix reuse on the next switch.
-                    return SwitchResult::CulledByEffect;
-                }
-            }
-            ensure_ctm_space(frame_node.spatial);
-            frame_node.data.visit(
-                [&](ClipData const& clip) { push_clip(clip); },
-                [&](ClipPathData const& clip_path) { push_clip_path(clip_path.path, clip_path.fill_rule); },
-                [&](EffectsData const& effects) { push_layer(effects); },
-                [&](MaskData const& mask) {
-                    push_mask(mask);
-                    ++applied_mask_frame_count;
-                });
-            applied_frames.append(frame_index);
-        }
-
-        applied_context = target;
-        return SwitchResult::Switched;
-    };
-
-    auto execute_command = [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
+void DisplayListPlayer::execute_run_commands(DisplayListCommandRun const& run, ScrollStateSnapshot const& scroll_state)
+{
+    DisplayList::for_each_command_header(active_display_list().command_bytes_of_run(run), [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
         if (display_list_command_is_compositor_metadata(header.command_type))
             return;
 
@@ -318,7 +164,7 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
 
         TemporaryChange current_command_payload_change { m_current_command_payload, payload };
         if (header.clips_to_bounding_rect)
-            push_clip(ClipData { .rect = header.bounding_rect.to_type<float>(), .corner_radii = {} });
+            push_clip(ReplayClip { .rect = header.bounding_rect.to_type<float>(), .corner_radii = {}, .mode = ClipMode::Intersect });
         auto dispatch_command = [&]<DisplayListCommand Command>(auto&& callback) {
             auto command = read_display_list_command_payload<Command>(payload);
             if constexpr (IsSame<Command, PaintScrollBar>) {
@@ -343,92 +189,54 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
         }
         if (header.clips_to_bounding_rect)
             pop();
+    });
+}
+
+void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStateSnapshot const& scroll_state)
+{
+    auto const& visual_context_tree = active_visual_context_tree();
+    VERIFY(display_list.compatible_visual_context_tree_version() == visual_context_tree.version());
+    VERIFY(m_surface);
+
+    struct ReplayContext {
+        DisplayListPlayer& player;
+        ScrollStateSnapshot const& scroll_state;
+    } replay_context { *this, scroll_state };
+
+    Layout::RustFFI::FfiDisplayListReplayCallbacks callbacks {
+        .context = &replay_context,
+        .canvas_matrix = [](void* context) -> Gfx::FloatMatrix4x4 { return static_cast<ReplayContext*>(context)->player.canvas_matrix(); },
+        .set_matrix = [](void* context, Gfx::FloatMatrix4x4 const* matrix) { static_cast<ReplayContext*>(context)->player.set_matrix(*matrix); },
+        .would_be_fully_clipped_by_painter = [](void* context, Gfx::IntRect rect) -> bool {
+            return static_cast<ReplayContext*>(context)->player.would_be_fully_clipped_by_painter(rect);
+        },
+        .push_clip = [](void* context, ReplayClip const* clip) { static_cast<ReplayContext*>(context)->player.push_clip(*clip); },
+        .push_clip_path = [](void* context, void const* path, Gfx::WindingRule winding_rule) { static_cast<ReplayContext*>(context)->player.push_clip_path(*static_cast<Gfx::Path const*>(path), winding_rule); },
+        .push_layer = [](void* context, ReplayLayer const* layer) { static_cast<ReplayContext*>(context)->player.push_layer(*layer); },
+        .push_mask = [](void* context, ReplayMask const* mask) { static_cast<ReplayContext*>(context)->player.push_mask(*mask); },
+        .pop_mask = [](void* context, ReplayMask const* mask, FrameNodeIndex frame) {
+            auto& replay = *static_cast<ReplayContext*>(context);
+            Optional<DisplayListResourceId> mask_content;
+            if (auto display_list_id = replay.player.active_display_list().mask_display_list_id(frame);
+                display_list_id.has_value() && replay.player.resource_storage().has_display_list(*display_list_id))
+                mask_content = *display_list_id;
+            replay.player.pop_mask(*mask, mask_content); },
+        .pop = [](void* context) { static_cast<ReplayContext*>(context)->player.pop(); },
+        .push_device_space_plane_clip = [](void* context, Gfx::FloatVector3 const* vertices, size_t vertex_count) {
+            Gfx::Path path;
+            path.move_to({ vertices[0].x(), vertices[0].y() });
+            for (size_t i = 1; i < vertex_count; ++i)
+                path.line_to({ vertices[i].x(), vertices[i].y() });
+            path.close();
+            static_cast<ReplayContext*>(context)->player.push_device_space_plane_clip(path); },
+        .execute_run = [](void* context, size_t run_index) {
+            auto& replay = *static_cast<ReplayContext*>(context);
+            replay.player.execute_run_commands(replay.player.active_display_list().command_runs()[run_index], replay.scroll_state); },
     };
 
-    // A run enters its context once. Only a run whose ink bounds are known may be skipped as a
-    // whole, and only such a run offers its bounds to the layer-frame cull. Skipping a run with
-    // nothing to draw before entering its context spares the frame pushes.
-    auto execute_run = [&](DisplayListCommandRun const& run) {
-        if (backface_culled[run.context.spatial.value()])
-            return;
-        if (run.context.frame != NO_FRAME_NODE && frame_has_empty_effective_clip[run.context.frame.value()])
-            return;
-        Optional<Gfx::IntRect> skippable_ink_bounds;
-        if (!run.has_unbounded_draw)
-            skippable_ink_bounds = run.ink_bounds;
-        if (skippable_ink_bounds.has_value() && skippable_ink_bounds->is_empty())
-            return;
-        if (switch_to_context(run.context, skippable_ink_bounds) == SwitchResult::CulledByEffect)
-            return;
-        ensure_ctm_space(run.context.spatial);
-        if (skippable_ink_bounds.has_value() && would_be_fully_clipped_by_painter(*skippable_ink_bounds))
-            return;
-        DisplayList::for_each_command_header(display_list.command_bytes_of_run(run), execute_command);
-    };
-
-    if (!tree_has_sorting_contexts) {
-        for (auto const& run : command_runs)
-            execute_run(run);
-    } else {
-        auto root_isolation_frame = visual_context_tree.root_isolation_frame();
-        size_t const plane_clip_base_length = root_isolation_frame.has_value() ? 1 : 0;
-        static constexpr SpatialNodeIndex no_sorting_context { NumericLimits<u32>::max() };
-        Vector<SpatialNodeIndex> parent_by_node;
-        Vector<SpatialNodeIndex> sorting_context_root_by_node;
-        parent_by_node.ensure_capacity(spatial_nodes.size());
-        sorting_context_root_by_node.ensure_capacity(spatial_nodes.size());
-        for (auto const& node : spatial_nodes) {
-            parent_by_node.unchecked_append(node.parent);
-            sorting_context_root_by_node.unchecked_append(node.data.visit(
-                [&](TransformData const& transform) { return transform.sorting_context_root_index.value_or(no_sorting_context); },
-                [&](auto const&) { return no_sorting_context; }));
-        }
-
-        auto* depth_sorted_plan = Layout::RustFFI::display_list_build_depth_sorted_replay_plan(
-            command_runs.data(), command_runs.size(), transform_palette.data(), draw_space.data(), backface_culled.data(),
-            frame_has_empty_effective_clip.data(), frame_has_empty_effective_clip.size(), spatial_nodes.size(),
-            parent_by_node.data(), sorting_context_root_by_node.data());
-        ScopeGuard destroy_depth_sorted_plan = [&] { Layout::RustFFI::display_list_depth_sorted_replay_plan_destroy(depth_sorted_plan); };
-        size_t step_count = 0;
-        ReadonlySpan<Layout::RustFFI::FfiDepthSortedReplayStep> steps { Layout::RustFFI::display_list_depth_sorted_replay_plan_steps(depth_sorted_plan, &step_count), step_count };
-        size_t vertex_count = 0;
-        ReadonlySpan<Gfx::FloatVector3> vertices { Layout::RustFFI::display_list_depth_sorted_replay_plan_vertices(depth_sorted_plan, &vertex_count), vertex_count };
-
-        for (auto const& step : steps) {
-            switch (step.kind) {
-            case Layout::RustFFI::DepthSortedReplayStepKind::RunSpan:
-                for (auto const& run : command_runs.slice(step.first_run, step.run_count))
-                    execute_run(run);
-                break;
-            case Layout::RustFFI::DepthSortedReplayStepKind::PushPlaneClip: {
-                if (root_isolation_frame.has_value())
-                    switch_to_context(ContextRef { visual_context_tree.frame_node_at(*root_isolation_frame).spatial, *root_isolation_frame });
-                restore_to_length(plane_clip_base_length);
-                auto clip_vertices = vertices.slice(step.vertex_offset, step.vertex_count);
-                Gfx::Path path;
-                path.move_to({ clip_vertices[0].x(), clip_vertices[0].y() });
-                for (size_t i = 1; i < clip_vertices.size(); ++i)
-                    path.line_to({ clip_vertices[i].x(), clip_vertices[i].y() });
-                path.close();
-                push_device_space_plane_clip(path);
-                current_ctm_space = {};
-                break;
-            }
-            case Layout::RustFFI::DepthSortedReplayStepKind::PopPlaneClip:
-                restore_to_length(plane_clip_base_length);
-                pop();
-                current_ctm_space = {};
-                break;
-            }
-        }
-    }
-
-    restore_to_length(0);
-    // Node spaces were entered by setting the canvas matrix absolutely, outside any save, so the
-    // matrix the replay entered with must be handed back explicitly.
-    set_matrix(replay_base_matrix);
-
-    m_replay_palette_storage = move(palette_storage);
+    auto command_runs = display_list.command_runs();
+    auto scroll_offsets = scroll_state.device_offsets();
+    Layout::RustFFI::display_list_replay(visual_context_tree.rust_tree(), command_runs.data(), command_runs.size(), scroll_offsets.data(), scroll_offsets.size(), &callbacks);
 }
 
 }

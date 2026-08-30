@@ -6,10 +6,12 @@
 
 pub mod hit_test;
 pub mod paint;
+pub mod replay;
 pub mod visual_context;
 
 pub use hit_test::*;
 pub use paint::*;
+pub use replay::*;
 pub use visual_context::*;
 
 #[derive(Clone, Copy, Debug)]

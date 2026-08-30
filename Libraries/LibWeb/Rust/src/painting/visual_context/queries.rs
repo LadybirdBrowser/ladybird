@@ -70,6 +70,21 @@ struct SpatialChainWalk {
 }
 
 impl VisualContextTree {
+    pub fn fill_frames_with_empty_effective_clip(&self, empty: &mut Vec<bool>) {
+        empty.clear();
+        empty.reserve(self.frame_nodes.len());
+        for node in &self.frame_nodes {
+            let parent_is_empty = !node.parent.is_none() && empty[node.parent.0 as usize];
+            empty.push(node.clips_everything || parent_is_empty);
+        }
+    }
+
+    pub fn frames_with_empty_effective_clip(&self) -> Vec<bool> {
+        let mut empty = Vec::new();
+        self.fill_frames_with_empty_effective_clip(&mut empty);
+        empty
+    }
+
     fn chain_contains_3d_transform(&self, index: SpatialNodeIndex) -> bool {
         let mut current = index;
         loop {

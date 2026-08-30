@@ -373,108 +373,31 @@ unsafe fn tree_from_handle<'a>(tree: *const c_void) -> &'a crate::painting::visu
 
 /// # Safety
 ///
-/// Every input pointer must address the stated number of initialized values for the duration of the call.
+/// `tree` must be a live retained tree handle, `command_runs` must address `command_run_count`
+/// runs and `scroll_offsets` `scroll_offsets_len` points for the call, and `callbacks` must be
+/// live. The painter callbacks run synchronously and may re-enter this function for a nested
+/// display list.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn display_list_build_depth_sorted_replay_plan(
+pub unsafe extern "C" fn display_list_replay(
+    tree: *const c_void,
     command_runs: *const crate::painting::display_list::commands::DisplayListCommandRun,
     command_run_count: usize,
-    transform_palette: *const libgfx_rust::FloatMatrix4x4,
-    draw_space: *const crate::painting::display_list::commands::SpatialNodeIndex,
-    backface_culled: *const bool,
-    frame_has_empty_effective_clip: *const bool,
-    frame_count: usize,
-    node_count: usize,
-    parent_by_node: *const crate::painting::display_list::commands::SpatialNodeIndex,
-    sorting_context_root_by_node: *const crate::painting::display_list::commands::SpatialNodeIndex,
-) -> *mut c_void {
+    scroll_offsets: *const libgfx_rust::FloatPoint,
+    scroll_offsets_len: usize,
+    callbacks: *const crate::painting::host::FfiDisplayListReplayCallbacks,
+) {
     abort_on_panic(|| {
-        // SAFETY: The caller guarantees every input pointer addresses the stated number of initialized values.
-        let (
-            command_runs,
-            transform_palette,
-            draw_space,
-            backface_culled,
-            frame_has_empty_effective_clip,
-            parent_by_node,
-            sorting_context_root_by_node,
-        ) = unsafe {
+        let tree = unsafe { tree_from_handle(tree) };
+        // SAFETY: The caller guarantees the slices address the stated number of values.
+        let (command_runs, scroll_offsets) = unsafe {
             (
                 ffi_slice(command_runs, command_run_count),
-                ffi_slice(transform_palette, node_count),
-                ffi_slice(draw_space, node_count),
-                ffi_slice(backface_culled, node_count),
-                ffi_slice(frame_has_empty_effective_clip, frame_count),
-                ffi_slice(parent_by_node, node_count),
-                ffi_slice(sorting_context_root_by_node, node_count),
+                ffi_slice(scroll_offsets, scroll_offsets_len),
             )
         };
-        let contexts = crate::painting::visual_context::resolve_sorting_contexts_over_nodes(node_count, |index| {
-            let root = sorting_context_root_by_node[index];
-            (
-                parent_by_node[index],
-                (root != crate::painting::visual_context::NO_SORTING_CONTEXT).then_some(root),
-            )
-        });
-        let plan = crate::painting::display_list::depth_sorted_plan::build_depth_sorted_replay_plan(
-            command_runs,
-            &contexts,
-            transform_palette,
-            draw_space,
-            backface_culled,
-            frame_has_empty_effective_clip,
-        );
-        Box::into_raw(Box::new(plan)).cast()
-    })
-}
-
-/// # Safety
-///
-/// `plan` must be a live handle returned by `display_list_build_depth_sorted_replay_plan`, and
-/// `out_count` writable.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn display_list_depth_sorted_replay_plan_steps(
-    plan: *const c_void,
-    out_count: *mut usize,
-) -> *const crate::painting::display_list::depth_sorted_plan::FfiDepthSortedReplayStep {
-    abort_on_panic(|| {
-        // SAFETY: The caller guarantees the plan and output pointers are live and writable respectively.
-        let plan = unsafe { &*plan.cast::<crate::painting::display_list::depth_sorted_plan::DepthSortedReplayPlan>() };
-        // SAFETY: The caller guarantees `out_count` is writable.
-        unsafe { *out_count = plan.steps.len() };
-        plan.steps.as_ptr()
-    })
-}
-
-/// # Safety
-///
-/// `plan` must be a live handle returned by `display_list_build_depth_sorted_replay_plan`, and
-/// `out_count` writable.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn display_list_depth_sorted_replay_plan_vertices(
-    plan: *const c_void,
-    out_count: *mut usize,
-) -> *const libgfx_rust::FloatVector3 {
-    abort_on_panic(|| {
-        // SAFETY: The caller guarantees the plan and output pointers are live and writable respectively.
-        let plan = unsafe { &*plan.cast::<crate::painting::display_list::depth_sorted_plan::DepthSortedReplayPlan>() };
-        // SAFETY: The caller guarantees `out_count` is writable.
-        unsafe { *out_count = plan.vertices.len() };
-        plan.vertices.as_ptr()
-    })
-}
-
-/// # Safety
-///
-/// `plan` must be null or a live handle returned by `display_list_build_depth_sorted_replay_plan` exactly once.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn display_list_depth_sorted_replay_plan_destroy(plan: *mut c_void) {
-    abort_on_panic(|| {
-        if !plan.is_null() {
-            // SAFETY: The caller transfers the live plan handle back exactly once.
-            drop(unsafe {
-                Box::from_raw(plan.cast::<crate::painting::display_list::depth_sorted_plan::DepthSortedReplayPlan>())
-            });
-        }
+        // SAFETY: The caller guarantees `callbacks` is live for the call.
+        let mut painter = unsafe { *callbacks };
+        crate::painting::display_list::replay::replay_display_list(tree, command_runs, scroll_offsets, &mut painter);
     });
 }
 

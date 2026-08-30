@@ -49,11 +49,11 @@ private:
     Gfx::FloatMatrix4x4 canvas_matrix() const override;
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 
-    void push_clip(ClipData const&) override;
+    void push_clip(ReplayClip const&) override;
     void push_clip_path(Gfx::Path const&, Gfx::WindingRule) override;
-    void push_layer(EffectsData const&) override;
-    void push_mask(MaskData const&) override;
-    void pop_mask(MaskData const&, Optional<DisplayListResourceId> mask_content) override;
+    void push_layer(ReplayLayer const&) override;
+    void push_mask(ReplayMask const&) override;
+    void pop_mask(ReplayMask const&, Optional<DisplayListResourceId> mask_content) override;
     void pop() override;
     void push_device_space_plane_clip(Gfx::Path const&) override;
 
