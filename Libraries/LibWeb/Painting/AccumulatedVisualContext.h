@@ -191,18 +191,23 @@ public:
     // content placement, so queries asked to exclude the visual viewport transform include it.
     static WEB_API AccumulatedVisualContextTree create_with_content_root(TransformData content_transform);
 
-    AccumulatedVisualContextTree(AccumulatedVisualContextTree const&) = default;
-    AccumulatedVisualContextTree& operator=(AccumulatedVisualContextTree const&) = default;
-    AccumulatedVisualContextTree(AccumulatedVisualContextTree&&) = default;
-    AccumulatedVisualContextTree& operator=(AccumulatedVisualContextTree&&) = default;
-    ~AccumulatedVisualContextTree() = default;
+    WEB_API AccumulatedVisualContextTree(AccumulatedVisualContextTree const&);
+    WEB_API AccumulatedVisualContextTree& operator=(AccumulatedVisualContextTree const&);
+    WEB_API AccumulatedVisualContextTree(AccumulatedVisualContextTree&&);
+    WEB_API AccumulatedVisualContextTree& operator=(AccumulatedVisualContextTree&&);
+    WEB_API ~AccumulatedVisualContextTree();
 
     u64 version() const { return m_version; }
+    void reuse_version_from(AccumulatedVisualContextTree const& other) { m_version = other.m_version; }
+
+    // The Rust tree this mirror was materialized from, retained by this value; null for hand-built trees.
+    void const* rust_tree() const { return m_rust_tree; }
+    WEB_API void adopt_rust_tree(void const* retained_tree);
+    WEB_API void release_rust_tree();
 
     WEB_API SpatialNodeIndex append_spatial(SpatialData, SpatialNodeIndex parent);
     WEB_API FrameNodeIndex append_frame(FrameData, FrameNodeIndex parent, SpatialNodeIndex spatial);
     WEB_API void set_visual_viewport_transform(TransformData);
-    WEB_API void reuse_version_from(AccumulatedVisualContextTree const&);
 
     SpatialNode const& spatial_node_at(SpatialNodeIndex index) const { return m_spatial_nodes[index.value()]; }
     SpatialNode& spatial_node_at(SpatialNodeIndex index) { return m_spatial_nodes[index.value()]; }
@@ -243,6 +248,7 @@ private:
     bool chain_contains_3d_transform(SpatialNodeIndex index) const;
 
     u64 m_version { 0 };
+    void const* m_rust_tree { nullptr };
     Vector<SpatialNode> m_spatial_nodes;
     Vector<FrameNode> m_frame_nodes;
     bool m_root_is_visual_viewport { true };

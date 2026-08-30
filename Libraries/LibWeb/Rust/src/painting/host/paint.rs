@@ -611,10 +611,12 @@ impl FfiPaintHostCallbacks {
     }
     pub(crate) fn materialize_visual_context_tree(
         &self,
-        tree: &crate::painting::visual_context::VisualContextTree,
+        tree: crate::painting::visual_context::VisualContextTree,
     ) -> *mut c_void {
-        // SAFETY: The C++ host reads the tree synchronously through the exported node accessors.
-        unsafe { (self.materialize_visual_context_tree)(self.context, std::ptr::from_ref(tree).cast()) }
+        // SAFETY: The C++ host takes ownership of the retained tree handle it receives.
+        unsafe {
+            (self.materialize_visual_context_tree)(self.context, std::rc::Rc::into_raw(std::rc::Rc::new(tree)).cast())
+        }
     }
     pub(crate) fn nested_display_list_from_tree(
         &self,

@@ -129,7 +129,7 @@ impl PaintRecorder<'_> {
                     }
                 }
             }
-        } else if let Some(tree) = &self.paint_state.visual_context.tree {
+        } else if let Some(tree) = self.paint_state.visual_context.tree.as_deref() {
             let data = self.data(paintable);
             for index in data.frame_nodes_begin..data.frame_nodes_end {
                 if let FrameData::Mask(mask) = &tree.frame_nodes[index as usize].data {
@@ -395,7 +395,7 @@ impl PaintRecorder<'_> {
             .take()
             .expect("CSS mask recording has a visual context tree");
         let recorded = session.recorder.into_builder().finish();
-        let tree_handle = self.paint_host.materialize_visual_context_tree(&tree);
+        let tree_handle = self.paint_host.materialize_visual_context_tree(tree);
         self.paint_host
             .nested_display_list_from_tree(&recorded, tree_handle, &[])
     }
@@ -428,7 +428,7 @@ impl PaintRecorder<'_> {
         let nested_recorder = session.recorder;
         let mask_display_lists = nested_recorder.mask_display_lists().to_vec();
         let recorded = nested_recorder.into_builder().finish();
-        let tree_handle = self.paint_host.materialize_visual_context_tree(&tree);
+        let tree_handle = self.paint_host.materialize_visual_context_tree(tree);
         self.paint_host
             .nested_display_list_from_tree(&recorded, tree_handle, &mask_display_lists)
     }

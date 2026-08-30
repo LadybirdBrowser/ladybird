@@ -85,6 +85,8 @@ void DocumentPaintState::invalidate_stacking_context_tree()
 void DocumentPaintState::refresh_sticky_constraints(DOM::Document& document)
 {
     m_needs_to_refresh_scroll_state = true;
+    if (m_visual_context_tree.has_value())
+        m_visual_context_tree->release_rust_tree();
     mirror_rust_refresh_sticky_constraints(document);
     if (!m_visual_context_tree.has_value())
         return;
@@ -112,13 +114,9 @@ void DocumentPaintState::assign_accumulated_visual_contexts(DOM::Document& docum
     auto forced_incompatible_rebuild = m_force_incompatible_visual_context_tree_rebuild_for_testing;
     m_force_incompatible_visual_context_tree_rebuild_for_testing = false;
     auto is_compatible = rust_assign_accumulated_visual_contexts(document, forced_incompatible_rebuild);
-    auto visual_context_tree = materialize_rust_main_visual_context_tree(document);
-    if (is_compatible) {
-        visual_context_tree.reuse_version_from(*m_visual_context_tree);
-    } else {
+    if (!is_compatible)
         document.set_needs_to_record_display_list();
-    }
-    m_visual_context_tree = move(visual_context_tree);
+    m_visual_context_tree = materialize_rust_main_visual_context_tree(document);
     m_visual_context_tree_needs_compositor_update = true;
 }
 
@@ -128,11 +126,12 @@ bool DocumentPaintState::update_accumulated_visual_context_values(DOM::Document&
         return false;
     if (m_force_incompatible_visual_context_tree_rebuild_for_testing)
         return false;
-    if (!rust_update_accumulated_visual_context_values(document, paintable_slot))
-        return false;
+    m_visual_context_tree->release_rust_tree();
     auto const* row = Layout::RustFFI::layout_arena_paintable_row(m_layout_node_arena->handle(), paintable_slot);
-    if (!row)
+    if (!rust_update_accumulated_visual_context_values(document, paintable_slot) || !row) {
+        m_visual_context_tree->adopt_rust_tree(retain_rust_main_visual_context_tree(document));
         return false;
+    }
     patch_rust_visual_context_nodes(document, *m_visual_context_tree, row->spatial_nodes_begin, row->spatial_nodes_end, row->frame_nodes_begin, row->frame_nodes_end);
     m_visual_context_tree_needs_compositor_update = true;
     return true;
@@ -144,6 +143,7 @@ void DocumentPaintState::update_visual_viewport_accumulated_visual_context(DOM::
         assign_accumulated_visual_contexts(document);
         return;
     }
+    m_visual_context_tree->release_rust_tree();
     rust_update_visual_viewport_transform(document);
     patch_rust_visual_context_nodes(document, *m_visual_context_tree, VISUAL_VIEWPORT_NODE_INDEX.value(), VISUAL_VIEWPORT_NODE_INDEX.value() + 1, 0, 0);
     m_visual_context_tree_needs_compositor_update = true;

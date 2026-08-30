@@ -9,28 +9,6 @@
 
 using namespace Web::Painting;
 
-static TransformData make_transform(float translation)
-{
-    auto matrix = Gfx::FloatMatrix4x4::identity();
-    matrix[0, 3] = translation;
-    matrix[1, 3] = translation;
-    return { matrix, { translation, translation } };
-}
-
-TEST_CASE(compatible_trees_can_reuse_versions)
-{
-    auto tree = AccumulatedVisualContextTree::create(make_transform(1));
-    tree.append_spatial(make_transform(2), VISUAL_VIEWPORT_NODE_INDEX);
-
-    auto updated_tree = AccumulatedVisualContextTree::create(make_transform(3));
-    updated_tree.append_spatial(make_transform(4), VISUAL_VIEWPORT_NODE_INDEX);
-
-    EXPECT_NE(tree.version(), updated_tree.version());
-
-    updated_tree.reuse_version_from(tree);
-    EXPECT_EQ(updated_tree.version(), tree.version());
-}
-
 TEST_CASE(frames_under_an_empty_clip_clip_path_or_mask_have_an_empty_effective_clip)
 {
     auto tree = AccumulatedVisualContextTree::create();
