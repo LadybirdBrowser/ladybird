@@ -104,7 +104,7 @@ public:
     {
         if (!value.pointer)
             return 0;
-        return length_percentage().resolved(reference_value).absolute_length_to_px();
+        return length_percentage().to_px(reference_value);
     }
 
     bool contains_percentage() const

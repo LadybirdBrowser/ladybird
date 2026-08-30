@@ -92,8 +92,11 @@ fn resolved_translate_axis_px(px: f32, percentage: &ComputedStyleValueHandle, re
         return px;
     };
     if length_percentage.is_calculated() {
-        return crate::css::computed_value_views::resolve_calc_to_px(length_percentage.calculated_pointer(), reference)
-            .to_float();
+        return CssPixels::nearest_value_for(crate::css::computed_value_views::resolve_calc_to_px_without_rounding(
+            length_percentage.calculated_pointer(),
+            reference,
+        ))
+        .to_float();
     }
     CssPixels::nearest_value_for(reference.to_double() * length_percentage.as_fraction()).to_float()
 }

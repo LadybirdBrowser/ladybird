@@ -553,7 +553,7 @@ impl AbsposEngine {
                 Some(resolve_anchor_non_math_function),
             )
         };
-        result.resolved.then(|| CssPixels::nearest_value_for(result.value))
+        result.resolved.then(|| CssPixels::truncated_value_for(result.value))
     }
 
     fn resolve_anchor_insets(

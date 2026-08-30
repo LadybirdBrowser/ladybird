@@ -64,7 +64,10 @@ public:
 
     CSSPixels to_px(CSSPixels reference_value) const
     {
-        return resolved(reference_value).absolute_length_to_px();
+        if (!is_calculated())
+            return resolved(reference_value).absolute_length_to_px();
+        auto resolved_length = calculated()->resolve_length({ .percentage_basis = Length::make_px(reference_value) }).value();
+        return CSSPixels::truncated_value_for(resolved_length.absolute_length_to_px_without_rounding());
     }
 
     Length resolved(CSSPixels reference_value) const
