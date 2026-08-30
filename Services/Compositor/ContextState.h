@@ -61,14 +61,22 @@ class ContextState {
     AK_MAKE_NONMOVABLE(ContextState);
 
 public:
+    struct PendingFrame {
+        Gfx::IntRect viewport_rect;
+        Gfx::IntRect forced_damage_rect;
+
+        static PendingFrame repainting_everything(Gfx::IntRect viewport_rect) { return { viewport_rect, { {}, viewport_rect.size() } }; }
+        static PendingFrame repainting_changes(Gfx::IntRect viewport_rect) { return { viewport_rect, {} }; }
+    };
+
     struct AsyncScrollResult {
         Web::Compositor::AsyncScrollEnqueueResult enqueue_result;
-        Optional<Gfx::IntRect> frame_to_present;
+        Optional<PendingFrame> frame_to_present;
     };
 
     struct ContextUpdateResult {
         bool accepted { false };
-        Optional<Gfx::IntRect> frame_to_present;
+        Optional<PendingFrame> frame_to_present;
         bool should_request_rendering_update { false };
     };
 
@@ -76,11 +84,6 @@ public:
         Gfx::PaintingSurface* rendered_surface { nullptr };
         i32 bitmap_id { 0 };
         Gfx::IntRect damage_rect;
-    };
-
-    struct PendingFrame {
-        Gfx::IntRect viewport_rect;
-        Gfx::IntRect forced_damage_rect;
     };
 
     ContextState(Optional<u64> page_id, CompositorStateWebContentClient&, Web::Painting::CanvasSurfaceRegistry const&, bool async_scrolling_enabled);
@@ -191,7 +194,7 @@ private:
     void store_pending_async_scroll_offsets(Vector<Web::Compositor::AsyncScrollOffset> const&, Optional<Web::Compositor::AsyncScrollOperationID> = {});
     void cancel_smooth_scroll_taken_over_by_user_input(Web::Compositor::AsyncScrollNodeID);
     void note_user_scroll_gesture_end_if_drag_ended(bool was_dragging_viewport_scrollbar);
-    Optional<Gfx::IntRect> apply_viewport_scrollbar_drag(ViewportScrollbarController::Drag const&);
+    Optional<PendingFrame> apply_viewport_scrollbar_drag(ViewportScrollbarController::Drag const&);
     void rebuild_wheel_hit_test_targets();
     bool is_present_blocked() const;
     bool can_render_frame() const;

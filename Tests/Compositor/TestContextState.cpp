@@ -785,3 +785,77 @@ TEST_CASE(child_context_presents_repaint_the_parent)
     fixture.compositor_state->present_frame(child_context_id, child_viewport_rect);
     EXPECT_EQ(fixture.wait_for_frame(already_presented).damage_rect, fixture.viewport_rect);
 }
+
+TEST_CASE(async_scroll_presents_report_the_damage_of_the_scrolled_content)
+{
+    PresentingContextFixture fixture { { 100, 100 }, true };
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto viewport_scroll_node_index = visual_context_tree.append_spatial(Web::Painting::ScrollData {}, Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    auto nested_scroll_node_index = visual_context_tree.append_spatial(Web::Painting::ScrollData {}, viewport_scroll_node_index);
+    Web::UniqueNodeID document_id { 1 };
+
+    ByteBuffer command_bytes;
+    append_display_list_command(
+        command_bytes,
+        Web::Painting::CompositorScrollNode {
+            .document_id = document_id,
+            .scrollable_node_id = Web::UniqueNodeID { 2 },
+            .scroll_node_index = viewport_scroll_node_index,
+            .parent_scroll_node_index = Web::Painting::VISUAL_VIEWPORT_NODE_INDEX,
+            .scrollport_rect = { 0, 0, 100, 100 },
+            .min_scroll_offset = { 0, 0 },
+            .max_scroll_offset = { 0, 100 },
+            .scroll_node_kind = Web::Painting::CompositorScrollNodeKind::Viewport,
+            .pseudo_element_type = 0,
+            .is_viewport = true,
+            .can_be_wheel_scrolled_horizontally = false,
+            .can_be_wheel_scrolled_vertically = true,
+            .snaps_scroll_position_horizontally = false,
+            .snaps_scroll_position_vertically = false,
+        });
+    append_display_list_command(
+        command_bytes,
+        Web::Painting::CompositorScrollNode {
+            .document_id = document_id,
+            .scrollable_node_id = Web::UniqueNodeID { 3 },
+            .scroll_node_index = nested_scroll_node_index,
+            .parent_scroll_node_index = viewport_scroll_node_index,
+            .scrollport_rect = { 10, 10, 40, 40 },
+            .min_scroll_offset = { 0, 0 },
+            .max_scroll_offset = { 0, 100 },
+            .scroll_node_kind = Web::Painting::CompositorScrollNodeKind::Element,
+            .pseudo_element_type = 0,
+            .is_viewport = false,
+            .can_be_wheel_scrolled_horizontally = false,
+            .can_be_wheel_scrolled_vertically = true,
+            .snaps_scroll_position_horizontally = false,
+            .snaps_scroll_position_vertically = false,
+        });
+    append_display_list_command(
+        command_bytes,
+        Web::Painting::CompositorWheelHitTestTarget {
+            .document_id = document_id,
+            .target_scroll_node_index = nested_scroll_node_index,
+            .rect = { 10, 10, 40, 40 },
+        },
+        {},
+        in_spatial_node(viewport_scroll_node_index.value()));
+    Web::Painting::FillRect nested_content { { 10, 10, 40, 10 }, Gfx::Color::Red };
+    append_display_list_command(command_bytes, nested_content, nested_content.rect, in_spatial_node(nested_scroll_node_index.value()));
+    Web::Painting::FillRect viewport_content { { 60, 60, 10, 10 }, Gfx::Color::Green };
+    append_display_list_command(command_bytes, viewport_content, viewport_content.rect, in_spatial_node(viewport_scroll_node_index.value()));
+    fixture.install(decode_display_list(visual_context_tree, move(command_bytes), {}, Web::Painting::DisplayList::AsyncScrollingMetadata { .viewport_rect = { 0, 0, 100, 100 } }), visual_context_tree);
+    fixture.present();
+
+    auto already_presented = fixture.compositor_client.presented_frames.size();
+    EXPECT(fixture.compositor_state->async_scroll_by(fixture.context_id, { 20, 20 }, { 0, 5 }, Web::Compositor::SnapContainerHandling::ScrollOnCompositor));
+    auto nested_scroll_frame = fixture.wait_for_frame(already_presented);
+    EXPECT_EQ(nested_scroll_frame.content_rect, fixture.viewport_rect);
+    EXPECT_EQ(nested_scroll_frame.damage_rect, (Gfx::IntRect { 9, 4, 42, 17 }));
+
+    already_presented = fixture.compositor_client.presented_frames.size();
+    EXPECT(fixture.compositor_state->async_scroll_by(fixture.context_id, { 80, 80 }, { 0, 10 }, Web::Compositor::SnapContainerHandling::ScrollOnCompositor));
+    auto viewport_scroll_frame = fixture.wait_for_frame(already_presented);
+    EXPECT_EQ(viewport_scroll_frame.content_rect, (Gfx::IntRect { 0, 10, 100, 100 }));
+    EXPECT_EQ(viewport_scroll_frame.damage_rect, fixture.viewport_rect);
+}

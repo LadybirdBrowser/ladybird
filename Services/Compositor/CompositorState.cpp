@@ -605,10 +605,7 @@ void CompositorState::schedule_present_frame(Web::Compositor::CompositorContextI
 
 void CompositorState::schedule_present_frame(Web::Compositor::CompositorContextId context_id, ContextState& context, Gfx::IntRect viewport_rect)
 {
-    schedule_present_frame(context_id, context, ContextState::PendingFrame {
-                                                    .viewport_rect = viewport_rect,
-                                                    .forced_damage_rect = { {}, viewport_rect.size() },
-                                                });
+    schedule_present_frame(context_id, context, ContextState::PendingFrame::repainting_everything(viewport_rect));
 }
 
 void CompositorState::schedule_pending_present_frame(Web::Compositor::CompositorContextId context_id, ContextState& context)
@@ -681,10 +678,7 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id)
             continue;
 
         if (auto animation_frame = context.advance_smooth_scroll_animations(now); animation_frame.has_value())
-            context.queue_present_frame({
-                .viewport_rect = *animation_frame,
-                .forced_damage_rect = { {}, animation_frame->size() },
-            });
+            context.queue_present_frame(ContextState::PendingFrame::repainting_changes(*animation_frame));
 
         auto pending_present_frame = context.take_pending_present_frame_if_unblocked();
         if (!pending_present_frame.has_value()) {
@@ -694,7 +688,7 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id)
             continue;
         }
         if (context.has_active_smooth_scroll_animations())
-            schedule_present_frame(context_id, context, pending_present_frame->viewport_rect);
+            schedule_present_frame(context_id, context, ContextState::PendingFrame::repainting_changes(pending_present_frame->viewport_rect));
         present_frame(context_id, context, *pending_present_frame);
     }
 }

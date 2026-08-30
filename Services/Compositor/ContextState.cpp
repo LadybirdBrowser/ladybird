@@ -270,7 +270,7 @@ ContextState::ContextUpdateResult ContextState::handle_mouse_event(Web::MouseEve
         ContextUpdateResult result;
         result.accepted = true;
         if (!m_async_scrolling_viewport_rect.is_empty())
-            result.frame_to_present = m_async_scrolling_viewport_rect;
+            result.frame_to_present = PendingFrame::repainting_everything(m_async_scrolling_viewport_rect);
         if (auto frame_to_present = apply_viewport_scrollbar_drag(*drag); frame_to_present.has_value()) {
             result.frame_to_present = *frame_to_present;
             result.should_request_rendering_update = true;
@@ -288,9 +288,9 @@ ContextState::ContextUpdateResult ContextState::handle_mouse_event(Web::MouseEve
         }
 
         auto hovered_scrollbar_index = m_viewport_scrollbar_controller.hit_test(m_async_scroll_tree, m_scroll_state_snapshot, position);
-        Optional<Gfx::IntRect> frame_to_present;
+        Optional<PendingFrame> frame_to_present;
         if (m_viewport_scrollbar_controller.set_hovered_scrollbar(hovered_scrollbar_index) && !m_async_scrolling_viewport_rect.is_empty())
-            frame_to_present = m_async_scrolling_viewport_rect;
+            frame_to_present = PendingFrame::repainting_everything(m_async_scrolling_viewport_rect);
         return {
             .accepted = hovered_scrollbar_index.has_value(),
             .frame_to_present = frame_to_present,
@@ -314,21 +314,21 @@ ContextState::ContextUpdateResult ContextState::handle_mouse_event(Web::MouseEve
         // release scrolls nothing.
         result.should_request_rendering_update = true;
         if (!m_async_scrolling_viewport_rect.is_empty())
-            result.frame_to_present = m_async_scrolling_viewport_rect;
+            result.frame_to_present = PendingFrame::repainting_everything(m_async_scrolling_viewport_rect);
         if (auto frame_to_present = apply_viewport_scrollbar_drag(*drag); frame_to_present.has_value())
             result.frame_to_present = *frame_to_present;
 
         auto hovered_scrollbar_index = m_viewport_scrollbar_controller.hit_test(m_async_scroll_tree, m_scroll_state_snapshot, position);
         if (m_viewport_scrollbar_controller.set_hovered_scrollbar(hovered_scrollbar_index) && !m_async_scrolling_viewport_rect.is_empty())
-            result.frame_to_present = m_async_scrolling_viewport_rect;
+            result.frame_to_present = PendingFrame::repainting_everything(m_async_scrolling_viewport_rect);
 
         return result;
     }
     case Web::MouseEvent::Type::MouseLeave: {
         auto had_capture = m_viewport_scrollbar_controller.has_captured_scrollbar();
-        Optional<Gfx::IntRect> frame_to_present;
+        Optional<PendingFrame> frame_to_present;
         if (m_viewport_scrollbar_controller.set_hovered_scrollbar({}) && !m_async_scrolling_viewport_rect.is_empty())
-            frame_to_present = m_async_scrolling_viewport_rect;
+            frame_to_present = PendingFrame::repainting_everything(m_async_scrolling_viewport_rect);
         return {
             .accepted = had_capture,
             .frame_to_present = frame_to_present,
@@ -383,7 +383,7 @@ ContextState::ContextUpdateResult ContextState::handle_pinch_event(Web::PinchEve
 
     return {
         .accepted = true,
-        .frame_to_present = m_async_scrolling_viewport_rect,
+        .frame_to_present = PendingFrame::repainting_changes(m_async_scrolling_viewport_rect),
         .should_request_rendering_update = false,
     };
 }
@@ -429,7 +429,7 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
         async_scroll_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
     store_pending_async_scroll_offsets(scroll_offsets, operation_id);
     m_async_scrolling_viewport_rect = async_scroll_viewport_rect;
-    return { .enqueue_result = { true, operation_id }, .frame_to_present = async_scroll_viewport_rect };
+    return { .enqueue_result = { true, operation_id }, .frame_to_present = PendingFrame::repainting_changes(async_scroll_viewport_rect) };
 }
 
 ContextState::AsyncScrollResult ContextState::smooth_scroll_to(Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint destination_offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel, Web::Compositor::ScrollAnimationKind animation_kind)
@@ -472,7 +472,7 @@ ContextState::AsyncScrollResult ContextState::smooth_scroll_to(Web::Compositor::
     m_async_scrolling_viewport_rect = viewport_rect;
     return {
         .enqueue_result = { true, operation_id },
-        .frame_to_present = viewport_rect,
+        .frame_to_present = PendingFrame::repainting_changes(viewport_rect),
     };
 }
 
@@ -559,14 +559,14 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
     if (initial_scroll_target.blocked_by_main_thread_region || initial_scroll_target.blocked_by_wheel_event_region)
         return {};
 
-    Optional<Gfx::IntRect> frame_to_present;
+    Optional<PendingFrame> frame_to_present;
     auto remaining_delta = delta;
     if (auto visual_viewport_scroll_delta = apply_visual_viewport_scroll_delta(delta); visual_viewport_scroll_delta.has_value()) {
         Vector<Web::Compositor::AsyncScrollOffset> scroll_offsets;
         scroll_offsets.append(visual_viewport_scroll_delta->scroll_offset);
         store_pending_async_scroll_offsets(scroll_offsets);
         remaining_delta.translate_by(-visual_viewport_scroll_delta->consumed_delta.x(), -visual_viewport_scroll_delta->consumed_delta.y());
-        frame_to_present = m_async_scrolling_viewport_rect;
+        frame_to_present = PendingFrame::repainting_changes(m_async_scrolling_viewport_rect);
     }
 
     if (remaining_delta.is_zero())
@@ -607,7 +607,7 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
         async_scroll_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
     store_pending_async_scroll_offsets(scroll_offsets);
     m_async_scrolling_viewport_rect = async_scroll_viewport_rect;
-    return { .accepted = true, .frame_to_present = async_scroll_viewport_rect, .should_request_rendering_update = true };
+    return { .accepted = true, .frame_to_present = PendingFrame::repainting_changes(async_scroll_viewport_rect), .should_request_rendering_update = true };
 }
 
 Web::Compositor::PendingAsyncScrollUpdates ContextState::take_pending_async_scroll_updates()
@@ -720,14 +720,12 @@ void ContextState::queue_present_frame(PendingFrame pending_frame)
         return;
     }
 
-    if (m_pending_present_frame->viewport_rect != pending_frame.viewport_rect) {
-        m_pending_present_frame = PendingFrame {
-            .viewport_rect = pending_frame.viewport_rect,
-            .forced_damage_rect = { {}, pending_frame.viewport_rect.size() },
-        };
+    if (m_pending_present_frame->viewport_rect.size() != pending_frame.viewport_rect.size()) {
+        m_pending_present_frame = PendingFrame::repainting_everything(pending_frame.viewport_rect);
         return;
     }
 
+    m_pending_present_frame->viewport_rect = pending_frame.viewport_rect;
     m_pending_present_frame->forced_damage_rect.unite(pending_frame.forced_damage_rect);
 }
 
@@ -829,12 +827,8 @@ bool ContextState::present_synchronously(Web::Painting::DisplayListPlayerSkia& d
         return false;
 
     Optional<PendingFrame> pending_frame = m_pending_present_frame;
-    if (!pending_frame.has_value() && m_presented_frame.has_value()) {
-        pending_frame = PendingFrame {
-            .viewport_rect = *m_presented_frame,
-            .forced_damage_rect = { {}, m_presented_frame->size() },
-        };
-    }
+    if (!pending_frame.has_value() && m_presented_frame.has_value())
+        pending_frame = PendingFrame::repainting_everything(*m_presented_frame);
     if (!pending_frame.has_value())
         return false;
 
@@ -1010,7 +1004,7 @@ void ContextState::note_user_scroll_gesture_end_if_drag_ended(bool was_dragging_
         m_user_scroll_gesture_ended = true;
 }
 
-Optional<Gfx::IntRect> ContextState::apply_viewport_scrollbar_drag(ViewportScrollbarController::Drag const& drag)
+Optional<ContextState::PendingFrame> ContextState::apply_viewport_scrollbar_drag(ViewportScrollbarController::Drag const& drag)
 {
     auto scroll_delta = m_viewport_scrollbar_controller.scroll_delta_for_drag(m_async_scroll_tree, m_scroll_state_snapshot, drag);
     if (!scroll_delta.has_value())
@@ -1030,7 +1024,7 @@ Optional<Gfx::IntRect> ContextState::apply_viewport_scrollbar_drag(ViewportScrol
     auto async_scroll_viewport_rect = m_async_scrolling_viewport_rect;
     async_scroll_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
     m_async_scrolling_viewport_rect = async_scroll_viewport_rect;
-    return async_scroll_viewport_rect;
+    return PendingFrame::repainting_everything(async_scroll_viewport_rect);
 }
 
 void ContextState::rebuild_wheel_hit_test_targets()
