@@ -7056,6 +7056,30 @@ fn scoped_planning_does_not_prepare_a_complete_matching_batch() {
 }
 
 #[test]
+fn a_prepared_fact_batch_falls_back_for_an_unprepared_node() {
+    let (mut engine, nodes) = nested_document();
+    let target = StyleAtomID(201);
+    add_target_rule(&mut engine, StyleSheetObjectID(1), target);
+    add_feature(&mut engine, nodes[2], LocalFeatureKey::Class(target));
+    discard_transaction(&mut engine);
+
+    let mut facts = StyleNodeFacts::new();
+    engine.facts.materialize([nodes[1]].into_iter(), &mut facts);
+    let batch: MatchingFactBatch = facts.into();
+    engine
+        .memory
+        .reserve_required(MemoryCategory::BatchScratch, batch.capacity_bytes());
+    let mut prepared = PreparedBatchMatchingTraversal::new(nodes[0]);
+    prepared.batch = Some(batch);
+    engine.prepared_batch_matching_traversal = Some(prepared);
+
+    engine.begin_adaptive_cold_matching_batch(nodes[0]);
+    assert_eq!(engine.match_element(nodes[2]).unwrap().len(), 1);
+    engine.end_cold_matching_batch();
+    assert_eq!(engine.memory().bytes_in_category(MemoryCategory::BatchScratch), 0);
+}
+
+#[test]
 fn a_published_local_reaction_names_its_semantic_provenance() {
     let (mut engine, nodes) = nested_document();
     let target = StyleAtomID(201);

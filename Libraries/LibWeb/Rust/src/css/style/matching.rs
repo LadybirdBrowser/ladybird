@@ -3907,11 +3907,15 @@ impl StyleEngine {
             .filter(|&exposed| exposed != scope && Some(exposed) != inner_scope && !slotted_scopes.contains(&exposed))
             .collect();
 
-        if self
+        // A reaction derived while applying the published transaction can extend the C++ pass
+        // beyond the region whose facts this transaction prepared. Keep using the shared batch
+        // for covered nodes, but let an unprepared node take the exact adaptive path below.
+        let prepared_batch_contains_node = self
             .batch_matching_traversal
             .as_ref()
-            .is_some_and(|traversal| traversal.batch.is_some())
-        {
+            .and_then(|traversal| traversal.batch.as_ref())
+            .is_some_and(|batch| batch.row_of(node).is_some());
+        if prepared_batch_contains_node {
             // The box moves out of its slot so its fields can be borrowed while `self` stays
             // mutably borrowable; what moves is one pointer, not the batch.
             let mut held_traversal = self.batch_matching_traversal.take().unwrap();
