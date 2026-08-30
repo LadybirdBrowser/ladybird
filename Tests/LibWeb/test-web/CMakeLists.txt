@@ -42,10 +42,20 @@ if (BUILD_TESTING)
             --results-dir test-dumps/ui-process-session-history-results
     )
 
+    add_test(
+        NAME LibWebSiteIsolationIFrame
+        COMMAND $<TARGET_FILE:test-web> --python-executable ${Python3_EXECUTABLE} --per-test-timeout 120
+            --site-isolation=iframe -f "Text/input/SiteIsolation/*"
+            --results-dir test-dumps/site-isolation-iframe-results
+    )
+
     set_tests_properties(LibWeb PROPERTIES
         ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}
         TIMEOUT_SIGNAL_NAME SIGTERM)
     set_tests_properties(LibWebUIProcessSessionHistory PROPERTIES
+        ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}
+        TIMEOUT_SIGNAL_NAME SIGTERM)
+    set_tests_properties(LibWebSiteIsolationIFrame PROPERTIES
         ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}
         TIMEOUT_SIGNAL_NAME SIGTERM)
 endif()

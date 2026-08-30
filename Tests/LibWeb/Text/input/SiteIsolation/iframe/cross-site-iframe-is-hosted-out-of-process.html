@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A cross-site iframe moves to its own WebContent process when iframe site isolation is enabled.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-iframe-child-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>child",
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("oop-iframe");
+
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+
+        // The frame becomes remote when the UI process hands its navigation to another WebContent
+        // process; poll the process tree until the handoff is visible.
+        const becameRemote = await waitForCondition(() => internals.dumpSiteIsolationProcessTree().includes("remote"));
+        if (becameRemote)
+            println(internals.dumpSiteIsolationProcessTree().trimEnd());
+        else
+            println("iframe did not become remote");
+    });
+</script>
