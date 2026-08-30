@@ -706,10 +706,7 @@ fn paint_image_layer(
             x: -tile_device_rect.x,
             y: -tile_device_rect.y,
         });
-        let tile_tree_handle = recorder.paint_host.materialize_visual_context_tree(tile_tree);
-        let tile_display_list_id = recorder
-            .paint_host
-            .nested_display_list_from_tree(&tile, tile_tree_handle, &[]);
+        let tile_display_list_id = recorder.paint_host.nested_display_list_from_tree(&tile, tile_tree, &[]);
 
         // A pattern repeats along both axes. On any non-repeating axis, constrain the coverage to a single tile.
         let mut coverage = clip_rect;

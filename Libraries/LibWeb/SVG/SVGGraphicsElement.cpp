@@ -431,7 +431,7 @@ GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_screen_ctm()
     // NB: An SVG viewport's current user coordinate system is the space produced by its viewBox transform, which is the
     //     coordinate system recorded for its descendants. Other graphics elements use their own accumulated context so
     //     their transform property is included exactly once.
-    auto const& visual_context_tree = document().visual_context_tree();
+    auto visual_context_tree = document().visual_context_tree();
     if (!Painting::has_accumulated_visual_context(*layout_node))
         return {};
 

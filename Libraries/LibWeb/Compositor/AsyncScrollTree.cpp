@@ -203,27 +203,18 @@ void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayLis
     m_visual_context_tree_version = visual_context_tree->version();
 
     auto context_is_valid = [&](Painting::ContextRef context) {
-        return context.spatial.value() < visual_context_tree->spatial_nodes().size()
-            && (context.frame == Painting::NO_FRAME_NODE || context.frame.value() < visual_context_tree->frame_nodes().size());
+        return context.spatial.value() < visual_context_tree->spatial_node_count()
+            && (context.frame == Painting::NO_FRAME_NODE || context.frame.value() < visual_context_tree->frame_node_count());
     };
 
-    Vector<bool> spatial_context_has_visual_animation;
-    spatial_context_has_visual_animation.ensure_capacity(visual_context_tree->spatial_nodes().size());
-    for ([[maybe_unused]] auto const& node : visual_context_tree->spatial_nodes())
-        spatial_context_has_visual_animation.unchecked_append(false);
+    Vector<Painting::SpatialNodeIndex> animated_spatial_nodes;
     for (auto const& animation : visual_context_tree->visual_animations()) {
         if (animation.target_kind != VisualAnimation::TargetKind::Transform)
             continue;
-        for (auto node_index : animation.visual_context_node_indices) {
-            if (node_index < spatial_context_has_visual_animation.size())
-                spatial_context_has_visual_animation[node_index] = true;
-        }
+        for (auto node_index : animation.visual_context_node_indices)
+            animated_spatial_nodes.append(Painting::SpatialNodeIndex { node_index });
     }
-    for (size_t i = 1; i < spatial_context_has_visual_animation.size(); ++i) {
-        auto parent = visual_context_tree->spatial_nodes()[i].parent;
-        if (spatial_context_has_visual_animation[parent.value()])
-            spatial_context_has_visual_animation[i] = true;
-    }
+    auto spatial_context_has_visual_animation = visual_context_tree->spatial_nodes_in_subtrees_of(animated_spatial_nodes);
     auto viewport_rect_for_context = [&](Painting::ContextRef context, Gfx::FloatRect const& rect) -> Optional<Gfx::FloatRect> {
         if (spatial_context_has_visual_animation[context.spatial.value()])
             return {};
@@ -327,8 +318,8 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Painting::Acc
         return {};
 
     auto context_is_valid = [&](Painting::ContextRef context) {
-        return context.spatial.value() < visual_context_tree.spatial_nodes().size()
-            && (context.frame == Painting::NO_FRAME_NODE || context.frame.value() < visual_context_tree.frame_nodes().size());
+        return context.spatial.value() < visual_context_tree.spatial_node_count()
+            && (context.frame == Painting::NO_FRAME_NODE || context.frame.value() < visual_context_tree.frame_node_count());
     };
 
     if (m_has_blocking_wheel_event_region_covering_viewport)

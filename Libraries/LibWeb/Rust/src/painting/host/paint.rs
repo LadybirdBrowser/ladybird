@@ -409,9 +409,8 @@ pub struct FfiPaintHostCallbacks {
         *const FfiSvgPaintContext,
         *mut c_void,
     ) -> FfiSvgPaintStyle,
-    pub materialize_visual_context_tree: unsafe extern "C" fn(*mut c_void, *const c_void) -> *mut c_void,
     pub nested_display_list_from_tree:
-        unsafe extern "C" fn(*mut c_void, FfiRecordedDisplayList, *mut c_void, *const u64, usize) -> u64,
+        unsafe extern "C" fn(*mut c_void, FfiRecordedDisplayList, *const c_void, *const u64, usize) -> u64,
     pub overlay_label: unsafe extern "C" fn(
         *mut c_void,
         *mut c_void,
@@ -609,31 +608,24 @@ impl FfiPaintHostCallbacks {
         };
         (style, sink)
     }
-    pub(crate) fn materialize_visual_context_tree(
-        &self,
-        tree: crate::painting::visual_context::VisualContextTree,
-    ) -> *mut c_void {
-        // SAFETY: The C++ host takes ownership of the retained tree handle it receives.
-        unsafe {
-            (self.materialize_visual_context_tree)(self.context, std::rc::Rc::into_raw(std::rc::Rc::new(tree)).cast())
-        }
-    }
     pub(crate) fn nested_display_list_from_tree(
         &self,
         recorded: &RecordedDisplayList,
-        tree_handle: *mut c_void,
+        tree: crate::painting::visual_context::VisualContextTree,
         mask_registrations: &[(FrameNodeIndex, DisplayListResourceId)],
     ) -> DisplayListResourceId {
         let pairs: Vec<u64> = mask_registrations
             .iter()
             .flat_map(|(frame, id)| [u64::from(frame.0), id.0])
             .collect();
-        // SAFETY: The C++ host copies the recording and consumes the tree synchronously.
+        let retained_tree = std::rc::Rc::into_raw(std::rc::Rc::new(tree)).cast();
+        // SAFETY: The C++ host copies the recording synchronously and takes ownership of the
+        // retained tree handle.
         let id = unsafe {
             (self.nested_display_list_from_tree)(
                 self.context,
                 recorded.into(),
-                tree_handle,
+                retained_tree,
                 pairs.as_ptr(),
                 mask_registrations.len(),
             )

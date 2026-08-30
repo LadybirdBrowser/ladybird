@@ -3366,7 +3366,7 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Layout::
         if (!document.has_committed_viewport_box())
             return {};
         auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
-        auto const& visual_context_tree = document.visual_context_tree();
+        auto visual_context_tree = document.visual_context_tree();
         auto transformed_position = visual_context_tree.inverse_transform_point(
             Painting::accumulated_visual_context(layout_node).spatial, position.to_type<float>() * pixel_ratio);
         return (transformed_position / pixel_ratio).to_type<CSSPixels>();
@@ -6870,23 +6870,19 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
 
     update_paint_and_hit_testing_properties_if_needed();
 
-    HashMap<Document*, Painting::AccumulatedVisualContextTree::VisualAnimationOriginalValues> observation_visual_animation_original_values;
-    ScopeGuard restore_observation_visual_context_trees = [&] {
-        for (auto& entry : observation_visual_animation_original_values)
-            entry.key->paint_state().visual_context_tree(*entry.key).restore_visual_animation_original_values(entry.value);
-    };
+    HashMap<Document*, Painting::AccumulatedVisualContextTree> observation_visual_context_trees;
     auto sample_time_ns = MonotonicTime::now().nanoseconds();
-    auto sampled_visual_context_tree = [&](Document& document) -> Optional<Painting::AccumulatedVisualContextTree const&> {
+    auto sampled_visual_context_tree = [&](Document& document) -> Optional<Painting::AccumulatedVisualContextTree> {
         if (!document.m_paint_state)
             return {};
-        auto& committed_tree = document.paint_state().visual_context_tree(document);
-        if (committed_tree.visual_animations().is_empty())
-            return committed_tree;
-        if (!observation_visual_animation_original_values.contains(&document)) {
-            auto& original_values = observation_visual_animation_original_values.ensure(&document);
-            committed_tree.sample_visual_animations(sample_time_ns, original_values);
-        }
-        return committed_tree;
+        if (auto cached_tree = observation_visual_context_trees.get(&document); cached_tree.has_value())
+            return *cached_tree;
+        auto committed_tree = document.paint_state().visual_context_tree(document);
+        auto sampled_tree = committed_tree.visual_animations().is_empty()
+            ? committed_tree
+            : committed_tree.with_visual_animation_samples(sample_time_ns);
+        observation_visual_context_trees.set(&document, sampled_tree);
+        return sampled_tree;
     };
 
     for (auto& observer : intersection_observers) {
@@ -7266,9 +7262,14 @@ Painting::DocumentPaintState const& Document::paint_state() const
     return *m_paint_state;
 }
 
-Painting::AccumulatedVisualContextTree const& Document::visual_context_tree() const
+Painting::AccumulatedVisualContextTree Document::visual_context_tree() const
 {
     return paint_state().visual_context_tree(*this);
+}
+
+u64 Document::visual_context_tree_version() const
+{
+    return paint_state().visual_context_tree_version(*this);
 }
 
 Painting::ScrollStateSnapshot const& Document::scroll_state_snapshot() const
@@ -7986,17 +7987,13 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
         Vector<u32> visual_context_node_indices;
         if (target_kind == Compositor::VisualAnimation::TargetKind::Opacity) {
             for (auto index = row->frame_nodes_begin; index < row->frame_nodes_end; ++index) {
-                auto const* effects = visual_context_tree.frame_node_at(Painting::FrameNodeIndex { index }).data.get_pointer<Painting::EffectsData>();
-                if (!effects)
-                    continue;
-                visual_context_node_indices.append(index);
+                if (visual_context_tree.frame_is_effects(Painting::FrameNodeIndex { index }))
+                    visual_context_node_indices.append(index);
             }
         } else {
             for (auto index = row->spatial_nodes_begin; index < row->spatial_nodes_end; ++index) {
-                auto const* transform = visual_context_tree.spatial_node_at(Painting::SpatialNodeIndex { index }).data.get_pointer<Painting::TransformData>();
-                if (!transform || transform->role != Painting::TransformDataRole::CssTransform || transform->synthetic_plane)
-                    continue;
-                visual_context_node_indices.append(index);
+                if (visual_context_tree.spatial_node_is_css_transform(Painting::SpatialNodeIndex { index }))
+                    visual_context_node_indices.append(index);
             }
         }
         if (visual_context_node_indices.is_empty())
@@ -8150,7 +8147,7 @@ void Document::update_compositor_animations()
         CompetingPropertyEffects transform;
     };
 
-    auto& visual_context_tree = paint_state().visual_context_tree(*this);
+    auto visual_context_tree = paint_state().visual_context_tree(*this);
     Vector<Compositor::VisualAnimation> visual_animations;
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_compositor_driven_effects;
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_compositor_replaced_effects;
@@ -10475,7 +10472,7 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
         cache_mode = Painting::PaintCommandCacheMode::ReadOnly;
 
     auto& document_paint_state = paint_state();
-    auto const& visual_context_tree = document_paint_state.visual_context_tree(*this);
+    auto visual_context_tree = document_paint_state.visual_context_tree(*this);
 
     auto placeholder_display_list = Painting::DisplayList::create(visual_context_tree);
 
@@ -10550,7 +10547,7 @@ Painting::HitTestDisplayList const* Document::ensure_hit_test_display_list()
         (void)record_display_list(paint_config, throwaway_resource_storage_for_hit_test_only_recording, Painting::PaintCommandCacheMode::ReadOnly);
     };
 
-    if (!m_hit_test_display_list || !m_hit_test_display_list->is_current() || m_hit_test_display_list->visual_context_tree_version() != visual_context_tree().version())
+    if (!m_hit_test_display_list || !m_hit_test_display_list->is_current() || m_hit_test_display_list->visual_context_tree_version() != visual_context_tree_version())
         rebuild_hit_test_display_list();
 
     return m_hit_test_display_list.ptr();
@@ -11010,7 +11007,7 @@ Utf16String Document::dump_display_list()
     if (!display_list)
         return "No display list"_utf16;
 
-    auto const& visual_context_tree = paint_state().visual_context_tree(*this);
+    auto visual_context_tree = paint_state().visual_context_tree(*this);
 
     HashMap<Painting::SpatialNodeIndex, Layout::Node const*> spatial_node_owners;
     HashMap<Painting::FrameNodeIndex, Layout::Node const*> frame_node_owners;

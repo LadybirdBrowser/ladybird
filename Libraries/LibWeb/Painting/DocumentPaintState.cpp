@@ -29,18 +29,28 @@ void DocumentPaintState::ensure_visual_context_tree(DOM::Document const& documen
     const_cast<DOM::Document&>(document).update_paint_and_hit_testing_properties_if_needed();
 }
 
-AccumulatedVisualContextTree const& DocumentPaintState::visual_context_tree(DOM::Document const& document) const
+bool DocumentPaintState::has_visual_context_tree() const
 {
-    ensure_visual_context_tree(document);
-    VERIFY(m_visual_context_tree.has_value());
-    return *m_visual_context_tree;
+    return Layout::RustFFI::layout_arena_has_visual_context_tree(m_layout_node_arena->handle());
 }
 
-AccumulatedVisualContextTree& DocumentPaintState::visual_context_tree(DOM::Document& document)
+AccumulatedVisualContextTree DocumentPaintState::visual_context_tree_without_update(DOM::Document const& document) const
+{
+    auto tree = AccumulatedVisualContextTree::adopt_rust_handle(retain_rust_main_visual_context_tree(document));
+    tree.set_visual_animations(m_visual_context_tree_visual_animations);
+    return tree;
+}
+
+AccumulatedVisualContextTree DocumentPaintState::visual_context_tree(DOM::Document const& document) const
 {
     ensure_visual_context_tree(document);
-    VERIFY(m_visual_context_tree.has_value());
-    return *m_visual_context_tree;
+    return visual_context_tree_without_update(document);
+}
+
+u64 DocumentPaintState::visual_context_tree_version(DOM::Document const& document) const
+{
+    ensure_visual_context_tree(document);
+    return Layout::RustFFI::layout_arena_visual_context_tree_version(m_layout_node_arena->handle());
 }
 
 BlockingWheelEventRegionState DocumentPaintState::collect_root_blocking_wheel_event_regions(DOM::Document& document)
@@ -85,12 +95,7 @@ void DocumentPaintState::invalidate_stacking_context_tree()
 void DocumentPaintState::refresh_sticky_constraints(DOM::Document& document)
 {
     m_needs_to_refresh_scroll_state = true;
-    if (m_visual_context_tree.has_value())
-        m_visual_context_tree->release_rust_tree();
-    mirror_rust_refresh_sticky_constraints(document);
-    if (!m_visual_context_tree.has_value())
-        return;
-    if (patch_rust_sticky_visual_context_nodes(document, *m_visual_context_tree))
+    if (mirror_rust_refresh_sticky_constraints(document))
         m_visual_context_tree_needs_compositor_update = true;
 }
 
@@ -116,43 +121,37 @@ void DocumentPaintState::assign_accumulated_visual_contexts(DOM::Document& docum
     auto is_compatible = rust_assign_accumulated_visual_contexts(document, forced_incompatible_rebuild);
     if (!is_compatible)
         document.set_needs_to_record_display_list();
-    m_visual_context_tree = materialize_rust_main_visual_context_tree(document);
+    m_visual_context_tree_visual_animations = nullptr;
     m_visual_context_tree_needs_compositor_update = true;
 }
 
 bool DocumentPaintState::update_accumulated_visual_context_values(DOM::Document& document, Layout::RustFFI::NodeSlotId paintable_slot)
 {
-    if (!m_visual_context_tree.has_value())
+    if (!has_visual_context_tree())
         return false;
     if (m_force_incompatible_visual_context_tree_rebuild_for_testing)
         return false;
-    m_visual_context_tree->release_rust_tree();
-    auto const* row = Layout::RustFFI::layout_arena_paintable_row(m_layout_node_arena->handle(), paintable_slot);
-    if (!rust_update_accumulated_visual_context_values(document, paintable_slot) || !row) {
-        m_visual_context_tree->adopt_rust_tree(retain_rust_main_visual_context_tree(document));
+    if (!rust_update_accumulated_visual_context_values(document, paintable_slot))
         return false;
-    }
-    patch_rust_visual_context_nodes(document, *m_visual_context_tree, row->spatial_nodes_begin, row->spatial_nodes_end, row->frame_nodes_begin, row->frame_nodes_end);
     m_visual_context_tree_needs_compositor_update = true;
     return true;
 }
 
 void DocumentPaintState::update_visual_viewport_accumulated_visual_context(DOM::Document& document)
 {
-    if (!m_visual_context_tree.has_value()) {
+    if (!has_visual_context_tree()) {
         assign_accumulated_visual_contexts(document);
         return;
     }
-    m_visual_context_tree->release_rust_tree();
     rust_update_visual_viewport_transform(document);
-    patch_rust_visual_context_nodes(document, *m_visual_context_tree, VISUAL_VIEWPORT_NODE_INDEX.value(), VISUAL_VIEWPORT_NODE_INDEX.value() + 1, 0, 0);
     m_visual_context_tree_needs_compositor_update = true;
 }
 
 void DocumentPaintState::set_visual_animations(DOM::Document& document, Vector<Compositor::VisualAnimation> animations)
 {
     ensure_visual_context_tree(document);
-    if (m_visual_context_tree->visual_animations() == animations.span())
+    auto published_animations = m_visual_context_tree_visual_animations ? m_visual_context_tree_visual_animations->animations.span() : ReadonlySpan<Compositor::VisualAnimation> {};
+    if (published_animations == animations.span())
         return;
     bool animation_parameters_changed = m_visual_animations.size() != animations.size();
     if (!animation_parameters_changed) {
@@ -164,7 +163,7 @@ void DocumentPaintState::set_visual_animations(DOM::Document& document, Vector<C
         }
     }
     m_visual_animations = animations;
-    m_visual_context_tree->set_visual_animations(move(animations));
+    m_visual_context_tree_visual_animations = animations.is_empty() ? nullptr : adopt_ref(*new VisualAnimationList(move(animations)));
     m_visual_context_tree_needs_compositor_update = true;
     if (animation_parameters_changed)
         ++document.style_invalidation_counters().compositor_visual_animation_updates;
@@ -189,8 +188,8 @@ void DocumentPaintState::refresh_scroll_state(DOM::Document& document)
     // https://drafts.csswg.org/css-position/#sticky-pos
     rust_refresh_scroll_state(document);
     m_scroll_state_snapshot = rust_scroll_state_snapshot(document);
-    if (m_visual_context_tree.has_value())
-        resolve_sticky_offsets(*m_visual_context_tree, m_scroll_state_snapshot);
+    if (has_visual_context_tree())
+        resolve_sticky_offsets(visual_context_tree_without_update(document), m_scroll_state_snapshot);
 }
 
 void DocumentPaintState::reset_selection_states(DOM::Document& document)

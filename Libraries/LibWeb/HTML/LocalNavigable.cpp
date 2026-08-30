@@ -5214,7 +5214,7 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
         m_compositor_display_list_paint_config = paint_config;
     } else {
         if (visual_context_tree_needs_compositor_update) {
-            auto const& updated_visual_context_tree = document_paint_state.visual_context_tree(*document);
+            auto updated_visual_context_tree = document_paint_state.visual_context_tree(*document);
             VERIFY(updated_visual_context_tree.version() == m_compositor_display_list_visual_context_tree_version);
             auto updated_display_list_resources = compositor_display_list_resources(m_display_list_resource_storage, document_paint_state, m_compositor_display_list_command_resources, updated_visual_context_tree);
             auto updated_resource_transaction = m_display_list_resource_storage.create_transaction(m_compositor_display_list_resources, updated_display_list_resources);
