@@ -11,6 +11,10 @@
     .revert-layer-outer {
         color: revert-layer;
     }
+
+    #important-slotted-target {
+        color: blue;
+    }
 </style>
 <script>
     test(() => {
@@ -224,5 +228,33 @@
 
         const revertLayerSlottedStyle = getComputedStyle(revertLayerSlottedElement);
         println(`revert-layer preserves slotted host context: ${revertLayerSlottedStyle.marginLeft}`);
+
+        class ImportantSlottedCascadeContextElement extends HTMLElement {
+            constructor() {
+                super();
+                const shadowRoot = this.attachShadow({ mode: "open" });
+                shadowRoot.innerHTML = `
+                    <style>
+                        ::slotted(a) {
+                            color: red;
+                        }
+
+                        :host ::slotted(a) {
+                            color: green !important;
+                        }
+                    </style>
+                    <slot></slot>
+                `;
+            }
+        }
+        customElements.define("important-slotted-cascade-context", ImportantSlottedCascadeContextElement);
+
+        const importantSlottedHost = document.createElement("important-slotted-cascade-context");
+        const importantSlottedTarget = document.createElement("a");
+        importantSlottedTarget.id = "important-slotted-target";
+        importantSlottedHost.appendChild(importantSlottedTarget);
+        document.body.appendChild(importantSlottedHost);
+
+        println(`important slotted after normal: ${getComputedStyle(importantSlottedTarget).color}`);
     });
 </script>
