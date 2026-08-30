@@ -5725,8 +5725,7 @@ Vector<GC::Root<HTML::LocalNavigable>> Document::inclusive_descendant_navigables
 {
     // FIXME: The document's node navigable should not be null here. But we currently do not implement the "unload a
     //        document and its descendants" steps correctly, and the navigable becomes null during unloading. We are
-    //        essentially destroying the document too early. See Document::unload_a_document_and_its_descendants. See:
-    //        https://github.com/LadybirdBrowser/ladybird/issues/7825
+    //        essentially destroying the document too early. See: https://github.com/LadybirdBrowser/ladybird/issues/7825
     auto document_node_navigable = navigable();
     if (!document_node_navigable)
         return {};
@@ -5747,8 +5746,7 @@ GC::RootVector<GC::Ref<HTML::Navigable>> Document::ancestor_navigables()
 {
     // FIXME: The document's node navigable should not be null here. But we currently do not implement the "unload a
     //        document and its descendants" steps correctly, and the navigable becomes null during unloading. We are
-    //        essentially destroying the document too early. See Document::unload_a_document_and_its_descendants. See:
-    //        https://github.com/LadybirdBrowser/ladybird/issues/7825
+    //        essentially destroying the document too early. See: https://github.com/LadybirdBrowser/ladybird/issues/7825
     auto document_node_navigable = navigable();
     if (!document_node_navigable)
         return {};
@@ -5782,8 +5780,7 @@ GC::RootVector<GC::Ref<HTML::Navigable>> Document::inclusive_ancestor_navigables
 {
     // FIXME: The document's node navigable should not be null here. But we currently do not implement the "unload a
     //        document and its descendants" steps correctly, and the navigable becomes null during unloading. We are
-    //        essentially destroying the document too early. See Document::unload_a_document_and_its_descendants. See:
-    //        https://github.com/LadybirdBrowser/ladybird/issues/7825
+    //        essentially destroying the document too early. See: https://github.com/LadybirdBrowser/ladybird/issues/7825
     auto document_node_navigable = navigable();
     if (!document_node_navigable)
         return {};
@@ -5926,6 +5923,7 @@ void Document::destroy()
     for (auto& navigable_container : HTML::NavigableContainer::all_instances()) {
         if (&navigable_container->document() == this && navigable_container->content_navigable()) {
             auto& child_navigable = as<HTML::LocalNavigable>(*navigable_container->content_navigable());
+            child_navigable.report_child_frame_destroyed();
             child_navigable.set_has_been_destroyed();
             child_navigable.remove_from_all_local_navigables();
         }
@@ -6252,59 +6250,6 @@ void Document::unload(GC::Ptr<Document>)
     //     unloadTimingInfo.
 
     did_stop_being_active_document_in_navigable();
-}
-
-// https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document-and-its-descendants
-void Document::unload_a_document_and_its_descendants(GC::Ptr<Document> new_document, GC::Ptr<GC::Function<void()>> after_all_unloads)
-{
-    // FIXME: 1. Assert: this is running within document's node navigable's traversable navigable's session history traversal
-    //    queue.
-
-    // 2. Let childNavigables be document's child navigables.
-    IGNORE_USE_IN_ESCAPING_LAMBDA auto child_navigables = navigable()->child_navigables();
-
-    // 6. Queue a global task on the navigation and traversal task source given document's relevant global object to
-    //    perform the following steps:
-    auto finish_callback = GC::create_function(GC::Heap::the(), [document = this, new_document, after_all_unloads] {
-        // FIXME: 1. If firePageSwapSteps is given, then run firePageSwapSteps.
-
-        // 2. Unload document, passing along newDocument if it is not null.
-        document->unload(new_document);
-
-        // 3. If afterAllUnloads was given, then run it.
-        if (after_all_unloads)
-            after_all_unloads->function()();
-    });
-
-    // AD-HOC: We avoid allocating a DocumentLifecycleState in case there's no child navigables.
-    //         Queue with null document to ensure the task is always runnable. The document
-    //         can become non-fully-active during unloading, which would make the task stuck.
-    if (child_navigables.is_empty()) {
-        HTML::queue_a_task(HTML::Task::Source::NavigationAndTraversal, nullptr, nullptr, finish_callback);
-        return;
-    }
-
-    // 3. Let numberUnloaded be 0.
-    auto unload_state = GC::Heap::the().allocate<DocumentLifecycleState>(*this, child_navigables.size(), finish_callback);
-
-    // 4. For each childNavigable of childNavigables [[ in what order? ]], queue a global task on the navigation and
-    //    traversal task source given childNavigable's active window to perform the following steps:
-    for (auto& child_navigable : child_navigables) {
-        HTML::queue_a_task(HTML::Task::Source::NavigationAndTraversal, nullptr, nullptr,
-            GC::create_function(GC::Heap::the(), [unload_state, child_navigable = child_navigable.ptr()] {
-                // 1. Let incrementUnloaded be an algorithm step which increments numberUnloaded.
-                auto increment_unloaded = GC::create_function(GC::Heap::the(), [unload_state] { unload_state->did_process_child(); });
-
-                // 2. Unload a document and its descendants given childNavigable's active document, null, and incrementUnloaded.
-                if (auto active_document = child_navigable->active_document())
-                    active_document->unload_a_document_and_its_descendants({}, increment_unloaded);
-                else
-                    increment_unloaded->function()();
-            }));
-    }
-
-    // 5. Wait until numberUnloaded equals childNavigables's size.
-    // NB: This is handled by unload_state.
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#allowed-to-use

@@ -675,14 +675,19 @@ LocalNavigable::~LocalNavigable() = default;
 
 void LocalNavigable::set_has_been_destroyed()
 {
-    if (!m_has_been_destroyed && parent())
-        page().client().page_did_destroy_child_frame(id());
-
     cancel_hover_update_after_async_scroll();
     destroy_compositor_context();
     m_has_been_destroyed = true;
     resolve_all_pending_async_scroll_operations();
     cancel_user_scroll_settlement();
+}
+
+void LocalNavigable::report_child_frame_destroyed()
+{
+    if (m_child_frame_destruction_reported || !parent())
+        return;
+    m_child_frame_destruction_reported = true;
+    page().client().page_did_destroy_child_frame(id());
 }
 
 void LocalNavigable::remove_from_all_local_navigables()

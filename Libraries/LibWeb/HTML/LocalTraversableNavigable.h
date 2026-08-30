@@ -65,9 +65,7 @@ public:
         GC::Ptr<OnApplyHistoryStepComplete> on_apply_complete {};
         GC::Ptr<OnApplyHistoryStepComplete> on_complete {};
 
-        // In-flight job parking: claims and continuations held between a changing job and its continuation or the
-        // operation's completion. Operations initiated elsewhere (browser UI, another process) carry only this
-        // part; their record is created by the first job that references them.
+        // State retained between a changing job and its continuation.
         HashTable<CrossProcessId> claimed_navigables_awaiting_continuation {};
         HashMap<CrossProcessId, GC::Ref<ChangingNavigableContinuationState>> changing_navigable_continuations {};
     };
@@ -77,7 +75,11 @@ public:
     void run_ui_history_step_unload_cancelation_job(CrossProcessId operation_id, SessionHistoryEntryDescriptor target_entry, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>>);
     void queue_navigation_api_state_clear_task(CrossProcessId navigable_id);
     void run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, bool superseded_by_newer_navigation, GC::Ref<OnChangingNavigableHistoryStepJobComplete>);
-    void apply_ui_changing_navigable_continuation(CrossProcessId operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, VisibilityState, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>>);
+    void prepare_ui_changing_navigable_for_unload(CrossProcessId operation_id, CrossProcessId navigable_id, GC::Ref<GC::Function<void()>> on_complete);
+    void apply_ui_changing_navigable_continuation(CrossProcessId operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, VisibilityState, UnloadDisplayedDocument, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>>);
+    void run_ui_descendant_unload_task(CrossProcessId navigable_id, GC::Ref<GC::Function<void()>> on_complete);
+    void unload_child_navigable_before_destruction(GC::Ref<LocalNavigable>, GC::Ref<GC::Function<void()>> after_all_unloads);
+    void continue_child_navigable_destruction(CrossProcessId navigable_id, UnloadDisplayedDocument);
     void update_nonchanging_navigable_history_step_state(CrossProcessId navigable_id, HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
     void complete_ui_history_operation(CrossProcessId operation_id, HistoryStepResult, Optional<i32> committed_step, u64 session_history_entry_count);
 
@@ -94,6 +96,7 @@ public:
     };
     void close_top_level_traversable(PromptToUnload = PromptToUnload::Yes);
     void definitely_close_top_level_traversable(PromptToUnload = PromptToUnload::Yes);
+    void run_ui_traversable_close_unload_task();
     void destroy_top_level_traversable();
 
     Utf16String const& window_handle() const { return m_window_handle; }
@@ -152,7 +155,7 @@ private:
         VisibilityState system_visibility_state { VisibilityState::Hidden };
     };
     bool run_changing_navigable_history_step_job_impl(ChangingNavigableHistoryStepJob, GC::Ptr<SourceSnapshotParams>, GC::Ptr<DOM::Document> pending_document, GC::Ref<OnLocalChangingNavigableHistoryStepJobComplete>);
-    void apply_changing_navigable_history_step_continuation_impl(GC::Ref<ChangingNavigableContinuationState>, LocalApplyChangingNavigableHistoryStepContinuation, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>> on_complete);
+    void apply_changing_navigable_history_step_continuation_impl(GC::Ref<ChangingNavigableContinuationState>, LocalApplyChangingNavigableHistoryStepContinuation, UnloadDisplayedDocument, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>> on_complete);
 
     void check_if_unloading_is_canceled(Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload, GC::Ptr<LocalTraversableNavigable> traversable, RefPtr<SessionHistoryEntry> target_entry, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback);
 
@@ -170,6 +173,9 @@ private:
 
     // AD-HOC: A forced close may supersede a prompted close while its beforeunload check is still pending.
     bool m_close_steps_have_been_appended { false };
+
+    // Parked destroy-a-child-navigable continuations.
+    HashMap<CrossProcessId, GC::Ref<GC::Function<void()>>> m_pending_child_navigable_unloads;
 
     // https://storage.spec.whatwg.org/#traversable-navigable-storage-shed
     // A traversable navigable holds a storage shed, which is a storage shed. A traversable navigable’s storage shed holds all session storage data.

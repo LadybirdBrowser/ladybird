@@ -225,3 +225,5 @@ function httpTestServer() {
 function uniqueLocalhostHostname(prefix) {
     return `${prefix}-${crypto.randomUUID()}.localhost`;
 }
+
+const remoteFrameCount = () => (internals.dumpSiteIsolationProcessTree().match(/remote/g) || []).length;
