@@ -1191,6 +1191,11 @@ void Internals::reset_style_invalidation_counters()
     window().associated_document().reset_style_invalidation_counters();
 }
 
+void Internals::update_compositor_animations()
+{
+    window().associated_document().update_compositor_animations();
+}
+
 void Internals::request_reentrant_animation_style_flush_for_testing(GC::Ref<DOM::Node> node)
 {
     window().associated_document().request_reentrant_animation_style_flush_for_testing({}, node);
@@ -1780,6 +1785,7 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
         : 0;
     object->define_direct_property("compositorVisualAnimations"_utf16_fly_string, JS::Value(compositor_visual_animation_count), JS::default_attributes);
     object->define_direct_property("animationTimelineAssociatedAnimationUpdates"_utf16_fly_string, JS::Value(counters.animation_timeline_associated_animation_updates), JS::default_attributes);
+    object->define_direct_property("compositorVisualAnimationUpdates"_utf16_fly_string, JS::Value(counters.compositor_visual_animation_updates), JS::default_attributes);
     object->define_direct_property("animationStyleSkipCacheHits"_utf16_fly_string, JS::Value(counters.animation_style_skip_cache_hits), JS::default_attributes);
     object->define_direct_property("animationStyleSkipCacheMisses"_utf16_fly_string, JS::Value(counters.animation_style_skip_cache_misses), JS::default_attributes);
     object->define_direct_property("animationTimelineSynchronizations"_utf16_fly_string, JS::Value(counters.animation_timeline_synchronizations), JS::default_attributes);

@@ -87,6 +87,7 @@ private:
     DisplayListResourceSet m_paint_command_cache_source_referenced_resources;
 
     Optional<AccumulatedVisualContextTree> m_visual_context_tree;
+    Vector<Compositor::VisualAnimation> m_visual_animations;
     u64 m_accumulated_visual_context_tree_build_count { 0 };
     bool m_visual_context_tree_needs_compositor_update { false };
     bool m_force_incompatible_visual_context_tree_rebuild_for_testing { false };

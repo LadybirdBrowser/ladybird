@@ -11,6 +11,15 @@
         to { transform: translateX(100px) rotate(360deg); }
     }
 
+    @keyframes visual-node-churn {
+        from { display: block; }
+        to { display: none; }
+    }
+
+    #visual-node-churn {
+        animation: visual-node-churn 1s steps(1) infinite;
+    }
+
     #opacity {
         width: 20px;
         height: 20px;
@@ -25,6 +34,7 @@
         animation: move 1s linear infinite;
     }
 </style>
+<div id="visual-node-churn"></div>
 <div id="opacity"></div>
 <div id="transform"></div>
 <script>
@@ -38,8 +48,18 @@
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
         const counters = internals.getStyleInvalidationCounters();
+
+        internals.resetStyleInvalidationCounters();
+        const visualNodeAnimation = document.querySelector("#visual-node-churn").getAnimations()[0];
+        for (const currentTime of [0, 750, 0, 750]) {
+            visualNodeAnimation.currentTime = currentTime;
+            await new Promise(requestAnimationFrame);
+        }
+        const visualNodeCounters = internals.getStyleInvalidationCounters();
+
         println(`main-thread animation overlay builds: ${counters.animatedStyleOverlayBuilds}`);
         println(`main-thread animation frame pump requests: ${counters.animationFramePumpRequests}`);
+        println(`stable compositor animation updates with changing visual nodes: ${visualNodeCounters.compositorVisualAnimationUpdates}`);
         done();
     });
 </script>

@@ -18,6 +18,7 @@
 #include <LibWeb/Bindings/KeyframeEffect.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
+#include <LibWeb/Compositor/VisualAnimation.h>
 
 namespace Web::Animations {
 
@@ -150,6 +151,9 @@ public:
     bool can_skip_per_frame_animation_tick() const;
     bool is_compositor_driven() const { return m_is_compositor_driven; }
     void set_is_compositor_driven(bool value) { m_is_compositor_driven = value; }
+    Optional<Compositor::VisualAnimation> const& retained_compositor_animation() const { return m_retained_compositor_animation; }
+    void set_retained_compositor_animation(Compositor::VisualAnimation animation) { m_retained_compositor_animation = move(animation); }
+    void clear_retained_compositor_animation() { m_retained_compositor_animation.clear(); }
     void request_observation_sample();
     bool request_element_scoped_observation_sample(u64 task_generation)
     {
@@ -191,6 +195,7 @@ private:
     Vector<GC::Ref<JS::Object>> m_keyframe_objects_cache {};
 
     RefPtr<KeyFrameSet const> m_key_frame_set {};
+    Optional<Compositor::VisualAnimation> m_retained_compositor_animation;
     bool m_is_compositor_driven { false };
     bool m_needs_observation_sample { false };
     struct CanSkipPerFrameStyleUpdateCache {
