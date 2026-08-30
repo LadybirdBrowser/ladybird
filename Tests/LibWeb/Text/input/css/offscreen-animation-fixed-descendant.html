@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes move {
+        from { transform: none; }
+        to { transform: none; }
+    }
+
+    #clip {
+        position: absolute;
+        top: 200vh;
+        width: 100px;
+        height: 100px;
+        overflow: hidden;
+    }
+
+    #target {
+        animation: move 100s linear infinite;
+    }
+
+    #fixed {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 20px;
+        height: 20px;
+    }
+</style>
+<div id="clip"><div id="target"><div id="fixed"></div></div></div>
+<script>
+    asyncTest(async done => {
+        let resolveObservation;
+        const observation = new Promise(resolve => resolveObservation = resolve);
+        new IntersectionObserver(entries => resolveObservation(entries.at(-1))).observe(fixed);
+
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+        internals.resetStyleInvalidationCounters();
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`animation stays on main thread: ${counters.compositorVisualAnimations === 0}`);
+        println(`animation is not offscreen throttled: ${counters.animationFramePumpRequests > 0}`);
+        println(`fixed descendant is intersecting: ${(await observation).isIntersecting}`);
+        done();
+    });
+</script>

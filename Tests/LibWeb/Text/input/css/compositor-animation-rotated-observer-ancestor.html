@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes move-horizontally {
+        from, 25% { transform: translateX(0); }
+        26%, to { transform: translateX(30px); }
+    }
+
+    #root {
+        position: relative;
+        width: 20px;
+        height: 20px;
+        overflow: hidden;
+    }
+
+    #rotated-parent {
+        position: absolute;
+        top: -30px;
+        transform: rotate(90deg);
+        transform-origin: 0 0;
+    }
+
+    #target {
+        width: 20px;
+        height: 20px;
+        animation: move-horizontally 400ms linear infinite;
+    }
+</style>
+<div id="root"><div id="rotated-parent"><div id="target"></div></div></div>
+<script>
+    asyncTest(async done => {
+        const animation = target.getAnimations()[0];
+        animation.currentTime = 0;
+
+        let resolveObservation;
+        let nextObservation = new Promise(resolve => resolveObservation = resolve);
+        const observer = new IntersectionObserver(entries => resolveObservation(entries.at(-1)), { root });
+        observer.observe(target);
+
+        println(`target starts outside root: ${!(await nextObservation).isIntersecting}`);
+        println(`animation stays on main thread: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 0}`);
+
+        nextObservation = new Promise(resolve => resolveObservation = resolve);
+        animation.currentTime = 200;
+        println(`target enters root: ${(await nextObservation).isIntersecting}`);
+        done();
+    });
+</script>

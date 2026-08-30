@@ -7637,6 +7637,8 @@ static Optional<Compositor::VisualAnimationTransformOperation> compositor_transf
             return {};
         values.unchecked_append(value);
     }
+    if (*kind == Compositor::VisualAnimationTransformOperationKind::Translate && values.size() == 1)
+        kind = Compositor::VisualAnimationTransformOperationKind::TranslateX;
     Compositor::VisualAnimationTransformOperation operation { *kind, move(values) };
     if (!operation.is_valid())
         return {};
@@ -7718,7 +7720,68 @@ static Optional<float> compositor_opacity_animation_value(CSS::StyleValue const&
     return opacity;
 }
 
-static Optional<Compositor::VisualAnimation> build_compositor_animation(Animations::KeyframeEffect& effect, Painting::AccumulatedVisualContextTree const& visual_context_tree, Compositor::VisualAnimation::TargetKind target_kind)
+static bool transform_keyframes_only_translate_horizontally(ReadonlySpan<Compositor::VisualAnimationKeyframe> keyframes)
+{
+    Vector<float> translate_y_values;
+    Vector<Compositor::VisualAnimationTransformOperationKind> operation_kinds;
+    for (size_t keyframe_index = 0; keyframe_index < keyframes.size(); ++keyframe_index) {
+        auto const& operations = keyframes[keyframe_index].value.get<Compositor::VisualAnimationTransformList>();
+        if (keyframe_index != 0 && operations.size() != operation_kinds.size())
+            return false;
+        for (size_t operation_index = 0; operation_index < operations.size(); ++operation_index) {
+            auto const& operation = operations[operation_index];
+            if (keyframe_index == 0)
+                operation_kinds.append(operation.kind);
+            else if (operation.kind != operation_kinds[operation_index])
+                return false;
+            if (operation.kind == Compositor::VisualAnimationTransformOperationKind::TranslateX) {
+                if (keyframe_index == 0)
+                    translate_y_values.append(0);
+                continue;
+            }
+            if (operation.kind != Compositor::VisualAnimationTransformOperationKind::Translate)
+                return false;
+            float translate_y = operation.values.size() == 2 ? operation.values[1] : 0;
+            if (keyframe_index == 0)
+                translate_y_values.append(translate_y);
+            else if (operation_index >= translate_y_values.size() || translate_y_values[operation_index] != translate_y)
+                return false;
+        }
+    }
+    return keyframes.size() >= 2;
+}
+
+static bool keyframe_effect_only_translates_horizontally(Animations::KeyframeEffect& effect, DOM::AbstractElement target, Layout::Node const& layout_node, float device_pixels_per_css_pixel)
+{
+    if (effect.target_properties().size() != 1 || !effect.target_properties().contains(CSS::PropertyID::Transform))
+        return false;
+    auto const* key_frame_set = effect.key_frame_set();
+    if (!key_frame_set)
+        return false;
+
+    Vector<Compositor::VisualAnimationKeyframe> keyframes;
+    for (auto const& entry : key_frame_set->keyframes_by_key) {
+        auto property = entry.properties.get(CSS::PropertyID::Transform);
+        if (!property.has_value())
+            continue;
+        if (!property->has<CSS::RustStyleValueHandle>())
+            return false;
+        auto style_value = resolved_compositor_animation_style_value(CSS::PropertyID::Transform, property->get<CSS::RustStyleValueHandle>(), target);
+        if (!style_value)
+            return false;
+        auto operations = compositor_transform_animation_value(CSS::PropertyID::Transform, *style_value, layout_node, device_pixels_per_css_pixel);
+        if (!operations.has_value())
+            return false;
+        keyframes.append({
+            .offset = 0,
+            .easing = {},
+            .value = operations.release_value(),
+        });
+    }
+    return transform_keyframes_only_translate_horizontally(keyframes);
+}
+
+static Optional<Compositor::VisualAnimation> build_compositor_animation(Animations::KeyframeEffect& effect, Painting::AccumulatedVisualContextTree const& visual_context_tree, Compositor::VisualAnimation::TargetKind target_kind, Optional<bool>& only_translates_horizontally)
 {
     auto animation = effect.associated_animation();
     if (!animation || animation->play_state() != Bindings::AnimationPlayState::Running || animation->pending())
@@ -7799,6 +7862,11 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
             .values = {},
         };
         new_cache.values.ensure_capacity(key_frame_set->keyframes_by_key.size());
+        size_t transform_property_count = 0;
+        for (auto property_id : effect.target_properties()) {
+            if (is_transform_family_property(property_id))
+                ++transform_property_count;
+        }
         for (auto const& entry : key_frame_set->keyframes_by_key) {
             Optional<Compositor::VisualAnimationValue> value;
             if (target_kind == Compositor::VisualAnimation::TargetKind::Opacity) {
@@ -7815,11 +7883,16 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
                 }
             } else {
                 Compositor::VisualAnimationTransformList operations;
+                bool skip_keyframe = false;
                 for (auto property_id : { CSS::PropertyID::Translate, CSS::PropertyID::Rotate, CSS::PropertyID::Scale, CSS::PropertyID::Transform }) {
                     if (!effect.target_properties().contains(property_id))
                         continue;
                     auto property = entry.properties.get(property_id);
                     if (!property.has_value() || !property->has<CSS::RustStyleValueHandle>()) {
+                        if (transform_property_count == 1) {
+                            skip_keyframe = true;
+                            break;
+                        }
                         new_cache.is_valid = false;
                         break;
                     }
@@ -7837,6 +7910,10 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
                 }
                 if (!new_cache.is_valid)
                     break;
+                if (skip_keyframe) {
+                    new_cache.values.append({});
+                    continue;
+                }
                 value = Compositor::VisualAnimationValue { move(operations) };
             }
             if (!value.has_value()) {
@@ -7909,6 +7986,12 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
                 .easing = keyframe_easings[keyframe_index],
                 .value = *value,
             });
+        }
+
+        if (target_kind == Compositor::VisualAnimation::TargetKind::Transform) {
+            only_translates_horizontally = effect.target_properties().size() == 1
+                && effect.target_properties().contains(CSS::PropertyID::Transform)
+                && transform_keyframes_only_translate_horizontally(keyframes);
         }
 
         Compositor::VisualAnimation visual_animation {
@@ -8014,17 +8097,171 @@ void Document::update_compositor_animations()
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_compositor_replaced_effects;
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_published_effects;
     HashMap<DOM::AbstractElement, CompetingEffects> competing_effects;
+    HashMap<GC::Ptr<Animations::KeyframeEffect>, bool> only_translates_horizontally_cache;
+    HashMap<GC::Ptr<Animations::KeyframeEffect>, bool> animated_transform_preserves_axes_cache;
+    HashMap<GC::Ptr<Element>, CSSPixelRect> observation_target_rect_cache;
     Optional<double> compositor_animation_wakeup_delay_ms;
-    auto transform_affects_intersection_observation = [&](Element const& animated_target) {
+
+    auto transform_preserves_horizontal_axis = [](Layout::NodeWithStyle const& layout_node) {
+        if (layout_node.perspective().has_value())
+            return false;
+
+        auto matrix = Gfx::FloatMatrix4x4::identity();
+        if (auto translate = layout_node.translate())
+            matrix = matrix * translate->to_matrix(&layout_node);
+        if (auto rotate = layout_node.rotate())
+            matrix = matrix * rotate->to_matrix(&layout_node);
+        if (auto scale = layout_node.scale())
+            matrix = matrix * scale->to_matrix(&layout_node);
+        layout_node.for_each_transformation([&](auto const& transformation) {
+            matrix = matrix * transformation.to_matrix(&layout_node);
+        });
+
+        constexpr auto epsilon = AK::NumericLimits<float>::epsilon();
+        return abs(matrix[1, 0]) <= epsilon
+            && abs(matrix[2, 0]) <= epsilon
+            && abs(matrix[3, 0]) <= epsilon;
+    };
+
+    auto animated_transform_preserves_axes = [&](Animations::KeyframeEffect& effect, Element& target, Layout::Node const& layout_node) {
+        return animated_transform_preserves_axes_cache.ensure(effect, [&] {
+            if (effect.target_properties().contains(CSS::PropertyID::Rotate))
+                return false;
+            if (!effect.target_properties().contains(CSS::PropertyID::Transform))
+                return true;
+            auto const* key_frame_set = effect.key_frame_set();
+            if (!key_frame_set)
+                return false;
+            auto device_pixels_per_css_pixel = static_cast<float>(page().client().device_pixels_per_css_pixel());
+            for (auto const& entry : key_frame_set->keyframes_by_key) {
+                auto property = entry.properties.get(CSS::PropertyID::Transform);
+                if (!property.has_value())
+                    continue;
+                if (!property->has<CSS::RustStyleValueHandle>())
+                    return false;
+                auto style_value = resolved_compositor_animation_style_value(CSS::PropertyID::Transform, property->get<CSS::RustStyleValueHandle>(), target);
+                if (!style_value)
+                    return false;
+                auto operations = compositor_transform_animation_value(CSS::PropertyID::Transform, *style_value, layout_node, device_pixels_per_css_pixel);
+                if (!operations.has_value())
+                    return false;
+                if (any_of(*operations, [](auto const& operation) {
+                        return !first_is_one_of(operation.kind,
+                            Compositor::VisualAnimationTransformOperationKind::Translate,
+                            Compositor::VisualAnimationTransformOperationKind::Translate3d,
+                            Compositor::VisualAnimationTransformOperationKind::TranslateX,
+                            Compositor::VisualAnimationTransformOperationKind::TranslateY,
+                            Compositor::VisualAnimationTransformOperationKind::TranslateZ,
+                            Compositor::VisualAnimationTransformOperationKind::Scale,
+                            Compositor::VisualAnimationTransformOperationKind::Scale3d,
+                            Compositor::VisualAnimationTransformOperationKind::ScaleX,
+                            Compositor::VisualAnimationTransformOperationKind::ScaleY,
+                            Compositor::VisualAnimationTransformOperationKind::ScaleZ);
+                    }))
+                    return false;
+            }
+            return true;
+        });
+    };
+
+    auto ancestor_transform_can_map_horizontal_motion_to_vertical = [&](Element const& animated_target, Node const& observation_root) {
+        auto const* layout_node = animated_target.unsafe_layout_node();
+        if (!layout_node)
+            return true;
+        for (auto const* ancestor = layout_node->parent(); ancestor; ancestor = ancestor->parent()) {
+            if (ancestor->has_css_transform() && !transform_preserves_horizontal_axis(*ancestor))
+                return true;
+            if (auto* ancestor_element = as_if<Element>(ancestor->dom_node())) {
+                for (auto& animation : m_associated_animations) {
+                    if (animation.is_idle() || !animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
+                        continue;
+                    auto& effect = static_cast<Animations::KeyframeEffect&>(*animation.effect());
+                    auto effect_target = effect.target();
+                    if (!effect_target || effect_target.ptr() != ancestor_element || !effect.is_in_effect())
+                        continue;
+                    if (!animated_transform_preserves_axes(effect, *effect_target, *ancestor))
+                        return true;
+                }
+            }
+            if (ancestor->dom_node() == &observation_root)
+                break;
+        }
+        return false;
+    };
+
+    auto transform_subtree_is_clipped_outside = [](Element const& animated_target, CSSPixelRect const& root_bounds) {
+        auto const* layout_node = animated_target.unsafe_layout_node();
+        if (!layout_node || !Painting::has_committed_box(*layout_node) || root_bounds.is_empty())
+            return false;
+        if (auto const* target_box = as_if<Layout::Box>(*layout_node)) {
+            if (Painting::is_fixed_position(*target_box) || target_box->abspos_descendant_escapes())
+                return false;
+        }
+
+        bool has_disjoint_clip = false;
+        for (auto const* ancestor = layout_node->parent(); ancestor; ancestor = ancestor->parent()) {
+            auto const* ancestor_box = as_if<Layout::Box>(*ancestor);
+            if (!ancestor_box)
+                continue;
+            if (!Painting::has_committed_box(*ancestor_box) || Painting::is_fixed_position(*ancestor_box))
+                return false;
+
+            bool has_content_clip = ancestor_box->overflow_x() != CSS::Overflow::Visible
+                || ancestor_box->overflow_y() != CSS::Overflow::Visible;
+            auto clip_rect = Painting::transform_rect_to_viewport(*ancestor_box, Painting::absolute_padding_box_rect(*ancestor_box), Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
+            if (has_content_clip && !clip_rect.edge_adjacent_intersects(root_bounds))
+                has_disjoint_clip = true;
+
+            // A transform outside the disjoint clip could move the clip into the observation root without updating
+            // its main-thread geometry. Transforms inside the clip can only move content within the clipped region.
+            if (has_disjoint_clip && (ancestor_box->has_css_transform() || ancestor_box->is_sticky_position()))
+                return false;
+        }
+        return has_disjoint_clip;
+    };
+
+    auto observation_has_another_transform_animation = [&](Element const& animated_target, Element const& observation_target, Animations::KeyframeEffect const& current_effect) {
+        for (auto& animation : m_associated_animations) {
+            if (animation.is_idle() || !animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
+                continue;
+            auto const& effect = static_cast<Animations::KeyframeEffect const&>(*animation.effect());
+            if (&effect == &current_effect || !effect.is_in_effect())
+                continue;
+            auto effect_target = effect.target();
+            if (!effect_target || !animated_target.is_shadow_including_inclusive_ancestor_of(*effect_target)
+                || !effect_target->is_shadow_including_inclusive_ancestor_of(observation_target))
+                continue;
+            if (any_of(effect.target_properties(), is_transform_family_property))
+                return true;
+        }
+        return false;
+    };
+
+    auto transform_affects_intersection_observation = [&](Element const& animated_target, Animations::KeyframeEffect const& effect, bool only_translates_horizontally, bool& requires_main_thread_sampling) {
         for (auto const& observer : m_intersection_observers) {
             if (observer.observation_targets().is_empty())
                 continue;
             auto root = observer.intersection_root_node();
             if (root->is_element() && animated_target.is_shadow_including_inclusive_ancestor_of(*root))
                 return true;
+            bool subtree_is_clipped_outside_root = transform_subtree_is_clipped_outside(animated_target, observer.root_intersection_rectangle());
             for (auto const& observation : observer.observation_targets()) {
-                if (animated_target.is_shadow_including_inclusive_ancestor_of(*observation.target))
+                if (!animated_target.is_shadow_including_inclusive_ancestor_of(*observation.target) || subtree_is_clipped_outside_root)
+                    continue;
+                if (only_translates_horizontally && ancestor_transform_can_map_horizontal_motion_to_vertical(animated_target, *root)) {
+                    requires_main_thread_sampling = true;
                     return true;
+                }
+                if (only_translates_horizontally && !observation_has_another_transform_animation(animated_target, *observation.target, effect)) {
+                    auto const& target_rect = observation_target_rect_cache.ensure(observation.target, [&] {
+                        return observation.target->bounding_client_rect_assuming_layout_clean();
+                    });
+                    auto root_rect = observer.root_intersection_rectangle();
+                    bool vertical_bands_are_disjoint = target_rect.bottom() < root_rect.top() || target_rect.top() > root_rect.bottom();
+                    if (vertical_bands_are_disjoint)
+                        continue;
+                }
+                return true;
             }
         }
         return false;
@@ -8150,13 +8387,11 @@ void Document::update_compositor_animations()
             continue;
         }
 
-        if (selected_for_transform && transform_affects_intersection_observation(target))
-            continue;
-
+        Optional<bool> only_translates_horizontally;
         Vector<Compositor::VisualAnimation> effect_visual_animations;
         bool opacity_was_handed_off = !selected_for_opacity;
         if (selected_for_opacity) {
-            auto visual_animation = build_compositor_animation(effect, visual_context_tree, Compositor::VisualAnimation::TargetKind::Opacity);
+            auto visual_animation = build_compositor_animation(effect, visual_context_tree, Compositor::VisualAnimation::TargetKind::Opacity, only_translates_horizontally);
             if (visual_animation.has_value()) {
                 effect_visual_animations.append(visual_animation.release_value());
                 opacity_was_handed_off = true;
@@ -8164,15 +8399,37 @@ void Document::update_compositor_animations()
         }
         bool transform_was_handed_off = !selected_for_transform;
         if (selected_for_transform) {
-            auto visual_animation = build_compositor_animation(effect, visual_context_tree, Compositor::VisualAnimation::TargetKind::Transform);
+            auto visual_animation = build_compositor_animation(effect, visual_context_tree, Compositor::VisualAnimation::TargetKind::Transform, only_translates_horizontally);
             if (visual_animation.has_value()) {
                 effect_visual_animations.append(visual_animation.release_value());
                 transform_was_handed_off = true;
             }
         }
+        if (only_translates_horizontally.has_value())
+            only_translates_horizontally_cache.set(effect, *only_translates_horizontally);
+
+        bool transform_affects_observation = false;
+        bool requires_main_thread_observation_sampling = false;
+        if (selected_for_transform) {
+            auto only_translates_horizontally = only_translates_horizontally_cache.ensure(effect, [&] {
+                auto const* layout_node = abstract_target->unsafe_layout_node();
+                auto device_pixels_per_css_pixel = static_cast<float>(page().client().device_pixels_per_css_pixel());
+                return layout_node && keyframe_effect_only_translates_horizontally(effect, *abstract_target, *layout_node, device_pixels_per_css_pixel);
+            });
+            transform_affects_observation = transform_affects_intersection_observation(target, effect, only_translates_horizontally, requires_main_thread_observation_sampling);
+        }
+        if (requires_main_thread_observation_sampling) {
+            effect_visual_animations.remove_all_matching([](auto const& animation) {
+                return animation.target_kind == Compositor::VisualAnimation::TargetKind::Transform;
+            });
+            transform_was_handed_off = false;
+        }
+
         if (effect_visual_animations.is_empty()) {
             continue;
         }
+        if (transform_affects_observation)
+            continue;
         // OPTIMIZATION: Ordinary rendering updates advance the WebContent timeline without changing compositor
         //               playback. Retain the existing descriptor and its anchor unless the effect was invalidated or
         //               one of its non-anchor parameters changed.

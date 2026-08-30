@@ -1,0 +1,3 @@
+animation stays on main thread: true
+animation is not offscreen throttled: true
+fixed descendant is intersecting: true
