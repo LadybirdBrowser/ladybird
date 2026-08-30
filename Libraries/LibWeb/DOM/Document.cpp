@@ -7855,10 +7855,6 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
                 auto const* effects = visual_context_tree.frame_node_at(Painting::FrameNodeIndex { index }).data.get_pointer<Painting::EffectsData>();
                 if (!effects)
                     continue;
-                // OPTIMIZATION: The display-list recorder omits content whose current opacity is zero. Keep sampling the
-                //               animation in WebContent until a paintable sample has been retained for the compositor.
-                if (effects->opacity == 0)
-                    return {};
                 visual_context_node_indices.append(index);
             }
         } else {
@@ -7866,10 +7862,6 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
                 auto const* transform = visual_context_tree.spatial_node_at(Painting::SpatialNodeIndex { index }).data.get_pointer<Painting::TransformData>();
                 if (!transform || transform->role != Painting::TransformDataRole::CssTransform || transform->synthetic_plane)
                     continue;
-                // OPTIMIZATION: A stacking context with a non-invertible CSS transform is omitted from the display list.
-                //               Wait for an invertible sample before handing the animation to the compositor.
-                if (!transform->matrix.is_invertible())
-                    return {};
                 visual_context_node_indices.append(index);
             }
         }
@@ -8033,6 +8025,10 @@ void Document::update_compositor_animations()
             previously_compositor_replaced_effects.set(effect);
         if (!effect.retained_compositor_animations().is_empty())
             previously_published_effects.set(effect);
+        if (auto target = effect.target_abstract_element(); target.has_value()) {
+            if (auto* layout_node = target->unsafe_layout_node())
+                layout_node->set_retains_compositor_animated_content(false);
+        }
         effect.set_is_compositor_driven(false);
         effect.set_is_compositor_replaced(false);
 
@@ -8178,6 +8174,8 @@ void Document::update_compositor_animations()
         for (auto const& visual_animation : effect_visual_animations)
             visual_animations.append(visual_animation);
         effect.set_retained_compositor_animations(move(effect_visual_animations));
+        if (auto* layout_node = abstract_target->unsafe_layout_node())
+            layout_node->set_retains_compositor_animated_content(true);
         published_compositor_animation = true;
     }
 

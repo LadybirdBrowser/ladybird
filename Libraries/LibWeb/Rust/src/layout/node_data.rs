@@ -164,6 +164,7 @@ pub enum NodeFlag {
     HasCommittedFragmentLink = 1 << 26,
     HasPreserve3dTransformStyle = 1 << 27,
     IsMissingTableCell = 1 << 28,
+    HasAnimatedOpacityOrTransform = 1 << 29,
 }
 
 #[repr(C)]

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes fade-out {
+        from { opacity: 1; }
+        to { opacity: 0; }
+    }
+
+    @keyframes scale-out {
+        from { transform: scale(1); }
+        to { transform: scale(0); }
+    }
+
+    .under, .target {
+        position: absolute;
+        top: 0;
+        width: 100px;
+        height: 100px;
+    }
+
+    .under {
+        background: rgb(7, 8, 9);
+    }
+
+    .target {
+        animation-duration: 1000ms;
+        animation-fill-mode: forwards;
+        animation-timing-function: linear;
+    }
+
+    #opacity-under, #opacity {
+        left: 0;
+    }
+
+    #scale-under, #scale {
+        left: 120px;
+    }
+
+    #paused-under, #paused {
+        left: 240px;
+    }
+
+    #main-thread-under, #main-thread {
+        left: 360px;
+    }
+
+    #opacity {
+        background: rgb(1, 2, 3);
+        animation-name: fade-out;
+    }
+
+    #scale {
+        background: rgb(4, 5, 6);
+        animation-name: scale-out;
+    }
+
+    #paused {
+        background: rgb(10, 11, 12);
+    }
+
+    #main-thread {
+        background: rgb(13, 14, 15);
+    }
+</style>
+<div id="opacity-under" class="under"></div>
+<div id="opacity" class="target"></div>
+<div id="scale-under" class="under"></div>
+<div id="scale" class="target"></div>
+<div id="paused-under" class="under"></div>
+<div id="paused" class="target"></div>
+<div id="main-thread-under" class="under"></div>
+<div id="main-thread" class="target"></div>
+<script>
+    asyncTest(async done => {
+        const finiteAnimations = document.getAnimations();
+        finiteAnimations.forEach(animation => animation.currentTime = 0);
+        const pausedAnimation = paused.animate({ opacity: [0, 1] }, 1000);
+        pausedAnimation.pause();
+        pausedAnimation.currentTime = 0;
+        const mainThreadTarget = document.getElementById("main-thread");
+        const mainThreadAnimation = mainThreadTarget.animate([
+            { opacity: 0, color: "red" },
+            { opacity: 0, color: "blue" },
+        ], { duration: 1000, iterations: Infinity });
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+
+        println(`animations start on the compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 2}`);
+        const activeDisplayList = internals.dumpDisplayList();
+        println(`active animation content is retained: ${activeDisplayList.includes("rgb(1, 2, 3)") && activeDisplayList.includes("rgb(4, 5, 6)")}`);
+        println(`paused opacity-zero content is culled: ${!activeDisplayList.includes("rgb(10, 11, 12)")}`);
+        println(`main-thread opacity-zero content is culled: ${!activeDisplayList.includes("rgb(13, 14, 15)")}`);
+
+        await Promise.all(finiteAnimations.map(animation => animation.finished));
+        const displayList = internals.dumpDisplayList();
+        const opacityUnder = document.getElementById("opacity-under");
+        const scaleUnder = document.getElementById("scale-under");
+
+        println(`finished opacity content is culled: ${!displayList.includes("rgb(1, 2, 3)")}`);
+        println(`finished singular-transform content is culled: ${!displayList.includes("rgb(4, 5, 6)")}`);
+        println(`opacity-zero target remains hit-testable: ${document.elementFromPoint(50, 50) === opacity}`);
+        println(`scale-zero target is absent from hit testing: ${document.elementFromPoint(170, 50) === scaleUnder}`);
+        mainThreadAnimation.cancel();
+        done();
+    });
+</script>

@@ -6,8 +6,8 @@
 
 use super::{PaintPhase, PaintRecorder};
 use crate::layout::LayoutNodeArena;
-use crate::layout::node_data::NodeKind;
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_data::{NodeFlag, NodeKind};
 use crate::layout::{node_facts, used_values};
 use crate::painting::display_list::builder::CommandRange;
 use crate::painting::display_list::commands::ContextRef;
@@ -18,7 +18,6 @@ use crate::painting::host::{
     FfiHitTestHostCallbacks, FfiPaintHostCallbacks, FfiRecordingInputs, FfiVisualContextHostCallbacks,
 };
 use crate::painting::node_painting;
-use crate::painting::paintable_data::*;
 use crate::painting::record::RecordingOutput;
 use crate::painting::record::masks::MaskLayerSet;
 use crate::painting::stacking_context::NO_STACKING_CONTEXT;
@@ -191,10 +190,12 @@ impl PaintRecorder<'_> {
         let paintable = self.stacking_contexts.nodes[index as usize].paintable;
         // https://drafts.csswg.org/css-transforms-1/#transform-function-lists
         // If a transform function causes the current transformation matrix of an object to be
-        // non-invertible, the object and its content do not get displayed.
+        // non-invertible, the object and its content do not get displayed. Retain content whose
+        // transform is animated so the compositor can reveal it without a main-thread repaint.
         if self
             .data(paintable)
-            .has_flag(PaintableFlag::HasNonInvertibleCssTransform)
+            .has_flag(crate::painting::paintable_data::PaintableFlag::HasNonInvertibleCssTransform)
+            && self.layout_arena.node_flags_if_live(paintable) & NodeFlag::HasAnimatedOpacityOrTransform as u32 == 0
         {
             return;
         }

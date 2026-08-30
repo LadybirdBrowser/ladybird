@@ -368,6 +368,78 @@ TEST_CASE(pinch_zoom_copies_the_visual_context_tree_once_per_update)
     }
 }
 
+TEST_CASE(culled_initial_animation_content_becomes_visible)
+{
+    TestWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { 0, client, canvas_surface_registry, false };
+    Web::Painting::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto opacity_spatial = visual_context_tree.append_spatial(Web::Painting::TransformData { Gfx::FloatMatrix4x4::identity(), {} }, Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    auto opacity_frame = visual_context_tree.append_frame(Web::Painting::EffectsData {
+                                                              .opacity = 0,
+                                                              .blend_mode = Gfx::CompositingAndBlendingOperator::Normal,
+                                                              .gfx_filter = {},
+                                                          },
+        Web::Painting::NO_FRAME_NODE, opacity_spatial);
+    Web::Compositor::VisualAnimationTransformOperation initial_scale {
+        Web::Compositor::VisualAnimationTransformOperationKind::Scale,
+        { 0 },
+    };
+    auto scale_spatial = visual_context_tree.append_spatial(Web::Painting::TransformData { initial_scale.to_matrix(), {} }, Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    auto anchor = MonotonicTime::now();
+    visual_context_tree.set_visual_animations({
+        {
+            .target_kind = Web::Compositor::VisualAnimation::TargetKind::Opacity,
+            .visual_context_node_indices = { opacity_frame.value() },
+            .monotonic_time_at_anchor_ns = anchor.nanoseconds(),
+            .iteration_duration_ms = 1000,
+            .iteration_count = 1,
+            .easing = {},
+            .keyframes = {
+                { 0, {}, 0.0f },
+                { 1, {}, 1.0f },
+            },
+        },
+        {
+            .target_kind = Web::Compositor::VisualAnimation::TargetKind::Transform,
+            .visual_context_node_indices = { scale_spatial.value() },
+            .monotonic_time_at_anchor_ns = anchor.nanoseconds(),
+            .iteration_duration_ms = 1000,
+            .iteration_count = 1,
+            .easing = {},
+            .keyframes = {
+                { 0, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::Scale, { 0 } } } },
+                { 1, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::Scale, { 1 } } } },
+            },
+        },
+    });
+
+    ByteBuffer command_bytes;
+    auto opacity_command = Web::Painting::FillRect { { 0, 0, 4, 4 }, Gfx::Color::Red };
+    append_display_list_command(command_bytes, opacity_command, opacity_command.rect, { opacity_spatial, opacity_frame });
+    auto scale_command = Web::Painting::FillRect { { 8, 0, 4, 4 }, Gfx::Color::Red };
+    append_display_list_command(command_bytes, scale_command, scale_command.rect, { scale_spatial, Web::Painting::NO_FRAME_NODE });
+
+    Gfx::IntRect viewport_rect { 0, 0, 12, 4 };
+    context.viewport_size_updated(viewport_rect.size(), Web::Compositor::WindowResizingInProgress::No);
+    VERIFY(context.resize_backing_stores_if_needed({}, Compositor::BackingStoreManager::GpuSharing::Disallowed).has_value());
+    context.install_display_list_update(
+        decode_display_list(visual_context_tree, move(command_bytes), Gfx::Color::Transparent),
+        visual_context_tree,
+        {});
+
+    EXPECT(context.advance_visual_animations(anchor + AK::Duration::from_milliseconds(500)));
+    context.queue_present_frame({ viewport_rect, viewport_rect });
+    EXPECT(context.present_synchronously(display_list_player, nullptr));
+
+    auto bitmap = context.latest_rendered_surface()->snapshot_bitmap();
+    auto opacity_pixel = bitmap->get_pixel(0, 0);
+    EXPECT_EQ(opacity_pixel.red(), 128);
+    EXPECT_EQ(opacity_pixel.alpha(), 128);
+    EXPECT_EQ(bitmap->get_pixel(4, 0), Gfx::Color::Red);
+}
+
 TEST_CASE(finite_visual_animations_stop_after_their_terminal_sample)
 {
     TestWebContentClient client;

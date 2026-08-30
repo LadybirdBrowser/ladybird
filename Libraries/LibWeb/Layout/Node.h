@@ -219,6 +219,7 @@ public:
     GC::Ptr<DOM::Element> pseudo_element_generator();
 
     bool needs_layout_update() const { return has_flag(RustFFI::NodeFlag::NeedsLayoutUpdate); }
+    void set_retains_compositor_animated_content(bool value) { set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, value); }
 
     // The formatting-context run cache (LADYBIRD_FC_RUN_CACHE) validates its entries against
     // these epochs; with the cache disabled nothing reads them, so the walks no-op.

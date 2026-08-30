@@ -7,6 +7,7 @@
  */
 
 #include <AK/Demangle.h>
+#include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
@@ -520,6 +521,7 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, GC::Ptr<DOM::Node> node, C
     }
     set_flag(RustFFI::NodeFlag::HasAnchorNames, has_anchor_names);
     set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, insets_use_anchor_functions);
+    set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, false);
     publish_style_record_to_node_data();
     set_flag(RustFFI::NodeFlag::HasPreserve3dTransformStyle, transform_style() == CSS::TransformStyle::Preserve3d);
     synchronize_table_span_data();
@@ -646,6 +648,7 @@ void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
     VERIFY(record_view);
     set_flag(RustFFI::NodeFlag::HasAnchorNames, !record_view->anchor_names().is_empty());
     set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, record_view->inset_properties_contain_anchor_functions());
+    set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, false);
     set_flag(RustFFI::NodeFlag::HasPreserve3dTransformStyle, transform_style() == CSS::TransformStyle::Preserve3d);
     // A style change can introduce the properties that make a node carry replaced-content facts,
     // such as size containment arriving on a kept layout node.
@@ -965,6 +968,7 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
     }
     set_flag(RustFFI::NodeFlag::HasAnchorNames, !computed_values->anchor_names().is_empty());
     set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, computed_values->inset_properties_contain_anchor_functions());
+    set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, false);
     publish_style_record_to_node_data();
     set_flag(RustFFI::NodeFlag::HasPreserve3dTransformStyle, transform_style() == CSS::TransformStyle::Preserve3d);
     enroll_for_arena_replaced_content_facts_sync_if_eligible();
@@ -1010,6 +1014,7 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
     m_style_record_identity = style_record_identity;
     set_flag(RustFFI::NodeFlag::HasAnchorNames, !new_record_view->anchor_names().is_empty());
     set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, new_record_view->inset_properties_contain_anchor_functions());
+    set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, false);
     publish_style_record_to_node_data();
     set_flag(RustFFI::NodeFlag::HasPreserve3dTransformStyle, transform_style() == CSS::TransformStyle::Preserve3d);
     enroll_for_arena_replaced_content_facts_sync_if_eligible();
