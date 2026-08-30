@@ -16,23 +16,6 @@
 
 namespace Gfx {
 
-struct CodePointFallbackKey {
-    u32 code_point { 0 };
-    u16 weight { 0 };
-    u16 width { 0 };
-    u8 slope { 0 };
-    bool prefer_color_emoji { false };
-
-    bool operator==(CodePointFallbackKey const&) const = default;
-
-    unsigned hash() const
-    {
-        return pair_int_hash(
-            pair_int_hash(code_point, weight),
-            pair_int_hash(pair_int_hash(width, slope), prefer_color_emoji));
-    }
-};
-
 class SystemFontProvider {
 public:
     virtual ~SystemFontProvider();
@@ -40,6 +23,9 @@ public:
     virtual StringView name() const = 0;
     virtual RefPtr<Gfx::Font> get_font(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Optional<FontVariationSettings> const& font_variation_settings = {}, Optional<Gfx::ShapeFeatures> const& shape_features = {}) = 0;
     virtual void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)>) = 0;
+    virtual RefPtr<Typeface> get_typeface_by_id(u64 generation, u64 face_id);
+    virtual RefPtr<Gfx::Font> get_font_for_code_point(u32 code_point, float point_size, u16 weight, u16 width, u8 slope, bool prefer_color_emoji);
+    virtual Optional<FlyString> resolve_generic_family(StringView family_name, u16 weight, u8 slope);
 };
 
 class FontDatabase {
@@ -49,8 +35,11 @@ public:
 
     RefPtr<Gfx::Font> get(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Optional<FontVariationSettings> const& font_variation_settings = {}, Optional<Gfx::ShapeFeatures> const& shape_features = {});
     RefPtr<Gfx::Font> get_font_for_code_point(u32 code_point, float point_size, u16 weight, u16 width, u8 slope, bool prefer_color_emoji);
+    RefPtr<Typeface> get_typeface_by_id(u64 generation, u64 face_id);
+    Optional<FlyString> resolve_generic_family(StringView family_name, u16 weight, u8 slope);
     void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)>);
     [[nodiscard]] StringView system_font_provider_name() const;
+    [[nodiscard]] bool has_system_font_provider() const { return m_system_font_provider; }
 
     void set_force_freetype_rasterization(bool force) { m_force_freetype_rasterization = force; }
     [[nodiscard]] bool force_freetype_rasterization() const { return m_force_freetype_rasterization; }
@@ -63,20 +52,6 @@ private:
 
     OwnPtr<SystemFontProvider> m_system_font_provider;
     bool m_force_freetype_rasterization { false };
-
-    struct CodePointFallbackEntry {
-        FlyString family_name;
-        RefPtr<Typeface const> typeface;
-    };
-    HashMap<CodePointFallbackKey, CodePointFallbackEntry> m_code_point_fallback_cache;
 };
 
 }
-
-template<>
-struct AK::Traits<Gfx::CodePointFallbackKey> : public AK::DefaultTraits<Gfx::CodePointFallbackKey> {
-    static unsigned hash(Gfx::CodePointFallbackKey const& key)
-    {
-        return key.hash();
-    }
-};

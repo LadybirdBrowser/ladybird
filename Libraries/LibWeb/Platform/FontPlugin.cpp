@@ -170,7 +170,7 @@ FlyString FontPlugin::compute_generic_font_name(GenericFont generic_font, int we
             return m_system_font_family.value();
     }
 
-    auto name = Gfx::TypefaceSkia::resolve_generic_family(generic_family_name, weight, slope);
+    auto name = Gfx::FontDatabase::the().resolve_generic_family(generic_family_name, weight, slope);
     if (name.has_value()) {
         if (Gfx::FontDatabase::the().get(name.value(), 16, weight, Gfx::FontWidth::Normal, slope))
             return FlyString { name.release_value() };

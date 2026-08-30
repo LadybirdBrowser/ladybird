@@ -12,6 +12,7 @@ pub mod bsp_tree;
 pub mod color;
 pub mod corner_radii;
 pub mod font;
+pub mod font_catalog;
 pub mod geometry;
 pub mod matrix;
 pub mod paint_enums;

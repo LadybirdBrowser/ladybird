@@ -13,10 +13,12 @@ set(SOURCES
     Cursor.cpp
     Filter.cpp
     Font/Font.cpp
+    Font/FontCatalog.cpp
     Font/FontDatabase.cpp
     Font/FontSupport.cpp
     Font/FontVariationSettings.cpp
     Font/PathFontProvider.cpp
+    Font/SharedFontProvider.cpp
     Font/Typeface.cpp
     Font/TypefaceSkia.cpp
     Font/WOFF/Loader.cpp
