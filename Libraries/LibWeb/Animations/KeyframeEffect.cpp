@@ -1026,6 +1026,7 @@ KeyframeEffect::KeyframeEffect() = default;
 void KeyframeEffect::invalidate_effect()
 {
     m_is_compositor_driven = false;
+    m_retained_compositor_animation.clear();
     m_can_skip_per_frame_style_update_cache.clear();
     if (m_target_element)
         m_target_element->document().set_needs_animated_style_update(*this);

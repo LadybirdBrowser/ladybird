@@ -7746,6 +7746,10 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
     auto target = effect.target();
     if (!target || target->namespace_uri() == Namespace::SVG)
         return {};
+    auto frame_timestamp = target->document().last_animation_frame_timestamp();
+    if (!frame_timestamp.has_value())
+        return {};
+    auto monotonic_time_at_anchor_ms = *frame_timestamp + target->document().relevant_settings_object().time_origin();
     auto const* layout_node = target->unsafe_layout_node();
     if (!layout_node)
         return {};
@@ -7818,7 +7822,7 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
             ? Compositor::VisualAnimation::TargetKind::Opacity
             : Compositor::VisualAnimation::TargetKind::Transform,
         .visual_context_node_indices = move(visual_context_node_indices),
-        .monotonic_time_at_anchor_ns = MonotonicTime::now().nanoseconds(),
+        .monotonic_time_at_anchor_ns = static_cast<i64>(monotonic_time_at_anchor_ms * 1'000'000.0),
         .local_time_at_anchor_ms = current_time->value,
         .playback_rate = animation->playback_rate(),
         .start_delay_ms = effect.start_delay().value,
@@ -7837,11 +7841,17 @@ void Document::update_compositor_animations()
 {
     auto& visual_context_tree = paint_state().visual_context_tree(*this);
     Vector<Compositor::VisualAnimation> visual_animations;
+    GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_compositor_driven_effects;
 
     for (auto& animation : m_associated_animations) {
         if (!animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
             continue;
-        static_cast<Animations::KeyframeEffect&>(*animation.effect()).set_is_compositor_driven(false);
+        auto& effect = static_cast<Animations::KeyframeEffect&>(*animation.effect());
+        if (effect.is_compositor_driven())
+            previously_compositor_driven_effects.set(effect);
+        else
+            effect.clear_retained_compositor_animation();
+        effect.set_is_compositor_driven(false);
     }
 
     for (auto& animation : m_associated_animations) {
@@ -7870,7 +7880,14 @@ void Document::update_compositor_animations()
         auto visual_animation = build_compositor_animation(effect, visual_context_tree);
         if (!visual_animation.has_value())
             continue;
+        if (previously_compositor_driven_effects.contains(GC::Ref { effect })) {
+            if (auto const& retained_animation = effect.retained_compositor_animation(); retained_animation.has_value() && visual_animation->has_same_animation_parameters(*retained_animation)) {
+                visual_animation->monotonic_time_at_anchor_ns = retained_animation->monotonic_time_at_anchor_ns;
+                visual_animation->local_time_at_anchor_ms = retained_animation->local_time_at_anchor_ms;
+            }
+        }
         effect.set_is_compositor_driven(true);
+        effect.set_retained_compositor_animation(*visual_animation);
         visual_animations.append(visual_animation.release_value());
     }
 

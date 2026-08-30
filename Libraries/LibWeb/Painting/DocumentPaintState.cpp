@@ -152,8 +152,22 @@ void DocumentPaintState::update_visual_viewport_accumulated_visual_context(DOM::
 void DocumentPaintState::set_visual_animations(DOM::Document& document, Vector<Compositor::VisualAnimation> animations)
 {
     ensure_visual_context_tree(document);
+    if (m_visual_context_tree->visual_animations() == animations.span())
+        return;
+    bool animation_parameters_changed = m_visual_animations.size() != animations.size();
+    if (!animation_parameters_changed) {
+        for (size_t index = 0; index < animations.size(); ++index) {
+            if (!m_visual_animations[index].has_same_animation_parameters(animations[index])) {
+                animation_parameters_changed = true;
+                break;
+            }
+        }
+    }
+    m_visual_animations = animations;
     m_visual_context_tree->set_visual_animations(move(animations));
     m_visual_context_tree_needs_compositor_update = true;
+    if (animation_parameters_changed)
+        ++document.style_invalidation_counters().compositor_visual_animation_updates;
 }
 
 void DocumentPaintState::append_paint_command_cache_source_resources(DisplayListResourceSet& retained_resources) const

@@ -1,3 +1,4 @@
 compositor visual animations: 2
 main-thread animation overlay builds: 0
 main-thread animation frame pump requests: 0
+stable compositor animation updates with changing visual nodes: 0
