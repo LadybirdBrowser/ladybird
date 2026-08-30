@@ -592,6 +592,15 @@ impl VisualContextTree {
         self.spatial_nodes[VISUAL_VIEWPORT_NODE_INDEX.0 as usize].data = SpatialData::Transform(transform);
     }
 
+    pub fn set_visual_viewport_matrix_and_origin(&mut self, matrix: FloatMatrix4x4, origin: FloatPoint) {
+        let SpatialData::Transform(transform) = &mut self.spatial_nodes[VISUAL_VIEWPORT_NODE_INDEX.0 as usize].data
+        else {
+            unreachable!("the visual viewport node is a transform");
+        };
+        transform.matrix = matrix;
+        transform.origin = origin;
+    }
+
     pub fn is_compatible_with(&self, other: &Self) -> bool {
         if self.spatial_nodes.len() != other.spatial_nodes.len() || self.frame_nodes.len() != other.frame_nodes.len() {
             return false;

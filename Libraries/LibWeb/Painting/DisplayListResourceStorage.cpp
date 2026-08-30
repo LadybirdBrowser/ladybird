@@ -501,23 +501,8 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
     visited_display_lists.set(id.value());
     auto const& list_resource = display_list_resource(id);
 
-    auto const& frame_nodes = list_resource.visual_context_tree.frame_nodes();
-    auto isolated_by_layer_frame = [&](FrameNodeIndex frame) {
-        while (frame != NO_FRAME_NODE) {
-            auto const& node = frame_nodes[frame.value()];
-            if (node.data.has<EffectsData>() || node.data.has<MaskData>())
-                return true;
-            frame = node.parent;
-        }
-        return false;
-    };
-
-    bool requires_direct_replay = false;
-    for (auto const& node : frame_nodes) {
-        auto const* effects = node.data.get_pointer<EffectsData>();
-        if (effects && effects->blend_mode != Gfx::CompositingAndBlendingOperator::Normal && !isolated_by_layer_frame(node.parent))
-            requires_direct_replay = true;
-    }
+    auto const& visual_context_tree = list_resource.visual_context_tree;
+    bool requires_direct_replay = visual_context_tree.has_unisolated_blending_frame();
 
     auto recurse_into_nested_display_list = [&](DisplayListResourceId nested_display_list_id) {
         if (visited_display_lists.set(nested_display_list_id.value()) != HashSetResult::InsertedNewEntry)
@@ -532,7 +517,7 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
         visit_display_list_command(header.command_type, payload, [&](auto const& command) {
             using Command = RemoveCVReference<decltype(command)>;
             if constexpr (IsSame<Command, ApplyBackdropFilter>) {
-                if (command.has_backdrop_filter && !isolated_by_layer_frame(header.context.frame))
+                if (command.has_backdrop_filter && !visual_context_tree.frame_is_isolated_by_layer_frame(header.context.frame))
                     requires_direct_replay = true;
             } else if constexpr (IsSame<Command, DrawVideoFrame> || IsSame<Command, DrawCanvas> || IsSame<Command, DrawCompositedContext>) {
                 requires_direct_replay = true;
@@ -626,15 +611,12 @@ void DisplayListResourceStorage::collect_referenced_resources(
     AccumulatedVisualContextTree const& visual_context_tree,
     DisplayListResourceSet& referenced_resources) const
 {
-    for (auto const& frame_node : visual_context_tree.frame_nodes()) {
-        auto const* effects = frame_node.data.get_pointer<EffectsData>();
-        if (!effects || !effects->filter_bytes.has_value())
-            continue;
-        Gfx::deserialize_filter(*effects->filter_bytes, [&](u64 image_id) {
+    visual_context_tree.for_each_effects_filter_bytes([&](ReadonlyBytes filter_bytes) {
+        Gfx::deserialize_filter(filter_bytes, [&](u64 image_id) {
             referenced_resources.image_frames.set(ImageFrameResourceId { image_id }, AK::HashSetExistingEntryBehavior::Keep);
             return image_frame(ImageFrameResourceId { image_id });
         });
-    }
+    });
 }
 
 DisplayListResourceSet DisplayListResourceStorage::collect_referenced_resources(ReadonlyBytes command_bytes) const

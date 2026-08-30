@@ -6,10 +6,12 @@
 
 use super::{
     ClipMode, FrameData, FrameNodeIndex, MaskLayerOrigin, SpatialData, SpatialNodeIndex, TransformDataRole,
-    VisualContextTree,
+    VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree,
 };
+use crate::painting::display_list::commands::DisplayListCommandRun;
 use crate::painting::dump::format_float_like_ak;
 use libgfx_rust::{CompositingAndBlendingOperator, FloatPoint, FloatRect, FloatSize, IntRect, MaskKind};
+use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 
 fn format_point(point: FloatPoint) -> String {
@@ -207,6 +209,98 @@ impl VisualContextTree {
                     format_int_rect_components(mask.rect),
                     kind,
                     origin
+                );
+            }
+        }
+        text
+    }
+}
+
+impl VisualContextTree {
+    pub fn dump_nodes_reachable_from_runs(
+        &self,
+        command_runs: &[DisplayListCommandRun],
+        mut owner_label: impl FnMut(bool, u32) -> Option<String>,
+    ) -> String {
+        let mut visited_spatial_nodes: HashSet<u32> = HashSet::new();
+        let mut visited_frame_nodes: HashSet<u32> = HashSet::new();
+        let mut spatial_children: HashMap<u32, Vec<u32>> = HashMap::new();
+        let mut frame_children: HashMap<u32, Vec<u32>> = HashMap::new();
+        let mut frame_roots: Vec<u32> = Vec::new();
+
+        for run in command_runs {
+            let mut spatial = run.context.spatial;
+            while visited_spatial_nodes.insert(spatial.0) {
+                if spatial == VISUAL_VIEWPORT_NODE_INDEX {
+                    break;
+                }
+                let parent = self.spatial_nodes[spatial.0 as usize].parent;
+                spatial_children.entry(parent.0).or_default().push(spatial.0);
+                spatial = parent;
+            }
+            let mut frame = run.context.frame;
+            while !frame.is_none() && visited_frame_nodes.insert(frame.0) {
+                let parent = self.frame_nodes[frame.0 as usize].parent;
+                if parent.is_none() {
+                    frame_roots.push(frame.0);
+                } else {
+                    frame_children.entry(parent.0).or_default().push(frame.0);
+                }
+                frame = parent;
+            }
+        }
+
+        let mut text = String::from("AccumulatedVisualContext Tree:\n");
+        let mut append_owner = |text: &mut String, is_frame: bool, index: u32| {
+            if let Some(label) = owner_label(is_frame, index) {
+                let _ = write!(text, " ({label})");
+            }
+            text.push('\n');
+        };
+
+        fn dump_subtree(
+            text: &mut String,
+            children: &HashMap<u32, Vec<u32>>,
+            node_line: &impl Fn(u32) -> String,
+            append_owner: &mut impl FnMut(&mut String, u32),
+            node_index: u32,
+            indent: usize,
+        ) {
+            text.push_str(&" ".repeat(indent * 2));
+            text.push_str(&node_line(node_index));
+            append_owner(text, node_index);
+            if let Some(child_indices) = children.get(&node_index) {
+                for child in child_indices {
+                    dump_subtree(text, children, node_line, append_owner, *child, indent + 1);
+                }
+            }
+        }
+
+        text.push_str("  spatial:\n");
+        dump_subtree(
+            &mut text,
+            &spatial_children,
+            &|index: u32| format!("[s{index}] {}", self.dump_spatial_node(SpatialNodeIndex(index))),
+            &mut |text: &mut String, index: u32| append_owner(text, false, index),
+            VISUAL_VIEWPORT_NODE_INDEX.0,
+            2,
+        );
+        if !frame_roots.is_empty() {
+            text.push_str("  frames:\n");
+            for root in frame_roots {
+                dump_subtree(
+                    &mut text,
+                    &frame_children,
+                    &|index: u32| {
+                        format!(
+                            "[f{index} in s{}] {}",
+                            self.frame_nodes[index as usize].spatial.0,
+                            self.dump_frame_node(FrameNodeIndex(index))
+                        )
+                    },
+                    &mut |text: &mut String, index: u32| append_owner(text, true, index),
+                    root,
+                    2,
                 );
             }
         }
@@ -420,6 +514,85 @@ mod node_dump_tests {
         assert_eq!(
             tree.dump_frame_node(mask),
             "mask=[1,2 30x40] kind=luminance origin=svg-mask"
+        );
+    }
+}
+
+#[cfg(test)]
+mod section_dump_tests {
+    use crate::painting::display_list::commands::{
+        ContextRef, DisplayListCommandRun, FrameNodeIndex, SpatialNodeIndex,
+    };
+    use crate::painting::visual_context::{
+        ClipData, ClipMode, EffectsData, FrameData, ScrollData, SpatialData, TransformData, TransformDataRole,
+        VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree, scroll_state::NO_SCROLL_STATE_SLOT,
+    };
+    use libgfx_rust::{CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, IntRect};
+
+    fn run(spatial: SpatialNodeIndex, frame: FrameNodeIndex) -> DisplayListCommandRun {
+        DisplayListCommandRun {
+            offset: 0,
+            size: 0,
+            context: ContextRef { spatial, frame },
+            ink_bounds: IntRect::default(),
+            has_unbounded_draw: false,
+            has_compositor_metadata: false,
+        }
+    }
+
+    #[test]
+    fn the_dump_lists_reachable_nodes_in_first_seen_order_with_owner_labels() {
+        let mut tree = VisualContextTree::create(TransformData {
+            matrix: FloatMatrix4x4::identity(),
+            origin: FloatPoint::default(),
+            sorting_context_root_index: None,
+            flattens_inherited_transform: false,
+            role: TransformDataRole::CssTransform,
+            synthetic_plane: false,
+        });
+        let scroll_node = tree.append_spatial(
+            SpatialData::Scroll(ScrollData {
+                state_slot: NO_SCROLL_STATE_SLOT,
+            }),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let unreachable_node = tree.append_spatial(
+            SpatialData::Scroll(ScrollData {
+                state_slot: NO_SCROLL_STATE_SLOT,
+            }),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let clip_frame = tree.append_frame(
+            FrameData::Clip(ClipData {
+                rect: FloatRect::new(1.0, 2.0, 3.0, 4.0),
+                corner_radii: CornerRadii::default(),
+                mode: ClipMode::Intersect,
+            }),
+            FrameNodeIndex::NONE,
+            scroll_node,
+        );
+        let effects_frame = tree.append_frame(
+            FrameData::Effects(EffectsData {
+                opacity: 0.5,
+                blend_mode: CompositingAndBlendingOperator::Normal,
+                filter: None,
+            }),
+            clip_frame,
+            scroll_node,
+        );
+        let _ = unreachable_node;
+        let runs = [
+            run(scroll_node, effects_frame),
+            run(VISUAL_VIEWPORT_NODE_INDEX, FrameNodeIndex::NONE),
+        ];
+        let text = tree.dump_nodes_reachable_from_runs(&runs, |is_frame, index| match (is_frame, index) {
+            (false, 1) => Some("BlockContainer<DIV>#scroller".to_string()),
+            (true, 0) => Some("BlockContainer<DIV>#scroller".to_string()),
+            _ => None,
+        });
+        assert_eq!(
+            text,
+            "AccumulatedVisualContext Tree:\n  spatial:\n    [s0] transform=[1,0,0,1,0,0] origin=(0,0)\n      [s1] scroll (BlockContainer<DIV>#scroller)\n  frames:\n    [f0 in s1] clip=[1,2 3x4] (BlockContainer<DIV>#scroller)\n      [f1 in s1] effects=[opacity=0.5]\n"
         );
     }
 }

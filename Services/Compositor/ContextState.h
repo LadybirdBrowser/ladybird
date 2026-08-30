@@ -252,7 +252,7 @@ private:
     bool m_has_blocking_wheel_event_listeners { false };
     u64 m_wheel_event_listener_state_generation { 0 };
     Web::Compositor::WheelRoutingAdmission m_wheel_routing_admission { Web::Compositor::WheelRoutingAdmission::NoAsyncScrollingState };
-    Optional<Web::Painting::TransformData> m_async_visual_viewport_transform;
+    Optional<Web::Painting::TransformWithOrigin> m_async_visual_viewport_transform;
     Optional<i64> m_visual_animation_sample_time_ns;
 
     Gfx::IntSize m_viewport_size;

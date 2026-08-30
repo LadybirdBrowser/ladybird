@@ -11028,65 +11028,15 @@ Utf16String Document::dump_display_list()
     });
 
     StringBuilder builder;
-    builder.append("AccumulatedVisualContext Tree:\n"sv);
-
-    HashTable<Painting::SpatialNodeIndex> visited_spatial_nodes;
-    HashTable<Painting::FrameNodeIndex> visited_frame_nodes;
-    HashMap<Painting::SpatialNodeIndex, Vector<Painting::SpatialNodeIndex>> spatial_children;
-    HashMap<Painting::FrameNodeIndex, Vector<Painting::FrameNodeIndex>> frame_children;
-    Vector<Painting::FrameNodeIndex> frame_roots;
-
-    display_list->for_each_command_header([&](Painting::DisplayListCommandHeader const& header, ReadonlyBytes) {
-        for (auto spatial = header.context.spatial; !visited_spatial_nodes.contains(spatial);) {
-            visited_spatial_nodes.set(spatial);
-            if (spatial == Painting::VISUAL_VIEWPORT_NODE_INDEX)
-                break;
-            auto parent = visual_context_tree.spatial_node_at(spatial).parent;
-            spatial_children.ensure(parent).append(spatial);
-            spatial = parent;
-        }
-        for (auto frame = header.context.frame; frame != Painting::NO_FRAME_NODE && !visited_frame_nodes.contains(frame);) {
-            visited_frame_nodes.set(frame);
-            auto parent = visual_context_tree.frame_node_at(frame).parent;
-            if (parent == Painting::NO_FRAME_NODE)
-                frame_roots.append(frame);
-            else
-                frame_children.ensure(parent).append(frame);
-            frame = parent;
-        }
-    });
-
-    auto append_owner = [&](auto const& owners, auto node_index) {
-        if (auto it = owners.find(node_index); it != owners.end())
-            builder.appendff(" ({})", it->value->debug_description());
-        builder.append('\n');
+    auto owner_label = [](auto owner) -> Optional<String> {
+        if (!owner.has_value())
+            return {};
+        return (*owner)->debug_description();
     };
-
-    Function<void(Painting::SpatialNodeIndex, size_t)> dump_spatial_node = [&](Painting::SpatialNodeIndex node_index, size_t indent) {
-        builder.append_repeated(' ', indent * 2);
-        builder.appendff("[{}] ", node_index);
-        visual_context_tree.dump_spatial_node(node_index, builder);
-        append_owner(spatial_node_owners, node_index);
-        for (auto child : spatial_children.get(node_index).value_or({}))
-            dump_spatial_node(child, indent + 1);
-    };
-
-    Function<void(Painting::FrameNodeIndex, size_t)> dump_frame_node = [&](Painting::FrameNodeIndex node_index, size_t indent) {
-        builder.append_repeated(' ', indent * 2);
-        builder.appendff("[{} in {}] ", node_index, visual_context_tree.frame_node_at(node_index).spatial);
-        visual_context_tree.dump_frame_node(node_index, builder);
-        append_owner(frame_node_owners, node_index);
-        for (auto child : frame_children.get(node_index).value_or({}))
-            dump_frame_node(child, indent + 1);
-    };
-
-    builder.append("  spatial:\n"sv);
-    dump_spatial_node(Painting::VISUAL_VIEWPORT_NODE_INDEX, 2);
-    if (!frame_roots.is_empty()) {
-        builder.append("  frames:\n"sv);
-        for (auto root : frame_roots)
-            dump_frame_node(root, 2);
-    }
+    visual_context_tree.dump(
+        builder, display_list->command_runs(),
+        [&](Painting::SpatialNodeIndex index) { return owner_label(spatial_node_owners.get(index)); },
+        [&](Painting::FrameNodeIndex index) { return owner_label(frame_node_owners.get(index)); });
 
     builder.append("\nDisplayList:\n"sv);
 

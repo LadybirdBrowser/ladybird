@@ -6,9 +6,11 @@
 
 use super::{
     ClipData, ClipMode, ContextRef, FrameData, FrameNode, FrameNodeIndex, IncludeVisualViewportTransform, SpatialData,
-    SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree, device_offset_for_index,
+    SpatialNodeIndex, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree, device_offset_for_index,
 };
-use libgfx_rust::{FloatMatrix4x4, FloatPoint, FloatRect, IntPoint, IntRect, map_rect_through_matrix};
+use libgfx_rust::{
+    CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, FloatRect, IntPoint, IntRect, map_rect_through_matrix,
+};
 
 // Homogeneous coordinates this close to the eye plane have no meaningful projection.
 const MINIMUM_PROJECTION_W: f32 = 0.0001;
@@ -598,12 +600,94 @@ impl VisualContextTree {
     }
 }
 
+impl VisualContextTree {
+    pub fn frame_is_isolated_by_layer_frame(&self, mut frame: FrameNodeIndex) -> bool {
+        while !frame.is_none() {
+            let node = &self.frame_nodes[frame.0 as usize];
+            if matches!(node.data, FrameData::Effects(_) | FrameData::Mask(_)) {
+                return true;
+            }
+            frame = node.parent;
+        }
+        false
+    }
+
+    pub fn has_unisolated_blending_frame(&self) -> bool {
+        self.frame_nodes.iter().any(|node| {
+            matches!(&node.data, FrameData::Effects(effects) if effects.blend_mode != CompositingAndBlendingOperator::Normal)
+                && !self.frame_is_isolated_by_layer_frame(node.parent)
+        })
+    }
+}
+
+impl VisualContextTree {
+    pub fn with_sampled_visual_animation_values(
+        &self,
+        frame_opacities: &[(FrameNodeIndex, f32)],
+        spatial_matrices: &[(SpatialNodeIndex, FloatMatrix4x4)],
+    ) -> VisualContextTree {
+        let mut sampled = self.clone();
+        for (frame, opacity) in frame_opacities {
+            if let Some(FrameData::Effects(effects)) =
+                sampled.frame_nodes.get_mut(frame.0 as usize).map(|node| &mut node.data)
+            {
+                effects.opacity = *opacity;
+            }
+        }
+        for (spatial, matrix) in spatial_matrices {
+            if let Some(SpatialData::Transform(transform)) = sampled
+                .spatial_nodes
+                .get_mut(spatial.0 as usize)
+                .map(|node| &mut node.data)
+            {
+                transform.matrix = *matrix;
+            }
+        }
+        sampled
+    }
+
+    pub fn visual_animation_targets_are_valid(&self, targets_are_frames: bool, targets: &[u32]) -> bool {
+        targets.iter().all(|&target| {
+            if targets_are_frames {
+                matches!(self.frame_nodes.get(target as usize).map(|node| &node.data), Some(FrameData::Effects(_)))
+            } else {
+                matches!(
+                    self.spatial_nodes.get(target as usize).map(|node| &node.data),
+                    Some(SpatialData::Transform(transform)) if transform.role == TransformDataRole::CssTransform && !transform.synthetic_plane
+                )
+            }
+        })
+    }
+
+    pub fn effects_opacity(&self, frame: FrameNodeIndex) -> Option<f32> {
+        match self.frame_nodes.get(frame.0 as usize).map(|node| &node.data) {
+            Some(FrameData::Effects(effects)) => Some(effects.opacity),
+            _ => None,
+        }
+    }
+
+    pub fn spatial_nodes_in_subtrees_of(&self, roots: &[SpatialNodeIndex]) -> Vec<bool> {
+        let mut in_subtree = vec![false; self.spatial_nodes.len()];
+        for root in roots {
+            if let Some(flag) = in_subtree.get_mut(root.0 as usize) {
+                *flag = true;
+            }
+        }
+        for index in 1..self.spatial_nodes.len() {
+            if in_subtree[self.spatial_nodes[index].parent.0 as usize] {
+                in_subtree[index] = true;
+            }
+        }
+        in_subtree
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::painting::visual_context::{
-        BackfaceVisibilityData, ClipData, ClipMode, FrameData, PerspectiveData, ScrollData, SpatialData, StickyData,
-        TransformData, TransformDataRole, scroll_state::NO_SCROLL_STATE_SLOT,
+        BackfaceVisibilityData, ClipData, ClipMode, EffectsData, FrameData, PerspectiveData, ScrollData, SpatialData,
+        StickyData, TransformData, TransformDataRole, scroll_state::NO_SCROLL_STATE_SLOT,
     };
     use libgfx_rust::{CornerRadii, FloatMatrix4x4, FloatSize, perspective_matrix, scale_matrix, translation_matrix};
 
@@ -646,6 +730,61 @@ mod tests {
 
     fn rotate_y_180_degrees() -> FloatMatrix4x4 {
         scale_matrix(-1.0, 1.0, -1.0)
+    }
+
+    fn effects(opacity: f32, blend_mode: CompositingAndBlendingOperator) -> FrameData {
+        FrameData::Effects(EffectsData {
+            opacity,
+            blend_mode,
+            filter: None,
+        })
+    }
+
+    #[test]
+    fn a_frame_is_isolated_by_an_effects_or_mask_ancestor_or_self() {
+        let mut tree = identity_tree();
+        let clip_frame = tree.append_frame(
+            clip(FloatRect::new(0.0, 0.0, 10.0, 10.0), ClipMode::Intersect),
+            FrameNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let effects_frame = tree.append_frame(
+            effects(0.5, CompositingAndBlendingOperator::Normal),
+            clip_frame,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let nested_clip_frame = tree.append_frame(
+            clip(FloatRect::new(0.0, 0.0, 5.0, 5.0), ClipMode::Intersect),
+            effects_frame,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        assert!(!tree.frame_is_isolated_by_layer_frame(FrameNodeIndex::NONE));
+        assert!(!tree.frame_is_isolated_by_layer_frame(clip_frame));
+        assert!(tree.frame_is_isolated_by_layer_frame(effects_frame));
+        assert!(tree.frame_is_isolated_by_layer_frame(nested_clip_frame));
+    }
+
+    #[test]
+    fn a_blending_frame_counts_as_unisolated_only_without_a_layer_ancestor() {
+        let mut tree = identity_tree();
+        assert!(!tree.has_unisolated_blending_frame());
+        let opacity_frame = tree.append_frame(
+            effects(0.5, CompositingAndBlendingOperator::Normal),
+            FrameNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        tree.append_frame(
+            effects(1.0, CompositingAndBlendingOperator::Multiply),
+            opacity_frame,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        assert!(!tree.has_unisolated_blending_frame());
+        tree.append_frame(
+            effects(1.0, CompositingAndBlendingOperator::Multiply),
+            FrameNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        assert!(tree.has_unisolated_blending_frame());
     }
 
     #[test]
