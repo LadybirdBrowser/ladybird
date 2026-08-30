@@ -161,6 +161,7 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
     backface_culled.clear_with_capacity();
     backface_culled.ensure_capacity(spatial_nodes.size());
     auto const replay_base_matrix = canvas_matrix();
+    auto const frame_has_empty_effective_clip = visual_context_tree.frames_with_empty_effective_clip();
     bool tree_has_sorting_contexts = false;
     for (size_t i = 0; i < spatial_nodes.size(); ++i) {
         auto const& node = spatial_nodes[i];
@@ -350,6 +351,8 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
     auto execute_run = [&](DisplayListCommandRun const& run) {
         if (backface_culled[run.context.spatial.value()])
             return;
+        if (run.context.frame != NO_FRAME_NODE && frame_has_empty_effective_clip[run.context.frame.value()])
+            return;
         Optional<Gfx::IntRect> skippable_ink_bounds;
         if (!run.has_unbounded_draw)
             skippable_ink_bounds = run.ink_bounds;
@@ -383,7 +386,8 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
 
         auto* depth_sorted_plan = Layout::RustFFI::display_list_build_depth_sorted_replay_plan(
             command_runs.data(), command_runs.size(), transform_palette.data(), draw_space.data(), backface_culled.data(),
-            spatial_nodes.size(), parent_by_node.data(), sorting_context_root_by_node.data());
+            frame_has_empty_effective_clip.data(), frame_has_empty_effective_clip.size(), spatial_nodes.size(),
+            parent_by_node.data(), sorting_context_root_by_node.data());
         ScopeGuard destroy_depth_sorted_plan = [&] { Layout::RustFFI::display_list_depth_sorted_replay_plan_destroy(depth_sorted_plan); };
         size_t step_count = 0;
         ReadonlySpan<Layout::RustFFI::FfiDepthSortedReplayStep> steps { Layout::RustFFI::display_list_depth_sorted_replay_plan_steps(depth_sorted_plan, &step_count), step_count };

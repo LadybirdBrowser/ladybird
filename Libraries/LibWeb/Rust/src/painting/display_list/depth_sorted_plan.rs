@@ -279,6 +279,7 @@ fn partition_command_runs_into_plane_chunks(
     transform_palette: &[FloatMatrix4x4],
     draw_space: &[SpatialNodeIndex],
     backface_culled: &[bool],
+    frame_has_empty_effective_clip: &[bool],
 ) -> Vec<CommandChunk> {
     let mut mappings = Vec::new();
     let mut mappings_key = None;
@@ -306,6 +307,9 @@ fn partition_command_runs_into_plane_chunks(
         }
 
         if run.ink_bounds.is_empty() || sorting_context == NO_SORTING_CONTEXT || backface_culled[spatial.0 as usize] {
+            continue;
+        }
+        if !run.context.frame.is_none() && frame_has_empty_effective_clip[run.context.frame.0 as usize] {
             continue;
         }
         ensure_mappings(
@@ -391,6 +395,7 @@ pub fn build_depth_sorted_replay_plan(
     transform_palette: &[FloatMatrix4x4],
     draw_space: &[SpatialNodeIndex],
     backface_culled: &[bool],
+    frame_has_empty_effective_clip: &[bool],
 ) -> DepthSortedReplayPlan {
     let chunks = partition_command_runs_into_plane_chunks(
         command_runs,
@@ -398,6 +403,7 @@ pub fn build_depth_sorted_replay_plan(
         transform_palette,
         draw_space,
         backface_culled,
+        frame_has_empty_effective_clip,
     );
     let mut builder = DepthSortedPlanBuilder {
         contexts,
@@ -471,7 +477,8 @@ mod tests {
         let contexts = sorting_contexts(&[0, 0, 1], &[None, None, Some(1)]);
         let command_runs = [command_run(0), command_run(0)];
         let (palette, draw_space, backface_culled) = identity_inputs(3);
-        let plan = build_depth_sorted_replay_plan(&command_runs, &contexts, &palette, &draw_space, &backface_culled);
+        let plan =
+            build_depth_sorted_replay_plan(&command_runs, &contexts, &palette, &draw_space, &backface_culled, &[]);
         assert_eq!(run_spans(&plan), vec![(0, 2)]);
         assert!(plan.vertices.is_empty());
     }
@@ -483,7 +490,8 @@ mod tests {
         let (mut palette, draw_space, backface_culled) = identity_inputs(4);
         palette[2] = translation_matrix(0.0, 0.0, 100.0);
         palette[3] = translation_matrix(0.0, 0.0, -100.0);
-        let plan = build_depth_sorted_replay_plan(&command_runs, &contexts, &palette, &draw_space, &backface_culled);
+        let plan =
+            build_depth_sorted_replay_plan(&command_runs, &contexts, &palette, &draw_space, &backface_culled, &[]);
         assert_eq!(run_spans(&plan), vec![(1, 1), (0, 1)]);
         assert!(
             plan.steps
@@ -498,7 +506,8 @@ mod tests {
         let command_runs = [command_run(2), command_run(3)];
         let (mut palette, draw_space, backface_culled) = identity_inputs(4);
         palette[3] = rotate_y(std::f32::consts::FRAC_PI_4);
-        let plan = build_depth_sorted_replay_plan(&command_runs, &contexts, &palette, &draw_space, &backface_culled);
+        let plan =
+            build_depth_sorted_replay_plan(&command_runs, &contexts, &palette, &draw_space, &backface_culled, &[]);
         let push_steps: Vec<_> = plan
             .steps
             .iter()
@@ -522,7 +531,8 @@ mod tests {
         let command_runs = [command_run(3), command_run(4)];
         let (mut palette, draw_space, backface_culled) = identity_inputs(5);
         palette[2] = scale_matrix(0.0, 1.0, 1.0);
-        let plan = build_depth_sorted_replay_plan(&command_runs, &contexts, &palette, &draw_space, &backface_culled);
+        let plan =
+            build_depth_sorted_replay_plan(&command_runs, &contexts, &palette, &draw_space, &backface_culled, &[]);
         assert_eq!(run_spans(&plan), vec![(0, 1), (1, 1)]);
         assert!(
             plan.steps
@@ -536,7 +546,8 @@ mod tests {
         let contexts = sorting_contexts(&[0, 0, 1, 1], &[None, None, Some(1), Some(1)]);
         let command_runs = [command_run(3), command_run(2)];
         let (palette, draw_space, backface_culled) = identity_inputs(4);
-        let plan = build_depth_sorted_replay_plan(&command_runs, &contexts, &palette, &draw_space, &backface_culled);
+        let plan =
+            build_depth_sorted_replay_plan(&command_runs, &contexts, &palette, &draw_space, &backface_culled, &[]);
         assert_eq!(run_spans(&plan), vec![(0, 1), (1, 1)]);
     }
 
@@ -553,7 +564,8 @@ mod tests {
         palette[4] = translation_matrix(0.0, 0.0, 90.0);
         palette[5] = translation_matrix(0.0, 0.0, 110.0);
         palette[6] = translation_matrix(0.0, 0.0, -100.0);
-        let plan = build_depth_sorted_replay_plan(&command_runs, &contexts, &palette, &draw_space, &backface_culled);
+        let plan =
+            build_depth_sorted_replay_plan(&command_runs, &contexts, &palette, &draw_space, &backface_culled, &[]);
         assert_eq!(run_spans(&plan), vec![(2, 1), (1, 1), (0, 1)]);
     }
 }
