@@ -1,0 +1,2 @@
+isIntersecting=false ratio=0.99
+isIntersecting=true ratio=1
