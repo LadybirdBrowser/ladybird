@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes move {
+        from { transform: translateX(0); }
+        to { transform: translateX(100px); }
+    }
+
+    #animated {
+        width: 20px;
+        height: 20px;
+        animation: move 10s linear infinite;
+    }
+</style>
+<div id="animated"><div id="descendant"></div></div>
+<div id="unrelated"></div>
+<script>
+    asyncTest(async done => {
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+        println(`animation uses compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 1}`);
+
+        internals.resetStyleInvalidationCounters();
+        const unrelatedObserver = new IntersectionObserver(() => {});
+        unrelatedObserver.observe(unrelated);
+        await new Promise(requestAnimationFrame);
+        println(`unrelated observation skips animation sample: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 0}`);
+
+        internals.resetStyleInvalidationCounters();
+        const descendantObserver = new IntersectionObserver(() => {});
+        descendantObserver.observe(descendant);
+        await new Promise(requestAnimationFrame);
+        println(`descendant observation samples ancestor animation: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds > 0}`);
+        done();
+    });
+</script>

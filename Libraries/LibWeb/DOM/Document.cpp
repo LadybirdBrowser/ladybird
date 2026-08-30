@@ -8125,8 +8125,30 @@ void Document::update_compositor_animations()
     HashMap<DOM::AbstractElement, CompetingEffects> competing_effects;
     HashMap<GC::Ptr<Animations::KeyframeEffect>, bool> only_translates_horizontally_cache;
     HashMap<GC::Ptr<Animations::KeyframeEffect>, bool> animated_transform_preserves_axes_cache;
+    HashMap<Element const*, Vector<GC::Ptr<Animations::KeyframeEffect>>> in_effect_transform_effects_by_target;
     HashMap<GC::Ptr<Element>, CSSPixelRect> observation_target_rect_cache;
+    GC::RootHashTable<GC::Ref<Element>> elements_with_intersection_observation_descendants;
+    GC::RootHashTable<GC::Ref<Element>> elements_with_visibility_observation_descendants;
     Optional<double> compositor_animation_wakeup_delay_ms;
+
+    auto index_shadow_including_element_ancestors = [](Node& node, GC::RootHashTable<GC::Ref<Element>>& index) {
+        for (auto* ancestor = &node; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+            if (auto* element = as_if<Element>(*ancestor))
+                index.set(*element);
+        }
+    };
+    for (auto const& observer : m_intersection_observers) {
+        if (observer.observation_targets().is_empty())
+            continue;
+        auto root = observer.intersection_root_node();
+        if (root->is_element())
+            index_shadow_including_element_ancestors(*root, elements_with_intersection_observation_descendants);
+        for (auto const& observation : observer.observation_targets()) {
+            index_shadow_including_element_ancestors(observation.target, elements_with_intersection_observation_descendants);
+            if (observer.track_visibility())
+                index_shadow_including_element_ancestors(observation.target, elements_with_visibility_observation_descendants);
+        }
+    }
 
     auto transform_preserves_horizontal_axis = [](Layout::NodeWithStyle const& layout_node) {
         if (layout_node.perspective().has_value())
@@ -8198,15 +8220,11 @@ void Document::update_compositor_animations()
             if (ancestor->has_css_transform() && !transform_preserves_horizontal_axis(*ancestor))
                 return true;
             if (auto* ancestor_element = as_if<Element>(ancestor->dom_node())) {
-                for (auto& animation : m_associated_animations) {
-                    if (animation.is_idle() || !animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
-                        continue;
-                    auto& effect = static_cast<Animations::KeyframeEffect&>(*animation.effect());
-                    auto effect_target = effect.target();
-                    if (!effect_target || effect_target.ptr() != ancestor_element || !effect.is_in_effect())
-                        continue;
-                    if (!animated_transform_preserves_axes(effect, *effect_target, *ancestor))
-                        return true;
+                if (auto effects = in_effect_transform_effects_by_target.find(ancestor_element); effects != in_effect_transform_effects_by_target.end()) {
+                    for (auto effect : effects->value) {
+                        if (!animated_transform_preserves_axes(*effect, const_cast<Element&>(*ancestor_element), *ancestor))
+                            return true;
+                    }
                 }
             }
             if (ancestor->dom_node() == &observation_root)
@@ -8263,7 +8281,9 @@ void Document::update_compositor_animations()
         return false;
     };
 
-    auto transform_affects_intersection_observation = [&](Element const& animated_target, Animations::KeyframeEffect const& effect, bool only_translates_horizontally, bool& requires_main_thread_sampling) {
+    auto transform_affects_intersection_observation = [&](Element& animated_target, Animations::KeyframeEffect const& effect, bool only_translates_horizontally, bool& requires_main_thread_sampling) {
+        if (!elements_with_intersection_observation_descendants.contains(animated_target))
+            return false;
         for (auto const& observer : m_intersection_observers) {
             if (observer.observation_targets().is_empty())
                 continue;
@@ -8293,16 +8313,8 @@ void Document::update_compositor_animations()
         return false;
     };
 
-    auto opacity_affects_visibility_observation = [&](Element const& animated_target) {
-        for (auto const& observer : m_intersection_observers) {
-            if (!observer.track_visibility())
-                continue;
-            for (auto const& observation : observer.observation_targets()) {
-                if (animated_target.is_shadow_including_inclusive_ancestor_of(*observation.target))
-                    return true;
-            }
-        }
-        return false;
+    auto opacity_affects_visibility_observation = [&](Element& animated_target) {
+        return elements_with_visibility_observation_descendants.contains(animated_target);
     };
 
     for (auto& animation : m_associated_animations) {
@@ -8337,8 +8349,10 @@ void Document::update_compositor_animations()
         };
         if (effect.target_properties().contains(CSS::PropertyID::Opacity))
             add_competing_effect(effects.opacity);
-        if (any_of(effect.target_properties(), is_transform_family_property))
+        if (any_of(effect.target_properties(), is_transform_family_property)) {
             add_competing_effect(effects.transform);
+            in_effect_transform_effects_by_target.ensure(&target->element()).append(effect);
+        }
     }
 
     auto winner_uses_replace_keyframes = [](Animations::KeyframeEffect& effect) {
