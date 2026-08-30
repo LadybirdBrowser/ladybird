@@ -40,11 +40,16 @@ enum class ChangingNavigableHistoryStepJobDisposition : u8 {
     Stale,
 };
 
+enum class UnloadDisplayedDocument : bool {
+    No,
+    Yes,
+};
+
 struct HistoryObjectLengthAndIndex {
     u64 script_history_length;
     u64 script_history_index;
 };
 
-using OnChangingNavigableHistoryStepJobComplete = GC::Function<void(ChangingNavigableHistoryStepJobDisposition)>;
+using OnChangingNavigableHistoryStepJobComplete = GC::Function<void(ChangingNavigableHistoryStepJobDisposition, UnloadDisplayedDocument)>;
 
 }

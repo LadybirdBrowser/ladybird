@@ -10,7 +10,12 @@
         observer.observe(frame.contentDocument.getElementById("target"));
         println(`root before destroy: ${internals.hasActivityRoot(observer)}`);
         frame.remove();
-        await internals.gcAsync();
-        println(`root after destroy: ${internals.hasActivityRoot(observer)}`);
+        // Child destruction now completes asynchronously through the UI process.
+        let hasRoot = true;
+        for (let i = 0; i < 100 && hasRoot; ++i) {
+            await internals.gcAsync();
+            hasRoot = internals.hasActivityRoot(observer);
+        }
+        println(`root after destroy: ${hasRoot}`);
     });
 </script>

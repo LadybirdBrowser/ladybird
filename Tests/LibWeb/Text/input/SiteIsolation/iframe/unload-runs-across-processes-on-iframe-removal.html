@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // Removing an out-of-process iframe unloads its document and descendants in their hosting
+    // processes before removing the canonical subtree.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const grandchildUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-unload-grandchild-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("unload", () => { document.cookie = "unloadPing=1; path=/"; });
+                    document.cookie = "loaded=1; path=/";
+                <\/script>`,
+            })
+        );
+        grandchildUrl.hostname = uniqueLocalhostHostname("oop-unload-grandchild");
+
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-unload-child-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("unload", () => {
+                        const grandchildUnloaded = internals.hasCookieForURL(${JSON.stringify(grandchildUrl.href)}, "unloadPing", "1");
+                        document.cookie = "unloadOrder=" + (grandchildUnloaded ? "grandchild-first" : "child-first") + "; path=/";
+                    });
+                    document.cookie = "loaded=1; path=/";
+                <\/script><iframe src="${grandchildUrl}"></iframe>`,
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("oop-unload-child");
+
+        const frame = document.createElement("iframe");
+        frame.src = childUrl;
+        document.body.appendChild(frame);
+
+        // Wait until both remote documents have installed their unload handlers.
+        if (!await waitForCondition(() => remoteFrameCount() >= 2)) {
+            println("remote frame setup did not complete");
+            return;
+        }
+        for (const [name, url] of [["child", childUrl], ["grandchild", grandchildUrl]]) {
+            if (!await waitForCondition(() => internals.hasCookieForURL(url.href, "loaded", "1"))) {
+                println(`${name} document did not finish loading`);
+                return;
+            }
+        }
+
+        frame.remove();
+
+        const orderRecorded = order => internals.hasCookieForURL(childUrl.href, "unloadOrder", order);
+        if (!await waitForCondition(() => orderRecorded("grandchild-first") || orderRecorded("child-first"))) {
+            println("descendant unload order was not recorded");
+            return;
+        }
+        if (orderRecorded("child-first")) {
+            const grandchildUnloaded = await waitForCondition(() => internals.hasCookieForURL(grandchildUrl.href, "unloadPing", "1"));
+            println(grandchildUnloaded ? "child unloaded before grandchild" : "grandchild unload handler did not run");
+            return;
+        }
+        println("grandchild unloaded before child");
+
+        // Child destruction completes asynchronously through the UI process.
+        if (await waitForCondition(() => remoteFrameCount() === 0))
+            println("frame tree settled");
+        else
+            println("frame tree still has remote frames");
+    });
+</script>

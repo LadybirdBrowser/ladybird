@@ -910,8 +910,6 @@ public:
 
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document
     void unload(GC::Ptr<Document> new_document = nullptr);
-    // https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document-and-its-descendants
-    void unload_a_document_and_its_descendants(GC::Ptr<Document> new_document, GC::Ptr<GC::Function<void()>> after_all_unloads = {});
 
     // https://html.spec.whatwg.org/multipage/dom.html#active-parser
     GC::Ptr<HTML::HTMLParser> active_parser();

@@ -1444,6 +1444,11 @@ void PageClient::page_did_request_history_operation(Web::HTML::CrossProcessId op
     client().async_request_history_operation(m_id, operation_id, move(parameters));
 }
 
+void PageClient::page_did_request_child_navigable_unload(Web::HTML::CrossProcessId navigable_id)
+{
+    client().async_request_child_navigable_unload(m_id, navigable_id);
+}
+
 String PageClient::page_did_request_ui_process_session_history_for_testing()
 {
     return client().did_request_ui_process_session_history_for_testing(m_id);

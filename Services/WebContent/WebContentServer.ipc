@@ -86,7 +86,11 @@ endpoint WebContentServer
     run_history_step_unload_cancelation_job(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement user_involvement) =|
     queue_navigation_api_state_clear_task(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) =|
     run_changing_navigable_history_job(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, bool superseded_by_newer_navigation) =|
-    apply_changing_navigable_continuation(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api, Web::HTML::VisibilityState system_visibility_state) =|
+    prepare_changing_navigable_for_unload(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) =|
+    apply_changing_navigable_continuation(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api, Web::HTML::VisibilityState system_visibility_state, Web::HTML::UnloadDisplayedDocument unload_displayed_document) =|
+    run_descendant_unload_task(u64 page_id, Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id) =|
+    continue_child_navigable_destruction(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::UnloadDisplayedDocument unload_displayed_document) =|
+    run_traversable_close_unload_task(u64 page_id, Web::HTML::CrossProcessId operation_id) =|
     update_nonchanging_navigable_history_state(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index) =|
     complete_history_operation(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step, u64 session_history_entry_count) =|
     reset_session_history_for_testing(u64 page_id) =|

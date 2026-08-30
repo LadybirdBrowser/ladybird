@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // Navigating an out-of-process parent unloads descendants hosted by other processes before
+    // activating the new document.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-nav-child-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("unload", () => { document.cookie = "unloadPing=1; path=/"; });
+                    document.cookie = "loaded=1; path=/";
+                <\/script>`,
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("oop-nav-child");
+
+        const parentHostname = uniqueLocalhostHostname("oop-nav-parent");
+        const nextParentUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-nav-parent-next-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>document.cookie = "committed=1; path=/";<\/script>`,
+            })
+        );
+        nextParentUrl.hostname = parentHostname;
+
+        // Add the child after the parent is showing so the test does not depend on propagating the remote child's
+        // load event before it can initiate the parent navigation.
+        const parentUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-nav-parent-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("load", () => {
+                        document.cookie = "shown=1; path=/";
+                        const frame = document.createElement("iframe");
+                        frame.src = "${childUrl}";
+                        document.body.appendChild(frame);
+                        setTimeout(() => { location.href = "${nextParentUrl}"; }, 1000);
+                    });
+                <\/script>`,
+            })
+        );
+        parentUrl.hostname = parentHostname;
+
+        const frame = document.createElement("iframe");
+        frame.src = parentUrl;
+        document.body.appendChild(frame);
+
+        if (!await waitForCondition(() => remoteFrameCount() >= 2)) {
+            println("remote frame setup did not complete");
+            return;
+        }
+        if (!await waitForCondition(() => internals.hasCookieForURL(parentUrl.href, "shown", "1") && internals.hasCookieForURL(childUrl.href, "loaded", "1"))) {
+            println("remote document setup did not complete");
+            return;
+        }
+
+        for (const [url, name, value, description] of [
+            [childUrl, "unloadPing", "1", "remote child unload handler"],
+            [nextParentUrl, "committed", "1", "parent navigation"],
+        ]) {
+            if (!await waitForCondition(() => internals.hasCookieForURL(url.href, name, value))) {
+                println(`${description} did not complete`);
+                return;
+            }
+            println(`${description} completed`);
+        }
+    });
+</script>

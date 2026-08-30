@@ -27,7 +27,12 @@
 
         xhr.addEventListener("loadend", listener);
         frame.remove();
-        await internals.gcAsync();
-        println(`root after destroy: ${internals.hasActivityRoot(xhr)}`);
+        // Child destruction now completes asynchronously through the UI process.
+        let hasRoot = true;
+        for (let i = 0; i < 100 && hasRoot; ++i) {
+            await internals.gcAsync();
+            hasRoot = internals.hasActivityRoot(xhr);
+        }
+        println(`root after destroy: ${hasRoot}`);
     });
 </script>

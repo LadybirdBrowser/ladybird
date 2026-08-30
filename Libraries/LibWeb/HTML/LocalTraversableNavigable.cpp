@@ -70,6 +70,8 @@ void LocalTraversableNavigable::visit_edges(Cell::Visitor& visitor)
         for (auto& continuation : operation.value.changing_navigable_continuations)
             visitor.visit(continuation.value);
     }
+    for (auto& pending_unload : m_pending_child_navigable_unloads)
+        visitor.visit(pending_unload.value);
 }
 
 static OrderedHashTable<LocalTraversableNavigable*>& user_agent_top_level_traversable_set()
@@ -509,51 +511,6 @@ void LocalTraversableNavigable::reset_session_history_for_testing()
     active_window()->navigation()->initialize_the_navigation_api_entries_for_reconstructed_session_history(entries_for_navigation_api, active_entry);
 }
 
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#deactivate-a-document-for-a-cross-document-navigation
-static void deactivate_a_document_for_cross_document_navigation(GC::Ref<DOM::Document> displayed_document, Optional<UserNavigationInvolvement>, NonnullRefPtr<SessionHistoryEntry> target_entry, GC::Ptr<DOM::Document> populated_document, GC::Ref<GC::Function<void()>> after_potential_unloads)
-{
-    // 1. Let navigable be displayedDocument's node navigable.
-    auto navigable = displayed_document->navigable();
-
-    // 2. Let potentiallyTriggerViewTransition be false.
-    auto potentially_trigger_view_transition = false;
-
-    // FIXME: 3. Let isBrowserUINavigation be true if userNavigationInvolvement is "browser UI"; otherwise false.
-
-    // FIXME: 4. Set potentiallyTriggerViewTransition to the result of calling can navigation trigger a cross-document
-    //           view-transition? given displayedDocument, targetEntry's document, navigationType, and isBrowserUINavigation.
-
-    // 5. If potentiallyTriggerViewTransition is false, then:
-    if (!potentially_trigger_view_transition) {
-        // FIXME: 1. Let firePageSwapBeforeUnload be the following step
-        //            1. Fire the pageswap event given displayedDocument, targetEntry, navigationType, and null.
-
-        // 2. Set navigable's ongoing navigation to null.
-        // AD-HOC: This implements https://github.com/whatwg/html/pull/12838.
-        navigable->set_ongoing_navigation_without_informing_navigation_api({});
-
-        // 3. Unload a document and its descendants given displayedDocument, targetEntry's document, afterPotentialUnloads, and firePageSwapBeforeUnload.
-        (void)target_entry; // FIXME: Used by pageswap and view-transition steps above.
-        displayed_document->unload_a_document_and_its_descendants(populated_document, after_potential_unloads);
-    }
-    // FIXME: 6. Otherwise, queue a global task on the navigation and traversal task source given navigable's active window to run the steps:
-    else {
-        // FIXME: 1. Let proceedWithNavigationAfterViewTransitionCapture be the following step:
-        //            1. Append the following session history traversal steps to navigable's traversable navigable:
-        //               1. Set navigable's ongoing navigation to null.
-        //               2. Unload a document and its descendants given displayedDocument, targetEntry's document, and afterPotentialUnloads.
-
-        // FIXME: 2. Let viewTransition be the result of setting up a cross-document view-transition given displayedDocument,
-        //           targetEntry's document, navigationType, and proceedWithNavigationAfterViewTransitionCapture.
-
-        // FIXME: 3. Fire the pageswap event given displayedDocument, targetEntry, navigationType, and viewTransition.
-
-        // FIXME: 4. If viewTransition is null, then run proceedWithNavigationAfterViewTransitionCapture.
-
-        TODO();
-    }
-}
-
 struct ChangingNavigableContinuationState : public JS::Cell {
     GC_CELL(ChangingNavigableContinuationState, JS::Cell);
     GC_DECLARE_ALLOCATOR(ChangingNavigableContinuationState);
@@ -924,17 +881,24 @@ static void clear_ongoing_history_traversal(GC::Ptr<LocalNavigable> navigable)
         navigable->set_ongoing_navigation_without_informing_navigation_api({});
 }
 
-void LocalTraversableNavigable::apply_changing_navigable_history_step_continuation_impl(GC::Ref<ChangingNavigableContinuationState> continuation, LocalApplyChangingNavigableHistoryStepContinuation command, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>> on_complete)
+void LocalTraversableNavigable::apply_changing_navigable_history_step_continuation_impl(GC::Ref<ChangingNavigableContinuationState> continuation, LocalApplyChangingNavigableHistoryStepContinuation command, UnloadDisplayedDocument unload_displayed_document_choice, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>> on_complete)
 {
     // 4. Let displayedDocument be changingNavigableContinuation's displayed document.
     auto displayed_document = continuation->displayed_document;
 
     // 5. Let targetEntry be changingNavigableContinuation's target entry.
+    RefPtr<SessionHistoryEntry> const target_entry = continuation->target_entry;
+
     auto population_output = continuation->population_output;
     auto old_origin = continuation->old_origin;
 
     // 6. Let navigable be changingNavigableContinuation's navigable.
     auto navigable = continuation->navigable;
+
+    if (unload_displayed_document_choice == UnloadDisplayedDocument::Yes) {
+        VERIFY(!continuation->update_only);
+        VERIFY(continuation->resolved_document.ptr() != displayed_document.ptr());
+    }
 
     // AD-HOC: We should not continue navigation if navigable has been destroyed.
     if (navigable->has_been_destroyed()) {
@@ -952,15 +916,15 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
     auto script_history_index = command.history_object_length_and_index.script_history_index;
 
     // 9. Let entriesForNavigationAPI be the result of getting session history entries for the navigation API given navigable and targetStep.
+    auto entries_for_navigation_api = move(command.entries_for_navigation_api);
 
     // NOTE: Steps 10 and 11 come after step 12.
 
     // 12. In both cases, let afterPotentialUnloads be the following steps:
     bool const update_only = continuation->update_only;
-    RefPtr<SessionHistoryEntry> const target_entry = continuation->target_entry;
     auto const displayed_document_id = continuation->displayed_document_id;
-    auto after_potential_unload = GC::create_function(heap(), [this, navigable, update_only, target_entry, continuation, population_output, old_origin, displayed_document_id, script_history_length, script_history_index, entries_for_navigation_api = move(command.entries_for_navigation_api), system_visibility_state = command.system_visibility_state, navigation_type = continuation->navigation_type, on_complete] {
-        if (update_only || continuation->resolved_document.ptr() == continuation->displayed_document.ptr()) {
+    auto after_potential_unload = GC::create_function(heap(), [this, navigable, update_only, unload_displayed_document_choice, target_entry, continuation, population_output, old_origin, displayed_document_id, script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), system_visibility_state = command.system_visibility_state, navigation_type = continuation->navigation_type, on_complete] {
+        if (unload_displayed_document_choice == UnloadDisplayedDocument::No) {
             auto applies_same_document_push_or_replace = is_same_document_push_or_replace(
                 navigation_type, *target_entry, displayed_document_id);
 
@@ -1073,22 +1037,27 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
         on_complete->function()(move(activated_navigable_state), move(previous_entry_persisted_state));
     });
 
-    // 10. If changingNavigableContinuation's update-only is true, or targetEntry's document is displayedDocument, then:
-    if (continuation->update_only || continuation->resolved_document.ptr() == displayed_document.ptr()) {
-        // 1. Set navigable's ongoing navigation to null.
-        // AD-HOC: This implements https://github.com/whatwg/html/pull/12838.
+    if (unload_displayed_document_choice == UnloadDisplayedDocument::No) {
+        // 10.2. Queue a global task on the navigation and traversal task source given navigable's active window to perform afterPotentialUnloads.
+        // Mirror the traversal queue's ongoing-navigation transition in the local projection.
         clear_ongoing_history_traversal(navigable);
-
-        // 2. Queue a global task on the navigation and traversal task source given navigable's active window to perform afterPotentialUnloads.
         queue_apply_history_step_task(*navigable, navigable->active_document(), after_potential_unload);
-    }
-    // 11. Otherwise:
-    else {
-        // 1. Assert: navigationType is not null.
-        VERIFY(continuation->navigation_type.has_value());
+    } else {
+        // 11. Otherwise:
+        // The UI process has already unloaded every descendant subtree of displayedDocument.
+        // Queue the final task to unload displayedDocument and run afterPotentialUnloads.
+        // 6. Queue a global task on the navigation and traversal task source given document's relevant global object to perform the following steps:
+        // NB: Use a null document so this remains runnable after displayedDocument becomes non-fully-active.
+        queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr,
+            GC::create_function(heap(), [displayed_document = GC::Ref { *displayed_document }, new_document = continuation->resolved_document, after_potential_unload] {
+                // FIXME: 1. If firePageSwapSteps is given, then run firePageSwapSteps.
 
-        // 2. Deactivate displayedDocument, given userInvolvement, targetEntry, navigationType, and afterPotentialUnloads.
-        deactivate_a_document_for_cross_document_navigation(*displayed_document, continuation->user_involvement, *target_entry, continuation->resolved_document, after_potential_unload);
+                // 2. Unload document, passing along newDocument if it is not null.
+                displayed_document->unload(new_document);
+
+                // 3. If afterAllUnloads was given, then run it.
+                after_potential_unload->function()();
+            }));
     }
 }
 
@@ -1537,20 +1506,20 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(CrossProce
     if (expected_ongoing_navigation_was_superseded(
             operation.expected_ongoing_navigation_navigable ? Optional<CrossProcessId> { operation.expected_ongoing_navigation_navigable->id() } : OptionalNone {},
             operation.expected_ongoing_navigation_id)) {
-        on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale);
+        on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale, UnloadDisplayedDocument::No);
         return;
     }
 
     auto navigable = local_navigable_with_id(navigable_id);
     if (!navigable) {
-        on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Skipped);
+        on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Skipped, UnloadDisplayedDocument::No);
         return;
     }
     if (local_target_entry) {
         auto document_state = local_target_entry->document_state();
         if (!document_state
             || document_state->cross_process_id() != target_entry.document_state.id) {
-            on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale);
+            on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale, UnloadDisplayedDocument::No);
             return;
         }
 
@@ -1563,7 +1532,7 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(CrossProce
             PrepareChildHistoryReconstruction::Yes);
     }
     if (!local_target_entry) {
-        on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale);
+        on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale, UnloadDisplayedDocument::No);
         return;
     }
     auto did_claim_navigable = run_changing_navigable_history_step_job_impl(
@@ -1589,7 +1558,12 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(CrossProce
             if (result.disposition != ChangingNavigableHistoryStepJobDisposition::Ready
                 || !m_history_operations.contains(operation_id))
                 clear_ongoing_history_traversal(local_navigable_with_id(navigable_id));
-            on_complete->function()(result.disposition);
+            auto unload_displayed_document = result.continuation
+                    && !result.continuation->update_only
+                    && result.continuation->resolved_document.ptr() != result.continuation->displayed_document.ptr()
+                ? UnloadDisplayedDocument::Yes
+                : UnloadDisplayedDocument::No;
+            on_complete->function()(result.disposition, unload_displayed_document);
         }));
     if (did_claim_navigable)
         operation.claimed_navigables_awaiting_continuation.set(navigable_id);
@@ -1634,7 +1608,21 @@ static Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_na
     return entries;
 }
 
-void LocalTraversableNavigable::apply_ui_changing_navigable_continuation(CrossProcessId operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex history_object_length_and_index, Vector<SessionHistoryEntryDescriptor> entry_descriptors_for_navigation_api, VisibilityState system_visibility_state, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>> on_complete)
+void LocalTraversableNavigable::prepare_ui_changing_navigable_for_unload(CrossProcessId operation_id, CrossProcessId navigable_id, GC::Ref<GC::Function<void()>> on_complete)
+{
+    auto operation = m_history_operations.find(operation_id);
+    if (operation == m_history_operations.end()
+        || !operation->value.changing_navigable_continuations.contains(navigable_id)) {
+        on_complete->function()();
+        return;
+    }
+
+    // Step 5.2 of deactivate a document for a cross-document navigation: set navigable's ongoing navigation to null.
+    clear_ongoing_history_traversal(local_navigable_with_id(navigable_id));
+    on_complete->function()();
+}
+
+void LocalTraversableNavigable::apply_ui_changing_navigable_continuation(CrossProcessId operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex history_object_length_and_index, Vector<SessionHistoryEntryDescriptor> entry_descriptors_for_navigation_api, VisibilityState system_visibility_state, UnloadDisplayedDocument unload_displayed_document, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>> on_complete)
 {
     auto operation = m_history_operations.find(operation_id);
     if (operation == m_history_operations.end()) {
@@ -1659,7 +1647,27 @@ void LocalTraversableNavigable::apply_ui_changing_navigable_continuation(CrossPr
             .entries_for_navigation_api = move(entries_for_navigation_api),
             .system_visibility_state = system_visibility_state,
         },
+        unload_displayed_document,
         on_complete);
+}
+
+// https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document-and-its-descendants
+void LocalTraversableNavigable::run_ui_descendant_unload_task(CrossProcessId navigable_id, GC::Ref<GC::Function<void()>> on_complete)
+{
+    // 2. Unload a document and its descendants given childNavigable's active document, null, and incrementUnloaded.
+    auto navigable = local_navigable_with_id(navigable_id);
+    if (!navigable || navigable->has_been_destroyed()) {
+        on_complete->function()();
+        return;
+    }
+
+    // The UI process has already unloaded this document's descendants.
+    queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr,
+        GC::create_function(heap(), [navigable = GC::Ref { *navigable }, on_complete] {
+            if (auto active_document = navigable->active_document())
+                active_document->unload();
+            on_complete->function()();
+        }));
 }
 
 void LocalTraversableNavigable::complete_ui_history_operation(CrossProcessId operation_id, HistoryStepResult result, Optional<i32> committed_step, u64 session_history_entry_count)
@@ -1755,13 +1763,9 @@ void LocalTraversableNavigable::definitely_close_top_level_traversable(PromptToU
                         return;
                     }
 
-                    // 1. Let afterAllUnloads be an algorithm step which destroys traversable.
-                    auto after_all_unloads = GC::create_function(heap(), [this] {
-                        destroy_top_level_traversable();
-                    });
-
-                    // 2. Unload a document and its descendants given traversable's active document, null, and afterAllUnloads.
-                    active_document()->unload_a_document_and_its_descendants({}, after_all_unloads);
+                    // NB: The UI process runs the traversal steps' unload recursion and delivers the final
+                    //     unload-and-destroy task through run_ui_traversable_close_unload_task before this
+                    //     completion.
                 }),
             });
     };
@@ -1786,6 +1790,53 @@ void LocalTraversableNavigable::definitely_close_top_level_traversable(PromptToU
         // 3. Append the following session history traversal steps to traversable:
         append_close_steps();
     }));
+}
+
+// AD-HOC: Child removal unloads documents before running the remaining destroy-a-child-navigable steps.
+void LocalTraversableNavigable::unload_child_navigable_before_destruction(GC::Ref<LocalNavigable> navigable, GC::Ref<GC::Function<void()>> after_all_unloads)
+{
+    m_pending_child_navigable_unloads.set(navigable->id(), after_all_unloads);
+    page().client().page_did_request_child_navigable_unload(navigable->id());
+}
+
+void LocalTraversableNavigable::continue_child_navigable_destruction(CrossProcessId navigable_id, UnloadDisplayedDocument unload_displayed_document)
+{
+    auto after_all_unloads = m_pending_child_navigable_unloads.take(navigable_id);
+    if (!after_all_unloads.has_value())
+        return;
+
+    auto navigable = local_navigable_with_id(navigable_id);
+    queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr,
+        GC::create_function(heap(), [navigable, unload_displayed_document, after_all_unloads = after_all_unloads.release_value()] {
+            if (unload_displayed_document == UnloadDisplayedDocument::Yes) {
+                // 2. Unload document, passing along newDocument if it is not null.
+                if (auto active_document = navigable ? navigable->active_document() : nullptr)
+                    active_document->unload();
+            } else if (auto active_document = navigable ? navigable->active_document() : nullptr) {
+                // AD-HOC: The displayed document was unloaded in its remote host. Destroy the process-local
+                //         placeholder without firing its lifecycle events.
+                active_document->destroy();
+            }
+
+            // 3. If afterAllUnloads was given, then run it.
+            after_all_unloads->function()();
+        }));
+}
+
+// https://html.spec.whatwg.org/multipage/document-sequences.html#definitely-close-a-top-level-traversable
+void LocalTraversableNavigable::run_ui_traversable_close_unload_task()
+{
+    // The UI process has already unloaded every descendant subtree.
+    queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr,
+        GC::create_function(heap(), [this] {
+            // 2. Unload document, passing along newDocument if it is not null.
+            if (auto document = active_document())
+                document->unload();
+
+            // 3. If afterAllUnloads was given, then run it.
+            // NB: afterAllUnloads is the close traversal steps' algorithm step which destroys traversable.
+            destroy_top_level_traversable();
+        }));
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#destroy-a-top-level-traversable

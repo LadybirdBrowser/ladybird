@@ -430,6 +430,16 @@ void WebContentClient::notify_compositor_process_reconnected(Badge<Application>)
 void WebContentClient::notify_all_views_of_crash()
 {
     destroy_all_compositor_contexts();
+
+    // Resolve any history work waiting on this endpoint before removing the canonical page subtrees that identify
+    // their owning traversables. A missing renderer is an exactly-once completion for descendant unload tasks.
+    for (auto& view_entry : m_views)
+        view_entry.value->traversable().did_lose_history_job_endpoint(*this, view_entry.key);
+    for (auto& embedded_page_entry : m_embedded_pages) {
+        if (auto* host = embedded_page_entry.value.ptr())
+            host->top_level_traversable().did_lose_history_job_endpoint(*this, embedded_page_entry.key);
+    }
+
     SiteIsolationManager::the().remove_all_pages_for_client(*this);
 
     // Collect view IDs first, then use deferred_invoke to handle crashes safely
@@ -2294,10 +2304,28 @@ void WebContentClient::history_step_unload_cancelation_result(u64 page_id, Web::
         view->did_receive_history_step_unload_cancelation_result({}, *this, page_id, operation_id, result);
 }
 
-void WebContentClient::changing_navigable_history_job_ready(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition)
+void WebContentClient::changing_navigable_history_job_ready(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, Web::HTML::UnloadDisplayedDocument unload_displayed_document)
 {
     if (auto view = owning_view_for_page_id(page_id); view.has_value())
-        view->did_receive_changing_navigable_history_job_ready({}, *this, page_id, operation_id, navigable_id, disposition);
+        view->did_receive_changing_navigable_history_job_ready({}, *this, page_id, operation_id, navigable_id, disposition, unload_displayed_document);
+}
+
+void WebContentClient::changing_navigable_unload_preparation_complete(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id)
+{
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
+        view->did_receive_changing_navigable_unload_preparation_complete({}, *this, page_id, operation_id, navigable_id);
+}
+
+void WebContentClient::descendant_unload_task_complete(u64 page_id, Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id)
+{
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
+        view->did_receive_descendant_unload_task_complete({}, *this, page_id, unload_id, navigable_id);
+}
+
+void WebContentClient::request_child_navigable_unload(u64 page_id, Web::HTML::CrossProcessId navigable_id)
+{
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
+        view->did_receive_child_navigable_unload_request({}, *this, page_id, navigable_id);
 }
 
 void WebContentClient::changing_navigable_continuation_applied(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)

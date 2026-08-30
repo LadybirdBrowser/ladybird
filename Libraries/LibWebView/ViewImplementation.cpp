@@ -51,6 +51,12 @@ static void fail_webdriver_content_commands_after_process_replacement(HashTable<
         Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "WebContent was replaced while executing the command"sv));
 }
 
+static void fail_webdriver_content_commands_after_window_close(HashTable<u64> const& command_ids)
+{
+    for (auto command_id : command_ids)
+        Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window closed while executing the command"sv));
+}
+
 static u64 s_view_count = 1; // This has to start at 1 for Firefox DevTools.
 
 static Utf16String generate_navigation_id()
@@ -127,6 +133,11 @@ ViewImplementation::~ViewImplementation()
 
     if (m_client_state.client)
         m_client_state.client->unregister_view(m_client_state.page_index);
+
+    // A headless parent can own and destroy its child view without the child receiving a browsing-context-close
+    // notification. Do not strand a WebDriver command which raced with that teardown.
+    fail_webdriver_content_commands_after_window_close(m_pending_webdriver_command_ids);
+    fail_webdriver_content_commands_after_window_close(m_pending_webdriver_crash_command_ids);
 
     if (m_is_private == IsPrivate::Yes)
         Application::the().maybe_close_private_browsing_session();
@@ -2498,11 +2509,9 @@ void ViewImplementation::did_close_browsing_context(Badge<WebContentClient>)
         request.value(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window closed while handling user prompts"sv));
 
     auto pending_command_ids = move(m_pending_webdriver_command_ids);
-    for (auto command_id : pending_command_ids)
-        Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window closed while executing the command"sv));
+    fail_webdriver_content_commands_after_window_close(pending_command_ids);
     auto pending_crash_command_ids = move(m_pending_webdriver_crash_command_ids);
-    for (auto command_id : pending_crash_command_ids)
-        Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window closed while executing the command"sv));
+    fail_webdriver_content_commands_after_window_close(pending_crash_command_ids);
 
     auto pending_navigation_completion_requests = move(m_pending_webdriver_navigation_completion_requests);
     for (auto& request : pending_navigation_completion_requests) {
@@ -2880,9 +2889,24 @@ void ViewImplementation::did_receive_history_step_unload_cancelation_result(Badg
     m_top_level_traversable.did_receive_history_step_unload_cancelation_result(source_client, source_page_id, operation_id, result);
 }
 
-void ViewImplementation::did_receive_changing_navigable_history_job_ready(Badge<WebContentClient>, WebContentClient& source_client, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition)
+void ViewImplementation::did_receive_changing_navigable_history_job_ready(Badge<WebContentClient>, WebContentClient& source_client, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, Web::HTML::UnloadDisplayedDocument unload_displayed_document)
 {
-    m_top_level_traversable.did_receive_changing_navigable_history_job_ready(source_client, source_page_id, operation_id, navigable_id, disposition);
+    m_top_level_traversable.did_receive_changing_navigable_history_job_ready(source_client, source_page_id, operation_id, navigable_id, disposition, unload_displayed_document);
+}
+
+void ViewImplementation::did_receive_changing_navigable_unload_preparation_complete(Badge<WebContentClient>, WebContentClient& source_client, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id)
+{
+    m_top_level_traversable.did_receive_changing_navigable_unload_preparation_complete(source_client, source_page_id, operation_id, navigable_id);
+}
+
+void ViewImplementation::did_receive_descendant_unload_task_complete(Badge<WebContentClient>, WebContentClient& source_client, u64 source_page_id, Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id)
+{
+    m_top_level_traversable.did_receive_descendant_unload_task_complete(source_client, source_page_id, unload_id, navigable_id);
+}
+
+void ViewImplementation::did_receive_child_navigable_unload_request(Badge<WebContentClient>, WebContentClient& source_client, u64 source_page_id, Web::HTML::CrossProcessId navigable_id)
+{
+    m_top_level_traversable.did_receive_child_navigable_unload_request(source_client, source_page_id, navigable_id);
 }
 
 void ViewImplementation::did_receive_changing_navigable_continuation_applied(Badge<WebContentClient>, WebContentClient& source_client, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)

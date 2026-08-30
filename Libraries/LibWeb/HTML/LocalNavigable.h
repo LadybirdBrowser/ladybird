@@ -225,6 +225,7 @@ public:
     // https://github.com/whatwg/html/issues/9690
     [[nodiscard]] bool has_been_destroyed() const { return m_has_been_destroyed; }
     void set_has_been_destroyed();
+    void report_child_frame_destroyed();
     void remove_from_all_local_navigables();
 
     CSSPixelPoint to_top_level_position(CSSPixelPoint);
@@ -511,6 +512,7 @@ private:
     NavigationObserver::NavigationObserversList m_navigation_observers;
 
     bool m_has_been_destroyed { false };
+    bool m_child_frame_destruction_reported { false };
 
     CSSPixelSize m_viewport_size;
     CSSPixelPoint m_viewport_scroll_offset;

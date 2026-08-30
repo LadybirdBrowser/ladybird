@@ -34,7 +34,10 @@
         println(`timers armed before destruction: ${timersAreArmed(removedFrame)}`);
         const removedInternals = removedFrame.contentWindow.internals;
         removedFrame.remove();
-        await new Promise(resolve => setTimeout(resolve, 0));
+        // Child destruction unloads the document through the UI process, so the timers stop
+        // asynchronously rather than within one task.
+        while (!timersAreStopped(removedInternals))
+            await new Promise(resolve => setTimeout(resolve, 0));
         println(`timers stopped after destruction: ${timersAreStopped(removedInternals)}`);
         done();
     });

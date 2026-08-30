@@ -469,17 +469,31 @@ void ConnectionFromClient::run_changing_navigable_history_job(u64 page_id, Web::
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
-        async_changing_navigable_history_job_ready(page_id, operation_id, navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition::Skipped);
+        async_changing_navigable_history_job_ready(page_id, operation_id, navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition::Skipped, Web::HTML::UnloadDisplayedDocument::No);
         return;
     }
 
     page->page().top_level_traversable()->run_ui_changing_navigable_history_job(operation_id, navigable_id, move(target_entry), user_involvement, navigation_type, superseded_by_newer_navigation,
-        GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition) {
-            async_changing_navigable_history_job_ready(page_id, operation_id, navigable_id, disposition);
+        GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, Web::HTML::UnloadDisplayedDocument unload_displayed_document) {
+            async_changing_navigable_history_job_ready(page_id, operation_id, navigable_id, disposition, unload_displayed_document);
         }));
 }
 
-void ConnectionFromClient::apply_changing_navigable_continuation(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api, Web::HTML::VisibilityState system_visibility_state)
+void ConnectionFromClient::prepare_changing_navigable_for_unload(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        async_changing_navigable_unload_preparation_complete(page_id, operation_id, navigable_id);
+        return;
+    }
+
+    page->page().top_level_traversable()->prepare_ui_changing_navigable_for_unload(operation_id, navigable_id,
+        GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id] {
+            async_changing_navigable_unload_preparation_complete(page_id, operation_id, navigable_id);
+        }));
+}
+
+void ConnectionFromClient::apply_changing_navigable_continuation(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api, Web::HTML::VisibilityState system_visibility_state, Web::HTML::UnloadDisplayedDocument unload_displayed_document)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -487,10 +501,36 @@ void ConnectionFromClient::apply_changing_navigable_continuation(u64 page_id, We
         return;
     }
 
-    page->page().top_level_traversable()->apply_ui_changing_navigable_continuation(operation_id, navigable_id, { script_history_length, script_history_index }, move(entries_for_navigation_api), system_visibility_state,
+    page->page().top_level_traversable()->apply_ui_changing_navigable_continuation(operation_id, navigable_id, { script_history_length, script_history_index }, move(entries_for_navigation_api), system_visibility_state, unload_displayed_document,
         GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) {
             async_changing_navigable_continuation_applied(page_id, operation_id, navigable_id, move(activated_navigable_state), move(previous_entry_persisted_state));
         }));
+}
+
+void ConnectionFromClient::run_descendant_unload_task(u64 page_id, Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        async_descendant_unload_task_complete(page_id, unload_id, navigable_id);
+        return;
+    }
+
+    page->page().top_level_traversable()->run_ui_descendant_unload_task(navigable_id,
+        GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, unload_id, navigable_id] {
+            async_descendant_unload_task_complete(page_id, unload_id, navigable_id);
+        }));
+}
+
+void ConnectionFromClient::continue_child_navigable_destruction(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::UnloadDisplayedDocument unload_displayed_document)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().top_level_traversable()->continue_child_navigable_destruction(navigable_id, unload_displayed_document);
+}
+
+void ConnectionFromClient::run_traversable_close_unload_task(u64 page_id, Web::HTML::CrossProcessId)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().top_level_traversable()->run_ui_traversable_close_unload_task();
 }
 
 void ConnectionFromClient::update_nonchanging_navigable_history_state(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index)

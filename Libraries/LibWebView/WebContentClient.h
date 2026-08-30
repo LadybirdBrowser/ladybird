@@ -290,7 +290,10 @@ private:
     virtual void request_history_operation(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters) override;
     virtual void history_operation_ready(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult) override;
     virtual void history_step_unload_cancelation_result(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result) override;
-    virtual void changing_navigable_history_job_ready(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition) override;
+    virtual void changing_navigable_history_job_ready(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, Web::HTML::UnloadDisplayedDocument unload_displayed_document) override;
+    virtual void changing_navigable_unload_preparation_complete(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) override;
+    virtual void descendant_unload_task_complete(u64 page_id, Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id) override;
+    virtual void request_child_navigable_unload(u64 page_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void changing_navigable_continuation_applied(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) override;
     virtual void nonchanging_navigable_history_state_updated(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void did_reset_session_history_for_testing(u64 page_id, Web::HTML::SessionHistoryEntryDescriptor) override;
