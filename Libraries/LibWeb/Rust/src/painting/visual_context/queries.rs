@@ -66,6 +66,7 @@ struct SpatialChainWalk {
     chain: Vec<SpatialNodeIndex>,
     needs_accumulated_matrices: bool,
     has_3d_transform: bool,
+    culled: bool,
     accumulated_matrices: Vec<FloatMatrix4x4>,
     point: FloatPoint,
     applied_steps: usize,
@@ -128,6 +129,7 @@ impl VisualContextTree {
             chain,
             needs_accumulated_matrices,
             has_3d_transform,
+            culled: false,
             accumulated_matrices,
             point: screen_point,
             applied_steps: 0,
@@ -157,6 +159,12 @@ impl VisualContextTree {
                 };
                 walk.accumulated_matrices.push(inherited.multiplied(local.matrix));
             }
+        }
+
+        if let SpatialData::Transform(transform) = &node.data
+            && (transform.sorting_context_root_index.is_some() || transform.establishes_sorting_context)
+        {
+            walk.culled = false;
         }
 
         if walk.has_3d_transform && !matches!(node.data, SpatialData::BackfaceVisibility(_)) {
@@ -189,18 +197,21 @@ impl VisualContextTree {
                 true
             }
             SpatialData::BackfaceVisibility(backface) => {
-                let plane_root_position = walk
-                    .chain
-                    .iter()
-                    .position(|index| *index == backface.plane_root_index)
-                    .expect("the plane root precedes the backface marker on its root path");
-                !should_cull_back_face(
-                    *walk
-                        .accumulated_matrices
-                        .last()
-                        .expect("backface walk accumulates matrices"),
-                    walk.accumulated_matrices[plane_root_position],
-                )
+                if !walk.culled {
+                    let plane_root_position = walk
+                        .chain
+                        .iter()
+                        .position(|index| *index == backface.plane_root_index)
+                        .expect("the plane root precedes the backface marker on its root path");
+                    walk.culled = should_cull_back_face(
+                        *walk
+                            .accumulated_matrices
+                            .last()
+                            .expect("backface walk accumulates matrices"),
+                        walk.accumulated_matrices[plane_root_position],
+                    );
+                }
+                true
             }
             SpatialData::Scroll(_) | SpatialData::Sticky(_) => {
                 let offset = device_offset_for_index(scroll_offsets, node_index);
@@ -330,7 +341,8 @@ impl VisualContextTree {
             context.spatial,
             screen_point,
             scroll_offsets,
-        ) {
+        ) || context_walk.culled
+        {
             return None;
         }
 
@@ -699,6 +711,7 @@ mod tests {
             flattens_inherited_transform: false,
             role: TransformDataRole::CssTransform,
             synthetic_plane: false,
+            establishes_sorting_context: false,
         }
     }
 

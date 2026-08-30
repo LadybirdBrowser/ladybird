@@ -1286,6 +1286,7 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
             flattens_inherited_transform: false,
             role: TransformDataRole::CssTransform,
             synthetic_plane: false,
+            establishes_sorting_context: false,
         });
         let mut recorder = DisplayListRecorder::new();
         let dest_rect = inputs.dest_rect;
@@ -2703,6 +2704,7 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_create() -> *mut c_voi
                 flattens_inherited_transform: false,
                 role: crate::painting::visual_context::TransformDataRole::CssTransform,
                 synthetic_plane: false,
+                establishes_sorting_context: false,
             },
         );
         Box::into_raw(Box::new(tree)).cast()
@@ -2737,6 +2739,7 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_transform(
                 flattens_inherited_transform: false,
                 role: crate::painting::visual_context::TransformDataRole::CssTransform,
                 synthetic_plane: false,
+                establishes_sorting_context: false,
             }),
             SpatialNodeIndex(parent),
         )

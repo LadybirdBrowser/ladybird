@@ -44,6 +44,7 @@ pub(crate) fn visual_viewport_transform_data(inputs: &FfiVisualContextTreeInputs
         flattens_inherited_transform: false,
         role: TransformDataRole::CssTransform,
         synthetic_plane: false,
+        establishes_sorting_context: false,
     }
 }
 
@@ -202,6 +203,7 @@ pub(crate) fn compute_transform(
             flattens_inherited_transform: false,
             role: TransformDataRole::CssTransform,
             synthetic_plane: false,
+            establishes_sorting_context: false,
         },
         is_invertible,
     ))

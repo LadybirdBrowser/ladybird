@@ -179,6 +179,12 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
                         transform.matrix_including_origin(),
                         transform.flattens_inherited_transform,
                     );
+                    if transform.sorting_context_root_index.is_some() || transform.establishes_sorting_context {
+                        *palette
+                            .backface_culled
+                            .last_mut()
+                            .expect("the transform's own entry was just appended") = false;
+                    }
                 }
                 SpatialData::Perspective(perspective) => {
                     append_spatial(palette, perspective.matrix, perspective.flattens_inherited_transform);
@@ -527,6 +533,7 @@ mod tests {
             flattens_inherited_transform: false,
             role: TransformDataRole::CssTransform,
             synthetic_plane: false,
+            establishes_sorting_context: false,
         })
     }
 

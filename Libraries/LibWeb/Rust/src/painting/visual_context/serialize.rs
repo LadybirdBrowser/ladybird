@@ -288,6 +288,7 @@ fn write_spatial_data(writer: &mut TreeByteWriter, data: &SpatialData) {
             writer.bool(transform.flattens_inherited_transform);
             writer.u8(transform.role as u8);
             writer.bool(transform.synthetic_plane);
+            writer.bool(transform.establishes_sorting_context);
         }
         SpatialData::Perspective(perspective) => {
             writer.u8(SPATIAL_KIND_PERSPECTIVE);
@@ -335,6 +336,7 @@ fn read_spatial_data(reader: &mut TreeByteReader<'_>) -> Option<SpatialData> {
             flattens_inherited_transform: reader.bool()?,
             role: reader.transform_role()?,
             synthetic_plane: reader.bool()?,
+            establishes_sorting_context: reader.bool()?,
         }),
         SPATIAL_KIND_PERSPECTIVE => SpatialData::Perspective(PerspectiveData {
             matrix: reader.matrix()?,
@@ -560,6 +562,7 @@ mod tests {
             flattens_inherited_transform: false,
             role: TransformDataRole::CssTransform,
             synthetic_plane: false,
+            establishes_sorting_context: false,
         }
     }
 
@@ -578,6 +581,7 @@ mod tests {
                 flattens_inherited_transform: true,
                 role: TransformDataRole::SvgViewportTransform,
                 synthetic_plane: true,
+                establishes_sorting_context: false,
                 ..transform(translation_matrix(3.0, 4.0, 5.0))
             }),
             scroll_node,

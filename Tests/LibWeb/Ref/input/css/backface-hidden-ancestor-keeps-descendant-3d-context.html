@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/css/backface-hidden-ancestor-keeps-descendant-3d-context-ref.html" />
+<style>
+    body {
+        margin: 0;
+        background: white;
+    }
+    .flipped {
+        position: absolute;
+        top: 50px;
+        left: 50px;
+        width: 300px;
+        height: 300px;
+        background: blue;
+        transform: rotateY(180deg);
+        backface-visibility: hidden;
+    }
+    .context {
+        transform-style: preserve-3d;
+        width: 200px;
+        height: 200px;
+        background: green;
+    }
+    .participant {
+        width: 100px;
+        height: 100px;
+        background: orange;
+        transform: translateZ(10px);
+    }
+    .lone-context {
+        position: absolute;
+        top: 0;
+        left: 220px;
+        width: 60px;
+        height: 60px;
+        background: purple;
+        transform-style: preserve-3d;
+    }
+</style>
+<div class="flipped">
+    <div class="context">
+        <div class="participant"></div>
+    </div>
+    <div class="lone-context"></div>
+</div>
