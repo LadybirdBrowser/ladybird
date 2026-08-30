@@ -8015,6 +8015,21 @@ void Document::update_compositor_animations()
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_published_effects;
     HashMap<DOM::AbstractElement, CompetingEffects> competing_effects;
     Optional<double> compositor_animation_wakeup_delay_ms;
+    auto transform_affects_intersection_observation = [&](Element const& animated_target) {
+        for (auto const& observer : m_intersection_observers) {
+            if (observer.observation_targets().is_empty())
+                continue;
+            auto root = observer.intersection_root_node();
+            if (root->is_element() && animated_target.is_shadow_including_inclusive_ancestor_of(*root))
+                return true;
+            for (auto const& observation : observer.observation_targets()) {
+                if (animated_target.is_shadow_including_inclusive_ancestor_of(*observation.target))
+                    return true;
+            }
+        }
+        return false;
+    };
+
     for (auto& animation : m_associated_animations) {
         if (!animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
             continue;
@@ -8105,6 +8120,7 @@ void Document::update_compositor_animations()
             continue;
         if (animation.is_idle() || !effect.is_in_effect())
             continue;
+        auto& target = abstract_target->element();
         bool targets_opacity = effect.target_properties().contains(CSS::PropertyID::Opacity);
         bool targets_transform = any_of(effect.target_properties(), is_transform_family_property);
         bool targets_unsupported_property = any_of(effect.target_properties(), [&](auto property_id) { return property_id != CSS::PropertyID::Opacity && !is_transform_family_property(property_id); });
@@ -8133,6 +8149,9 @@ void Document::update_compositor_animations()
             }
             continue;
         }
+
+        if (selected_for_transform && transform_affects_intersection_observation(target))
+            continue;
 
         Vector<Compositor::VisualAnimation> effect_visual_animations;
         bool opacity_was_handed_off = !selected_for_opacity;

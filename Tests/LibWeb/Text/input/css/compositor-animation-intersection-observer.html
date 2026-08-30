@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes move {
+        from { transform: translateX(0); }
+        to { transform: translateX(10000px); }
+    }
+
+    #target {
+        width: 20px;
+        height: 20px;
+        animation: move 100s linear infinite;
+    }
+</style>
+<div id="target"></div>
+<script>
+    asyncTest(async done => {
+        const animation = document.getAnimations()[0];
+        animation.currentTime = 0;
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+
+        println(`animation initially uses compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+
+        let resolveNextObservation;
+        let nextObservation = new Promise(resolve => resolveNextObservation = resolve);
+        const observer = new IntersectionObserver(entries => resolveNextObservation(entries.at(-1)));
+        observer.observe(document.querySelector("#target"));
+
+        const initialObservation = await nextObservation;
+        println(`observer keeps transform on main thread: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+        println(`initial position is intersecting: ${initialObservation.isIntersecting}`);
+
+        nextObservation = new Promise(resolve => resolveNextObservation = resolve);
+        animation.currentTime = 75000;
+        const movedObservation = await nextObservation;
+        println(`animated position leaves viewport: ${!movedObservation.isIntersecting}`);
+
+        observer.disconnect();
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+        println(`disconnect restores compositor animation: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+
+        done();
+    });
+</script>

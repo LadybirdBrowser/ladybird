@@ -1,0 +1,5 @@
+animation initially uses compositor: 1
+observer keeps transform on main thread: 0
+initial position is intersecting: true
+animated position leaves viewport: true
+disconnect restores compositor animation: 1
