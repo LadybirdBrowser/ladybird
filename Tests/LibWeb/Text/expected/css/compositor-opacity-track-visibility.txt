@@ -1,0 +1,3 @@
+infinite and finite opacity animations stay on main thread: true
+infinite opacity is current: true
+finite opacity is current: true

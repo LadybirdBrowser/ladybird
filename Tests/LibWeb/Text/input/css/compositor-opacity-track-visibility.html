@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes fade {
+        from { opacity: 1; }
+        to { opacity: 0; }
+    }
+
+    .target {
+        width: 20px;
+        height: 20px;
+        animation: fade 1s linear;
+    }
+
+    #infinite {
+        animation-iteration-count: infinite;
+    }
+</style>
+<div id="infinite" class="target"></div>
+<div id="finite" class="target"></div>
+<script>
+    asyncTest(async done => {
+        let observations = 0;
+        let resolveInitialObservations;
+        const initialObservations = new Promise(resolve => resolveInitialObservations = resolve);
+        const observer = new IntersectionObserver(entries => {
+            observations += entries.length;
+            if (observations >= 2)
+                resolveInitialObservations();
+        }, { trackVisibility: true, delay: 100 });
+        observer.observe(infinite);
+        observer.observe(finite);
+        await initialObservations;
+
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+        println(`infinite and finite opacity animations stay on main thread: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 0}`);
+
+        infinite.getAnimations()[0].currentTime = 500;
+        finite.getAnimations()[0].currentTime = 500;
+        println(`infinite opacity is current: ${getComputedStyle(infinite).opacity === "0.5"}`);
+        println(`finite opacity is current: ${getComputedStyle(finite).opacity === "0.5"}`);
+        done();
+    });
+</script>
