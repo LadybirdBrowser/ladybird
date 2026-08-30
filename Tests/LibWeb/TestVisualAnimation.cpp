@@ -79,6 +79,28 @@ TEST_CASE(applies_playback_direction_and_keyframe_easing)
     EXPECT_APPROXIMATE(animation.sample(AK::Duration::from_milliseconds(1000))->opacity, 0.25f);
 }
 
+TEST_CASE(clamps_finite_animation_to_end_progress)
+{
+    VisualAnimation animation {
+        .target_kind = VisualAnimation::TargetKind::Opacity,
+        .visual_context_node_indices = { 0 },
+        .local_time_at_anchor_ms = 900,
+        .iteration_duration_ms = 1000,
+        .iteration_count = 1,
+        .easing = linear_easing(),
+        .keyframes = {
+            { 0, linear_easing(), 0.0f },
+            { 1, linear_easing(), 1.0f },
+        },
+    };
+
+    EXPECT_APPROXIMATE(animation.sample(AK::Duration::from_milliseconds(200))->opacity, 1.0f);
+    animation.playback_direction = VisualAnimationPlaybackDirection::Reverse;
+    EXPECT_APPROXIMATE(animation.sample(AK::Duration::from_milliseconds(200))->opacity, 0.0f);
+    animation.iteration_start = 0.5;
+    EXPECT_APPROXIMATE(animation.sample(AK::Duration::from_milliseconds(200))->opacity, 0.5f);
+}
+
 TEST_CASE(uses_following_interval_at_keyframe_boundary)
 {
     VisualAnimation animation {
@@ -135,4 +157,30 @@ TEST_CASE(rejects_invalid_timing)
 {
     VisualAnimation animation;
     EXPECT(!animation.sample(AK::Duration::zero()).has_value());
+}
+
+TEST_CASE(compares_animation_parameters_independently_of_visual_nodes_and_anchor)
+{
+    VisualAnimation animation {
+        .target_kind = VisualAnimation::TargetKind::Opacity,
+        .visual_context_node_indices = { 1 },
+        .monotonic_time_at_anchor_ns = 100,
+        .local_time_at_anchor_ms = 250,
+        .iteration_duration_ms = 1000,
+        .easing = linear_easing(),
+        .keyframes = {
+            { 0, linear_easing(), 0.0f },
+            { 1, linear_easing(), 1.0f },
+        },
+    };
+    auto retargeted_animation = animation;
+    retargeted_animation.visual_context_node_indices = { 2 };
+    retargeted_animation.monotonic_time_at_anchor_ns = 200;
+    retargeted_animation.local_time_at_anchor_ms = 500;
+
+    EXPECT(animation.has_same_animation_parameters(retargeted_animation));
+    EXPECT(!animation.has_same_parameters_except_anchor(retargeted_animation));
+
+    retargeted_animation.iteration_duration_ms = 2000;
+    EXPECT(!animation.has_same_animation_parameters(retargeted_animation));
 }

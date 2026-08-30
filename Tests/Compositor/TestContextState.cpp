@@ -77,12 +77,12 @@ static NonnullRefPtr<Web::Painting::DisplayList> decode_display_list(Web::Painti
     return MUST(decoder.decode<NonnullRefPtr<Web::Painting::DisplayList>>());
 }
 
-static NonnullRefPtr<Web::Painting::DisplayList> make_display_list(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Optional<Gfx::Color> color, Optional<Gfx::Color> surface_clear_color = {})
+static NonnullRefPtr<Web::Painting::DisplayList> make_display_list(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Optional<Gfx::Color> color, Optional<Gfx::Color> surface_clear_color = {}, Web::Painting::ContextRef context = {})
 {
     ByteBuffer command_bytes;
     if (color.has_value()) {
         auto command = Web::Painting::FillRect { { 0, 0, 4, 4 }, *color };
-        append_display_list_command(command_bytes, command, command.rect);
+        append_display_list_command(command_bytes, command, command.rect, context);
     }
     return decode_display_list(visual_context_tree, move(command_bytes), surface_clear_color);
 }
@@ -208,6 +208,117 @@ TEST_CASE(rasterization_clears_damaged_pixels_to_the_canvas_color_in_presentatio
     EXPECT_EQ(bitmap->get_pixel(0, 0), Gfx::Color::Transparent);
 }
 
+TEST_CASE(visual_animations_advance_without_a_web_content_update)
+{
+    TestWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { 0, client, canvas_surface_registry, false };
+    Web::Painting::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto spatial = visual_context_tree.append_spatial(Web::Painting::TransformData { Gfx::FloatMatrix4x4::identity(), {} }, Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    auto frame = visual_context_tree.append_frame(Web::Painting::EffectsData {}, Web::Painting::NO_FRAME_NODE, spatial);
+    auto anchor = MonotonicTime::now();
+    visual_context_tree.set_visual_animations({
+        {
+            .target_kind = Web::Compositor::VisualAnimation::TargetKind::Transform,
+            .visual_context_node_indices = { spatial.value() },
+            .monotonic_time_at_anchor_ns = anchor.nanoseconds(),
+            .iteration_duration_ms = 1000,
+            .easing = {},
+            .keyframes = {
+                { 0, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::TranslateX, { 0 } } } },
+                { 1, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::TranslateX, { 8 } } } },
+            },
+        },
+        {
+            .target_kind = Web::Compositor::VisualAnimation::TargetKind::Opacity,
+            .visual_context_node_indices = { frame.value() },
+            .monotonic_time_at_anchor_ns = anchor.nanoseconds(),
+            .iteration_duration_ms = 1000,
+            .easing = {},
+            .keyframes = {
+                { 0, {}, 1.0f },
+                { 1, {}, 0.0f },
+            },
+        },
+    });
+
+    Gfx::IntRect viewport_rect { 0, 0, 12, 4 };
+    context.viewport_size_updated(viewport_rect.size(), Web::Compositor::WindowResizingInProgress::No);
+    VERIFY(context.resize_backing_stores_if_needed({}, Compositor::BackingStoreManager::GpuSharing::Disallowed).has_value());
+    context.install_display_list_update(
+        make_display_list(visual_context_tree, Gfx::Color::Red, Gfx::Color::Transparent, { spatial, frame }),
+        visual_context_tree,
+        {});
+
+    auto const* spatial_node_storage = context.visual_context_tree_for_testing().spatial_nodes().data();
+    auto const* frame_node_storage = context.visual_context_tree_for_testing().frame_nodes().data();
+    EXPECT(context.advance_visual_animations(anchor + AK::Duration::from_milliseconds(250)));
+    EXPECT_EQ(context.visual_context_tree_for_testing().spatial_nodes().data(), spatial_node_storage);
+    EXPECT_EQ(context.visual_context_tree_for_testing().frame_nodes().data(), frame_node_storage);
+    EXPECT(context.advance_visual_animations(anchor + AK::Duration::from_milliseconds(500)));
+    EXPECT_EQ(context.visual_context_tree_for_testing().spatial_nodes().data(), spatial_node_storage);
+    EXPECT_EQ(context.visual_context_tree_for_testing().frame_nodes().data(), frame_node_storage);
+    EXPECT(context.has_sampled_visual_animation_values_for_testing());
+    context.queue_present_frame({ viewport_rect, viewport_rect });
+    EXPECT(context.present_synchronously(display_list_player, nullptr));
+
+    auto bitmap = context.latest_rendered_surface()->snapshot_bitmap();
+    EXPECT_EQ(bitmap->get_pixel(0, 0), Gfx::Color::Transparent);
+    auto animated_pixel = bitmap->get_pixel(4, 0);
+    EXPECT_EQ(animated_pixel.red(), 128);
+    EXPECT_EQ(animated_pixel.green(), 0);
+    EXPECT_EQ(animated_pixel.blue(), 0);
+    EXPECT_EQ(animated_pixel.alpha(), 128);
+
+    context.update_visual_context_tree(visual_context_tree);
+    EXPECT(!context.has_sampled_visual_animation_values_for_testing());
+    auto const& restored_tree = context.visual_context_tree_for_testing();
+    auto restored_translation = restored_tree.spatial_node_at(spatial).data.get<Web::Painting::TransformData>().matrix[0, 3];
+    EXPECT_EQ(restored_translation, 0.0f);
+    EXPECT_EQ(restored_tree.frame_node_at(frame).data.get<Web::Painting::EffectsData>().opacity, 1.0f);
+}
+
+TEST_CASE(wheel_hit_testing_uses_the_current_visual_animation_tree)
+{
+    TestWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { 0, client, canvas_surface_registry, true };
+    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
+    auto animated_transform = visual_context_tree.append_spatial(
+        Web::Painting::TransformData { Gfx::FloatMatrix4x4::identity(), {} },
+        Web::Painting::SpatialNodeIndex { 1 });
+    auto anchor = MonotonicTime::now();
+    visual_context_tree.set_visual_animations({
+        {
+            .target_kind = Web::Compositor::VisualAnimation::TargetKind::Transform,
+            .visual_context_node_indices = { animated_transform.value() },
+            .monotonic_time_at_anchor_ns = anchor.nanoseconds(),
+            .iteration_duration_ms = 1000,
+            .easing = {},
+            .keyframes = {
+                { 0, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::TranslateX, { 0 } } } },
+                { 1, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::TranslateX, { 20 } } } },
+            },
+        },
+    });
+
+    context.install_display_list_update(
+        make_scrollable_viewport_display_list(visual_context_tree, false, Web::Painting::ContextRef { animated_transform, Web::Painting::NO_FRAME_NODE }),
+        visual_context_tree,
+        {});
+
+    EXPECT(context.advance_visual_animations(anchor + AK::Duration::from_milliseconds(500)));
+    auto result = context.async_scroll_by(
+        Web::UniqueNodeID { 1 },
+        { 20, 20 },
+        { 0, 10 },
+        { 0, 0, 100, 100 },
+        Web::Compositor::SnapContainerHandling::ScrollOnCompositor,
+        Web::Compositor::AsyncScrollOperationTracking::No);
+    EXPECT(result.enqueue_result.accepted);
+}
+
 TEST_CASE(wheel_hit_testing_ignores_targets_from_a_larger_visual_context_tree)
 {
     TestWebContentClient client;
@@ -237,6 +348,69 @@ TEST_CASE(wheel_hit_testing_ignores_targets_from_a_larger_visual_context_tree)
         Web::Compositor::SnapContainerHandling::ScrollOnCompositor,
         Web::Compositor::AsyncScrollOperationTracking::No);
     EXPECT(result.enqueue_result.accepted);
+}
+
+TEST_CASE(pinch_zoom_copies_the_visual_context_tree_once_per_update)
+{
+    TestWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { 0, client, canvas_surface_registry, true };
+    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
+    context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
+
+    for (u64 update = 1; update <= 5; ++update) {
+        auto result = context.handle_pinch_event({
+            .position = { Web::DevicePixels { 50 }, Web::DevicePixels { 50 } },
+            .scale_delta = 0.1,
+        });
+        EXPECT(result.accepted);
+        EXPECT_EQ(context.visual_context_tree_copy_count_for_testing(), update);
+    }
+}
+
+TEST_CASE(finite_visual_animations_stop_after_their_terminal_sample)
+{
+    TestWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { 0, client, canvas_surface_registry, false };
+    Web::Painting::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto spatial = visual_context_tree.append_spatial(Web::Painting::TransformData { Gfx::FloatMatrix4x4::identity(), {} }, Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    auto anchor = MonotonicTime::now();
+    visual_context_tree.set_visual_animations({
+        {
+            .target_kind = Web::Compositor::VisualAnimation::TargetKind::Transform,
+            .visual_context_node_indices = { spatial.value() },
+            .monotonic_time_at_anchor_ns = anchor.nanoseconds(),
+            .iteration_duration_ms = 1000,
+            .iteration_count = 1,
+            .easing = {},
+            .keyframes = {
+                { 0, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::TranslateX, { 0 } } } },
+                { 1, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::TranslateX, { 8 } } } },
+            },
+        },
+    });
+
+    Gfx::IntRect viewport_rect { 0, 0, 12, 4 };
+    context.viewport_size_updated(viewport_rect.size(), Web::Compositor::WindowResizingInProgress::No);
+    VERIFY(context.resize_backing_stores_if_needed({}, Compositor::BackingStoreManager::GpuSharing::Disallowed).has_value());
+    context.install_display_list_update(
+        make_display_list(visual_context_tree, Gfx::Color::Red, Gfx::Color::Transparent, { spatial, Web::Painting::NO_FRAME_NODE }),
+        visual_context_tree,
+        {});
+
+    EXPECT(context.has_active_visual_animations());
+    EXPECT(context.advance_visual_animations(anchor + AK::Duration::from_milliseconds(500)));
+    EXPECT(context.has_active_visual_animations());
+    EXPECT(!context.advance_visual_animations(anchor + AK::Duration::from_milliseconds(1000)));
+    EXPECT(!context.has_active_visual_animations());
+
+    context.queue_present_frame({ viewport_rect, viewport_rect });
+    EXPECT(context.present_synchronously(display_list_player, nullptr));
+    auto bitmap = context.latest_rendered_surface()->snapshot_bitmap();
+    EXPECT_EQ(bitmap->get_pixel(0, 0), Gfx::Color::Transparent);
+    EXPECT_EQ(bitmap->get_pixel(8, 0), Gfx::Color::Red);
 }
 
 TEST_CASE(oversized_backing_stores_are_rejected)

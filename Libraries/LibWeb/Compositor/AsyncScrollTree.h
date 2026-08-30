@@ -31,20 +31,19 @@ struct CachedWheelHitTestTarget {
     Painting::ContextRef context;
     Gfx::FloatRect rect;
     Gfx::CornerRadii corner_radii;
-    Gfx::FloatRect viewport_rect;
+    Optional<Gfx::FloatRect> viewport_rect;
 };
 
 struct CachedMainThreadWheelEventTarget {
     Painting::ContextRef context;
     Gfx::FloatRect rect;
-    Gfx::FloatRect viewport_rect;
+    Optional<Gfx::FloatRect> viewport_rect;
 };
 
-// Viewport-space cache of regions containing non-passive wheel listeners.
 struct CachedBlockingWheelEventTarget {
     Painting::ContextRef context;
     Gfx::FloatRect rect;
-    Gfx::FloatRect viewport_rect;
+    Optional<Gfx::FloatRect> viewport_rect;
 };
 
 // Mutable compositor-side copy of AsyncScrollingState. Current scroll offsets live in ScrollStateSnapshot; this tree

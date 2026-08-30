@@ -106,6 +106,7 @@ ContextState::ContextState(Optional<u64> page_id, CompositorStateWebContentClien
 
 ContextState::~ContextState()
 {
+    restore_visual_animation_original_values();
     stop_backing_store_shrink_timer();
 }
 
@@ -160,10 +161,11 @@ void ContextState::install_display_list_update(
     Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
     VERIFY(display_list->compatible_visual_context_tree_version() == visual_context_tree.version());
+    invalidate_visual_context_tree_for_compositing();
     m_display_list = move(display_list);
     m_visual_context_tree = move(visual_context_tree);
-    m_visual_context_tree_for_compositing.clear();
     m_visual_animation_sample_time_ns.clear();
+    m_has_active_visual_animations = !m_visual_context_tree->visual_animations().is_empty();
     m_scroll_state_snapshot = move(scroll_state_snapshot);
     if (m_async_visual_viewport_transform.has_value() && visual_viewport_transforms_match(visual_viewport_transform(*m_visual_context_tree), *m_async_visual_viewport_transform))
         m_async_visual_viewport_transform.clear();
@@ -184,8 +186,8 @@ void ContextState::install_display_list_update(
     m_can_accept_async_wheel_events = wheel_routing_admission == Web::Compositor::WheelRoutingAdmission::Accepted;
     m_has_blocking_wheel_event_listeners = async_scrolling_state.has_blocking_wheel_event_listeners;
     if (m_async_visual_viewport_transform.has_value() && (!m_can_accept_async_wheel_events || m_has_blocking_wheel_event_listeners)) {
+        invalidate_visual_context_tree_for_compositing();
         m_async_visual_viewport_transform.clear();
-        m_visual_context_tree_for_compositing.clear();
     }
 
     auto was_dragging_viewport_scrollbar = m_viewport_scrollbar_controller.has_captured_scrollbar();
@@ -209,9 +211,10 @@ void ContextState::update_visual_context_tree(Web::Painting::AccumulatedVisualCo
             m_display_list ? m_display_list->compatible_visual_context_tree_version() : 0);
         return;
     }
+    invalidate_visual_context_tree_for_compositing();
     m_visual_context_tree = move(visual_context_tree);
-    m_visual_context_tree_for_compositing.clear();
     m_visual_animation_sample_time_ns.clear();
+    m_has_active_visual_animations = !m_visual_context_tree->visual_animations().is_empty();
     // A constraints refresh changes sticky payloads without a new snapshot, and the snapshot that
     // pairs with this tree arrives in a separate message.
     Web::Painting::resolve_sticky_offsets(*m_visual_context_tree, m_scroll_state_snapshot);
@@ -379,8 +382,8 @@ ContextState::ContextUpdateResult ContextState::handle_pinch_event(Web::PinchEve
 
     transform.matrix = gesture_transform * transform.matrix;
     clamp_visual_viewport_transform_to_viewport(transform, m_async_scrolling_viewport_rect);
+    invalidate_visual_context_tree_for_compositing();
     m_async_visual_viewport_transform = transform;
-    m_visual_context_tree_for_compositing.clear();
     rebuild_wheel_hit_test_targets();
 
     return {
@@ -946,8 +949,8 @@ Optional<ContextState::VisualViewportScrollDelta> ContextState::apply_visual_vie
 
     transform.matrix[0, 3] = new_x;
     transform.matrix[1, 3] = new_y;
+    invalidate_visual_context_tree_for_compositing();
     m_async_visual_viewport_transform = transform;
-    m_visual_context_tree_for_compositing.clear();
     rebuild_wheel_hit_test_targets();
 
     return VisualViewportScrollDelta {
@@ -1049,37 +1052,43 @@ bool ContextState::can_render_frame() const
     return m_display_list && m_backing_store_manager.is_valid();
 }
 
-Web::Painting::AccumulatedVisualContextTree const& ContextState::visual_context_tree_for_compositing() const
+void ContextState::restore_visual_animation_original_values()
 {
-    if (!m_async_visual_viewport_transform.has_value() && !m_visual_animation_sample_time_ns.has_value())
-        return current_visual_context_tree();
-
-    m_visual_context_tree_for_compositing = current_visual_context_tree();
-    if (m_async_visual_viewport_transform.has_value())
-        m_visual_context_tree_for_compositing->set_visual_viewport_transform(*m_async_visual_viewport_transform);
-    if (m_visual_animation_sample_time_ns.has_value()) {
-        for (auto const& animation : m_visual_context_tree_for_compositing->visual_animations()) {
-            auto elapsed_nanoseconds = *m_visual_animation_sample_time_ns > animation.monotonic_time_at_anchor_ns
-                ? *m_visual_animation_sample_time_ns - animation.monotonic_time_at_anchor_ns
-                : 0;
-            auto sample = animation.sample(AK::Duration::from_nanoseconds(elapsed_nanoseconds));
-            if (!sample.has_value())
-                continue;
-            for (auto node_index : animation.visual_context_node_indices) {
-                if (animation.target_kind == Web::Compositor::VisualAnimation::TargetKind::Opacity) {
-                    auto& frame = m_visual_context_tree_for_compositing->frame_node_at(Web::Painting::FrameNodeIndex { node_index });
-                    frame.data.get<Web::Painting::EffectsData>().opacity = sample->opacity;
-                } else {
-                    auto& spatial = m_visual_context_tree_for_compositing->spatial_node_at(Web::Painting::SpatialNodeIndex { node_index });
-                    spatial.data.get<Web::Painting::TransformData>().matrix = sample->transform;
-                }
-            }
-        }
-    }
-    return *m_visual_context_tree_for_compositing;
+    if (!m_visual_animation_sample_is_current)
+        return;
+    auto& sampled_tree = m_visual_context_tree_for_compositing.has_value()
+        ? *m_visual_context_tree_for_compositing
+        : *m_visual_context_tree;
+    sampled_tree.restore_visual_animation_original_values(m_visual_animation_original_values);
+    m_visual_animation_sample_is_current = false;
 }
 
-Gfx::IntRect ContextState::frame_damage_for(PendingFrame const& pending_frame) const
+void ContextState::invalidate_visual_context_tree_for_compositing()
+{
+    restore_visual_animation_original_values();
+    m_visual_context_tree_for_compositing.clear();
+}
+
+Web::Painting::AccumulatedVisualContextTree const& ContextState::visual_context_tree_for_compositing()
+{
+    if (m_async_visual_viewport_transform.has_value() && !m_visual_context_tree_for_compositing.has_value()) {
+        restore_visual_animation_original_values();
+        m_visual_context_tree_for_compositing = current_visual_context_tree();
+        ++m_visual_context_tree_copy_count;
+        m_visual_context_tree_for_compositing->set_visual_viewport_transform(*m_async_visual_viewport_transform);
+    }
+
+    auto& tree = m_visual_context_tree_for_compositing.has_value()
+        ? *m_visual_context_tree_for_compositing
+        : *m_visual_context_tree;
+    if (m_visual_animation_sample_time_ns.has_value() && !m_visual_animation_sample_is_current) {
+        tree.sample_visual_animations(*m_visual_animation_sample_time_ns, m_visual_animation_original_values);
+        m_visual_animation_sample_is_current = true;
+    }
+    return tree;
+}
+
+Gfx::IntRect ContextState::frame_damage_for(PendingFrame const& pending_frame)
 {
     Gfx::IntRect viewport_rect { {}, pending_frame.viewport_rect.size() };
     auto forced_damage_rect = pending_frame.forced_damage_rect.intersected(viewport_rect);
@@ -1090,7 +1099,7 @@ Gfx::IntRect ContextState::frame_damage_for(PendingFrame const& pending_frame) c
     return damage_rect;
 }
 
-Gfx::IntRect ContextState::damage_since_last_raster(Gfx::IntSize viewport_size) const
+Gfx::IntRect ContextState::damage_since_last_raster(Gfx::IntSize viewport_size)
 {
     Gfx::IntRect viewport_rect { {}, viewport_size };
     if (!m_last_rasterized_frame.has_value())
@@ -1165,9 +1174,27 @@ bool ContextState::advance_visual_animations(MonotonicTime now)
 {
     if (!has_active_visual_animations())
         return false;
+    restore_visual_animation_original_values();
     m_visual_animation_sample_time_ns = now.nanoseconds();
-    m_visual_context_tree_for_compositing.clear();
-    return true;
+    visual_context_tree_for_compositing();
+
+    m_has_active_visual_animations = false;
+    for (auto const& animation : m_visual_context_tree->visual_animations()) {
+        if (!isfinite(animation.iteration_count)) {
+            m_has_active_visual_animations = true;
+            break;
+        }
+        auto elapsed_nanoseconds = now.nanoseconds() > animation.monotonic_time_at_anchor_ns
+            ? now.nanoseconds() - animation.monotonic_time_at_anchor_ns
+            : 0;
+        auto local_time = animation.local_time_at_anchor_ms + AK::Duration::from_nanoseconds(elapsed_nanoseconds).to_seconds_f64() * 1000.0 * animation.playback_rate;
+        auto active_end = animation.start_delay_ms + animation.iteration_duration_ms * animation.iteration_count;
+        if (!isfinite(local_time) || local_time < active_end) {
+            m_has_active_visual_animations = true;
+            break;
+        }
+    }
+    return m_has_active_visual_animations;
 }
 
 void ContextState::paint_current_display_list(Web::Painting::DisplayListPlayerSkia& display_list_player, Gfx::PaintingSurface& surface, CompositedContextResolver const* composited_context_resolver, Optional<Gfx::IntRect> damage_rect, PaintUIOverlay paint_ui_overlay)

@@ -213,6 +213,26 @@ bool VisualAnimationTransformOperation::is_valid() const
     return all_of(values, [](float value) { return isfinite(value); });
 }
 
+bool VisualAnimation::has_same_parameters_except_anchor(VisualAnimation const& other) const
+{
+    return target_kind == other.target_kind
+        && visual_context_node_indices == other.visual_context_node_indices
+        && has_same_animation_parameters(other);
+}
+
+bool VisualAnimation::has_same_animation_parameters(VisualAnimation const& other) const
+{
+    return target_kind == other.target_kind
+        && playback_rate == other.playback_rate
+        && start_delay_ms == other.start_delay_ms
+        && iteration_duration_ms == other.iteration_duration_ms
+        && iteration_count == other.iteration_count
+        && iteration_start == other.iteration_start
+        && playback_direction == other.playback_direction
+        && easing == other.easing
+        && keyframes == other.keyframes;
+}
+
 static VisualAnimationValue interpolate_value(VisualAnimationValue const& from, VisualAnimationValue const& to, double progress)
 {
     VERIFY(from.index() == to.index());
@@ -256,8 +276,17 @@ Optional<VisualAnimation::Sample> VisualAnimation::sample(AK::Duration elapsed_s
     if (!isfinite(overall_progress) || overall_progress < 0)
         return {};
 
+    auto active_progress = overall_progress - iteration_start;
+    bool is_at_or_after_end = isfinite(iteration_count) && active_progress >= iteration_count;
     auto current_iteration = floor(overall_progress);
     auto simple_iteration_progress = fmod(overall_progress, 1.0);
+    if (is_at_or_after_end) {
+        auto terminal_overall_progress = iteration_start + iteration_count;
+        simple_iteration_progress = fmod(terminal_overall_progress, 1.0);
+        if (simple_iteration_progress == 0)
+            simple_iteration_progress = 1.0;
+        current_iteration = floor(terminal_overall_progress) - (simple_iteration_progress == 1.0 ? 1.0 : 0.0);
+    }
     bool going_forwards = true;
     switch (playback_direction) {
     case VisualAnimationPlaybackDirection::Normal:
@@ -334,6 +363,7 @@ bool VisualAnimation::is_valid() const
         return false;
     if (monotonic_time_at_anchor_ns < 0 || !isfinite(local_time_at_anchor_ms) || !isfinite(playback_rate) || playback_rate <= 0
         || !isfinite(start_delay_ms) || !isfinite(iteration_duration_ms) || iteration_duration_ms <= 0
+        || isnan(iteration_count) || iteration_count <= 0
         || !isfinite(iteration_start) || iteration_start < 0 || !easing.is_valid() || keyframes.size() < 2)
         return false;
     if (keyframes.first().offset != 0 || keyframes.last().offset != 1)
@@ -473,6 +503,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::Compositor::VisualAnimation const& a
     TRY(encoder.encode(animation.playback_rate));
     TRY(encoder.encode(animation.start_delay_ms));
     TRY(encoder.encode(animation.iteration_duration_ms));
+    TRY(encoder.encode(animation.iteration_count));
     TRY(encoder.encode(animation.iteration_start));
     TRY(encoder.encode(animation.playback_direction));
     TRY(encoder.encode(animation.easing));
@@ -491,6 +522,7 @@ ErrorOr<Web::Compositor::VisualAnimation> decode(Decoder& decoder)
         .playback_rate = TRY(decoder.decode<double>()),
         .start_delay_ms = TRY(decoder.decode<double>()),
         .iteration_duration_ms = TRY(decoder.decode<double>()),
+        .iteration_count = TRY(decoder.decode<double>()),
         .iteration_start = TRY(decoder.decode<double>()),
         .playback_direction = TRY(decoder.decode<Web::Compositor::VisualAnimationPlaybackDirection>()),
         .easing = TRY(decoder.decode<Web::Compositor::VisualAnimationEasing>()),

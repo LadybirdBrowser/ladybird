@@ -506,6 +506,43 @@ Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(SpatialN
     return rect;
 }
 
+void AccumulatedVisualContextTree::sample_visual_animations(i64 monotonic_time_ns, VisualAnimationOriginalValues& original_values)
+{
+    VERIFY(original_values.is_empty());
+    for (auto const& animation : m_visual_animations) {
+        auto elapsed_nanoseconds = monotonic_time_ns > animation.monotonic_time_at_anchor_ns
+            ? monotonic_time_ns - animation.monotonic_time_at_anchor_ns
+            : 0;
+        auto sample = animation.sample(AK::Duration::from_nanoseconds(elapsed_nanoseconds));
+        if (!sample.has_value())
+            continue;
+        for (auto node_index : animation.visual_context_node_indices) {
+            if (animation.target_kind == Compositor::VisualAnimation::TargetKind::Opacity) {
+                auto frame_node_index = FrameNodeIndex { node_index };
+                auto& frame = frame_node_at(frame_node_index);
+                if (!any_of(original_values.opacities, [&](auto const& original) { return original.node_index == frame_node_index; }))
+                    original_values.opacities.append({ frame_node_index, frame.data.get<EffectsData>().opacity });
+                frame.data.get<EffectsData>().opacity = sample->opacity;
+            } else {
+                auto spatial_node_index = SpatialNodeIndex { node_index };
+                auto& spatial = spatial_node_at(spatial_node_index);
+                if (!any_of(original_values.transforms, [&](auto const& original) { return original.node_index == spatial_node_index; }))
+                    original_values.transforms.append({ spatial_node_index, spatial.data.get<TransformData>().matrix });
+                spatial.data.get<TransformData>().matrix = sample->transform;
+            }
+        }
+    }
+}
+
+void AccumulatedVisualContextTree::restore_visual_animation_original_values(VisualAnimationOriginalValues& original_values)
+{
+    for (auto const& original : original_values.opacities)
+        frame_node_at(original.node_index).data.get<EffectsData>().opacity = original.value;
+    for (auto const& original : original_values.transforms)
+        spatial_node_at(original.node_index).data.get<TransformData>().matrix = original.value;
+    original_values.clear();
+}
+
 Gfx::FloatMatrix4x4 TransformData::matrix_including_origin() const
 {
     auto origin_translation = Gfx::translation_matrix(Gfx::Vector3<float> { origin.x(), origin.y(), 0 });

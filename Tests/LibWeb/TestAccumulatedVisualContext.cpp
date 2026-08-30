@@ -83,3 +83,51 @@ TEST_CASE(a_fractional_clip_rect_contains_points_by_float_containment)
     EXPECT(!tree.transform_point_for_hit_test(context, { 10.25f, 15 }, scroll_state).has_value());
     EXPECT(tree.transform_point_for_hit_test(context, { 10.75f, 15 }, scroll_state).has_value());
 }
+
+TEST_CASE(visual_animation_samples_restore_original_node_values)
+{
+    auto tree = AccumulatedVisualContextTree::create();
+    auto spatial = tree.append_spatial(make_transform(12), VISUAL_VIEWPORT_NODE_INDEX);
+    auto frame = tree.append_frame(EffectsData {
+                                       .opacity = 0.75f,
+                                       .blend_mode = Gfx::CompositingAndBlendingOperator::Normal,
+                                       .gfx_filter = {},
+                                   },
+        NO_FRAME_NODE, spatial);
+    tree.set_visual_animations({
+        {
+            .target_kind = Web::Compositor::VisualAnimation::TargetKind::Transform,
+            .visual_context_node_indices = { spatial.value() },
+            .local_time_at_anchor_ms = 500,
+            .iteration_duration_ms = 1000,
+            .easing = {},
+            .keyframes = {
+                { 0, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::TranslateX, { 0 } } } },
+                { 1, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::TranslateX, { 8 } } } },
+            },
+        },
+        {
+            .target_kind = Web::Compositor::VisualAnimation::TargetKind::Opacity,
+            .visual_context_node_indices = { frame.value() },
+            .local_time_at_anchor_ms = 500,
+            .iteration_duration_ms = 1000,
+            .easing = {},
+            .keyframes = {
+                { 0, {}, 1.0f },
+                { 1, {}, 0.0f },
+            },
+        },
+    });
+
+    AccumulatedVisualContextTree::VisualAnimationOriginalValues original_values;
+    tree.sample_visual_animations(0, original_values);
+    auto sampled_translation = tree.spatial_node_at(spatial).data.get<TransformData>().matrix[0, 3];
+    EXPECT_EQ(sampled_translation, 4.0f);
+    EXPECT_EQ(tree.frame_node_at(frame).data.get<EffectsData>().opacity, 0.5f);
+
+    tree.restore_visual_animation_original_values(original_values);
+    EXPECT(original_values.is_empty());
+    auto restored_translation = tree.spatial_node_at(spatial).data.get<TransformData>().matrix[0, 3];
+    EXPECT_EQ(restored_translation, 12.0f);
+    EXPECT_EQ(tree.frame_node_at(frame).data.get<EffectsData>().opacity, 0.75f);
+}

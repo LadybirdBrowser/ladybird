@@ -128,7 +128,10 @@ public:
     Optional<Gfx::IntRect> advance_smooth_scroll_animations(MonotonicTime now);
     bool has_active_smooth_scroll_animations() const { return !m_smooth_scroll_animations.is_empty(); }
     bool advance_visual_animations(MonotonicTime now);
-    bool has_active_visual_animations() const { return m_visual_context_tree.has_value() && !m_visual_context_tree->visual_animations().is_empty(); }
+    bool has_active_visual_animations() const { return m_has_active_visual_animations; }
+    Web::Painting::AccumulatedVisualContextTree const& visual_context_tree_for_testing() const { return current_visual_context_tree(); }
+    bool has_sampled_visual_animation_values_for_testing() const { return m_visual_animation_sample_is_current; }
+    u64 visual_context_tree_copy_count_for_testing() const { return m_visual_context_tree_copy_count; }
     ContextUpdateResult async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::Compositor::SnapContainerHandling);
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
 
@@ -198,16 +201,18 @@ private:
     void note_user_scroll_gesture_end_if_drag_ended(bool was_dragging_viewport_scrollbar);
     Optional<PendingFrame> apply_viewport_scrollbar_drag(ViewportScrollbarController::Drag const&);
     void rebuild_wheel_hit_test_targets();
+    void restore_visual_animation_original_values();
+    void invalidate_visual_context_tree_for_compositing();
     bool is_present_blocked() const;
     bool can_render_frame() const;
-    Web::Painting::AccumulatedVisualContextTree const& visual_context_tree_for_compositing() const;
+    Web::Painting::AccumulatedVisualContextTree const& visual_context_tree_for_compositing();
     enum class PaintUIOverlay : u8 {
         No,
         Yes,
     };
     void paint_current_display_list(Web::Painting::DisplayListPlayerSkia&, Gfx::PaintingSurface&, CompositedContextResolver const*, Optional<Gfx::IntRect> damage_rect = {}, PaintUIOverlay = PaintUIOverlay::Yes);
-    Gfx::IntRect frame_damage_for(PendingFrame const&) const;
-    Gfx::IntRect damage_since_last_raster(Gfx::IntSize viewport_size) const;
+    Gfx::IntRect frame_damage_for(PendingFrame const&);
+    Gfx::IntRect damage_since_last_raster(Gfx::IntSize viewport_size);
     void remember_rasterized_frame(Gfx::IntSize viewport_size);
 
     CompositorStateWebContentClient& m_web_content_client;
@@ -220,7 +225,11 @@ private:
 
     RefPtr<Web::Painting::DisplayList const> m_display_list;
     Optional<Web::Painting::AccumulatedVisualContextTree> m_visual_context_tree;
-    mutable Optional<Web::Painting::AccumulatedVisualContextTree> m_visual_context_tree_for_compositing;
+    Optional<Web::Painting::AccumulatedVisualContextTree> m_visual_context_tree_for_compositing;
+    Web::Painting::AccumulatedVisualContextTree::VisualAnimationOriginalValues m_visual_animation_original_values;
+    bool m_visual_animation_sample_is_current { false };
+    u64 m_visual_context_tree_copy_count { 0 };
+    bool m_has_active_visual_animations { false };
     Web::Painting::DisplayListResourceStorage m_display_list_resource_storage;
     Web::Painting::ScrollStateSnapshot m_scroll_state_snapshot;
     BackingStoreManager m_backing_store_manager;

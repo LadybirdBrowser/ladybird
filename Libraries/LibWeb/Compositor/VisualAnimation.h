@@ -31,6 +31,8 @@ struct VisualAnimationEasing {
     struct LinearPoint {
         double input { 0 };
         double output { 0 };
+
+        bool operator==(LinearPoint const&) const = default;
     };
 
     static WEB_API VisualAnimationEasing from_css(CSS::EasingFunction const&);
@@ -46,6 +48,8 @@ struct VisualAnimationEasing {
     double y2 { 1 };
     i32 interval_count { 1 };
     u8 step_position { 0 };
+
+    bool operator==(VisualAnimationEasing const&) const = default;
 };
 
 enum class VisualAnimationPlaybackDirection : u8 {
@@ -82,6 +86,8 @@ struct VisualAnimationTransformOperation {
     VisualAnimationTransformOperationKind kind { VisualAnimationTransformOperationKind::Translate };
     // Translation lengths are expressed in device pixels, matching TransformData matrices.
     Vector<float> values;
+
+    bool operator==(VisualAnimationTransformOperation const&) const = default;
 };
 
 using VisualAnimationTransformList = Vector<VisualAnimationTransformOperation>;
@@ -91,6 +97,8 @@ struct VisualAnimationKeyframe {
     double offset { 0 };
     VisualAnimationEasing easing;
     VisualAnimationValue value;
+
+    bool operator==(VisualAnimationKeyframe const&) const = default;
 };
 
 struct VisualAnimation {
@@ -106,6 +114,8 @@ struct VisualAnimation {
 
     WEB_API Optional<Sample> sample(AK::Duration elapsed_since_anchor) const;
     WEB_API bool is_valid() const;
+    WEB_API bool has_same_animation_parameters(VisualAnimation const&) const;
+    WEB_API bool has_same_parameters_except_anchor(VisualAnimation const&) const;
 
     TargetKind target_kind { TargetKind::Opacity };
     Vector<u32> visual_context_node_indices;
@@ -114,10 +124,13 @@ struct VisualAnimation {
     double playback_rate { 1 };
     double start_delay_ms { 0 };
     double iteration_duration_ms { 0 };
+    double iteration_count { AK::Infinity<double> };
     double iteration_start { 0 };
     VisualAnimationPlaybackDirection playback_direction { VisualAnimationPlaybackDirection::Normal };
     VisualAnimationEasing easing;
     Vector<VisualAnimationKeyframe> keyframes;
+
+    bool operator==(VisualAnimation const&) const = default;
 };
 
 }
