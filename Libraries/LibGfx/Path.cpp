@@ -135,7 +135,8 @@ extern "C" void* ladybird_gfx_path_create_from_ops(u8 const* kinds, float const*
 
 extern "C" void* ladybird_gfx_path_create_from_serialized_bytes(u8 const* bytes, size_t count)
 {
-    return new Gfx::Path(Gfx::Path::from_serialized_bytes({ bytes, count }));
+    auto path_bytes_at_an_aligned_address = MUST(ByteBuffer::copy(bytes, count));
+    return new Gfx::Path(Gfx::Path::from_serialized_bytes(path_bytes_at_an_aligned_address));
 }
 
 extern "C" void* ladybird_gfx_path_copy_transformed(void const* path, float const* affine_values)

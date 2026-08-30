@@ -8,6 +8,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/DistinctNumeric.h>
+#include <AK/Error.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
@@ -184,12 +185,13 @@ public:
         Ignore,
     };
 
-    static WEB_API AccumulatedVisualContextTree create();
     static WEB_API AccumulatedVisualContextTree create(TransformData visual_viewport_transform);
     // For nested display list trees (masks, patterns, background tiles): the given transform
     // becomes the root node. Unlike a document tree's visual viewport root, this root is real
     // content placement, so queries asked to exclude the visual viewport transform include it.
     static WEB_API AccumulatedVisualContextTree create_with_content_root(TransformData content_transform);
+    static WEB_API AccumulatedVisualContextTree materialize_from_rust(void const* retained_tree);
+    static WEB_API ErrorOr<AccumulatedVisualContextTree> from_serialized_bytes(ReadonlyBytes);
 
     WEB_API AccumulatedVisualContextTree(AccumulatedVisualContextTree const&);
     WEB_API AccumulatedVisualContextTree& operator=(AccumulatedVisualContextTree const&);
@@ -197,10 +199,10 @@ public:
     WEB_API AccumulatedVisualContextTree& operator=(AccumulatedVisualContextTree&&);
     WEB_API ~AccumulatedVisualContextTree();
 
-    u64 version() const { return m_version; }
-    void reuse_version_from(AccumulatedVisualContextTree const& other) { m_version = other.m_version; }
+    WEB_API u64 version() const;
+    WEB_API ByteBuffer serialize_to_bytes() const;
 
-    // The Rust tree this mirror was materialized from, retained by this value; null for hand-built trees.
+    // The Rust tree this mirror was materialized from, retained by this value.
     void const* rust_tree() const { return m_rust_tree; }
     WEB_API void adopt_rust_tree(void const* retained_tree);
     WEB_API void release_rust_tree();
@@ -241,13 +243,11 @@ public:
     WEB_API Vector<bool> frames_with_empty_effective_clip() const;
 
 private:
-    AccumulatedVisualContextTree(u64 version, TransformData root_transform, bool root_is_visual_viewport);
-    AccumulatedVisualContextTree(u64 version, Vector<SpatialNode>&& spatial_nodes, Vector<FrameNode>&& frame_nodes, bool root_is_visual_viewport);
+    AccumulatedVisualContextTree(TransformData root_transform, bool root_is_visual_viewport);
 
     Vector<SpatialNodeIndex, 8> build_ancestor_chain(SpatialNodeIndex index) const;
     bool chain_contains_3d_transform(SpatialNodeIndex index) const;
 
-    u64 m_version { 0 };
     void const* m_rust_tree { nullptr };
     Vector<SpatialNode> m_spatial_nodes;
     Vector<FrameNode> m_frame_nodes;
@@ -267,71 +267,6 @@ WEB_API void resolve_sticky_offsets(AccumulatedVisualContextTree const&, ScrollS
 }
 
 namespace IPC {
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::ScrollData const&);
-template<>
-WEB_API ErrorOr<Web::Painting::ScrollData> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::StickyData const&);
-template<>
-WEB_API ErrorOr<Web::Painting::StickyData> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::ClipData const&);
-template<>
-WEB_API ErrorOr<Web::Painting::ClipData> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::TransformData const&);
-template<>
-WEB_API ErrorOr<Web::Painting::TransformData> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::PerspectiveData const&);
-template<>
-WEB_API ErrorOr<Web::Painting::PerspectiveData> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::BackfaceVisibilityData const&);
-template<>
-WEB_API ErrorOr<Web::Painting::BackfaceVisibilityData> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::ClipPathData const&);
-template<>
-WEB_API ErrorOr<Web::Painting::ClipPathData> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::EffectsData const&);
-template<>
-WEB_API ErrorOr<Web::Painting::EffectsData> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::MaskData const&);
-template<>
-WEB_API ErrorOr<Web::Painting::MaskData> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::AnchorScrollShift const&);
-template<>
-WEB_API ErrorOr<Web::Painting::AnchorScrollShift> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::SpatialNode const&);
-template<>
-WEB_API ErrorOr<Web::Painting::SpatialNode> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::FrameNode const&);
-template<>
-WEB_API ErrorOr<Web::Painting::FrameNode> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::ContextRef const&);
-template<>
-WEB_API ErrorOr<Web::Painting::ContextRef> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::AccumulatedVisualContextTree const&);
