@@ -6608,7 +6608,29 @@ mod ffi_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_glyph_run_unref(_retained: *mut std::ffi::c_void) {}
     #[unsafe(no_mangle)]
-    extern "C" fn ladybird_gfx_path_destroy(_path: *mut std::ffi::c_void) {}
+    extern "C" fn ladybird_gfx_path_destroy(path: *mut std::ffi::c_void) {
+        if !path.is_null() {
+            // SAFETY: Every stand-in path comes from the `Box<u8>` the deserializer stub leaked to the caller.
+            drop(unsafe { Box::from_raw(path.cast::<u8>()) });
+        }
+    }
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_gfx_path_serialize(
+        _path: *const std::ffi::c_void,
+        append: unsafe extern "C" fn(*mut std::ffi::c_void, *const u8, usize),
+        context: *mut std::ffi::c_void,
+    ) {
+        let stand_in_path_bytes = [7u8, 8, 9];
+        // SAFETY: The serializer hands its own sink and append function; the bytes are live for the call.
+        unsafe { append(context, stand_in_path_bytes.as_ptr(), stand_in_path_bytes.len()) };
+    }
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_gfx_path_create_from_serialized_bytes(
+        _bytes: *const u8,
+        _count: usize,
+    ) -> *mut std::ffi::c_void {
+        Box::into_raw(Box::new(0u8)).cast()
+    }
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_path_contains(
         _path: *const std::ffi::c_void,

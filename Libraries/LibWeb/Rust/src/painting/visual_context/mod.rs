@@ -13,6 +13,7 @@ pub mod node_values;
 pub mod queries;
 pub mod refresh;
 pub mod scroll_state;
+pub mod serialize;
 
 use std::collections::HashMap;
 

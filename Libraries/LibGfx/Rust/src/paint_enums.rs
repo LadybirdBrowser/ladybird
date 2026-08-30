@@ -88,6 +88,17 @@ pub enum CompositingAndBlendingOperator {
     PlusLighter,
 }
 
+impl CompositingAndBlendingOperator {
+    pub fn from_i32(value: i32) -> Option<Self> {
+        if (Self::Normal as i32..=Self::PlusLighter as i32).contains(&value) {
+            // SAFETY: the enum is a dense i32 range from Normal to PlusLighter.
+            Some(unsafe { std::mem::transmute::<i32, Self>(value) })
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(i32)]
 pub enum MaskKind {

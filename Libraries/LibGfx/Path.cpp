@@ -18,6 +18,7 @@ void ladybird_gfx_path_bounding_box(void const*, float*);
 void ladybird_gfx_path_serialize(void const*, void (*)(void*, u8 const*, size_t), void*);
 float ladybird_gfx_path_length(void const*);
 void* ladybird_gfx_path_create_from_ops(u8 const* kinds, float const* values, size_t count);
+void* ladybird_gfx_path_create_from_serialized_bytes(u8 const* bytes, size_t count);
 void* ladybird_gfx_path_copy_transformed(void const*, float const* affine_values);
 bool ladybird_gfx_path_contains(void const*, float, float, int);
 }
@@ -130,6 +131,11 @@ extern "C" void* ladybird_gfx_path_create_from_ops(u8 const* kinds, float const*
         }
     }
     return path;
+}
+
+extern "C" void* ladybird_gfx_path_create_from_serialized_bytes(u8 const* bytes, size_t count)
+{
+    return new Gfx::Path(Gfx::Path::from_serialized_bytes({ bytes, count }));
 }
 
 extern "C" void* ladybird_gfx_path_copy_transformed(void const* path, float const* affine_values)
