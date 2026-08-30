@@ -2062,6 +2062,9 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
     if (!node.is_connected())
         return;
 
+    if (reason != UpdateLayoutReason::HTMLEventLoopRenderingUpdate)
+        flush_throttled_animation_style_update_for_node(node);
+
     auto* document_element = this->document_element();
     auto const may_have_style_query_dependencies = document_element && document_element->is_style_query_container();
     auto const reads_layout_geometry = reason == UpdateLayoutReason::ElementGetClientRects
@@ -2115,7 +2118,7 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
         }
     }
 
-    update_layout(reason);
+    update_layout(reason, ThrottledAnimationSamplingScope::Element);
 }
 
 void Document::flush_deferred_style_change_event()
@@ -2347,11 +2350,16 @@ Document::PartialRelayoutResult Document::try_partial_relayout(HashTable<WeakPtr
 
 void Document::update_layout(UpdateLayoutReason reason)
 {
+    update_layout(reason, ThrottledAnimationSamplingScope::Document);
+}
+
+void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSamplingScope animation_sampling_scope)
+{
     auto navigable = this->navigable();
     if (!navigable || navigable->active_document().ptr() != this)
         return;
 
-    if (reason != UpdateLayoutReason::HTMLEventLoopRenderingUpdate)
+    if (reason != UpdateLayoutReason::HTMLEventLoopRenderingUpdate && animation_sampling_scope == ThrottledAnimationSamplingScope::Document)
         flush_throttled_animation_style_update();
 
     VERIFY(!m_is_running_update_layout);
@@ -2646,8 +2654,6 @@ void Document::sample_animation_effects_needing_style_update()
         finish_animated_style_update();
     };
 
-    Animations::AnimationUpdateContext context;
-
     GC::RootVector<GC::Ref<Animations::Animation>> animations;
     if (m_force_throttled_animation_style_update) {
         for (auto& animation : m_associated_animations) {
@@ -2666,6 +2672,30 @@ void Document::sample_animation_effects_needing_style_update()
     m_effects_needing_animated_style_update.clear();
     m_needs_animated_style_update = false;
 
+    if (animations.is_empty()) {
+        m_force_throttled_animation_style_update = false;
+        m_has_throttled_animation_style_update = false;
+        return;
+    }
+
+    bool has_requested_observation_sample = any_of(animations, [](auto const& animation) {
+        return as_if<Animations::KeyframeEffect>(*animation->effect())->observation_sample_requested();
+    });
+
+    GC::RootVector<GC::Ref<Animations::AnimationTimeline>> timelines_with_current_time_override;
+    if (m_force_throttled_animation_style_update || has_requested_observation_sample) {
+        for (auto& timeline : m_associated_animation_timelines)
+            timelines_with_current_time_override.append(timeline);
+        for (auto& timeline : timelines_with_current_time_override)
+            timeline->set_current_time_override_for_style_sampling(timeline->current_time_for_observation());
+    }
+    ScopeGuard clear_current_time_overrides = [&] {
+        for (auto& timeline : timelines_with_current_time_override)
+            timeline->clear_current_time_override_for_style_sampling();
+    };
+
+    Animations::AnimationUpdateContext context;
+
     quick_sort(animations, [](GC::Ref<Animations::Animation>& a, GC::Ref<Animations::Animation>& b) {
         auto& a_effect = as<Animations::KeyframeEffect>(*a->effect());
         auto& b_effect = as<Animations::KeyframeEffect>(*b->effect());
@@ -2674,10 +2704,12 @@ void Document::sample_animation_effects_needing_style_update()
 
     bool has_throttled_animation_style_update = m_force_throttled_animation_style_update ? false : m_has_throttled_animation_style_update;
     for (auto& animation : animations) {
-        if (!m_force_throttled_animation_style_update
-            && static_cast<Animations::KeyframeEffect&>(*animation->effect()).can_skip_per_frame_style_update()) {
+        auto& effect = *as_if<Animations::KeyframeEffect>(*animation->effect());
+        bool observation_sample_requested = effect.consume_observation_sample_request();
+        if (effect.can_skip_per_frame_style_update()) {
             has_throttled_animation_style_update = true;
-            continue;
+            if (!m_force_throttled_animation_style_update && !observation_sample_requested)
+                continue;
         }
         animation->effect()->update_computed_properties(context);
     }
@@ -2699,6 +2731,27 @@ void Document::flush_throttled_animation_style_update()
     m_has_throttled_animation_style_update = false;
     m_force_throttled_animation_style_update = true;
     m_needs_animated_style_update = true;
+}
+
+void Document::flush_throttled_animation_style_update_for_node(Node const& node)
+{
+    auto task_generation = relevant_settings_object().responsible_event_loop().task_generation();
+    for (auto& animation : m_associated_animations) {
+        if (!animation.effect())
+            continue;
+        auto* effect = as_if<Animations::KeyframeEffect>(*animation.effect());
+        if (!effect)
+            continue;
+        auto target = effect->target();
+        if (!target
+            || !effect->can_skip_per_frame_style_update()
+            || (!target->is_shadow_including_inclusive_ancestor_of(node) && !node.is_shadow_including_inclusive_ancestor_of(*target)))
+            continue;
+        if (m_is_updating_animated_style)
+            m_effects_needing_animated_style_update_after_current_update.set(*effect);
+        else
+            effect->request_element_scoped_observation_sample(task_generation);
+    }
 }
 
 void Document::throttled_animation_visibility_changed()
@@ -2740,7 +2793,7 @@ void Document::finish_animated_style_update()
     m_effects_needing_animated_style_update_after_current_update.clear();
 
     for (auto& effect : effects)
-        set_needs_animated_style_update(*effect);
+        effect->request_observation_sample();
 }
 
 void Document::request_reentrant_animation_style_flush_for_testing(Badge<Internals::Internals>, Node const& node)
@@ -2750,14 +2803,7 @@ void Document::request_reentrant_animation_style_flush_for_testing(Badge<Interna
     ScopeGuard clear_is_updating_animated_style = [&] {
         finish_animated_style_update();
     };
-    for (auto& animation : m_associated_animations) {
-        if (!animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
-            continue;
-        auto& effect = static_cast<Animations::KeyframeEffect&>(*animation.effect());
-        auto target = effect.target();
-        if (target && target->is_shadow_including_inclusive_ancestor_of(node))
-            set_needs_animated_style_update(effect);
-    }
+    flush_throttled_animation_style_update_for_node(node);
 }
 
 void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates derived_structure_updates, ReadonlySpan<Layout::Box const*> boxes_needing_eager_measurement)

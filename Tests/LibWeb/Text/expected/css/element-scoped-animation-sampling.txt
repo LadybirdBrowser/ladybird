@@ -1,0 +1,4 @@
+unrelated reads do not sample animation: true
+related reads sample once per task: true
+related read samples in a later task: true
+ancestor reads sample descendant animations: true

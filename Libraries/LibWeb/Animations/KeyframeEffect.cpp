@@ -1110,6 +1110,15 @@ bool KeyframeEffect::can_skip_per_frame_animation_tick() const
     return true;
 }
 
+void KeyframeEffect::request_observation_sample()
+{
+    if (m_needs_observation_sample)
+        return;
+    m_needs_observation_sample = true;
+    if (m_target_element)
+        m_target_element->document().set_needs_animated_style_update(*this);
+}
+
 void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)
 {
     auto target = this->target();

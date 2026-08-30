@@ -902,13 +902,13 @@ void Document::update_style()
 
 bool Document::update_style_for_element(AbstractElement const& abstract_element)
 {
-    flush_throttled_animation_style_update();
+    flush_throttled_animation_style_update_for_node(abstract_element.element());
     return CSS::update_style_for_element(*this, abstract_element, StyleUpdateMode::Normal);
 }
 
 bool Document::update_style_for_element(AbstractElement const& abstract_element, StyleUpdateMode mode)
 {
-    flush_throttled_animation_style_update();
+    flush_throttled_animation_style_update_for_node(abstract_element.element());
     return CSS::update_style_for_element(*this, abstract_element, mode);
 }
 
