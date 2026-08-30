@@ -109,26 +109,20 @@ CSSPixelRect HitTestDisplayList::viewport_rect_for_context(SpatialNodeIndex spat
     return result.scaled(1.0f / pixel_ratio).to_type<CSSPixels>();
 }
 
-SortingContexts const& HitTestDisplayList::ensure_sorting_contexts(DOM::Document const& document) const
-{
-    // The version check at every entry point guarantees the tree still matches this list.
-    if (!m_sorting_contexts.has_value())
-        m_sorting_contexts = document.visual_context_tree().resolve_sorting_contexts();
-    return *m_sorting_contexts;
-}
-
 struct HitTestDisplayList::QueryContext {
-    HitTestDisplayList const& list;
     GC::Ptr<DOM::Document const> document;
     double device_pixels_per_css_pixel { 1 };
     ChromeMetrics const* chrome_metrics { nullptr };
     GC::Ptr<DOM::Node const> scope { nullptr };
-    HashMap<u32, Optional<i64>> depth_key_by_plane {};
 
     Layout::RustFFI::FfiHitTestQueryCallbacks callbacks()
     {
+        auto scroll_offsets = document ? document->scroll_state_snapshot().device_offsets() : ReadonlySpan<Gfx::FloatPoint> {};
         Layout::RustFFI::FfiHitTestQueryCallbacks callbacks {
             .context = this,
+            .device_pixels_per_css_pixel = device_pixels_per_css_pixel,
+            .scroll_offsets = scroll_offsets.data(),
+            .scroll_offsets_len = scroll_offsets.size(),
             .has_chrome_metrics = chrome_metrics != nullptr,
             .chrome_metrics = {},
             .viewport_wheel_overflow_x = 0,
@@ -148,40 +142,6 @@ struct HitTestDisplayList::QueryContext {
                 VERIFY(context.scope);
                 auto const* dom_node = dom_node_for_shell(shell);
                 return dom_node && context.scope->is_inclusive_ancestor_of(*dom_node);
-            },
-            .sorting_context_group = [](void* context_pointer, SpatialNodeIndex spatial, size_t* out) -> bool {
-                auto& context = *static_cast<QueryContext*>(context_pointer);
-                VERIFY(context.document);
-                auto const& sorting_contexts = context.list.ensure_sorting_contexts(*context.document);
-                if (sorting_contexts.is_empty())
-                    return false;
-                if (sorting_contexts.leaf_by_node[spatial.value()] == NO_SORTING_CONTEXT)
-                    return false;
-                *out = sorting_contexts.outermost_context_of(sorting_contexts.context_by_node[spatial.value()]).value();
-                return true;
-            },
-            .plane_depth_key = [](void* context_pointer, SpatialNodeIndex spatial, CSSPixelPoint point, i64* out) -> bool {
-                auto& context = *static_cast<QueryContext*>(context_pointer);
-                VERIFY(context.document);
-                auto const& sorting_contexts = context.list.ensure_sorting_contexts(*context.document);
-                if (sorting_contexts.is_empty())
-                    return false;
-                auto leaf = sorting_contexts.leaf_by_node[spatial.value()];
-                if (leaf == NO_SORTING_CONTEXT)
-                    return false;
-                // The plane's depth is the same for every query against one point, so it is resolved once.
-                auto depth_key = context.depth_key_by_plane.ensure(leaf.value(), [&]() -> Optional<i64> {
-                    auto device_point = point.to_type<float>() * static_cast<float>(context.device_pixels_per_css_pixel);
-                    auto depth = context.document->visual_context_tree().plane_depth_at_point_for_hit_test(leaf, device_point, context.document->scroll_state_snapshot());
-                    if (!depth.has_value())
-                        return {};
-                    static constexpr float depth_limit = 16777216.0f;
-                    return llround(clamp(*depth, -depth_limit, depth_limit) * 8.0f);
-                });
-                if (!depth_key.has_value())
-                    return false;
-                *out = *depth_key;
-                return true;
             },
         };
         if (chrome_metrics)
@@ -244,13 +204,13 @@ Optional<HitTestDisplayList::TopmostItem> HitTestDisplayList::topmost_item_from(
 
 Optional<HitTestDisplayList::TopmostItem> HitTestDisplayList::find_topmost_item(CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics) const
 {
-    QueryContext context { *this, &document, device_pixels_per_css_pixel, &chrome_metrics, nullptr };
+    QueryContext context { &document, device_pixels_per_css_pixel, &chrome_metrics, nullptr };
     return topmost_item_from(Layout::RustFFI::layout_arena_hit_test_find_topmost_item(m_arena->handle(), context.callbacks(), point));
 }
 
 void HitTestDisplayList::find_topmost_items_for_caret(CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics, Optional<TopmostItem>& caret_item, Optional<TopmostItem>& hit_item) const
 {
-    QueryContext context { *this, &document, device_pixels_per_css_pixel, &chrome_metrics, nullptr };
+    QueryContext context { &document, device_pixels_per_css_pixel, &chrome_metrics, nullptr };
     auto items = Layout::RustFFI::layout_arena_hit_test_find_topmost_items_for_caret(m_arena->handle(), context.callbacks(), point);
     caret_item = topmost_item_from(items.caret_item);
     hit_item = topmost_item_from(items.hit_item);
@@ -258,7 +218,7 @@ void HitTestDisplayList::find_topmost_items_for_caret(CSSPixelPoint point, DOM::
 
 Vector<size_t> HitTestDisplayList::hit_item_indices_topmost_first(CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics) const
 {
-    QueryContext context { *this, &document, device_pixels_per_css_pixel, &chrome_metrics, nullptr };
+    QueryContext context { &document, device_pixels_per_css_pixel, &chrome_metrics, nullptr };
     Vector<size_t> indices;
     Layout::RustFFI::layout_arena_hit_test_all(m_arena->handle(), context.callbacks(), point, &indices, [](void* sink, size_t index) {
         static_cast<Vector<size_t>*>(sink)->append(index);
@@ -286,7 +246,7 @@ bool HitTestDisplayList::item_is_inline_adjacent_to_line(size_t item_index, size
 
 HitTestDisplayList::ClosestLine HitTestDisplayList::find_closest_line(CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel, CaretPositionMode mode, DOM::Node const* scope_dom_node, AccumulatedVisualContextTree::ClipBehavior clip_behavior) const
 {
-    QueryContext context { *this, &document, device_pixels_per_css_pixel, nullptr, scope_dom_node };
+    QueryContext context { &document, device_pixels_per_css_pixel, nullptr, scope_dom_node };
     auto result = Layout::RustFFI::layout_arena_hit_test_find_closest_line(m_arena->handle(), context.callbacks(), point, to_underlying(mode), scope_dom_node != nullptr, clip_behavior == AccumulatedVisualContextTree::ClipBehavior::Respect);
     ClosestLine closest_line;
     if (result.has_index)
@@ -487,7 +447,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_on_adjacent_line(DOM:
         return {};
 
     // INTEROP: Vertical caret movement in Chromium, WebKit, and Gecko follows rendered line geometry rather than DOM
-    QueryContext context { *this, nullptr, 1, nullptr, &scope };
+    QueryContext context { nullptr, 1, nullptr, &scope };
     auto adjacent = Layout::RustFFI::layout_arena_hit_test_adjacent_line(m_arena->handle(), context.callbacks(), current_line.line_index, direction == CaretLineDirection::Next ? 1 : 0, inline_coordinate.raw_value());
     if (!adjacent.has_line)
         return {};

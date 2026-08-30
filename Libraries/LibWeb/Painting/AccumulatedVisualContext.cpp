@@ -433,27 +433,6 @@ SortingContexts AccumulatedVisualContextTree::resolve_sorting_contexts() const
     return contexts;
 }
 
-Optional<float> AccumulatedVisualContextTree::plane_depth_at_point_for_hit_test(SpatialNodeIndex plane_node_index, Gfx::FloatPoint screen_point, ScrollStateSnapshot const& scroll_state) const
-{
-    auto chain = build_ancestor_chain(plane_node_index);
-    auto accumulated_matrix = Gfx::FloatMatrix4x4::identity();
-    for (size_t i = chain.size(); i > 0; --i) {
-        auto node_index = chain[i - 1];
-        auto local = local_spatial_matrix(m_spatial_nodes[node_index.value()], node_index, scroll_state);
-        accumulated_matrix = (local.flattens_inherited_transform ? Gfx::flattened(accumulated_matrix) : accumulated_matrix) * local.matrix;
-    }
-
-    auto inverse = accumulated_matrix.inverse();
-    if (!inverse.has_value())
-        return {};
-
-    auto const& matrix = *inverse;
-    auto depth = -(screen_point.x() * matrix[2, 0] + screen_point.y() * matrix[2, 1] + matrix[2, 3]) / matrix[2, 2];
-    if (!isfinite(depth))
-        return {};
-    return depth;
-}
-
 Gfx::FloatPoint AccumulatedVisualContextTree::inverse_transform_point(SpatialNodeIndex index, Gfx::FloatPoint screen_point) const
 {
     auto chain = build_ancestor_chain(index);

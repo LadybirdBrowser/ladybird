@@ -617,6 +617,20 @@ impl VisualContextTree {
         }
     }
 
+    pub fn plane_depth_at_point_for_hit_test(
+        &self,
+        plane_node_index: SpatialNodeIndex,
+        screen_point: FloatPoint,
+        scroll_offsets: &[FloatPoint],
+    ) -> Option<f32> {
+        let inverse = self
+            .accumulated_matrix(plane_node_index, scroll_offsets, IncludeVisualViewportTransform::Yes)
+            .inverse()?;
+        let matrix = &inverse.elements;
+        let depth = -(screen_point.x * matrix[2][0] + screen_point.y * matrix[2][1] + matrix[2][3]) / matrix[2][2];
+        depth.is_finite().then_some(depth)
+    }
+
     pub fn resolve_sorting_contexts(&self) -> SortingContexts {
         let node_count = self.spatial_nodes.len();
 
@@ -1139,6 +1153,70 @@ mod tests {
             })
         );
         assert_eq!(contexts.outermost_context_of(inner_context), outer_context);
+    }
+
+    #[test]
+    fn an_untransformed_plane_has_zero_depth() {
+        let tree = tree();
+        assert_eq!(
+            tree.plane_depth_at_point_for_hit_test(VISUAL_VIEWPORT_NODE_INDEX, FloatPoint { x: 25.0, y: 50.0 }, &[]),
+            Some(0.0)
+        );
+    }
+
+    #[test]
+    fn a_plane_translated_in_z_has_the_translated_depth() {
+        let mut tree = tree();
+        let plane = tree.append_spatial(
+            SpatialData::Transform(TransformData {
+                matrix: translation_matrix(0.0, 0.0, 75.0),
+                ..transform(0.0)
+            }),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        assert_eq!(
+            tree.plane_depth_at_point_for_hit_test(plane, FloatPoint { x: 25.0, y: 50.0 }, &[]),
+            Some(75.0)
+        );
+    }
+
+    #[test]
+    fn a_perspective_chain_projects_the_plane_depth() {
+        let mut tree = tree();
+        let perspective = tree.append_spatial(
+            SpatialData::Perspective(PerspectiveData {
+                matrix: libgfx_rust::perspective_matrix(1000.0),
+                flattens_inherited_transform: false,
+            }),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let plane = tree.append_spatial(
+            SpatialData::Transform(TransformData {
+                matrix: translation_matrix(0.0, 0.0, 100.0),
+                ..transform(0.0)
+            }),
+            perspective,
+        );
+        let depth = tree
+            .plane_depth_at_point_for_hit_test(plane, FloatPoint { x: 25.0, y: 50.0 }, &[])
+            .unwrap();
+        assert!((depth - 1000.0 / 9.0).abs() < 0.0001);
+    }
+
+    #[test]
+    fn a_singular_accumulated_matrix_has_no_plane_depth() {
+        let mut tree = tree();
+        let plane = tree.append_spatial(
+            SpatialData::Transform(TransformData {
+                matrix: libgfx_rust::scale_matrix(0.0, 1.0, 1.0),
+                ..transform(0.0)
+            }),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        assert_eq!(
+            tree.plane_depth_at_point_for_hit_test(plane, FloatPoint { x: 25.0, y: 50.0 }, &[]),
+            None
+        );
     }
 
     #[test]

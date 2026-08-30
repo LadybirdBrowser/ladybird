@@ -7,7 +7,7 @@
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::used_values;
 use crate::layout::used_values::OptionalCssPixelRect;
-use crate::painting::display_list::commands::{ContextRef, SpatialNodeIndex};
+use crate::painting::display_list::commands::ContextRef;
 use std::ffi::c_void;
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -64,6 +64,9 @@ impl FfiHitTestHostCallbacks {
 #[repr(C)]
 pub struct FfiHitTestQueryCallbacks {
     pub context: *mut c_void,
+    pub device_pixels_per_css_pixel: f64,
+    pub scroll_offsets: *const libgfx_rust::FloatPoint,
+    pub scroll_offsets_len: usize,
     pub has_chrome_metrics: bool,
     pub chrome_metrics: crate::painting::ffi::FfiChromeMetrics,
     pub viewport_wheel_overflow_x: u8,
@@ -76,9 +79,6 @@ pub struct FfiHitTestQueryCallbacks {
         *mut libgfx_rust::FloatPoint,
     ) -> bool,
     pub shell_in_scope: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
-    pub sorting_context_group: unsafe extern "C" fn(*mut c_void, SpatialNodeIndex, *mut usize) -> bool,
-    pub plane_depth_key:
-        unsafe extern "C" fn(*mut c_void, SpatialNodeIndex, used_values::FfiCssPixelPoint, *mut i64) -> bool,
 }
 
 impl FfiHitTestQueryCallbacks {
@@ -99,23 +99,12 @@ impl FfiHitTestQueryCallbacks {
         // SAFETY: The C++ host answers synchronously.
         unsafe { (self.shell_in_scope)(self.context, shell) }
     }
-    // The outermost 3D rendering context sorting the plane the visual context node renders into.
-    pub(crate) fn sorting_context_group(&self, spatial: SpatialNodeIndex) -> Option<usize> {
-        let mut group = 0usize;
-        // SAFETY: The C++ host writes the group synchronously when it returns true.
-        let has_group = unsafe { (self.sorting_context_group)(self.context, spatial, &raw mut group) };
-        has_group.then_some(group)
-    }
-    // The depth of that plane at the queried point, quantized so coplanar planes compare equal.
-    pub(crate) fn plane_depth_key(
-        &self,
-        spatial: SpatialNodeIndex,
-        point: crate::css::css_pixels::CssPixelPoint,
-    ) -> Option<i64> {
-        let mut depth = 0i64;
-        // SAFETY: The C++ host writes the depth synchronously when it returns true.
-        let has_depth = unsafe { (self.plane_depth_key)(self.context, spatial, point.into(), &raw mut depth) };
-        has_depth.then_some(depth)
+    pub(crate) fn scroll_offsets(&self) -> &[libgfx_rust::FloatPoint] {
+        if self.scroll_offsets.is_null() {
+            return &[];
+        }
+        // SAFETY: QueryContext keeps the document and its resolved scroll snapshot alive for the synchronous query.
+        unsafe { std::slice::from_raw_parts(self.scroll_offsets, self.scroll_offsets_len) }
     }
 }
 

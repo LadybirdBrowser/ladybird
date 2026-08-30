@@ -9,6 +9,73 @@ use crate::layout::LayoutNodeArena;
 use crate::painting::chrome_geometry::{ChromeGeometry, scrollbar_is_enlarged};
 use crate::painting::ffi::ScrollDirection;
 use crate::painting::host::FfiHitTestQueryCallbacks;
+use crate::painting::visual_context::{NO_SORTING_CONTEXT, SortingContexts, SpatialNodeIndex, VisualContextTree};
+
+struct DepthSortingState<'a> {
+    tree: &'a VisualContextTree,
+    point: CssPixelPoint,
+    device_pixels_per_css_pixel: f32,
+    scroll_offsets: &'a [libgfx_rust::FloatPoint],
+    sorting_contexts: Option<SortingContexts>,
+    depth_key_by_plane: HashMap<u32, Option<i64>>,
+}
+
+impl<'a> DepthSortingState<'a> {
+    fn new(callbacks: &'a FfiHitTestQueryCallbacks, tree: &'a VisualContextTree, point: CssPixelPoint) -> Self {
+        Self {
+            tree,
+            point,
+            device_pixels_per_css_pixel: callbacks.device_pixels_per_css_pixel as f32,
+            scroll_offsets: callbacks.scroll_offsets(),
+            sorting_contexts: None,
+            depth_key_by_plane: HashMap::new(),
+        }
+    }
+
+    fn sorting_contexts(&mut self) -> &SortingContexts {
+        self.sorting_contexts
+            .get_or_insert_with(|| self.tree.resolve_sorting_contexts())
+    }
+
+    fn group_for(&mut self, spatial: SpatialNodeIndex) -> Option<u32> {
+        let contexts = self.sorting_contexts();
+        if contexts.is_empty() || contexts.leaf_by_node[spatial.0 as usize] == NO_SORTING_CONTEXT {
+            None
+        } else {
+            Some(
+                contexts
+                    .outermost_context_of(contexts.context_by_node[spatial.0 as usize])
+                    .0,
+            )
+        }
+    }
+
+    fn depth_key_for(&mut self, spatial: SpatialNodeIndex) -> Option<i64> {
+        let contexts = self.sorting_contexts();
+        if contexts.is_empty() {
+            return None;
+        }
+        let leaf = contexts.leaf_by_node[spatial.0 as usize];
+        if leaf == NO_SORTING_CONTEXT {
+            return None;
+        }
+        if let Some(depth_key) = self.depth_key_by_plane.get(&leaf.0) {
+            return *depth_key;
+        }
+
+        let screen_point = libgfx_rust::FloatPoint {
+            x: self.point.x.to_float() * self.device_pixels_per_css_pixel,
+            y: self.point.y.to_float() * self.device_pixels_per_css_pixel,
+        };
+        let depth = self
+            .tree
+            .plane_depth_at_point_for_hit_test(leaf, screen_point, self.scroll_offsets);
+        const DEPTH_LIMIT: f32 = 16777216.0;
+        let depth_key = depth.map(|depth| (depth.clamp(-DEPTH_LIMIT, DEPTH_LIMIT) * 8.0).round() as i64);
+        self.depth_key_by_plane.insert(leaf.0, depth_key);
+        depth_key
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TopmostItem {
@@ -174,14 +241,9 @@ impl HitTestList {
 
     // Planes of a 3D rendering context paint depth sorted, so the front-most plane at the point wins over a
     // plane recorded later. Coplanar planes compare equal and fall back to record order.
-    fn depth_sort_key(
-        &self,
-        callbacks: &FfiHitTestQueryCallbacks,
-        point: CssPixelPoint,
-        item_index: usize,
-    ) -> (Option<i64>, usize) {
+    fn depth_sort_key(&self, depth_sorting: &mut DepthSortingState<'_>, item_index: usize) -> (Option<i64>, usize) {
         (
-            callbacks.plane_depth_key(self.items[item_index].context.spatial, point),
+            depth_sorting.depth_key_for(self.items[item_index].context.spatial),
             item_index,
         )
     }
@@ -189,16 +251,18 @@ impl HitTestList {
     fn topmost_item_by_plane_depth(
         &self,
         layout_arena: &LayoutNodeArena,
+        visual_context_tree: &VisualContextTree,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
         topmost: TopmostItem,
     ) -> TopmostItem {
-        let Some(group) = callbacks.sorting_context_group(self.items[topmost.index].context.spatial) else {
+        let mut depth_sorting = DepthSortingState::new(callbacks, visual_context_tree, point);
+        let Some(group) = depth_sorting.group_for(self.items[topmost.index].context.spatial) else {
             return topmost;
         };
         let mut winner = topmost;
         for (context, spatial_index) in &self.spatial_indexes_by_context {
-            if callbacks.sorting_context_group(context.spatial) != Some(group) {
+            if depth_sorting.group_for(context.spatial) != Some(group) {
                 continue;
             }
             let Some(local) = local_float_point(callbacks, *context, point, true) else {
@@ -215,9 +279,9 @@ impl HitTestList {
                     {
                         continue;
                     }
-                    if self.depth_sort_key(callbacks, point, *item_index)
-                        > self.depth_sort_key(callbacks, point, winner.index)
-                    {
+                    let candidate_key = self.depth_sort_key(&mut depth_sorting, *item_index);
+                    let winner_key = self.depth_sort_key(&mut depth_sorting, winner.index);
+                    if candidate_key > winner_key {
                         winner = TopmostItem {
                             index: *item_index,
                             local_point,
@@ -232,6 +296,7 @@ impl HitTestList {
     pub(crate) fn find_topmost_item(
         &self,
         layout_arena: &LayoutNodeArena,
+        visual_context_tree: &VisualContextTree,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
     ) -> Option<TopmostItem> {
@@ -239,7 +304,7 @@ impl HitTestList {
         // Record order misranks content inside a 3D rendering context, whose planes paint depth sorted. A winner
         // on such a plane is re-resolved against every hit plane of its outermost context. Content outside the
         // context keeps record order, which stays correct because a context's items are recorded contiguously.
-        Some(self.topmost_item_by_plane_depth(layout_arena, callbacks, point, topmost))
+        Some(self.topmost_item_by_plane_depth(layout_arena, visual_context_tree, callbacks, point, topmost))
     }
 
     pub(crate) fn find_topmost_items_for_caret(
@@ -255,6 +320,7 @@ impl HitTestList {
     pub(crate) fn hit_test_all(
         &self,
         layout_arena: &LayoutNodeArena,
+        visual_context_tree: &VisualContextTree,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
     ) -> Vec<usize> {
@@ -278,7 +344,7 @@ impl HitTestList {
         }
         hit_item_indices.sort_by(|a, b| b.cmp(a));
         hit_item_indices.dedup();
-        self.sort_hits_within_sorting_contexts(callbacks, point, &mut hit_item_indices);
+        self.sort_hits_within_sorting_contexts(visual_context_tree, callbacks, point, &mut hit_item_indices);
         hit_item_indices
     }
 
@@ -286,21 +352,24 @@ impl HitTestList {
     // are recorded contiguously, so after the record-order sort its hits sit adjacent.
     fn sort_hits_within_sorting_contexts(
         &self,
+        visual_context_tree: &VisualContextTree,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
         hit_item_indices: &mut [usize],
     ) {
-        let group_of = |item_index: usize| callbacks.sorting_context_group(self.items[item_index].context.spatial);
+        let mut depth_sorting = DepthSortingState::new(callbacks, visual_context_tree, point);
         let mut run_begin = 0;
         while run_begin < hit_item_indices.len() {
-            let group = group_of(hit_item_indices[run_begin]);
+            let group = depth_sorting.group_for(self.items[hit_item_indices[run_begin]].context.spatial);
             let mut run_end = run_begin + 1;
             if group.is_some() {
-                while run_end < hit_item_indices.len() && group_of(hit_item_indices[run_end]) == group {
+                while run_end < hit_item_indices.len()
+                    && depth_sorting.group_for(self.items[hit_item_indices[run_end]].context.spatial) == group
+                {
                     run_end += 1;
                 }
                 hit_item_indices[run_begin..run_end]
-                    .sort_by_key(|item_index| std::cmp::Reverse(self.depth_sort_key(callbacks, point, *item_index)));
+                    .sort_by_key(|item_index| std::cmp::Reverse(self.depth_sort_key(&mut depth_sorting, *item_index)));
             }
             run_begin = run_end;
         }

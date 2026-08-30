@@ -2551,6 +2551,33 @@ fn with_hit_test_list<R>(
     query(list, arena)
 }
 
+fn with_hit_test_list_and_visual_context_tree<R>(
+    arena: *mut c_void,
+    default: R,
+    query: impl FnOnce(
+        &crate::painting::hit_test::HitTestList,
+        &crate::painting::visual_context::VisualContextTree,
+        &crate::layout::LayoutNodeArena,
+    ) -> R,
+) -> R {
+    // SAFETY: The caller passes a live arena handle (documented on every entry point below).
+    let arena = unsafe { arena_from_handle(arena) };
+    let mut paint_state = arena.paint_state().borrow_mut();
+    let crate::painting::paint_state::PaintState {
+        hit_test_list,
+        visual_context,
+        ..
+    } = &mut *paint_state;
+    let Some(list) = hit_test_list.as_mut() else {
+        return default;
+    };
+    list.build_derived_structures_if_needed();
+    let Some(tree) = visual_context.tree.as_ref() else {
+        return default;
+    };
+    query(list, tree, arena)
+}
+
 fn ffi_topmost(item: Option<crate::painting::hit_test::query::TopmostItem>) -> crate::painting::host::FfiTopmostItem {
     match item {
         Some(item) => crate::painting::host::FfiTopmostItem {
@@ -2572,8 +2599,8 @@ pub unsafe extern "C" fn layout_arena_hit_test_find_topmost_item(
     point: FfiCssPixelPoint,
 ) -> crate::painting::host::FfiTopmostItem {
     abort_on_panic(|| {
-        with_hit_test_list(arena, Default::default(), |list, arena| {
-            ffi_topmost(list.find_topmost_item(arena, &callbacks, point.into()))
+        with_hit_test_list_and_visual_context_tree(arena, Default::default(), |list, tree, arena| {
+            ffi_topmost(list.find_topmost_item(arena, tree, &callbacks, point.into()))
         })
     })
 }
@@ -2610,8 +2637,8 @@ pub unsafe extern "C" fn layout_arena_hit_test_all(
     push: unsafe extern "C" fn(*mut c_void, usize),
 ) {
     abort_on_panic(|| {
-        let indices = with_hit_test_list(arena, Vec::new(), |list, arena| {
-            list.hit_test_all(arena, &callbacks, point.into())
+        let indices = with_hit_test_list_and_visual_context_tree(arena, Vec::new(), |list, tree, arena| {
+            list.hit_test_all(arena, tree, &callbacks, point.into())
         });
         for index in indices {
             // SAFETY: The C++ sink consumes the index synchronously.
