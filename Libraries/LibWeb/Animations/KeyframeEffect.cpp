@@ -1036,7 +1036,11 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
         return false;
 
     auto target = this->target();
-    if (!target || target->namespace_uri() == Namespace::SVG)
+    if (!target)
+        return false;
+    if (!target->is_connected())
+        return true;
+    if (target->namespace_uri() == Namespace::SVG)
         return false;
 
     bool has_animated_property = false;
@@ -1081,12 +1085,11 @@ bool KeyframeEffect::can_skip_per_frame_animation_tick() const
     if (!can_skip_per_frame_style_update())
         return false;
 
-    auto has_css_animation_event_listener = [](DOM::EventTarget const& event_target) {
+    // An infinite effect cannot reach its natural end, so animationend listeners do not require a continuous tick.
+    auto has_css_animation_event_listener_requiring_animation_tick = [](DOM::EventTarget const& event_target) {
         return event_target.has_event_listener(HTML::EventNames::animationcancel)
-            || event_target.has_event_listener(HTML::EventNames::animationend)
             || event_target.has_event_listener(HTML::EventNames::animationiteration)
             || event_target.has_event_listener(HTML::EventNames::animationstart)
-            || event_target.has_event_listener(HTML::EventNames::webkitAnimationEnd)
             || event_target.has_event_listener(HTML::EventNames::webkitAnimationIteration)
             || event_target.has_event_listener(HTML::EventNames::webkitAnimationStart);
     };
@@ -1094,14 +1097,14 @@ bool KeyframeEffect::can_skip_per_frame_animation_tick() const
     auto target = this->target();
     VERIFY(target);
     for (auto* node = static_cast<DOM::Node*>(target.ptr()); node;) {
-        if (has_css_animation_event_listener(*node))
+        if (has_css_animation_event_listener_requiring_animation_tick(*node))
             return false;
         if (auto assigned_slot = DOM::assigned_slot_for_node(*node))
             node = assigned_slot.ptr();
         else
             node = node->parent_or_shadow_host();
     }
-    if (auto window = target->document().window(); window && has_css_animation_event_listener(*window))
+    if (auto window = target->document().window(); window && has_css_animation_event_listener_requiring_animation_tick(*window))
         return false;
 
     return true;

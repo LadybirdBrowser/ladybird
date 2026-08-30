@@ -4,6 +4,11 @@ animation event listener keeps frame pump active: true
 animation event listener skips past events: 0
 removing animation event listener stops frame pump: 0
 computed style samples hidden animation: true
+detached animation stops frame pump: 0
+detached animation current time advances: true
+unreachable end listener leaves detached animation throttled: true
+detached animation listener keeps frame pump active: true
+detached animation dispatches iteration event: 1
 visible animation builds while hidden stays throttled: 4
 computed style samples hidden animation alongside visible animation: true
 style-only visibility change samples animation: true
