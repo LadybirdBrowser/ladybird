@@ -3583,6 +3583,15 @@ static Optional<Web::CrossDocumentNavigationFinalizationHostState> prepare_to_fi
         return {};
     }
 
+    // The history operation can reach its queue position after its page has started closing. In that case the
+    // navigable may not have been marked destroyed yet, while destruction has already detached the pending document
+    // from its browsing context or destroyed the active document. There is no live navigation left to finalize.
+    auto active_document = navigable->active_document();
+    if (pending_document && (pending_document->has_been_destroyed() || !pending_document->browsing_context() || !active_document || active_document->has_been_destroyed())) {
+        navigable->set_delaying_load_events(false);
+        return {};
+    }
+
     // The UI process has reached this navigation's position on the session history traversal queue. Perform the
     // parts of finalization that need the live navigable and Document, then return the facts needed to continue the
     // algorithm there.
@@ -3609,7 +3618,7 @@ static Optional<Web::CrossDocumentNavigationFinalizationHostState> prepare_to_fi
     return Web::CrossDocumentNavigationFinalizationHostState {
         .pending_document_is_in_auxiliary_browsing_context_with_opener = pending_document->browsing_context()->is_auxiliary() && pending_document->browsing_context()->opener_browsing_context() != nullptr,
         .pending_document_origin = pending_document->origin(),
-        .active_document_origin = navigable->active_document()->origin(),
+        .active_document_origin = active_document->origin(),
     };
 }
 

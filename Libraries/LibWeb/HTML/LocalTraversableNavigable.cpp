@@ -650,8 +650,20 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
             //         later navigations. Our web-compatible deferral of navigations that arrive during traversal
             //         can let a newer navigation replace the current entry before this task runs. Treat this state
             //         as stale instead of applying its old target step after the newer navigation.
-            on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Stale, nullptr });
-            return;
+            //
+            //         A synchronous navigation that jumps the queue during this run's apply-history-step re-claims
+            //         the navigable the same way, but does not supersede a traversal, reload, or cross-document
+            //         navigation: those runs still apply their claimed target entry once the jumped navigation's
+            //         nested run completes. A navigation proven newer completes the job as stale before this task
+            //         is queued.
+            auto reclaimed_by_cooperating_synchronous_navigation = target_entry
+                && job.navigation_type.has_value()
+                && !is_same_document_push_or_replace(job.navigation_type, *claimed_target_entry, navigable->active_document_id());
+            if (!reclaimed_by_cooperating_synchronous_navigation) {
+                on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Stale, nullptr });
+                return;
+            }
+            target_entry = claimed_target_entry;
         }
 
         auto displayed_step = displayed_entry ? displayed_entry->step_value() : Optional<int> {};

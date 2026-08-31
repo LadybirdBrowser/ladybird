@@ -25,12 +25,8 @@
 
 namespace WebView {
 
-// The per-navigable jobs of apply-the-history-step, run in the process hosting each navigable's documents. Jobs are
-// described by ids and entry descriptors, never by live documents.
-//
-// The caller-supplied job functions must complete every job exactly once, even when the target process is missing or
-// has crashed (for example with a Skipped disposition), and must not invoke a job's completion callback after the
-// operation that dispatched it has completed.
+// Cross-process jobs used by apply the history step. Each job must complete exactly once, including after endpoint
+// loss, and must not call back after its operation completes.
 struct WEBVIEW_API ApplyHistoryStepJobs {
 
     // "5. If checkForCancelation is true, and the result of checking if unloading is canceled given
@@ -125,8 +121,6 @@ public:
     Optional<i32> committed_step() const { return m_committed_step; }
 
 private:
-    // The algorithm's steps. Asynchronous work resumes the algorithm by entering the next phase (or re-entering the
-    // current one) from its completion callback.
     void get_changing_and_nonchanging_navigables();
     void run_changing_navigable_jobs();
     void process_changing_navigable_continuations();
@@ -140,15 +134,12 @@ private:
     void return_result(Web::HTML::HistoryStepResult);
     CanonicalNavigable* find_navigable(Web::HTML::CrossProcessId);
 
-    // The traversable navigable the algorithm runs against: its canonical session history, its navigable tree, its
-    // session history traversal queue, and the apply-history-step state it shares across runs.
     TraversableSessionHistory& m_session_history;
     CanonicalNavigable& m_traversable_navigable;
     SessionHistoryTraversalQueue& m_session_history_traversal_queue;
     TraversableApplyHistoryStepState& m_traversable_state;
     ApplyHistoryStepJobs m_jobs;
 
-    // UI-process bookkeeping for the history operation running this algorithm.
     Web::HTML::CrossProcessId const m_operation_id;
     u64 const m_operation_sequence_number;
 
@@ -179,6 +170,10 @@ private:
 
     // The synchronous navigation steps this run is paused on ("running nested apply history step" is true).
     RefPtr<Core::Promise<Empty>> m_running_synchronous_navigation_steps;
+
+    bool m_changing_jobs_dispatched { false };
+    bool m_processing_changing_navigable_continuations { false };
+    bool m_continuation_in_flight { false };
 
     Optional<i32> m_committed_step;
     bool m_completed { false };
