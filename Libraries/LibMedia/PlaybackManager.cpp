@@ -125,8 +125,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
                 return;
             self->update_duration_from_scan_states();
             self->update_pipeline_state();
-            if (self->on_buffered_ranges_change)
-                self->on_buffered_ranges_change();
+            self->dispatch_buffered_ranges_change();
         });
         self->update_duration_from_scan_states();
 
@@ -381,6 +380,14 @@ void PlaybackManager::check_for_duration_change(AK::Duration duration)
         on_duration_change(m_duration);
 }
 
+void PlaybackManager::set_duration(AK::Duration duration)
+{
+    if (m_duration == duration)
+        return;
+    m_duration = duration;
+    dispatch_buffered_ranges_change();
+}
+
 void PlaybackManager::dispatch_error(DecoderError&& error)
 {
     VERIFY(error.category() != DecoderErrorCategory::EndOfStream);
@@ -390,6 +397,12 @@ void PlaybackManager::dispatch_error(DecoderError&& error)
     m_is_in_error_state = true;
     if (on_error)
         on_error(move(error));
+}
+
+void PlaybackManager::dispatch_buffered_ranges_change()
+{
+    if (on_buffered_ranges_change)
+        on_buffered_ranges_change();
 }
 
 void PlaybackManager::set_clock(NonnullRefPtr<MediaClock> const& clock)
@@ -436,6 +449,7 @@ void PlaybackManager::attach_video_sink(VideoTrackData& track_data, NonnullRefPt
     MUST(video_sink->connect_input(track_data.producer));
     track_data.video_sink = move(video_sink);
     update_pipeline_state();
+    dispatch_buffered_ranges_change();
 }
 
 VideoSinkHandle PlaybackManager::reserve_video_sink_handle(Track const& track)
@@ -469,6 +483,7 @@ void PlaybackManager::disable_video_sink_by_handle(VideoSinkHandle handle)
     }
     track_data->handle = {};
     update_pipeline_state();
+    dispatch_buffered_ranges_change();
 }
 
 void PlaybackManager::set_video_sink_ticking(VideoSinkHandle handle, bool ticking)
@@ -494,6 +509,7 @@ void PlaybackManager::detach_video_sink(VideoSinkHandle handle)
     }
     track_data->sink_status = PipelineStatus::Pending;
     update_pipeline_state();
+    dispatch_buffered_ranges_change();
 }
 
 ErrorOr<PlaybackManager::RemoteVideoEdge> PlaybackManager::create_video_edge(VideoSinkHandle handle, RemoteVideoSink::Delegates delegates)
@@ -555,6 +571,7 @@ void PlaybackManager::enable_an_audio_track(Track const& track)
     }
     track_data.enabled = true;
     update_pipeline_state();
+    dispatch_buffered_ranges_change();
 }
 
 void PlaybackManager::disable_an_audio_track(Track const& track)
@@ -568,6 +585,7 @@ void PlaybackManager::disable_an_audio_track(Track const& track)
     }
     track_data.enabled = false;
     update_pipeline_state();
+    dispatch_buffered_ranges_change();
 }
 
 bool PlaybackManager::track_is_enabled(Track const& track) const
