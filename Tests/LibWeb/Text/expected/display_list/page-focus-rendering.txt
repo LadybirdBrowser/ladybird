@@ -85,7 +85,7 @@ DisplayList:
 FillRect@s1/f0 rect=[0,0 86x22] color=rgb(255, 255, 255)
 FillPath@s1/f0 path_bounding_rect=[0,0 86x22]
 DrawGlyphRun@s1/f1 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
-FillRect@s1/f1 rect=[22,3 1x16] color=rgb(0, 0, 0)
+PaintCaret@s1/f1 rect=[22,3 1x16] color=rgb(0, 0, 0) should_blink=false
 FillPath@s1/f0 path_bounding_rect=[-2,-2 90x26]
 DrawLine@s1/f0 from=[81,19] to=[83,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
 DrawLine@s1/f0 from=[80,19] to=[83,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
@@ -129,7 +129,7 @@ DisplayList:
 FillRect@s1/f0 rect=[0,0 86x22] color=rgb(255, 255, 255)
 FillPath@s1/f0 path_bounding_rect=[0,0 86x22]
 DrawGlyphRun@s1/f1 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
-FillRect@s1/f1 rect=[22,3 1x16] color=rgb(0, 0, 0)
+PaintCaret@s1/f1 rect=[22,3 1x16] color=rgb(0, 0, 0) should_blink=false
 FillPath@s1/f0 path_bounding_rect=[-2,-2 90x26]
 DrawLine@s1/f0 from=[81,19] to=[83,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
 DrawLine@s1/f0 from=[80,19] to=[83,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid

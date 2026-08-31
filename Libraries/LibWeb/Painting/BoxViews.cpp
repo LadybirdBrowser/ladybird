@@ -506,7 +506,7 @@ bool should_paint_cursor(Layout::Node const& node)
         return false;
 
     auto const& document = node.document();
-    if (!document.cursor_blink_state() || !document.navigable()->is_focused())
+    if (!document.navigable()->is_focused())
         return false;
 
     auto cursor_position = document.cursor_position();

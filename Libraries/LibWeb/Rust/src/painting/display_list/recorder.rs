@@ -331,6 +331,21 @@ impl DisplayListRecorder {
         self.append_command(&FillRect { rect, color }, &[]);
     }
 
+    pub fn paint_caret(&mut self, rect: IntRect, color: Color, blink_cycle_start_time_ns: i64, should_blink: bool) {
+        if rect.is_empty() || color.alpha() == 0 {
+            return;
+        }
+        self.append_command(
+            &PaintCaret {
+                rect,
+                color,
+                blink_cycle_start_time_ns,
+                should_blink,
+            },
+            &[],
+        );
+    }
+
     pub fn fill_rect_transparent(&mut self, rect: IntRect) {
         if rect.is_empty() {
             return;

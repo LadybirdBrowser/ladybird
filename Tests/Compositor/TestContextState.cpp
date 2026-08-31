@@ -57,6 +57,25 @@ static bool spin_event_loop_until(Core::EventLoop& event_loop, int timeout_in_mi
     return !timed_out;
 }
 
+TEST_CASE(caret_blink_phase_is_sampled_from_its_web_content_reset_time)
+{
+    Web::Painting::PaintCaret caret {
+        .rect = { 1, 2, 1, 10 },
+        .color = Gfx::Color::Black,
+        .blink_cycle_start_time_ns = 1'000'000'000,
+        .should_blink = true,
+    };
+
+    EXPECT(Web::Painting::caret_is_visible_at_time(caret, 1'000'000'000));
+    EXPECT(Web::Painting::caret_is_visible_at_time(caret, 1'499'999'999));
+    EXPECT(!Web::Painting::caret_is_visible_at_time(caret, 1'500'000'000));
+    EXPECT(!Web::Painting::caret_is_visible_at_time(caret, 1'999'999'999));
+    EXPECT(Web::Painting::caret_is_visible_at_time(caret, 2'000'000'000));
+
+    caret.should_blink = false;
+    EXPECT(Web::Painting::caret_is_visible_at_time(caret, NumericLimits<i64>::max()));
+}
+
 // Round-trips a freshly built display list through the IPC encoder, so the context receives it
 // the way the compositor process would.
 static NonnullRefPtr<Web::Painting::DisplayList> decode_display_list(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, ByteBuffer command_bytes, Optional<Gfx::Color> surface_clear_color = {}, Optional<Web::Painting::DisplayList::AsyncScrollingMetadata> async_scrolling_metadata = {})
@@ -86,6 +105,48 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_display_list(Web::Painting
         append_display_list_command(command_bytes, command, command.rect, context);
     }
     return decode_display_list(visual_context_tree, move(command_bytes), surface_clear_color);
+}
+
+TEST_CASE(caret_damage_uses_the_sampled_visual_context_tree)
+{
+    TestWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { 0, client, canvas_surface_registry, false };
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    auto spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
+    auto visual_context_tree = builder.finish();
+    auto anchor = MonotonicTime::now();
+    visual_context_tree.set_visual_animations({
+        {
+            .target_kind = Web::Compositor::VisualAnimation::TargetKind::Transform,
+            .visual_context_node_indices = { spatial.value() },
+            .monotonic_time_at_anchor_ns = anchor.nanoseconds(),
+            .iteration_duration_ms = 1000,
+            .easing = {},
+            .keyframes = {
+                { 0, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::TranslateX, { 0 } } } },
+                { 1, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::TranslateX, { 20 } } } },
+            },
+        },
+    });
+
+    Web::Painting::PaintCaret caret {
+        .rect = { 10, 10, 1, 10 },
+        .color = Gfx::Color::Black,
+        .blink_cycle_start_time_ns = anchor.nanoseconds(),
+        .should_blink = true,
+    };
+    ByteBuffer command_bytes;
+    append_display_list_command(command_bytes, caret, caret.rect, { spatial, Web::Painting::NO_FRAME_NODE });
+
+    context.viewport_size_updated({ 100, 100 }, Web::Compositor::WindowResizingInProgress::No);
+    context.install_display_list_update(
+        decode_display_list(visual_context_tree, move(command_bytes)),
+        visual_context_tree,
+        {});
+    EXPECT(context.advance_visual_animations(anchor + AK::Duration::from_milliseconds(500)));
+
+    EXPECT_EQ(context.caret_damage_rect_for_testing(), Gfx::IntRect(19, 9, 3, 12));
 }
 
 TEST_CASE(visual_context_trees_round_trip_through_ipc_and_reject_corrupted_bytes)
@@ -391,6 +452,8 @@ TEST_CASE(pinch_zoom_copies_the_visual_context_tree_once_per_update)
             .scale_delta = 0.1,
         });
         EXPECT(result.accepted);
+        VERIFY(result.frame_to_present.has_value());
+        EXPECT_EQ(result.frame_to_present->forced_damage_rect, (Gfx::IntRect { 0, 0, 100, 100 }));
         EXPECT_EQ(context.visual_context_tree_copy_count_for_testing(), update);
     }
 }

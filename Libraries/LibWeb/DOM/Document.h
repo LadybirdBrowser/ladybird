@@ -1285,7 +1285,7 @@ public:
     void set_cursor_position_needs_repaint();
     Optional<CSSPixelRect> current_caret_rect();
 
-    bool cursor_blink_state() const { return m_cursor_blink_state; }
+    i64 cursor_blink_cycle_start_time_ns() const { return m_cursor_blink_cycle_start_time_ns; }
 
     // Back-pointer to the navigable whose active document is this document.
     // Maintained by LocalNavigable when it sets/clears its active document.
@@ -1973,8 +1973,7 @@ private:
 
     GC::Ptr<JS::ConsoleClient> m_console_client;
 
-    GC::Ptr<GC::Timer> m_cursor_blink_timer;
-    bool m_cursor_blink_state { false };
+    i64 m_cursor_blink_cycle_start_time_ns { 0 };
 
     // The cursor position most recently invalidated for caret painting, so that moving the caret to another node
     // also repaints the node it moved away from.

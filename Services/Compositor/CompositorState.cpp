@@ -73,7 +73,9 @@ void CompositorState::create_context(Web::Compositor::CompositorContextId contex
         VERIFY(context_id == Web::Compositor::compositor_context_id_for_page(*page_id));
 
     auto& context = *m_contexts.ensure(context_id, [&] {
-        return make<ContextState>(page_id, web_content_client, m_canvas_surface_registry, m_async_scrolling_enabled);
+        return make<ContextState>(page_id, web_content_client, m_canvas_surface_registry, m_async_scrolling_enabled, [this, context_id](Gfx::IntRect damage_rect) {
+            schedule_caret_repaint(context_id, damage_rect);
+        });
     });
     resize_backing_stores_if_needed(context_id, context);
 }
@@ -654,6 +656,17 @@ void CompositorState::schedule_pending_present_frame_if_unblocked(Web::Composito
         return;
 
     schedule_pending_present_frame(context_id, context);
+}
+
+void CompositorState::schedule_caret_repaint(Web::Compositor::CompositorContextId context_id, Gfx::IntRect damage_rect)
+{
+    auto* context = context_if_present(context_id);
+    if (!context)
+        return;
+    auto viewport_rect = context->viewport_rect_for_ui_overlay();
+    if (!viewport_rect.has_value())
+        return;
+    schedule_present_frame(context_id, *context, { *viewport_rect, damage_rect });
 }
 
 VSyncScheduler& CompositorState::vsync_scheduler_for_display(Optional<u64> display_id)
