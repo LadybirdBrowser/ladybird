@@ -263,6 +263,18 @@ void mark_promise_as_handled(Promise const& promise)
 {
     // To mark as handled a Promise<T> promise, set promise.[[Promise]].[[PromiseIsHandled]] to true.
     auto& promise_object = as<JS::Promise>(*promise.promise());
+
+    // AD-HOC: If the promise was already rejected, tell the host it is now handled, matching what
+    //         PerformPromiseThen does when a handler is attached to a rejected promise. This pulls the
+    //         promise out of the about-to-be-notified rejected promises list, so specs that reject a
+    //         promise and then mark it as handled (the Streams API does this on every reader and writer
+    //         release) don't leave a trail of queued unhandled-rejection notification tasks behind.
+    if (promise_object.state() == JS::Promise::State::Rejected && !promise_object.is_handled()) {
+        auto& vm = promise_object.vm();
+        if (vm.host_promise_rejection_tracker)
+            vm.host_promise_rejection_tracker(promise_object, JS::Promise::RejectionOperation::Handle);
+    }
+
     promise_object.set_is_handled();
 }
 
