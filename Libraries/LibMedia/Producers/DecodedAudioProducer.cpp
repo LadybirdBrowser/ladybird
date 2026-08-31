@@ -274,8 +274,7 @@ void DecodedAudioProducer::ThreadData::consume()
 
 void DecodedAudioProducer::ThreadData::enter_halting_state(PipelineStatus status, Optional<DecoderError> error)
 {
-    if (error.has_value() && error->category() == DecoderErrorCategory::Aborted)
-        return;
+    VERIFY(!error.has_value() || error->category() != DecoderErrorCategory::Aborted);
 
     VERIFY(status == PipelineStatus::EndOfStream || status == PipelineStatus::Error);
     m_current_halting_status = status;
@@ -382,8 +381,6 @@ void DecodedAudioProducer::ThreadData::queue_block(AudioBlock const& block)
 
 void DecodedAudioProducer::ThreadData::dispatch_error(DecoderError&& error)
 {
-    if (error.category() == DecoderErrorCategory::Aborted)
-        return;
     if (m_error_handler)
         m_error_handler(move(error));
 }
@@ -442,6 +439,7 @@ bool DecodedAudioProducer::ThreadData::handle_seek()
 
     AK::Duration timestamp;
     bool moved_position = false;
+    AudioBlock last_block;
 
     auto handle_error = [&](DecoderError&& error) {
         auto locker = take_lock();
@@ -462,28 +460,30 @@ bool DecodedAudioProducer::ThreadData::handle_seek()
         }
 
         auto seek_options = DemuxerSeekOptions::None;
-        if (m_decoder_needs_codec_configuration_next_seek) {
+        if (m_decoder_needs_codec_configuration_next_seek)
             seek_options |= DemuxerSeekOptions::NeedCodecConfiguration;
-            m_decoder_needs_codec_configuration_next_seek = false;
-        }
-        if (m_decoder_needs_keyframe_next_seek) {
+        if (m_decoder_needs_keyframe_next_seek)
             seek_options |= DemuxerSeekOptions::Force;
-            m_decoder_needs_keyframe_next_seek = false;
-        }
         auto demuxer_seek_result_or_error = m_demuxer->seek_to_most_recent_keyframe(m_track, timestamp, seek_options);
         if (demuxer_seek_result_or_error.is_error() && demuxer_seek_result_or_error.error().category() != DecoderErrorCategory::EndOfStream) {
+            if (demuxer_seek_result_or_error.error().category() == DecoderErrorCategory::Aborted)
+                continue;
             handle_error(demuxer_seek_result_or_error.release_error());
             return true;
         }
+
+        m_decoder_needs_codec_configuration_next_seek = false;
+        m_decoder_needs_keyframe_next_seek = false;
+
         auto demuxer_seek_result = demuxer_seek_result_or_error.value_or(DemuxerSeekResult::MovedPosition);
 
         if (demuxer_seek_result == DemuxerSeekResult::MovedPosition) {
             flush_decoder();
             moved_position = true;
+            last_block.clear();
         }
 
         auto new_seek_id = m_seek_id.load();
-        AudioBlock last_block;
 
         while (new_seek_id == seek_id) {
             auto coded_frame_result = m_demuxer->get_next_sample_for_track(m_track);
@@ -495,6 +495,8 @@ bool DecodedAudioProducer::ThreadData::handle_seek()
                         return true;
                     }
                     m_decoder->signal_end_of_stream();
+                } else if (coded_frame_result.error().category() == DecoderErrorCategory::Aborted) {
+                    break;
                 } else {
                     handle_error(coded_frame_result.release_error());
                     return true;
@@ -588,6 +590,8 @@ void DecodedAudioProducer::ThreadData::push_data_and_decode_a_block()
                 return;
             }
             m_decoder->signal_end_of_stream();
+        } else if (sample_result.error().category() == DecoderErrorCategory::Aborted) {
+            return;
         } else {
             set_halting_status_and_wait_for_seek(PipelineStatus::Error, sample_result.release_error());
             return;
