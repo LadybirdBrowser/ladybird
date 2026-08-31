@@ -243,6 +243,10 @@ bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16Strin
 
     reset_page_media_state();
 
+    // Replies from the replaced process will never arrive. Complete the in-flight operations so the
+    // traversal queue can serve the new process.
+    m_top_level_traversable.abandon_history_operations();
+
     Optional<Web::HTML::CrossProcessId> initial_document_state_id;
     if (auto const* current_entry = m_top_level_traversable.session_history().current_entry())
         initial_document_state_id = current_entry->document_state.id;
@@ -303,9 +307,9 @@ void ViewImplementation::replace_web_content_process_for_history_traversal(Web::
         m_client_state.client->unregister_view(m_client_state.page_index);
 
     reset_page_media_state();
-    m_history_operation_handling_for_next_client = HistoryOperationHandling::Preserve;
+    // NB: Preserve the in-flight traversal operations so crash recovery can redispatch them to the
+    //     replacement process.
     initialize_client(CreateNewClient::Yes, target_document_state_id);
-    m_history_operation_handling_for_next_client = HistoryOperationHandling::Abandon;
     m_client_state.site_url = target_url;
     VERIFY(m_client_state.client);
 
@@ -2124,12 +2128,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
     if (create_new_client == CreateNewClient::Yes) {
         reject_pending_selection_requests();
 
-        if (m_history_operation_handling_for_next_client == HistoryOperationHandling::Abandon) {
-            // NB: Replies from the previous process will never arrive; complete the in-flight operations so the
-            //     traversal queue can serve the new process.
-            m_top_level_traversable.abandon_history_operations();
-        }
-        // A queued session-history reset awaiting the previous process's reply can likewise never complete.
+        // A queued session-history reset awaiting the previous process's reply can never complete.
         if (auto queue_promise = move(m_pending_session_history_reset_queue_promise))
             queue_promise->resolve({});
 
@@ -3054,7 +3053,7 @@ void ViewImplementation::handle_web_content_process_crash()
 
 void ViewImplementation::respawn_web_content_process_after_crash()
 {
-    m_history_operation_handling_for_next_client = HistoryOperationHandling::Preserve;
+    // NB: In-flight operations are preserved: crash recovery redispatches them onto the replacement process.
     Optional<Web::HTML::CrossProcessId> initial_document_state_id;
     Optional<URL::URL> process_site_url;
     if (auto const* target_entry = m_top_level_traversable.ongoing_browser_history_traversal_target_entry()) {
@@ -3069,7 +3068,6 @@ void ViewImplementation::respawn_web_content_process_after_crash()
     }
     initialize_client(CreateNewClient::Yes, initial_document_state_id);
     m_client_state.site_url = move(process_site_url);
-    m_history_operation_handling_for_next_client = HistoryOperationHandling::Abandon;
     VERIFY(m_client_state.client);
 
     // Don't keep a stale backup bitmap around.
