@@ -2298,10 +2298,16 @@ void WebContentClient::history_operation_ready(u64 page_id, Web::HTML::CrossProc
         view->did_receive_history_operation_ready({}, *this, page_id, operation_id, move(result));
 }
 
-void WebContentClient::history_step_unload_cancelation_result(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result)
+void WebContentClient::history_step_unload_cancelation_result(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown)
 {
     if (auto view = owning_view_for_page_id(page_id); view.has_value())
-        view->did_receive_history_step_unload_cancelation_result({}, *this, page_id, operation_id, result);
+        view->did_receive_history_step_unload_cancelation_result({}, *this, page_id, operation_id, result, unload_prompt_shown);
+}
+
+void WebContentClient::history_step_beforeunload_check_result(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown)
+{
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
+        view->did_receive_history_step_beforeunload_check_result({}, *this, page_id, operation_id, result, unload_prompt_shown);
 }
 
 void WebContentClient::changing_navigable_history_job_ready(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, Web::HTML::UnloadDisplayedDocument unload_displayed_document)

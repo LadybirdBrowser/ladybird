@@ -40,6 +40,11 @@ enum class ChangingNavigableHistoryStepJobDisposition : u8 {
     Stale,
 };
 
+enum class UnloadPromptShown : bool {
+    No,
+    Yes,
+};
+
 enum class UnloadDisplayedDocument : bool {
     No,
     Yes,
