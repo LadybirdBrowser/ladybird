@@ -114,9 +114,7 @@ void DocumentPaintState::clear_scroll_state(DOM::Document& document)
 
 void DocumentPaintState::update_accumulated_visual_contexts(DOM::Document& document)
 {
-    auto force_full_rebuild = m_force_incompatible_visual_context_tree_rebuild_for_testing;
-    m_force_incompatible_visual_context_tree_rebuild_for_testing = false;
-    auto result = rust_update_accumulated_visual_contexts(document, force_full_rebuild);
+    auto result = rust_update_accumulated_visual_contexts(document);
     if (result.performed_full_build) {
         m_scroll_state_snapshot = {};
         ++m_accumulated_visual_context_tree_build_count;
@@ -126,7 +124,7 @@ void DocumentPaintState::update_accumulated_visual_contexts(DOM::Document& docum
     set_needs_to_refresh_scroll_state(document, true);
     if (result.requires_display_list_recording)
         document.set_needs_to_record_display_list();
-    if (result.performed_full_build || result.structural_epoch_changed)
+    if (result.structural_epoch_changed)
         m_visual_context_tree_visual_animations = nullptr;
     m_visual_context_tree_needs_compositor_update = true;
 }

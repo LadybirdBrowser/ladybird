@@ -1,0 +1,5 @@
+full builds: 1
+epoch changed: true
+live nodes unchanged: true
+capacity equals live nodes: true
+dead nodes: 0

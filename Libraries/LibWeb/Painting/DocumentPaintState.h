@@ -41,7 +41,6 @@ public:
     void set_visual_animations(DOM::Document&, Vector<Compositor::VisualAnimation>);
     bool visual_context_tree_needs_compositor_update() const { return m_visual_context_tree_needs_compositor_update; }
     void did_update_visual_context_tree_in_compositor() { m_visual_context_tree_needs_compositor_update = false; }
-    void set_force_incompatible_visual_context_tree_rebuild_for_testing() { m_force_incompatible_visual_context_tree_rebuild_for_testing = true; }
     bool has_visual_context_tree() const;
     u64 accumulated_visual_context_tree_build_count() const { return m_accumulated_visual_context_tree_build_count; }
     u64 accumulated_visual_context_tree_incremental_update_count() const { return m_accumulated_visual_context_tree_incremental_update_count; }
@@ -92,7 +91,6 @@ private:
     u64 m_accumulated_visual_context_tree_build_count { 0 };
     u64 m_accumulated_visual_context_tree_incremental_update_count { 0 };
     bool m_visual_context_tree_needs_compositor_update { false };
-    bool m_force_incompatible_visual_context_tree_rebuild_for_testing { false };
 };
 
 }

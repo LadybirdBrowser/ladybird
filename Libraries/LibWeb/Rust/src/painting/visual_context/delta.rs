@@ -6,7 +6,6 @@
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct VisualContextTreeDelta {
-    pub performed_full_build: bool,
     pub structural_epoch_changed: bool,
     pub requires_display_list_recording: bool,
     pub patched_spatial_node_indices: Vec<u32>,
@@ -16,15 +15,6 @@ pub struct VisualContextTreeDelta {
 }
 
 impl VisualContextTreeDelta {
-    pub fn for_full_build(structural_epoch_changed: bool) -> Self {
-        Self {
-            performed_full_build: true,
-            structural_epoch_changed,
-            requires_display_list_recording: structural_epoch_changed,
-            ..Default::default()
-        }
-    }
-
     pub fn note_patched_spatial(&mut self, index: u32) {
         self.patched_spatial_node_indices.push(index);
     }
@@ -114,7 +104,6 @@ mod tests {
         delta.finish();
         assert!(!delta.structural_epoch_changed);
         assert!(!delta.requires_display_list_recording);
-        assert!(!delta.performed_full_build);
     }
 
     #[test]

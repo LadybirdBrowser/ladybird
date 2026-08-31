@@ -255,34 +255,7 @@ pub enum FrameData {
     Dead,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum VisualContextNodeKind {
-    Scroll,
-    Sticky,
-    Transform,
-    Perspective,
-    BackfaceVisibility,
-    AnchorScrollShift,
-    Clip,
-    ClipPath,
-    Effects,
-    Mask,
-    Dead,
-}
-
 impl SpatialData {
-    fn kind(&self) -> VisualContextNodeKind {
-        match self {
-            Self::Scroll(_) => VisualContextNodeKind::Scroll,
-            Self::Sticky(_) => VisualContextNodeKind::Sticky,
-            Self::Transform(_) => VisualContextNodeKind::Transform,
-            Self::Perspective(_) => VisualContextNodeKind::Perspective,
-            Self::BackfaceVisibility(_) => VisualContextNodeKind::BackfaceVisibility,
-            Self::AnchorScrollShift(_) => VisualContextNodeKind::AnchorScrollShift,
-            Self::Dead => VisualContextNodeKind::Dead,
-        }
-    }
-
     pub fn is_live(&self) -> bool {
         !matches!(self, Self::Dead)
     }
@@ -302,16 +275,6 @@ impl FrameData {
             }
             Self::Effects(_) | Self::Dead => false,
             Self::Mask(mask) => mask.rect.is_empty(),
-        }
-    }
-
-    fn kind(&self) -> VisualContextNodeKind {
-        match self {
-            Self::Clip(_) => VisualContextNodeKind::Clip,
-            Self::ClipPath(_) => VisualContextNodeKind::ClipPath,
-            Self::Effects(_) => VisualContextNodeKind::Effects,
-            Self::Mask(_) => VisualContextNodeKind::Mask,
-            Self::Dead => VisualContextNodeKind::Dead,
         }
     }
 
@@ -945,30 +908,6 @@ impl VisualContextTree {
         transform.origin = origin;
     }
 
-    pub fn is_compatible_with(&self, other: &Self) -> bool {
-        if self.spatial_nodes.len() != other.spatial_nodes.len() || self.frame_nodes.len() != other.frame_nodes.len() {
-            return false;
-        }
-        if self.root_isolation_frame != other.root_isolation_frame {
-            return false;
-        }
-        let spatial_compatible = self
-            .spatial_nodes
-            .iter()
-            .zip(&other.spatial_nodes)
-            .all(|(node, other_node)| node.parent == other_node.parent && node.data.kind() == other_node.data.kind());
-        spatial_compatible
-            && self
-                .frame_nodes
-                .iter()
-                .zip(&other.frame_nodes)
-                .all(|(node, other_node)| {
-                    node.parent == other_node.parent
-                        && node.spatial == other_node.spatial
-                        && node.data.kind() == other_node.data.kind()
-                })
-    }
-
     fn ancestor_chain(&self, index: SpatialNodeIndex) -> Vec<SpatialNodeIndex> {
         assert!((index.0 as usize) < self.spatial_nodes.len());
         let mut chain = Vec::with_capacity(8);
@@ -1300,14 +1239,6 @@ mod tests {
         })
     }
 
-    fn mask(rect: IntRect) -> FrameData {
-        FrameData::Mask(MaskData {
-            rect,
-            kind: MaskKind::Alpha,
-            origin: MaskLayerOrigin::CssMaskLayers,
-        })
-    }
-
     fn clip(rect: FloatRect, mode: ClipMode) -> FrameData {
         FrameData::Clip(ClipData {
             rect,
@@ -1321,93 +1252,6 @@ mod tests {
             sorting_context_root_index: Some(root),
             ..transform(0.0)
         }
-    }
-
-    #[test]
-    fn trees_with_the_same_structure_are_compatible() {
-        let mut tree = VisualContextTree::create(transform(1.0));
-        tree.append_spatial(SpatialData::Transform(transform(2.0)), VISUAL_VIEWPORT_NODE_INDEX);
-
-        let mut updated_tree = VisualContextTree::create(transform(3.0));
-        updated_tree.append_spatial(SpatialData::Transform(transform(4.0)), VISUAL_VIEWPORT_NODE_INDEX);
-
-        assert!(updated_tree.is_compatible_with(&tree));
-    }
-
-    #[test]
-    fn compatibility_requires_the_same_shape() {
-        let mut reference = tree();
-        reference.append_spatial(SpatialData::Transform(transform(1.0)), VISUAL_VIEWPORT_NODE_INDEX);
-
-        let shorter_tree = tree();
-        assert!(!shorter_tree.is_compatible_with(&reference));
-
-        let mut different_type_tree = tree();
-        different_type_tree.append_spatial(
-            SpatialData::Perspective(PerspectiveData {
-                matrix: FloatMatrix4x4::identity(),
-                flattens_inherited_transform: false,
-            }),
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
-        assert!(!different_type_tree.is_compatible_with(&reference));
-
-        let mut frame_tree = tree();
-        frame_tree.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
-        assert!(!frame_tree.is_compatible_with(&reference));
-
-        let mut mask_tree = tree();
-        mask_tree.append_frame(
-            mask(IntRect {
-                x: 0,
-                y: 0,
-                width: 1,
-                height: 1,
-            }),
-            FrameNodeIndex::NONE,
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
-        assert!(!mask_tree.is_compatible_with(&frame_tree));
-
-        let mut different_parent_tree = tree();
-        let parent =
-            different_parent_tree.append_spatial(SpatialData::Transform(transform(1.0)), VISUAL_VIEWPORT_NODE_INDEX);
-        different_parent_tree.append_spatial(SpatialData::Transform(transform(2.0)), parent);
-
-        let mut same_node_count_tree = tree();
-        same_node_count_tree.append_spatial(SpatialData::Transform(transform(1.0)), VISUAL_VIEWPORT_NODE_INDEX);
-        same_node_count_tree.append_spatial(SpatialData::Transform(transform(2.0)), VISUAL_VIEWPORT_NODE_INDEX);
-        assert!(!different_parent_tree.is_compatible_with(&same_node_count_tree));
-
-        let mut frame_under_root_tree = tree();
-        let frame_under_root_spatial =
-            frame_under_root_tree.append_spatial(SpatialData::Transform(transform(1.0)), VISUAL_VIEWPORT_NODE_INDEX);
-        frame_under_root_tree.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
-
-        let mut frame_under_transform_tree = tree();
-        let frame_under_transform_spatial = frame_under_transform_tree
-            .append_spatial(SpatialData::Transform(transform(1.0)), VISUAL_VIEWPORT_NODE_INDEX);
-        frame_under_transform_tree.append_frame(effects(), FrameNodeIndex::NONE, frame_under_transform_spatial);
-
-        assert_eq!(frame_under_root_spatial, frame_under_transform_spatial);
-        assert!(!frame_under_root_tree.is_compatible_with(&frame_under_transform_tree));
-    }
-
-    #[test]
-    fn compatibility_requires_the_same_root_isolation_frame() {
-        let mut isolated = tree();
-        let isolation_frame = isolated.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
-        isolated.root_isolation_frame = Some(isolation_frame);
-
-        let mut not_isolated = tree();
-        not_isolated.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
-        assert!(!isolated.is_compatible_with(&not_isolated));
-
-        let mut also_isolated = tree();
-        let also_isolation_frame =
-            also_isolated.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
-        also_isolated.root_isolation_frame = Some(also_isolation_frame);
-        assert!(isolated.is_compatible_with(&also_isolated));
     }
 
     fn scaled(scale: f32) -> TransformData {
@@ -1656,7 +1500,6 @@ mod tests {
         assert_eq!(tree.live_frame_node_count, 0);
         assert_eq!(tree.dead_node_count(), 2);
         assert!(!tree.should_compact());
-        assert!(tree.is_compatible_with(&tree.clone()));
     }
 
     #[test]
