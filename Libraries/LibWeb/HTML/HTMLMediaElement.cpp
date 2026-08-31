@@ -198,8 +198,10 @@ void HTMLMediaElement::finalize()
 
     m_screen_wake_lock.clear();
 
-    if (m_playback_manager)
+    if (m_playback_manager) {
         m_playback_manager->on_playback_state_change = nullptr;
+        m_playback_manager->on_buffered_ranges_change = nullptr;
+    }
     release_active_video_sink();
 
     if (m_playback_position_update_timer) {

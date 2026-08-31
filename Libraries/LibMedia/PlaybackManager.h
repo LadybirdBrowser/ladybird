@@ -58,7 +58,7 @@ public:
     void set_audio_output_disabled(bool disabled) { m_audio_output_disabled = disabled; }
 
     AK::Duration duration() const { return m_duration; }
-    void set_duration(AK::Duration duration) { m_duration = duration; }
+    void set_duration(AK::Duration);
     AK::Duration current_time() const;
 
     Optional<AK::UnixDateTime> start_time_realtime() const { return m_start_time_realtime; }
@@ -156,6 +156,7 @@ private:
     PipelineStatus combined_pipeline_status() const;
     void check_for_duration_change(AK::Duration);
     void dispatch_error(DecoderError&&);
+    void dispatch_buffered_ranges_change();
 
     template<typename Self>
     decltype(auto) get_video_data_for_track(this Self&& self, Track const& track)
