@@ -628,12 +628,6 @@ protected:
         bool hosts_committed_entry { true };
     } m_client_state;
 
-    enum class HistoryOperationHandling : u8 {
-        Abandon,
-        Preserve,
-    };
-    HistoryOperationHandling m_history_operation_handling_for_next_client { HistoryOperationHandling::Abandon };
-
     IsPrivate m_is_private { IsPrivate::No };
 
     URL::URL m_url;
