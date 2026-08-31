@@ -7817,19 +7817,6 @@ static bool keyframe_effect_only_translates_horizontally(Animations::KeyframeEff
     return transform_keyframes_only_translate_horizontally(keyframes);
 }
 
-static Vector<u32> owned_visual_context_node_indices(Layout::Node const& layout_node, Layout::RustFFI::FfiVisualContextBoxNodeList list)
-{
-    Vector<u32> indices;
-    if (!Painting::has_committed_box(layout_node))
-        return indices;
-    auto* arena = layout_node.arena_handle();
-    auto slot = Painting::committed_row_slot(layout_node);
-    indices.resize(Layout::RustFFI::layout_arena_paintable_visual_context_node_count(arena, slot, list));
-    if (!indices.is_empty())
-        Layout::RustFFI::layout_arena_paintable_visual_context_copy_node_indices(arena, slot, list, indices.data(), indices.size());
-    return indices;
-}
-
 static Optional<Compositor::VisualAnimation> build_compositor_animation(Animations::KeyframeEffect& effect, Painting::AccumulatedVisualContextTree const& visual_context_tree, Compositor::VisualAnimation::TargetKind target_kind, Optional<bool>& only_translates_horizontally)
 {
     auto animation = effect.associated_animation();
@@ -7977,12 +7964,12 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
     auto build_animation_for_target = [&](Compositor::VisualAnimation::TargetKind target_kind) -> Optional<Compositor::VisualAnimation> {
         Vector<u32> visual_context_node_indices;
         if (target_kind == Compositor::VisualAnimation::TargetKind::Opacity) {
-            for (auto index : owned_visual_context_node_indices(*layout_node, Layout::RustFFI::FfiVisualContextBoxNodeList::FrameNodes)) {
+            for (auto index : Painting::rust_owned_visual_context_node_indices(*layout_node, Layout::RustFFI::FfiVisualContextBoxNodeList::FrameNodes)) {
                 if (visual_context_tree.frame_is_effects(Painting::FrameNodeIndex { index }))
                     visual_context_node_indices.append(index);
             }
         } else {
-            for (auto index : owned_visual_context_node_indices(*layout_node, Layout::RustFFI::FfiVisualContextBoxNodeList::SpatialNodes)) {
+            for (auto index : Painting::rust_owned_visual_context_node_indices(*layout_node, Layout::RustFFI::FfiVisualContextBoxNodeList::SpatialNodes)) {
                 if (visual_context_tree.spatial_node_is_css_transform(Painting::SpatialNodeIndex { index }))
                     visual_context_node_indices.append(index);
             }
@@ -11023,9 +11010,9 @@ Utf16String Document::dump_display_list()
     spatial_node_owners.set(Painting::VISUAL_VIEWPORT_NODE_INDEX, m_layout_root.ptr());
     spatial_node_owners.set(Painting::own_scroll_node_index(*m_layout_root), m_layout_root.ptr());
     m_layout_root->for_each_in_inclusive_subtree([&](Layout::Node const& layout_node) {
-        for (auto spatial : owned_visual_context_node_indices(layout_node, Layout::RustFFI::FfiVisualContextBoxNodeList::SpatialNodes))
+        for (auto spatial : Painting::rust_owned_visual_context_node_indices(layout_node, Layout::RustFFI::FfiVisualContextBoxNodeList::SpatialNodes))
             spatial_node_owners.set(Painting::SpatialNodeIndex { spatial }, &layout_node);
-        for (auto frame : owned_visual_context_node_indices(layout_node, Layout::RustFFI::FfiVisualContextBoxNodeList::FrameNodes))
+        for (auto frame : Painting::rust_owned_visual_context_node_indices(layout_node, Layout::RustFFI::FfiVisualContextBoxNodeList::FrameNodes))
             frame_node_owners.set(Painting::FrameNodeIndex { frame }, &layout_node);
         return TraversalDecision::Continue;
     });

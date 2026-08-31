@@ -89,6 +89,7 @@
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/HitTestResult.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -204,6 +205,22 @@ u64 Internals::visual_context_tree_node_capacity()
         return 0;
     auto visual_context_tree = document.paint_state().visual_context_tree(document);
     return visual_context_tree.spatial_node_count() + visual_context_tree.frame_node_count();
+}
+
+GC::Ref<JS::Object> Internals::visual_context_node_indices(DOM::Element& element)
+{
+    auto& realm = window().principal_realm();
+    window().associated_document().update_paint_and_hit_testing_properties_if_needed();
+    auto owned_indices_as_array = [&](Layout::RustFFI::FfiVisualContextBoxNodeList list) -> GC::Ref<JS::Array> {
+        Vector<u32> indices;
+        if (auto const* layout_node = element.layout_node())
+            indices = Painting::rust_owned_visual_context_node_indices(*layout_node, list);
+        return JS::Array::create_from<u32>(realm, indices.span(), [](u32 index) { return JS::Value { index }; });
+    };
+    auto object = JS::Object::create(realm, nullptr);
+    object->define_direct_property("spatial"_utf16_fly_string, owned_indices_as_array(Layout::RustFFI::FfiVisualContextBoxNodeList::SpatialNodes), JS::default_attributes);
+    object->define_direct_property("frames"_utf16_fly_string, owned_indices_as_array(Layout::RustFFI::FfiVisualContextBoxNodeList::FrameNodes), JS::default_attributes);
+    return object;
 }
 
 void Internals::send_mismatched_visual_context_tree_update_to_compositor()

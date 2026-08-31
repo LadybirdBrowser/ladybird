@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    #anchor { anchor-name: --a; width: 20px; height: 20px; background: gray; }
+    #target { position: absolute; position-anchor: --a; top: anchor(bottom); left: anchor(left); width: 20px; height: 20px; background: gray; }
+    .box { position: absolute; top: 100px; width: 100px; height: 100px; }
+    .img { background-image: linear-gradient(green, green); }
+    #b { left: 150px; }
+    #c { left: 300px; }
+    #d { left: 450px; }
+</style>
+<div id="anchor"></div>
+<div id="target"></div>
+<div id="b" class="box img"></div>
+<div id="c" class="box img"></div>
+<div id="d" class="box img"></div>

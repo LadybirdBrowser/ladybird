@@ -684,13 +684,6 @@ impl LayoutNodeArena {
         .ok()
     }
 
-    pub(crate) fn cloned_paintable_visual_context_record(
-        &self,
-        id: NodeSlotId,
-    ) -> Option<PaintableVisualContextRecord> {
-        self.paintable_visual_context_record(id).map(|record| record.clone())
-    }
-
     pub(crate) fn take_paintable_visual_context_record(&self, id: NodeSlotId) -> Option<PaintableVisualContextRecord> {
         if !self.paintable_row_is_populated(id) {
             return None;

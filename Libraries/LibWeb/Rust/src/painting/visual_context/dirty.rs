@@ -65,15 +65,43 @@ pub struct RemovedBoxBlocks {
 pub enum VisualContextGlobalRebuildReason {
     #[default]
     None = 0,
-    FirstBuild = 1,
-    AnchorsRegistered = 2,
-    TreeInputsChanged = 3,
-    Compaction = 4,
-    DocumentWideStructuralChange = 5,
-    SvgResourceSubtreeChanged = 6,
-    FilterResourcesChanged = 7,
+    AnchorsRegistered = 1,
+    TreeInputsChanged = 2,
+    DocumentWideStructuralChange = 3,
+    SvgResourceSubtreeChanged = 4,
+    FilterResourcesChanged = 5,
+    FirstBuild = 6,
+    Compaction = 7,
     ForcedForTesting = 8,
     CanonicalDumpRequested = 9,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum VisualContextUpdateScope {
+    DirtyPath,
+    EveryBox,
+    FreshTree,
+}
+
+impl VisualContextUpdateScope {
+    pub fn for_reason(reason: VisualContextGlobalRebuildReason) -> Self {
+        use VisualContextGlobalRebuildReason as Reason;
+        match reason {
+            Reason::None => Self::DirtyPath,
+            Reason::AnchorsRegistered
+            | Reason::TreeInputsChanged
+            | Reason::DocumentWideStructuralChange
+            | Reason::SvgResourceSubtreeChanged
+            | Reason::FilterResourcesChanged => Self::EveryBox,
+            Reason::FirstBuild | Reason::Compaction | Reason::ForcedForTesting | Reason::CanonicalDumpRequested => {
+                Self::FreshTree
+            }
+        }
+    }
+
+    pub fn rebuilds_every_box(self) -> bool {
+        self != Self::DirtyPath
+    }
 }
 
 #[derive(Default)]
@@ -242,6 +270,36 @@ mod tests {
         assert!(!dirty.is_empty());
         dirty.clear();
         assert!(dirty.is_empty());
+    }
+
+    #[test]
+    fn scopes_are_monotone_over_the_reason_order() {
+        use VisualContextGlobalRebuildReason as Reason;
+        let reasons_in_ascending_order = [
+            Reason::None,
+            Reason::AnchorsRegistered,
+            Reason::TreeInputsChanged,
+            Reason::DocumentWideStructuralChange,
+            Reason::SvgResourceSubtreeChanged,
+            Reason::FilterResourcesChanged,
+            Reason::FirstBuild,
+            Reason::Compaction,
+            Reason::ForcedForTesting,
+            Reason::CanonicalDumpRequested,
+        ];
+        let mut previous_reason = Reason::None;
+        let mut previous_scope = VisualContextUpdateScope::DirtyPath;
+        for reason in reasons_in_ascending_order {
+            assert!(reason >= previous_reason);
+            let scope = VisualContextUpdateScope::for_reason(reason);
+            assert!(scope >= previous_scope);
+            previous_reason = reason;
+            previous_scope = scope;
+        }
+        assert_eq!(
+            VisualContextUpdateScope::for_reason(Reason::FirstBuild.max(Reason::AnchorsRegistered)),
+            VisualContextUpdateScope::FreshTree
+        );
     }
 
     #[test]

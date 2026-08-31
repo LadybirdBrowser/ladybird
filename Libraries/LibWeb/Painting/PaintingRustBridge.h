@@ -31,6 +31,7 @@ struct VisualContextTreeUpdateResult {
     bool requires_display_list_recording { false };
 };
 WEB_API VisualContextTreeUpdateResult rust_update_accumulated_visual_contexts(DOM::Document&, bool force_full_rebuild);
+WEB_API Vector<u32> rust_owned_visual_context_node_indices(Layout::Node const&, Layout::RustFFI::FfiVisualContextBoxNodeList);
 WEB_API void const* retain_rust_main_visual_context_tree(DOM::Document const&);
 WEB_API Optional<TransformWithOrigin> rust_compute_css_transform(Layout::Node const&, double pixel_ratio);
 WEB_API Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Layout::Node const&);
