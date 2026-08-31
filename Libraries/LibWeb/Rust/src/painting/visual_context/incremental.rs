@@ -349,7 +349,7 @@ fn take_next_deferred_anchor_positioned(
     Some(entry.pending)
 }
 
-pub(crate) fn update_visual_context_tree_incrementally<Arena: PaintableRowsRead>(
+pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
     layout_arena: &Arena,
     callbacks: &FfiVisualContextHostCallbacks,
     viewport: NodeSlotId,

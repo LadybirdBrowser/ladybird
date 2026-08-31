@@ -669,6 +669,10 @@ impl LayoutNodeArena {
         self.paintable_rows.visual_context_records.borrow_mut()[id.slot_index() as usize] = Some(record);
     }
 
+    pub(crate) fn drop_all_visual_context_records(&self) {
+        self.paintable_rows.visual_context_records.borrow_mut().fill(None);
+    }
+
     pub(crate) fn with_paintable_visual_context_node_handles<R>(
         &self,
         id: NodeSlotId,
