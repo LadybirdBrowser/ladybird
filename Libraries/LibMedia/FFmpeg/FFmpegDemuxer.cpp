@@ -138,6 +138,7 @@ static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_c
         return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate format context"sv);
     format_context->pb = &io_context;
     format_context->flags |= AVFMT_FLAG_CUSTOM_IO;
+    format_context->flags |= AVFMT_FLAG_DISCARD_CORRUPT;
     format_context->flags |= AVFMT_FLAG_FAST_SEEK;
 
     ArmedScopeGuard close_input = [&] {
