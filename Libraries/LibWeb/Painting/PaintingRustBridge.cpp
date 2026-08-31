@@ -508,6 +508,19 @@ VisualContextTreeUpdateResult rust_update_accumulated_visual_contexts(DOM::Docum
     };
 }
 
+Vector<u32> rust_owned_visual_context_node_indices(Layout::Node const& layout_node, Layout::RustFFI::FfiVisualContextBoxNodeList list)
+{
+    Vector<u32> indices;
+    if (!has_committed_box(layout_node))
+        return indices;
+    auto* arena = layout_node.arena_handle();
+    auto slot = committed_row_slot(layout_node);
+    indices.resize(Layout::RustFFI::layout_arena_paintable_visual_context_node_count(arena, slot, list));
+    if (!indices.is_empty())
+        Layout::RustFFI::layout_arena_paintable_visual_context_copy_node_indices(arena, slot, list, indices.data(), indices.size());
+    return indices;
+}
+
 void const* retain_rust_main_visual_context_tree(DOM::Document const& document)
 {
     auto const* tree = Layout::RustFFI::layout_arena_main_visual_context_tree_retain(layout_arena_handle(document));

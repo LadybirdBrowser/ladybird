@@ -54,6 +54,7 @@ public:
     u64 visual_context_tree_node_capacity();
     u64 visual_context_tree_dead_node_count();
     u64 visual_context_tree_structural_epoch();
+    GC::Ref<JS::Object> visual_context_node_indices(DOM::Element&);
     void send_mismatched_visual_context_tree_update_to_compositor();
     WebIDL::ExceptionOr<void> load_reference_test_metadata();
 

@@ -10,6 +10,7 @@ interface Internals {
     unsigned long long visualContextTreeNodeCapacity();
     unsigned long long visualContextTreeDeadNodeCount();
     unsigned long long visualContextTreeStructuralEpoch();
+    object visualContextNodeIndices(Element element);
     undefined sendMismatchedVisualContextTreeUpdateToCompositor();
     undefined loadReferenceTestMetadata();
 
