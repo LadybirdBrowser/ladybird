@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const key = 'listener-added-before-dispatch';
+
+        const iframe = document.createElement('iframe');
+        document.body.appendChild(iframe);
+
+        // Create the iframe's Storage object without registering an event listener.
+        const iframeStorage = iframe.contentWindow.sessionStorage;
+
+        const eventReceived = Promise.withResolvers();
+        sessionStorage.setItem(key, 'hello');
+        iframe.contentWindow.addEventListener('storage', eventReceived.resolve);
+
+        const event = await eventReceived.promise;
+        println(`key: ${event.key}`);
+        println(`oldValue: ${event.oldValue}`);
+        println(`newValue: ${event.newValue}`);
+        println(`storageArea matches: ${event.storageArea === iframeStorage}`);
+
+        sessionStorage.removeItem(key);
+    });
+</script>

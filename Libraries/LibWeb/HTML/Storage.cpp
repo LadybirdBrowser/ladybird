@@ -196,7 +196,17 @@ void Storage::broadcast(Optional<Utf16View> key, Optional<Utf16View> old_value, 
     //         windows, and initialize any storage objects as part of this loop.
     Window::for_each_active([&](auto& window) {
         // * type is storage's type
-        auto storage = obtain_storage_for_window(window, type());
+        auto& document = window.associated_document();
+        auto storage = type() == Type::Local ? document.local_storage_holder() : document.session_storage_holder();
+
+        // OPTIMIZATION: If the window has not accessed this type of storage, firing a storage event at it with no
+        //               storage event listeners is not observable. StorageEvent does not bubble and Window has no
+        //               ancestors to capture through, so avoid lazily creating a Storage object for such windows.
+        if (!storage && !window.has_event_listener(EventNames::storage))
+            return IterationDecision::Continue;
+
+        if (!storage)
+            storage = obtain_storage_for_window(window, type());
         if (!storage)
             return IterationDecision::Continue;
 

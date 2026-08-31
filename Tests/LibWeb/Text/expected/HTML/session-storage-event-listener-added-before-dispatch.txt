@@ -1,0 +1,4 @@
+key: listener-added-before-dispatch
+oldValue: null
+newValue: hello
+storageArea matches: true
