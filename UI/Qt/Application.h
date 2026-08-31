@@ -94,7 +94,7 @@ private:
     virtual Utf16String clipboard_text(ClipboardType) const override;
     virtual void set_clipboard_text(String, ClipboardType = ClipboardType::Text) override;
 
-    virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const override;
+    virtual Web::Clipboard::SystemClipboardItem clipboard_item() const override;
     virtual void insert_clipboard_item(Web::Clipboard::SystemClipboardItem) override;
 
     virtual bool supports_vertical_tabs() const override { return true; }

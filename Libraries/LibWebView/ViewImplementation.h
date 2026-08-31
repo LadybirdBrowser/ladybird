@@ -502,8 +502,9 @@ protected:
     void did_resume_history_traversal(Web::HTML::CrossProcessId operation_id);
     void did_apply_top_level_history_traversal_step(Web::HTML::CrossProcessId operation_id);
     void did_finish_history_traversal(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult);
+
+    virtual Web::Clipboard::SystemClipboardItem clipboard_item() const;
     virtual void insert_clipboard_item(Web::Clipboard::SystemClipboardItem);
-    virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const;
 
     virtual bool defer_backing_store_release(i32) { return false; }
     virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) { }
