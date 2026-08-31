@@ -117,7 +117,11 @@ AccumulatedVisualContextTree AccumulatedVisualContextTree::with_visual_viewport_
 
 void AccumulatedVisualContextTree::set_visual_animations(Vector<Compositor::VisualAnimation> animations)
 {
-    m_visual_animations = animations.is_empty() ? nullptr : adopt_ref(*new VisualAnimationList(move(animations)));
+    if (animations.is_empty()) {
+        m_visual_animations = nullptr;
+    } else {
+        m_visual_animations = adopt_ref(*new VisualAnimationList(move(animations)));
+    }
 }
 
 AccumulatedVisualContextTree AccumulatedVisualContextTree::with_visual_animation_samples(i64 monotonic_time_ns) const

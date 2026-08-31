@@ -163,7 +163,11 @@ void DocumentPaintState::set_visual_animations(DOM::Document& document, Vector<C
         }
     }
     m_visual_animations = animations;
-    m_visual_context_tree_visual_animations = animations.is_empty() ? nullptr : adopt_ref(*new VisualAnimationList(move(animations)));
+    if (animations.is_empty()) {
+        m_visual_context_tree_visual_animations = nullptr;
+    } else {
+        m_visual_context_tree_visual_animations = adopt_ref(*new VisualAnimationList(move(animations)));
+    }
     m_visual_context_tree_needs_compositor_update = true;
     if (animation_parameters_changed)
         ++document.style_invalidation_counters().compositor_visual_animation_updates;
