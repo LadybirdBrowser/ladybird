@@ -398,7 +398,7 @@ mod tests {
     const BOX_A_DESCENDANT_FRAME: FrameNodeIndex = FrameNodeIndex(3);
     const BOX_B_FRAME: FrameNodeIndex = FrameNodeIndex(4);
 
-    fn tree_with_box_a_followed_by_box_b() -> VisualContextTree {
+    fn tree_with_viewport_nodes() -> VisualContextTree {
         let mut tree = VisualContextTree::create(transform_data());
         let root_isolation_frame = tree.append_frame_with_role(
             FrameData::layer_blending_with(CompositingAndBlendingOperator::Normal),
@@ -412,6 +412,11 @@ mod tests {
             tree.append_spatial(transform(), VISUAL_VIEWPORT_NODE_INDEX),
             VIEWPORT_SCROLL
         );
+        tree
+    }
+
+    fn tree_with_box_a_followed_by_box_b() -> VisualContextTree {
+        let mut tree = tree_with_viewport_nodes();
         assert_eq!(tree.append_spatial(transform(), VIEWPORT_SCROLL), BOX_A_SPATIAL);
         assert_eq!(
             tree.append_frame(clip(10.0), ROOT_ISOLATION_FRAME, BOX_A_SPATIAL),
@@ -522,6 +527,44 @@ mod tests {
         let mut delta = planned.delta;
         let outcome = write_box_nodes(tree, planned.spatial, planned.frames, &placement, existing, &mut delta);
         (placement, outcome, delta)
+    }
+
+    #[test]
+    fn boxes_without_records_are_numbered_in_write_order_on_a_fresh_tree() {
+        let mut tree = tree_with_viewport_nodes();
+        let (placement_a, outcome_a, delta_a) = write(&mut tree, None, &ScratchBox::default());
+        assert_eq!(placement_a.clone().into_node_handles(), box_a_handles());
+        assert!(outcome_a.shape_changed);
+        assert!(!delta_a.structural_epoch_changed);
+        assert!(delta_a.requires_display_list_recording);
+
+        let description_b = ScratchBox {
+            spatial_parent: BOX_A_SPATIAL,
+            local_count: 0,
+            descendant_count: 0,
+            ..ScratchBox::default()
+        };
+        let (placement_b, _, _) = write(&mut tree, None, &description_b);
+        assert_eq!(placement_b.spatial, vec![BOX_B_SPATIAL]);
+        assert_eq!(placement_b.chain_frames, vec![BOX_B_FRAME]);
+        assert_eq!(tree.free_slot_count(), 0);
+        assert_eq!(tree.quarantined_slot_count(), 0);
+    }
+
+    #[test]
+    fn a_slot_tombstoned_in_the_same_walk_is_not_handed_to_a_later_box() {
+        let mut tree = tree_with_box_a_followed_by_box_b();
+        assert!(tree.tombstone_frame_slot(BOX_A_LOCAL_FRAME));
+        let description = ScratchBox {
+            local_count: 0,
+            descendant_count: 0,
+            ..ScratchBox::default()
+        };
+        let (placement, _, _) = write(&mut tree, None, &description);
+        assert_eq!(placement.spatial, vec![SpatialNodeIndex(4)]);
+        assert_eq!(placement.chain_frames, vec![FrameNodeIndex(5)]);
+        assert_eq!(tree.quarantined_slot_count(), 1);
+        assert_eq!(tree.free_slot_count(), 0);
     }
 
     #[test]
