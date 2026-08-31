@@ -2,10 +2,10 @@ PASS: isTypeSupported
 PASS: addSourceBuffer succeeded
 PASS: loaded media data (28560 bytes)
 buffered after slice 1/5: []
-buffered after slice 2/5: [0-0.510839003]
+buffered after slice 2/5: [0-0.510839002]
 buffered after slice 3/5: [0-1.021678005]
 buffered after slice 4/5: [0-1.323537415]
-buffered after slice 5/5: [0-2.023219954]
+buffered after slice 5/5: [0-2.023219955]
 duration: Infinity
 video track: kind=main, label=VideoHandler, language=""
 audio track: kind=main, label=SoundHandler, language=""

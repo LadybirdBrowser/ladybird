@@ -1,4 +1,4 @@
-buffered after the second half: [1.02328125-2.023219954]
-buffered after both halves: [0-2.023219954]
+buffered after the second half: [1.02328125-2.023219955]
+buffered after both halves: [0-2.023219955]
 PASS: seeked into the first group
 PASS: played into the second group
