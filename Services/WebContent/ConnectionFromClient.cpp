@@ -473,6 +473,17 @@ void ConnectionFromClient::run_history_step_beforeunload_check(u64 page_id, Web:
         }));
 }
 
+void ConnectionFromClient::discard_embedded_page(u64 page_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    // The UI process has already coordinated the embedded subtree's unload. This local traversable is the page
+    // coordinator for an iframe, not a browser top-level traversable, so discard it without running close steps.
+    page->page().top_level_traversable()->destroy_local_traversable();
+}
+
 void ConnectionFromClient::queue_navigation_api_state_clear_task(u64 page_id, Web::HTML::CrossProcessId, Web::HTML::CrossProcessId navigable_id)
 {
     if (auto page = this->page(page_id); page.has_value())
