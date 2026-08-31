@@ -641,6 +641,7 @@ AvailableData PlaybackManager::available_data()
 TimeRanges PlaybackManager::buffered_time_ranges() const
 {
     TimeRanges intersection { { AK::Duration::zero(), m_duration } };
+    bool any_track_contributed_ranges = false;
 
     for (auto const& demuxer : m_demuxers) {
         for (auto const& track_state : demuxer->scan_state().tracks) {
@@ -652,8 +653,12 @@ TimeRanges PlaybackManager::buffered_time_ranges() const
             if (track_state.reached_end_of_stream && !track_ranges.is_empty())
                 track_ranges.add_range(track_ranges[track_ranges.size() - 1].start, m_duration);
             intersection = intersection.intersection(track_ranges);
+            any_track_contributed_ranges = true;
         }
     }
+
+    if (!any_track_contributed_ranges)
+        return {};
 
     return intersection;
 }
