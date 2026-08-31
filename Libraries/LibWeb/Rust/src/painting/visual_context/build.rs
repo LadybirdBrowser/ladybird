@@ -343,43 +343,30 @@ struct PendingPaintable {
     may_be_root_element: bool,
 }
 
-pub(crate) fn build_visual_context_tree(
-    layout_arena: &impl PaintableRowsRead,
-    callbacks: &FfiVisualContextHostCallbacks,
-    viewport: NodeSlotId,
-) -> (
-    VisualContextTree,
-    ScrollState,
-    Vec<NodeSlotId>,
-    Vec<PaintableVisualContextAssignment>,
-) {
-    let inputs = callbacks.tree_inputs();
-    let mut builder = Builder {
-        layout_arena,
-        callbacks,
-        tree: VisualContextTree::create(super::node_values::visual_viewport_transform_data(&inputs)),
-        scroll_state: ScrollState::default(),
-        paintables_with_mask_nodes: Vec::new(),
-        assignments: vec![None; layout_arena.paintable_row_count()],
-        pixel_ratio: inputs.device_pixels_per_css_pixel,
-        tree_inputs: inputs,
-        root_background_source: callbacks.root_background_source(),
-        may_have_default_scroll_shift_anchor: inputs.may_have_default_scroll_shift_anchor,
-    };
+pub(crate) struct FreshTree {
+    pub tree: VisualContextTree,
+    pub viewport_assignment: PaintableVisualContextAssignment,
+}
 
-    let root_isolation_frame = builder.tree.append_frame_with_role(
+pub(crate) fn create_fresh_tree_with_viewport_nodes(
+    layout_arena: &impl PaintableRowsRead,
+    viewport: NodeSlotId,
+    inputs: &FfiVisualContextTreeInputs,
+) -> FreshTree {
+    let mut tree = VisualContextTree::create(super::node_values::visual_viewport_transform_data(inputs));
+    let root_isolation_frame = tree.append_frame_with_role(
         FrameData::layer_blending_with(CompositingAndBlendingOperator::Normal),
         FrameNodeIndex::NONE,
         VISUAL_VIEWPORT_NODE_INDEX,
         FrameRole::RootIsolation,
     );
-    builder.tree.root_isolation_frame = Some(root_isolation_frame);
+    tree.root_isolation_frame = Some(root_isolation_frame);
     let root_context = ContextRef {
         spatial: VISUAL_VIEWPORT_NODE_INDEX,
         frame: root_isolation_frame,
     };
 
-    let viewport_scroll_node = builder.tree.append_spatial(
+    let viewport_scroll_node = tree.append_spatial(
         SpatialData::Scroll(ScrollData {
             state_slot: NO_SCROLL_STATE_SLOT,
             owner_paintable: viewport,
@@ -387,7 +374,6 @@ pub(crate) fn build_visual_context_tree(
         }),
         VISUAL_VIEWPORT_NODE_INDEX,
     );
-    builder.register_scroll_node(viewport_scroll_node, viewport, VISUAL_VIEWPORT_NODE_INDEX);
     let viewport_state_for_descendants = ContextRef {
         spatial: viewport_scroll_node,
         frame: root_isolation_frame,
@@ -410,27 +396,58 @@ pub(crate) fn build_visual_context_tree(
         flattens_inherited_transform: true,
         sorting_context_root: None,
     };
-    {
-        let mut viewport_assignment = PaintableVisualContextAssignment::from_data(
-            viewport,
-            layout_arena.paintable_data(viewport),
-            PaintableVisualContextRecord {
-                inherited_input: viewport_contexts,
-                output_for_descendants: viewport_contexts,
-                node_handles: BoxVisualContextNodeHandles::default(),
-                has_mask_nodes: false,
-                may_be_root_element: false,
-                owns_geometry_dependent_nodes: false,
-                subtree_may_own_geometry_dependent_nodes: false,
-            },
-        );
-        viewport_assignment.enclosing_scroll_node_index = VISUAL_VIEWPORT_NODE_INDEX;
-        viewport_assignment.own_scroll_node_index = viewport_scroll_node;
-        viewport_assignment.has_accumulated_visual_context = true;
-        viewport_assignment.accumulated_visual_context = root_context;
-        viewport_assignment.accumulated_visual_context_for_descendants = viewport_state_for_descendants;
-        builder.assignments[viewport.slot_index() as usize] = Some(viewport_assignment);
+    let mut viewport_assignment = PaintableVisualContextAssignment::from_data(
+        viewport,
+        layout_arena.paintable_data(viewport),
+        PaintableVisualContextRecord {
+            inherited_input: viewport_contexts,
+            output_for_descendants: viewport_contexts,
+            node_handles: BoxVisualContextNodeHandles::default(),
+            has_mask_nodes: false,
+            may_be_root_element: false,
+            owns_geometry_dependent_nodes: false,
+            subtree_may_own_geometry_dependent_nodes: false,
+        },
+    );
+    viewport_assignment.enclosing_scroll_node_index = VISUAL_VIEWPORT_NODE_INDEX;
+    viewport_assignment.own_scroll_node_index = viewport_scroll_node;
+    viewport_assignment.has_accumulated_visual_context = true;
+    viewport_assignment.accumulated_visual_context = root_context;
+    viewport_assignment.accumulated_visual_context_for_descendants = viewport_state_for_descendants;
+    FreshTree {
+        tree,
+        viewport_assignment,
     }
+}
+
+pub(crate) fn build_visual_context_tree(
+    layout_arena: &impl PaintableRowsRead,
+    callbacks: &FfiVisualContextHostCallbacks,
+    viewport: NodeSlotId,
+) -> (
+    VisualContextTree,
+    ScrollState,
+    Vec<NodeSlotId>,
+    Vec<PaintableVisualContextAssignment>,
+) {
+    let inputs = callbacks.tree_inputs();
+    let fresh_tree = create_fresh_tree_with_viewport_nodes(layout_arena, viewport, &inputs);
+    let viewport_scroll_node = fresh_tree.viewport_assignment.own_scroll_node_index;
+    let viewport_contexts = fresh_tree.viewport_assignment.record.output_for_descendants;
+    let mut builder = Builder {
+        layout_arena,
+        callbacks,
+        tree: fresh_tree.tree,
+        scroll_state: ScrollState::default(),
+        paintables_with_mask_nodes: Vec::new(),
+        assignments: vec![None; layout_arena.paintable_row_count()],
+        pixel_ratio: inputs.device_pixels_per_css_pixel,
+        tree_inputs: inputs,
+        root_background_source: callbacks.root_background_source(),
+        may_have_default_scroll_shift_anchor: inputs.may_have_default_scroll_shift_anchor,
+    };
+    builder.register_scroll_node(viewport_scroll_node, viewport, VISUAL_VIEWPORT_NODE_INDEX);
+    builder.assignments[viewport.slot_index() as usize] = Some(fresh_tree.viewport_assignment);
 
     // Anchor-positioned boxes emit AnchorScrollShift nodes by reading the enclosing scroll nodes of
     // their anchors, and an acceptable anchor may come later in tree order than the positioned box.
