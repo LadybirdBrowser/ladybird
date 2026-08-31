@@ -384,7 +384,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
         return EventResult::Accepted;
 
     if (!chrome_widget)
-        run_mousedown_default_actions(*document, visual_viewport_position, viewport_position, button, modifiers, click_count);
+        run_mousedown_default_actions(*document, visual_viewport_position, button, modifiers, click_count);
 
     return EventResult::Handled;
 }
@@ -2260,7 +2260,7 @@ GC::Ptr<DOM::Node> EventHandler::focus_candidate_for_position(CSSPixelPoint visu
 static bool selection_contains_position(DOM::Document&, Painting::CaretPosition const&);
 #endif
 
-void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position, unsigned button, unsigned modifiers, int click_count)
+void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPixelPoint visual_viewport_position, unsigned button, unsigned modifiers, int click_count)
 {
     if (m_middle_button_scroll_handler) {
         m_middle_button_scroll_handler = nullptr;
@@ -2297,7 +2297,7 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
         return;
 #endif
 
-    auto caret_position = prepare_mouse_selection(document, visual_viewport_position, viewport_position);
+    auto caret_position = prepare_mouse_selection(document, visual_viewport_position);
     if (!caret_position.has_value())
         return;
 
@@ -2335,7 +2335,7 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
     }
 }
 
-Optional<Painting::CaretPosition> EventHandler::prepare_mouse_selection(DOM::Document& document, CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position)
+Optional<Painting::CaretPosition> EventHandler::prepare_mouse_selection(DOM::Document& document, CSSPixelPoint visual_viewport_position)
 {
     document.update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
     if (!has_committed_root_box())
@@ -2355,7 +2355,7 @@ Optional<Painting::CaretPosition> EventHandler::prepare_mouse_selection(DOM::Doc
 
     auto focus_candidate = editing_host_before_focus;
     if (!focus_candidate)
-        focus_candidate = focus_candidate_for_position(viewport_position);
+        focus_candidate = focus_candidate_for_position(visual_viewport_position);
     if (focus_candidate)
         HTML::run_focusing_steps(focus_candidate, nullptr, HTML::FocusTrigger::Click);
     else if (auto focused_area = document.focused_area())
@@ -2417,8 +2417,7 @@ bool EventHandler::select_word_for_dictionary_lookup(CSSPixelPoint visual_viewpo
         return *dispatch_result == EventResult::Handled;
     }
 
-    auto viewport_position = document->visual_viewport()->map_to_layout_viewport(visual_viewport_position);
-    return select_word_at_position(*document, visual_viewport_position, viewport_position);
+    return select_word_at_position(*document, visual_viewport_position);
 }
 
 static bool form_control_selection_contains_position(InputEventsTarget& target, Painting::CaretPosition const& caret_position)
@@ -2461,9 +2460,9 @@ static bool selection_contains_position(DOM::Document& document, Painting::Caret
     return contains_position.value();
 }
 
-bool EventHandler::select_word_at_position(DOM::Document& document, CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position)
+bool EventHandler::select_word_at_position(DOM::Document& document, CSSPixelPoint visual_viewport_position)
 {
-    auto caret_position = prepare_mouse_selection(document, visual_viewport_position, viewport_position);
+    auto caret_position = prepare_mouse_selection(document, visual_viewport_position);
     if (!caret_position.has_value())
         return false;
 
@@ -2488,8 +2487,7 @@ void EventHandler::start_selection_from_preserved_mousedown(DOM::Document& docum
     if (!m_mousedown_visual_viewport_position.has_value())
         return;
 
-    auto viewport_position = document.visual_viewport()->map_to_layout_viewport(*m_mousedown_visual_viewport_position);
-    auto caret_position = prepare_mouse_selection(document, *m_mousedown_visual_viewport_position, viewport_position);
+    auto caret_position = prepare_mouse_selection(document, *m_mousedown_visual_viewport_position);
     if (!caret_position.has_value())
         return;
 
