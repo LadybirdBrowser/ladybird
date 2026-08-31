@@ -1006,41 +1006,21 @@ fn full_visual_context_build(
     viewport: NodeSlotId,
     callbacks: &FfiVisualContextHostCallbacks,
     state: &mut crate::painting::visual_context::VisualContextState,
-    force_incompatible_rebuild: bool,
 ) -> crate::painting::host::FfiVisualContextUpdateOutcome {
-    let (mut tree, scroll_state, paintables_with_mask_nodes, previous_assignments, assignments) = {
+    let (tree, scroll_state, paintables_with_mask_nodes, assignments) = {
         let arena = unsafe { arena_from_handle(arena) };
         let paintable_rows = arena.paintable_rows();
-        let previous_assignments = paintable_rows.visual_context_assignments();
-        let (tree, scroll_state, paintables_with_mask_nodes, assignments) =
-            crate::painting::visual_context::build::build_visual_context_tree(&paintable_rows, callbacks, viewport);
-        (
-            tree,
-            scroll_state,
-            paintables_with_mask_nodes,
-            previous_assignments,
-            assignments,
-        )
+        crate::painting::visual_context::build::build_visual_context_tree(&paintable_rows, callbacks, viewport)
     };
     let arena = unsafe { arena_from_handle_mut(arena) };
-    let assignments_changed = {
+    {
         let mut paintable_rows = arena.paintable_rows_mut();
         for assignment in assignments {
             assignment.apply(&mut paintable_rows);
         }
-        previous_assignments != paintable_rows.visual_context_assignments()
-    };
-    state.build_count += 1;
-    let is_compatible = !force_incompatible_rebuild
-        && state
-            .tree
-            .as_deref()
-            .is_some_and(|previous| tree.is_compatible_with(previous));
-    if is_compatible {
-        tree.structural_epoch = state.structural_epoch();
-    } else {
-        arena.mark_all_paint_caches_dirty();
     }
+    state.build_count += 1;
+    arena.mark_all_paint_caches_dirty();
     let structural_epoch = tree.structural_epoch;
     state.tree = Some(Rc::new(tree));
     state.paintables_with_mask_nodes = paintables_with_mask_nodes;
@@ -1049,13 +1029,10 @@ fn full_visual_context_build(
     state.needs_to_refresh_scroll_state = true;
     state.dirty_boxes.clear();
     state.quarantined_slots_are_releasable = false;
-    if assignments_changed {
-        arena.mark_all_descendant_subtree_caches_dirty();
-    }
     crate::painting::host::FfiVisualContextUpdateOutcome {
         performed_full_build: true,
-        structural_epoch_changed: !is_compatible,
-        requires_display_list_recording: !is_compatible,
+        structural_epoch_changed: true,
+        requires_display_list_recording: true,
         structural_epoch,
     }
 }
@@ -1085,7 +1062,6 @@ pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
     arena: *mut c_void,
     viewport: NodeSlotId,
     callbacks: FfiVisualContextHostCallbacks,
-    force_full_rebuild: bool,
 ) -> crate::painting::host::FfiVisualContextUpdateOutcome {
     abort_on_panic(|| {
         use crate::painting::visual_context::dirty::{
@@ -1106,9 +1082,6 @@ pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
         let mut reason = state.dirty_boxes.global_reason;
         if state.tree.is_none() {
             reason = reason.max(VisualContextGlobalRebuildReason::FirstBuild);
-        }
-        if force_full_rebuild {
-            reason = reason.max(VisualContextGlobalRebuildReason::ForcedForTesting);
         }
         if state.last_tree_inputs.is_some_and(|last| {
             last.device_pixels_per_css_pixel != inputs.device_pixels_per_css_pixel
@@ -1206,7 +1179,7 @@ pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
         }
 
         state.last_full_build_reason = reason;
-        let outcome = full_visual_context_build(arena, viewport, &callbacks, &mut state, force_full_rebuild);
+        let outcome = full_visual_context_build(arena, viewport, &callbacks, &mut state);
         state.last_tree_inputs = Some(inputs);
         state.last_root_background_source = Some(root_background_source);
         let arena_ref = unsafe { arena_from_handle(arena) };

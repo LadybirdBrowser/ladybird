@@ -152,7 +152,6 @@ void Internals::force_incompatible_visual_context_tree_rebuild()
     auto& document = window().associated_document();
     if (!document.has_committed_viewport_box())
         return;
-    document.paint_state().set_force_incompatible_visual_context_tree_rebuild_for_testing();
     document.schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason::ForcedForTesting);
 }
 
@@ -235,7 +234,6 @@ void Internals::send_mismatched_visual_context_tree_update_to_compositor()
 
     // Force a fresh, incompatible rebuild — so the tree is minted with a new structural epoch that the Compositor's installed
     // display list was never recorded against.
-    document_paint_state.set_force_incompatible_visual_context_tree_rebuild_for_testing();
     document.schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason::ForcedForTesting);
     document.update_paint_and_hit_testing_properties_if_needed();
 

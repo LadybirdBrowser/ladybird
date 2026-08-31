@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .box { position: absolute; top: 100px; width: 100px; height: 100px; transform: translateX(1px); background-image: linear-gradient(green, green); }
+    #a { left: 0; }
+    #b { left: 150px; }
+</style>
+<div id="a" class="box"></div>
+<div id="b" class="box"></div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const lines = [];
+
+        settle();
+        document.body.appendChild(document.createElement("pre"));
+        settle();
+        internals.forceIncompatibleVisualContextTreeRebuild();
+        settle();
+
+        const liveNodes = internals.visualContextTreeNodeCount();
+        const epoch = internals.visualContextTreeStructuralEpoch();
+        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
+
+        internals.forceIncompatibleVisualContextTreeRebuild();
+        settle();
+
+        lines.push(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
+        lines.push(`epoch changed: ${internals.visualContextTreeStructuralEpoch() !== epoch}`);
+        lines.push(`live nodes unchanged: ${internals.visualContextTreeNodeCount() === liveNodes}`);
+        lines.push(`capacity equals live nodes: ${internals.visualContextTreeNodeCapacity() === internals.visualContextTreeNodeCount()}`);
+        lines.push(`dead nodes: ${internals.visualContextTreeDeadNodeCount()}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

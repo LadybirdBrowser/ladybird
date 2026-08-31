@@ -7,7 +7,6 @@
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::layout::{fragment_tree, used_values};
-use crate::painting::display_list::commands::ContextRef;
 use crate::painting::node_painting;
 use crate::painting::paintable_data::*;
 use crate::painting::record::cache::PaintCache;
@@ -20,15 +19,6 @@ use crate::painting::visual_context::{
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::ffi::c_void;
 use std::ops::{Deref, DerefMut};
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct VisualContextAssignmentSnapshot {
-    pub slot_generation: u32,
-    pub has_accumulated_visual_context: bool,
-    pub accumulated_visual_context: ContextRef,
-    pub accumulated_visual_context_for_descendants: ContextRef,
-    pub node_handles: BoxVisualContextNodeHandles,
-}
 
 pub(crate) const PAINTABLE_SLOTS_PER_CHUNK: usize = 64;
 
@@ -190,27 +180,6 @@ where
         }
         let root = self.paintable_data(inline_paintable).containing_block;
         (self.paintable_row_is_populated(root) && node_painting::has_lines(self, root)).then_some(root)
-    }
-
-    pub(crate) fn visual_context_assignments(&self) -> Vec<VisualContextAssignmentSnapshot> {
-        let records = self.arena.paintable_rows.visual_context_records.borrow();
-        (0..self.arena.paintable_row_count())
-            .map(|index| {
-                let chunk = &self.arena.paintable_rows.chunks[index / PAINTABLE_SLOTS_PER_CHUNK];
-                let data = &chunk.slots[index % PAINTABLE_SLOTS_PER_CHUNK];
-                VisualContextAssignmentSnapshot {
-                    slot_generation: u32::from(data.slot_generation),
-                    has_accumulated_visual_context: data.has_accumulated_visual_context,
-                    accumulated_visual_context: data.accumulated_visual_context,
-                    accumulated_visual_context_for_descendants: data.accumulated_visual_context_for_descendants,
-                    node_handles: records[index]
-                        .as_ref()
-                        .map_or_else(BoxVisualContextNodeHandles::default, |record| {
-                            record.node_handles.clone()
-                        }),
-                }
-            })
-            .collect()
     }
 
     pub(crate) fn mark_paint_cache_self_dirty(&self, id: NodeSlotId) {
