@@ -150,6 +150,22 @@ struct TestTraversable {
         initialize_navigable_entry_identities();
     }
 
+    void with_two_changing_navigables()
+    {
+        add_child(child_id());
+
+        auto top0 = entry(0, "https://top.example/0"sv);
+        top0.document_state.nested_histories.append({
+            .id = child_id(),
+            .entries = { entry(0, "https://child.example/0"sv), entry(2, "https://child.example/2"sv) },
+        });
+
+        auto top2 = entry(2, "https://top.example/2"sv);
+        top2.document_state.id = top0.document_state.id;
+        VERIFY(history.initialize_for_testing({ move(top0), move(top2) }, { 0, 2 }, 1));
+        initialize_navigable_entry_identities();
+    }
+
     void with_finalized_cross_document_replacement()
     {
         auto initial_entry = entry(0, "https://a.example/"sv);
@@ -430,6 +446,29 @@ TEST_CASE(skipped_changing_job_still_applies_the_history_step)
     EXPECT(!child.ongoing_navigation_is_traversal());
 }
 
+TEST_CASE(ready_continuations_interleave_with_still_running_changing_jobs)
+{
+    TestTraversable test;
+    test.with_two_changing_navigables();
+
+    test.traverse_to_step(0);
+    EXPECT_EQ(test.runner.changing_jobs.size(), 2uz);
+
+    test.runner.changing_jobs[0].on_complete(Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready);
+    EXPECT_EQ(test.runner.continuations.size(), 1uz);
+
+    test.runner.changing_jobs[1].on_complete(Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready);
+    EXPECT_EQ(test.runner.continuations.size(), 1uz);
+
+    test.runner.continuations[0].on_complete();
+    EXPECT_EQ(test.runner.continuations.size(), 2uz);
+    EXPECT(!test.result.has_value());
+
+    test.runner.continuations[1].on_complete();
+    EXPECT(test.result == Web::HTML::HistoryStepResult::Applied);
+    EXPECT_EQ(test.current_step(), 0);
+}
+
 TEST_CASE(stale_changing_job_completes_without_committing_the_target_step)
 {
     TestTraversable test;
@@ -461,13 +500,11 @@ TEST_CASE(synchronous_navigation_steps_jump_the_queue_before_continuations)
 
     test.traverse_to_step(0);
     EXPECT_EQ(test.runner.changing_jobs.size(), 1uz);
-    EXPECT(!synchronous_steps_ran);
-    test.runner.changing_jobs[0].on_complete(Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready);
-
-    // The queued synchronous navigation ran before the continuation was applied, and pauses this run until it
-    // signals completion.
     EXPECT(synchronous_steps_ran);
     EXPECT(test.state.running_nested_apply_history_step);
+    EXPECT(test.runner.continuations.is_empty());
+
+    test.runner.changing_jobs[0].on_complete(Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready);
     EXPECT(test.runner.continuations.is_empty());
 
     synchronous_steps_signal->resolve({});

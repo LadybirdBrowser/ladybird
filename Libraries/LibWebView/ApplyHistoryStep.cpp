@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <LibWebView/ApplyHistoryStep.h>
 #include <LibWebView/CanonicalNavigable.h>
 
@@ -196,8 +197,8 @@ void ApplyHistoryStep::run_changing_navigable_jobs()
             });
     }
 
-    if (m_changing_navigables.is_empty())
-        process_changing_navigable_continuations();
+    m_changing_jobs_dispatched = true;
+    process_changing_navigable_continuations();
 }
 
 void ApplyHistoryStep::changing_navigable_job_completed(Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition)
@@ -223,17 +224,28 @@ void ApplyHistoryStep::changing_navigable_job_completed(Web::HTML::CrossProcessI
         return;
     }
 
-    // NB: Continuations are processed once every changing navigable's job has reported. The specification's loop can
-    //     interleave them with still-populating jobs; keeping population and application in separate rounds preserves
-    //     the ordering the WebContent-local coordinator used.
-    if (m_changing_navigable_continuations.size() + m_completed_change_jobs == m_changing_navigables.size())
+    if (m_changing_jobs_dispatched
+        && !m_processing_changing_navigable_continuations
+        && !m_continuation_in_flight
+        && !m_running_synchronous_navigation_steps) {
         process_changing_navigable_continuations();
+    }
 }
 
 void ApplyHistoryStep::process_changing_navigable_continuations()
 {
+    if (m_completed
+        || m_processing_changing_navigable_continuations
+        || m_continuation_in_flight
+        || m_running_synchronous_navigation_steps) {
+        return;
+    }
+
+    m_processing_changing_navigable_continuations = true;
+    ScopeGuard processing_guard = [this] { m_processing_changing_navigable_continuations = false; };
+
     // 14. While completedChangeJobs does not equal totalChangeJobs:
-    for (;;) {
+    while (m_completed_change_jobs != m_changing_navigables.size()) {
         // NOTE: Synchronous navigations that are intended to take place before this traversal jump the queue at this
         //       point, so they can be added to the correct place in traversable's session history entries before this
         //       traversal potentially unloads their document. More details can be found here:
@@ -288,14 +300,10 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
             m_synchronous_navigation_steps_to_jump_through.clear();
         }
 
-        // 3. Let changingNavigableContinuation be the result of dequeuing from changingNavigableContinuations.
-        //    If nothing was dequeued, then continue.
-        // NB: Every changing navigable's job has reported by the time this loop runs, so an empty queue means
-        //     completedChangeJobs equals totalChangeJobs.
-        if (m_changing_navigable_continuations.is_empty()) {
-            update_nonchanging_navigables();
+        // 2. Let changingNavigableContinuation be the result of dequeuing from changingNavigableContinuations.
+        // 3. If changingNavigableContinuation is nothing, then continue.
+        if (m_changing_navigable_continuations.is_empty())
             return;
-        }
         auto navigable_id = m_changing_navigable_continuations.take_first();
 
         // NB: targetStep was computed before the asynchronous parts of this algorithm. Re-normalize it in case a
@@ -323,6 +331,7 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
 
         // NB: One continuation is applied at a time, so synchronous navigations queued by its application are in the
         //     traversal queue before the next continuation checks for them.
+        m_continuation_in_flight = true;
         m_jobs.apply_changing_navigable_history_step_continuation(
             {
                 .navigable_id = navigable_id,
@@ -332,13 +341,17 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
             [this, navigable_id] {
                 if (m_completed)
                     return;
+                m_continuation_in_flight = false;
                 clear_ongoing_navigation_traversal(navigable_id);
                 // 10. Increment completedChangeJobs.
                 m_completed_change_jobs++;
                 process_changing_navigable_continuations();
             });
-        return;
+        if (m_continuation_in_flight)
+            return;
     }
+
+    update_nonchanging_navigables();
 }
 
 void ApplyHistoryStep::update_nonchanging_navigables()
