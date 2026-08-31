@@ -475,6 +475,7 @@ pub fn allocate_structural_epoch() -> u64 {
 
 pub fn resolve_leaf_to_context_matrices(
     contexts: &SortingContexts,
+    nodes_in_dependency_order: &[u32],
     parent_by_node: &[SpatialNodeIndex],
     local_matrix_by_node: &[FloatMatrix4x4],
     flattens_inherited_transform_by_node: &[bool],
@@ -482,16 +483,17 @@ pub fn resolve_leaf_to_context_matrices(
     if contexts.is_empty() {
         return Vec::new();
     }
-    let mut matrices = Vec::with_capacity(local_matrix_by_node.len());
-    for (index, local_matrix) in local_matrix_by_node.iter().enumerate() {
+    let mut matrices = vec![FloatMatrix4x4::identity(); local_matrix_by_node.len()];
+    for &index in nodes_in_dependency_order {
+        let index = index as usize;
         let context = contexts.context_by_node[index];
         if context.0 as usize == index || index == 0 {
-            matrices.push(FloatMatrix4x4::identity());
             continue;
         }
+        let local_matrix = local_matrix_by_node[index];
         let parent = parent_by_node[index].0 as usize;
         if parent == context.0 as usize {
-            matrices.push(*local_matrix);
+            matrices[index] = local_matrix;
             continue;
         }
         let mut base = matrices[parent];
@@ -505,7 +507,7 @@ pub fn resolve_leaf_to_context_matrices(
                 .unwrap_or(FloatMatrix4x4::identity())
                 .multiplied(base);
         }
-        matrices.push(base.multiplied(*local_matrix));
+        matrices[index] = base.multiplied(local_matrix);
     }
     matrices
 }
@@ -1058,7 +1060,11 @@ impl VisualContextTree {
     }
 
     pub fn resolve_sorting_contexts(&self) -> SortingContexts {
-        resolve_sorting_contexts_over_nodes(self.spatial_nodes.len(), &self.spatial_dependency_order(), |index| {
+        self.resolve_sorting_contexts_in_order(&self.spatial_dependency_order())
+    }
+
+    pub fn resolve_sorting_contexts_in_order(&self, nodes_in_dependency_order: &[u32]) -> SortingContexts {
+        resolve_sorting_contexts_over_nodes(self.spatial_nodes.len(), nodes_in_dependency_order, |index| {
             let node = &self.spatial_nodes[index];
             let sorting_context_root = if let SpatialData::Transform(transform) = &node.data {
                 transform.sorting_context_root_index
@@ -1723,11 +1729,26 @@ mod tests {
 
     fn resolve_matrices(parents: &[u32], roots: &[Option<u32>], locals: &[FloatMatrix4x4]) -> Vec<FloatMatrix4x4> {
         let dependency_order: Vec<u32> = (0..parents.len() as u32).collect();
-        let contexts = resolve_sorting_contexts_over_nodes(parents.len(), &dependency_order, |index| {
+        resolve_matrices_in_order(parents, roots, locals, &dependency_order)
+    }
+
+    fn resolve_matrices_in_order(
+        parents: &[u32],
+        roots: &[Option<u32>],
+        locals: &[FloatMatrix4x4],
+        dependency_order: &[u32],
+    ) -> Vec<FloatMatrix4x4> {
+        let contexts = resolve_sorting_contexts_over_nodes(parents.len(), dependency_order, |index| {
             (SpatialNodeIndex(parents[index]), roots[index].map(SpatialNodeIndex))
         });
         let parent_by_node: Vec<SpatialNodeIndex> = parents.iter().map(|parent| SpatialNodeIndex(*parent)).collect();
-        resolve_leaf_to_context_matrices(&contexts, &parent_by_node, locals, &vec![false; parents.len()])
+        resolve_leaf_to_context_matrices(
+            &contexts,
+            dependency_order,
+            &parent_by_node,
+            locals,
+            &vec![false; parents.len()],
+        )
     }
 
     #[test]
@@ -1757,5 +1778,32 @@ mod tests {
         assert_eq!(matrices[2], locals[2]);
         assert_eq!(matrices[3], locals[2].multiplied(locals[3]));
         assert_eq!(matrices[4], locals[3].multiplied(locals[4]));
+    }
+
+    #[test]
+    fn leaf_to_context_matrices_compose_over_a_context_root_at_a_higher_index() {
+        let locals = [
+            FloatMatrix4x4::identity(),
+            translation_matrix(0.0, 0.0, 3.0),
+            translation_matrix(0.0, 2.0, 0.0),
+            translation_matrix(1.0, 0.0, 0.0),
+        ];
+        let matrices = resolve_matrices_in_order(&[0, 2, 3, 0], &[None, None, Some(3), None], &locals, &[0, 3, 2, 1]);
+        assert_eq!(matrices[3], FloatMatrix4x4::identity());
+        assert_eq!(matrices[2], locals[2]);
+        assert_eq!(matrices[1], locals[2].multiplied(locals[1]));
+    }
+
+    #[test]
+    fn leaf_to_context_matrices_leave_a_tombstoned_slot_at_identity() {
+        let locals = [
+            FloatMatrix4x4::identity(),
+            translation_matrix(0.0, 0.0, 3.0),
+            translation_matrix(0.0, 2.0, 0.0),
+            translation_matrix(1.0, 0.0, 0.0),
+        ];
+        let matrices = resolve_matrices_in_order(&[0, 2, 3, 0], &[None, None, Some(3), None], &locals, &[0, 3, 2]);
+        assert_eq!(matrices[1], FloatMatrix4x4::identity());
+        assert_eq!(matrices[2], locals[2]);
     }
 }

@@ -96,6 +96,7 @@ struct ReplayDriver<'a, Painter: ReplayPainter> {
     painter: &'a mut Painter,
     palette: ReplayPaletteStorage,
     frame_has_empty_effective_clip: Vec<bool>,
+    spatial_dependency_order: Vec<u32>,
     tree_has_sorting_contexts: bool,
     replay_base_matrix: FloatMatrix4x4,
     // The palette entry the canvas matrix currently equals, if known; popping a frame resets the
@@ -141,6 +142,7 @@ fn replay_mask_of(mask: &crate::painting::visual_context::MaskData) -> ReplayMas
 
 fn fill_replay_palette_in_dependency_order(
     tree: &VisualContextTree,
+    spatial_dependency_order: &[u32],
     scroll_offsets: &[FloatPoint],
     replay_base_matrix: FloatMatrix4x4,
     palette: &mut ReplayPaletteStorage,
@@ -160,7 +162,7 @@ fn fill_replay_palette_in_dependency_order(
     palette.backface_culled.resize(spatial_nodes.len(), false);
     palette.flattens_inherited_transform.clear();
     palette.flattens_inherited_transform.resize(spatial_nodes.len(), false);
-    for index in tree.spatial_dependency_order() {
+    for &index in spatial_dependency_order {
         let i = index as usize;
         let node = &spatial_nodes[i];
         let parent = node.parent.0 as usize;
@@ -237,7 +239,13 @@ fn fill_replay_palette_in_dependency_order(
 
 impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
     fn build_transform_palette(&mut self, scroll_offsets: &[FloatPoint]) {
-        fill_replay_palette_in_dependency_order(self.tree, scroll_offsets, self.replay_base_matrix, &mut self.palette);
+        fill_replay_palette_in_dependency_order(
+            self.tree,
+            &self.spatial_dependency_order,
+            scroll_offsets,
+            self.replay_base_matrix,
+            &mut self.palette,
+        );
     }
 
     fn ensure_ctm_space(&mut self, spatial: SpatialNodeIndex) {
@@ -381,10 +389,11 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
         } else {
             let root_isolation_frame = tree.root_isolation_frame;
             let plane_clip_base_length = usize::from(root_isolation_frame.is_some());
-            let contexts = tree.resolve_sorting_contexts();
+            let contexts = tree.resolve_sorting_contexts_in_order(&self.spatial_dependency_order);
             let parent_by_node: Vec<SpatialNodeIndex> = tree.spatial_nodes.iter().map(|node| node.parent).collect();
             let leaf_to_context_palette = resolve_leaf_to_context_matrices(
                 &contexts,
+                &self.spatial_dependency_order,
                 &parent_by_node,
                 &self.palette.local_matrices,
                 &self.palette.flattens_inherited_transform,
@@ -455,6 +464,7 @@ pub fn replay_display_list(
         painter,
         palette: scratch.palette,
         frame_has_empty_effective_clip: scratch.frame_has_empty_effective_clip,
+        spatial_dependency_order: tree.spatial_dependency_order(),
         tree_has_sorting_contexts: tree.spatial_nodes.iter().any(|node| {
             matches!(&node.data, SpatialData::Transform(transform) if transform.sorting_context_root_index.is_some())
         }),
@@ -539,9 +549,21 @@ mod tests {
 
         let base = scale_matrix(2.0, 2.0, 1.0);
         let mut in_order_palette = ReplayPaletteStorage::default();
-        fill_replay_palette_in_dependency_order(&in_order, &[], base, &mut in_order_palette);
+        fill_replay_palette_in_dependency_order(
+            &in_order,
+            &in_order.spatial_dependency_order(),
+            &[],
+            base,
+            &mut in_order_palette,
+        );
         let mut permuted_palette = ReplayPaletteStorage::default();
-        fill_replay_palette_in_dependency_order(&permuted, &[], base, &mut permuted_palette);
+        fill_replay_palette_in_dependency_order(
+            &permuted,
+            &permuted.spatial_dependency_order(),
+            &[],
+            base,
+            &mut permuted_palette,
+        );
         let pairs = [
             (VISUAL_VIEWPORT_NODE_INDEX, VISUAL_VIEWPORT_NODE_INDEX),
             (parent, permuted_parent),
