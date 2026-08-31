@@ -54,6 +54,12 @@ bool SiteIsolationManager::child_frame_navigation_requires_process_swap(Canonica
     if (site_isolation_mode() != SiteIsolationMode::IFrame)
         return false;
 
+    // A remote child can keep its current process when navigating within the same site.
+    if (child_frame.has_remote_host()
+        && !navigation_requires_process_swap(current_url, target_url, Web::NavigationTarget::IFrame)) {
+        return false;
+    }
+
     // Use origin-based same-site checks for HTTP(S). about:blank, srcdoc, and data: need the initiator origin, so fall
     // back to using a URL decision for now.
     if (Web::Fetch::Infrastructure::is_http_or_https_scheme(target_url.scheme())) {
