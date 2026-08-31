@@ -137,6 +137,7 @@ Optional<WebContentClient&> WebContentClient::client_for_compositor_context_id(W
 
 void WebContentClient::die()
 {
+    m_process_lost = true;
     cancel_navigation_transactions();
     fail_renderer_owned_downloads();
 }
@@ -307,6 +308,13 @@ CanonicalNavigable* WebContentClient::embedded_page_host(u64 page_id)
     return child_frame;
 }
 
+bool WebContentClient::is_page_open(u64 page_id) const
+{
+    if (m_process_lost)
+        return false;
+    return m_views.contains(page_id) || m_embedded_pages.contains(page_id);
+}
+
 CanonicalNavigable* WebContentClient::navigable_for_page(u64 page_id)
 {
     if (auto* child_frame = embedded_page_host(page_id))
@@ -429,6 +437,9 @@ void WebContentClient::notify_compositor_process_reconnected(Badge<Application>)
 
 void WebContentClient::notify_all_views_of_crash()
 {
+    // Every page must read as closed before pending history work resolves against this endpoint.
+    m_process_lost = true;
+
     destroy_all_compositor_contexts();
 
     // Resolve any history work waiting on this endpoint before removing the canonical page subtrees that identify
@@ -1970,8 +1981,9 @@ void WebContentClient::did_request_activate_tab(u64 page_id)
 void WebContentClient::did_close_browsing_context(u64 page_id)
 {
     SiteIsolationManager::the().remove_page(*this, page_id);
-    unregister_embedded_page(page_id);
+    // NB: Before unregistering, so an acknowledged embedded discard closes an otherwise-unused server immediately.
     m_detached_pages_pending_close.remove(page_id);
+    unregister_embedded_page(page_id);
 
     if (auto registered_view = m_views.get(page_id); registered_view.has_value()) {
         auto view = *registered_view;

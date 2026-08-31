@@ -484,8 +484,7 @@ struct CanonicalTraversable::HistoryOperation {
         HistoryJobEndpoint endpoint;
     };
     HashMap<Web::HTML::CrossProcessId, PendingNonchangingUpdate> pending_nonchanging_updates;
-    // Unload recovery resumes ApplyHistoryStep synchronously. Its later endpoint selection must not route a child job
-    // back to the process whose unload check just died.
+    // Endpoints which must not receive later work for this operation.
     Vector<HistoryJobEndpoint> unavailable_job_endpoints;
     struct DeferredCompletion {
         Web::HTML::HistoryStepResult result;
@@ -817,14 +816,6 @@ void CanonicalTraversable::recover_from_web_content_process_crash(Optional<Histo
         if (replaced_completion_endpoint)
             add_history_operation_completion_endpoint(*operation.value, replacement_endpoint);
 
-        if (initiating_endpoint_crashed) {
-            if (operation.value->pending_unload_cancelation) {
-                set_current_session_history_entry_identity({});
-                complete_unload_cancelation(*operation.value, Web::HTML::HistoryStepResult::Applied);
-                return;
-            }
-        }
-
         Vector<Web::HTML::CrossProcessId> crashed_changing_jobs;
         for (auto const& endpoint : operation.value->changing_job_endpoints) {
             if (endpoint_crashed(endpoint.value))
@@ -895,7 +886,19 @@ void CanonicalTraversable::recover_from_web_content_process_crash(Optional<Histo
 
         if (operation.value->pending_unload_cancelation) {
             set_current_session_history_entry_identity({});
-            complete_unload_cancelation(*operation.value, Web::HTML::HistoryStepResult::Applied);
+            auto waiting_for_crashed_endpoint = !crashed_endpoint.has_value();
+            if (operation.value->unload_cancelation_endpoint.has_value()
+                && (!crashed_endpoint.has_value() || endpoint_crashed(*operation.value->unload_cancelation_endpoint))) {
+                operation.value->unload_cancelation_endpoint.clear();
+                waiting_for_crashed_endpoint = true;
+            }
+            if (operation.value->dispatched_beforeunload_endpoint.has_value()
+                && (!crashed_endpoint.has_value() || endpoint_crashed(*operation.value->dispatched_beforeunload_endpoint))) {
+                operation.value->dispatched_beforeunload_endpoint.clear();
+                waiting_for_crashed_endpoint = true;
+            }
+            if (waiting_for_crashed_endpoint)
+                dispatch_next_beforeunload_group(*operation.value);
             return;
         }
 
@@ -959,6 +962,11 @@ CanonicalTraversable::HistoryJobEndpoint CanonicalTraversable::history_job_endpo
     return {};
 }
 
+bool CanonicalTraversable::history_job_endpoint_is_available(HistoryJobEndpoint const& endpoint) const
+{
+    return endpoint.client && endpoint.client->is_page_open(endpoint.page_id);
+}
+
 void CanonicalTraversable::did_lose_history_job_endpoint(WebContentClient& client, u64 page_id)
 {
     struct PendingUnloadCompletion {
@@ -973,15 +981,23 @@ void CanonicalTraversable::did_lose_history_job_endpoint(WebContentClient& clien
     Vector<PendingUnloadCompletion> unload_completions;
     Vector<PendingJobCompletions> job_completions;
     Vector<Web::HTML::CrossProcessId> beforeunload_advances;
+    auto advance_beforeunload_once = [&](Web::HTML::CrossProcessId operation_id) {
+        if (!beforeunload_advances.contains_slow(operation_id))
+            beforeunload_advances.append(operation_id);
+    };
 
     auto lost_endpoint_is_root = [&] {
         auto endpoint = history_job_endpoint_for(*this);
         return endpoint.client.ptr() == &client && endpoint.page_id == page_id;
     }();
 
-    auto endpoint_matches = [&](HistoryJobEndpoint const& endpoint) {
+    auto endpoint_matches = [&](auto const& endpoint) {
         return endpoint.client.ptr() == &client && endpoint.page_id == page_id;
     };
+
+    // The page must already read as closed: the completions below can synchronously make a pending unload's
+    // parent ready, and its dispatch must not select the endpoint which just disappeared.
+    VERIFY(!history_job_endpoint_is_available({ &client, page_id }));
 
     for (auto const& pending_unload : m_pending_unloads) {
         for (auto const& node : pending_unload.value.nodes) {
@@ -1001,12 +1017,17 @@ void CanonicalTraversable::did_lose_history_job_endpoint(WebContentClient& clien
         if (!any_of(operation.unavailable_job_endpoints, endpoint_matches))
             operation.unavailable_job_endpoints.append({ &client, page_id });
 
-        // A beforeunload group dispatched to the lost endpoint completes as "proceed"; the remaining groups
-        // continue once the loops below finish.
+        if (!lost_endpoint_is_root
+            && operation.unload_cancelation_endpoint.has_value()
+            && endpoint_matches(*operation.unload_cancelation_endpoint)) {
+            operation.unload_cancelation_endpoint.clear();
+            advance_beforeunload_once(operation.operation_id);
+        }
+
         if (operation.dispatched_beforeunload_endpoint.has_value()
             && endpoint_matches(*operation.dispatched_beforeunload_endpoint)) {
             operation.dispatched_beforeunload_endpoint.clear();
-            beforeunload_advances.append(operation.operation_id);
+            advance_beforeunload_once(operation.operation_id);
         }
 
         // The view's root process has a replacement-and-redispatch path below. An embedded process does not need
@@ -1306,7 +1327,7 @@ void CanonicalTraversable::dispatch_descendant_unload_task(Web::HTML::CrossProce
         return;
 
     auto endpoint = node->value.endpoint;
-    bool endpoint_is_available = endpoint.client != nullptr;
+    bool endpoint_is_available = history_job_endpoint_is_available(endpoint);
     if (pending_unload->value.operation_id.has_value()) {
         if (auto* operation = find_history_operation(*pending_unload->value.operation_id)) {
             for (auto const& unavailable_endpoint : operation->unavailable_job_endpoints) {
@@ -1622,6 +1643,15 @@ ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(Web::H
 
 void CanonicalTraversable::run_history_operation_at_queue_position(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters request, WebContentClient* requesting_client, u64 requesting_page_id, u64 sequence_number, OnHistoryOperationComplete on_complete, NonnullRefPtr<Core::Promise<Empty>> promise)
 {
+    // The traversal queue can outlive an embedded page which appended work to it. Such a page cannot run the
+    // preparation step or receive completion, so discard its queued operation instead of waiting forever.
+    if (requesting_client && !history_job_endpoint_is_available({ requesting_client, requesting_page_id })) {
+        if (discard_pending_same_document_session_history_entries_for_operation(operation_id, request))
+            session_history_changed();
+        promise->resolve({});
+        return;
+    }
+
     // Operation ids are namespaced per initiating process, so a requested id that is already live can only come
     // from a misbehaving process. Drop the request rather than let it alias the existing operation.
     if (m_history_operations.contains(operation_id)) {
@@ -2483,7 +2513,7 @@ void CanonicalTraversable::dispatch_next_beforeunload_group(HistoryOperation& op
 {
     while (!operation.pending_beforeunload_groups.is_empty()) {
         auto group = operation.pending_beforeunload_groups.take_first();
-        auto endpoint_is_available = true;
+        auto endpoint_is_available = history_job_endpoint_is_available(group.endpoint);
         for (auto const& unavailable_endpoint : operation.unavailable_job_endpoints) {
             if (group.endpoint.client.ptr() == unavailable_endpoint.client.ptr() && group.endpoint.page_id == unavailable_endpoint.page_id)
                 endpoint_is_available = false;

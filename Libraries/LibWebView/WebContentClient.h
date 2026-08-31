@@ -100,6 +100,9 @@ public:
 
     CanonicalNavigable* embedded_page_host(u64 page_id);
     CanonicalNavigable* navigable_for_page(u64 page_id);
+    // False once the page can no longer host work: the page is unregistered or the process is gone. A page
+    // awaiting a detached close remains open; it still coordinates its own close.
+    bool is_page_open(u64 page_id) const;
     Optional<CanonicalNavigable&> hosted_navigable_for_page(u64 page_id, Web::HTML::CrossProcessId navigable_id);
 
     void begin_top_level_load(ViewImplementation&, u64 page_id, Optional<Utf16String> navigation_id, URL::URL const& url);
@@ -314,6 +317,7 @@ private:
     void fail_renderer_owned_downloads();
 
     IsPrivate m_is_private { IsPrivate::No };
+    bool m_process_lost { false };
 
     HashMap<u64, NonnullRawPtr<ViewImplementation>> m_views;
     HashMap<u64, WeakPtr<CanonicalNavigable>> m_embedded_pages;

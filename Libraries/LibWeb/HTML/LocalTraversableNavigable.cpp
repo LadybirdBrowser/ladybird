@@ -1870,6 +1870,14 @@ void LocalTraversableNavigable::destroy_top_level_traversable()
 {
     VERIFY(is_top_level_traversable());
 
+    destroy_local_traversable();
+}
+
+// Perform the local teardown shared by top-level traversables and remote iframe page roots.
+// A remote iframe page root is not a top-level traversable in the specification, so its discard path calls this
+// helper directly instead of the spec-linked wrapper above.
+void LocalTraversableNavigable::destroy_local_traversable()
+{
     // 1. Let browsingContext be traversable's active browsing context.
     auto browsing_context = active_browsing_context();
 

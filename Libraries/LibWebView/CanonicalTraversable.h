@@ -74,6 +74,7 @@ public:
         u64 page_id { 0 };
     };
     HistoryJobEndpoint history_job_endpoint_for(CanonicalNavigable const&) const;
+    bool history_job_endpoint_is_available(HistoryJobEndpoint const&) const;
 
     void did_receive_history_operation_ready(WebContentClient&, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult);
     void did_receive_history_step_unload_cancelation_result(WebContentClient&, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult, Web::HTML::UnloadPromptShown);
@@ -142,7 +143,6 @@ private:
     void unload_a_document_and_its_descendants(Optional<Web::HTML::CrossProcessId> operation_id, Web::HTML::CrossProcessId root_navigable_id, Function<void()> queue_document_unload_task);
     void dispatch_next_beforeunload_group(HistoryOperation&);
     void complete_unload_cancelation(HistoryOperation&, Web::HTML::HistoryStepResult);
-    void dispatch_unload_task_to_endpoint(Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id, HistoryJobEndpoint);
     void dispatch_descendant_unload_task(Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id);
     void complete_descendant_unload_task(Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id);
     void dispatch_crash_recovery_changing_job(HistoryOperation&, HistoryJobEndpoint, Web::HTML::HistoryObjectLengthAndIndex, Function<void()> on_complete);
