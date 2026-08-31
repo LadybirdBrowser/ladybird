@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/BitCast.h>
+#include <AK/ByteBuffer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Filter.h>
@@ -17,7 +19,9 @@
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 
 #include <core/SkColorSpace.h>
+#include <core/SkFont.h>
 #include <core/SkImage.h>
+#include <core/SkTextBlob.h>
 #include <core/SkYUVAPixmaps.h>
 #include <gpu/ganesh/GrDirectContext.h>
 #include <gpu/ganesh/SkImageGanesh.h>
@@ -79,6 +83,21 @@ struct DisplayListCachedNestedRasterResource {
     // bounded set of rasters, most recently used first.
     static constexpr size_t max_rasters = 32;
     Vector<Raster> rasters;
+};
+
+struct DisplayListCachedTextBlobResource {
+    DisplayListCachedTextBlobResource(ByteBuffer glyph_bytes, sk_sp<SkTextBlob> blob, size_t byte_size, MonotonicTime last_used)
+        : glyph_bytes(move(glyph_bytes))
+        , blob(move(blob))
+        , byte_size(byte_size)
+        , last_used(last_used)
+    {
+    }
+
+    ByteBuffer glyph_bytes;
+    sk_sp<SkTextBlob> blob;
+    size_t byte_size { 0 };
+    MonotonicTime last_used;
 };
 
 struct DisplayListCachedVideoSinkImageResource {
@@ -370,6 +389,86 @@ void DisplayListResourceStorage::add_cached_nested_display_list_raster(DisplayLi
     resource.rasters.prepend({ rect_in_list_space, move(image) });
 }
 
+static u64 text_blob_glyph_hash(ReadonlySpan<DisplayListGlyph> glyphs)
+{
+    u64 hash = glyphs.size();
+    for (auto const& glyph : glyphs) {
+        u64 position = static_cast<u64>(bit_cast<u32>(glyph.position.x())) << 32 | bit_cast<u32>(glyph.position.y());
+        hash = (hash ^ position) * 0x9e3779b97f4a7c15ULL;
+        hash = (hash ^ glyph.glyph_id) * 0x9e3779b97f4a7c15ULL;
+        hash ^= hash >> 32;
+    }
+    return hash;
+}
+
+static sk_sp<SkTextBlob> make_text_blob(Gfx::Font const& font, float scale, ReadonlySpan<DisplayListGlyph> glyphs)
+{
+    auto sk_font = font.skia_font(scale);
+    SkTextBlobBuilder builder;
+    auto const& run = builder.allocRunPos(sk_font, glyphs.size());
+
+    auto font_ascent = font.pixel_metrics().ascent;
+    for (size_t i = 0; i < glyphs.size(); ++i) {
+        run.glyphs[i] = glyphs[i].glyph_id;
+        run.pos[i * 2] = glyphs[i].position.x() * scale;
+        run.pos[i * 2 + 1] = (glyphs[i].position.y() + font_ascent) * scale;
+    }
+    return builder.make();
+}
+
+sk_sp<SkTextBlob> DisplayListResourceStorage::text_blob(FontResourceId font_id, float scale, ReadonlySpan<DisplayListGlyph> glyphs) const
+{
+    constexpr size_t max_text_blob_cache_bytes = 16 * MiB;
+    constexpr auto text_blob_idle_duration = AK::Duration::from_milliseconds(250);
+
+    ReadonlyBytes glyph_bytes { reinterpret_cast<u8 const*>(glyphs.data()), glyphs.size() * sizeof(DisplayListGlyph) };
+    DisplayListTextBlobCacheKey key { font_id.value(), bit_cast<u32>(scale), text_blob_glyph_hash(glyphs) };
+    auto now = MonotonicTime::now();
+
+    if (auto cached = m_text_blobs.find(key); cached != m_text_blobs.end()) {
+        auto& resource = *cached->value;
+        if (resource.glyph_bytes.bytes() == glyph_bytes) {
+            resource.last_used = now;
+            return resource.blob;
+        }
+        m_text_blob_cache_bytes -= resource.byte_size;
+        m_text_blobs.remove(cached);
+    }
+
+    auto blob = make_text_blob(font(font_id), scale, glyphs);
+    if (!blob)
+        return nullptr;
+
+    auto byte_size = glyphs.size() * 24 + 256;
+    if (m_text_blob_cache_bytes + byte_size > max_text_blob_cache_bytes) {
+        if (now - m_text_blob_cache_sweep_time < text_blob_idle_duration)
+            return blob;
+        m_text_blob_cache_sweep_time = now;
+        m_text_blobs.remove_all_matching([&](auto const&, auto const& resource) {
+            if (now - resource->last_used < text_blob_idle_duration)
+                return false;
+            m_text_blob_cache_bytes -= resource->byte_size;
+            return true;
+        });
+        if (m_text_blob_cache_bytes + byte_size > max_text_blob_cache_bytes)
+            return blob;
+    }
+
+    m_text_blob_cache_bytes += byte_size;
+    m_text_blobs.set(key, make<DisplayListCachedTextBlobResource>(MUST(ByteBuffer::copy(glyph_bytes)), blob, byte_size, now));
+    return blob;
+}
+
+void DisplayListResourceStorage::remove_text_blobs_without_font()
+{
+    m_text_blobs.remove_all_matching([&](auto const& key, auto const& resource) {
+        if (m_fonts.contains(key.font_id))
+            return false;
+        m_text_blob_cache_bytes -= resource->byte_size;
+        return true;
+    });
+}
+
 bool DisplayListResourceStorage::should_cache_nested_display_list_raster(DisplayListResourceId id) const
 {
     // Only rasterize a list that has been painted before: content that is re-recorded for every update gets a
@@ -593,6 +692,8 @@ void DisplayListResourceStorage::apply_transaction(DisplayListResourceTransactio
 
     for (auto id : transaction.font_ids_to_remove)
         m_fonts.remove(id.value());
+    if (!transaction.font_ids_to_remove.is_empty())
+        remove_text_blobs_without_font();
     for (auto id : transaction.image_frame_ids_to_remove)
         m_image_frames.remove(id.value());
     for (auto id : transaction.video_sink_ids_to_remove) {
@@ -612,6 +713,7 @@ void DisplayListResourceStorage::retain_only(DisplayListResourceSet const& resou
     m_fonts.remove_all_matching([&](auto id, auto const&) {
         return !resource_set.fonts.contains(FontResourceId { id });
     });
+    remove_text_blobs_without_font();
     m_image_frames.remove_all_matching([&](auto id, auto const&) {
         return !resource_set.image_frames.contains(ImageFrameResourceId { id });
     });

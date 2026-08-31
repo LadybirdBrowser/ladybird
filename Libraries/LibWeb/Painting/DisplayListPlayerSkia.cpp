@@ -11,7 +11,6 @@
 #include <core/SkCanvas.h>
 #include <core/SkColorFilter.h>
 #include <core/SkColorSpace.h>
-#include <core/SkFont.h>
 #include <core/SkMaskFilter.h>
 #include <core/SkPath.h>
 #include <core/SkPathEffect.h>
@@ -32,7 +31,6 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/Font/Font.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/SkiaUtils.h>
@@ -190,23 +188,11 @@ void DisplayListPlayerSkia::paint_scrollbar(Gfx::PaintingSurface& surface, Paint
 
 void DisplayListPlayerSkia::play_command(DrawGlyphRun const& command)
 {
-    auto const& font = resource_storage().font(command.font_id);
     auto glyphs = inline_objects<DisplayListGlyph>(command.glyphs);
     if (glyphs.is_empty())
         return;
 
-    auto sk_font = font.skia_font(command.scale);
-    SkTextBlobBuilder builder;
-    auto const& run = builder.allocRunPos(sk_font, glyphs.size());
-
-    auto font_ascent = font.pixel_metrics().ascent;
-    for (size_t i = 0; i < glyphs.size(); ++i) {
-        run.glyphs[i] = glyphs[i].glyph_id;
-        run.pos[i * 2] = glyphs[i].position.x() * command.scale;
-        run.pos[i * 2 + 1] = (glyphs[i].position.y() + font_ascent) * command.scale;
-    }
-
-    auto blob = builder.make();
+    auto blob = resource_storage().text_blob(command.font_id, command.scale, glyphs);
     if (!blob)
         return;
 

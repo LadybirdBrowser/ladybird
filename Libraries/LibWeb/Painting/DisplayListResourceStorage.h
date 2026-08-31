@@ -15,6 +15,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Span.h>
+#include <AK/Time.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGfx/DecodedImageFrame.h>
@@ -28,6 +29,7 @@
 #include <LibWeb/Painting/DisplayListResourceIds.h>
 
 class SkImage;
+class SkTextBlob;
 
 template<typename T>
 class sk_sp;
@@ -61,9 +63,18 @@ struct DisplayListVideoSinkResource {
     Media::VideoSinkHandle sink_handle;
 };
 
+struct DisplayListTextBlobCacheKey {
+    u64 font_id { 0 };
+    u32 scale_bits { 0 };
+    u64 glyph_hash { 0 };
+
+    bool operator==(DisplayListTextBlobCacheKey const&) const = default;
+};
+
 struct DisplayListStoredImageFrameResource;
 struct DisplayListCachedSkiaImageResource;
 struct DisplayListCachedNestedRasterResource;
+struct DisplayListCachedTextBlobResource;
 struct DisplayListStoredVideoSinkResource;
 
 struct DisplayListResource {
@@ -120,6 +131,7 @@ public:
     sk_sp<SkImage> cached_nested_display_list_raster(DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect visible_rect_in_list_space, Gfx::IntRect& raster_rect_in_list_space) const;
     void add_cached_nested_display_list_raster(DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_list_space, sk_sp<SkImage>) const;
     bool should_cache_nested_display_list_raster(DisplayListResourceId) const;
+    sk_sp<SkTextBlob> text_blob(FontResourceId, float scale, ReadonlySpan<DisplayListGlyph>) const;
     RefPtr<Media::VideoSink const> video_sink(VideoSinkResourceId id) const;
     Optional<Media::VideoSinkHandle> video_sink_handle(VideoSinkResourceId id) const { return m_video_sink_handles.get(id.value()); }
     HashMap<u64, Media::VideoSinkHandle> const& video_sink_handles() const { return m_video_sink_handles; }
@@ -132,6 +144,7 @@ private:
     void collect_referenced_resources(DisplayList const&, DisplayListResourceSet&) const;
     void add_referenced_display_list(DisplayListResourceId, DisplayListResourceSet&) const;
     bool nested_display_list_requires_direct_replay(DisplayListResourceId, HashTable<u64>& visited_display_lists) const;
+    void remove_text_blobs_without_font();
 
     HashMap<u64, NonnullRefPtr<Gfx::Font const>> m_fonts;
     HashMap<u64, NonnullOwnPtr<DisplayListStoredImageFrameResource>> m_image_frames;
@@ -140,6 +153,21 @@ private:
     HashMap<u64, DisplayListResource> m_display_lists;
     mutable HashMap<u64, NonnullOwnPtr<DisplayListCachedSkiaImageResource>> m_display_list_cached_skia_images;
     mutable HashMap<u64, NonnullOwnPtr<DisplayListCachedNestedRasterResource>> m_display_list_cached_nested_rasters;
+    mutable HashMap<DisplayListTextBlobCacheKey, NonnullOwnPtr<DisplayListCachedTextBlobResource>> m_text_blobs;
+    mutable size_t m_text_blob_cache_bytes { 0 };
+    mutable MonotonicTime m_text_blob_cache_sweep_time { MonotonicTime::now() };
+};
+
+}
+
+namespace AK {
+
+template<>
+struct Traits<Web::Painting::DisplayListTextBlobCacheKey> : public DefaultTraits<Web::Painting::DisplayListTextBlobCacheKey> {
+    static unsigned hash(Web::Painting::DisplayListTextBlobCacheKey const& key)
+    {
+        return pair_int_hash(u64_hash(key.font_id ^ key.glyph_hash), key.scale_bits);
+    }
 };
 
 }

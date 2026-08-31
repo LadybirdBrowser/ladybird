@@ -65,6 +65,7 @@ class ChromeWidgetRegistry;
 class CanvasSurfaceRegistry;
 class DisplayList;
 struct DisplayListCommandRun;
+struct DisplayListGlyph;
 class DisplayListPlayerSkia;
 class DisplayListResourceStorage;
 struct DisplayListResourceSet;
