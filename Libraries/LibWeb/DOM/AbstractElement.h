@@ -64,6 +64,7 @@ public:
     GC::Ptr<CSS::CSSStyleProperties const> inline_style() const;
 
     void set_custom_property_data(RefPtr<CSS::CustomPropertyData const>);
+    void replace_custom_property_data(Badge<CSS::StyleComputer>, RefPtr<CSS::CustomPropertyData const>);
     [[nodiscard]] RefPtr<CSS::CustomPropertyData const> custom_property_data() const;
     RefPtr<CSS::StyleValue const> get_custom_property(Utf16FlyString const& name) const;
 

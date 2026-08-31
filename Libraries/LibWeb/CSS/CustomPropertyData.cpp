@@ -92,10 +92,22 @@ NonnullRefPtr<CustomPropertyData> CustomPropertyData::create_animation_overlay(
     OrderedHashMap<Utf16FlyString, StyleProperty> animated_values,
     RefPtr<CustomPropertyData const> base)
 {
+    Vector<ComputedValuesFFI::FfiCustomPropertyStoreEntry> entries;
+    entries.ensure_capacity(animated_values.size());
+    for (auto const& [name, property] : animated_values) {
+        entries.unchecked_append({
+            .name_raw = name.to_raw_leaked(),
+            .name = ffi_utf16_view(name),
+            .important = property.important == Important::Yes,
+            .data = StyleValueFFI::rust_style_value_retain(property.value->rust_style_value_data()),
+        });
+    }
+    auto const* rust_store = ComputedValuesFFI::rust_custom_property_store_create_animation_overlay(
+        entries.data(), entries.size(), base ? base->rust_store() : nullptr);
     auto declared_count = animated_values.size();
     u8 ancestor_count = base ? base->m_ancestor_count + 1 : 0;
     auto inheritance_parent = base;
-    auto data = adopt_ref(*new CustomPropertyData(move(animated_values), move(base), move(inheritance_parent), ancestor_count, declared_count, nullptr));
+    auto data = adopt_ref(*new CustomPropertyData(move(animated_values), move(base), move(inheritance_parent), ancestor_count, declared_count, rust_store));
     data->m_is_animation_overlay = true;
     return data;
 }

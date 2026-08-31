@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+
+@property --angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes angle-animation {
+  from { --angle: 0deg }
+  to { --angle: 180deg }
+}
+
+#target {
+  animation: angle-animation 1000s linear -500s paused;
+  background: linear-gradient(var(--angle), black, white);
+}
+
+</style>
+
+<div id="target"></div>
+
+<script>
+
+test(() => {
+    assert_equals(getComputedStyle(target).backgroundImage, 'linear-gradient(90deg, rgb(0, 0, 0), rgb(255, 255, 255))')
+}, "Animated custom property is applied in a shorthand property.");
+
+</script>

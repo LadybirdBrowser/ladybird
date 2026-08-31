@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Animating a non-inherited CSS variable is reflected on a standard property using that variable as a value

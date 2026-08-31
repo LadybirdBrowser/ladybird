@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<div id="target"></div>
+<script>
+
+test(() => {
+  CSS.registerProperty({
+    name: "--my-length",
+    syntax: "<length>",
+    inherits: false,
+    initialValue: "0px"
+  });
+
+  target.style.marginLeft = "var(--my-length)";
+
+  const duration = 1000;
+  const animation = target.animate({ "--my-length": "100px" }, duration);
+  animation.pause();
+  animation.currentTime = duration / 4;
+
+  assert_equals(getComputedStyle(target).marginLeft, "25px");
+}, "Animating a non-inherited CSS variable is reflected on a standard property using that variable as a value");
+
+</script>

@@ -2852,6 +2852,69 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
     })
 }
 
+/// Creates a store holding an element's animated custom property values on top of the element's
+/// own environment store. Transfers one strong reference per entry value and returns one strong
+/// store reference.
+///
+/// # Safety
+/// `entries` must point to `entry_count` valid entries whose `data` pointers are retained
+/// style value references. `base` must be null or a live store reference.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_custom_property_store_create_animation_overlay(
+    entries: *const FfiCustomPropertyStoreEntry,
+    entry_count: usize,
+    base: *const c_void,
+) -> *const c_void {
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CustomPropertyStoreLifecycleEntry);
+    abort_on_panic(|| {
+        let entries = if entry_count == 0 {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(entries, entry_count) }
+        };
+        let base = if base.is_null() {
+            None
+        } else {
+            let base = base.cast::<CustomPropertyStore>();
+            Some(unsafe { &*base })
+        };
+        let (mut own_values, mut own_names, parent, inheritance_parent, ancestor_count) = match base {
+            Some(base) => (
+                base.own_values.clone(),
+                base.own_names.clone(),
+                base.parent.clone(),
+                base.inheritance_parent.clone(),
+                base.ancestor_count,
+            ),
+            None => (HashMap::new(), HashMap::new(), None, None, 0),
+        };
+        let mut declared_names = Vec::with_capacity(entries.len());
+        for entry in entries {
+            let name = unsafe { entry.name.to_utf16() }.expect("invalid custom property name");
+            declared_names.push(entry.name_raw);
+            own_names.insert(name.clone(), entry.name_raw);
+            own_values.insert(
+                entry.name_raw,
+                CustomPropertyEntry {
+                    _name: unsafe { RetainedUtf16FlyString::from_leaked_raw(entry.name_raw) },
+                    name,
+                    value: unsafe { RetainedStyleValueData::from_retained_pointer(entry.data.cast()) },
+                    important: entry.important,
+                },
+            );
+        }
+        Arc::into_raw(Arc::new(CustomPropertyStore {
+            own_values,
+            declared_names,
+            own_names,
+            ancestor_count,
+            parent,
+            inheritance_parent,
+        }))
+        .cast()
+    })
+}
+
 /// Releases one store reference returned by `rust_custom_property_store_create`.
 ///
 /// # Safety

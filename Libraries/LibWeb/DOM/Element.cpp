@@ -5042,6 +5042,26 @@ SyntheticPseudoElement& Element::ensure_synthetic_pseudo_element(CSS::PseudoElem
 
 void Element::set_custom_property_data(Optional<CSS::PseudoElement> pseudo_element, RefPtr<CSS::CustomPropertyData const> data)
 {
+    if (!data || !data->is_animation_overlay()) {
+        if (auto current = custom_property_data(pseudo_element); current && current->is_animation_overlay()) {
+            if (current->parent() == data)
+                return;
+            OrderedHashMap<Utf16FlyString, CSS::StyleProperty> animated_values;
+            for (auto const& [name, property] : current->own_values())
+                animated_values.set(name, property);
+            data = CSS::CustomPropertyData::create_animation_overlay(move(animated_values), move(data));
+        }
+    }
+    install_custom_property_data(pseudo_element, move(data));
+}
+
+void Element::replace_custom_property_data(Optional<CSS::PseudoElement> pseudo_element, RefPtr<CSS::CustomPropertyData const> data)
+{
+    install_custom_property_data(pseudo_element, move(data));
+}
+
+void Element::install_custom_property_data(Optional<CSS::PseudoElement> pseudo_element, RefPtr<CSS::CustomPropertyData const> data)
+{
     if (!pseudo_element.has_value()) {
         m_custom_property_data = move(data);
         return;
@@ -5091,6 +5111,16 @@ bool Element::refresh_inherited_custom_property_data()
     if (auto inherit_from = element_to_inherit_style_from({})) {
         if (auto data = inherit_from->custom_property_data({}))
             parent_data = data->inheritable(document());
+    }
+
+    if (m_custom_property_data && m_custom_property_data->is_animation_overlay()) {
+        if (m_custom_property_data->parent() == parent_data)
+            return false;
+        OrderedHashMap<Utf16FlyString, CSS::StyleProperty> animated_values;
+        for (auto const& [name, property] : m_custom_property_data->own_values())
+            animated_values.set(name, property);
+        m_custom_property_data = CSS::CustomPropertyData::create_animation_overlay(move(animated_values), move(parent_data));
+        return true;
     }
 
     if (m_custom_property_data == parent_data)
