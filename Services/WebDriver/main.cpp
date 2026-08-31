@@ -38,7 +38,7 @@ static ErrorOr<Core::Process> launch_process(StringView application, ReadonlySpa
     return result;
 }
 
-static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint, ByteString const& profile_path, bool headless, bool expose_experimental_interfaces, bool expose_internals_object, bool force_cpu_painting, bool disable_sandbox, Optional<StringView> debug_process, Optional<StringView> default_time_zone, Optional<StringView> resource_substitution_map_path)
+static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint, Optional<StringView> profile_name, Optional<StringView> profile_path, bool headless, bool expose_experimental_interfaces, bool expose_internals_object, bool force_cpu_painting, bool disable_sandbox, Optional<StringView> debug_process, Optional<StringView> default_time_zone, Optional<StringView> resource_substitution_map_path)
 {
     Vector<ByteString> arguments;
 #if defined(AK_OS_MACOS)
@@ -58,7 +58,10 @@ static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint,
         arguments.append("--headless"sv);
 
     arguments.append("--allow-popups"sv);
-    arguments.append(ByteString::formatted("--profile-path={}", profile_path));
+    if (profile_name.has_value())
+        arguments.append(ByteString::formatted("--profile={}", *profile_name));
+    else
+        arguments.append(ByteString::formatted("--profile-path={}", profile_path.value()));
     arguments.append("--enable-autoplay"sv);
     arguments.append("--disable-scrollbar-painting"sv);
     if (expose_experimental_interfaces)
@@ -97,7 +100,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
 
-    auto listen_address = "0.0.0.0"sv;
     int port = 8000;
     bool expose_experimental_interfaces = false;
     bool expose_internals_object = false;
@@ -106,6 +108,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool headless = false;
     Optional<StringView> debug_process;
     Optional<StringView> default_time_zone;
+    Optional<StringView> listen_address;
+    Optional<StringView> profile_name;
+    Optional<StringView> profile_path;
     Optional<StringView> profiles_directory;
     Optional<StringView> resource_substitution_map_path;
 
@@ -120,20 +125,38 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(debug_process, "Wait for a debugger to attach to the given process name (WebContent, RequestServer, etc.)", "debug-process", 0, "process-name");
     args_parser.add_option(headless, "Launch browser without a graphical interface", "headless");
     args_parser.add_option(default_time_zone, "Default time zone", "default-time-zone", 0, "time-zone-id");
+    args_parser.add_option(profile_name, "Select or create a named browser profile", "profile", 0, "name");
+    args_parser.add_option(profile_path, "Use a self-contained browser profile at an absolute path", "profile-path", 0, "path");
     args_parser.add_option(profiles_directory, "Directory in which to create the browser profile", "profiles-directory", 0, "path");
     args_parser.add_option(resource_substitution_map_path, "Path to JSON file mapping URLs to local files", "resource-map", 0, "path");
     args_parser.parse(arguments);
 
-    auto ipv4_address = IPv4Address::from_string(listen_address);
+    auto profile_selector_count = static_cast<unsigned>(profile_name.has_value())
+        + static_cast<unsigned>(profile_path.has_value())
+        + static_cast<unsigned>(profiles_directory.has_value());
+    if (profile_selector_count > 1)
+        return Error::from_string_literal("--profile, --profile-path, and --profiles-directory are mutually exclusive");
+
+    bool has_persistent_profile = profile_name.has_value() || profile_path.has_value();
+    if (!listen_address.has_value())
+        listen_address = has_persistent_profile ? "127.0.0.1"sv : "0.0.0.0"sv;
+
+    auto ipv4_address = IPv4Address::from_string(*listen_address);
     if (!ipv4_address.has_value()) {
-        warnln("Invalid listen address: {}", listen_address);
+        warnln("Invalid listen address: {}", *listen_address);
         return 1;
     }
+
+    if (has_persistent_profile && (*ipv4_address)[0] != 127)
+        return Error::from_string_literal("--profile and --profile-path require a loopback listen address");
 
     if ((u16)port != port) {
         warnln("Invalid port number: {}", port);
         return 1;
     }
+
+    if (profile_path.has_value() && !LexicalPath { profile_path->to_byte_string() }.is_absolute())
+        return Error::from_string_literal("--profile-path must be absolute");
 
     WebView::platform_init();
 
@@ -142,9 +165,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto webdriver_socket_path = ByteString::formatted("{}/webdriver", TRY(Core::StandardPaths::runtime_directory()));
     TRY(Core::Directory::create(webdriver_socket_path, Core::Directory::CreateDirectories::Yes));
 
-    // Every browser instance launched by this WebDriver process shares one profile, which is removed on clean exit.
-    auto profile_parent_directory = profiles_directory.has_value() ? ByteString { *profiles_directory } : Core::StandardPaths::tempfile_directory();
-    auto profile_path = LexicalPath::join(profile_parent_directory, ByteString::formatted("ladybird-webdriver-profile-{:016x}-{:016x}", get_random<u64>(), get_random<u64>())).string();
+    // Unless a profile was selected explicitly, every browser instance launched by this WebDriver process shares one
+    // temporary profile, which is removed on clean exit.
+    Optional<ByteString> temporary_profile_path;
+    if (!profile_name.has_value() && !profile_path.has_value()) {
+        auto profile_parent_directory = profiles_directory.has_value() ? ByteString { *profiles_directory } : Core::StandardPaths::tempfile_directory();
+        temporary_profile_path = LexicalPath::join(profile_parent_directory, ByteString::formatted("ladybird-webdriver-profile-{:016x}-{:016x}", get_random<u64>(), get_random<u64>())).string();
+        profile_path = temporary_profile_path->view();
+    }
 
     auto& loop = Core::EventLoop::initialize_for_current_thread();
     Core::EventLoop::register_signal(SIGINT, handle_signal);
@@ -168,7 +196,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         }
 
         auto launch_browser_callback = [&](ByteString const& webdriver_endpoint, bool headless) {
-            auto arguments = create_arguments(webdriver_endpoint, profile_path, headless, expose_experimental_interfaces, expose_internals_object, force_cpu_painting, disable_sandbox, debug_process, default_time_zone, resource_substitution_map_path);
+            auto arguments = create_arguments(webdriver_endpoint, profile_name, profile_path, headless, expose_experimental_interfaces, expose_internals_object, force_cpu_painting, disable_sandbox, debug_process, default_time_zone, resource_substitution_map_path);
             return launch_process("Ladybird"sv, arguments.span());
         };
 
@@ -193,9 +221,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto result = loop.exec();
     WebDriver::Session::close_all();
 
-    if (FileSystem::exists(profile_path)) {
-        if (auto removal_result = FileSystem::remove(profile_path, FileSystem::RecursionMode::Allowed); removal_result.is_error())
-            warnln("Unable to remove WebDriver profile '{}': {}", profile_path, removal_result.error());
+    if (temporary_profile_path.has_value() && FileSystem::exists(*temporary_profile_path)) {
+        if (auto removal_result = FileSystem::remove(*temporary_profile_path, FileSystem::RecursionMode::Allowed); removal_result.is_error())
+            warnln("Unable to remove WebDriver profile '{}': {}", *temporary_profile_path, removal_result.error());
     }
 
     return result;
