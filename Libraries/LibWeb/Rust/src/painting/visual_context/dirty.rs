@@ -91,8 +91,6 @@ impl VisualContextDirtySet {
             return;
         }
         if self.boxes.len() >= pending_box_limit && !self.boxes.contains_key(&slot) {
-            self.boxes.clear();
-            self.removed.clear();
             self.request_full_rebuild(VisualContextGlobalRebuildReason::DocumentWideStructuralChange);
             return;
         }
@@ -105,15 +103,12 @@ impl VisualContextDirtySet {
 
     pub fn note_removed(&mut self, removed: RemovedBoxBlocks) {
         self.boxes.remove(&removed.slot);
-        if self.global_reason == VisualContextGlobalRebuildReason::None {
-            self.removed.push(removed);
-        }
+        self.removed.push(removed);
     }
 
     pub fn request_full_rebuild(&mut self, reason: VisualContextGlobalRebuildReason) {
         self.global_reason = self.global_reason.max(reason);
         self.boxes.clear();
-        self.removed.clear();
     }
 
     pub fn is_empty(&self) -> bool {
@@ -199,8 +194,14 @@ mod tests {
         dirty.note_box(slot(0, 1), VisualContextBoxDirtyKind::NewRow, 2);
         assert_eq!(dirty.boxes.len(), 2);
         assert_eq!(dirty.global_reason, VisualContextGlobalRebuildReason::None);
+        dirty.note_removed(RemovedBoxBlocks {
+            slot: slot(9, 1),
+            node_handles: BoxVisualContextNodeHandles::default(),
+            former_paint_parent: NodeSlotId::INVALID,
+        });
         dirty.note_box(slot(2, 1), VisualContextBoxDirtyKind::StyleValueChange, 2);
         assert!(dirty.boxes.is_empty());
+        assert_eq!(dirty.removed.len(), 1);
         assert_eq!(
             dirty.global_reason,
             VisualContextGlobalRebuildReason::DocumentWideStructuralChange
@@ -208,7 +209,7 @@ mod tests {
     }
 
     #[test]
-    fn a_pending_full_rebuild_absorbs_per_box_notes() {
+    fn a_pending_full_rebuild_absorbs_per_box_notes_and_keeps_removed_blocks() {
         let mut dirty = VisualContextDirtySet::default();
         dirty.note_box(slot(0, 1), VisualContextBoxDirtyKind::StyleValueChange, usize::MAX);
         dirty.request_full_rebuild(VisualContextGlobalRebuildReason::FirstBuild);
@@ -219,8 +220,28 @@ mod tests {
             former_paint_parent: NodeSlotId::INVALID,
         });
         assert!(dirty.boxes.is_empty());
-        assert!(dirty.removed.is_empty());
+        assert_eq!(dirty.removed.len(), 1);
         assert_eq!(dirty.global_reason, VisualContextGlobalRebuildReason::FirstBuild);
+    }
+
+    #[test]
+    fn removed_blocks_survive_a_pending_full_rebuild() {
+        let mut dirty = VisualContextDirtySet::default();
+        dirty.note_removed(RemovedBoxBlocks {
+            slot: slot(1, 1),
+            node_handles: BoxVisualContextNodeHandles::default(),
+            former_paint_parent: NodeSlotId::INVALID,
+        });
+        dirty.request_full_rebuild(VisualContextGlobalRebuildReason::DocumentWideStructuralChange);
+        dirty.note_removed(RemovedBoxBlocks {
+            slot: slot(2, 1),
+            node_handles: BoxVisualContextNodeHandles::default(),
+            former_paint_parent: NodeSlotId::INVALID,
+        });
+        assert_eq!(dirty.removed.len(), 2);
+        assert!(!dirty.is_empty());
+        dirty.clear();
+        assert!(dirty.is_empty());
     }
 
     #[test]
