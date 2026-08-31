@@ -40,7 +40,7 @@ private:
     virtual void show_download_in_folder(WebView::FileDownloader::Download const&) const override;
 
     virtual Utf16String clipboard_text(ClipboardType) const override;
-    virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const override;
+    virtual Web::Clipboard::SystemClipboardItem clipboard_item() const override;
     virtual void insert_clipboard_item(Web::Clipboard::SystemClipboardItem) override;
 
     virtual void rebuild_bookmarks_menu() const override;

@@ -228,7 +228,7 @@ Utf16String Application::clipboard_text(ClipboardType) const
     return {};
 }
 
-Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_entries() const
+Web::Clipboard::SystemClipboardItem Application::clipboard_item() const
 {
     Vector<Web::Clipboard::SystemClipboardRepresentation> representations;
     auto* paste_board = [NSPasteboard generalPasteboard];
@@ -242,7 +242,7 @@ Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_ent
         representations.empend(mime_type.release_value(), move(data));
     }
 
-    return representations;
+    return { move(representations) };
 }
 
 void Application::insert_clipboard_item(Web::Clipboard::SystemClipboardItem item)

@@ -2153,8 +2153,8 @@ void WebContentClient::did_request_clipboard_entries(u64 page_id, u64 request_id
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         Vector<Web::Clipboard::SystemClipboardItem> items;
-        if (auto entries = view->clipboard_entries(); !entries.is_empty())
-            items.empend(move(entries));
+        if (auto item = view->clipboard_item(); !item.system_clipboard_representations.is_empty())
+            items.append(move(item));
 
         view->retrieved_clipboard_entries(request_id, items);
     }

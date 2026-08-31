@@ -884,10 +884,10 @@ void Application::set_clipboard_text(String text, ClipboardType type)
     clipboard->setText(qstring_from_ak_string(text), mode);
 }
 
-Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_entries() const
+Web::Clipboard::SystemClipboardItem Application::clipboard_item() const
 {
     if (browser_options().headless_mode.has_value())
-        return WebView::Application::clipboard_entries();
+        return WebView::Application::clipboard_item();
 
     Vector<Web::Clipboard::SystemClipboardRepresentation> representations;
     auto const* clipboard = QGuiApplication::clipboard();
@@ -903,7 +903,7 @@ Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_ent
         representations.empend(move(mime_type), move(data));
     }
 
-    return representations;
+    return { move(representations) };
 }
 
 void Application::insert_clipboard_item(Web::Clipboard::SystemClipboardItem item)

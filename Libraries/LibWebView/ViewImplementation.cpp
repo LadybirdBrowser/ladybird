@@ -1922,14 +1922,14 @@ void ViewImplementation::retrieved_clipboard_entries(u64 request_id, ReadonlySpa
     client().async_retrieved_clipboard_entries(page_id(), request_id, items);
 }
 
+Web::Clipboard::SystemClipboardItem ViewImplementation::clipboard_item() const
+{
+    return Application::the().clipboard_item();
+}
+
 void ViewImplementation::insert_clipboard_item(Web::Clipboard::SystemClipboardItem item)
 {
     Application::the().insert_clipboard_item(move(item));
-}
-
-Vector<Web::Clipboard::SystemClipboardRepresentation> ViewImplementation::clipboard_entries() const
-{
-    return Application::the().clipboard_entries();
 }
 
 void ViewImplementation::toggle_page_mute_state()
