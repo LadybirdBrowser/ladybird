@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    input {
+        display: block;
+        margin: 40px 100px;
+        width: 300px;
+        font: 16px monospace;
+    }
+</style>
+<input value="abcdefghijklmnopqrstuvwxyz">
+<input value="abcdefghijklmnopqrstuvwxyz">
+<script>
+test(() => {
+    const inputs = document.querySelectorAll("input");
+    const pointInside = input => {
+        const rect = input.getBoundingClientRect();
+        return {
+            x: rect.left + 100,
+            y: rect.top + rect.height / 2,
+        };
+    };
+
+    const unzoomedPoint = pointInside(inputs[0]);
+    internals.click(unzoomedPoint.x, unzoomedPoint.y);
+    const unzoomedPosition = inputs[0].selectionStart;
+
+    internals.pinch(200, 150, 1.0);
+    const viewport = window.visualViewport;
+    const layoutPoint = pointInside(inputs[1]);
+    const visualPoint = {
+        x: (layoutPoint.x - viewport.offsetLeft) * viewport.scale,
+        y: (layoutPoint.y - viewport.offsetTop) * viewport.scale,
+    };
+    internals.click(visualPoint.x, visualPoint.y);
+
+    println(`focused: ${document.activeElement === inputs[1]}`);
+    println(`positions match: ${inputs[1].selectionStart === unzoomedPosition}`);
+});
+</script>

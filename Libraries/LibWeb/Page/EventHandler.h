@@ -124,20 +124,20 @@ private:
     Optional<Target> target_for_mouse_position(CSSPixelPoint position);
     GC::Ptr<DOM::Node> focus_candidate_for_position(CSSPixelPoint) const;
 
-    void run_mousedown_default_actions(DOM::Document&, CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position, unsigned button, unsigned modifiers, int click_count);
+    void run_mousedown_default_actions(DOM::Document&, CSSPixelPoint visual_viewport_position, unsigned button, unsigned modifiers, int click_count);
     void run_activation_behavior(GC::Ref<DOM::Node>, unsigned button, unsigned modifiers);
 
     void maybe_show_context_menu(GC::Ref<DOM::Node>, MouseEventCoordinates const&, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers);
     bool maybe_request_paste_for_middle_click(DOM::Document&, CSSPixelPoint visual_viewport_position);
 
-    Optional<Painting::CaretPosition> prepare_mouse_selection(DOM::Document&, CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position);
+    Optional<Painting::CaretPosition> prepare_mouse_selection(DOM::Document&, CSSPixelPoint visual_viewport_position);
     bool initiate_character_selection(DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect, bool shift_held);
     bool initiate_word_selection(DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect);
     bool initiate_paragraph_selection(DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect);
     bool select_context_menu_text(DOM::Document&, CSSPixelPoint visual_viewport_position);
     bool select_context_menu_url_token(DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect);
 #if defined(AK_OS_MACOS)
-    bool select_word_at_position(DOM::Document&, CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position);
+    bool select_word_at_position(DOM::Document&, CSSPixelPoint visual_viewport_position);
     void start_selection_from_preserved_mousedown(DOM::Document&);
     void finish_selection_from_preserved_mousedown(DOM::Document&, CSSPixelPoint visual_viewport_position);
 #endif
