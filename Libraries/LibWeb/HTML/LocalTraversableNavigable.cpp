@@ -1108,8 +1108,10 @@ public:
     CheckUnloadingCanceledState(
         GC::Ptr<LocalTraversableNavigable> traversable,
         Optional<UserNavigationInvolvement> user_involvement,
-        GC::Ref<GC::Function<void(Result)>> callback)
-        : m_traversable(traversable)
+        UnloadPromptShown unload_prompt_shown,
+        GC::Ref<GC::Function<void(Result, UnloadPromptShown)>> callback)
+        : m_unload_prompt_shown(unload_prompt_shown)
+        , m_traversable(traversable)
         , m_user_involvement(user_involvement)
         , m_callback(callback)
         , m_timeout(Platform::Timer::create_single_shot(heap(), TIMEOUT_MS, GC::create_function(heap(), [this] {
@@ -1191,7 +1193,7 @@ private:
 
                 // 2. If unloadPromptShownForThisDocument is true, then set unloadPromptShown to true.
                 if (unload_prompt_shown_for_this_document)
-                    m_unload_prompt_shown = true;
+                    m_unload_prompt_shown = UnloadPromptShown::Yes;
 
                 // 3. If unloadPromptCanceledByThisDocument is true, then set finalStatus to "canceled-by-beforeunload".
                 if (unload_prompt_canceled_by_this_document)
@@ -1259,11 +1261,11 @@ private:
                 }
 
                 // 1. Let (unloadPromptShownForThisDocument, unloadPromptCanceledByThisDocument) be the result of running the steps to fire beforeunload given document and unloadPromptShown.
-                auto [unload_prompt_shown_for_this_document, unload_prompt_canceled_by_this_document] = document->steps_to_fire_beforeunload(m_unload_prompt_shown);
+                auto [unload_prompt_shown_for_this_document, unload_prompt_canceled_by_this_document] = document->steps_to_fire_beforeunload(m_unload_prompt_shown == UnloadPromptShown::Yes);
 
                 // 2. If unloadPromptShownForThisDocument is true, then set unloadPromptShown to true.
                 if (unload_prompt_shown_for_this_document)
-                    m_unload_prompt_shown = true;
+                    m_unload_prompt_shown = UnloadPromptShown::Yes;
 
                 // 3. If unloadPromptCanceledByThisDocument is true, then set finalStatus to "canceled-by-beforeunload".
                 if (unload_prompt_canceled_by_this_document)
@@ -1293,11 +1295,11 @@ private:
             return;
         m_completed = true;
         m_timeout->stop();
-        m_callback->function()(final_result);
+        m_callback->function()(final_result, m_unload_prompt_shown);
     }
 
     Result m_final_status { Result::Continue };
-    bool m_unload_prompt_shown { false };
+    UnloadPromptShown m_unload_prompt_shown { UnloadPromptShown::No };
     bool m_completed { false };
     bool m_needs_beforeunload { false };
     size_t m_remaining_phase2_tasks { 0 };
@@ -1305,7 +1307,7 @@ private:
     GC::Ptr<LocalTraversableNavigable> m_traversable;
     RefPtr<SessionHistoryEntry> m_target_entry;
     Optional<UserNavigationInvolvement> m_user_involvement;
-    GC::Ref<GC::Function<void(Result)>> m_callback;
+    GC::Ref<GC::Function<void(Result, UnloadPromptShown)>> m_callback;
     GC::Ref<Platform::Timer> m_timeout;
 };
 
@@ -1317,18 +1319,23 @@ void LocalTraversableNavigable::check_if_unloading_is_canceled(
     GC::Ptr<LocalTraversableNavigable> traversable,
     RefPtr<SessionHistoryEntry> target_entry,
     Optional<UserNavigationInvolvement> user_involvement_for_navigate_events,
-    GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback)
+    UnloadPromptShown unload_prompt_shown,
+    GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult, UnloadPromptShown)>> callback)
 {
     auto state = heap().allocate<CheckUnloadingCanceledState>(
         traversable,
         user_involvement_for_navigate_events,
+        unload_prompt_shown,
         callback);
     state->start(navigables_that_need_before_unload, move(target_entry));
 }
 
 void LocalTraversableNavigable::check_if_unloading_is_canceled(Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback)
 {
-    check_if_unloading_is_canceled(move(navigables_that_need_before_unload), {}, {}, {}, callback);
+    check_if_unloading_is_canceled(move(navigables_that_need_before_unload), {}, {}, {}, UnloadPromptShown::No,
+        GC::create_function(heap(), [callback](CheckIfUnloadingIsCanceledResult result, UnloadPromptShown) {
+            callback->function()(result);
+        }));
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
@@ -1421,7 +1428,7 @@ void LocalTraversableNavigable::handle_ui_history_operation_started(CrossProcess
     ready->function()(Empty {});
 }
 
-void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(CrossProcessId operation_id, SessionHistoryEntryDescriptor target_entry_descriptor, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement user_involvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete)
+void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(CrossProcessId operation_id, SessionHistoryEntryDescriptor target_entry_descriptor, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement user_involvement, GC::Ref<GC::Function<void(HistoryStepResult, UnloadPromptShown)>> on_complete)
 {
     (void)operation_id;
 
@@ -1441,7 +1448,7 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(Cross
         //          prescribe how Back interacts with an uncommitted navigation. Chromium, WebKit, and Gecko all
         //          stop the uncommitted load in this situation.
         stop_loading();
-        on_complete->function()(HistoryStepResult::CanceledPendingNavigation);
+        on_complete->function()(HistoryStepResult::CanceledPendingNavigation, UnloadPromptShown::No);
         return;
     }
 
@@ -1454,20 +1461,39 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(Cross
         if (auto navigable = local_navigable_with_id(navigable_id); navigable && !navigable->has_been_destroyed())
             navigables.append(*navigable);
     }
-    check_if_unloading_is_canceled(move(navigables), *this, move(target_entry), user_involvement,
-        GC::create_function(heap(), [on_complete](CheckIfUnloadingIsCanceledResult result) {
+    check_if_unloading_is_canceled(move(navigables), *this, move(target_entry), user_involvement, UnloadPromptShown::No,
+        GC::create_function(heap(), [on_complete](CheckIfUnloadingIsCanceledResult result, UnloadPromptShown unload_prompt_shown) {
             switch (result) {
             case CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload:
-                on_complete->function()(HistoryStepResult::CanceledByBeforeUnload);
+                on_complete->function()(HistoryStepResult::CanceledByBeforeUnload, unload_prompt_shown);
                 return;
             case CheckIfUnloadingIsCanceledResult::CanceledByNavigate:
-                on_complete->function()(HistoryStepResult::CanceledByNavigate);
+                on_complete->function()(HistoryStepResult::CanceledByNavigate, unload_prompt_shown);
                 return;
             case CheckIfUnloadingIsCanceledResult::Continue:
-                on_complete->function()(HistoryStepResult::Applied);
+                on_complete->function()(HistoryStepResult::Applied, unload_prompt_shown);
                 return;
             }
             VERIFY_NOT_REACHED();
+        }));
+}
+
+// Fire beforeunload for the documents hosted by this process.
+void LocalTraversableNavigable::run_ui_history_step_beforeunload_check(Vector<CrossProcessId> navigable_ids, UnloadPromptShown unload_prompt_shown, GC::Ref<GC::Function<void(HistoryStepResult, UnloadPromptShown)>> on_complete)
+{
+    Vector<GC::Root<LocalNavigable>> navigables;
+    navigables.ensure_capacity(navigable_ids.size());
+    for (auto navigable_id : navigable_ids) {
+        if (auto navigable = local_navigable_with_id(navigable_id); navigable && !navigable->has_been_destroyed())
+            navigables.append(*navigable);
+    }
+    check_if_unloading_is_canceled(move(navigables), {}, {}, {}, unload_prompt_shown,
+        GC::create_function(heap(), [on_complete](CheckIfUnloadingIsCanceledResult result, UnloadPromptShown unload_prompt_shown) {
+            on_complete->function()(
+                result == CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload
+                    ? HistoryStepResult::CanceledByBeforeUnload
+                    : HistoryStepResult::Applied,
+                unload_prompt_shown);
         }));
 }
 

@@ -449,13 +449,27 @@ void ConnectionFromClient::run_history_step_unload_cancelation_job(u64 page_id, 
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
-        async_history_step_unload_cancelation_result(page_id, operation_id, Web::HTML::HistoryStepResult::Applied);
+        async_history_step_unload_cancelation_result(page_id, operation_id, Web::HTML::HistoryStepResult::Applied, Web::HTML::UnloadPromptShown::No);
         return;
     }
 
     page->page().top_level_traversable()->run_ui_history_step_unload_cancelation_job(operation_id, move(target_entry), move(navigables_crossing_documents), user_involvement,
-        GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id](Web::HTML::HistoryStepResult result) {
-            async_history_step_unload_cancelation_result(page_id, operation_id, result);
+        GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id](Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) {
+            async_history_step_unload_cancelation_result(page_id, operation_id, result, unload_prompt_shown);
+        }));
+}
+
+void ConnectionFromClient::run_history_step_beforeunload_check(u64 page_id, Web::HTML::CrossProcessId operation_id, Vector<Web::HTML::CrossProcessId> navigable_ids, Web::HTML::UnloadPromptShown unload_prompt_shown)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        async_history_step_beforeunload_check_result(page_id, operation_id, Web::HTML::HistoryStepResult::Applied, unload_prompt_shown);
+        return;
+    }
+
+    page->page().top_level_traversable()->run_ui_history_step_beforeunload_check(move(navigable_ids), unload_prompt_shown,
+        GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id](Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) {
+            async_history_step_beforeunload_check_result(page_id, operation_id, result, unload_prompt_shown);
         }));
 }
 

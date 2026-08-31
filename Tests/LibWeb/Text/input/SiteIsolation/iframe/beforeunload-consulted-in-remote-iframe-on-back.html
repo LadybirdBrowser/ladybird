@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A traversal initiated by an out-of-process iframe must run the top-level navigate-event check
+    // and consult beforeunload in every process hosting a crossing document.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const childHostname = uniqueLocalhostHostname("oop-beforeunload");
+
+        const secondUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-beforeunload-second-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    document.cookie = "secondLoaded=1; path=/";
+                    addEventListener("beforeunload", () => { document.cookie = "secondBeforeUnload=1; path=/"; });
+                    setTimeout(() => history.back(), 0);
+                <\/script>`,
+            })
+        );
+        secondUrl.hostname = childHostname;
+
+        const firstUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-beforeunload-first-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    const match = document.cookie.match(/firstVisits=(\\d+)/);
+                    document.cookie = "firstVisits=" + (match ? Number(match[1]) + 1 : 1) + "; path=/";
+                    if (!match)
+                        addEventListener("load", () => setTimeout(() => { location.href = "${secondUrl}"; }, 0));
+                <\/script>`,
+            })
+        );
+        firstUrl.hostname = childHostname;
+
+        const frame = document.createElement("iframe");
+        frame.src = firstUrl;
+        document.body.appendChild(frame);
+
+        const cookie = (name, value) => internals.hasCookieForURL(firstUrl.href, name, value);
+        const waitFor = needle => {
+            const [name, value] = needle.split("=");
+            return waitForCondition(() => cookie(name, value));
+        };
+
+        await waitFor("secondLoaded=1");
+
+        if (await waitFor("firstVisits=2"))
+            println("first document repopulated on back");
+        else
+            println("first document did not repopulate on back");
+
+        if (await waitFor("secondBeforeUnload=1"))
+            println("beforeunload ran in the remote frame");
+        else
+            println("beforeunload did not run in the remote frame");
+    });
+</script>
