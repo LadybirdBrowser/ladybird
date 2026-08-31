@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/Enumerate.h>
 #include <AK/Find.h>
 #include <AK/GenericShorthands.h>
@@ -20,6 +21,7 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -28,6 +30,7 @@
 #include <LibWeb/WebDriver/ElementReference.h>
 #include <LibWeb/WebDriver/InputState.h>
 #include <LibWeb/WebDriver/Properties.h>
+#include <LibWeb/WebIDL/Promise.h>
 #include <LibWebCommon/Page/InputEvent.h>
 
 namespace Web::WebDriver {
@@ -1428,6 +1431,7 @@ public:
 
         // 2. Let tick duration be the result of computing the tick duration with argument tick actions.
         auto tick_duration = compute_tick_duration(tick_actions);
+        m_tick_dispatches_scroll_actions = any_of(tick_actions, [](auto const& action_object) { return action_object.subtype == ActionObject::Subtype::Scroll; });
 
         // NB: Pointer input goes through the UI process, which dispatches it to the process hosting the document under
         //     the pointer as it does the user's.
@@ -1469,9 +1473,31 @@ public:
             return;
         m_tick_duration_has_passed = false;
 
-        HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this]() {
-            process_next_tick();
-        }));
+        auto queue_next_tick = [this] {
+            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this]() {
+                process_next_tick();
+            }));
+        };
+
+        // NB: Wheel input scrolls smoothly, so the scrolls that the tick's scroll actions started are pending asynchronous
+        //     waits too.
+        auto document = m_browsing_context->active_document();
+        if (!m_tick_dispatches_scroll_actions || !document) {
+            queue_next_tick();
+            return;
+        }
+        auto& realm = HTML::relevant_realm(*document);
+        HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        Vector<GC::Ref<WebIDL::Promise>> scroll_promises;
+        for (auto& navigable : HTML::all_local_navigables()) {
+            if (&navigable->page() == &m_browsing_context->page() && !navigable->has_been_destroyed())
+                navigable->wait_for_wheel_scrolls(scroll_promises);
+        }
+        if (scroll_promises.is_empty()) {
+            queue_next_tick();
+            return;
+        }
+        WebIDL::wait_for_all(realm, scroll_promises, [queue_next_tick](auto const&) { queue_next_tick(); }, [queue_next_tick](auto) { queue_next_tick(); });
     }
 
 private:
@@ -1492,6 +1518,7 @@ private:
 
     size_t m_pending_mouse_event_count { 0 };
     bool m_tick_duration_has_passed { false };
+    bool m_tick_dispatches_scroll_actions { false };
 
     OnActionsComplete m_on_complete;
 

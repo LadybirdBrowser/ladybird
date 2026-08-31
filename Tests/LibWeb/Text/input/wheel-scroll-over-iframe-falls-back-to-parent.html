@@ -25,7 +25,9 @@
 
         await new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
 
+        const finished = new Promise(resolve => document.addEventListener("scrollend", resolve, { once: true }));
         await internals.wheel(50, 50, 0, 100);
+        await finished;
 
         println(`window.scrollY: ${window.scrollY}`);
         println(`iframe.scrollY: ${iframe.contentWindow.scrollY}`);

@@ -20,6 +20,8 @@
     }
 </style>
 <div class="scroller" id="key-scroller" tabindex="0"><div class="target"></div></div>
+<div class="scroller" id="wheel-scroller"><div class="target"></div></div>
+<div class="scroller" id="listener-wheel-scroller"><div class="target"></div></div>
 <script>
     promiseTest(async () => {
         // A step back while a smooth scroll is still on its way down scrolls up, even though the box has not yet
@@ -35,5 +37,24 @@
             internals.sendKey(keyScroller, key);
         await settled;
         report("Keys", keyScroller);
+
+        const wheelAt = async (scroller, deltas) => {
+            const rect = scroller.getBoundingClientRect();
+            const settled = scrollendEvent(scroller);
+            for (const delta of deltas)
+                internals.wheel(rect.left + 50, rect.top + 50, 0, delta);
+            await settled;
+        };
+
+        const wheelScroller = document.getElementById("wheel-scroller");
+        await wheelAt(wheelScroller, [200, -40]);
+        report("Wheel", wheelScroller);
+
+        const listenerWheelScroller = document.getElementById("listener-wheel-scroller");
+        listenerWheelScroller.addEventListener("wheel", () => {}, { passive: false });
+        const rect = listenerWheelScroller.getBoundingClientRect();
+        await waitForCondition(() => internals.asyncScrollingStateBlocksWheelEventAt(rect.left + 50, rect.top + 50));
+        await wheelAt(listenerWheelScroller, [200, -40]);
+        report("Wheel with a blocking listener", listenerWheelScroller);
     });
 </script>

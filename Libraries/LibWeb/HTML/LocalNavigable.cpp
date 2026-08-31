@@ -5160,6 +5160,27 @@ void LocalNavigable::wait_for_async_scroll_operation(Compositing::AsyncScrollOpe
     ensure_pending_async_scroll_operation(operation_id).promises.append(promise);
 }
 
+void LocalNavigable::wait_for_wheel_scrolls(Vector<GC::Ref<WebIDL::Promise>>& promises)
+{
+    auto document = active_document();
+    if (!document)
+        return;
+
+    auto wait_for = [&](ScrollPromises& scroll_promises) {
+        auto promise = WebIDL::create_promise_for(*document);
+        scroll_promises.append(promise);
+        promises.append(promise);
+    };
+    for (auto& pending : m_pending_async_scroll_operations) {
+        if (pending.animation_kind == Compositing::ScrollAnimationKind::Wheel)
+            wait_for(pending.promises);
+    }
+    for (auto& smooth_scroll : m_main_thread_smooth_scrolls) {
+        if (smooth_scroll.animation.kind() == Compositing::ScrollAnimationKind::Wheel)
+            wait_for(smooth_scroll.promises);
+    }
+}
+
 void LocalNavigable::resolve_async_scroll_operation(Compositing::AsyncScrollOperationID operation_id, AsyncScrollCompletion completion)
 {
     // Notifying a scroll's completion can start the next scroll of the same scrolling box, so the finished scroll
@@ -7276,6 +7297,17 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Web
             return *scroll_promise;
     }
 
+    // AD-HOC: A wheel step's gesture delivers the scrollend event once no further steps arrive.
+    if (should_scroll_smoothly && trigger == ScrollTrigger::UserInput && animation_kind == Compositing::ScrollAnimationKind::Wheel) {
+        if (position == *initial_scroll_offset)
+            return WebIDL::create_resolved_promise_for(*document, JS::js_undefined());
+
+        if (auto target = scroll_event_target_for_async_scroll_node(*document, stable_node_id)) {
+            if (!latched_user_scroll_gesture_for(*target, stable_node_id))
+                queue_scrollend_event_after_user_scroll(*target, stable_node_id, *initial_scroll_offset);
+        }
+    }
+
     // https://drafts.csswg.org/cssom-view-1/#perform-a-scroll
     // 1. Abort any ongoing smooth scroll for box.
     // 2. Resolve all pending scroll promises for box.
@@ -7577,7 +7609,7 @@ bool LocalNavigable::continued_scroll_step_moves(Layout::Node& scrolling_box, CS
     return Painting::clamp_scroll_offset(scrolling_box, step_start + delta) != step_start;
 }
 
-bool LocalNavigable::scroll_scrolling_box_by_delta(Layout::Node& scrolling_box, CSSPixelPoint delta, Painting::ScrollKind scroll_kind)
+bool LocalNavigable::scroll_scrolling_box_by_delta(Layout::Node& scrolling_box, CSSPixelPoint delta, Painting::ScrollKind scroll_kind, Compositing::ScrollAnimationKind animation_kind)
 {
     auto document = active_document();
     if (!document)
@@ -7598,7 +7630,7 @@ bool LocalNavigable::scroll_scrolling_box_by_delta(Layout::Node& scrolling_box, 
     if (!stable_node_id.has_value())
         return false;
 
-    auto start_offset = in_flight_user_scroll_destination(*stable_node_id, Compositing::ScrollAnimationKind::SmoothScroll).value_or(Painting::scroll_offset(scrolling_box));
+    auto start_offset = in_flight_user_scroll_destination(*stable_node_id, animation_kind).value_or(Painting::scroll_offset(scrolling_box));
     auto position = Painting::clamp_scroll_offset(scrolling_box, start_offset + delta);
     if (position == start_offset) {
         defer_user_scroll_settlement();
@@ -7606,27 +7638,33 @@ bool LocalNavigable::scroll_scrolling_box_by_delta(Layout::Node& scrolling_box, 
     }
 
     TemporaryExecutionContext temporary_execution_context { HTML::relevant_realm(*document) };
-    perform_a_scroll_of_a_scrolling_box(*stable_node_id, position, Bindings::ScrollBehavior::Smooth, {}, ScrollTrigger::UserInput, {}, DestinationSnapping::SelectSnapPosition, Compositing::ScrollAnimationKind::SmoothScroll, scroll_kind);
+    perform_a_scroll_of_a_scrolling_box(*stable_node_id, position, Bindings::ScrollBehavior::Smooth, {}, ScrollTrigger::UserInput, {}, DestinationSnapping::SelectSnapPosition, animation_kind, scroll_kind);
     return true;
 }
 
-GC::Ref<WebIDL::Promise> LocalNavigable::scroll_viewport_by_delta(CSSPixelPoint delta, Bindings::ScrollBehavior behavior, Painting::ScrollKind scroll_kind)
+bool LocalNavigable::scroll_viewport_by_delta(CSSPixelPoint delta, Bindings::ScrollBehavior behavior, Painting::ScrollKind scroll_kind, Compositing::ScrollAnimationKind animation_kind)
 {
     auto document = active_document();
     auto vv = document->visual_viewport();
-    CSSPixelPoint page_position { CSSPixels(vv->page_left()), CSSPixels(vv->page_top()) };
 
-    if (behavior == Bindings::ScrollBehavior::Smooth) {
+    auto in_flight_aware_page_position = [&] {
+        CSSPixelPoint page_position { CSSPixels(vv->page_left()), CSSPixels(vv->page_top()) };
+        if (behavior != Bindings::ScrollBehavior::Smooth)
+            return page_position;
         Web::AsyncScrollNodeStableID viewport_stable_node_id { .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::Viewport };
-        if (auto destination = in_flight_user_scroll_destination(viewport_stable_node_id, Compositing::ScrollAnimationKind::SmoothScroll); destination.has_value())
+        if (auto destination = in_flight_user_scroll_destination(viewport_stable_node_id, animation_kind); destination.has_value())
             page_position += *destination - viewport_scroll_offset();
-    }
+        return page_position;
+    };
 
-    return perform_a_scroll_of_the_viewport(page_position + delta, behavior, ScrollTrigger::UserInput, {}, scroll_kind);
+    auto page_position = in_flight_aware_page_position();
+    perform_a_scroll_of_the_viewport(page_position + delta, behavior, ScrollTrigger::UserInput, {}, scroll_kind, animation_kind);
+
+    return in_flight_aware_page_position() != page_position;
 }
 
 // https://drafts.csswg.org/cssom-view/#viewport-perform-a-scroll
-GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPixelPoint position, Bindings::ScrollBehavior behavior, ScrollTrigger trigger, Optional<CSSPixelPoint> relative_displacement, Painting::ScrollKind scroll_kind)
+GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPixelPoint position, Bindings::ScrollBehavior behavior, ScrollTrigger trigger, Optional<CSSPixelPoint> relative_displacement, Painting::ScrollKind scroll_kind, Compositing::ScrollAnimationKind animation_kind)
 {
     // AD-HOC: User input keeps the scroll gesture in progress even when this scroll does not move the viewport, such
     //         as when a held scroll key repeats at the scroll extent.
@@ -7706,7 +7744,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPix
                                                                   .node_id = doc->unique_id(),
                                                                   .kind = Web::AsyncScrollNodeKind::Viewport,
                                                               },
-        new_viewport_scroll_offset.to_type<CSSPixels>(), behavior, doc->document_element(), trigger, relative_displacement, DestinationSnapping::SelectSnapPosition, Compositing::ScrollAnimationKind::SmoothScroll, scroll_kind);
+        new_viewport_scroll_offset.to_type<CSSPixels>(), behavior, doc->document_element(), trigger, relative_displacement, DestinationSnapping::SelectSnapPosition, animation_kind, scroll_kind);
 
     // 17. Return scrollPromise, and run the remaining steps in parallel.
     // 18. Resolve scrollPromise when both scrollPromise1 and scrollPromise2 have settled.

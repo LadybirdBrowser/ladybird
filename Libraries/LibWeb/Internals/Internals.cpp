@@ -748,7 +748,17 @@ void Internals::wheel(GC::Ref<WebIDL::Promise> promise, double x, double y, doub
         return;
     }
 
-    WebIDL::resolve_promise(promise);
+    Vector<GC::Ref<WebIDL::Promise>> scroll_promises;
+    for (auto& navigable : HTML::all_local_navigables()) {
+        if (&navigable->page() == &page && !navigable->has_been_destroyed())
+            navigable->wait_for_wheel_scrolls(scroll_promises);
+    }
+    auto& realm = window().principal_realm();
+    auto resolve = [&realm, promise] {
+        HTML::TemporaryExecutionContext execution_context { realm };
+        WebIDL::resolve_promise(realm, promise);
+    };
+    WebIDL::wait_for_all(realm, scroll_promises, [resolve](auto const&) { resolve(); }, [resolve](auto) { resolve(); });
 }
 
 void Internals::wheel(double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase phase, GC::Ref<WebIDL::Promise> promise)

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+    #nested {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+    }
+    #nested > div {
+        height: 1000px;
+    }
+</style>
+<div id="nested"><div></div></div>
+<script>
+    promiseTest(async () => {
+        window.scrollTo(0, 100);
+        await waitForCondition(() => internals.asyncScrollingStateCanWheelScrollAt(50, 50, 0, 200));
+
+        // The second step lands 30 CSS pixels from the first, so it starts a gesture of its own.
+        const settled = scrollendEvent(nested);
+        internals.wheel(50, 50, 0, 200);
+        internals.wheel(80, 50, 0, -40);
+        await settled;
+        println(`nested.scrollTop: ${nested.scrollTop}`);
+        println(`window.scrollY: ${window.scrollY}`);
+    });
+</script>

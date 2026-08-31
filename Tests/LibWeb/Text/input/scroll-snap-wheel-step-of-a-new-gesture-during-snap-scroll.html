@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        position: relative;
+        height: 3000px;
+        margin: 0;
+    }
+    .scroller {
+        width: 200px;
+        height: 200px;
+        overflow: auto;
+        scroll-snap-type: y mandatory;
+    }
+    #reversal-scroller {
+        position: relative;
+    }
+    .snap-point {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        scroll-snap-align: start;
+    }
+    .snap-page {
+        height: 200px;
+        scroll-snap-align: start;
+    }
+</style>
+<div class="scroller" id="reversal-scroller">
+    <div style="height: 1500px"></div>
+    <div class="snap-point" style="top: 0"></div>
+    <div class="snap-point" style="top: 500px"></div>
+    <div class="snap-point" style="top: 1000px"></div>
+</div>
+<div class="scroller" id="handoff-scroller">
+    <div class="snap-page"></div>
+    <div class="snap-page"></div>
+    <div class="snap-page"></div>
+</div>
+<div class="snap-point" style="left: 300px; top: 0"></div>
+<div class="snap-point" style="left: 300px; top: 500px"></div>
+<div class="snap-point" style="left: 300px; top: 1000px"></div>
+<script>
+    promiseTest(async () => {
+        const reversalScroller = document.getElementById("reversal-scroller");
+        const handoffScroller = document.getElementById("handoff-scroller");
+
+        // A blocking wheel event listener keeps the scrolling on the main thread. Each step is taken 30px away from the
+        // one before it, so it starts a new gesture while the snap scroll of the previous one is still in flight.
+        window.addEventListener("wheel", () => {}, { passive: false });
+        await waitForCondition(() => internals.asyncScrollingStateBlocksWheelEventAt(50, 50));
+
+        const wheelStepsWhileMovingThePointer = async (x, y, deltas, scrolledTargets) => {
+            const settled = Promise.all(scrolledTargets.map(target => scrollendEvent(target)));
+            await Promise.all(deltas.map((delta, index) => internals.wheel(x + index * 30, y, 0, delta)));
+            await settled;
+        };
+
+        await wheelStepsWhileMovingThePointer(50, 50, [200, -40], [reversalScroller]);
+        println(`Reversal in a nested scroller: ${reversalScroller.scrollTop}, window: ${window.scrollY}`);
+
+        document.documentElement.style.scrollSnapType = "y mandatory";
+        await wheelStepsWhileMovingThePointer(300, 50, [200, -40], [document]);
+        println(`Reversal on the root scroller: ${window.scrollY}`);
+        document.documentElement.style.scrollSnapType = "";
+
+        await wheelStepsWhileMovingThePointer(50, 250, [500, 100], [handoffScroller, document]);
+        println(`Handoff to the root scroller: ${handoffScroller.scrollTop}, window: ${window.scrollY}`);
+    });
+</script>

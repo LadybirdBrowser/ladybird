@@ -49,7 +49,9 @@
         println(`iframe.scrollHeight: ${scrollingElement.scrollHeight}`);
         println(`iframe.clientHeight: ${scrollingElement.clientHeight}`);
 
+        const finished = new Promise(resolve => document.addEventListener("scrollend", resolve, { once: true }));
         await internals.wheel(50, 50, 0, 100);
+        await finished;
 
         println(`window.scrollY: ${window.scrollY}`);
         println(`iframe.scrollTop after wheel: ${scrollingElement.scrollTop}`);

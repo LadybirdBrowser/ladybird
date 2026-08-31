@@ -171,7 +171,7 @@ static bool selected_snap_position_along_travel(Compositing::SnapDestination con
     return (selection.snapped_x && displacement.x() != 0) || (selection.snapped_y && displacement.y() != 0);
 }
 
-Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_discrete_step(Compositing::AsyncScrollTree const& scroll_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Compositing::AsyncScrollNodeID node_id, Web::CSSPixelPoint delta, MonotonicTime now)
+Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_discrete_step(Compositing::AsyncScrollTree const& scroll_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Compositing::AsyncScrollNodeID node_id, Web::CSSPixelPoint delta, Optional<Web::CSSPixelPoint> scroll_in_flight_destination, MonotonicTime now)
 {
     auto target = snap_target_for(scroll_tree, scroll_state_snapshot, node_id);
     if (!target.has_value())
@@ -191,9 +191,9 @@ Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_discre
     if (gesture_ended)
         state.unsnapped_scroll_destination = {};
 
-    // A step selects its snap position from the offset the gesture's input deltas have reached rather than from the
-    // snap position it is scrolling to.
-    auto step_start = state.unsnapped_scroll_destination.value_or(current_scroll_offset);
+    // A step selects its snap position from the offset the gesture's input deltas have reached, which a wheel scroll in
+    // flight is headed for, rather than from the snap position it is scrolling to.
+    auto step_start = state.unsnapped_scroll_destination.value_or(scroll_in_flight_destination.value_or(current_scroll_offset));
     auto unsnapped_destination = clamp_scroll_offset(step_start + delta, geometry);
 
     // NB: A step with only an intended direction ignores every snap position up to the offset its input asked for.
@@ -212,6 +212,8 @@ Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_discre
     state.gesture_input_deadline = now + Compositing::user_scroll_settle_delay;
 
     auto in_flight_destination = state.snap_scroll.map([](auto const& snap_scroll) { return snap_scroll.destination; });
+    if (!in_flight_destination.has_value())
+        in_flight_destination = scroll_in_flight_destination;
     if (selection.position == in_flight_destination.value_or(current_scroll_offset)) {
         if (!state.snap_scroll.has_value())
             state.expected_scroll_offset = current_scroll_offset;

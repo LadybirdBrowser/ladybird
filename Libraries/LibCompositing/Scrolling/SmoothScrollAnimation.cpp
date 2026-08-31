@@ -13,6 +13,12 @@ namespace Compositing {
 static constexpr double scroll_speed_in_pixels_per_second = 1000.0;
 static constexpr double maximum_scroll_duration_in_seconds = 0.2;
 
+// A wheel step takes longer the shorter its distance, within these bounds.
+static constexpr double minimum_wheel_scroll_duration_in_seconds = 0.1;
+static constexpr double maximum_wheel_scroll_duration_in_seconds = 0.2;
+static constexpr double wheel_scroll_distance_covered_at_maximum_duration = 120.0;
+static constexpr double wheel_scroll_duration_reduction_per_pixel = 1.0 / 3600.0;
+
 // The ease-in-out curve WebKit uses for programmatic smooth scrolling, cubic-bezier(0.42, 0, 0.58, 1). A retargeted
 // scroll changes y1 so that it keeps the speed it had.
 static constexpr double easing_control_point_x1 = 0.42;
@@ -80,10 +86,23 @@ AK::Duration SmoothScrollAnimation::duration_for_distance(Gfx::FloatPoint distan
     auto horizontal_distance = static_cast<double>(distance.x()) / m_pixels_per_css_pixel;
     auto vertical_distance = static_cast<double>(distance.y()) / m_pixels_per_css_pixel;
     auto length = AK::sqrt(horizontal_distance * horizontal_distance + vertical_distance * vertical_distance);
+    if (length == 0)
+        return AK::Duration::zero();
 
-    auto duration_in_seconds = m_kind == ScrollAnimationKind::Momentum
-        ? momentum_frames_for_distance(length) * momentum_frame_duration_in_seconds
-        : min(length / scroll_speed_in_pixels_per_second, maximum_scroll_duration_in_seconds);
+    double duration_in_seconds = 0;
+    switch (m_kind) {
+    case ScrollAnimationKind::SmoothScroll:
+        duration_in_seconds = min(length / scroll_speed_in_pixels_per_second, maximum_scroll_duration_in_seconds);
+        break;
+    case ScrollAnimationKind::Wheel:
+        duration_in_seconds = clamp(
+            maximum_wheel_scroll_duration_in_seconds - (length - wheel_scroll_distance_covered_at_maximum_duration) * wheel_scroll_duration_reduction_per_pixel,
+            minimum_wheel_scroll_duration_in_seconds, maximum_wheel_scroll_duration_in_seconds);
+        break;
+    case ScrollAnimationKind::Momentum:
+        duration_in_seconds = momentum_frames_for_distance(length) * momentum_frame_duration_in_seconds;
+        break;
+    }
     return AK::Duration::from_seconds_f64(duration_in_seconds);
 }
 

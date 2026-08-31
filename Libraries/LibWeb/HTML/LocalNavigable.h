@@ -268,6 +268,7 @@ public:
     void adopt_started_user_scroll(DOM::Document&, Compositing::StartedUserScroll const&);
     void process_main_thread_smooth_scrolls();
     void wait_for_async_scroll_operation(Compositing::AsyncScrollOperationID, GC::Ref<WebIDL::Promise>);
+    void wait_for_wheel_scrolls(Vector<GC::Ref<WebIDL::Promise>>&);
     void clamp_viewport_scroll_offset();
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity
@@ -417,10 +418,10 @@ public:
         TakenOverByUserInput,
     };
 
-    bool scroll_scrolling_box_by_delta(Layout::Node&, CSSPixelPoint delta, Painting::ScrollKind);
+    bool scroll_scrolling_box_by_delta(Layout::Node&, CSSPixelPoint delta, Painting::ScrollKind, Compositing::ScrollAnimationKind = Compositing::ScrollAnimationKind::SmoothScroll);
     bool continued_scroll_step_moves(Layout::Node&, CSSPixelPoint delta, Compositing::ScrollAnimationKind);
-    GC::Ref<WebIDL::Promise> scroll_viewport_by_delta(CSSPixelPoint delta, Bindings::ScrollBehavior, Painting::ScrollKind);
-    GC::Ref<WebIDL::Promise> perform_a_scroll_of_the_viewport(CSSPixelPoint position, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Auto, ScrollTrigger = ScrollTrigger::Programmatic, Optional<CSSPixelPoint> relative_displacement = {}, Painting::ScrollKind = Painting::ScrollKind::Absolute);
+    bool scroll_viewport_by_delta(CSSPixelPoint delta, Bindings::ScrollBehavior, Painting::ScrollKind, Compositing::ScrollAnimationKind = Compositing::ScrollAnimationKind::SmoothScroll);
+    GC::Ref<WebIDL::Promise> perform_a_scroll_of_the_viewport(CSSPixelPoint position, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Auto, ScrollTrigger = ScrollTrigger::Programmatic, Optional<CSSPixelPoint> relative_displacement = {}, Painting::ScrollKind = Painting::ScrollKind::Absolute, Compositing::ScrollAnimationKind = Compositing::ScrollAnimationKind::SmoothScroll);
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_an_element(DOM::Element&, CSSPixelPoint position, Bindings::ScrollBehavior, Optional<CSSPixelPoint> relative_displacement = {});
     bool perform_a_snapped_relative_user_scroll(Layout::Node&, CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type, SnapStepAccumulation, Compositing::ScrollAnimationKind = Compositing::ScrollAnimationKind::SmoothScroll, Painting::ScrollKind = Painting::ScrollKind::Relative);
     bool perform_a_scroll_step_for_key_input(Layout::Node&, CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type);

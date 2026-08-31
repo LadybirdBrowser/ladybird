@@ -76,7 +76,7 @@ public:
 
     // https://drafts.csswg.org/css-scroll-snap-1/#scroll-types
     // A discrete wheel step is a relative scroll with only an intended direction.
-    Optional<StepDecision> decide_discrete_step(Compositing::AsyncScrollTree const&, Compositing::ScrollStateSnapshot const&, Compositing::AsyncScrollNodeID, Web::CSSPixelPoint delta, MonotonicTime now);
+    Optional<StepDecision> decide_discrete_step(Compositing::AsyncScrollTree const&, Compositing::ScrollStateSnapshot const&, Compositing::AsyncScrollNodeID, Web::CSSPixelPoint delta, Optional<Web::CSSPixelPoint> scroll_in_flight_destination, MonotonicTime now);
     // The momentum of a flick is a relative scroll with an intended direction and, once its decay tells where it is
     // headed, an intended end position.
     Optional<StepDecision> decide_momentum_delta(Compositing::AsyncScrollTree const&, Compositing::ScrollStateSnapshot const&, Compositing::AsyncScrollNodeID, Web::CSSPixelPoint delta);

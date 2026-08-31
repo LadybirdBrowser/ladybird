@@ -36,15 +36,22 @@ AsyncScrollNode const* AsyncScrollTree::scroll_node_for_id(AsyncScrollNodeID nod
     return nullptr;
 }
 
-WheelHitTestResult AsyncScrollTree::hit_test_result_for_scroll_node(AsyncScrollNodeID node_id, Gfx::FloatPoint delta) const
+WheelHitTestResult AsyncScrollTree::hit_test_result_for_scroll_node(AsyncScrollNodeID node_id, Gfx::FloatPoint delta, Function<Optional<Gfx::FloatPoint>(Web::AsyncScrollNodeStableID)> const& in_flight_destination_for) const
 {
-    auto const* node = scroll_node_for_id(node_id);
-    if (!node)
-        return {};
-    if (can_scroll_node_by_delta(*node, m_scroll_state_snapshot, delta))
-        return { node_id, false };
-    if (auto ancestor = scrollable_ancestor_for_node(node_id, m_scroll_state_snapshot, delta); ancestor.has_value())
-        return { ancestor, false };
+    auto can_take_step = [&](AsyncScrollNode const& node) {
+        Optional<Gfx::FloatPoint> in_flight_destination;
+        if (in_flight_destination_for)
+            in_flight_destination = in_flight_destination_for(node.stable_node_id);
+        return can_scroll_node_from_offset_by_delta(node, in_flight_destination.value_or(scroll_offset_for_node(node, m_scroll_state_snapshot)), delta);
+    };
+
+    for (auto const* node = scroll_node_for_id(node_id); node;) {
+        if (can_take_step(*node))
+            return { node->node_id, false };
+        if (!node->parent_node_id.has_value())
+            break;
+        node = scroll_node_for_id(*node->parent_node_id);
+    }
     return {};
 }
 
@@ -81,7 +88,11 @@ Gfx::FloatPoint AsyncScrollTree::scroll_offset_for_node(AsyncScrollNode const& n
 
 bool AsyncScrollTree::can_scroll_node_by_delta(AsyncScrollNode const& node, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint delta)
 {
-    auto scroll_offset = scroll_offset_for_node(node, scroll_state_snapshot);
+    return can_scroll_node_from_offset_by_delta(node, scroll_offset_for_node(node, scroll_state_snapshot), delta);
+}
+
+bool AsyncScrollTree::can_scroll_node_from_offset_by_delta(AsyncScrollNode const& node, Gfx::FloatPoint scroll_offset, Gfx::FloatPoint delta)
+{
     if (node.can_be_wheel_scrolled_horizontally && delta.x() < 0 && scroll_offset.x() > node.min_scroll_offset.x())
         return true;
     if (node.can_be_wheel_scrolled_horizontally && delta.x() > 0 && scroll_offset.x() < node.max_scroll_offset.x())
@@ -173,6 +184,37 @@ Optional<AsyncScrollOffset> AsyncScrollTree::apply_scroll_delta(AsyncScrollNodeI
 
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Async scroll tree did not scroll any node for delta {},{}",
         delta.x(), delta.y());
+    return {};
+}
+
+Optional<WheelScrollTarget> AsyncScrollTree::select_wheel_scroll_target(AsyncScrollNodeID node_id, Gfx::FloatPoint delta, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Function<Optional<Gfx::FloatPoint>(Web::AsyncScrollNodeStableID)> const& in_flight_destination_for, ScrollChaining scroll_chaining) const
+{
+    // Each box is measured from where its scroll in flight is headed, so a box already headed for its extent passes the
+    // first step of a gesture on to an ancestor.
+    for (size_t remaining_handoffs = m_scroll_nodes.size(); remaining_handoffs > 0; --remaining_handoffs) {
+        auto const* node = scroll_node_for_id(node_id);
+        if (!node)
+            return {};
+
+        auto start_offset = in_flight_destination_for(node->stable_node_id).value_or(scroll_offset_for_node(*node, scroll_state_snapshot));
+        Gfx::FloatPoint wheel_scrollable_delta {
+            node->can_be_wheel_scrolled_horizontally ? delta.x() : 0,
+            node->can_be_wheel_scrolled_vertically ? delta.y() : 0,
+        };
+        auto destination_offset = clamp_scroll_offset_to_node(*node, start_offset + wheel_scrollable_delta);
+        if (destination_offset != start_offset) {
+            return WheelScrollTarget {
+                .stable_node_id = node->stable_node_id,
+                .current_offset = scroll_offset_for_node(*node, scroll_state_snapshot),
+                .start_offset = start_offset,
+                .destination_offset = destination_offset,
+            };
+        }
+
+        if (scroll_chaining == ScrollChaining::None || !node->parent_node_id.has_value())
+            return {};
+        node_id = *node->parent_node_id;
+    }
     return {};
 }
 
@@ -321,7 +363,7 @@ bool AsyncScrollTree::blocks_wheel_event_at_position(Compositing::AccumulatedVis
     return false;
 }
 
-WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Gfx::FloatPoint position, Gfx::FloatPoint delta) const
+WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Gfx::FloatPoint position, Gfx::FloatPoint delta, Function<Optional<Gfx::FloatPoint>(Web::AsyncScrollNodeStableID)> const& in_flight_destination_for) const
 {
     if (m_visual_context_tree_structural_epoch != visual_context_tree.structural_epoch())
         return {};
@@ -356,7 +398,7 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::
             continue;
         if (!target.target_node_id.has_value())
             return {};
-        return hit_test_result_for_scroll_node(*target.target_node_id, delta);
+        return hit_test_result_for_scroll_node(*target.target_node_id, delta, in_flight_destination_for);
     }
 
     auto viewport_node_id = viewport_scroll_node_id();
@@ -365,7 +407,7 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::
     auto const* viewport_node = scroll_node_for_id(*viewport_node_id);
     if (!viewport_node || !viewport_node->scrollport_rect.to_type<float>().contains(position))
         return {};
-    return hit_test_result_for_scroll_node(*viewport_node_id, delta);
+    return hit_test_result_for_scroll_node(*viewport_node_id, delta, in_flight_destination_for);
 }
 
 bool AsyncScrollTree::is_covered_by_hit_test_target_painted_after(u32 paint_order_index, Compositing::AccumulatedVisualContextTree const& visual_context_tree, Gfx::FloatPoint position) const

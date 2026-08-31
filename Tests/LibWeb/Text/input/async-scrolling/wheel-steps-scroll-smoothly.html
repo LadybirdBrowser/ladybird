@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="scroller" style="width: 100px; height: 100px; overflow: scroll">
+    <div style="width: 100px; height: 2000px"></div>
+</div>
+<div style="height: 1000vh"></div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        await waitForCondition(() => internals.asyncScrollingStateCanWheelScrollAt(50, 50, 0, 120) && internals.asyncScrollingStateCanWheelScrollAt(400, 400, 0, 120));
+
+        // A step that jumps fires one scroll event. A step that animates fires one per frame.
+        const scrollEventsUntilScrollend = async (target, x, y, deltas) => {
+            let scrollEventCount = 0;
+            const countScrollEvent = () => ++scrollEventCount;
+            target.addEventListener("scroll", countScrollEvent);
+            const finished = scrollendEvent(target);
+            for (const delta of deltas)
+                internals.wheel(x, y, 0, delta);
+            await finished;
+            target.removeEventListener("scroll", countScrollEvent);
+            return scrollEventCount;
+        };
+
+        const scrollerStepEvents = await scrollEventsUntilScrollend(scroller, 50, 50, [120]);
+        println(`a step animated the scroll container: ${scrollerStepEvents > 1 && scroller.scrollTop > 0}`);
+
+        const viewportStepEvents = await scrollEventsUntilScrollend(document, 400, 400, [120]);
+        const stepDistance = window.scrollY;
+        println(`a step animated the viewport: ${viewportStepEvents > 1 && stepDistance > 0}`);
+
+        await scrollEventsUntilScrollend(document, 400, 400, [120, 120]);
+        println(`two steps scrolled twice as far: ${window.scrollY === stepDistance * 3}`);
+
+        await scrollEventsUntilScrollend(document, 400, 400, [-120, -120, 120]);
+        println(`two steps back and one forward scrolled one step back: ${window.scrollY === stepDistance * 2}`);
+    });
+</script>

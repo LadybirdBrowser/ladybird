@@ -44,6 +44,7 @@ enum class AsyncScrollUpdateFreshness : u8 {
 
 enum class ScrollAnimationKind : u8 {
     SmoothScroll,
+    Wheel,
     Momentum,
 };
 

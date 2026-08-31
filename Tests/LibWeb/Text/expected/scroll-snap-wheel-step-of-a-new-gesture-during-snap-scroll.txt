@@ -1,0 +1,3 @@
+Reversal in a nested scroller: 0, window: 0
+Reversal on the root scroller: 0
+Handoff to the root scroller: 400, window: 100

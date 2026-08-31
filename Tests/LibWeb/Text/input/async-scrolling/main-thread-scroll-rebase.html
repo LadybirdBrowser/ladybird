@@ -21,7 +21,7 @@
         await animationFrame();
         await animationFrame();
 
-        const wheelPromise = internals.wheel(50, 50, 0, 100);
+        const wheelPromise = internals.wheel(50, 50, 0, 100, true);
         scroller.scrollTop = 200;
         println(`script scrollTop: ${scroller.scrollTop}`);
         scroller.appendChild(document.createElement("div"));

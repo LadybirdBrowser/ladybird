@@ -744,17 +744,32 @@ Gfx::IntRect ContextState::note_async_scrolling_viewport_rect(Gfx::IntRect viewp
 ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Compositing::AsyncScrollNodeID node_id, Gfx::FloatPoint delta, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, Compositing::AsyncScrollOperationTracking operation_tracking, Gfx::IntRect viewport_rect, MonotonicTime now, Compositing::ScrollChaining scroll_chaining)
 {
     WheelScrollOutcome outcome;
+    Optional<Compositing::WheelScrollTarget> wheel_scroll_target;
+    if (wheel_delta_precision == Web::WheelDeltaPrecision::Discrete) {
+        wheel_scroll_target = m_async_scroll_tree.select_wheel_scroll_target(node_id, delta, m_scroll_state_snapshot, [this](auto stable_node_id) { return in_flight_wheel_destination(stable_node_id); }, scroll_chaining);
+        if (wheel_scroll_target.has_value()) {
+            node_id = *m_async_scroll_tree.scroll_node_id_for_stable_id(wheel_scroll_target->stable_node_id);
+            if (m_wheel_scroll_latch.has_value())
+                m_wheel_scroll_latch->stable_node_id = wheel_scroll_target->stable_node_id;
+        }
+    }
     auto css_delta = m_async_scroll_tree.css_pixels_from_device_offset(delta);
 
     Optional<ScrollSnapController::StepDecision> decision;
-    if (wheel_delta_precision == Web::WheelDeltaPrecision::Discrete)
-        decision = m_scroll_snap_controller.decide_discrete_step(m_async_scroll_tree, m_scroll_state_snapshot, node_id, css_delta, now);
-    else if (scroll_gesture_phase == Web::ScrollGesturePhase::Momentum)
+    if (wheel_delta_precision == Web::WheelDeltaPrecision::Discrete) {
+        Optional<Web::CSSPixelPoint> scroll_in_flight_destination;
+        if (auto const* node = m_async_scroll_tree.scroll_node_for_id(node_id))
+            scroll_in_flight_destination = in_flight_wheel_destination(node->stable_node_id).map([&](auto offset) { return m_async_scroll_tree.css_pixels_from_device_offset(offset); });
+        decision = m_scroll_snap_controller.decide_discrete_step(m_async_scroll_tree, m_scroll_state_snapshot, node_id, css_delta, scroll_in_flight_destination, now);
+    } else if (scroll_gesture_phase == Web::ScrollGesturePhase::Momentum) {
         decision = m_scroll_snap_controller.decide_momentum_delta(m_async_scroll_tree, m_scroll_state_snapshot, node_id, css_delta);
+    }
 
     if (decision.has_value()) {
         schedule_end_of_scroll_step_gestures(now);
         if (auto* snap_scroll = decision->get_pointer<ScrollSnapController::SnapScrollStart>()) {
+            if (wheel_delta_precision == Web::WheelDeltaPrecision::Discrete)
+                snap_scroll->animation_kind = Compositing::ScrollAnimationKind::Wheel;
             auto operation_id = start_snap_scroll(node_id, move(*snap_scroll), false, now);
             if (operation_tracking == Compositing::AsyncScrollOperationTracking::Yes)
                 outcome.operation_id = operation_id;
@@ -765,6 +780,14 @@ ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Comp
             outcome.operation_id = ++m_next_async_scroll_operation_id;
             m_completed_async_scroll_operation_ids.append(*outcome.operation_id);
         }
+        return outcome;
+    }
+
+    if (wheel_delta_precision == Web::WheelDeltaPrecision::Discrete) {
+        auto result = smooth_wheel_scroll_by(wheel_scroll_target, viewport_rect, now);
+        outcome.operation_id = result.enqueue_result.operation_id;
+        if (result.frame_to_present.has_value())
+            outcome.viewport_rect_to_present = viewport_rect;
         return outcome;
     }
 
@@ -826,7 +849,7 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
 
     bool is_first_step_of_gesture = !latched_node_id.has_value();
     if (is_first_step_of_gesture) {
-        latched_node_id = hit_test_and_latch_wheel_gesture(position, delta, scroll_gesture_phase, modifiers, now, expected_document_id);
+        latched_node_id = hit_test_and_latch_wheel_gesture(position, delta, wheel_delta_precision, scroll_gesture_phase, modifiers, now, expected_document_id);
         if (!latched_node_id.has_value())
             return {};
     } else if (latched_node_id->document_id != expected_document_id) {
@@ -893,6 +916,59 @@ ContextState::AsyncScrollResult ContextState::smooth_scroll_to(Web::AsyncScrollN
         .started_at = MonotonicTime::now(),
         .is_user_scroll = initiator == Compositing::SmoothScrollInitiator::UserInput,
     });
+    m_async_scrolling_viewport_rect = viewport_rect;
+    return {
+        .enqueue_result = { true, operation_id },
+        .frame_to_present = PendingFrame::repainting_changes(viewport_rect),
+    };
+}
+
+Optional<Gfx::FloatPoint> ContextState::in_flight_wheel_destination(Web::AsyncScrollNodeStableID stable_node_id) const
+{
+    for (auto const& animation : m_smooth_scroll_animations) {
+        if (animation.stable_node_id == stable_node_id && animation.animation.kind() == Compositing::ScrollAnimationKind::Wheel)
+            return animation.animation.destination_offset();
+    }
+    return {};
+}
+
+ContextState::AsyncScrollResult ContextState::smooth_wheel_scroll_by(Optional<Compositing::WheelScrollTarget> const& scroll_target, Gfx::IntRect viewport_rect, MonotonicTime now)
+{
+    if (!scroll_target.has_value()) {
+        auto operation_id = ++m_next_async_scroll_operation_id;
+        m_completed_async_scroll_operation_ids.append(operation_id);
+        return {
+            .enqueue_result = { true, operation_id },
+            .frame_to_present = {},
+        };
+    }
+
+    for (auto& active_animation : m_smooth_scroll_animations) {
+        if (active_animation.stable_node_id != scroll_target->stable_node_id)
+            continue;
+        if (active_animation.animation.kind() == Compositing::ScrollAnimationKind::Wheel) {
+            retarget_user_scroll(active_animation, scroll_target->destination_offset, now);
+            report_started_user_scroll(active_animation.operation_id, scroll_target->stable_node_id, scroll_target->start_offset, scroll_target->destination_offset, active_animation.animation.kind());
+            m_async_scrolling_viewport_rect = viewport_rect;
+            return {
+                .enqueue_result = { true, active_animation.operation_id },
+                .frame_to_present = PendingFrame::repainting_changes(viewport_rect),
+            };
+        }
+        m_async_scroll_operation_ids_taken_over_by_user_input.append(active_animation.operation_id);
+        cancel_smooth_scroll(scroll_target->stable_node_id);
+        break;
+    }
+
+    auto operation_id = ++m_next_async_scroll_operation_id;
+    m_smooth_scroll_animations.append({
+        .stable_node_id = scroll_target->stable_node_id,
+        .operation_id = operation_id,
+        .animation = Compositing::SmoothScrollAnimation { scroll_target->current_offset, scroll_target->destination_offset, m_async_scroll_tree.device_pixels_per_css_pixel(), Compositing::ScrollAnimationKind::Wheel },
+        .started_at = now,
+        .is_user_scroll = true,
+    });
+    report_started_user_scroll(operation_id, scroll_target->stable_node_id, scroll_target->start_offset, scroll_target->destination_offset, Compositing::ScrollAnimationKind::Wheel);
     m_async_scrolling_viewport_rect = viewport_rect;
     return {
         .enqueue_result = { true, operation_id },
@@ -1172,7 +1248,7 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
         async_scroll_delta.scale_by(1.0f / *scale);
 
     if (is_first_step_of_gesture) {
-        latched_node_id = hit_test_and_latch_wheel_gesture(position, async_scroll_delta, scroll_gesture_phase, modifiers, now, {});
+        latched_node_id = hit_test_and_latch_wheel_gesture(position, async_scroll_delta, wheel_delta_precision, scroll_gesture_phase, modifiers, now, {});
         if (!latched_node_id.has_value()) {
             if (frame_to_present.has_value())
                 return {
@@ -1821,9 +1897,12 @@ Optional<Compositing::AsyncScrollNodeID> ContextState::resolve_wheel_scroll_latc
     return node_id;
 }
 
-Optional<Compositing::AsyncScrollNodeID> ContextState::hit_test_and_latch_wheel_gesture(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, MonotonicTime now, Optional<Web::UniqueNodeID> expected_document_id)
+Optional<Compositing::AsyncScrollNodeID> ContextState::hit_test_and_latch_wheel_gesture(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, MonotonicTime now, Optional<Web::UniqueNodeID> expected_document_id)
 {
-    auto scroll_target = m_async_scroll_tree.hit_test_scroll_node_for_wheel(visual_context_tree_for_compositing(), position, delta);
+    Function<Optional<Gfx::FloatPoint>(Web::AsyncScrollNodeStableID)> in_flight_destination_for;
+    if (wheel_delta_precision == Web::WheelDeltaPrecision::Discrete)
+        in_flight_destination_for = [this](auto stable_node_id) { return in_flight_wheel_destination(stable_node_id); };
+    auto scroll_target = m_async_scroll_tree.hit_test_scroll_node_for_wheel(visual_context_tree_for_compositing(), position, delta, in_flight_destination_for);
     if (scroll_target.blocked_by_main_thread_region || scroll_target.blocked_by_wheel_event_region || !scroll_target.node_id.has_value())
         return {};
     if (expected_document_id.has_value() && scroll_target.node_id->document_id != *expected_document_id)

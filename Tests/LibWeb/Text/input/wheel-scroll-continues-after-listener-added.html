@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="scroller" style="width: 200px; height: 200px; overflow: auto">
+    <div style="height: 2000px"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        await waitForCondition(() => internals.asyncScrollingStateCanWheelScrollAt(50, 50, 0, 120));
+
+        // A blocking listener added between the steps sends the second step through the main thread.
+        const finished = scrollendEvent(scroller);
+        internals.wheel(50, 50, 0, 120);
+        scroller.addEventListener("wheel", () => {}, { passive: false });
+        internals.wheel(50, 50, 0, 120);
+        await finished;
+        println(`wheel steps accumulated across paths: ${scroller.scrollTop === 240}`);
+    });
+</script>

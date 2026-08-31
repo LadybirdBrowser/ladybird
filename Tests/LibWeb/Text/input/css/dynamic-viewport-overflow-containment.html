@@ -20,7 +20,7 @@
         document.body.style.cssText = "contain: layout; overflow-x: visible";
         println(`Wheel target after body containment: ${internals.asyncScrollingStateWheelTargetAt(400, 0, 100, 0)}`);
 
-        await internals.wheel(400, 0, 100, 0);
+        await internals.wheel(400, 0, 100, 0, true);
         println(`Scroll offset after wheel: ${window.scrollX}`);
 
         window.scrollTo(0, 0);
@@ -28,7 +28,7 @@
         document.documentElement.style.cssText = "contain: layout; overflow-x: hidden";
         println(`Wheel target after root containment: ${internals.asyncScrollingStateWheelTargetAt(400, 0, 100, 0)}`);
 
-        await internals.wheel(400, 0, 100, 0);
+        await internals.wheel(400, 0, 100, 0, true);
         println(`Scroll offset after hidden wheel: ${window.scrollX}`);
 
         window.scrollTo(1, 0);

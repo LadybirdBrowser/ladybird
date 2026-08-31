@@ -897,10 +897,10 @@ static Layout::Node* scrolling_box_for_continued_scroll_step(HTML::LocalNavigabl
     return nullptr;
 }
 
-static Layout::Node* scroll_containing_block_chain_smoothly(HTML::LocalNavigable& navigable, Layout::Node& node, CSSPixelPoint delta, Painting::ScrollKind scroll_kind)
+static Layout::Node* scroll_containing_block_chain_smoothly(HTML::LocalNavigable& navigable, Layout::Node& node, CSSPixelPoint delta, Painting::ScrollKind scroll_kind, Compositing::ScrollAnimationKind animation_kind = Compositing::ScrollAnimationKind::SmoothScroll)
 {
     for (auto* scrolling_box = &node; scrolling_box; scrolling_box = scrolling_box->containing_block()) {
-        if (navigable.scroll_scrolling_box_by_delta(*scrolling_box, delta, scroll_kind))
+        if (navigable.scroll_scrolling_box_by_delta(*scrolling_box, delta, scroll_kind, animation_kind))
             return scrolling_box;
     }
     return nullptr;
@@ -1031,7 +1031,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         if (!wheel_step_may_snap)
             return false;
         if (is_discrete_step)
-            return m_navigable->perform_a_snapped_relative_user_scroll(scrolling_box, wheel_step_delta, Compositing::SnapSelectionStrategy::Type::Direction, HTML::LocalNavigable::SnapStepAccumulation::UntilGestureSettles);
+            return m_navigable->perform_a_snapped_relative_user_scroll(scrolling_box, wheel_step_delta, Compositing::SnapSelectionStrategy::Type::Direction, HTML::LocalNavigable::SnapStepAccumulation::UntilGestureSettles, Compositing::ScrollAnimationKind::Wheel);
         return m_navigable->perform_a_snapped_momentum_scroll(scrolling_box, wheel_step_delta);
     };
 
@@ -1059,10 +1059,10 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         if (viewport_wheel_delta_x == 0 && viewport_wheel_delta_y == 0)
             return EventResult::Accepted;
 
-        auto viewport_scroll_position_before = CSSPixelPoint { CSSPixels(document.visual_viewport()->page_left()), CSSPixels(document.visual_viewport()->page_top()) };
-        m_navigable->scroll_viewport_by_delta({ CSSPixels::nearest_value_for(viewport_wheel_delta_x), CSSPixels::nearest_value_for(viewport_wheel_delta_y) }, Bindings::ScrollBehavior::Instant, Painting::ScrollKind::Relative);
-        auto viewport_scroll_position_after = CSSPixelPoint { CSSPixels(document.visual_viewport()->page_left()), CSSPixels(document.visual_viewport()->page_top()) };
-        return viewport_scroll_position_before != viewport_scroll_position_after ? EventResult::Handled : EventResult::Accepted;
+        CSSPixelPoint viewport_wheel_delta { CSSPixels::nearest_value_for(viewport_wheel_delta_x), CSSPixels::nearest_value_for(viewport_wheel_delta_y) };
+        auto behavior = is_discrete_step ? Bindings::ScrollBehavior::Smooth : Bindings::ScrollBehavior::Instant;
+        auto viewport_took_the_scroll = m_navigable->scroll_viewport_by_delta(viewport_wheel_delta, behavior, Painting::ScrollKind::Relative, Compositing::ScrollAnimationKind::Wheel);
+        return viewport_took_the_scroll ? EventResult::Handled : EventResult::Accepted;
     };
 
     auto latch_gesture_to_scrolling_box = [&](Layout::Node& scrolling_box) {
@@ -1081,7 +1081,11 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         }
         if (snap_wheel_step_in(scrolling_box))
             return;
-        (void)Painting::scroll_by(scrolling_box, scrollable_axes.horizontal ? wheel_delta_x : 0, scrollable_axes.vertical ? wheel_delta_y : 0);
+        if (is_discrete_step) {
+            (void)m_navigable->scroll_scrolling_box_by_delta(scrolling_box, wheel_step_delta, Painting::ScrollKind::Relative, Compositing::ScrollAnimationKind::Wheel);
+        } else {
+            (void)Painting::scroll_by(scrolling_box, scrollable_axes.horizontal ? wheel_delta_x : 0, scrollable_axes.vertical ? wheel_delta_y : 0);
+        }
     };
 
     auto perform_wheel_default_action = [&]() -> EventResult {
@@ -1112,11 +1116,19 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             }
         }
         if (walk_start) {
+            Layout::Node* snap_container = nullptr;
+            if (is_discrete_step)
+                snap_container = scrolling_box_for_continued_scroll_step(*m_navigable, *walk_start, wheel_step_delta, Compositing::ScrollAnimationKind::Wheel);
+            else if (wheel_step_may_snap)
+                snap_container = scrolling_box_for_scroll_step(*walk_start, wheel_step_delta);
             Layout::Node* scrolled_box = nullptr;
-            if (auto* snap_container = wheel_step_may_snap ? scrolling_box_for_scroll_step(*walk_start, wheel_step_delta) : nullptr; snap_container && snap_wheel_step_in(*snap_container))
+            if (snap_container && snap_wheel_step_in(*snap_container)) {
                 scrolled_box = snap_container;
-            else
+            } else if (is_discrete_step) {
+                scrolled_box = scroll_containing_block_chain_smoothly(*m_navigable, *walk_start, wheel_step_delta, Painting::ScrollKind::Relative, Compositing::ScrollAnimationKind::Wheel);
+            } else {
                 scrolled_box = Painting::wheel_scroll_along_containing_block_chain(*walk_start, wheel_delta_x, wheel_delta_y);
+            }
             if (scrolled_box) {
                 latch_gesture_to_scrolling_box(*scrolled_box);
                 return EventResult::Handled;

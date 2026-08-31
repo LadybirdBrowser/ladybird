@@ -43,7 +43,7 @@
         println(`wheel scroll admission: ${internals.asyncScrollingStateWheelScrollAdmissionAt(50, 50, 0, 100)}`);
         println(`downward wheel target before wheel: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 100)}`);
 
-        await internals.wheel(50, 50, 0, 100);
+        await internals.wheel(50, 50, 0, 100, true);
         await animationFrame();
 
         println(`scroll event count: ${scrollEventCount}`);

@@ -46,7 +46,7 @@
             // nodes were collected.
             container.replaceChildren(survivor);
             internals.gc();
-            await internals.wheel(50, 50, 0, 100);
+            await internals.wheel(50, 50, 0, 100, true);
             println(`Scroll offset after wheel: ${document.scrollingElement.scrollTop}`);
 
             container.innerHTML = "<div class=box>inner text</div><span>more</span>";

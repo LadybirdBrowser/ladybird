@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<div id="scroller" style="width: 100px; height: 100px; overflow: scroll"><div style="height: 1000px"></div></div>
+<script>
+    scroller.addEventListener("wheel", () => {}, { passive: false });
+    scroller.addEventListener("scrollend", () => document.documentElement.classList.remove("test-wait"));
+    requestAnimationFrame(() => requestAnimationFrame(() => internals.wheelThroughUIProcess(50, 50, 0, 100)));
+</script>

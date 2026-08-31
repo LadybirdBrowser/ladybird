@@ -22,15 +22,17 @@
 <div id="scroller"><div id="spacer"></div></div>
 <div id="page-spacer"></div>
 <script>
-    test(() => {
+    promiseTest(async () => {
         scroller.addEventListener("wheel", () => {
             scroller.remove();
             document.body.offsetHeight;
         }, { passive: false });
 
+        const finished = new Promise(resolve => document.addEventListener("scrollend", resolve, { once: true }));
         internals.wheel(50, 50, 0, 100);
 
         println("PASS");
+        await finished;
         println(`window.scrollY: ${window.scrollY}`);
     });
 </script>

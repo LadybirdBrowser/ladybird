@@ -89,6 +89,18 @@ TEST_CASE(duration_is_independent_of_device_scale)
     EXPECT_EQ(css_pixel_animation.duration(), device_pixel_animation.duration());
 }
 
+TEST_CASE(wheel_steps_take_less_time_the_further_they_go)
+{
+    SmoothScrollAnimation one_step({ 0, 0 }, { 0, 120 }, 1.0, ScrollAnimationKind::Wheel);
+    EXPECT_EQ(one_step.duration(), AK::Duration::from_milliseconds(200));
+
+    SmoothScrollAnimation burst({ 0, 0 }, { 0, 300 }, 1.0, ScrollAnimationKind::Wheel);
+    EXPECT_EQ(burst.duration(), AK::Duration::from_milliseconds(150));
+
+    SmoothScrollAnimation long_burst({ 0, 0 }, { 0, 1000 }, 1.0, ScrollAnimationKind::Wheel);
+    EXPECT_EQ(long_burst.duration(), AK::Duration::from_milliseconds(100));
+}
+
 TEST_CASE(momentum_travels_for_as_long_as_its_distance_takes)
 {
     // Momentum covers a longer distance over more of its decaying frames rather than at a greater speed.
