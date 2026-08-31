@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -21,6 +21,33 @@ SelectedFile::SelectedFile(Utf16String name, IPC::File file)
     : m_name(move(name))
     , m_file_or_contents(move(file))
 {
+}
+
+static Variant<IPC::File, ByteBuffer> copy_file_or_contents(SelectedFile const& other)
+{
+    return other.file_or_contents().visit(
+        [](IPC::File const& file) -> Variant<IPC::File, ByteBuffer> {
+            return MUST(IPC::File::clone_fd(file.fd()));
+        },
+        [](ByteBuffer const& contents) -> Variant<IPC::File, ByteBuffer> {
+            return contents;
+        });
+}
+
+SelectedFile::SelectedFile(SelectedFile const& other)
+    : m_name(other.name())
+    , m_file_or_contents(copy_file_or_contents(other))
+{
+}
+
+SelectedFile& SelectedFile::operator=(SelectedFile const& other)
+{
+    if (&other != this) {
+        m_name = other.m_name;
+        m_file_or_contents = copy_file_or_contents(other);
+    }
+
+    return *this;
 }
 
 ByteBuffer SelectedFile::take_contents()

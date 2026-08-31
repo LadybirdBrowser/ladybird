@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -24,6 +24,12 @@ class WEB_API SelectedFile {
 public:
     SelectedFile(Utf16String name, ByteBuffer contents);
     SelectedFile(Utf16String name, IPC::File file);
+
+    SelectedFile(SelectedFile const&);
+    SelectedFile(SelectedFile&&) = default;
+
+    SelectedFile& operator=(SelectedFile const&);
+    SelectedFile& operator=(SelectedFile&&) = default;
 
     Utf16String const& name() const { return m_name; }
     auto const& file_or_contents() const { return m_file_or_contents; }
