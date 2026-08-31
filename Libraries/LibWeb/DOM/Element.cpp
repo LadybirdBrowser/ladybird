@@ -1972,10 +1972,12 @@ void Element::finish_recording_style_custom_property_references()
     m_style_input_record->style_depends_on_size_container_query = m_style_depends_on_size_container_query;
     m_style_input_record->style_depends_on_style_container_query = m_style_depends_on_style_container_query;
     auto& references = m_style_input_record->custom_property_references;
-    quick_sort(references);
-    for (size_t index = references.size(); index > 1; --index) {
-        if (references[index - 1] == references[index - 2])
-            references.remove(index - 1);
+    if (references.size() > 1) {
+        HashTable<Utf16FlyString> seen;
+        seen.ensure_capacity(references.size());
+        references.remove_all_matching([&](auto const& name) {
+            return seen.set(name) != HashSetResult::InsertedNewEntry;
+        });
     }
 }
 
