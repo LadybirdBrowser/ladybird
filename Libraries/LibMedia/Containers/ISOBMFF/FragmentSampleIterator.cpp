@@ -22,12 +22,17 @@ Sample FragmentSampleIterator::peek() const
     auto const& run = m_fragment.track_runs[m_run_index];
     auto decode_time = saturating_add(m_decode_time, run.composition_to_presentation_offset);
     auto presentation_time = saturating_add(decode_time, run.composition_time_offset_of_sample(m_sample_index));
+    auto presentation_end_time = saturating_add(presentation_time, static_cast<i64>(run.duration_of_sample(m_sample_index)));
+
+    auto presentation_timestamp = AK::Duration::from_time_units(presentation_time, 1, run.timescale);
+    auto presentation_end = AK::Duration::from_time_units(presentation_end_time, 1, run.timescale);
+
     return Sample {
         .track_id = run.track_id,
         .sample_description_index = run.defaults.sample_description_index,
         .decode_timestamp = AK::Duration::from_time_units(decode_time, 1, run.timescale),
-        .presentation_timestamp = AK::Duration::from_time_units(presentation_time, 1, run.timescale),
-        .duration = AK::Duration::from_time_units(run.duration_of_sample(m_sample_index), 1, run.timescale),
+        .presentation_timestamp = presentation_timestamp,
+        .duration = presentation_end - presentation_timestamp,
         .is_sync_sample = (run.flags_of_sample(m_sample_index) & SAMPLE_IS_NON_SYNC_SAMPLE) == 0,
         .data_position = m_data_position,
         .data_size = run.size_of_sample(m_sample_index),

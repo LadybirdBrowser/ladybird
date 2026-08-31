@@ -1,11 +1,11 @@
-buffered after appending: [0-2.023219954]
+buffered after appending: [0-2.023219955]
 remove(-1, 1): TypeError
 remove(duration + 1, duration + 2): TypeError
 remove(1, 1): TypeError
 remove(1, NaN): TypeError
 abort() during range removal: InvalidStateError
 remove() during range removal: InvalidStateError
-buffered after remove(0.6, 0.7): [0-0.603718821, 1.02328125-2.023219954]
+buffered after remove(0.6, 0.7): [0-0.603718821, 1.02328125-2.023219955]
 PASS: the removal left a hole
 PASS: a frame beginning before the removal start was kept
 PASS: the removal continued to the next random access point
