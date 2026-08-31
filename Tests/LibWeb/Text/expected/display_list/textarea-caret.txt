@@ -10,7 +10,7 @@ DisplayList:
 FillRect@s1/f0 rect=[8,8 106x32] color=rgb(255, 255, 255)
 FillPath@s1/f0 path_bounding_rect=[8,8 106x32]
 DrawGlyphRun@s1/f1 rect=[11,11 30x13] translation=[11,21.390625] color=rgb(0, 0, 0)
-FillRect@s1/f1 rect=[11,11 1x13] color=rgb(0, 0, 0)
+PaintCaret@s1/f1 rect=[11,11 1x13] color=rgb(0, 0, 0) should_blink=false
 FillPath@s1/f0 path_bounding_rect=[6,6 110x36]
 DrawLine@s1/f0 from=[109,37] to=[111,35] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
 DrawLine@s1/f0 from=[108,37] to=[111,34] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid

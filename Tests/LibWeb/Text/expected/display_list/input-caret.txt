@@ -11,6 +11,6 @@ DisplayList:
 FillRect@s1/f0 rect=[8,8 106x20] color=rgb(255, 255, 255)
 FillPath@s1/f0 path_bounding_rect=[8,8 106x20]
 DrawGlyphRun@s1/f2 rect=[11,10 37x16] translation=[11,22.796875] color=rgb(0, 0, 0)
-FillRect@s1/f2 rect=[11,10 1x16] color=rgb(0, 0, 0)
+PaintCaret@s1/f2 rect=[11,10 1x16] color=rgb(0, 0, 0) should_blink=false
 FillPath@s1/f0 path_bounding_rect=[6,6 110x24]
 

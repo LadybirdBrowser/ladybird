@@ -56,6 +56,11 @@ void FillRect::dump(StringBuilder& builder) const
     builder.appendff(" rect={} color={}", rect, color);
 }
 
+void PaintCaret::dump(StringBuilder& builder) const
+{
+    builder.appendff(" rect={} color={} should_blink={}", rect, color, should_blink);
+}
+
 void DrawScaledDecodedImageFrame::dump(StringBuilder& builder) const
 {
     builder.appendff(" dst_rect={}", dst_rect);

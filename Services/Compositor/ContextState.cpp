@@ -32,6 +32,16 @@ static void for_each_drawn_canvas(Web::Painting::DisplayList const& display_list
     });
 }
 
+template<typename Callback>
+static void for_each_caret(Web::Painting::DisplayList const& display_list, Callback callback)
+{
+    display_list.for_each_command_header([&](Web::Painting::DisplayListCommandHeader const& header, ReadonlyBytes payload) {
+        if (header.command_type != Web::Painting::DisplayListCommandType::PaintCaret)
+            return;
+        callback(header, Web::Painting::read_display_list_object<Web::Painting::PaintCaret>(payload));
+    });
+}
+
 static void set_or_append_pending_scroll_offset(
     Vector<Web::Compositor::AsyncScrollOffset>& pending_scroll_offsets,
     Web::Compositor::AsyncScrollOffset const& scroll_offset)
@@ -86,11 +96,12 @@ static void clamp_visual_viewport_transform_to_viewport(Web::Painting::Transform
     transform.matrix[1, 3] = clamp(transform.matrix[1, 3], min_y, 0.0f);
 }
 
-ContextState::ContextState(Optional<u64> page_id, CompositorStateWebContentClient& web_content_client, Web::Painting::CanvasSurfaceRegistry const& canvas_surface_registry, bool async_scrolling_enabled)
+ContextState::ContextState(Optional<u64> page_id, CompositorStateWebContentClient& web_content_client, Web::Painting::CanvasSurfaceRegistry const& canvas_surface_registry, bool async_scrolling_enabled, Function<void(Gfx::IntRect)> schedule_caret_repaint)
     : m_web_content_client(web_content_client)
     , m_canvas_surface_registry(canvas_surface_registry)
     , m_page_id(page_id)
     , m_async_scrolling_enabled(async_scrolling_enabled)
+    , m_schedule_caret_repaint(move(schedule_caret_repaint))
 {
     if (page_id.has_value())
         m_presents_to_client = true;
@@ -100,6 +111,10 @@ ContextState::~ContextState()
 {
     discard_sampled_visual_context_tree();
     stop_backing_store_shrink_timer();
+    if (m_caret_blink_timer) {
+        m_caret_blink_timer->on_timeout = {};
+        m_caret_blink_timer->stop();
+    }
 }
 
 bool ContextState::is_owned_by(CompositorStateWebContentClient const& web_content_client) const
@@ -159,6 +174,7 @@ void ContextState::install_display_list_update(
     m_visual_animation_sample_time_ns.clear();
     m_has_active_visual_animations = !m_visual_context_tree->visual_animations().is_empty();
     m_scroll_state_snapshot = move(scroll_state_snapshot);
+    update_caret_blink_timer();
     if (m_async_visual_viewport_transform.has_value() && visual_viewport_transforms_match(m_visual_context_tree->visual_viewport_transform(), *m_async_visual_viewport_transform))
         m_async_visual_viewport_transform.clear();
 
@@ -193,6 +209,71 @@ void ContextState::install_display_list_update(
     rebuild_wheel_hit_test_targets();
     m_async_scrolling_viewport_rect = async_scrolling_viewport_rect;
     m_has_async_scrolling_state = true;
+}
+
+void ContextState::update_caret_blink_timer()
+{
+    Optional<i64> blink_cycle_start_time_ns;
+    for_each_caret(*m_display_list, [&](auto const&, auto const& caret) {
+        if (caret.should_blink)
+            blink_cycle_start_time_ns = caret.blink_cycle_start_time_ns;
+    });
+
+    if (blink_cycle_start_time_ns == m_caret_blink_cycle_start_time_ns)
+        return;
+    m_caret_blink_cycle_start_time_ns = blink_cycle_start_time_ns;
+
+    if (m_caret_blink_timer)
+        m_caret_blink_timer->stop();
+    if (!m_caret_blink_cycle_start_time_ns.has_value() || !m_schedule_caret_repaint)
+        return;
+
+    if (!m_caret_blink_timer) {
+        m_caret_blink_timer = Core::Timer::create_single_shot(500, [this] {
+            auto damage_rect = caret_damage_rect();
+            if (!damage_rect.is_empty())
+                m_schedule_caret_repaint(damage_rect);
+            schedule_next_caret_blink();
+        });
+    }
+    schedule_next_caret_blink();
+}
+
+void ContextState::schedule_next_caret_blink()
+{
+    if (!m_caret_blink_cycle_start_time_ns.has_value() || !m_caret_blink_timer)
+        return;
+
+    auto now_ns = MonotonicTime::now().nanoseconds();
+    auto elapsed_ns = now_ns > *m_caret_blink_cycle_start_time_ns
+        ? now_ns - *m_caret_blink_cycle_start_time_ns
+        : 0;
+    auto delay_ns = Web::Painting::caret_blink_interval_ns - elapsed_ns % Web::Painting::caret_blink_interval_ns;
+    auto delay_ms = max(static_cast<int>((delay_ns + 999'999) / 1'000'000), 1);
+    m_caret_blink_timer->restart(delay_ms);
+}
+
+Gfx::IntRect ContextState::caret_damage_rect()
+{
+    if (!m_display_list || !m_visual_context_tree.has_value())
+        return {};
+
+    auto const& visual_context_tree = visual_context_tree_for_compositing();
+    Gfx::IntRect damage_rect;
+    for_each_caret(*m_display_list, [&](auto const& header, auto const& caret) {
+        if (!caret.should_blink)
+            return;
+        auto rect = visual_context_tree.transform_rect_to_viewport(header.context.spatial, header.bounding_rect.template to_type<float>(), m_scroll_state_snapshot);
+        if (!isfinite(rect.x()) || !isfinite(rect.y()) || !isfinite(rect.width()) || !isfinite(rect.height())) {
+            damage_rect = { {}, m_viewport_size };
+            return;
+        }
+        rect.intersect(Gfx::IntRect { {}, m_viewport_size }.to_type<float>());
+        if (!rect.is_empty())
+            damage_rect.unite(Gfx::enclosing_int_rect(rect).inflated(1, 1, 1, 1));
+    });
+    damage_rect.intersect({ {}, m_viewport_size });
+    return damage_rect;
 }
 
 void ContextState::update_visual_context_tree(Web::Painting::AccumulatedVisualContextTree visual_context_tree, Web::Painting::DisplayListResourceTransaction&& resource_transaction)
@@ -381,7 +462,7 @@ ContextState::ContextUpdateResult ContextState::handle_pinch_event(Web::PinchEve
 
     return {
         .accepted = true,
-        .frame_to_present = PendingFrame::repainting_changes(m_async_scrolling_viewport_rect),
+        .frame_to_present = PendingFrame::repainting_everything(m_async_scrolling_viewport_rect),
         .should_request_rendering_update = false,
     };
 }

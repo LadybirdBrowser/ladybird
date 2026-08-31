@@ -18,7 +18,7 @@ test(() => {
     const innerText = internals.getShadowRoot(input).querySelector("div > div");
     println(`scrolls to caret: ${innerText.scrollLeft > 0}`);
     for (const line of internals.dumpDisplayList().split("\n")) {
-        if (line.includes("FillRect") && line.includes("1x16") && line.includes("rgb(0, 0, 0)"))
+        if (line.includes("PaintCaret") && line.includes("1x16") && line.includes("rgb(0, 0, 0)"))
             println(line.slice(line.indexOf("rect=")));
     }
 

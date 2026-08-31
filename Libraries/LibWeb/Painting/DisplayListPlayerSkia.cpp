@@ -6,6 +6,7 @@
  */
 
 #include <AK/TemporaryChange.h>
+#include <AK/Time.h>
 #include <core/SkBitmap.h>
 #include <core/SkBlurTypes.h>
 #include <core/SkCanvas.h>
@@ -224,6 +225,18 @@ void DisplayListPlayerSkia::play_command(FillRect const& command)
     paint.setAntiAlias(true);
     paint.setColor(to_skia_color(command.color));
     canvas.drawRect(to_skia_rect(rect), paint);
+}
+
+void DisplayListPlayerSkia::play_command(PaintCaret const& command)
+{
+    if (!caret_is_visible_at_time(command, MonotonicTime::now().nanoseconds()))
+        return;
+
+    auto& canvas = surface().canvas();
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    paint.setColor(to_skia_color(command.color));
+    canvas.drawRect(to_skia_rect(command.rect), paint);
 }
 
 void DisplayListPlayerSkia::play_command(DrawCompositedContext const& command)

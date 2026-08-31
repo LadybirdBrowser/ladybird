@@ -86,7 +86,7 @@ public:
         Gfx::IntRect damage_rect;
     };
 
-    ContextState(Optional<u64> page_id, CompositorStateWebContentClient&, Web::Painting::CanvasSurfaceRegistry const&, bool async_scrolling_enabled);
+    ContextState(Optional<u64> page_id, CompositorStateWebContentClient&, Web::Painting::CanvasSurfaceRegistry const&, bool async_scrolling_enabled, Function<void(Gfx::IntRect)> schedule_caret_repaint = {});
     ~ContextState();
 
     bool is_owned_by(CompositorStateWebContentClient const&) const;
@@ -132,6 +132,7 @@ public:
     Web::Painting::AccumulatedVisualContextTree const& visual_context_tree_for_testing() const { return current_visual_context_tree(); }
     bool has_sampled_visual_animation_values_for_testing() const { return m_sampled_visual_context_tree.has_value(); }
     u64 visual_context_tree_copy_count_for_testing() const { return m_visual_context_tree_copy_count; }
+    Gfx::IntRect caret_damage_rect_for_testing() { return caret_damage_rect(); }
     ContextUpdateResult async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::Compositor::SnapContainerHandling);
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
 
@@ -214,6 +215,9 @@ private:
     Gfx::IntRect frame_damage_for(PendingFrame const&);
     Gfx::IntRect damage_since_last_raster(Gfx::IntSize viewport_size);
     void remember_rasterized_frame(Gfx::IntSize viewport_size);
+    void update_caret_blink_timer();
+    void schedule_next_caret_blink();
+    Gfx::IntRect caret_damage_rect();
 
     CompositorStateWebContentClient& m_web_content_client;
     Web::Painting::CanvasSurfaceRegistry const& m_canvas_surface_registry;
@@ -261,6 +265,9 @@ private:
     Optional<WebView::PausedDebuggerOverlayAction> m_paused_debugger_overlay_hovered_action;
     Web::Compositor::WindowResizingInProgress m_window_resize_in_progress { Web::Compositor::WindowResizingInProgress::No };
     RefPtr<Core::Timer> m_backing_store_shrink_timer;
+    Function<void(Gfx::IntRect)> m_schedule_caret_repaint;
+    RefPtr<Core::Timer> m_caret_blink_timer;
+    Optional<i64> m_caret_blink_cycle_start_time_ns;
     Optional<u64> m_display_id;
     double m_display_refresh_rate { 60.0 };
     Web::Compositor::ContextVisibility m_visibility { Web::Compositor::ContextVisibility::Visible };

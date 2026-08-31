@@ -34,6 +34,7 @@
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
@@ -926,6 +927,8 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             facts.paints = true;
             facts.rect = caret->rect;
             facts.color = caret->color;
+            facts.blink_cycle_start_time_ns = layout_node.document().cursor_blink_cycle_start_time_ns();
+            facts.should_blink = !HTML::Window::in_test_mode();
             return facts;
         },
         .layer_image_prepare = [](void*, void* layout_node_shell, Layout::RustFFI::FfiLayerImageList list, u32 computed_index) -> Layout::RustFFI::FfiLayerImagePrepareFacts {

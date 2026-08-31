@@ -165,6 +165,7 @@ private:
     void schedule_pending_present_frame_on_vsync(Web::Compositor::CompositorContextId, ContextState&);
     void schedule_containing_context_present(ContextState&);
     void schedule_pending_present_frame_if_unblocked(Web::Compositor::CompositorContextId, ContextState&);
+    void schedule_caret_repaint(Web::Compositor::CompositorContextId, Gfx::IntRect damage_rect);
     VSyncScheduler& vsync_scheduler_for_display(Optional<u64> display_id);
     void present_pending_frames_on_vsync(Optional<u64> display_id);
     void publish_backing_stores(Web::Compositor::CompositorContextId, ContextState&, BackingStoreManager::Publication&&);

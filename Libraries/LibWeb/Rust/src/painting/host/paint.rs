@@ -268,6 +268,8 @@ pub struct FfiCursorFacts {
     pub paints: bool,
     pub rect: used_values::FfiCssPixelRect,
     pub color: Color,
+    pub blink_cycle_start_time_ns: i64,
+    pub should_blink: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

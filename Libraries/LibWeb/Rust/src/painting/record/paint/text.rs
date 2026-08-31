@@ -488,7 +488,10 @@ pub(crate) fn paint_cursor(recorder: &mut PaintRecorder<'_>, block: NodeSlotId, 
         return;
     }
     let converter = recorder.converter;
-    recorder
-        .recorder
-        .fill_rect(converter.rounded_device_rect(CssPixelRect::from(facts.rect)), color);
+    recorder.recorder.paint_caret(
+        converter.rounded_device_rect(CssPixelRect::from(facts.rect)),
+        color,
+        facts.blink_cycle_start_time_ns,
+        facts.should_blink,
+    );
 }

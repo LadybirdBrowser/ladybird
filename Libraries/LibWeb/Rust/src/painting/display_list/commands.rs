@@ -14,6 +14,7 @@ use libgfx_rust::*;
 pub enum DisplayListCommandType {
     DrawGlyphRun,
     FillRect,
+    PaintCaret,
     DrawScaledDecodedImageFrame,
     DrawRepeatedDecodedImageFrame,
     DrawRepeatedDisplayList,
@@ -73,6 +74,7 @@ impl DisplayListCommandType {
         match self {
             Self::DrawGlyphRun => "DrawGlyphRun",
             Self::FillRect => "FillRect",
+            Self::PaintCaret => "PaintCaret",
             Self::DrawScaledDecodedImageFrame => "DrawScaledDecodedImageFrame",
             Self::DrawRepeatedDecodedImageFrame => "DrawRepeatedDecodedImageFrame",
             Self::DrawRepeatedDisplayList => "DrawRepeatedDisplayList",
@@ -669,6 +671,28 @@ ffi_bytes_fields!(FillRect { rect, color });
 
 impl DisplayListCommand for FillRect {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::FillRect;
+    fn bounding_rect(&self) -> Option<IntRect> {
+        Some(self.rect)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct PaintCaret {
+    pub rect: IntRect,
+    pub color: Color,
+    pub blink_cycle_start_time_ns: i64,
+    pub should_blink: bool,
+}
+ffi_bytes_fields!(PaintCaret {
+    rect,
+    color,
+    blink_cycle_start_time_ns,
+    should_blink
+});
+
+impl DisplayListCommand for PaintCaret {
+    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::PaintCaret;
     fn bounding_rect(&self) -> Option<IntRect> {
         Some(self.rect)
     }
