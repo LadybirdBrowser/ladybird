@@ -495,6 +495,7 @@ public:
     void set_shadow_root(GC::Ptr<ShadowRoot>);
 
     void set_custom_property_data(Optional<CSS::PseudoElement>, RefPtr<CSS::CustomPropertyData const>);
+    void replace_custom_property_data(Optional<CSS::PseudoElement>, RefPtr<CSS::CustomPropertyData const>);
     [[nodiscard]] RefPtr<CSS::CustomPropertyData const> custom_property_data(Optional<CSS::PseudoElement>) const;
 
     [[nodiscard]] bool refresh_inherited_custom_property_data();
@@ -850,6 +851,8 @@ private:
     using AttributeList = Vector<Attribute, 1>;
 
     AttributeList& ensure_attribute_list();
+
+    void install_custom_property_data(Optional<CSS::PseudoElement>, RefPtr<CSS::CustomPropertyData const>);
     void synchronize_attribute(Utf16FlyString const& qualified_name) const;
     void synchronize_attribute_ns(Optional<Utf16FlyString> const&, Utf16FlyString const& local_name) const;
     void synchronize_style_attribute() const;

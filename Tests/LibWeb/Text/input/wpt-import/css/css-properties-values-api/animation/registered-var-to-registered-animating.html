@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+#target {
+  --static: 100;
+}
+</style>
+<div id="target"></div>
+<script>
+setup(() => {
+  for (let name of ['--test', '--static', '--animated']) {
+    CSS.registerProperty({
+      name,
+      syntax: '<number>',
+      initialValue: '0',
+      inherits: false,
+    });
+  }
+});
+
+test(() => {
+  // --test is animating from a static value to an animated value resulting in it changing quadratically.
+  let animation = target.animate({'--test': ['var(--static)', 'var(--animated)']}, 100);
+  let referencedAnimation = target.animate({'--animated': ['200', '300']}, 100);
+
+  referencedAnimation.currentTime = 25;
+  {
+    animation.currentTime = 25;
+    // lerp(100, lerp(200, 300, 25%), 25%) == 0.75*100 + 0.25*(0.75*200 + 0.25*300) == 131.25
+    assert_equals(getComputedStyle(target).getPropertyValue('--test'), '131.25', 'target at 25%, to at 25%');
+
+    animation.currentTime = 75;
+    // lerp(100, lerp(200, 300, 25%), 75%) == 0.25*100 + 0.75*(0.75*200 + 0.25*300) == 193.75
+    assert_equals(getComputedStyle(target).getPropertyValue('--test'), '193.75', 'target at 75%, to at 25%');
+  }
+
+  referencedAnimation.currentTime = 75;
+  {
+    animation.currentTime = 25;
+    // lerp(100, lerp(200, 300, 75%), 25%) == 0.75*100 + 0.25*(0.25*200 + 0.75*300) == 143.75
+    assert_equals(getComputedStyle(target).getPropertyValue('--test'), '143.75', 'target at 25%, to at 25%');
+
+    animation.currentTime = 75;
+    // lerp(100, lerp(200, 300, 75%), 75%) == 0.25*100 + 0.75*(0.25*200 + 0.75*300) == 231.25
+    assert_equals(getComputedStyle(target).getPropertyValue('--test'), '231.25', 'target at 75%, to at 25%');
+  }
+}, 'Animated registered custom properties can var() reference other animated registered custom properties across separate Animations.');
+</script>

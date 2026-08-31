@@ -371,14 +371,14 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                     //     which inherited groups changed or its masked recompute will keep stale
                     //     values for them. When the swap succeeds the parameter goes unused.
                     auto inherited_style_groups_for_closure = can_use_inherited_style_group_swap ? reaction.inherited_style_groups : 0;
+                    if (needs_regular_style_recompute)
+                        document.style_computer().style_engine().consume_recorded_element_style_input_change(reaction.style_node);
                     invalidation = element->apply_style_engine_reaction(
                         did_change_custom_properties,
                         recompute_reason,
                         inherited_style_groups_for_closure);
                     if (materializes_inherited_style_reaction && invalidation.is_none() && !did_change_custom_properties)
                         ++document.style_invalidation_counters().element_inherited_style_noop_recomputations;
-                    if (needs_regular_style_recompute)
-                        document.style_computer().style_engine().consume_recorded_element_style_input_change(reaction.style_node);
                 }
             } else if (needs_custom_property_recompute && element->refresh_inherited_custom_property_data()) {
                 did_change_custom_properties = true;
@@ -723,16 +723,14 @@ static RequiredInvalidationAfterStyleChange materialize_style_for_targeted_updat
 {
     auto& style_computer = element.document().style_computer();
 
-    if (element.parent()) {
-        auto invalidation = element.apply_style_engine_reaction(did_change_custom_properties);
-        style_computer.style_engine().consume_recorded_element_style_input_change(element.style_node_id());
-        return invalidation;
-    }
+    style_computer.style_engine().consume_recorded_element_style_input_change(element.style_node_id());
+
+    if (element.parent())
+        return element.apply_style_engine_reaction(did_change_custom_properties);
 
     StyleEngine::StyleRecordDelta style_record_delta {};
     auto new_style = element.document().style_computer().materialize_style_record({ element }, did_change_custom_properties, nullptr, style_record_delta);
     element.set_computed_style({}, style_record_delta.new_style_record);
-    style_computer.style_engine().consume_recorded_element_style_input_change(element.style_node_id());
     return {};
 }
 
@@ -917,6 +915,11 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
         auto& element = inheritance_chain[i - 1];
         bool did_change_custom_properties = false;
         auto invalidation = materialize_style_for_targeted_update(element, did_change_custom_properties);
+        if (document.style_computer().style_engine().has_recorded_element_style_input_change(element->style_node_id())) {
+            bool changed_custom_properties_again = false;
+            invalidation |= materialize_style_for_targeted_update(element, changed_custom_properties_again);
+            did_change_custom_properties |= changed_custom_properties_again;
+        }
         auto child_materialized_by_targeted_update = i > 1
             ? Optional<StyleNodeID> { inheritance_chain[i - 2]->style_node_id() }
             : Optional<StyleNodeID> {};

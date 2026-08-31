@@ -80,6 +80,7 @@
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PendingSubstitutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
@@ -1212,7 +1213,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_animated_custom_property_
     return finalize_custom_property_value(&computed_properties, AbstractOrHypotheticalElement { abstract_element }, name, move(specified_value));
 }
 
-void StyleComputer::publish_animated_custom_properties(ComputedStyleWorkingSet const& computed_properties, DOM::AbstractElement abstract_element) const
+void StyleComputer::publish_animated_custom_properties(ComputedStyleWorkingSet& computed_properties, DOM::AbstractElement abstract_element) const
 {
     auto data = abstract_element.custom_property_data();
     RefPtr<CustomPropertyData const> base = data;
@@ -1221,8 +1222,10 @@ void StyleComputer::publish_animated_custom_properties(ComputedStyleWorkingSet c
 
     auto const& animated_values = computed_properties.animated_custom_properties();
     if (animated_values.is_empty()) {
-        if (base.ptr() != data.ptr())
-            abstract_element.set_custom_property_data(base);
+        if (base.ptr() != data.ptr()) {
+            abstract_element.replace_custom_property_data(Badge<StyleComputer> {}, base);
+            invalidate_animated_custom_property_readers(abstract_element, animated_values);
+        }
         return;
     }
 
@@ -1248,7 +1251,45 @@ void StyleComputer::publish_animated_custom_properties(ComputedStyleWorkingSet c
                 .value = value,
             });
     }
-    abstract_element.set_custom_property_data(CustomPropertyData::create_animation_overlay(move(overlay_values), move(base)));
+    abstract_element.replace_custom_property_data(Badge<StyleComputer> {}, CustomPropertyData::create_animation_overlay(move(overlay_values), move(base)));
+    invalidate_animated_custom_property_readers(abstract_element, animated_values);
+}
+
+void StyleComputer::invalidate_animated_custom_property_readers(DOM::AbstractElement abstract_element, OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> const& animated_values) const
+{
+    auto& element = abstract_element.element();
+    auto element_references_animated_custom_property = [&] {
+        auto const* record = element.style_input_record();
+        if (!record)
+            return true;
+        if (animated_values.is_empty())
+            return !record->custom_property_references.is_empty();
+        for (auto const& name : record->custom_property_references) {
+            if (animated_values.contains(name))
+                return true;
+        }
+        return false;
+    };
+    auto& style_engine = element.document().style_computer().style_engine();
+    if (element_references_animated_custom_property())
+        style_engine.record_element_style_input_change(element.style_node_id());
+
+    auto any_animated_custom_property_inherits = [&] {
+        if (animated_values.is_empty())
+            return true;
+        for (auto const& [name, value] : animated_values) {
+            auto registration = m_document->get_registered_custom_property(name);
+            if (!registration.has_value() || registration->inherit)
+                return true;
+        }
+        return false;
+    };
+    if (!abstract_element.pseudo_element().has_value() && any_animated_custom_property_inherits()) {
+        style_engine.record_flat_tree_descendant_style_input_changes(
+            element.style_node_id(),
+            StyleEngine::InheritedStyle,
+            RequiredInvalidationAfterStyleChange::all_inherited_style_groups);
+    }
 }
 
 void StyleComputer::process_animation_definitions(ComputedStyleWorkingSet const& computed_properties, CascadedProperties const& cascaded_properties, DOM::AbstractElement& abstract_element, ReadonlySpan<AnimationProperties> animation_definitions) const
@@ -4538,12 +4579,16 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     auto reuse_computed_style = [&]() -> bool {
         if (!style_input_is_unchanged || new_style_input_record->read_beyond_the_record || !last_style_still_stands())
             return false;
+        if (auto data = abstract_element.custom_property_data(); data && data->is_animation_overlay())
+            return false;
         reuse_last_computed_style();
         return true;
     };
 
     bool has_complete_sharing_key = false;
     auto find_shared_style = [&]() {
+        if (auto data = abstract_element.custom_property_data(); data && data->is_animation_overlay())
+            return false;
         auto key_hash = compute_style_sharing_key_hash(sharing->key);
         auto bucket = m_style_sharing_cache.get(key_hash);
         if (!bucket.has_value())
@@ -5255,7 +5300,10 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                 .default_font_size_raw = style_computer.default_user_font_size().raw_value(),
             };
 
-            if (auto data = abstract_element.custom_property_data(); data && data->declared_count() > 0) {
+            auto data = abstract_element.custom_property_data();
+            if (data && data->is_animation_overlay())
+                data = data->parent();
+            if (data && data->declared_count() > 0) {
                 bool shares_parent_data = inheritance_parent.has_value() && inheritance_parent->custom_property_data().ptr() == data.ptr();
                 if (!shares_parent_data) {
                     auto parent_data = inheritance_parent.has_value() ? inheritable_custom_property_data(*inheritance_parent) : nullptr;
@@ -5613,7 +5661,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::resolve_unresolved_style_value(Ab
     return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(output.data));
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(ComputedStyleWorkingSet const* computed_style_for_custom_property_resolution, AbstractOrHypotheticalElement const& element, Utf16FlyString const& name) const
+NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(ComputedStyleWorkingSet const* computed_style_for_custom_property_resolution, AbstractOrHypotheticalElement const& element, Utf16FlyString const& name, DeclaredValueSource declared_value_source) const
 {
     // https://drafts.csswg.org/css-variables/#propdef-
     // The computed value of a custom property is its specified value with any arbitrary-substitution functions replaced.
@@ -5623,7 +5671,18 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
     document.style_invalidation_counters().custom_property_value_computations++;
     auto registration = element.get_registered_custom_property(name);
 
-    auto value = element.get_custom_property(name);
+    auto value = [&]() -> RefPtr<StyleValue const> {
+        if (declared_value_source == DeclaredValueSource::PublishedEnvironment)
+            return element.get_custom_property(name);
+        auto data = element.custom_property_data();
+        if (data && data->is_animation_overlay())
+            data = data->parent();
+        if (!data)
+            return nullptr;
+        if (auto const* property = data->get(name))
+            return property->value;
+        return nullptr;
+    }();
     auto resolved_value = value ? value.release_nonnull() : initial_custom_property_value(registration, document);
 
     return finalize_custom_property_value(computed_style_for_custom_property_resolution, element, name, move(resolved_value));
