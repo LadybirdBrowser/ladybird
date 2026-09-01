@@ -2410,12 +2410,6 @@ pub extern "C" fn layout_node_kind_is_svg_graphics_box(kind: NodeKind) -> bool {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_node_data_can_have_children(data: *const NodeData) -> bool {
-    // SAFETY: The C++ caller passes the node's live arena slot.
-    node_facts::node_can_have_children(unsafe { &*data })
-}
-
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_node_data_is_atomic_inline(data: *const NodeData) -> bool {
     // SAFETY: The C++ caller passes the node's live arena slot.
     let data = unsafe { &*data };

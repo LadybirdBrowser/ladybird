@@ -408,18 +408,6 @@ pub unsafe extern "C" fn layout_arena_node_is_partial_relayout_boundary(arena: *
 
 /// # Safety
 ///
-/// The arena must remain valid for the duration of the call, and `node` must name a live node
-/// in this arena.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_register_partial_relayout_boundary_root(arena: *mut c_void, node: NodeSlotId) {
-    abort_on_panic(|| {
-        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-        unsafe { LayoutNodeArena::from_handle(arena) }.register_partial_relayout_boundary_root(node);
-    });
-}
-
-/// # Safety
-///
 /// The arena must remain valid for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_has_partial_relayout_boundary_roots(arena: *mut c_void) -> bool {
@@ -489,22 +477,6 @@ pub unsafe extern "C" fn layout_arena_collect_partial_relayout_roots(
             }
             None => false,
         }
-    })
-}
-
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call, and `node` must name a live node
-/// in this arena.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_node_can_replay_saved_abspos_layout_inputs_after_style_change(
-    arena: *mut c_void,
-    node: NodeSlotId,
-) -> bool {
-    abort_on_panic(|| {
-        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-        unsafe { LayoutNodeArena::from_handle(arena) }
-            .node_can_replay_saved_abspos_layout_inputs_after_style_change(node)
     })
 }
 
