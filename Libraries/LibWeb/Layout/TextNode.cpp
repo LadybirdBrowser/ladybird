@@ -543,7 +543,7 @@ void TextNode::enroll_for_arena_text_content_sync() const
     if (m_enrolled_for_arena_text_content_sync)
         return;
     m_enrolled_for_arena_text_content_sync = true;
-    node_arena().enroll_text_node_for_content_sync(*this);
+    RustFFI::layout_arena_enroll_text_node_for_content_sync(arena_handle(), slot_id(this));
 }
 
 bool TextNode::sync_text_content_to_arena() const

@@ -151,7 +151,7 @@ void Node::enroll_for_arena_replaced_content_facts_sync_if_eligible()
     if (!RustFFI::layout_node_data_may_have_replaced_content_facts(m_data))
         return;
     m_enrolled_for_arena_replaced_content_facts_sync = true;
-    node_arena().enroll_node_for_replaced_content_facts_sync(*this);
+    RustFFI::layout_arena_enroll_node_for_replaced_content_facts_sync(arena_handle(), slot_id(this));
 }
 
 void Node::bump_fragment_cache_epoch_of_self_and_ancestors()
