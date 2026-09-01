@@ -10,6 +10,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <LibCore/EventLoopImplementation.h>
 
+class QAbstractEventDispatcher;
 class QEvent;
 class QEventLoop;
 class QSocketNotifier;
@@ -73,6 +74,7 @@ private:
     bool is_main_loop() const { return m_main_loop; }
 
     NonnullOwnPtr<QEventLoop> m_event_loop;
+    QAbstractEventDispatcher* m_event_dispatcher { nullptr };
     bool m_main_loop { false };
 };
 

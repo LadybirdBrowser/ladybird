@@ -1,8 +1,29 @@
+find_package(Qt6 QUIET COMPONENTS Core)
+if (NOT Qt6_FOUND)
+    return()
+endif()
+
+add_library(QtEventLoopTestMain OBJECT
+    QtEventLoopTestMain.cpp
+    "${LADYBIRD_SOURCE_DIR}/Libraries/LibTest/AssertionHandler.cpp"
+)
+target_link_libraries(QtEventLoopTestMain PRIVATE AK LibCore LibTest Qt::Core)
+
+ladybird_test("TestEventLoopImplementation.cpp" UI/Qt
+    CUSTOM_MAIN "$<TARGET_OBJECTS:QtEventLoopTestMain>"
+    LIBS LibSync LibThreading Qt::Core
+)
+target_sources(TestEventLoopImplementation PRIVATE
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/EventLoopImplementationQt.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/EventLoopImplementationQtEventTarget.cpp"
+)
+set_target_properties(TestEventLoopImplementation PROPERTIES AUTOMOC ON)
+
 if (NOT LINUX)
     return()
 endif()
 
-find_package(Qt6 QUIET COMPONENTS Core Gui Widgets)
+find_package(Qt6 QUIET COMPONENTS Gui Widgets)
 if (NOT Qt6_FOUND)
     return()
 endif()

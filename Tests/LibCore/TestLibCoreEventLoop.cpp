@@ -9,6 +9,7 @@
 #include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
+#include <LibSync/ConditionVariable.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 
@@ -44,6 +45,50 @@ TEST_CASE(wake_after_thread_exit)
     }
 
     worker_loop.clear();
+}
+
+TEST_CASE(quit_event_loop_from_another_thread)
+{
+    Core::EventLoop main_loop;
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Sync::Mutex mutex;
+    IGNORE_USE_IN_ESCAPING_LAMBDA Sync::ConditionVariable condition { mutex };
+    IGNORE_USE_IN_ESCAPING_LAMBDA RefPtr<Core::WeakEventLoopReference> weak_ref;
+    IGNORE_USE_IN_ESCAPING_LAMBDA bool exec_started { false };
+
+    auto thread = Threading::Thread::construct("Worker"sv, [&] {
+        Core::EventLoop event_loop;
+        {
+            Sync::MutexLocker locker { mutex };
+            weak_ref = Core::EventLoop::current_weak();
+        }
+        event_loop.deferred_invoke([&] {
+            Sync::MutexLocker locker { mutex };
+            exec_started = true;
+            condition.broadcast();
+        });
+        return event_loop.exec();
+    });
+    thread->start();
+
+    RefPtr<Core::WeakEventLoopReference> event_loop;
+    {
+        Sync::MutexLocker locker { mutex };
+        condition.wait_while([&] { return !exec_started; });
+        event_loop = weak_ref;
+    }
+
+    {
+        auto strong_event_loop = event_loop->take();
+        VERIFY(strong_event_loop);
+        EXPECT(!strong_event_loop->was_exit_requested());
+        strong_event_loop->quit(42);
+        EXPECT(strong_event_loop->was_exit_requested());
+        strong_event_loop->wake();
+    }
+
+    auto exit_code = MUST(thread->join<void*>());
+    EXPECT_EQ(reinterpret_cast<intptr_t>(exit_code), 42);
 }
 
 TEST_CASE(single_shot_timer_fires_once)

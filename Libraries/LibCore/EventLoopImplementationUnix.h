@@ -47,14 +47,10 @@ public:
     virtual int exec() override;
     virtual size_t pump(PumpMode) override;
     virtual void quit(int) override;
-    virtual bool was_exit_requested() const override { return m_exit_requested; }
 
     virtual void wake() override;
 
 private:
-    bool m_exit_requested { false };
-    int m_exit_code { 0 };
-
     // The write end of the wake pipe, copied by value so it remains valid even
     // if ThreadData is destroyed before this event loop (e.g. during exit()).
     int m_wake_pipe_write_fd;

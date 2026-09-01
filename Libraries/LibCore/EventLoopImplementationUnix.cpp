@@ -204,8 +204,8 @@ EventLoopImplementationUnix::~EventLoopImplementationUnix() = default;
 int EventLoopImplementationUnix::exec()
 {
     for (;;) {
-        if (m_exit_requested)
-            return m_exit_code;
+        if (auto exit_code = exit_code_if_requested(); exit_code.has_value())
+            return exit_code.release_value();
         pump(PumpMode::WaitForEvents);
     }
     VERIFY_NOT_REACHED();
@@ -220,8 +220,7 @@ size_t EventLoopImplementationUnix::pump(PumpMode mode)
 
 void EventLoopImplementationUnix::quit(int code)
 {
-    m_exit_requested = true;
-    m_exit_code = code;
+    request_exit(code);
 }
 
 void EventLoopImplementationUnix::wake()
