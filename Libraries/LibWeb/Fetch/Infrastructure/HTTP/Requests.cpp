@@ -96,7 +96,7 @@ bool Request::destination_is_script_like() const
 // https://fetch.spec.whatwg.org/#subresource-request
 bool Request::is_subresource_request() const
 {
-    // A subresource request is a request whose destination is "audio", "audioworklet", "font", "image", "json", "manifest", "paintworklet", "script", "style", "track", "video", "xslt", or the empty string.
+    // A subresource request is a request whose destination is "audio", "audioworklet", "font", "image", "json", "manifest", "paintworklet", "script", "style", "text", "track", "video", "xslt", or the empty string.
     static constexpr Array subresource_request_destinations = {
         Destination::Audio,
         Destination::AudioWorklet,
@@ -107,6 +107,7 @@ bool Request::is_subresource_request() const
         Destination::PaintWorklet,
         Destination::Script,
         Destination::Style,
+        Destination::Text,
         Destination::Track,
         Destination::Video,
         Destination::XSLT,
@@ -408,6 +409,8 @@ StringView request_destination_to_string(Request::Destination destination)
         return "sharedworker"sv;
     case Request::Destination::Style:
         return "style"sv;
+    case Request::Destination::Text:
+        return "text"sv;
     case Request::Destination::Track:
         return "track"sv;
     case Request::Destination::Video:
@@ -464,6 +467,8 @@ static Optional<Request::Destination> translate_potential_destination_impl(auto 
         return Request::Destination::SharedWorker;
     if (potential_destination == "style"sv)
         return Request::Destination::Style;
+    if (potential_destination == "text"sv)
+        return Request::Destination::Text;
     if (potential_destination == "track"sv)
         return Request::Destination::Track;
     if (potential_destination == "video"sv)

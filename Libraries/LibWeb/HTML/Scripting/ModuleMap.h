@@ -8,6 +8,7 @@
 
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
+#include <AK/Variant.h>
 #include <LibGC/Function.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
@@ -46,37 +47,25 @@ public:
     ModuleMap() = default;
     ~ModuleMap() = default;
 
-    enum class EntryType {
-        Fetching,
-        Failed,
-        ModuleScript
-    };
+    using CallbackFunction = GC::Ref<GC::Function<void(GC::Ptr<ModuleScript>)>>;
+    using CallbackList = Vector<CallbackFunction>;
 
-    struct Entry {
-        EntryType type;
-        GC::Ptr<ModuleScript> module_script;
-    };
+    // A module map is a map keyed by tuples consisting of a URL record and a string. The URL record is the request URL
+    // at which the module was fetched, and the string indicates the type of the module (e.g. "javascript-or-wasm").
+    // The module map's values are either a module script or a list of algorithms (that are waiting for the fetch to
+    // complete).
+    using Entry = Variant<GC::Ref<ModuleScript>, CallbackList>;
 
-    using CallbackFunction = GC::Ref<GC::Function<void(Entry)>>;
+    Optional<Entry const&> get(URL::URL const& url, Utf16View type) const;
 
-    bool is_fetching(URL::URL const& url, Utf16View type) const;
-    bool is_failed(URL::URL const& url, Utf16View type) const;
-
-    bool is(URL::URL const& url, Utf16View type, EntryType) const;
-
-    Optional<Entry> get(URL::URL const& url, Utf16View type) const;
-
-    AK::HashSetResult set(URL::URL const& url, Utf16View type, Entry);
-
-    void wait_for_change(GC::Heap&, URL::URL const& url, Utf16View type, Function<void(Entry)> callback);
+    void set(URL::URL const& url, Utf16View type, CallbackList);
+    void append(URL::URL const& url, Utf16View type, CallbackFunction);
+    void complete_fetch(URL::URL const& url, Utf16View type, GC::Ptr<ModuleScript>);
 
 private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     HashMap<ModuleLocationTuple, Entry> m_values;
-    HashMap<ModuleLocationTuple, Vector<CallbackFunction>> m_callbacks;
-
-    bool m_firing_callbacks { false };
 };
 
 }

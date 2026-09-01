@@ -42,5 +42,6 @@ private:
 };
 
 ThrowCompletionOr<GC::Ref<SyntheticModule>> JS_API parse_json_module(Realm& realm, Utf16View source_text, ByteString filename);
+GC::Ref<SyntheticModule> JS_API create_text_module(Realm& realm, Utf16View source, ByteString filename);
 
 }

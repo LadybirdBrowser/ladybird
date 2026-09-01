@@ -62,6 +62,8 @@ static Bindings::RequestDestination request_destination_to_bindings(Optional<Inf
         return Bindings::RequestDestination::Sharedworker;
     case Infrastructure::Request::Destination::Style:
         return Bindings::RequestDestination::Style;
+    case Infrastructure::Request::Destination::Text:
+        return Bindings::RequestDestination::Text;
     case Infrastructure::Request::Destination::Track:
         return Bindings::RequestDestination::Track;
     case Infrastructure::Request::Destination::Video:

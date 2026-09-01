@@ -14,57 +14,46 @@ void ModuleMap::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     for (auto& it : m_values)
-        visitor.visit(it.value.module_script);
-
-    for (auto const& it : m_callbacks)
-        visitor.visit(it.value);
+        it.value.visit(
+            [&](GC::Ref<ModuleScript> module_script) { visitor.visit(module_script); },
+            [&](CallbackList const& callbacks) { visitor.visit(callbacks); });
 }
 
-bool ModuleMap::is_fetching(URL::URL const& url, Utf16View type) const
-{
-    return is(url, type, EntryType::Fetching);
-}
-
-bool ModuleMap::is_failed(URL::URL const& url, Utf16View type) const
-{
-    return is(url, type, EntryType::Failed);
-}
-
-bool ModuleMap::is(URL::URL const& url, Utf16View type, EntryType entry_type) const
-{
-    auto value = m_values.get({ url, type });
-    if (!value.has_value())
-        return false;
-
-    return value->type == entry_type;
-}
-
-Optional<ModuleMap::Entry> ModuleMap::get(URL::URL const& url, Utf16View type) const
+Optional<ModuleMap::Entry const&> ModuleMap::get(URL::URL const& url, Utf16View type) const
 {
     return m_values.get({ url, type });
 }
 
-AK::HashSetResult ModuleMap::set(URL::URL const& url, Utf16View type, Entry entry)
+void ModuleMap::set(URL::URL const& url, Utf16View type, CallbackList callbacks)
 {
-    // NOTE: Re-entering this function while firing wait_for_change callbacks is not allowed.
-    VERIFY(!m_firing_callbacks);
-
-    auto value = m_values.set({ url, type }, entry);
-
-    auto callbacks = m_callbacks.get({ url, type });
-    if (callbacks.has_value()) {
-        m_firing_callbacks = true;
-        for (auto const& callback : *callbacks)
-            callback->function()(entry);
-        m_firing_callbacks = false;
-    }
-
-    return value;
+    VERIFY(!m_values.contains({ url, type }));
+    m_values.set({ url, type }, move(callbacks));
 }
 
-void ModuleMap::wait_for_change(GC::Heap& heap, URL::URL const& url, Utf16View type, Function<void(Entry)> callback)
+void ModuleMap::append(URL::URL const& url, Utf16View type, CallbackFunction callback)
 {
-    m_callbacks.ensure({ url, type }).append(GC::create_function(heap, move(callback)));
+    auto entry = m_values.find({ url, type });
+    VERIFY(entry != m_values.end());
+    entry->value.get<CallbackList>().append(move(callback));
+}
+
+void ModuleMap::complete_fetch(URL::URL const& url, Utf16View type, GC::Ptr<ModuleScript> module_script)
+{
+    auto entry = m_values.take({ url, type });
+    VERIFY(entry.has_value());
+    auto value = entry.release_value();
+    auto callbacks_to_invoke = move(value.get<CallbackList>());
+
+    Vector<GC::Root<GC::Function<void(GC::Ptr<ModuleScript>)>>> callbacks;
+    callbacks.ensure_capacity(callbacks_to_invoke.size());
+    for (auto const& callback : callbacks_to_invoke)
+        callbacks.unchecked_append(GC::make_root(callback));
+
+    if (module_script)
+        m_values.set({ url, type }, GC::Ref { *module_script });
+
+    for (auto const& callback : callbacks)
+        callback->function()(module_script);
 }
 
 }

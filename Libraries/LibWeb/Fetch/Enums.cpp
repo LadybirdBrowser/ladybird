@@ -194,6 +194,8 @@ Bindings::RequestDestination to_bindings_enum(Optional<Infrastructure::Request::
         return Bindings::RequestDestination::Sharedworker;
     case Infrastructure::Request::Destination::Style:
         return Bindings::RequestDestination::Style;
+    case Infrastructure::Request::Destination::Text:
+        return Bindings::RequestDestination::Text;
     case Infrastructure::Request::Destination::Track:
         return Bindings::RequestDestination::Track;
     case Infrastructure::Request::Destination::Video:

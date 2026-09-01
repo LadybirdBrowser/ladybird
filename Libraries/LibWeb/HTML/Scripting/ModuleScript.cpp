@@ -218,6 +218,30 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_json_module_sc
     return script;
 }
 
+// https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-text-module-script
+WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_text_module_script(ByteString const& filename, Utf16View text, EnvironmentSettingsObject& settings)
+{
+    auto& realm = settings.realm();
+
+    // 1. Let script be a new module script that this algorithm will subsequently initialize.
+    // 2. Set script's settings object to settings.
+    // 3. Set script's base URL and fetch options to null.
+    auto script = create_internal(Optional<URL::URL> {}, filename, settings);
+
+    // 4. Set script's parse error and error to rethrow to null.
+    script->set_parse_error(JS::js_null());
+    script->set_error_to_rethrow(JS::js_null());
+
+    // 5. Let result be CreateTextModule(text).
+    auto result = JS::create_text_module(realm, text, filename);
+
+    // 6. Set script's record to result.
+    script->m_record = result;
+
+    // 7. Return script.
+    return script;
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-webassembly-module-script
 WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_webassembly_module_script(ByteString const& filename, ByteBuffer body_bytes, EnvironmentSettingsObject& settings, URL::URL base_url)
 {
