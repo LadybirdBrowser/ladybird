@@ -34,12 +34,9 @@
         // Make the iframe document inactive - this should stop the animation.
         iframe.remove();
 
-        // Wait a tick for the iframe to become inactive
-        await timeout(0);
+        const stateAfterRemoval = await waitForImageAnimationState(imageURL, state => !state.timerActive, iframeWindow);
 
-        println(
-            `timer stopped after iframe removal: ${!iframeWindow.internals.imageAnimationStateForURL(imageURL).timerActive}`
-        );
+        println(`timer stopped after iframe removal: ${!stateAfterRemoval.timerActive}`);
 
         // Make the iframe document active again - this should reset the animation.
         await loadIframe(iframe);
