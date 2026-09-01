@@ -480,6 +480,7 @@ void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
     m_background_layers.clear();
     m_mask_layers.clear();
     m_border_image.clear();
+    m_list_style_type.clear();
     m_list_style_image.clear();
     m_owned_computed_values = nullptr;
     m_style_record_identity = style_record_identity;
@@ -679,6 +680,7 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
     m_background_layers.clear();
     m_mask_layers.clear();
     m_border_image.clear();
+    m_list_style_type.clear();
     m_list_style_image.clear();
     Optional<DOM::AbstractElement> abstract_element;
     if (is_generated_for_pseudo_element())
@@ -742,6 +744,7 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
     m_background_layers.clear();
     m_mask_layers.clear();
     m_border_image.clear();
+    m_list_style_type.clear();
     m_list_style_image.clear();
     m_owned_computed_values = nullptr;
     m_style_record_identity = style_record_identity;
@@ -848,12 +851,7 @@ bool NodeWithStyle::synchronize_table_span_data()
             raw_column_span = column->get_attribute_value(HTML::AttributeNames::span).to_number<u32>().value_or(1);
         }
     }
-    bool effective_spans_changed = node_data().table_column_span != column_span
-        || node_data().table_row_span != row_span;
-    node_data().table_column_span = column_span;
-    node_data().table_row_span = row_span;
-    u32 previous_raw_column_span = RustFFI::layout_arena_set_raw_table_column_span(arena_handle(), slot_id(this), raw_column_span);
-    return effective_spans_changed || previous_raw_column_span != raw_column_span;
+    return RustFFI::layout_arena_set_table_spans(arena_handle(), slot_id(this), column_span, row_span, raw_column_span);
 }
 
 void NodeWithStyle::set_display(CSS::Display display)

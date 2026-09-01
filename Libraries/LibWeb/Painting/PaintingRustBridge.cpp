@@ -760,7 +760,6 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
         },
         .line_break_caret_targets = [](void*, void* layout_node_shell, void* sink) {
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
-            VERIFY(is_paintable_with_lines(layout_node));
             auto* dom_node = layout_node.dom_node();
             if (!dom_node)
                 return;
@@ -942,7 +941,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             if (is_inline_paintable(layout_node)) {
                 caret = resolve_empty_editable_caret_paint(layout_node);
             } else {
-                VERIFY(is_paintable_with_lines(layout_node));
                 caret = resolve_caret_paint(layout_node, owner_layout_node);
             }
             if (!caret.has_value())

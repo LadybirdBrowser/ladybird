@@ -41,7 +41,7 @@ bool should_paint_viewport_scrollbars()
     return g_paint_viewport_scrollbars;
 }
 
-bool body_background_is_propagated_to_root(Layout::NodeWithStyle const& layout_node)
+static bool body_background_is_propagated_to_root(Layout::NodeWithStyle const& layout_node)
 {
     if (!layout_node.is_body())
         return false;
@@ -503,7 +503,7 @@ bool should_paint_cursor(Layout::Node const& node)
     return editable_node && editable_node->is_editable_or_editing_host();
 }
 
-bool has_content(Layout::Node const& node)
+static bool has_content(Layout::Node const& node)
 {
     // Interrupting block-in-inline children produce only placeholder pieces, so any child
     // paintable also counts as content.

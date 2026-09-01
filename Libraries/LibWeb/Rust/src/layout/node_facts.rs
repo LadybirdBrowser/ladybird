@@ -200,6 +200,19 @@ pub(crate) fn kind_is_text(kind: NodeKind) -> bool {
     )
 }
 
+pub(crate) fn kind_and_style_make_scroll_container(kind: NodeKind, style: Option<ComputedValuesView<'_>>) -> bool {
+    if kind == NodeKind::Viewport {
+        return true;
+    }
+    let Some(style) = style else {
+        return false;
+    };
+    let overflow_value_makes_box_a_scroll_container =
+        |overflow_keyword: u8| matches!(overflow_keyword, overflow::AUTO | overflow::HIDDEN | overflow::SCROLL);
+    overflow_value_makes_box_a_scroll_container(style.overflow_x())
+        || overflow_value_makes_box_a_scroll_container(style.overflow_y())
+}
+
 pub(crate) fn kind_is_box(kind: NodeKind) -> bool {
     !matches!(
         kind,
@@ -704,14 +717,7 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn is_scroll_container(&self) -> bool {
-        if self.data().kind == NodeKind::Viewport {
-            return true;
-        }
-        let style = self.style();
-        let overflow_value_makes_box_a_scroll_container =
-            |overflow: u8| matches!(overflow, overflow::AUTO | overflow::HIDDEN | overflow::SCROLL);
-        overflow_value_makes_box_a_scroll_container(style.overflow_x())
-            || overflow_value_makes_box_a_scroll_container(style.overflow_y())
+        kind_and_style_make_scroll_container(self.data().kind, self.computed_values_view_if_styled())
     }
 
     pub(crate) fn display(&self) -> crate::layout::FfiDisplay {

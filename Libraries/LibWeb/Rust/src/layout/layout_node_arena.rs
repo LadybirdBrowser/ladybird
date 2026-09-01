@@ -2392,16 +2392,31 @@ pub unsafe extern "C" fn layout_arena_set_replaced_content_facts(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_raw_table_column_span(
+pub unsafe extern "C" fn layout_arena_set_table_spans(
     arena: *mut c_void,
     id: NodeSlotId,
+    column_span: u16,
+    row_span: u16,
     raw_column_span: u32,
-) -> u32 {
+) -> bool {
     abort_on_panic(|| {
         assert!(!arena.is_null(), "layout node arena handle is null");
         // SAFETY: The C++ wrapper keeps the arena alive for this call and
         // serializes all access on the document thread.
-        unsafe { &mut *arena.cast::<LayoutNodeArena>() }.set_raw_table_column_span(id, raw_column_span)
+        let arena = unsafe { &mut *arena.cast::<LayoutNodeArena>() };
+        let data = arena.data(id);
+        // SAFETY: data() validated that id names a live slot, and layout
+        // serializes mutation on the arena's owner thread.
+        let effective_spans_changed = unsafe {
+            let stored_column_span = &raw mut (*data).table_column_span;
+            let stored_row_span = &raw mut (*data).table_row_span;
+            let changed = stored_column_span.read() != column_span || stored_row_span.read() != row_span;
+            stored_column_span.write(column_span);
+            stored_row_span.write(row_span);
+            changed
+        };
+        let previous_raw_column_span = arena.set_raw_table_column_span(id, raw_column_span);
+        effective_spans_changed || previous_raw_column_span != raw_column_span
     })
 }
 

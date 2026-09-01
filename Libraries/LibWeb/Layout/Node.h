@@ -413,7 +413,6 @@ public:
     ImageObserver const* border_image_source_observer() const { return m_image_observers.border_image_source.ptr(); }
 
     NonnullRefPtr<CSS::ComputedValues const> copy_computed_values() const;
-    CSS::ComputedStyleRecordView computed_style_record_view() const;
     CSS::StyleRecordID style_record_identity() const { return m_style_record_identity; }
 
     template<typename StyleGroup>
@@ -566,7 +565,6 @@ public:
     CSS::ComputedFilterView backdrop_filter() const { return style_group<CSS::ComputedValues::EffectsValues>().backdrop_filter_value(); }
     CSS::Clip clip() const { return style_group<CSS::ComputedValues::EffectsValues>().clip_value(); }
     CSS::ComputedFilterView filter() const { return style_group<CSS::ComputedValues::EffectsValues>().filter_value(); }
-    CSS::Isolation isolation() const { return style_group<CSS::ComputedValues::EffectsValues>().isolation_value(); }
     CSS::MixBlendMode mix_blend_mode() const { return style_group<CSS::ComputedValues::EffectsValues>().mix_blend_mode_value(); }
     float opacity() const { return style_group<CSS::ComputedValues::EffectsValues>().opacity; }
     ReadonlySpan<CSS::ShadowData> box_shadow() const { return style_group<CSS::ComputedValues::EffectsValues>().box_shadow_span(); }
@@ -689,6 +687,8 @@ public:
     void set_overflow(CSS::Overflow overflow_x, CSS::Overflow overflow_y);
 
 private:
+    CSS::ComputedStyleRecordView computed_style_record_view() const;
+
     virtual bool is_node_with_style() const final { return true; }
 
     void reset_table_box_computed_values_used_by_wrapper_to_init_values();
