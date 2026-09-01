@@ -1,0 +1,3 @@
+size: height=0
+strict: height=0
+uncontained: height=16
