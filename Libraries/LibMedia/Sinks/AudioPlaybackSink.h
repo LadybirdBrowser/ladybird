@@ -18,22 +18,19 @@
 #include <LibMedia/MediaTime.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Producers/AudioProducer.h>
+#include <LibMedia/Sinks/AudioOutputQueue.h>
 #include <LibMedia/Sinks/AudioSink.h>
 
 namespace Media {
 
 class MEDIA_API AudioPlaybackSink final : public AudioSink
     , public MediaClock {
-private:
-    class OutputThreadData;
-
 public:
     static ErrorOr<NonnullRefPtr<AudioPlaybackSink>> try_create(PipelineStateChangeHandler on_state_changed);
-    AudioPlaybackSink(NonnullRefPtr<OutputThreadData>, MediaTimeReader);
+    AudioPlaybackSink(NonnullRefPtr<AudioOutputQueue>, MediaTimeReader);
     virtual ~AudioPlaybackSink() override;
 
     virtual ErrorOr<void> connect_input(NonnullRefPtr<AudioProducer> const&) override;
-    void disconnect_input_while_locked(NonnullRefPtr<AudioProducer> const&);
     virtual void disconnect_input(NonnullRefPtr<AudioProducer> const&) override;
 
     virtual MediaTimeReader time_reader() const override;
@@ -71,7 +68,8 @@ private:
     i64 m_anchor_output_frame_index { 0 };
     Optional<AK::Duration> m_seek_target_awaiting_drain;
 
-    NonnullRefPtr<OutputThreadData> m_output_thread_data;
+    NonnullRefPtr<AudioOutputQueue> m_output_queue;
+    RefPtr<Audio::PlaybackStream> m_playback_stream;
     RefPtr<Core::Timer> m_clock_refresh_timer;
     MediaTimeReader m_time_reader;
 };
