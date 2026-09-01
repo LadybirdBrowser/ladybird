@@ -83,7 +83,8 @@ public:
 
     void spin_until(GC::Ref<GC::Function<bool()>> goal_condition);
     void process();
-    void queue_task_to_update_the_rendering();
+    bool request_rendering_update();
+    bool rendering_opportunity();
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#termination-nesting-level
     size_t termination_nesting_level() const { return m_termination_nesting_level; }
@@ -172,6 +173,8 @@ private:
     size_t m_execution_pause_depth { 0 };
 
     bool m_running_rendering_task { false };
+    bool m_rendering_task_queued { false };
+    bool m_rendering_update_requested { false };
 
     RenderingSchedulerCounters m_rendering_scheduler_counters;
     RenderingSchedulerCounters m_rendering_scheduler_counters_at_last_update;

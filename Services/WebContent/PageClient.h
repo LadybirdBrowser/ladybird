@@ -157,6 +157,8 @@ private:
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
+    void schedule_frame_dispatch();
+
     // ^PageClient
     virtual bool is_connection_open() const override;
     virtual void request_navigation_start(Web::HTML::LocalNavigable&, URL::URL const& current_url, Web::NavigationTarget, URL::URL const& url, Utf16String navigation_id, Optional<Web::HTML::NavigationStartRequest>) override;

@@ -44,6 +44,8 @@ EventLoop::EventLoop(Type type)
     m_task_queue = GC::Heap::the().allocate<TaskQueue>(*this);
 
     m_rendering_task_function = GC::create_function(GC::Heap::the(), [this] {
+        VERIFY(m_rendering_task_queued);
+        m_rendering_task_queued = false;
         update_the_rendering();
     });
 }
@@ -234,27 +236,40 @@ void EventLoop::process()
     }
 }
 
-// https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model
-void EventLoop::queue_task_to_update_the_rendering()
+bool EventLoop::request_rendering_update()
 {
     ++m_rendering_scheduler_counters.update_requests;
-    ++m_rendering_scheduler_counters.opportunities_received;
     if (m_running_rendering_task)
         ++m_rendering_scheduler_counters.update_requests_while_rendering;
+
+    if (m_rendering_update_requested || m_rendering_task_queued) {
+        ++m_rendering_scheduler_counters.coalesced_update_requests;
+        return false;
+    }
+
+    m_rendering_update_requested = true;
+    return true;
+}
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model
+bool EventLoop::rendering_opportunity()
+{
+    ++m_rendering_scheduler_counters.opportunities_received;
 
     // FIXME: 1. Wait until at least one navigable whose active document's relevant agent's event loop is eventLoop might have a rendering opportunity.
 
     // 2. Set eventLoop's last render opportunity time to the unsafe shared current time.
     m_last_render_opportunity_time = HighResolutionTime::unsafe_shared_current_time();
 
-    // OPTIMIZATION: If there are already rendering tasks in the queue, we don't need to queue another one.
-    if (m_task_queue->has_rendering_tasks()) {
-        ++m_rendering_scheduler_counters.coalesced_update_requests;
-        return;
-    }
+    // AD-HOC: A nested event loop can deliver a timer while a rendering update is running. Keep the request pending
+    //         so the PageClient can schedule it for the next opportunity instead of queueing a second rendering task.
+    if (m_running_rendering_task)
+        return false;
+
+    m_rendering_update_requested = false;
 
     // 3. For each navigable that has a rendering opportunity, queue a global task on the rendering task source given navigable's active window to update the rendering:
-    bool queued_a_task = false;
+    bool has_eligible_navigable = false;
     for (auto& navigable : all_local_navigables()) {
         if (!navigable->is_traversable())
             continue;
@@ -267,11 +282,20 @@ void EventLoop::queue_task_to_update_the_rendering()
         if (document->is_decoded_svg())
             continue;
 
-        queue_global_task(Task::Source::Rendering, HTML::relevant_global_object(*navigable->active_window()), *m_rendering_task_function);
-        queued_a_task = true;
+        has_eligible_navigable = true;
+        break;
     }
-    if (queued_a_task)
-        ++m_rendering_scheduler_counters.opportunities_that_queued_a_task;
+
+    if (!has_eligible_navigable)
+        return true;
+
+    // AD-HOC: One rendering update services every document in this event loop, so queue one event-loop task for the
+    //         opportunity instead of one global task per traversable.
+    VERIFY(!m_rendering_task_queued);
+    m_rendering_task_queued = true;
+    queue_a_task(Task::Source::Rendering, this, nullptr, *m_rendering_task_function);
+    ++m_rendering_scheduler_counters.opportunities_that_queued_a_task;
+    return true;
 }
 
 void EventLoop::process_input_events() const

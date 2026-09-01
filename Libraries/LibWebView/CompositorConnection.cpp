@@ -12,7 +12,8 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibIPC/Transport.h>
-#include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/Page/Page.h>
 
 namespace WebView {
 
@@ -371,7 +372,10 @@ void CompositorConnection::mouse_event(u64 page_id, Web::MouseEvent event)
 
 void CompositorConnection::request_rendering_update()
 {
-    Web::HTML::main_thread_event_loop().queue_task_to_update_the_rendering();
+    for (auto& navigable : Web::HTML::all_local_navigables()) {
+        if (navigable->is_traversable())
+            navigable->page().client().request_frame();
+    }
 }
 
 void CompositorConnection::did_complete_screenshot(Web::Compositor::ScreenshotRequestId request_id)
