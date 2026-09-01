@@ -121,6 +121,114 @@ impl LayoutNodeArena {
         std::mem::take(&mut *self.partial_relayout_boundary_roots.borrow_mut())
     }
 
+    fn nearest_inclusive_partial_relayout_boundary(&self, node: NodeSlotId) -> Option<NodeSlotId> {
+        // SAFETY: data() generation-checks every slot the walk visits.
+        let (node_kind, mut ancestor) = unsafe {
+            let data = self.data(node);
+            ((&raw const (*data).kind).read(), (&raw const (*data).parent).read())
+        };
+        if node_facts::kind_is_box(node_kind) && self.node_is_partial_relayout_boundary(node) {
+            return Some(node);
+        }
+        while !ancestor.is_invalid() {
+            // SAFETY: As above.
+            let (ancestor_kind, ancestor_parent) = unsafe {
+                let data = self.data(ancestor);
+                ((&raw const (*data).kind).read(), (&raw const (*data).parent).read())
+            };
+            if node_facts::kind_is_box(ancestor_kind) && self.node_is_partial_relayout_boundary(ancestor) {
+                return Some(ancestor);
+            }
+            ancestor = ancestor_parent;
+        }
+        None
+    }
+
+    /// Collects the live boundary set from the post-build tree: registered boundaries that
+    /// survived the build, plus the nearest boundary containing each rebuilt subtree - which
+    /// re-discovers a boundary whose own box the build replaced, since the saved layout inputs
+    /// carried over to the replacement. Returns None when any boundary disqualifies partial
+    /// relayout, or when no boundary is left to relay out.
+    pub(crate) fn collect_partial_relayout_roots(
+        &self,
+        registered_root_slots: &[NodeSlotId],
+        rebuilt_subtree_root_slots: &[NodeSlotId],
+    ) -> Option<Vec<NodeSlotId>> {
+        let mut collected_boundaries: crate::css::style::fast_hash::FastSet<NodeSlotId> = Default::default();
+        let mut partial_relayout_roots: Vec<NodeSlotId> = Vec::new();
+        let mut collect_boundary = |boundary: NodeSlotId, boundary_box_was_replaced: bool| -> bool {
+            if !collected_boundaries.insert(boundary) {
+                return true;
+            }
+
+            // A replaced box applies the saved-inputs validity check unconditionally: the change
+            // that drove the replacement cannot be classified anymore.
+            // SAFETY: Collected boundaries name live slots; data() generation-checks them.
+            let boundary_data = unsafe { &*self.data(boundary) };
+            let saved_inputs_may_be_style_stale =
+                node_facts::has_flag(boundary_data, NodeFlag::NeedsOwnGeometryUpdate) || boundary_box_was_replaced;
+            let boundary_is_absolutely_positioned =
+                node_facts::node_style_view(boundary_data).is_some_and(|style| style.is_absolutely_positioned());
+            if saved_inputs_may_be_style_stale
+                && boundary_is_absolutely_positioned
+                && !self.node_can_replay_saved_abspos_layout_inputs_after_style_change(boundary)
+            {
+                return false;
+            }
+
+            partial_relayout_roots.push(boundary);
+            true
+        };
+
+        for &slot in registered_root_slots {
+            // A boundary that did not survive the build was either replaced (re-discovered
+            // through the rebuilt subtree roots below) or removed together with the dirt
+            // inside it (the removal dirtied its parent, whose own marking covers the
+            // mutation). Slot generations make the stale slot ids of such boundaries
+            // resolve to no shell.
+            if self.shell_if_live(slot).is_null() {
+                continue;
+            }
+            // SAFETY: shell_if_live established a live slot of this generation.
+            let parent = unsafe { (&raw const (*self.data(slot)).parent).read() };
+            if parent.is_invalid() {
+                continue;
+            }
+            if !self.node_is_partial_relayout_boundary(slot) || !collect_boundary(slot, false) {
+                return None;
+            }
+        }
+
+        for &rebuilt_root in rebuilt_subtree_root_slots {
+            // Every rebuilt subtree must lie inside a boundary for its dirt to be confined.
+            // The rebuilt box itself may qualify with its committed row still pending; boundaries
+            // above it were not replaced and must have one.
+            let containing_boundary = self.nearest_inclusive_partial_relayout_boundary(rebuilt_root)?;
+            if !collect_boundary(containing_boundary, containing_boundary == rebuilt_root) {
+                return None;
+            }
+        }
+
+        // A root nested inside another root is relaid out as part of the ancestor's subtree.
+        partial_relayout_roots.retain(|&root| {
+            // SAFETY: Collected roots name live slots; data() generation-checks every slot
+            // the walk visits.
+            let mut ancestor = unsafe { (&raw const (*self.data(root)).parent).read() };
+            while !ancestor.is_invalid() {
+                if collected_boundaries.contains(&ancestor) {
+                    return false;
+                }
+                ancestor = unsafe { (&raw const (*self.data(ancestor)).parent).read() };
+            }
+            true
+        });
+
+        if partial_relayout_roots.is_empty() {
+            return None;
+        }
+        Some(partial_relayout_roots)
+    }
+
     pub(crate) fn node_can_replay_saved_abspos_layout_inputs_after_style_change(&self, node: NodeSlotId) -> bool {
         // SAFETY: The caller supplies a live slot; data() generation-checks it.
         let data = unsafe { &*self.data(node) };
@@ -343,6 +451,49 @@ pub unsafe extern "C" fn layout_arena_take_partial_relayout_boundary_roots(
 
 /// # Safety
 ///
+/// The arena must remain valid for the duration of the call, and both slot arrays must be
+/// valid for their counts. Slots in `registered_root_slots` may be stale; slots in
+/// `rebuilt_subtree_root_slots` must name live nodes in this arena.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_collect_partial_relayout_roots(
+    arena: *mut c_void,
+    registered_root_slots: *const NodeSlotId,
+    registered_root_count: usize,
+    rebuilt_subtree_root_slots: *const NodeSlotId,
+    rebuilt_subtree_root_count: usize,
+    context: *mut c_void,
+    push_root: unsafe extern "C" fn(*mut c_void, NodeSlotId),
+) -> bool {
+    abort_on_panic(|| {
+        // SAFETY: The C++ caller keeps the arena and both slot arrays alive for this call.
+        let arena = unsafe { LayoutNodeArena::from_handle(arena) };
+        let registered = if registered_root_count == 0 {
+            &[]
+        } else {
+            // SAFETY: A nonzero count implies a valid array of that length.
+            unsafe { std::slice::from_raw_parts(registered_root_slots, registered_root_count) }
+        };
+        let rebuilt = if rebuilt_subtree_root_count == 0 {
+            &[]
+        } else {
+            // SAFETY: A nonzero count implies a valid array of that length.
+            unsafe { std::slice::from_raw_parts(rebuilt_subtree_root_slots, rebuilt_subtree_root_count) }
+        };
+        match arena.collect_partial_relayout_roots(registered, rebuilt) {
+            Some(roots) => {
+                for root in roots {
+                    // SAFETY: The C++ callback appends the slot id to a caller-owned collection.
+                    unsafe { push_root(context, root) };
+                }
+                true
+            }
+            None => false,
+        }
+    })
+}
+
+/// # Safety
+///
 /// The arena must remain valid for the duration of the call, and `node` must name a live node
 /// in this arena.
 #[unsafe(no_mangle)]
@@ -544,6 +695,25 @@ mod tests {
         assert!(node_is_dirty(&anonymous_child));
         assert!(!node_is_dirty(&anonymous_table_wrapper_child));
         assert!(!node_is_dirty(&named_child));
+        free_node(&mut arena, &parent);
+    }
+
+    #[test]
+    fn collecting_roots_skips_stale_registered_slots_and_reports_no_eligible_roots() {
+        let mut arena = LayoutNodeArena::new();
+        let freed = allocate_box_with_a_dummy_shell(&mut arena);
+        let stale_slot = freed.slot;
+        free_node(&mut arena, &freed);
+        assert_eq!(arena.collect_partial_relayout_roots(&[stale_slot], &[]), None);
+    }
+
+    #[test]
+    fn collecting_roots_fails_for_a_rebuilt_subtree_with_no_containing_boundary() {
+        let mut arena = LayoutNodeArena::new();
+        let parent = allocate_box_with_a_dummy_shell(&mut arena);
+        let child = allocate_box_with_a_dummy_shell(&mut arena);
+        arena.insert_child(parent.slot, child.slot, NodeSlotId::INVALID);
+        assert_eq!(arena.collect_partial_relayout_roots(&[], &[child.slot]), None);
         free_node(&mut arena, &parent);
     }
 

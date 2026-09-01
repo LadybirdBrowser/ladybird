@@ -2239,66 +2239,29 @@ Document::PartialRelayoutResult Document::try_partial_relayout(Vector<Layout::Ru
     for (auto* rebuilt_root : rebuilt_subtree_roots)
         recompute_containing_blocks_in_inclusive_subtree(layout_node_arena(), *rebuilt_root);
 
-    // Collect the live boundary set from the post-build tree: registered boundaries that
-    // survived the build, plus the nearest boundary containing each rebuilt subtree - which
-    // re-discovers a boundary whose own box the build replaced, since the saved layout inputs
-    // carried over to the replacement.
-    Vector<Layout::Box*> partial_relayout_roots;
-    HashTable<Layout::Box*> collected_boundaries;
-    auto collect_boundary = [&](Layout::Box& box, bool box_was_replaced) {
-        if (collected_boundaries.set(&box) != AK::HashSetResult::InsertedNewEntry)
-            return true;
+    Vector<Layout::RustFFI::NodeSlotId> rebuilt_subtree_root_slots;
+    rebuilt_subtree_root_slots.ensure_capacity(rebuilt_subtree_roots.size());
+    for (auto* rebuilt_root : rebuilt_subtree_roots)
+        rebuilt_subtree_root_slots.unchecked_append(Layout::Node::slot_id(rebuilt_root));
 
-        // A replaced box applies the saved-inputs validity check unconditionally: the change
-        // that drove the replacement cannot be classified anymore.
-        bool saved_inputs_may_be_style_stale = box.needs_own_geometry_update() || box_was_replaced;
-        if (saved_inputs_may_be_style_stale && box.is_absolutely_positioned() && !Layout::can_replay_saved_abspos_layout_inputs_after_style_change(box))
-            return false;
-
-        partial_relayout_roots.append(&box);
-        return true;
-    };
-
-    for (auto slot : registered_partial_relayout_root_slots) {
-        // A boundary that did not survive the build was either replaced (re-discovered
-        // through the rebuilt subtree roots below) or removed together with the dirt
-        // inside it (the removal dirtied its parent, whose own marking covers the
-        // mutation). Slot generations make the stale slot ids of such boundaries
-        // resolve to no shell.
-        auto* node = static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_node_shell_if_live(layout_node_arena().handle(), slot));
-        if (!node || !node->parent())
-            continue;
-        auto& box = as<Layout::Box>(*node);
-        if (!box.is_partial_relayout_boundary() || !collect_boundary(box, false))
-            return PartialRelayoutResult::NotEligible;
-    }
-
-    for (auto* rebuilt_root : rebuilt_subtree_roots) {
-        // Every rebuilt subtree must lie inside a boundary for its dirt to be confined.
-        // The rebuilt box itself may qualify with its committed row still pending; boundaries
-        // above it were not replaced and must have one.
-        Layout::Box* containing_boundary = nullptr;
-        if (auto* rebuilt_box = as_if<Layout::Box>(*rebuilt_root); rebuilt_box && rebuilt_box->is_partial_relayout_boundary())
-            containing_boundary = rebuilt_box;
-        for (auto* ancestor = rebuilt_root->parent(); !containing_boundary && ancestor; ancestor = ancestor->parent()) {
-            if (auto* ancestor_box = as_if<Layout::Box>(*ancestor); ancestor_box && ancestor_box->is_partial_relayout_boundary())
-                containing_boundary = ancestor_box;
-        }
-        if (!containing_boundary || !collect_boundary(*containing_boundary, containing_boundary == rebuilt_root))
-            return PartialRelayoutResult::NotEligible;
-    }
-
-    // A root nested inside another root is relaid out as part of the ancestor's subtree.
-    partial_relayout_roots.remove_all_matching([&](auto* root) {
-        for (auto* ancestor = root->parent(); ancestor; ancestor = ancestor->parent()) {
-            if (auto* ancestor_box = as_if<Layout::Box>(*ancestor); ancestor_box && collected_boundaries.contains(ancestor_box))
-                return true;
-        }
-        return false;
-    });
-
-    if (partial_relayout_roots.is_empty())
+    Vector<Layout::RustFFI::NodeSlotId> partial_relayout_root_slots;
+    bool boundary_set_supports_partial_relayout = Layout::RustFFI::layout_arena_collect_partial_relayout_roots(
+        layout_node_arena().handle(),
+        registered_partial_relayout_root_slots.data(), registered_partial_relayout_root_slots.size(),
+        rebuilt_subtree_root_slots.data(), rebuilt_subtree_root_slots.size(),
+        &partial_relayout_root_slots,
+        [](void* context, Layout::RustFFI::NodeSlotId root) {
+            static_cast<Vector<Layout::RustFFI::NodeSlotId>*>(context)->append(root);
+        });
+    if (!boundary_set_supports_partial_relayout)
         return PartialRelayoutResult::NotEligible;
+
+    Vector<Layout::Box*> partial_relayout_roots;
+    partial_relayout_roots.ensure_capacity(partial_relayout_root_slots.size());
+    for (auto slot : partial_relayout_root_slots) {
+        auto* root = static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_node_shell_if_live(layout_node_arena().handle(), slot));
+        partial_relayout_roots.unchecked_append(&as<Layout::Box>(*root));
+    }
 
     // The final boundary can be wider than the rebuilt roots that led us to it. Replaying such a
     // boundary may re-enter intrinsic sizing for descendants outside those rebuilt roots, including

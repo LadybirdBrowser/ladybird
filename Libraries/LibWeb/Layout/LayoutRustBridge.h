@@ -53,7 +53,6 @@ private:
 
 [[nodiscard]] Optional<RustFFI::FfiFormattingContextType> formatting_context_type_created_by_box(Box const&);
 [[nodiscard]] StringView formatting_context_type_name(RustFFI::FfiFormattingContextType);
-[[nodiscard]] bool can_replay_saved_abspos_layout_inputs_after_style_change(Box const&);
 
 [[nodiscard]] Painting::UsedGridTrackList build_used_grid_track_list(RustFFI::FfiUsedGridTrackList const&);
 
