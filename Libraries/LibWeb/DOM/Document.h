@@ -512,7 +512,7 @@ public:
         HandledByAfterLayoutCommit,
         HandledByFullLayoutCommit,
     };
-    void update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates, ReadonlySpan<Layout::Box const*> boxes_needing_eager_measurement = {});
+    void update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates);
     void update_paint_and_hit_testing_properties_if_needed();
     void sample_animation_effects_needing_style_update();
     void update_style_computer_viewport_rect();
@@ -1512,7 +1512,7 @@ private:
         Subtree,
         Full,
     };
-    void after_layout_commit(LayoutTreeChanged, LayoutCommitScope, ReadonlySpan<Layout::Box const*> boxes_needing_eager_overflow_measurement = {});
+    void after_layout_commit(LayoutTreeChanged, LayoutCommitScope);
 
     void run_unloading_cleanup_steps();
 
