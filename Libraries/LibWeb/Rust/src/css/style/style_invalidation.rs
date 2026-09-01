@@ -147,6 +147,9 @@ fn value_creates_stacking_context(property: u16, values: ComputedValuesView<'_>)
         property_id::CONTAINER_TYPE => {
             values.box_values().is_size_container || values.box_values().is_inline_size_container
         }
+        property_id::CONTENT_VISIBILITY => {
+            values.content_visibility() == crate::css::css_enums::content_visibility::AUTO
+        }
         property_id::WILL_CHANGE => will_change_creates_stacking_context(values.misc_reset().will_change.data()),
         _ => true,
     }
