@@ -313,16 +313,6 @@ pub enum FrameRole {
         layer: u16,
         isolated: bool,
     },
-    // https://drafts.csswg.org/css-backgrounds-4/#valdef-background-clip-text
-    BackgroundTextClip {
-        piece: PieceKey,
-    },
-    BackgroundTextContentLayer {
-        piece: PieceKey,
-    },
-    BackgroundTextMask {
-        piece: PieceKey,
-    },
 }
 
 #[derive(Clone)]
