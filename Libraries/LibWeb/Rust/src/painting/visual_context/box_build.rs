@@ -62,6 +62,7 @@ impl PaintableVisualContextAssignment {
     pub(crate) fn apply(self, layout_arena: &mut impl PaintableRowsWrite) {
         {
             let data = layout_arena.paintable_data_mut(self.slot);
+            data.establishes_stacking_context = self.record.stacking_context.establishes_stacking_context;
             data.enclosing_scroll_node_index = self.enclosing_scroll_node_index;
             data.own_scroll_node_index = self.own_scroll_node_index;
             data.has_accumulated_visual_context = self.has_accumulated_visual_context;
@@ -226,6 +227,11 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
     let is_absolute = position == crate::css::css_enums::positioning::ABSOLUTE;
     let is_sticky = position == crate::css::css_enums::positioning::STICKY;
     let layout_node = slot;
+    let stacking_context_facts = crate::painting::stacking_context::StackingContextFacts::gather(
+        layout_arena,
+        slot,
+        inherited.enclosing_stacking_context,
+    );
     let mut assignment = PaintableVisualContextAssignment::from_data(
         slot,
         layout_arena.paintable_data(slot),
@@ -237,6 +243,7 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
             may_be_root_element,
             owns_geometry_dependent_nodes: false,
             subtree_may_own_geometry_dependent_nodes: false,
+            stacking_context: stacking_context_facts,
         },
     );
     assignment.enclosing_scroll_node_index = VISUAL_VIEWPORT_NODE_INDEX;
@@ -593,6 +600,11 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
         fixed_position_plane_root,
         flattens_inherited_transform: descendants_flatten_inherited_transform,
         sorting_context_root: sorting_context_root_for_descendants,
+        enclosing_stacking_context: if stacking_context_facts.establishes_stacking_context {
+            slot
+        } else {
+            inherited.enclosing_stacking_context
+        },
     };
     assignment.record.output_for_descendants = descendant_contexts;
     BoxVisualContextBuildOutput {

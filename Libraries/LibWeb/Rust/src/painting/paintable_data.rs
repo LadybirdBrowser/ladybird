@@ -54,6 +54,7 @@ pub struct PaintableData {
     pub overflow_valid_across_recommits: bool,
 
     pub stacking_context: u32,
+    pub establishes_stacking_context: bool,
 
     pub enclosing_scroll_node_index: SpatialNodeIndex,
     pub own_scroll_node_index: SpatialNodeIndex,
@@ -80,6 +81,7 @@ impl Default for PaintableData {
             overflow_measured_this_commit: false,
             overflow_valid_across_recommits: false,
             stacking_context: u32::MAX,
+            establishes_stacking_context: false,
             enclosing_scroll_node_index: SpatialNodeIndex::default(),
             own_scroll_node_index: SpatialNodeIndex::default(),
             has_accumulated_visual_context: false,
