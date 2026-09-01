@@ -548,19 +548,7 @@ static Optional<DOM::AbstractElement> abstract_element_for_abspos_box(Box const&
 
 bool can_replay_saved_abspos_layout_inputs_after_style_change(Box const& box)
 {
-    if (!box.containing_block())
-        return false;
-
-    if (box.saved_abspos_cb_derives_from_own_computed_values())
-        return false;
-
-    auto inset = box.inset();
-    bool uses_static_position = (inset.left().is_auto() && inset.right().is_auto())
-        || (inset.top().is_auto() && inset.bottom().is_auto());
-    if (uses_static_position && box.saved_abspos_alignment_derives_from_own_computed_values())
-        return false;
-
-    return true;
+    return RustFFI::layout_arena_node_can_replay_saved_abspos_layout_inputs_after_style_change(box.arena_handle(), Node::slot_id(&box));
 }
 
 RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
