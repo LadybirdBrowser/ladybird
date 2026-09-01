@@ -38,11 +38,6 @@ Box::~Box()
 {
 }
 
-void Box::drop_cached_intrinsic_sizes()
-{
-    node_arena().drop_intrinsic_size_cache(node_data());
-}
-
 static ImageProvider const& image_provider_for_element(DOM::Element const& element)
 {
     if (auto const* image = as_if<HTML::HTMLImageElement>(element))

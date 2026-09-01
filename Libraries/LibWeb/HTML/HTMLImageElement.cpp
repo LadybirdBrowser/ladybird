@@ -123,15 +123,8 @@ static bool image_element_dimensions_may_depend_on_intrinsic_size(Layout::Box co
 static void reset_intrinsic_size_caches_after_image_data_change(Layout::Box& image_box)
 {
     image_box.bump_fragment_cache_epoch_of_self_and_ancestors();
-    image_box.reset_cached_intrinsic_sizes();
-    for (auto* ancestor = image_box.parent(); ancestor; ancestor = ancestor->parent()) {
-        auto* box = as_if<Layout::Box>(ancestor);
-        if (!box)
-            continue;
-        box->reset_cached_intrinsic_sizes();
-        if (box->is_absolutely_positioned() || box->is_svg_svg_box())
-            break;
-    }
+    Layout::RustFFI::layout_arena_reset_cached_intrinsic_sizes_of_self_and_ancestors(
+        image_box.arena_handle(), Layout::Node::slot_id(&image_box));
 }
 
 void HTMLImageElement::set_needs_layout_update_or_repaint_after_image_data_change(DOM::SetNeedsLayoutReason reason)
