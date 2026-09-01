@@ -34,8 +34,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::abort_on_panic;
 pub use crate::css::computed_value_types::{
     AlignmentValues, AnchorValues, AnimationValues, BackgroundValues, BorderLayoutFacts, BorderValues, BoxValues,
-    ComputedAspectRatio, ComputedClipEdge, ComputedColorOrAuto, ComputedCursor, ComputedFilter,
-    ComputedFilterOperation, ComputedFlexBasis, ComputedGap, ComputedGridArea, ComputedGridPlacement,
+    ComputedAspectRatio, ComputedClipEdge, ComputedColorOrAuto, ComputedContainIntrinsicSize, ComputedCursor,
+    ComputedFilter, ComputedFilterOperation, ComputedFlexBasis, ComputedGap, ComputedGridArea, ComputedGridPlacement,
     ComputedGridPlacementKind, ComputedGridTrackBreadth, ComputedGridTrackEntry, ComputedGridTrackEntryKind,
     ComputedGridTrackList, ComputedLengthBox, ComputedLengthPercentageOrAuto, ComputedOverflowClipMargin,
     ComputedOverflowClipMarginSide, ComputedPositionTryFallback, ComputedResolvedTransform, ComputedSize,
@@ -792,6 +792,8 @@ impl_computed_payload_clone_and_eq!(BoxValues {
     z_index,
     vertical_align,
     aspect_ratio,
+    contain_intrinsic_width,
+    contain_intrinsic_height,
     size_containment,
     inline_size_containment,
     layout_containment,
@@ -2561,6 +2563,8 @@ impl BoxValues {
                 value: ComputedStyleValueHandle::empty(),
             },
             aspect_ratio: ComputedAspectRatio::auto(),
+            contain_intrinsic_width: ComputedContainIntrinsicSize::none(),
+            contain_intrinsic_height: ComputedContainIntrinsicSize::none(),
             size_containment: false,
             inline_size_containment: false,
             layout_containment: false,

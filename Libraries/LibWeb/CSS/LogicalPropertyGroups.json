@@ -55,6 +55,16 @@
       "inline-start": "border-inline-start-width"
     }
   },
+  "contain-intrinsic-size": {
+    "physical": {
+      "width": "contain-intrinsic-width",
+      "height": "contain-intrinsic-height"
+    },
+    "logical": {
+      "block-size": "contain-intrinsic-block-size",
+      "inline-size": "contain-intrinsic-inline-size"
+    }
+  },
   "corner-shape": {
     "physical": {
       "top-left": "corner-top-left-shape",

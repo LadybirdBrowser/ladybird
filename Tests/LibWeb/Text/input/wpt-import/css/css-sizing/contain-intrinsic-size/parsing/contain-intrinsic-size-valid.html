@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Intrinsic Size Test: intrinsic-size with valid values</title>
+<link rel="author" title="Vladimir Levin" href="mailto:vmpstr@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override">
+<meta name="assert" content="contain-intrinsic-size supports the full grammar '[none | <length>]{1,2}'.">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("contain-intrinsic-size", "none");
+test_valid_value("contain-intrinsic-size", "1px");
+test_valid_value("contain-intrinsic-size", "2em 3px");
+test_valid_value("contain-intrinsic-size", "5px 5px", "5px");
+test_valid_value("contain-intrinsic-size", "none none", "none");
+test_valid_value("contain-intrinsic-size", "1px none");
+test_valid_value("contain-intrinsic-size", "none 1px");
+test_valid_value("contain-intrinsic-size", "auto 1px 1px");
+test_valid_value("contain-intrinsic-size", "1px auto 1px");
+test_valid_value("contain-intrinsic-size", "auto 1px auto 1px", "auto 1px");
+
+test_valid_value("contain-intrinsic-width", "none");
+test_valid_value("contain-intrinsic-width", "1px");
+test_valid_value("contain-intrinsic-width", "2em");
+test_valid_value("contain-intrinsic-width", "auto 1px");
+
+test_valid_value("contain-intrinsic-height", "none");
+test_valid_value("contain-intrinsic-height", "1px");
+test_valid_value("contain-intrinsic-height", "2em");
+test_valid_value("contain-intrinsic-height", "auto 1px");
+
+test_valid_value("contain-intrinsic-inline-size", "none");
+test_valid_value("contain-intrinsic-inline-size", "1px");
+test_valid_value("contain-intrinsic-inline-size", "2em");
+test_valid_value("contain-intrinsic-inline-size", "auto 1px");
+
+test_valid_value("contain-intrinsic-block-size", "none");
+test_valid_value("contain-intrinsic-block-size", "1px");
+test_valid_value("contain-intrinsic-block-size", "2em");
+test_valid_value("contain-intrinsic-block-size", "auto 1px");
+
+test_valid_value("contain-intrinsic-block-size", "auto none");
+</script>
+</body>
+</html>
+

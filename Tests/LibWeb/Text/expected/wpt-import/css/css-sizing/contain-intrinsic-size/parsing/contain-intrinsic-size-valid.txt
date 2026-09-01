@@ -1,0 +1,32 @@
+Harness status: OK
+
+Found 27 tests
+
+27 Pass
+Pass	e.style['contain-intrinsic-size'] = "none" should set the property value
+Pass	e.style['contain-intrinsic-size'] = "1px" should set the property value
+Pass	e.style['contain-intrinsic-size'] = "2em 3px" should set the property value
+Pass	e.style['contain-intrinsic-size'] = "5px 5px" should set the property value
+Pass	e.style['contain-intrinsic-size'] = "none none" should set the property value
+Pass	e.style['contain-intrinsic-size'] = "1px none" should set the property value
+Pass	e.style['contain-intrinsic-size'] = "none 1px" should set the property value
+Pass	e.style['contain-intrinsic-size'] = "auto 1px 1px" should set the property value
+Pass	e.style['contain-intrinsic-size'] = "1px auto 1px" should set the property value
+Pass	e.style['contain-intrinsic-size'] = "auto 1px auto 1px" should set the property value
+Pass	e.style['contain-intrinsic-width'] = "none" should set the property value
+Pass	e.style['contain-intrinsic-width'] = "1px" should set the property value
+Pass	e.style['contain-intrinsic-width'] = "2em" should set the property value
+Pass	e.style['contain-intrinsic-width'] = "auto 1px" should set the property value
+Pass	e.style['contain-intrinsic-height'] = "none" should set the property value
+Pass	e.style['contain-intrinsic-height'] = "1px" should set the property value
+Pass	e.style['contain-intrinsic-height'] = "2em" should set the property value
+Pass	e.style['contain-intrinsic-height'] = "auto 1px" should set the property value
+Pass	e.style['contain-intrinsic-inline-size'] = "none" should set the property value
+Pass	e.style['contain-intrinsic-inline-size'] = "1px" should set the property value
+Pass	e.style['contain-intrinsic-inline-size'] = "2em" should set the property value
+Pass	e.style['contain-intrinsic-inline-size'] = "auto 1px" should set the property value
+Pass	e.style['contain-intrinsic-block-size'] = "none" should set the property value
+Pass	e.style['contain-intrinsic-block-size'] = "1px" should set the property value
+Pass	e.style['contain-intrinsic-block-size'] = "2em" should set the property value
+Pass	e.style['contain-intrinsic-block-size'] = "auto 1px" should set the property value
+Pass	e.style['contain-intrinsic-block-size'] = "auto none" should set the property value

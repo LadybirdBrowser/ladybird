@@ -453,7 +453,8 @@ static void register_style_group_field_descriptors()
              PropertyID::OverflowX, PropertyID::OverflowY, PropertyID::BoxSizing, PropertyID::Resize,
              PropertyID::TextOverflow, PropertyID::UnicodeBidi, PropertyID::TableLayout, PropertyID::GridAutoFlow,
              PropertyID::ColumnWidth, PropertyID::ColumnCount, PropertyID::ZIndex, PropertyID::VerticalAlign,
-             PropertyID::AspectRatio, PropertyID::Contain, PropertyID::ContainerType, PropertyID::ContainerName })
+             PropertyID::AspectRatio, PropertyID::ContainIntrinsicWidth, PropertyID::ContainIntrinsicHeight,
+             PropertyID::Contain, PropertyID::ContainerType, PropertyID::ContainerName })
         bind_property_to_group(property, to_underlying(StyleGroupIndex::BoxValues));
     // The font group builds in C++; only bindings verified against its setters are made.
     for (auto property : { PropertyID::FontSize, PropertyID::FontWeight, PropertyID::FontWidth, PropertyID::LineHeight })

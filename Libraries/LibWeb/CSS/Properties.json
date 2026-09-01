@@ -1703,6 +1703,46 @@
       "contain"
     ]
   },
+  "contain-intrinsic-block-size": {
+    "logical-alias-for": {
+      "group": "contain-intrinsic-size",
+      "mapping": "block-size"
+    },
+    "initial": "none",
+    "max-values": 1
+  },
+  "contain-intrinsic-height": {
+    "style-group": "BoxValues",
+    "affects-layout": true,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "none",
+    "requires-computation": "cascaded-value"
+  },
+  "contain-intrinsic-inline-size": {
+    "logical-alias-for": {
+      "group": "contain-intrinsic-size",
+      "mapping": "inline-size"
+    },
+    "initial": "none",
+    "max-values": 1
+  },
+  "contain-intrinsic-size": {
+    "initial": "none",
+    "longhands": [
+      "contain-intrinsic-width",
+      "contain-intrinsic-height"
+    ],
+    "positional-value-list-shorthand": true
+  },
+  "contain-intrinsic-width": {
+    "style-group": "BoxValues",
+    "affects-layout": true,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "none",
+    "requires-computation": "cascaded-value"
+  },
   "container": {
     "initial": "none",
     "longhands": [

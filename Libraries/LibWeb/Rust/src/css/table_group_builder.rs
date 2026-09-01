@@ -2892,7 +2892,9 @@ unsafe fn build_box_group(
     display_before_transformation_raw: u32,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    use crate::css::computed_value_types::{BoxValues, ComputedAspectRatio, ComputedVerticalAlign};
+    use crate::css::computed_value_types::{
+        BoxValues, ComputedAspectRatio, ComputedContainIntrinsicSize, ComputedVerticalAlign,
+    };
     use crate::css::css_enums::{
         keyword_to_box_sizing, keyword_to_clear, keyword_to_float, keyword_to_overflow, keyword_to_positioning,
         keyword_to_resize, keyword_to_table_layout, keyword_to_text_overflow, keyword_to_unicode_bidi,
@@ -2956,6 +2958,46 @@ unsafe fn build_box_group(
         computed_ratio_numerator: 0.0,
         computed_ratio_denominator: 0.0,
     };
+    // https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override
+    let contain_intrinsic_size_for = |property: u16| -> ComputedContainIntrinsicSize {
+        let none = ComputedContainIntrinsicSize {
+            has_auto: false,
+            has_length: false,
+            length_px: 0.0,
+        };
+        match values.value(property) {
+            Some(StyleValueData::ValueList { values: list, .. }) => {
+                let items = list.as_slice();
+                if items.len() != 2 {
+                    return none;
+                }
+                match items[1].data() {
+                    StyleValueData::Keyword { keyword: code } if *code == keyword::NONE => {
+                        ComputedContainIntrinsicSize {
+                            has_auto: true,
+                            has_length: false,
+                            length_px: 0.0,
+                        }
+                    }
+                    data => ComputedContainIntrinsicSize {
+                        has_auto: true,
+                        has_length: true,
+                        length_px: length_to_px_unrounded(data),
+                    },
+                }
+            }
+            Some(StyleValueData::Keyword { keyword: code }) if *code == keyword::NONE => none,
+            Some(data) => ComputedContainIntrinsicSize {
+                has_auto: false,
+                has_length: true,
+                length_px: length_to_px_unrounded(data),
+            },
+            None => none,
+        }
+    };
+    let contain_intrinsic_width = contain_intrinsic_size_for(property_id::CONTAIN_INTRINSIC_WIDTH);
+    let contain_intrinsic_height = contain_intrinsic_size_for(property_id::CONTAIN_INTRINSIC_HEIGHT);
+
     let aspect_ratio = match values.value(property_id::ASPECT_RATIO) {
         Some(StyleValueData::ValueList { values: list, .. }) => {
             let items = list.as_slice();
@@ -3091,6 +3133,8 @@ unsafe fn build_box_group(
         z_index: z_index.unwrap_or(0),
         vertical_align,
         aspect_ratio,
+        contain_intrinsic_width,
+        contain_intrinsic_height,
         size_containment,
         inline_size_containment,
         layout_containment,

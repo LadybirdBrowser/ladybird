@@ -142,6 +142,26 @@ pub struct ComputedAspectRatio {
     pub computed_ratio_denominator: f64,
 }
 
+/// A computed contain-intrinsic-width or contain-intrinsic-height: auto? [ none | <length [0,∞]> ]. A false has_length
+/// means none.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ComputedContainIntrinsicSize {
+    pub has_auto: bool,
+    pub has_length: bool,
+    pub length_px: f64,
+}
+
+impl ComputedContainIntrinsicSize {
+    pub fn none() -> Self {
+        Self {
+            has_auto: false,
+            has_length: false,
+            length_px: 0.0,
+        }
+    }
+}
+
 /// Layout of the computed box-level properties.
 #[repr(C)]
 pub struct BoxValues {
@@ -166,6 +186,8 @@ pub struct BoxValues {
     pub z_index: i32,
     pub vertical_align: ComputedVerticalAlign,
     pub aspect_ratio: ComputedAspectRatio,
+    pub contain_intrinsic_width: ComputedContainIntrinsicSize,
+    pub contain_intrinsic_height: ComputedContainIntrinsicSize,
     pub size_containment: bool,
     pub inline_size_containment: bool,
     pub layout_containment: bool,
