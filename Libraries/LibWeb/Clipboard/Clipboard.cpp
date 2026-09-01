@@ -197,7 +197,7 @@ static bool check_clipboard_write_permission(JS::Realm& realm)
     return false;
 }
 
-// https://w3c.github.io/clipboard-apis/#dom-clipboard-readtext
+// https://w3c.github.io/clipboard-apis/#dom-clipboard-read
 void Clipboard::read(JS::Realm& realm, ClipboardReadOptions formats, GC::Ref<WebIDL::Promise> promise)
 {
     // 3. If formats is not empty, then:

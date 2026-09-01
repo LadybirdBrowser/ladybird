@@ -1782,7 +1782,7 @@ EventResult EventHandler::perform_cut_action()
     return EventResult::Handled;
 }
 
-// https://w3c.github.io/clipboard-apis/#the-paste-action
+// https://w3c.github.io/clipboard-apis/#paste-action
 EventResult EventHandler::perform_paste_action()
 {
     auto document = m_navigable->active_document();
@@ -1820,7 +1820,7 @@ EventResult EventHandler::perform_paste_action()
     return EventResult::Handled;
 }
 
-// https://w3c.github.io/clipboard-apis/#the-paste-action
+// https://w3c.github.io/clipboard-apis/#paste-action
 // This is the paste action from the point where the content to paste is already in hand, either because async retrieval
 // of the system clipboard's contents above finished, or because the paste arrived through LocalNavigable::paste() —
 // which the UI process hands the content to paste directly.
