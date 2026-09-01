@@ -272,8 +272,6 @@ public:
     bool has_style() const { return has_flag(RustFFI::NodeFlag::HasStyle); }
     bool has_style_or_parent_with_style() const;
 
-    bool is_inline() const;
-
     bool is_atomic_inline() const;
     bool is_fragmented_inline() const;
     NodeWithStyle const* nearest_fragmented_inline_ancestor() const;
@@ -526,6 +524,7 @@ public:
     ReadonlySpan<RefPtr<CSS::CursorStyleValue const>> cursor_style_values() const { return m_cursor_style_values; }
     CSS::PointerEvents pointer_events() const { return style_group<CSS::ComputedValues::InheritedUIValues>().pointer_events_value(); }
     CSS::Appearance appearance() const { return static_cast<CSS::Appearance>(style_group<CSS::ComputedValues::MiscResetValues>().appearance); }
+    CSS::WillChange will_change() const { return style_group<CSS::ComputedValues::MiscResetValues>().will_change_value(); }
     CSS::LengthBox scroll_margin() const { return length_box(style_group<CSS::ComputedValues::MiscResetValues>().scroll_margin); }
     CSS::LengthBox scroll_padding() const { return length_box(style_group<CSS::ComputedValues::MiscResetValues>().scroll_padding); }
     CSS::ScrollSnapAlignData scroll_snap_align() const { return style_group<CSS::ComputedValues::MiscResetValues>().scroll_snap_align_value(); }
@@ -533,7 +532,6 @@ public:
     CSS::ScrollSnapType scroll_snap_type() const { return style_group<CSS::ComputedValues::MiscResetValues>().scroll_snap_type_value(); }
     CSS::ScrollbarWidth scrollbar_width() const { return static_cast<CSS::ScrollbarWidth>(style_group<CSS::ComputedValues::MiscResetValues>().scrollbar_width); }
     CSS::UserSelect user_select() const { return static_cast<CSS::UserSelect>(style_group<CSS::ComputedValues::MiscResetValues>().user_select); }
-    CSS::WillChange will_change() const { return style_group<CSS::ComputedValues::MiscResetValues>().will_change_value(); }
     Optional<Utf16FlyString> view_transition_name() const { return style_group<CSS::ComputedValues::MiscResetValues>().view_transition_name_value(); }
     Color outline_color() const { return Color::from_bgra(style_group<CSS::ComputedValues::MiscResetValues>().outline_color); }
     CSSPixels outline_offset() const { return style_group<CSS::ComputedValues::MiscResetValues>().outline_offset; }
@@ -646,11 +644,7 @@ public:
     CSS::TextAnchor text_anchor() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().text_anchor_value(); }
     bool is_inline_block() const;
     bool is_inline_table() const;
-    bool is_transformable() const;
     Gfx::AffineTransform used_svg_element_transform() const;
-    CSS::TransformStyle used_transform_style() const;
-    bool establishes_or_extends_a_3d_rendering_context() const;
-    bool participates_in_a_3d_rendering_context() const;
 
     bool is_floating() const;
     bool is_positioned() const;
@@ -662,21 +656,14 @@ public:
     // https://www.w3.org/TR/CSS22/visuren.html#positioning-scheme
     bool is_out_of_flow() const { return is_floating() || is_absolutely_positioned(); }
 
-    bool style_establishes_absolute_positioning_containing_block() const;
     bool establishes_an_absolute_positioning_containing_block() const;
     bool establishes_a_fixed_positioning_containing_block() const;
 
     // https://drafts.csswg.org/css-contain-2/#containment-types
     bool has_size_containment() const;
-    bool has_layout_containment() const;
     bool has_style_containment() const;
-    bool has_paint_containment() const;
 
-    [[nodiscard]] bool has_css_transform() const
-    {
-        auto has_transform = has_transformations() || has_rotate() || has_translate() || has_scale();
-        return has_transform && is_transformable();
-    }
+    [[nodiscard]] bool has_css_transform() const;
 
     void clear_image_observers();
     void apply_style(CSS::StyleRecordID);

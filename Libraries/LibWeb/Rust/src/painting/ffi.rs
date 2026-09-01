@@ -282,6 +282,48 @@ pub unsafe extern "C" fn layout_arena_clear_chrome_state_callback(arena: *mut c_
 
 /// # Safety
 ///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_node_establishes_an_absolute_positioning_containing_block(
+    arena: *mut c_void,
+    node: NodeSlotId,
+) -> bool {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        crate::painting::style_queries::establishes_positioning_containing_blocks(arena, node).0
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_node_establishes_a_fixed_positioning_containing_block(
+    arena: *mut c_void,
+    node: NodeSlotId,
+) -> bool {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        crate::painting::style_queries::establishes_positioning_containing_blocks(arena, node).1
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_node_has_css_transform(arena: *mut c_void, node: NodeSlotId) -> bool {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let Some(style) = arena.node_style_if_live(node) else {
+            return false;
+        };
+        crate::painting::style_queries::has_css_transform(arena, node, style)
+    })
+}
+
+/// # Safety
+///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
 /// `node` must name a live node in this arena.
 #[unsafe(no_mangle)]
