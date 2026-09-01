@@ -140,7 +140,6 @@ pub enum NodeFlag {
     ChildrenAreInline = 1 << 2,
     IsFlexItem = 1 << 3,
     IsGridItem = 1 << 4,
-    HasBeenWrappedInTableWrapper = 1 << 5,
     IsBody = 1 << 6,
     NeedsLayoutUpdate = 1 << 7,
     NeedsOwnGeometryUpdate = 1 << 8,

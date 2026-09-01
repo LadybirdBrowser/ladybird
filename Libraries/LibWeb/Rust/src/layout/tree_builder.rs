@@ -3656,8 +3656,6 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
             let wrapper_slot = wrapper.slot();
             host.move_child(table_root, wrapper_slot, NodeSlotId::INVALID);
             host.attach_child(parent, wrapper, nearest_sibling);
-            host.arena()
-                .set_node_flag(table_root, NodeFlag::HasBeenWrappedInTableWrapper, true);
         }
     }
     table_roots_to_wrap
