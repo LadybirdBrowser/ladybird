@@ -56,6 +56,8 @@ public:
     u64 visual_context_tree_structural_epoch();
     GC::Ref<JS::Object> visual_context_node_indices(DOM::Element&);
     void send_mismatched_visual_context_tree_update_to_compositor();
+    u64 layout_tree_pre_order_label_violation_count();
+    u64 layout_tree_pre_order_relabel_count();
     WebIDL::ExceptionOr<void> load_reference_test_metadata();
 
     WebIDL::ExceptionOr<Utf16String> set_time_zone(Utf16String const& time_zone);

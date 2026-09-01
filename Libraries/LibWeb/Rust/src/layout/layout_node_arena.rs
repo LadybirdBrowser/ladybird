@@ -424,10 +424,14 @@ pub(crate) struct FreedSlot {
     pub(crate) detached_children: DetachedShells,
 }
 
+const MAXIMUM_PRE_ORDER_LABEL_STRIDE: u64 = 1 << 32;
+
 pub(crate) struct LayoutNodeArena {
     chunks: Vec<Box<Chunk>>,
     chunks_by_address: Vec<ChunkAddress>,
     slot_metadata: Vec<SlotMetadata>,
+    pre_order_labels: Vec<Cell<u64>>,
+    pre_order_relabel_count: Cell<u64>,
     free_list: Vec<u32>,
     next_index: u32,
     live_count: u32,
@@ -454,6 +458,8 @@ impl LayoutNodeArena {
             chunks: Vec::new(),
             chunks_by_address: Vec::new(),
             slot_metadata: Vec::new(),
+            pre_order_labels: Vec::new(),
+            pre_order_relabel_count: Cell::new(0),
             free_list: Vec::new(),
             next_index: 0,
             live_count: 0,
@@ -549,6 +555,7 @@ impl LayoutNodeArena {
                 self.chunks.push(chunk);
             }
             self.slot_metadata.push(SlotMetadata::default());
+            self.pre_order_labels.push(Cell::new(0));
             // Grown with the slot space up front: nearly every slot gets a run
             // record each layout pass, so register() never has to resize.
             self.run_used_records.get_mut().push(RunRecordSlot::default());
@@ -608,6 +615,7 @@ impl LayoutNodeArena {
         if let Some(reset) = paintable_row_reset {
             self.paintable_row_freed(reset);
         }
+        self.pre_order_labels[index as usize].set(0);
         self.metadata_mut(index).occupied = false;
 
         if let Some(slot) = self.intrinsic_size_caches.get_mut().get_mut(index as usize) {
@@ -725,17 +733,18 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn reset_layout_update_flags_in_subtree(&self, root: NodeSlotId) {
-        self.assert_owner_thread();
-        let flags_to_clear = NodeFlag::NeedsLayoutUpdate as u32 | NodeFlag::NeedsOwnGeometryUpdate as u32;
+    pub(crate) fn for_each_node_in_layout_subtree_in_pre_order(
+        &self,
+        root: NodeSlotId,
+        mut callback: impl FnMut(NodeSlotId),
+    ) {
         let mut current = root;
         loop {
+            callback(current);
             let data = self.data(current);
-            // SAFETY: data() validated that current names a live slot, and layout tree mutation
-            // is serialized on the arena's owner thread.
+            // SAFETY: data() validated that current names a live slot, and the topology is
+            // stable during this call.
             let (parent, first_child, next_sibling) = unsafe {
-                let flags = &raw mut (*data).flags;
-                flags.write(flags.read() & !flags_to_clear);
                 (
                     (&raw const (*data).parent).read(),
                     (&raw const (*data).first_child).read(),
@@ -771,6 +780,20 @@ impl LayoutNodeArena {
                 break;
             }
         }
+    }
+
+    pub(crate) fn reset_layout_update_flags_in_subtree(&self, root: NodeSlotId) {
+        self.assert_owner_thread();
+        let flags_to_clear = NodeFlag::NeedsLayoutUpdate as u32 | NodeFlag::NeedsOwnGeometryUpdate as u32;
+        self.for_each_node_in_layout_subtree_in_pre_order(root, |node| {
+            let data = self.data(node);
+            // SAFETY: data() validated that node names a live slot, and layout tree mutation
+            // is serialized on the arena's owner thread.
+            unsafe {
+                let flags = &raw mut (*data).flags;
+                flags.write(flags.read() & !flags_to_clear);
+            }
+        });
     }
 
     fn node_is_capable_of_forming_a_containing_block(&self, id: NodeSlotId) -> bool {
@@ -916,50 +939,10 @@ impl LayoutNodeArena {
         inline_cb_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
     ) {
         self.assert_owner_thread();
-        let mut current = root;
-        loop {
-            self.recompute_containing_block_for_node(current, inline_cb_lookup);
-            self.derive_abspos_escape_flags_for_node(current);
-
-            let data = self.data(current);
-            // SAFETY: data() validated that current names a live slot, and the
-            // topology is stable during this call.
-            let (parent, first_child, next_sibling) = unsafe {
-                (
-                    (&raw const (*data).parent).read(),
-                    (&raw const (*data).first_child).read(),
-                    (&raw const (*data).next_sibling).read(),
-                )
-            };
-
-            if !first_child.is_invalid() {
-                current = first_child;
-                continue;
-            }
-            if current == root {
-                break;
-            }
-            if !next_sibling.is_invalid() {
-                current = next_sibling;
-                continue;
-            }
-
-            current = parent;
-            while current != root {
-                // SAFETY: Parent links from a live subtree node name live slots in the same tree.
-                let data = self.data(current);
-                let next_sibling = unsafe { (&raw const (*data).next_sibling).read() };
-                if !next_sibling.is_invalid() {
-                    current = next_sibling;
-                    break;
-                }
-                // SAFETY: data() validated current and the topology is stable during this call.
-                current = unsafe { (&raw const (*data).parent).read() };
-            }
-            if current == root {
-                break;
-            }
-        }
+        self.for_each_node_in_layout_subtree_in_pre_order(root, |node| {
+            self.recompute_containing_block_for_node(node, inline_cb_lookup);
+            self.derive_abspos_escape_flags_for_node(node);
+        });
     }
 
     fn slot_for_data(&self, data: *const NodeData) -> (u32, SlotMetadata) {
@@ -997,63 +980,172 @@ impl LayoutNodeArena {
         (index, metadata)
     }
 
+    pub(crate) fn node_pre_order_label(&self, id: NodeSlotId) -> u64 {
+        let _ = self.data(id);
+        self.pre_order_labels[id.slot_index() as usize].get()
+    }
+
+    fn set_node_pre_order_label(&self, id: NodeSlotId, label: u64) {
+        self.pre_order_labels[id.slot_index() as usize].set(label);
+    }
+
+    pub(crate) fn pre_order_relabel_count(&self) -> u64 {
+        self.pre_order_relabel_count.get()
+    }
+
+    pub(crate) fn count_nodes_in_layout_subtree(&self, root: NodeSlotId) -> u64 {
+        let mut count = 0u64;
+        self.for_each_node_in_layout_subtree_in_pre_order(root, |_| count += 1);
+        count
+    }
+
+    fn last_descendant_in_pre_order(&self, node: NodeSlotId) -> NodeSlotId {
+        let mut current = node;
+        loop {
+            // SAFETY: data() validated that current names a live slot, and child links only
+            // name live slots.
+            let last_child = unsafe { (&raw const (*self.data(current)).last_child).read() };
+            if last_child.is_invalid() {
+                return current;
+            }
+            current = last_child;
+        }
+    }
+
+    fn pre_order_label_of_subtree_successor(&self, node: NodeSlotId) -> u64 {
+        let mut current = node;
+        loop {
+            let data = self.data(current);
+            // SAFETY: data() validated that current names a live slot, and the topology links
+            // only name live slots.
+            let (parent, next_sibling) = unsafe {
+                (
+                    (&raw const (*data).parent).read(),
+                    (&raw const (*data).next_sibling).read(),
+                )
+            };
+            if !next_sibling.is_invalid() {
+                return self.node_pre_order_label(next_sibling);
+            }
+            if parent.is_invalid() {
+                return u64::MAX;
+            }
+            current = parent;
+        }
+    }
+
+    fn assign_pre_order_labels_to_inserted_subtree(&self, parent: NodeSlotId, child: NodeSlotId) {
+        let child_data = self.data(child);
+        // SAFETY: data() validated that child names a live slot, and insert_child wrote its
+        // sibling links before this call.
+        let (previous_sibling, next_sibling) = unsafe {
+            (
+                (&raw const (*child_data).previous_sibling).read(),
+                (&raw const (*child_data).next_sibling).read(),
+            )
+        };
+        let lower = if previous_sibling.is_invalid() {
+            self.node_pre_order_label(parent)
+        } else {
+            self.node_pre_order_label(self.last_descendant_in_pre_order(previous_sibling))
+        };
+        let upper = if next_sibling.is_invalid() {
+            self.pre_order_label_of_subtree_successor(parent)
+        } else {
+            self.node_pre_order_label(next_sibling)
+        };
+        debug_assert!(lower < upper, "pre-order labels lost their strict order");
+        let inserted_node_count = self.count_nodes_in_layout_subtree(child);
+        let stride = ((upper - lower) / (inserted_node_count + 1)).min(MAXIMUM_PRE_ORDER_LABEL_STRIDE);
+        if stride >= 2 {
+            // Placement is biased toward the insertion direction, so a one-directional hot
+            // spot consumes the gap linearly instead of halving it.
+            let mut position_in_subtree = 0u64;
+            self.for_each_node_in_layout_subtree_in_pre_order(child, |node| {
+                position_in_subtree += 1;
+                let label = if next_sibling.is_invalid() {
+                    lower + stride * position_in_subtree
+                } else {
+                    upper - stride * (inserted_node_count + 1 - position_in_subtree)
+                };
+                self.set_node_pre_order_label(node, label);
+            });
+            debug_assert!(lower < self.node_pre_order_label(child));
+            debug_assert!(self.node_pre_order_label(self.last_descendant_in_pre_order(child)) < upper);
+            return;
+        }
+        let mut ancestor = parent;
+        loop {
+            // SAFETY: data() validated that ancestor names a live slot, and parent links only
+            // name live slots.
+            let ancestor_parent = unsafe { (&raw const (*self.data(ancestor)).parent).read() };
+            if ancestor_parent.is_invalid() {
+                self.set_node_pre_order_label(ancestor, 0);
+                let spread_succeeded = self.spread_pre_order_labels_evenly_over_descendants(ancestor, 0, u64::MAX);
+                assert!(spread_succeeded, "pre-order label space exhausted");
+                return;
+            }
+            let ancestor_lower = self.node_pre_order_label(ancestor);
+            let ancestor_upper = self.pre_order_label_of_subtree_successor(ancestor);
+            if self.spread_pre_order_labels_evenly_over_descendants(ancestor, ancestor_lower, ancestor_upper) {
+                return;
+            }
+            ancestor = ancestor_parent;
+        }
+    }
+
+    fn spread_pre_order_labels_evenly_over_descendants(
+        &self,
+        subtree_root: NodeSlotId,
+        lower: u64,
+        upper: u64,
+    ) -> bool {
+        let descendant_count = self.count_nodes_in_layout_subtree(subtree_root) - 1;
+        if descendant_count == 0 {
+            return true;
+        }
+        let step = (upper - lower) / (descendant_count + 1);
+        if step < 2 {
+            return false;
+        }
+        let mut position_in_subtree = 0u64;
+        self.for_each_node_in_layout_subtree_in_pre_order(subtree_root, |node| {
+            if node == subtree_root {
+                return;
+            }
+            position_in_subtree += 1;
+            self.set_node_pre_order_label(node, lower + step * position_in_subtree);
+        });
+        self.pre_order_relabel_count.set(self.pre_order_relabel_count.get() + 1);
+        true
+    }
+
+    #[cfg(debug_assertions)]
+    fn nodes_share_a_layout_tree_root(&self, node: NodeSlotId, other: NodeSlotId) -> bool {
+        let root_of = |mut slot: NodeSlotId| loop {
+            // SAFETY: data() validates the live generation, and parent links only name live
+            // slots in this arena.
+            let parent = unsafe { (&raw const (*self.data(slot)).parent).read() };
+            if parent.is_invalid() {
+                return slot;
+            }
+            slot = parent;
+        };
+        root_of(node) == root_of(other)
+    }
+
     pub(crate) fn is_before(&self, node: &NodeData, other: &NodeData) -> bool {
         let (node_index, node_metadata) = self.slot_for_data(std::ptr::from_ref(node));
         let (other_index, other_metadata) = self.slot_for_data(std::ptr::from_ref(other));
-        let mut node = NodeSlotId::new(node_index, node_metadata.generation);
-        let mut other = NodeSlotId::new(other_index, other_metadata.generation);
+        let node = NodeSlotId::new(node_index, node_metadata.generation);
+        let other = NodeSlotId::new(other_index, other_metadata.generation);
         assert_ne!(node, other, "a layout node cannot precede itself");
-
-        let depth = |mut slot: NodeSlotId| {
-            let mut depth = 0usize;
-            while !slot.is_invalid() {
-                depth += 1;
-                // SAFETY: data() validates the live generation, and the
-                // topology links name slots in this arena.
-                slot = unsafe { (*self.data(slot)).parent };
-            }
-            depth
-        };
-        let node_depth = depth(node);
-        let other_depth = depth(other);
-
-        for _ in other_depth..node_depth {
-            // SAFETY: node is a validated live arena slot.
-            node = unsafe { (*self.data(node)).parent };
-        }
-        for _ in node_depth..other_depth {
-            // SAFETY: other is a validated live arena slot.
-            other = unsafe { (*self.data(other)).parent };
-        }
-        if node == other {
-            return node_depth < other_depth;
-        }
-
-        loop {
-            // SAFETY: Both slots are live and have equal depth.
-            let node_parent = unsafe { (*self.data(node)).parent };
-            // SAFETY: Both slots are live and have equal depth.
-            let other_parent = unsafe { (*self.data(other)).parent };
-            assert_eq!(
-                node_parent.is_invalid(),
-                other_parent.is_invalid(),
-                "layout nodes belong to different trees"
-            );
-            if node_parent == other_parent {
-                break;
-            }
-            node = node_parent;
-            other = other_parent;
-        }
-
-        while !other.is_invalid() {
-            if node == other {
-                return true;
-            }
-            // SAFETY: other is a validated live arena slot.
-            other = unsafe { (*self.data(other)).previous_sibling };
-        }
-        false
+        #[cfg(debug_assertions)]
+        debug_assert!(
+            self.nodes_share_a_layout_tree_root(node, other),
+            "layout nodes belong to different trees"
+        );
+        self.node_pre_order_label(node) < self.node_pre_order_label(other)
     }
 
     pub(crate) fn intrinsic_block_size_cache_get(
@@ -1691,6 +1783,7 @@ impl LayoutNodeArena {
             }
         }
 
+        self.assign_pre_order_labels_to_inserted_subtree(parent, child);
         self.note_structural_change_at_and_above(parent);
     }
 
@@ -2032,6 +2125,45 @@ pub unsafe extern "C" fn layout_arena_intrinsic_measurement_count(arena: *mut c_
         // SAFETY: The C++ wrapper keeps the arena alive for this call and
         // serializes all access on the document thread.
         unsafe { &*arena.cast::<LayoutNodeArena>() }.intrinsic_measurement_count()
+    })
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_pre_order_label_violation_count(arena: *mut c_void, root: NodeSlotId) -> u64 {
+    abort_on_panic(|| {
+        assert!(!arena.is_null(), "layout node arena handle is null");
+        // SAFETY: The C++ wrapper keeps the arena alive for this call and
+        // serializes all access on the document thread.
+        let arena = unsafe { &*arena.cast::<LayoutNodeArena>() };
+        if arena.shell_if_live(root).is_null() {
+            return 0;
+        }
+        let mut violation_count = 0u64;
+        let mut previous_label: Option<u64> = None;
+        arena.for_each_node_in_layout_subtree_in_pre_order(root, |node| {
+            let label = arena.node_pre_order_label(node);
+            if previous_label.is_some_and(|previous| label <= previous) {
+                violation_count += 1;
+            }
+            previous_label = Some(label);
+        });
+        violation_count
+    })
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_pre_order_relabel_count(arena: *mut c_void) -> u64 {
+    abort_on_panic(|| {
+        assert!(!arena.is_null(), "layout node arena handle is null");
+        // SAFETY: The C++ wrapper keeps the arena alive for this call and
+        // serializes all access on the document thread.
+        unsafe { &*arena.cast::<LayoutNodeArena>() }.pre_order_relabel_count()
     })
 }
 
