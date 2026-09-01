@@ -246,22 +246,7 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
             padding: committed_padding(self.layout_arena, self.slot),
             border: committed_border(self.layout_arena, self.slot),
         };
-        let some_layer_blends = layers
-            .iter()
-            .any(|layer| layer.may_be_painted && layer.blend_mode != CompositingAndBlendingOperator::Normal);
-        if !some_layer_blends {
-            self.append_background_layer_chain(piece, parent, boxes, is_root_element, layers, false);
-            return;
-        }
-        let isolation = self.append(
-            parent,
-            FrameData::layer_blending_with(CompositingAndBlendingOperator::Normal),
-            FrameRole::BackgroundIsolation { piece },
-        );
-        self.append_background_layer_chain(piece, isolation, boxes, is_root_element, layers, true);
-        if layers.iter().filter(|layer| layer.may_be_painted).count() == 1 {
-            self.append_background_layer_chain(piece, parent, boxes, is_root_element, layers, false);
-        }
+        self.append_background_layer_chain(piece, parent, boxes, is_root_element, layers, false);
     }
 
     fn append_background_layer_chain(

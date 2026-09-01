@@ -13,7 +13,7 @@ use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::builder::PendingInlineClip;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::display_list::commands::{
-    DisplayListResourceId, ImageFrameResourceId, OptionalAffineTransform, Repeat,
+    DisplayListResourceId, ImageFrameResourceId, NO_MASK_DISPLAY_LIST, OptionalAffineTransform, Repeat,
 };
 use crate::painting::display_list::recorder::{DisplayListRecorder, FillPathParams, PaintStyle, PaintStyleOrColor};
 use crate::painting::host::{FfiImagePaintFacts, FfiLayerImagePrepareFacts};
@@ -27,8 +27,8 @@ use crate::painting::record::paint::background_resolution::{
 use crate::painting::record::paint::gradient_resolution::{gradient_paint_value, record_gradient_fill};
 use crate::painting::visual_context::{FrameRole, PieceKey, VisualContextTree};
 use libgfx_rust::{
-    CompositingAndBlendingOperator, FloatRect, IntPoint, IntRect, IntSize, ScalingMode, ShouldAntiAlias, WindingRule,
-    enclosing_int_rect,
+    CompositingAndBlendingOperator, FloatRect, IntPoint, IntRect, IntSize, MaskKind, ScalingMode, ShouldAntiAlias,
+    WindingRule, enclosing_int_rect,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -135,16 +135,47 @@ pub(crate) fn paint_resolved_background(
 
     // https://drafts.csswg.org/css-backgrounds-4/#valdef-background-clip-text
     let needs_text_clip = resolved.needs_text_clip && !inputs.is_root_element;
-    let layers_context = if backdrop.is_isolated_group() {
-        Some(recorder.expected_local_context(paintable, FrameRole::BackgroundIsolation { piece }))
-    } else if needs_text_clip {
-        Some(recorder.expected_local_context(paintable, FrameRole::BackgroundTextContentLayer { piece }))
-    } else {
-        None
-    };
-    recorder.with_optional_context(layers_context, |recorder| {
+    let layers_context = needs_text_clip
+        .then(|| recorder.expected_local_context(paintable, FrameRole::BackgroundTextContentLayer { piece }));
+    if backdrop.is_isolated_group() {
+        // https://drafts.fxtf.org/compositing/#background-blend-mode
+        // The layers render into an isolated group, so they are recorded into a nested display
+        // list that one command plays inside its own saveLayer.
+        let group_device_rect = converter
+            .rounded_device_rect(background_rect)
+            .united(converter.enclosing_device_rect(color_box.rect));
+        let outer_recorder = std::mem::replace(&mut recorder.recorder, DisplayListRecorder::new());
+        let recording_into_enclosing_nested_list =
+            std::mem::replace(&mut recorder.recording_into_context_free_nested_list, true);
         paint_background_layers(recorder, paintable, piece, inputs, backdrop);
-    });
+        recorder.recording_into_context_free_nested_list = recording_into_enclosing_nested_list;
+        let group_recorder = std::mem::replace(&mut recorder.recorder, outer_recorder);
+        let group = group_recorder.into_builder().finish();
+        let group_tree = VisualContextTree::create_with_content_offset(IntPoint {
+            x: -group_device_rect.x,
+            y: -group_device_rect.y,
+        });
+        let group_display_list_id = recorder
+            .paint_host
+            .nested_display_list_from_tree(&group, group_tree, &[]);
+        recorder.with_optional_context(layers_context, |recorder| {
+            recorder.recorder.draw_isolated_display_list(
+                group_display_list_id,
+                NO_MASK_DISPLAY_LIST,
+                group_device_rect.to_float(),
+                IntSize {
+                    width: group_device_rect.width,
+                    height: group_device_rect.height,
+                },
+                CompositingAndBlendingOperator::Normal,
+                MaskKind::Alpha,
+            );
+        });
+    } else {
+        recorder.with_optional_context(layers_context, |recorder| {
+            paint_background_layers(recorder, paintable, piece, inputs, backdrop);
+        });
+    }
 
     if needs_text_clip {
         let mask_context = recorder.expected_local_context(paintable, FrameRole::BackgroundTextMask { piece });
@@ -433,7 +464,7 @@ fn paint_image_layer(
     match layer.attachment {
         css_enums::background_attachment::FIXED => {
             let data = recorder.data(paintable);
-            if data.has_fixed_background_visual_context {
+            if data.has_fixed_background_visual_context && !recorder.recording_into_context_free_nested_list {
                 let frame = recorder.recorder.accumulated_visual_context().frame;
                 recorder.recorder.set_accumulated_visual_context(ContextRef {
                     spatial: data.fixed_background_visual_context.spatial,

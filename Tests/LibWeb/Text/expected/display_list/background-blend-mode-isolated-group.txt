@@ -1,0 +1,12 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  frames:
+    [f0 in s0] effects=[]
+
+DisplayList:
+DrawIsolatedDisplayList@s1/f0 rect=[8,8 100x50] list_size=[100x50]
+  PaintLinearGradient@s0 rect=[8,8 100x50] inline_clips=[clip=[8,8 100x50]]
+  PaintLinearGradient@s0 rect=[8,8 100x50] blend_mode=2 inline_clips=[clip=[8,8 100x50]]
+

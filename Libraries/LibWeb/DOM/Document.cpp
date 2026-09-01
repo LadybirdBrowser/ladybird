@@ -11002,11 +11002,17 @@ Utf16String Document::dump_display_list()
             list.for_each_command_header([&](Painting::DisplayListCommandHeader const& header, ReadonlyBytes payload) {
                 builder.append_repeated(' ', base_indent * 2);
                 Optional<Painting::DisplayListResourceId> nested_display_list_id;
+                Optional<Painting::DisplayListResourceId> nested_mask_display_list_id;
                 Painting::visit_display_list_command(header.command_type, payload, [&]<typename Command>(Command const& command) {
                     builder.appendff("{}@{}", command.command_name, header.context);
                     command.dump(builder);
                     if constexpr (IsSame<Command, Painting::PaintNestedDisplayList>)
                         nested_display_list_id = command.display_list_id;
+                    if constexpr (IsSame<Command, Painting::DrawIsolatedDisplayList>) {
+                        nested_display_list_id = command.display_list_id;
+                        if (command.mask_display_list_id.value() != 0)
+                            nested_mask_display_list_id = command.mask_display_list_id;
+                    }
                 });
                 if (header.inline_clip_count > 0)
                     Painting::dump_display_list_inline_clips(builder, header, payload);
@@ -11015,6 +11021,12 @@ Utf16String Document::dump_display_list()
                 if (nested_display_list_id.has_value()) {
                     auto& nested_display_list = resource_storage.display_list(*nested_display_list_id);
                     dump_commands(nested_display_list, base_indent + 1);
+                }
+                if (nested_mask_display_list_id.has_value()) {
+                    builder.append_repeated(' ', (base_indent + 1) * 2);
+                    builder.append("Mask:\n"sv);
+                    auto& nested_mask_display_list = resource_storage.display_list(*nested_mask_display_list_id);
+                    dump_commands(nested_mask_display_list, base_indent + 2);
                 }
             });
 
