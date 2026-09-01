@@ -976,6 +976,29 @@ void DisplayListPlayerSkia::play_command(PaintConicGradient const& command)
     surface().canvas().drawRect(to_skia_rect(rect), paint);
 }
 
+void DisplayListPlayerSkia::play_command(DrawIsolatedDisplayList const& command)
+{
+    auto& canvas = surface().canvas();
+    canvas.save();
+    canvas.clipRect(to_skia_rect(command.rect), true);
+    SkPaint group_paint;
+    if (command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
+        group_paint.setBlender(Gfx::to_skia_blender(command.compositing_and_blending_operator));
+    canvas.saveLayer(nullptr, &group_paint);
+    play_command(PaintNestedDisplayList { command.display_list_id, command.rect, command.list_size });
+    if (command.mask_display_list_id.value() != 0) {
+        SkPaint mask_paint;
+        mask_paint.setBlender(Gfx::to_skia_blender(Gfx::CompositingAndBlendingOperator::DestinationIn));
+        if (command.mask_kind == Gfx::MaskKind::Luminance)
+            mask_paint.setColorFilter(SkLumaColorFilter::Make());
+        canvas.saveLayer(nullptr, &mask_paint);
+        play_command(PaintNestedDisplayList { command.mask_display_list_id, command.rect, command.list_size });
+        canvas.restore();
+    }
+    canvas.restore();
+    canvas.restore();
+}
+
 void DisplayListPlayerSkia::play_command(PaintNestedDisplayList const& command)
 {
     auto& canvas = surface().canvas();
