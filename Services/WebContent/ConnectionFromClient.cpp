@@ -662,7 +662,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
         if (auto* doc = page->page().top_level_browsing_context().active_document()) {
             if (doc->layout_node()) {
                 VERIFY(doc->has_committed_viewport_box());
-                doc->paint_state().build_stacking_context_tree_if_needed(*doc);
+                doc->update_paint_and_hit_testing_properties_if_needed();
                 StringBuilder builder;
                 Web::Painting::dump_stacking_context_tree(builder, *doc);
                 dbgln("{}", builder.string_view());
@@ -2053,7 +2053,7 @@ static void append_stacking_context_tree(Web::Page& page, StringBuilder& builder
         return;
     }
 
-    document->paint_state().build_stacking_context_tree_if_needed(*document);
+    document->update_paint_and_hit_testing_properties_if_needed();
     Web::Painting::dump_stacking_context_tree(builder, *document);
 }
 

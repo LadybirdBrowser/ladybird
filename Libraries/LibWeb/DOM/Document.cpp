@@ -11056,7 +11056,7 @@ Utf16String Document::dump_stacking_context_tree()
     if (!has_committed_viewport_box())
         return "No paintable"_utf16;
 
-    paint_state().build_stacking_context_tree_if_needed(*this);
+    update_paint_and_hit_testing_properties_if_needed();
 
     StringBuilder builder;
     Painting::dump_stacking_context_tree(builder, *this);

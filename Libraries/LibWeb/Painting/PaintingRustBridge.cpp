@@ -674,34 +674,28 @@ void rust_build_stacking_context_tree(DOM::Document& document)
     Layout::RustFFI::layout_arena_build_stacking_context_tree(layout_arena_handle(document), viewport_row_slot(document));
 }
 
-static void dump_stacking_context_node(StringBuilder& builder, void* arena, size_t index, int indent)
-{
-    auto node = Layout::RustFFI::layout_arena_stacking_context_tree_node(arena, index);
-    for (int i = 0; i < indent; ++i)
-        builder.append(' ');
-    if (auto const* layout_node = static_cast<Layout::Node const*>(node.layout_node_shell)) {
-        builder.appendff("SC for {} {} (z-index: ", layout_node->debug_description(), absolute_rect(*layout_node));
-        if (node.has_effective_z_index)
-            builder.appendff("{}", node.effective_z_index);
-        else
-            builder.append("auto"sv);
-        builder.append(')');
-        if (has_css_transform(*layout_node))
-            builder.append(", has_transform"sv);
-    } else {
-        builder.append("SC for (gone)"sv);
-    }
-    builder.append('\n');
-    for (size_t child = 0; child < node.child_count; ++child)
-        dump_stacking_context_node(builder, arena, Layout::RustFFI::layout_arena_stacking_context_tree_child(arena, index, child), indent + 1);
-}
-
 void dump_stacking_context_tree(StringBuilder& builder, DOM::Document const& document)
 {
-    auto* arena = layout_arena_handle(document);
-    if (Layout::RustFFI::layout_arena_stacking_context_tree_node_count(arena) == 0)
-        return;
-    dump_stacking_context_node(builder, arena, 0, 0);
+    Layout::RustFFI::layout_arena_dump_stacking_context_tree(
+        layout_arena_handle(document), viewport_row_slot(document), &builder,
+        [](void* context, Layout::RustFFI::FfiStackingContextDumpEntry entry) {
+            auto& builder = *static_cast<StringBuilder*>(context);
+            for (size_t i = 0; i < entry.depth; ++i)
+                builder.append(' ');
+            if (auto const* layout_node = static_cast<Layout::Node const*>(entry.layout_node_shell)) {
+                builder.appendff("SC for {} {} (z-index: ", layout_node->debug_description(), absolute_rect(*layout_node));
+                if (entry.has_effective_z_index)
+                    builder.appendff("{}", entry.effective_z_index);
+                else
+                    builder.append("auto"sv);
+                builder.append(')');
+                if (has_css_transform(*layout_node))
+                    builder.append(", has_transform"sv);
+            } else {
+                builder.append("SC for (gone)"sv);
+            }
+            builder.append('\n');
+        });
 }
 
 namespace {

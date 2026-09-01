@@ -276,7 +276,7 @@ bool visible_for_hit_testing(Layout::Node const& node)
 bool has_stacking_context(Layout::Node const& node)
 {
     auto const* row = committed_row(node);
-    return row && row->stacking_context != Layout::RustFFI::NO_STACKING_CONTEXT;
+    return row && row->establishes_stacking_context;
 }
 
 CSS::Display display(Layout::Node const& node)
@@ -529,7 +529,7 @@ Layout::Node const* nearest_self_painting_inline_box(Layout::Node const& node)
     for (auto const* ancestor = node.nearest_fragmented_inline_ancestor(); ancestor; ancestor = ancestor->nearest_fragmented_inline_ancestor()) {
         auto const* row = committed_row(*ancestor);
         if (row && is_inline_paintable(*ancestor)
-            && (row->stacking_context != Layout::RustFFI::NO_STACKING_CONTEXT || is_positioned(*ancestor)))
+            && (row->establishes_stacking_context || is_positioned(*ancestor)))
             return ancestor;
     }
     return nullptr;

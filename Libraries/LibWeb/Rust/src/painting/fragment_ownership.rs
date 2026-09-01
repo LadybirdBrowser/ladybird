@@ -8,7 +8,6 @@ use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::node_painting;
 use crate::painting::paintable_rows::PaintableRowsRead;
-use crate::painting::stacking_context::NO_STACKING_CONTEXT;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FragmentRange {
@@ -63,8 +62,7 @@ pub(crate) fn is_self_painting_inline(layout_arena: &impl PaintableRowsRead, pai
     // containing block: it forms a group that content must be recorded inside.
     let data = layout_arena.paintable_data(paintable);
     node_painting::is_inline(layout_arena, paintable)
-        && (data.stacking_context != NO_STACKING_CONTEXT
-            || crate::painting::style_queries::is_positioned(layout_arena, paintable))
+        && (data.establishes_stacking_context || crate::painting::style_queries::is_positioned(layout_arena, paintable))
 }
 
 pub(crate) fn nearest_fragmented_inline_ancestor(

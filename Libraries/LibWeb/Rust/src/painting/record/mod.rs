@@ -27,7 +27,6 @@ use crate::painting::host::{
 };
 use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData};
 use crate::painting::paintable_rows::PaintableRowsRef;
-use crate::painting::stacking_context::{NO_STACKING_CONTEXT, StackingContextTree};
 use crate::painting::visual_context::nested::NestedAssignments;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -66,7 +65,6 @@ pub(crate) struct NestedRecordingState {
 pub struct PaintRecorder<'a> {
     pub(crate) layout_arena: &'a PaintableRowsRef<'a>,
     pub(crate) paint_state: &'a crate::painting::paint_state::PaintState,
-    stacking_contexts: &'a StackingContextTree,
     pub(crate) host: &'a FfiHitTestHostCallbacks,
     pub(crate) paint_host: &'a FfiPaintHostCallbacks,
     pub(crate) inputs: FfiRecordingInputs,
@@ -197,7 +195,6 @@ impl<'a> PaintRecorder<'a> {
         PaintRecorder {
             layout_arena: self.layout_arena,
             paint_state: self.paint_state,
-            stacking_contexts: self.stacking_contexts,
             host: self.host,
             paint_host: self.paint_host,
             inputs: self.inputs,
@@ -290,7 +287,7 @@ impl<'a> PaintRecorder<'a> {
     }
 
     fn has_stacking_context(&self, paintable: NodeSlotId) -> bool {
-        self.data(paintable).stacking_context != NO_STACKING_CONTEXT
+        self.data(paintable).establishes_stacking_context
     }
 
     fn layout_kind(&self, paintable: NodeSlotId) -> Option<NodeKind> {

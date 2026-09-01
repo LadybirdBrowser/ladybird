@@ -1390,7 +1390,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         }
         let mut output = {
             let paint_state = arena.paint_state().borrow();
-            if !arena.paintable_row_is_populated(viewport) || paint_state.stacking_context_tree.is_none() {
+            if !arena.paintable_row_is_populated(viewport) || arena.stacking_context_entries(viewport).is_none() {
                 return 0;
             }
             let command_cache_source = (!inputs.should_show_line_box_borders)
@@ -1400,6 +1400,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             let output = crate::painting::record::traversal::record_display_list(
                 arena,
                 &paint_state,
+                viewport,
                 &callbacks,
                 &paint_callbacks,
                 &visual_context_callbacks,
@@ -2424,67 +2425,27 @@ pub unsafe extern "C" fn layout_arena_paintable_used_grid_tracks(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread;
+/// `emit` copies each entry synchronously.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_stacking_context_tree_node_count(arena: *mut c_void) -> usize {
-    abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle(arena) };
-        let paint_state = arena.paint_state().borrow();
-        paint_state
-            .stacking_context_tree
-            .as_ref()
-            .map_or(0, |tree| tree.nodes.len())
-    })
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`; `index` in range.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_stacking_context_tree_node(
+pub unsafe extern "C" fn layout_arena_dump_stacking_context_tree(
     arena: *mut c_void,
-    index: usize,
-) -> crate::painting::host::FfiStackingContextNodeExport {
+    viewport: NodeSlotId,
+    context: *mut c_void,
+    emit: unsafe extern "C" fn(*mut c_void, crate::painting::host::FfiStackingContextDumpEntry),
+) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let paint_state = arena.paint_state().borrow();
-        let node = &paint_state
-            .stacking_context_tree
-            .as_ref()
-            .expect("no stacking context tree")
-            .nodes[index];
-        crate::painting::host::FfiStackingContextNodeExport {
-            layout_node_shell: if arena.paintable_row_is_populated(node.paintable) {
-                arena.shell_if_live(node.paintable)
-            } else {
-                std::ptr::null_mut()
-            },
-            child_count: node.children.len(),
-            has_effective_z_index: node.effective_z_index.is_some(),
-            effective_z_index: node.effective_z_index.unwrap_or(0),
+        if !arena.paintable_row_is_populated(viewport) {
+            return;
         }
-    })
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`; indices in range.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_stacking_context_tree_child(
-    arena: *mut c_void,
-    index: usize,
-    child: usize,
-) -> usize {
-    abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle(arena) };
-        let paint_state = arena.paint_state().borrow();
-        paint_state
-            .stacking_context_tree
-            .as_ref()
-            .expect("no stacking context tree")
-            .nodes[index]
-            .children[child] as usize
-    })
+        crate::painting::stacking_context::dump::for_each_stacking_context_in_dump_order(
+            arena,
+            viewport,
+            // SAFETY: The consumer copies the entry synchronously.
+            &mut |entry| unsafe { emit(context, entry) },
+        );
+    });
 }
 
 /// # Safety
