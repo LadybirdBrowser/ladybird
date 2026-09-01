@@ -246,6 +246,10 @@ impl<'a> PaintableCommit<'a> {
                 "inline box piece fragment range exceeds the committed fragments"
             );
         }
+        drop(side);
+        if has_pieces {
+            self.arena().note_line_root_needs_fragment_ownership(slot);
+        }
         has_pieces
     }
 

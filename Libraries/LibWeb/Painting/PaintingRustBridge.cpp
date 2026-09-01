@@ -669,11 +669,6 @@ void rust_invalidate_propagated_text_decoration_caches(Layout::Node const& node)
     Layout::RustFFI::layout_arena_paintable_invalidate_paint_cache(node.arena_handle(), committed_row_slot(node), true);
 }
 
-void rust_build_stacking_context_tree(DOM::Document& document)
-{
-    Layout::RustFFI::layout_arena_build_stacking_context_tree(layout_arena_handle(document), viewport_row_slot(document));
-}
-
 void dump_stacking_context_tree(StringBuilder& builder, DOM::Document const& document)
 {
     Layout::RustFFI::layout_arena_dump_stacking_context_tree(

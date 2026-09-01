@@ -445,7 +445,6 @@ void LayoutRustBridge::run_root_layout(Box& viewport, CSSPixels viewport_inline_
         m_commit_root = nullptr;
     };
 
-    viewport.document().invalidate_stacking_context_tree();
     auto callbacks = formatting_context_callbacks();
     auto sink = commit_sink();
     {
@@ -468,7 +467,6 @@ void LayoutRustBridge::compute_subtree_layout(Box& root)
         m_commit_root = nullptr;
     };
 
-    root.document().invalidate_stacking_context_tree();
     auto viewport_rect = root.document().viewport_rect();
     auto callbacks = formatting_context_callbacks();
     auto sink = commit_sink();
@@ -492,7 +490,6 @@ void LayoutRustBridge::replay_saved_abspos_layout(Box& box)
         m_commit_root = nullptr;
     };
 
-    box.document().invalidate_stacking_context_tree();
     auto callbacks = formatting_context_callbacks();
     auto sink = commit_sink();
     {

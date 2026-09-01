@@ -10,8 +10,6 @@ use crate::layout::{inline_level_iterator, used_values};
 use crate::painting::display_list::commands::{ContextRef, SpatialNodeIndex};
 use std::cell::Cell;
 
-pub const NO_STACKING_CONTEXT: u32 = u32::MAX;
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum PaintableFlag {
@@ -53,7 +51,6 @@ pub struct PaintableData {
     pub overflow_measured_this_commit: bool,
     pub overflow_valid_across_recommits: bool,
 
-    pub stacking_context: u32,
     pub establishes_stacking_context: bool,
 
     pub enclosing_scroll_node_index: SpatialNodeIndex,
@@ -80,7 +77,6 @@ impl Default for PaintableData {
             overflow_relative_to_padding_box: FfiOverflowData::default(),
             overflow_measured_this_commit: false,
             overflow_valid_across_recommits: false,
-            stacking_context: u32::MAX,
             establishes_stacking_context: false,
             enclosing_scroll_node_index: SpatialNodeIndex::default(),
             own_scroll_node_index: SpatialNodeIndex::default(),

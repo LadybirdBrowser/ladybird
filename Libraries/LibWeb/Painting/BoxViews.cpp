@@ -983,13 +983,6 @@ void repaint_after_style_change(Layout::Node const& node, CSS::RequiredInvalidat
     }
 }
 
-void invalidate_stacking_context(Layout::Node const& node)
-{
-    if (!has_committed_box(node))
-        return;
-    const_cast<DOM::Document&>(node.document()).paint_state().invalidate_stacking_context_tree();
-}
-
 void clear_overflow_data(Layout::Node const& node)
 {
     Layout::RustFFI::layout_arena_paintable_clear_overflow_data(node.arena_handle(), committed_row_slot(node));

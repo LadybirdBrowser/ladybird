@@ -1047,8 +1047,6 @@ AnimationUpdateContext::~AnimationUpdateContext()
             : target->unsafe_layout_node();
         if (repaint_layout_node && Painting::has_committed_box(*repaint_layout_node))
             Painting::repaint_after_style_change(*repaint_layout_node, invalidation);
-        if (invalidation.needs_stacking_context_tree_rebuild())
-            element.document().invalidate_stacking_context_tree();
     }
 }
 

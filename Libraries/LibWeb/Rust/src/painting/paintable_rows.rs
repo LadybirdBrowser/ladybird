@@ -76,6 +76,7 @@ pub(crate) struct PaintableRowStore {
     pub(crate) stacking_context_entries:
         RefCell<Vec<Option<Box<crate::painting::stacking_context::entries::StackingContextEntries>>>>,
     pub(crate) stacking_context_roots_flagged_for_resort: RefCell<Vec<NodeSlotId>>,
+    line_roots_needing_fragment_ownership: RefCell<Vec<NodeSlotId>>,
     absolute_rect_memo: RefCell<Vec<Option<(NodeSlotId, u64, crate::css::css_pixels::CssPixelRect)>>>,
     absolute_rect_memo_epoch: Cell<u64>,
     committed_fragment_links: RefCell<Vec<CommittedFragmentLinkSlot>>,
@@ -337,7 +338,6 @@ where
             data.overflow_measured_this_commit = false;
             data.local_padding_box_union = used_values::FfiCssPixelRect::default();
             data.local_border_box_union = used_values::FfiCssPixelRect::default();
-            data.stacking_context = crate::painting::stacking_context::NO_STACKING_CONTEXT;
         }
         // The paint cache is deliberately kept; the commit diff marks rows whose committed
         // fragment identity or offset actually changed.
@@ -710,6 +710,17 @@ impl LayoutNodeArena {
         if let Some(record) = records.get_mut(id.slot_index() as usize).and_then(Option::as_mut) {
             record.stacking_context.contribution_is_registered = true;
         }
+    }
+
+    pub(crate) fn note_line_root_needs_fragment_ownership(&self, line_root: NodeSlotId) {
+        self.paintable_rows
+            .line_roots_needing_fragment_ownership
+            .borrow_mut()
+            .push(line_root);
+    }
+
+    pub(crate) fn take_line_roots_needing_fragment_ownership(&self) -> Vec<NodeSlotId> {
+        std::mem::take(&mut *self.paintable_rows.line_roots_needing_fragment_ownership.borrow_mut())
     }
 
     pub(crate) fn note_visual_context_box_dirty(&self, id: NodeSlotId, kind: VisualContextBoxDirtyKind) {

@@ -1229,9 +1229,6 @@ bool NodeWithStyle::is_scroll_container() const
 
 void Node::clear_committed_box()
 {
-    if (Painting::has_committed_box(*this))
-        document().invalidate_stacking_context_tree();
-
     invalidate_paint_caches(*this);
     RustFFI::layout_arena_paintable_cleared_from_node(arena_handle(), slot_id(this));
 }

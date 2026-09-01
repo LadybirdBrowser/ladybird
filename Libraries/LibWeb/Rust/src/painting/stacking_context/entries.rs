@@ -176,6 +176,11 @@ impl LayoutNodeArena {
                 next.contribution_is_registered = true;
                 return;
             }
+            if previous.paints_inline_content_itself() != next.paints_inline_content_itself()
+                && let Some(line_root) = self.inline_pieces_root(slot)
+            {
+                self.note_line_root_needs_fragment_ownership(line_root);
+            }
             if previous.contribution_is_registered {
                 self.withdraw_stacking_context_contribution(slot, previous);
             }
