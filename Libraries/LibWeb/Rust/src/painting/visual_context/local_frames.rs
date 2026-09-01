@@ -107,7 +107,6 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
 
         let border_box_rect = absolute_border_box_rect(self.layout_arena, self.slot);
         let border_radii = border_radii_data(style, self.layout_arena, self.slot);
-        self.append_box_shadow_frames(style, own_state, PieceKey::Box, border_box_rect, border_radii);
 
         let mut background_parent = own_state;
         let mut fieldset = None;
@@ -203,7 +202,6 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
                 piece.border_box_rect.height,
                 piece.present_edges,
             );
-            self.append_box_shadow_frames(style, own_state, piece_key, border_box_rect, border_radii);
             if let Some(layers) = &background_layers {
                 let background_rect = if has_borders {
                     border_box_rect
@@ -233,33 +231,6 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
             }
             self.append_outline_frames(style, own_state, piece_key, border_box_rect, border_radii);
         });
-    }
-
-    fn append_box_shadow_frames(
-        &mut self,
-        style: ComputedValuesView<'_>,
-        own_state: ContextRef,
-        piece: PieceKey,
-        border_box_rect: CssPixelRect,
-        border_radii: BorderRadii,
-    ) {
-        let shadows = style.effects().box_shadows.as_slice();
-        if !shadows.iter().any(|shadow| !shadow.is_inner()) {
-            return;
-        }
-        let corner_radii = border_radii.corners_unconditionally(&self.converter);
-        if !corner_radii.has_any_radius() {
-            return;
-        }
-        self.append(
-            own_state,
-            FrameData::Clip(ClipData {
-                rect: self.converter.rounded_device_rect(border_box_rect).to_float(),
-                corner_radii,
-                mode: ClipMode::Difference,
-            }),
-            FrameRole::OuterShadowClip { piece },
-        );
     }
 
     fn append_replaced_content_frames(&mut self, style: ComputedValuesView<'_>, own_state: ContextRef) {

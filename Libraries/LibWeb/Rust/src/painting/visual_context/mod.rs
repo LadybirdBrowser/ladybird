@@ -301,9 +301,6 @@ pub enum FrameRole {
     RootIsolation,
     ContentCornerClip,
     ContentClip,
-    OuterShadowClip {
-        piece: PieceKey,
-    },
     FieldsetBackgroundClip,
     FieldsetTopBorderBand,
     LegendCutout,

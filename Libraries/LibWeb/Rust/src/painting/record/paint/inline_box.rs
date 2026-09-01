@@ -67,7 +67,6 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
             crate::painting::record::paint::shadow::paint_box_shadow(
                 recorder,
                 paintable,
-                piece_key,
                 border_box_rect,
                 padding_box_rect,
                 border_radii,
