@@ -2746,6 +2746,14 @@ impl BlockFormattingContext {
     ) -> CssPixels {
         let facts = self.facts(node);
         let style = self.style(node);
+        // https://drafts.csswg.org/css-contain-2/#containment-size
+        // Giving an element size containment makes its principal box a size containment box and has the following
+        // effects:
+        // 1. The intrinsic sizes of the size containment box are determined as if the element had no content, following
+        //    the same logic as when sizing as if empty.
+        if facts.node_has_size_containment() {
+            return CssPixels::default();
+        }
         if facts.creates_block_formatting_context()
             || style.display().is_flex_inside()
             || style.display().is_grid_inside()

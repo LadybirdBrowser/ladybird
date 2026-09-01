@@ -1,0 +1,23 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    div {
+        background: lightblue;
+        width: 200px;
+    }
+
+    #size { contain: size; }
+    #strict { contain: strict; }
+    #uncontained { }
+</style>
+<div id="size">x</div>
+<div id="strict">x</div>
+<div id="uncontained">x</div>
+<script>
+    test(() => {
+        for (const id of ["size", "strict", "uncontained"]) {
+            const height = document.getElementById(id).getBoundingClientRect().height;
+            println(`${id}: height=${height.toFixed(0)}`);
+        }
+    });
+</script>
