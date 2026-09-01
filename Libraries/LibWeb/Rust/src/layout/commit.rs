@@ -10,7 +10,7 @@ use super::*;
 #[repr(C)]
 pub struct FfiCommitSink {
     pub context: *mut c_void,
-    pub content_size_changed: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiCssPixelSize, FfiCssPixelSize),
+    pub content_size_changed_for_container_queries: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub finish_commit: unsafe extern "C" fn(*mut c_void, *const *mut c_void, usize),
 }
 
@@ -62,11 +62,14 @@ fn commit_subtree(
         }
         if prepared.row_existed_before_this_commit
             && let Some((old_content_size, new_content_size)) = replaced.content_size_change
+            && crate::layout::node_facts::node_style_view(callbacks.node_data(node)).is_some_and(|style| {
+                content_size_change_affects_container_queries(style, old_content_size, new_content_size)
+            })
         {
             // SAFETY: Every callback below copies its plain-data argument or
             // consumes one retained handle synchronously.
             unsafe {
-                (sink.content_size_changed)(sink.context, callbacks.shell(node), old_content_size, new_content_size);
+                (sink.content_size_changed_for_container_queries)(sink.context, callbacks.shell(node));
             }
         }
 
@@ -101,6 +104,25 @@ fn commit_subtree(
         // models of its descendant inline paintables, which exist only now
         // that the whole subtree has committed.
         paintables.assign_inline_box_geometry(node);
+    }
+}
+
+fn content_size_change_affects_container_queries(
+    style: crate::css::computed_value_views::ComputedValuesView<'_>,
+    old_size: FfiCssPixelSize,
+    new_size: FfiCssPixelSize,
+) -> bool {
+    let box_values = style.box_values();
+    if box_values.is_size_container {
+        return old_size.width != new_size.width || old_size.height != new_size.height;
+    }
+    if !box_values.is_inline_size_container {
+        return false;
+    }
+    if style.writing_mode() == crate::css::css_enums::writing_mode::HORIZONTAL_TB {
+        old_size.width != new_size.width
+    } else {
+        old_size.height != new_size.height
     }
 }
 
