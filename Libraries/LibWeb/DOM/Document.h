@@ -844,21 +844,18 @@ public:
     Painting::ChromeWidgetRegistry const& chrome_widget_registry() const { return *m_chrome_widget_registry; }
 
     // Attribution of pending updates for partial relayout. Invariant: every update recorded
-    // since the last layout pass is either attributed to a boundary in the registered root
-    // set, or the escape bit is set. The dispatch may only run partial relayout while the
-    // escape bit is clear; a full layout pass re-derives every fact boundary qualification
-    // depends on, so it clears the bit.
+    // since the last layout pass is either attributed to a boundary in the root set the
+    // layout node arena keeps, or the escape bit is set. The dispatch may only run partial
+    // relayout while the escape bit is clear; a full layout pass re-derives every fact
+    // boundary qualification depends on, so it clears the bit.
     class PartialRelayoutInvalidation {
     public:
         void record_boundary(Layout::Box&);
         void record_escape(PartialRelayoutEscapeReason);
         void clear_escape(PartialRelayoutEscapeClearReason);
         [[nodiscard]] bool escapes() const { return m_escapes; }
-        [[nodiscard]] bool has_registered_roots() const { return !m_registered_roots.is_empty(); }
-        [[nodiscard]] HashTable<WeakPtr<Layout::Box>> take_registered_roots() { return move(m_registered_roots); }
 
     private:
-        HashTable<WeakPtr<Layout::Box>> m_registered_roots;
         bool m_escapes { false };
     };
     [[nodiscard]] PartialRelayoutInvalidation& partial_relayout_invalidation() { return m_partial_relayout_invalidation; }
@@ -1502,7 +1499,7 @@ private:
     void collect_boxes_with_auto_content_visibility();
     bool needs_style_update_after_layout();
     bool any_anchor_names_are_registered() const;
-    PartialRelayoutResult try_partial_relayout(HashTable<WeakPtr<Layout::Box>> registered_partial_relayout_roots, bool& needs_layout_tree_rebuild, bool should_collect_devtools_layout_data);
+    PartialRelayoutResult try_partial_relayout(Vector<Layout::RustFFI::NodeSlotId> registered_partial_relayout_root_slots, bool& needs_layout_tree_rebuild, bool should_collect_devtools_layout_data);
 
     void process_pending_list_item_renumbers();
     bool reconcile_stale_list_item_counters_after_tree_build(Vector<Layout::Node*> const& rebuilt_subtree_roots);

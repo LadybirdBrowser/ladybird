@@ -457,6 +457,7 @@ pub(crate) struct LayoutNodeArena {
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
     svg_pattern_referencing_nodes: RefCell<Vec<NodeSlotId>>,
+    pub(crate) partial_relayout_boundary_roots: RefCell<Vec<NodeSlotId>>,
     owner_thread: thread::ThreadId,
 }
 
@@ -487,6 +488,7 @@ impl LayoutNodeArena {
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
             svg_pattern_referencing_nodes: RefCell::new(Vec::new()),
+            partial_relayout_boundary_roots: RefCell::new(Vec::new()),
             owner_thread: thread::current().id(),
         }
     }
