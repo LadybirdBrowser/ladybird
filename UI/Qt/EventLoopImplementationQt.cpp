@@ -20,6 +20,7 @@
 #include <UI/Qt/EventLoopImplementationQt.h>
 #include <UI/Qt/EventLoopImplementationQtEventTarget.h>
 
+#include <QAbstractEventDispatcher>
 #include <QCoreApplication>
 #include <QEvent>
 #include <QEventLoop>
@@ -215,16 +216,26 @@ static void dispatch_signal(int signal_number)
 
 EventLoopImplementationQt::EventLoopImplementationQt()
     : m_event_loop(make<QEventLoop>())
+    , m_event_dispatcher(QAbstractEventDispatcher::instance())
 {
+    VERIFY(m_event_dispatcher);
 }
 
 EventLoopImplementationQt::~EventLoopImplementationQt() = default;
 
 int EventLoopImplementationQt::exec()
 {
+    if (auto exit_code = exit_code_if_requested(); exit_code.has_value())
+        return exit_code.release_value();
+
     if (is_main_loop())
         return QCoreApplication::exec();
-    return m_event_loop->exec();
+
+    for (;;) {
+        pump(PumpMode::WaitForEvents);
+        if (auto exit_code = exit_code_if_requested(); exit_code.has_value())
+            return exit_code.release_value();
+    }
 }
 
 size_t EventLoopImplementationQt::pump(PumpMode mode)
@@ -241,23 +252,31 @@ size_t EventLoopImplementationQt::pump(PumpMode mode)
 
 void EventLoopImplementationQt::quit(int code)
 {
-    if (is_main_loop())
+    request_exit(code);
+    if (!is_main_loop())
+        return;
+
+    auto* application = QCoreApplication::instance();
+    VERIFY(application);
+    if (QThread::currentThread() == application->thread()) {
         QCoreApplication::exit(code);
-    else
-        m_event_loop->exit(code);
+        return;
+    }
+
+    QMetaObject::invokeMethod(application, [code] { QCoreApplication::exit(code); }, Qt::QueuedConnection);
 }
 
 void EventLoopImplementationQt::wake()
 {
     if (!is_main_loop())
-        m_event_loop->wakeUp();
+        m_event_dispatcher->wakeUp();
 }
 
 bool EventLoopImplementationQt::was_exit_requested() const
 {
-    if (is_main_loop())
-        return QCoreApplication::closingDown();
-    return !m_event_loop->isRunning();
+    if (Core::EventLoopImplementation::was_exit_requested())
+        return true;
+    return is_main_loop() && QCoreApplication::closingDown();
 }
 
 void EventLoopImplementationQt::set_main_loop()

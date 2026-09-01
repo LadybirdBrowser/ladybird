@@ -105,9 +105,8 @@ CompositorFontServiceConnection::~CompositorFontServiceConnection()
 
     if (event_loop) {
         if (auto strong_event_loop = event_loop->take()) {
-            strong_event_loop->deferred_invoke([] {
-                Core::EventLoop::current().quit(0);
-            });
+            strong_event_loop->quit(0);
+            strong_event_loop->wake();
         }
     }
 
