@@ -1,0 +1,7 @@
+check 0: PASS
+check 1: PASS
+check 2: PASS
+slotchange on slot1
+slotchange on slot2
+slot1 assignedNodes: 0
+slot2 assignedNodes: 0
