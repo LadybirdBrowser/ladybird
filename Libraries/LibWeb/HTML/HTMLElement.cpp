@@ -885,6 +885,8 @@ void HTMLElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16St
     if (is_form_associated_element()) {
         form_node_attribute_changed(name, value);
         form_associated_element_attribute_changed(name, old_value, value, namespace_);
+        if (name == HTML::AttributeNames::disabled)
+            set_needs_repaint();
     }
 }
 

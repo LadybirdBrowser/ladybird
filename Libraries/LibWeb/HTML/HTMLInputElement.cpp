@@ -253,6 +253,7 @@ void HTMLInputElement::set_indeterminate(bool value)
         return;
     m_indeterminateness = value;
     CSS::Invalidation::invalidate_style_after_indeterminate_state_change(*this, value);
+    set_needs_repaint();
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#dom-input-list

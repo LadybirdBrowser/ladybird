@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/input-indeterminate-toggle-repaint-ref.html">
+<input id="box" type="checkbox">
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.getElementById("box").indeterminate = true;
+            requestAnimationFrame(() => {
+                if (window.internals)
+                    internals.signalTestIsDone("PASS");
+                else
+                    document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>
