@@ -1,0 +1,170 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .trow {
+        display: table-row;
+    }
+    .tcell {
+        display: table-cell;
+    }
+    .tcol {
+        display: table-column;
+    }
+    .tfg {
+        display: table-footer-group;
+    }
+    .itable {
+        display: inline-table;
+    }
+    .iflex {
+        display: inline-flex;
+    }
+</style>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const fixture = document.getElementById("fixture");
+        const el = (tag, attributes, ...children) => {
+            const element = document.createElement(tag);
+            for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+            element.append(
+                ...children.map(child => (typeof child === "string" ? document.createTextNode(child) : child))
+            );
+            return element;
+        };
+        const x = () => document.getElementById("x");
+        const a = () => document.getElementById("a");
+
+        const members = [
+            {
+                name: "popover",
+                create: (attributes = {}) => el("div", { id: "x", popover: "manual", ...attributes }),
+                open: () => x().showPopover(),
+                close: () => x().hidePopover(),
+            },
+            {
+                name: "modal dialog",
+                create: (attributes = {}) => el("dialog", { id: "x", ...attributes }),
+                open: () => x().showModal(),
+                close: () => x().close(),
+            },
+        ];
+
+        const cases = [
+            {
+                name: "member inside table-row followed by empty text",
+                root: member => [el("div", { class: "trow" }, member()), ""],
+            },
+            {
+                name: "member inside table-cell followed by empty text",
+                root: member => [el("div", { class: "tcell" }, member()), ""],
+            },
+            {
+                name: "member inside table-footer-group followed by empty text",
+                root: member => [el("div", { class: "tfg" }, member()), ""],
+            },
+            {
+                name: "member inside inline-table followed by empty text",
+                root: member => [el("div", { class: "itable" }, member()), ""],
+            },
+            {
+                name: "table-row, empty text, member",
+                root: member => [el("div", { class: "trow" }), "", member()],
+            },
+            {
+                name: "table-row, empty text, inline-flex member",
+                root: member => [el("div", { class: "trow" }), "", member({ class: "iflex" })],
+            },
+            {
+                name: "table-cell, empty text, member",
+                root: member => [el("div", { class: "tcell" }), "", member()],
+            },
+            {
+                name: "table-footer-group, empty text, member",
+                root: member => [el("div", { class: "tfg" }), "", member()],
+            },
+            {
+                name: "inline-table, empty text, member",
+                root: member => [el("div", { class: "itable" }), "", member()],
+            },
+            {
+                name: "table-row, whitespace text, member",
+                root: member => [el("div", { class: "trow" }), " ", member()],
+            },
+            {
+                name: "table-row, empty text, table-row, member",
+                root: member => [el("div", { class: "trow" }), "", el("div", { class: "trow" }), member()],
+            },
+            {
+                name: "table-row, table-row member, empty text",
+                root: member => [el("div", { class: "trow" }), member({ class: "trow" }), ""],
+            },
+            {
+                name: "table-cell member followed by empty text",
+                root: member => [member({ class: "tcell" }), ""],
+            },
+            {
+                name: "table-footer-group member followed by empty text",
+                root: member => [member({ class: "tfg" }), ""],
+            },
+            {
+                name: "inline-table member followed by empty text",
+                root: member => [member({ class: "itable" }), ""],
+            },
+            {
+                name: "table with row, empty text and table-cell child, then inline-flex member",
+                root: member => [
+                    el("table", {}, el("tr", {}), "", el("div", { class: "tcell" })),
+                    member({ class: "iflex" }),
+                ],
+            },
+            {
+                name: "table with row, empty text, table-cell child and empty text, then member",
+                root: member => [el("table", {}, el("tr", {}), "", el("div", { class: "tcell" }), ""), member()],
+            },
+            {
+                name: "block, member, empty text; block becomes table-column",
+                root: member => [el("div", { id: "a" }), member(), ""],
+                mutate: () => a().classList.add("tcol"),
+            },
+            {
+                name: "block, member, empty text; block becomes table-row",
+                root: member => [el("div", { id: "a" }), member(), ""],
+                mutate: () => a().classList.add("trow"),
+            },
+            {
+                name: "table-row, member, empty text; table-row becomes block",
+                root: member => [el("div", { id: "a", class: "trow" }), member(), ""],
+                mutate: () => a().classList.remove("trow"),
+            },
+        ];
+
+        let checkNumber = 0;
+        const check = description => {
+            const result = internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL";
+            println(`check ${checkNumber++}: ${result} (${description})`);
+        };
+        for (const member of members) {
+            for (const testCase of cases) {
+                const name = `${member.name}: ${testCase.name}`;
+                fixture.replaceChildren(...testCase.root(member.create));
+                document.body.offsetHeight;
+                check(`${name}: before open`);
+                member.open();
+                document.body.offsetHeight;
+                check(`${name}: after open`);
+                if (testCase.mutate) {
+                    testCase.mutate();
+                    document.body.offsetHeight;
+                    check(`${name}: after mutation`);
+                }
+                x().append(document.createTextNode("t"));
+                document.body.offsetHeight;
+                check(`${name}: after appending text inside member`);
+                member.close();
+                document.body.offsetHeight;
+                check(`${name}: after close`);
+            }
+        }
+    });
+</script>

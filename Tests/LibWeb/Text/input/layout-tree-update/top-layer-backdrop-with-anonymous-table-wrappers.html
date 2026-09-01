@@ -1,0 +1,92 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .tfg {
+        display: table-footer-group;
+    }
+    .thg {
+        display: table-header-group;
+    }
+    .trg {
+        display: table-row-group;
+    }
+    .tcg {
+        display: table-column-group;
+    }
+    .tcap {
+        display: table-caption;
+    }
+    .ili {
+        display: inline list-item;
+    }
+</style>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const fixture = document.getElementById("fixture");
+        const el = (tag, attributes, ...children) => {
+            const element = document.createElement(tag);
+            for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+            element.append(
+                ...children.map(child => (typeof child === "string" ? document.createTextNode(child) : child))
+            );
+            return element;
+        };
+        const x = () => document.getElementById("x");
+        const s = () => document.getElementById("s");
+
+        const members = [
+            {
+                name: "popover",
+                create: (attributes, ...children) =>
+                    el("div", { id: "x", popover: "manual", ...attributes }, ...children),
+                open: () => x().showPopover(),
+                close: () => x().hidePopover(),
+            },
+            {
+                name: "modal dialog",
+                create: (attributes, ...children) => el("dialog", { id: "x", ...attributes }, ...children),
+                open: () => x().showModal(),
+                close: () => x().close(),
+            },
+        ];
+        const displays = ["tfg", "thg", "trg", "tcg", "tcap"];
+
+        let checkNumber = 0;
+        const check = description => {
+            const result = internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL";
+            println(`check ${checkNumber++}: ${result} (${description})`);
+        };
+        for (const member of members) {
+            for (const display of displays) {
+                const name = `${member.name} with ${display}`;
+                fixture.replaceChildren(
+                    member.create({ class: display }, el("span", { id: "s", hidden: "" }), el("div", { class: "ili" }))
+                );
+                document.body.offsetHeight;
+                check(`${name}: before open`);
+                member.open();
+                document.body.offsetHeight;
+                check(`${name}: after open`);
+                s().removeAttribute("hidden");
+                document.body.offsetHeight;
+                check(`${name}: after revealing child`);
+                x().append(document.createTextNode("t"));
+                document.body.offsetHeight;
+                check(`${name}: after appending text inside member`);
+                s().setAttribute("hidden", "");
+                document.body.offsetHeight;
+                check(`${name}: after hiding child`);
+                member.close();
+                document.body.offsetHeight;
+                check(`${name}: after close`);
+                member.open();
+                document.body.offsetHeight;
+                check(`${name}: after reopening`);
+                member.close();
+                document.body.offsetHeight;
+                check(`${name}: after closing again`);
+            }
+        }
+    });
+</script>

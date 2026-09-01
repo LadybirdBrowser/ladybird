@@ -1575,7 +1575,7 @@ fn update_principal_node_after_entry(
 
         if placement.create_backdrop {
             // A backdrop is a sibling of its originating top-layer element. Append it normally, but insert it before
-            // an old box that will be replaced in place so the backdrop remains behind the element.
+            // the placement of an old box that will be replaced in place so the backdrop remains behind the element.
             let insertion_mode = if placement.may_replace_existing_layout_node {
                 None
             } else {
@@ -1586,12 +1586,18 @@ fn update_principal_node_after_entry(
             if let Some(backdrop) = unplaced_backdrop {
                 assert!(placement.may_replace_existing_layout_node);
                 let layout_host = host.layout();
-                let old_parent = layout_host.parent(old_layout_node);
+                let topmost_placement = topmost_layout_node_of_top_layer_placement(host.arena, old_layout_node);
+                let old_placement = if topmost_placement.is_invalid() {
+                    old_layout_node
+                } else {
+                    topmost_placement
+                };
+                let old_parent = layout_host.parent(old_placement);
                 assert!(!old_parent.is_invalid());
-                // The backdrop lands next to the still-attached old box, so this restructures the
-                // old box's parent.
+                // The backdrop lands next to the still-attached old placement, so this restructures
+                // its parent.
                 note_layout_tree_restructuring_at(&layout_host, update.state, old_parent);
-                layout_host.attach_child(old_parent, backdrop, old_layout_node);
+                layout_host.attach_child(old_parent, backdrop, old_placement);
             }
         }
 
@@ -3432,6 +3438,7 @@ fn remove_irrelevant_boxes(host: &TreeBuilderHost<'_>, root: LayoutNode) {
         if node_kind_is_box(data.kind)
             && !parent.is_invalid()
             && is_tabular_container(host, parent)
+            && !node_has_flag(host.data(parent), NodeFlag::Anonymous)
             && is_first_or_last_child_with_table_non_root_sibling_if_any(host, node)
             && is_ignorable_whitespace(host, node)
         {
