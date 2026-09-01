@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #fl.decorated::first-letter { color: red; font-size: 24px; }
+    #mixed span { position: relative; z-index: 1; }
+</style>
+<div id="container">
+    <div>alpha</div>
+    <div id="mover"><span>beta</span> gamma</div>
+    <div id="ref">delta</div>
+</div>
+<div id="mixed">epsilon <span>zeta</span> eta</div>
+<p id="fl">theta iota</p>
+<div id="tbl"></div>
+<div id="tail">tail</div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        settle();
+        document.body.appendChild(document.createElement("pre"));
+        settle();
+        const violations = () => internals.layoutTreePreOrderLabelViolationCount();
+        const relabels = () => internals.layoutTreePreOrderRelabelCount();
+        const container = document.getElementById("container");
+        const ref = document.getElementById("ref");
+        const lines = [];
+        const step = (name, action) => {
+            action();
+            settle();
+            lines.push(`${name}: violations=${violations()}`);
+        };
+
+        step("baseline", () => {});
+        step("append 5", () => {
+            for (let i = 0; i < 5; ++i) {
+                const div = document.createElement("div");
+                div.textContent = `appended ${i}`;
+                container.appendChild(div);
+            }
+        });
+        step("prepend 5", () => {
+            for (let i = 0; i < 5; ++i) {
+                const div = document.createElement("div");
+                div.textContent = `prepended ${i}`;
+                container.insertBefore(div, container.firstChild);
+            }
+        });
+        const relabelsBeforeInsertions = relabels();
+        let insertionsBeforeRelabel = 0;
+        while (relabels() === relabelsBeforeInsertions && insertionsBeforeRelabel < 200) {
+            const div = document.createElement("div");
+            div.textContent = "wedge";
+            container.insertBefore(div, ref);
+            settle();
+            ++insertionsBeforeRelabel;
+        }
+        lines.push(`insertions before a fixed reference: violations=${violations()} relabeled=${relabels() > relabelsBeforeInsertions}`);
+        step("move an existing subtree", () => {
+            container.appendChild(document.getElementById("mover"));
+        });
+        step("wrap committed inline children in an anonymous block", () => {
+            const div = document.createElement("div");
+            div.textContent = "block sibling";
+            document.getElementById("mixed").appendChild(div);
+        });
+        step("toggle ::first-letter", () => {
+            document.getElementById("fl").classList.add("decorated");
+        });
+        step("drop ::first-letter", () => {
+            document.getElementById("fl").classList.remove("decorated");
+        });
+        step("innerHTML with a table", () => {
+            document.getElementById("tbl").innerHTML = "<table><tr><td>cell</td></tr></table>";
+        });
+        step("removals", () => {
+            container.remove();
+            document.getElementById("tbl").remove();
+        });
+        for (const line of lines)
+            println(line);
+    });
+</script>

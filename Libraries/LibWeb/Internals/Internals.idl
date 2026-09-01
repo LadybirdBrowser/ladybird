@@ -12,6 +12,8 @@ interface Internals {
     unsigned long long visualContextTreeStructuralEpoch();
     object visualContextNodeIndices(Element element);
     undefined sendMismatchedVisualContextTreeUpdateToCompositor();
+    unsigned long long layoutTreePreOrderLabelViolationCount();
+    unsigned long long layoutTreePreOrderRelabelCount();
     undefined loadReferenceTestMetadata();
 
     Utf16DOMString setTimeZone(Utf16DOMString timeZone);

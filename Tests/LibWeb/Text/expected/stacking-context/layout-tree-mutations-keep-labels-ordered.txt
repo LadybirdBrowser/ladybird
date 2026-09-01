@@ -1,0 +1,10 @@
+baseline: violations=0
+append 5: violations=0
+prepend 5: violations=0
+insertions before a fixed reference: violations=0 relabeled=true
+move an existing subtree: violations=0
+wrap committed inline children in an anonymous block: violations=0
+toggle ::first-letter: violations=0
+drop ::first-letter: violations=0
+innerHTML with a table: violations=0
+removals: violations=0

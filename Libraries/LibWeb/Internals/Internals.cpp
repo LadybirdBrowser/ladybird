@@ -171,6 +171,19 @@ u64 Internals::visual_context_pending_dirty_box_count()
     return Layout::RustFFI::layout_arena_visual_context_pending_dirty_box_count(document.layout_node_arena().handle());
 }
 
+u64 Internals::layout_tree_pre_order_label_violation_count()
+{
+    auto& document = window().associated_document();
+    return Layout::RustFFI::layout_arena_pre_order_label_violation_count(
+        document.layout_node_arena().handle(), Painting::viewport_row_slot(document));
+}
+
+u64 Internals::layout_tree_pre_order_relabel_count()
+{
+    auto& document = window().associated_document();
+    return Layout::RustFFI::layout_arena_pre_order_relabel_count(document.layout_node_arena().handle());
+}
+
 u64 Internals::visual_context_tree_node_count()
 {
     auto& document = window().associated_document();
