@@ -812,22 +812,6 @@ pub unsafe extern "C" fn rust_computed_longhand_table_freeze(table: *mut Compute
     abort_on_panic(|| unsafe { &mut *table }.freeze());
 }
 
-/// Returns a borrowed pointer to the longhand's stored style value data, or
-/// null when the drive stored none.
-///
-/// # Safety
-/// `table` must be a valid table.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_get(
-    table: *const ComputedLonghandTable,
-    property_id: u16,
-) -> *const c_void {
-    abort_on_panic(|| match unsafe { &*table }.get(property_id) {
-        Some(value) => value.pointer().cast(),
-        None => std::ptr::null(),
-    })
-}
-
 /// Returns the retained raw cascaded font-size data, or null when none won.
 ///
 /// # Safety
