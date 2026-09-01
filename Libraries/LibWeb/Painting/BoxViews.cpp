@@ -503,17 +503,6 @@ bool should_paint_cursor(Layout::Node const& node)
     return editable_node && editable_node->is_editable_or_editing_host();
 }
 
-Layout::Node const* nearest_self_painting_inline_box(Layout::Node const& node)
-{
-    for (auto const* ancestor = node.nearest_fragmented_inline_ancestor(); ancestor; ancestor = ancestor->nearest_fragmented_inline_ancestor()) {
-        auto const* row = committed_row(*ancestor);
-        if (row && is_inline_paintable(*ancestor)
-            && (row->establishes_stacking_context || is_positioned(*ancestor)))
-            return ancestor;
-    }
-    return nullptr;
-}
-
 bool has_content(Layout::Node const& node)
 {
     // Interrupting block-in-inline children produce only placeholder pieces, so any child

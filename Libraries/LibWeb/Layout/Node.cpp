@@ -623,17 +623,6 @@ bool Node::is_fragmented_inline() const
     return RustFFI::layout_node_data_is_fragmented_inline(m_data);
 }
 
-NodeWithStyle const* Node::nearest_fragmented_inline_ancestor() const
-{
-    for (auto const* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
-        if (!ancestor->display().is_inline_outside() || !ancestor->display().is_flow_inside())
-            break;
-        if (ancestor->is_fragmented_inline())
-            return static_cast<NodeWithStyle const*>(ancestor);
-    }
-    return nullptr;
-}
-
 // https://drafts.csswg.org/css-transforms-1/#transformable-element
 // The used transform of an SVG element in its own user space, for bounding box computation:
 // style transforms in property-application order plus the element's additional transform, without
@@ -1078,28 +1067,6 @@ bool NodeWithStyle::has_size_containment() const
         return true;
 
     if (container_type().is_size_container)
-        return true;
-
-    return false;
-}
-// https://drafts.csswg.org/css-contain-2/#containment-style
-bool NodeWithStyle::has_style_containment() const
-{
-    // However, giving an element style containment has no effect if any of the following are true:
-
-    // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
-    // Note: This is the principal box
-
-    if (contain().style_containment)
-        return true;
-
-    if (container_type().is_size_container || container_type().is_inline_size_container)
-        return true;
-
-    // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-auto
-    // Changes the used value of the 'contain' property so as to turn on layout containment, style containment, and
-    // paint containment for the element.
-    if (content_visibility() == CSS::ContentVisibility::Auto)
         return true;
 
     return false;

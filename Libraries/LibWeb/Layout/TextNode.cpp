@@ -793,10 +793,8 @@ void TextNode::set_needs_repaint(InvalidateDisplayList should_invalidate_display
             Painting::set_needs_repaint(*containing_block, should_invalidate_display_list);
     }
 
-    if (should_invalidate_display_list == InvalidateDisplayList::Yes) {
-        if (auto const* self_painting_ancestor = Painting::nearest_self_painting_inline_box(*this))
-            Painting::invalidate_paint_cache(*self_painting_ancestor);
-    }
+    if (should_invalidate_display_list == InvalidateDisplayList::Yes)
+        RustFFI::layout_arena_invalidate_nearest_self_painting_inline_paint_cache(arena_handle(), slot_id(this));
 }
 
 }
