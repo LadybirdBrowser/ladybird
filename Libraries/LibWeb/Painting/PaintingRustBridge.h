@@ -35,6 +35,7 @@ WEB_API void const* retain_rust_main_visual_context_tree(DOM::Document const&);
 WEB_API Optional<TransformWithOrigin> rust_compute_css_transform(Layout::Node const&, double pixel_ratio);
 WEB_API Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Layout::Node const&);
 WEB_API void rust_measure_scrollable_overflow(Layout::Node const&);
+WEB_API Layout::RustFFI::FfiScrollableOverflowUpdateOutcome rust_update_scrollable_overflow(DOM::Document&, bool handled_by_full_layout_commit, ReadonlySpan<Layout::Box const*> boxes_needing_eager_measurement);
 WEB_API CSS::ResolvedImage rust_resolve_gradient_for_size(CSS::StyleValue const&, Layout::NodeWithStyle const&, CSSPixelSize);
 WEB_API void rust_update_visual_viewport_transform(DOM::Document&);
 WEB_API void rust_refresh_scroll_state(DOM::Document&);

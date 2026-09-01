@@ -2786,145 +2786,27 @@ void Document::finish_animated_style_update()
 
 void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates derived_structure_updates, ReadonlySpan<Layout::Box const*> boxes_needing_eager_measurement)
 {
-    // For every box that will be re-measured, the overflow data it had before, so the diff below
-    // can tell what actually changed; an empty value means the box's committed row was reset by a
-    // subtree layout commit and the old data is unknown.
-    HashMap<Layout::Box const*, Optional<Painting::OverflowData>> old_overflow_data_by_box;
-
     if (!m_layout_node_arena)
         return;
-    Vector<Layout::RustFFI::NodeSlotId> pending_boxes;
-    auto needs_full_recalculation = Layout::RustFFI::layout_arena_take_scrollable_overflow_recalculation_state(
-        m_layout_node_arena->handle(), &pending_boxes,
-        [](void* context, Layout::RustFFI::NodeSlotId slot) {
-            static_cast<Vector<Layout::RustFFI::NodeSlotId>*>(context)->append(slot);
-        });
-    if (pending_boxes.is_empty() && !needs_full_recalculation)
-        return;
-    if (!has_committed_viewport_box())
+
+    auto outcome = Painting::rust_update_scrollable_overflow(*this,
+        derived_structure_updates == ScrollableOverflowDerivedStructureUpdates::HandledByFullLayoutCommit,
+        boxes_needing_eager_measurement);
+    if (!outcome.performed_recalculation)
         return;
 
     style_invalidation_counters().scrollable_overflow_recalculations++;
 
-    // The scroll offset can become invalid if the scrollable overflow rectangle has changed. For
-    // example, if the scroll container has been scrolled to the very end and then its scrollable
-    // overflow rect becomes smaller, the scroll offset would be out of bounds. Re-applying the
-    // current offset clamps it against the new rect.
-    auto clamp_scroll_offset = [](Layout::Node const& box) {
-        if (!Painting::scroll_offset(box).is_zero())
-            Painting::set_scroll_offset(const_cast<Layout::Node&>(box), Painting::scroll_offset(box));
-    };
-
-    if (derived_structure_updates == ScrollableOverflowDerivedStructureUpdates::HandledByFullLayoutCommit) {
-        VERIFY(needs_full_recalculation);
-
-        // A full-root commit reset every surviving row, including its overflow data and
-        // paint cache. There is therefore no old overflow to preserve or diff. Ordinary boxes are
-        // measured recursively when their overflow contributes to one of these roots, so they do
-        // not need separate eager measurement.
-        for (auto const* box : boxes_needing_eager_measurement) {
-            if (!Painting::has_committed_box(*box))
-                continue;
-            Painting::rust_measure_scrollable_overflow(*box);
-            clamp_scroll_offset(*box);
-        }
-        return;
-    }
-
-    auto record_and_clear_overflow_data = [&](Layout::Box const& box) {
-        if (!Painting::has_committed_box(box))
-            return true;
-        if (old_overflow_data_by_box.contains(&box))
-            return false;
-        old_overflow_data_by_box.set(&box, Painting::overflow_data(box));
-        Painting::clear_overflow_data(box);
-        return true;
-    };
-
-    if (needs_full_recalculation) {
-        m_layout_root->for_each_in_inclusive_subtree_of_type<Layout::Box>([&](auto& box) {
-            record_and_clear_overflow_data(box);
-            return TraversalDecision::Continue;
-        });
-        Layout::RustFFI::layout_arena_rebuild_scrollable_overflow_contained_boxes(layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root.ptr()));
-    } else {
-        for (auto const& paintable_slot : pending_boxes) {
-            auto* layout_node = Painting::layout_node_for_committed_slot(layout_node_arena(), paintable_slot);
-            if (!layout_node)
-                continue;
-            auto const* box = as_if<Layout::Box>(*layout_node);
-            if (!box)
-                continue;
-            bool was_reset_by_subtree_layout_commit = !Painting::overflow_data(*box).has_value();
-            if (was_reset_by_subtree_layout_commit) {
-                box->for_each_in_inclusive_subtree_of_type<Layout::Box>([&](auto& subtree_box) {
-                    record_and_clear_overflow_data(subtree_box);
-                    return TraversalDecision::Continue;
-                });
-            }
-            for (auto const* containing_block = box->containing_block(); containing_block; containing_block = containing_block->containing_block()) {
-                if (Painting::has_committed_box(*containing_block))
-                    Painting::clear_cached_overflow_data(*containing_block);
-                if (!record_and_clear_overflow_data(*containing_block))
-                    break;
-            }
-        }
-    }
-
-    if (old_overflow_data_by_box.is_empty())
-        return;
-
-    for (auto const& it : old_overflow_data_by_box) {
-        if (!Painting::has_committed_box(*it.key))
-            continue;
-
-        // Boxes reset by a subtree commit have no previous overflow data. They will be measured
-        // recursively if an ancestor reaches them. Measuring each one here would repeatedly walk
-        // the same containing-block chains after a small subtree update.
-        if (!it.value.has_value() && it.key != m_layout_root.ptr() && !it.key->is_scroll_container() && Painting::scroll_offset(*it.key).is_zero())
-            continue;
-
-        Painting::rust_measure_scrollable_overflow(*it.key);
-        clamp_scroll_offset(*it.key);
-    }
-
-    bool any_overflow_changed = false;
-    bool any_has_scrollable_overflow_flipped = false;
-    for (auto const& [box, old_overflow_data] : old_overflow_data_by_box) {
-        if (!Painting::has_committed_box(*box))
-            continue;
-        auto new_overflow_data = Painting::overflow_data(*box);
-        if (!new_overflow_data.has_value())
-            continue;
-        // A box with no prior overflow data was just created or reset by the layout commit, so
-        // its paint cache is already clean.
-        if (!old_overflow_data.has_value())
-            continue;
-        // Boxes that merely moved do not register here; everything derived below is
-        // translation-invariant, and movement-driven repaint belongs to the layout commit.
-        bool rect_changed = old_overflow_data->scrollable_overflow_rect_relative_to_padding_box != new_overflow_data->scrollable_overflow_rect_relative_to_padding_box;
-        bool has_scrollable_overflow_flipped = old_overflow_data->has_scrollable_overflow != new_overflow_data->has_scrollable_overflow;
-        if (!rect_changed && !has_scrollable_overflow_flipped)
-            continue;
-        // Cached paint commands and hit-test items capture scrollbar geometry and per-direction
-        // scrollability derived from the overflow rect, so they cannot be reused once it changes.
-        // This must also run for the after-layout-commit path: a subtree relayout re-measures a
-        // surviving ancestor's overflow without resetting the ancestor's committed row.
-        Painting::invalidate_paint_cache(*box);
-        any_overflow_changed = true;
-        any_has_scrollable_overflow_flipped |= has_scrollable_overflow_flipped;
-    }
-
-    if (derived_structure_updates == ScrollableOverflowDerivedStructureUpdates::HandledByAfterLayoutCommit)
+    if (derived_structure_updates != ScrollableOverflowDerivedStructureUpdates::UpdateAfterMeasure)
         return;
 
     // Nothing derived from scrollable overflow needs updating. In particular, this keeps transform
     // changes that ride the accumulated-visual-context value-update path free of display list
     // re-recording when the overflow they produce is unchanged.
-    if (!any_overflow_changed)
+    if (!outcome.any_overflow_changed)
         return;
 
-    if (any_has_scrollable_overflow_flipped) {
+    if (outcome.any_has_scrollable_overflow_flipped) {
         set_needs_accumulated_visual_contexts_update(true);
     } else if (!m_needs_accumulated_visual_contexts_update) {
         // Sticky insets only depend on scrollport geometry and which ancestor is scrollable, neither of

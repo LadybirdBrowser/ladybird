@@ -543,12 +543,9 @@ Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions
     return Layout::RustFFI::layout_arena_physical_overflow_directions(box.arena_handle(), committed_row_slot(box));
 }
 
-void rust_measure_scrollable_overflow(Layout::Node const& box)
+static Layout::RustFFI::FfiScrollableOverflowHostCallbacks scrollable_overflow_host_callbacks()
 {
-    auto& document = const_cast<DOM::Document&>(box.document());
-    if (!document.has_committed_viewport_box())
-        return;
-    Layout::RustFFI::FfiScrollableOverflowHostCallbacks overflow_callbacks {
+    return {
         .context = nullptr,
         .layout_node_is_in_focused_text_control = [](void*, void* layout_node_shell) -> bool {
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
@@ -562,7 +559,41 @@ void rust_measure_scrollable_overflow(Layout::Node const& box)
                 && shadow_root->host()->is_focused();
         },
     };
-    Layout::RustFFI::layout_arena_measure_scrollable_overflow(box.arena_handle(), committed_row_slot(box), visual_context_host_callbacks(document), overflow_callbacks);
+}
+
+void rust_measure_scrollable_overflow(Layout::Node const& box)
+{
+    auto& document = const_cast<DOM::Document&>(box.document());
+    if (!document.has_committed_viewport_box())
+        return;
+    Layout::RustFFI::layout_arena_measure_scrollable_overflow(box.arena_handle(), committed_row_slot(box), visual_context_host_callbacks(document), scrollable_overflow_host_callbacks());
+}
+
+Layout::RustFFI::FfiScrollableOverflowUpdateOutcome rust_update_scrollable_overflow(DOM::Document& document, bool handled_by_full_layout_commit, ReadonlySpan<Layout::Box const*> boxes_needing_eager_measurement)
+{
+    Vector<Layout::RustFFI::NodeSlotId> eager_measurement_slots;
+    eager_measurement_slots.ensure_capacity(boxes_needing_eager_measurement.size());
+    for (auto const* box : boxes_needing_eager_measurement)
+        eager_measurement_slots.unchecked_append(Layout::Node::slot_id(box));
+
+    // The scroll offset can become invalid if the scrollable overflow rectangle has changed. For
+    // example, if the scroll container has been scrolled to the very end and then its scrollable
+    // overflow rect becomes smaller, the scroll offset would be out of bounds. Re-applying the
+    // current offset clamps it against the new rect.
+    auto clamp_scroll_offset_if_nonzero = [](void*, void* layout_node_shell) {
+        auto& box = *static_cast<Layout::Node*>(layout_node_shell);
+        if (!scroll_offset(box).is_zero())
+            set_scroll_offset(box, scroll_offset(box));
+    };
+    auto scroll_offset_is_zero = [](void*, void* layout_node_shell) -> bool {
+        return scroll_offset(*static_cast<Layout::Node const*>(layout_node_shell)).is_zero();
+    };
+
+    return Layout::RustFFI::layout_arena_update_scrollable_overflow(
+        layout_arena_handle(document), viewport_row_slot(document), handled_by_full_layout_commit,
+        eager_measurement_slots.data(), eager_measurement_slots.size(),
+        visual_context_host_callbacks(document), scrollable_overflow_host_callbacks(),
+        nullptr, clamp_scroll_offset_if_nonzero, scroll_offset_is_zero);
 }
 
 CSS::ResolvedImage rust_resolve_gradient_for_size(CSS::StyleValue const& gradient_style_value, Layout::NodeWithStyle const& layout_node, CSSPixelSize size)
