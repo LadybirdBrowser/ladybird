@@ -50,6 +50,13 @@ EventLoop::EventLoop(Type type)
 
 EventLoop::~EventLoop() = default;
 
+void EventLoop::reset_rendering_scheduler_counters()
+{
+    m_rendering_scheduler_counters = {};
+    m_rendering_scheduler_counters_at_last_update = {};
+    m_last_rendering_update_end_time = 0;
+}
+
 void EventLoop::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -167,6 +174,33 @@ void EventLoop::process()
     // 3. Let taskEndTime be the unsafe shared current time. [HRT]
     [[maybe_unused]] auto task_end_time = HighResolutionTime::unsafe_shared_current_time();
 
+    if (oldest_task && oldest_task->source() != Task::Source::Rendering) {
+        auto task_duration = task_end_time - task_start_time;
+        auto task_duration_microseconds = static_cast<u64>(task_duration * 1000.0);
+        ++m_rendering_scheduler_counters.tasks_between_updates;
+        m_rendering_scheduler_counters.task_microseconds_between_updates += task_duration_microseconds;
+        switch (oldest_task->source()) {
+        case Task::Source::PostedMessage:
+            ++m_rendering_scheduler_counters.posted_message_tasks_between_updates;
+            m_rendering_scheduler_counters.posted_message_task_microseconds_between_updates += task_duration_microseconds;
+            break;
+        case Task::Source::TimerTask:
+            ++m_rendering_scheduler_counters.timer_tasks_between_updates;
+            m_rendering_scheduler_counters.timer_task_microseconds_between_updates += task_duration_microseconds;
+            break;
+        case Task::Source::Networking:
+            ++m_rendering_scheduler_counters.networking_tasks_between_updates;
+            m_rendering_scheduler_counters.networking_task_microseconds_between_updates += task_duration_microseconds;
+            break;
+        case Task::Source::DOMManipulation:
+            ++m_rendering_scheduler_counters.dom_manipulation_tasks_between_updates;
+            m_rendering_scheduler_counters.dom_manipulation_task_microseconds_between_updates += task_duration_microseconds;
+            break;
+        default:
+            break;
+        }
+    }
+
     // 4. If oldestTask is not null, then:
     if (oldest_task) {
         // FIXME: 1. Let top-level browsing contexts be an empty set.
@@ -203,6 +237,11 @@ void EventLoop::process()
 // https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model
 void EventLoop::queue_task_to_update_the_rendering()
 {
+    ++m_rendering_scheduler_counters.update_requests;
+    ++m_rendering_scheduler_counters.opportunities_received;
+    if (m_running_rendering_task)
+        ++m_rendering_scheduler_counters.update_requests_while_rendering;
+
     // FIXME: 1. Wait until at least one navigable whose active document's relevant agent's event loop is eventLoop might have a rendering opportunity.
 
     // 2. Set eventLoop's last render opportunity time to the unsafe shared current time.
@@ -210,10 +249,12 @@ void EventLoop::queue_task_to_update_the_rendering()
 
     // OPTIMIZATION: If there are already rendering tasks in the queue, we don't need to queue another one.
     if (m_task_queue->has_rendering_tasks()) {
+        ++m_rendering_scheduler_counters.coalesced_update_requests;
         return;
     }
 
     // 3. For each navigable that has a rendering opportunity, queue a global task on the rendering task source given navigable's active window to update the rendering:
+    bool queued_a_task = false;
     for (auto& navigable : all_local_navigables()) {
         if (!navigable->is_traversable())
             continue;
@@ -227,7 +268,10 @@ void EventLoop::queue_task_to_update_the_rendering()
             continue;
 
         queue_global_task(Task::Source::Rendering, HTML::relevant_global_object(*navigable->active_window()), *m_rendering_task_function);
+        queued_a_task = true;
     }
+    if (queued_a_task)
+        ++m_rendering_scheduler_counters.opportunities_that_queued_a_task;
 }
 
 void EventLoop::process_input_events() const
@@ -318,8 +362,37 @@ void EventLoop::update_the_rendering()
 {
     VERIFY(!m_running_rendering_task);
     m_running_rendering_task = true;
-    ScopeGuard const guard = [this] {
+    auto update_start_time = HighResolutionTime::unsafe_shared_current_time();
+    ++m_rendering_scheduler_counters.updates_run;
+    ScopeGuard const guard = [this, update_start_time] {
+        auto update_end_time = HighResolutionTime::unsafe_shared_current_time();
+        m_rendering_scheduler_counters.update_microseconds += static_cast<u64>((update_end_time - update_start_time) * 1000.0);
         m_running_rendering_task = false;
+
+        auto const& current = m_rendering_scheduler_counters;
+        auto const& previous = m_rendering_scheduler_counters_at_last_update;
+        dbgln_if(RENDERING_SCHEDULER_DEBUG,
+            "[RenderSched] update #{} duration={:.1f}ms gap={:.1f}ms paints={} tasks={} ({:.1f}ms) "
+            "[postmsg {} ({:.1f}ms), timer {} ({:.1f}ms), net {} ({:.1f}ms), dom {} ({:.1f}ms)] "
+            "requests={} coalesced={} during_update={}",
+            current.updates_run, update_end_time - update_start_time,
+            m_last_rendering_update_end_time > 0 ? update_start_time - m_last_rendering_update_end_time : 0.0,
+            current.paints - previous.paints,
+            current.tasks_between_updates - previous.tasks_between_updates,
+            static_cast<double>(current.task_microseconds_between_updates - previous.task_microseconds_between_updates) / 1000.0,
+            current.posted_message_tasks_between_updates - previous.posted_message_tasks_between_updates,
+            static_cast<double>(current.posted_message_task_microseconds_between_updates - previous.posted_message_task_microseconds_between_updates) / 1000.0,
+            current.timer_tasks_between_updates - previous.timer_tasks_between_updates,
+            static_cast<double>(current.timer_task_microseconds_between_updates - previous.timer_task_microseconds_between_updates) / 1000.0,
+            current.networking_tasks_between_updates - previous.networking_tasks_between_updates,
+            static_cast<double>(current.networking_task_microseconds_between_updates - previous.networking_task_microseconds_between_updates) / 1000.0,
+            current.dom_manipulation_tasks_between_updates - previous.dom_manipulation_tasks_between_updates,
+            static_cast<double>(current.dom_manipulation_task_microseconds_between_updates - previous.dom_manipulation_task_microseconds_between_updates) / 1000.0,
+            current.update_requests - previous.update_requests,
+            current.coalesced_update_requests - previous.coalesced_update_requests,
+            current.update_requests_while_rendering - previous.update_requests_while_rendering);
+        m_rendering_scheduler_counters_at_last_update = current;
+        m_last_rendering_update_end_time = update_end_time;
     };
 
     process_input_events();
@@ -572,6 +645,7 @@ void EventLoop::update_the_rendering()
         if (auto document = navigable->active_document())
             document->update_layout(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate);
         navigable->paint_next_frame();
+        ++m_rendering_scheduler_counters.paints;
         if (navigable->is_traversable()) {
             auto traversable = navigable->traversable_navigable();
             traversable->process_screenshot_requests();

@@ -36,6 +36,29 @@ class WEB_API EventLoop : public JS::Cell {
     };
 
 public:
+    struct RenderingSchedulerCounters {
+        u64 update_requests { 0 };
+        u64 coalesced_update_requests { 0 };
+        u64 update_requests_while_rendering { 0 };
+        u64 opportunities_received { 0 };
+        u64 opportunities_that_queued_a_task { 0 };
+        u64 watchdog_opportunities { 0 };
+        u64 updates_run { 0 };
+        u64 updates_skipped_as_unnecessary { 0 };
+        u64 update_microseconds { 0 };
+        u64 tasks_between_updates { 0 };
+        u64 task_microseconds_between_updates { 0 };
+        u64 posted_message_tasks_between_updates { 0 };
+        u64 posted_message_task_microseconds_between_updates { 0 };
+        u64 timer_tasks_between_updates { 0 };
+        u64 timer_task_microseconds_between_updates { 0 };
+        u64 networking_tasks_between_updates { 0 };
+        u64 networking_task_microseconds_between_updates { 0 };
+        u64 dom_manipulation_tasks_between_updates { 0 };
+        u64 dom_manipulation_task_microseconds_between_updates { 0 };
+        u64 paints { 0 };
+    };
+
     enum class Type {
         // https://html.spec.whatwg.org/multipage/webappapis.html#window-event-loop
         Window,
@@ -99,6 +122,9 @@ public:
 
     bool running_rendering_task() const { return m_running_rendering_task; }
 
+    RenderingSchedulerCounters const& rendering_scheduler_counters() const { return m_rendering_scheduler_counters; }
+    void reset_rendering_scheduler_counters();
+
 private:
     explicit EventLoop(Type);
 
@@ -146,6 +172,10 @@ private:
     size_t m_execution_pause_depth { 0 };
 
     bool m_running_rendering_task { false };
+
+    RenderingSchedulerCounters m_rendering_scheduler_counters;
+    RenderingSchedulerCounters m_rendering_scheduler_counters_at_last_update;
+    double m_last_rendering_update_end_time { 0 };
 
     GC::Ptr<GC::Function<void()>> m_rendering_task_function;
 };

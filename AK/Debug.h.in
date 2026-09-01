@@ -214,6 +214,10 @@
 #    cmakedefine01 REGEX_DEBUG
 #endif
 
+#ifndef RENDERING_SCHEDULER_DEBUG
+#    cmakedefine01 RENDERING_SCHEDULER_DEBUG
+#endif
+
 #ifndef REQUESTSERVER_DEBUG
 #    cmakedefine01 REQUESTSERVER_DEBUG
 #endif

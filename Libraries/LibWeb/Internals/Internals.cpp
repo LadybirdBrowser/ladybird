@@ -1306,6 +1306,39 @@ void Internals::reset_style_invalidation_counters()
     window().associated_document().reset_style_invalidation_counters();
 }
 
+GC::Ref<JS::Object> Internals::get_rendering_scheduler_counters() const
+{
+    auto& realm = HTML::relevant_realm(window());
+    auto const& counters = HTML::main_thread_event_loop().rendering_scheduler_counters();
+    auto object = JS::Object::create(realm, nullptr);
+    object->define_direct_property("updateRequests"_utf16_fly_string, JS::Value(counters.update_requests), JS::default_attributes);
+    object->define_direct_property("coalescedUpdateRequests"_utf16_fly_string, JS::Value(counters.coalesced_update_requests), JS::default_attributes);
+    object->define_direct_property("updateRequestsWhileRendering"_utf16_fly_string, JS::Value(counters.update_requests_while_rendering), JS::default_attributes);
+    object->define_direct_property("opportunitiesReceived"_utf16_fly_string, JS::Value(counters.opportunities_received), JS::default_attributes);
+    object->define_direct_property("opportunitiesThatQueuedATask"_utf16_fly_string, JS::Value(counters.opportunities_that_queued_a_task), JS::default_attributes);
+    object->define_direct_property("watchdogOpportunities"_utf16_fly_string, JS::Value(counters.watchdog_opportunities), JS::default_attributes);
+    object->define_direct_property("updatesRun"_utf16_fly_string, JS::Value(counters.updates_run), JS::default_attributes);
+    object->define_direct_property("updatesSkippedAsUnnecessary"_utf16_fly_string, JS::Value(counters.updates_skipped_as_unnecessary), JS::default_attributes);
+    object->define_direct_property("updateMicroseconds"_utf16_fly_string, JS::Value(counters.update_microseconds), JS::default_attributes);
+    object->define_direct_property("tasksBetweenUpdates"_utf16_fly_string, JS::Value(counters.tasks_between_updates), JS::default_attributes);
+    object->define_direct_property("taskMicrosecondsBetweenUpdates"_utf16_fly_string, JS::Value(counters.task_microseconds_between_updates), JS::default_attributes);
+    object->define_direct_property("postedMessageTasksBetweenUpdates"_utf16_fly_string, JS::Value(counters.posted_message_tasks_between_updates), JS::default_attributes);
+    object->define_direct_property("postedMessageTaskMicrosecondsBetweenUpdates"_utf16_fly_string, JS::Value(counters.posted_message_task_microseconds_between_updates), JS::default_attributes);
+    object->define_direct_property("timerTasksBetweenUpdates"_utf16_fly_string, JS::Value(counters.timer_tasks_between_updates), JS::default_attributes);
+    object->define_direct_property("timerTaskMicrosecondsBetweenUpdates"_utf16_fly_string, JS::Value(counters.timer_task_microseconds_between_updates), JS::default_attributes);
+    object->define_direct_property("networkingTasksBetweenUpdates"_utf16_fly_string, JS::Value(counters.networking_tasks_between_updates), JS::default_attributes);
+    object->define_direct_property("networkingTaskMicrosecondsBetweenUpdates"_utf16_fly_string, JS::Value(counters.networking_task_microseconds_between_updates), JS::default_attributes);
+    object->define_direct_property("domManipulationTasksBetweenUpdates"_utf16_fly_string, JS::Value(counters.dom_manipulation_tasks_between_updates), JS::default_attributes);
+    object->define_direct_property("domManipulationTaskMicrosecondsBetweenUpdates"_utf16_fly_string, JS::Value(counters.dom_manipulation_task_microseconds_between_updates), JS::default_attributes);
+    object->define_direct_property("paints"_utf16_fly_string, JS::Value(counters.paints), JS::default_attributes);
+    return object;
+}
+
+void Internals::reset_rendering_scheduler_counters()
+{
+    HTML::main_thread_event_loop().reset_rendering_scheduler_counters();
+}
+
 void Internals::update_compositor_animations()
 {
     window().associated_document().update_compositor_animations();

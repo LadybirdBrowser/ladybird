@@ -177,6 +177,8 @@ interface Internals {
     // elementStyleRecomputations, and styleEnvironmentVersion.
     [ImplementedAs=style_invalidation_counters_object] object getStyleInvalidationCounters();
     undefined resetStyleInvalidationCounters();
+    object getRenderingSchedulerCounters();
+    undefined resetRenderingSchedulerCounters();
     undefined updateCompositorAnimations();
     boolean runEmptyAnimationStyleUpdateForTesting();
     undefined armCompositorAnimationTimersForTesting();
