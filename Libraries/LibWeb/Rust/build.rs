@@ -2695,16 +2695,10 @@ fn public_type_names(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
     Ok(names)
 }
 
-struct DisplayListCommandImplFacts {
-    name: String,
-    has_bounding_rect: bool,
-}
-
-fn display_list_command_impl_facts(path: &Path) -> Result<Vec<DisplayListCommandImplFacts>, Box<dyn Error>> {
+fn display_list_command_names(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
     let source = std::fs::read_to_string(path)?;
-    let mut facts = Vec::new();
-    let mut lines = source.lines();
-    while let Some(line) = lines.next() {
+    let mut names = Vec::new();
+    for line in source.lines() {
         let Some(rest) = line.strip_prefix("impl DisplayListCommand for ") else {
             continue;
         };
@@ -2712,28 +2706,12 @@ fn display_list_command_impl_facts(path: &Path) -> Result<Vec<DisplayListCommand
         if name.is_empty() {
             return Err(format!("unparsable DisplayListCommand impl header: {line}").into());
         }
-        let mut has_bounding_rect = false;
-        let mut closed = false;
-        for body_line in lines.by_ref() {
-            if body_line == "}" {
-                closed = true;
-                break;
-            }
-            let body_line = body_line.trim_start();
-            has_bounding_rect |= body_line.starts_with("fn bounding_rect");
-        }
-        if !closed {
-            return Err(format!("unterminated DisplayListCommand impl for {name}").into());
-        }
-        facts.push(DisplayListCommandImplFacts {
-            name,
-            has_bounding_rect,
-        });
+        names.push(name);
     }
-    if facts.is_empty() {
+    if names.is_empty() {
         return Err("no DisplayListCommand impls found".into());
     }
-    Ok(facts)
+    Ok(names)
 }
 
 fn generate_ffi_header_strict(config: cbindgen::Config, sources: &[PathBuf], out_dir: &Path, header: &Path) {
@@ -3120,6 +3098,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/painting/host/hit_test.rs"),
             manifest_dir.join("src/painting/host/paint.rs"),
             manifest_dir.join("src/painting/host/replay.rs"),
+            manifest_dir.join("src/painting/display_list/dump.rs"),
             manifest_dir.join("src/painting/ffi.rs"),
         ],
         &out_dir,
@@ -3130,16 +3109,22 @@ fn main() -> Result<(), Box<dyn Error>> {
     painting_config.namespaces = Some(vec!["Web".to_string(), "Painting".to_string(), "RustFFI".to_string()]);
     expose_css_pixel_types_as_web_types(&mut painting_config);
     let libgfx_src_dir = manifest_dir.join("../../LibGfx/Rust/src");
-    let painting_sources = [
+    // Every type declared in these is exported; `commands.rs` is parsed only so cbindgen can
+    // resolve the signatures that mention its types, which are defined in C++.
+    let painting_type_sources = [
         libgfx_src_dir.join("geometry.rs"),
         libgfx_src_dir.join("matrix.rs"),
         libgfx_src_dir.join("color.rs"),
         libgfx_src_dir.join("corner_radii.rs"),
         libgfx_src_dir.join("paint_enums.rs"),
-        manifest_dir.join("src/painting/display_list/commands.rs"),
     ];
+    let painting_sources: Vec<PathBuf> = painting_type_sources
+        .iter()
+        .cloned()
+        .chain([manifest_dir.join("src/painting/display_list/commands.rs")])
+        .collect();
     painting_config.export.include = Vec::new();
-    for libgfx_source in &painting_sources[..painting_sources.len() - 1] {
+    for libgfx_source in &painting_type_sources {
         painting_config.export.include.extend(public_type_names(libgfx_source)?);
     }
     painting_config.export.include.extend(
@@ -3236,7 +3221,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     display_list_commands_config.includes = [
         "AK/Forward.h",
         "AK/Optional.h",
-        "AK/StringView.h",
         "AK/Types.h",
         "LibGfx/AffineTransform.h",
         "LibGfx/AntiAliasing.h",
@@ -3262,23 +3246,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     .into_iter()
     .map(String::from)
     .collect();
-    for command in display_list_command_impl_facts(&commands_source)? {
-        let name = &command.name;
+    for name in display_list_command_names(&commands_source)? {
         display_list_commands_config.export.pre_body.insert(
             name.clone(),
-            format!(
-                "    static constexpr StringView command_name = \"{name}\"sv;\n    static constexpr DisplayListCommandType command_type = DisplayListCommandType::{name};"
-            ),
+            format!("    static constexpr DisplayListCommandType command_type = DisplayListCommandType::{name};"),
         );
-        let mut member_declarations = String::new();
-        if command.has_bounding_rect {
-            member_declarations.push_str("    [[nodiscard]] Gfx::IntRect bounding_rect() const;\n");
-        }
-        member_declarations.push_str("    void dump(StringBuilder&) const;");
-        display_list_commands_config
-            .export
-            .body
-            .insert(name.clone(), member_declarations);
     }
     generate_ffi_header_strict(
         display_list_commands_config,

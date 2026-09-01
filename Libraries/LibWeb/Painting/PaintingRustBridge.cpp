@@ -669,6 +669,58 @@ void rust_invalidate_propagated_text_decoration_caches(Layout::Node const& node)
     Layout::RustFFI::layout_arena_paintable_invalidate_paint_cache(node.arena_handle(), committed_row_slot(node), true);
 }
 
+Utf16String serialize_painting_dump(
+    AccumulatedVisualContextTree const& visual_context_tree,
+    DisplayList const& display_list,
+    DisplayListResourceStorage const& resource_storage,
+    Function<Optional<String>(SpatialNodeIndex)> const& spatial_node_owner_label,
+    Function<Optional<String>(FrameNodeIndex)> const& frame_node_owner_label)
+{
+    struct DumpContext {
+        DisplayListResourceStorage const& resource_storage;
+        Function<Optional<String>(SpatialNodeIndex)> const& spatial_node_owner_label;
+        Function<Optional<String>(FrameNodeIndex)> const& frame_node_owner_label;
+        Utf16String dump;
+    } context { resource_storage, spatial_node_owner_label, frame_node_owner_label, {} };
+
+    Layout::RustFFI::FfiPaintingDumpCallbacks callbacks {
+        .context = &context,
+        .owner_label = [](void* context_pointer, bool is_frame, u32 index, void* label_sink) {
+            auto& context = *static_cast<DumpContext*>(context_pointer);
+            auto label = is_frame
+                ? context.frame_node_owner_label(FrameNodeIndex { index })
+                : context.spatial_node_owner_label(SpatialNodeIndex { index });
+            if (!label.has_value())
+                return false;
+            auto label_bytes = label->bytes();
+            Layout::RustFFI::layout_arena_paint_push_bytes(label_sink, label_bytes.data(), label_bytes.size());
+            return true; },
+        .command_bytes = [](void*, void const* display_list_pointer, size_t* byte_count) -> u8 const* {
+            auto bytes = static_cast<DisplayList const*>(display_list_pointer)->command_bytes();
+            *byte_count = bytes.size();
+            return bytes.data();
+        },
+        .nested_display_list = [](void* context_pointer, u64 display_list_id) -> void const* {
+            auto& context = *static_cast<DumpContext*>(context_pointer);
+            return &context.resource_storage.display_list(DisplayListResourceId { display_list_id });
+        },
+        .mask_display_list_count = [](void*, void const* display_list_pointer) -> size_t {
+            return static_cast<DisplayList const*>(display_list_pointer)->mask_display_lists().size();
+        },
+        .mask_display_lists = [](void*, void const* display_list_pointer, u32* frames, u64* display_list_ids) {
+            size_t index = 0;
+            for (auto const& entry : static_cast<DisplayList const*>(display_list_pointer)->mask_display_lists()) {
+                frames[index] = entry.key.value();
+                display_list_ids[index] = entry.value.value();
+                ++index;
+            } },
+        .append_text = [](void* context_pointer, u8 const* bytes, size_t byte_count) { static_cast<DumpContext*>(context_pointer)->dump = Utf16String::from_utf8_without_validation(StringView { bytes, byte_count }); },
+    };
+    auto command_runs = display_list.command_runs();
+    Layout::RustFFI::painting_dump(visual_context_tree.rust_handle(), command_runs.data(), command_runs.size(), &display_list, callbacks);
+    return move(context.dump);
+}
+
 void dump_stacking_context_tree(StringBuilder& builder, DOM::Document const& document)
 {
     Layout::RustFFI::layout_arena_dump_stacking_context_tree(

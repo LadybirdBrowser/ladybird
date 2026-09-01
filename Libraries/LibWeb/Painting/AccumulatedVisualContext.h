@@ -12,7 +12,6 @@
 #include <AK/Function.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
-#include <AK/String.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Matrix4x4.h>
 #include <LibGfx/Point.h>
@@ -97,7 +96,6 @@ public:
     WEB_API bool frame_is_isolated_by_layer_frame(FrameNodeIndex) const;
     WEB_API bool has_unisolated_blending_frame() const;
     WEB_API void for_each_effects_filter_bytes(Function<void(ReadonlyBytes)> const&) const;
-    WEB_API void dump(StringBuilder&, ReadonlySpan<DisplayListCommandRun>, Function<Optional<String>(SpatialNodeIndex)> const& spatial_node_owner_label, Function<Optional<String>(FrameNodeIndex)> const& frame_node_owner_label) const;
 
 private:
     explicit AccumulatedVisualContextTree(void const* retained_tree);

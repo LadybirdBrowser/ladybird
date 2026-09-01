@@ -9,31 +9,29 @@ use super::{
     VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree,
 };
 use crate::painting::display_list::commands::DisplayListCommandRun;
-use crate::painting::dump::format_float_like_ak;
+use crate::painting::dump::{
+    format_float_like_ak, push_float_point, push_float_rect, push_float_size, push_int_rect_components,
+};
 use libgfx_rust::{CompositingAndBlendingOperator, FloatPoint, FloatRect, FloatSize, IntRect, MaskKind};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 
 fn format_point(point: FloatPoint) -> String {
-    format!("[{},{}]", format_float_like_ak(point.x), format_float_like_ak(point.y))
+    let mut text = String::new();
+    push_float_point(&mut text, point);
+    text
 }
 
 fn format_size(size: FloatSize) -> String {
-    format!(
-        "[{}x{}]",
-        format_float_like_ak(size.width),
-        format_float_like_ak(size.height)
-    )
+    let mut text = String::new();
+    push_float_size(&mut text, size);
+    text
 }
 
 fn format_rect(rect: FloatRect) -> String {
-    format!(
-        "[{},{} {}x{}]",
-        format_float_like_ak(rect.x),
-        format_float_like_ak(rect.y),
-        format_float_like_ak(rect.width),
-        format_float_like_ak(rect.height)
-    )
+    let mut text = String::new();
+    push_float_rect(&mut text, rect);
+    text
 }
 
 fn format_spatial_node_index(index: SpatialNodeIndex) -> String {
@@ -41,7 +39,9 @@ fn format_spatial_node_index(index: SpatialNodeIndex) -> String {
 }
 
 fn format_int_rect_components(rect: IntRect) -> String {
-    format!("{},{} {}x{}", rect.x, rect.y, rect.width, rect.height)
+    let mut text = String::new();
+    push_int_rect_components(&mut text, rect);
+    text
 }
 
 impl VisualContextTree {

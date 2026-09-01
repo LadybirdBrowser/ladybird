@@ -63,6 +63,12 @@ struct InspectorOverlayInputs {
 };
 
 WEB_API RefPtr<DisplayList> record_rust_display_list(DOM::Document&, DisplayList const& placeholder_display_list, DisplayListResourceStorage&, PaintCommandCacheMode, HTML::PaintConfig const&, InspectorOverlayInputs const&);
+WEB_API Utf16String serialize_painting_dump(
+    AccumulatedVisualContextTree const&,
+    DisplayList const&,
+    DisplayListResourceStorage const&,
+    Function<Optional<String>(SpatialNodeIndex)> const& spatial_node_owner_label,
+    Function<Optional<String>(FrameNodeIndex)> const& frame_node_owner_label);
 
 WEB_API DisplayListResource record_image_paint_display_list(ImagePaint const&, Gfx::FloatRect dest_rect, CSS::ImageRendering, double device_pixels_per_css_pixel, DisplayListResourceStorage&);
 

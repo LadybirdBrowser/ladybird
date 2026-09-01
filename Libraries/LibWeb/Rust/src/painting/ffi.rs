@@ -353,7 +353,7 @@ pub unsafe extern "C" fn layout_arena_paintable_has_child_paintables(arena: *mut
     })
 }
 
-unsafe fn ffi_slice<'a, T>(data: *const T, length: usize) -> &'a [T] {
+pub(crate) unsafe fn ffi_slice<'a, T>(data: *const T, length: usize) -> &'a [T] {
     assert!(!data.is_null() || length == 0);
     if length == 0 {
         return &[];
@@ -366,7 +366,9 @@ unsafe fn ffi_slice<'a, T>(data: *const T, length: usize) -> &'a [T] {
 /// # Safety
 ///
 /// `tree` must be a live retained tree handle.
-unsafe fn tree_from_handle<'a>(tree: *const c_void) -> &'a crate::painting::visual_context::VisualContextTree {
+pub(crate) unsafe fn tree_from_handle<'a>(
+    tree: *const c_void,
+) -> &'a crate::painting::visual_context::VisualContextTree {
     // SAFETY: The caller guarantees `tree` is a live retained handle.
     unsafe { &*tree.cast::<crate::painting::visual_context::VisualContextTree>() }
 }
@@ -2904,36 +2906,6 @@ pub unsafe extern "C" fn visual_context_tree_for_each_effects_filter_bytes(
                 unsafe { visit(context, filter_bytes.as_ptr(), filter_bytes.len()) };
             }
         }
-    });
-}
-
-/// # Safety
-///
-/// `tree` must be a live retained tree handle; `command_runs` must address `command_run_count` runs;
-/// `owner_label` is called synchronously with `context` and a `Vec<u8>` sink the host fills through
-/// `layout_arena_paint_push_bytes`, returning whether it wrote a label; `append` receives the dump text.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_dump(
-    tree: *const c_void,
-    command_runs: *const crate::painting::display_list::commands::DisplayListCommandRun,
-    command_run_count: usize,
-    context: *mut c_void,
-    owner_label: unsafe extern "C" fn(*mut c_void, bool, u32, *mut c_void) -> bool,
-    sink: *mut c_void,
-    append: unsafe extern "C" fn(*mut c_void, *const u8, usize),
-) {
-    abort_on_panic(|| {
-        let tree = unsafe { tree_from_handle(tree) };
-        // SAFETY: The caller guarantees the runs address `command_run_count` values.
-        let command_runs = unsafe { ffi_slice(command_runs, command_run_count) };
-        let text = tree.dump_nodes_reachable_from_runs(command_runs, |is_frame, index| {
-            let mut label: Vec<u8> = Vec::new();
-            // SAFETY: The C++ host fills the label sink synchronously through the exported push function.
-            let has_label = unsafe { owner_label(context, is_frame, index, (&raw mut label).cast()) };
-            has_label.then(|| String::from_utf8_lossy(&label).into_owned())
-        });
-        // SAFETY: The C++ sink copies the text synchronously.
-        unsafe { append(sink, text.as_ptr(), text.len()) };
     });
 }
 
