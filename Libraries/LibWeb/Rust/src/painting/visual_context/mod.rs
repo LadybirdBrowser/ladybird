@@ -1112,6 +1112,7 @@ pub(crate) struct DescendantVisualContexts {
     pub fixed_position_plane_root: SpatialNodeIndex,
     pub flattens_inherited_transform: bool,
     pub sorting_context_root: Option<SpatialNodeIndex>,
+    pub enclosing_stacking_context: NodeSlotId,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1123,6 +1124,7 @@ pub(crate) struct PaintableVisualContextRecord {
     pub may_be_root_element: bool,
     pub owns_geometry_dependent_nodes: bool,
     pub subtree_may_own_geometry_dependent_nodes: bool,
+    pub stacking_context: crate::painting::stacking_context::StackingContextFacts,
 }
 
 #[cfg(test)]

@@ -704,5 +704,6 @@ fn remap_descendant_contexts(
         sorting_context_root: contexts
             .sorting_context_root
             .map(|index| placement.remap_spatial(index)),
+        enclosing_stacking_context: contexts.enclosing_stacking_context,
     }
 }
