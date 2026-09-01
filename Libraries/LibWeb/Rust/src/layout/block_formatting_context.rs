@@ -2752,6 +2752,17 @@ impl BlockFormattingContext {
         // 1. The intrinsic sizes of the size containment box are determined as if the element had no content, following
         //    the same logic as when sizing as if empty.
         if facts.node_has_size_containment() {
+            // https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override
+            // If an element has an explicit intrinsic inner size in an axis, then after laying out the element as
+            // normal for size containment, the size of the contents in that axis are instead treated as being the
+            // explicit intrinsic inner size instead of what was calculated in layout, and layout is performed again if
+            // necessary.
+            // FIXME: Nothing re-runs layout here. The substituted size replaces the block size the contents produced,
+            //        and size containment keeps those contents from depending on it, so a second pass has nothing to
+            //        change today.
+            if style.contain_intrinsic_height_has_length() {
+                return CssPixels::nearest_value_for(style.contain_intrinsic_height_px());
+            }
             return CssPixels::default();
         }
         if facts.creates_block_formatting_context()

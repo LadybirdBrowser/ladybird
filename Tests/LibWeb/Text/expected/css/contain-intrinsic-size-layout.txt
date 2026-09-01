@@ -1,0 +1,10 @@
+size_only: height=0
+strict_only: height=0
+shorthand: height=222
+longhand: height=222
+auto_length: height=32
+none: height=0
+not_contained: height=16
+horizontal_inline_block: width=111 height=222
+vertical_inline_block: width=111 height=222
+in_vertical_inline_block: width=111 height=222
