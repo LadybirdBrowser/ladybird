@@ -1798,6 +1798,33 @@ fn execute_formatting_context_run(
         result
     };
 
+    // https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override
+    // If an element has an explicit intrinsic inner size in an axis, then after laying out the element as normal for
+    // size containment, the size of the contents in that axis are instead treated as being the explicit intrinsic inner
+    // size instead of what was calculated in layout, and layout is performed again if necessary.
+    //
+    // Every formatting context reports its content sizes through ChildLayoutResult, so overriding here covers them all
+    // rather than one context's root-height path.
+    let containment_facts = NodeFacts::new(&run.callbacks, run.box_);
+    if containment_facts.node_has_size_containment() {
+        let style = containment_facts.style();
+        // https://drafts.csswg.org/css-contain-2/#containment-size
+        // Giving an element size containment makes its principal box a size containment box and has the following
+        // effects:
+        // 1. The intrinsic sizes of the size containment box are determined as if the element had no content, following
+        //    the same logic as when sizing as if empty.
+        result.automatic_content_inline_size = if style.contain_intrinsic_width_has_length() {
+            CssPixels::nearest_value_for(style.contain_intrinsic_width_px())
+        } else {
+            CssPixels::default()
+        };
+        result.automatic_content_block_size = if style.contain_intrinsic_height_has_length() {
+            CssPixels::nearest_value_for(style.contain_intrinsic_height_px())
+        } else {
+            CssPixels::default()
+        };
+    }
+
     match input.participation {
         ParticipationInParentFormattingContext::BlockLevel => {
             finalize_block_level_root(run, &input, &result);

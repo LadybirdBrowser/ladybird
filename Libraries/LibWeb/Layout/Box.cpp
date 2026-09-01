@@ -197,8 +197,15 @@ CSS::SizeWithAspectRatio Box::auto_content_box_size() const
     // https://drafts.csswg.org/css-contain-2/#containment-size
     // Replaced elements must be treated as having a natural width and height of 0 and no natural aspect
     // ratio.
-    if (has_size_containment())
-        return { 0, 0, {} };
+    if (has_size_containment()) {
+        // https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override
+        // If an element has an explicit intrinsic inner size in an axis, then after laying out the element as normal
+        // for size containment, the size of the contents in that axis are instead treated as being the explicit
+        // intrinsic inner size instead of what was calculated in layout, and layout is performed again if necessary.
+        // FIXME: Nothing re-runs layout here. A replaced element's natural size doesn't depend on its contents, so one
+        //        pass settles it, but that won't hold once a contained box's contents can observe the substituted size.
+        return { explicit_intrinsic_inner_width().value_or(0), explicit_intrinsic_inner_height().value_or(0), {} };
+    }
 
     return compute_auto_content_box_size();
 }

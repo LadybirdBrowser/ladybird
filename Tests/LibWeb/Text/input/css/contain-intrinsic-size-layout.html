@@ -1,0 +1,45 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    div {
+        background: lightblue;
+        width: 200px;
+    }
+
+    #size_only { contain: size; }
+    #strict_only { contain: strict; }
+    #shorthand { contain: size; contain-intrinsic-size: 111px 222px; }
+    #longhand { contain: size; contain-intrinsic-height: 222px; }
+    #auto_length { content-visibility: auto; contain-intrinsic-height: auto 32px; contain: strict; }
+    #none { contain: size; contain-intrinsic-height: none; }
+    #not_contained { contain-intrinsic-height: 222px; }
+    #vertical_inline_block { writing-mode: vertical-rl; display: inline-block; width: auto; contain: size; contain-intrinsic-size: 111px 222px; }
+    #horizontal_inline_block { display: inline-block; width: auto; contain: size; contain-intrinsic-size: 111px 222px; }
+</style>
+<div id="size_only">x</div>
+<div id="strict_only">x</div>
+<div id="shorthand">x</div>
+<div id="longhand">x</div>
+<div id="auto_length">a file row</div>
+<div id="none">x</div>
+<div id="not_contained">x</div>
+<div id="vertical_inline_block">x</div>
+<div id="horizontal_inline_block">x</div>
+<div id="vertical_container" style="writing-mode: vertical-rl; width: auto; height: 300px;">
+    <div id="in_vertical_inline_block" style="width: auto; display: inline-block; contain: size; contain-intrinsic-size: 111px 222px;">x</div>
+</div>
+<script>
+    test(() => {
+        const ids = ["size_only", "strict_only", "shorthand", "longhand", "auto_length", "none", "not_contained"];
+        for (const id of ids) {
+            const height = document.getElementById(id).getBoundingClientRect().height;
+            println(`${id}: height=${height.toFixed(0)}`);
+        }
+        // Both axes matter here: contain-intrinsic-width and -height are physical, so a vertical writing mode (on the
+        // box, and on the box and its container) must still come out 111 wide and 222 tall rather than swapped.
+        for (const id of ["horizontal_inline_block", "vertical_inline_block", "in_vertical_inline_block"]) {
+            const rect = document.getElementById(id).getBoundingClientRect();
+            println(`${id}: width=${rect.width.toFixed(0)} height=${rect.height.toFixed(0)}`);
+        }
+    });
+</script>
