@@ -506,7 +506,6 @@
     ]
   },
   "background-blend-mode": {
-    "affects-accumulated-visual-contexts": true,
     "style-group": "BackgroundValues",
     "affects-layout": false,
     "animation-type": "discrete",
@@ -519,7 +518,6 @@
     ]
   },
   "background-clip": {
-    "affects-accumulated-visual-contexts": true,
     "style-group": "BackgroundValues",
     "affects-layout": false,
     "animation-type": "repeatable-list",
@@ -849,7 +847,6 @@
     "percentages-resolve-to": "length"
   },
   "border-bottom-style": {
-    "affects-accumulated-visual-contexts": true,
     "style-group": "BorderValues",
     "animation-type": "discrete",
     "initial": "none",
@@ -1127,7 +1124,6 @@
     ]
   },
   "border-left-style": {
-    "affects-accumulated-visual-contexts": true,
     "style-group": "BorderValues",
     "animation-type": "discrete",
     "initial": "none",
@@ -1191,7 +1187,6 @@
     ]
   },
   "border-right-style": {
-    "affects-accumulated-visual-contexts": true,
     "style-group": "BorderValues",
     "animation-type": "discrete",
     "initial": "none",
@@ -1312,7 +1307,6 @@
     "percentages-resolve-to": "length"
   },
   "border-top-style": {
-    "affects-accumulated-visual-contexts": true,
     "style-group": "BorderValues",
     "animation-type": "discrete",
     "initial": "none",
@@ -1375,7 +1369,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "box-shadow": {
-    "affects-accumulated-visual-contexts": true,
     "style-group": "EffectsValues",
     "affects-layout": false,
     "animation-type": "custom",
@@ -3084,7 +3077,6 @@
     ]
   },
   "mask-clip": {
-    "affects-accumulated-visual-contexts": true,
     "style-group": "MaskValues",
     "animation-type": "discrete",
     "inherited": false,
@@ -3100,7 +3092,6 @@
     "initial": "border-box"
   },
   "mask-composite": {
-    "affects-accumulated-visual-contexts": true,
     "style-group": "MaskValues",
     "animation-type": "discrete",
     "inherited": false,
@@ -3454,7 +3445,6 @@
     ]
   },
   "outline-offset": {
-    "affects-accumulated-visual-contexts": true,
     "style-group": "MiscResetValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
@@ -3466,7 +3456,6 @@
     ]
   },
   "outline-style": {
-    "affects-accumulated-visual-contexts": true,
     "style-group": "MiscResetValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
@@ -3478,7 +3467,6 @@
     ]
   },
   "outline-width": {
-    "affects-accumulated-visual-contexts": true,
     "style-group": "MiscResetValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",

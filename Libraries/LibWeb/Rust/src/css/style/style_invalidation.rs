@@ -313,26 +313,14 @@ fn accumulated_visual_context_property_always_requires_repaint(property: u16) ->
         property,
         property_id::BACKDROP_FILTER
             | property_id::BACKGROUND_ATTACHMENT
-            | property_id::BACKGROUND_BLEND_MODE
-            | property_id::BACKGROUND_CLIP
             | property_id::BACKGROUND_IMAGE
             | property_id::BORDER_BOTTOM_LEFT_RADIUS
             | property_id::BORDER_BOTTOM_RIGHT_RADIUS
-            | property_id::BORDER_BOTTOM_STYLE
-            | property_id::BORDER_LEFT_STYLE
-            | property_id::BORDER_RIGHT_STYLE
             | property_id::BORDER_TOP_LEFT_RADIUS
             | property_id::BORDER_TOP_RIGHT_RADIUS
-            | property_id::BORDER_TOP_STYLE
-            | property_id::BOX_SHADOW
-            | property_id::MASK_CLIP
-            | property_id::MASK_COMPOSITE
             | property_id::MASK_IMAGE
             | property_id::MASK_TYPE
             | property_id::MIX_BLEND_MODE
-            | property_id::OUTLINE_OFFSET
-            | property_id::OUTLINE_STYLE
-            | property_id::OUTLINE_WIDTH
             | property_id::PERSPECTIVE
     )
 }

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #box {
+        width: 100px;
+        height: 50px;
+        border: 4px solid black;
+        background-color: #6d98cc;
+        background-image: linear-gradient(red, red), linear-gradient(blue, blue);
+    }
+</style>
+<div id="box"></div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const box = document.getElementById("box");
+        settle();
+        document.body.appendChild(document.createElement("pre"));
+        settle();
+        const lines = [];
+
+        box.style.borderStyle = "dashed";
+        box.style.boxShadow = "6px 6px 4px rgba(0, 0, 0, 0.5)";
+        box.style.outline = "3px dotted red";
+        box.style.outlineOffset = "2px";
+        box.style.backgroundBlendMode = "multiply, normal";
+        box.style.backgroundClip = "padding-box, border-box";
+        settle();
+        const dump = internals.dumpDisplayList();
+        lines.push(`dashed border painted: ${dump.includes("StrokePath")}`);
+        lines.push(`shadow painted: ${dump.includes("PaintOuterBoxShadow")}`);
+        lines.push(`blended layers painted: ${dump.includes("DrawIsolatedDisplayList")}`);
+        settle();
+
+        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
+        const incrementalUpdates = internals.accumulatedVisualContextIncrementalUpdateCount();
+        box.style.borderStyle = "dotted";
+        settle();
+        box.style.boxShadow = "2px 2px 2px rgba(0, 0, 0, 0.5)";
+        settle();
+        box.style.outlineStyle = "dashed";
+        box.style.outlineWidth = "5px";
+        box.style.outlineOffset = "4px";
+        settle();
+        box.style.backgroundBlendMode = "normal, multiply";
+        box.style.backgroundClip = "border-box, padding-box";
+        settle();
+        lines.push(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
+        lines.push(`incremental updates: ${internals.accumulatedVisualContextIncrementalUpdateCount() - incrementalUpdates}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>
