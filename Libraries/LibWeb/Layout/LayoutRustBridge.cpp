@@ -546,11 +546,6 @@ static Optional<DOM::AbstractElement> abstract_element_for_abspos_box(Box const&
     return {};
 }
 
-bool can_replay_saved_abspos_layout_inputs_after_style_change(Box const& box)
-{
-    return RustFFI::layout_arena_node_can_replay_saved_abspos_layout_inputs_after_style_change(box.arena_handle(), Node::slot_id(&box));
-}
-
 RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
 {
     static_assert(to_underlying(CSS::GridRepeatType::AutoFit) == 0);

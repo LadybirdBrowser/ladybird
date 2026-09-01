@@ -231,7 +231,6 @@ public:
 
     // Set when a style change altered geometry-determining properties of this node itself, so
     // a partial relayout must re-resolve its own size and position instead of reusing them.
-    bool needs_own_geometry_update() const { return has_flag(RustFFI::NodeFlag::NeedsOwnGeometryUpdate); }
     void set_needs_own_geometry_update() { set_flag(RustFFI::NodeFlag::NeedsOwnGeometryUpdate, true); }
     void set_needs_layout_update(DOM::SetNeedsLayoutReason, LayoutUpdatePropagation = LayoutUpdatePropagation::ThroughAncestors);
 
