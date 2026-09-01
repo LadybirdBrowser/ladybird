@@ -9,24 +9,21 @@ use super::{ClipData, ClipMode, ContextRef, FrameData, FrameNodeIndex, FrameRole
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_enums::background_box;
 use crate::css::css_pixels::CssPixelRect;
-use crate::layout::node_data::{NodeKind, NodeSlotId};
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::host::FfiRootBackgroundSource;
 use crate::painting::node_painting;
 use crate::painting::paintable_data::FfiPixelBox;
-use crate::painting::paintable_geometry::{
-    absolute_border_box_rect, committed_border, committed_padding, for_each_rendered_inline_box_piece,
-};
+use crate::painting::paintable_geometry::{committed_border, committed_padding, for_each_rendered_inline_box_piece};
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::paint::background::{BackgroundBox, background_box_for};
 use crate::painting::record::paint::background_resolution::{
     ComputedLayerFrameFacts, background_paint_source_from_style_and_geometry, body_background_is_propagated_to_root,
     computed_background_layer_frame_facts, computed_mask_layer_frame_facts,
 };
-use crate::painting::record::paint::fieldset::{legend_paintable, visual_border_box_rect};
 use crate::painting::style_queries;
-use libgfx_rust::{CompositingAndBlendingOperator, CornerRadii, FloatRect, IntRect};
+use libgfx_rust::{CompositingAndBlendingOperator, CornerRadii, FloatRect};
 
 pub(crate) type LocalFrames = Vec<(FrameRole, FrameNodeIndex)>;
 
@@ -34,7 +31,6 @@ pub(crate) struct LocalFrameBuilder<'a, Sink: VisualContextNodeSink, Arena: Pain
     tree: &'a mut Sink,
     layout_arena: &'a Arena,
     slot: NodeSlotId,
-    kind: NodeKind,
     converter: DevicePixelConverter,
     frames: Option<LocalFrames>,
 }
@@ -65,9 +61,6 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
             tree,
             layout_arena,
             slot,
-            kind: layout_arena
-                .node_kind_if_live(slot)
-                .expect("local frame builder requires a live layout node"),
             converter: DevicePixelConverter::new(pixel_ratio),
             frames: keeps_frame_list.then(LocalFrames::new),
         }
@@ -87,13 +80,8 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
             return self.finish();
         }
 
-        let mut background_parent = own_state;
-        if self.kind == NodeKind::FieldSetBox {
-            background_parent = self.append_fieldset_frames(own_state);
-        }
-
         if node_painting::paints_box_decorations(self.layout_arena, self.slot) {
-            self.append_background_frames(background_parent, root_background_source);
+            self.append_background_frames(own_state, root_background_source);
         }
         self.finish()
     }
@@ -186,58 +174,6 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
                 );
             }
         });
-    }
-
-    fn append_fieldset_frames(&mut self, own_state: ContextRef) -> ContextRef {
-        let arena = self.layout_arena;
-        let css_border_top = arena
-            .node_style_if_live(self.slot)
-            .map(|style| style.border_top_width())
-            .unwrap_or_default();
-        let device_border_rect = self
-            .converter
-            .rounded_device_rect(visual_border_box_rect(arena, self.slot));
-        let background_clip = self.append_clip(
-            own_state,
-            device_border_rect.to_float(),
-            CornerRadii::default(),
-            FrameRole::FieldsetBackgroundClip,
-        );
-        let Some(legend) = legend_paintable(arena, self.slot) else {
-            return background_clip;
-        };
-        let legend_border_rect = self
-            .converter
-            .rounded_device_rect(absolute_border_box_rect(arena, legend));
-        let top_border = self.converter.enclosing_device_pixels(css_border_top);
-        let band = IntRect::new(
-            device_border_rect.x,
-            device_border_rect.y,
-            device_border_rect.width,
-            top_border,
-        );
-        let band_context = self.append_clip(
-            own_state,
-            band.to_float(),
-            CornerRadii::default(),
-            FrameRole::FieldsetTopBorderBand,
-        );
-        let cutout = IntRect::new(
-            legend_border_rect.x,
-            device_border_rect.y,
-            legend_border_rect.width,
-            top_border,
-        );
-        self.append(
-            band_context,
-            FrameData::Clip(ClipData {
-                rect: cutout.to_float(),
-                corner_radii: CornerRadii::default(),
-                mode: ClipMode::Difference,
-            }),
-            FrameRole::LegendCutout,
-        );
-        background_clip
     }
 
     fn append_background_frames(

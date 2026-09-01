@@ -8,14 +8,14 @@ use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
+use crate::painting::display_list::builder::PendingInlineClip;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::paint::background;
 use crate::painting::record::paint::border::{BorderDataDevicePixels, BordersDataDevicePixels, paint_all_borders};
-use crate::painting::visual_context::FrameRole;
-use libgfx_rust::Color;
+use libgfx_rust::{Color, IntRect};
 
 pub(crate) fn legend_paintable(arena: &impl PaintableRowsRead, fieldset: NodeSlotId) -> Option<NodeSlotId> {
     let mut child = arena.node_first_child_if_live(fieldset);
@@ -108,15 +108,20 @@ pub(crate) fn fieldset_borders_data(
 }
 
 pub(crate) fn paint_background(recorder: &mut PaintRecorder<'_>, fieldset: NodeSlotId) {
-    let clip = recorder.expected_local_context(fieldset, FrameRole::FieldsetBackgroundClip);
-    recorder.with_context(clip, |recorder| background::paint_background(recorder, fieldset));
+    let device_border_rect = recorder
+        .converter
+        .rounded_device_rect(visual_border_box_rect(recorder.layout_arena, fieldset));
+    let visual_border_box_clip = PendingInlineClip::intersecting_float_rect(device_border_rect.to_float());
+    recorder.record_with_inline_clips(&[visual_border_box_clip], |recorder| {
+        background::paint_background(recorder, fieldset);
+    });
 }
 
 pub(crate) fn paint_border(recorder: &mut PaintRecorder<'_>, fieldset: NodeSlotId) {
-    if legend_paintable(recorder.layout_arena, fieldset).is_none() {
+    let Some(legend) = legend_paintable(recorder.layout_arena, fieldset) else {
         super::paint_base(recorder, fieldset, crate::painting::record::PaintPhase::Border);
         return;
-    }
+    };
     let Some(style) = recorder.layout_arena.node_style_if_live(fieldset) else {
         return;
     };
@@ -132,8 +137,25 @@ pub(crate) fn paint_border(recorder: &mut PaintRecorder<'_>, fieldset: NodeSlotI
     );
 
     // The top border is not expected to be painted behind the border box of the legend.
-    let cutout = recorder.expected_local_context(fieldset, FrameRole::LegendCutout);
-    recorder.with_context(cutout, |recorder| {
+    let top_border = converter.enclosing_device_pixels(css_border_top_width(recorder.layout_arena, fieldset));
+    let top_border_band = IntRect::new(
+        device_border_rect.x,
+        device_border_rect.y,
+        device_border_rect.width,
+        top_border,
+    );
+    let legend_border_rect = converter.rounded_device_rect(absolute_border_box_rect(recorder.layout_arena, legend));
+    let legend_cutout = IntRect::new(
+        legend_border_rect.x,
+        device_border_rect.y,
+        legend_border_rect.width,
+        top_border,
+    );
+    let top_border_inline_clips = [
+        PendingInlineClip::intersecting_float_rect(top_border_band.to_float()),
+        PendingInlineClip::subtracting_rect(legend_cutout.to_float()),
+    ];
+    recorder.record_with_inline_clips(&top_border_inline_clips, |recorder| {
         paint_all_borders(&mut recorder.recorder, device_border_rect, corners, &borders.top_only);
     });
 }

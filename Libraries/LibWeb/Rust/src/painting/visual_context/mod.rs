@@ -298,9 +298,6 @@ pub enum PieceKey {
 pub enum FrameRole {
     Structural,
     RootIsolation,
-    FieldsetBackgroundClip,
-    FieldsetTopBorderBand,
-    LegendCutout,
     BackgroundIsolation {
         piece: PieceKey,
     },
