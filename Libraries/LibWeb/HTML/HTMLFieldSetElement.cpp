@@ -69,6 +69,8 @@ void HTMLFieldSetElement::attribute_changed(Utf16FlyString const& name, Optional
         for_each_in_subtree_of_type<HTMLElement>([](auto& element) {
             if (element.is_form_associated_custom_element())
                 element.update_face_disabled_state();
+            if (element.is_form_associated_element())
+                element.set_needs_repaint();
             return TraversalDecision::Continue;
         });
     }

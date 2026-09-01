@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/input-disabled-toggle-repaint-ref.html">
+<input id="box" type="checkbox" checked>
+<input id="dot" type="radio" checked>
+<fieldset id="group"><input type="checkbox" checked></fieldset>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.getElementById("box").disabled = true;
+            document.getElementById("dot").disabled = true;
+            document.getElementById("group").disabled = true;
+            requestAnimationFrame(() => {
+                if (window.internals)
+                    internals.signalTestIsDone("PASS");
+                else
+                    document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>
