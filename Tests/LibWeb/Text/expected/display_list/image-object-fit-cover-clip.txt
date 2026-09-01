@@ -4,8 +4,7 @@ AccumulatedVisualContext Tree:
       [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[0,0 40x40] (ImageBox<IMG>)
 
 DisplayList:
-DrawScaledDecodedImageFrame@s1/f1 dst_rect=[0,-20 40x80]
+DrawScaledDecodedImageFrame@s1/f0 dst_rect=[0,-20 40x80] inline_clips=[clip=[0,0 40x40]]
 
