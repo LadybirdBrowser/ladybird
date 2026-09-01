@@ -1,0 +1,152 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .abs {
+        position: absolute;
+    }
+    .trow {
+        display: table-row;
+    }
+    .tcell {
+        display: table-cell;
+    }
+    .tfg {
+        display: table-footer-group;
+    }
+    .tcap {
+        display: table-caption;
+    }
+</style>
+<div id="fixture"></div>
+<div id="other" popover="manual"></div>
+<script>
+    test(() => {
+        const fixture = document.getElementById("fixture");
+        const other = document.getElementById("other");
+        const el = (tag, attributes, ...children) => {
+            const element = document.createElement(tag);
+            for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+            element.append(
+                ...children.map(child => (typeof child === "string" ? document.createTextNode(child) : child))
+            );
+            return element;
+        };
+        const x = () => document.getElementById("x");
+        const appendText = () => x().append(document.createTextNode("t"));
+        const openOther = () => other.showPopover();
+        const closeOther = () => other.hidePopover();
+
+        const cases = [
+            {
+                name: "absolutely positioned table-footer-group followed by empty text",
+                root: () => [el("div", { id: "x", class: "abs tfg" }, "a"), ""],
+                mutate: appendText,
+            },
+            {
+                name: "absolutely positioned table-footer-group followed by whitespace text",
+                root: () => [el("div", { id: "x", class: "abs tfg" }, "a"), " "],
+                mutate: appendText,
+            },
+            {
+                name: "absolutely positioned table-footer-group between empty texts",
+                root: () => ["", el("div", { id: "x", class: "abs tfg" }, "a"), ""],
+                mutate: appendText,
+            },
+            {
+                name: "absolutely positioned table-caption followed by empty text",
+                root: () => [el("div", { id: "x", class: "abs tcap" }, "a"), ""],
+                mutate: appendText,
+            },
+            {
+                name: "table-row followed by empty text; unrelated popover opens",
+                root: () => [el("div", { class: "trow" }), ""],
+                mutate: openOther,
+                cleanup: closeOther,
+            },
+            {
+                name: "table-row followed by whitespace text; unrelated popover opens",
+                root: () => [el("div", { class: "trow" }), " "],
+                mutate: openOther,
+                cleanup: closeOther,
+            },
+            {
+                name: "table-cell followed by empty text; unrelated popover opens",
+                root: () => [el("div", { class: "tcell" }), ""],
+                mutate: openOther,
+                cleanup: closeOther,
+            },
+            {
+                name: "table-footer-group followed by empty text; unrelated popover opens",
+                root: () => [el("div", { class: "tfg" }), ""],
+                mutate: openOther,
+                cleanup: closeOther,
+            },
+            {
+                name: "table-row, empty text, table-row; unrelated popover opens",
+                root: () => [el("div", { class: "trow" }), "", el("div", { class: "trow" })],
+                mutate: openOther,
+                cleanup: closeOther,
+            },
+            {
+                name: "empty text, table-row, empty text; unrelated popover opens",
+                root: () => ["", el("div", { class: "trow" }), ""],
+                mutate: openOther,
+                cleanup: closeOther,
+            },
+            {
+                name: "table-row, empty text, block; unrelated popover opens",
+                root: () => [el("div", { class: "trow" }), "", el("div", {})],
+                mutate: openOther,
+                cleanup: closeOther,
+            },
+            {
+                name: "table with row, empty text and table-cell child; unrelated popover opens",
+                root: () => [el("table", {}, el("tr", {}), "", el("div", { class: "tcell" }))],
+                mutate: openOther,
+                cleanup: closeOther,
+            },
+            {
+                name: "table with row, empty text, table-cell child and empty text; unrelated popover opens",
+                root: () => [el("table", {}, el("tr", {}), "", el("div", { class: "tcell" }), "")],
+                mutate: openOther,
+                cleanup: closeOther,
+            },
+            {
+                name: "table with table-cell child, empty text and row; unrelated popover opens",
+                root: () => [el("table", {}, el("div", { class: "tcell" }), "", el("tr", {}))],
+                mutate: openOther,
+                cleanup: closeOther,
+            },
+            {
+                name: "table with row, whitespace text and table-cell child; unrelated popover opens",
+                root: () => [el("table", {}, el("tr", {}), " ", el("div", { class: "tcell" }))],
+                mutate: openOther,
+                cleanup: closeOther,
+            },
+            {
+                name: "absolutely positioned table with row, empty text and table-cell child",
+                root: () => [el("table", { id: "x", class: "abs" }, el("tr", {}), "", el("div", { class: "tcell" }))],
+                mutate: appendText,
+            },
+        ];
+
+        let checkNumber = 0;
+        const check = description => {
+            const result = internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL";
+            println(`check ${checkNumber++}: ${result} (${description})`);
+        };
+        for (const testCase of cases) {
+            fixture.replaceChildren(...testCase.root());
+            document.body.offsetHeight;
+            check(`${testCase.name}: before`);
+            testCase.mutate();
+            document.body.offsetHeight;
+            check(`${testCase.name}: after mutation`);
+            if (testCase.cleanup) {
+                testCase.cleanup();
+                document.body.offsetHeight;
+                check(`${testCase.name}: after cleanup`);
+            }
+        }
+    });
+</script>
