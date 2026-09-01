@@ -47,15 +47,15 @@ fn shape_glyph_data(
     word_spacing: f32,
 ) -> (line_box_fragment::GlyphData, line_box_fragment::TrailingWhitespace) {
     let shaped = font::shape_text_with_font(font, text, text_type, baseline_start_x, letter_spacing, word_spacing);
+    let trailing_whitespace = line_box_fragment::TrailingWhitespace {
+        length_in_code_units: shaped.trailing_whitespace_length_in_code_units(),
+        inline_size: CssPixels::nearest_value_for_f32(shaped.trailing_whitespace_advance()),
+    };
     let glyph_data = line_box_fragment::GlyphData {
-        glyphs: shaped.glyphs,
+        width: shaped.width(),
+        glyphs: shaped.into_glyphs(),
         font,
         text_type,
-        width: shaped.width,
-    };
-    let trailing_whitespace = line_box_fragment::TrailingWhitespace {
-        length_in_code_units: shaped.trailing_whitespace_length_in_code_units,
-        inline_size: CssPixels::nearest_value_for_f32(shaped.trailing_whitespace_advance),
     };
     (glyph_data, trailing_whitespace)
 }
@@ -889,15 +889,4 @@ impl InlineLevelIterator {
     pub(crate) fn take_visited_fragmented_inlines(&mut self) -> Vec<Node> {
         std::mem::take(&mut self.visited_fragmented_inlines)
     }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[repr(C)]
-pub struct FfiDrawGlyph {
-    pub x: f32,
-    pub y: f32,
-    pub length_in_code_units: usize,
-    pub glyph_width: f32,
-    pub glyph_id: u32,
-    pub should_paint: bool,
 }

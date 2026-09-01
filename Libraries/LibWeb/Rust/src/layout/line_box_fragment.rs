@@ -18,7 +18,7 @@ pub(crate) fn is_ascii_space(code_unit: u16) -> bool {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct GlyphData {
-    pub(crate) glyphs: Vec<inline_level_iterator::FfiDrawGlyph>,
+    pub(crate) glyphs: Vec<libgfx_rust::text_layout::DrawGlyph>,
     pub(crate) font: *const c_void,
     pub(crate) text_type: u8,
     // GlyphRun::width is not updated by the C++ fragment merge machine.

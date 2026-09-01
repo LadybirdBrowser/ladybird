@@ -55,7 +55,7 @@ pub(crate) fn apply(line_boxes: &mut [line_box::LineBoxData], provider: &impl El
 
             let glyph_data = line.fragments[index].glyphs.as_mut().unwrap();
             glyph_data.glyphs.truncate(keep_count);
-            glyph_data.glyphs.push(inline_level_iterator::FfiDrawGlyph {
+            glyph_data.glyphs.push(libgfx_rust::text_layout::DrawGlyph {
                 x: last_kept_end,
                 y: glyph_block_offset,
                 length_in_code_units: 1,

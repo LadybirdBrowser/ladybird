@@ -6,7 +6,7 @@
 
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeSlotId;
-use crate::layout::{inline_level_iterator, used_values};
+use crate::layout::used_values;
 use crate::painting::display_list::commands::{ContextRef, SpatialNodeIndex};
 use std::cell::Cell;
 
@@ -134,7 +134,7 @@ pub struct LineRecord {
 }
 
 pub struct GlyphRunRecord {
-    pub glyphs: Vec<inline_level_iterator::FfiDrawGlyph>,
+    pub glyphs: Vec<libgfx_rust::text_layout::DrawGlyph>,
     pub font: libgfx_rust::font::RetainedFont,
     pub retained: libgfx_rust::text_layout::RetainedGlyphRun,
 }

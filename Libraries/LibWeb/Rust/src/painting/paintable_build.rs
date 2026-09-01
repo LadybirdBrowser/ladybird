@@ -8,9 +8,7 @@ use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
-use crate::layout::{
-    formatting_context, fragment_tree, inline_formatting_context, inline_level_iterator, node_facts, used_values,
-};
+use crate::layout::{formatting_context, fragment_tree, inline_formatting_context, node_facts, used_values};
 use crate::painting::node_painting;
 use crate::painting::paintable_data::*;
 use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
@@ -282,25 +280,12 @@ impl<'a> PaintableCommit<'a> {
                 let glyph_run = fragment.glyphs.as_ref().map(|glyph_data| {
                     let text_type = libgfx_rust::text_layout::TextType::try_from(glyph_data.text_type)
                         .expect("committed glyph run carries a valid text type");
-                    const _: () = assert!(
-                        std::mem::size_of::<inline_level_iterator::FfiDrawGlyph>()
-                            == std::mem::size_of::<libgfx_rust::text_layout::DrawGlyph>()
-                    );
-                    const _: () = assert!(
-                        std::mem::align_of::<inline_level_iterator::FfiDrawGlyph>()
-                            == std::mem::align_of::<libgfx_rust::text_layout::DrawGlyph>()
-                    );
-                    // SAFETY: FfiDrawGlyph mirrors libgfx's DrawGlyph layout (asserted above), and
-                    // the glyph slice stays valid for the synchronous creation call.
-                    let glyphs_for_gfx: &[libgfx_rust::text_layout::DrawGlyph] = unsafe {
-                        std::slice::from_raw_parts(glyph_data.glyphs.as_ptr().cast(), glyph_data.glyphs.len())
-                    };
                     // SAFETY: The layout pass borrowed the font from a live cascade list, which is
                     // live for the duration of this commit.
                     let retained = unsafe {
                         libgfx_rust::text_layout::create_glyph_run(
                             glyph_data.font,
-                            glyphs_for_gfx,
+                            &glyph_data.glyphs,
                             text_type,
                             glyph_data.width,
                         )
