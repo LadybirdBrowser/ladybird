@@ -584,20 +584,11 @@ static NonnullOwnPtr<ShapedGlyphs> build_origin_relative_shape(Utf16View const& 
     return make<ShapedGlyphs>(move(glyphs), point.x(), trailing_whitespace);
 }
 
-NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, float word_spacing, Utf16View const& string, Font const& font, GlyphRun::TextType text_type, TrailingWhitespace* out_trailing_whitespace)
+// The returned reference points into the font's shaping cache and stays valid until the next
+// shaping call for the same font, or until the cache is cleared.
+static ShapedGlyphs const& shape_text_through_cache(Utf16View const& string, Font const& font, GlyphRun::TextType text_type, float letter_spacing, float word_spacing)
 {
     auto& shaping_cache = font.shaping_cache();
-
-    auto build_glyph_run = [&](ShapedGlyphs const& shape) -> NonnullRefPtr<GlyphRun> {
-        if (out_trailing_whitespace)
-            *out_trailing_whitespace = shape.trailing_whitespace;
-        Vector<DrawGlyph> glyphs = shape.glyphs;
-        if (!baseline_start.is_zero()) {
-            for (auto& glyph : glyphs)
-                glyph.position.translate_by(baseline_start);
-        }
-        return adopt_ref(*new GlyphRun(move(glyphs), font, text_type, shape.width));
-    };
 
     // FIXME: The cache currently grows unbounded. We should have some limit and LRU mechanism.
     if (string.length_in_code_units() == 1 && letter_spacing == 0.f && word_spacing == 0.f && text_type == GlyphRun::TextType::Common) {
@@ -606,7 +597,7 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
             auto& cache_slot = shaping_cache.single_ascii_character_map[code_unit];
             if (!cache_slot)
                 cache_slot = build_origin_relative_shape(string, font, text_type, letter_spacing, word_spacing);
-            return build_glyph_run(*cache_slot);
+            return *cache_slot;
         }
     }
 
@@ -622,13 +613,26 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
                 && candidate.key.text == string;
         });
         it != shaping_cache.map.end()) {
-        return build_glyph_run(*it->value);
+        return *it->value;
     }
 
     auto shape = build_origin_relative_shape(string, font, text_type, letter_spacing, word_spacing);
-    auto run = build_glyph_run(*shape);
+    auto const& cached_shape = *shape;
     shaping_cache.map.set({ Utf16String::from_utf16(string), text_type_bits, letter_spacing_bit_pattern, word_spacing_bit_pattern }, move(shape));
-    return run;
+    return cached_shape;
+}
+
+NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, float word_spacing, Utf16View const& string, Font const& font, GlyphRun::TextType text_type, TrailingWhitespace* out_trailing_whitespace)
+{
+    auto const& shape = shape_text_through_cache(string, font, text_type, letter_spacing, word_spacing);
+    if (out_trailing_whitespace)
+        *out_trailing_whitespace = shape.trailing_whitespace;
+    Vector<DrawGlyph> glyphs = shape.glyphs;
+    if (!baseline_start.is_zero()) {
+        for (auto& glyph : glyphs)
+            glyph.position.translate_by(baseline_start);
+    }
+    return adopt_ref(*new GlyphRun(move(glyphs), font, text_type, shape.width));
 }
 
 float measure_text_width(Utf16View const& string, Font const& font, float letter_spacing)
@@ -666,8 +670,7 @@ static_assert(offsetof(Gfx::FFI::DrawGlyph, glyph_id) == offsetof(Gfx::DrawGlyph
 static_assert(offsetof(Gfx::FFI::DrawGlyph, should_paint) == offsetof(Gfx::DrawGlyph, should_paint));
 
 extern "C" {
-Gfx::FFI::ShapedRunView ladybird_gfx_shape_text(void const*, u16 const*, size_t, Gfx::FFI::TextType, float, float, float);
-void ladybird_gfx_glyph_run_unref(void*);
+Gfx::FFI::ShapedRunView ladybird_gfx_shape_text(void const*, u16 const*, size_t, Gfx::FFI::TextType, float, float);
 void ladybird_gfx_glyph_run_bounding_box(void const*, Gfx::FFI::DrawGlyph const*, size_t, float, float*);
 void ladybird_gfx_glyph_run_glyph_intercepts(void const*, Gfx::FFI::DrawGlyph const*, size_t, float, float, float, void*, void (*)(void*, float));
 }
@@ -677,7 +680,6 @@ extern "C" Gfx::FFI::ShapedRunView ladybird_gfx_shape_text(
     u16 const* text_utf16,
     size_t length_in_code_units,
     Gfx::FFI::TextType text_type,
-    float baseline_start_x,
     float letter_spacing,
     float word_spacing)
 {
@@ -686,30 +688,19 @@ extern "C" Gfx::FFI::ShapedRunView ladybird_gfx_shape_text(
     auto text = length_in_code_units == 0
         ? Utf16View {}
         : Utf16View { reinterpret_cast<char16_t const*>(text_utf16), length_in_code_units };
-    Gfx::TrailingWhitespace trailing_whitespace;
-    auto run = Gfx::shape_text(
-        { baseline_start_x, 0 },
-        letter_spacing,
-        word_spacing,
+    auto const& shape = Gfx::shape_text_through_cache(
         text,
         *static_cast<Gfx::Font const*>(font),
         static_cast<Gfx::GlyphRun::TextType>(text_type),
-        &trailing_whitespace);
-    auto* retained = &run.leak_ref();
+        letter_spacing,
+        word_spacing);
     return {
-        .glyphs = reinterpret_cast<Gfx::FFI::DrawGlyph const*>(retained->glyphs().data()),
-        .glyph_count = retained->glyphs().size(),
-        .width = retained->width(),
-        .trailing_whitespace_length_in_code_units = trailing_whitespace.length_in_code_units,
-        .trailing_whitespace_advance = trailing_whitespace.advance,
-        .retained = retained,
+        .glyphs = reinterpret_cast<Gfx::FFI::DrawGlyph const*>(shape.glyphs.data()),
+        .glyph_count = shape.glyphs.size(),
+        .width = shape.width,
+        .trailing_whitespace_length_in_code_units = shape.trailing_whitespace.length_in_code_units,
+        .trailing_whitespace_advance = shape.trailing_whitespace.advance,
     };
-}
-
-extern "C" void ladybird_gfx_glyph_run_unref(void* retained)
-{
-    VERIFY(retained);
-    static_cast<Gfx::GlyphRun*>(retained)->unref();
 }
 
 extern "C" void ladybird_gfx_glyph_run_bounding_box(

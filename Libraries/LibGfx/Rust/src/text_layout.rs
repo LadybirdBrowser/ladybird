@@ -6,7 +6,6 @@
 
 use crate::font::FontRef;
 use std::ffi::c_void;
-use std::ptr::NonNull;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
@@ -52,7 +51,6 @@ pub struct ShapedRunView {
     pub width: f32,
     pub trailing_whitespace_length_in_code_units: usize,
     pub trailing_whitespace_advance: f32,
-    pub retained: *mut c_void,
 }
 
 unsafe extern "C" {
@@ -61,12 +59,9 @@ unsafe extern "C" {
         text_utf16: *const u16,
         length_in_code_units: usize,
         text_type: TextType,
-        baseline_start_x: f32,
         letter_spacing: f32,
         word_spacing: f32,
     ) -> ShapedRunView;
-
-    fn ladybird_gfx_glyph_run_unref(retained: *mut c_void);
 
     fn ladybird_gfx_glyph_run_bounding_box(
         font: *const c_void,
@@ -86,18 +81,6 @@ unsafe extern "C" {
         sink: *mut c_void,
         push: unsafe extern "C" fn(*mut c_void, f32),
     );
-}
-
-struct RetainedGlyphRun {
-    raw: NonNull<c_void>,
-}
-
-impl Drop for RetainedGlyphRun {
-    fn drop(&mut self) {
-        // SAFETY: Whoever constructed this guard transferred exactly one
-        // retained GlyphRun reference into it, and this releases it once.
-        unsafe { ladybird_gfx_glyph_run_unref(self.raw.as_ptr()) };
-    }
 }
 
 #[must_use]
@@ -198,30 +181,33 @@ pub fn shape_text(
             text.as_ptr(),
             text.len(),
             text_type,
-            baseline_start_x,
             letter_spacing,
             word_spacing,
         )
     };
-    let retained = RetainedGlyphRun {
-        raw: NonNull::new(view.retained).expect("Gfx::shape_text must return a retained GlyphRun"),
-    };
     assert!(view.glyph_count == 0 || !view.glyphs.is_null());
-    let glyphs = if view.glyph_count == 0 {
-        Vec::new()
+    let cached_glyphs = if view.glyph_count == 0 {
+        &[]
     } else {
-        // SAFETY: retained keeps the GlyphRun and its glyph storage live while
-        // the view is copied into Rust-owned storage.
-        unsafe { std::slice::from_raw_parts(view.glyphs, view.glyph_count) }.to_vec()
+        // SAFETY: The view points into the font's shaping cache, which nothing
+        // mutates before this synchronous copy into Rust-owned storage is done.
+        unsafe { std::slice::from_raw_parts(view.glyphs, view.glyph_count) }
     };
-    let width = view.width;
-    let trailing_whitespace_length_in_code_units = view.trailing_whitespace_length_in_code_units;
-    let trailing_whitespace_advance = view.trailing_whitespace_advance;
-    drop(retained);
+    let glyphs = if baseline_start_x == 0.0 {
+        cached_glyphs.to_vec()
+    } else {
+        cached_glyphs
+            .iter()
+            .map(|glyph| DrawGlyph {
+                x: glyph.x + baseline_start_x,
+                ..*glyph
+            })
+            .collect()
+    };
     ShapedText {
         glyphs,
-        width,
-        trailing_whitespace_length_in_code_units,
-        trailing_whitespace_advance,
+        width: view.width,
+        trailing_whitespace_length_in_code_units: view.trailing_whitespace_length_in_code_units,
+        trailing_whitespace_advance: view.trailing_whitespace_advance,
     }
 }
