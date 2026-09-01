@@ -1,0 +1,37 @@
+check 0 (shadow wrapper moved out after slotted child removal: baseline): PASS
+check 1 (shadow wrapper moved out after slotted child removal): PASS
+check 2 (shadow wrapper moved out of shadow root: baseline): PASS
+check 3 (shadow wrapper moved out of shadow root): PASS
+check 4 (freshly inserted node moved before layout: baseline): PASS
+check 5 (freshly inserted node moved before layout): PASS
+check 6 (dirtied by child removal, then moveBefore: baseline): PASS
+check 7 (dirtied by child removal, then moveBefore): PASS
+check 8 (dirtied by child removal, then insertBefore: baseline): PASS
+check 9 (dirtied by child removal, then insertBefore): PASS
+check 10 (dirtied by child insertion, then moveBefore: baseline): PASS
+check 11 (dirtied by child insertion, then moveBefore): PASS
+check 12 (dirtied by textContent, then moveBefore: baseline): PASS
+check 13 (dirtied by textContent, then moveBefore): PASS
+check 14 (dirtied by class change, then moveBefore: baseline): PASS
+check 15 (dirtied by class change, then moveBefore): PASS
+check 16 (dirtied by style change, then moveBefore: baseline): PASS
+check 17 (dirtied by style change, then moveBefore): PASS
+check 18 (dirtied by display toggle, then moveBefore: baseline): PASS
+check 19 (dirtied by display toggle, then moveBefore): PASS
+check 20 (moved into an inline parent: baseline): PASS
+check 21 (moved into an inline parent): PASS
+check 22 (moved into a flex parent: baseline): PASS
+check 23 (moved into a flex parent): PASS
+check 24 (moved into a table row group: baseline): PASS
+check 25 (moved into a table row group): PASS
+check 26 (moved into a table: baseline): PASS
+check 27 (moved into a table): PASS
+check 28 (display: contents node moved: baseline): PASS
+check 29 (display: contents node moved): PASS
+check 30 (moved into a shadow host and slotted: baseline): PASS
+check 31 (moved into a shadow host and slotted): PASS
+check 32 (moved out and back again: baseline): PASS
+check 33 (moved out and back again: after first move): PASS
+check 34 (moved out and back again): PASS
+check 35 (clean subtree moved: baseline): PASS
+check 36 (clean subtree moved): PASS

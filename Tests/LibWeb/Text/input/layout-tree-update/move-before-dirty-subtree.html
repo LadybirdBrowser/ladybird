@@ -1,0 +1,193 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #stage .hidden {
+        display: none;
+    }
+    #stage .with-after::after {
+        content: "z";
+    }
+    #stage .inline-dst {
+        display: inline;
+    }
+    #stage .flex-dst {
+        display: flex;
+    }
+    #stage .inline-block-dst {
+        display: inline-block;
+    }
+    #stage .contents {
+        display: contents;
+    }
+</style>
+<div id="stage"></div>
+<script>
+    test(() => {
+        let index = 0;
+        const flush = () => document.body.offsetHeight;
+        const flushStyle = () => getComputedStyle(stage).display;
+        const check = label => {
+            const result = internals.compareLayoutTreeWithFullRebuild();
+            println(`check ${index++} (${label}): ${result.matches ? "PASS" : "FAIL"}`);
+        };
+        const q = selector => stage.querySelector(selector);
+        const run = (label, html, setup, mutate) => {
+            stage.innerHTML = html;
+            if (setup) setup();
+            flush();
+            check(`${label}: baseline`);
+            mutate();
+            flush();
+            check(label);
+        };
+
+        const attachWrapper = () => {
+            const root = q("#host").attachShadow({ mode: "open" });
+            root.innerHTML = "<div><slot></slot></div>";
+        };
+
+        run(
+            "shadow wrapper moved out after slotted child removal",
+            '<div id="host"><span id="slotted">a</span></div><div id="dst"></div>',
+            attachWrapper,
+            () => {
+                q("#slotted").remove();
+                q("#dst").moveBefore(q("#host").shadowRoot.firstChild, null);
+            }
+        );
+
+        run(
+            "shadow wrapper moved out of shadow root",
+            '<div id="host"><span id="slotted">a</span></div><div id="dst"></div>',
+            attachWrapper,
+            () => {
+                q("#dst").moveBefore(q("#host").shadowRoot.firstChild, null);
+            }
+        );
+
+        run(
+            "freshly inserted node moved before layout",
+            '<span id="src"></span><div id="dst" class="inline-block-dst"></div>',
+            null,
+            () => {
+                const node = document.createElement("div");
+                q("#src").appendChild(node);
+                q("#dst").moveBefore(node, null);
+            }
+        );
+
+        const lightShape =
+            '<div id="src"><div id="node"><span id="inner">a</span><div>b</div></div></div><div id="dst"></div>';
+
+        run("dirtied by child removal, then moveBefore", lightShape, null, () => {
+            q("#inner").remove();
+            q("#dst").moveBefore(q("#node"), null);
+        });
+
+        run("dirtied by child removal, then insertBefore", lightShape, null, () => {
+            q("#inner").remove();
+            q("#dst").insertBefore(q("#node"), null);
+        });
+
+        run("dirtied by child insertion, then moveBefore", lightShape, null, () => {
+            q("#node").appendChild(document.createElement("span"));
+            q("#dst").moveBefore(q("#node"), null);
+        });
+
+        run("dirtied by textContent, then moveBefore", lightShape, null, () => {
+            q("#node").textContent = "replaced";
+            q("#dst").moveBefore(q("#node"), null);
+        });
+
+        run("dirtied by class change, then moveBefore", lightShape, null, () => {
+            q("#node").classList.add("with-after");
+            flushStyle();
+            q("#dst").moveBefore(q("#node"), null);
+        });
+
+        run("dirtied by style change, then moveBefore", lightShape, null, () => {
+            q("#node").style.display = "flow-root";
+            flushStyle();
+            q("#dst").moveBefore(q("#node"), null);
+        });
+
+        run(
+            "dirtied by display toggle, then moveBefore",
+            '<div id="src"><div id="node"><span class="hidden" id="inner">a</span><div>b</div></div></div><div id="dst"></div>',
+            null,
+            () => {
+                q("#inner").classList.remove("hidden");
+                flushStyle();
+                q("#dst").moveBefore(q("#node"), null);
+            }
+        );
+
+        run("moved into an inline parent", lightShape.replace('id="dst"', 'id="dst" class="inline-dst"'), null, () => {
+            q("#inner").remove();
+            q("#dst").moveBefore(q("#node"), null);
+        });
+
+        run("moved into a flex parent", lightShape.replace('id="dst"', 'id="dst" class="flex-dst"'), null, () => {
+            q("#inner").remove();
+            q("#dst").moveBefore(q("#node"), null);
+        });
+
+        run(
+            "moved into a table row group",
+            '<div id="src"><div id="node"><span id="inner">a</span><div>b</div></div></div>' +
+                '<table><tbody id="dst"><tr><td>c</td></tr></tbody></table>',
+            null,
+            () => {
+                q("#inner").remove();
+                q("#dst").moveBefore(q("#node"), null);
+            }
+        );
+
+        run(
+            "moved into a table",
+            '<div id="src"><div id="node"><span id="inner">a</span><div>b</div></div></div>' +
+                '<table id="dst"><tbody><tr><td>c</td></tr></tbody></table>',
+            null,
+            () => {
+                q("#inner").remove();
+                q("#dst").moveBefore(q("#node"), null);
+            }
+        );
+
+        run(
+            "display: contents node moved",
+            '<div id="src"><div id="node" class="contents"><span id="inner">a</span><div>b</div></div></div><div id="dst"></div>',
+            null,
+            () => {
+                q("#inner").remove();
+                q("#dst").moveBefore(q("#node"), null);
+            }
+        );
+
+        run(
+            "moved into a shadow host and slotted",
+            '<div id="src"><div id="node"><span id="inner">a</span><div>b</div></div></div><div id="dst"></div>',
+            () => {
+                const root = q("#dst").attachShadow({ mode: "open" });
+                root.innerHTML = "<section><slot></slot></section>";
+            },
+            () => {
+                q("#inner").remove();
+                q("#dst").moveBefore(q("#node"), null);
+            }
+        );
+
+        run("moved out and back again", lightShape, null, () => {
+            q("#inner").remove();
+            q("#dst").moveBefore(q("#node"), null);
+            flush();
+            check("moved out and back again: after first move");
+            q("#node").appendChild(document.createElement("span"));
+            q("#src").moveBefore(q("#node"), null);
+        });
+
+        run("clean subtree moved", lightShape, null, () => {
+            q("#dst").moveBefore(q("#node"), null);
+        });
+    });
+</script>
