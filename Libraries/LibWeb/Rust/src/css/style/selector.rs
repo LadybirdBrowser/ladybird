@@ -3627,7 +3627,7 @@ pub struct RoutingRegistry {
     sibling_first_by_origin: HashMap<DispatchKey, Vec<RouteID>>,
     by_input: RouteDirectory,
     arrival_by_input: RouteDirectory,
-    canonical_route_heads: Vec<Option<RouteID>>,
+    canonical_route_heads: HashMap<(RuleID, EntryID), RouteID>,
     canonical_next: Vec<Option<RouteID>>,
     route_liveness: RefCell<BitColumn>,
     live_relational_routes: RefCell<Vec<LiveRelationalRoute>>,
@@ -3653,7 +3653,7 @@ impl Default for RoutingRegistry {
             sibling_first_by_origin: HashMap::default(),
             by_input: RouteDirectory::default(),
             arrival_by_input: RouteDirectory::default(),
-            canonical_route_heads: Vec::new(),
+            canonical_route_heads: HashMap::default(),
             canonical_next: Vec::new(),
             route_liveness: RefCell::new(BitColumn::default()),
             live_relational_routes: RefCell::new(Vec::new()),
@@ -3688,8 +3688,8 @@ impl RoutingRegistry {
                 descriptor.path.first(),
                 Some(InverseStep::NextSibling | InverseStep::FollowingSiblings)
             );
-        let rule_index = descriptor.rule.0 as usize;
-        let mut candidate = self.canonical_route_heads.get(rule_index).copied().flatten();
+        let canonical_key = (descriptor.rule, descriptor.entry);
+        let mut candidate = self.canonical_route_heads.get(&canonical_key).copied();
         let mut canonical_route = None;
         while let Some(route) = candidate {
             if self.route_descriptor(route) == descriptor {
@@ -3777,10 +3777,7 @@ impl RoutingRegistry {
                     }
                 }
             }
-            if self.canonical_route_heads.len() <= rule_index {
-                self.canonical_route_heads.resize(rule_index + 1, None);
-            }
-            let previous = self.canonical_route_heads[rule_index].replace(route);
+            let previous = self.canonical_route_heads.insert(canonical_key, route);
             self.canonical_next.push(previous);
             route
         });
@@ -7733,6 +7730,31 @@ mod tests {
         assert_eq!(theme_routes, item_routes);
         assert_eq!(registry.arrival_routes_for(RoutingKey::Class(CLASS_ITEM)), item_routes);
         assert_eq!(registry.arrival_routes_for(RoutingKey::Class(CLASS_THEME)), item_routes);
+    }
+
+    #[test]
+    fn selector_list_entries_have_independent_canonical_route_chains() {
+        const SELECTOR_ENTRY_COUNT: u32 = 64;
+
+        // Model one rule containing `.class-0, .class-1, ...`. Each selector produces one route
+        // that cannot be canonicalized with a route from another selector in the list.
+        let mut builder = SelectorProgramBuilder::new();
+        for index in 0..SELECTOR_ENTRY_COUNT {
+            let class = builder.push_feature(FeatureTest::Class(StyleAtomID(1000 + index)));
+            builder.push_entry(class);
+        }
+        let mut programs = SelectorPrograms::new();
+        let program = programs.add(builder.finish());
+        let rule = RuleID(1);
+        let mut registry = RoutingRegistry::new();
+        registry.add_rule(rule, program, &programs);
+
+        assert_eq!(registry.len(), SELECTOR_ENTRY_COUNT as usize);
+        assert_eq!(registry.canonical_route_heads.len(), SELECTOR_ENTRY_COUNT as usize);
+        assert!(
+            registry.canonical_next.iter().all(Option::is_none),
+            "each selector entry should have its own one-route chain"
+        );
     }
 
     #[test]
