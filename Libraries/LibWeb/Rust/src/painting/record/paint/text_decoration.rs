@@ -305,7 +305,7 @@ fn compute_skip_ink_segments(
     let y_top = line_y as f32 - half_thickness - blob_origin_y;
     let y_bottom = line_y as f32 + half_thickness - blob_origin_y;
 
-    let intervals = run.retained.glyph_intercepts(scale as f32, y_top, y_bottom);
+    let intervals = run.glyph_intercepts(scale as f32, y_top, y_bottom);
     if intervals.is_empty() {
         return vec![DecorationSegment {
             start_x: span_start_x,

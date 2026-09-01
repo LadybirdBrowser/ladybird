@@ -277,26 +277,11 @@ impl<'a> PaintableCommit<'a> {
                 let (x, y) = fragment.offset();
                 let (x, y) = (x + fragment.relpos_delta.x, y + fragment.relpos_delta.y);
                 let (width, height) = fragment.size();
-                let glyph_run = fragment.glyphs.as_ref().map(|glyph_data| {
-                    let text_type = libgfx_rust::text_layout::TextType::try_from(glyph_data.text_type)
-                        .expect("committed glyph run carries a valid text type");
-                    // SAFETY: The layout pass borrowed the font from a live cascade list, which is
-                    // live for the duration of this commit.
-                    let retained = unsafe {
-                        libgfx_rust::text_layout::create_glyph_run(
-                            glyph_data.font,
-                            &glyph_data.glyphs,
-                            text_type,
-                            glyph_data.width,
-                        )
-                    };
-                    GlyphRunRecord {
-                        glyphs: glyph_data.glyphs.clone(),
-                        // SAFETY: The layout pass borrowed the font from a live cascade list; retaining
-                        // it here keeps it alive for as long as the fragment record.
-                        font: unsafe { libgfx_rust::font::RetainedFont::retain(glyph_data.font) },
-                        retained,
-                    }
+                let glyph_run = fragment.glyphs.as_ref().map(|glyph_data| GlyphRunRecord {
+                    glyphs: glyph_data.glyphs.clone(),
+                    // SAFETY: The layout pass borrowed the font from a live cascade list; retaining
+                    // it here keeps it alive for as long as the fragment record.
+                    font: unsafe { libgfx_rust::font::RetainedFont::retain(glyph_data.font) },
                 });
                 let (
                     dom_start_offset_in_node,

@@ -68,18 +68,18 @@ unsafe extern "C" {
 
     fn ladybird_gfx_glyph_run_unref(retained: *mut c_void);
 
-    fn ladybird_gfx_glyph_run_create(
+    fn ladybird_gfx_glyph_run_bounding_box(
         font: *const c_void,
         glyphs: *const DrawGlyph,
         glyph_count: usize,
-        text_type: TextType,
-        width: f32,
-    ) -> *mut c_void;
-
-    fn ladybird_gfx_glyph_run_bounding_box(retained: *const c_void, scale: f32, out_rect: *mut f32);
+        scale: f32,
+        out_rect: *mut f32,
+    );
 
     fn ladybird_gfx_glyph_run_glyph_intercepts(
-        retained: *const c_void,
+        font: *const c_void,
+        glyphs: *const DrawGlyph,
+        glyph_count: usize,
         scale: f32,
         y_top: f32,
         y_bottom: f32,
@@ -88,7 +88,7 @@ unsafe extern "C" {
     );
 }
 
-pub struct RetainedGlyphRun {
+struct RetainedGlyphRun {
     raw: NonNull<c_void>,
 }
 
@@ -100,61 +100,51 @@ impl Drop for RetainedGlyphRun {
     }
 }
 
-impl RetainedGlyphRun {
-    #[inline]
-    #[must_use]
-    pub fn as_raw(&self) -> *mut c_void {
-        self.raw.as_ptr()
+#[must_use]
+pub fn glyph_run_bounding_box(font: FontRef<'_>, glyphs: &[DrawGlyph], scale: f32) -> [f32; 4] {
+    let mut out_rect = [0.0f32; 4];
+    // SAFETY: FontRef keeps the font live and the glyph slice stays valid for
+    // the synchronous call, which fills the four floats out_rect points at.
+    unsafe {
+        ladybird_gfx_glyph_run_bounding_box(
+            font.as_ptr(),
+            glyphs.as_ptr(),
+            glyphs.len(),
+            scale,
+            out_rect.as_mut_ptr(),
+        );
     }
-
-    #[must_use]
-    pub fn bounding_box(&self, scale: f32) -> [f32; 4] {
-        let mut out_rect = [0.0f32; 4];
-        // SAFETY: The handle keeps the GlyphRun live and out_rect points at
-        // four floats the synchronous call fills in.
-        unsafe { ladybird_gfx_glyph_run_bounding_box(self.raw.as_ptr(), scale, out_rect.as_mut_ptr()) };
-        out_rect
-    }
-
-    #[must_use]
-    pub fn glyph_intercepts(&self, scale: f32, y_top: f32, y_bottom: f32) -> Vec<f32> {
-        unsafe extern "C" fn push(sink: *mut c_void, value: f32) {
-            // SAFETY: `sink` is the Vec passed below, live for the synchronous call.
-            unsafe { (*sink.cast::<Vec<f32>>()).push(value) };
-        }
-        let mut intercepts: Vec<f32> = Vec::new();
-        // SAFETY: The handle keeps the GlyphRun live; the push callback runs
-        // synchronously against the local Vec.
-        unsafe {
-            ladybird_gfx_glyph_run_glyph_intercepts(
-                self.raw.as_ptr(),
-                scale,
-                y_top,
-                y_bottom,
-                (&raw mut intercepts).cast(),
-                push,
-            );
-        }
-        intercepts
-    }
+    out_rect
 }
 
-/// # Safety
-///
-/// `font` must point at a live `Gfx::Font`.
 #[must_use]
-pub unsafe fn create_glyph_run(
-    font: *const c_void,
+pub fn glyph_run_glyph_intercepts(
+    font: FontRef<'_>,
     glyphs: &[DrawGlyph],
-    text_type: TextType,
-    width: f32,
-) -> RetainedGlyphRun {
-    // SAFETY: The caller guarantees the font is live; the glyph slice stays
-    // valid for the synchronous call, which copies it.
-    let raw = unsafe { ladybird_gfx_glyph_run_create(font, glyphs.as_ptr(), glyphs.len(), text_type, width) };
-    RetainedGlyphRun {
-        raw: NonNull::new(raw).expect("Gfx glyph run creation must return a retained GlyphRun"),
+    scale: f32,
+    y_top: f32,
+    y_bottom: f32,
+) -> Vec<f32> {
+    unsafe extern "C" fn push(sink: *mut c_void, value: f32) {
+        // SAFETY: `sink` is the Vec passed below, live for the synchronous call.
+        unsafe { (*sink.cast::<Vec<f32>>()).push(value) };
     }
+    let mut intercepts: Vec<f32> = Vec::new();
+    // SAFETY: FontRef keeps the font live and the glyph slice stays valid for
+    // the synchronous call; the push callback runs against the local Vec.
+    unsafe {
+        ladybird_gfx_glyph_run_glyph_intercepts(
+            font.as_ptr(),
+            glyphs.as_ptr(),
+            glyphs.len(),
+            scale,
+            y_top,
+            y_bottom,
+            (&raw mut intercepts).cast(),
+            push,
+        );
+    }
+    intercepts
 }
 
 #[derive(Debug)]

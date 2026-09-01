@@ -221,7 +221,7 @@ pub(crate) fn glyph_run_emission(
     fragment_absolute_rect: CssPixelRect,
     scale: f64,
 ) -> GlyphRunEmission {
-    let blob_bounds = run.retained.bounding_box(scale as f32);
+    let blob_bounds = run.bounding_box(scale as f32);
     let baseline_start = FloatPoint {
         x: (fragment_absolute_rect.x.to_float() as f64 * scale) as f32,
         y: ((fragment_absolute_rect.y.to_float() + fragment.baseline.to_float()) as f64 * scale) as f32,
