@@ -249,9 +249,21 @@ impl DisplayListRecorder {
     }
 
     pub fn record_with_inline_clips(&mut self, inline_clips: &[PendingInlineClip], record: impl FnOnce(&mut Self)) {
-        let enclosing_scope_clip_count = self.ambient_inline_clips.len();
-        self.ambient_inline_clips.extend_from_slice(inline_clips);
+        let enclosing_scope_clip_count = self.ambient_inline_clip_depth();
+        self.push_ambient_inline_clips(inline_clips);
         record(self);
+        self.truncate_ambient_inline_clips(enclosing_scope_clip_count);
+    }
+
+    pub fn ambient_inline_clip_depth(&self) -> usize {
+        self.ambient_inline_clips.len()
+    }
+
+    pub fn push_ambient_inline_clips(&mut self, inline_clips: &[PendingInlineClip]) {
+        self.ambient_inline_clips.extend_from_slice(inline_clips);
+    }
+
+    pub fn truncate_ambient_inline_clips(&mut self, enclosing_scope_clip_count: usize) {
         self.ambient_inline_clips.truncate(enclosing_scope_clip_count);
     }
 

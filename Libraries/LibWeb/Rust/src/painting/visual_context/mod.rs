@@ -298,8 +298,6 @@ pub enum PieceKey {
 pub enum FrameRole {
     Structural,
     RootIsolation,
-    ContentCornerClip,
-    ContentClip,
     FieldsetBackgroundClip,
     FieldsetTopBorderBand,
     LegendCutout,

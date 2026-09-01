@@ -16,7 +16,7 @@ use crate::layout::node_data::NodeSlotId;
 use crate::layout::node_data::{NodeFlag, NodeKind};
 use crate::layout::used_values;
 use crate::painting::border_radii::BorderRadii;
-use crate::painting::display_list::builder::RecordedDisplayList;
+use crate::painting::display_list::builder::{PendingInlineClip, RecordedDisplayList};
 use crate::painting::display_list::commands::{ContextRef, DisplayListResourceId, FrameNodeIndex, SpatialNodeIndex};
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
@@ -338,6 +338,18 @@ impl<'a> PaintRecorder<'a> {
             Some(context) => self.with_context(context, paint),
             None => paint(self),
         }
+    }
+
+    pub(crate) fn record_with_inline_clips<R>(
+        &mut self,
+        inline_clips: &[PendingInlineClip],
+        paint: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let enclosing_scope_clip_count = self.recorder.ambient_inline_clip_depth();
+        self.recorder.push_ambient_inline_clips(inline_clips);
+        let result = paint(self);
+        self.recorder.truncate_ambient_inline_clips(enclosing_scope_clip_count);
+        result
     }
 
     pub(crate) fn local_frame(&self, paintable: NodeSlotId, role: FrameRole) -> Option<FrameNodeIndex> {

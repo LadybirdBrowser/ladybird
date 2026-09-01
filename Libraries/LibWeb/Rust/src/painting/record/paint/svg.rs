@@ -6,6 +6,7 @@
 
 use crate::css::css_enums::paint_order;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
+use crate::painting::display_list::builder::PendingInlineClip;
 use crate::painting::display_list::commands::DisplayListGradientSpreadMethod;
 use crate::painting::display_list::recorder::{
     ColorStops, FillPathParams, PaintStyle, PaintStyleOrColor, StrokePathParams,
@@ -16,7 +17,6 @@ use crate::painting::paintable_geometry::absolute_rect;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::paint::background::paint_image;
 use crate::painting::record::{PaintPhase, PaintRecorder};
-use crate::painting::visual_context::FrameRole;
 use libgfx_rust::{AffineTransform, CapStyle, Color, FloatRect, JoinStyle, ShouldAntiAlias, WindingRule};
 
 #[derive(Clone, Copy, Default)]
@@ -488,12 +488,8 @@ pub(crate) fn paint_image_element(recorder: &mut PaintRecorder<'_>, paintable: N
     // Unless over-ridden by the author, images will therefore be clipped to the positioning
     // rectangle defined by the geometry properties.
     let draw_rect_needs_clip = !facts.overflow_is_visible && !image_rect.contains_rect(draw_rect);
-    let draw_context = if draw_rect_needs_clip {
-        recorder.local_context(paintable, FrameRole::ContentClip)
-    } else {
-        None
-    };
-    recorder.with_optional_context(draw_context, |recorder| {
+    let image_rect_clip = draw_rect_needs_clip.then(|| PendingInlineClip::intersecting_float_rect(image_rect));
+    recorder.record_with_inline_clips(image_rect_clip.as_slice(), |recorder| {
         let accumulated_scale =
             recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().spatial);
         let paint = recorder.paint_host.replaced_image_paint(

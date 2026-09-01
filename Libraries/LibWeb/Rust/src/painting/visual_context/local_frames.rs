@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::node_values::{padding_edge_border_radii, piece_border_radii_data};
+use super::node_values::piece_border_radii_data;
 use super::{ClipData, ClipMode, ContextRef, FrameData, FrameNodeIndex, FrameRole, PieceKey, VisualContextNodeSink};
 use crate::css::computed_value_views::ComputedValuesView;
-use crate::css::css_enums::{background_box, overflow};
+use crate::css::css_enums::background_box;
 use crate::css::css_pixels::CssPixelRect;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::border_radii::BorderRadii;
@@ -16,7 +16,7 @@ use crate::painting::host::FfiRootBackgroundSource;
 use crate::painting::node_painting;
 use crate::painting::paintable_data::FfiPixelBox;
 use crate::painting::paintable_geometry::{
-    absolute_border_box_rect, absolute_rect, committed_border, committed_padding, for_each_rendered_inline_box_piece,
+    absolute_border_box_rect, committed_border, committed_padding, for_each_rendered_inline_box_piece,
 };
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::paint::background::{BackgroundBox, background_box_for};
@@ -25,7 +25,6 @@ use crate::painting::record::paint::background_resolution::{
     computed_background_layer_frame_facts, computed_mask_layer_frame_facts,
 };
 use crate::painting::record::paint::fieldset::{legend_paintable, visual_border_box_rect};
-use crate::painting::record::paint::svg::svg_image_unquantized_device_rect;
 use crate::painting::style_queries;
 use libgfx_rust::{CompositingAndBlendingOperator, CornerRadii, FloatRect, IntRect};
 
@@ -89,15 +88,8 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
         }
 
         let mut background_parent = own_state;
-        match self.kind {
-            NodeKind::ImageBox | NodeKind::CanvasBox | NodeKind::VideoBox | NodeKind::NavigableContainerViewport => {
-                self.append_replaced_content_frames(style, own_state);
-            }
-            NodeKind::SVGImageBox => self.append_svg_image_frames(style, own_state),
-            NodeKind::FieldSetBox => {
-                background_parent = self.append_fieldset_frames(own_state);
-            }
-            _ => {}
+        if self.kind == NodeKind::FieldSetBox {
+            background_parent = self.append_fieldset_frames(own_state);
         }
 
         if node_painting::paints_box_decorations(self.layout_arena, self.slot) {
@@ -194,46 +186,6 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
                 );
             }
         });
-    }
-
-    fn append_replaced_content_frames(&mut self, style: ComputedValuesView<'_>, own_state: ContextRef) {
-        let content_rect = self
-            .converter
-            .rounded_device_rect(absolute_rect(self.layout_arena, self.slot))
-            .to_float();
-        let corner_radii =
-            padding_edge_border_radii(style, self.layout_arena, self.slot).corners_unconditionally(&self.converter);
-        let has_corner_clip = corner_radii.has_any_radius();
-        let content_always_fills_its_rect = self.kind == NodeKind::CanvasBox;
-        if self.kind == NodeKind::VideoBox {
-            let content = self.append_clip(own_state, content_rect, CornerRadii::default(), FrameRole::ContentClip);
-            if has_corner_clip {
-                self.append_clip(content, content_rect, corner_radii, FrameRole::ContentCornerClip);
-            }
-            return;
-        }
-        let mut parent = own_state;
-        if has_corner_clip {
-            parent = self.append_clip(parent, content_rect, corner_radii, FrameRole::ContentCornerClip);
-        }
-        if !content_always_fills_its_rect {
-            self.append_clip(parent, content_rect, CornerRadii::default(), FrameRole::ContentClip);
-        }
-    }
-
-    // https://svgwg.org/svg2-draft/embedded.html#ImageElement
-    fn append_svg_image_frames(&mut self, style: ComputedValuesView<'_>, own_state: ContextRef) {
-        let overflow_is_visible =
-            style.box_values().overflow_x == overflow::VISIBLE && style.box_values().overflow_y == overflow::VISIBLE;
-        if overflow_is_visible {
-            return;
-        }
-        let image_rect = svg_image_unquantized_device_rect(
-            self.layout_arena,
-            self.slot,
-            self.converter.device_pixels_per_css_pixel(),
-        );
-        self.append_clip(own_state, image_rect, CornerRadii::default(), FrameRole::ContentClip);
     }
 
     fn append_fieldset_frames(&mut self, own_state: ContextRef) -> ContextRef {
