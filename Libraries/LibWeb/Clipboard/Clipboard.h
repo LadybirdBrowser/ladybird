@@ -43,4 +43,6 @@ private:
     Clipboard();
 };
 
+String os_specific_well_known_format(MimeSniff::MimeType const&);
+
 }

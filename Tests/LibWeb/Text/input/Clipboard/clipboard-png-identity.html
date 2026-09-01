@@ -1,0 +1,56 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    async function fetchUrlToBlob(url) {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.blob();
+    }
+
+    async function compareBlobs(blob1, blob2) {
+        if (blob1.size !== blob2.size) return false;
+        if (blob1.type !== blob2.type) return false;
+
+        const buffer1 = await blob1.arrayBuffer();
+        const buffer2 = await blob2.arrayBuffer();
+
+        const view1 = new DataView(buffer1);
+        const view2 = new DataView(buffer2);
+
+        for (let i = 0; i < buffer1.byteLength; i++) {
+            if (view1.getUint8(i) !== view2.getUint8(i)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    promiseTest(async () => {
+        const fetchedBlob = await fetchUrlToBlob("../../../Assets/120.png");
+
+        internals.dispatchUserActivatedEvent(document.body, new Event("mousedown"));
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": fetchedBlob })]);
+
+        internals.dispatchUserActivatedEvent(document.body, new Event("mousedown"));
+        const items = await navigator.clipboard.read();
+
+        for (const item of items) {
+            const imageType = item.types.find(type => type.startsWith("image/"));
+            if (!imageType) {
+                continue;
+            }
+
+            const clipboardBlob = await item.getType(imageType);
+            println(`Size: ${clipboardBlob.size}`);
+            println(`Type: ${clipboardBlob.type}`);
+
+            const roundTrip = await compareBlobs(fetchedBlob, clipboardBlob);
+            println(`PNG managed to round-trip: ${roundTrip}`);
+            break;
+        }
+    });
+</script>
