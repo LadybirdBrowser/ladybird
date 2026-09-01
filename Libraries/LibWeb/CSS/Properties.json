@@ -1668,6 +1668,7 @@
   },
   "content-visibility": {
     "style-group": "InheritedBoxValues",
+    "affects-stacking-context": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "visible",
@@ -2760,6 +2761,7 @@
   },
   "isolation": {
     "style-group": "EffectsValues",
+    "affects-stacking-context": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -3356,6 +3358,7 @@
     "style-group": "EffectsValues",
     "affects-accumulated-visual-contexts": true,
     "affects-layout": false,
+    "affects-stacking-context": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -3792,6 +3795,7 @@
   "perspective": {
     "style-group": "TransformValues",
     "affects-accumulated-visual-contexts": true,
+    "affects-stacking-context": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
@@ -4908,6 +4912,7 @@
   "transform-style": {
     "style-group": "TransformValues",
     "affects-accumulated-visual-contexts": true,
+    "affects-stacking-context": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "flat",

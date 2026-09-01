@@ -48,6 +48,8 @@ static bool animated_value_creates_stacking_context(PropertyID property_id, Styl
         return value->to_keyword() != Keyword::None && value->to_keyword() != Keyword::Flat;
     case PropertyID::BackfaceVisibility:
         return value->to_keyword() == Keyword::Hidden;
+    case PropertyID::ContentVisibility:
+        return value->to_keyword() == Keyword::Auto;
     default:
         return true;
     }
