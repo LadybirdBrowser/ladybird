@@ -24,7 +24,7 @@ use crate::painting::record::paint::background_resolution::{
     operator_erases_destination_outside_the_drawn_geometry,
 };
 use crate::painting::style_queries;
-use libgfx_rust::{CompositingAndBlendingOperator, CornerRadii, FloatRect};
+use libgfx_rust::{CornerRadii, FloatRect};
 
 pub(crate) type LocalFrames = Vec<(FrameRole, FrameNodeIndex)>;
 
@@ -101,7 +101,6 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
             mask_rect,
             BorderRadii::default(),
             is_root_element,
-            false,
             &layers,
         );
         self.finish()
@@ -164,15 +163,7 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
                 } else {
                     piece.shrunken_by_present_edges(border_box_rect, border)
                 };
-                self.append_background_layer_frames(
-                    piece_key,
-                    own_state,
-                    background_rect,
-                    border_radii,
-                    false,
-                    clips_to_text,
-                    layers,
-                );
+                self.append_background_layer_frames(piece_key, own_state, background_rect, border_radii, false, layers);
             }
         });
     }
@@ -201,14 +192,11 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
             source.background_rect,
             source.border_radii,
             source.is_root_element,
-            clips_to_text,
             &layers,
         );
     }
 
-    // https://drafts.csswg.org/css-backgrounds-4/#valdef-background-clip-text
-    // https://drafts.fxtf.org/compositing/#background-blend-mode
-    #[allow(clippy::too_many_arguments)]
+    // https://drafts.fxtf.org/css-masking-1/#the-mask-composite
     fn append_background_layer_frames(
         &mut self,
         piece: PieceKey,
@@ -216,28 +204,9 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
         background_rect: CssPixelRect,
         border_radii: BorderRadii,
         is_root_element: bool,
-        clips_to_text: bool,
         layers: &[ComputedLayerFrameFacts],
     ) {
-        let mut parent = background_parent;
-        if clips_to_text {
-            let text_clip = self.append_clip(
-                parent,
-                self.converter.rounded_device_rect(background_rect).to_float(),
-                CornerRadii::default(),
-                FrameRole::BackgroundTextClip { piece },
-            );
-            parent = self.append(
-                text_clip,
-                FrameData::layer_blending_with(CompositingAndBlendingOperator::Normal),
-                FrameRole::BackgroundTextContentLayer { piece },
-            );
-            self.append(
-                parent,
-                FrameData::layer_blending_with(CompositingAndBlendingOperator::DestinationIn),
-                FrameRole::BackgroundTextMask { piece },
-            );
-        }
+        let parent = background_parent;
         let boxes = BackgroundLayerBoxes {
             border_box: BackgroundBox {
                 rect: background_rect,

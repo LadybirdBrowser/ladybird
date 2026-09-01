@@ -331,17 +331,6 @@ impl<'a> PaintRecorder<'a> {
         result
     }
 
-    pub(crate) fn with_optional_context<R>(
-        &mut self,
-        context: Option<ContextRef>,
-        paint: impl FnOnce(&mut Self) -> R,
-    ) -> R {
-        match context {
-            Some(context) => self.with_context(context, paint),
-            None => paint(self),
-        }
-    }
-
     pub(crate) fn record_with_inline_clips<R>(
         &mut self,
         inline_clips: &[PendingInlineClip],

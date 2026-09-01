@@ -64,10 +64,6 @@ impl LayerBackdrop {
     }
 }
 
-fn fill_transparent_so_replay_pushes_the_layer(recorder: &mut PaintRecorder<'_>, rect: IntRect) {
-    recorder.recorder.fill_rect_transparent(rect);
-}
-
 pub(crate) fn paint_background(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
     let Some(inputs) = resolve_background_for_paint(recorder, paintable) else {
         return;
@@ -135,19 +131,27 @@ pub(crate) fn paint_resolved_background(
 
     // https://drafts.csswg.org/css-backgrounds-4/#valdef-background-clip-text
     let needs_text_clip = resolved.needs_text_clip && !inputs.is_root_element;
-    let layers_context = needs_text_clip
-        .then(|| recorder.expected_local_context(paintable, FrameRole::BackgroundTextContentLayer { piece }));
-    if backdrop.is_isolated_group() {
-        // https://drafts.fxtf.org/compositing/#background-blend-mode
-        // The layers render into an isolated group, so they are recorded into a nested display
-        // list that one command plays inside its own saveLayer.
-        let group_device_rect = converter
+    if !backdrop.is_isolated_group() && !needs_text_clip {
+        paint_background_layers(recorder, paintable, piece, inputs, backdrop);
+        return;
+    }
+
+    // https://drafts.fxtf.org/compositing/#background-blend-mode
+    // Blending layers render into an isolated group, and background-clip: text masks the whole
+    // stack by its glyphs, so the layers are recorded into a nested display list that one command
+    // plays inside its own saveLayer, masked by a second list of glyph runs.
+    let group_device_rect = if needs_text_clip {
+        converter.rounded_device_rect(background_rect)
+    } else {
+        converter
             .rounded_device_rect(background_rect)
-            .united(converter.enclosing_device_rect(color_box.rect));
+            .united(converter.enclosing_device_rect(color_box.rect))
+    };
+    let record_into_nested_list = |recorder: &mut PaintRecorder<'_>, record: &mut dyn FnMut(&mut PaintRecorder<'_>)| {
         let outer_recorder = std::mem::replace(&mut recorder.recorder, DisplayListRecorder::new());
         let recording_into_enclosing_nested_list =
             std::mem::replace(&mut recorder.recording_into_context_free_nested_list, true);
-        paint_background_layers(recorder, paintable, piece, inputs, backdrop);
+        record(recorder);
         recorder.recording_into_context_free_nested_list = recording_into_enclosing_nested_list;
         let group_recorder = std::mem::replace(&mut recorder.recorder, outer_recorder);
         let group = group_recorder.into_builder().finish();
@@ -155,35 +159,31 @@ pub(crate) fn paint_resolved_background(
             x: -group_device_rect.x,
             y: -group_device_rect.y,
         });
-        let group_display_list_id = recorder
+        recorder
             .paint_host
-            .nested_display_list_from_tree(&group, group_tree, &[]);
-        recorder.with_optional_context(layers_context, |recorder| {
-            recorder.recorder.draw_isolated_display_list(
-                group_display_list_id,
-                NO_MASK_DISPLAY_LIST,
-                group_device_rect.to_float(),
-                IntSize {
-                    width: group_device_rect.width,
-                    height: group_device_rect.height,
-                },
-                CompositingAndBlendingOperator::Normal,
-                MaskKind::Alpha,
-            );
-        });
-    } else {
-        recorder.with_optional_context(layers_context, |recorder| {
-            paint_background_layers(recorder, paintable, piece, inputs, backdrop);
-        });
-    }
-
-    if needs_text_clip {
-        let mask_context = recorder.expected_local_context(paintable, FrameRole::BackgroundTextMask { piece });
-        recorder.with_context(mask_context, |recorder| {
-            fill_transparent_so_replay_pushes_the_layer(recorder, converter.rounded_device_rect(background_rect));
+            .nested_display_list_from_tree(&group, group_tree, &[])
+    };
+    let group_display_list_id = record_into_nested_list(recorder, &mut |recorder| {
+        paint_background_layers(recorder, paintable, piece, inputs, backdrop);
+    });
+    let mask_display_list_id = if needs_text_clip {
+        record_into_nested_list(recorder, &mut |recorder| {
             append_text_clip_paths(recorder, paintable);
-        });
-    }
+        })
+    } else {
+        NO_MASK_DISPLAY_LIST
+    };
+    recorder.recorder.draw_isolated_display_list(
+        group_display_list_id,
+        mask_display_list_id,
+        group_device_rect.to_float(),
+        IntSize {
+            width: group_device_rect.width,
+            height: group_device_rect.height,
+        },
+        CompositingAndBlendingOperator::Normal,
+        MaskKind::Alpha,
+    );
 }
 
 fn paint_background_layers(
@@ -299,7 +299,7 @@ fn paint_background_layers(
                         },
                     );
                     recorder.with_context(blend_context, |recorder| {
-                        fill_transparent_so_replay_pushes_the_layer(recorder, clip_rect);
+                        recorder.recorder.fill_rect_transparent(clip_rect);
                     });
                 }
             } else {

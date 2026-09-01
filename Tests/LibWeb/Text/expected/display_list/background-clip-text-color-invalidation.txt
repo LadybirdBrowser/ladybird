@@ -16,13 +16,11 @@ AccumulatedVisualContext Tree:
       [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[8,13 100x50] (BlockContainer<DIV>#box.box)
-        [f2 in s1] effects=[] (BlockContainer<DIV>#box.box)
-          [f3 in s1] effects=[blend_mode=22] (BlockContainer<DIV>#box.box)
 
 DisplayList:
-FillRect@s1/f2 rect=[8,13 100x50] color=rgb(0, 0, 255)
-FillRect@s1/f3 rect=[8,13 100x50] color=rgba(0, 0, 0, 0)
-DrawGlyphRun@s1/f3 rect=[8,13 71x30] translation=[8,37] color=rgb(0, 0, 0)
+DrawIsolatedDisplayList@s1/f0 rect=[8,13 100x50] list_size=[100x50] has_mask=alpha
+  FillRect@s0 rect=[8,13 100x50] color=rgb(0, 0, 255)
+  Mask:
+    DrawGlyphRun@s0 rect=[8,13 71x30] translation=[8,37] color=rgb(0, 0, 0)
 DrawGlyphRun@s1/f0 rect=[8,13 71x30] translation=[8,37] color=rgb(0, 0, 0)
 
