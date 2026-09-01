@@ -1,0 +1,2 @@
+callback ran: true
+callback received injected timestamp: true

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
+    asyncTest(async done => {
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+
+        let callbackTimestamp = null;
+        const injectedTimestamp = performance.now();
+        requestAnimationFrame(timestamp => callbackTimestamp = timestamp);
+        internals.injectRenderingOpportunity(injectedTimestamp);
+        await nextTask();
+        internals.setManualRenderingOpportunities(false);
+
+        println(`callback ran: ${callbackTimestamp !== null}`);
+        println(`callback received injected timestamp: ${Math.abs(callbackTimestamp - injectedTimestamp) < 0.01}`);
+        done();
+    });
+</script>

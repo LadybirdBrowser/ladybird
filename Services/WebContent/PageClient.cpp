@@ -532,6 +532,8 @@ void PageClient::request_rendering_opportunity_if_needed()
 {
     if (!m_rendering_update_requested)
         return;
+    if (m_manual_rendering_opportunities)
+        return;
     if (m_compositor_rendering_opportunity_outstanding || m_frame_timer->is_active())
         return;
     if (Web::HTML::main_thread_event_loop().rendering_task_queued_or_running())
@@ -686,6 +688,39 @@ void PageClient::did_finish_rendering_update()
         return;
     }
     request_rendering_opportunity_if_needed();
+}
+
+void PageClient::set_manual_rendering_opportunities(bool enabled)
+{
+    if (m_manual_rendering_opportunities == enabled)
+        return;
+
+    m_manual_rendering_opportunities = enabled;
+    if (enabled) {
+        m_frame_timer->stop();
+        m_frame_timer_purpose = FrameTimerPurpose::Inactive;
+        m_compositor_rendering_opportunity_outstanding = false;
+        if (m_rendering_opportunity_granted)
+            m_rendering_update_requested = true;
+        m_rendering_opportunity_granted = false;
+        m_granted_rendering_opportunity_time.clear();
+        return;
+    }
+
+    request_rendering_opportunity_if_needed();
+}
+
+void PageClient::inject_rendering_opportunity(double frame_time)
+{
+    VERIFY(m_manual_rendering_opportunities);
+    if (!m_rendering_update_requested || m_rendering_opportunity_granted)
+        return;
+
+    auto document = page().top_level_traversable_is_initialized() ? page().top_level_traversable()->active_document() : nullptr;
+    if (document && document->hidden())
+        return;
+
+    grant_rendering_opportunity(frame_time, Web::HTML::EventLoop::RenderingOpportunitySource::Manual);
 }
 
 void PageClient::set_maximum_frames_per_second(double maximum_frames_per_second)

@@ -1339,6 +1339,17 @@ void Internals::reset_rendering_scheduler_counters()
     HTML::main_thread_event_loop().reset_rendering_scheduler_counters();
 }
 
+void Internals::set_manual_rendering_opportunities(bool enabled)
+{
+    page().client().set_manual_rendering_opportunities(enabled);
+}
+
+void Internals::inject_rendering_opportunity(double frame_time_ms)
+{
+    auto frame_time = window().associated_document().relevant_settings_object().time_origin() + frame_time_ms;
+    page().client().inject_rendering_opportunity(frame_time);
+}
+
 void Internals::update_compositor_animations()
 {
     window().associated_document().update_compositor_animations();

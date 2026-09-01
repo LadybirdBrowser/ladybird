@@ -1,0 +1,4 @@
+callback count while hidden: 0
+updates while hidden: 0
+callback count after visible opportunity: 1
+one update ran: true

@@ -523,6 +523,8 @@ public:
     virtual void will_begin_rendering_update() { }
     virtual bool has_rendering_opportunity() const { return true; }
     virtual void did_finish_rendering_update() { }
+    virtual void set_manual_rendering_opportunities([[maybe_unused]] bool enabled) { }
+    virtual void inject_rendering_opportunity([[maybe_unused]] double frame_time) { }
     virtual void page_did_change_title(Utf16String const&) { }
     virtual void page_did_update_editing_history_state(bool, bool) { }
     virtual void page_did_request_refresh() { }

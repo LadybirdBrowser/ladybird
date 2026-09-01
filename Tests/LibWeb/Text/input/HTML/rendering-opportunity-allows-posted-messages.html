@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
+    asyncTest(async done => {
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        internals.resetRenderingSchedulerCounters();
+
+        let animationFrameRan = false;
+        requestAnimationFrame(() => animationFrameRan = true);
+
+        let messageCount = 0;
+        const messagesFinished = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = () => {
+            if (++messageCount === 10)
+                messagesFinished.resolve();
+            else
+                channel.port2.postMessage(null);
+        };
+        channel.port2.postMessage(null);
+        await messagesFinished.promise;
+        await nextTask();
+
+        const beforeOpportunity = internals.getRenderingSchedulerCounters();
+        const animationFrameStayedPending = !animationFrameRan && beforeOpportunity.updatesRun === 0;
+        internals.injectRenderingOpportunity(performance.now());
+        await nextTask();
+        const afterOpportunity = internals.getRenderingSchedulerCounters();
+        internals.setManualRenderingOpportunities(false);
+
+        println(`posted messages before opportunity: ${messageCount}`);
+        println(`animation frame stayed pending: ${animationFrameStayedPending}`);
+        println(`posted-message tasks progressed: ${beforeOpportunity.postedMessageTasksBetweenUpdates >= 10}`);
+        println(`animation frame ran after opportunity: ${animationFrameRan}`);
+        println(`one update ran: ${afterOpportunity.updatesRun === 1}`);
+        done();
+    });
+</script>

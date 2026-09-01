@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
+    asyncTest(async done => {
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        await setSystemVisibilityState("hidden");
+        internals.resetRenderingSchedulerCounters();
+
+        let callbackCount = 0;
+        requestAnimationFrame(() => ++callbackCount);
+        internals.injectRenderingOpportunity(performance.now());
+        await nextTask();
+        const whileHidden = internals.getRenderingSchedulerCounters();
+        const callbackCountWhileHidden = callbackCount;
+
+        await setSystemVisibilityState("visible");
+        internals.injectRenderingOpportunity(performance.now());
+        await nextTask();
+        const afterVisibleOpportunity = internals.getRenderingSchedulerCounters();
+        internals.setManualRenderingOpportunities(false);
+
+        println(`callback count while hidden: ${callbackCountWhileHidden}`);
+        println(`updates while hidden: ${whileHidden.updatesRun}`);
+        println(`callback count after visible opportunity: ${callbackCount}`);
+        println(`one update ran: ${afterVisibleOpportunity.updatesRun === 1}`);
+        done();
+    });
+</script>
