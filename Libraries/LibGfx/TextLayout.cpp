@@ -670,37 +670,40 @@ static_assert(offsetof(Gfx::FFI::DrawGlyph, glyph_id) == offsetof(Gfx::DrawGlyph
 static_assert(offsetof(Gfx::FFI::DrawGlyph, should_paint) == offsetof(Gfx::DrawGlyph, should_paint));
 
 extern "C" {
-Gfx::FFI::ShapedRunView ladybird_gfx_shape_text(void const*, u16 const*, size_t, Gfx::FFI::TextType, float, float);
+void ladybird_gfx_shape_text_uncached(void const*, u16 const*, size_t, Gfx::FFI::TextType, float, float, void*, void (*)(void*, Gfx::FFI::DrawGlyph const*, size_t, float, size_t, float));
 void ladybird_gfx_glyph_run_bounding_box(void const*, Gfx::FFI::DrawGlyph const*, size_t, float, float*);
 void ladybird_gfx_glyph_run_glyph_intercepts(void const*, Gfx::FFI::DrawGlyph const*, size_t, float, float, float, void*, void (*)(void*, float));
 }
 
-extern "C" Gfx::FFI::ShapedRunView ladybird_gfx_shape_text(
+extern "C" void ladybird_gfx_shape_text_uncached(
     void const* font,
     u16 const* text_utf16,
     size_t length_in_code_units,
     Gfx::FFI::TextType text_type,
     float letter_spacing,
-    float word_spacing)
+    float word_spacing,
+    void* sink,
+    void (*emit)(void*, Gfx::FFI::DrawGlyph const*, size_t, float, size_t, float))
 {
     VERIFY(font);
     VERIFY(text_utf16 || length_in_code_units == 0);
+    VERIFY(emit);
     auto text = length_in_code_units == 0
         ? Utf16View {}
         : Utf16View { reinterpret_cast<char16_t const*>(text_utf16), length_in_code_units };
-    auto const& shape = Gfx::shape_text_through_cache(
+    auto shape = Gfx::build_origin_relative_shape(
         text,
         *static_cast<Gfx::Font const*>(font),
         static_cast<Gfx::GlyphRun::TextType>(text_type),
         letter_spacing,
         word_spacing);
-    return {
-        .glyphs = reinterpret_cast<Gfx::FFI::DrawGlyph const*>(shape.glyphs.data()),
-        .glyph_count = shape.glyphs.size(),
-        .width = shape.width,
-        .trailing_whitespace_length_in_code_units = shape.trailing_whitespace.length_in_code_units,
-        .trailing_whitespace_advance = shape.trailing_whitespace.advance,
-    };
+    emit(
+        sink,
+        reinterpret_cast<Gfx::FFI::DrawGlyph const*>(shape->glyphs.data()),
+        shape->glyphs.size(),
+        shape->width,
+        shape->trailing_whitespace.length_in_code_units,
+        shape->trailing_whitespace.advance);
 }
 
 extern "C" void ladybird_gfx_glyph_run_bounding_box(

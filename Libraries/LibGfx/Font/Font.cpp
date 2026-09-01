@@ -27,6 +27,7 @@
 #include <harfbuzz/hb.h>
 
 extern "C" {
+u64 ladybird_gfx_font_id(void const*);
 float ladybird_gfx_font_glyph_width(void const*, u32);
 u32 ladybird_gfx_font_glyph_id(void const*, u32);
 bool ladybird_gfx_font_contains_glyph(void const*, u32);
@@ -254,6 +255,12 @@ bool Font::is_emoji_font() const
     return m_is_emoji_font == TriState::True;
 }
 
+}
+
+extern "C" u64 ladybird_gfx_font_id(void const* font)
+{
+    VERIFY(font);
+    return static_cast<Gfx::Font const*>(font)->id();
 }
 
 extern "C" float ladybird_gfx_font_glyph_width(void const* font, u32 code_point)

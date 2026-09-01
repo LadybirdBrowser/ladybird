@@ -9,6 +9,7 @@ use std::marker::PhantomData;
 use std::ptr::NonNull;
 
 unsafe extern "C" {
+    fn ladybird_gfx_font_id(font: *const c_void) -> u64;
     fn ladybird_gfx_font_glyph_width(font: *const c_void, code_point: u32) -> f32;
     fn ladybird_gfx_font_glyph_id(font: *const c_void, code_point: u32) -> u32;
     fn ladybird_gfx_font_contains_glyph(font: *const c_void, code_point: u32) -> bool;
@@ -59,6 +60,15 @@ impl<'a> FontRef<'a> {
             raw: NonNull::new(raw.cast_mut()).expect("Gfx::Font pointer must not be null"),
             _lifetime: PhantomData,
         }
+    }
+
+    /// The font's process-unique id. Ids are never recycled, so a dead font's
+    /// id can never alias a live font's.
+    #[inline]
+    pub fn id(self) -> u64 {
+        // SAFETY: FontRef's constructor requires the Gfx::Font to remain live
+        // for this reference's lifetime.
+        unsafe { ladybird_gfx_font_id(self.raw.as_ptr()) }
     }
 
     #[inline]
