@@ -519,6 +519,10 @@ public:
     }
     virtual HTML::CrossProcessId allocate_navigable_id() { return allocate_cross_process_id(); }
     virtual void request_frame() = 0;
+    virtual void rendering_opportunity([[maybe_unused]] i64 frame_time_nanoseconds, [[maybe_unused]] double frame_interval_milliseconds) { }
+    virtual void will_begin_rendering_update() { }
+    virtual bool has_rendering_opportunity() const { return true; }
+    virtual void did_finish_rendering_update() { }
     virtual void page_did_change_title(Utf16String const&) { }
     virtual void page_did_update_editing_history_state(bool, bool) { }
     virtual void page_did_request_refresh() { }

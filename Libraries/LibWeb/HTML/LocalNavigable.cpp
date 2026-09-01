@@ -4742,8 +4742,9 @@ bool LocalNavigable::has_a_rendering_opportunity() const
     // or whether its active document's visibility state is "visible".
     // Rendering opportunities typically occur at regular intervals.
 
-    // FIXME: Return `false` here if we're an inactive browser tab.
-    return true;
+    if (main_thread_event_loop().running_synchronous_rendering_update())
+        return true;
+    return page().client().has_rendering_opportunity();
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#inform-the-navigation-api-about-child-navigable-destruction

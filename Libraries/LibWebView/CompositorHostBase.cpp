@@ -289,6 +289,13 @@ void CompositorHostBase::viewport_size_updated(Web::Compositor::CompositorContex
         connection->viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
 }
 
+bool CompositorHostBase::request_rendering_opportunity(Web::Compositor::CompositorContextId context_id, double maximum_frames_per_second)
+{
+    if (auto* connection = compositor_connection())
+        return connection->request_rendering_opportunity(context_id, maximum_frames_per_second);
+    return false;
+}
+
 void CompositorHostBase::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect)
 {
     if (auto* connection = compositor_connection())

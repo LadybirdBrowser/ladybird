@@ -23,6 +23,7 @@
 struct TestWebContentClient final : public Compositor::CompositorStateWebContentClient {
     virtual void dispatch_mouse_event_to_web_content(u64, Web::MouseEvent const&) override { }
     virtual void request_rendering_update() override { }
+    virtual void rendering_opportunity(Web::Compositor::CompositorContextId, i64, double) override { }
     virtual void create_video_edge(Media::VideoSinkHandle) override { }
     virtual void release_video_edge(Media::VideoSinkHandle) override { }
 };

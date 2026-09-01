@@ -83,8 +83,16 @@ public:
 
     void spin_until(GC::Ref<GC::Function<bool()>> goal_condition);
     void process();
-    bool request_rendering_update();
-    bool rendering_opportunity();
+    void request_rendering_update();
+    enum class RenderingOpportunitySource {
+        Compositor,
+        LocalTimer,
+        Watchdog,
+        Manual,
+    };
+    bool rendering_opportunity(HighResolutionTime::DOMHighResTimeStamp frame_time, RenderingOpportunitySource);
+    bool rendering_task_queued_or_running() const { return m_rendering_task_queued || m_running_rendering_task; }
+    bool running_synchronous_rendering_update() const { return m_running_synchronous_rendering_update; }
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#termination-nesting-level
     size_t termination_nesting_level() const { return m_termination_nesting_level; }
@@ -173,6 +181,7 @@ private:
     size_t m_execution_pause_depth { 0 };
 
     bool m_running_rendering_task { false };
+    bool m_running_synchronous_rendering_update { false };
     bool m_rendering_task_queued { false };
     bool m_rendering_update_requested { false };
 

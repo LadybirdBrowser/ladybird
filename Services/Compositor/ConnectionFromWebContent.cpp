@@ -5,6 +5,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/Math.h>
 #include <Compositor/ConnectionFromWebContent.h>
 #include <LibCore/System.h>
 #include <LibWeb/Page/InputEvent.h>
@@ -92,6 +93,11 @@ void ConnectionFromWebContent::request_rendering_update()
     async_request_rendering_update();
 }
 
+void ConnectionFromWebContent::rendering_opportunity(Web::Compositor::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds)
+{
+    async_rendering_opportunity(context_id, frame_time_nanoseconds, frame_interval_milliseconds);
+}
+
 void ConnectionFromWebContent::dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const& event)
 {
     async_mouse_event(page_id, event);
@@ -110,6 +116,17 @@ bool ConnectionFromWebContent::context_is_owned_by_this_connection(Web::Composit
     }
 
     VERIFY_NOT_REACHED();
+}
+
+void ConnectionFromWebContent::request_rendering_opportunity(Web::Compositor::CompositorContextId context_id, double maximum_frames_per_second)
+{
+    if (!context_is_owned_by_this_connection(context_id))
+        return;
+    if (!isfinite(maximum_frames_per_second) || maximum_frames_per_second <= 0) {
+        did_misbehave("WebContent sent an invalid maximum frame rate");
+        return;
+    }
+    m_compositor_state->request_rendering_opportunity(context_id, maximum_frames_per_second);
 }
 
 void ConnectionFromWebContent::set_parent_context(Web::Compositor::CompositorContextId context_id, Optional<Web::Compositor::CompositorContextId> parent_context_id)

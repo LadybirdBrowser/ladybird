@@ -5,6 +5,7 @@ endpoint CompositorWebContentClient
 {
     mouse_event(u64 page_id, Web::MouseEvent event) =|
     request_rendering_update() =|
+    rendering_opportunity(Web::Compositor::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds) =|
     did_complete_screenshot(Web::Compositor::ScreenshotRequestId request_id) =|
     did_fail_screenshot(Web::Compositor::ScreenshotRequestId request_id) =|
     did_lose_compositor() =|

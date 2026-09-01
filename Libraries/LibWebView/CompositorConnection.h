@@ -59,6 +59,7 @@ public:
     void cancel_smooth_scroll(Web::Compositor::CompositorContextId, Web::Compositor::AsyncScrollNodeStableID);
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Web::Compositor::CompositorContextId);
     void viewport_size_updated(Web::Compositor::CompositorContextId, Gfx::IntSize, Web::Compositor::WindowResizingInProgress);
+    bool request_rendering_opportunity(Web::Compositor::CompositorContextId, double maximum_frames_per_second);
     void present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect viewport_rect);
     void request_screenshot(Web::Compositor::CompositorContextId, NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&&);
 
@@ -88,6 +89,7 @@ private:
 
     virtual void mouse_event(u64 page_id, Web::MouseEvent) override;
     virtual void request_rendering_update() override;
+    virtual void rendering_opportunity(Web::Compositor::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds) override;
     virtual void did_complete_screenshot(Web::Compositor::ScreenshotRequestId) override;
     virtual void did_fail_screenshot(Web::Compositor::ScreenshotRequestId) override;
     virtual void did_lose_compositor() override;
