@@ -1855,7 +1855,7 @@ static void recompute_containing_blocks_in_inclusive_subtree(Layout::NodeArena& 
 
 // Refreshes every structure derived from committed layout results, shared by the partial and
 // full layout paths so neither can forget one.
-void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed, LayoutCommitScope layout_commit_scope, ReadonlySpan<Layout::Box const*> boxes_needing_eager_overflow_measurement)
+void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed, LayoutCommitScope layout_commit_scope)
 {
     // NB: Called during layout update.
     m_layout_root->invalidate_text_blocks_cache();
@@ -1869,7 +1869,7 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed, Layout
     if (layout_tree_changed == LayoutTreeChanged::Yes && !Layout::RustFFI::layout_arena_needs_full_scrollable_overflow_recalculation(layout_node_arena().handle()))
         Layout::RustFFI::layout_arena_rebuild_scrollable_overflow_contained_boxes(layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root.ptr()));
     if (layout_commit_scope == LayoutCommitScope::Full)
-        update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates::HandledByFullLayoutCommit, boxes_needing_eager_overflow_measurement);
+        update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates::HandledByFullLayoutCommit);
     else
         update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates::HandledByAfterLayoutCommit);
 
@@ -2405,17 +2405,11 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
 
         layout_node_arena().sync_enrolled_content_for_layout();
         Layout::LayoutRustBridge bridge;
-        Vector<Layout::Box const*> boxes_needing_eager_overflow_measurement;
         bridge.run_root_layout(
             *m_layout_root,
             viewport_rect.width(),
             viewport_rect.height(),
             should_collect_devtools_layout_data);
-        m_layout_root->for_each_in_inclusive_subtree_of_type<Layout::Box>([&](auto& box) {
-            if ((&box == m_layout_root.ptr() || box.is_scroll_container() || !Painting::scroll_offset(box).is_zero()) && Painting::has_committed_box(box))
-                boxes_needing_eager_overflow_measurement.append(&box);
-            return TraversalDecision::Continue;
-        });
         Layout::RustFFI::layout_arena_rebuild_scrollable_overflow_contained_boxes(layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root.ptr()));
 
         style_invalidation_counters().relayouts_performed++;
@@ -2424,7 +2418,7 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
 
         ++m_full_layout_count;
 
-        after_layout_commit(LayoutTreeChanged::Yes, LayoutCommitScope::Full, boxes_needing_eager_overflow_measurement);
+        after_layout_commit(LayoutTreeChanged::Yes, LayoutCommitScope::Full);
 
         Layout::RustFFI::layout_arena_reset_layout_update_flags_in_subtree(
             layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root.ptr()));
@@ -2784,14 +2778,13 @@ void Document::finish_animated_style_update()
         effect->request_observation_sample();
 }
 
-void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates derived_structure_updates, ReadonlySpan<Layout::Box const*> boxes_needing_eager_measurement)
+void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates derived_structure_updates)
 {
     if (!m_layout_node_arena)
         return;
 
     auto outcome = Painting::rust_update_scrollable_overflow(*this,
-        derived_structure_updates == ScrollableOverflowDerivedStructureUpdates::HandledByFullLayoutCommit,
-        boxes_needing_eager_measurement);
+        derived_structure_updates == ScrollableOverflowDerivedStructureUpdates::HandledByFullLayoutCommit);
     if (!outcome.performed_recalculation)
         return;
 

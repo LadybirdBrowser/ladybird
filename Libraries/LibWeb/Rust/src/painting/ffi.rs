@@ -723,16 +723,13 @@ pub struct FfiScrollableOverflowUpdateOutcome {
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
-/// `eager_measurement_slots` must be valid for `eager_measurement_count`. The callbacks receive
-/// live layout node shells and must not re-enter the arena.
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread. The
+/// callbacks receive live layout node shells and must not re-enter the arena.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_update_scrollable_overflow(
     arena: *mut c_void,
     viewport: NodeSlotId,
     handled_by_full_layout_commit: bool,
-    eager_measurement_slots: *const NodeSlotId,
-    eager_measurement_count: usize,
     visual_context_callbacks: crate::painting::host::FfiVisualContextHostCallbacks,
     overflow_callbacks: crate::painting::host::FfiScrollableOverflowHostCallbacks,
     scroll_offset_context: *mut c_void,
@@ -784,17 +781,25 @@ pub unsafe extern "C" fn layout_arena_update_scrollable_overflow(
             // A full-root commit reset every surviving row, including its overflow data and
             // paint cache. There is therefore no old overflow to preserve or diff. Ordinary
             // boxes are measured recursively when their overflow contributes to one of these
-            // roots, so they do not need separate eager measurement.
-            // SAFETY: The caller supplies a valid slot array for the accompanying count.
-            let eager_slots = if eager_measurement_count == 0 {
-                &[]
-            } else {
-                unsafe { std::slice::from_raw_parts(eager_measurement_slots, eager_measurement_count) }
-            };
-            for &slot in eager_slots {
-                if !row_is_populated(slot) {
-                    continue;
-                }
+            // roots, so they do not need separate eager measurement: only the viewport, scroll
+            // containers, and boxes holding a scroll offset are measured eagerly.
+            let mut eager_measurement_roots = Vec::new();
+            {
+                // SAFETY: As above; the callback receives live shells and does not re-enter.
+                let arena = unsafe { arena_from_handle(arena) };
+                arena.for_each_node_in_layout_subtree_in_pre_order(viewport, |slot| {
+                    if !arena.paintable_rows().paintable_row_is_populated(slot) {
+                        return;
+                    }
+                    let measures_eagerly = slot == viewport
+                        || crate::painting::style_queries::is_scroll_container(arena, slot)
+                        || !unsafe { scroll_offset_is_zero(scroll_offset_context, arena.node_shell(slot)) };
+                    if measures_eagerly {
+                        eager_measurement_roots.push(slot);
+                    }
+                });
+            }
+            for slot in eager_measurement_roots {
                 measure_and_clamp(slot);
             }
             return performed;
