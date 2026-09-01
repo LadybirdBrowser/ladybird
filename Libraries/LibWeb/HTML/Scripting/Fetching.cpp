@@ -629,7 +629,7 @@ static void set_up_classic_script_request(Fetch::Infrastructure::Request& reques
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#set-up-the-module-script-request
-static void set_up_module_script_request(Fetch::Infrastructure::Request& request, ScriptFetchOptions const& options)
+void set_up_module_script_request(Fetch::Infrastructure::Request& request, ScriptFetchOptions const& options)
 {
     // Set request's cryptographic nonce metadata to options's cryptographic nonce, its integrity metadata to options's
     // integrity metadata, its parser metadata to options's parser metadata, its credentials mode to options's credentials
@@ -1346,6 +1346,43 @@ void fetch_external_module_script_graph(JS::Realm& realm, URL::URL const& url, E
 
     // 1. Fetch a single module script given url, settingsObject, "script", options, settingsObject, "client", true, and with the following steps given result:
     fetch_single_module_script(realm, url, settings_object, Fetch::Infrastructure::Request::Destination::Script, options, settings_object, Web::Fetch::Infrastructure::Request::Referrer::Client, {}, TopLevelModule::Yes, nullptr, steps);
+}
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-modulepreload-module-script-graph
+void fetch_modulepreload_module_script_graph(JS::Realm& realm, URL::URL const& url, Fetch::Infrastructure::Request::Destination destination, EnvironmentSettingsObject& settings_object, ScriptFetchOptions const& options, OnFetchScriptComplete on_complete)
+{
+    auto steps = create_on_fetch_script_complete(GC::Heap::the(), [&realm, &settings_object, destination, on_complete](auto result) mutable {
+        // 1. Run onComplete given result.
+        on_complete->function()(result);
+
+        // 2. Assert: settingsObject's global object implements Window.
+        VERIFY(window_from_global_object(settings_object.global_object()));
+
+        // 3. If result is not null, optionally fetch the descendants of and link result given settingsObject,
+        //    destination, and an empty algorithm.
+        if (result) {
+            auto on_descendants_complete = create_on_fetch_script_complete(GC::Heap::the(), [](auto) { });
+            fetch_descendants_of_and_link_a_module_script(realm, as<ModuleScript>(*result), settings_object, destination, nullptr, on_descendants_complete);
+        }
+    });
+
+    // 1. Fetch a single module script given url, settingsObject, destination, options, settingsObject, "client", true,
+    //    and with the following steps given result.
+    // INTEROP: A modulepreload with an as value of "style", "json", or "text" must populate the same module map
+    //          entry as an import with the corresponding type attribute. The HTML algorithm does not currently pass
+    //          a module request to fetch a single module script, but this behavior is covered by web-platform-tests.
+    Optional<JS::ModuleRequest> module_request;
+    if (destination == Fetch::Infrastructure::Request::Destination::Style) {
+        module_request.emplace();
+        module_request->add_attribute("type"_utf16, "css"_utf16);
+    } else if (destination == Fetch::Infrastructure::Request::Destination::JSON) {
+        module_request.emplace();
+        module_request->add_attribute("type"_utf16, "json"_utf16);
+    } else if (destination == Fetch::Infrastructure::Request::Destination::Text) {
+        module_request.emplace();
+        module_request->add_attribute("type"_utf16, "text"_utf16);
+    }
+    fetch_single_module_script(realm, url, settings_object, destination, options, settings_object, Web::Fetch::Infrastructure::Request::Referrer::Client, module_request, TopLevelModule::Yes, nullptr, steps);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-an-inline-module-script-graph

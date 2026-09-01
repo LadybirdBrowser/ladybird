@@ -8,6 +8,7 @@
 #include <AK/FFIHelpers.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
@@ -17,7 +18,9 @@
 #include <LibWeb/HTML/Parser/SpeculativeHTMLParser.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Scripting/Fetching.h>
 #include <LibWeb/HTMLTokenizerRustFFI.h>
+#include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
 
@@ -92,6 +95,20 @@ Optional<Fetch::Infrastructure::Request::Destination> destination_from_preload_s
         return Fetch::Infrastructure::Request::Destination::Style;
     case RustFfiPreloadScannerDestination::Track:
         return Fetch::Infrastructure::Request::Destination::Track;
+    case RustFfiPreloadScannerDestination::AudioWorklet:
+        return Fetch::Infrastructure::Request::Destination::AudioWorklet;
+    case RustFfiPreloadScannerDestination::JSON:
+        return Fetch::Infrastructure::Request::Destination::JSON;
+    case RustFfiPreloadScannerDestination::PaintWorklet:
+        return Fetch::Infrastructure::Request::Destination::PaintWorklet;
+    case RustFfiPreloadScannerDestination::ServiceWorker:
+        return Fetch::Infrastructure::Request::Destination::ServiceWorker;
+    case RustFfiPreloadScannerDestination::SharedWorker:
+        return Fetch::Infrastructure::Request::Destination::SharedWorker;
+    case RustFfiPreloadScannerDestination::Worker:
+        return Fetch::Infrastructure::Request::Destination::Worker;
+    case RustFfiPreloadScannerDestination::Text:
+        return Fetch::Infrastructure::Request::Destination::Text;
     }
     VERIFY_NOT_REACHED();
 }
@@ -122,6 +139,67 @@ void issue_speculative_fetch(JS::Realm& realm, DOM::Document& document, URL::URL
     (void)Fetch::Fetching::fetch(realm, request, algorithms);
 }
 
+Utf16String utf16_string_from_preload_scanner(u8 const* pointer, size_t length)
+{
+    if (length == 0)
+        return {};
+    return Utf16String::from_utf8(ffi_string_view(pointer, length));
+}
+
+bool media_attribute_matches_environment(DOM::Document const& document, RustFfiPreloadScannerEntry const& entry)
+{
+    auto media = utf16_string_from_preload_scanner(entry.media_ptr, entry.media_len);
+    if (media.is_empty())
+        return true;
+
+    auto media_queries = parse_media_query_list(CSS::Parser::ParsingParams(document), media);
+    for (auto const& media_query : media_queries) {
+        if (media_query->evaluate(document))
+            return true;
+    }
+    return false;
+}
+
+void issue_speculative_modulepreload_fetch(DOM::Document& document, URL::URL const& url, RustFfiPreloadScannerEntry const& entry)
+{
+    auto destination = destination_from_preload_scanner(entry.destination);
+    VERIFY(destination.has_value());
+
+    auto& settings_object = document.relevant_settings_object();
+    auto integrity_metadata = entry.integrity_present
+        ? utf16_string_from_preload_scanner(entry.integrity_ptr, entry.integrity_len)
+        : resolve_a_module_integrity_metadata(url, settings_object);
+    ScriptFetchOptions options {
+        .cryptographic_nonce = utf16_string_from_preload_scanner(entry.nonce_ptr, entry.nonce_len),
+        .integrity_metadata = move(integrity_metadata),
+        .parser_metadata = Fetch::Infrastructure::Request::ParserMetadata::NotParserInserted,
+        .credentials_mode = cors_settings_attribute_credentials_mode(cors_setting_from_preload_scanner(entry.cors_setting)),
+        .referrer_policy = ReferrerPolicy::from_string(utf16_string_from_preload_scanner(entry.referrer_policy_ptr, entry.referrer_policy_len)).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString),
+        .fetch_priority = Fetch::Infrastructure::request_priority_from_string(utf16_string_from_preload_scanner(entry.fetch_priority_ptr, entry.fetch_priority_len)).value_or(Fetch::Infrastructure::Request::Priority::Auto),
+    };
+
+    // NB: A speculative fetch must not populate the module map. A CSP meta element can appear between the parser's
+    //     current position and this link, and the real modulepreload fetch must apply that policy before it can reuse
+    //     the response. This request may warm the HTTP cache, while the real link remains authoritative.
+    auto request = Fetch::Infrastructure::Request::create();
+    request->set_url(url);
+    request->set_mode(Fetch::Infrastructure::Request::Mode::CORS);
+    request->set_referrer(Fetch::Infrastructure::Request::Referrer::Client);
+    request->set_client(&settings_object);
+    request->set_destination(*destination);
+    if (first_is_one_of(*destination,
+            Fetch::Infrastructure::Request::Destination::Worker,
+            Fetch::Infrastructure::Request::Destination::SharedWorker,
+            Fetch::Infrastructure::Request::Destination::ServiceWorker))
+        request->set_mode(Fetch::Infrastructure::Request::Mode::SameOrigin);
+    request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Script);
+    set_up_module_script_request(request, options);
+
+    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+    auto algorithms = Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input));
+    (void)Fetch::Fetching::fetch(settings_object.realm(), request, algorithms);
+}
+
 }
 
 void SpeculativeHTMLParser::process_preload_scanner_entry(RustFfiPreloadScannerEntry const& entry)
@@ -141,6 +219,10 @@ void SpeculativeHTMLParser::process_preload_scanner_entry(RustFfiPreloadScannerE
         return;
 
     case RustFfiPreloadScannerAction::Fetch:
+        break;
+    case RustFfiPreloadScannerAction::ModulePreload:
+        if (!media_attribute_matches_environment(*m_document, entry))
+            return;
         break;
     }
 
@@ -164,7 +246,10 @@ void SpeculativeHTMLParser::process_preload_scanner_entry(RustFfiPreloadScannerE
     // 4. Otherwise, fetch url as if the element was processed normally, and add url to the list of
     //    speculative fetch URLs.
     m_document->add_speculative_fetch_url(*url);
-    issue_speculative_fetch(m_document->relevant_settings_object().realm(), *m_document, *url, destination_from_preload_scanner(entry.destination), cors_setting_from_preload_scanner(entry.cors_setting));
+    if (entry.action == RustFfiPreloadScannerAction::ModulePreload)
+        issue_speculative_modulepreload_fetch(*m_document, *url, entry);
+    else
+        issue_speculative_fetch(m_document->relevant_settings_object().realm(), *m_document, *url, destination_from_preload_scanner(entry.destination), cors_setting_from_preload_scanner(entry.cors_setting));
 }
 
 }

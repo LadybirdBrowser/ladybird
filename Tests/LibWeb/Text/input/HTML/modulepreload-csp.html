@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        internals.setTestTimeout(15000);
+
+        const server = httpTestServer();
+        const run = crypto.randomUUID();
+        const parserGate = `${run}-parser`;
+        const path = name => `/modulepreload-csp-${run}-${name}`;
+        const javascriptHeaders = { "Content-Type": "text/javascript" };
+
+        const moduleURL = new URL(await server.createEcho("GET", path("cross-origin.js"), {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "text/javascript",
+            },
+            body: "export default 42;",
+        }));
+        moduleURL.hostname = uniqueLocalhostHostname("modulepreload-csp");
+
+        const parserBlockerURL = await server.createEcho("GET", path("parser-blocker.js"), {
+            status: 200,
+            headers: javascriptHeaders,
+            body: "",
+            wait_for_unblock: parserGate,
+        });
+
+        const linkStartTag = "<li" + "nk";
+        const scriptStartTag = "<scr" + "ipt";
+        const scriptEndTag = "</scr" + "ipt>";
+        const pageScript = `
+            const link = document.getElementById("preload");
+            const linkEvent = link.dataset.event
+                ? Promise.resolve(link.dataset.event)
+                : new Promise(resolve => {
+                    link.onload = () => resolve("load");
+                    link.onerror = () => resolve("error");
+                });
+
+            let importRejected = false;
+            try {
+                await import(${JSON.stringify(moduleURL.href)});
+            } catch {
+                importRejected = true;
+            }
+
+            parent.postMessage({
+                type: "modulepreload-csp-results",
+                importRejected,
+                linkEvent: await linkEvent,
+                speculativeRequestCount: performance.getEntriesByName(${JSON.stringify(moduleURL.href)}).length,
+            }, "*");
+        `;
+        const pageBody = `<!DOCTYPE html>
+            <head>
+            ${scriptStartTag} src="${parserBlockerURL}">${scriptEndTag}
+            <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline'">
+            ${linkStartTag} id="preload" rel="modulepreload" href="${moduleURL.href}" onload="this.dataset.event='load'" onerror="this.dataset.event='error'">
+            ${scriptStartTag} type="module">${pageScript}${scriptEndTag}
+            </head>`;
+        const pageURL = await server.createEcho("GET", path("page.html"), {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: pageBody,
+        });
+
+        const hasRecordedRequest = async url => {
+            const resourceURL = new URL(url);
+            try {
+                const response = await fetch(`${server.baseURL}/recorded-request-headers${resourceURL.pathname}`);
+                return response.ok;
+            } catch {
+                return false;
+            }
+        };
+        const resultsPromise = new Promise(resolve => {
+            window.addEventListener("message", event => {
+                if (event.data.type === "modulepreload-csp-results")
+                    resolve(event.data);
+            });
+        });
+
+        const frame = document.createElement("iframe");
+        frame.src = pageURL;
+        document.body.appendChild(frame);
+
+        while (!await hasRecordedRequest(moduleURL)) { }
+        await fetch(`${server.baseURL}/unblock/${parserGate}`);
+
+        const results = await resultsPromise;
+        println(`${results.speculativeRequestCount === 1 && results.linkEvent === "error" && results.importRejected ? "PASS" : "FAIL"}: speculative module preload does not bypass a later CSP meta policy`);
+        done();
+    });
+</script>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        internals.setTestTimeout(15000);
+
+        const server = httpTestServer();
+        const run = crypto.randomUUID();
+        const moduleGate = `${run}-module`;
+        const parserGate = `${run}-parser`;
+        const path = name => `/modulepreload-${run}-${name}`;
+        const javascriptHeaders = { "Content-Type": "text/javascript" };
+
+        const dependencyURL = await server.createEcho("GET", path("dependency.js"), {
+            status: 200,
+            headers: javascriptHeaders,
+            body: "export const dependency = 7;",
+        });
+        const moduleURL = await server.createEcho("GET", path("module.js"), {
+            status: 200,
+            headers: javascriptHeaders,
+            body: `import { dependency } from ${JSON.stringify(dependencyURL)}; export default dependency;`,
+            wait_for_unblock: moduleGate,
+        });
+        const parserBlockerURL = await server.createEcho("GET", path("parser-blocker.js"), {
+            status: 200,
+            headers: javascriptHeaders,
+            body: "",
+            wait_for_unblock: parserGate,
+        });
+        const dynamicURL = await server.createEcho("GET", path("dynamic.js"), {
+            status: 200,
+            headers: javascriptHeaders,
+            body: "export default 11;",
+        });
+        const failedURL = await server.createEcho("GET", path("failed.js"), {
+            status: 404,
+            headers: javascriptHeaders,
+            body: "",
+        });
+        const textURL = await server.createEcho("GET", path("text.txt"), {
+            status: 200,
+            headers: { "Content-Type": "text/plain" },
+            body: "hello from a text module",
+        });
+        const nonMatchingMediaURL = await server.createEcho("GET", path("non-matching-media.js"), {
+            status: 200,
+            headers: javascriptHeaders,
+            body: "export default 23;",
+        });
+
+        const crossOriginHost = uniqueLocalhostHostname("modulepreload");
+        const crossOriginURL = url => {
+            const result = new URL(url);
+            result.hostname = crossOriginHost;
+            return result.href;
+        };
+        const credentialedCorsHeaders = {
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Origin": server.baseURL,
+            "Content-Type": "text/javascript",
+        };
+        const crossOriginSameOriginCredentialsURL = crossOriginURL(await server.createEcho("GET", path("cross-origin-same-origin-credentials.js"), {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "text/javascript",
+            },
+            body: "export default 13;",
+        }));
+        const crossOriginIncludeCredentialsURL = crossOriginURL(await server.createEcho("GET", path("cross-origin-include-credentials.js"), {
+            status: 200,
+            headers: credentialedCorsHeaders,
+            body: "export default 17;",
+        }));
+        const crossOriginWildcardCredentialsURL = crossOriginURL(await server.createEcho("GET", path("cross-origin-wildcard-credentials.js"), {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Credentials": "true",
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "text/javascript",
+            },
+            body: "export default 19;",
+        }));
+
+        const urls = {
+            crossOriginIncludeCredentialsURL,
+            crossOriginSameOriginCredentialsURL,
+            crossOriginWildcardCredentialsURL,
+            dynamicURL,
+            failedURL,
+            textURL,
+        };
+        const pageScript = `
+            import staticValue from ${JSON.stringify(moduleURL)};
+
+            const urls = ${JSON.stringify(urls)};
+            const requestCount = url => performance.getEntriesByName(url).length;
+            const recordedHeaders = async url => {
+                const resourceURL = new URL(url);
+                const response = await fetch(\`/recorded-request-headers\${resourceURL.pathname}\`);
+                const headers = await response.json();
+                return Object.fromEntries(Object.entries(headers).map(([name, value]) => [name.toLowerCase(), value]));
+            };
+            const preload = (url, attributes = {}) => new Promise(resolve => {
+                const link = document.createElement("link");
+                link.rel = "modulepreload";
+                link.href = url;
+                Object.assign(link, attributes);
+                link.onload = () => resolve("load");
+                link.onerror = () => resolve("error");
+                document.head.appendChild(link);
+            });
+            const parserInsertedLinkEvent = id => {
+                const link = document.getElementById(id);
+                if (link.dataset.event)
+                    return Promise.resolve(link.dataset.event);
+                return new Promise(resolve => {
+                    link.onload = () => resolve("load");
+                    link.onerror = () => resolve("error");
+                });
+            };
+
+            (async () => {
+                const dynamicEvent = await preload(urls.dynamicURL);
+                const dynamicValue = (await import(urls.dynamicURL)).default;
+
+                const sameOriginCredentialsEvent = await parserInsertedLinkEvent("cross-origin-same-origin-credentials");
+                const sameOriginCredentialsHeaders = await recordedHeaders(urls.crossOriginSameOriginCredentialsURL);
+                const includeCredentialsEvent = await parserInsertedLinkEvent("cross-origin-include-credentials");
+                const includeCredentialsHeaders = await recordedHeaders(urls.crossOriginIncludeCredentialsURL);
+                const wildcardCredentialsEvent = await parserInsertedLinkEvent("cross-origin-wildcard-credentials");
+
+                const failedEvent = await preload(urls.failedURL);
+                let failedImportRejected = false;
+                try {
+                    await import(urls.failedURL);
+                } catch {
+                    failedImportRejected = true;
+                }
+
+                const textEvent = await preload(urls.textURL, { as: "text" });
+                const textValue = (await import(urls.textURL, { with: { type: "text" } })).default;
+
+                parent.postMessage({
+                    type: "modulepreload-results",
+                    results: {
+                        crossOriginIncludeCredentialsEvent: includeCredentialsEvent,
+                        crossOriginIncludeCredentialsOrigin: includeCredentialsHeaders.origin?.length > 0,
+                        crossOriginSameOriginCredentialsEvent: sameOriginCredentialsEvent,
+                        crossOriginSameOriginCredentialsOrigin: sameOriginCredentialsHeaders.origin?.length > 0,
+                        crossOriginWildcardCredentialsEvent: wildcardCredentialsEvent,
+                        dependencyRequestCount: requestCount(${JSON.stringify(dependencyURL)}),
+                        dynamicEvent,
+                        dynamicRequestCount: requestCount(urls.dynamicURL),
+                        dynamicValue,
+                        failedEvent,
+                        failedImportRejected,
+                        failedRequestCount: requestCount(urls.failedURL),
+                        nonMatchingMediaEvent: document.getElementById("non-matching-media").dataset.event ?? "none",
+                        nonMatchingMediaRequestCount: requestCount(${JSON.stringify(nonMatchingMediaURL)}),
+                        staticRequestCount: requestCount(${JSON.stringify(moduleURL)}),
+                        staticValue,
+                        textEvent,
+                        textRequestCount: requestCount(urls.textURL),
+                        textValue,
+                    },
+                }, "*");
+            })().catch(error => parent.postMessage({ type: "modulepreload-error", error: String(error) }, "*"));
+        `;
+        const linkStartTag = "<li" + "nk";
+        const scriptStartTag = "<scr" + "ipt";
+        const scriptEndTag = "</scr" + "ipt>";
+        const pageBody = `<!DOCTYPE html>
+            ${linkStartTag} rel="modulepreload" href="${moduleURL}">
+            ${linkStartTag} id="cross-origin-same-origin-credentials" rel="modulepreload" href="${crossOriginSameOriginCredentialsURL}" onload="this.dataset.event='load'" onerror="this.dataset.event='error'">
+            ${linkStartTag} id="cross-origin-include-credentials" rel="modulepreload" href="${crossOriginIncludeCredentialsURL}" crossorigin="use-credentials" onload="this.dataset.event='load'" onerror="this.dataset.event='error'">
+            ${linkStartTag} id="cross-origin-wildcard-credentials" rel="modulepreload" href="${crossOriginWildcardCredentialsURL}" crossorigin="use-credentials" onload="this.dataset.event='load'" onerror="this.dataset.event='error'">
+            ${linkStartTag} id="non-matching-media" rel="modulepreload" href="${nonMatchingMediaURL}" media="not all" onload="this.dataset.event='load'" onerror="this.dataset.event='error'">
+            ${scriptStartTag} src="${parserBlockerURL}">${scriptEndTag}
+            ${scriptStartTag} type="module">${pageScript}${scriptEndTag}`;
+        const pageURL = await server.createEcho("GET", path("page.html"), {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: pageBody,
+        });
+
+        const hasRecordedRequest = async url => {
+            const resourceURL = new URL(url);
+            try {
+                const response = await fetch(`${server.baseURL}/recorded-request-headers${resourceURL.pathname}`);
+                return response.ok;
+            } catch {
+                return false;
+            }
+        };
+        const waitForRequest = async url => {
+            while (!await hasRecordedRequest(url)) { }
+        };
+        const resultsPromise = new Promise((resolve, reject) => {
+            window.addEventListener("message", event => {
+                if (event.data.type === "modulepreload-results")
+                    resolve(event.data.results);
+                else if (event.data.type === "modulepreload-error")
+                    reject(new Error(event.data.error));
+            });
+        });
+
+        const frame = document.createElement("iframe");
+        frame.src = pageURL;
+        document.body.appendChild(frame);
+
+        await waitForRequest(moduleURL);
+        println("PASS: module preload starts before the parser reaches the module import");
+        await fetch(`${server.baseURL}/unblock/${moduleGate}`);
+
+        await waitForRequest(dependencyURL);
+        println("PASS: module preload discovers dependencies before the module import");
+        await fetch(`${server.baseURL}/unblock/${parserGate}`);
+
+        const results = await resultsPromise;
+        println(`${results.staticValue === 7 && results.staticRequestCount === 1 && results.dependencyRequestCount === 1 ? "PASS" : "FAIL"}: static import reuses the preloaded module graph`);
+        println(`${results.dynamicEvent === "load" && results.dynamicValue === 11 && results.dynamicRequestCount === 1 ? "PASS" : "FAIL"}: dynamically inserted module preload is reused by import()`);
+        println(`${results.crossOriginSameOriginCredentialsEvent === "load" && results.crossOriginSameOriginCredentialsOrigin ? "PASS" : "FAIL"}: cross-origin module preload uses CORS without cross-origin credentials by default`);
+        println(`${results.crossOriginIncludeCredentialsEvent === "load" && results.crossOriginIncludeCredentialsOrigin && results.crossOriginWildcardCredentialsEvent === "error" ? "PASS" : "FAIL"}: crossorigin=use-credentials uses credentialed CORS`);
+        println(`${results.failedEvent === "error" && results.failedImportRejected && results.failedRequestCount === 2 ? "PASS" : "FAIL"}: failed module preload dispatches error and a later import retries`);
+        println(`${results.textEvent === "load" && results.textValue === "hello from a text module" && results.textRequestCount === 1 ? "PASS" : "FAIL"}: text module preload is reused by import()`);
+        println(`${results.nonMatchingMediaEvent === "none" && results.nonMatchingMediaRequestCount === 0 ? "PASS" : "FAIL"}: non-matching media suppresses module preload fetching and events`);
+        done();
+    });
+</script>
