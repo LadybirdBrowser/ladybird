@@ -1,0 +1,79 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const fixture = document.getElementById("fixture");
+        const el = (tag, attributes, ...children) => {
+            const element = document.createElement(tag);
+            for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+            element.append(
+                ...children.map(child => (typeof child === "string" ? document.createTextNode(child) : child))
+            );
+            return element;
+        };
+        const host = (attributes, children, shadowChildren) => {
+            const element = el("div", attributes, ...children);
+            const root = element.attachShadow({ mode: "open" });
+            root.append(...shadowChildren);
+            return element;
+        };
+        const childAt = (node, path) => path.reduce((current, index) => current.childNodes[index], node);
+
+        const cases = [
+            {
+                name: "second empty slotted text becomes text",
+                root: () => host({}, ["", ""], [el("slot", {})]),
+                text: [1],
+                data: "x y",
+            },
+            {
+                name: "empty slotted text in popover becomes text",
+                root: () => host({ popover: "manual" }, [""], [el("slot", {})]),
+                after: root => root.showPopover(),
+                text: [0],
+                data: "x y",
+            },
+            {
+                name: "slotted text becomes empty",
+                root: () => host({}, ["x y"], [el("slot", {})]),
+                text: [0],
+                data: "",
+            },
+            {
+                name: "slotted text becomes whitespace",
+                root: () => host({}, ["x y", ""], [el("slot", {})]),
+                text: [0],
+                data: "\n",
+            },
+            {
+                name: "slotted text next to shadow block becomes whitespace",
+                root: () => host({}, ["x"], [el("div", {}), el("slot", {})]),
+                text: [0],
+                data: " ",
+            },
+            {
+                name: "slotted whitespace next to shadow block becomes text",
+                root: () => host({}, [" "], [el("div", {}), el("slot", {})]),
+                text: [0],
+                data: "x",
+            },
+            { name: "slotted text stays text", root: () => host({}, ["x y"], [el("slot", {})]), text: [0], data: "z" },
+        ];
+
+        let checkNumber = 0;
+        const check = description => {
+            const result = internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL";
+            println(`check ${checkNumber++}: ${result} (${description})`);
+        };
+        for (const testCase of cases) {
+            fixture.replaceChildren(testCase.root());
+            testCase.after?.(fixture.firstChild);
+            document.body.offsetHeight;
+            check(`${testCase.name}: before`);
+            childAt(fixture.firstChild, testCase.text).data = testCase.data;
+            document.body.offsetHeight;
+            check(`${testCase.name}: after`);
+        }
+    });
+</script>

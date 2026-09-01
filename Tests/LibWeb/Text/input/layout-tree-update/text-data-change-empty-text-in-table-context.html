@@ -1,0 +1,111 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .d-trg {
+        display: table-row-group;
+    }
+    .d-tcolg {
+        display: table-column-group;
+    }
+</style>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const fixture = document.getElementById("fixture");
+        const el = (tag, attributes, ...children) => {
+            const element = document.createElement(tag);
+            for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+            element.append(
+                ...children.map(child => (typeof child === "string" ? document.createTextNode(child) : child))
+            );
+            return element;
+        };
+        const childAt = (node, path) => path.reduce((current, index) => current.childNodes[index], node);
+
+        const cases = [
+            {
+                name: "empty text after misparented table-row",
+                root: () => el("div", {}, el("tr", {}), ""),
+                text: [1],
+                data: "bb",
+            },
+            {
+                name: "empty text after misparented table-row becomes punctuation",
+                root: () => el("div", {}, el("tr", {}), ""),
+                text: [1],
+                data: "(",
+            },
+            {
+                name: "empty text in table-row-group",
+                root: () => el("div", { class: "d-trg" }, ""),
+                text: [0],
+                data: "(",
+            },
+            { name: "empty text in tbody", root: () => el("tbody", {}, ""), text: [0], data: "bb" },
+            { name: "empty text in table", root: () => el("table", {}, ""), text: [0], data: "W" },
+            {
+                name: "empty text after misparented colgroup",
+                root: () => el("div", {}, el("colgroup", {}), ""),
+                text: [1],
+                data: "long words here",
+            },
+            {
+                name: "second empty text after misparented tfoot",
+                root: () => el("div", {}, el("tfoot", {}), "", ""),
+                text: [2],
+                data: "(",
+            },
+            {
+                name: "second empty text after misparented table-column-group",
+                root: () => el("div", {}, el("div", { class: "d-tcolg" }), "", ""),
+                text: [2],
+                data: "Hello",
+            },
+            {
+                name: "whitespace discarded by table fixup before a row",
+                root: () => el("tbody", {}, " ", el("tr", {}, el("td", {}, "cell"))),
+                text: [0],
+                data: "x",
+            },
+            {
+                name: "whitespace discarded by table fixup after a row",
+                root: () => el("tbody", {}, el("tr", {}, el("td", {}, "cell")), " "),
+                text: [1],
+                data: "x",
+            },
+            { name: "text in tbody becomes empty", root: () => el("tbody", {}, "bb"), text: [0], data: "" },
+            {
+                name: "text in table-row-group becomes whitespace",
+                root: () => el("div", { class: "d-trg" }, "x"),
+                text: [0],
+                data: " ",
+            },
+            {
+                name: "text after misparented table-row becomes empty",
+                root: () => el("div", {}, el("tr", {}), "bb"),
+                text: [1],
+                data: "",
+            },
+            {
+                name: "text before a row becomes whitespace",
+                root: () => el("tbody", {}, "x", el("tr", {}, el("td", {}, "cell"))),
+                text: [0],
+                data: "\n",
+            },
+        ];
+
+        let checkNumber = 0;
+        const check = description => {
+            const result = internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL";
+            println(`check ${checkNumber++}: ${result} (${description})`);
+        };
+        for (const testCase of cases) {
+            fixture.replaceChildren(testCase.root());
+            document.body.offsetHeight;
+            check(`${testCase.name}: before`);
+            childAt(fixture.firstChild, testCase.text).data = testCase.data;
+            document.body.offsetHeight;
+            check(`${testCase.name}: after`);
+        }
+    });
+</script>

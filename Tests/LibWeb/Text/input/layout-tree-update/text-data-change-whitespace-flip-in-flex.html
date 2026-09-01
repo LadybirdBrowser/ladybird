@@ -1,0 +1,87 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .kp:has(> .k5) {
+        display: flex;
+    }
+    .flex {
+        display: flex;
+    }
+    .grid {
+        display: grid;
+    }
+</style>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const fixture = document.getElementById("fixture");
+        const el = (tag, attributes, ...children) => {
+            const element = document.createElement(tag);
+            for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+            element.append(
+                ...children.map(child => (typeof child === "string" ? document.createTextNode(child) : child))
+            );
+            return element;
+        };
+        const childAt = (node, path) => path.reduce((current, index) => current.childNodes[index], node);
+
+        const cases = [
+            {
+                name: "flex item text becomes whitespace",
+                root: () => el("div", { class: "kp" }, "(", el("div", { class: "k5" })),
+                text: [0],
+                data: "\n",
+            },
+            {
+                name: "whitespace in flex container becomes text",
+                root: () => el("div", { class: "kp" }, "\n", el("div", { class: "k5" })),
+                text: [0],
+                data: "(",
+            },
+            {
+                name: "only flex item text becomes empty",
+                root: () => el("div", { class: "flex" }, "text"),
+                text: [0],
+                data: "",
+            },
+            {
+                name: "empty text in flex container becomes text",
+                root: () => el("div", { class: "flex" }, ""),
+                text: [0],
+                data: "text",
+            },
+            {
+                name: "trailing flex item text becomes whitespace",
+                root: () => el("div", { class: "flex" }, el("div", {}), "text"),
+                text: [1],
+                data: " ",
+            },
+            {
+                name: "grid item text becomes whitespace",
+                root: () => el("div", { class: "grid" }, "text", el("div", {})),
+                text: [0],
+                data: " ",
+            },
+            {
+                name: "whitespace in grid container becomes text",
+                root: () => el("div", { class: "grid" }, " ", el("div", {})),
+                text: [0],
+                data: "text",
+            },
+        ];
+
+        let checkNumber = 0;
+        const check = description => {
+            const result = internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL";
+            println(`check ${checkNumber++}: ${result} (${description})`);
+        };
+        for (const testCase of cases) {
+            fixture.replaceChildren(testCase.root());
+            document.body.offsetHeight;
+            check(`${testCase.name}: before`);
+            childAt(fixture.firstChild, testCase.text).data = testCase.data;
+            document.body.offsetHeight;
+            check(`${testCase.name}: after`);
+        }
+    });
+</script>
