@@ -5,6 +5,7 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibCore/System.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibIPC/Transport.h>
 #include <LibTest/TestCase.h>
@@ -43,6 +44,11 @@ public:
         m_connection = RequestServer::ConnectionFromClient::construct(
             move(pair.local), is_primary_connection, RequestServer::IsPrivate::No,
             m_server.connections, m_server.request_transfer_leases, Optional<HTTP::DiskCache&> {}, ByteString {});
+#ifdef AK_OS_WINDOWS
+        auto pid = Core::System::getpid();
+        m_connection->transport().set_peer_pid(pid);
+        m_remote_transport->set_peer_pid(pid);
+#endif
     }
 
     ~TestConnection()
@@ -57,14 +63,6 @@ public:
     void retrieve_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, u64 cookie_request_id = 0)
     {
         auto message = make<Messages::RequestServer::RetrievedHttpCookie>(client_id, request_id, request_type, cookie_request_id, String {});
-        auto response = dispatch(move(message));
-        VERIFY(!response);
-    }
-
-    void ensure_connection(u64 request_id)
-    {
-        auto url = URL::Parser::basic_parse("https://example.com"sv).release_value();
-        auto message = make<Messages::RequestServer::EnsureConnection>(request_id, move(url), RequestServer::CacheLevel::ResolveOnly);
         auto response = dispatch(move(message));
         VERIFY(!response);
     }
@@ -154,10 +152,11 @@ TEST_CASE(stale_cookie_response_for_cancelled_request_is_ignored)
 {
     TestServer server;
     TestConnection connection { server, RequestServer::ConnectionFromClient::IsPrimaryConnection::Yes };
-    connection.ensure_connection(0);
+    connection.start_request(0);
+    auto cookie_request = connection.take_cookie_request();
     connection.stop_request(0);
 
-    connection.retrieve_http_cookie(connection.client_id(), 0, RequestServer::RequestType::Fetch);
+    connection.retrieve_http_cookie(connection.client_id(), 0, RequestServer::RequestType::Fetch, cookie_request->cookie_request_id());
 
     EXPECT(connection.is_open());
 }
