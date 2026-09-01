@@ -20,6 +20,7 @@ class BookmarkStore;
 class CanonicalNavigable;
 class CanonicalTraversable;
 class CompositorClient;
+class CompositorFontServiceConnection;
 class CompositorConnection;
 class CompositorHostBase;
 class CookieJar;

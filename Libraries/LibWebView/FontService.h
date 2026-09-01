@@ -12,6 +12,7 @@
 #include <LibGfx/Font/FontCatalog.h>
 #include <LibGfx/Font/SharedFontProvider.h>
 #include <LibGfx/Font/TypefaceSkia.h>
+#include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 #include <LibWebView/Export.h>
 
@@ -57,6 +58,7 @@ private:
     ErrorOr<void> wait_until_ready();
     ErrorOr<IPC::File> create_immutable_font_data(ReadonlyBytes);
     Gfx::BrokeredFont materialize_typeface(NonnullRefPtr<Gfx::TypefaceSkia>, String cache_key);
+    Gfx::BrokeredFont open_font_without_lock(u64 generation, u64 face_id);
 
     NonnullRefPtr<Threading::Thread> m_worker;
     Optional<String> m_build_error;
@@ -67,6 +69,9 @@ private:
     HashMap<u64, FontSource> m_font_sources;
     HashMap<u64, MemoryFontSource> m_memory_font_sources;
     HashMap<String, u64> m_dynamic_match_cache;
+
+    // Font requests arrive on the UI process's renderer connections and the Compositor's dedicated font connection.
+    Sync::Mutex m_mutex;
 };
 
 }

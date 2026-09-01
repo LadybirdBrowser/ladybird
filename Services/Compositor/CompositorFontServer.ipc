@@ -1,0 +1,11 @@
+#include <AK/Optional.h>
+#include <LibIPC/File.h>
+
+endpoint CompositorFontServer
+{
+    init_transport(int peer_pid) => (int peer_pid)
+    open_system_font(u64 generation, u64 face_id) => (u64 matched_face_id, u32 ttc_index, u8 format, Optional<IPC::File> file)
+    match_system_font(String family, u16 weight, u16 width, u8 slope) => (u64 face_id, u32 ttc_index, u8 format, Optional<IPC::File> file)
+    match_system_font_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) => (u64 face_id, u32 ttc_index, u8 format, Optional<IPC::File> file)
+    resolve_generic_font(String family, u16 weight, u8 slope) => (Optional<String> resolved_family)
+}

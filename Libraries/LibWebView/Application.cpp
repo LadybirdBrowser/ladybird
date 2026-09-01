@@ -34,6 +34,7 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/AutocompleteService.h>
 #include <LibWebView/CompositorClient.h>
+#include <LibWebView/CompositorFontServiceConnection.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/FaviconStore.h>
 #include <LibWebView/FontService.h>
@@ -1424,7 +1425,10 @@ ErrorOr<void> Application::launch_services()
 ErrorOr<void> Application::launch_compositor_process()
 {
     VERIFY(!m_compositor_client);
+    VERIFY(!m_compositor_font_service_connection);
     m_compositor_client = TRY(WebView::launch_compositor_process());
+    m_compositor_font_service_connection = TRY(CompositorFontServiceConnection::create(*m_font_service));
+    m_compositor_client->async_set_font_service_transport(m_compositor_font_service_connection->take_transport_handle());
     m_compositor_client->on_death = [this]() {
         handle_compositor_process_death();
     };
@@ -1450,6 +1454,7 @@ void Application::notify_compositor_gpu_presentation_unavailable()
 void Application::handle_compositor_process_death()
 {
     m_compositor_client = nullptr;
+    m_compositor_font_service_connection = nullptr;
 
     if (Core::EventLoop::current().was_exit_requested())
         return;
