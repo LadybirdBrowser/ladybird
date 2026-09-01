@@ -165,6 +165,7 @@ pub enum NodeFlag {
     HasPreserve3dTransformStyle = 1 << 27,
     IsMissingTableCell = 1 << 28,
     HasAnimatedOpacityOrTransform = 1 << 29,
+    IsDocumentElement = 1 << 30,
 }
 
 #[repr(C)]
@@ -280,5 +281,6 @@ mod tests {
         assert_eq!(NodeFlag::IsEditingHost as u32, 1 << 17);
         assert_eq!(NodeFlag::ReplacedBoxCanHaveChildren as u32, 1 << 18);
         assert_eq!(NodeFlag::ProducesLineBoxFragmentWhenEmpty as u32, 1 << 22);
+        assert_eq!(NodeFlag::IsDocumentElement as u32, 1 << 30);
     }
 }

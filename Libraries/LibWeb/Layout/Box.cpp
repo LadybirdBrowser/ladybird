@@ -107,7 +107,7 @@ bool Box::is_partial_relayout_boundary() const
         return false;
     if (is_anonymous())
         return false;
-    if (dom_node() == document().document_element())
+    if (is_document_element())
         return false;
     if (!has_saved_abspos_layout_inputs())
         return false;
