@@ -9,6 +9,7 @@ pub mod commands;
 pub mod damage;
 pub mod depth_sorted_plan;
 pub mod device_pixels;
+pub mod dump;
 pub mod ffi_bytes;
 pub mod recorder;
 pub mod replay;

@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/StringBuilder.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
@@ -241,33 +240,6 @@ void AccumulatedVisualContextTree::for_each_effects_filter_bytes(Function<void(R
     Layout::RustFFI::visual_context_tree_for_each_effects_filter_bytes(m_rust_tree, &visitor, [](void* context, u8 const* bytes, size_t size) {
         static_cast<FilterBytesVisitor*>(context)->visit(ReadonlyBytes { bytes, size });
     });
-}
-
-struct OwnerLabelSource {
-    Function<Optional<String>(SpatialNodeIndex)> const& spatial_node_owner_label;
-    Function<Optional<String>(FrameNodeIndex)> const& frame_node_owner_label;
-};
-
-static bool push_owner_label(void* context, bool is_frame, u32 index, void* label_sink)
-{
-    auto& source = *static_cast<OwnerLabelSource*>(context);
-    auto label = is_frame ? source.frame_node_owner_label(FrameNodeIndex { index }) : source.spatial_node_owner_label(SpatialNodeIndex { index });
-    if (!label.has_value())
-        return false;
-    auto label_bytes = label->bytes();
-    Layout::RustFFI::layout_arena_paint_push_bytes(label_sink, label_bytes.data(), label_bytes.size());
-    return true;
-}
-
-static void append_dump_text(void* sink, u8 const* bytes, size_t size)
-{
-    static_cast<StringBuilder*>(sink)->append(StringView { bytes, size });
-}
-
-void AccumulatedVisualContextTree::dump(StringBuilder& builder, ReadonlySpan<DisplayListCommandRun> command_runs, Function<Optional<String>(SpatialNodeIndex)> const& spatial_node_owner_label, Function<Optional<String>(FrameNodeIndex)> const& frame_node_owner_label) const
-{
-    OwnerLabelSource owner_label_source { spatial_node_owner_label, frame_node_owner_label };
-    Layout::RustFFI::visual_context_tree_dump(m_rust_tree, command_runs.data(), command_runs.size(), &owner_label_source, push_owner_label, &builder, append_dump_text);
 }
 
 void resolve_sticky_offsets(AccumulatedVisualContextTree const& tree, ScrollStateSnapshot& scroll_state)

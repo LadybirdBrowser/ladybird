@@ -299,7 +299,7 @@ fn nth_digit(mut value: u32, mut digit: u8) -> u8 {
 /// Port of format_to_8bit_compatible() in Gfx/Color.cpp: the shortest fractional digits that
 /// round-trip at 8 bits. 127/255 = 0.498 +- 0.001 and 128/255 = 0.502 +- 0.001, but
 /// round(0.5 * 255) == 128, so 127 formats as "498" while 128 formats as "5".
-fn format_to_8bit_compatible(value: u8) -> ([u8; 3], usize) {
+pub(crate) fn format_to_8bit_compatible(value: u8) -> ([u8; 3], usize) {
     let value = u32::from(value);
 
     let three_digits = (value * 1000 + 127) / 255;

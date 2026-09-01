@@ -10977,66 +10977,15 @@ Utf16String Document::dump_display_list()
         return TraversalDecision::Continue;
     });
 
-    StringBuilder builder;
     auto owner_label = [](auto owner) -> Optional<String> {
         if (!owner.has_value())
             return {};
         return (*owner)->debug_description();
     };
-    visual_context_tree.dump(
-        builder, display_list->command_runs(),
+    return Painting::serialize_painting_dump(
+        visual_context_tree, *display_list, resource_storage,
         [&](Painting::SpatialNodeIndex index) { return owner_label(spatial_node_owners.get(index)); },
         [&](Painting::FrameNodeIndex index) { return owner_label(frame_node_owners.get(index)); });
-
-    builder.append("\nDisplayList:\n"sv);
-
-    Function<void(Painting::DisplayList const&, int)> dump_commands =
-        [&](Painting::DisplayList const& list, int base_indent) {
-            list.for_each_command_header([&](Painting::DisplayListCommandHeader const& header, ReadonlyBytes payload) {
-                builder.append_repeated(' ', base_indent * 2);
-                Optional<Painting::DisplayListResourceId> nested_display_list_id;
-                Optional<Painting::DisplayListResourceId> nested_mask_display_list_id;
-                Painting::visit_display_list_command(header.command_type, payload, [&]<typename Command>(Command const& command) {
-                    builder.appendff("{}@{}", command.command_name, header.context);
-                    command.dump(builder);
-                    if constexpr (IsSame<Command, Painting::PaintNestedDisplayList>)
-                        nested_display_list_id = command.display_list_id;
-                    if constexpr (IsSame<Command, Painting::DrawIsolatedDisplayList>) {
-                        nested_display_list_id = command.display_list_id;
-                        if (command.mask_display_list_id.value() != 0)
-                            nested_mask_display_list_id = command.mask_display_list_id;
-                    }
-                });
-                if (header.inline_clip_count > 0)
-                    Painting::dump_display_list_inline_clips(builder, header, payload);
-                builder.append('\n');
-
-                if (nested_display_list_id.has_value()) {
-                    auto& nested_display_list = resource_storage.display_list(*nested_display_list_id);
-                    dump_commands(nested_display_list, base_indent + 1);
-                }
-                if (nested_mask_display_list_id.has_value()) {
-                    builder.append_repeated(' ', (base_indent + 1) * 2);
-                    builder.append("Mask:\n"sv);
-                    auto& nested_mask_display_list = resource_storage.display_list(*nested_mask_display_list_id);
-                    dump_commands(nested_mask_display_list, base_indent + 2);
-                }
-            });
-
-            auto mask_frames = list.mask_display_lists().keys();
-            insertion_sort(mask_frames);
-            for (auto frame : mask_frames) {
-                builder.append_repeated(' ', base_indent * 2);
-                builder.appendff("MaskDisplayList for frame {}:\n", frame);
-                auto display_list_id = list.mask_display_list_id(frame).release_value();
-                auto& mask_display_list = resource_storage.display_list(display_list_id);
-                dump_commands(mask_display_list, base_indent + 1);
-            }
-        };
-
-    dump_commands(*display_list, 0);
-
-    return Utf16String::from_utf8_without_validation(builder.string_view());
 }
 
 Utf16String Document::dump_stacking_context_tree()

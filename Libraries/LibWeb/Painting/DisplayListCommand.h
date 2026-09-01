@@ -65,9 +65,6 @@ constexpr bool display_list_command_is_compositor_metadata(DisplayListCommandTyp
     }
 }
 
-inline Gfx::IntRect DrawGlyphRun::bounding_rect() const { return glyph_bounding_rect; }
-inline Gfx::IntRect FillRect::bounding_rect() const { return rect; }
-inline Gfx::IntRect PaintCaret::bounding_rect() const { return rect; }
 constexpr i64 caret_blink_interval_ns = 500'000'000;
 inline bool caret_is_visible_at_time(PaintCaret const& caret, i64 monotonic_time_ns)
 {
@@ -78,27 +75,6 @@ inline bool caret_is_visible_at_time(PaintCaret const& caret, i64 monotonic_time
         : 0;
     return (elapsed_ns / caret_blink_interval_ns) % 2 == 0;
 }
-inline Gfx::IntRect DrawScaledDecodedImageFrame::bounding_rect() const { return Gfx::enclosing_int_rect(dst_rect); }
-inline Gfx::IntRect DrawRepeatedDecodedImageFrame::bounding_rect() const { return clip_rect; }
-inline Gfx::IntRect DrawRepeatedDisplayList::bounding_rect() const { return clip_rect; }
-inline Gfx::IntRect DrawTiledDecodedImageFrame::bounding_rect() const { return clip_rect; }
-inline Gfx::IntRect DrawCompositedContext::bounding_rect() const { return dst_rect; }
-inline Gfx::IntRect DrawCanvas::bounding_rect() const { return dst_rect; }
-inline Gfx::IntRect DrawVideoFrame::bounding_rect() const { return dst_rect; }
-inline Gfx::IntRect PaintLinearGradient::bounding_rect() const { return gradient_rect; }
-inline Gfx::IntRect PaintTextShadow::bounding_rect() const { return { draw_location.to_type<int>(), shadow_bounding_rect.size() }; }
-inline Gfx::IntRect FillRectWithRoundedCorners::bounding_rect() const { return rect; }
-inline Gfx::IntRect FillPath::bounding_rect() const { return Gfx::enclosing_int_rect(path_bounding_rect); }
-inline Gfx::IntRect StrokePath::bounding_rect() const { return Gfx::enclosing_int_rect(path_bounding_rect); }
-inline Gfx::IntRect DrawEllipse::bounding_rect() const { return rect; }
-inline Gfx::IntRect DrawLine::bounding_rect() const { return Gfx::IntRect::from_two_points(from, to).inflated(thickness, thickness); }
-inline Gfx::IntRect ApplyBackdropFilter::bounding_rect() const { return backdrop_region; }
-inline Gfx::IntRect DrawRect::bounding_rect() const { return rect; }
-inline Gfx::IntRect PaintRadialGradient::bounding_rect() const { return rect; }
-inline Gfx::IntRect PaintConicGradient::bounding_rect() const { return rect; }
-inline Gfx::IntRect PaintNestedDisplayList::bounding_rect() const { return Gfx::enclosing_int_rect(rect); }
-inline Gfx::IntRect DrawIsolatedDisplayList::bounding_rect() const { return Gfx::enclosing_int_rect(rect); }
-inline Gfx::IntRect PaintScrollBar::bounding_rect() const { return track_rect.united(thumb_rect); }
 
 template<typename Command>
 concept DisplayListCommand = requires {
@@ -177,8 +153,6 @@ void for_each_display_list_inline_clip(DisplayListCommandHeader const& header, R
     for (u8 index = 0; index < header.inline_clip_count; ++index, entry_offset += sizeof(DisplayListInlineClip))
         callback(read_display_list_object<DisplayListInlineClip>(payload.slice(entry_offset)));
 }
-
-void dump_display_list_inline_clips(StringBuilder&, DisplayListCommandHeader const&, ReadonlyBytes payload);
 
 inline bool operator==(DisplayListCommandRun const& a, DisplayListCommandRun const& b)
 {

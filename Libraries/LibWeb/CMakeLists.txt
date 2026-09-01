@@ -852,7 +852,6 @@ set(SOURCES
     Painting/Canvas2DCommandStream.cpp
     Painting/ChromeWidget.cpp
     Painting/DisplayList.cpp
-    Painting/DisplayListCommand.cpp
     Painting/DisplayListDamage.cpp
     Painting/DisplayListPlayerSkia.cpp
     Painting/DisplayListResourceTransaction.cpp
