@@ -54,7 +54,7 @@ private:
     void prepare_to_start_rendering();
     void set_playback_stream(NonnullRefPtr<Audio::PlaybackStream>);
     ReadonlySpan<float> fill_output_buffer(Span<float>);
-    void render_quantum_into_pending_samples();
+    void render_quantum_into_pending_samples(u64 frames_played);
 
     NonnullRefPtr<ControlMessageQueue> m_control_message_queue;
     NodeID m_destination_node_id;
@@ -77,6 +77,7 @@ private:
     size_t m_device_channel_count { 0 };
     double m_playhead_step { 1 };
     double m_playhead { 0 };
+    u64 m_device_frames_delivered { 0 };
     Vector<float> m_pending_samples;
 };
 

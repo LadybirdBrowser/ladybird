@@ -120,13 +120,19 @@ ReadonlySpan<float> RealtimeAudioRenderer::fill_output_buffer(Span<float> buffer
 
     auto channel_count = m_device_channel_count;
     auto frames_requested = buffer.size() / channel_count;
+
+    // The device is playing the buffer delivered before this one, so everything older than that has been heard.
+    auto device_frames_played = m_device_frames_delivered > frames_requested ? m_device_frames_delivered - frames_requested : 0;
+    auto frames_played = static_cast<u64>(static_cast<double>(device_frames_played) * m_playhead_step);
+    m_device_frames_delivered += frames_requested;
+
     for (size_t frame = 0; frame < frames_requested; ++frame) {
         auto first_frame = static_cast<size_t>(m_playhead);
         auto fraction = static_cast<float>(m_playhead - first_frame);
 
         // Interpolation between adjacent rendered frames requires one frame of lookahead.
         while (m_pending_samples.size() / channel_count < first_frame + 2)
-            render_quantum_into_pending_samples();
+            render_quantum_into_pending_samples(frames_played);
 
         for (size_t channel = 0; channel < channel_count; ++channel) {
             auto sample = m_pending_samples[first_frame * channel_count + channel];
@@ -150,14 +156,17 @@ ReadonlySpan<float> RealtimeAudioRenderer::fill_output_buffer(Span<float> buffer
     return buffer;
 }
 
-void RealtimeAudioRenderer::render_quantum_into_pending_samples()
+void RealtimeAudioRenderer::render_quantum_into_pending_samples(u64 frames_played)
 {
     m_graph.apply_control_messages(m_control_message_queue->drain());
 
+    auto quantum_start_frame = m_frames_rendered.load();
+    auto frames_rendered_after_quantum = quantum_start_frame + m_quantum_size;
     RenderContext context {
         .sample_rate = m_sample_rate,
         .quantum_size = m_quantum_size,
-        .quantum_start_frame = m_frames_rendered.load(),
+        .quantum_start_frame = quantum_start_frame,
+        .output_latency_in_frames = frames_rendered_after_quantum > frames_played ? frames_rendered_after_quantum - frames_played : 0,
     };
     m_graph.render_quantum(context);
 
