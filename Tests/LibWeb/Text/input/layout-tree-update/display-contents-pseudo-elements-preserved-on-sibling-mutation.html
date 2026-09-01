@@ -1,0 +1,196 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .dc {
+        display: contents;
+    }
+    .flex {
+        display: flex;
+    }
+    .battr::before {
+        content: attr(data-x);
+    }
+    .bt::before {
+        content: "b";
+    }
+    .bib::before {
+        content: "ib";
+        display: inline-block;
+    }
+    .at::after {
+        content: "a";
+    }
+    .bblock::before {
+        content: "b";
+        display: block;
+    }
+    .ablock::after {
+        content: "a";
+        display: block;
+    }
+    .bfl::before {
+        content: "fl";
+        float: left;
+    }
+    .afl::after {
+        content: "fl";
+        float: right;
+    }
+    .babs::before {
+        content: "abs";
+        position: absolute;
+    }
+    .aabs::after {
+        content: "abs";
+        position: absolute;
+    }
+    .bcontents::before {
+        content: "c";
+        display: contents;
+    }
+</style>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const fixture = document.getElementById("fixture");
+        const el = (tag, attributes, ...children) => {
+            const element = document.createElement(tag);
+            for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+            element.append(
+                ...children.map(child => (typeof child === "string" ? document.createTextNode(child) : child))
+            );
+            return element;
+        };
+        const n = () => document.getElementById("n");
+        const appendBlock = () => n().append(el("div", {}));
+        const removeFirstChild = () => n().firstChild.remove();
+        const appendInline = () => n().append(el("b", {}, "x"));
+        const setInnerHTML = () => (n().innerHTML = "<span>x</span>");
+        const clearInnerHTML = () => (n().innerHTML = "");
+        const setTextContent = () => (n().textContent = "changed");
+        const attachShadow = () => n().attachShadow({ mode: "open" });
+
+        const cases = [];
+        for (const pseudo of [
+            "battr",
+            "bt",
+            "bib",
+            "at",
+            "bblock",
+            "ablock",
+            "bfl",
+            "afl",
+            "babs",
+            "aabs",
+            "bcontents",
+        ]) {
+            cases.push(
+                {
+                    name: `${pseudo} display: contents element; block inserted into next sibling`,
+                    root: () => [el("div", { class: `dc ${pseudo}` }), el("div", { id: "n" })],
+                    mutate: appendBlock,
+                },
+                {
+                    name: `${pseudo} display: contents element; block removed from previous sibling`,
+                    root: () => [el("div", { id: "n" }, el("div", {}), ""), el("div", { class: `dc ${pseudo}` }), ""],
+                    mutate: removeFirstChild,
+                },
+                {
+                    name: `${pseudo} display: contents element; block inserted into previous sibling`,
+                    root: () => [el("div", { id: "n" }), el("div", { class: `dc ${pseudo}` })],
+                    mutate: appendBlock,
+                },
+                {
+                    name: `${pseudo} display: contents element; next sibling gets a shadow root`,
+                    root: () => [el("div", { class: `dc ${pseudo}` }), el("div", { id: "n" })],
+                    mutate: attachShadow,
+                },
+                {
+                    name: `${pseudo} display: contents element; next sibling innerHTML`,
+                    root: () => [el("div", { class: `dc ${pseudo}` }), el("div", { id: "n" }, "t")],
+                    mutate: setInnerHTML,
+                },
+                {
+                    name: `${pseudo} display: contents element between inline siblings; next sibling textContent`,
+                    root: () => [
+                        el("span", {}, "a"),
+                        el("span", { class: `dc ${pseudo}` }),
+                        el("span", { id: "n" }, "b"),
+                    ],
+                    mutate: setTextContent,
+                },
+                {
+                    name: `${pseudo} display: contents element; child rebuilt in place`,
+                    root: () => [
+                        el("span", { class: `dc ${pseudo}` }, el("span", { id: "n" }, "t")),
+                        el("span", {}, "y"),
+                    ],
+                    mutate: clearInnerHTML,
+                },
+                {
+                    name: `${pseudo} display: contents element nested in display: contents; grandchild gets a block`,
+                    root: () => [
+                        el("div", { class: "dc bt" }, el("div", { class: `dc ${pseudo}` }, el("div", { id: "n" }))),
+                        el("div", {}, "x"),
+                    ],
+                    mutate: appendBlock,
+                },
+                {
+                    name: `${pseudo} display: contents element inside an inline; next sibling innerHTML`,
+                    root: () => [
+                        el("span", { id: "p" }, el("span", { class: `dc ${pseudo}` }), el("span", { id: "n" })),
+                    ],
+                    mutate: appendInline,
+                },
+                {
+                    name: `${pseudo} display: contents element in a flex container; next sibling gets a block`,
+                    root: () => [
+                        el("div", { class: "flex" }, el("div", { class: `dc ${pseudo}` }), el("div", { id: "n" })),
+                    ],
+                    mutate: appendBlock,
+                }
+            );
+        }
+        cases.push(
+            {
+                name: "display: contents element with ::before and ::after; block inserted into next sibling",
+                root: () => [el("div", { class: "dc bt at" }), el("div", { id: "n" })],
+                mutate: appendBlock,
+            },
+            {
+                name: "display: contents element with floating ::before and ::after; next sibling innerHTML",
+                root: () => [el("div", { class: "dc bfl afl" }), el("div", { id: "n" }, "t")],
+                mutate: setInnerHTML,
+            },
+            {
+                name: "two display: contents elements with pseudo-elements around a mutated sibling",
+                root: () => [el("div", { class: "dc afl" }), el("div", { id: "n" }), el("div", { class: "dc bt" })],
+                mutate: appendBlock,
+            },
+            {
+                name: "display: contents element with pseudo-elements; block inserted into itself",
+                root: () => [el("div", { class: "dc bt at", id: "n" }), el("div", {})],
+                mutate: appendBlock,
+            },
+            {
+                name: "display: contents element with pseudo-elements; inline inserted into itself",
+                root: () => [el("div", { class: "dc bfl afl", id: "n" }, "t"), el("span", {}, "s")],
+                mutate: appendInline,
+            }
+        );
+
+        let checkNumber = 0;
+        const check = description => {
+            const result = internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL";
+            println(`check ${checkNumber++}: ${result} (${description})`);
+        };
+        for (const testCase of cases) {
+            fixture.replaceChildren(...testCase.root());
+            document.body.offsetHeight;
+            check(`${testCase.name}: before`);
+            testCase.mutate();
+            document.body.offsetHeight;
+            check(`${testCase.name}: after mutation`);
+        }
+    });
+</script>
