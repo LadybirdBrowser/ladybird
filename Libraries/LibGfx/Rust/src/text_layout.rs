@@ -172,6 +172,11 @@ impl ShapedText {
     }
 
     #[inline]
+    pub fn into_glyphs(self) -> Vec<DrawGlyph> {
+        self.glyphs
+    }
+
+    #[inline]
     pub fn width(&self) -> f32 {
         self.width
     }

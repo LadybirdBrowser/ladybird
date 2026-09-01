@@ -7,7 +7,7 @@
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeSlotId;
-use crate::layout::{inline_level_iterator, node_facts};
+use crate::layout::node_facts;
 use crate::painting::paintable_data::FragmentRecord;
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
@@ -229,7 +229,7 @@ pub(crate) fn selection_offsets_for_dom_range(
 }
 
 fn for_each_cluster_in_glyph_run(
-    glyphs: &[inline_level_iterator::FfiDrawGlyph],
+    glyphs: &[libgfx_rust::text_layout::DrawGlyph],
     fragment_length_in_code_units: usize,
     mut callback: impl FnMut(usize, usize, f32) -> bool,
 ) {
