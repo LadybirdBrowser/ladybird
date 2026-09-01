@@ -21,10 +21,12 @@
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/PipelineStatus.h>
+#include <LibMedia/Producers/AudioProducer.h>
 #include <LibMedia/Producers/DecodedAudioProducer.h>
 #include <LibMedia/Producers/VideoProducer.h>
 #include <LibMedia/VideoDecoder.h>
 #include <LibMedia/VideoFrame.h>
+#include <LibSync/Mutex.h>
 #include <LibTest/TestCase.h>
 
 static inline Core::EventLoop& never_destroyed_event_loop()
@@ -197,4 +199,84 @@ private:
 
     Vector<Media::VideoProducerOutput> m_outputs;
     Media::PipelineWakeHandler m_wake_handler;
+};
+
+// Serves scripted blocks to a consumer running on another thread. Every sample of a block holds its own frame index,
+// so a consumer's output shows exactly which frames it was given.
+class ScriptedAudioProducer final : public Media::AudioProducer {
+public:
+    static NonnullRefPtr<ScriptedAudioProducer> create()
+    {
+        return adopt_ref(*new ScriptedAudioProducer());
+    }
+
+    void append_block(i64 first_frame_index, size_t frame_count)
+    {
+        Sync::MutexLocker locker { m_mutex };
+        VERIFY(m_sample_specification.is_valid());
+        auto output = make<Output>();
+        output->block.initialize(m_sample_specification, first_frame_index, frame_count);
+        for (size_t channel = 0; channel < output->block.channel_count(); ++channel) {
+            auto samples = output->block.channel_data(channel);
+            for (size_t frame = 0; frame < frame_count; ++frame)
+                samples[frame] = static_cast<float>(first_frame_index + static_cast<i64>(frame));
+        }
+        output->status = Media::PipelineStatus::HaveData;
+        m_outputs.append(move(output));
+    }
+
+    void append_status(Media::PipelineStatus status)
+    {
+        Sync::MutexLocker locker { m_mutex };
+        auto output = make<Output>();
+        output->status = status;
+        m_outputs.append(move(output));
+    }
+
+    void wake()
+    {
+        if (m_wake_handler)
+            m_wake_handler();
+    }
+
+    size_t peek_count() const { return m_peek_count.load(); }
+
+    virtual void start() override { }
+    virtual ErrorOr<void> set_output_sample_specification(Audio::SampleSpecification specification) override
+    {
+        Sync::MutexLocker locker { m_mutex };
+        m_sample_specification = specification;
+        return {};
+    }
+    virtual Media::AudioProducerOutput peek() override
+    {
+        m_peek_count.fetch_add(1);
+        Sync::MutexLocker locker { m_mutex };
+        if (m_outputs.is_empty())
+            return { nullptr, Media::PipelineStatus::Pending };
+        auto const& output = *m_outputs.first();
+        return { output.block.is_empty() ? nullptr : &output.block, output.status };
+    }
+    virtual void consume() override
+    {
+        Sync::MutexLocker locker { m_mutex };
+        if (!m_outputs.is_empty())
+            (void)m_outputs.take_first();
+    }
+    virtual void set_wake_handler(Media::PipelineWakeHandler handler) override { m_wake_handler = move(handler); }
+    virtual void seek(AK::Duration) override { }
+
+private:
+    struct Output {
+        Media::AudioBlock block;
+        Media::PipelineStatus status { Media::PipelineStatus::Pending };
+    };
+
+    ScriptedAudioProducer() = default;
+
+    Sync::Mutex m_mutex;
+    Audio::SampleSpecification m_sample_specification;
+    Vector<NonnullOwnPtr<Output>> m_outputs;
+    Media::PipelineWakeHandler m_wake_handler;
+    Atomic<size_t> m_peek_count { 0 };
 };

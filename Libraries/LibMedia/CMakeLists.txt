@@ -50,6 +50,7 @@ set(SOURCES
     Producers/DecodedAudioProducer.cpp
     Producers/DecodedVideoProducer.cpp
     Producers/RemoteVideoProducer.cpp
+    Sinks/AudioOutputQueue.cpp
     Sinks/AudioPlaybackSink.cpp
     Sinks/DisplayingVideoSink.cpp
     Sinks/RemoteVideoSink.cpp
