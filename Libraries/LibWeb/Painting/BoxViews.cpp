@@ -296,11 +296,6 @@ bool is_fixed_position(Layout::Node const& node)
     return has_committed_box(node) && as<Layout::NodeWithStyle>(node).is_fixed_position();
 }
 
-bool has_css_transform(Layout::Node const& node)
-{
-    return has_committed_box(node) && as<Layout::NodeWithStyle>(node).has_css_transform();
-}
-
 bool uses_collapsing_borders_model(Layout::Node const& node)
 {
     return Layout::RustFFI::layout_arena_paintable_uses_collapsing_borders_model(node.arena_handle(), committed_row_slot(node));

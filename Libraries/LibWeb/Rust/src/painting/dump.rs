@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::css_pixels::CssPixels;
+use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::NodeKind;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::node_facts;
@@ -24,22 +24,42 @@ fn push_usize(out: &mut Vec<u8>, value: usize) {
     out.extend_from_slice(value.to_string().as_bytes());
 }
 
-fn push_css_pixels(out: &mut Vec<u8>, value: CssPixels) {
+pub(crate) struct Utf8Sink<'a>(pub(crate) &'a mut Vec<u8>);
+
+impl Write for Utf8Sink<'_> {
+    fn write_str(&mut self, text: &str) -> std::fmt::Result {
+        self.0.extend_from_slice(text.as_bytes());
+        Ok(())
+    }
+}
+
+pub(crate) fn push_css_pixels(output: &mut impl Write, value: CssPixels) {
     let raw = value.raw_value();
     if raw < 0 {
-        out.push(b'-');
+        let _ = output.write_char('-');
     }
     let magnitude = raw.unsigned_abs();
-    out.extend_from_slice((magnitude / 64).to_string().as_bytes());
+    let _ = write!(output, "{}", magnitude / 64);
     let frac = magnitude % 64;
     if frac != 0 {
-        let mut digits = format!("{:06}", u64::from(frac) * 15625).into_bytes();
-        while digits.last() == Some(&b'0') {
+        let mut digits = format!("{:06}", u64::from(frac) * 15625);
+        while digits.ends_with('0') {
             digits.pop();
         }
-        out.push(b'.');
-        out.extend_from_slice(&digits);
+        let _ = write!(output, ".{digits}");
     }
+}
+
+pub(crate) fn push_css_pixel_rect(output: &mut impl Write, rect: CssPixelRect) {
+    let _ = output.write_char('[');
+    push_css_pixels(output, rect.x);
+    let _ = output.write_char(',');
+    push_css_pixels(output, rect.y);
+    let _ = output.write_char(' ');
+    push_css_pixels(output, rect.width);
+    let _ = output.write_char('x');
+    push_css_pixels(output, rect.height);
+    let _ = output.write_char(']');
 }
 
 fn push_code_point(out: &mut Vec<u8>, code_point: u32) {
@@ -99,17 +119,10 @@ fn dump_fragment(
     push_usize(out, fragment.start_offset);
     out.extend_from_slice(b", length: ");
     push_usize(out, fragment.length_in_code_units);
-    out.extend_from_slice(b", rect: [");
-    let rect = text_fragment::absolute_rect(layout_arena, fragment);
-    push_css_pixels(out, rect.x);
-    out.push(b',');
-    push_css_pixels(out, rect.y);
-    out.push(b' ');
-    push_css_pixels(out, rect.width);
-    out.push(b'x');
-    push_css_pixels(out, rect.height);
-    out.extend_from_slice(b"] baseline: ");
-    push_css_pixels(out, fragment.baseline);
+    out.extend_from_slice(b", rect: ");
+    push_css_pixel_rect(&mut Utf8Sink(out), text_fragment::absolute_rect(layout_arena, fragment));
+    out.extend_from_slice(b" baseline: ");
+    push_css_pixels(&mut Utf8Sink(out), fragment.baseline);
     out.push(b'\n');
     if fragment.length_in_code_units > 0 {
         push_indent(out, indent);

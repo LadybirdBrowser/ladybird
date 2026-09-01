@@ -723,26 +723,16 @@ Utf16String serialize_painting_dump(
 
 void dump_stacking_context_tree(StringBuilder& builder, DOM::Document const& document)
 {
+    Layout::RustFFI::FfiStackingContextDumpCallbacks callbacks {
+        .context = &builder,
+        .debug_description = [](void*, void* layout_node_shell, void* description_sink) {
+            auto description = static_cast<Layout::Node const*>(layout_node_shell)->debug_description();
+            auto bytes = description.bytes();
+            Layout::RustFFI::layout_arena_paint_push_bytes(description_sink, bytes.data(), bytes.size()); },
+        .append_text = [](void* context, u8 const* bytes, size_t byte_count) { static_cast<StringBuilder*>(context)->append(StringView { bytes, byte_count }); },
+    };
     Layout::RustFFI::layout_arena_dump_stacking_context_tree(
-        layout_arena_handle(document), viewport_row_slot(document), &builder,
-        [](void* context, Layout::RustFFI::FfiStackingContextDumpEntry entry) {
-            auto& builder = *static_cast<StringBuilder*>(context);
-            for (size_t i = 0; i < entry.depth; ++i)
-                builder.append(' ');
-            if (auto const* layout_node = static_cast<Layout::Node const*>(entry.layout_node_shell)) {
-                builder.appendff("SC for {} {} (z-index: ", layout_node->debug_description(), absolute_rect(*layout_node));
-                if (entry.has_effective_z_index)
-                    builder.appendff("{}", entry.effective_z_index);
-                else
-                    builder.append("auto"sv);
-                builder.append(')');
-                if (has_css_transform(*layout_node))
-                    builder.append(", has_transform"sv);
-            } else {
-                builder.append("SC for (gone)"sv);
-            }
-            builder.append('\n');
-        });
+        layout_arena_handle(document), viewport_row_slot(document), callbacks);
 }
 
 namespace {

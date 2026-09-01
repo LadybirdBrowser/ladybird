@@ -750,11 +750,7 @@ pub unsafe extern "C" fn layout_arena_paintable_uses_collapsing_borders_model(
 pub unsafe extern "C" fn layout_arena_paintable_absolute_rect(arena: *mut c_void, slot: NodeSlotId) -> FfiCssPixelRect {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let paintable_rows = arena.paintable_rows();
-        if !paintable_rows.paintable_row_is_populated(slot) {
-            return FfiCssPixelRect::default();
-        }
-        crate::painting::paintable_geometry::absolute_rect(&paintable_rows, slot).into()
+        crate::painting::paintable_geometry::absolute_rect_or_default(&arena.paintable_rows(), slot).into()
     })
 }
 
@@ -2406,31 +2402,6 @@ pub unsafe extern "C" fn layout_arena_paintable_used_grid_tracks(
         if let Some(tracks) = crate::painting::paintable_geometry::committed_used_grid_tracks(arena, paintable) {
             tracks.with_ffi_views(|columns, rows| unsafe { consume(context, columns, rows) });
         }
-    });
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread;
-/// `emit` copies each entry synchronously.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_dump_stacking_context_tree(
-    arena: *mut c_void,
-    viewport: NodeSlotId,
-    context: *mut c_void,
-    emit: unsafe extern "C" fn(*mut c_void, crate::painting::host::FfiStackingContextDumpEntry),
-) {
-    abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle(arena) };
-        if !arena.paintable_row_is_populated(viewport) {
-            return;
-        }
-        crate::painting::stacking_context::dump::for_each_stacking_context_in_dump_order(
-            arena,
-            viewport,
-            // SAFETY: The consumer copies the entry synchronously.
-            &mut |entry| unsafe { emit(context, entry) },
-        );
     });
 }
 
