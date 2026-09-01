@@ -143,11 +143,13 @@ static void write_blobs_and_option_to_clipboard(JS::Realm& realm, ReadonlySpan<G
         }
 
         // 3. Let payload be the result of UTF-8 decoding item’s underlying byte sequence.
-        auto decoder = TextCodec::decoder_for("UTF-8"sv);
-        auto payload = MUST(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, item->raw_bytes()));
+        // FIXME: Spec issue: UTF-8 decoding here does not make sense. This would make a simple clipboard.write ->
+        //        clipboard.read sequence for PNG data corrupt.
+        //        https://github.com/w3c/clipboard-apis/issues/217
+        ByteString payload { item->raw_bytes() };
 
         // 4. Insert payload and presentationStyle into the system clipboard using formatString as the native clipboard format.
-        representations.empend(move(format_string), payload.to_byte_string());
+        representations.empend(move(format_string), move(payload));
     }
 
     window.page().client().page_did_insert_clipboard_item({ move(representations) }, presentation_style);
