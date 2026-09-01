@@ -63,7 +63,7 @@ TEST_CASE(a_draw_confined_to_its_bounds_contributes_the_confined_bounds)
 {
     ByteBuffer bytes;
     auto root = context(0);
-    append_display_list_command(bytes, FillRect { { 0, 0, 100, 100 }, Gfx::Color::Red }, Gfx::IntRect { 10, 10, 20, 20 }, root, true);
+    append_display_list_command(bytes, FillRect { { 0, 0, 100, 100 }, Gfx::Color::Red }, Gfx::IntRect { 10, 10, 20, 20 }, root);
     append_fill_rect(bytes, root, { 50, 50, 10, 10 });
 
     auto runs = compute_display_list_command_runs(bytes);

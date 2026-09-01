@@ -6,9 +6,9 @@
 
 use crate::painting::display_list::builder::{HEADER_SIZE, read_header};
 use crate::painting::display_list::commands::{
-    ContextRef, DisplayListCommandHeader, DisplayListCommandType, DisplayListDataSpan, DrawGlyphRun,
-    DrawScaledDecodedImageFrame, OptionalColor, OptionalFloatRect, PaintTextShadow, SpatialNodeIndex,
-    VISUAL_VIEWPORT_NODE_INDEX,
+    ContextRef, DisplayListCommandHeader, DisplayListCommandType, DisplayListDataSpan, DisplayListInlineClip,
+    DrawGlyphRun, DrawScaledDecodedImageFrame, INLINE_CLIP_ENTRY_SIZE, OptionalColor, OptionalFloatRect,
+    PaintTextShadow, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
 };
 use crate::painting::visual_context::{
     FrameData, IncludeVisualViewportTransform, SpatialData, VisualContextTree, device_offset_for_index,
@@ -97,12 +97,41 @@ impl PayloadReader<'_> {
     }
 }
 
+fn inline_clip_lists_are_equal(a: &CommandReference<'_>, b: &CommandReference<'_>) -> bool {
+    let count = a.header.inline_clip_count as usize;
+    if count == 0 {
+        return true;
+    }
+    let first = PayloadReader { payload: a.payload };
+    let second = PayloadReader { payload: b.payload };
+    let a_entries_offset = a.payload.len() - count * INLINE_CLIP_ENTRY_SIZE;
+    let b_entries_offset = b.payload.len() - count * INLINE_CLIP_ENTRY_SIZE;
+    (0..count).all(|index| {
+        let a_entry = a_entries_offset + index * INLINE_CLIP_ENTRY_SIZE;
+        let b_entry = b_entries_offset + index * INLINE_CLIP_ENTRY_SIZE;
+        let same_entry_field = |offset: usize, size: usize| {
+            first.bytes_at(a_entry + offset, size) == second.bytes_at(b_entry + offset, size)
+        };
+        same_entry_field(offset_of!(DisplayListInlineClip, clip_rect_or_path_device_bounds), 16)
+            && same_entry_field(offset_of!(DisplayListInlineClip, corner_radii), 32)
+            && same_entry_field(offset_of!(DisplayListInlineClip, path_winding_rule), 4)
+            && same_entry_field(offset_of!(DisplayListInlineClip, kind), 1)
+            && same_entry_field(offset_of!(DisplayListInlineClip, mode), 1)
+            && first.span_bytes_at(a_entry + offset_of!(DisplayListInlineClip, path_data))
+                == second.span_bytes_at(b_entry + offset_of!(DisplayListInlineClip, path_data))
+    })
+}
+
 fn display_list_commands_are_equal(a: &CommandReference<'_>, b: &CommandReference<'_>) -> bool {
     if a.header.command_type != b.header.command_type
         || a.header.has_bounding_rect != b.header.has_bounding_rect
-        || a.header.clips_to_bounding_rect != b.header.clips_to_bounding_rect
+        || a.header.inline_clip_count != b.header.inline_clip_count
         || a.header.bounding_rect != b.header.bounding_rect
     {
+        return false;
+    }
+
+    if !inline_clip_lists_are_equal(a, b) {
         return false;
     }
 
@@ -578,7 +607,7 @@ mod tests {
     use crate::layout::node_data::NodeSlotId;
     use crate::painting::display_list::commands::{
         CanvasId, CompositorMainThreadWheelEventRegion, DisplayListCommand, DisplayListGlyph, DrawCanvas, FillRect,
-        FontResourceId, FrameNodeIndex, ImageFrameResourceId,
+        FontResourceId, FrameNodeIndex, ImageFrameResourceId, InlineClipKind,
     };
     use crate::painting::display_list::ffi_bytes::FfiBytes;
     use crate::painting::visual_context::scroll_state::NO_SCROLL_STATE_SLOT;
@@ -588,7 +617,7 @@ mod tests {
     };
     use libgfx_rust::{
         Color, CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, MaskKind, Orientation, ScalingMode,
-        translation_matrix,
+        WindingRule, translation_matrix,
     };
 
     const RED: Color = Color(0xffff0000);
@@ -605,14 +634,15 @@ mod tests {
         inline_data: &[u8],
         bounding_rect: Option<IntRect>,
         context: ContextRef,
-        clips_to_bounding_rect: bool,
+        inline_clips: &[DisplayListInlineClip],
     ) {
-        let payload_size = std::mem::size_of::<C>() + inline_data.len();
-        let padded_record_size = (HEADER_SIZE + payload_size).next_multiple_of(16);
+        let unpadded_payload_size = std::mem::size_of::<C>() + inline_data.len();
+        let entries_size = inline_clips.len() * INLINE_CLIP_ENTRY_SIZE;
+        let padded_record_size = (HEADER_SIZE + unpadded_payload_size + entries_size).next_multiple_of(16);
         let header = DisplayListCommandHeader {
             command_type: C::COMMAND_TYPE,
             has_bounding_rect: bounding_rect.is_some(),
-            clips_to_bounding_rect,
+            inline_clip_count: inline_clips.len() as u8,
             payload_size: (padded_record_size - HEADER_SIZE) as u32,
             context,
             bounding_rect: bounding_rect.unwrap_or_default(),
@@ -624,6 +654,11 @@ mod tests {
         command.write_ffi_bytes(&mut bytes[payload_start..payload_start + std::mem::size_of::<C>()]);
         let inline_start = payload_start + std::mem::size_of::<C>();
         bytes[inline_start..inline_start + inline_data.len()].copy_from_slice(inline_data);
+        let entries_start = start + padded_record_size - entries_size;
+        for (index, entry) in inline_clips.iter().enumerate() {
+            let entry_start = entries_start + index * INLINE_CLIP_ENTRY_SIZE;
+            entry.write_ffi_bytes(&mut bytes[entry_start..entry_start + INLINE_CLIP_ENTRY_SIZE]);
+        }
     }
 
     fn command_bytes<C: DisplayListCommand>(
@@ -632,7 +667,7 @@ mod tests {
         context: ContextRef,
     ) -> Vec<u8> {
         let mut bytes = Vec::new();
-        append_record(&mut bytes, command, &[], bounding_rect, context, false);
+        append_record(&mut bytes, command, &[], bounding_rect, context, &[]);
         bytes
     }
 
@@ -667,9 +702,20 @@ mod tests {
             &inline_data,
             Some(command.glyph_bounding_rect),
             ContextRef::default(),
-            false,
+            &[],
         );
         bytes
+    }
+
+    fn rect_inline_clip(rect: IntRect) -> DisplayListInlineClip {
+        DisplayListInlineClip {
+            clip_rect_or_path_device_bounds: rect.to_float(),
+            corner_radii: CornerRadii::default(),
+            path_data: DisplayListDataSpan::default(),
+            path_winding_rule: WindingRule::Nonzero,
+            kind: InlineClipKind::Rect,
+            mode: ClipMode::Intersect,
+        }
     }
 
     fn canvas_command_bytes(rect: IntRect, content_generation: u64) -> Vec<u8> {
@@ -838,7 +884,7 @@ mod tests {
     }
 
     #[test]
-    fn confining_a_draw_to_its_bounds_damages_the_draw() {
+    fn adding_an_inline_clip_to_a_draw_damages_the_draw() {
         let tree = identity_tree();
         let rect = IntRect::new(10, 10, 20, 20);
         let old_display_list = fill_command_bytes(rect, RED);
@@ -849,10 +895,47 @@ mod tests {
             &[],
             Some(rect),
             ContextRef::default(),
-            true,
+            &[rect_inline_clip(rect)],
         );
         assert_eq!(
             damage(&old_display_list, &tree, &new_display_list, &tree),
+            Some(IntRect::new(9, 9, 22, 22))
+        );
+    }
+
+    #[test]
+    fn a_changed_inline_clip_rect_damages_a_field_compared_command() {
+        let tree = identity_tree();
+        let record_with_clip = |clip_rect: IntRect| {
+            let mut bytes = Vec::new();
+            append_record(
+                &mut bytes,
+                &DrawGlyphRun {
+                    font_id: FontResourceId(1),
+                    glyphs: DisplayListDataSpan::default(),
+                    rect: IntRect::new(10, 10, 20, 20),
+                    glyph_bounding_rect: IntRect::new(10, 10, 20, 20),
+                    translation: FloatPoint { x: 10.0, y: 10.0 },
+                    scale: 1.0,
+                    color: RED,
+                    orientation: Orientation::Horizontal,
+                },
+                &[],
+                Some(IntRect::new(10, 10, 20, 20)),
+                ContextRef::default(),
+                &[rect_inline_clip(clip_rect)],
+            );
+            bytes
+        };
+        let old_display_list = record_with_clip(IntRect::new(10, 10, 20, 20));
+        let unchanged_display_list = record_with_clip(IntRect::new(10, 10, 20, 20));
+        let changed_display_list = record_with_clip(IntRect::new(10, 10, 12, 20));
+        assert_eq!(
+            damage(&old_display_list, &tree, &unchanged_display_list, &tree),
+            Some(IntRect::default())
+        );
+        assert_eq!(
+            damage(&old_display_list, &tree, &changed_display_list, &tree),
             Some(IntRect::new(9, 9, 22, 22))
         );
     }

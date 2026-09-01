@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Assertions.h>
+#include <AK/Forward.h>
 #include <AK/Span.h>
 #include <AK/StdLibExtras.h>
 #include <LibGfx/Rect.h>
@@ -150,6 +151,20 @@ static_assert(sizeof(DisplayListCommandHeader) == 32);
 static_assert(IsTriviallyCopyable<DisplayListCommandRun>);
 static_assert(sizeof(DisplayListCommandRun) == 36);
 static_assert(IsTriviallyCopyable<DisplayListGlyph>);
+static_assert(IsTriviallyCopyable<DisplayListInlineClip>);
+static_assert(sizeof(DisplayListInlineClip) == 64);
+
+template<typename Callback>
+void for_each_display_list_inline_clip(DisplayListCommandHeader const& header, ReadonlyBytes payload, Callback&& callback)
+{
+    size_t entries_size = header.inline_clip_count * sizeof(DisplayListInlineClip);
+    VERIFY(entries_size <= payload.size());
+    size_t entry_offset = payload.size() - entries_size;
+    for (u8 index = 0; index < header.inline_clip_count; ++index, entry_offset += sizeof(DisplayListInlineClip))
+        callback(read_display_list_object<DisplayListInlineClip>(payload.slice(entry_offset)));
+}
+
+void dump_display_list_inline_clips(StringBuilder&, DisplayListCommandHeader const&, ReadonlyBytes payload);
 
 inline bool operator==(DisplayListCommandRun const& a, DisplayListCommandRun const& b)
 {

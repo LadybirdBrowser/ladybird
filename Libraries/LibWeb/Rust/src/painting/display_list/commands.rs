@@ -467,7 +467,7 @@ ffi_bytes_fields!(DisplayListGradientColorStops {
 pub struct DisplayListCommandHeader {
     pub command_type: DisplayListCommandType,
     pub has_bounding_rect: bool,
-    pub clips_to_bounding_rect: bool,
+    pub inline_clip_count: u8,
     pub payload_size: u32,
     pub context: ContextRef,
     pub bounding_rect: IntRect,
@@ -475,12 +475,46 @@ pub struct DisplayListCommandHeader {
 ffi_bytes_fields!(DisplayListCommandHeader {
     command_type,
     has_bounding_rect,
-    clips_to_bounding_rect,
+    inline_clip_count,
     payload_size,
     context,
     bounding_rect
 });
 const _: () = assert!(std::mem::size_of::<DisplayListCommandHeader>() == 32);
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(u8)]
+pub enum InlineClipKind {
+    #[default]
+    Rect,
+    RoundedRect,
+    Path,
+}
+ffi_enum_bytes!(InlineClipKind as u8);
+ffi_enum_bytes!(ClipMode as u8);
+
+// A clip applied by the player around a single command dispatch, stored as a
+// fixed-size entry at the tail of the command payload.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct DisplayListInlineClip {
+    pub clip_rect_or_path_device_bounds: FloatRect,
+    pub corner_radii: CornerRadii,
+    pub path_data: DisplayListDataSpan,
+    pub path_winding_rule: WindingRule,
+    pub kind: InlineClipKind,
+    pub mode: ClipMode,
+}
+ffi_bytes_fields!(DisplayListInlineClip {
+    clip_rect_or_path_device_bounds,
+    corner_radii,
+    path_data,
+    path_winding_rule,
+    kind,
+    mode
+});
+pub const INLINE_CLIP_ENTRY_SIZE: usize = std::mem::size_of::<DisplayListInlineClip>();
+const _: () = assert!(INLINE_CLIP_ENTRY_SIZE == 64);
 
 // A maximal sequence of consecutive commands sharing one visual context, summarized as the tape is
 // built so that replay can enter a context, cull, and depth-sort per run instead of rediscovering
