@@ -296,11 +296,6 @@ bool is_fixed_position(Layout::Node const& node)
     return has_committed_box(node) && as<Layout::NodeWithStyle>(node).is_fixed_position();
 }
 
-bool uses_collapsing_borders_model(Layout::Node const& node)
-{
-    return Layout::RustFFI::layout_arena_paintable_uses_collapsing_borders_model(node.arena_handle(), committed_row_slot(node));
-}
-
 SelectionState selection_state(Layout::Node const& node)
 {
     auto const* row = committed_row(node);
@@ -391,13 +386,6 @@ bool is_svg_path_paintable(Layout::Node const& node)
     }
 }
 
-Optional<int> effective_z_index(Layout::Node const& node)
-{
-    if (!is_positioned(node))
-        return {};
-    return as<Layout::NodeWithStyle>(node).z_index();
-}
-
 bool has_accumulated_visual_context(Layout::Node const& node)
 {
     auto const* row = committed_row(node);
@@ -414,14 +402,6 @@ ContextRef accumulated_visual_context_for_descendants(Layout::Node const& node)
 {
     auto const* row = committed_row(node);
     return row ? row->accumulated_visual_context_for_descendants : ContextRef {};
-}
-
-Optional<ContextRef> fixed_background_visual_context(Layout::Node const& node)
-{
-    auto const* row = committed_row(node);
-    if (!row || !row->has_fixed_background_visual_context)
-        return {};
-    return row->fixed_background_visual_context;
 }
 
 SpatialNodeIndex enclosing_scroll_node_index(Layout::Node const& node)

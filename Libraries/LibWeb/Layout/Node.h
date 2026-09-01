@@ -274,7 +274,6 @@ public:
 
     bool is_inline() const;
 
-    bool is_replaced_element() const;
     bool is_atomic_inline() const;
     bool is_fragmented_inline() const;
     NodeWithStyle const* nearest_fragmented_inline_ancestor() const;
@@ -478,16 +477,6 @@ public:
             return {};
         return values.z_index;
     }
-    CSS::AspectRatio aspect_ratio() const
-    {
-        auto const& value = style_group<CSS::ComputedValues::BoxValues>().aspect_ratio;
-        return {
-            value.use_natural_aspect_ratio_if_available,
-            value.has_preferred_ratio ? Optional<CSS::Ratio> { CSS::Ratio { value.preferred_ratio_numerator, value.preferred_ratio_denominator } } : OptionalNone {},
-            value.computed_use_natural_aspect_ratio_if_available,
-            value.has_computed_ratio ? Optional<CSS::Ratio> { CSS::Ratio { value.computed_ratio_numerator, value.computed_ratio_denominator } } : OptionalNone {},
-        };
-    }
     CSS::Containment contain() const
     {
         auto const& values = style_group<CSS::ComputedValues::BoxValues>();
@@ -536,7 +525,6 @@ public:
     ReadonlySpan<CSS::ComputedValuesFFI::ComputedCursor> cursor() const { return style_group<CSS::ComputedValues::InheritedUIValues>().cursor_span(); }
     ReadonlySpan<RefPtr<CSS::CursorStyleValue const>> cursor_style_values() const { return m_cursor_style_values; }
     CSS::PointerEvents pointer_events() const { return style_group<CSS::ComputedValues::InheritedUIValues>().pointer_events_value(); }
-    CSS::ScrollbarColorData scrollbar_color() const { return style_group<CSS::ComputedValues::InheritedUIValues>().scrollbar_color_value(); }
     CSS::Appearance appearance() const { return static_cast<CSS::Appearance>(style_group<CSS::ComputedValues::MiscResetValues>().appearance); }
     CSS::LengthBox scroll_margin() const { return length_box(style_group<CSS::ComputedValues::MiscResetValues>().scroll_margin); }
     CSS::LengthBox scroll_padding() const { return length_box(style_group<CSS::ComputedValues::MiscResetValues>().scroll_padding); }
@@ -595,7 +583,6 @@ public:
             m_border_image = style_group<CSS::ComputedValues::BorderValues>().border_image_value();
         return *m_border_image;
     }
-    RefPtr<CSS::AbstractImageStyleValue const> border_image_source() const { return style_group<CSS::ComputedValues::BorderValues>().border_image_source_value(); }
     Color color() const { return style_group<CSS::ComputedValues::InheritedTextValues>().color_value(); }
     Color webkit_text_fill_color() const { return style_group<CSS::ComputedValues::InheritedTextValues>().webkit_text_fill_color_value(); }
     CSSPixels letter_spacing() const { return style_group<CSS::ComputedValues::InheritedTextValues>().letter_spacing_value(); }
@@ -632,7 +619,6 @@ public:
     {
         style_group<CSS::ComputedValues::TransformValues>().for_each_resolved_transform(callback);
     }
-    CSS::TransformBox transform_box() const { return style_group<CSS::ComputedValues::TransformValues>().transform_box_value(); }
     CSS::TransformOrigin transform_origin() const { return style_group<CSS::ComputedValues::TransformValues>().transform_origin_value(); }
     CSS::TransformStyle transform_style() const { return style_group<CSS::ComputedValues::TransformValues>().transform_style_value(); }
     RefPtr<CSS::TransformationStyleValue const> rotate() const { return style_group<CSS::ComputedValues::TransformValues>().rotate_value(); }
@@ -647,7 +633,6 @@ public:
     Optional<CSS::ClipPathReference> clip_path() const { return style_group<CSS::ComputedValues::MaskValues>().clip_path_value(); }
     Optional<CSS::BaselineMetric> dominant_baseline() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().dominant_baseline_value(); }
     Optional<CSS::SVGPaint> fill() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().fill_value(); }
-    CSS::FillRule fill_rule() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().fill_rule_value(); }
     Optional<CSS::SVGPaint> stroke() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().stroke_value(); }
     float fill_opacity() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().fill_opacity; }
     ReadonlySpan<CSS::ComputedValuesFFI::ComputedSvgDash> stroke_dasharray() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().stroke_dasharray_span(); }
@@ -657,7 +642,6 @@ public:
     double stroke_miterlimit() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().stroke_miterlimit; }
     float stroke_opacity() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().stroke_opacity; }
     CSS::LengthPercentage const& stroke_width() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().stroke_width_value(); }
-    CSS::ClipRule clip_rule() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().clip_rule_value(); }
     CSS::PaintOrderList paint_order() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().paint_order_value(); }
     CSS::TextAnchor text_anchor() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().text_anchor_value(); }
     bool is_inline_block() const;

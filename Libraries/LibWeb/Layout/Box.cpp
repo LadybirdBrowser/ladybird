@@ -247,29 +247,4 @@ void Box::notify_content_navigable_of_committed_viewport()
     }
 }
 
-Optional<CSSPixelFraction> Box::preferred_aspect_ratio() const
-{
-    auto computed_aspect_ratio = aspect_ratio();
-
-    // https://www.w3.org/TR/css-contain-2/#containment-size
-    if (!has_size_containment() && computed_aspect_ratio.use_natural_aspect_ratio_if_available) {
-        if (auto auto_size = auto_content_box_size(); auto_size.has_aspect_ratio())
-            return auto_size.aspect_ratio;
-    }
-
-    if (!computed_aspect_ratio.preferred_ratio.has_value())
-        return {};
-
-    auto ratio = computed_aspect_ratio.preferred_ratio.value();
-    if (ratio.is_degenerate())
-        return {};
-
-    auto fraction = CSSPixelFraction(ratio.numerator(), ratio.denominator());
-    // ratio.is_degenerate() operates on doubles while CSSPixelFraction uses CSSPixels, so we need to check again here.
-    if (fraction == 0)
-        return {};
-
-    return fraction;
-}
-
 }

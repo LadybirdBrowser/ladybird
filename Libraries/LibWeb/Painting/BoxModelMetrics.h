@@ -25,8 +25,6 @@ public:
     PixelBox border;
     PixelBox inset;
 
-    PixelBox margin_box() const;
-    PixelBox padding_box() const;
     PixelBox border_box() const;
 };
 

@@ -60,11 +60,9 @@ WEB_API Optional<CSSPixelRect> clip_area(Layout::Node const&);
 WEB_API bool is_visible(Layout::Node const&);
 WEB_API bool visible_for_hit_testing(Layout::Node const&);
 WEB_API bool has_stacking_context(Layout::Node const&);
-WEB_API Optional<int> effective_z_index(Layout::Node const&);
 WEB_API CSS::Display display(Layout::Node const&);
 WEB_API bool is_positioned(Layout::Node const&);
 WEB_API bool is_fixed_position(Layout::Node const&);
-WEB_API bool uses_collapsing_borders_model(Layout::Node const&);
 WEB_API SelectionState selection_state(Layout::Node const&);
 WEB_API CSS::StyleRecordID style_record_identity(Layout::Node const&);
 WEB_API bool is_navigable_container_viewport_paintable(Layout::Node const&);
@@ -85,7 +83,6 @@ WEB_API CSSPixelPoint transform_to_local_coordinates(Layout::Node const&, CSSPix
 WEB_API bool has_accumulated_visual_context(Layout::Node const&);
 WEB_API ContextRef accumulated_visual_context(Layout::Node const&);
 WEB_API ContextRef accumulated_visual_context_for_descendants(Layout::Node const&);
-WEB_API Optional<ContextRef> fixed_background_visual_context(Layout::Node const&);
 WEB_API SpatialNodeIndex enclosing_scroll_node_index(Layout::Node const&);
 WEB_API SpatialNodeIndex own_scroll_node_index(Layout::Node const&);
 
