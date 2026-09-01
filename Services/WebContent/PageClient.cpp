@@ -143,8 +143,9 @@ PageClient::PageClient(PageHost& owner, u64 id, Optional<Web::HTML::CrossProcess
     m_page->set_async_scrolling_enabled(s_async_scrolling_enabled);
     setup_palette();
 
-    m_frame_timer = Core::Timer::create_single_shot(0, [] {
-        Web::HTML::main_thread_event_loop().queue_task_to_update_the_rendering();
+    m_frame_timer = Core::Timer::create_single_shot(0, [this] {
+        if (!Web::HTML::main_thread_event_loop().rendering_opportunity())
+            schedule_frame_dispatch();
     });
 }
 
@@ -440,7 +441,7 @@ void PageClient::compositor_process_reconnected()
     page().notify_all_canvas_elements_of_lost_backing_storage();
     page().prepare_canvas_contexts_for_compositing();
     page().restore_all_media_element_video_sinks();
-    Web::HTML::main_thread_event_loop().queue_task_to_update_the_rendering();
+    request_frame();
 }
 
 Queue<Web::QueuedInputEvent>& PageClient::input_event_queue()
@@ -505,8 +506,15 @@ void PageClient::set_zoom_level(double zoom_level)
 
 void PageClient::request_frame()
 {
-    if (m_frame_timer->is_active())
+    if (!Web::HTML::main_thread_event_loop().request_rendering_update())
         return;
+
+    schedule_frame_dispatch();
+}
+
+void PageClient::schedule_frame_dispatch()
+{
+    VERIFY(!m_frame_timer->is_active());
 
     auto delay = 0.0;
     auto now = Web::HighResolutionTime::unsafe_shared_current_time();
