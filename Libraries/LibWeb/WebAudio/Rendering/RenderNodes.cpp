@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2026, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,6 +8,8 @@
 #include <AK/Array.h>
 #include <AK/Math.h>
 #include <LibGfx/Vector3.h>
+#include <LibMedia/Audio/ChannelMap.h>
+#include <LibMedia/Sinks/AudioPullSink.h>
 #include <LibWeb/WebAudio/Rendering/RenderGraph.h>
 #include <LibWeb/WebAudio/Rendering/RenderNodes.h>
 
@@ -46,6 +49,49 @@ void DestinationRenderNode::process(RenderGraph& graph, RenderContext const& con
     destination_output.set_channel_count(channel_count());
     destination_output.zero();
     destination_output.sum_from(input, channel_interpretation());
+}
+
+MediaElementAudioSourceRenderNode::MediaElementAudioSourceRenderNode(NodeID node_id, size_t quantum_size, NonnullRefPtr<Media::AudioPullSink> audio_pull_sink, bool output_must_be_silenced)
+    : RenderNode(node_id, 0, 1, quantum_size)
+    , m_audio_pull_sink(move(audio_pull_sink))
+    , m_output_must_be_silenced(output_must_be_silenced)
+{
+}
+
+void MediaElementAudioSourceRenderNode::handle_message(NodeMessage const& message)
+{
+    message.visit(
+        [&](SetMediaElementSourceOutputSilenced const& set_silenced) { m_output_must_be_silenced = set_silenced.output_must_be_silenced; },
+        [](auto const&) {});
+}
+
+// https://webaudio.github.io/web-audio-api/#MediaElementAudioSourceNode
+void MediaElementAudioSourceRenderNode::process(RenderGraph&, RenderContext const& context)
+{
+    // The number of channels of the single output equals the number of channels of the audio referenced by the
+    // HTMLMediaElement passed in as the argument to createMediaElementSource(), or is 1 if the HTMLMediaElement has
+    // no audio.
+    auto channel_count = max(1u, static_cast<unsigned>(m_audio_pull_sink->channel_count()));
+    auto& source_output = output(0);
+    source_output.set_channel_count(channel_count);
+    source_output.zero();
+
+    if (m_audio_pull_sink->channel_count() == 0)
+        return;
+
+    VERIFY(channel_count <= Audio::ChannelMap::capacity());
+    Array<Span<float>, Audio::ChannelMap::capacity()> output_channels;
+    for (size_t channel = 0; channel < channel_count; ++channel)
+        output_channels[channel] = source_output.channel(channel);
+
+    m_audio_pull_sink->render(output_channels.span().trim(channel_count), static_cast<i64>(context.output_latency_in_frames));
+
+    // https://webaudio.github.io/web-audio-api/#MediaElementAudioSourceOptions-security
+    // To prevent this, a MediaElementAudioSourceNode MUST output silence instead of the normal output of the
+    // HTMLMediaElement if it has been created using an HTMLMediaElement for which the execution of the fetch
+    // algorithm labeled the resource as CORS-cross-origin.
+    if (m_output_must_be_silenced)
+        source_output.zero();
 }
 
 GainRenderNode::GainRenderNode(NodeID node_id, size_t quantum_size, NonnullRefPtr<RenderAudioParam> gain)

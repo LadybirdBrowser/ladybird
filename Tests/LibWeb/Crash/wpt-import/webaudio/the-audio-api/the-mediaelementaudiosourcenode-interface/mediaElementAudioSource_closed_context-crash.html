@@ -1,0 +1,9 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Regression for MediaElementAudioSourceNode constructor crash after closing AudioContext</title>
+<video id="video"></video>
+<script>
+  var audioContext = new AudioContext();
+  audioContext.close();
+  new MediaElementAudioSourceNode(audioContext, {mediaElement:video});
+</script>

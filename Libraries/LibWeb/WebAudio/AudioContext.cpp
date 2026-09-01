@@ -143,6 +143,7 @@ void AudioContext::document_became_inactive()
         m_renderer->stop();
         m_renderer->clear_callbacks();
     }
+    set_media_element_sources_ticking(false);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-currenttime
@@ -294,6 +295,8 @@ WebIDL::ExceptionOr<void> AudioContext::suspend(GC::Ref<WebIDL::Promise> promise
         m_renderer->suspend();
         m_renderer->clear_callbacks();
     }
+    // HTMLMediaElements will similarly have their output ignored until the system is resumed.
+    set_media_element_sources_ticking(false);
 
     // 7.2: Set the [[rendering thread state]] on the AudioContext to suspended.
     set_rendering_state(AudioContextState::Suspended);
@@ -343,6 +346,7 @@ WebIDL::ExceptionOr<void> AudioContext::close(GC::Ref<WebIDL::Promise> promise)
         m_renderer->stop();
         m_renderer->clear_callbacks();
     }
+    set_media_element_sources_ticking(false);
 
     // 5.2: Set the [[rendering thread state]] to "suspended".
     set_rendering_state(AudioContextState::Suspended);
@@ -375,7 +379,16 @@ bool AudioContext::start_rendering_audio_graph()
 {
     if (m_renderer)
         m_renderer->resume();
+    set_media_element_sources_ticking(true);
     return true;
+}
+
+void AudioContext::set_media_element_sources_ticking(bool ticking)
+{
+    for (auto const& [node_id, node] : playing_sources()) {
+        if (auto* media_element_source = as_if<MediaElementAudioSourceNode>(*node))
+            media_element_source->media_element()->set_audio_pull_sink_ticking(ticking);
+    }
 }
 
 // The renderer's callback captures a GC root on this context, keeping it alive while it renders. That root is released

@@ -2,6 +2,7 @@
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2023-2026, Tim Flynn <trflynn89@ladybird.org>
  * Copyright (c) 2025-2026, Gregory Bertilson <gregory@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,6 +14,7 @@
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/MediaSupport.h>
 #include <LibMedia/PlaybackManager.h>
+#include <LibMedia/Sinks/AudioPullSink.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/Track.h>
 #include <LibMedia/VideoFrame.h>
@@ -64,6 +66,26 @@
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::HTML {
+
+class HTMLMediaElement::AudioPullSinkAttachment {
+public:
+    AudioPullSinkAttachment(NonnullRefPtr<Media::AudioPullSink> sink, bool ticking, Function<void(bool)> set_output_must_be_silenced)
+        : m_sink(move(sink))
+        , m_ticking(ticking)
+        , m_set_output_must_be_silenced(move(set_output_must_be_silenced))
+    {
+    }
+
+    Media::AudioPullSink& sink() { return m_sink; }
+    bool is_ticking() const { return m_ticking; }
+    void set_ticking(bool ticking) { m_ticking = ticking; }
+    void set_output_must_be_silenced(bool output_must_be_silenced) { m_set_output_must_be_silenced(output_must_be_silenced); }
+
+private:
+    NonnullRefPtr<Media::AudioPullSink> m_sink;
+    bool m_ticking { true };
+    Function<void(bool)> m_set_output_must_be_silenced;
+};
 
 class HTMLMediaElement::ActiveVideoSink {
 public:
@@ -190,6 +212,35 @@ void HTMLMediaElement::initialize_element()
     });
 
     document().page().register_media_element({}, unique_id());
+}
+
+HTMLMediaElement::AttachAudioPullSinkResult HTMLMediaElement::attach_audio_pull_sink(NonnullRefPtr<Media::AudioPullSink> audio_pull_sink, bool ticking, Function<void(bool)> set_output_must_be_silenced)
+{
+    if (m_audio_pull_sink_attachment)
+        return AttachAudioPullSinkResult::AlreadyAttached;
+
+    m_audio_pull_sink_attachment = make<AudioPullSinkAttachment>(move(audio_pull_sink), ticking, move(set_output_must_be_silenced));
+    if (m_playback_manager)
+        m_playback_manager->set_audio_pull_sink(m_audio_pull_sink_attachment->sink(), ticking);
+    return AttachAudioPullSinkResult::Attached;
+}
+
+void HTMLMediaElement::set_audio_pull_sink_ticking(bool ticking)
+{
+    if (!m_audio_pull_sink_attachment)
+        return;
+    m_audio_pull_sink_attachment->set_ticking(ticking);
+    if (m_playback_manager)
+        m_playback_manager->set_audio_pull_sink_ticking(ticking);
+}
+
+void HTMLMediaElement::set_media_data_must_be_silenced(bool media_data_must_be_silenced)
+{
+    if (m_media_data_must_be_silenced == media_data_must_be_silenced)
+        return;
+    m_media_data_must_be_silenced = media_data_must_be_silenced;
+    if (m_audio_pull_sink_attachment)
+        m_audio_pull_sink_attachment->set_output_must_be_silenced(media_data_must_be_silenced);
 }
 
 void HTMLMediaElement::finalize()
@@ -795,6 +846,10 @@ GC::Ref<TextTrack> HTMLMediaElement::add_text_track(Bindings::TextTrackKind kind
 WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
 {
     m_first_data_load_event_since_load_start = true;
+
+    // AD-HOC: Until the fetch algorithm labels the new resource as CORS-same-origin, do not expose samples from a
+    //         previous or partially replaced resource through Web Audio.
+    set_media_data_must_be_silenced(true);
 
     // FIXME: 1. Set this element's is currently stalled to false.
 
@@ -1485,7 +1540,16 @@ void HTMLMediaElement::run_remote_mode_resource_fetch_steps(ByteRange byte_range
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
 
     fetch_algorithms_input.process_response = [self = GC::Ref(*this), byte_range = move(byte_range), fetch_generation](auto response) mutable {
+        if (fetch_generation != self->m_current_fetch_generation)
+            return;
+
         auto& fetch_data = self->m_remote_fetch_data;
+
+        // https://webaudio.github.io/web-audio-api/#MediaElementAudioSourceOptions-security
+        // To prevent this, a MediaElementAudioSourceNode MUST output silence instead of the normal output of the
+        // HTMLMediaElement if it has been created using an HTMLMediaElement for which the execution of the fetch
+        // algorithm labeled the resource as CORS-cross-origin.
+        self->set_media_data_must_be_silenced(response->is_cors_cross_origin());
 
         // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
         //        https://github.com/whatwg/html/issues/9355
@@ -2106,6 +2170,8 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
 {
     m_playback_manager = Media::PlaybackManager::create();
     m_playback_manager->set_audio_output_disabled(document().page().client().is_headless());
+    if (m_audio_pull_sink_attachment)
+        m_playback_manager->set_audio_pull_sink(m_audio_pull_sink_attachment->sink(), m_audio_pull_sink_attachment->is_ticking());
 
     m_playback_manager->set_playback_rate(static_cast<float>(m_playback_rate));
 
@@ -2183,8 +2249,12 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
 void HTMLMediaElement::set_up_playback_manager_for_local()
 {
+    set_media_data_must_be_silenced(false);
+
     m_playback_manager = Media::PlaybackManager::create();
     m_playback_manager->set_audio_output_disabled(document().page().client().is_headless());
+    if (m_audio_pull_sink_attachment)
+        m_playback_manager->set_audio_pull_sink(m_audio_pull_sink_attachment->sink(), m_audio_pull_sink_attachment->is_ticking());
 
     m_playback_manager->set_playback_rate(static_cast<float>(m_playback_rate));
 
