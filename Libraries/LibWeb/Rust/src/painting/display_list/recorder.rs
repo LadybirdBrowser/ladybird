@@ -896,6 +896,28 @@ impl DisplayListRecorder {
         );
     }
 
+    pub fn draw_isolated_display_list(
+        &mut self,
+        display_list_id: DisplayListResourceId,
+        mask_display_list_id: DisplayListResourceId,
+        rect: FloatRect,
+        list_size: IntSize,
+        compositing_and_blending_operator: CompositingAndBlendingOperator,
+        mask_kind: MaskKind,
+    ) {
+        self.append_command(
+            &DrawIsolatedDisplayList {
+                display_list_id,
+                mask_display_list_id,
+                rect,
+                list_size,
+                compositing_and_blending_operator,
+                mask_kind,
+            },
+            &[],
+        );
+    }
+
     pub fn paint_nested_display_list(
         &mut self,
         display_list_id: DisplayListResourceId,

@@ -527,6 +527,10 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
                 //     conservative for the latter. Pattern tile display lists are always rasterized into
                 //     standalone surfaces and cannot read the destination, so they are not followed.
                 recurse_into_nested_display_list(command.display_list_id);
+            } else if constexpr (IsSame<Command, DrawIsolatedDisplayList>) {
+                recurse_into_nested_display_list(command.display_list_id);
+                if (command.mask_display_list_id.value() != 0)
+                    recurse_into_nested_display_list(command.mask_display_list_id);
             }
             if constexpr (requires { command.compositing_and_blending_operator; }) {
                 bool blends_with_isolated_backdrop_color = false;
@@ -592,6 +596,10 @@ void DisplayListResourceStorage::collect_referenced_resources(
             }
             if constexpr (requires { command.display_list_id; }) {
                 add_display_list_resource(command.display_list_id);
+            }
+            if constexpr (requires { command.mask_display_list_id; }) {
+                if (command.mask_display_list_id.value() != 0)
+                    add_display_list_resource(command.mask_display_list_id);
             }
         });
     });

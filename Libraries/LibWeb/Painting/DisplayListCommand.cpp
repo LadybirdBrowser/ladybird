@@ -237,6 +237,15 @@ void DrawRect::dump(StringBuilder& builder) const
     builder.appendff(" rect={} color={} rough={}", rect, color, rough);
 }
 
+void DrawIsolatedDisplayList::dump(StringBuilder& builder) const
+{
+    builder.appendff(" rect={} list_size={}", rect, list_size);
+    if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
+        builder.appendff(" blend_mode={}", static_cast<int>(compositing_and_blending_operator));
+    if (mask_display_list_id.value() != 0)
+        builder.appendff(" has_mask={}", mask_kind == Gfx::MaskKind::Luminance ? "luminance"sv : "alpha"sv);
+}
+
 void PaintNestedDisplayList::dump(StringBuilder& builder) const
 {
     builder.appendff(" rect={}", rect);

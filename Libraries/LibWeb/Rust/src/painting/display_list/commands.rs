@@ -36,6 +36,7 @@ pub enum DisplayListCommandType {
     ApplyBackdropFilter,
     DrawRect,
     PaintNestedDisplayList,
+    DrawIsolatedDisplayList,
     CompositorScrollNode,
     CompositorWheelHitTestTarget,
     CompositorWheelHitTestTargetWithCornerRadii,
@@ -96,6 +97,7 @@ impl DisplayListCommandType {
             Self::ApplyBackdropFilter => "ApplyBackdropFilter",
             Self::DrawRect => "DrawRect",
             Self::PaintNestedDisplayList => "PaintNestedDisplayList",
+            Self::DrawIsolatedDisplayList => "DrawIsolatedDisplayList",
             Self::CompositorScrollNode => "CompositorScrollNode",
             Self::CompositorWheelHitTestTarget => "CompositorWheelHitTestTarget",
             Self::CompositorWheelHitTestTargetWithCornerRadii => "CompositorWheelHitTestTargetWithCornerRadii",
@@ -1273,6 +1275,38 @@ ffi_bytes_fields!(PaintNestedDisplayList {
 
 impl DisplayListCommand for PaintNestedDisplayList {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::PaintNestedDisplayList;
+    fn bounding_rect(&self) -> Option<IntRect> {
+        Some(enclosing_int_rect(self.rect))
+    }
+}
+
+pub const NO_MASK_DISPLAY_LIST: DisplayListResourceId = DisplayListResourceId(0);
+
+// Plays its content list inside an internally scoped saveLayer, optionally
+// masked by a second list composited with DestinationIn, so a group that
+// must not blend with the canvas needs no visual context frames.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct DrawIsolatedDisplayList {
+    pub display_list_id: DisplayListResourceId,
+    pub mask_display_list_id: DisplayListResourceId,
+    pub rect: FloatRect,
+    pub list_size: IntSize,
+    pub compositing_and_blending_operator: CompositingAndBlendingOperator,
+    pub mask_kind: MaskKind,
+}
+ffi_bytes_fields!(DrawIsolatedDisplayList {
+    display_list_id,
+    mask_display_list_id,
+    rect,
+    list_size,
+    compositing_and_blending_operator,
+    mask_kind
+});
+const _: () = assert!(std::mem::size_of::<DrawIsolatedDisplayList>() == 48);
+
+impl DisplayListCommand for DrawIsolatedDisplayList {
+    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::DrawIsolatedDisplayList;
     fn bounding_rect(&self) -> Option<IntRect> {
         Some(enclosing_int_rect(self.rect))
     }

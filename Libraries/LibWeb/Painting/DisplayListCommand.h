@@ -40,6 +40,7 @@ namespace Web::Painting {
     V(ApplyBackdropFilter, apply_backdrop_filter)                                      \
     V(DrawRect, draw_rect)                                                             \
     V(PaintNestedDisplayList, paint_nested_display_list)                               \
+    V(DrawIsolatedDisplayList, draw_isolated_display_list)                             \
     V(CompositorScrollNode, compositor_scroll_node)                                    \
     V(CompositorWheelHitTestTarget, compositor_wheel_hit_test_target)                  \
     V(CompositorWheelHitTestTargetWithCornerRadii,                                     \
@@ -96,6 +97,7 @@ inline Gfx::IntRect DrawRect::bounding_rect() const { return rect; }
 inline Gfx::IntRect PaintRadialGradient::bounding_rect() const { return rect; }
 inline Gfx::IntRect PaintConicGradient::bounding_rect() const { return rect; }
 inline Gfx::IntRect PaintNestedDisplayList::bounding_rect() const { return Gfx::enclosing_int_rect(rect); }
+inline Gfx::IntRect DrawIsolatedDisplayList::bounding_rect() const { return Gfx::enclosing_int_rect(rect); }
 inline Gfx::IntRect PaintScrollBar::bounding_rect() const { return track_rect.united(thumb_rect); }
 
 template<typename Command>
