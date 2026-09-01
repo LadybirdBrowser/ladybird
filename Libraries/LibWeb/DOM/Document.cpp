@@ -1868,10 +1868,8 @@ static void relayout_subtree(Layout::Box& subtree_root)
         bridge.compute_subtree_layout(subtree_root);
     }
 
-    subtree_root.for_each_in_inclusive_subtree([](auto& node) {
-        node.reset_needs_layout_update();
-        return TraversalDecision::Continue;
-    });
+    Layout::RustFFI::layout_arena_reset_layout_update_flags_in_subtree(
+        subtree_root.arena_handle(), Layout::Node::slot_id(&subtree_root));
 }
 
 // Recomputes containing blocks and derives the abspos escape flags for the inclusive subtree
