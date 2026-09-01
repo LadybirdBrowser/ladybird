@@ -370,8 +370,11 @@ void MessagePort::dispatch_pending_messages()
 void MessagePort::queue_message_task(SerializedTransferRecord&& serialize_with_transfer_result)
 {
     auto& global = relevant_global_object();
+    auto message_task_generation = m_message_task_generation;
     queue_global_task(Task::Source::PostedMessage, global,
-        GC::create_function(GC::Heap::the(), [this, serialize_with_transfer_result = move(serialize_with_transfer_result)]() mutable {
+        GC::create_function(GC::Heap::the(), [this, message_task_generation, serialize_with_transfer_result = move(serialize_with_transfer_result)]() mutable {
+            if (message_task_generation != m_message_task_generation)
+                return;
             this->post_message_task_steps(serialize_with_transfer_result);
         }));
 }
@@ -491,6 +494,12 @@ void MessagePort::close()
     m_pending_incoming_messages.clear();
     m_pending_outgoing_messages.clear();
     m_should_shutdown_on_enable = false;
+}
+
+void MessagePort::discard_pending_messages()
+{
+    m_pending_incoming_messages.clear();
+    ++m_message_task_generation;
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#handler-messageeventtarget-onmessageerror

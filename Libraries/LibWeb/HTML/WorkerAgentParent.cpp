@@ -152,6 +152,18 @@ void WorkerAgentParent::did_close_worker(WorkerAgentOwnerToken owner_token)
     parent->value->release_startup_keep_alive();
 }
 
+void WorkerAgentParent::terminate()
+{
+    if (m_agent_id == 0)
+        return;
+
+    worker_agent_parents().remove(m_owner_token);
+    release_startup_keep_alive();
+
+    auto agent_id = exchange(m_agent_id, 0);
+    Bindings::principal_host_defined_page(m_outside_settings->realm()).client().close_worker_agent(agent_id, m_owner_token);
+}
+
 void WorkerAgentParent::release_startup_keep_alive()
 {
     m_outside_settings->release_worker_agent_from_startup_keep_alive(*this);

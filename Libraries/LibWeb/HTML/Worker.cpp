@@ -121,9 +121,25 @@ void run_a_worker(Variant<GC::Ref<Worker>, GC::Ref<SharedWorker>> worker, URL::U
 // https://html.spec.whatwg.org/multipage/workers.html#dom-worker-terminate
 WebIDL::ExceptionOr<void> Worker::terminate()
 {
-    dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Terminate");
+    // The terminate() method steps are to terminate a worker given this's worker.
 
-    // FIXME: The terminate() method steps are to terminate a worker given this's worker.
+    // 1. Set the worker's WorkerGlobalScope object's closing flag to true.
+    // 2. If there are any tasks queued in the WorkerGlobalScope object's relevant agent's event loop's task queues,
+    //    discard them without processing them.
+    // 3. Abort the script currently running in the worker.
+    // 4. If the worker's WorkerGlobalScope object is actually a DedicatedWorkerGlobalScope object (i.e. the worker is
+    //    a dedicated worker), then empty the port message queue of the port that the worker's implicit port is
+    //    entangled with.
+    // AD-HOC: Discarding pending messages empties the outside port's message queue. Closing the outside port prevents
+    //         any new messages from being delivered to this Worker. Terminating the agent closes the dedicated worker
+    //         process, which aborts its script and discards its event loop.
+    m_outside_port->discard_pending_messages();
+    m_outside_port->close();
+    if (m_agent) {
+        m_agent->terminate();
+        m_agent = nullptr;
+    }
+
     return {};
 }
 
