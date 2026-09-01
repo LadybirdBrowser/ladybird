@@ -353,7 +353,7 @@ impl HeaderReader<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use libgfx_rust::{Color, FloatRect, IntRect};
+    use libgfx_rust::{Color, CompositingAndBlendingOperator, FloatRect, IntRect};
 
     fn context(spatial: u32, frame: Option<u32>) -> ContextRef {
         ContextRef {
@@ -366,6 +366,7 @@ mod tests {
         FillRect {
             rect: IntRect::new(x, y, width, height),
             color: Color::default(),
+            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
         }
     }
 
