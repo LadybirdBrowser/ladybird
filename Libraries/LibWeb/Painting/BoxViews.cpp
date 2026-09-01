@@ -256,12 +256,16 @@ Optional<CSSPixelRect> scrollable_overflow_rect(Layout::Node const& node)
     return rect;
 }
 
+static bool layout_node_is_visible(Layout::NodeWithStyle const& layout_node)
+{
+    return layout_node.visibility() == CSS::Visibility::Visible && layout_node.opacity() != 0;
+}
+
 bool is_visible(Layout::Node const& node)
 {
     if (!has_committed_box(node))
         return false;
-    auto const& styled_node = as<Layout::NodeWithStyle>(node);
-    return styled_node.visibility() == CSS::Visibility::Visible && styled_node.opacity() != 0;
+    return layout_node_is_visible(as<Layout::NodeWithStyle>(node));
 }
 
 bool visible_for_hit_testing(Layout::Node const& node)
@@ -587,11 +591,6 @@ CSSPixelRect caret_rect_for_child_offset(Layout::Node const& block, size_t offse
 
     rect.set_y(preceding_content_bottom.value_or(content_box.y()) + line_height * preceding_empty_lines);
     return rect;
-}
-
-static bool layout_node_is_visible(Layout::NodeWithStyle const& layout_node)
-{
-    return layout_node.visibility() == CSS::Visibility::Visible && layout_node.opacity() != 0;
 }
 
 Optional<CaretPaint> resolve_caret_paint(Layout::Node const& block, Layout::Node const* owner_inline)
