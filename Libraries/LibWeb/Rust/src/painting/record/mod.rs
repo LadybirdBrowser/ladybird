@@ -77,6 +77,7 @@ pub struct PaintRecorder<'a> {
     pub(crate) visual_context_host: &'a FfiVisualContextHostCallbacks,
     pub(crate) nested: Option<NestedRecordingState>,
     pub(crate) nested_tree: Option<crate::painting::visual_context::VisualContextTree>,
+    pub(crate) recording_into_context_free_nested_list: bool,
     last_looked_up_box_local_frames_by_role:
         std::cell::RefCell<Option<(NodeSlotId, HashMap<FrameRole, FrameNodeIndex>)>>,
     pub(crate) prerecorded: crate::painting::record::masks::PrerecordedNestedDisplayLists,
@@ -209,6 +210,7 @@ impl<'a> PaintRecorder<'a> {
             visual_context_host: self.visual_context_host,
             nested,
             nested_tree,
+            recording_into_context_free_nested_list: false,
             last_looked_up_box_local_frames_by_role: std::cell::RefCell::new(None),
             prerecorded: crate::painting::record::masks::PrerecordedNestedDisplayLists::default(),
             viewport: self.viewport,

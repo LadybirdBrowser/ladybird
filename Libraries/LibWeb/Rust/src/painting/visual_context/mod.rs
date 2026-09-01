@@ -298,9 +298,6 @@ pub enum PieceKey {
 pub enum FrameRole {
     Structural,
     RootIsolation,
-    BackgroundIsolation {
-        piece: PieceKey,
-    },
     BackgroundLayerCornerClip {
         piece: PieceKey,
         layer: u16,

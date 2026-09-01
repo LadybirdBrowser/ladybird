@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #box {
+        margin: 8px;
+        width: 100px;
+        height: 50px;
+        background-image: linear-gradient(red, red), linear-gradient(blue, blue);
+        background-blend-mode: multiply, normal;
+    }
+</style>
+<div id="box"></div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

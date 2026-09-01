@@ -89,6 +89,7 @@ pub(crate) fn record_display_list(
         visual_context_host,
         nested: None,
         nested_tree: None,
+        recording_into_context_free_nested_list: false,
         last_looked_up_box_local_frames_by_role: std::cell::RefCell::new(None),
         prerecorded: crate::painting::record::masks::PrerecordedNestedDisplayLists::default(),
         command_cache_source,
