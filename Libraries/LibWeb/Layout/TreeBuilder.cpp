@@ -63,6 +63,7 @@ private:
     struct PrincipalNodeFrameStorage;
     struct PseudoElementFrameStorage;
     static TraversalDecision clear_stale_layout_node(DOM::Node&, DOM::Node const* cleared_subtree_root = nullptr);
+    static TraversalDecision clear_stale_layout_node_in_subtree(DOM::Node&, DOM::Node const& subtree_root, DOM::Node const* cleared_subtree_root = nullptr);
 
     RustFFI::FfiDomTreeBuilderCallbacks make_ffi_dom_tree_builder_callbacks();
     RustFFI::FfiPseudoTreeBuilderCallbacks make_ffi_pseudo_tree_builder_callbacks();
@@ -864,6 +865,16 @@ static bool is_svg_resource_box(Node const& layout_node)
     return layout_node.is_svg_pattern_box() || layout_node.is_svg_mask_box() || layout_node.is_svg_clip_box();
 }
 
+TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_node_in_subtree(DOM::Node& node, DOM::Node const& subtree_root, DOM::Node const* cleared_subtree_root)
+{
+    if (&node != &subtree_root) {
+        auto const* element = as_if<DOM::Element>(node);
+        if (element && element->rendered_in_top_layer())
+            return TraversalDecision::SkipChildrenAndContinue;
+    }
+    return clear_stale_layout_node(node, cleared_subtree_root);
+}
+
 TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_node(DOM::Node& node, DOM::Node const* cleared_subtree_root)
 {
     node.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
@@ -922,7 +933,7 @@ void LayoutTreeBuildBridge::detach_top_layer_element_layout_subtree(DOM::Element
             VERIFY(root_pointer);
             auto& root = *static_cast<DOM::Node*>(root_pointer);
             root.for_each_shadow_including_inclusive_descendant([&](auto& node) {
-                return clear_stale_layout_node(node, &root);
+                return clear_stale_layout_node_in_subtree(node, root, &root);
             }); },
         .slot_element = [](void* element_pointer) -> void* {
             VERIFY(element_pointer);
@@ -1012,11 +1023,11 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             auto const* cleared_subtree_root = scope == RustFFI::FfiStaleSubtreeClearScope::Inclusive ? nullptr : &root;
             if (scope == RustFFI::FfiStaleSubtreeClearScope::DescendantsBoundedToRoot) {
                 root.for_each_shadow_including_descendant([&](auto& node) {
-                    return builder.clear_stale_layout_node(node, cleared_subtree_root);
+                    return builder.clear_stale_layout_node_in_subtree(node, root, cleared_subtree_root);
                 });
             } else {
                 root.for_each_shadow_including_inclusive_descendant([&](auto& node) {
-                    return builder.clear_stale_layout_node(node, cleared_subtree_root);
+                    return builder.clear_stale_layout_node_in_subtree(node, root, cleared_subtree_root);
                 });
             } },
         .resolve_counters = [](void* element_pointer, RustFFI::FfiPseudoElement ffi_pseudo) {

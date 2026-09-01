@@ -2255,11 +2255,23 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
     if (m_needs_layout_tree_update) {
         document().set_needs_repaint(Badge<Node> {}, InvalidateDisplayList::No);
 
+        bool const document_has_top_layer_elements = !document().top_layer_elements().is_empty();
+        auto is_rendered_top_layer_element = [&](Node& node) {
+            if (!document_has_top_layer_elements)
+                return false;
+            auto* element = as_if<Element>(node);
+            return element && element->rendered_in_top_layer();
+        };
+        bool update_is_inside_top_layer_member = is_rendered_top_layer_element(*this);
         for (auto* ancestor = flat_tree_parent(); ancestor; ancestor = ancestor->flat_tree_parent()) {
+            if (!update_is_inside_top_layer_member && is_rendered_top_layer_element(*ancestor))
+                update_is_inside_top_layer_member = true;
             if (ancestor->m_child_needs_layout_tree_update)
                 break;
             ancestor->m_child_needs_layout_tree_update = true;
         }
+        if (update_is_inside_top_layer_member)
+            document().set_child_needs_layout_tree_update(true);
 
         // If this is an element with display: contents, we need to propagate the layout tree update to the parent.
         if (auto* element = as_if<Element>(*this)) {

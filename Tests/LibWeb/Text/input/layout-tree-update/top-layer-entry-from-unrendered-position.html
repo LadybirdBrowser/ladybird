@@ -1,0 +1,157 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .contents {
+        display: contents;
+    }
+    .none {
+        display: none;
+    }
+</style>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const fixture = document.getElementById("fixture");
+        const svgNamespace = "http://www.w3.org/2000/svg";
+        const el = (tag, attributes, ...children) => {
+            const element = document.createElement(tag);
+            for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+            element.append(...children);
+            return element;
+        };
+        const svgEl = (tag, ...children) => {
+            const element = document.createElementNS(svgNamespace, tag);
+            element.append(...children);
+            return element;
+        };
+        const withShadowRoot = (host, options, markup) => {
+            const root = host.attachShadow(options);
+            if (markup !== undefined) root.innerHTML = markup;
+            return host;
+        };
+
+        const members = [
+            {
+                name: "popover",
+                create: () => el("div", { popover: "manual" }),
+                open: member => member.showPopover(),
+                close: member => member.hidePopover(),
+            },
+            {
+                name: "modal dialog",
+                create: () => el("dialog", {}),
+                open: member => member.showModal(),
+                close: member => member.close(),
+            },
+        ];
+
+        const shapes = [
+            {
+                name: "html element inside svg",
+                build: member => svgEl("svg", el("div", {}, member)),
+            },
+            {
+                name: "direct child of svg",
+                build: member => svgEl("svg", member),
+            },
+            {
+                name: "inside svg foreignObject",
+                build: member => svgEl("svg", svgEl("foreignObject", el("div", {}, member))),
+            },
+            {
+                name: "unslotted child of a host with an empty shadow root",
+                build: member => withShadowRoot(el("div", {}, member), { mode: "open" }, ""),
+            },
+            {
+                name: "unslotted child of a host whose slot has no match",
+                build: member => withShadowRoot(el("div", {}, member), { mode: "open" }, '<slot name="nope"></slot>'),
+            },
+            {
+                name: "unassigned child of a manual assignment host",
+                build: member =>
+                    withShadowRoot(el("div", {}, member), { mode: "open", slotAssignment: "manual" }, "<slot></slot>"),
+            },
+            {
+                name: "unslotted child of a display: contents host",
+                build: member => withShadowRoot(el("div", { class: "contents" }, member), { mode: "open" }, ""),
+            },
+            {
+                name: "child of a display: none element",
+                build: member => el("div", { class: "none" }, member),
+            },
+            {
+                name: "child of a display: contents element",
+                build: member => el("div", { class: "contents" }, member),
+            },
+            {
+                name: "child of the shadow root of an unslotted host",
+                build: member => {
+                    const inner = withShadowRoot(el("div", {}), { mode: "open" }, "");
+                    inner.shadowRoot.append(member);
+                    return withShadowRoot(el("div", {}, inner), { mode: "open" }, "");
+                },
+            },
+        ];
+
+        const results = [];
+        const check = name => {
+            document.body.offsetHeight;
+            results.push(`${name}: ${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}`);
+        };
+
+        for (const kind of members) {
+            for (const shape of shapes) {
+                const label = `${kind.name} as ${shape.name}`;
+                let member = kind.create();
+
+                fixture.replaceChildren(shape.build(member));
+                kind.open(member);
+                check(`${label}: entered before the first layout`);
+                kind.close(member);
+                check(`${label}: left before the first layout`);
+
+                member = kind.create();
+                fixture.replaceChildren(shape.build(member));
+                check(`${label}: installed`);
+                kind.open(member);
+                check(`${label}: entered`);
+                member.append(el("span", {}, "content"));
+                check(`${label}: mutated while in the top layer`);
+                member.firstChild.append(el("b", {}, "deeper"));
+                check(`${label}: mutated deeper while in the top layer`);
+                kind.close(member);
+                check(`${label}: left`);
+                fixture.append(el("span", {}, "unrelated"));
+                kind.open(member);
+                check(`${label}: entered with an unrelated pending mutation`);
+                kind.close(member);
+                check(`${label}: left again`);
+            }
+
+            const label = kind.name;
+            let member = kind.create();
+
+            fixture.replaceChildren(el("div", { id: "target" }, member), svgEl("svg", el("div", { id: "svg-child" })));
+            kind.open(member);
+            check(`${label}: entered at a rendered position`);
+            document.getElementById("svg-child").append(member);
+            check(`${label}: moved into svg while in the top layer`);
+            kind.close(member);
+            check(`${label}: left from inside svg`);
+
+            member = kind.create();
+            fixture.replaceChildren(el("div", { id: "target" }, member));
+            kind.open(member);
+            check(`${label}: entered below a visible ancestor`);
+            document.getElementById("target").className = "none";
+            check(`${label}: ancestor hidden while in the top layer`);
+            document.getElementById("target").className = "";
+            check(`${label}: ancestor shown again`);
+            kind.close(member);
+            check(`${label}: left below a visible ancestor`);
+        }
+
+        fixture.replaceChildren();
+        for (const line of results) println(line);
+    });
+</script>
