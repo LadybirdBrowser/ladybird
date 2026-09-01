@@ -736,11 +736,6 @@ bool NodeWithStyle::is_inline_table() const
     return display.is_inline_outside() && display.is_table_inside();
 }
 
-bool Node::is_replaced_element() const
-{
-    return has_flag(RustFFI::NodeFlag::IsReplacedElement);
-}
-
 bool Node::is_atomic_inline() const
 {
     return RustFFI::layout_node_data_is_atomic_inline(m_data);
@@ -824,7 +819,6 @@ CSS::TransformStyle NodeWithStyle::used_transform_style() const
     if (transform_style() == CSS::TransformStyle::Flat)
         return CSS::TransformStyle::Flat;
 
-    // Keep this in sync with ComputedValues::has_transform_style_grouping_property().
     auto has_mask_layer_image = any_of(mask_layers(), [](auto const& layer) { return layer.background_image != nullptr; });
     bool has_transform_style_grouping_property = (overflow_x() != CSS::Overflow::Visible && overflow_x() != CSS::Overflow::Clip)
         || (overflow_y() != CSS::Overflow::Visible && overflow_y() != CSS::Overflow::Clip)

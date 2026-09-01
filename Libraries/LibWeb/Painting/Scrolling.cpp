@@ -155,19 +155,6 @@ bool could_be_scrolled_by_wheel_event(Layout::Node const& node)
     return axes.horizontal || axes.vertical;
 }
 
-Layout::Node const* nearest_scrollable_ancestor(Layout::Node const& node)
-{
-    for (auto const* box = node.containing_block(); box; box = box->containing_block()) {
-        if (!has_committed_box(*box))
-            return nullptr;
-        if (could_be_scrolled_by_wheel_event(*box))
-            return box;
-        if (is_fixed_position(*box))
-            return nullptr;
-    }
-    return nullptr;
-}
-
 static GC::Ptr<DOM::EventTarget> scroll_event_target(Layout::Node& node)
 {
     if (node.generated_for_pseudo_element().has_value())

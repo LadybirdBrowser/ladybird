@@ -16,9 +16,7 @@ class TextOffsetMapping {
 public:
     explicit TextOffsetMapping(DOM::Text const&);
 
-    bool is_split() const { return m_first_letter_slice != nullptr; }
     TextNode const* primary() const { return m_primary; }
-    TextSliceNode const* first_letter_slice() const { return m_first_letter_slice; }
 
     template<typename Callback>
     void for_each_fragment(Callback&& callback) const

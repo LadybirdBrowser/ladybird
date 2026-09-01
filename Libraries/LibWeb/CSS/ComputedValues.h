@@ -1196,8 +1196,6 @@ public:
     bool adopt_identical_group_payloads(ComputedValues const& previous) const;
     bool differs_in_any_layout_affecting_group_payload_from(ComputedValues const& other) const;
 
-    bool has_transform_style_grouping_property() const;
-
     // Returns the Rust-owned payload for direct read-only layout access. The
     // pointer is borrowed from this immutable ComputedValues instance.
     void const* style_group_payload(StyleGroupIndex) const;
@@ -1551,14 +1549,6 @@ public:
             return style_value->as_cursor();
         }
         PointerEvents pointer_events_value() const { return static_cast<PointerEvents>(pointer_events); }
-        ScrollbarColorData scrollbar_color_value() const
-        {
-            return {
-                .thumb_color = Color::from_bgra(scrollbar_color.thumb_color),
-                .track_color = Color::from_bgra(scrollbar_color.track_color),
-                .is_auto = scrollbar_color.is_auto,
-            };
-        }
         PreferredColorScheme color_scheme_value() const { return static_cast<PreferredColorScheme>(color_scheme); }
         ReadonlySpan<Utf16FlyString> color_schemes_span() const
         {
@@ -1599,8 +1589,6 @@ public:
 
         Optional<SVGPaint> fill_value() const { return paint_value(fill); }
         Optional<SVGPaint> stroke_value() const { return paint_value(stroke); }
-        FillRule fill_rule_value() const { return static_cast<FillRule>(fill_rule); }
-        ClipRule clip_rule_value() const { return static_cast<ClipRule>(clip_rule); }
         StrokeLinecap stroke_linecap_value() const { return static_cast<StrokeLinecap>(stroke_linecap); }
         StrokeLinejoin stroke_linejoin_value() const { return static_cast<StrokeLinejoin>(stroke_linejoin); }
         ColorInterpolation color_interpolation_value() const { return static_cast<ColorInterpolation>(color_interpolation); }
@@ -1907,7 +1895,6 @@ public:
             }
         }
 
-        TransformBox transform_box_value() const { return static_cast<TransformBox>(transform_box); }
         TransformOrigin transform_origin_value() const
         {
             return {
@@ -1969,7 +1956,6 @@ public:
         BorderData const& border_right_value() const { return reinterpret_cast<BorderData const&>(border_right); }
         BorderData const& border_bottom_value() const { return reinterpret_cast<BorderData const&>(border_bottom); }
         BorderImageData border_image_value() const;
-        RefPtr<AbstractImageStyleValue const> border_image_source_value() const;
 
         bool operator==(BorderValues const& other) const
         {

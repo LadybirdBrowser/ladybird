@@ -138,7 +138,6 @@ public:
     // Only meaningful on a remainder slice. Returns the first-letter slice that renders the leading
     // sub-range of the same DOM::Text, or nullptr if first-letter is not active for this DOM::Text.
     TextSliceNode const* first_letter_slice() const { return m_first_letter_slice.ptr(); }
-    TextSliceNode* first_letter_slice() { return m_first_letter_slice.ptr(); }
 
     void set_first_letter_slice(TextSliceNode& slice) { m_first_letter_slice = slice; }
 
