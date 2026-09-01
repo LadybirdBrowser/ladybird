@@ -175,8 +175,14 @@ void DisplayListPlayer::execute_run_commands(DisplayListCommandRun const& run, S
             return;
 
         TemporaryChange current_command_payload_change { m_current_command_payload, payload };
-        if (header.clips_to_bounding_rect)
-            push_clip(ReplayClip { .rect = header.bounding_rect.to_type<float>(), .corner_radii = {}, .mode = ClipMode::Intersect });
+        for_each_display_list_inline_clip(header, payload, [&](DisplayListInlineClip const& inline_clip) {
+            if (inline_clip.kind == InlineClipKind::Path) {
+                auto path_bytes = payload.slice(inline_clip.path_data.offset, inline_clip.path_data.size);
+                push_clip_path(Gfx::Path::from_serialized_bytes(path_bytes), inline_clip.path_winding_rule);
+            } else {
+                push_clip(ReplayClip { .rect = inline_clip.clip_rect_or_path_device_bounds, .corner_radii = inline_clip.corner_radii, .mode = inline_clip.mode });
+            }
+        });
         auto dispatch_command = [&]<DisplayListCommand Command>(auto&& callback) {
             auto command = read_display_list_command_payload<Command>(payload);
             if constexpr (IsSame<Command, PaintScrollBar>) {
@@ -199,7 +205,7 @@ void DisplayListPlayer::execute_run_commands(DisplayListCommandRun const& run, S
             ENUMERATE_DISPLAY_LIST_COMMANDS(DISPATCH_DISPLAY_LIST_COMMAND)
 #undef DISPATCH_DISPLAY_LIST_COMMAND
         }
-        if (header.clips_to_bounding_rect)
+        for (u8 index = 0; index < header.inline_clip_count; ++index)
             pop();
     });
 }

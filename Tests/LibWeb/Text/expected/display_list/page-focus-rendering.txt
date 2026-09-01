@@ -11,8 +11,8 @@ DisplayList:
 FillRect@s1/f0 rect=[0,0 86x22] color=rgb(255, 255, 255)
 FillPath@s1/f0 path_bounding_rect=[0,0 86x22]
 FillRect@s1/f1 rect=[12,3 19x16] color=rgba(101, 2, 0, 0.8)
-DrawGlyphRun@s1/f1 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0) clip_to_bounds=[3,3 9x15]
-DrawGlyphRun@s1/f1 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0) clip_to_bounds=[12,3 19x15]
+DrawGlyphRun@s1/f1 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0) inline_clips=[clip=[3,3 9x15]]
+DrawGlyphRun@s1/f1 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0) inline_clips=[clip=[12,3 19x15]]
 FillPath@s1/f0 path_bounding_rect=[-2,-2 90x26]
 DrawLine@s1/f0 from=[81,19] to=[83,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
 DrawLine@s1/f0 from=[80,19] to=[83,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
@@ -36,8 +36,8 @@ DisplayList:
 FillRect@s1/f0 rect=[0,0 86x22] color=rgb(255, 255, 255)
 FillPath@s1/f0 path_bounding_rect=[0,0 86x22]
 FillRect@s1/f1 rect=[12,3 19x16] color=rgba(16, 16, 16, 0.667)
-DrawGlyphRun@s1/f1 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0) clip_to_bounds=[3,3 9x15]
-DrawGlyphRun@s1/f1 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0) clip_to_bounds=[12,3 19x15]
+DrawGlyphRun@s1/f1 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0) inline_clips=[clip=[3,3 9x15]]
+DrawGlyphRun@s1/f1 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0) inline_clips=[clip=[12,3 19x15]]
 DrawLine@s1/f0 from=[81,19] to=[83,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
 DrawLine@s1/f0 from=[80,19] to=[83,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
 DrawLine@s1/f0 from=[78,19] to=[83,14] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
@@ -60,8 +60,8 @@ DisplayList:
 FillRect@s1/f0 rect=[0,0 86x22] color=rgb(255, 255, 255)
 FillPath@s1/f0 path_bounding_rect=[0,0 86x22]
 FillRect@s1/f1 rect=[12,3 19x16] color=rgba(101, 2, 0, 0.8)
-DrawGlyphRun@s1/f1 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0) clip_to_bounds=[3,3 9x15]
-DrawGlyphRun@s1/f1 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0) clip_to_bounds=[12,3 19x15]
+DrawGlyphRun@s1/f1 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0) inline_clips=[clip=[3,3 9x15]]
+DrawGlyphRun@s1/f1 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0) inline_clips=[clip=[12,3 19x15]]
 FillPath@s1/f0 path_bounding_rect=[-2,-2 90x26]
 DrawLine@s1/f0 from=[81,19] to=[83,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
 DrawLine@s1/f0 from=[80,19] to=[83,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid

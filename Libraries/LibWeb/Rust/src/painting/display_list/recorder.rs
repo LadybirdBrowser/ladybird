@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::builder::{CommandRange, ContextRewrite, DisplayListBuilder, HEADER_SIZE};
+use super::builder::{CommandRange, ContextRewrite, DisplayListBuilder, HEADER_SIZE, PendingInlineClip};
 use super::commands::*;
 use crate::painting::display_list::ffi_bytes::FfiBytes;
 use libgfx_rust::*;
@@ -236,7 +236,7 @@ pub struct DisplayListRecorder {
     builder: DisplayListBuilder,
     context: ContextRef,
     mask_display_lists: Vec<(FrameNodeIndex, DisplayListResourceId)>,
-    confining_clip: Option<IntRect>,
+    ambient_inline_clips: Vec<PendingInlineClip>,
 }
 
 impl DisplayListRecorder {
@@ -245,10 +245,14 @@ impl DisplayListRecorder {
     }
 
     pub fn record_clipped_to(&mut self, clip: IntRect, record: impl FnOnce(&mut Self)) {
-        let outer_clip = self.confining_clip;
-        self.confining_clip = Some(outer_clip.map_or(clip, |outer| outer.intersected(clip)));
+        self.record_with_inline_clips(&[PendingInlineClip::intersecting_device_rect(clip)], record);
+    }
+
+    pub fn record_with_inline_clips(&mut self, inline_clips: &[PendingInlineClip], record: impl FnOnce(&mut Self)) {
+        let enclosing_scope_clip_count = self.ambient_inline_clips.len();
+        self.ambient_inline_clips.extend_from_slice(inline_clips);
         record(self);
-        self.confining_clip = outer_clip;
+        self.ambient_inline_clips.truncate(enclosing_scope_clip_count);
     }
 
     pub fn register_mask_display_list(&mut self, frames: &[FrameNodeIndex], display_list_id: DisplayListResourceId) {
@@ -270,6 +274,7 @@ impl DisplayListRecorder {
     }
 
     pub fn into_builder(self) -> DisplayListBuilder {
+        debug_assert!(self.ambient_inline_clips.is_empty());
         self.builder
     }
 
@@ -291,7 +296,7 @@ impl DisplayListRecorder {
 
     fn append_command<C: DisplayListCommand>(&mut self, command: &C, inline_data: &[u8]) {
         self.builder
-            .append_confined_to_clip(command, inline_data, self.context, self.confining_clip);
+            .append_with_inline_clips(command, inline_data, self.context, &self.ambient_inline_clips);
     }
 
     pub fn append_cached_command_range(

@@ -11008,8 +11008,8 @@ Utf16String Document::dump_display_list()
                     if constexpr (IsSame<Command, Painting::PaintNestedDisplayList>)
                         nested_display_list_id = command.display_list_id;
                 });
-                if (header.clips_to_bounding_rect)
-                    builder.appendff(" clip_to_bounds={}", header.bounding_rect);
+                if (header.inline_clip_count > 0)
+                    Painting::dump_display_list_inline_clips(builder, header, payload);
                 builder.append('\n');
 
                 if (nested_display_list_id.has_value()) {

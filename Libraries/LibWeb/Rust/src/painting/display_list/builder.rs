@@ -6,9 +6,83 @@
 
 use super::commands::*;
 use crate::painting::display_list::ffi_bytes::FfiBytes;
+use libgfx_rust::path::OwnedPath;
+use libgfx_rust::{CornerRadii, FloatRect, IntRect, WindingRule, enclosing_int_rect};
+use std::rc::Rc;
 
 pub const COMMAND_ALIGNMENT: usize = 16;
 pub const HEADER_SIZE: usize = std::mem::size_of::<DisplayListCommandHeader>();
+const PATH_DATA_ALIGNMENT: usize = std::mem::align_of::<u32>();
+
+#[derive(Clone)]
+pub struct PendingInlineClip {
+    kind: InlineClipKind,
+    mode: ClipMode,
+    clip_rect_or_path_device_bounds: FloatRect,
+    corner_radii: CornerRadii,
+    path_winding_rule: WindingRule,
+    serialized_path_bytes: Option<Rc<Vec<u8>>>,
+    narrows_clip_rect_to_the_command_bounding_rect: bool,
+}
+
+impl PendingInlineClip {
+    pub fn intersecting_device_rect(rect: IntRect) -> Self {
+        Self {
+            narrows_clip_rect_to_the_command_bounding_rect: true,
+            ..Self::intersecting_float_rect(rect.to_float())
+        }
+    }
+
+    pub fn intersecting_float_rect(rect: FloatRect) -> Self {
+        Self {
+            kind: InlineClipKind::Rect,
+            mode: ClipMode::Intersect,
+            clip_rect_or_path_device_bounds: rect,
+            corner_radii: CornerRadii::default(),
+            path_winding_rule: WindingRule::Nonzero,
+            serialized_path_bytes: None,
+            narrows_clip_rect_to_the_command_bounding_rect: false,
+        }
+    }
+
+    pub fn intersecting_rounded_rect(rect: FloatRect, corner_radii: CornerRadii) -> Self {
+        Self {
+            kind: InlineClipKind::RoundedRect,
+            corner_radii,
+            ..Self::intersecting_float_rect(rect)
+        }
+    }
+
+    pub fn subtracting_rect(rect: FloatRect) -> Self {
+        Self {
+            mode: ClipMode::Difference,
+            ..Self::intersecting_float_rect(rect)
+        }
+    }
+
+    pub fn subtracting_rounded_rect(rect: FloatRect, corner_radii: CornerRadii) -> Self {
+        Self {
+            mode: ClipMode::Difference,
+            ..Self::intersecting_rounded_rect(rect, corner_radii)
+        }
+    }
+
+    pub fn intersecting_path(path: &OwnedPath, path_winding_rule: WindingRule) -> Self {
+        Self {
+            kind: InlineClipKind::Path,
+            path_winding_rule,
+            serialized_path_bytes: Some(Rc::new(path.serialize_to_bytes())),
+            ..Self::intersecting_float_rect(enclosing_int_rect(FloatRect::from_array(path.bounding_box())).to_float())
+        }
+    }
+
+    fn header_bounding_rect_restriction(&self) -> Option<IntRect> {
+        match self.mode {
+            ClipMode::Intersect => Some(enclosing_int_rect(self.clip_rect_or_path_device_bounds)),
+            ClipMode::Difference => None,
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CommandRange {
@@ -86,29 +160,51 @@ impl DisplayListBuilder {
     }
 
     pub fn append<C: DisplayListCommand>(&mut self, command: &C, inline_data: &[u8], context: ContextRef) {
-        self.append_confined_to_clip(command, inline_data, context, None);
+        self.append_with_inline_clips(command, inline_data, context, &[]);
     }
 
-    pub fn append_confined_to_clip<C: DisplayListCommand>(
+    pub fn append_with_inline_clips<C: DisplayListCommand>(
         &mut self,
         command: &C,
         inline_data: &[u8],
         context: ContextRef,
-        confining_clip: Option<libgfx_rust::IntRect>,
+        inline_clips: &[PendingInlineClip],
     ) {
         debug_assert_eq!(self.bytes.len() % COMMAND_ALIGNMENT, 0);
-        let payload_size = std::mem::size_of::<C>() + inline_data.len();
-        let padded_record_size = (HEADER_SIZE + payload_size).next_multiple_of(COMMAND_ALIGNMENT);
+        let inline_clip_count = u8::try_from(inline_clips.len()).expect("too many inline clips on one command");
+        let mut unpadded_payload_size = std::mem::size_of::<C>() + inline_data.len();
+        let mut path_spans = vec![DisplayListDataSpan::default(); inline_clips.len()];
+        for (index, clip) in inline_clips.iter().enumerate() {
+            let Some(path_bytes) = &clip.serialized_path_bytes else {
+                continue;
+            };
+            let path_offset = unpadded_payload_size.next_multiple_of(PATH_DATA_ALIGNMENT);
+            path_spans[index] = DisplayListDataSpan {
+                offset: u32::try_from(path_offset).expect("display list payload exceeds u32"),
+                size: u32::try_from(path_bytes.len()).expect("display list payload exceeds u32"),
+            };
+            unpadded_payload_size = path_offset + path_bytes.len();
+        }
+        let entries_size = inline_clips.len() * INLINE_CLIP_ENTRY_SIZE;
+        let padded_record_size =
+            (HEADER_SIZE + unpadded_payload_size + entries_size).next_multiple_of(COMMAND_ALIGNMENT);
+        let payload_size = padded_record_size - HEADER_SIZE;
+        let entries_offset = payload_size - entries_size;
+        debug_assert_eq!(entries_offset % COMMAND_ALIGNMENT, 0);
         let mut bounding_rect = command.bounding_rect();
-        if let Some(clip) = confining_clip {
-            let rect = bounding_rect.expect("a draw clipped to its bounds has a bounding rect");
-            bounding_rect = Some(rect.intersected(clip));
+        for clip in inline_clips {
+            if let Some(restriction) = clip.header_bounding_rect_restriction() {
+                bounding_rect = Some(match bounding_rect {
+                    Some(rect) => rect.intersected(restriction),
+                    None => restriction,
+                });
+            }
         }
         let header = DisplayListCommandHeader {
             command_type: C::COMMAND_TYPE,
             has_bounding_rect: bounding_rect.is_some(),
-            clips_to_bounding_rect: confining_clip.is_some(),
-            payload_size: u32::try_from(padded_record_size - HEADER_SIZE).expect("display list payload exceeds u32"),
+            inline_clip_count,
+            payload_size: u32::try_from(payload_size).expect("display list payload exceeds u32"),
             context,
             bounding_rect: bounding_rect.unwrap_or_default(),
         };
@@ -119,6 +215,26 @@ impl DisplayListBuilder {
         command.write_ffi_bytes(&mut self.bytes[payload_start..payload_start + std::mem::size_of::<C>()]);
         let inline_start = payload_start + std::mem::size_of::<C>();
         self.bytes[inline_start..inline_start + inline_data.len()].copy_from_slice(inline_data);
+        for (index, clip) in inline_clips.iter().enumerate() {
+            if let Some(path_bytes) = &clip.serialized_path_bytes {
+                let path_start = payload_start + path_spans[index].offset as usize;
+                self.bytes[path_start..path_start + path_bytes.len()].copy_from_slice(path_bytes);
+            }
+            let entry = DisplayListInlineClip {
+                clip_rect_or_path_device_bounds: if clip.narrows_clip_rect_to_the_command_bounding_rect {
+                    header.bounding_rect.to_float()
+                } else {
+                    clip.clip_rect_or_path_device_bounds
+                },
+                corner_radii: clip.corner_radii,
+                path_data: path_spans[index],
+                path_winding_rule: clip.path_winding_rule,
+                kind: clip.kind,
+                mode: clip.mode,
+            };
+            let entry_start = payload_start + entries_offset + index * INLINE_CLIP_ENTRY_SIZE;
+            entry.write_ffi_bytes(&mut self.bytes[entry_start..entry_start + INLINE_CLIP_ENTRY_SIZE]);
+        }
         note_command(&mut self.runs, &header, start, padded_record_size);
     }
 
@@ -194,7 +310,7 @@ pub fn read_header(bytes: &[u8]) -> DisplayListCommandHeader {
         )
         .expect("invalid display list command type"),
         has_bounding_rect: cursor.bool_at(std::mem::offset_of!(DisplayListCommandHeader, has_bounding_rect)),
-        clips_to_bounding_rect: cursor.bool_at(std::mem::offset_of!(DisplayListCommandHeader, clips_to_bounding_rect)),
+        inline_clip_count: cursor.u8_at(std::mem::offset_of!(DisplayListCommandHeader, inline_clip_count)),
         payload_size: cursor.u32_at(std::mem::offset_of!(DisplayListCommandHeader, payload_size)),
         context: {
             let base = std::mem::offset_of!(DisplayListCommandHeader, context);
@@ -333,24 +449,130 @@ mod tests {
         assert!(!run.has_unbounded_draw);
     }
 
+    fn inline_clip_entries(builder: &DisplayListBuilder, record_offset: usize) -> Vec<DisplayListInlineClip> {
+        let header = read_header(&builder.bytes()[record_offset..]);
+        let payload =
+            &builder.bytes()[record_offset + HEADER_SIZE..record_offset + HEADER_SIZE + header.payload_size as usize];
+        let count = header.inline_clip_count as usize;
+        let entries_offset = payload.len() - count * INLINE_CLIP_ENTRY_SIZE;
+        (0..count)
+            .map(|index| {
+                let entry_bytes = &payload[entries_offset + index * INLINE_CLIP_ENTRY_SIZE..];
+                let reader = HeaderReader { bytes: entry_bytes };
+                DisplayListInlineClip {
+                    clip_rect_or_path_device_bounds: FloatRect {
+                        x: f32::from_ne_bytes(entry_bytes[0..4].try_into().unwrap()),
+                        y: f32::from_ne_bytes(entry_bytes[4..8].try_into().unwrap()),
+                        width: f32::from_ne_bytes(entry_bytes[8..12].try_into().unwrap()),
+                        height: f32::from_ne_bytes(entry_bytes[12..16].try_into().unwrap()),
+                    },
+                    corner_radii: CornerRadii::default(),
+                    path_data: DisplayListDataSpan {
+                        offset: reader.u32_at(std::mem::offset_of!(DisplayListInlineClip, path_data)),
+                        size: reader.u32_at(std::mem::offset_of!(DisplayListInlineClip, path_data) + 4),
+                    },
+                    path_winding_rule: WindingRule::Nonzero,
+                    kind: match reader.u8_at(std::mem::offset_of!(DisplayListInlineClip, kind)) {
+                        0 => InlineClipKind::Rect,
+                        1 => InlineClipKind::RoundedRect,
+                        _ => InlineClipKind::Path,
+                    },
+                    mode: if reader.u8_at(std::mem::offset_of!(DisplayListInlineClip, mode)) == 0 {
+                        ClipMode::Intersect
+                    } else {
+                        ClipMode::Difference
+                    },
+                }
+            })
+            .collect()
+    }
+
     #[test]
-    fn a_confining_clip_narrows_the_header_and_flags_the_draw() {
+    fn a_confining_clip_narrows_the_header_and_appends_a_tail_entry() {
         let mut builder = DisplayListBuilder::new();
         let root = context(0, None);
-        builder.append_confined_to_clip(
+        builder.append_with_inline_clips(
             &fill_rect(0, 0, 100, 100),
             &[],
             root,
-            Some(IntRect::new(10, 10, 20, 20)),
+            &[PendingInlineClip::intersecting_device_rect(IntRect::new(
+                10, 10, 20, 20,
+            ))],
         );
         builder.append(&fill_rect(50, 50, 10, 10), &[], root);
         let header = read_header(builder.bytes());
-        assert!(header.clips_to_bounding_rect);
+        assert_eq!(header.inline_clip_count, 1);
         assert!(header.has_bounding_rect);
         assert_eq!(header.bounding_rect, IntRect::new(10, 10, 20, 20));
+        let entries = inline_clip_entries(&builder, 0);
+        assert_eq!(entries[0].kind, InlineClipKind::Rect);
+        assert_eq!(entries[0].mode, ClipMode::Intersect);
+        assert_eq!(
+            entries[0].clip_rect_or_path_device_bounds,
+            FloatRect::new(10.0, 10.0, 20.0, 20.0)
+        );
         let runs = builder.command_runs();
         assert_eq!(runs.len(), 1);
         assert_eq!(runs[0].ink_bounds, IntRect::new(10, 10, 50, 50));
+    }
+
+    #[test]
+    fn a_difference_entry_keeps_the_command_bounds_and_serializes_its_own_rect() {
+        let mut builder = DisplayListBuilder::new();
+        let root = context(0, None);
+        builder.append_with_inline_clips(
+            &fill_rect(0, 0, 100, 100),
+            &[],
+            root,
+            &[
+                PendingInlineClip::intersecting_float_rect(FloatRect::new(5.0, 5.0, 200.0, 200.0)),
+                PendingInlineClip::subtracting_rect(FloatRect::new(20.0, 20.0, 10.0, 10.0)),
+            ],
+        );
+        let header = read_header(builder.bytes());
+        assert_eq!(header.inline_clip_count, 2);
+        assert_eq!(header.bounding_rect, IntRect::new(5, 5, 95, 95));
+        let entries = inline_clip_entries(&builder, 0);
+        assert_eq!(
+            entries[0].clip_rect_or_path_device_bounds,
+            FloatRect::new(5.0, 5.0, 200.0, 200.0)
+        );
+        assert_eq!(entries[1].mode, ClipMode::Difference);
+        assert_eq!(
+            entries[1].clip_rect_or_path_device_bounds,
+            FloatRect::new(20.0, 20.0, 10.0, 10.0)
+        );
+    }
+
+    #[test]
+    fn spliced_records_keep_inline_clip_entries_byte_identical() {
+        let mut source = DisplayListBuilder::new();
+        let recorded = context(4, None);
+        source.append_with_inline_clips(
+            &fill_rect(0, 0, 100, 100),
+            &[1, 2, 3],
+            recorded,
+            &[PendingInlineClip::intersecting_device_rect(IntRect::new(
+                10, 10, 20, 20,
+            ))],
+        );
+
+        let mut builder = DisplayListBuilder::new();
+        let current = context(7, Some(1));
+        let destination_offset =
+            builder.append_command_range(source.bytes(), whole_tape(&source), Some(rewrite(recorded, current)));
+        let source_header = read_header(source.bytes());
+        let spliced_header = read_header(&builder.bytes()[destination_offset as usize..]);
+        assert_eq!(spliced_header.context, current);
+        assert_eq!(spliced_header.inline_clip_count, source_header.inline_clip_count);
+        let payload_of = |bytes: &[u8], offset: usize| {
+            let header = read_header(&bytes[offset..]);
+            bytes[offset + HEADER_SIZE..offset + HEADER_SIZE + header.payload_size as usize].to_vec()
+        };
+        assert_eq!(
+            payload_of(source.bytes(), 0),
+            payload_of(builder.bytes(), destination_offset as usize)
+        );
     }
 
     #[test]

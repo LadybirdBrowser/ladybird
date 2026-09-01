@@ -7,12 +7,12 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 FillRect@s1/f0 rect=[69,-17 47x100] color=rgba(101, 2, 0, 0.8)
-DrawGlyphRun@s1/f0 rect=[8,-17 169x100] translation=[8,62.984375] color=rgb(0, 0, 0) clip_to_bounds=[9,-15 60x91]
+DrawGlyphRun@s1/f0 rect=[8,-17 169x100] translation=[8,62.984375] color=rgb(0, 0, 0) inline_clips=[clip=[9,-15 60x91]]
 DrawLine@s1/f0 from=[8,70] to=[45,70] color=rgb(0, 0, 0) thickness=10 style=Solid
 DrawLine@s1/f0 from=[57,70] to=[67,70] color=rgb(0, 0, 0) thickness=10 style=Solid
-DrawGlyphRun@s1/f0 rect=[8,-17 169x100] translation=[8,62.984375] color=rgb(0, 0, 0) clip_to_bounds=[69,-15 47x91]
+DrawGlyphRun@s1/f0 rect=[8,-17 169x100] translation=[8,62.984375] color=rgb(0, 0, 0) inline_clips=[clip=[69,-15 47x91]]
 DrawLine@s1/f0 from=[109,70] to=[116,70] color=rgb(0, 0, 0) thickness=10 style=Solid
-DrawGlyphRun@s1/f0 rect=[8,-17 169x100] translation=[8,62.984375] color=rgb(0, 0, 0) clip_to_bounds=[116,-15 61x91]
+DrawGlyphRun@s1/f0 rect=[8,-17 169x100] translation=[8,62.984375] color=rgb(0, 0, 0) inline_clips=[clip=[116,-15 61x91]]
 DrawLine@s1/f0 from=[116,70] to=[153,70] color=rgb(0, 0, 0) thickness=10 style=Solid
 DrawLine@s1/f0 from=[165,70] to=[177,70] color=rgb(0, 0, 0) thickness=10 style=Solid
 
