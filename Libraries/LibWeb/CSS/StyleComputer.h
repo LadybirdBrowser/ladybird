@@ -247,6 +247,7 @@ public:
         // The style the key names the inherited groups of, for the same reason.
         StyleRecordID parent_style_record_identity;
         bool is_candidate { false };
+        bool style_input_recorded { false };
         // Whether the cascade holds anything that reads the inherited custom property environment:
         // a declaration of a custom property, or a value with a substitution still to make. Only
         // then does the key name that environment, which is an object the element's own ancestors

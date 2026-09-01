@@ -3797,35 +3797,39 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
         groups_to_rebuild);
     document().style_invalidation_counters().style_values_microseconds += (MonotonicTime::now() - values_started_at).to_microseconds();
 
-    // The result answers for another element only if this computation read nothing about this one
-    // beyond what the key holds. Everything that can read more says so on the element: a container
-    // unit or query asks about its container, `attr()` about its attributes, a tree-counting
-    // function about its place among its siblings, and `if()` about the environment. An animation
-    // or transition carries state on the element itself, and the monospace font-size recascade
-    // reads the whole ancestor chain rather than the inherited context. `var()` is not among them:
-    // what it resolves against is the cascaded custom properties, which the blocks in the key
-    // decide, and the inherited environment, which the parent in the key decides.
+    // The element's own next computation can be skipped only if this computation read nothing about
+    // this one beyond what the record holds. Everything that can read more says so on the element: a
+    // container unit or query asks about its container, `attr()` about its attributes, a
+    // tree-counting function about its place among its siblings, and `if()` about the environment.
+    // The monospace font-size recascade reads the whole ancestor chain rather than the inherited
+    // context. `var()` is not among them: what it resolves against is the cascaded custom
+    // properties, which the blocks in the record decide, and the inherited environment, which the
+    // parent in the record decides. Neither is an animation or transition: it carries state on the
+    // element itself, and its values are published by the animation refresh rather than derived here.
+    bool const computation_read_only_the_record = !element.style_uses_attr_css_function()
+        && !element.style_uses_if_css_function()
+        && !element.style_uses_custom_function()
+        && !element.style_uses_tree_counting_function()
+        && !element.style_depends_on_viewport_metrics()
+        && !element.style_depends_on_size_container_query()
+        && !element.style_depends_on_style_container_query()
+        && !sharing.cascade_font_family_is_monospace;
+    // The flags are cleared for the next computation, so the record is what has to answer whether
+    // that computation can be skipped.
+    if (sharing.style_input_recorded) {
+        auto* record = element.style_input_record();
+        VERIFY(record);
+        record->read_beyond_the_record = !computation_read_only_the_record;
+        record->style_uses_var_css_function = element.style_uses_var_css_function();
+        record->style_uses_inherit_css_function = element.style_uses_inherit_css_function();
+        record->explicitly_inherited_non_inherited_style_groups = sharing.explicitly_inherited_non_inherited_style_groups;
+    }
     if (sharing.is_candidate) {
-        bool const computation_read_only_the_key = !element.style_uses_attr_css_function()
-            && !element.style_uses_if_css_function()
-            && !element.style_uses_custom_function()
-            && !element.style_uses_tree_counting_function()
-            && !element.style_depends_on_viewport_metrics()
-            && !element.style_depends_on_size_container_query()
-            && !element.style_depends_on_style_container_query()
-            && !sharing.cascade_font_family_is_monospace
+        // The result answers for another element only if it also holds no animated values: an
+        // animation or transition is state of this element that the other element does not have.
+        bool const computation_read_only_the_key = computation_read_only_the_record
             && !computed_values->animated_properties()
             && !computed_values->has_animated_values();
-        // The same question decides whether this element's own next computation can be skipped, and
-        // its record is what has to answer it once the flags are cleared for that computation.
-        if (!abstract_element.pseudo_element().has_value()) {
-            auto* record = element.style_input_record();
-            VERIFY(record);
-            record->read_beyond_the_record = !computation_read_only_the_key;
-            record->style_uses_var_css_function = element.style_uses_var_css_function();
-            record->style_uses_inherit_css_function = element.style_uses_inherit_css_function();
-            record->explicitly_inherited_non_inherited_style_groups = sharing.explicitly_inherited_non_inherited_style_groups;
-        }
         if (computation_read_only_the_key) {
             auto key_hash = compute_style_sharing_key_hash(sharing.key);
             Vector<u64> style_input_declaration_words;
@@ -4522,6 +4526,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         m_style_input_record_scratch = element.take_style_input_record();
         element.set_style_input_record(move(record));
         new_style_input_record = element.style_input_record();
+        sharing->style_input_recorded = true;
     };
 
     // Nothing this element's last computation read has moved, so the style it produced is still the
