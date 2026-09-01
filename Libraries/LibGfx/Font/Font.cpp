@@ -201,15 +201,6 @@ SkFont Font::skia_font(float scale) const
     return sk_font;
 }
 
-Font::ShapingCache::~ShapingCache() = default;
-
-void Font::ShapingCache::clear()
-{
-    map.clear();
-    for (auto& slot : single_ascii_character_map)
-        slot = nullptr;
-}
-
 static bool hb_face_has_table(hb_face_t* face, hb_tag_t tag)
 {
     hb_blob_t* blob = hb_face_reference_table(face, tag);
