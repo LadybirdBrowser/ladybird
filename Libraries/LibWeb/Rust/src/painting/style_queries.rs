@@ -171,6 +171,14 @@ pub(crate) fn is_scroll_container(arena: &LayoutNodeArena, node: NodeSlotId) -> 
         || overflow_value_makes_box_a_scroll_container(style.overflow_y())
 }
 
+pub(crate) fn has_style_containment(style: ComputedValuesView<'_>) -> bool {
+    let box_values = style.box_values();
+    box_values.style_containment
+        || box_values.is_size_container
+        || box_values.is_inline_size_container
+        || style.content_visibility() == content_visibility::AUTO
+}
+
 pub(crate) fn has_paint_containment(arena: &LayoutNodeArena, node: NodeSlotId, style: ComputedValuesView<'_>) -> bool {
     let contained = style.box_values().paint_containment || style.content_visibility() == content_visibility::AUTO;
     contained && containment_applies_to_display(arena, node, style)

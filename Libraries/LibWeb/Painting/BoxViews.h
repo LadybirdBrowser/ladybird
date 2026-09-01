@@ -96,7 +96,6 @@ WEB_API Optional<String> flex_layout_json(Layout::Node const&, UniqueNodeID);
 
 WEB_API CSSPixelPoint box_type_agnostic_position(Layout::Node const&);
 WEB_API bool should_paint_cursor(Layout::Node const&);
-WEB_API Layout::Node const* nearest_self_painting_inline_box(Layout::Node const&);
 WEB_API bool has_content(Layout::Node const&);
 WEB_API CSSPixelRect caret_rect_for_child_offset(Layout::Node const&, size_t offset);
 WEB_API Optional<CaretPaint> resolve_caret_paint(Layout::Node const& block, Layout::Node const* owner_inline);

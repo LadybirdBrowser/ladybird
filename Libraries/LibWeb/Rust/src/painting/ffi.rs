@@ -380,6 +380,41 @@ pub unsafe extern "C" fn layout_arena_take_scrollable_overflow_recalculation_sta
 
 /// # Safety
 ///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
+/// `node` must name a live node in this arena.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_invalidate_nearest_self_painting_inline_paint_cache(
+    arena: *mut c_void,
+    node: NodeSlotId,
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        if let Some(ancestor) =
+            crate::painting::fragment_ownership::nearest_self_painting_inline_box(&arena.paintable_rows(), node)
+        {
+            arena.invalidate_paint_cache(ancestor);
+        }
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_supports_svg_masking(arena: *mut c_void, slot: NodeSlotId) -> bool {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        if !arena.paintable_rows().paintable_row_is_populated(slot) {
+            return false;
+        }
+        arena
+            .node_kind_if_live(slot)
+            .is_some_and(crate::painting::node_painting::supports_svg_masking)
+    })
+}
+
+/// # Safety
+///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_row(arena: *mut c_void, slot: NodeSlotId) -> *const PaintableData {

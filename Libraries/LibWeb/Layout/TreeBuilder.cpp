@@ -1044,7 +1044,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             VERIFY(node_pointer);
             VERIFY(layout_node_pointer);
             auto& node = *static_cast<DOM::Node*>(node_pointer);
-            auto& layout_node = *static_cast<Layout::Node*>(layout_node_pointer);
             auto* element = as_if<DOM::Element>(node);
             auto* slot_element = as_if<HTML::HTMLSlotElement>(node);
             auto* parent_node = as_if<DOM::ParentNode>(node);
@@ -1061,7 +1060,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 .child_needs_layout_tree_update = node.child_needs_layout_tree_update(),
                 .is_svg_switch_element = is<SVG::SVGSwitchElement>(node),
                 .is_document = node.is_document(),
-                .has_style_containment = is<NodeWithStyle>(layout_node) && static_cast<NodeWithStyle&>(layout_node).has_style_containment(),
                 .dom_children_parent = parent_node,
                 .shadow_root = shadow_root ? static_cast<DOM::ParentNode*>(shadow_root.ptr()) : nullptr,
                 .slot_element = slot_element,

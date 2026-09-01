@@ -274,7 +274,6 @@ public:
 
     bool is_atomic_inline() const;
     bool is_fragmented_inline() const;
-    NodeWithStyle const* nearest_fragmented_inline_ancestor() const;
 
     // These optimize hot is<T> variants for the surviving layout classes where dynamic_cast is too slow.
     virtual bool is_box() const { return false; }
@@ -661,7 +660,6 @@ public:
 
     // https://drafts.csswg.org/css-contain-2/#containment-types
     bool has_size_containment() const;
-    bool has_style_containment() const;
 
     [[nodiscard]] bool has_css_transform() const;
 
