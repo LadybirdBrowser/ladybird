@@ -7,6 +7,7 @@
 #include <AK/Assertions.h>
 #include <AK/HashMap.h>
 #include <AK/IDAllocator.h>
+#include <AK/NumericLimits.h>
 #include <AK/Singleton.h>
 #include <AK/TemporaryChange.h>
 #include <Application/EventLoopImplementationMacOS.h>
@@ -444,12 +445,32 @@ NonnullOwnPtr<EventLoopImplementationMacOS> EventLoopImplementationMacOS::create
 
 int EventLoopImplementationMacOS::exec()
 {
-    [NSApp run];
-    return m_exit_code;
+    if (auto exit_code = exit_code_if_requested(); exit_code.has_value())
+        return exit_code.release_value();
+
+    if (m_main_loop) {
+        [NSApp run];
+        if (auto exit_code = exit_code_if_requested(); exit_code.has_value())
+            return exit_code.release_value();
+        return 0;
+    }
+
+    for (;;) {
+        pump(PumpMode::WaitForEvents);
+        if (auto exit_code = exit_code_if_requested(); exit_code.has_value())
+            return exit_code.release_value();
+    }
 }
 
 size_t EventLoopImplementationMacOS::pump(PumpMode mode)
 {
+    if (!m_main_loop) {
+        auto result = m_thread_event_queue.process();
+        auto duration = mode == PumpMode::WaitForEvents && result == 0 ? NumericLimits<double>::max() : 0;
+        CFRunLoopRunInMode(kCFRunLoopDefaultMode, duration, true);
+        return result + m_thread_event_queue.process();
+    }
+
     auto* wait_until = mode == PumpMode::WaitForEvents ? [NSDate distantFuture] : [NSDate distantPast];
 
     auto* event = [NSApp nextEventMatchingMask:NSEventMaskAny
@@ -471,8 +492,14 @@ size_t EventLoopImplementationMacOS::pump(PumpMode mode)
 
 void EventLoopImplementationMacOS::quit(int exit_code)
 {
-    m_exit_code = exit_code;
-    [NSApp stop:nil];
+    request_exit(exit_code);
+    if (m_main_loop) {
+        [NSApp stop:nil];
+    } else {
+        CFRunLoopSourceSignal(m_impl->deferred_source);
+        CFRunLoopWakeUp(m_impl->run_loop);
+        CFRunLoopStop(m_impl->run_loop);
+    }
 }
 
 void EventLoopImplementationMacOS::wake()
@@ -490,7 +517,15 @@ void EventLoopImplementationMacOS::deferred_invoke(Function<void()>&& invokee)
 
 bool EventLoopImplementationMacOS::was_exit_requested() const
 {
-    return ![NSApp isRunning];
+    if (Core::EventLoopImplementation::was_exit_requested())
+        return true;
+    return m_main_loop && ![NSApp isRunning];
+}
+
+void EventLoopImplementationMacOS::set_main_loop()
+{
+    VERIFY(CFRunLoopGetCurrent() == CFRunLoopGetMain());
+    m_main_loop = true;
 }
 
 }

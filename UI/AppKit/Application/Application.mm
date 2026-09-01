@@ -39,7 +39,12 @@ Core::EventLoop& Application::create_platform_event_loop()
         [::Application sharedApplication];
     }
 
-    return WebView::Application::create_platform_event_loop();
+    auto& event_loop = WebView::Application::create_platform_event_loop();
+
+    if (!browser_options().headless_mode.has_value())
+        static_cast<EventLoopImplementationMacOS&>(event_loop.impl()).set_main_loop();
+
+    return event_loop;
 }
 
 Optional<String> Application::ui_font_family() const
