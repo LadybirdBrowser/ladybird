@@ -143,14 +143,7 @@ pub(crate) fn paint_base_with(
         let padding_box_rect =
             crate::painting::paintable_geometry::absolute_padding_box_rect(recorder.layout_arena, paintable);
         let border_radii = recorder.border_radii(paintable);
-        shadow::paint_box_shadow(
-            recorder,
-            paintable,
-            crate::painting::visual_context::PieceKey::Box,
-            border_box_rect,
-            padding_box_rect,
-            border_radii,
-        );
+        shadow::paint_box_shadow(recorder, paintable, border_box_rect, padding_box_rect, border_radii);
     }
     if phase == PaintPhase::Border
         && !crate::painting::paintable_geometry::committed_uses_collapsing_borders_model(

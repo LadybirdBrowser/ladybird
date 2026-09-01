@@ -10,7 +10,6 @@ use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::commands::{PaintInnerBoxShadow, PaintOuterBoxShadow};
 use crate::painting::record::PaintRecorder;
-use crate::painting::visual_context::{FrameRole, PieceKey};
 use libgfx_rust::{Color, CornerRadii, IntRect};
 
 fn add_spread_distance_to_border_radius(border_radius: &mut i32, spread_distance: i32) {
@@ -41,7 +40,6 @@ fn adjust_corners_for_spread_distance(corner_radii: &mut CornerRadii, spread_dis
 pub(crate) fn paint_box_shadow(
     recorder: &mut PaintRecorder<'_>,
     paintable: NodeSlotId,
-    piece: PieceKey,
     bordered_content_rect: CssPixelRect,
     borderless_content_rect: CssPixelRect,
     border_radii: BorderRadii,
@@ -56,8 +54,6 @@ pub(crate) fn paint_box_shadow(
     }
     paint_box_shadow_layers(
         recorder,
-        paintable,
-        piece,
         bordered_content_rect,
         borderless_content_rect,
         border_radii,
@@ -65,11 +61,8 @@ pub(crate) fn paint_box_shadow(
     );
 }
 
-#[allow(clippy::too_many_arguments)]
 fn paint_box_shadow_layers(
     recorder: &mut PaintRecorder<'_>,
-    paintable: NodeSlotId,
-    piece: PieceKey,
     bordered_content_rect: CssPixelRect,
     borderless_content_rect: CssPixelRect,
     border_radii: BorderRadii,
@@ -77,7 +70,6 @@ fn paint_box_shadow_layers(
 ) {
     let converter = recorder.converter;
     let corner_radii = border_radii.as_corners(&converter);
-    let outer_shadow_clip = recorder.local_context(paintable, FrameRole::OuterShadowClip { piece });
 
     // Box-shadow layers are ordered front-to-back, so we paint them in reverse.
     for layer in layers.iter().rev() {
@@ -134,15 +126,13 @@ fn paint_box_shadow_layers(
             let mut shadow_corner_radii = corner_radii;
             adjust_corners_for_spread_distance(&mut shadow_corner_radii, spread_distance);
 
-            recorder.with_optional_context(outer_shadow_clip, |recorder| {
-                recorder.recorder.paint_outer_box_shadow(PaintOuterBoxShadow {
-                    color: Color(layer.color),
-                    blur_radius,
-                    device_content_rect,
-                    content_corner_radii: corner_radii,
-                    shadow_rect,
-                    shadow_corner_radii,
-                });
+            recorder.recorder.paint_outer_box_shadow(PaintOuterBoxShadow {
+                color: Color(layer.color),
+                blur_radius,
+                device_content_rect,
+                content_corner_radii: corner_radii,
+                shadow_rect,
+                shadow_corner_radii,
             });
         }
     }
