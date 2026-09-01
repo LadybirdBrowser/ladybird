@@ -717,9 +717,15 @@ void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::Req
     m_active_requests.set(request_id, move(request));
 }
 
-void ConnectionFromClient::retrieved_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, String cookie)
+void ConnectionFromClient::retrieved_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, u64 cookie_request_id, String cookie)
 {
     note_event_tick("ipc-retrieved-cookie"sv);
+
+    if (g_primary_connection != this) {
+        did_misbehave("Non-primary connection sent an HTTP cookie response");
+        return;
+    }
+
     if (auto connection = m_connections.get(client_id); connection.has_value()) {
         auto request = [&]() {
             switch (request_type) {
@@ -728,13 +734,14 @@ void ConnectionFromClient::retrieved_http_cookie(int client_id, u64 request_id, 
             case RequestType::BackgroundRevalidation:
                 return (*connection)->m_active_revalidation_requests.get(request_id);
             case RequestType::Connect:
-                break;
+                did_misbehave("HTTP cookie response has an invalid request type");
+                return decltype((*connection)->m_active_requests.get(request_id)) {};
             }
             VERIFY_NOT_REACHED();
         }();
 
-        if (request.has_value())
-            (*request)->notify_retrieved_http_cookie({}, cookie);
+        if (request.has_value() && !(*request)->notify_retrieved_http_cookie({}, cookie_request_id, cookie))
+            did_misbehave("Duplicate or unexpected HTTP cookie response");
     }
 }
 

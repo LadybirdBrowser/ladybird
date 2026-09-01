@@ -572,8 +572,14 @@ void Request::notify_request_unblocked(Badge<HTTP::DiskCache>)
     transition_to_state(State::Init);
 }
 
-void Request::notify_retrieved_http_cookie(Badge<ConnectionFromClient>, StringView cookie)
+bool Request::notify_retrieved_http_cookie(Badge<ConnectionFromClient>, u64 cookie_request_id, StringView cookie)
 {
+    if (m_cookie_request_id != cookie_request_id)
+        return true;
+
+    if (m_state != State::RetrieveCookie)
+        return false;
+
     mark_lifecycle_event(this, &WireStats::cookie_completed_at);
 
     if (!cookie.is_empty()) {
@@ -582,6 +588,7 @@ void Request::notify_retrieved_http_cookie(Badge<ConnectionFromClient>, StringVi
     }
 
     transition_to_state(State::Fetch);
+    return true;
 }
 
 static constexpr size_t max_aia_fetches_per_request = 5;
@@ -996,8 +1003,10 @@ void Request::handle_retrieve_cookie_state()
     }
 
     if (auto connection = ConnectionFromClient::primary_connection(); connection.has_value()) {
+        static u64 s_next_cookie_request_id = 0;
+        m_cookie_request_id = s_next_cookie_request_id++;
         mark_lifecycle_event(this, &WireStats::cookie_started_at);
-        connection->async_retrieve_http_cookie(m_client->client_id(), m_request_id, m_type, m_url, m_client->is_private());
+        connection->async_retrieve_http_cookie(m_client->client_id(), m_request_id, m_type, *m_cookie_request_id, m_url, m_client->is_private());
     } else {
         m_network_error = Requests::NetworkError::RequestServerDied;
         transition_to_state(State::Error);
@@ -1409,6 +1418,11 @@ ErrorOr<void> Request::transfer_to_client(ConnectionFromClient& client, u64 requ
             m_client->async_request_finished(m_request_id, m_bytes_transferred_to_client, {}, m_network_error.value_or(Requests::NetworkError::Unknown));
     }
     previous_client.async_request_transferred(previous_request_id);
+
+    // NB: A pending cookie lookup names the previous client and request IDs, so its response will be ignored after the
+    //     transfer. Start a new lookup for the request's new owner instead of leaving it stuck in RetrieveCookie.
+    if (m_state == State::RetrieveCookie)
+        handle_retrieve_cookie_state();
 
     // An in-flight AIA fetch is registered with the client that started it, keyed by that client's request id.
     // The transfer above moved this request out of that client's table, so the fetch can no longer find it when it

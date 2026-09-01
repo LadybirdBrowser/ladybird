@@ -88,7 +88,7 @@ public:
     void release_transfer_lease() { m_transfer_lease.clear(); }
 
     virtual void notify_request_unblocked(Badge<HTTP::DiskCache>) override;
-    void notify_retrieved_http_cookie(Badge<ConnectionFromClient>, StringView cookie);
+    bool notify_retrieved_http_cookie(Badge<ConnectionFromClient>, u64 cookie_request_id, StringView cookie);
     void notify_fetch_complete(Badge<ConnectionFromClient>, int result_code);
     void retry_after_aia(Badge<ConnectionFromClient>);
 
@@ -212,6 +212,7 @@ private:
     Requests::RequestTimingInfo acquire_timing_info() const;
 
     u64 m_request_id { 0 };
+    Optional<u64> m_cookie_request_id;
     RequestType m_type { RequestType::Fetch };
     State m_state { State::Init };
 

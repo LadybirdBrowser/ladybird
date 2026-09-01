@@ -263,14 +263,14 @@ void RequestClient::request_transferred(u64 request_id)
     (*request)->did_transfer({});
 }
 
-void RequestClient::retrieve_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, URL::URL url, RequestServer::IsPrivate is_private)
+void RequestClient::retrieve_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, u64 cookie_request_id, URL::URL url, RequestServer::IsPrivate is_private)
 {
     String cookie;
 
     if (on_retrieve_http_cookie)
         cookie = on_retrieve_http_cookie(url, is_private);
 
-    async_retrieved_http_cookie(client_id, request_id, request_type, cookie);
+    async_retrieved_http_cookie(client_id, request_id, request_type, cookie_request_id, cookie);
 }
 
 void RequestClient::certificate_requested(u64 request_id)

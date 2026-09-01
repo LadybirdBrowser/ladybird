@@ -89,7 +89,7 @@ private:
     virtual Messages::RequestServer::SetCertificateResponse set_certificate(u64 request_id, ByteString, ByteString) override;
     virtual void ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level) override;
 
-    virtual void retrieved_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, String cookie) override;
+    virtual void retrieved_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, u64 cookie_request_id, String cookie) override;
 
     virtual void estimate_cache_size_accessed_since(u64 cache_size_estimation_id, UnixDateTime since) override;
     virtual void remove_cache_entries_accessed_since(u64 clear_cache_request_id, UnixDateTime since) override;

@@ -77,7 +77,7 @@ private:
     virtual void headers_became_available(u64 request_id, Vector<HTTP::Header>, Optional<u32>, Optional<String>, Optional<IPC::File>, u64 javascript_bytecode_size, Optional<u64>, CameFromCache) override;
     virtual void request_transferred(u64 request_id) override;
 
-    virtual void retrieve_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, URL::URL url, RequestServer::IsPrivate) override;
+    virtual void retrieve_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, u64 cookie_request_id, URL::URL url, RequestServer::IsPrivate) override;
 
     virtual void certificate_requested(u64 request_id) override;
 
