@@ -121,6 +121,33 @@ impl LayoutNodeArena {
         std::mem::take(&mut *self.partial_relayout_boundary_roots.borrow_mut())
     }
 
+    pub(crate) fn node_can_replay_saved_abspos_layout_inputs_after_style_change(&self, node: NodeSlotId) -> bool {
+        // SAFETY: The caller supplies a live slot; data() generation-checks it.
+        let data = unsafe { &*self.data(node) };
+
+        if data.containing_block.is_invalid() || !self.slot_is_live(data.containing_block) {
+            return false;
+        }
+
+        if node_facts::has_flag(data, NodeFlag::SavedAbsposCbDerivesFromOwnComputedValues) {
+            return false;
+        }
+
+        let Some(style) = node_facts::node_style_view(data) else {
+            return false;
+        };
+        let inset = &style.surround().inset;
+        let uses_static_position =
+            (inset.left.is_auto() && inset.right.is_auto()) || (inset.top.is_auto() && inset.bottom.is_auto());
+        if uses_static_position
+            && node_facts::has_flag(data, NodeFlag::SavedAbsposAlignmentDerivesFromOwnComputedValues)
+        {
+            return false;
+        }
+
+        true
+    }
+
     pub(crate) fn reset_cached_intrinsic_sizes_of_self_and_ancestors(&self, node: NodeSlotId) {
         // SAFETY: data() generation-checks the slot; the raw read ends before the epoch write.
         let node_kind = unsafe { (&raw const (*self.data(node)).kind).read() };
@@ -312,6 +339,22 @@ pub unsafe extern "C" fn layout_arena_take_partial_relayout_boundary_roots(
             unsafe { push_root(context, root) };
         }
     });
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call, and `node` must name a live node
+/// in this arena.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_node_can_replay_saved_abspos_layout_inputs_after_style_change(
+    arena: *mut c_void,
+    node: NodeSlotId,
+) -> bool {
+    abort_on_panic(|| {
+        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+        unsafe { LayoutNodeArena::from_handle(arena) }
+            .node_can_replay_saved_abspos_layout_inputs_after_style_change(node)
+    })
 }
 
 /// # Safety
