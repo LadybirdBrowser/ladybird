@@ -116,7 +116,7 @@ TEST_CASE(glyph_run_intercepts)
 
     // Bands are relative to the run's baseline origin; ink above the baseline has negative y.
     auto mid_x_height = -font->pixel_metrics().x_height / 2;
-    auto intercepts = run->get_glyph_intercepts(1, mid_x_height - 1, mid_x_height + 1);
+    auto intercepts = Gfx::glyph_run_glyph_intercepts(font, run->glyphs(), 1, mid_x_height - 1, mid_x_height + 1);
     EXPECT_EQ(intercepts.size(), 6u);
     float previous_end = 0;
     for (size_t i = 0; i + 1 < intercepts.size(); i += 2) {
@@ -127,13 +127,13 @@ TEST_CASE(glyph_run_intercepts)
     }
 
     // At twice the scale the intervals scale with it.
-    auto scaled_intercepts = run->get_glyph_intercepts(2, (mid_x_height - 1) * 2, (mid_x_height + 1) * 2);
+    auto scaled_intercepts = Gfx::glyph_run_glyph_intercepts(font, run->glyphs(), 2, (mid_x_height - 1) * 2, (mid_x_height + 1) * 2);
     EXPECT_EQ(scaled_intercepts.size(), 6u);
     for (size_t i = 0; i < intercepts.size(); ++i)
         EXPECT(AK::fabs(scaled_intercepts[i] - intercepts[i] * 2) < 0.01f);
 
     // A band far above the ascender touches no ink.
-    EXPECT(run->get_glyph_intercepts(1, -200, -190).is_empty());
+    EXPECT(Gfx::glyph_run_glyph_intercepts(font, run->glyphs(), 1, -200, -190).is_empty());
 
     // A band just below the top of the 'b' ascender is only reached by that glyph.
     auto* hb_font = font->harfbuzz_font();
@@ -143,11 +143,11 @@ TEST_CASE(glyph_run_intercepts)
     hb_glyph_extents_t b_extents {};
     EXPECT(hb_font_get_glyph_extents(hb_font, run->glyphs()[1].glyph_id, &b_extents));
     auto b_top = -b_extents.y_bearing * font->pixel_size() / y_scale;
-    auto ascender_intercepts = run->get_glyph_intercepts(1, b_top + 0.5f, b_top + 1.5f);
+    auto ascender_intercepts = Gfx::glyph_run_glyph_intercepts(font, run->glyphs(), 1, b_top + 0.5f, b_top + 1.5f);
     EXPECT_EQ(ascender_intercepts.size(), 2u);
     EXPECT(ascender_intercepts[0] >= run->glyphs()[1].position.x());
     EXPECT(ascender_intercepts[1] <= run->glyphs()[2].position.x());
 
     // A degenerate scale produces nothing.
-    EXPECT(run->get_glyph_intercepts(0, mid_x_height - 1, mid_x_height + 1).is_empty());
+    EXPECT(Gfx::glyph_run_glyph_intercepts(font, run->glyphs(), 0, mid_x_height - 1, mid_x_height + 1).is_empty());
 }

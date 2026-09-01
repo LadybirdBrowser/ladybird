@@ -60,15 +60,7 @@ public:
 
     [[nodiscard]] NonnullRefPtr<GlyphRun> slice(size_t start, size_t length) const;
 
-    // Conservative bounds of the painted glyphs in device pixels, relative to the run's baseline origin (glyph
-    // positions scaled by `scale`, with the font ascent added to y). The bounding box of the glyph origins is
-    // expanded by the font's overall glyph bounding box, falling back to tight per-glyph extents when the font
-    // doesn't record one.
     [[nodiscard]] FloatRect bounding_box(float scale) const;
-
-    // Pairs of [start, end] device-pixel x values, relative to the run's baseline origin, where glyph ink intersects
-    // the horizontal band [y_top, y_bottom]. One pair per painted glyph that has ink inside the band, in run order.
-    [[nodiscard]] Vector<float> get_glyph_intercepts(float scale, float y_top, float y_bottom) const;
 
 private:
     Vector<DrawGlyph> m_glyphs;
@@ -76,6 +68,16 @@ private:
     TextType m_text_type;
     float m_width { 0 };
 };
+
+// Conservative bounds of the painted glyphs in device pixels, relative to the run's baseline origin (glyph
+// positions scaled by `scale`, with the font ascent added to y). The bounding box of the glyph origins is
+// expanded by the font's overall glyph bounding box, falling back to tight per-glyph extents when the font
+// doesn't record one.
+[[nodiscard]] FloatRect glyph_run_bounding_box(Font const&, ReadonlySpan<DrawGlyph>, float scale);
+
+// Pairs of [start, end] device-pixel x values, relative to the run's baseline origin, where glyph ink intersects
+// the horizontal band [y_top, y_bottom]. One pair per painted glyph that has ink inside the band, in run order.
+[[nodiscard]] Vector<float> glyph_run_glyph_intercepts(Font const&, ReadonlySpan<DrawGlyph>, float scale, float y_top, float y_bottom);
 
 NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, float word_spacing, Utf16View const&, Gfx::Font const& font, GlyphRun::TextType, TrailingWhitespace* = nullptr);
 Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const&, FontCascadeList const&, float letter_spacing = 0.f);
