@@ -1,0 +1,6 @@
+api read: type=image/png text="api image payload"
+api paste: kind=file type=image/png file=image.png
+api html: <img src="data:image/png;base64,YXBpIGltYWdlIHBheWxvYWQ=">
+native read: null
+native paste: kind=file type=image/gif file=clipboard.gif
+native html: <img src="data:image/gif;base64,bmF0aXZlIGltYWdlIHBheWxvYWQ=">

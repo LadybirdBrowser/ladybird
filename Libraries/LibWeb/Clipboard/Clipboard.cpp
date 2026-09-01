@@ -248,6 +248,10 @@ void Clipboard::read(JS::Realm& realm, ClipboardReadOptions formats, GC::Ref<Web
 
                 // 2. For each systemClipboardRepresentation in systemClipboardItem:
                 for (auto const& system_clipboard_representation : system_clipboard_item.system_clipboard_representations) {
+                    // AD-HOC: We do not expose file-backed clipboard entries to scripts.
+                    if (!system_clipboard_representation.data.has<ByteString>())
+                        continue;
+
                     // 1. Let mimeType be the result of running the well-known mime type from os specific format
                     //    algorithm given systemClipboardRepresentation’s name.
                     auto mime_type = os_specific_well_known_format(system_clipboard_representation.name);
@@ -353,6 +357,11 @@ void Clipboard::read_text(JS::Realm& realm, GC::Ref<WebIDL::Promise> promise)
                 for (auto const& system_clipboard_item : data) {
                     // 1. For each systemClipboardRepresentation in systemClipboardItem:
                     for (auto const& system_clipboard_representation : system_clipboard_item.system_clipboard_representations) {
+                        // AD-HOC: We do not expose file-backed clipboard entries to scripts.
+                        auto const* data = system_clipboard_representation.data.get_pointer<ByteString>();
+                        if (!data)
+                            continue;
+
                         // 1. Let mimeType be the result of running the well-known mime type from os specific format
                         //    algorithm given systemClipboardRepresentation’s name.
                         auto mime_type = os_specific_well_known_format(system_clipboard_representation.name);
@@ -386,7 +395,7 @@ void Clipboard::read_text(JS::Realm& realm, GC::Ref<WebIDL::Promise> promise)
                             //         2. Return p.
 
                             auto decoder = TextCodec::decoder_for("UTF-8"sv);
-                            auto string = MUST(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, system_clipboard_representation.data));
+                            auto string = MUST(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, *data));
 
                             WebIDL::resolve_promise(promise, JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(string)));
                             return;

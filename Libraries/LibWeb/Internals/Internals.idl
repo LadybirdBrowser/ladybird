@@ -40,6 +40,8 @@ interface Internals {
     const unsigned short MOD_SUPER = 8;
     const unsigned short MOD_KEYPAD = 16;
 
+    const unsigned short MOD_PLATFORM_CTRL = 10; // MOD_CTRL | MOD_SUPER
+
     const unsigned short BUTTON_LEFT = 0;
     const unsigned short BUTTON_MIDDLE = 1;
     const unsigned short BUTTON_RIGHT = 2;
@@ -68,6 +70,8 @@ interface Internals {
     // Returns the text that would be placed on the clipboard if the user copied the current selection now.
     // Excludes nodes whose used value of user-select is 'none' — mirroring what browsers actually copy.
     Utf16DOMString selectedTextForClipboard();
+
+    undefined setClipboardFile(DOMString name, DOMString mimeType, DOMString data);
 
     // Drive marked/preedit-text composition via the same path platform input methods use. setMarkedTextFromInputMethod
     // updates the inline preedit — replacing any previous preedit. commitText finalizes the composition with the given

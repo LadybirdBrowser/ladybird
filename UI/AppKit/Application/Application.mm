@@ -11,6 +11,7 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/URL.h>
+#include <LibWebView/Utilities.h>
 #include <LibWebView/ViewImplementation.h>
 #include <Utilities/Conversions.h>
 #include <Utilities/ExternalURLHandler.h>
@@ -23,6 +24,7 @@
 #import <Interface/LocationSearchField.h>
 #import <Interface/Tab.h>
 #import <Interface/TabController.h>
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
 #if !__has_feature(objc_arc)
 #    error "This project requires ARC"
@@ -233,13 +235,31 @@ Web::Clipboard::SystemClipboardItem Application::clipboard_item() const
     Vector<Web::Clipboard::SystemClipboardRepresentation> representations;
     auto* paste_board = [NSPasteboard generalPasteboard];
 
-    for (NSPasteboardType type : [paste_board types]) {
-        auto mime_type = Ladybird::mime_type_for_pasteboard_type(type);
-        if (!mime_type.has_value())
-            continue;
+    auto* file_list = [paste_board readObjectsForClasses:@[ [NSURL class] ]
+                                                 options:@{NSPasteboardURLReadingFileURLsOnlyKey : @YES}];
 
-        auto data = Ladybird::ns_data_to_string([paste_board dataForType:type]);
-        representations.empend(mime_type.release_value(), move(data));
+    for (NSURL* url in file_list) {
+        auto file_path = Ladybird::ns_string_to_byte_string([url path]);
+
+        if (auto file = WebView::create_selected_file(file_path); file.is_error()) {
+            warnln("Unable to open clipboard file {}: {}", file_path, file.error());
+        } else if (auto* resource_values = [url resourceValuesForKeys:@[ NSURLContentTypeKey ] error:nil]) {
+            UTType* content_type = resource_values[NSURLContentTypeKey];
+
+            if (auto* mime_type = [content_type preferredMIMEType])
+                representations.empend(Ladybird::ns_string_to_string(mime_type), file.release_value());
+        }
+    }
+
+    if (representations.is_empty()) {
+        for (NSPasteboardType type : [paste_board types]) {
+            auto mime_type = Ladybird::mime_type_for_pasteboard_type(type);
+            if (!mime_type.has_value())
+                continue;
+
+            auto data = Ladybird::ns_data_to_string([paste_board dataForType:type]);
+            representations.empend(mime_type.release_value(), move(data));
+        }
     }
 
     return { move(representations) };
@@ -255,8 +275,10 @@ void Application::insert_clipboard_item(Web::Clipboard::SystemClipboardItem item
         if (!pasteboard_type)
             continue;
 
-        [paste_board setData:Ladybird::string_to_ns_data(entry.data)
-                     forType:pasteboard_type];
+        if (auto const* data = entry.data.get_pointer<ByteString>()) {
+            [paste_board setData:Ladybird::string_to_ns_data(*data)
+                         forType:pasteboard_type];
+        }
     }
 }
 

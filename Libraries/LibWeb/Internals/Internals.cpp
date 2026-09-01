@@ -43,6 +43,7 @@
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleSheetList.h>
+#include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/DOM/Document.h>
@@ -613,6 +614,18 @@ Utf16String Internals::current_cursor()
 Utf16String Internals::selected_text_for_clipboard()
 {
     return page().focused_navigable().selected_text();
+}
+
+WebIDL::ExceptionOr<void> Internals::set_clipboard_file(Utf16String const& name, Utf16String const& mime_type, Utf16String const& data)
+{
+    auto mime_type_utf8 = mime_type.to_utf8_but_should_be_ported_to_utf16();
+    auto data_utf8 = data.to_utf8_but_should_be_ported_to_utf16();
+
+    HTML::SelectedFile file { name, MUST(ByteBuffer::copy(data_utf8.bytes())) };
+    Clipboard::SystemClipboardRepresentation item { move(mime_type_utf8), move(file) };
+
+    page().client().page_did_insert_clipboard_item({ { move(item) } }, "unspecified"sv);
+    return {};
 }
 
 void Internals::set_marked_text_from_input_method(Utf16String const& text)

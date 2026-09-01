@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Base64.h>
 #include <AK/Debug.h>
 #include <AK/Math.h>
 #include <LibGC/Heap.h>
@@ -1793,26 +1794,54 @@ EventResult EventHandler::perform_paste_action()
     //     action once the contents arrive.
     document->page().request_clipboard_entries(GC::create_function(document->heap(), [document = GC::Ref { *document }](Vector<Clipboard::SystemClipboardItem> items) {
         auto data_store = HTML::DragDataStore::create();
+
+        auto add_text_item = [&](Utf16FlyString type, Utf16String data) {
+            data_store->add_item({
+                .kind = HTML::DragDataStoreItem::Kind::Text,
+                .type_string = move(type),
+                .data = move(data),
+                .file_data = {},
+                .file_name = {},
+            });
+        };
+
+        auto add_file_item = [&](Utf16FlyString type, Utf16String name, ByteBuffer data) {
+            data_store->add_item({
+                .kind = HTML::DragDataStoreItem::Kind::File,
+                .type_string = move(type),
+                .data = {},
+                .file_data = move(data),
+                .file_name = move(name),
+            });
+        };
+
         if (!items.is_empty()) {
-            for (auto const& representation : items.first().system_clipboard_representations) {
-                // NB: The clipboard representation's type may carry parameters, e.g. "text/plain;charset=utf-8".
-                Utf16FlyString type;
-                if (representation.name == "text/plain"sv || representation.name.starts_with_bytes("text/plain;"sv))
-                    type = "text/plain"_utf16_fly_string;
-                else if (representation.name == "text/html"sv || representation.name.starts_with_bytes("text/html;"sv))
-                    type = "text/html"_utf16_fly_string;
-                else
+            for (auto& representation : items.first().system_clipboard_representations) {
+                auto mime_type = MimeSniff::MimeType::parse(representation.name);
+                if (!mime_type.has_value())
                     continue;
 
-                data_store->add_item({
-                    .kind = HTML::DragDataStoreItem::Kind::Text,
-                    .type_string = move(type),
-                    .data = Utf16String::from_utf8_with_replacement_character(representation.data),
-                    .file_data = {},
-                    .file_name = {},
-                });
+                auto essence = Utf16FlyString::from_utf8(mime_type->essence());
+
+                representation.data.visit(
+                    [&](ByteString const& text) {
+                        auto data = String::from_utf8_with_replacement_character(text);
+
+                        if (essence.is_one_of("text/plain"sv, "text/html"sv)) {
+                            add_text_item(move(essence), Utf16String::from_utf8_with_replacement_character(text));
+                        } else if (essence == "image/png"sv) {
+                            // AD-HOC: The spec doesn't say what to do here, but other engines add a file named
+                            //         image.png for any PNG inserted via navigator.clipboard. Note that only PNG
+                            //         images are supported via that API.
+                            add_file_item(move(essence), "image.png"_utf16, text.to_byte_buffer());
+                        }
+                    },
+                    [&](HTML::SelectedFile& file) {
+                        add_file_item(move(essence), file.name(), file.take_contents());
+                    });
             }
         }
+
         if (auto navigable = document->navigable())
             navigable->event_handler().perform_paste_action(data_store);
     }));
@@ -1841,18 +1870,22 @@ EventResult EventHandler::perform_paste_action(NonnullRefPtr<HTML::DragDataStore
     //    pasting is enabled, insert the most suitable content found on the clipboard, if any, into the context.
     auto result = EventResult::Handled;
     if (event_was_not_canceled) {
-        Optional<Utf16View> html;
+        Optional<Utf16String> html;
         Utf16View plain_text;
+
         for (auto const& item : data_store->item_list()) {
-            if (item.kind != HTML::DragDataStoreItem::Kind::Text)
-                continue;
-            if (item.type_string == u"text/html"sv)
+            if (item.type_string == "text/html"sv) {
                 html = item.data;
-            else if (item.type_string == u"text/plain"sv)
+            } else if (item.type_string == "text/plain"sv) {
                 plain_text = item.data;
+            } else if (item.type_string.starts_with("image/"sv)) {
+                if (auto base64 = AK::encode_base64(item.file_data); !base64.is_error())
+                    html = Utf16String::formatted("<img src=\"data:{};base64,{}\" />", item.type_string, base64.value());
+            }
         }
+
         if (html.has_value() || !plain_text.is_empty())
-            result = insert_pasted_content(plain_text, html);
+            result = insert_pasted_content(plain_text, html.map([](auto const& html) -> Utf16View { return html; }));
     }
 
     // The trigger starting a paste can finish before the paste action does — so any input-method state pushed to the UI

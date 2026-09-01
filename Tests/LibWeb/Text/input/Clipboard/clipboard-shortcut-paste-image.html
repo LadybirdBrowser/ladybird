@@ -1,0 +1,73 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="editor" contenteditable="true"></div>
+<script>
+    promiseTest(async () => {
+        const setupListener = () => {
+            return new Promise(resolve => {
+                editor.addEventListener(
+                    "paste",
+                    event => {
+                        const item = event.clipboardData.items[0];
+                        const file = event.clipboardData.files[0];
+
+                        // Inserting HTML into the page happens just after this event is fired. Defer resolving the
+                        // promise so the test can inspect the HTML.
+                        setTimeout(() => {
+                            resolve(`kind=${item.kind} type=${item.type} file=${file.name}`);
+                        });
+                    },
+                    { once: true }
+                );
+            });
+        };
+
+        const readClipboard = async () => {
+            internals.dispatchUserActivatedEvent(editor, new Event("mousedown"));
+            const items = await navigator.clipboard.read();
+
+            for (const item of items) {
+                const type = item.types.find(type => type.startsWith("image/"));
+
+                if (type) {
+                    const blob = await item.getType(type);
+                    return `type=${blob.type} text="${await blob.text()}"`;
+                }
+            }
+
+            return null;
+        };
+
+        // Inserting a file via navigator.clipboard.write is accessible via navigator.clipboard.read and via
+        // user-initiated shortcuts.
+        {
+            const promise = setupListener();
+
+            internals.dispatchUserActivatedEvent(editor, new Event("mousedown"));
+            await navigator.clipboard.write([
+                new ClipboardItem({
+                    "image/png": new Blob(["api image payload"], { type: "image/png" }),
+                }),
+            ]);
+            println(`api read: ${await readClipboard()}`);
+
+            internals.sendKey(editor, "V", internals.MOD_PLATFORM_CTRL);
+            println(`api paste: ${await promise}`);
+            println(`api html: ${editor.innerHTML}`);
+        }
+
+        editor.innerHTML = "";
+
+        // A native clipboard file is not accessible via navigator.clipboard.read, but is via user-initiated shortcuts.
+        {
+            const promise = setupListener();
+
+            internals.setClipboardFile("clipboard.gif", "image/gif", "native image payload");
+            println(`native read: ${await readClipboard()}`);
+
+            internals.sendKey(editor, "V", internals.MOD_PLATFORM_CTRL);
+            println(`native paste: ${await promise}`);
+            println(`native html: ${editor.innerHTML}`);
+        }
+    });
+</script>

@@ -8,6 +8,7 @@
 #include <LibURL/InternalURLs.h>
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/URL.h>
+#include <LibWebView/Utilities.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/EventLoopImplementationQt.h>
@@ -41,6 +42,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QMimeDatabase>
 #include <QPointer>
 #include <QSizePolicy>
 #include <QStandardPaths>
@@ -896,11 +898,33 @@ Web::Clipboard::SystemClipboardItem Application::clipboard_item() const
     if (!mime_data)
         return {};
 
-    for (auto const& format : mime_data->formats()) {
-        auto mime_type = ak_string_from_qstring(format);
-        auto data = ak_byte_string_from_qbytearray(mime_data->data(format));
+    if (mime_data->hasUrls()) {
+        QMimeDatabase mime_database;
 
-        representations.empend(move(mime_type), move(data));
+        for (auto const& url : mime_data->urls()) {
+            if (!url.isLocalFile())
+                continue;
+
+            auto file_path = url.toLocalFile();
+
+            if (auto file = WebView::create_selected_file(ak_byte_string_from_qstring(file_path)); file.is_error()) {
+                warnln("Unable to open clipboard file {}: {}", file_path, file.error());
+            } else {
+                auto mime_type = mime_database.mimeTypeForFile(file_path);
+                representations.empend(ak_string_from_qstring(mime_type.name()), file.release_value());
+            }
+        }
+    }
+
+    if (representations.is_empty()) {
+        for (auto const& format : mime_data->formats()) {
+            auto mime_type = ak_string_from_qstring(format);
+            if (mime_type == "text/uri-list"sv)
+                continue;
+
+            auto data = ak_byte_string_from_qbytearray(mime_data->data(format));
+            representations.empend(move(mime_type), move(data));
+        }
     }
 
     return { move(representations) };
@@ -914,8 +938,10 @@ void Application::insert_clipboard_item(Web::Clipboard::SystemClipboardItem item
     }
 
     auto* mime_data = new QMimeData();
-    for (auto const& entry : item.system_clipboard_representations)
-        mime_data->setData(qstring_from_ak_string(entry.name), qbytearray_from_ak_string(entry.data));
+    for (auto const& entry : item.system_clipboard_representations) {
+        if (auto const* data = entry.data.get_pointer<ByteString>())
+            mime_data->setData(qstring_from_ak_string(entry.name), qbytearray_from_ak_string(*data));
+    }
 
     auto* clipboard = QGuiApplication::clipboard();
     clipboard->setMimeData(mime_data);
