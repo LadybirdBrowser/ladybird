@@ -242,14 +242,13 @@ pub(crate) fn box_owns_geometry_dependent_nodes(
         .is_some_and(|style| crate::painting::filter_bytes::contains_url(&style.effects().filter));
     let frames_are_geometry_dependent = handles.frame_handles().any(|index| {
         let node = &tree.frame_nodes[index.0 as usize];
-        node.role != FrameRole::Structural
-            || match &node.data {
-                FrameData::Clip(_) | FrameData::ClipPath(_) | FrameData::Mask(_) => true,
-                FrameData::Effects(effects) => {
-                    effects.filter.is_some() && effects_filter_is_resolved_by_the_host_against_geometry
-                }
-                FrameData::Dead => false,
+        match &node.data {
+            FrameData::Clip(_) | FrameData::ClipPath(_) | FrameData::Mask(_) => true,
+            FrameData::Effects(effects) => {
+                effects.filter.is_some() && effects_filter_is_resolved_by_the_host_against_geometry
             }
+            FrameData::Dead => false,
+        }
     });
     spatial_is_geometry_dependent || frames_are_geometry_dependent
 }

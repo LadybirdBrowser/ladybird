@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::local_frames::LocalFrameBuilder;
 use super::scroll_state::{NO_SCROLL_STATE_SLOT, ScrollState, ScrollStateSlot};
 use super::*;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
@@ -469,11 +468,7 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
 
     assignment.has_accumulated_visual_context = true;
     assignment.accumulated_visual_context = own_state;
-
-    let local_frames_begin = sink.next_frame_node_index().0;
-    LocalFrameBuilder::new(sink, layout_arena, slot, env.pixel_ratio, false)
-        .build(own_state, Some(env.root_background_source));
-    let local_frames_end = sink.next_frame_node_index().0;
+    let chain_frames_end = sink.next_frame_node_index().0;
 
     if super::node_values::wants_fixed_background_visual_context(
         layout_arena,
@@ -568,11 +563,8 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
     let descendant_frames_end = sink.next_frame_node_index().0;
     assignment.record.node_handles = BoxVisualContextNodeHandles {
         spatial: (first_spatial_node_index..spatial_end).map(SpatialNodeIndex).collect(),
-        chain_frames: (first_frame_node_index..local_frames_begin)
-            .map(FrameNodeIndex)
-            .collect(),
-        local_frames: (local_frames_begin..local_frames_end).map(FrameNodeIndex).collect(),
-        descendant_frames: (local_frames_end..descendant_frames_end).map(FrameNodeIndex).collect(),
+        chain_frames: (first_frame_node_index..chain_frames_end).map(FrameNodeIndex).collect(),
+        descendant_frames: (chain_frames_end..descendant_frames_end).map(FrameNodeIndex).collect(),
     };
     let mut absolute_position_nearest_scroll_nodes = inherited.absolute_position_nearest_scroll_nodes;
     let mut fixed_position_nearest_scroll_nodes = inherited.fixed_position_nearest_scroll_nodes;

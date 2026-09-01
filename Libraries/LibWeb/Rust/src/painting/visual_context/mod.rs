@@ -11,7 +11,6 @@ pub mod delta;
 pub mod dirty;
 pub mod dump;
 pub mod incremental;
-pub mod local_frames;
 pub mod nested;
 pub mod node_values;
 pub mod queries;
@@ -288,50 +287,21 @@ pub struct SpatialNode {
     pub parent: SpatialNodeIndex,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum PieceKey {
-    Box,
-    Piece(u16),
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum FrameRole {
-    Structural,
-    RootIsolation,
-    BackgroundLayerCornerClip {
-        piece: PieceKey,
-        layer: u16,
-        isolated: bool,
-    },
-    BackgroundLayerClip {
-        piece: PieceKey,
-        layer: u16,
-        isolated: bool,
-    },
-    BackgroundLayerBlend {
-        piece: PieceKey,
-        layer: u16,
-        isolated: bool,
-    },
-}
-
 #[derive(Clone)]
 pub struct FrameNode {
     pub data: FrameData,
     pub parent: FrameNodeIndex,
     pub spatial: SpatialNodeIndex,
-    pub role: FrameRole,
     pub clips_everything: bool,
 }
 
 impl FrameNode {
-    pub fn new(data: FrameData, parent: FrameNodeIndex, spatial: SpatialNodeIndex, role: FrameRole) -> Self {
+    pub fn new(data: FrameData, parent: FrameNodeIndex, spatial: SpatialNodeIndex) -> Self {
         let clips_everything = data.clips_everything();
         Self {
             data,
             parent,
             spatial,
-            role,
             clips_everything,
         }
     }
@@ -710,7 +680,6 @@ impl VisualContextTree {
             FrameData::Dead,
             FrameNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
-            FrameRole::Structural,
         ));
         (FrameNodeIndex((self.frame_nodes.len() - 1) as u32), false)
     }
@@ -741,7 +710,6 @@ impl VisualContextTree {
             return false;
         }
         node.data = FrameData::Dead;
-        node.role = FrameRole::Structural;
         node.clips_everything = false;
         self.live_frame_node_count -= 1;
         self.quarantined_frame_slots.push(index);
@@ -823,16 +791,6 @@ impl VisualContextTree {
         parent: FrameNodeIndex,
         spatial: SpatialNodeIndex,
     ) -> FrameNodeIndex {
-        self.append_frame_with_role(data, parent, spatial, FrameRole::Structural)
-    }
-
-    pub fn append_frame_with_role(
-        &mut self,
-        data: FrameData,
-        parent: FrameNodeIndex,
-        spatial: SpatialNodeIndex,
-        role: FrameRole,
-    ) -> FrameNodeIndex {
         assert!(
             self.spatial_is_live(spatial),
             "a frame node's spatial node must be a live node"
@@ -843,7 +801,7 @@ impl VisualContextTree {
             let parent_node = &self.frame_nodes[parent.0 as usize];
             debug_assert!(self.spatial_is_ancestor_or_self(parent_node.spatial, spatial));
         }
-        self.frame_nodes.push(FrameNode::new(data, parent, spatial, role));
+        self.frame_nodes.push(FrameNode::new(data, parent, spatial));
         self.live_frame_node_count += 1;
         FrameNodeIndex((self.frame_nodes.len() - 1) as u32)
     }
@@ -1061,7 +1019,6 @@ pub trait VisualContextNodeSink {
         data: FrameData,
         parent: FrameNodeIndex,
         spatial: SpatialNodeIndex,
-        role: FrameRole,
     ) -> FrameNodeIndex;
     fn spatial_node_at(&self, index: SpatialNodeIndex) -> &SpatialNode;
     fn next_spatial_node_index(&self) -> SpatialNodeIndex;
@@ -1076,7 +1033,7 @@ pub trait VisualContextNodeSink {
 
     fn append_frame_node_under(&mut self, context: ContextRef, data: FrameData) -> ContextRef {
         ContextRef {
-            frame: self.append_frame_node(data, context.frame, context.spatial, FrameRole::Structural),
+            frame: self.append_frame_node(data, context.frame, context.spatial),
             ..context
         }
     }
@@ -1092,9 +1049,8 @@ impl VisualContextNodeSink for VisualContextTree {
         data: FrameData,
         parent: FrameNodeIndex,
         spatial: SpatialNodeIndex,
-        role: FrameRole,
     ) -> FrameNodeIndex {
-        self.append_frame_with_role(data, parent, spatial, role)
+        self.append_frame(data, parent, spatial)
     }
 
     fn spatial_node_at(&self, index: SpatialNodeIndex) -> &SpatialNode {
@@ -1114,32 +1070,22 @@ impl VisualContextNodeSink for VisualContextTree {
 pub struct BoxVisualContextNodeHandles {
     pub spatial: Vec<SpatialNodeIndex>,
     pub chain_frames: Vec<FrameNodeIndex>,
-    pub local_frames: Vec<FrameNodeIndex>,
     pub descendant_frames: Vec<FrameNodeIndex>,
 }
 
 pub static EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES: BoxVisualContextNodeHandles = BoxVisualContextNodeHandles {
     spatial: Vec::new(),
     chain_frames: Vec::new(),
-    local_frames: Vec::new(),
     descendant_frames: Vec::new(),
 };
 
 impl BoxVisualContextNodeHandles {
     pub fn frame_handles(&self) -> impl Iterator<Item = FrameNodeIndex> + '_ {
-        self.chain_frames
-            .iter()
-            .chain(&self.local_frames)
-            .chain(&self.descendant_frames)
-            .copied()
+        self.chain_frames.iter().chain(&self.descendant_frames).copied()
     }
 
     pub fn contains_frame(&self, frame: FrameNodeIndex) -> bool {
         self.frame_handles().any(|handle| handle == frame)
-    }
-
-    pub fn local_frame_handles(&self) -> &[FrameNodeIndex] {
-        &self.local_frames
     }
 }
 
@@ -1534,12 +1480,7 @@ mod tests {
         assert!(reused);
         assert!(!tree.replace_frame_node(
             slot,
-            FrameNode::new(
-                effects(),
-                FrameNodeIndex::NONE,
-                VISUAL_VIEWPORT_NODE_INDEX,
-                FrameRole::Structural
-            )
+            FrameNode::new(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX)
         ));
         assert_eq!(tree.dead_node_count(), 1);
         tree.debug_assert_slot_accounting();

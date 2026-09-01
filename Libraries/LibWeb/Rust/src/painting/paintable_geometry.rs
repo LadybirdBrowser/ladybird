@@ -15,28 +15,6 @@ use crate::painting::node_painting;
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_rows::PaintableRowsRead;
 
-pub(crate) fn for_each_rendered_inline_box_piece(
-    arena: &impl PaintableRowsRead,
-    inline_paintable: NodeSlotId,
-    mut visit: impl FnMut(u16, &InlineBoxPieceRecord, CssPixelRect),
-) {
-    let root = arena.paintable_data(inline_paintable).containing_block;
-    if root.is_invalid() || !arena.paintable_row_is_populated(root) || !node_painting::has_lines(arena, root) {
-        return;
-    }
-    let root_position = absolute_position(arena, root);
-    let piece_indices = &arena.paintable_side_data(inline_paintable).piece_indices;
-    let root_pieces = &arena.paintable_side_data(root).inline_box_pieces;
-    for (position, piece_index) in piece_indices.iter().enumerate() {
-        let piece = &root_pieces[*piece_index as usize];
-        if piece.is_geometry_only_placeholder {
-            continue;
-        }
-        let border_box_rect = CssPixelRect::from(piece.border_box_rect).translated_by(root_position);
-        visit(position as u16, piece, border_box_rect);
-    }
-}
-
 pub(crate) fn committed_offset(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> used_values::FfiCssPixelPoint {
     let data = arena.paintable_data(slot);
     if node_painting::is_inline(arena, slot) {

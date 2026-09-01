@@ -56,7 +56,6 @@ pub(crate) struct FrameNodeShape {
     pub kind: FrameShapeKind,
     pub parent: FrameNodeIndex,
     pub spatial: SpatialNodeIndex,
-    pub role: FrameRole,
 }
 
 pub(crate) fn spatial_node_shape(node: &SpatialNode) -> SpatialNodeShape {
@@ -109,7 +108,6 @@ pub(crate) fn frame_node_shape(node: &FrameNode) -> FrameNodeShape {
         kind,
         parent: node.parent,
         spatial: node.spatial,
-        role: node.role,
     }
 }
 

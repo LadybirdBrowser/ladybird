@@ -12,7 +12,6 @@ use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::visual_context::build::{
     BoxFacts, compute_svg_viewport_transform_data, svg_viewport_transform_of,
 };
-use crate::painting::visual_context::local_frames::{LocalFrameBuilder, LocalFrames};
 use crate::painting::visual_context::{
     ContextRef, FrameData, FrameNodeIndex, MaskLayerOrigin, SpatialData, TransformData, VisualContextTree,
 };
@@ -21,7 +20,6 @@ use crate::painting::visual_context::{
 pub struct NestedAssignments {
     pub paintable_contexts: HashMap<u32, (ContextRef, ContextRef)>,
     pub mask_frames: HashMap<u32, Vec<FrameNodeIndex>>,
-    pub local_frames: HashMap<u32, LocalFrames>,
 }
 
 struct NestedBuilder<'a, Arena> {
@@ -57,12 +55,6 @@ impl<Arena: PaintableRowsRead> NestedBuilder<'_, Arena> {
                 .entry(slot.index)
                 .or_default()
                 .push(own_state.frame);
-        }
-
-        let local_frames = LocalFrameBuilder::new(&mut self.tree, self.layout_arena, slot, self.pixel_ratio, true)
-            .build(own_state, None);
-        if !local_frames.is_empty() {
-            self.assignments.local_frames.insert(slot.index, local_frames);
         }
 
         let mut state_for_descendants = own_state;

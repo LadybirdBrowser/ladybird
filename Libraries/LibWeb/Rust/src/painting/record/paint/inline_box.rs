@@ -12,7 +12,6 @@ use crate::painting::record::paint::border::{paint_box_borders, present_css_bord
 use crate::painting::record::paint::{background, outline, text};
 use crate::painting::record::{PaintPhase, PaintRecorder};
 use crate::painting::style_queries;
-use crate::painting::visual_context::PieceKey;
 
 pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, phase: PaintPhase) {
     let root = {
@@ -43,7 +42,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
             .layout_arena
             .node_style_if_live(paintable)
             .is_some_and(style_queries::has_css_borders);
-        for (position, piece_index) in piece_indices.iter().enumerate() {
+        for piece_index in piece_indices {
             let piece = &root_pieces[*piece_index as usize];
             if piece.is_geometry_only_placeholder {
                 continue;
@@ -54,12 +53,10 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
                 crate::painting::paintable_geometry::committed_border(recorder.layout_arena, paintable),
             );
             let border_radii = recorder.piece_border_radii(paintable, piece);
-            let piece_key = PieceKey::Piece(position as u16);
             if !background_is_propagated_to_root {
                 background::paint_background_within(
                     recorder,
                     paintable,
-                    piece_key,
                     if has_borders { border_box_rect } else { padding_box_rect },
                     border_radii,
                 );

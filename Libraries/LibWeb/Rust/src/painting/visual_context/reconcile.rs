@@ -52,11 +52,10 @@ impl VisualContextNodeSink for BoxNodeScratch<'_> {
         data: FrameData,
         parent: FrameNodeIndex,
         spatial: SpatialNodeIndex,
-        role: FrameRole,
     ) -> FrameNodeIndex {
         debug_assert!(self.spatial_node_at(spatial).data.is_live());
         debug_assert!(parent.is_none() || self.frame_node_at(parent).data.is_live());
-        self.frames.push(FrameNode::new(data, parent, spatial, role));
+        self.frames.push(FrameNode::new(data, parent, spatial));
         FrameNodeIndex(self.provisional_frames_begin + self.frames.len() as u32 - 1)
     }
 
@@ -83,7 +82,6 @@ pub(crate) struct BoxNodePlacement {
     provisional_frames_begin: u32,
     pub spatial: Vec<SpatialNodeIndex>,
     pub chain_frames: Vec<FrameNodeIndex>,
-    pub local_frames: Vec<FrameNodeIndex>,
     pub descendant_frames: Vec<FrameNodeIndex>,
 }
 
@@ -101,7 +99,7 @@ impl BoxNodePlacement {
             return index;
         }
         let mut offset = (index.0 - self.provisional_frames_begin) as usize;
-        for unit in [&self.chain_frames, &self.local_frames, &self.descendant_frames] {
+        for unit in [&self.chain_frames, &self.descendant_frames] {
             if offset < unit.len() {
                 return unit[offset];
             }
@@ -121,7 +119,6 @@ impl BoxNodePlacement {
         BoxVisualContextNodeHandles {
             spatial: self.spatial,
             chain_frames: self.chain_frames,
-            local_frames: self.local_frames,
             descendant_frames: self.descendant_frames,
         }
     }
@@ -180,14 +177,12 @@ pub(crate) fn plan_box_node_placement(
         )
     };
     let chain_frames = place_frames(&existing.chain_frames, provisional.chain_frames.len());
-    let local_frames = place_frames(&existing.local_frames, provisional.local_frames.len());
     let descendant_frames = place_frames(&existing.descendant_frames, provisional.descendant_frames.len());
     BoxNodePlacement {
         provisional_spatial_begin: provisional_begin(&provisional.spatial, |index| index.0),
         provisional_frames_begin: provisional_begin(&provisional_frames, |index| index.0),
         spatial,
         chain_frames,
-        local_frames,
         descendant_frames,
     }
 }
@@ -321,11 +316,9 @@ pub(crate) fn write_box_nodes(
             node.data,
             placement.remap_frame(node.parent),
             placement.remap_spatial(node.spatial),
-            node.role,
         )
     });
     let chain: Vec<FrameNode> = frames.by_ref().take(placement.chain_frames.len()).collect();
-    let local: Vec<FrameNode> = frames.by_ref().take(placement.local_frames.len()).collect();
     let descendant: Vec<FrameNode> = frames.collect();
     debug_assert_eq!(descendant.len(), placement.descendant_frames.len());
 
@@ -342,14 +335,6 @@ pub(crate) fn write_box_nodes(
         &placement.chain_frames,
         &existing.chain_frames,
         chain,
-        delta,
-        &mut outcome,
-    );
-    write_frame_unit(
-        tree,
-        &placement.local_frames,
-        &existing.local_frames,
-        local,
         delta,
         &mut outcome,
     );
@@ -394,17 +379,16 @@ mod tests {
     const BOX_A_SPATIAL: SpatialNodeIndex = SpatialNodeIndex(2);
     const BOX_B_SPATIAL: SpatialNodeIndex = SpatialNodeIndex(3);
     const BOX_A_CHAIN_FRAME: FrameNodeIndex = FrameNodeIndex(1);
-    const BOX_A_LOCAL_FRAME: FrameNodeIndex = FrameNodeIndex(2);
+    const BOX_A_PATCHED_CHAIN_FRAME: FrameNodeIndex = FrameNodeIndex(2);
     const BOX_A_DESCENDANT_FRAME: FrameNodeIndex = FrameNodeIndex(3);
     const BOX_B_FRAME: FrameNodeIndex = FrameNodeIndex(4);
 
     fn tree_with_viewport_nodes() -> VisualContextTree {
         let mut tree = VisualContextTree::create(transform_data());
-        let root_isolation_frame = tree.append_frame_with_role(
+        let root_isolation_frame = tree.append_frame(
             FrameData::layer_blending_with(CompositingAndBlendingOperator::Normal),
             FrameNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
-            FrameRole::RootIsolation,
         );
         tree.root_isolation_frame = Some(root_isolation_frame);
         assert_eq!(root_isolation_frame, ROOT_ISOLATION_FRAME);
@@ -424,10 +408,10 @@ mod tests {
         );
         assert_eq!(
             tree.append_frame(clip(20.0), BOX_A_CHAIN_FRAME, BOX_A_SPATIAL),
-            BOX_A_LOCAL_FRAME
+            BOX_A_PATCHED_CHAIN_FRAME
         );
         assert_eq!(
-            tree.append_frame(clip(30.0), BOX_A_LOCAL_FRAME, BOX_A_SPATIAL),
+            tree.append_frame(clip(30.0), BOX_A_PATCHED_CHAIN_FRAME, BOX_A_SPATIAL),
             BOX_A_DESCENDANT_FRAME
         );
         assert_eq!(tree.append_spatial(transform(), BOX_A_SPATIAL), BOX_B_SPATIAL);
@@ -441,8 +425,7 @@ mod tests {
     fn box_a_handles() -> BoxVisualContextNodeHandles {
         BoxVisualContextNodeHandles {
             spatial: vec![BOX_A_SPATIAL],
-            chain_frames: vec![BOX_A_CHAIN_FRAME],
-            local_frames: vec![BOX_A_LOCAL_FRAME],
+            chain_frames: vec![BOX_A_CHAIN_FRAME, BOX_A_PATCHED_CHAIN_FRAME],
             descendant_frames: vec![BOX_A_DESCENDANT_FRAME],
         }
     }
@@ -451,9 +434,9 @@ mod tests {
         spatial_parent: SpatialNodeIndex,
         spatial_count: u32,
         chain_count: u32,
-        local_count: u32,
+        patched_chain_count: u32,
         descendant_count: u32,
-        local_clip_size: f32,
+        patched_chain_clip_size: f32,
     }
 
     impl Default for ScratchBox {
@@ -462,9 +445,9 @@ mod tests {
                 spatial_parent: VIEWPORT_SCROLL,
                 spatial_count: 1,
                 chain_count: 1,
-                local_count: 1,
+                patched_chain_count: 1,
                 descendant_count: 1,
-                local_clip_size: 20.0,
+                patched_chain_clip_size: 20.0,
             }
         }
     }
@@ -478,15 +461,15 @@ mod tests {
         }
         let mut frame = ROOT_ISOLATION_FRAME;
         for _ in 0..description.chain_count {
-            frame = scratch.append_frame_node(clip(10.0), frame, spatial, FrameRole::Structural);
+            frame = scratch.append_frame_node(clip(10.0), frame, spatial);
             handles.chain_frames.push(frame);
         }
-        for _ in 0..description.local_count {
-            frame = scratch.append_frame_node(clip(description.local_clip_size), frame, spatial, FrameRole::Structural);
-            handles.local_frames.push(frame);
+        for _ in 0..description.patched_chain_count {
+            frame = scratch.append_frame_node(clip(description.patched_chain_clip_size), frame, spatial);
+            handles.chain_frames.push(frame);
         }
         for _ in 0..description.descendant_count {
-            frame = scratch.append_frame_node(clip(30.0), frame, spatial, FrameRole::Structural);
+            frame = scratch.append_frame_node(clip(30.0), frame, spatial);
             handles.descendant_frames.push(frame);
         }
         handles
@@ -540,7 +523,7 @@ mod tests {
 
         let description_b = ScratchBox {
             spatial_parent: BOX_A_SPATIAL,
-            local_count: 0,
+            patched_chain_count: 0,
             descendant_count: 0,
             ..ScratchBox::default()
         };
@@ -554,9 +537,9 @@ mod tests {
     #[test]
     fn a_slot_tombstoned_in_the_same_walk_is_not_handed_to_a_later_box() {
         let mut tree = tree_with_box_a_followed_by_box_b();
-        assert!(tree.tombstone_frame_slot(BOX_A_LOCAL_FRAME));
+        assert!(tree.tombstone_frame_slot(BOX_A_PATCHED_CHAIN_FRAME));
         let description = ScratchBox {
-            local_count: 0,
+            patched_chain_count: 0,
             descendant_count: 0,
             ..ScratchBox::default()
         };
@@ -576,7 +559,7 @@ mod tests {
         assert_eq!(placement.clone().into_node_handles(), existing);
         assert_eq!(placement.remap_spatial(SpatialNodeIndex(4)), BOX_A_SPATIAL);
         assert_eq!(placement.remap_frame(FrameNodeIndex(5)), BOX_A_CHAIN_FRAME);
-        assert_eq!(placement.remap_frame(FrameNodeIndex(6)), BOX_A_LOCAL_FRAME);
+        assert_eq!(placement.remap_frame(FrameNodeIndex(6)), BOX_A_PATCHED_CHAIN_FRAME);
         assert_eq!(placement.remap_frame(FrameNodeIndex(7)), BOX_A_DESCENDANT_FRAME);
         assert_eq!(placement.remap_frame(ROOT_ISOLATION_FRAME), ROOT_ISOLATION_FRAME);
         assert_eq!(planned.delta, VisualContextTreeDelta::default());
@@ -596,14 +579,19 @@ mod tests {
         };
         let (placement, outcome, delta) = write(&mut tree, Some(&existing), &description);
         assert_eq!(placement.spatial, vec![BOX_A_SPATIAL, SpatialNodeIndex(4)]);
-        assert_eq!(placement.chain_frames, vec![BOX_A_CHAIN_FRAME, FrameNodeIndex(5)]);
-        assert_eq!(placement.local_frames, vec![BOX_A_LOCAL_FRAME]);
+        assert_eq!(
+            placement.chain_frames,
+            vec![BOX_A_CHAIN_FRAME, BOX_A_PATCHED_CHAIN_FRAME, FrameNodeIndex(5)]
+        );
         assert!(placement.descendant_frames.is_empty());
         assert!(outcome.shape_changed);
         assert_eq!(tree.spatial_nodes[4].parent, BOX_A_SPATIAL);
-        assert_eq!(tree.frame_nodes[5].parent, BOX_A_CHAIN_FRAME);
+        assert_eq!(
+            tree.frame_nodes[BOX_A_PATCHED_CHAIN_FRAME.0 as usize].parent,
+            BOX_A_CHAIN_FRAME
+        );
+        assert_eq!(tree.frame_nodes[5].parent, BOX_A_PATCHED_CHAIN_FRAME);
         assert_eq!(tree.frame_nodes[5].spatial, SpatialNodeIndex(4));
-        assert_eq!(tree.frame_nodes[BOX_A_LOCAL_FRAME.0 as usize].parent, FrameNodeIndex(5));
         assert!(!tree.frame_is_live(BOX_A_DESCENDANT_FRAME));
         assert_eq!(tree.quarantined_slot_count(), 1);
         assert_eq!(tree.free_slot_count(), 0);
@@ -640,14 +628,14 @@ mod tests {
         let mut tree = tree_with_box_a_followed_by_box_b();
         let existing = box_a_handles();
         let description = ScratchBox {
-            local_clip_size: 25.0,
+            patched_chain_clip_size: 25.0,
             ..ScratchBox::default()
         };
         let (_, outcome, delta) = write(&mut tree, Some(&existing), &description);
         assert!(!outcome.shape_changed);
         assert!(outcome.any_payload_changed);
         assert_eq!(delta.patched_spatial_node_indices, Vec::<u32>::new());
-        assert_eq!(delta.patched_frame_node_indices, vec![BOX_A_LOCAL_FRAME.0]);
+        assert_eq!(delta.patched_frame_node_indices, vec![BOX_A_PATCHED_CHAIN_FRAME.0]);
         assert!(delta.tombstoned_frame_node_indices.is_empty());
         assert!(!delta.structural_epoch_changed);
         assert!(!delta.requires_display_list_recording);
@@ -713,11 +701,14 @@ mod tests {
             ..ScratchBox::default()
         };
         let (placement, _, _) = write(&mut tree, Some(&existing), &description);
-        let local = placement.local_frames[0];
-        assert_eq!(tree.frame_nodes[local.0 as usize].parent, placement.chain_frames[1]);
-        assert_eq!(tree.frame_nodes[local.0 as usize].spatial, placement.spatial[1]);
+        let patched_chain = placement.chain_frames[2];
+        assert_eq!(
+            tree.frame_nodes[patched_chain.0 as usize].parent,
+            placement.chain_frames[1]
+        );
+        assert_eq!(tree.frame_nodes[patched_chain.0 as usize].spatial, placement.spatial[1]);
         let descendant = placement.descendant_frames[0];
-        assert_eq!(tree.frame_nodes[descendant.0 as usize].parent, local);
+        assert_eq!(tree.frame_nodes[descendant.0 as usize].parent, patched_chain);
         assert_eq!(
             tree.spatial_nodes[placement.spatial[1].0 as usize].parent,
             placement.spatial[0]
@@ -730,8 +721,7 @@ mod tests {
         let (placement, outcome, mut delta) = write(&mut tree, None, &ScratchBox::default());
         delta.finish();
         assert_eq!(placement.spatial, vec![SpatialNodeIndex(4)]);
-        assert_eq!(placement.chain_frames, vec![FrameNodeIndex(5)]);
-        assert_eq!(placement.local_frames, vec![FrameNodeIndex(6)]);
+        assert_eq!(placement.chain_frames, vec![FrameNodeIndex(5), FrameNodeIndex(6)]);
         assert_eq!(placement.descendant_frames, vec![FrameNodeIndex(7)]);
         assert!(outcome.shape_changed);
         assert_eq!(delta.patched_spatial_node_indices, vec![4]);
