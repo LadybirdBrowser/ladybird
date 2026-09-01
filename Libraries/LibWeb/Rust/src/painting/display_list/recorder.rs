@@ -342,14 +342,26 @@ impl DisplayListRecorder {
     }
 
     pub fn fill_rect(&mut self, rect: IntRect, color: Color) {
-        if rect.is_empty() || color.alpha() == 0 {
+        if color.alpha() == 0 {
+            return;
+        }
+        self.fill_rect_with_compositing_and_blending_operator(rect, color, CompositingAndBlendingOperator::Normal);
+    }
+
+    pub fn fill_rect_with_compositing_and_blending_operator(
+        &mut self,
+        rect: IntRect,
+        color: Color,
+        compositing_and_blending_operator: CompositingAndBlendingOperator,
+    ) {
+        if rect.is_empty() {
             return;
         }
         self.append_command(
             &FillRect {
                 rect,
                 color,
-                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                compositing_and_blending_operator,
             },
             &[],
         );
@@ -397,7 +409,16 @@ impl DisplayListRecorder {
     }
 
     pub fn fill_path(&mut self, params: FillPathParams<'_>) {
-        if let PaintStyleOrColor::Color(color) = &params.paint_style_or_color
+        self.fill_path_with_compositing_and_blending_operator(params, CompositingAndBlendingOperator::Normal);
+    }
+
+    pub fn fill_path_with_compositing_and_blending_operator(
+        &mut self,
+        params: FillPathParams<'_>,
+        compositing_and_blending_operator: CompositingAndBlendingOperator,
+    ) {
+        if compositing_and_blending_operator == CompositingAndBlendingOperator::Normal
+            && let PaintStyleOrColor::Color(color) = &params.paint_style_or_color
             && color.alpha() == 0
         {
             return;
@@ -418,7 +439,7 @@ impl DisplayListRecorder {
             paint_style,
             winding_rule: params.winding_rule,
             should_anti_alias: params.should_anti_alias,
-            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            compositing_and_blending_operator,
         };
         self.append_command(&command, payload.inline_data());
     }
@@ -469,7 +490,12 @@ impl DisplayListRecorder {
         self.append_command(&DrawEllipse { rect, color, thickness }, &[]);
     }
 
-    pub fn fill_rect_with_linear_gradient(&mut self, gradient_rect: IntRect, data: &LinearGradientData) {
+    pub fn fill_rect_with_linear_gradient(
+        &mut self,
+        gradient_rect: IntRect,
+        data: &LinearGradientData,
+        compositing_and_blending_operator: CompositingAndBlendingOperator,
+    ) {
         if gradient_rect.is_empty() {
             return;
         }
@@ -482,12 +508,18 @@ impl DisplayListRecorder {
             first_stop_position: data.first_stop_position,
             repeat_length: data.repeat_length,
             interpolation_method: data.interpolation_method,
-            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            compositing_and_blending_operator,
         };
         self.append_command(&command, payload.inline_data());
     }
 
-    pub fn fill_rect_with_conic_gradient(&mut self, rect: IntRect, data: &ConicGradientData, position: IntPoint) {
+    pub fn fill_rect_with_conic_gradient(
+        &mut self,
+        rect: IntRect,
+        data: &ConicGradientData,
+        position: IntPoint,
+        compositing_and_blending_operator: CompositingAndBlendingOperator,
+    ) {
         if rect.is_empty() {
             return;
         }
@@ -499,7 +531,7 @@ impl DisplayListRecorder {
             color_stops,
             interpolation_method: data.interpolation_method,
             position,
-            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            compositing_and_blending_operator,
         };
         self.append_command(&command, payload.inline_data());
     }
@@ -510,6 +542,7 @@ impl DisplayListRecorder {
         data: &RadialGradientData,
         center: IntPoint,
         size: IntSize,
+        compositing_and_blending_operator: CompositingAndBlendingOperator,
     ) {
         if rect.is_empty() {
             return;
@@ -522,7 +555,7 @@ impl DisplayListRecorder {
             interpolation_method: data.interpolation_method,
             center,
             size,
-            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            compositing_and_blending_operator,
         };
         self.append_command(&command, payload.inline_data());
     }
@@ -659,8 +692,8 @@ impl DisplayListRecorder {
         clip_rect: IntRect,
         display_list_id: DisplayListResourceId,
         scaling_mode: ScalingMode,
-        repeat_x: bool,
-        repeat_y: bool,
+        compositing_and_blending_operator: CompositingAndBlendingOperator,
+        repeat: Repeat,
     ) {
         if dst_rect.is_empty() || clip_rect.is_empty() {
             return;
@@ -672,11 +705,8 @@ impl DisplayListRecorder {
                     clip_rect,
                     display_list_id,
                     scaling_mode,
-                    compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                    repeat: Repeat {
-                        x: repeat_x,
-                        y: repeat_y,
-                    },
+                    compositing_and_blending_operator,
+                    repeat,
                 },
                 &[],
             );

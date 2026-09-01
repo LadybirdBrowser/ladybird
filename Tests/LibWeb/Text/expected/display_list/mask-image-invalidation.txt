@@ -11,11 +11,11 @@ DisplayList:
 FillRect@s1/f1 rect=[8,8 100x100] color=rgb(173, 216, 230)
 DrawGlyphRun@s1/f1 rect=[8,8 30x16] translation=[8,20.796875] color=rgb(0, 0, 0)
 MaskDisplayList for frame f1:
-  PaintLinearGradient@s0/f0 rect=[0,0 100x100]
+  PaintLinearGradient@s0 rect=[0,0 100x100] inline_clips=[clip=[0,0 100x100]]
 MaskDisplayList for frame f2:
-  PaintLinearGradient@s0/f0 rect=[0,0 100x100]
+  PaintLinearGradient@s0 rect=[0,0 100x100] inline_clips=[clip=[0,0 100x100]]
 MaskDisplayList for frame f3:
-  PaintLinearGradient@s0/f0 rect=[0,0 100x100]
+  PaintLinearGradient@s0 rect=[0,0 100x100] inline_clips=[clip=[0,0 100x100]]
 
 After mask-image removal:
 AccumulatedVisualContext Tree:
@@ -42,9 +42,9 @@ DisplayList:
 FillRect@s1/f1 rect=[8,8 100x100] color=rgb(173, 216, 230)
 DrawGlyphRun@s1/f1 rect=[8,8 30x16] translation=[8,20.796875] color=rgb(0, 0, 0)
 MaskDisplayList for frame f1:
-  PaintLinearGradient@s0/f0 rect=[0,0 100x100]
+  PaintLinearGradient@s0 rect=[0,0 100x100] inline_clips=[clip=[0,0 100x100]]
 MaskDisplayList for frame f2:
-  PaintLinearGradient@s0/f0 rect=[0,0 100x100]
+  PaintLinearGradient@s0 rect=[0,0 100x100] inline_clips=[clip=[0,0 100x100]]
 MaskDisplayList for frame f3:
-  PaintLinearGradient@s0/f0 rect=[0,0 100x100]
+  PaintLinearGradient@s0 rect=[0,0 100x100] inline_clips=[clip=[0,0 100x100]]
 

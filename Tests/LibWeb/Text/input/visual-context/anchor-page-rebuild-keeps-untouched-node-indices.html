@@ -5,7 +5,7 @@
     #anchor { anchor-name: --a; width: 20px; height: 20px; }
     #target { position: absolute; position-anchor: --a; top: anchor(bottom); left: anchor(left); width: 20px; height: 20px; }
     .box { position: absolute; top: 100px; width: 100px; height: 100px; }
-    .img { background-image: linear-gradient(green, green); }
+    .clipped { clip-path: inset(2px); }
     .lift { transform: translateX(1px); }
     #a { left: 0; }
     #b { left: 150px; overflow: scroll; }
@@ -15,9 +15,9 @@
 </style>
 <div id="anchor"></div>
 <div id="target"></div>
-<div id="a" class="box img lift"></div>
-<div id="b" class="box img lift"><div></div></div>
-<div id="c" class="box img lift"></div>
+<div id="a" class="box clipped lift"></div>
+<div id="b" class="box clipped lift"><div></div></div>
+<div id="c" class="box clipped lift"></div>
 <div id="d" class="box"></div>
 <script>
     test(() => {
@@ -53,7 +53,7 @@
         };
 
         lines.push(`b owns nodes: ${internals.visualContextNodeIndices(b).frames.length > 0 && internals.visualContextNodeIndices(b).spatial.length > 0}`);
-        swap("img", "clip frame swap");
+        swap("clipped", "clip frame swap");
         swap("lift", "transform swap");
         lines.push(`dead nodes after the swaps: ${internals.visualContextTreeDeadNodeCount() > 0}`);
         lines.push(`d owns the moved nodes: ${internals.visualContextNodeIndices(d).frames.length > 0 && internals.visualContextNodeIndices(d).spatial.length > 0}`);

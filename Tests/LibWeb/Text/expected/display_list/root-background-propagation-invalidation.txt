@@ -5,21 +5,20 @@ AccumulatedVisualContext Tree:
       [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f3 in s1] effects=[blend_mode=2] (BlockContainer<HTML>)
 
 DisplayList:
 FillRect@s0 rect=[0,0 800x600] color=rgb(0, 128, 0)
 FillRect@s1/f0 rect=[0,0 800x600] color=rgb(0, 128, 0)
-PaintLinearGradient@s1/f3 rect=[0,0 800x63]
-PaintLinearGradient@s1/f3 rect=[0,63 800x63]
-PaintLinearGradient@s1/f3 rect=[0,126 800x63]
-PaintLinearGradient@s1/f3 rect=[0,189 800x63]
-PaintLinearGradient@s1/f3 rect=[0,252 800x63]
-PaintLinearGradient@s1/f3 rect=[0,315 800x63]
-PaintLinearGradient@s1/f3 rect=[0,378 800x63]
-PaintLinearGradient@s1/f3 rect=[0,441 800x63]
-PaintLinearGradient@s1/f3 rect=[0,504 800x63]
-PaintLinearGradient@s1/f3 rect=[0,567 800x63]
+PaintLinearGradient@s1/f0 rect=[0,0 800x63] blend_mode=2
+PaintLinearGradient@s1/f0 rect=[0,63 800x63] blend_mode=2
+PaintLinearGradient@s1/f0 rect=[0,126 800x63] blend_mode=2
+PaintLinearGradient@s1/f0 rect=[0,189 800x63] blend_mode=2
+PaintLinearGradient@s1/f0 rect=[0,252 800x63] blend_mode=2
+PaintLinearGradient@s1/f0 rect=[0,315 800x63] blend_mode=2
+PaintLinearGradient@s1/f0 rect=[0,378 800x63] blend_mode=2
+PaintLinearGradient@s1/f0 rect=[0,441 800x63] blend_mode=2
+PaintLinearGradient@s1/f0 rect=[0,504 800x63] blend_mode=2
+PaintLinearGradient@s1/f0 rect=[0,567 800x63] blend_mode=2
 
 Painted by the body:
 AccumulatedVisualContext Tree:
@@ -28,14 +27,12 @@ AccumulatedVisualContext Tree:
       [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f4 in s1] clip=[0,13 800x50] (BlockContainer<BODY>)
-        [f5 in s1] effects=[blend_mode=2] (BlockContainer<BODY>)
 
 DisplayList:
 FillRect@s0 rect=[0,0 800x600] color=rgb(255, 255, 255)
 FillRect@s1/f0 rect=[0,0 800x600] color=rgb(255, 255, 255)
 FillRect@s1/f0 rect=[0,13 800x50] color=rgb(0, 128, 0)
-PaintLinearGradient@s1/f5 rect=[0,13 800x50]
+PaintLinearGradient@s1/f0 rect=[0,13 800x50] blend_mode=2 inline_clips=[clip=[0,13 800x50]]
 
 Propagated to the root again:
 AccumulatedVisualContext Tree:
@@ -44,19 +41,18 @@ AccumulatedVisualContext Tree:
       [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f3 in s1] effects=[blend_mode=2] (BlockContainer<HTML>)
 
 DisplayList:
 FillRect@s0 rect=[0,0 800x600] color=rgb(0, 128, 0)
 FillRect@s1/f0 rect=[0,0 800x600] color=rgb(0, 128, 0)
-PaintLinearGradient@s1/f3 rect=[0,0 800x63]
-PaintLinearGradient@s1/f3 rect=[0,63 800x63]
-PaintLinearGradient@s1/f3 rect=[0,126 800x63]
-PaintLinearGradient@s1/f3 rect=[0,189 800x63]
-PaintLinearGradient@s1/f3 rect=[0,252 800x63]
-PaintLinearGradient@s1/f3 rect=[0,315 800x63]
-PaintLinearGradient@s1/f3 rect=[0,378 800x63]
-PaintLinearGradient@s1/f3 rect=[0,441 800x63]
-PaintLinearGradient@s1/f3 rect=[0,504 800x63]
-PaintLinearGradient@s1/f3 rect=[0,567 800x63]
+PaintLinearGradient@s1/f0 rect=[0,0 800x63] blend_mode=2
+PaintLinearGradient@s1/f0 rect=[0,63 800x63] blend_mode=2
+PaintLinearGradient@s1/f0 rect=[0,126 800x63] blend_mode=2
+PaintLinearGradient@s1/f0 rect=[0,189 800x63] blend_mode=2
+PaintLinearGradient@s1/f0 rect=[0,252 800x63] blend_mode=2
+PaintLinearGradient@s1/f0 rect=[0,315 800x63] blend_mode=2
+PaintLinearGradient@s1/f0 rect=[0,378 800x63] blend_mode=2
+PaintLinearGradient@s1/f0 rect=[0,441 800x63] blend_mode=2
+PaintLinearGradient@s1/f0 rect=[0,504 800x63] blend_mode=2
+PaintLinearGradient@s1/f0 rect=[0,567 800x63] blend_mode=2
 

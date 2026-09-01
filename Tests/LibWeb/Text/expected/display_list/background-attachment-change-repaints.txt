@@ -5,10 +5,9 @@ AccumulatedVisualContext Tree:
       [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[0,0 200x200] (BlockContainer<DIV>#box)
 
 DisplayList:
-PaintLinearGradient@s1/f1 rect=[0,0 200x600]
+PaintLinearGradient@s1/f0 rect=[0,0 200x600] inline_clips=[clip=[0,0 200x200]]
 
 After background-attachment change:
 AccumulatedVisualContext Tree:
@@ -16,8 +15,7 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[0,0 200x200] (BlockContainer<DIV>#box)
 
 DisplayList:
-PaintLinearGradient@s0/f1 rect=[0,0 800x600]
+PaintLinearGradient@s0/f0 rect=[0,0 800x600] inline_clips=[clip=[0,0 200x200]]
 

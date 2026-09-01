@@ -4,9 +4,8 @@ AccumulatedVisualContext Tree:
       [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f4 in s1] clip=[0,0 40x40] (BlockContainer<DIV>#target)
 
 DisplayList:
 FillRect@s1/f0 rect=[0,0 40x40] color=rgb(45, 22, 0)
-DrawScaledDecodedImageFrame@s1/f4 dst_rect=[0,0 40x40] src_rect=[0,0 40x40] blend_mode=2 isolated_backdrop_color=rgb(45, 22, 0)
+DrawScaledDecodedImageFrame@s1/f0 dst_rect=[0,0 40x40] src_rect=[0,0 40x40] blend_mode=2 isolated_backdrop_color=rgb(45, 22, 0) inline_clips=[clip=[0,0 40x40]]
 
