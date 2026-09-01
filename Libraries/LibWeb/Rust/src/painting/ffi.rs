@@ -282,6 +282,62 @@ pub unsafe extern "C" fn layout_arena_clear_chrome_state_callback(arena: *mut c_
 
 /// # Safety
 ///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
+/// `node` must name a live node in this arena.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_schedule_scrollable_overflow_recalculation(arena: *mut c_void, node: NodeSlotId) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        arena.schedule_scrollable_overflow_recalculation(node);
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_needs_full_scrollable_overflow_recalculation(arena: *mut c_void) -> bool {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        arena.needs_full_scrollable_overflow_recalculation.get()
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_needs_full_scrollable_overflow_recalculation(arena: *mut c_void) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        arena.needs_full_scrollable_overflow_recalculation.set(true);
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+/// The drained slot ids may name freed slots; the caller resolves liveness before
+/// dereferencing anything.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_take_scrollable_overflow_recalculation_state(
+    arena: *mut c_void,
+    context: *mut c_void,
+    push_box: unsafe extern "C" fn(*mut c_void, NodeSlotId),
+) -> bool {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let (boxes, needs_full_recalculation) = arena.take_scrollable_overflow_recalculation_state();
+        for slot in boxes {
+            // SAFETY: The C++ callback appends the slot id to a caller-owned collection.
+            unsafe { push_box(context, slot) };
+        }
+        needs_full_recalculation
+    })
+}
+
+/// # Safety
+///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_row(arena: *mut c_void, slot: NodeSlotId) -> *const PaintableData {

@@ -447,6 +447,52 @@ impl LayoutNodeArena {
         PaintableRows { arena: self }
     }
 
+    pub(crate) fn schedule_scrollable_overflow_recalculation(&self, node: NodeSlotId) {
+        // SAFETY: The caller supplies a live slot; data() generation-checks every slot the
+        // containing-block walk visits.
+        let node_kind = unsafe { (&raw const (*self.data(node)).kind).read() };
+        if crate::layout::node_facts::kind_is_box(node_kind) {
+            let paintable_rows = self.paintable_rows();
+            let mut containing_box = node;
+            loop {
+                if paintable_rows.paintable_row_is_populated(containing_box) {
+                    paintable_rows.clear_cached_overflow_data(containing_box);
+                }
+                // SAFETY: As above.
+                let next = unsafe { (&raw const (*self.data(containing_box)).containing_block).read() };
+                if next.is_invalid() || !self.slot_is_live(next) {
+                    break;
+                }
+                containing_box = next;
+            }
+        }
+
+        if self.needs_full_scrollable_overflow_recalculation.get() {
+            return;
+        }
+
+        // NB: Cap the queue in case it's never consumed (e.g. forced style updates in a document
+        //     that never updates layout).
+        const MAX_PENDING_SCROLLABLE_OVERFLOW_RECALCULATIONS: usize = 1024;
+        let mut boxes = self.boxes_needing_scrollable_overflow_recalculation.borrow_mut();
+        if boxes.len() >= MAX_PENDING_SCROLLABLE_OVERFLOW_RECALCULATIONS {
+            boxes.clear();
+            self.needs_full_scrollable_overflow_recalculation.set(true);
+            return;
+        }
+
+        if self.paintable_rows().paintable_row_is_populated(node) {
+            boxes.push(node);
+        }
+    }
+
+    pub(crate) fn take_scrollable_overflow_recalculation_state(&self) -> (Vec<NodeSlotId>, bool) {
+        (
+            std::mem::take(&mut *self.boxes_needing_scrollable_overflow_recalculation.borrow_mut()),
+            self.needs_full_scrollable_overflow_recalculation.replace(false),
+        )
+    }
+
     pub(crate) fn paintable_rows_mut(&mut self) -> PaintableRowsMut<'_> {
         PaintableRows { arena: self }
     }

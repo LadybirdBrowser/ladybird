@@ -458,6 +458,8 @@ pub(crate) struct LayoutNodeArena {
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
     svg_pattern_referencing_nodes: RefCell<Vec<NodeSlotId>>,
     pub(crate) partial_relayout_boundary_roots: RefCell<Vec<NodeSlotId>>,
+    pub(crate) boxes_needing_scrollable_overflow_recalculation: RefCell<Vec<NodeSlotId>>,
+    pub(crate) needs_full_scrollable_overflow_recalculation: Cell<bool>,
     owner_thread: thread::ThreadId,
 }
 
@@ -489,6 +491,8 @@ impl LayoutNodeArena {
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
             svg_pattern_referencing_nodes: RefCell::new(Vec::new()),
             partial_relayout_boundary_roots: RefCell::new(Vec::new()),
+            boxes_needing_scrollable_overflow_recalculation: RefCell::new(Vec::new()),
+            needs_full_scrollable_overflow_recalculation: Cell::new(false),
             owner_thread: thread::current().id(),
         }
     }

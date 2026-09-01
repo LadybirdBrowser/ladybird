@@ -1866,7 +1866,7 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed, Layout
     // A commit that changed the tree can have replaced boxes referenced by the cached
     // contained-boxes index; refresh it before overflow measurement follows them. A pending full
     // recalculation rebuilds the index inside its own measurement traversal instead.
-    if (layout_tree_changed == LayoutTreeChanged::Yes && !m_needs_full_scrollable_overflow_recalculation)
+    if (layout_tree_changed == LayoutTreeChanged::Yes && !Layout::RustFFI::layout_arena_needs_full_scrollable_overflow_recalculation(layout_node_arena().handle()))
         Layout::RustFFI::layout_arena_rebuild_scrollable_overflow_contained_boxes(layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root.ptr()));
     if (layout_commit_scope == LayoutCommitScope::Full)
         update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates::HandledByFullLayoutCommit, boxes_needing_eager_overflow_measurement);
@@ -2420,7 +2420,7 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
 
         style_invalidation_counters().relayouts_performed++;
 
-        m_needs_full_scrollable_overflow_recalculation = true;
+        Layout::RustFFI::layout_arena_set_needs_full_scrollable_overflow_recalculation(layout_node_arena().handle());
 
         ++m_full_layout_count;
 
@@ -2791,8 +2791,14 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
     // subtree layout commit and the old data is unknown.
     HashMap<Layout::Box const*, Optional<Painting::OverflowData>> old_overflow_data_by_box;
 
-    auto pending_boxes = move(m_boxes_needing_scrollable_overflow_recalculation);
-    auto needs_full_recalculation = exchange(m_needs_full_scrollable_overflow_recalculation, false);
+    if (!m_layout_node_arena)
+        return;
+    Vector<Layout::RustFFI::NodeSlotId> pending_boxes;
+    auto needs_full_recalculation = Layout::RustFFI::layout_arena_take_scrollable_overflow_recalculation_state(
+        m_layout_node_arena->handle(), &pending_boxes,
+        [](void* context, Layout::RustFFI::NodeSlotId slot) {
+            static_cast<Vector<Layout::RustFFI::NodeSlotId>*>(context)->append(slot);
+        });
     if (pending_boxes.is_empty() && !needs_full_recalculation)
         return;
     if (!has_committed_viewport_box())
@@ -10287,27 +10293,7 @@ void Document::schedule_scrollable_overflow_recalculation(Layout::Node const& la
         return;
     }
 
-    if (auto const* box = as_if<Layout::Box>(layout_node)) {
-        for (auto const* containing_box = box; containing_box; containing_box = containing_box->containing_block()) {
-            if (Painting::has_committed_box(*containing_box))
-                Painting::clear_cached_overflow_data(*containing_box);
-        }
-    }
-
-    if (m_needs_full_scrollable_overflow_recalculation)
-        return;
-
-    // NB: Cap the queue in case it's never consumed (e.g. forced style updates in a document that never
-    //     updates layout).
-    static constexpr size_t max_pending_scrollable_overflow_recalculations = 1024;
-    if (m_boxes_needing_scrollable_overflow_recalculation.size() >= max_pending_scrollable_overflow_recalculations) {
-        m_boxes_needing_scrollable_overflow_recalculation.clear();
-        m_needs_full_scrollable_overflow_recalculation = true;
-        return;
-    }
-
-    if (Painting::has_committed_box(layout_node))
-        m_boxes_needing_scrollable_overflow_recalculation.append(Painting::committed_row_slot(layout_node));
+    Layout::RustFFI::layout_arena_schedule_scrollable_overflow_recalculation(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node));
 }
 
 void Document::schedule_scrollable_overflow_recalculation(Element& element)

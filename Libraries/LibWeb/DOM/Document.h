@@ -1898,9 +1898,6 @@ private:
 
     bool m_needs_accumulated_visual_contexts_update { false };
 
-    bool m_needs_full_scrollable_overflow_recalculation { false };
-    Vector<Layout::RustFFI::NodeSlotId> m_boxes_needing_scrollable_overflow_recalculation;
-
     HashMap<Compositor::AsyncScrollNodeStableID, Painting::SnappedAreas> m_scroll_container_snapped_areas;
     Vector<WeakPtr<Layout::Node const>> m_scroll_snap_containers;
     bool m_needs_scroll_container_resnap { false };
