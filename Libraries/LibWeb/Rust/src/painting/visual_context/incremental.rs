@@ -472,6 +472,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
             let existing_record = layout_arena.paintable_visual_context_record(slot);
             let record_existed = existing_record.is_some();
             let previous_output = existing_record.as_ref().map(|record| record.output_for_descendants);
+            let previous_stacking_context_facts = existing_record.as_ref().map(|record| record.stacking_context);
             let previous_has_mask_nodes = existing_record.as_ref().is_some_and(|record| record.has_mask_nodes);
             let may_be_root_element = parent == viewport;
             let tree = Rc::make_mut(state.tree.as_mut().expect("the tree exists throughout the pass"));
@@ -536,6 +537,16 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
                 box_owns_geometry_dependent_nodes(layout_arena, tree, slot, &assignment.record.node_handles);
             assignment.record.subtree_may_own_geometry_dependent_nodes =
                 assignment.record.owns_geometry_dependent_nodes || subtree_may_own_geometry_dependent_nodes;
+            if scope != VisualContextUpdateScope::FreshTree {
+                let box_was_reattached =
+                    work_bits.is_some_and(|bits| bits.contains(VisualContextBoxDirtyKind::ReattachedInLayoutTree));
+                layout_arena.apply_stacking_context_facts_delta(
+                    slot,
+                    previous_stacking_context_facts.as_ref(),
+                    &mut assignment.record.stacking_context,
+                    box_was_reattached,
+                );
+            }
 
             let previous_contexts = record_existed.then(|| {
                 let data = layout_arena.paintable_data(slot);

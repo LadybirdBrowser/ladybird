@@ -120,23 +120,19 @@ pub(crate) fn assign_fragment_ownership(layout_arena: &impl PaintableRowsRead, v
     }
 }
 
-fn assign_for_block(layout_arena: &impl PaintableRowsRead, block: NodeSlotId) {
+fn piece_paintable_of(layout_arena: &impl PaintableRowsRead, node: NodeSlotId) -> Option<NodeSlotId> {
+    if node.is_invalid() || layout_arena.shell_if_live(node).is_null() {
+        return None;
+    }
+    (layout_arena.paintable_row_is_populated(node) && node_painting::is_inline(layout_arena, node)).then_some(node)
+}
+
+pub(crate) fn compute_fragment_ownership_for_block(
+    layout_arena: &impl PaintableRowsRead,
+    block: NodeSlotId,
+) -> Vec<(NodeSlotId, FragmentOwnershipFilter)> {
     let pieces = layout_arena.paintable_side_data(block).inline_box_pieces.clone();
     let mut block_filter = FragmentOwnershipFilter::everything();
-
-    let piece_paintable_of = |node: NodeSlotId| -> Option<NodeSlotId> {
-        if node.is_invalid() || layout_arena.shell_if_live(node).is_null() {
-            return None;
-        }
-        (layout_arena.paintable_row_is_populated(node) && node_painting::is_inline(layout_arena, node)).then_some(node)
-    };
-
-    // Start every piece's box from a clean slate.
-    for piece in &pieces {
-        if let Some(paintable) = piece_paintable_of(piece.node) {
-            layout_arena.paintable_side_data_mut(paintable).fragment_ownership = None;
-        }
-    }
 
     let mut owners: Vec<NodeSlotId> = Vec::new();
     let mut filters: Vec<FragmentOwnershipFilter> = Vec::new();
@@ -154,7 +150,7 @@ fn assign_for_block(layout_arena: &impl PaintableRowsRead, block: NodeSlotId) {
         if piece.fragment_count == 0 {
             continue;
         }
-        let Some(piece_paintable) = piece_paintable_of(piece.node) else {
+        let Some(piece_paintable) = piece_paintable_of(layout_arena, piece.node) else {
             continue;
         };
         if !is_self_painting_inline(layout_arena, piece_paintable) {
@@ -177,9 +173,24 @@ fn assign_for_block(layout_arena: &impl PaintableRowsRead, block: NodeSlotId) {
     }
 
     block_filter.excluded.sort_by_key(|range| range.begin);
-    layout_arena.paintable_side_data_mut(block).fragment_ownership = Some(block_filter);
+    let mut owners_with_filters = vec![(block, block_filter)];
     for (owner, mut filter) in owners.into_iter().zip(filters) {
         filter.excluded.sort_by_key(|range| range.begin);
+        owners_with_filters.push((owner, filter));
+    }
+    owners_with_filters
+}
+
+fn assign_for_block(layout_arena: &impl PaintableRowsRead, block: NodeSlotId) {
+    let owners_with_filters = compute_fragment_ownership_for_block(layout_arena, block);
+    // Start every piece's box from a clean slate.
+    let pieces = layout_arena.paintable_side_data(block).inline_box_pieces.clone();
+    for piece in &pieces {
+        if let Some(paintable) = piece_paintable_of(layout_arena, piece.node) {
+            layout_arena.paintable_side_data_mut(paintable).fragment_ownership = None;
+        }
+    }
+    for (owner, filter) in owners_with_filters {
         layout_arena.paintable_side_data_mut(owner).fragment_ownership = Some(filter);
     }
 }

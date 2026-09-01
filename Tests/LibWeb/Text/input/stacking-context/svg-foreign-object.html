@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg id="svg-root" width="120" height="60">
+    <rect width="20" height="20" fill="green"/>
+    <foreignObject id="fo" x="20" width="80" height="40">
+        <div id="fo-child" style="position: relative">fo content</div>
+    </foreignObject>
+</svg>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const report = () => internals.stackingContextStructureVerificationReport();
+        const contexts = () => internals.dumpStackingContextTree().split("\n")
+            .filter(line => line.includes("SC for"))
+            .map(line => { const m = line.match(/#([A-Za-z0-9_-]+)/); return m ? m[1] : "(anon)"; })
+            .join(" ");
+        const lines = [];
+        const check = (name) => {
+            settle();
+            const r = report();
+            lines.push(`${name}: contexts=[${contexts()}] report-ok=${r === ""}`);
+            if (r !== "")
+                lines.push(r);
+        };
+        const svgRoot = document.getElementById("svg-root");
+
+        check("baseline");
+        svgRoot.style.opacity = "0.5";
+        check("svg root establishes");
+        svgRoot.style.opacity = "1";
+        check("svg root releases");
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

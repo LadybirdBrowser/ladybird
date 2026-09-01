@@ -1,0 +1,4 @@
+baseline: contexts=[document (anon) item1 item2] report-ok=true
+first item to z 3: contexts=[document (anon) item2 item1] report-ok=true
+first item back to z 1: contexts=[document (anon) item1 item2] report-ok=true
+layout runs during the z-index changes: 0

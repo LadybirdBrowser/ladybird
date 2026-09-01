@@ -1,0 +1,5 @@
+baseline z 1/2/3: contexts=[document (anon) a b c] report-ok=true
+middle to z 5: contexts=[document (anon) a c b] report-ok=true
+middle to z -1: contexts=[document (anon) b a c] report-ok=true
+middle to z auto: contexts=[document (anon) a c] report-ok=true
+middle to z 0: contexts=[document (anon) b a c] report-ok=true

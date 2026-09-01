@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .box { width: 40px; height: 10px; }
+</style>
+<div id="iso" class="box">a</div>
+<div id="blend" class="box">b</div>
+<div id="persp" class="box">c</div>
+<div id="preserve" class="box">d</div>
+<div id="cv" class="box">e</div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const report = () => internals.stackingContextStructureVerificationReport();
+        const contexts = () => internals.dumpStackingContextTree().split("\n")
+            .filter(line => line.includes("SC for"))
+            .map(line => { const m = line.match(/#([A-Za-z0-9_-]+)/); return m ? m[1] : "(anon)"; })
+            .join(" ");
+        const lines = [];
+        const check = (name) => {
+            settle();
+            const r = report();
+            lines.push(`${name}: contexts=[${contexts()}] report-ok=${r === ""}`);
+            if (r !== "")
+                lines.push(r);
+        };
+
+        check("baseline");
+        const flips = [
+            ["iso", "isolation", "isolate", "auto"],
+            ["blend", "mixBlendMode", "multiply", "normal"],
+            ["persp", "perspective", "100px", "none"],
+            ["preserve", "transformStyle", "preserve-3d", "flat"],
+            ["cv", "contentVisibility", "auto", "visible"],
+        ];
+        for (const [id, property, on, off] of flips) {
+            const element = document.getElementById(id);
+            element.style[property] = on;
+            check(`${property} on`);
+            element.style[property] = off;
+            check(`${property} off`);
+        }
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

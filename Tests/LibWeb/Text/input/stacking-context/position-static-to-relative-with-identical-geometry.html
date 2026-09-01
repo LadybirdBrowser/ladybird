@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target">static content</div>
+<div>sibling content</div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const report = () => internals.stackingContextStructureVerificationReport();
+        const lines = [];
+        const check = (name) => {
+            settle();
+            const r = report();
+            lines.push(`${name}: report-ok=${r === ""}`);
+            if (r !== "")
+                lines.push(r);
+        };
+        const target = document.getElementById("target");
+
+        check("baseline");
+        const positionBefore = target.getBoundingClientRect().top;
+        target.style.position = "relative";
+        check("static to relative");
+        lines.push(`geometry unchanged: ${target.getBoundingClientRect().top === positionBefore}`);
+        target.style.position = "static";
+        check("relative back to static");
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

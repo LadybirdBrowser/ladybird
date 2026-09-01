@@ -1,10 +1,11 @@
-baseline: violations=0
-append 5: violations=0
-prepend 5: violations=0
+baseline: violations=0 report-ok=true
+append 5: violations=0 report-ok=true
+prepend 5: violations=0 report-ok=true
 insertions before a fixed reference: violations=0 relabeled=true
-move an existing subtree: violations=0
-wrap committed inline children in an anonymous block: violations=0
-toggle ::first-letter: violations=0
-drop ::first-letter: violations=0
-innerHTML with a table: violations=0
-removals: violations=0
+move an existing subtree: violations=0 report-ok=true
+wrap committed inline children in an anonymous block: violations=0 report-ok=true
+wrapped span still hit-tests on top: true
+toggle ::first-letter: violations=0 report-ok=true
+drop ::first-letter: violations=0 report-ok=true
+innerHTML with a table: violations=0 report-ok=true
+removals: violations=0 report-ok=true

@@ -1784,6 +1784,7 @@ impl LayoutNodeArena {
         }
 
         self.assign_pre_order_labels_to_inserted_subtree(parent, child);
+        self.note_layout_subtree_attached(child);
         self.note_structural_change_at_and_above(parent);
     }
 

@@ -133,6 +133,7 @@ interface Internals {
     Utf16DOMString dumpAccessibilityTree();
     Utf16DOMString dumpLayoutTree(Node node);
     Utf16DOMString dumpStackingContextTree();
+    Utf16DOMString stackingContextStructureVerificationReport();
     Utf16DOMString dumpGCGraph();
     Utf16DOMString dumpSessionHistory();
     Utf16DOMString dumpUIProcessSessionHistory();

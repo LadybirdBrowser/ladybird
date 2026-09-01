@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="line-root" style="font-size: 16px">before <span id="the-span">span text here</span> after</div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const report = () => internals.stackingContextStructureVerificationReport();
+        const lines = [];
+        const span = document.getElementById("the-span");
+        const hitInsideSpan = () => {
+            const rect = span.getBoundingClientRect();
+            const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+            return hit === span ? "the-span" : (hit && hit.id) || (hit && hit.tagName);
+        };
+        const check = (name) => {
+            settle();
+            const r = report();
+            lines.push(`${name}: hit=${hitInsideSpan()} report-ok=${r === ""}`);
+            if (r !== "")
+                lines.push(r);
+        };
+
+        check("baseline");
+        span.style.opacity = "0.5";
+        check("span with opacity");
+        span.style.opacity = "1";
+        check("span back to plain");
+        span.style.position = "relative";
+        check("span positioned");
+        span.style.position = "static";
+        check("span static again");
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

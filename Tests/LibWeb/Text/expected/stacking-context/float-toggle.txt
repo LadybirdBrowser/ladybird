@@ -1,0 +1,5 @@
+baseline: report-ok=true
+float left: report-ok=true
+float none: report-ok=true
+positioned float: report-ok=true
+float without position: report-ok=true

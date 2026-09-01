@@ -1,0 +1,5 @@
+baseline: hit=the-span report-ok=true
+span with opacity: hit=the-span report-ok=true
+span back to plain: hit=the-span report-ok=true
+span positioned: hit=the-span report-ok=true
+span static again: hit=the-span report-ok=true
