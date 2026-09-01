@@ -6,8 +6,8 @@
 
 use super::{
     AnchorScrollShift, BackfaceVisibilityData, ClipData, ClipMode, ClipPathData, EffectsData, FrameData, FrameNode,
-    FrameNodeIndex, FrameRole, MaskData, MaskLayerOrigin, PerspectiveData, ScrollData, SpatialData, SpatialNode,
-    SpatialNodeIndex, StickyData, TransformData, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree,
+    FrameNodeIndex, MaskData, MaskLayerOrigin, PerspectiveData, ScrollData, SpatialData, SpatialNode, SpatialNodeIndex,
+    StickyData, TransformData, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree,
     scroll_state::NO_SCROLL_STATE_SLOT,
 };
 use crate::layout::node_data::NodeSlotId;
@@ -555,7 +555,7 @@ impl VisualContextTree {
             let parent = reader.frame_index()?;
             let spatial = reader.spatial_index()?;
             let data = read_frame_data(&mut reader)?;
-            frame_nodes.push(FrameNode::new(data, parent, spatial, FrameRole::Structural));
+            frame_nodes.push(FrameNode::new(data, parent, spatial));
         }
 
         if reader.remaining() != 0 {
@@ -820,12 +820,6 @@ mod tests {
         let bytes = tree.to_bytes();
         let decoded = VisualContextTree::from_bytes(&bytes).expect("a serialized tree decodes");
         assert_trees_match(&tree, &decoded);
-        assert!(
-            decoded
-                .frame_nodes
-                .iter()
-                .all(|node| node.role == FrameRole::Structural)
-        );
         assert_eq!(decoded.to_bytes(), bytes);
     }
 

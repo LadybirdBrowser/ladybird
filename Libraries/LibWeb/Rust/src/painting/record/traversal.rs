@@ -90,7 +90,6 @@ pub(crate) fn record_display_list(
         nested: None,
         nested_tree: None,
         recording_into_context_free_nested_list: false,
-        last_looked_up_box_local_frames_by_role: std::cell::RefCell::new(None),
         prerecorded: crate::painting::record::masks::PrerecordedNestedDisplayLists::default(),
         command_cache_source,
         item_cache_source,
@@ -845,11 +844,7 @@ impl PaintRecorder<'_> {
             "a per-phase paint capture must not embed scroll node indices"
         );
         debug_assert!(
-            self.captured_range_references_only_the_phase_context_and_own_local_frames(
-                paintable,
-                range,
-                recorded_context
-            ),
+            self.captured_range_references_only_the_phase_context(paintable, range, recorded_context),
             "a per-phase paint capture records under its phase context and its own local frames"
         );
         let cache = self.layout_arena.paintable_paint_cache(paintable);
@@ -865,34 +860,29 @@ impl PaintRecorder<'_> {
     }
 
     #[cfg(debug_assertions)]
-    fn captured_range_references_only_the_phase_context_and_own_local_frames(
+    fn captured_range_references_only_the_phase_context(
         &self,
-        paintable: NodeSlotId,
+        _paintable: NodeSlotId,
         range: CommandRange,
         recorded_context: ContextRef,
     ) -> bool {
         use crate::painting::display_list::builder::{HEADER_SIZE, read_header};
         let bytes = &self.recorder.bytes()[range.offset as usize..(range.offset + range.size) as usize];
-        self.layout_arena
-            .with_paintable_visual_context_node_handles(paintable, |handles| {
-                let mut offset = 0;
-                while offset < bytes.len() {
-                    let header = read_header(&bytes[offset..]);
-                    let frame = header.context.frame;
-                    let frame_belongs_to_the_capture = frame.is_none()
-                        || frame == recorded_context.frame
-                        || handles.local_frame_handles().contains(&frame);
-                    if header.context.spatial != recorded_context.spatial || !frame_belongs_to_the_capture {
-                        return false;
-                    }
-                    offset += HEADER_SIZE + header.payload_size as usize;
-                }
-                true
-            })
+        let mut offset = 0;
+        while offset < bytes.len() {
+            let header = read_header(&bytes[offset..]);
+            let frame = header.context.frame;
+            let frame_belongs_to_the_capture = frame.is_none() || frame == recorded_context.frame;
+            if header.context.spatial != recorded_context.spatial || !frame_belongs_to_the_capture {
+                return false;
+            }
+            offset += HEADER_SIZE + header.payload_size as usize;
+        }
+        true
     }
 
     #[cfg(not(debug_assertions))]
-    fn captured_range_references_only_the_phase_context_and_own_local_frames(
+    fn captured_range_references_only_the_phase_context(
         &self,
         _paintable: NodeSlotId,
         _range: CommandRange,

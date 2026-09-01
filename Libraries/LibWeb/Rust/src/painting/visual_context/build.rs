@@ -168,11 +168,10 @@ pub(crate) fn create_fresh_tree_with_viewport_nodes(
     inputs: &FfiVisualContextTreeInputs,
 ) -> FreshTree {
     let mut tree = VisualContextTree::create(super::node_values::visual_viewport_transform_data(inputs));
-    let root_isolation_frame = tree.append_frame_with_role(
+    let root_isolation_frame = tree.append_frame(
         FrameData::layer_blending_with(CompositingAndBlendingOperator::Normal),
         FrameNodeIndex::NONE,
         VISUAL_VIEWPORT_NODE_INDEX,
-        FrameRole::RootIsolation,
     );
     tree.root_isolation_frame = Some(root_isolation_frame);
     let root_context = ContextRef {

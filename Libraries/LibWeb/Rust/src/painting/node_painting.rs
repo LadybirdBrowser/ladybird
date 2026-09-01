@@ -94,10 +94,3 @@ pub(crate) const fn forms_unconnected_subtree(kind: NodeKind) -> bool {
 pub(crate) const fn foreground_is_never_cached(kind: NodeKind) -> bool {
     matches!(kind, NodeKind::NavigableContainerViewport)
 }
-
-pub(crate) fn paints_box_decorations(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
-    let Some(kind) = arena.node_kind_if_live(node) else {
-        return false;
-    };
-    !is_inline(arena, node) && !is_svg_path(kind) && kind != NodeKind::SVGImageBox
-}

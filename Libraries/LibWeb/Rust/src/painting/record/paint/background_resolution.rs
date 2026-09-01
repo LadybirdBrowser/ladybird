@@ -58,7 +58,6 @@ struct ComputedLayer<'a> {
 
 pub(crate) struct ResolvedBackgroundLayer<'a> {
     pub image: Option<LayerImageSource<'a>>,
-    pub computed_index: u32,
     pub attachment: u8,
     pub clip: u8,
     pub position_x: CssPixels,
@@ -108,49 +107,6 @@ pub(crate) fn operator_erases_destination_outside_the_drawn_geometry(operator: C
             | CompositingAndBlendingOperator::DestinationIn
             | CompositingAndBlendingOperator::DestinationATop
     )
-}
-
-pub(crate) struct ComputedLayerFrameFacts {
-    pub clip: u8,
-    pub blend_mode: CompositingAndBlendingOperator,
-    pub mask_composite: Option<CompositingAndBlendingOperator>,
-    pub may_be_painted: bool,
-}
-
-impl ComputedLayerFrameFacts {
-    pub(crate) fn blend_layer_operator(&self) -> CompositingAndBlendingOperator {
-        self.mask_composite.unwrap_or(self.blend_mode)
-    }
-}
-
-impl ComputedLayer<'_> {
-    fn may_be_painted(&self, layer_type: LayerType) -> bool {
-        matches!(layer_type, LayerType::Mask) || self.image.is_some()
-    }
-
-    fn frame_facts(&self, layer_type: LayerType) -> ComputedLayerFrameFacts {
-        let is_mask = matches!(layer_type, LayerType::Mask);
-        ComputedLayerFrameFacts {
-            clip: self.clip,
-            blend_mode: mix_blend_mode_to_compositing_and_blending_operator(self.blend_mode),
-            mask_composite: is_mask.then(|| mask_composite_to_compositing_and_blending_operator(self.mask_composite)),
-            may_be_painted: self.may_be_painted(layer_type),
-        }
-    }
-}
-
-pub(crate) fn computed_background_layer_frame_facts(style: ComputedValuesView<'_>) -> Vec<ComputedLayerFrameFacts> {
-    computed_background_layers(style, FfiLayerImageList::Background)
-        .iter()
-        .map(|layer| layer.frame_facts(LayerType::Background))
-        .collect()
-}
-
-pub(crate) fn computed_mask_layer_frame_facts(style: ComputedValuesView<'_>) -> Vec<ComputedLayerFrameFacts> {
-    computed_mask_layers(style)
-        .iter()
-        .map(|layer| layer.frame_facts(LayerType::Mask))
-        .collect()
 }
 
 pub(crate) fn body_background_is_propagated_to_root(
@@ -409,27 +365,25 @@ fn resolve_layers<'a>(
     let padding = committed_padding(recorder.layout_arena, paintable);
     let border = committed_border(recorder.layout_arena, paintable);
     let color_box = background_box_for(background_color_clip, border_box, padding, border);
-    let paintable_layer_count = layers.iter().filter(|layer| layer.may_be_painted(layer_type)).count();
+    let layer_may_be_painted =
+        |layer: &ComputedLayer<'_>| matches!(layer_type, LayerType::Mask) || layer.image.is_some();
+    let paintable_layer_count = layers.iter().filter(|layer| layer_may_be_painted(layer)).count();
 
     let mut resolved_layers: Vec<ResolvedBackgroundLayer<'a>> = Vec::new();
     // A value of none counts as a transparent black image layer.
     // A mask reference that is an empty image (zero width or zero height), that fails to download, is not a reference
     // to an mask element, is non-existent, or that cannot be displayed (e.g. because it is not in a supported image
     // format) still counts as an image layer of transparent black.
-    for (computed_index, layer) in layers.into_iter().enumerate() {
+    for layer in layers {
         let is_mask = matches!(layer_type, LayerType::Mask);
-        let ComputedLayerFrameFacts {
-            blend_mode,
-            mask_composite,
-            ..
-        } = layer.frame_facts(layer_type);
+        let blend_mode = mix_blend_mode_to_compositing_and_blending_operator(layer.blend_mode);
+        let mask_composite = is_mask.then(|| mask_composite_to_compositing_and_blending_operator(layer.mask_composite));
         let transparent_mask_layer = |resolved_layers: &mut Vec<ResolvedBackgroundLayer<'a>>| {
             if !is_mask {
                 return;
             }
             resolved_layers.push(ResolvedBackgroundLayer {
                 image: None,
-                computed_index: computed_index as u32,
                 attachment: 0,
                 clip: layer.clip,
                 position_x: CssPixels::from_raw(0),
@@ -596,7 +550,6 @@ fn resolve_layers<'a>(
 
         resolved_layers.push(ResolvedBackgroundLayer {
             image: Some(image),
-            computed_index: computed_index as u32,
             attachment: layer.attachment,
             clip: layer.clip,
             position_x,
