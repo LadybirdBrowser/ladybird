@@ -78,6 +78,7 @@ private:
 
     Vector<Layout::Node*> m_rebuilt_subtree_roots;
     bool m_layout_tree_update_escaped_rebuild_roots { false };
+    bool m_needs_another_build_pass { false };
 };
 
 void LayoutTreeBuilderAccess::clear_synthetic_pseudo_element_layout_nodes(DOM::Element& element)
@@ -1139,6 +1140,16 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
         .request_top_layer_zone_rebuild = [](void* node_pointer) {
             VERIFY(node_pointer);
             static_cast<DOM::Node*>(node_pointer)->document().set_top_layer_needs_layout_zone_rebuild(); },
+        .request_layout_tree_rebuild = [](void* builder_pointer, void* element_pointer) {
+            VERIFY(builder_pointer);
+            auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
+            builder.m_needs_another_build_pass = true;
+            if (element_pointer) {
+                static_cast<DOM::Element*>(element_pointer)->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::PseudoElementBoxEscapedRebuildRoot);
+                return;
+            }
+            VERIFY(builder.m_layout_root);
+            builder.m_layout_root->document().set_needs_full_layout_tree_update(true); },
         .push_principal_frame = [](void* builder_pointer, void* node_pointer) -> RustFFI::FfiPrincipalNodeFrame {
             VERIFY(builder_pointer);
             VERIFY(node_pointer);
@@ -1379,6 +1390,7 @@ LayoutTreeBuildResult LayoutTreeBuildBridge::build(DOM::Node& dom_node)
         .root = move(m_layout_root),
         .rebuilt_subtree_roots = move(m_rebuilt_subtree_roots),
         .layout_tree_update_escaped_rebuild_roots = m_layout_tree_update_escaped_rebuild_roots,
+        .needs_another_build_pass = m_needs_another_build_pass,
     };
 }
 
