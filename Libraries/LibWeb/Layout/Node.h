@@ -234,11 +234,6 @@ public:
     bool needs_own_geometry_update() const { return has_flag(RustFFI::NodeFlag::NeedsOwnGeometryUpdate); }
     void set_needs_own_geometry_update() { set_flag(RustFFI::NodeFlag::NeedsOwnGeometryUpdate, true); }
     void set_needs_layout_update(DOM::SetNeedsLayoutReason, LayoutUpdatePropagation = LayoutUpdatePropagation::ThroughAncestors);
-    void reset_needs_layout_update()
-    {
-        set_flag(RustFFI::NodeFlag::NeedsLayoutUpdate, false);
-        set_flag(RustFFI::NodeFlag::NeedsOwnGeometryUpdate, false);
-    }
 
     bool is_generated_for_pseudo_element() const { return m_data->generated_for != 0; }
     Optional<CSS::PseudoElement> generated_for_pseudo_element() const
