@@ -61,6 +61,7 @@ public:
         ServiceWorker,
         SharedWorker,
         Style,
+        Text,
         Track,
         Video,
         WebIdentity,

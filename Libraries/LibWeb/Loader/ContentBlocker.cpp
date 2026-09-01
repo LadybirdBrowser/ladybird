@@ -301,6 +301,8 @@ ContentBlocker::ResourceType ContentBlocker::resource_type_from_fetch_metadata(O
             return ResourceType::Script;
         case Request::Destination::Style:
             return ResourceType::Stylesheet;
+        case Request::Destination::Text:
+            return ResourceType::Other;
         case Request::Destination::JSON:
         case Request::Destination::Manifest:
         case Request::Destination::Report:

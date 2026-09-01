@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const text = "hello from a text module";
+        const module = await import(`data:text/plain,${encodeURIComponent(text)}`, { with: { type: "text" } });
+
+        println(`${module.default === text ? "PASS" : "FAIL"}: text modules expose their source as the default export`);
+        const keys = Reflect.ownKeys(module);
+        println(`${keys.length === 2 && keys[0] === "default" && keys[1] === Symbol.toStringTag ? "PASS" : "FAIL"}: text modules only expose a default export`);
+        done();
+    });
+</script>

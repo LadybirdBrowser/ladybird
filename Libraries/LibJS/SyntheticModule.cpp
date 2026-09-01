@@ -69,6 +69,13 @@ ThrowCompletionOr<GC::Ref<SyntheticModule>> parse_json_module(Realm& realm, Utf1
     return SyntheticModule::create_default_export_synthetic_module(realm, json, move(filename));
 }
 
+// 16.2.1.8.5 CreateTextModule ( source ), https://tc39.es/proposal-import-text/#sec-create-text-module
+GC::Ref<SyntheticModule> create_text_module(Realm& realm, Utf16View source, ByteString filename)
+{
+    // 1. Return CreateDefaultExportSyntheticModule(source).
+    return SyntheticModule::create_default_export_synthetic_module(realm, PrimitiveString::create(realm.vm(), source), move(filename));
+}
+
 // 16.2.1.8.3 SetSyntheticModuleExport ( module, exportName, exportValue ), https://tc39.es/ecma262/#sec-setsyntheticmoduleexport
 ThrowCompletionOr<void> SyntheticModule::set_synthetic_module_export(Utf16FlyString const& export_name, Value export_value)
 {

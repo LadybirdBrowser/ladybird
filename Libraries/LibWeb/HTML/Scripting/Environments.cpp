@@ -332,8 +332,8 @@ bool is_scripting_disabled(EnvironmentSettingsObject const& settings)
 // https://html.spec.whatwg.org/multipage/webappapis.html#module-type-allowed
 bool module_type_allowed(EnvironmentSettingsObject const&, Utf16View module_type)
 {
-    // 1. If moduleType is not "javascript-or-wasm", "css", or "json", then return false.
-    if (module_type != "javascript-or-wasm"sv && module_type != "css"sv && module_type != "json"sv)
+    // 1. If moduleType is not "javascript-or-wasm", "css", "json", or "text", then return false.
+    if (module_type != "javascript-or-wasm"sv && module_type != "css"sv && module_type != "json"sv && module_type != "text"sv)
         return false;
 
     // FIXME: 2. If moduleType is "css" and the CSSStyleSheet interface is not exposed in settings's realm, then return false.

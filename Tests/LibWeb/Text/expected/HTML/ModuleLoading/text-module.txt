@@ -1,0 +1,2 @@
+PASS: text modules expose their source as the default export
+PASS: text modules only expose a default export
