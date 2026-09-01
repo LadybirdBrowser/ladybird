@@ -11,6 +11,7 @@ set(SOURCES
     CanonicalTraversable.cpp
     BrowserProcess.cpp
     CompositorClient.cpp
+    CompositorFontServiceConnection.cpp
     CompositorConnection.cpp
     CompositorHostBase.cpp
     ConsoleOutput.cpp
@@ -92,6 +93,8 @@ set(GENERATED_SOURCES
     ${GENERATED_SOURCES}
     ../../Services/Compositor/CompositorControlClientEndpoint.h
     ../../Services/Compositor/CompositorControlServerEndpoint.h
+    ../../Services/Compositor/CompositorFontClientEndpoint.h
+    ../../Services/Compositor/CompositorFontServerEndpoint.h
     ../../Services/Compositor/CompositorWebContentClientEndpoint.h
     ../../Services/Compositor/CompositorWebContentServerEndpoint.h
     ../../Services/RequestServer/RequestClientEndpoint.h
@@ -108,6 +111,8 @@ set(GENERATED_SOURCES
 
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorControlClient.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorControlClientEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorControlServer.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorControlServerEndpoint.h)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorFontClient.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorFontClientEndpoint.h)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorFontServer.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorFontServerEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorWebContentClient.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorWebContentClientEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorWebContentServer.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorWebContentServerEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebContentClient.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebContentClientEndpoint.h)

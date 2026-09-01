@@ -9,6 +9,7 @@
 endpoint CompositorControlServer
 {
     init_transport(int peer_pid) => (int peer_pid)
+    set_font_service_transport(IPC::TransportHandle handle) =|
     set_font_catalog(IPC::File file, u64 size, u64 generation) =|
 
     connect_web_content() => (IPC::TransportHandle handle, i32 web_content_connection_id)

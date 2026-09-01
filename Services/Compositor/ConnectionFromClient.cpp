@@ -52,6 +52,26 @@ Messages::CompositorControlServer::InitTransportResponse ConnectionFromClient::i
     VERIFY_NOT_REACHED();
 }
 
+void ConnectionFromClient::set_font_service_transport(IPC::TransportHandle handle)
+{
+    auto transport = handle.create_transport();
+    if (transport.is_error()) {
+        dbgln("Compositor: Unable to create font service transport: {}", transport.error());
+        return;
+    }
+
+    m_font_client = FontClient::construct(transport.release_value());
+#ifdef AK_OS_WINDOWS
+    auto response = m_font_client->send_sync_but_allow_failure<FontClient::InitTransport>(Core::System::getpid());
+    if (!response) {
+        dbgln("Compositor: Unable to initialize font service transport");
+        m_font_client = nullptr;
+        return;
+    }
+    m_font_client->transport().set_peer_pid(response->peer_pid());
+#endif
+}
+
 void ConnectionFromClient::set_font_catalog(IPC::File file, u64 size, u64 generation)
 {
     if (m_font_provider) {
@@ -62,7 +82,9 @@ void ConnectionFromClient::set_font_catalog(IPC::File file, u64 size, u64 genera
 
     Gfx::SharedFontProviderCallbacks callbacks;
     callbacks.open_font = [this](u64 requested_generation, u64 face_id) {
-        auto response = send_sync_but_allow_failure<Messages::CompositorControlClient::OpenSystemFont>(requested_generation, face_id);
+        if (!m_font_client)
+            return Gfx::BrokeredFont {};
+        auto response = m_font_client->send_sync_but_allow_failure<Messages::CompositorFontServer::OpenSystemFont>(requested_generation, face_id);
         if (!response || response->format() > to_underlying(Gfx::FontFileFormat::WOFF))
             return Gfx::BrokeredFont {};
         return Gfx::BrokeredFont {
@@ -73,7 +95,9 @@ void ConnectionFromClient::set_font_catalog(IPC::File file, u64 size, u64 genera
         };
     };
     callbacks.match_font = [this](String const& family, u16 weight, u16 width, u8 slope) {
-        auto response = send_sync_but_allow_failure<Messages::CompositorControlClient::MatchSystemFont>(family, weight, width, slope);
+        if (!m_font_client)
+            return Gfx::BrokeredFont {};
+        auto response = m_font_client->send_sync_but_allow_failure<Messages::CompositorFontServer::MatchSystemFont>(family, weight, width, slope);
         if (!response || response->format() > to_underlying(Gfx::FontFileFormat::WOFF))
             return Gfx::BrokeredFont {};
         return Gfx::BrokeredFont {
@@ -84,7 +108,9 @@ void ConnectionFromClient::set_font_catalog(IPC::File file, u64 size, u64 genera
         };
     };
     callbacks.match_font_for_code_point = [this](u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) {
-        auto response = send_sync_but_allow_failure<Messages::CompositorControlClient::MatchSystemFontForCodePoint>(code_point, weight, width, slope, prefer_color_emoji);
+        if (!m_font_client)
+            return Gfx::BrokeredFont {};
+        auto response = m_font_client->send_sync_but_allow_failure<Messages::CompositorFontServer::MatchSystemFontForCodePoint>(code_point, weight, width, slope, prefer_color_emoji);
         if (!response || response->format() > to_underlying(Gfx::FontFileFormat::WOFF))
             return Gfx::BrokeredFont {};
         return Gfx::BrokeredFont {
@@ -95,7 +121,9 @@ void ConnectionFromClient::set_font_catalog(IPC::File file, u64 size, u64 genera
         };
     };
     callbacks.resolve_generic_family = [this](String const& family, u16 weight, u8 slope) -> Optional<FlyString> {
-        auto response = send_sync_but_allow_failure<Messages::CompositorControlClient::ResolveGenericFont>(family, weight, slope);
+        if (!m_font_client)
+            return {};
+        auto response = m_font_client->send_sync_but_allow_failure<Messages::CompositorFontServer::ResolveGenericFont>(family, weight, slope);
         if (!response)
             return {};
         auto resolved_family = response->take_resolved_family();

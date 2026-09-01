@@ -54,6 +54,7 @@ ErrorOr<void> FontService::wait_until_ready()
 
 ErrorOr<FontCatalogDescriptor> FontService::clone_catalog()
 {
+    Sync::MutexLocker locker(m_mutex);
     TRY(wait_until_ready());
     return FontCatalogDescriptor {
         .file = TRY(IPC::File::clone_fd(m_catalog_file.fd())),
@@ -133,7 +134,15 @@ ErrorOr<IPC::File> FontService::create_immutable_font_data(ReadonlyBytes bytes)
 
 Gfx::BrokeredFont FontService::open_font(u64 generation, u64 face_id)
 {
-    if (wait_until_ready().is_error() || generation != m_generation || face_id == 0)
+    Sync::MutexLocker locker(m_mutex);
+    if (wait_until_ready().is_error())
+        return {};
+    return open_font_without_lock(generation, face_id);
+}
+
+Gfx::BrokeredFont FontService::open_font_without_lock(u64 generation, u64 face_id)
+{
+    if (generation != m_generation || face_id == 0)
         return {};
 
     if (auto source = m_font_sources.get(face_id); source.has_value()) {
@@ -165,7 +174,7 @@ Gfx::BrokeredFont FontService::open_font(u64 generation, u64 face_id)
 Gfx::BrokeredFont FontService::materialize_typeface(NonnullRefPtr<Gfx::TypefaceSkia> typeface, String cache_key)
 {
     if (auto face_id = m_dynamic_match_cache.get(cache_key); face_id.has_value())
-        return open_font(m_generation, *face_id);
+        return open_font_without_lock(m_generation, *face_id);
 
     auto file = create_immutable_font_data(typeface->font_data());
     if (file.is_error())
@@ -179,16 +188,17 @@ Gfx::BrokeredFont FontService::materialize_typeface(NonnullRefPtr<Gfx::TypefaceS
                                            .format = Gfx::FontFileFormat::OpenType,
                                        });
     m_dynamic_match_cache.set(move(cache_key), face_id);
-    return open_font(m_generation, face_id);
+    return open_font_without_lock(m_generation, face_id);
 }
 
 Gfx::BrokeredFont FontService::match_font(String const& family, u16 weight, u16 width, u8 slope)
 {
+    Sync::MutexLocker locker(m_mutex);
     if (wait_until_ready().is_error())
         return {};
     auto cache_key = MUST(String::formatted("family:{}:{}:{}:{}", family, weight, width, slope));
     if (auto face_id = m_dynamic_match_cache.get(cache_key); face_id.has_value())
-        return open_font(m_generation, *face_id);
+        return open_font_without_lock(m_generation, *face_id);
 
     auto typeface = Gfx::TypefaceSkia::match_family_style(family.bytes_as_string_view(), weight, width, slope);
     if (typeface.is_error() || !typeface.value())
@@ -198,11 +208,12 @@ Gfx::BrokeredFont FontService::match_font(String const& family, u16 weight, u16 
 
 Gfx::BrokeredFont FontService::match_font_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji)
 {
+    Sync::MutexLocker locker(m_mutex);
     if (wait_until_ready().is_error())
         return {};
     auto cache_key = MUST(String::formatted("character:{}:{}:{}:{}:{}", code_point, weight, width, slope, prefer_color_emoji));
     if (auto face_id = m_dynamic_match_cache.get(cache_key); face_id.has_value())
-        return open_font(m_generation, *face_id);
+        return open_font_without_lock(m_generation, *face_id);
 
     auto typeface = Gfx::TypefaceSkia::find_typeface_for_code_point(code_point, weight, width, slope, prefer_color_emoji);
     if (typeface.is_error() || !typeface.value())
@@ -212,6 +223,7 @@ Gfx::BrokeredFont FontService::match_font_for_code_point(u32 code_point, u16 wei
 
 Optional<FlyString> FontService::resolve_generic_family(String const& family, u16 weight, u8 slope)
 {
+    Sync::MutexLocker locker(m_mutex);
     if (wait_until_ready().is_error())
         return {};
     return Gfx::TypefaceSkia::resolve_generic_family(family.bytes_as_string_view(), weight, slope);
