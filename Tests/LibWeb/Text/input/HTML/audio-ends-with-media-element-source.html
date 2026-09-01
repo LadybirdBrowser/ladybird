@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<audio id="audio"></audio>
+<script>
+    const audio = document.getElementById("audio");
+
+    function playToTheEnd() {
+        audio.currentTime = audio.duration - 0.125;
+        return new Promise(resolve => audio.addEventListener("seeked", resolve, { once: true }))
+            .then(() => audio.play())
+            .then(() => new Promise(resolve => audio.addEventListener("ended", resolve, { once: true })));
+    }
+
+    promiseTest(async () => {
+        audio.src = "../../../Assets/test-webm-audio.ogg";
+        await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        // Connecting after the tracks are enabled is the common order on pages, and the audio must still get through.
+        const context = new AudioContext();
+        context.createMediaElementSource(audio).connect(context.destination);
+
+        let started = performance.now();
+        await playToTheEnd();
+        println(`ended while rendering, took at least 50ms: ${performance.now() - started >= 50}`);
+        println(`currentTime === duration: ${audio.currentTime === audio.duration}`);
+
+        // A suspended context ignores the element's output, but the element keeps playing and still ends.
+        await context.suspend();
+        started = performance.now();
+        await playToTheEnd();
+        println(`ended while suspended, took at least 50ms: ${performance.now() - started >= 50}`);
+
+        await context.resume();
+        await context.close();
+    });
+</script>

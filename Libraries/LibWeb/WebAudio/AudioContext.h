@@ -64,6 +64,7 @@ private:
 
     bool start_rendering_audio_graph();
     void set_renderer_callbacks();
+    void set_media_element_sources_ticking(bool);
 };
 
 }
