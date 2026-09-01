@@ -11,6 +11,7 @@ namespace Media {
 
 class AudioDecoder;
 class AudioMixer;
+class AudioOutputQueue;
 class AudioPlaybackSink;
 class AudioProducer;
 class AudioSink;
