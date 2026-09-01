@@ -159,30 +159,6 @@ void Node::bump_fragment_cache_epoch_of_self_and_ancestors()
     RustFFI::layout_arena_bump_fragment_cache_epoch_of_self_and_ancestors(arena_handle(), slot_id(this));
 }
 
-// Reset intrinsic size caches for ancestors up to abspos or SVG root boundary.
-// Absolutely positioned elements don't contribute to ancestor intrinsic sizes,
-// so changes inside an abspos box don't require resetting ancestor caches.
-// SVG root elements have intrinsic sizes determined solely by their own attributes
-// (width, height, viewBox), not by their children, so the same logic applies.
-static void reset_cached_intrinsic_sizes_of_ancestors(Node& node)
-{
-    for (auto* ancestor = node.parent(); ancestor; ancestor = ancestor->parent()) {
-        auto* box = as_if<Box>(ancestor);
-        if (!box)
-            continue;
-        box->reset_cached_intrinsic_sizes();
-        if (box->is_absolutely_positioned() || box->is_svg_svg_box())
-            break;
-    }
-}
-
-static void reset_cached_intrinsic_sizes_of_self_and_ancestors(Node& node)
-{
-    if (auto* box = as_if<Box>(node))
-        box->reset_cached_intrinsic_sizes();
-    reset_cached_intrinsic_sizes_of_ancestors(node);
-}
-
 void* Node::arena_handle() const
 {
     return m_arena->handle();
@@ -963,7 +939,7 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
 
     if (changes_layout_affecting_style) {
         bump_fragment_cache_epoch_of_self_and_ancestors();
-        reset_cached_intrinsic_sizes_of_self_and_ancestors(*this);
+        RustFFI::layout_arena_reset_cached_intrinsic_sizes_of_self_and_ancestors(arena_handle(), slot_id(this));
     }
 
     for (auto* child = first_child_ptr(); child; child = child->next_sibling_ptr()) {
@@ -1009,7 +985,7 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
 
     if (changes_layout_affecting_style) {
         bump_fragment_cache_epoch_of_self_and_ancestors();
-        reset_cached_intrinsic_sizes_of_self_and_ancestors(*this);
+        RustFFI::layout_arena_reset_cached_intrinsic_sizes_of_self_and_ancestors(arena_handle(), slot_id(this));
     }
 }
 

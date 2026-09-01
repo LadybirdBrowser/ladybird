@@ -2168,16 +2168,6 @@ pub unsafe extern "C" fn layout_arena_free(arena: *mut c_void, id: NodeSlotId, g
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_drop_intrinsic_size_cache(arena: *mut c_void, data: *const NodeData) {
-    abort_on_panic(|| {
-        assert!(!arena.is_null(), "layout node arena handle is null");
-        // SAFETY: The C++ wrapper keeps the arena alive for this call and
-        // serializes all access on the document thread.
-        unsafe { &*arena.cast::<LayoutNodeArena>() }.drop_intrinsic_size_cache(data);
-    });
-}
-
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_fc_run_cache_hit_count(arena: *mut c_void) -> u64 {
     abort_on_panic(|| {
         assert!(!arena.is_null(), "layout node arena handle is null");

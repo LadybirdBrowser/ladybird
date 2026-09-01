@@ -69,17 +69,9 @@ public:
     bool compensates_for_horizontal_scroll() const { return has_flag(RustFFI::NodeFlag::CompensatesForHorizontalScroll); }
     bool compensates_for_vertical_scroll() const { return has_flag(RustFFI::NodeFlag::CompensatesForVerticalScroll); }
 
-    void reset_cached_intrinsic_sizes()
-    {
-        if (++node_data().intrinsic_cache_epoch == 0) [[unlikely]]
-            drop_cached_intrinsic_sizes();
-    }
-
     Box(DOM::Document&, GC::Ptr<DOM::Node>, CSS::LayoutStyle, RustFFI::NodeKind = RustFFI::NodeKind::Box);
 
 private:
-    void drop_cached_intrinsic_sizes();
-
     CSS::SizeWithAspectRatio compute_auto_content_box_size() const;
 
     virtual bool is_box() const final { return true; }

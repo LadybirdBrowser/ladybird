@@ -121,6 +121,15 @@ impl LayoutNodeArena {
         std::mem::take(&mut *self.partial_relayout_boundary_roots.borrow_mut())
     }
 
+    pub(crate) fn reset_cached_intrinsic_sizes_of_self_and_ancestors(&self, node: NodeSlotId) {
+        // SAFETY: data() generation-checks the slot; the raw read ends before the epoch write.
+        let node_kind = unsafe { (&raw const (*self.data(node)).kind).read() };
+        if node_facts::kind_is_box(node_kind) {
+            self.reset_cached_intrinsic_sizes(node);
+        }
+        self.reset_cached_intrinsic_sizes_of_ancestors(node);
+    }
+
     // Reset intrinsic size caches for ancestors up to abspos or SVG root boundary.
     // Absolutely positioned elements don't contribute to ancestor intrinsic sizes,
     // so changes inside an abspos box don't require resetting ancestor caches.
@@ -302,6 +311,21 @@ pub unsafe extern "C" fn layout_arena_take_partial_relayout_boundary_roots(
             // SAFETY: The C++ callback appends the slot id to a caller-owned collection.
             unsafe { push_root(context, root) };
         }
+    });
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call, and `node` must name a live node
+/// in this arena.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_reset_cached_intrinsic_sizes_of_self_and_ancestors(
+    arena: *mut c_void,
+    node: NodeSlotId,
+) {
+    abort_on_panic(|| {
+        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+        unsafe { LayoutNodeArena::from_handle(arena) }.reset_cached_intrinsic_sizes_of_self_and_ancestors(node);
     });
 }
 
