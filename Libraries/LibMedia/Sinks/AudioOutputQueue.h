@@ -11,6 +11,7 @@
 #include <AK/Atomic.h>
 #include <AK/AtomicRefCounted.h>
 #include <AK/Function.h>
+#include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <LibCore/Forward.h>
 #include <LibMedia/Audio/SampleSpecification.h>
@@ -44,11 +45,23 @@ public:
     void set_playback_rate(float);
     float playback_rate() const;
 
-    ReadonlySpan<float> read_interleaved(Span<float>);
+    struct InterleavedSamples {
+        ReadonlySpan<float> samples;
+        u8 channel_count { 0 };
+    };
+    // A pull consumer supplies how far its renderer runs ahead so periodic clock refreshes can publish the frame being
+    // heard.
+    struct OutputLatency {
+        i64 in_frames { 0 };
+    };
+    InterleavedSamples read_interleaved(Span<float>, Optional<OutputLatency>);
 
     MediaTimeReader time_reader() const { return m_time_reader; }
     void refresh_audio_clock_anchor(MonotonicTime, i64 output_frame_index, bool playing);
+    void publish_read_clock_anchor(bool playing);
+    void publish_monotonic_clock_anchor(AK::Duration media_time, float playback_rate, bool playing);
 
+    void set_state_change_handler(PipelineStateChangeHandler);
     void set_data_available_handler(Function<void()>);
 
 private:
@@ -60,6 +73,7 @@ private:
     void disconnect_input_while_locked(NonnullRefPtr<AudioProducer> const&);
     void discard_queued_blocks_while_locked();
     void dispatch_state_if_changed(PipelineStatus, u32 seek_id);
+    i64 heard_frame_index_while_locked() const;
     AudioBlockTimingRing& block_timings() { return m_time_writer.timing_ring(); }
 
     Core::EventLoop& m_main_thread_event_loop;
@@ -76,9 +90,12 @@ private:
     size_t m_block_tail { 0 };
     size_t m_block_count { 0 };
     i64 m_next_frame_to_play { 0 };
+    i64 m_seek_target_in_frames { 0 };
     i64 m_last_real_data_end_in_frames { 0 };
     float m_playback_rate { 1.0f };
     float m_eos_media_frame_remainder { 0.0f };
+
+    i64 m_output_latency_in_frames { 0 };
 
     PipelineStateChangeHandler m_on_state_changed;
     Function<void()> m_on_data_available;

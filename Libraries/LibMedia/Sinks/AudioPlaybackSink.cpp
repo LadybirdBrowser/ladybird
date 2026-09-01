@@ -62,7 +62,7 @@ void AudioPlaybackSink::create_playback_stream()
     m_started_creating_playback_stream = true;
 
     auto data_callback = [output_queue = m_output_queue](Span<float> buffer) -> ReadonlySpan<float> {
-        return output_queue->read_interleaved(buffer);
+        return output_queue->read_interleaved(buffer, {}).samples;
     };
     constexpr u32 target_latency_ms = 100;
 

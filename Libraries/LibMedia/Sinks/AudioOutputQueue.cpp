@@ -289,6 +289,7 @@ void AudioOutputQueue::seek(AK::Duration time)
             : 0;
         discard_queued_blocks_while_locked();
         m_next_frame_to_play = seek_target_in_frames;
+        m_seek_target_in_frames = seek_target_in_frames;
         m_last_real_data_end_in_frames = seek_target_in_frames;
         m_eos_media_frame_remainder = 0.0f;
         m_waiting_for_upstream_data = true;
@@ -319,14 +320,14 @@ float AudioOutputQueue::playback_rate() const
     return m_playback_rate;
 }
 
-ReadonlySpan<float> AudioOutputQueue::read_interleaved(Span<float> buffer)
+AudioOutputQueue::InterleavedSamples AudioOutputQueue::read_interleaved(Span<float> buffer, Optional<OutputLatency> output_latency)
 {
     VERIFY(!buffer.is_empty());
     Sync::MutexLocker locker { m_mutex };
 
     auto channel_count = m_sample_specification.channel_count();
     if (channel_count == 0 || buffer.size() % channel_count != 0 || m_playback_rate == 0.0f)
-        return {};
+        return { {}, channel_count };
 
     size_t samples_written = 0;
     while (samples_written < buffer.size() && m_block_count > 0) {
@@ -361,6 +362,9 @@ ReadonlySpan<float> AudioOutputQueue::read_interleaved(Span<float> buffer)
         }
     }
 
+    if (output_latency.has_value())
+        m_output_latency_in_frames = output_latency->in_frames;
+
     if (samples_written < buffer.size()) {
         buffer = buffer.trim(samples_written);
         if (m_last_pull_status == PipelineStatus::Blocked || m_last_pull_status == PipelineStatus::Error)
@@ -371,7 +375,7 @@ ReadonlySpan<float> AudioOutputQueue::read_interleaved(Span<float> buffer)
         dispatch_state_if_changed(PipelineStatus::EndOfStream, m_seek_id);
 
     m_condition.broadcast();
-    return buffer;
+    return { buffer, channel_count };
 }
 
 void AudioOutputQueue::dispatch_state_if_changed(PipelineStatus status, u32 seek_id)
@@ -393,6 +397,31 @@ void AudioOutputQueue::refresh_audio_clock_anchor(MonotonicTime now, i64 output_
     if (!sample_specification.is_valid())
         return;
     m_time_writer.refresh_audio_anchor(now, output_frame_index, sample_specification.sample_rate(), playing);
+}
+
+i64 AudioOutputQueue::heard_frame_index_while_locked() const
+{
+    // Nothing before the seek target has been heard, however far back the output latency reaches.
+    return max(m_next_frame_to_play - m_output_latency_in_frames, m_seek_target_in_frames);
+}
+
+void AudioOutputQueue::publish_read_clock_anchor(bool playing)
+{
+    Sync::MutexLocker locker { m_mutex };
+    VERIFY(m_sample_specification.is_valid());
+    m_time_writer.refresh_audio_anchor(MonotonicTime::now(), heard_frame_index_while_locked(), m_sample_specification.sample_rate(), playing);
+}
+
+void AudioOutputQueue::publish_monotonic_clock_anchor(AK::Duration media_time, float playback_rate, bool playing)
+{
+    Sync::MutexLocker locker { m_mutex };
+    m_time_writer.publish_monotonic_anchor(MonotonicTime::now(), media_time, playback_rate, playing);
+}
+
+void AudioOutputQueue::set_state_change_handler(PipelineStateChangeHandler handler)
+{
+    Sync::MutexLocker locker { m_mutex };
+    m_on_state_changed = move(handler);
 }
 
 void AudioOutputQueue::set_data_available_handler(Function<void()> handler)
