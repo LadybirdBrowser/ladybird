@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const token = crypto.randomUUID();
+        const url = await server.createEcho("GET", `/navigation-timing-type-${token}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `
+                <!DOCTYPE html>
+                <script>
+                    const entry = performance.getEntriesByType("navigation")[0];
+                    parent.postMessage(entry ? entry.type : "missing", "*");
+                    addEventListener("message", event => {
+                        if (event.data === "reload")
+                            location.reload();
+                    });
+                <\/script>
+            `,
+        });
+
+        const types = [];
+        addEventListener("message", event => {
+            types.push(event.data);
+            if (types.length === 1) {
+                event.source.postMessage("reload", "*");
+                return;
+            }
+
+            println(`initial navigation type: ${types[0]}`);
+            println(`reload navigation type: ${types[1]}`);
+            done();
+        });
+
+        const frame = document.createElement("iframe");
+        frame.src = url;
+        document.body.appendChild(frame);
+    });
+</script>

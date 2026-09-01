@@ -112,6 +112,7 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(GC::Ref<Page> 
         HTML::SandboxingFlagSet {},
         ReferrerPolicy::ReferrerPolicy::EmptyString,
         HTML::OpenerPolicy {},
+        Bindings::NavigationTimingType::Navigate,
         OptionalNone {},
         HTML::UserNavigationInvolvement::None);
 

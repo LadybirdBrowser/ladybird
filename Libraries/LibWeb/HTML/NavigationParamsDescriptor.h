@@ -40,6 +40,7 @@ struct NavigationRequestDescriptor {
     Fetch::Infrastructure::Request::ReferrerType referrer;
     ReferrerPolicy::ReferrerPolicy referrer_policy { ReferrerPolicy::DEFAULT_REFERRER_POLICY };
     SerializedPolicyContainer policy_container;
+    u8 redirect_count { 0 };
 };
 
 struct NavigationResponseBodyHandle {
@@ -81,6 +82,7 @@ struct NavigationParamsDescriptor {
     SandboxingFlagSet final_sandboxing_flag_set {};
     ReferrerPolicy::ReferrerPolicy iframe_element_referrer_policy { ReferrerPolicy::ReferrerPolicy::EmptyString };
     OpenerPolicy opener_policy;
+    Bindings::NavigationTimingType navigation_timing_type { Bindings::NavigationTimingType::Navigate };
     Optional<URL::URL> about_base_url;
     UserNavigationInvolvement user_involvement { UserNavigationInvolvement::None };
 };
@@ -93,6 +95,7 @@ struct NonFetchSchemeNavigationParamsDescriptor {
     SandboxingFlagSet target_snapshot_sandboxing_flags {};
     bool source_snapshot_has_transient_activation { false };
     URL::Origin initiator_origin;
+    Bindings::NavigationTimingType navigation_timing_type { Bindings::NavigationTimingType::Navigate };
     UserNavigationInvolvement user_involvement { UserNavigationInvolvement::None };
 };
 

@@ -49,6 +49,7 @@ public:
     void set_next_manual_redirect_steps(Function<void()> next_manual_redirect_steps);
 
     [[nodiscard]] State state() const { return m_state; }
+    [[nodiscard]] GC::Ptr<FetchTimingInfo> timing_info() const;
 
     void report_timing(JS::Object&) const;
     void process_next_manual_redirect() const;

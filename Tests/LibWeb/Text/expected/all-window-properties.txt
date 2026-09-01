@@ -355,6 +355,7 @@ PerformanceEventTiming
 PerformanceMark
 PerformanceMeasure
 PerformanceNavigation
+PerformanceNavigationTiming
 PerformanceObserver
 PerformanceObserverEntryList
 PerformanceResourceTiming

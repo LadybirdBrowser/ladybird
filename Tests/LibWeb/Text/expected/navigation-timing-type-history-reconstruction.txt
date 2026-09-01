@@ -1,0 +1,4 @@
+initial child navigation type: navigate
+second child navigation type: navigate
+reconstructed child navigation type: back_forward
+reloaded child navigation type: reload

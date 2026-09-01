@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const token = crypto.randomUUID();
+
+        async function createRedirectedDocument(label, crossOrigin) {
+            const finalURL = new URL(await server.createEcho("GET", `/navigation-timing-redirect-final-${label}-${token}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `
+                    <!DOCTYPE html>
+                    <script>
+                        const entry = performance.getEntriesByType("navigation")[0];
+                        parent.postMessage({ label: "${label}", redirectCount: entry ? entry.redirectCount : "missing" }, "*");
+                    <\/script>
+                `,
+            }));
+            if (crossOrigin)
+                finalURL.hostname = uniqueLocalhostHostname("navigation-timing-redirect");
+
+            return server.createEcho("GET", `/navigation-timing-redirect-initial-${label}-${token}`, {
+                status: 302,
+                headers: { Location: finalURL.href },
+            });
+        }
+
+        const results = [];
+        addEventListener("message", event => {
+            results.push(event.data);
+            if (results.length !== 2)
+                return;
+
+            results.sort((a, b) => a.label.localeCompare(b.label));
+            for (const result of results)
+                println(`${result.label} redirect count: ${result.redirectCount}`);
+            done();
+        });
+
+        for (const [label, crossOrigin] of [["cross-origin", true], ["same-origin", false]]) {
+            const frame = document.createElement("iframe");
+            frame.src = await createRedirectedDocument(label, crossOrigin);
+            document.body.appendChild(frame);
+        }
+    });
+</script>

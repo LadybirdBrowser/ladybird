@@ -81,6 +81,13 @@ GC::Ref<FetchTimingInfo> FetchController::extract_full_timing_info() const
     return *m_full_timing_info;
 }
 
+GC::Ptr<FetchTimingInfo> FetchController::timing_info() const
+{
+    if (!m_fetch_params)
+        return nullptr;
+    return m_fetch_params->timing_info();
+}
+
 // https://fetch.spec.whatwg.org/#fetch-controller-abort
 void FetchController::abort(JS::Realm& realm, Optional<JS::Value> error)
 {

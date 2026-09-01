@@ -835,6 +835,7 @@ set(SOURCES
     Namespace.cpp
     NavigationTiming/EntryNames.cpp
     NavigationTiming/PerformanceNavigation.cpp
+    NavigationTiming/PerformanceNavigationTiming.cpp
     NavigationTiming/PerformanceTiming.cpp
     NotificationsAPI/Notification.cpp
     Page/AutoScrollHandler.cpp

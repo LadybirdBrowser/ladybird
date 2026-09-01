@@ -47,6 +47,7 @@ static NavigationRequestDescriptor create_navigation_request_descriptor(Fetch::I
         .referrer = request.referrer(),
         .referrer_policy = request.referrer_policy(),
         .policy_container = serialize_request_policy_container(request),
+        .redirect_count = request.redirect_count(),
     };
 }
 
@@ -121,6 +122,7 @@ static NavigationParamsDescriptor create_navigation_params_descriptor(Navigation
         .final_sandboxing_flag_set = params.final_sandboxing_flag_set,
         .iframe_element_referrer_policy = params.iframe_element_referrer_policy,
         .opener_policy = params.opener_policy,
+        .navigation_timing_type = params.navigation_timing_type,
         .about_base_url = params.about_base_url,
         .user_involvement = params.user_involvement,
     };
@@ -143,6 +145,7 @@ void create_navigation_params_descriptor(JS::Realm& realm, NavigationParamsVaria
             .target_snapshot_sandboxing_flags = non_fetch_params->target_snapshot_sandboxing_flags,
             .source_snapshot_has_transient_activation = non_fetch_params->source_snapshot_has_transient_activation,
             .initiator_origin = non_fetch_params->initiator_origin,
+            .navigation_timing_type = non_fetch_params->navigation_timing_type,
             .user_involvement = non_fetch_params->user_involvement,
         });
         return;
@@ -180,6 +183,7 @@ static GC::Ptr<Fetch::Infrastructure::Request> create_navigation_request_from_de
     request->set_referrer(descriptor->referrer);
     request->set_referrer_policy(descriptor->referrer_policy);
     request->set_policy_container(create_a_policy_container_from_serialized_policy_container(descriptor->policy_container));
+    request->set_redirect_count(descriptor->redirect_count);
     return request;
 }
 
@@ -282,6 +286,7 @@ ErrorOr<NavigationParamsVariant> create_navigation_params_from_descriptor(JS::Re
             params.target_snapshot_sandboxing_flags,
             params.source_snapshot_has_transient_activation,
             move(params.initiator_origin),
+            params.navigation_timing_type,
             params.user_involvement);
     }
 
@@ -313,6 +318,7 @@ ErrorOr<NavigationParamsVariant> create_navigation_params_from_descriptor(JS::Re
         params.final_sandboxing_flag_set,
         params.iframe_element_referrer_policy,
         move(params.opener_policy),
+        params.navigation_timing_type,
         move(params.about_base_url),
         params.user_involvement);
 }
@@ -375,6 +381,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationRequestDescriptor co
     TRY(encoder.encode(request.referrer));
     TRY(encoder.encode(request.referrer_policy));
     TRY(encoder.encode(request.policy_container));
+    TRY(encoder.encode(request.redirect_count));
     return {};
 }
 
@@ -387,6 +394,7 @@ ErrorOr<Web::HTML::NavigationRequestDescriptor> decode(Decoder& decoder)
         .referrer = TRY(decoder.decode<Web::Fetch::Infrastructure::Request::ReferrerType>()),
         .referrer_policy = TRY(decoder.decode<Web::ReferrerPolicy::ReferrerPolicy>()),
         .policy_container = TRY(decoder.decode<Web::HTML::SerializedPolicyContainer>()),
+        .redirect_count = TRY(decoder.decode<u8>()),
     };
 }
 
@@ -464,6 +472,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NonFetchSchemeNavigationParams
     TRY(encoder.encode(params.target_snapshot_sandboxing_flags));
     TRY(encoder.encode(params.source_snapshot_has_transient_activation));
     TRY(encoder.encode(params.initiator_origin));
+    TRY(encoder.encode(params.navigation_timing_type));
     TRY(encoder.encode(params.user_involvement));
     return {};
 }
@@ -478,6 +487,7 @@ ErrorOr<Web::HTML::NonFetchSchemeNavigationParamsDescriptor> decode(Decoder& dec
         .target_snapshot_sandboxing_flags = TRY(decoder.decode<Web::HTML::SandboxingFlagSet>()),
         .source_snapshot_has_transient_activation = TRY(decoder.decode<bool>()),
         .initiator_origin = TRY(decoder.decode<URL::Origin>()),
+        .navigation_timing_type = TRY(decoder.decode<Web::Bindings::NavigationTimingType>()),
         .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
     };
 }
@@ -496,6 +506,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationParamsDescriptor con
     TRY(encoder.encode(params.final_sandboxing_flag_set));
     TRY(encoder.encode(params.iframe_element_referrer_policy));
     TRY(encoder.encode(params.opener_policy));
+    TRY(encoder.encode(params.navigation_timing_type));
     TRY(encoder.encode(params.about_base_url));
     TRY(encoder.encode(params.user_involvement));
     return {};
@@ -516,6 +527,7 @@ ErrorOr<Web::HTML::NavigationParamsDescriptor> decode(Decoder& decoder)
         .final_sandboxing_flag_set = TRY(decoder.decode<Web::HTML::SandboxingFlagSet>()),
         .iframe_element_referrer_policy = TRY(decoder.decode<Web::ReferrerPolicy::ReferrerPolicy>()),
         .opener_policy = TRY(decoder.decode<Web::HTML::OpenerPolicy>()),
+        .navigation_timing_type = TRY(decoder.decode<Web::Bindings::NavigationTimingType>()),
         .about_base_url = TRY(decoder.decode<Optional<URL::URL>>()),
         .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
     };

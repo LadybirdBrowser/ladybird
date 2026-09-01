@@ -939,6 +939,8 @@ public:
     DocumentUnloadTimingInfo const& previous_document_unload_timing() const { return m_previous_document_unload_timing; }
     void set_previous_document_unload_timing(DocumentUnloadTimingInfo const& previous_document_unload_timing) { m_previous_document_unload_timing = previous_document_unload_timing; }
 
+    void set_navigation_timing_entry(GC::Ref<NavigationTiming::PerformanceNavigationTiming> entry) { m_navigation_timing_entry = entry; }
+
     // https://w3c.github.io/editing/docs/execCommand/
     enum class DispatchInputEvent {
         No,
@@ -1810,6 +1812,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/dom.html#previous-document-unload-timing
     DocumentUnloadTimingInfo m_previous_document_unload_timing;
+
+    // https://w3c.github.io/navigation-timing/#dfn-navigation-timing-entry
+    GC::Ptr<NavigationTiming::PerformanceNavigationTiming> m_navigation_timing_entry;
 
     // https://w3c.github.io/selection-api/#dfn-selection
     GC::Ptr<Selection::Selection> m_selection;

@@ -1,0 +1,2 @@
+initial navigation type: navigate
+reload navigation type: reload

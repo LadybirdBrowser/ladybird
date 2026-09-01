@@ -13,8 +13,10 @@
 #include <LibWeb/Bindings/PerformanceObserverEntryList.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/SupportedPerformanceTypes.h>
+#include <LibWeb/NavigationTiming/PerformanceNavigationTiming.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntry.h>
 #include <LibWeb/PerformanceTimeline/PerformanceObserver.h>
@@ -46,7 +48,19 @@ static GC::Ref<JS::Object> create_supported_entry_types_array(JS::Object& releva
 
 #define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
     supported_entry_types.append(JS::PrimitiveString::create(vm, entry_type));
-    ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
+    ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES_BEFORE_NAVIGATION
+#undef __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
+
+    if (HTML::window_from_global_object(relevant_global_object)) {
+#define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
+    supported_entry_types.append(JS::PrimitiveString::create(vm, entry_type));
+        ENUMERATE_WINDOW_SUPPORTED_PERFORMANCE_ENTRY_TYPES
+#undef __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
+    }
+
+#define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
+    supported_entry_types.append(JS::PrimitiveString::create(vm, entry_type));
+    ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES_AFTER_NAVIGATION
 #undef __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
 
     auto supported_entry_types_array = JS::Array::create_from(realm, supported_entry_types);
@@ -134,12 +148,20 @@ WebIDL::ExceptionOr<void> PerformanceObserver::observe(PerformanceObserverInit o
         // 2. Remove all types from entry types that are not contained in relevantGlobal's frozen array of supported entry types.
         //    The user agent SHOULD notify developers if entry types is modified. For example, a console warning listing removed
         //    types might be appropriate.
-        entry_types.remove_all_matching([](Utf16FlyString const& type) {
+        entry_types.remove_all_matching([&relevant_global](Utf16FlyString const& type) {
 #define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
     if (type == entry_type)                                                  \
         return false;
             ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
 #undef __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
+
+            if (is<HTML::Window>(relevant_global.this_impl())) {
+#define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
+    if (type == entry_type)                                                  \
+        return false;
+                ENUMERATE_WINDOW_SUPPORTED_PERFORMANCE_ENTRY_TYPES
+#undef __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
+            }
 
             dbgln("Potential FIXME: Removing unsupported PerformanceEntry type '{}' from list of observed types in PerformanceObserver::observe()", type);
             return true;
@@ -180,6 +202,14 @@ WebIDL::ExceptionOr<void> PerformanceObserver::observe(PerformanceObserverInit o
         recognized_type = true;
         ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
 #undef __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
+
+        if (is<HTML::Window>(relevant_global.this_impl())) {
+#define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
+    if (!recognized_type && type == entry_type)                              \
+        recognized_type = true;
+            ENUMERATE_WINDOW_SUPPORTED_PERFORMANCE_ENTRY_TYPES
+#undef __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES
+        }
 
         if (!recognized_type) {
             dbgln("Potential FIXME: Returning from PerformanceObserver::observe() as we don't support the PerformanceEntry type '{}'", type);
