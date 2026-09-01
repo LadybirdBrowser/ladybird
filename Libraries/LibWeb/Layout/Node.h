@@ -340,8 +340,6 @@ public:
     // https://drafts.csswg.org/css-ui/#propdef-user-select
     CSS::UserSelect user_select_used_value() const;
 
-    void set_has_been_wrapped_in_table_wrapper(bool value) { set_flag(RustFFI::NodeFlag::HasBeenWrappedInTableWrapper, value); }
-
     enum class AttachToDOMNode {
         No,
         Yes,
