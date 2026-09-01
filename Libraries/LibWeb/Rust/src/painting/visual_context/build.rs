@@ -85,7 +85,7 @@ impl BoxFacts {
         callbacks: &FfiVisualContextHostCallbacks,
         slot: NodeSlotId,
         pixel_ratio: f64,
-        may_have_default_scroll_shift_anchor: bool,
+        consults_default_scroll_shift_anchors: bool,
     ) -> Self {
         let mut facts = Self {
             transform: None,
@@ -101,9 +101,8 @@ impl BoxFacts {
             backface_hidden: false,
             establishes_or_extends_3d_rendering_context: false,
             may_have_clip: false,
-            default_scroll_shift_anchor: if may_have_default_scroll_shift_anchor {
-                let node = slot;
-                callbacks.default_scroll_shift_anchor(layout_arena.shell_if_live(node))
+            default_scroll_shift_anchor: if consults_default_scroll_shift_anchors {
+                layout_arena.default_scroll_shift_anchor(slot)
             } else {
                 NodeSlotId::INVALID
             },

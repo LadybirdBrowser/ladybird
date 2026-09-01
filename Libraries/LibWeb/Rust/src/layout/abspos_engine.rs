@@ -563,16 +563,9 @@ impl AbsposEngine {
         entry_coordinate_space_box: Node,
     ) -> Option<formatting_context::ResolvedAnchorInsets> {
         // Clear a stale default scroll shift before any early return.
-        // SAFETY: The node is live and a null anchor clears the weak target.
-        unsafe {
-            (self.callbacks.set_default_scroll_shift)(
-                self.callbacks.context,
-                self.callbacks.shell(node),
-                std::ptr::null_mut(),
-                false,
-                false,
-            );
-        }
+        self.callbacks
+            .arena()
+            .set_default_scroll_shift(node, NodeSlotId::INVALID, false, false);
 
         let style = self.style(node);
         let top_contains_anchor = style.inset_top().contains_anchor_function();
@@ -680,17 +673,12 @@ impl AbsposEngine {
         }
 
         if resolution_state.compensates_for_horizontal_scroll || resolution_state.compensates_for_vertical_scroll {
-            // SAFETY: The anchor and positioned box remain live through the
-            // pass; C++ stores the anchor as a weak pointer.
-            unsafe {
-                (self.callbacks.set_default_scroll_shift)(
-                    self.callbacks.context,
-                    self.callbacks.shell(node),
-                    self.callbacks.shell(resolution_state.default_anchor_box),
-                    resolution_state.compensates_for_horizontal_scroll,
-                    resolution_state.compensates_for_vertical_scroll,
-                );
-            }
+            self.callbacks.arena().set_default_scroll_shift(
+                node,
+                resolution_state.default_anchor_box,
+                resolution_state.compensates_for_horizontal_scroll,
+                resolution_state.compensates_for_vertical_scroll,
+            );
         }
 
         Some(resolved)
@@ -1971,16 +1959,9 @@ impl AbsposEngine {
                 self.resolve_anchor_insets(child_box, Some(&position_area_geometry), child.coordinate_space_box);
             // https://drafts.csswg.org/css-anchor-position/#scroll
             // A non-none position-area makes the box compensate for its default anchor's scroll in both axes.
-            // SAFETY: Both boxes remain live throughout this synchronous layout pass.
-            unsafe {
-                (self.callbacks.set_default_scroll_shift)(
-                    self.callbacks.context,
-                    self.callbacks.shell(child_box),
-                    self.callbacks.shell(anchor_box),
-                    true,
-                    true,
-                );
-            }
+            self.callbacks
+                .arena()
+                .set_default_scroll_shift(child_box, anchor_box, true, true);
             (position_area_containing_block_info, resolved)
         } else {
             let resolved =

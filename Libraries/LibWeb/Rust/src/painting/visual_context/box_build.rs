@@ -7,7 +7,7 @@
 use super::scroll_state::{NO_SCROLL_STATE_SLOT, ScrollState, ScrollStateSlot};
 use super::*;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
-use crate::painting::host::{FfiRootBackgroundSource, FfiVisualContextHostCallbacks, FfiVisualContextTreeInputs};
+use crate::painting::host::{FfiRootBackgroundSource, FfiVisualContextHostCallbacks};
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::{PaintableRowsRead, PaintableRowsWrite};
@@ -17,7 +17,6 @@ pub(crate) struct BoxBuildEnvironment<'a, Arena> {
     pub layout_arena: &'a Arena,
     pub callbacks: &'a FfiVisualContextHostCallbacks,
     pub pixel_ratio: f64,
-    pub tree_inputs: FfiVisualContextTreeInputs,
     pub root_background_source: FfiRootBackgroundSource,
 }
 
@@ -215,13 +214,7 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
     let layout_arena = env.layout_arena;
     let first_spatial_node_index = sink.next_spatial_node_index().0;
     let first_frame_node_index = sink.next_frame_node_index().0;
-    let facts = super::build::BoxFacts::gather(
-        layout_arena,
-        env.callbacks,
-        slot,
-        env.pixel_ratio,
-        env.tree_inputs.may_have_default_scroll_shift_anchor,
-    );
+    let facts = super::build::BoxFacts::gather(layout_arena, env.callbacks, slot, env.pixel_ratio, true);
     let position = crate::painting::style_queries::position(layout_arena, slot);
     let is_fixed = position == crate::css::css_enums::positioning::FIXED;
     let is_absolute = position == crate::css::css_enums::positioning::ABSOLUTE;

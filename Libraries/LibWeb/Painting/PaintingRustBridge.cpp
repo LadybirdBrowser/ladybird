@@ -420,7 +420,6 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM
             inputs.visual_viewport_offset_x = offset.x();
             inputs.visual_viewport_offset_y = offset.y();
             inputs.visual_viewport_scale = visual_viewport.scale();
-            inputs.may_have_default_scroll_shift_anchor = document.may_have_default_scroll_shift_anchor();
             inputs.viewport_wheel_overflow_x = static_cast<u8>(to_underlying(overflow_value_applied_to_viewport_for_wheel_scrolling(document, ScrollDirection::Horizontal)));
             inputs.viewport_wheel_overflow_y = static_cast<u8>(to_underlying(overflow_value_applied_to_viewport_for_wheel_scrolling(document, ScrollDirection::Vertical)));
             return inputs;
@@ -478,13 +477,6 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM
             Layout::RustFFI::layout_arena_paint_push_bytes(sink, filter_data.data(), filter_data.size());
             result.has_filter = true;
             return result;
-        },
-        .default_scroll_shift_anchor = [](void*, void* layout_node_shell) -> Layout::RustFFI::NodeSlotId {
-            if (auto const* box = as_if<Layout::Box>(static_cast<Layout::Node const*>(layout_node_shell))) {
-                if (auto const* anchor_box = as_if<Layout::Box>(box->default_scroll_shift_anchor()))
-                    return Layout::Node::slot_id(anchor_box);
-            }
-            return Layout::RustFFI::NodeSlotId { Layout::RustFFI::INVALID_NODE_SLOT_INDEX };
         },
     };
 }
