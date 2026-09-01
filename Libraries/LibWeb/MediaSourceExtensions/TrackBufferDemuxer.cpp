@@ -433,20 +433,29 @@ void TrackBufferDemuxer::decrement_frames_with_maximum_duration_while_locked(siz
 
 Optional<size_t> TrackBufferDemuxer::find_run_to_play_from_while_locked(AK::Duration timestamp) const
 {
-    Optional<size_t> earliest_run_after_timestamp;
-    for (size_t index = m_runs.size(); index-- > 0;) {
+    if (m_runs.is_empty())
+        return {};
+
+    for (size_t index = 0; index < m_runs.size(); index++) {
         auto const& run = m_runs[index];
-        if (run.presentation_start <= timestamp && timestamp < run.presentation_end)
+
+        if (run.presentation_start > timestamp) {
+            // A hole no wider than the permitted gap size plays from the preceding run first.
+            if (index > 0 && run.presentation_start - m_runs[index - 1].presentation_end <= maximum_time_range_gap())
+                return index - 1;
+            // Resolve seeks to the following run if they are within the permitted gap size.
+            if (run.presentation_start - timestamp <= maximum_time_range_gap())
+                return index;
+            return {};
+        }
+
+        if (timestamp < run.presentation_end)
             return index;
-        if (run.presentation_start >= timestamp)
-            earliest_run_after_timestamp = index;
     }
 
-    if (!earliest_run_after_timestamp.has_value())
-        return {};
-    if (m_runs[*earliest_run_after_timestamp].presentation_start - timestamp > maximum_time_range_gap())
-        return {};
-    return earliest_run_after_timestamp;
+    if (m_reached_end_of_stream)
+        return m_runs.size() - 1;
+    return {};
 }
 
 Optional<ReadonlyBytes> TrackBufferDemuxer::codec_configuration_at_position_while_locked(size_t run_index, size_t frame_index) const
