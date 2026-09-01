@@ -19,16 +19,17 @@ pub enum VisualContextBoxDirtyKind {
     StyleValueChange = 5,
     StyleStructuralChange = 6,
     ScrollableOverflowFlipped = 7,
+    ReattachedInLayoutTree = 8,
 }
 
 impl VisualContextBoxDirtyKind {
-    const fn bit(self) -> u8 {
-        1 << (self as u8)
+    const fn bit(self) -> u16 {
+        1 << (self as u16)
     }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct BoxDirtyBits(u8);
+pub struct BoxDirtyBits(u16);
 
 impl BoxDirtyBits {
     pub fn insert(&mut self, kind: VisualContextBoxDirtyKind) {

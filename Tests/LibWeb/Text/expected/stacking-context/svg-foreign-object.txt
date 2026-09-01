@@ -1,0 +1,3 @@
+baseline: contexts=[document (anon) fo] report-ok=true
+svg root establishes: contexts=[document (anon) svg-root fo] report-ok=true
+svg root releases: contexts=[document (anon) fo] report-ok=true

@@ -1,0 +1,4 @@
+baseline: report-ok=true
+static to relative: report-ok=true
+geometry unchanged: true
+relative back to static: report-ok=true

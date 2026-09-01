@@ -1,0 +1,5 @@
+baseline: contexts=[document (anon) anchor-box] report-ok=true
+equal z inserted before: contexts=[document (anon) before-equal-z anchor-box] report-ok=true
+equal z inserted after: contexts=[document (anon) before-equal-z anchor-box after-equal-z] report-ok=true
+z 0 sibling inserted: contexts=[document (anon) level-zero before-equal-z anchor-box after-equal-z] report-ok=true
+z -1 sibling inserted: contexts=[document (anon) negative-z level-zero before-equal-z anchor-box after-equal-z] report-ok=true

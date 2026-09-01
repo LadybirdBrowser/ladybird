@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<table id="tbl" style="position: relative"><tr><td>cell</td></tr></table>
+<div id="sibling" style="position: relative; z-index: 2">sibling</div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const report = () => internals.stackingContextStructureVerificationReport();
+        const contexts = () => internals.dumpStackingContextTree().split("\n")
+            .filter(line => line.includes("SC for"))
+            .map(line => { const m = line.match(/#([A-Za-z0-9_-]+)/); return m ? m[1] : "(anon)"; })
+            .join(" ");
+        const lines = [];
+        const check = (name) => {
+            settle();
+            const r = report();
+            lines.push(`${name}: contexts=[${contexts()}] report-ok=${r === ""}`);
+            if (r !== "")
+                lines.push(r);
+        };
+        const table = document.getElementById("tbl");
+
+        check("baseline");
+        table.style.zIndex = "3";
+        check("table to z 3");
+        table.style.zIndex = "1";
+        check("table to z 1");
+        table.style.zIndex = "auto";
+        check("table back to z auto");
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

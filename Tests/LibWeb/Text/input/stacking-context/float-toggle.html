@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="floaty" style="width: 40px">float me</div>
+<div>sibling text</div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const report = () => internals.stackingContextStructureVerificationReport();
+        const lines = [];
+        const check = (name) => {
+            settle();
+            const r = report();
+            lines.push(`${name}: report-ok=${r === ""}`);
+            if (r !== "")
+                lines.push(r);
+        };
+        const floaty = document.getElementById("floaty");
+
+        check("baseline");
+        floaty.style.cssFloat = "left";
+        check("float left");
+        floaty.style.cssFloat = "none";
+        check("float none");
+        floaty.style.cssFloat = "right";
+        floaty.style.position = "relative";
+        check("positioned float");
+        floaty.style.position = "static";
+        check("float without position");
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

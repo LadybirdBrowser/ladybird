@@ -1052,6 +1052,7 @@ fn fresh_visual_context_tree_build(
     let arena = unsafe { arena_from_handle_mut(arena) };
     outcome.mask_node_owners_changed = true;
     apply_walk_assignments(arena, viewport, &mut outcome, state);
+    arena.rebuild_all_stacking_context_entries_from_records(viewport);
     arena.mark_all_paint_caches_dirty();
     state.quarantined_slots_are_releasable = false;
     debug_assert_every_live_node_is_owned(
@@ -1172,6 +1173,7 @@ pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
                 IncrementalUpdateResult::Applied(mut outcome) => {
                     let arena_mut = unsafe { arena_from_handle_mut(arena) };
                     apply_walk_assignments(arena_mut, viewport, &mut outcome, &mut state);
+                    arena_mut.resort_stacking_context_entries_flagged_for_resort();
                     let performed_full_build = scope == VisualContextUpdateScope::EveryBox;
                     if performed_full_build {
                         state.build_count += 1;
@@ -2265,6 +2267,27 @@ pub unsafe extern "C" fn layout_arena_for_each_subtree_fragment_rect(
                 unsafe { consume(context, shell, rect) };
             }
         });
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread;
+/// `consume` copies the byte span synchronously.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_stacking_context_structure_verification_report(
+    arena: *mut c_void,
+    viewport: NodeSlotId,
+    context: *mut c_void,
+    consume: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let report = crate::painting::stacking_context::verify::verification_report(arena, viewport);
+        if !report.is_empty() {
+            // SAFETY: The consumer copies the byte span synchronously.
+            unsafe { consume(context, report.as_ptr(), report.len()) };
+        }
     });
 }
 

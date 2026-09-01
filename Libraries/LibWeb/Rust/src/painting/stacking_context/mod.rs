@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+pub mod entries;
+pub mod verify;
+
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::node_facts;
@@ -50,6 +53,35 @@ impl StackingContextFacts {
             enclosing_stacking_context: NodeSlotId::INVALID,
             contribution_is_registered: false,
         }
+    }
+
+    pub(crate) fn nonzero_z_index_child_contribution(&self) -> Option<i32> {
+        if self.establishes_stacking_context && self.effective_z_index.unwrap_or(0) != 0 {
+            self.effective_z_index
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn contributes_to_stack_level_zero(&self) -> bool {
+        (self.is_positioned || self.establishes_stacking_context) && self.effective_z_index.unwrap_or(0) == 0
+    }
+
+    pub(crate) fn contributes_non_positioned_float(&self) -> bool {
+        self.is_non_positioned_float
+    }
+
+    pub(crate) fn contributes_inline_or_replaced(&self) -> bool {
+        self.is_inline_or_replaced_without_own_context
+    }
+
+    pub(crate) fn same_contributions_as(&self, other: &Self) -> bool {
+        self.establishes_stacking_context == other.establishes_stacking_context
+            && self.effective_z_index == other.effective_z_index
+            && self.is_positioned == other.is_positioned
+            && self.is_non_positioned_float == other.is_non_positioned_float
+            && self.is_inline_or_replaced_without_own_context == other.is_inline_or_replaced_without_own_context
+            && self.enclosing_stacking_context == other.enclosing_stacking_context
     }
 }
 

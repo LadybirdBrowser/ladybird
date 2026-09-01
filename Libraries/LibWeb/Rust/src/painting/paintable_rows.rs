@@ -73,6 +73,9 @@ pub(crate) struct PaintableRowStore {
     side_data: RefCell<Vec<PaintableSideData>>,
     paint_caches: RefCell<Vec<PaintCache>>,
     visual_context_records: RefCell<Vec<Option<PaintableVisualContextRecord>>>,
+    pub(crate) stacking_context_entries:
+        RefCell<Vec<Option<Box<crate::painting::stacking_context::entries::StackingContextEntries>>>>,
+    pub(crate) stacking_context_roots_flagged_for_resort: RefCell<Vec<NodeSlotId>>,
     absolute_rect_memo: RefCell<Vec<Option<(NodeSlotId, u64, crate::css::css_pixels::CssPixelRect)>>>,
     absolute_rect_memo_epoch: Cell<u64>,
     committed_fragment_links: RefCell<Vec<CommittedFragmentLinkSlot>>,
@@ -585,6 +588,7 @@ impl LayoutNodeArena {
         let mut paint_caches = store.paint_caches.borrow_mut();
         let mut absolute_rect_memo = store.absolute_rect_memo.borrow_mut();
         let mut visual_context_records = store.visual_context_records.borrow_mut();
+        let mut stacking_context_entries = store.stacking_context_entries.borrow_mut();
         while side_data.len() <= index {
             if side_data.len().is_multiple_of(PAINTABLE_SLOTS_PER_CHUNK) {
                 chunks.push(new_chunk());
@@ -593,6 +597,7 @@ impl LayoutNodeArena {
             paint_caches.push(PaintCache::default());
             absolute_rect_memo.push(None);
             visual_context_records.push(None);
+            stacking_context_entries.push(None);
         }
 
         chunks[index / PAINTABLE_SLOTS_PER_CHUNK].slots[index % PAINTABLE_SLOTS_PER_CHUNK] = PaintableData {
@@ -603,6 +608,7 @@ impl LayoutNodeArena {
         paint_caches[index].clear();
         absolute_rect_memo[index] = None;
         visual_context_records[index] = None;
+        stacking_context_entries[index] = None;
     }
 
     fn reset_paintable_row(&mut self, mark_caches_dirty_along_paint_chain: bool, reset: PaintableRowReset) {
@@ -612,6 +618,7 @@ impl LayoutNodeArena {
                 .mark_descendant_subtree_caches_dirty_along_paint_chain(id);
         }
         if let Some(record) = self.take_paintable_visual_context_record(id) {
+            self.withdraw_stacking_context_state_of_reset_row(id, Some(record.stacking_context));
             let former_paint_parent =
                 crate::painting::paint_order::paint_parent(&self.paintable_rows(), id).unwrap_or(NodeSlotId::INVALID);
             self.paint_state()
@@ -624,6 +631,7 @@ impl LayoutNodeArena {
                     former_paint_parent,
                 });
         } else {
+            self.withdraw_stacking_context_state_of_reset_row(id, None);
             self.paint_state()
                 .borrow_mut()
                 .visual_context
@@ -638,6 +646,7 @@ impl LayoutNodeArena {
         store.side_data.borrow_mut()[index] = PaintableSideData::default();
         store.paint_caches.borrow()[index].clear();
         store.visual_context_records.borrow_mut()[index] = None;
+        store.stacking_context_entries.borrow_mut()[index] = None;
     }
 
     pub(crate) fn paintable_visual_context_record(
@@ -693,6 +702,14 @@ impl LayoutNodeArena {
         let was_flagged = record.subtree_may_own_geometry_dependent_nodes;
         record.subtree_may_own_geometry_dependent_nodes = true;
         Some(was_flagged)
+    }
+
+    pub(crate) fn set_paintable_record_stacking_context_contribution_registered(&self, id: NodeSlotId) {
+        debug_assert!(self.paintable_row_is_populated(id));
+        let mut records = self.paintable_rows.visual_context_records.borrow_mut();
+        if let Some(record) = records.get_mut(id.slot_index() as usize).and_then(Option::as_mut) {
+            record.stacking_context.contribution_is_registered = true;
+        }
     }
 
     pub(crate) fn note_visual_context_box_dirty(&self, id: NodeSlotId, kind: VisualContextBoxDirtyKind) {

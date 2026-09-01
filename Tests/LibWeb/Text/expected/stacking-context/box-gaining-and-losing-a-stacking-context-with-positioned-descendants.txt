@@ -1,0 +1,4 @@
+baseline: contexts=[document (anon) outer pos-zneg pos-z4] report-ok=true
+gainer establishes: contexts=[document (anon) outer gainer pos-zneg pos-z4] report-ok=true
+gainer releases: contexts=[document (anon) outer pos-zneg pos-z4] report-ok=true
+gainer establishes again: contexts=[document (anon) outer gainer pos-zneg pos-z4] report-ok=true

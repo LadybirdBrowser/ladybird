@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="outer" style="isolation: isolate">
+    <div id="gainer">
+        <div id="pos-auto" style="position: relative">one</div>
+        <div id="pos-z4" style="position: relative; z-index: 4">two</div>
+        <div id="pos-zneg" style="position: relative; z-index: -2">three</div>
+    </div>
+</div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const report = () => internals.stackingContextStructureVerificationReport();
+        const contexts = () => internals.dumpStackingContextTree().split("\n")
+            .filter(line => line.includes("SC for"))
+            .map(line => { const m = line.match(/#([A-Za-z0-9_-]+)/); return m ? m[1] : "(anon)"; })
+            .join(" ");
+        const lines = [];
+        const check = (name) => {
+            settle();
+            const r = report();
+            lines.push(`${name}: contexts=[${contexts()}] report-ok=${r === ""}`);
+            if (r !== "")
+                lines.push(r);
+        };
+        const gainer = document.getElementById("gainer");
+
+        check("baseline");
+        gainer.style.opacity = "0.5";
+        check("gainer establishes");
+        gainer.style.opacity = "1";
+        check("gainer releases");
+        gainer.style.opacity = "0.5";
+        check("gainer establishes again");
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

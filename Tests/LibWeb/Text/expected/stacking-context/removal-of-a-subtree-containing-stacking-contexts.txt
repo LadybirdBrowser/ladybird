@@ -1,0 +1,3 @@
+baseline: contexts=[document (anon) sc1 sc2] report-ok=true
+subtree removed: contexts=[document (anon)] report-ok=true
+subtree re-appended: contexts=[document (anon) sc1 sc2] report-ok=true

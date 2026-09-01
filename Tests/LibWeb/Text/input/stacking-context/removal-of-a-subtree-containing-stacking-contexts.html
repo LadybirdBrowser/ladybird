@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="holder">
+    <div id="sc1" style="opacity: 0.5">
+        <div id="sc2" style="position: relative; z-index: 2">nested</div>
+        <div id="sl0" style="position: relative">level zero</div>
+    </div>
+</div>
+<div>keeps the page alive</div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const report = () => internals.stackingContextStructureVerificationReport();
+        const contexts = () => internals.dumpStackingContextTree().split("\n")
+            .filter(line => line.includes("SC for"))
+            .map(line => { const m = line.match(/#([A-Za-z0-9_-]+)/); return m ? m[1] : "(anon)"; })
+            .join(" ");
+        const lines = [];
+        const check = (name) => {
+            settle();
+            const r = report();
+            lines.push(`${name}: contexts=[${contexts()}] report-ok=${r === ""}`);
+            if (r !== "")
+                lines.push(r);
+        };
+        const holder = document.getElementById("holder");
+        const parent = holder.parentNode;
+
+        check("baseline");
+        holder.remove();
+        check("subtree removed");
+        parent.insertBefore(holder, parent.firstChild);
+        check("subtree re-appended");
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

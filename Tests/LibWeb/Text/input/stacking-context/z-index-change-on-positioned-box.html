@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .rel { position: relative; width: 40px; height: 10px; }
+</style>
+<div id="a" class="rel" style="z-index: 1"></div>
+<div id="b" class="rel" style="z-index: 2"></div>
+<div id="c" class="rel" style="z-index: 3"></div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const report = () => internals.stackingContextStructureVerificationReport();
+        const contexts = () => internals.dumpStackingContextTree().split("\n")
+            .filter(line => line.includes("SC for"))
+            .map(line => { const m = line.match(/#([A-Za-z0-9_-]+)/); return m ? m[1] : "(anon)"; })
+            .join(" ");
+        const lines = [];
+        const check = (name) => {
+            settle();
+            const r = report();
+            lines.push(`${name}: contexts=[${contexts()}] report-ok=${r === ""}`);
+            if (r !== "")
+                lines.push(r);
+        };
+        const b = document.getElementById("b");
+
+        check("baseline z 1/2/3");
+        b.style.zIndex = "5";
+        check("middle to z 5");
+        b.style.zIndex = "-1";
+        check("middle to z -1");
+        b.style.zIndex = "auto";
+        check("middle to z auto");
+        b.style.zIndex = "0";
+        check("middle to z 0");
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

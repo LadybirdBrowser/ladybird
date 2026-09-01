@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div style="display: flex">
+    <div id="item1" style="z-index: 1">one</div>
+    <div id="item2" style="z-index: 2">two</div>
+</div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const report = () => internals.stackingContextStructureVerificationReport();
+        const contexts = () => internals.dumpStackingContextTree().split("\n")
+            .filter(line => line.includes("SC for"))
+            .map(line => { const m = line.match(/#([A-Za-z0-9_-]+)/); return m ? m[1] : "(anon)"; })
+            .join(" ");
+        const lines = [];
+        const layoutCount = () => internals.fullLayoutCount() + internals.partialLayoutCount();
+        const check = (name) => {
+            settle();
+            const r = report();
+            lines.push(`${name}: contexts=[${contexts()}] report-ok=${r === ""}`);
+            if (r !== "")
+                lines.push(r);
+        };
+
+        check("baseline");
+        const layoutsBefore = layoutCount();
+        document.getElementById("item1").style.zIndex = "3";
+        check("first item to z 3");
+        document.getElementById("item1").style.zIndex = "1";
+        check("first item back to z 1");
+        lines.push(`layout runs during the z-index changes: ${layoutCount() - layoutsBefore}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

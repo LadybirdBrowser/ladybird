@@ -1,0 +1,4 @@
+baseline: contexts=[document (anon) sibling] report-ok=true
+table to z 3: contexts=[document (anon) sibling (anon)] report-ok=true
+table to z 1: contexts=[document (anon) (anon) sibling] report-ok=true
+table back to z auto: contexts=[document (anon) sibling] report-ok=true

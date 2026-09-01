@@ -1,0 +1,11 @@
+baseline: contexts=[document (anon)] report-ok=true
+isolation on: contexts=[document (anon) iso] report-ok=true
+isolation off: contexts=[document (anon)] report-ok=true
+mixBlendMode on: contexts=[document (anon) blend] report-ok=true
+mixBlendMode off: contexts=[document (anon)] report-ok=true
+perspective on: contexts=[document (anon) persp] report-ok=true
+perspective off: contexts=[document (anon)] report-ok=true
+transformStyle on: contexts=[document (anon) preserve] report-ok=true
+transformStyle off: contexts=[document (anon)] report-ok=true
+contentVisibility on: contexts=[document (anon) cv] report-ok=true
+contentVisibility off: contexts=[document (anon)] report-ok=true

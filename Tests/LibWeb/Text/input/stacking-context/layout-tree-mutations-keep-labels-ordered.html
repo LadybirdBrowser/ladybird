@@ -9,7 +9,7 @@
     <div id="mover"><span>beta</span> gamma</div>
     <div id="ref">delta</div>
 </div>
-<div id="mixed">epsilon <span>zeta</span> eta</div>
+<div id="mixed">epsilon <span id="mixed-span">zeta</span> eta</div>
 <p id="fl">theta iota</p>
 <div id="tbl"></div>
 <div id="tail">tail</div>
@@ -21,13 +21,17 @@
         settle();
         const violations = () => internals.layoutTreePreOrderLabelViolationCount();
         const relabels = () => internals.layoutTreePreOrderRelabelCount();
+        const report = () => internals.stackingContextStructureVerificationReport();
         const container = document.getElementById("container");
         const ref = document.getElementById("ref");
         const lines = [];
         const step = (name, action) => {
             action();
             settle();
-            lines.push(`${name}: violations=${violations()}`);
+            const r = report();
+            lines.push(`${name}: violations=${violations()} report-ok=${r === ""}`);
+            if (r !== "")
+                lines.push(r);
         };
 
         step("baseline", () => {});
@@ -63,6 +67,12 @@
             div.textContent = "block sibling";
             document.getElementById("mixed").appendChild(div);
         });
+        {
+            const span = document.getElementById("mixed-span");
+            const rect = span.getBoundingClientRect();
+            const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+            lines.push(`wrapped span still hit-tests on top: ${hit === span}`);
+        }
         step("toggle ::first-letter", () => {
             document.getElementById("fl").classList.add("decorated");
         });

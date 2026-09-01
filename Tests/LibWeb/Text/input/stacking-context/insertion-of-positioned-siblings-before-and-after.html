@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="anchor-box" style="position: relative; z-index: 1">anchor</div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const report = () => internals.stackingContextStructureVerificationReport();
+        const contexts = () => internals.dumpStackingContextTree().split("\n")
+            .filter(line => line.includes("SC for"))
+            .map(line => { const m = line.match(/#([A-Za-z0-9_-]+)/); return m ? m[1] : "(anon)"; })
+            .join(" ");
+        const lines = [];
+        const check = (name) => {
+            settle();
+            const r = report();
+            lines.push(`${name}: contexts=[${contexts()}] report-ok=${r === ""}`);
+            if (r !== "")
+                lines.push(r);
+        };
+        const anchor = document.getElementById("anchor-box");
+        const positioned = (id, zIndex) => {
+            const div = document.createElement("div");
+            div.id = id;
+            div.textContent = id;
+            div.style.position = "relative";
+            div.style.zIndex = zIndex;
+            return div;
+        };
+
+        check("baseline");
+        document.body.insertBefore(positioned("before-equal-z", "1"), anchor);
+        check("equal z inserted before");
+        document.body.insertBefore(positioned("after-equal-z", "1"), anchor.nextSibling);
+        check("equal z inserted after");
+        document.body.insertBefore(positioned("level-zero", "0"), anchor);
+        check("z 0 sibling inserted");
+        document.body.insertBefore(positioned("negative-z", "-1"), anchor);
+        check("z -1 sibling inserted");
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

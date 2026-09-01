@@ -963,6 +963,23 @@ Utf16String Internals::dump_stacking_context_tree()
     return window().associated_document().dump_stacking_context_tree();
 }
 
+Utf16String Internals::stacking_context_structure_verification_report()
+{
+    auto& document = window().associated_document();
+    document.update_layout(DOM::UpdateLayoutReason::DumpDisplayList);
+    if (!document.has_committed_viewport_box())
+        return {};
+    document.paint_state().build_stacking_context_tree_if_needed(document);
+    document.update_paint_and_hit_testing_properties_if_needed();
+    StringBuilder builder;
+    Layout::RustFFI::layout_arena_stacking_context_structure_verification_report(
+        document.layout_node_arena().handle(), Painting::viewport_row_slot(document), &builder,
+        [](void* context, u8 const* bytes, size_t byte_count) {
+            static_cast<StringBuilder*>(context)->append(StringView { bytes, byte_count });
+        });
+    return Utf16String::from_utf8_without_validation(builder.string_view());
+}
+
 Utf16String Internals::dump_gc_graph()
 {
     return dump_string_to_utf16(GC::Heap::the().dump_graph().serialized());

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="scene" style="transform-style: preserve-3d; width: 60px; height: 30px">
+    <div id="card" style="backface-visibility: hidden">card</div>
+</div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const report = () => internals.stackingContextStructureVerificationReport();
+        const contexts = () => internals.dumpStackingContextTree().split("\n")
+            .filter(line => line.includes("SC for"))
+            .map(line => { const m = line.match(/#([A-Za-z0-9_-]+)/); return m ? m[1] : "(anon)"; })
+            .join(" ");
+        const lines = [];
+        const check = (name) => {
+            settle();
+            const r = report();
+            lines.push(`${name}: contexts=[${contexts()}] report-ok=${r === ""}`);
+            if (r !== "")
+                lines.push(r);
+        };
+        const scene = document.getElementById("scene");
+
+        check("baseline in a 3d context");
+        scene.style.transformStyle = "flat";
+        check("parent context flattened");
+        scene.style.transformStyle = "preserve-3d";
+        check("parent context restored");
+
+        for (const line of lines)
+            println(line);
+    });
+</script>
