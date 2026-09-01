@@ -498,25 +498,10 @@ void LayoutRustBridge::replay_saved_abspos_layout(Box& box)
     }
 }
 
-static bool content_size_change_affects_container_queries(NodeWithStyle const& layout_node, CSSPixelSize old_size, CSSPixelSize new_size)
-{
-    auto container_type = layout_node.container_type();
-    if (container_type.is_size_container)
-        return old_size != new_size;
-    if (!container_type.is_inline_size_container)
-        return false;
-    if (layout_node.writing_mode() == CSS::WritingMode::HorizontalTb)
-        return old_size.width() != new_size.width();
-    return old_size.height() != new_size.height();
-}
-
-static void invalidate_descendant_styles_for_container_query_size_change(GC::Ptr<DOM::Node> node, CSSPixelSize old_size, CSSPixelSize new_size)
+static void invalidate_descendant_styles_for_container_query_size_change(GC::Ptr<DOM::Node> node)
 {
     auto* element = as_if<DOM::Element>(node.ptr());
     if (!element)
-        return;
-    auto const* layout_node = element->unsafe_layout_node();
-    if (!layout_node || !content_size_change_affects_container_queries(*layout_node, old_size, new_size))
         return;
     CSS::Invalidation::invalidate_descendant_styles_depending_on_size_container_query(*element);
 }
@@ -525,12 +510,9 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
 {
     return {
         .context = this,
-        .content_size_changed = [](void*, void* layout_node_shell, CSSPixelSize old_size, CSSPixelSize new_size) {
+        .content_size_changed_for_container_queries = [](void*, void* layout_node_shell) {
             auto& layout_node = *static_cast<Node*>(layout_node_shell);
-            invalidate_descendant_styles_for_container_query_size_change(
-                layout_node.dom_node(),
-                old_size,
-                new_size); },
+            invalidate_descendant_styles_for_container_query_size_change(layout_node.dom_node()); },
         .finish_commit = [](void*, void* const* viewport_shells, size_t viewport_count) {
             for (size_t index = 0; index < viewport_count; ++index)
                 as<Box>(*static_cast<Node*>(viewport_shells[index])).notify_content_navigable_of_committed_viewport(); },
