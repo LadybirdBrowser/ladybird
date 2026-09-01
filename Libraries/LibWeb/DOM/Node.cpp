@@ -1147,14 +1147,19 @@ static bool can_detach_layout_subtree_for_removal(Node const& node, Node const& 
         }
         // Once only anonymous wrappers would remain, a full rebuild would place their inline
         // content directly in the parent instead.
-        bool a_non_anonymous_sibling_remains = false;
+        bool an_anonymous_inline_wrapper_remains = false;
+        bool an_in_flow_block_level_sibling_remains = false;
         for (auto sibling = parent_layout_node->first_child(); sibling; sibling = sibling->next_sibling()) {
-            if (sibling.ptr() != layout_node && !sibling->is_anonymous()) {
-                a_non_anonymous_sibling_remains = true;
-                break;
-            }
+            if (sibling.ptr() == layout_node)
+                continue;
+            if (auto const* sibling_with_style = as_if<Layout::NodeWithStyle>(*sibling); sibling_with_style && sibling_with_style->is_out_of_flow())
+                continue;
+            if (sibling->is_anonymous() && sibling->children_are_inline())
+                an_anonymous_inline_wrapper_remains = true;
+            else
+                an_in_flow_block_level_sibling_remains = true;
         }
-        if (!a_non_anonymous_sibling_remains && parent_layout_node->first_child().ptr() != layout_node)
+        if (an_anonymous_inline_wrapper_remains && !an_in_flow_block_level_sibling_remains)
             return false;
         if (box_level == DetachedBoxLevel::FromStyle)
             return layout_node->display().is_block_outside();

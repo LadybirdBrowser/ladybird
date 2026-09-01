@@ -1,0 +1,265 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .kp:empty {
+        display: none;
+    }
+    .block-before::before {
+        content: "";
+        display: block;
+    }
+    .inline-before::before {
+        content: "b";
+    }
+    .abs {
+        position: absolute;
+    }
+    .float {
+        float: left;
+    }
+    .inline-block {
+        display: inline-block;
+    }
+    .flow-root {
+        display: flow-root;
+    }
+</style>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const fixture = document.getElementById("fixture");
+        const el = (tag, attributes, ...children) => {
+            const element = document.createElement(tag);
+            for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+            element.append(
+                ...children.map(child => (typeof child === "string" ? document.createTextNode(child) : child))
+            );
+            return element;
+        };
+        const x = () => document.getElementById("x");
+        const q = () => document.getElementById("q");
+        const kp = () => el("div", { class: "kp" });
+        const remove = () => x().remove();
+        const moveOut = () => q().insertBefore(x(), null);
+        const moveBeforeOut = () => q().moveBefore(x(), null);
+        const replaceWithHidden = () => x().replaceWith(kp());
+        const hide = () => (x().style.display = "none");
+        const show = () => (x().style.display = "block");
+
+        const cases = [
+            {
+                name: "remove first block leaving inline sibling",
+                root: () => el("div", {}, el("div", { id: "x" }), el("span", {}, "a")),
+                mutate: remove,
+                expectNoBuild: false,
+            },
+            {
+                name: "move first block out leaving inline sibling",
+                root: () =>
+                    el("div", {}, el("div", {}, el("div", { id: "x" }), el("span", {}, "a")), el("div", { id: "q" })),
+                mutate: moveOut,
+            },
+            {
+                name: "moveBefore first block out leaving inline sibling",
+                root: () =>
+                    el("div", {}, el("div", {}, el("div", { id: "x" }), el("span", {}, "a")), el("div", { id: "q" })),
+                mutate: moveBeforeOut,
+            },
+            {
+                name: "replace first block with hidden element leaving inline sibling",
+                root: () => el("div", {}, el("div", { id: "x" }), el("span", {}, "a")),
+                mutate: replaceWithHidden,
+            },
+            {
+                name: "hide first block leaving inline sibling",
+                root: () => el("div", {}, el("div", { id: "x" }), el("span", {}, "a")),
+                mutate: hide,
+            },
+            {
+                name: "hide then show first block next to inline sibling",
+                root: () => el("div", {}, el("div", { id: "x" }), el("span", {}, "a")),
+                mutate: () => {
+                    hide();
+                    document.body.offsetHeight;
+                    show();
+                },
+            },
+            {
+                name: "show first block next to inline sibling",
+                root: () => el("div", {}, el("div", { id: "x", style: "display: none" }), el("span", {}, "a")),
+                mutate: show,
+            },
+            {
+                name: "remove first block leaving empty text",
+                root: () => el("div", {}, el("div", { id: "x" }), ""),
+                mutate: remove,
+                expectNoBuild: false,
+            },
+            {
+                name: "replace first block with hidden element leaving empty text",
+                root: () => el("div", {}, el("div", { id: "x" }), ""),
+                mutate: replaceWithHidden,
+            },
+            {
+                name: "hide first block leaving empty text",
+                root: () => el("div", {}, el("div", { id: "x" }), ""),
+                mutate: hide,
+            },
+            {
+                name: "remove first block leaving text",
+                root: () => el("div", {}, el("div", { id: "x" }), "text"),
+                mutate: remove,
+                expectNoBuild: false,
+            },
+            {
+                name: "remove last block after inline sibling",
+                root: () => el("div", {}, el("span", {}, "a"), el("div", { id: "x" })),
+                mutate: remove,
+                expectNoBuild: false,
+            },
+            {
+                name: "move last block out after inline sibling",
+                root: () =>
+                    el("div", {}, el("div", {}, el("span", {}, "a"), el("div", { id: "x" })), el("div", { id: "q" })),
+                mutate: moveOut,
+            },
+            {
+                name: "replace last block with hidden element after inline sibling",
+                root: () => el("div", {}, el("span", {}, "a"), el("div", { id: "x" })),
+                mutate: replaceWithHidden,
+            },
+            {
+                name: "hide last block after inline sibling",
+                root: () => el("div", {}, el("span", {}, "a"), el("div", { id: "x" })),
+                mutate: hide,
+            },
+            {
+                name: "remove last block after empty text",
+                root: () => el("div", {}, "", el("div", { id: "x" })),
+                mutate: remove,
+                expectNoBuild: false,
+            },
+            {
+                name: "remove block between inline siblings",
+                root: () => el("div", {}, el("span", {}, "a"), el("div", { id: "x" }), el("span", {}, "b")),
+                mutate: remove,
+                expectNoBuild: false,
+            },
+            {
+                name: "remove first block leaving absolutely positioned and inline siblings",
+                root: () => el("div", {}, el("div", { class: "abs" }), el("div", { id: "x" }), el("span", {}, "a")),
+                mutate: remove,
+            },
+            {
+                name: "remove first block leaving floating and inline siblings",
+                root: () => el("div", {}, el("div", { class: "float" }), el("div", { id: "x" }), el("span", {}, "a")),
+                mutate: remove,
+            },
+            {
+                name: "remove first block leaving inline sibling and trailing absolutely positioned box",
+                root: () => el("div", {}, el("div", { id: "x" }), el("span", {}, "a"), el("div", { class: "abs" })),
+                mutate: remove,
+            },
+            {
+                name: "hide first block leaving absolutely positioned and inline siblings",
+                root: () => el("div", {}, el("div", { class: "abs" }), el("div", { id: "x" }), el("span", {}, "a")),
+                mutate: hide,
+            },
+            {
+                name: "remove first block leaving block and inline siblings",
+                root: () => el("div", {}, el("div", { id: "x" }), el("span", {}, "a"), el("div", {})),
+                mutate: remove,
+                expectNoBuild: true,
+            },
+            {
+                name: "remove first block leaving inline and block siblings",
+                root: () => el("div", {}, el("div", { id: "x" }), el("div", {}), el("span", {}, "a")),
+                mutate: remove,
+                expectNoBuild: true,
+            },
+            {
+                name: "remove first block leaving table and inline siblings",
+                root: () =>
+                    el(
+                        "div",
+                        {},
+                        el("div", { id: "x" }),
+                        el("table", {}, el("tr", {}, el("td", {}, "t"))),
+                        el("span", {}, "a")
+                    ),
+                mutate: remove,
+                expectNoBuild: true,
+            },
+            {
+                name: "remove only block child",
+                root: () => el("div", {}, el("div", { id: "x" })),
+                mutate: remove,
+                expectNoBuild: true,
+            },
+            {
+                name: "remove first block leaving block sibling",
+                root: () => el("div", {}, el("div", { id: "x" }), el("div", {})),
+                mutate: remove,
+                expectNoBuild: true,
+            },
+            {
+                name: "remove first block in list item leaving inline sibling",
+                root: () => el("ul", {}, el("li", {}, el("div", { id: "x" }), el("span", {}, "a"))),
+                mutate: remove,
+            },
+            {
+                name: "remove only block child of list item",
+                root: () => el("ul", {}, el("li", {}, el("div", { id: "x" }))),
+                mutate: remove,
+            },
+            {
+                name: "remove first block after block ::before leaving inline sibling",
+                root: () => el("div", { class: "block-before" }, el("div", { id: "x" }), el("span", {}, "a")),
+                mutate: remove,
+            },
+            {
+                name: "remove first block after inline ::before leaving inline sibling",
+                root: () => el("div", { class: "inline-before" }, el("div", { id: "x" }), el("span", {}, "a")),
+                mutate: remove,
+            },
+            {
+                name: "remove first block in inline-block parent leaving inline sibling",
+                root: () => el("div", { class: "inline-block" }, el("div", { id: "x" }), el("span", {}, "a")),
+                mutate: remove,
+            },
+            {
+                name: "remove first block in flow-root parent leaving inline sibling",
+                root: () => el("div", { class: "flow-root" }, el("div", { id: "x" }), el("span", {}, "a")),
+                mutate: remove,
+            },
+            {
+                name: "hide first block in inline-block parent leaving inline sibling",
+                root: () => el("div", { class: "inline-block" }, el("div", { id: "x" }), el("span", {}, "a")),
+                mutate: hide,
+            },
+        ];
+
+        let checkNumber = 0;
+        const check = description => {
+            const result = internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL";
+            println(`check ${checkNumber++}: ${result} (${description})`);
+        };
+        for (const testCase of cases) {
+            fixture.replaceChildren(testCase.root());
+            document.body.offsetHeight;
+            check(`${testCase.name}: before`);
+            document.body.offsetHeight;
+            const buildsBefore = internals.layoutTreeBuildStats().builds;
+            testCase.mutate();
+            document.body.offsetHeight;
+            const noBuild = internals.layoutTreeBuildStats().builds === buildsBefore;
+            check(`${testCase.name}: after`);
+            if (testCase.expectNoBuild !== undefined) {
+                const result = noBuild === testCase.expectNoBuild ? "PASS" : "FAIL";
+                println(
+                    `check ${checkNumber++}: ${result} (${testCase.name}: ${testCase.expectNoBuild ? "avoids" : "performs"} layout tree build)`
+                );
+            }
+        }
+    });
+</script>
