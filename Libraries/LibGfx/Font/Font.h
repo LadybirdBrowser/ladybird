@@ -11,9 +11,7 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/FlyString.h>
-#include <AK/HashMap.h>
 #include <AK/Optional.h>
-#include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Utf16String.h>
 #include <LibGfx/Font/Font.h>
@@ -25,17 +23,6 @@ struct hb_font_t;
 struct hb_buffer_t;
 
 namespace Gfx {
-
-struct ShapedGlyphs;
-
-struct ShapingCacheKey {
-    Utf16String text;
-    u8 text_type { 0 };
-    u32 letter_spacing_bit_pattern { 0 };
-    u32 word_spacing_bit_pattern { 0 };
-
-    bool operator==(ShapingCacheKey const&) const = default;
-};
 
 struct FontPixelMetrics {
     float x_height { 0 };
@@ -106,15 +93,6 @@ public:
     FontVariationSettings const& variation_settings() const { return m_font_variation_settings; }
     ShapeFeatures const& features() const { return m_shape_features; }
 
-    struct ShapingCache {
-        HashMap<ShapingCacheKey, OwnPtr<ShapedGlyphs>> map;
-        OwnPtr<ShapedGlyphs> single_ascii_character_map[128];
-
-        ~ShapingCache();
-        void clear();
-    };
-    ShapingCache& shaping_cache() const { return m_shaping_cache; }
-
     bool is_emoji_font() const;
 
 private:
@@ -133,8 +111,6 @@ private:
     mutable RefPtr<Font const> m_bold_variant;
     mutable hb_font_t* m_harfbuzz_font { nullptr };
 
-    mutable ShapingCache m_shaping_cache;
-
     mutable TriState m_is_emoji_font { TriState::Unknown };
 
     NonnullRefPtr<Typeface const> m_typeface;
@@ -145,18 +121,6 @@ private:
     FontPixelMetrics m_pixel_metrics;
 
     float m_pixel_size { 0.0f };
-};
-
-}
-
-namespace AK {
-
-template<>
-struct Traits<Gfx::ShapingCacheKey> : public DefaultTraits<Gfx::ShapingCacheKey> {
-    static unsigned hash(Gfx::ShapingCacheKey const& key)
-    {
-        return pair_int_hash(key.text.hash(), pair_int_hash(key.text_type, pair_int_hash(key.letter_spacing_bit_pattern, key.word_spacing_bit_pattern)));
-    }
 };
 
 }

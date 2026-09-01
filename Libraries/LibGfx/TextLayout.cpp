@@ -500,7 +500,13 @@ static size_t length_of_trailing_whitespace_run(Utf16View const& string)
     return length;
 }
 
-static NonnullOwnPtr<ShapedGlyphs> build_origin_relative_shape(Utf16View const& string, Font const& font, GlyphRun::TextType text_type, float letter_spacing, float word_spacing)
+struct ShapedGlyphs {
+    Vector<DrawGlyph> glyphs;
+    float width { 0 };
+    TrailingWhitespace trailing_whitespace;
+};
+
+static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font const& font, GlyphRun::TextType text_type, float letter_spacing, float word_spacing)
 {
     auto const& metrics = font.pixel_metrics();
     auto* buffer = setup_text_shaping(string, font, text_type);
@@ -576,58 +582,19 @@ static NonnullOwnPtr<ShapedGlyphs> build_origin_relative_shape(Utf16View const& 
 
     hb_buffer_destroy(buffer);
 
-    return make<ShapedGlyphs>(move(glyphs), point.x(), trailing_whitespace);
-}
-
-// The returned reference points into the font's shaping cache and stays valid until the next
-// shaping call for the same font, or until the cache is cleared.
-static ShapedGlyphs const& shape_text_through_cache(Utf16View const& string, Font const& font, GlyphRun::TextType text_type, float letter_spacing, float word_spacing)
-{
-    auto& shaping_cache = font.shaping_cache();
-
-    // FIXME: The cache currently grows unbounded. We should have some limit and LRU mechanism.
-    if (string.length_in_code_units() == 1 && letter_spacing == 0.f && word_spacing == 0.f && text_type == GlyphRun::TextType::Common) {
-        auto code_unit = string.code_unit_at(0);
-        if (code_unit < 128) {
-            auto& cache_slot = shaping_cache.single_ascii_character_map[code_unit];
-            if (!cache_slot)
-                cache_slot = build_origin_relative_shape(string, font, text_type, letter_spacing, word_spacing);
-            return *cache_slot;
-        }
-    }
-
-    auto text_type_bits = static_cast<u8>(to_underlying(text_type));
-    auto letter_spacing_bit_pattern = bit_cast<u32>(letter_spacing);
-    auto word_spacing_bit_pattern = bit_cast<u32>(word_spacing);
-    auto key_hash = pair_int_hash(string.hash(), pair_int_hash(text_type_bits, pair_int_hash(letter_spacing_bit_pattern, word_spacing_bit_pattern)));
-
-    if (auto it = shaping_cache.map.find(key_hash, [&](auto const& candidate) {
-            return candidate.key.text_type == text_type_bits
-                && candidate.key.letter_spacing_bit_pattern == letter_spacing_bit_pattern
-                && candidate.key.word_spacing_bit_pattern == word_spacing_bit_pattern
-                && candidate.key.text == string;
-        });
-        it != shaping_cache.map.end()) {
-        return *it->value;
-    }
-
-    auto shape = build_origin_relative_shape(string, font, text_type, letter_spacing, word_spacing);
-    auto const& cached_shape = *shape;
-    shaping_cache.map.set({ Utf16String::from_utf16(string), text_type_bits, letter_spacing_bit_pattern, word_spacing_bit_pattern }, move(shape));
-    return cached_shape;
+    return ShapedGlyphs { move(glyphs), point.x(), trailing_whitespace };
 }
 
 NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, float word_spacing, Utf16View const& string, Font const& font, GlyphRun::TextType text_type, TrailingWhitespace* out_trailing_whitespace)
 {
-    auto const& shape = shape_text_through_cache(string, font, text_type, letter_spacing, word_spacing);
+    auto shape = build_origin_relative_shape(string, font, text_type, letter_spacing, word_spacing);
     if (out_trailing_whitespace)
         *out_trailing_whitespace = shape.trailing_whitespace;
-    Vector<DrawGlyph> glyphs = shape.glyphs;
     if (!baseline_start.is_zero()) {
-        for (auto& glyph : glyphs)
+        for (auto& glyph : shape.glyphs)
             glyph.position.translate_by(baseline_start);
     }
-    return adopt_ref(*new GlyphRun(move(glyphs), font, text_type, shape.width));
+    return adopt_ref(*new GlyphRun(move(shape.glyphs), font, text_type, shape.width));
 }
 
 float measure_text_width(Utf16View const& string, Font const& font, float letter_spacing)
@@ -695,11 +662,11 @@ extern "C" void ladybird_gfx_shape_text_uncached(
         word_spacing);
     emit(
         sink,
-        reinterpret_cast<Gfx::FFI::DrawGlyph const*>(shape->glyphs.data()),
-        shape->glyphs.size(),
-        shape->width,
-        shape->trailing_whitespace.length_in_code_units,
-        shape->trailing_whitespace.advance);
+        reinterpret_cast<Gfx::FFI::DrawGlyph const*>(shape.glyphs.data()),
+        shape.glyphs.size(),
+        shape.width,
+        shape.trailing_whitespace.length_in_code_units,
+        shape.trailing_whitespace.advance);
 }
 
 extern "C" float ladybird_gfx_font_measure_text_width(

@@ -33,12 +33,6 @@ struct TrailingWhitespace {
     float advance { 0 };
 };
 
-struct ShapedGlyphs {
-    Vector<DrawGlyph> glyphs;
-    float width { 0 };
-    TrailingWhitespace trailing_whitespace;
-};
-
 class GlyphRun : public AtomicRefCounted<GlyphRun> {
 public:
     enum class TextType {
