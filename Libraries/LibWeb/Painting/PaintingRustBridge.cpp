@@ -1228,38 +1228,26 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 display_list->set_mask_display_list_id(FrameNodeIndex { static_cast<u32>(mask_pairs[i * 2]) }, DisplayListResourceId { mask_pairs[i * 2 + 1] });
             return context.resource_storage.add_display_list(move(display_list), visual_context_tree).value();
         },
-        .overlay_label = [](void* context_pointer, void* layout_node_shell, u16 const* text_units, size_t text_unit_count, size_t utf16_fly_string_raw, float css_font_size, void* sink) -> Layout::RustFFI::FfiOverlayLabelFacts {
-            auto& context = *static_cast<PaintHostContext*>(context_pointer);
-            Utf16String text;
-            if (layout_node_shell) {
-                auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
-                auto border_rect = absolute_border_box_rect(layout_node);
-                Utf16StringBuilder builder;
-                builder.appendff("{}", layout_node.debug_description());
-                builder.appendff(" {}x{} @ {},{}", border_rect.width(), border_rect.height(), border_rect.x(), border_rect.y());
-                text = builder.to_string();
-            } else if (utf16_fly_string_raw) {
-                text = Utf16FlyString::from_raw(utf16_fly_string_raw).to_utf16_string();
-            } else {
-                text = Utf16String::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(text_units), text_unit_count });
-            }
-            auto font = Platform::FontPlugin::the().default_font(css_font_size);
-            auto label_font = font->with_size(font->point_size() * context.device_pixels_per_css_pixel);
-            auto glyph_run = Gfx::shape_text({}, 0, 0, text.utf16_view(), label_font, Gfx::GlyphRun::TextType::Ltr);
-            for (auto const& glyph : glyph_run->glyphs())
-                Layout::RustFFI::layout_arena_paint_push_overlay_glyph(sink, glyph.glyph_id, glyph.position.x(), glyph.position.y());
-            auto bounds = glyph_run->bounding_box(1.0f);
-            auto metrics = label_font->pixel_metrics();
-            return Layout::RustFFI::FfiOverlayLabelFacts {
-                .font_id = context.resource_storage.add_font(glyph_run->font()).value(),
-                .css_width = font->width(text),
-                .css_pixel_size = font->pixel_size(),
-                .device_glyph_width = glyph_run->width(),
-                .device_ascent = metrics.ascent,
-                .device_descent = metrics.descent,
-                .blob_bounds = bounds,
-            };
+        .overlay_label_font = [](void*, float point_size) -> void const* {
+            auto font = Platform::FontPlugin::the().default_font(point_size);
+            VERIFY(font);
+            // The platform font caches keep the font alive; the caller retains
+            // it within the synchronous call.
+            return font.ptr();
         },
+        .overlay_node_label_text = [](void*, void* layout_node_shell, void* sink, void (*emit)(void*, u16 const*, size_t)) {
+            auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
+            auto border_rect = absolute_border_box_rect(layout_node);
+            Utf16StringBuilder builder;
+            builder.appendff("{}", layout_node.debug_description());
+            builder.appendff(" {}x{} @ {},{}", border_rect.width(), border_rect.height(), border_rect.x(), border_rect.y());
+            auto text = builder.to_string();
+            auto view = text.utf16_view();
+            Vector<u16> units;
+            units.ensure_capacity(view.length_in_code_units());
+            for (size_t i = 0; i < view.length_in_code_units(); ++i)
+                units.unchecked_append(view.code_unit_at(i));
+            emit(sink, units.data(), units.size()); },
     };
 }
 

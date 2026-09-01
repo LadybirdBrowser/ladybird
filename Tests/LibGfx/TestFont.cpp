@@ -76,7 +76,7 @@ TEST_CASE(glyph_run_bounding_box_contains_glyph_extents)
     auto run = shape(font, "abc"sv);
     EXPECT_EQ(run->glyphs().size(), 3u);
 
-    auto bounds = run->bounding_box(1);
+    auto bounds = Gfx::glyph_run_bounding_box(font, run->glyphs(), 1);
     EXPECT(!bounds.is_empty());
 
     auto* hb_font = font->harfbuzz_font();
@@ -97,14 +97,14 @@ TEST_CASE(glyph_run_bounding_box_contains_glyph_extents)
         EXPECT(bounds.contains(glyph_bounds));
     }
 
-    auto scaled_bounds = run->bounding_box(2);
+    auto scaled_bounds = Gfx::glyph_run_bounding_box(font, run->glyphs(), 2);
     EXPECT_APPROXIMATE(scaled_bounds.x(), bounds.x() * 2);
     EXPECT_APPROXIMATE(scaled_bounds.y(), bounds.y() * 2);
     EXPECT_APPROXIMATE(scaled_bounds.width(), bounds.width() * 2);
     EXPECT_APPROXIMATE(scaled_bounds.height(), bounds.height() * 2);
 
     auto empty_run = shape(font, ""sv);
-    EXPECT(empty_run->bounding_box(1).is_empty());
+    EXPECT(Gfx::glyph_run_bounding_box(font, empty_run->glyphs(), 1).is_empty());
 }
 
 // Glyph intercepts report one [start, end] interval per glyph whose ink crosses the band, in run order and in

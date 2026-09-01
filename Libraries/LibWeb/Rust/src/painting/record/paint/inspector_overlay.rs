@@ -11,7 +11,7 @@ use crate::layout::grid_formatting_context;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::{ContextRef, DisplayListGlyph, FontResourceId};
 use crate::painting::display_list::recorder::GlyphRunForRecording;
-use crate::painting::host::{FfiFlexOverlayInput, FfiGridOverlayInput, FfiOverlayLabelFacts};
+use crate::painting::host::{FfiFlexOverlayInput, FfiGridOverlayInput};
 use crate::painting::paintable_geometry;
 use crate::painting::record::PaintRecorder;
 use libgfx_rust::{Color, FloatPoint, IntPoint, IntRect, LineStyle, Orientation};
@@ -90,20 +90,21 @@ fn paint_box_model_highlight(recorder: &mut PaintRecorder<'_>, paintable: NodeSl
     paint_inspector_rect(recorder, border_rect, Color::from_rgb(0, 255, 0));
     paint_inspector_rect(recorder, content_rect, Color::from_rgb(255, 0, 255));
 
-    let (facts, glyphs) = recorder
+    let text = recorder
         .paint_host
-        .overlay_label(recorder.layout_node_shell(paintable), &[], 0, 12.0);
+        .overlay_node_label_text(recorder.layout_node_shell(paintable));
+    let label = shape_overlay_label(recorder, &text, 12.0);
     let mut size_text_rect = border_rect;
     size_text_rect.y = border_rect.y + border_rect.height;
-    size_text_rect.width = CssPixels::nearest_value_for_f32(facts.css_width) + CssPixels::from_integer(4);
-    size_text_rect.height = CssPixels::nearest_value_for_f32(facts.css_pixel_size) + CssPixels::from_integer(4);
+    size_text_rect.width = CssPixels::nearest_value_for_f32(label.css_width) + CssPixels::from_integer(4);
+    size_text_rect.height = CssPixels::nearest_value_for_f32(label.css_pixel_size) + CssPixels::from_integer(4);
     let device_rect = converter.enclosing_device_rect(size_text_rect);
     let inputs = recorder.inputs;
     recorder.recorder.fill_rect(device_rect, inputs.tooltip_color);
     recorder
         .recorder
         .draw_rect(device_rect, inputs.tooltip_border_color, false);
-    draw_label(recorder, &facts, &glyphs, device_rect, inputs.tooltip_text_color);
+    draw_label(recorder, &label, device_rect, inputs.tooltip_text_color);
 }
 
 fn paint_flex_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, input: &FfiFlexOverlayInput) {
@@ -260,44 +261,32 @@ fn paint_grid_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, i
             .recorder
             .fill_rect(converter.enclosing_device_rect(rect), rect_color);
     };
-    let paint_label =
-        |recorder: &mut PaintRecorder<'_>, top_left: CssPixelPoint, text: &[u16], fly_string_raw: usize| {
-            let (facts, glyphs) = recorder
-                .paint_host
-                .overlay_label(std::ptr::null_mut(), text, fly_string_raw, 10.0);
-            let label_width = label_width_for(&facts);
-            let label_rect = CssPixelRect {
-                x: top_left.x,
-                y: top_left.y,
-                width: label_width,
-                height: label_height,
-            };
-            let label_device_rect = converter.enclosing_device_rect(label_rect);
-            let label_background = color.with_alpha(235);
-            recorder.recorder.fill_rect(label_device_rect, label_background);
-            recorder
-                .recorder
-                .draw_rect(label_device_rect, color.with_alpha(255), false);
-            draw_label(
-                recorder,
-                &facts,
-                &glyphs,
-                label_device_rect,
-                input.label_foreground_color,
-            );
+    let paint_label = |recorder: &mut PaintRecorder<'_>, top_left: CssPixelPoint, text: &[u16]| {
+        let label = shape_overlay_label(recorder, text, 10.0);
+        let label_width = label_width_for(&label);
+        let label_rect = CssPixelRect {
+            x: top_left.x,
+            y: top_left.y,
+            width: label_width,
+            height: label_height,
         };
-    let paint_centered_label =
-        |recorder: &mut PaintRecorder<'_>, rect: CssPixelRect, text: &[u16], fly_string_raw: usize| {
-            let (facts, _) = recorder
-                .paint_host
-                .overlay_label(std::ptr::null_mut(), text, fly_string_raw, 10.0);
-            let label_width = label_width_for(&facts);
-            let top_left = CssPixelPoint {
-                x: rect.center().x - label_width.div_as_fraction(two),
-                y: rect.center().y - label_height.div_as_fraction(two),
-            };
-            paint_label(recorder, top_left, text, fly_string_raw);
+        let label_device_rect = converter.enclosing_device_rect(label_rect);
+        let label_background = color.with_alpha(235);
+        recorder.recorder.fill_rect(label_device_rect, label_background);
+        recorder
+            .recorder
+            .draw_rect(label_device_rect, color.with_alpha(255), false);
+        draw_label(recorder, &label, label_device_rect, input.label_foreground_color);
+    };
+    let paint_centered_label = |recorder: &mut PaintRecorder<'_>, rect: CssPixelRect, text: &[u16]| {
+        let label = shape_overlay_label(recorder, text, 10.0);
+        let label_width = label_width_for(&label);
+        let top_left = CssPixelPoint {
+            x: rect.center().x - label_width.div_as_fraction(two),
+            y: rect.center().y - label_height.div_as_fraction(two),
         };
+        paint_label(recorder, top_left, text);
+    };
 
     let line_start_for_number = |lines: &[grid_formatting_context::GridLayoutLine], number: u32| -> Option<CssPixels> {
         lines.iter().find(|line| line.number == number).map(|line| line.start)
@@ -358,7 +347,7 @@ fn paint_grid_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, i
                     x: x + two,
                     y: line_top + two,
                 };
-                paint_label(recorder, top_left, &line_number_label(column_line), 0);
+                paint_label(recorder, top_left, &line_number_label(column_line));
             }
         }
 
@@ -398,7 +387,7 @@ fn paint_grid_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, i
                     x: line_left + two,
                     y: y + two,
                 };
-                paint_label(recorder, top_left, &line_number_label(row_line), 0);
+                paint_label(recorder, top_left, &line_number_label(row_line));
             }
         }
 
@@ -410,7 +399,7 @@ fn paint_grid_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, i
                     width: column_track.breadth,
                     height: content_rect.height.min(label_height + CssPixels::from_integer(4)),
                 };
-                paint_centered_label(recorder, track_rect, &track_size_label(column_track), 0);
+                paint_centered_label(recorder, track_rect, &track_size_label(column_track));
             }
 
             for row_track in &fragment.rows.tracks {
@@ -420,7 +409,7 @@ fn paint_grid_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, i
                     width: content_rect.width.min(CssPixels::from_integer(72)),
                     height: row_track.breadth,
                 };
-                paint_centered_label(recorder, track_rect, &track_size_label(row_track), 0);
+                paint_centered_label(recorder, track_rect, &track_size_label(row_track));
             }
         }
 
@@ -447,45 +436,96 @@ fn paint_grid_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, i
                 let visible_area_rect = area_rect.intersected(viewport_rect);
                 if !visible_area_rect.is_empty() {
                     let name = area.name.encode_utf16().collect::<Vec<_>>();
-                    paint_centered_label(recorder, visible_area_rect, &name, 0);
+                    paint_centered_label(recorder, visible_area_rect, &name);
                 }
             }
         }
     }
 }
 
-fn label_width_for(facts: &FfiOverlayLabelFacts) -> CssPixels {
-    let label_padding = CssPixels::from_integer(4);
-    CssPixels::nearest_value_for_f32(facts.css_width) + label_padding * 2usize
+struct OverlayLabel {
+    font_id: u64,
+    css_width: f32,
+    css_pixel_size: f32,
+    device_glyph_width: f32,
+    device_ascent: f32,
+    device_descent: f32,
+    blob_bounds: [f32; 4],
+    glyphs: Vec<DisplayListGlyph>,
 }
 
-fn draw_label(
-    recorder: &mut PaintRecorder<'_>,
-    facts: &FfiOverlayLabelFacts,
-    glyphs: &[DisplayListGlyph],
-    rect: IntRect,
-    color: Color,
-) {
+fn shape_overlay_label(recorder: &mut PaintRecorder<'_>, text: &[u16], css_font_size: f32) -> OverlayLabel {
+    let device_scale = recorder.inputs.device_pixels_per_css_pixel as f32;
+    // SAFETY: The host resolves the fonts from the platform font caches, which
+    // keep them live through this synchronous call; retaining them here keeps
+    // them alive for the rest of the recording.
+    let css_font =
+        unsafe { libgfx_rust::font::RetainedFont::retain(recorder.paint_host.overlay_label_font(css_font_size)) };
+    // SAFETY: See above.
+    let device_font = unsafe {
+        libgfx_rust::font::RetainedFont::retain(recorder.paint_host.overlay_label_font(css_font_size * device_scale))
+    };
+    // SAFETY: The RetainedFont handles keep both fonts live for these borrows.
+    let css_font_ref = unsafe { libgfx_rust::font::FontRef::from_raw(css_font.as_raw()) };
+    // SAFETY: See above.
+    let device_font_ref = unsafe { libgfx_rust::font::FontRef::from_raw(device_font.as_raw()) };
+    let shaped = libgfx_rust::text_layout::shape_text(
+        device_font_ref,
+        text,
+        libgfx_rust::text_layout::TextType::Ltr,
+        0.0,
+        0.0,
+        0.0,
+    );
+    let blob_bounds = libgfx_rust::text_layout::glyph_run_bounding_box(device_font_ref, shaped.glyphs(), 1.0);
+    let (device_ascent, device_descent) = device_font_ref.pixel_metrics_ascent_descent();
+    let font_id = recorder.register_font(device_font.as_raw());
+    let glyphs = shaped
+        .glyphs()
+        .iter()
+        .map(|glyph| DisplayListGlyph {
+            position: FloatPoint { x: glyph.x, y: glyph.y },
+            glyph_id: glyph.glyph_id,
+        })
+        .collect();
+    OverlayLabel {
+        font_id,
+        css_width: css_font_ref.measure_text_width(text),
+        css_pixel_size: css_font_ref.pixel_size(),
+        device_glyph_width: shaped.width(),
+        device_ascent,
+        device_descent,
+        blob_bounds,
+        glyphs,
+    }
+}
+
+fn label_width_for(label: &OverlayLabel) -> CssPixels {
+    let label_padding = CssPixels::from_integer(4);
+    CssPixels::nearest_value_for_f32(label.css_width) + label_padding * 2usize
+}
+
+fn draw_label(recorder: &mut PaintRecorder<'_>, label: &OverlayLabel, rect: IntRect, color: Color) {
     if rect.width <= 0 || rect.height <= 0 || color.alpha() == 0 {
         return;
     }
     let baseline_start = FloatPoint {
-        x: rect.x as f32 + (rect.width as f32 - facts.device_glyph_width) / 2.0,
+        x: rect.x as f32 + (rect.width as f32 - label.device_glyph_width) / 2.0,
         y: rect.y as f32
-            + facts.device_ascent
-            + (rect.height as f32 - (facts.device_ascent + facts.device_descent)) / 2.0,
+            + label.device_ascent
+            + (rect.height as f32 - (label.device_ascent + label.device_descent)) / 2.0,
     };
     let glyph_bounding_rect = IntRect::new(
-        (facts.blob_bounds.x + baseline_start.x).round_ties_even() as i32,
-        (facts.blob_bounds.y + baseline_start.y).round_ties_even() as i32,
-        facts.blob_bounds.width.round_ties_even() as i32,
-        facts.blob_bounds.height.round_ties_even() as i32,
+        (label.blob_bounds[0] + baseline_start.x).round_ties_even() as i32,
+        (label.blob_bounds[1] + baseline_start.y).round_ties_even() as i32,
+        label.blob_bounds[2].round_ties_even() as i32,
+        label.blob_bounds[3].round_ties_even() as i32,
     );
     recorder.recorder.draw_glyph_run(
         baseline_start,
         GlyphRunForRecording {
-            font_id: FontResourceId(facts.font_id),
-            glyphs,
+            font_id: FontResourceId(label.font_id),
+            glyphs: &label.glyphs,
         },
         color,
         rect,
