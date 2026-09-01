@@ -2287,31 +2287,23 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
 
         // NB: Propagating layout invalidation, layout is not up to date.
         if (auto layout_node = this->unsafe_layout_node()) {
-            if (!layout_node->parent() && !layout_node->is_viewport())
+            auto classification = Layout::RustFFI::layout_arena_classify_layout_tree_update(
+                layout_node->arena_handle(), Layout::Node::slot_id(layout_node),
+                is_structural_boundary_self_rebuild_reason(reason));
+
+            if (classification.layout_node_is_detached_from_tree)
                 document().partial_relayout_invalidation().record_escape(PartialRelayoutEscapeReason::DirtyDomNodeHasDetachedLayoutNode);
 
-            bool registered_boundary_self_rebuild = false;
-            if (auto* box = as_if<Layout::Box>(layout_node); box
-                && is_structural_boundary_self_rebuild_reason(reason)
-                && box->is_partial_relayout_boundary()) {
-                box->set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate, Layout::LayoutUpdatePropagation::BoundarySelfOnly);
-                registered_boundary_self_rebuild = true;
-            } else {
-                layout_node->set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate);
-            }
+            layout_node->set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate,
+                classification.marks_partial_relayout_boundary_self_only
+                    ? Layout::LayoutUpdatePropagation::BoundarySelfOnly
+                    : Layout::LayoutUpdatePropagation::ThroughAncestors);
 
-            // If the layout node has an anonymous parent, rebuild from the nearest non-anonymous ancestor.
-            // A boundary that registered itself for a structural change skips this escalation: a child-list
-            // mutation cannot change its own box kind, so replacing its box in place cannot require
-            // restructuring the surrounding anonymous siblings.
-            // FIXME: This is not optimal, and we should figure out how to rebuild a smaller part of the tree.
-            if (!registered_boundary_self_rebuild && layout_node->parent() && layout_node->parent()->is_anonymous()) {
-                auto* ancestor = layout_node->parent();
-                while (ancestor && ancestor->is_anonymous())
-                    ancestor = ancestor->parent();
-                if (ancestor)
-                    ancestor->dom_node()->set_needs_layout_tree_update(true, reason);
-            }
+            // FIXME: Escalating a rebuild past anonymous parents is not optimal, and we should
+            //        figure out how to rebuild a smaller part of the tree.
+            if (auto* ancestor_to_re_mark = static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_node_shell_if_live(
+                    layout_node->arena_handle(), classification.nearest_non_anonymous_ancestor_when_parent_is_anonymous)))
+                ancestor_to_re_mark->dom_node()->set_needs_layout_tree_update(true, reason);
         }
         // NB: A dirty node with no layout node needs no escape tracking: rebuilding it either
         //     still produces no layout node, or the change is covered by the escalations

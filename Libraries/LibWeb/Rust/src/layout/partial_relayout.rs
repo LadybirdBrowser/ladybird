@@ -11,7 +11,65 @@ use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts;
 use std::ffi::c_void;
 
+#[repr(C)]
+pub struct FfiLayoutTreeUpdateClassification {
+    pub layout_node_is_detached_from_tree: bool,
+    pub marks_partial_relayout_boundary_self_only: bool,
+    pub nearest_non_anonymous_ancestor_when_parent_is_anonymous: NodeSlotId,
+}
+
 impl LayoutNodeArena {
+    /// Classifies how a layout tree update on this node reaches layout: a detached node
+    /// escapes partial relayout; a structural self-rebuild on a partial relayout boundary
+    /// marks the boundary alone, and a child-list mutation cannot change the boundary's own
+    /// box kind, so replacing its box in place cannot require restructuring the surrounding
+    /// anonymous siblings; otherwise a node under an anonymous parent escalates the rebuild
+    /// to the nearest non-anonymous ancestor.
+    pub(crate) fn classify_layout_tree_update(
+        &self,
+        node: NodeSlotId,
+        reason_is_structural_boundary_self_rebuild: bool,
+    ) -> FfiLayoutTreeUpdateClassification {
+        let data = self.data(node);
+        // SAFETY: data() generation-checks every slot this classification visits; the raw
+        // reads never overlap a write.
+        let (kind, parent) = unsafe { ((&raw const (*data).kind).read(), (&raw const (*data).parent).read()) };
+
+        let marks_boundary_self_only = node_facts::kind_is_box(kind)
+            && reason_is_structural_boundary_self_rebuild
+            && self.node_is_partial_relayout_boundary(node);
+
+        let mut nearest_non_anonymous_ancestor = NodeSlotId::INVALID;
+        if !marks_boundary_self_only && !parent.is_invalid() {
+            let mut ancestor = parent;
+            let mut ancestor_is_first = true;
+            while !ancestor.is_invalid() {
+                // SAFETY: As above.
+                let (ancestor_flags, ancestor_parent) = unsafe {
+                    let ancestor_data = self.data(ancestor);
+                    (
+                        (&raw const (*ancestor_data).flags).read(),
+                        (&raw const (*ancestor_data).parent).read(),
+                    )
+                };
+                if ancestor_flags & NodeFlag::Anonymous as u32 == 0 {
+                    if !ancestor_is_first {
+                        nearest_non_anonymous_ancestor = ancestor;
+                    }
+                    break;
+                }
+                ancestor = ancestor_parent;
+                ancestor_is_first = false;
+            }
+        }
+
+        FfiLayoutTreeUpdateClassification {
+            layout_node_is_detached_from_tree: parent.is_invalid() && kind != NodeKind::Viewport,
+            marks_partial_relayout_boundary_self_only: marks_boundary_self_only,
+            nearest_non_anonymous_ancestor_when_parent_is_anonymous: nearest_non_anonymous_ancestor,
+        }
+    }
+
     fn commit_splice_position_is_derivable_from_layout_ancestors(&self, node: NodeSlotId) -> bool {
         let paintable_rows = self.paintable_rows();
         // SAFETY: data() generation-checks every slot the walk visits.
@@ -500,6 +558,23 @@ pub unsafe extern "C" fn layout_arena_reset_cached_intrinsic_sizes_of_self_and_a
 /// The arena must remain valid for the duration of the call, and `node` must name a live node
 /// in this arena.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_classify_layout_tree_update(
+    arena: *mut c_void,
+    node: NodeSlotId,
+    reason_is_structural_boundary_self_rebuild: bool,
+) -> FfiLayoutTreeUpdateClassification {
+    abort_on_panic(|| {
+        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+        unsafe { LayoutNodeArena::from_handle(arena) }
+            .classify_layout_tree_update(node, reason_is_structural_boundary_self_rebuild)
+    })
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call, and `node` must name a live node
+/// in this arena.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_needs_layout_update(
     arena: *mut c_void,
     node: NodeSlotId,
@@ -687,6 +762,38 @@ mod tests {
         arena.insert_child(parent.slot, child.slot, NodeSlotId::INVALID);
         assert_eq!(arena.collect_partial_relayout_roots(&[], &[child.slot]), None);
         free_node(&mut arena, &parent);
+    }
+
+    #[test]
+    fn layout_tree_update_classification_escalates_past_anonymous_parents_only() {
+        let mut arena = LayoutNodeArena::new();
+        let grandparent = allocate_box_with_a_dummy_shell(&mut arena);
+        let anonymous_parent = allocate_box_with_a_dummy_shell(&mut arena);
+        let child = allocate_box_with_a_dummy_shell(&mut arena);
+        // SAFETY: allocate() returned this live slot's data pointer.
+        unsafe {
+            (*anonymous_parent.data).flags |= NodeFlag::Anonymous as u32;
+        }
+        arena.insert_child(grandparent.slot, anonymous_parent.slot, NodeSlotId::INVALID);
+        arena.insert_child(anonymous_parent.slot, child.slot, NodeSlotId::INVALID);
+
+        let classification = arena.classify_layout_tree_update(child.slot, false);
+        assert!(!classification.layout_node_is_detached_from_tree);
+        assert!(!classification.marks_partial_relayout_boundary_self_only);
+        assert_eq!(
+            classification.nearest_non_anonymous_ancestor_when_parent_is_anonymous,
+            grandparent.slot
+        );
+
+        let parent_classification = arena.classify_layout_tree_update(anonymous_parent.slot, false);
+        assert_eq!(
+            parent_classification.nearest_non_anonymous_ancestor_when_parent_is_anonymous,
+            NodeSlotId::INVALID
+        );
+
+        let detached_classification = arena.classify_layout_tree_update(grandparent.slot, false);
+        assert!(detached_classification.layout_node_is_detached_from_tree);
+        free_node(&mut arena, &grandparent);
     }
 
     #[test]
