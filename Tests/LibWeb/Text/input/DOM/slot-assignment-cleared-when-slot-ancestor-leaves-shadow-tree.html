@@ -1,0 +1,39 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="host1"><span slot="s1">a</span></div>
+<div id="host2"><span>b</span></div>
+<div id="host3"><span>c</span></div>
+<div id="target"></div>
+<script>
+    asyncTest(async done => {
+        const attach = (host, html) => {
+            const root = host.attachShadow({ mode: "open" });
+            root.innerHTML = html;
+            const slot = root.querySelector("slot");
+            slot.addEventListener("slotchange", () => println(`slotchange on ${slot.id}`));
+            return root;
+        };
+        const report = () => {
+            for (const slot of slots)
+                println(
+                    `${slot.id}: assignedNodes ${slot.assignedNodes().length}, in shadow tree ${slot.getRootNode() instanceof ShadowRoot}`
+                );
+        };
+
+        const root1 = attach(host1, '<div><slot id="slot1" name="s1"></slot></div>');
+        const root2 = attach(host2, '<div><slot id="slot2"></slot></div>');
+        const root3 = attach(host3, '<div><slot id="slot3"></slot></div>');
+        const slots = [root1, root2, root3].map(root => root.querySelector("slot"));
+        await timeout(0);
+        report();
+
+        root1.innerHTML = '<div><slot name="s2"></slot></div>';
+        root2.firstChild.remove();
+        target.moveBefore(root3.firstChild, null);
+        await timeout(0);
+        report();
+        for (const host of [host1, host2, host3])
+            println(`${host.id} child assignedSlot: ${host.firstChild.assignedSlot}`);
+        done();
+    });
+</script>

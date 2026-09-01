@@ -1,0 +1,15 @@
+slotchange on slot1
+slotchange on slot2
+slotchange on slot3
+slot1: assignedNodes 1, in shadow tree true
+slot2: assignedNodes 1, in shadow tree true
+slot3: assignedNodes 1, in shadow tree true
+slotchange on slot1
+slotchange on slot2
+slotchange on slot3
+slot1: assignedNodes 0, in shadow tree false
+slot2: assignedNodes 0, in shadow tree false
+slot3: assignedNodes 0, in shadow tree false
+host1 child assignedSlot: null
+host2 child assignedSlot: null
+host3 child assignedSlot: null

@@ -1348,24 +1348,23 @@ void Node::remove(bool suppress_observers)
     }
 
     // 10. If node has an inclusive descendant that is a slot, then:
-    auto has_descendent_slot = false;
-    auto* shadow_root = as_if<ShadowRoot>(parent_root);
+    if (auto* shadow_root = as_if<ShadowRoot>(parent_root)) {
+        Vector<GC::Ref<HTML::HTMLSlotElement>> descendant_slots;
+        for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
+            // AD-HOC: Unregister slot from the shadow root's registry before assign_slottables_for_a_tree.
+            shadow_root->unregister_slot(slot);
+            descendant_slots.append(slot);
+            return TraversalDecision::Continue;
+        });
 
-    for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
-        has_descendent_slot = true;
-        if (!shadow_root)
-            return TraversalDecision::Break;
-        // AD-HOC: Unregister slot from the shadow root's registry before assign_slottables_for_a_tree.
-        shadow_root->unregister_slot(slot);
-        return TraversalDecision::Continue;
-    });
+        if (!descendant_slots.is_empty()) {
+            // 1. Run assign slottables for a tree with parent’s root.
+            assign_slottables_for_a_tree(parent_root);
 
-    if (has_descendent_slot) {
-        // 1. Run assign slottables for a tree with parent’s root.
-        assign_slottables_for_a_tree(parent_root);
-
-        // 2. Run assign slottables for a tree with node.
-        assign_slottables_for_a_tree(*this);
+            // 2. Run assign slottables for a tree with node.
+            for (auto const& slot : descendant_slots)
+                assign_slottables(slot);
+        }
     }
 
     // NB: Detached subtrees do not need DOM-held record pins, but layout nodes can still outlive
@@ -1725,24 +1724,23 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     }
 
     // 16. If node has an inclusive descendant that is a slot:
-    auto has_descendent_slot = false;
-    auto* shadow_root = as_if<ShadowRoot>(old_parent_root);
+    if (auto* shadow_root = as_if<ShadowRoot>(old_parent_root)) {
+        Vector<GC::Ref<HTML::HTMLSlotElement>> descendant_slots;
+        for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
+            // AD-HOC: Unregister slot from the shadow root's registry before assign_slottables_for_a_tree.
+            shadow_root->unregister_slot(slot);
+            descendant_slots.append(slot);
+            return TraversalDecision::Continue;
+        });
 
-    for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
-        has_descendent_slot = true;
-        if (!shadow_root)
-            return TraversalDecision::Break;
-        // AD-HOC: Unregister slot from the shadow root's registry before assign_slottables_for_a_tree.
-        shadow_root->unregister_slot(slot);
-        return TraversalDecision::Continue;
-    });
+        if (!descendant_slots.is_empty()) {
+            // 1. Run assign slottables for a tree with oldParent’s root.
+            assign_slottables_for_a_tree(old_parent_root);
 
-    if (has_descendent_slot) {
-        // 1. Run assign slottables for a tree with oldParent’s root.
-        assign_slottables_for_a_tree(old_parent_root);
-
-        // 2. Run assign slottables for a tree with node.
-        assign_slottables_for_a_tree(*this);
+            // 2. Run assign slottables for a tree with node.
+            for (auto const& slot : descendant_slots)
+                assign_slottables(slot);
+        }
     }
 
     // 17. If child is non-null:
