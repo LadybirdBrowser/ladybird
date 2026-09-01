@@ -1758,11 +1758,6 @@ void Document::invalidate_layout_tree(InvalidateLayoutTreeReason reason)
     tear_down_layout_tree();
 }
 
-void Document::PartialRelayoutInvalidation::record_boundary(Layout::Box& box)
-{
-    Layout::RustFFI::layout_arena_register_partial_relayout_boundary_root(box.arena_handle(), Layout::Node::slot_id(&box));
-}
-
 void Document::PartialRelayoutInvalidation::record_escape(PartialRelayoutEscapeReason reason)
 {
     dbgln_if(UPDATE_LAYOUT_DEBUG, "Pending updates escape partial relayout boundaries ({})", to_string(reason));

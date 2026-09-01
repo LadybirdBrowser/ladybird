@@ -222,12 +222,6 @@ public:
     bool needs_layout_update() const { return has_flag(RustFFI::NodeFlag::NeedsLayoutUpdate); }
     void set_retains_compositor_animated_content(bool value) { set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, value); }
 
-    // The formatting-context run cache (LADYBIRD_FC_RUN_CACHE) validates its entries against
-    // these epochs; with the cache disabled nothing reads them, so the walks no-op.
-    static bool fragment_cache_epochs_enabled();
-
-    void bump_fragment_cache_epoch();
-
     // Any invalidation below a node must reach every ancestor's epoch: cached runs capture
     // subtree structure, and unlike intrinsic-size invalidation there is no absolutely-positioned
     // or SVG boundary — those descendants' fragments live in ancestor run trees. The arena runs
