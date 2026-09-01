@@ -211,6 +211,7 @@ public:
     }
 
     bool is_anonymous() const { return has_flag(RustFFI::NodeFlag::Anonymous); }
+    bool is_document_element() const { return has_flag(RustFFI::NodeFlag::IsDocumentElement); }
     bool insets_use_anchor_functions() const { return has_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions); }
     DOM::Node const* dom_node() const;
     DOM::Node* dom_node();

@@ -67,6 +67,7 @@ Node::Node(DOM::Document& document, GC::Ptr<DOM::Node> node, AttachToDOMNode att
     set_flag(RustFFI::NodeFlag::IsReplacedElement, node && is<HTML::HTMLInputElement>(*node));
     set_flag(RustFFI::NodeFlag::IsHtmlInputElement, node && is<HTML::HTMLInputElement>(*node));
     set_flag(RustFFI::NodeFlag::IsHtmlHtmlElement, node && node->is_html_html_element());
+    set_flag(RustFFI::NodeFlag::IsDocumentElement, node && node.ptr() == document.document_element());
     set_flag(RustFFI::NodeFlag::IsInUserAgentShadowTree,
         node && node->containing_shadow_root() && node->containing_shadow_root()->is_user_agent_internal());
     set_flag(RustFFI::NodeFlag::UsesButtonLayout,
