@@ -99,6 +99,7 @@ public:
     Utf16String current_cursor();
 
     Utf16String selected_text_for_clipboard();
+    WebIDL::ExceptionOr<void> set_clipboard_file(Utf16String const& name, Utf16String const& mime_type, Utf16String const& data);
 
     void set_marked_text_from_input_method(Utf16String const& text);
     void commit_text_from_input_method(Utf16String const& text, WebIDL::Long replacement_start, WebIDL::Long replacement_length);

@@ -253,7 +253,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ClipboardItem::get_type(JS::Realm&
                     auto const& raw_data = clipboard_representation->data;
 
                     // 7. Let cleanData be a copy of rawData.
-                    auto clean_data = MUST(ByteBuffer::copy(raw_data.bytes()));
+                    auto clean_data = MUST(ByteBuffer::copy(raw_data.get<ByteString>().bytes()));
 
                     // FIXME: 8. If mimeType’s essence is in this’s unsanitized MIME types and mimeType’s essence is in the
                     //           optional unsanitized data types list, then do nothing.

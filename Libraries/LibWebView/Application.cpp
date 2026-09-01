@@ -1977,8 +1977,10 @@ bool Application::supports_clipboard_type(ClipboardType type) const
 Utf16String Application::clipboard_text(ClipboardType) const
 {
     for (auto const& representation : m_clipboard.system_clipboard_representations) {
-        if (representation.name == "text/plain"sv)
-            return Utf16String::from_utf8(representation.data);
+        if (representation.name == "text/plain"sv) {
+            if (auto const* data = representation.data.get_pointer<ByteString>())
+                return Utf16String::from_utf8(*data);
+        }
     }
     return {};
 }

@@ -20,7 +20,7 @@ template<>
 ErrorOr<Web::Clipboard::SystemClipboardRepresentation> IPC::decode(Decoder& decoder)
 {
     auto name = TRY(decoder.decode<String>());
-    auto data = TRY(decoder.decode<ByteString>());
+    auto data = TRY(decoder.decode<Variant<ByteString, Web::HTML::SelectedFile>>());
 
     return Web::Clipboard::SystemClipboardRepresentation { move(name), move(data) };
 }
