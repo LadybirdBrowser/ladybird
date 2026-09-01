@@ -673,27 +673,301 @@ pub unsafe extern "C" fn layout_arena_measure_scrollable_overflow(
     overflow_callbacks: crate::painting::host::FfiScrollableOverflowHostCallbacks,
 ) {
     abort_on_panic(|| {
-        let assignments = {
+        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+        unsafe {
+            measure_scrollable_overflow_for_slot(arena, box_paintable, &visual_context_callbacks, &overflow_callbacks);
+        };
+    });
+}
+
+/// # Safety
+///
+/// `arena_handle` must be a live handle from `layout_arena_create`, used on the document
+/// thread, with no outstanding borrows of the arena.
+unsafe fn measure_scrollable_overflow_for_slot(
+    arena_handle: *mut c_void,
+    box_paintable: NodeSlotId,
+    visual_context_callbacks: &crate::painting::host::FfiVisualContextHostCallbacks,
+    overflow_callbacks: &crate::painting::host::FfiScrollableOverflowHostCallbacks,
+) {
+    let assignments = {
+        // SAFETY: Guaranteed by the caller.
+        let arena = unsafe { arena_from_handle(arena_handle) };
+        let paintable_rows = arena.paintable_rows();
+        if !paintable_rows.paintable_row_is_populated(box_paintable) {
+            return;
+        }
+        let paint_state = arena.paint_state().borrow();
+        crate::painting::scrollable_overflow::measure_scrollable_overflow(
+            &paintable_rows,
+            &paint_state.scrollable_overflow_contained_boxes,
+            visual_context_callbacks,
+            overflow_callbacks,
+            box_paintable,
+        )
+    };
+    // SAFETY: The shared borrow above ended with its scope.
+    let arena = unsafe { arena_from_handle_mut(arena_handle) };
+    let mut paintable_rows = arena.paintable_rows_mut();
+    for assignment in assignments {
+        assignment.apply(&mut paintable_rows);
+    }
+}
+
+#[repr(C)]
+pub struct FfiScrollableOverflowUpdateOutcome {
+    pub performed_recalculation: bool,
+    pub any_overflow_changed: bool,
+    pub any_has_scrollable_overflow_flipped: bool,
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
+/// `eager_measurement_slots` must be valid for `eager_measurement_count`. The callbacks receive
+/// live layout node shells and must not re-enter the arena.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_update_scrollable_overflow(
+    arena: *mut c_void,
+    viewport: NodeSlotId,
+    handled_by_full_layout_commit: bool,
+    eager_measurement_slots: *const NodeSlotId,
+    eager_measurement_count: usize,
+    visual_context_callbacks: crate::painting::host::FfiVisualContextHostCallbacks,
+    overflow_callbacks: crate::painting::host::FfiScrollableOverflowHostCallbacks,
+    scroll_offset_context: *mut c_void,
+    clamp_scroll_offset_if_nonzero: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    scroll_offset_is_zero: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
+) -> FfiScrollableOverflowUpdateOutcome {
+    abort_on_panic(|| {
+        let no_recalculation = FfiScrollableOverflowUpdateOutcome {
+            performed_recalculation: false,
+            any_overflow_changed: false,
+            any_has_scrollable_overflow_flipped: false,
+        };
+        let (pending_boxes, needs_full_recalculation) = {
+            // SAFETY: The C++ caller keeps the arena alive for this synchronous call; every
+            // shared borrow below ends before the next exclusive re-derive.
+            let arena = unsafe { arena_from_handle(arena) };
+            arena.take_scrollable_overflow_recalculation_state()
+        };
+        if pending_boxes.is_empty() && !needs_full_recalculation {
+            return no_recalculation;
+        }
+
+        let row_is_populated = |slot: NodeSlotId| {
+            // SAFETY: As above.
+            unsafe { arena_from_handle(arena) }
+                .paintable_rows()
+                .paintable_row_is_populated(slot)
+        };
+        if !row_is_populated(viewport) {
+            return no_recalculation;
+        }
+
+        let measure_and_clamp = |slot: NodeSlotId| {
+            // SAFETY: As above; the callback receives a live shell and does not re-enter.
+            unsafe {
+                measure_scrollable_overflow_for_slot(arena, slot, &visual_context_callbacks, &overflow_callbacks);
+                let shell = arena_from_handle(arena).node_shell(slot);
+                clamp_scroll_offset_if_nonzero(scroll_offset_context, shell);
+            }
+        };
+
+        let performed = FfiScrollableOverflowUpdateOutcome {
+            performed_recalculation: true,
+            any_overflow_changed: false,
+            any_has_scrollable_overflow_flipped: false,
+        };
+        if handled_by_full_layout_commit {
+            assert!(needs_full_recalculation);
+            // A full-root commit reset every surviving row, including its overflow data and
+            // paint cache. There is therefore no old overflow to preserve or diff. Ordinary
+            // boxes are measured recursively when their overflow contributes to one of these
+            // roots, so they do not need separate eager measurement.
+            // SAFETY: The caller supplies a valid slot array for the accompanying count.
+            let eager_slots = if eager_measurement_count == 0 {
+                &[]
+            } else {
+                unsafe { std::slice::from_raw_parts(eager_measurement_slots, eager_measurement_count) }
+            };
+            for &slot in eager_slots {
+                if !row_is_populated(slot) {
+                    continue;
+                }
+                measure_and_clamp(slot);
+            }
+            return performed;
+        }
+
+        // For every box that will be re-measured, the overflow data it had before, so the diff
+        // below can tell what actually changed; an empty entry means the box's committed row was
+        // reset by a subtree layout commit and the old data is unknown.
+        let mut old_overflow_data_by_box: crate::css::style::fast_hash::FastMap<
+            NodeSlotId,
+            Option<crate::painting::paintable_data::FfiOverflowData>,
+        > = Default::default();
+        let overflow_snapshot = |slot: NodeSlotId| {
+            // SAFETY: As above; callers established a populated row.
             let arena = unsafe { arena_from_handle(arena) };
             let paintable_rows = arena.paintable_rows();
-            if !paintable_rows.paintable_row_is_populated(box_paintable) {
-                return;
-            }
-            let paint_state = arena.paint_state().borrow();
-            crate::painting::scrollable_overflow::measure_scrollable_overflow(
-                &paintable_rows,
-                &paint_state.scrollable_overflow_contained_boxes,
-                &visual_context_callbacks,
-                &overflow_callbacks,
-                box_paintable,
-            )
+            let data = paintable_rows.paintable_data(slot);
+            data.overflow_measured_this_commit
+                .then_some(data.overflow_relative_to_padding_box)
         };
-        let arena = unsafe { arena_from_handle_mut(arena) };
-        let mut paintable_rows = arena.paintable_rows_mut();
-        for assignment in assignments {
-            assignment.apply(&mut paintable_rows);
+        let mut record_and_clear_overflow_data = |slot: NodeSlotId| {
+            if !row_is_populated(slot) {
+                return true;
+            }
+            if old_overflow_data_by_box.contains_key(&slot) {
+                return false;
+            }
+            old_overflow_data_by_box.insert(slot, overflow_snapshot(slot));
+            // SAFETY: As above; the row was just established as populated.
+            unsafe { arena_from_handle_mut(arena) }
+                .paintable_rows_mut()
+                .paintable_data_mut(slot)
+                .overflow_measured_this_commit = false;
+            true
+        };
+        let collect_box_subtree_slots = |root: NodeSlotId| {
+            let mut slots = Vec::new();
+            // SAFETY: As above; the traversal only reads tree links and kinds.
+            let arena = unsafe { arena_from_handle(arena) };
+            arena.for_each_node_in_layout_subtree_in_pre_order(root, |slot| {
+                if crate::layout::node_facts::kind_is_box(
+                    arena
+                        .node_kind_if_live(slot)
+                        .unwrap_or(crate::layout::node_data::NodeKind::Unset),
+                ) {
+                    slots.push(slot);
+                }
+            });
+            slots
+        };
+
+        if needs_full_recalculation {
+            for slot in collect_box_subtree_slots(viewport) {
+                record_and_clear_overflow_data(slot);
+            }
+            {
+                // SAFETY: As above.
+                let arena = unsafe { arena_from_handle(arena) };
+                let paintable_rows = arena.paintable_rows();
+                let mut paint_state = arena.paint_state().borrow_mut();
+                crate::painting::scrollable_overflow::refill_contained_boxes_index(
+                    &paintable_rows,
+                    viewport,
+                    &mut paint_state.scrollable_overflow_contained_boxes,
+                );
+            }
+        } else {
+            for &pending_slot in &pending_boxes {
+                // SAFETY: As above.
+                let pending_is_box = row_is_populated(pending_slot)
+                    && !unsafe { arena_from_handle(arena) }
+                        .shell_if_live(pending_slot)
+                        .is_null()
+                    && crate::layout::node_facts::kind_is_box(
+                        unsafe { arena_from_handle(arena) }
+                            .node_kind_if_live(pending_slot)
+                            .unwrap_or(crate::layout::node_data::NodeKind::Unset),
+                    );
+                if !pending_is_box {
+                    continue;
+                }
+                let was_reset_by_subtree_layout_commit = overflow_snapshot(pending_slot).is_none();
+                if was_reset_by_subtree_layout_commit {
+                    for slot in collect_box_subtree_slots(pending_slot) {
+                        record_and_clear_overflow_data(slot);
+                    }
+                }
+                // SAFETY: As above; containing-block links only name live slots.
+                let mut containing_block =
+                    unsafe { arena_from_handle(arena) }.node_containing_block_if_live(pending_slot);
+                while let Some(block) = containing_block {
+                    if row_is_populated(block) {
+                        // SAFETY: As above.
+                        unsafe { arena_from_handle(arena) }
+                            .paintable_rows()
+                            .clear_cached_overflow_data(block);
+                    }
+                    if !record_and_clear_overflow_data(block) {
+                        break;
+                    }
+                    // SAFETY: As above.
+                    containing_block = unsafe { arena_from_handle(arena) }.node_containing_block_if_live(block);
+                }
+            }
         }
-    });
+
+        if old_overflow_data_by_box.is_empty() {
+            return performed;
+        }
+
+        for (&slot, old_overflow_data) in &old_overflow_data_by_box {
+            if !row_is_populated(slot) {
+                continue;
+            }
+            // Boxes reset by a subtree commit have no previous overflow data. They will be
+            // measured recursively if an ancestor reaches them. Measuring each one here would
+            // repeatedly walk the same containing-block chains after a small subtree update.
+            if old_overflow_data.is_none() && slot != viewport {
+                // SAFETY: As above; the callback receives a live shell and does not re-enter.
+                let scroll_offset_is_zero_for_slot = unsafe {
+                    let arena = arena_from_handle(arena);
+                    if crate::painting::style_queries::is_scroll_container(arena, slot) {
+                        None
+                    } else {
+                        Some(scroll_offset_is_zero(scroll_offset_context, arena.node_shell(slot)))
+                    }
+                };
+                if scroll_offset_is_zero_for_slot == Some(true) {
+                    continue;
+                }
+            }
+            measure_and_clamp(slot);
+        }
+
+        let mut any_overflow_changed = false;
+        let mut any_has_scrollable_overflow_flipped = false;
+        for (&slot, old_overflow_data) in &old_overflow_data_by_box {
+            if !row_is_populated(slot) {
+                continue;
+            }
+            let Some(new_overflow_data) = overflow_snapshot(slot) else {
+                continue;
+            };
+            // A box with no prior overflow data was just created or reset by the layout commit,
+            // so its paint cache is already clean.
+            let Some(old_overflow_data) = old_overflow_data else {
+                continue;
+            };
+            // Boxes that merely moved do not register here; everything derived below is
+            // translation-invariant, and movement-driven repaint belongs to the layout commit.
+            let rect_changed = old_overflow_data.rect != new_overflow_data.rect;
+            let has_scrollable_overflow_flipped =
+                old_overflow_data.has_scrollable_overflow != new_overflow_data.has_scrollable_overflow;
+            if !rect_changed && !has_scrollable_overflow_flipped {
+                continue;
+            }
+            // Cached paint commands and hit-test items capture scrollbar geometry and
+            // per-direction scrollability derived from the overflow rect, so they cannot be
+            // reused once it changes. This must also run for the after-layout-commit path: a
+            // subtree relayout re-measures a surviving ancestor's overflow without resetting
+            // the ancestor's committed row.
+            // SAFETY: As above.
+            unsafe { arena_from_handle(arena) }.invalidate_paint_cache(slot);
+            any_overflow_changed = true;
+            any_has_scrollable_overflow_flipped |= has_scrollable_overflow_flipped;
+        }
+
+        FfiScrollableOverflowUpdateOutcome {
+            performed_recalculation: true,
+            any_overflow_changed,
+            any_has_scrollable_overflow_flipped,
+        }
+    })
 }
 
 #[repr(C)]
