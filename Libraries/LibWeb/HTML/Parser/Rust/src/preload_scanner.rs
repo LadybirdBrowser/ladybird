@@ -19,6 +19,7 @@ use std::ffi::c_void;
 pub enum RustFfiPreloadScannerAction {
     Base = 0,
     Fetch = 1,
+    ModulePreload = 2,
 }
 
 #[repr(C)]
@@ -30,6 +31,13 @@ pub enum RustFfiPreloadScannerDestination {
     Script = 3,
     Style = 4,
     Track = 5,
+    AudioWorklet = 6,
+    JSON = 7,
+    PaintWorklet = 8,
+    ServiceWorker = 9,
+    SharedWorker = 10,
+    Worker = 11,
+    Text = 12,
 }
 
 #[repr(C)]
@@ -47,6 +55,17 @@ pub struct RustFfiPreloadScannerEntry {
     pub url_len: usize,
     pub destination: RustFfiPreloadScannerDestination,
     pub cors_setting: RustFfiPreloadScannerCorsSetting,
+    pub nonce_ptr: *const u8,
+    pub nonce_len: usize,
+    pub integrity_ptr: *const u8,
+    pub integrity_len: usize,
+    pub integrity_present: bool,
+    pub referrer_policy_ptr: *const u8,
+    pub referrer_policy_len: usize,
+    pub fetch_priority_ptr: *const u8,
+    pub fetch_priority_len: usize,
+    pub media_ptr: *const u8,
+    pub media_len: usize,
 }
 
 /// Scan pending parser input for resources the speculative HTML parser can fetch.
@@ -184,6 +203,7 @@ fn process_base(attributes: &[Attribute], callback: &mut impl FnMut(&RustFfiPrel
         href,
         RustFfiPreloadScannerDestination::None,
         RustFfiPreloadScannerCorsSetting::NoCors,
+        None,
     )
 }
 
@@ -201,6 +221,7 @@ fn process_script(attributes: &[Attribute], callback: &mut impl FnMut(&RustFfiPr
         src,
         RustFfiPreloadScannerDestination::Script,
         cors_setting_from_attribute(attributes),
+        Some(attributes),
     )
 }
 
@@ -216,24 +237,34 @@ fn process_link(attributes: &[Attribute], callback: &mut impl FnMut(&RustFfiPrel
         return true;
     };
 
-    let destination = if rel_contains_keyword(rel.as_bytes(), b"stylesheet") {
-        RustFfiPreloadScannerDestination::Style
+    let (action, destination) = if rel_contains_keyword(rel.as_bytes(), b"stylesheet") {
+        (
+            RustFfiPreloadScannerAction::Fetch,
+            RustFfiPreloadScannerDestination::Style,
+        )
+    } else if rel_contains_keyword(rel.as_bytes(), b"modulepreload") {
+        let Some(destination) = translate_modulepreload_destination(attribute_value(attributes, attribute_name!("as")))
+        else {
+            return true;
+        };
+        (RustFfiPreloadScannerAction::ModulePreload, destination)
     } else if rel_contains_keyword(rel.as_bytes(), b"preload") {
         let Some(destination) = translate_preload_destination(attribute_value(attributes, attribute_name!("as")))
         else {
             return true;
         };
-        destination
+        (RustFfiPreloadScannerAction::Fetch, destination)
     } else {
         return true;
     };
 
     emit_entry(
         callback,
-        RustFfiPreloadScannerAction::Fetch,
+        action,
         href,
         destination,
         cors_setting_from_attribute(attributes),
+        Some(attributes),
     )
 }
 
@@ -251,6 +282,7 @@ fn process_img(attributes: &[Attribute], callback: &mut impl FnMut(&RustFfiPrelo
         src,
         RustFfiPreloadScannerDestination::Image,
         cors_setting_from_attribute(attributes),
+        Some(attributes),
     )
 }
 
@@ -260,13 +292,35 @@ fn emit_entry(
     url: &str,
     destination: RustFfiPreloadScannerDestination,
     cors_setting: RustFfiPreloadScannerCorsSetting,
+    attributes: Option<&[Attribute]>,
 ) -> bool {
+    let attribute_pointer_and_length = |name| {
+        attribute_value(attributes.unwrap_or_default(), name)
+            .map(|value| (value.as_ptr(), value.len()))
+            .unwrap_or((std::ptr::null(), 0))
+    };
+    let (nonce_ptr, nonce_len) = attribute_pointer_and_length(attribute_name!("nonce"));
+    let (integrity_ptr, integrity_len) = attribute_pointer_and_length(attribute_name!("integrity"));
+    let (referrer_policy_ptr, referrer_policy_len) = attribute_pointer_and_length(attribute_name!("referrerpolicy"));
+    let (fetch_priority_ptr, fetch_priority_len) = attribute_pointer_and_length(attribute_name!("fetchpriority"));
+    let (media_ptr, media_len) = attribute_pointer_and_length(attribute_name!("media"));
     let entry = RustFfiPreloadScannerEntry {
         action,
         url_ptr: url.as_ptr(),
         url_len: url.len(),
         destination,
         cors_setting,
+        nonce_ptr,
+        nonce_len,
+        integrity_ptr,
+        integrity_len,
+        integrity_present: !integrity_ptr.is_null(),
+        referrer_policy_ptr,
+        referrer_policy_len,
+        fetch_priority_ptr,
+        fetch_priority_len,
+        media_ptr,
+        media_len,
     };
     callback(&entry)
 }
@@ -293,6 +347,70 @@ fn translate_preload_destination(destination: Option<&str>) -> Option<RustFfiPre
         b"track" => RustFfiPreloadScannerDestination::Track,
         _ => return None,
     })
+}
+
+fn translate_modulepreload_destination(destination: Option<&str>) -> Option<RustFfiPreloadScannerDestination> {
+    let Some(destination) = destination else {
+        return Some(RustFfiPreloadScannerDestination::Script);
+    };
+
+    let destination = destination.as_bytes();
+
+    // A module preload destination is "json", "style", "text", or a script-like destination.
+    if destination.eq_ignore_ascii_case(b"audioworklet") {
+        return Some(RustFfiPreloadScannerDestination::AudioWorklet);
+    }
+    if destination.eq_ignore_ascii_case(b"json") {
+        return Some(RustFfiPreloadScannerDestination::JSON);
+    }
+    if destination.eq_ignore_ascii_case(b"paintworklet") {
+        return Some(RustFfiPreloadScannerDestination::PaintWorklet);
+    }
+    if destination.eq_ignore_ascii_case(b"script") {
+        return Some(RustFfiPreloadScannerDestination::Script);
+    }
+    if destination.eq_ignore_ascii_case(b"serviceworker") {
+        return Some(RustFfiPreloadScannerDestination::ServiceWorker);
+    }
+    if destination.eq_ignore_ascii_case(b"sharedworker") {
+        return Some(RustFfiPreloadScannerDestination::SharedWorker);
+    }
+    if destination.eq_ignore_ascii_case(b"style") {
+        return Some(RustFfiPreloadScannerDestination::Style);
+    }
+    if destination.eq_ignore_ascii_case(b"text") {
+        return Some(RustFfiPreloadScannerDestination::Text);
+    }
+    if destination.eq_ignore_ascii_case(b"worker") {
+        return Some(RustFfiPreloadScannerDestination::Worker);
+    }
+
+    const NON_MODULE_DESTINATIONS: [&[u8]; 15] = [
+        b"audio",
+        b"document",
+        b"embed",
+        b"fetch",
+        b"font",
+        b"frame",
+        b"iframe",
+        b"image",
+        b"manifest",
+        b"object",
+        b"report",
+        b"track",
+        b"video",
+        b"webidentity",
+        b"xslt",
+    ];
+    if NON_MODULE_DESTINATIONS
+        .iter()
+        .any(|candidate| destination.eq_ignore_ascii_case(candidate))
+    {
+        return None;
+    }
+
+    // NB: Invalid and empty values put the enumerated as attribute in no state, so step 2 uses "script".
+    Some(RustFfiPreloadScannerDestination::Script)
 }
 
 fn cors_setting_from_attribute(attributes: &[Attribute]) -> RustFfiPreloadScannerCorsSetting {
@@ -429,6 +547,9 @@ mod tests {
         let entries = collect(
             r#"
                 <link rel="modulepreload PRELOAD" as="fetch" href="./fetch">
+                <link rel="modulepreload" href="./module">
+                <link rel="modulepreload" as="JSON" crossorigin="use-credentials" href="./data">
+                <link rel="modulepreload" as="invalid" href="./invalid-default">
                 <link rel="preload stylesheet" as="image" href="./style">
                 <link rel="preload" as="font" href="./font">
                 <link rel="preload" as="IMAGE" href="./invalid-case">
@@ -440,9 +561,21 @@ mod tests {
             entries,
             vec![
                 ScannedEntry {
-                    action: RustFfiPreloadScannerAction::Fetch,
-                    url: "./fetch".to_string(),
-                    destination: RustFfiPreloadScannerDestination::None,
+                    action: RustFfiPreloadScannerAction::ModulePreload,
+                    url: "./module".to_string(),
+                    destination: RustFfiPreloadScannerDestination::Script,
+                    cors_setting: RustFfiPreloadScannerCorsSetting::NoCors,
+                },
+                ScannedEntry {
+                    action: RustFfiPreloadScannerAction::ModulePreload,
+                    url: "./data".to_string(),
+                    destination: RustFfiPreloadScannerDestination::JSON,
+                    cors_setting: RustFfiPreloadScannerCorsSetting::UseCredentials,
+                },
+                ScannedEntry {
+                    action: RustFfiPreloadScannerAction::ModulePreload,
+                    url: "./invalid-default".to_string(),
+                    destination: RustFfiPreloadScannerDestination::Script,
                     cors_setting: RustFfiPreloadScannerCorsSetting::NoCors,
                 },
                 ScannedEntry {
@@ -482,6 +615,41 @@ mod tests {
                 RustFfiPreloadScannerCorsSetting::UseCredentials,
                 RustFfiPreloadScannerCorsSetting::UseCredentials,
             ]
+        );
+    }
+
+    #[test]
+    fn preserves_modulepreload_fetch_options() {
+        let mut options = None;
+        scan(
+            br#"<link rel="modulepreload" href="./module" nonce="abc" integrity="sha256-xyz" referrerpolicy="origin" fetchpriority="high" media="screen">"#,
+            |entry| {
+                let string = |pointer, length| {
+                    let bytes = unsafe { std::slice::from_raw_parts(pointer, length) };
+                    std::str::from_utf8(bytes).unwrap().to_string()
+                };
+                options = Some((
+                    string(entry.nonce_ptr, entry.nonce_len),
+                    string(entry.integrity_ptr, entry.integrity_len),
+                    entry.integrity_present,
+                    string(entry.referrer_policy_ptr, entry.referrer_policy_len),
+                    string(entry.fetch_priority_ptr, entry.fetch_priority_len),
+                    string(entry.media_ptr, entry.media_len),
+                ));
+                true
+            },
+        );
+
+        assert_eq!(
+            options,
+            Some((
+                "abc".to_string(),
+                "sha256-xyz".to_string(),
+                true,
+                "origin".to_string(),
+                "high".to_string(),
+                "screen".to_string(),
+            ))
         );
     }
 }

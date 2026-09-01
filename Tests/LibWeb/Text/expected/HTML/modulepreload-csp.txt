@@ -1,0 +1,1 @@
+PASS: speculative module preload does not bypass a later CSP meta policy

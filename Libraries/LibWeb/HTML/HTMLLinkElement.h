@@ -161,6 +161,7 @@ private:
     void fetch_and_process_linked_dns_prefetch_resource();
     void fetch_and_process_linked_preconnect_resource();
     void fetch_and_process_linked_preload_resource();
+    void fetch_and_process_linked_modulepreload_resource();
 
     bool linked_resource_fetch_setup_steps(Fetch::Infrastructure::Request&);
     bool icon_linked_resource_fetch_setup_steps(Fetch::Infrastructure::Request&);
@@ -183,6 +184,7 @@ private:
             DNSPrefetch = 1 << 3,
             Preconnect = 1 << 4,
             Icon = 1 << 5,
+            ModulePreload = 1 << 6,
         };
     };
 

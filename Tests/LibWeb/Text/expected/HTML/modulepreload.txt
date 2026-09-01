@@ -1,0 +1,9 @@
+PASS: module preload starts before the parser reaches the module import
+PASS: module preload discovers dependencies before the module import
+PASS: static import reuses the preloaded module graph
+PASS: dynamically inserted module preload is reused by import()
+PASS: cross-origin module preload uses CORS without cross-origin credentials by default
+PASS: crossorigin=use-credentials uses credentialed CORS
+PASS: failed module preload dispatches error and a later import retries
+PASS: text module preload is reused by import()
+PASS: non-matching media suppresses module preload fetching and events
