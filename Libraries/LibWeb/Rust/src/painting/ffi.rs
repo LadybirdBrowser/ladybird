@@ -1587,6 +1587,7 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
                     repeat_length: inputs.repeat_length,
                     interpolation_method,
                 },
+                CompositingAndBlendingOperator::Normal,
             ),
             FfiImagePaintRecordKind::RadialGradient => {
                 let converter = crate::painting::display_list::device_pixels::DevicePixelConverter::new(
@@ -1600,6 +1601,7 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
                     },
                     converter.rounded_device_point(inputs.center.into()),
                     converter.rounded_device_size(inputs.size.into()),
+                    CompositingAndBlendingOperator::Normal,
                 );
             }
             FfiImagePaintRecordKind::ConicGradient => {
@@ -1614,6 +1616,7 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
                         interpolation_method,
                     },
                     converter.rounded_device_point(inputs.position.into()),
+                    CompositingAndBlendingOperator::Normal,
                 );
             }
         }

@@ -13,8 +13,8 @@ use crate::painting::record::PaintRecorder;
 use crate::painting::style_queries;
 use crate::painting::visual_context::basic_shapes::{position_resolved, resolve_circle_size, resolve_ellipse_size};
 use libgfx_rust::{
-    Color, FloatRect, GradientInterpolationMethod, GradientInterpolationType, HueInterpolationMethod, IntRect,
-    PolarColorSpace, RectangularColorSpace,
+    Color, CompositingAndBlendingOperator, FloatRect, GradientInterpolationMethod, GradientInterpolationType,
+    HueInterpolationMethod, IntRect, PolarColorSpace, RectangularColorSpace,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -925,6 +925,7 @@ pub(crate) fn record_gradient_fill(
     recorder: &mut PaintRecorder<'_>,
     paint: &ResolvedGradientPaint,
     dest_rect: FloatRect,
+    compositing_and_blending_operator: CompositingAndBlendingOperator,
 ) {
     let converter = recorder.converter;
     let dest_int_rect = IntRect::new(
@@ -935,20 +936,29 @@ pub(crate) fn record_gradient_fill(
     );
     match paint {
         ResolvedGradientPaint::Linear(data) => {
-            recorder.recorder.fill_rect_with_linear_gradient(dest_int_rect, data);
+            recorder
+                .recorder
+                .fill_rect_with_linear_gradient(dest_int_rect, data, compositing_and_blending_operator);
         }
         ResolvedGradientPaint::Radial { data, center, size } => {
             let center = converter.rounded_device_point(*center);
             let size = converter.rounded_device_size(*size);
-            recorder
-                .recorder
-                .fill_rect_with_radial_gradient(dest_int_rect, data, center, size);
+            recorder.recorder.fill_rect_with_radial_gradient(
+                dest_int_rect,
+                data,
+                center,
+                size,
+                compositing_and_blending_operator,
+            );
         }
         ResolvedGradientPaint::Conic { data, position } => {
             let position = converter.rounded_device_point(*position);
-            recorder
-                .recorder
-                .fill_rect_with_conic_gradient(dest_int_rect, data, position);
+            recorder.recorder.fill_rect_with_conic_gradient(
+                dest_int_rect,
+                data,
+                position,
+                compositing_and_blending_operator,
+            );
         }
     }
 }

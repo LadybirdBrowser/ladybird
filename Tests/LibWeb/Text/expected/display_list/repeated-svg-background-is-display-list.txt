@@ -4,8 +4,7 @@ AccumulatedVisualContext Tree:
       [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[8,8 120x80] (BlockContainer<DIV>#target)
 
 DisplayList:
-DrawRepeatedDisplayList@s1/f1 dst_rect=[8,8 20x20] clip_rect=[8,8 120x80] scaling_mode=NearestNeighbor inline_clips=[clip=[8,8 120x80]]
+DrawRepeatedDisplayList@s1/f0 dst_rect=[8,8 20x20] clip_rect=[8,8 120x80] scaling_mode=NearestNeighbor inline_clips=[clip=[8,8 120x80], clip=[8,8 120x80]]
 

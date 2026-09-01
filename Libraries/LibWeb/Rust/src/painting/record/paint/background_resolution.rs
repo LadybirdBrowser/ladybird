@@ -98,6 +98,18 @@ fn mask_composite_to_compositing_and_blending_operator(compositing_operator: u8)
     }
 }
 
+pub(crate) fn operator_erases_destination_outside_the_drawn_geometry(operator: CompositingAndBlendingOperator) -> bool {
+    matches!(
+        operator,
+        CompositingAndBlendingOperator::Clear
+            | CompositingAndBlendingOperator::Copy
+            | CompositingAndBlendingOperator::SourceIn
+            | CompositingAndBlendingOperator::SourceOut
+            | CompositingAndBlendingOperator::DestinationIn
+            | CompositingAndBlendingOperator::DestinationATop
+    )
+}
+
 pub(crate) struct ComputedLayerFrameFacts {
     pub clip: u8,
     pub blend_mode: CompositingAndBlendingOperator,

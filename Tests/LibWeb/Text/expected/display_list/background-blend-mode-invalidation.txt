@@ -5,11 +5,10 @@ AccumulatedVisualContext Tree:
       [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[8,13 100x100] (BlockContainer<DIV>#box.box)
 
 DisplayList:
 FillRect@s1/f0 rect=[8,13 100x100] color=rgb(173, 216, 230)
-PaintLinearGradient@s1/f1 rect=[8,13 100x100]
+PaintLinearGradient@s1/f0 rect=[8,13 100x100] inline_clips=[clip=[8,13 100x100]]
 DrawGlyphRun@s1/f0 rect=[8,13 30x16] translation=[8,25.796875] color=rgb(0, 0, 0)
 
 After background-blend-mode change:
@@ -19,11 +18,9 @@ AccumulatedVisualContext Tree:
       [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f4 in s1] clip=[8,13 100x100] (BlockContainer<DIV>#box.box)
-        [f5 in s1] effects=[blend_mode=2] (BlockContainer<DIV>#box.box)
 
 DisplayList:
 FillRect@s1/f0 rect=[8,13 100x100] color=rgb(173, 216, 230)
-PaintLinearGradient@s1/f5 rect=[8,13 100x100]
+PaintLinearGradient@s1/f0 rect=[8,13 100x100] blend_mode=2 inline_clips=[clip=[8,13 100x100]]
 DrawGlyphRun@s1/f0 rect=[8,13 30x16] translation=[8,25.796875] color=rgb(0, 0, 0)
 

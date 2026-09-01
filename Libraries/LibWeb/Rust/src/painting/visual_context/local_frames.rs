@@ -21,6 +21,7 @@ use crate::painting::record::paint::background::{BackgroundBox, background_box_f
 use crate::painting::record::paint::background_resolution::{
     ComputedLayerFrameFacts, background_paint_source_from_style_and_geometry, body_background_is_propagated_to_root,
     computed_background_layer_frame_facts, computed_mask_layer_frame_facts,
+    operator_erases_destination_outside_the_drawn_geometry,
 };
 use crate::painting::style_queries;
 use libgfx_rust::{CompositingAndBlendingOperator, CornerRadii, FloatRect};
@@ -276,6 +277,10 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
             if !layer.may_be_painted {
                 continue;
             }
+            let blend_layer_operator = layer.blend_layer_operator();
+            if !operator_erases_destination_outside_the_drawn_geometry(blend_layer_operator) {
+                continue;
+            }
             let layer_index = index as u16;
             let mut layer_parent = chain_parent;
             if !is_root_element {
@@ -305,18 +310,15 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
                     },
                 );
             }
-            let blend_layer_operator = layer.blend_layer_operator();
-            if blend_layer_operator != CompositingAndBlendingOperator::Normal {
-                self.append(
-                    layer_parent,
-                    FrameData::layer_blending_with(blend_layer_operator),
-                    FrameRole::BackgroundLayerBlend {
-                        piece,
-                        layer: layer_index,
-                        isolated,
-                    },
-                );
-            }
+            self.append(
+                layer_parent,
+                FrameData::layer_blending_with(blend_layer_operator),
+                FrameRole::BackgroundLayerBlend {
+                    piece,
+                    layer: layer_index,
+                    isolated,
+                },
+            );
         }
     }
 }

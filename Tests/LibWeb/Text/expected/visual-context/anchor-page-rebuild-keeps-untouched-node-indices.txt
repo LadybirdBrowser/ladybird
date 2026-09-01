@@ -2,12 +2,12 @@ b owns nodes: true
 clip frame swap: full builds 1, incremental updates 0
 clip frame swap: b keeps its node indices: true
 clip frame swap: c keeps its node indices: true
-clip frame swap: live nodes unchanged: true
+clip frame swap: live nodes unchanged: false
 clip frame swap: epoch advanced: true
 transform swap: full builds 1, incremental updates 0
 transform swap: b keeps its node indices: true
 transform swap: c keeps its node indices: true
-transform swap: live nodes unchanged: true
+transform swap: live nodes unchanged: false
 transform swap: epoch advanced: true
 dead nodes after the swaps: true
 d owns the moved nodes: true
