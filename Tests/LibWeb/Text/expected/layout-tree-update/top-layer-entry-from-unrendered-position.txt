@@ -1,0 +1,194 @@
+popover as html element inside svg: entered before the first layout: PASS
+popover as html element inside svg: left before the first layout: PASS
+popover as html element inside svg: installed: PASS
+popover as html element inside svg: entered: PASS
+popover as html element inside svg: mutated while in the top layer: PASS
+popover as html element inside svg: mutated deeper while in the top layer: PASS
+popover as html element inside svg: left: PASS
+popover as html element inside svg: entered with an unrelated pending mutation: PASS
+popover as html element inside svg: left again: PASS
+popover as direct child of svg: entered before the first layout: PASS
+popover as direct child of svg: left before the first layout: PASS
+popover as direct child of svg: installed: PASS
+popover as direct child of svg: entered: PASS
+popover as direct child of svg: mutated while in the top layer: PASS
+popover as direct child of svg: mutated deeper while in the top layer: PASS
+popover as direct child of svg: left: PASS
+popover as direct child of svg: entered with an unrelated pending mutation: PASS
+popover as direct child of svg: left again: PASS
+popover as inside svg foreignObject: entered before the first layout: PASS
+popover as inside svg foreignObject: left before the first layout: PASS
+popover as inside svg foreignObject: installed: PASS
+popover as inside svg foreignObject: entered: PASS
+popover as inside svg foreignObject: mutated while in the top layer: PASS
+popover as inside svg foreignObject: mutated deeper while in the top layer: PASS
+popover as inside svg foreignObject: left: PASS
+popover as inside svg foreignObject: entered with an unrelated pending mutation: PASS
+popover as inside svg foreignObject: left again: PASS
+popover as unslotted child of a host with an empty shadow root: entered before the first layout: PASS
+popover as unslotted child of a host with an empty shadow root: left before the first layout: PASS
+popover as unslotted child of a host with an empty shadow root: installed: PASS
+popover as unslotted child of a host with an empty shadow root: entered: PASS
+popover as unslotted child of a host with an empty shadow root: mutated while in the top layer: PASS
+popover as unslotted child of a host with an empty shadow root: mutated deeper while in the top layer: PASS
+popover as unslotted child of a host with an empty shadow root: left: PASS
+popover as unslotted child of a host with an empty shadow root: entered with an unrelated pending mutation: PASS
+popover as unslotted child of a host with an empty shadow root: left again: PASS
+popover as unslotted child of a host whose slot has no match: entered before the first layout: PASS
+popover as unslotted child of a host whose slot has no match: left before the first layout: PASS
+popover as unslotted child of a host whose slot has no match: installed: PASS
+popover as unslotted child of a host whose slot has no match: entered: PASS
+popover as unslotted child of a host whose slot has no match: mutated while in the top layer: PASS
+popover as unslotted child of a host whose slot has no match: mutated deeper while in the top layer: PASS
+popover as unslotted child of a host whose slot has no match: left: PASS
+popover as unslotted child of a host whose slot has no match: entered with an unrelated pending mutation: PASS
+popover as unslotted child of a host whose slot has no match: left again: PASS
+popover as unassigned child of a manual assignment host: entered before the first layout: PASS
+popover as unassigned child of a manual assignment host: left before the first layout: PASS
+popover as unassigned child of a manual assignment host: installed: PASS
+popover as unassigned child of a manual assignment host: entered: PASS
+popover as unassigned child of a manual assignment host: mutated while in the top layer: PASS
+popover as unassigned child of a manual assignment host: mutated deeper while in the top layer: PASS
+popover as unassigned child of a manual assignment host: left: PASS
+popover as unassigned child of a manual assignment host: entered with an unrelated pending mutation: PASS
+popover as unassigned child of a manual assignment host: left again: PASS
+popover as unslotted child of a display: contents host: entered before the first layout: PASS
+popover as unslotted child of a display: contents host: left before the first layout: PASS
+popover as unslotted child of a display: contents host: installed: PASS
+popover as unslotted child of a display: contents host: entered: PASS
+popover as unslotted child of a display: contents host: mutated while in the top layer: PASS
+popover as unslotted child of a display: contents host: mutated deeper while in the top layer: PASS
+popover as unslotted child of a display: contents host: left: PASS
+popover as unslotted child of a display: contents host: entered with an unrelated pending mutation: PASS
+popover as unslotted child of a display: contents host: left again: PASS
+popover as child of a display: none element: entered before the first layout: PASS
+popover as child of a display: none element: left before the first layout: PASS
+popover as child of a display: none element: installed: PASS
+popover as child of a display: none element: entered: PASS
+popover as child of a display: none element: mutated while in the top layer: PASS
+popover as child of a display: none element: mutated deeper while in the top layer: PASS
+popover as child of a display: none element: left: PASS
+popover as child of a display: none element: entered with an unrelated pending mutation: PASS
+popover as child of a display: none element: left again: PASS
+popover as child of a display: contents element: entered before the first layout: PASS
+popover as child of a display: contents element: left before the first layout: PASS
+popover as child of a display: contents element: installed: PASS
+popover as child of a display: contents element: entered: PASS
+popover as child of a display: contents element: mutated while in the top layer: PASS
+popover as child of a display: contents element: mutated deeper while in the top layer: PASS
+popover as child of a display: contents element: left: PASS
+popover as child of a display: contents element: entered with an unrelated pending mutation: PASS
+popover as child of a display: contents element: left again: PASS
+popover as child of the shadow root of an unslotted host: entered before the first layout: PASS
+popover as child of the shadow root of an unslotted host: left before the first layout: PASS
+popover as child of the shadow root of an unslotted host: installed: PASS
+popover as child of the shadow root of an unslotted host: entered: PASS
+popover as child of the shadow root of an unslotted host: mutated while in the top layer: PASS
+popover as child of the shadow root of an unslotted host: mutated deeper while in the top layer: PASS
+popover as child of the shadow root of an unslotted host: left: PASS
+popover as child of the shadow root of an unslotted host: entered with an unrelated pending mutation: PASS
+popover as child of the shadow root of an unslotted host: left again: PASS
+popover: entered at a rendered position: PASS
+popover: moved into svg while in the top layer: PASS
+popover: left from inside svg: PASS
+popover: entered below a visible ancestor: PASS
+popover: ancestor hidden while in the top layer: PASS
+popover: ancestor shown again: PASS
+popover: left below a visible ancestor: PASS
+modal dialog as html element inside svg: entered before the first layout: PASS
+modal dialog as html element inside svg: left before the first layout: PASS
+modal dialog as html element inside svg: installed: PASS
+modal dialog as html element inside svg: entered: PASS
+modal dialog as html element inside svg: mutated while in the top layer: PASS
+modal dialog as html element inside svg: mutated deeper while in the top layer: PASS
+modal dialog as html element inside svg: left: PASS
+modal dialog as html element inside svg: entered with an unrelated pending mutation: PASS
+modal dialog as html element inside svg: left again: PASS
+modal dialog as direct child of svg: entered before the first layout: PASS
+modal dialog as direct child of svg: left before the first layout: PASS
+modal dialog as direct child of svg: installed: PASS
+modal dialog as direct child of svg: entered: PASS
+modal dialog as direct child of svg: mutated while in the top layer: PASS
+modal dialog as direct child of svg: mutated deeper while in the top layer: PASS
+modal dialog as direct child of svg: left: PASS
+modal dialog as direct child of svg: entered with an unrelated pending mutation: PASS
+modal dialog as direct child of svg: left again: PASS
+modal dialog as inside svg foreignObject: entered before the first layout: PASS
+modal dialog as inside svg foreignObject: left before the first layout: PASS
+modal dialog as inside svg foreignObject: installed: PASS
+modal dialog as inside svg foreignObject: entered: PASS
+modal dialog as inside svg foreignObject: mutated while in the top layer: PASS
+modal dialog as inside svg foreignObject: mutated deeper while in the top layer: PASS
+modal dialog as inside svg foreignObject: left: PASS
+modal dialog as inside svg foreignObject: entered with an unrelated pending mutation: PASS
+modal dialog as inside svg foreignObject: left again: PASS
+modal dialog as unslotted child of a host with an empty shadow root: entered before the first layout: PASS
+modal dialog as unslotted child of a host with an empty shadow root: left before the first layout: PASS
+modal dialog as unslotted child of a host with an empty shadow root: installed: PASS
+modal dialog as unslotted child of a host with an empty shadow root: entered: PASS
+modal dialog as unslotted child of a host with an empty shadow root: mutated while in the top layer: PASS
+modal dialog as unslotted child of a host with an empty shadow root: mutated deeper while in the top layer: PASS
+modal dialog as unslotted child of a host with an empty shadow root: left: PASS
+modal dialog as unslotted child of a host with an empty shadow root: entered with an unrelated pending mutation: PASS
+modal dialog as unslotted child of a host with an empty shadow root: left again: PASS
+modal dialog as unslotted child of a host whose slot has no match: entered before the first layout: PASS
+modal dialog as unslotted child of a host whose slot has no match: left before the first layout: PASS
+modal dialog as unslotted child of a host whose slot has no match: installed: PASS
+modal dialog as unslotted child of a host whose slot has no match: entered: PASS
+modal dialog as unslotted child of a host whose slot has no match: mutated while in the top layer: PASS
+modal dialog as unslotted child of a host whose slot has no match: mutated deeper while in the top layer: PASS
+modal dialog as unslotted child of a host whose slot has no match: left: PASS
+modal dialog as unslotted child of a host whose slot has no match: entered with an unrelated pending mutation: PASS
+modal dialog as unslotted child of a host whose slot has no match: left again: PASS
+modal dialog as unassigned child of a manual assignment host: entered before the first layout: PASS
+modal dialog as unassigned child of a manual assignment host: left before the first layout: PASS
+modal dialog as unassigned child of a manual assignment host: installed: PASS
+modal dialog as unassigned child of a manual assignment host: entered: PASS
+modal dialog as unassigned child of a manual assignment host: mutated while in the top layer: PASS
+modal dialog as unassigned child of a manual assignment host: mutated deeper while in the top layer: PASS
+modal dialog as unassigned child of a manual assignment host: left: PASS
+modal dialog as unassigned child of a manual assignment host: entered with an unrelated pending mutation: PASS
+modal dialog as unassigned child of a manual assignment host: left again: PASS
+modal dialog as unslotted child of a display: contents host: entered before the first layout: PASS
+modal dialog as unslotted child of a display: contents host: left before the first layout: PASS
+modal dialog as unslotted child of a display: contents host: installed: PASS
+modal dialog as unslotted child of a display: contents host: entered: PASS
+modal dialog as unslotted child of a display: contents host: mutated while in the top layer: PASS
+modal dialog as unslotted child of a display: contents host: mutated deeper while in the top layer: PASS
+modal dialog as unslotted child of a display: contents host: left: PASS
+modal dialog as unslotted child of a display: contents host: entered with an unrelated pending mutation: PASS
+modal dialog as unslotted child of a display: contents host: left again: PASS
+modal dialog as child of a display: none element: entered before the first layout: PASS
+modal dialog as child of a display: none element: left before the first layout: PASS
+modal dialog as child of a display: none element: installed: PASS
+modal dialog as child of a display: none element: entered: PASS
+modal dialog as child of a display: none element: mutated while in the top layer: PASS
+modal dialog as child of a display: none element: mutated deeper while in the top layer: PASS
+modal dialog as child of a display: none element: left: PASS
+modal dialog as child of a display: none element: entered with an unrelated pending mutation: PASS
+modal dialog as child of a display: none element: left again: PASS
+modal dialog as child of a display: contents element: entered before the first layout: PASS
+modal dialog as child of a display: contents element: left before the first layout: PASS
+modal dialog as child of a display: contents element: installed: PASS
+modal dialog as child of a display: contents element: entered: PASS
+modal dialog as child of a display: contents element: mutated while in the top layer: PASS
+modal dialog as child of a display: contents element: mutated deeper while in the top layer: PASS
+modal dialog as child of a display: contents element: left: PASS
+modal dialog as child of a display: contents element: entered with an unrelated pending mutation: PASS
+modal dialog as child of a display: contents element: left again: PASS
+modal dialog as child of the shadow root of an unslotted host: entered before the first layout: PASS
+modal dialog as child of the shadow root of an unslotted host: left before the first layout: PASS
+modal dialog as child of the shadow root of an unslotted host: installed: PASS
+modal dialog as child of the shadow root of an unslotted host: entered: PASS
+modal dialog as child of the shadow root of an unslotted host: mutated while in the top layer: PASS
+modal dialog as child of the shadow root of an unslotted host: mutated deeper while in the top layer: PASS
+modal dialog as child of the shadow root of an unslotted host: left: PASS
+modal dialog as child of the shadow root of an unslotted host: entered with an unrelated pending mutation: PASS
+modal dialog as child of the shadow root of an unslotted host: left again: PASS
+modal dialog: entered at a rendered position: PASS
+modal dialog: moved into svg while in the top layer: PASS
+modal dialog: left from inside svg: PASS
+modal dialog: entered below a visible ancestor: PASS
+modal dialog: ancestor hidden while in the top layer: PASS
+modal dialog: ancestor shown again: PASS
+modal dialog: left below a visible ancestor: PASS
