@@ -26,7 +26,6 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::paintable_data::BorderEdge;
 use libgfx_rust::{
     CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, IntPoint, IntRect,
     MaskKind, WindingRule, translation_matrix,
@@ -332,17 +331,6 @@ pub enum FrameRole {
     BackgroundTextMask {
         piece: PieceKey,
     },
-    PatternedEdge {
-        owner: PatternedEdgeOwner,
-        piece: PieceKey,
-        edge: BorderEdge,
-    },
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum PatternedEdgeOwner {
-    Border,
-    Outline,
 }
 
 #[derive(Clone)]

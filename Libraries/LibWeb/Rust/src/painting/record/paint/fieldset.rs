@@ -13,10 +13,8 @@ use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::paint::background;
-use crate::painting::record::paint::border::{
-    BorderDataDevicePixels, BordersDataDevicePixels, local_solid_edge_region_frames, paint_all_borders,
-};
-use crate::painting::visual_context::{FrameRole, PatternedEdgeOwner, PieceKey};
+use crate::painting::record::paint::border::{BorderDataDevicePixels, BordersDataDevicePixels, paint_all_borders};
+use crate::painting::visual_context::FrameRole;
 use libgfx_rust::Color;
 
 pub(crate) fn legend_paintable(arena: &impl PaintableRowsRead, fieldset: NodeSlotId) -> Option<NodeSlotId> {
@@ -62,7 +60,6 @@ pub(crate) fn visual_border_box_rect(arena: &impl PaintableRowsRead, fieldset: N
 }
 
 pub(crate) struct FieldsetBordersData {
-    pub all: BordersDataDevicePixels,
     pub without_top: BordersDataDevicePixels,
     pub top_only: BordersDataDevicePixels,
 }
@@ -100,7 +97,6 @@ pub(crate) fn fieldset_borders_data(
         ),
     };
     FieldsetBordersData {
-        all,
         without_top: BordersDataDevicePixels { top: none, ..all },
         top_only: BordersDataDevicePixels {
             top: all.top,
@@ -128,30 +124,16 @@ pub(crate) fn paint_border(recorder: &mut PaintRecorder<'_>, fieldset: NodeSlotI
     let device_border_rect = converter.rounded_device_rect(visual_border_box_rect(recorder.layout_arena, fieldset));
     let corners = recorder.border_radii(fieldset).as_corners(&converter);
     let borders = fieldset_borders_data(style, &converter);
-    let solid_edge_region_frames = local_solid_edge_region_frames(
-        recorder,
-        fieldset,
-        PatternedEdgeOwner::Border,
-        PieceKey::Box,
-        &borders.all,
-    );
     paint_all_borders(
         &mut recorder.recorder,
         device_border_rect,
         corners,
         &borders.without_top,
-        &solid_edge_region_frames,
     );
 
     // The top border is not expected to be painted behind the border box of the legend.
     let cutout = recorder.expected_local_context(fieldset, FrameRole::LegendCutout);
     recorder.with_context(cutout, |recorder| {
-        paint_all_borders(
-            &mut recorder.recorder,
-            device_border_rect,
-            corners,
-            &borders.top_only,
-            &solid_edge_region_frames,
-        );
+        paint_all_borders(&mut recorder.recorder, device_border_rect, corners, &borders.top_only);
     });
 }

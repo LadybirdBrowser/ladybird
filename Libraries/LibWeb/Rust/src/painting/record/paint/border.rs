@@ -8,7 +8,7 @@ use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_enums::line_style;
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::display_list::commands::{ContextRef, FrameNodeIndex};
+use crate::painting::display_list::builder::PendingInlineClip;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::{
     DisplayListRecorder, FillPathParams, PaintStyleOrColor, StrokePathParams,
@@ -17,7 +17,6 @@ use crate::painting::paintable_data::{
     FfiPixelBox, PIECE_EDGE_BOTTOM, PIECE_EDGE_LEFT, PIECE_EDGE_RIGHT, PIECE_EDGE_TOP,
 };
 use crate::painting::record::{BasePaintFacts, PaintRecorder};
-use crate::painting::visual_context::{FrameRole, PatternedEdgeOwner, PieceKey};
 use libgfx_rust::path::{OwnedPath, PathBuilder};
 use libgfx_rust::{
     CapStyle, Color, CornerRadii, CornerRadius, FloatPoint, FloatSize, IntPoint, IntRect, JoinStyle, LineStyle,
@@ -25,21 +24,6 @@ use libgfx_rust::{
 };
 
 pub use crate::painting::paintable_data::BorderEdge;
-
-pub(crate) type SolidEdgeRegionFrames = [Option<FrameNodeIndex>; 4];
-
-pub(crate) fn local_solid_edge_region_frames(
-    recorder: &PaintRecorder<'_>,
-    paintable: NodeSlotId,
-    owner: PatternedEdgeOwner,
-    piece: PieceKey,
-    borders_data: &BordersDataDevicePixels,
-) -> SolidEdgeRegionFrames {
-    if !borders_data.has_patterned_edge() {
-        return [None; 4];
-    }
-    BorderEdge::ALL.map(|edge| recorder.local_frame(paintable, FrameRole::PatternedEdge { owner, piece, edge }))
-}
 
 pub(crate) const ALL_PIECE_EDGES: u8 = PIECE_EDGE_TOP | PIECE_EDGE_RIGHT | PIECE_EDGE_BOTTOM | PIECE_EDGE_LEFT;
 
@@ -785,7 +769,6 @@ pub(crate) fn paint_border(
     painter: &mut DisplayListRecorder,
     geometry: EdgeGeometry,
     borders_data: &BordersDataDevicePixels,
-    solid_edge_region_frame: Option<FrameNodeIndex>,
     path: &mut PathBuilder,
     last: bool,
 ) {
@@ -861,7 +844,6 @@ pub(crate) fn paint_border(
                 ..geometry
             },
             &modified_borders_data,
-            None,
             path,
             true,
         );
@@ -958,7 +940,6 @@ pub(crate) fn paint_border(
                 ..geometry
             },
             &modified_borders_data,
-            None,
             path,
             true,
         );
@@ -997,21 +978,16 @@ pub(crate) fn paint_border(
         if is_long_enough_for_pattern(centerline.length(), width_into, gfx_line_style == LineStyle::Dotted) {
             flush_queued_edges(painter, path);
             // The stroke is as wide as the border, so at a shared corner it would spill across the
-            // split into its neighbour. The edge's region frame, a clip to the region a solid edge
-            // would have filled, cuts it back there.
-            let context = painter.accumulated_visual_context();
-            debug_assert!(
-                solid_edge_region_frame.is_some() || !region.shares_a_corner,
-                "the visual context build pass provisions a region frame for a patterned edge sharing a corner"
-            );
-            if let Some(frame) = solid_edge_region_frame {
-                painter.set_accumulated_visual_context(ContextRef {
-                    spatial: context.spatial,
-                    frame,
+            // split into its neighbour. A clip to the region a solid edge would have filled cuts
+            // it back there.
+            if region.shares_a_corner {
+                let solid_edge_region_clip = PendingInlineClip::intersecting_path(&region.path(), WindingRule::EvenOdd);
+                painter.record_with_inline_clips(&[solid_edge_region_clip], |painter| {
+                    stroke_patterned_path(painter, &centerline, gfx_line_style, width_into, color, false);
                 });
+            } else {
+                stroke_patterned_path(painter, &centerline, gfx_line_style, width_into, color, false);
             }
-            stroke_patterned_path(painter, &centerline, gfx_line_style, width_into, color, false);
-            painter.set_accumulated_visual_context(context);
             return;
         }
     }
@@ -1182,30 +1158,11 @@ fn paints_uniform_patterned_border(border_rect: IntRect, borders_data: &BordersD
         && is_long_enough_for_pattern(border_rect.height as f32, width, dotted)
 }
 
-pub(crate) fn patterned_edge_solid_region_paths(
-    border_rect: IntRect,
-    corner_radii: CornerRadii,
-    borders_data: &BordersDataDevicePixels,
-) -> [Option<OwnedPath>; 4] {
-    if !borders_data.has_patterned_edge() {
-        return [None, None, None, None];
-    }
-    edge_geometries(border_rect, corner_radii, borders_data).map(|geometry| {
-        let border_data = borders_data.for_edge(geometry.edge);
-        if border_data.width <= 0 || !matches!(border_data.line_style, line_style::DASHED | line_style::DOTTED) {
-            return None;
-        }
-        let region = SolidEdgeRegion::compute(geometry, borders_data);
-        region.shares_a_corner.then(|| region.path())
-    })
-}
-
 pub fn paint_all_borders(
     painter: &mut DisplayListRecorder,
     border_rect: IntRect,
     corner_radii: CornerRadii,
     borders_data: &BordersDataDevicePixels,
-    solid_edge_region_frames: &SolidEdgeRegionFrames,
 ) {
     if has_no_border(borders_data) {
         return;
@@ -1233,14 +1190,7 @@ pub fn paint_all_borders(
     for i in 0..edges.len() {
         let last = i == edges.len() - 1;
         let geometry = geometries[(start_index + i) % edges.len()];
-        paint_border(
-            painter,
-            geometry,
-            borders_data,
-            solid_edge_region_frames[geometry.edge.index()],
-            &mut path,
-            last,
-        );
+        paint_border(painter, geometry, borders_data, &mut path, last);
     }
 }
 
@@ -1343,7 +1293,6 @@ pub(crate) fn paint_box_borders_from_style(
     paint_box_borders(
         recorder,
         paintable,
-        PieceKey::Box,
         facts,
         border_box_rect,
         css_border_widths,
@@ -1352,11 +1301,9 @@ pub(crate) fn paint_box_borders_from_style(
     );
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn paint_box_borders(
     recorder: &mut PaintRecorder<'_>,
     paintable: NodeSlotId,
-    piece: PieceKey,
     facts: &BasePaintFacts,
     border_box_rect: CssPixelRect,
     css_border_widths: [CssPixels; 4],
@@ -1374,13 +1321,10 @@ pub(crate) fn paint_box_borders(
         return;
     }
     let converter = recorder.converter;
-    let solid_edge_region_frames =
-        local_solid_edge_region_frames(recorder, paintable, PatternedEdgeOwner::Border, piece, borders_data);
     paint_all_borders(
         &mut recorder.recorder,
         converter.rounded_device_rect(border_box_rect),
         border_radii.as_corners(&converter),
         borders_data,
-        &solid_edge_region_frames,
     );
 }

@@ -4,23 +4,19 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::node_values::{border_radii_data, padding_edge_border_radii, piece_border_radii_data};
-use super::{
-    ClipData, ClipMode, ClipPathData, ContextRef, FrameData, FrameNodeIndex, FrameRole, PatternedEdgeOwner, PieceKey,
-    VisualContextNodeSink,
-};
+use super::node_values::{padding_edge_border_radii, piece_border_radii_data};
+use super::{ClipData, ClipMode, ContextRef, FrameData, FrameNodeIndex, FrameRole, PieceKey, VisualContextNodeSink};
 use crate::css::computed_value_views::ComputedValuesView;
-use crate::css::css_enums::{background_box, line_style, overflow};
+use crate::css::css_enums::{background_box, overflow};
 use crate::css::css_pixels::CssPixelRect;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::host::FfiRootBackgroundSource;
 use crate::painting::node_painting;
-use crate::painting::paintable_data::{BorderEdge, FfiPixelBox};
+use crate::painting::paintable_data::FfiPixelBox;
 use crate::painting::paintable_geometry::{
-    absolute_border_box_rect, absolute_rect, committed_border, committed_padding,
-    committed_uses_collapsing_borders_model, for_each_rendered_inline_box_piece,
+    absolute_border_box_rect, absolute_rect, committed_border, committed_padding, for_each_rendered_inline_box_piece,
 };
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::paint::background::{BackgroundBox, background_box_for};
@@ -28,17 +24,10 @@ use crate::painting::record::paint::background_resolution::{
     ComputedLayerFrameFacts, background_paint_source_from_style_and_geometry, body_background_is_propagated_to_root,
     computed_background_layer_frame_facts, computed_mask_layer_frame_facts,
 };
-use crate::painting::record::paint::border::{
-    ALL_PIECE_EDGES, BordersDataDevicePixels, patterned_edge_solid_region_paths, style_borders_data,
-};
-use crate::painting::record::paint::fieldset::{fieldset_borders_data, legend_paintable, visual_border_box_rect};
-use crate::painting::record::paint::outline::{outline_border_geometry, outline_borders_data};
+use crate::painting::record::paint::fieldset::{legend_paintable, visual_border_box_rect};
 use crate::painting::record::paint::svg::svg_image_unquantized_device_rect;
 use crate::painting::style_queries;
-use libgfx_rust::{
-    Color, CompositingAndBlendingOperator, CornerRadii, FloatRect, IntRect, WindingRule, enclosing_int_rect,
-};
-use std::rc::Rc;
+use libgfx_rust::{CompositingAndBlendingOperator, CornerRadii, FloatRect, IntRect};
 
 pub(crate) type LocalFrames = Vec<(FrameRole, FrameNodeIndex)>;
 
@@ -49,12 +38,6 @@ pub(crate) struct LocalFrameBuilder<'a, Sink: VisualContextNodeSink, Arena: Pain
     kind: NodeKind,
     converter: DevicePixelConverter,
     frames: Option<LocalFrames>,
-}
-
-struct FieldsetFrames {
-    background_clip: ContextRef,
-    legend_cutout: Option<ContextRef>,
-    device_border_rect: IntRect,
 }
 
 #[derive(Clone, Copy)]
@@ -105,28 +88,20 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
             return self.finish();
         }
 
-        let border_box_rect = absolute_border_box_rect(self.layout_arena, self.slot);
-        let border_radii = border_radii_data(style, self.layout_arena, self.slot);
-
         let mut background_parent = own_state;
-        let mut fieldset = None;
         match self.kind {
             NodeKind::ImageBox | NodeKind::CanvasBox | NodeKind::VideoBox | NodeKind::NavigableContainerViewport => {
                 self.append_replaced_content_frames(style, own_state);
             }
             NodeKind::SVGImageBox => self.append_svg_image_frames(style, own_state),
             NodeKind::FieldSetBox => {
-                let frames = self.append_fieldset_frames(own_state);
-                background_parent = frames.background_clip;
-                fieldset = Some(frames);
+                background_parent = self.append_fieldset_frames(own_state);
             }
             _ => {}
         }
 
         if node_painting::paints_box_decorations(self.layout_arena, self.slot) {
             self.append_background_frames(background_parent, root_background_source);
-            self.append_border_frames(style, own_state, border_box_rect, border_radii, fieldset.as_ref());
-            self.append_outline_frames(style, own_state, PieceKey::Box, border_box_rect, border_radii);
         }
         self.finish()
     }
@@ -218,18 +193,6 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
                     layers,
                 );
             }
-            if style_has_patterned_border_edge(style) {
-                let borders_data = style_borders_data(style, border, piece.present_edges, &self.converter);
-                self.append_patterned_edge_frames(
-                    own_state,
-                    PatternedEdgeOwner::Border,
-                    piece_key,
-                    self.converter.rounded_device_rect(border_box_rect),
-                    border_radii.as_corners(&self.converter),
-                    &borders_data,
-                );
-            }
-            self.append_outline_frames(style, own_state, piece_key, border_box_rect, border_radii);
         });
     }
 
@@ -273,7 +236,7 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
         self.append_clip(own_state, image_rect, CornerRadii::default(), FrameRole::ContentClip);
     }
 
-    fn append_fieldset_frames(&mut self, own_state: ContextRef) -> FieldsetFrames {
+    fn append_fieldset_frames(&mut self, own_state: ContextRef) -> ContextRef {
         let arena = self.layout_arena;
         let css_border_top = arena
             .node_style_if_live(self.slot)
@@ -289,11 +252,7 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
             FrameRole::FieldsetBackgroundClip,
         );
         let Some(legend) = legend_paintable(arena, self.slot) else {
-            return FieldsetFrames {
-                background_clip,
-                legend_cutout: None,
-                device_border_rect,
-            };
+            return background_clip;
         };
         let legend_border_rect = self
             .converter
@@ -317,7 +276,7 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
             legend_border_rect.width,
             top_border,
         );
-        let legend_cutout = self.append(
+        self.append(
             band_context,
             FrameData::Clip(ClipData {
                 rect: cutout.to_float(),
@@ -326,11 +285,7 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
             }),
             FrameRole::LegendCutout,
         );
-        FieldsetFrames {
-            background_clip,
-            legend_cutout: Some(legend_cutout),
-            device_border_rect,
-        }
+        background_clip
     }
 
     fn append_background_frames(
@@ -476,119 +431,4 @@ impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilde
             }
         }
     }
-
-    fn append_border_frames(
-        &mut self,
-        style: ComputedValuesView<'_>,
-        own_state: ContextRef,
-        border_box_rect: CssPixelRect,
-        border_radii: BorderRadii,
-        fieldset: Option<&FieldsetFrames>,
-    ) {
-        if !style_has_patterned_border_edge(style) {
-            return;
-        }
-        let corner_radii = border_radii.as_corners(&self.converter);
-        if let Some(FieldsetFrames {
-            legend_cutout: Some(legend_cutout),
-            device_border_rect,
-            ..
-        }) = fieldset
-        {
-            let borders = fieldset_borders_data(style, &self.converter);
-            self.append_patterned_edge_frames(
-                own_state,
-                PatternedEdgeOwner::Border,
-                PieceKey::Box,
-                *device_border_rect,
-                corner_radii,
-                &borders.without_top,
-            );
-            self.append_patterned_edge_frames(
-                *legend_cutout,
-                PatternedEdgeOwner::Border,
-                PieceKey::Box,
-                *device_border_rect,
-                corner_radii,
-                &borders.top_only,
-            );
-        } else if !committed_uses_collapsing_borders_model(self.layout_arena, self.slot) {
-            let border = committed_border(self.layout_arena, self.slot);
-            let borders_data = style_borders_data(style, border, ALL_PIECE_EDGES, &self.converter);
-            self.append_patterned_edge_frames(
-                own_state,
-                PatternedEdgeOwner::Border,
-                PieceKey::Box,
-                self.converter.rounded_device_rect(border_box_rect),
-                corner_radii,
-                &borders_data,
-            );
-        }
-    }
-
-    fn append_outline_frames(
-        &mut self,
-        style: ComputedValuesView<'_>,
-        own_state: ContextRef,
-        piece: PieceKey,
-        border_box_rect: CssPixelRect,
-        border_radii: BorderRadii,
-    ) {
-        let Some(outline) = style_queries::outline_geometry(style) else {
-            return;
-        };
-        if !is_patterned(outline.line_style) {
-            return;
-        }
-        let outline_offset = style.misc_reset().outline_offset;
-        let (borders_rect, border_radius_data) =
-            outline_border_geometry(outline.width, outline_offset, border_box_rect, border_radii);
-        let borders_data = outline_borders_data(outline, Color::TRANSPARENT, &self.converter);
-        self.append_patterned_edge_frames(
-            own_state,
-            PatternedEdgeOwner::Outline,
-            piece,
-            self.converter.rounded_device_rect(borders_rect),
-            border_radius_data.as_corners(&self.converter),
-            &borders_data,
-        );
-    }
-
-    fn append_patterned_edge_frames(
-        &mut self,
-        parent: ContextRef,
-        owner: PatternedEdgeOwner,
-        piece: PieceKey,
-        border_rect: IntRect,
-        corner_radii: CornerRadii,
-        borders_data: &BordersDataDevicePixels,
-    ) {
-        let paths = patterned_edge_solid_region_paths(border_rect, corner_radii, borders_data);
-        for (edge, path) in BorderEdge::ALL.into_iter().zip(paths) {
-            let Some(path) = path else {
-                continue;
-            };
-            let bounding_rect = enclosing_int_rect(FloatRect::from_array(path.bounding_box()));
-            self.append(
-                parent,
-                FrameData::ClipPath(ClipPathData {
-                    path: Rc::new(path),
-                    bounding_rect,
-                    fill_rule: WindingRule::EvenOdd,
-                }),
-                FrameRole::PatternedEdge { owner, piece, edge },
-            );
-        }
-    }
-}
-
-fn is_patterned(line_style: u8) -> bool {
-    matches!(line_style, line_style::DASHED | line_style::DOTTED)
-}
-
-fn style_has_patterned_border_edge(style: ComputedValuesView<'_>) -> bool {
-    is_patterned(style.border_top_style())
-        || is_patterned(style.border_right_style())
-        || is_patterned(style.border_bottom_style())
-        || is_patterned(style.border_left_style())
 }
