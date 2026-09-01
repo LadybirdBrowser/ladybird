@@ -1,0 +1,5 @@
+dashed border painted: true
+shadow painted: true
+blended layers painted: true
+full builds: 0
+incremental updates: 1
