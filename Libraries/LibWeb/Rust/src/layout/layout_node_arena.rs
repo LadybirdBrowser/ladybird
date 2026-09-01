@@ -323,6 +323,12 @@ struct SavedAbsposLayoutInputsSlot {
     inputs: Option<Box<AbsposLayoutInputs>>,
 }
 
+#[derive(Clone, Copy, Default)]
+struct DefaultScrollShiftAnchorSlot {
+    generation: u8,
+    anchor: NodeSlotId,
+}
+
 #[derive(Default)]
 pub(crate) struct TextContent {
     pub(crate) text: Vec<u16>,
@@ -439,6 +445,8 @@ pub(crate) struct LayoutNodeArena {
     table_cell_measurement_cache_misses: Cell<u64>,
     intrinsic_measurements: Cell<u64>,
     saved_abspos_layout_inputs: RefCell<Vec<SavedAbsposLayoutInputsSlot>>,
+    default_scroll_shift_anchors: RefCell<Vec<DefaultScrollShiftAnchorSlot>>,
+    any_default_scroll_shift_anchor_ever_stored: Cell<bool>,
     text_contents: Vec<TextContentSlot>,
     text_chunk_caches: RefCell<Vec<TextChunkCacheSlot>>,
     replaced_content_facts: Vec<ReplacedContentFactsSlot>,
@@ -467,6 +475,8 @@ impl LayoutNodeArena {
             table_cell_measurement_cache_misses: Cell::new(0),
             intrinsic_measurements: Cell::new(0),
             saved_abspos_layout_inputs: RefCell::new(Vec::new()),
+            default_scroll_shift_anchors: RefCell::new(Vec::new()),
+            any_default_scroll_shift_anchor_ever_stored: Cell::new(false),
             text_contents: Vec::new(),
             text_chunk_caches: RefCell::new(Vec::new()),
             replaced_content_facts: Vec::new(),
@@ -623,6 +633,9 @@ impl LayoutNodeArena {
         }
         if let Some(slot) = self.saved_abspos_layout_inputs.get_mut().get_mut(index as usize) {
             *slot = SavedAbsposLayoutInputsSlot::default();
+        }
+        if let Some(slot) = self.default_scroll_shift_anchors.get_mut().get_mut(index as usize) {
+            *slot = DefaultScrollShiftAnchorSlot::default();
         }
         self.paintable_rows.reset_committed_fragment_link_slot(index);
         if let Some(slot) = self.text_contents.get_mut(index as usize) {
@@ -1394,6 +1407,62 @@ impl LayoutNodeArena {
         }
     }
 
+    pub(crate) fn set_default_scroll_shift(
+        &self,
+        id: NodeSlotId,
+        anchor: NodeSlotId,
+        compensates_for_horizontal_scroll: bool,
+        compensates_for_vertical_scroll: bool,
+    ) {
+        let anchor_is_live = self.slot_is_live(anchor);
+        {
+            let mut slots = self.default_scroll_shift_anchors.borrow_mut();
+            let index = id.slot_index() as usize;
+            if anchor_is_live {
+                if slots.len() <= index {
+                    slots.resize_with(index + 1, DefaultScrollShiftAnchorSlot::default);
+                }
+                slots[index] = DefaultScrollShiftAnchorSlot {
+                    generation: id.generation(),
+                    anchor,
+                };
+            } else if let Some(slot) = slots.get_mut(index) {
+                *slot = DefaultScrollShiftAnchorSlot::default();
+            }
+        }
+        self.set_node_flag(
+            id,
+            NodeFlag::CompensatesForHorizontalScroll,
+            anchor_is_live && compensates_for_horizontal_scroll,
+        );
+        self.set_node_flag(
+            id,
+            NodeFlag::CompensatesForVerticalScroll,
+            anchor_is_live && compensates_for_vertical_scroll,
+        );
+        if anchor_is_live {
+            self.any_default_scroll_shift_anchor_ever_stored.set(true);
+        }
+    }
+
+    pub(crate) fn default_scroll_shift_anchor(&self, id: NodeSlotId) -> NodeSlotId {
+        if !self.any_default_scroll_shift_anchor_ever_stored.get() {
+            return NodeSlotId::INVALID;
+        }
+        let slots = self.default_scroll_shift_anchors.borrow();
+        let Some(slot) = slots.get(id.slot_index() as usize) else {
+            return NodeSlotId::INVALID;
+        };
+        if slot.generation != id.generation() || !self.slot_is_live(slot.anchor) {
+            return NodeSlotId::INVALID;
+        }
+        slot.anchor
+    }
+
+    pub(crate) fn may_have_default_scroll_shift_anchor(&self) -> bool {
+        self.any_default_scroll_shift_anchor_ever_stored.get()
+    }
+
     pub(crate) fn committed_fragment_link(&self, data: *const NodeData) -> Option<super::fragment_tree::FragmentLink> {
         let (index, metadata) = self.slot_for_data(data);
         let link = self
@@ -1931,15 +2000,17 @@ impl LayoutNodeArena {
         ))
     }
 
-    pub(crate) fn shell_if_live(&self, id: NodeSlotId) -> *mut c_void {
+    pub(crate) fn slot_is_live(&self, id: NodeSlotId) -> bool {
         if id.is_invalid() {
-            return std::ptr::null_mut();
+            return false;
         }
-        let index = id.slot_index() as usize;
-        let Some(metadata) = self.slot_metadata.get(index) else {
-            return std::ptr::null_mut();
-        };
-        if !metadata.occupied || metadata.generation != id.generation() {
+        self.slot_metadata
+            .get(id.slot_index() as usize)
+            .is_some_and(|metadata| metadata.occupied && metadata.generation == id.generation())
+    }
+
+    pub(crate) fn shell_if_live(&self, id: NodeSlotId) -> *mut c_void {
+        if !self.slot_is_live(id) {
             return std::ptr::null_mut();
         }
         // SAFETY: The metadata check established a live slot of this generation.
@@ -2432,6 +2503,69 @@ mod tests {
         assert_ne!(second.generation, first.generation);
         arena
             .free(second.slot, second.generation)
+            .detached_children
+            .release_all();
+    }
+
+    #[test]
+    fn default_scroll_shift_anchors_behave_like_weak_references() {
+        let mut arena = LayoutNodeArena::new();
+        let positioned = arena.allocate();
+        let anchor = arena.allocate();
+
+        arena.set_default_scroll_shift(positioned.slot, anchor.slot, true, false);
+        assert!(arena.may_have_default_scroll_shift_anchor());
+        assert_eq!(arena.default_scroll_shift_anchor(positioned.slot), anchor.slot);
+        // SAFETY: The allocation remains live and the arena keeps its address stable.
+        let flags = unsafe { (*positioned.data).flags };
+        assert_ne!(flags & NodeFlag::CompensatesForHorizontalScroll as u32, 0);
+        assert_eq!(flags & NodeFlag::CompensatesForVerticalScroll as u32, 0);
+
+        arena
+            .free(anchor.slot, anchor.generation)
+            .detached_children
+            .release_all();
+        assert!(arena.default_scroll_shift_anchor(positioned.slot).is_invalid());
+
+        let anchor_slot_reoccupant = arena.allocate();
+        assert_eq!(anchor_slot_reoccupant.slot.slot_index(), anchor.slot.slot_index());
+        assert!(arena.default_scroll_shift_anchor(positioned.slot).is_invalid());
+
+        arena.set_default_scroll_shift(positioned.slot, anchor_slot_reoccupant.slot, true, true);
+        assert_eq!(
+            arena.default_scroll_shift_anchor(positioned.slot),
+            anchor_slot_reoccupant.slot
+        );
+        arena.set_default_scroll_shift(positioned.slot, NodeSlotId::INVALID, false, false);
+        assert!(arena.default_scroll_shift_anchor(positioned.slot).is_invalid());
+        // SAFETY: The allocation remains live and the arena keeps its address stable.
+        let cleared_flags = unsafe { (*positioned.data).flags };
+        assert_eq!(cleared_flags & NodeFlag::CompensatesForHorizontalScroll as u32, 0);
+        assert_eq!(cleared_flags & NodeFlag::CompensatesForVerticalScroll as u32, 0);
+
+        arena
+            .free(positioned.slot, positioned.generation)
+            .detached_children
+            .release_all();
+        let positioned_slot_reoccupant = arena.allocate();
+        assert_eq!(
+            positioned_slot_reoccupant.slot.slot_index(),
+            positioned.slot.slot_index()
+        );
+        arena.set_default_scroll_shift(positioned_slot_reoccupant.slot, anchor_slot_reoccupant.slot, true, true);
+        arena
+            .free(positioned_slot_reoccupant.slot, positioned_slot_reoccupant.generation)
+            .detached_children
+            .release_all();
+        let next_reoccupant = arena.allocate();
+        assert!(arena.default_scroll_shift_anchor(next_reoccupant.slot).is_invalid());
+
+        arena
+            .free(next_reoccupant.slot, next_reoccupant.generation)
+            .detached_children
+            .release_all();
+        arena
+            .free(anchor_slot_reoccupant.slot, anchor_slot_reoccupant.generation)
             .detached_children
             .release_all();
     }

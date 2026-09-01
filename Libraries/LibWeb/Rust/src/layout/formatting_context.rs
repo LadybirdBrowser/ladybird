@@ -917,7 +917,6 @@ pub struct FfiLayoutFcCallbacks {
         unsafe extern "C" fn(*mut c_void, *mut c_void, CssPixels, CssPixels) -> svg_formatting_context::FfiFloatRect,
     pub anchor_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void, usize, *const *mut c_void, usize) -> NodeSlotId,
     pub node_unique_id: unsafe extern "C" fn(*mut c_void) -> i64,
-    pub set_default_scroll_shift: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool, bool),
 }
 
 impl FfiLayoutFcCallbacks {

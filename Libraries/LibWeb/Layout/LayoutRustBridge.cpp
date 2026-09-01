@@ -652,13 +652,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
             auto const* dom_node = static_cast<Box const*>(node)->dom_node();
             return dom_node ? dom_node->unique_id().value() : -1;
         },
-        .set_default_scroll_shift = [](void*, void* node, void* anchor, bool horizontal, bool vertical) {
-            auto& box = *static_cast<Box*>(node);
-            if (!anchor) {
-                box.set_default_scroll_shift({}, false, false);
-                return;
-            }
-            box.set_default_scroll_shift(static_cast<Box*>(anchor)->make_weak_ptr(), horizontal, vertical); },
     };
 }
 

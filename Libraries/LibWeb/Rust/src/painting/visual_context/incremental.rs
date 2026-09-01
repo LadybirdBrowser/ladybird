@@ -267,19 +267,14 @@ struct DeferredAnchorPositionedBox {
 
 struct WalkAnchorScrollShiftResolver<'a, Arena> {
     layout_arena: &'a Arena,
-    callbacks: &'a FfiVisualContextHostCallbacks,
     scroll_state: &'a ScrollState,
     assignments: &'a [PaintableVisualContextAssignment],
     assignment_index_by_slot: &'a HashMap<NodeSlotId, usize>,
-    may_have_default_scroll_shift_anchor: bool,
 }
 
 impl<Arena: PaintableRowsRead> AnchorScrollShiftResolver for WalkAnchorScrollShiftResolver<'_, Arena> {
     fn default_scroll_shift_anchor(&self, slot: NodeSlotId) -> NodeSlotId {
-        if !self.may_have_default_scroll_shift_anchor {
-            return NodeSlotId::INVALID;
-        }
-        default_scroll_shift_anchor_of(self.layout_arena, self.callbacks, slot)
+        self.layout_arena.default_scroll_shift_anchor(slot)
     }
 
     fn enclosing_scroll_node_index(&self, slot: NodeSlotId) -> SpatialNodeIndex {
@@ -295,14 +290,6 @@ impl<Arena: PaintableRowsRead> AnchorScrollShiftResolver for WalkAnchorScrollShi
     fn scroll_state(&self) -> &ScrollState {
         self.scroll_state
     }
-}
-
-fn default_scroll_shift_anchor_of(
-    layout_arena: &impl PaintableRowsRead,
-    callbacks: &FfiVisualContextHostCallbacks,
-    slot: NodeSlotId,
-) -> NodeSlotId {
-    callbacks.default_scroll_shift_anchor(layout_arena.shell_if_live(slot))
 }
 
 fn anchor_is_awaiting_build(
@@ -372,7 +359,6 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
         layout_arena,
         callbacks,
         pixel_ratio: tree_inputs.device_pixels_per_css_pixel,
-        tree_inputs,
         root_background_source,
     };
     let viewport_output = layout_arena
@@ -426,7 +412,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
         scope.rebuilds_every_box() || plan.revalidate_children_of.contains(&viewport),
     );
 
-    let defers_anchor_positioned = scope.rebuilds_every_box() && tree_inputs.may_have_default_scroll_shift_anchor;
+    let defers_anchor_positioned = scope.rebuilds_every_box() && layout_arena.may_have_default_scroll_shift_anchor();
     let mut deferred_anchor_positioned: Vec<DeferredAnchorPositionedBox> = Vec::new();
     let mut deferred_awaiting_build: HashSet<NodeSlotId> = HashSet::new();
     loop {
@@ -443,7 +429,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
         };
         let slot = pending.slot;
         if may_defer_this_box {
-            let anchor = default_scroll_shift_anchor_of(layout_arena, callbacks, slot);
+            let anchor = layout_arena.default_scroll_shift_anchor(slot);
             if !anchor.is_invalid() {
                 deferred_awaiting_build.insert(slot);
                 deferred_anchor_positioned.push(DeferredAnchorPositionedBox { pending, anchor });
@@ -483,11 +469,9 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
                         .as_ref()
                         .map(|scroll_state| WalkAnchorScrollShiftResolver {
                             layout_arena,
-                            callbacks,
                             scroll_state,
                             assignments: &assignments,
                             assignment_index_by_slot: &assignment_index_by_slot,
-                            may_have_default_scroll_shift_anchor: tree_inputs.may_have_default_scroll_shift_anchor,
                         });
                 build_box_visual_context_nodes(
                     &environment,

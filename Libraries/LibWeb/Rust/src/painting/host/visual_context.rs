@@ -61,7 +61,6 @@ pub struct FfiVisualContextTreeInputs {
     pub visual_viewport_offset_x: f64,
     pub visual_viewport_offset_y: f64,
     pub visual_viewport_scale: f64,
-    pub may_have_default_scroll_shift_anchor: bool,
     pub viewport_wheel_overflow_x: u8,
     pub viewport_wheel_overflow_y: u8,
 }
@@ -89,8 +88,6 @@ pub struct FfiVisualContextHostCallbacks {
     pub root_background_source: unsafe extern "C" fn(*mut c_void) -> FfiRootBackgroundSource,
     pub svg_mask_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiSvgMaskFacts,
     pub resolve_effects_filter: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiResolvedEffectsFilter,
-    pub default_scroll_shift_anchor:
-        unsafe extern "C" fn(*mut c_void, *mut c_void) -> crate::layout::node_data::NodeSlotId,
 }
 
 impl FfiVisualContextHostCallbacks {
@@ -130,13 +127,6 @@ impl FfiVisualContextHostCallbacks {
             filter_bytes: resolved.has_filter.then_some(bytes),
             svg_filter_bounds: resolved.svg_filter_bounds,
         }
-    }
-    pub(crate) fn default_scroll_shift_anchor(
-        &self,
-        layout_node_shell: *mut c_void,
-    ) -> crate::layout::node_data::NodeSlotId {
-        // SAFETY: The C++ host answers synchronously from a live layout node shell.
-        unsafe { (self.default_scroll_shift_anchor)(self.context, layout_node_shell) }
     }
 }
 

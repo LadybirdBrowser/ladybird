@@ -497,8 +497,6 @@ public:
     void update_layout(UpdateLayoutReason);
     void update_layout(UpdateLayoutReason, ThrottledAnimationSamplingScope);
     void note_content_visibility_auto_style() { m_may_have_content_visibility_auto_style = true; }
-    void note_default_scroll_shift_anchor() { m_may_have_default_scroll_shift_anchor = true; }
-    [[nodiscard]] bool may_have_default_scroll_shift_anchor() const { return m_may_have_default_scroll_shift_anchor; }
     enum class PartialRelayoutResult : u8 {
         NotEligible,
         Done,
@@ -1580,7 +1578,6 @@ private:
     NonnullRefPtr<Painting::ChromeWidgetRegistry> m_chrome_widget_registry;
     RefPtr<Layout::Viewport> m_layout_root;
     bool m_may_have_content_visibility_auto_style { false };
-    bool m_may_have_default_scroll_shift_anchor { false };
 
     GC::Ptr<Node> m_hovered_node;
     GC::Ptr<Node> m_inspected_node;
