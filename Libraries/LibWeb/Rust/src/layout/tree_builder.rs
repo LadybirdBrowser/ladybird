@@ -82,7 +82,6 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub is_svg_element: unsafe extern "C" fn(*mut c_void) -> bool,
     pub clear_stale_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub display_contents_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiDisplayContentsFacts,
-    pub clear_synthetic_pseudo_element_layout_nodes: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub clear_stale_subtree: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiStaleSubtreeClearScope),
     pub resolve_counters: unsafe extern "C" fn(*mut c_void, FfiPseudoElement),
     pub principal_descendant_facts:
@@ -816,11 +815,6 @@ unsafe fn update_layout_tree_for_display_contents(
             context.layout_top_layer = false;
         }
 
-        // SAFETY: The builder and element remain live throughout this call.
-        unsafe {
-            (host.callbacks.clear_synthetic_pseudo_element_layout_nodes)(host.callbacks.builder, element);
-        }
-
         if should_create_layout_node {
             // SAFETY: The builder and element remain live throughout this call.
             unsafe {
@@ -833,7 +827,7 @@ unsafe fn update_layout_tree_for_display_contents(
             }
         }
 
-        if !facts.content_visibility_hidden && !context.has_svg_root {
+        if should_create_layout_node && !facts.content_visibility_hidden && !context.has_svg_root {
             let placed = create_pseudo_element(
                 host,
                 state,
@@ -901,7 +895,7 @@ unsafe fn update_layout_tree_for_display_contents(
             }
         }
 
-        if !facts.content_visibility_hidden && !context.has_svg_root {
+        if should_create_layout_node && !facts.content_visibility_hidden && !context.has_svg_root {
             let placed = create_pseudo_element(
                 host,
                 state,

@@ -1003,9 +1003,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 .slot_element = slot_element,
             };
         },
-        .clear_synthetic_pseudo_element_layout_nodes = [](void*, void* element_pointer) {
-            VERIFY(element_pointer);
-            LayoutTreeBuilderAccess::clear_synthetic_pseudo_element_layout_nodes(*static_cast<DOM::Element*>(element_pointer)); },
         .clear_stale_subtree = [](void* builder_pointer, void* root_pointer, RustFFI::FfiStaleSubtreeClearScope scope) {
             VERIFY(builder_pointer);
             VERIFY(root_pointer);
