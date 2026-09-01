@@ -30,6 +30,7 @@ pub(crate) mod line_box_fragment;
 pub(crate) mod line_builder;
 pub mod node_data;
 pub(crate) mod node_facts;
+mod partial_relayout;
 mod replaced_with_children_formatting_context;
 pub(crate) mod run_records;
 pub(crate) mod sizing_context;
