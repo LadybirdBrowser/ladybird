@@ -7,9 +7,12 @@
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/Clipboard/Clipboard.h>
 #include <LibWeb/Clipboard/ClipboardItem.h>
 #include <LibWeb/FileAPI/Blob.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/MimeSniff/MimeType.h>
+#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Clipboard {
@@ -119,9 +122,19 @@ WebIDL::ExceptionOr<GC::Ref<ClipboardItem>> ClipboardItem::create(GC::OrderedRoo
     return create(items, options.presentation_style);
 }
 
-PresentationStyle ClipboardItem::presentation_style() const
+ClipboardItem::ClipboardItem()
+    : m_presentation_style(PresentationStyle::Unspecified)
 {
-    return m_presentation_style;
+}
+
+ClipboardItem::~ClipboardItem() = default;
+
+void ClipboardItem::visit_edges(GC::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    for (auto& representation : m_representations)
+        visitor.visit(representation.data);
+    visitor.visit(m_representations_with_resolvers);
 }
 
 void ClipboardItem::append_representation(Representation representation)
@@ -131,7 +144,7 @@ void ClipboardItem::append_representation(Representation representation)
 }
 
 // https://w3c.github.io/clipboard-apis/#dom-clipboarditem-gettype
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ClipboardItem::get_type(JS::Realm& realm, Utf16String const& type) const
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ClipboardItem::get_type(JS::Realm& realm, Utf16String const& type)
 {
     // 2. Let isCustom be false.
     bool is_custom = false;
@@ -155,7 +168,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ClipboardItem::get_type(JS::Realm&
 
     auto mime_type_serialized = mime_type->serialized();
 
-    // 6. Let itemTypeList be this's clipboard item's list of representations.
+    // 6. Let itemTypeList be this’s clipboard item’s list of representations.
     auto const& item_type_list = representations();
 
     // 7.  Let p be a new promise in realm.
@@ -164,13 +177,106 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ClipboardItem::get_type(JS::Realm&
     // 8. For each representation in itemTypeList:
     for (auto const& representation : item_type_list) {
         // 1. If representation’s MIME type is mimeType and representation’s isCustom is isCustom, then:
-        if (representation.mime_type == Utf16String::from_utf8(mime_type_serialized) && representation.is_custom == is_custom) {
-            // 1. Let representationDataPromise be the representation’s data.
+        if (representation.mime_type == mime_type_serialized && representation.is_custom == is_custom) {
+            // FIXME: 1. If this’s clipboard change count at read is not null, and the current clipboard change count is not
+            //           equal to this’s clipboard change count at read, then reject p with an "InvalidStateError" DOMException
+            //           in realm, and return p.
+
+            // 2. If this’s clipboard change count at read is not null, then:
+            if (m_clipboard_change_count_at_read.has_value()) {
+                // 1. Let key be mimeType’s essence. If isCustom is true, prefix key with `"web "`.
+                auto key = mime_type->essence();
+                if (is_custom)
+                    key = MUST(String::formatted("web {}", mime_type->essence()));
+
+                // 2. If this’s representations with resolvers[key] exists, then return this’s representations with resolvers[key].
+                if (auto resolver = m_representations_with_resolvers.get(key); resolver.has_value())
+                    return resolver.release_value();
+
+                // 3. Set this’s representations with resolvers[key] to p.
+                m_representations_with_resolvers.set(key, promise);
+
+                // 4. Run the following steps in parallel:
+                Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, &realm, promise, mime_type = mime_type.release_value(), is_custom]() {
+                    // 1. Let clipboardItem be this’s originating system clipboard item.
+                    auto const& clipboard_item = m_originating_system_clipboard_item;
+
+                    // 2. If clipboardItem is null, then queue a global task on the clipboard task source, given realm’s
+                    //    global object, to reject p with an "InvalidStateError" DOMException in realm, then abort these
+                    //    steps.
+                    if (!clipboard_item.has_value()) {
+                        queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, promise]() {
+                            HTML::TemporaryExecutionContext execution_context { realm };
+                            WebIDL::reject_promise(promise, WebIDL::InvalidStateError::create("This clipboard item is missing an originating system clipboard entry"_utf16));
+                        }));
+                        return;
+                    }
+
+                    String os_format_name;
+
+                    // 3. If isCustom is true, then:
+                    if (is_custom) {
+                        // FIXME: 1. Let mapName be the os specific custom map name.
+                        // FIXME: 2. Let mapRepresentation be the system clipboard representation in clipboardItem’s list of system
+                        //           clipboard representations whose name is mapName. If there is no such system clipboard
+                        //           representation, then queue a global task on the clipboard task source, given realm’s global
+                        //           object, to reject p with a "NotFoundError" DOMException in realm, then abort these steps.
+                        // FIXME: 3. Let webCustomFormatMapString be the JSON string deserialized from mapRepresentation’s data.
+                        // FIXME: 4. Let osFormatName be the value in webCustomFormatMapString whose key matches mimeType
+                        //           serialized.
+                        // FIXME: 5. If osFormatName is not found, then queue a global task on the clipboard task source, given
+                        //           realm’s global object, to reject p with a "NotFoundError" DOMException in realm, then abort
+                        //           these steps.
+                    }
+                    // 4. Else, let osFormatName be the result of running os specific well-known format given mimeType.
+                    else {
+                        os_format_name = os_specific_well_known_format(mime_type);
+                    }
+
+                    // 5. Let clipboardRepresentation be the system clipboard representation in clipboardItem’s list of
+                    //    system clipboard representations whose name is osFormatName. If there is no such system clipboard
+                    //    representation, then queue a global task on the clipboard task source, given realm’s global object,
+                    //    to reject p with a "NotFoundError" DOMException in realm, then abort these steps.
+                    auto clipboard_representation = clipboard_item->system_clipboard_representations.first_matching([&](auto const& item) {
+                        return item.name == os_format_name;
+                    });
+
+                    if (!clipboard_representation.has_value()) {
+                        queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, promise, os_format_name]() {
+                            HTML::TemporaryExecutionContext execution_context { realm };
+                            WebIDL::reject_promise(promise, WebIDL::NotFoundError::create(realm, Utf16String::formatted("No data found for MIME type: {}", os_format_name)));
+                        }));
+                        return;
+                    }
+
+                    // 6. Let rawData be clipboardRepresentation’s data.
+                    auto const& raw_data = clipboard_representation->data;
+
+                    // 7. Let cleanData be a copy of rawData.
+                    auto clean_data = MUST(ByteBuffer::copy(raw_data.bytes()));
+
+                    // FIXME: 8. If mimeType’s essence is in this’s unsanitized MIME types and mimeType’s essence is in the
+                    //           optional unsanitized data types list, then do nothing.
+                    // FIXME: 9. Else, if mimeType’s essence is not "image/png", the user agent MAY sanitize cleanData.
+
+                    // 10. Let blob be a Blob whose type is mimeType serialized and whose underlying byte sequence is cleanData.
+                    auto blob = FileAPI::Blob::create(move(clean_data), mime_type.serialized_as_utf16());
+
+                    // 11. Queue a global task on the clipboard task source, given realm’s global object, to resolve p with blob.
+                    queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, promise, blob]() {
+                        HTML::TemporaryExecutionContext execution_context { realm };
+                        resolve_clipboard_item_blob_promise(realm, promise, blob);
+                    }));
+                }));
+            }
+
+            // 3. Let representationDataPromise be the representation’s data.
             auto representation_data_promise = representation.data;
 
-            // 2. React to representationDataPromise:
+            // 4. React to representationDataPromise:
             WebIDL::react_to_promise(
                 *representation_data_promise,
+                // 1. If representationDataPromise was fulfilled with value v, then:
                 GC::create_function(GC::Heap::the(), [&realm, promise, mime_type_serialized](JS::Value value) -> WebIDL::ExceptionOr<JS::Value> {
                     // 1. If v is a DOMString, then follow the below steps:
                     if (value.is_string()) {
@@ -200,7 +306,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ClipboardItem::get_type(JS::Realm&
                     return JS::js_undefined();
                 }));
 
-            // 3. Return p.
+            // 5. Return p.
             return promise;
         }
     }
@@ -219,21 +325,6 @@ bool ClipboardItem::supports(Utf16String const& type)
     // 2. If not, then return false.
     // TODO: Implement optional data types, like web custom formats and image/svg+xml.
     return type == "text/plain"_utf16 || type == "text/html"_utf16 || type == "image/png"_utf16;
-}
-
-ClipboardItem::ClipboardItem()
-    : m_presentation_style(PresentationStyle::Unspecified)
-{
-}
-
-ClipboardItem::~ClipboardItem() = default;
-
-void ClipboardItem::visit_edges(GC::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    for (auto& representation : m_representations) {
-        visitor.visit(representation.data);
-    }
 }
 
 }

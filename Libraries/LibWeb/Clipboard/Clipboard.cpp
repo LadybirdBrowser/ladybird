@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Enumerate.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/PrimitiveString.h>
@@ -47,16 +48,17 @@ static GC::Ptr<FileAPI::Blob> clipboard_item_data_blob(JS::Value value)
     return Bindings::impl_from<FileAPI::Blob>(&value.as_object());
 }
 
-static void resolve_clipboard_items_promise(JS::Realm& realm, WebIDL::Promise& promise, GC::RootVector<GC::Ref<ClipboardItem>> const& items)
+static void resolve_clipboard_items_promise(JS::Realm& realm, WebIDL::Promise& promise, ReadonlySpan<GC::Ref<ClipboardItem>> items)
 {
+    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
     auto clipboard_items = MUST(JS::Array::create(realm, 0));
-    for (size_t i = 0; i < items.size(); ++i)
-        MUST(clipboard_items->create_data_property(JS::PropertyKey { i }, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, items.at(i))));
+    for (auto [i, item] : enumerate(items))
+        MUST(clipboard_items->create_data_property(JS::PropertyKey { i }, Bindings::wrap(wrapper_world, realm, item)));
     WebIDL::resolve_promise(promise, clipboard_items);
 }
 
 // https://w3c.github.io/clipboard-apis/#os-specific-well-known-format
-static String os_specific_well_known_format(MimeSniff::MimeType const& mime_type)
+String os_specific_well_known_format(MimeSniff::MimeType const& mime_type)
 {
     // 1. Let wellKnownFormat be an empty string.
     String well_known_format {};
@@ -96,17 +98,8 @@ static String os_specific_well_known_format(MimeSniff::MimeType const& mime_type
     return well_known_format;
 }
 
-static String os_specific_well_known_format(StringView mime_type_string)
-{
-    // NOTE: Here we always takes the Linux case, and defer to the browser process to handle OS specific implementations.
-    auto mime_type = MimeSniff::MimeType::parse(mime_type_string);
-    if (!mime_type.has_value())
-        return {};
-
-    return os_specific_well_known_format(*mime_type);
-}
-
-static String os_specific_well_known_format(Utf16View mime_type_string)
+template<typename T>
+static String os_specific_well_known_format(T const& mime_type_string)
 {
     // NOTE: Here we always takes the Linux case, and defer to the browser process to handle OS specific implementations.
     auto mime_type = MimeSniff::MimeType::parse(mime_type_string);
@@ -230,14 +223,25 @@ void Clipboard::read(JS::Realm& realm, ClipboardReadOptions formats, GC::Ref<Web
             return;
         }
 
-        // 3. Let data be a copy of the system clipboard data.
+        // 3. Let data be the system clipboard data.
         HTML::relevant_window(realm.global_object()).page().request_clipboard_entries(GC::create_function(GC::Heap::the(), [&realm, promise, formats = move(formats)](Vector<SystemClipboardItem> data) mutable {
             HTML::TemporaryExecutionContext execution_context { realm };
 
-            // 4. Let items be a sequence<clipboard item>.
-            GC::RootVector<GC::Ref<ClipboardItem>> items;
+            // 4. Let snapshotChangeCount be the current clipboard change count.
+            // FIXME: We are meant to independently track any changes to the system clipboard in the UI. We are also
+            //        meant to only fetch metadata about the system clipboard at this point, and defer reading the
+            //        actual data until ClipboardItem.getType() is invoked.
+            size_t snapshot_change_count = 0;
 
-            // 5. For each systemClipboardItem in data:
+            // 5. Let items be a sequence of ordered maps, each entry having keys "item" (a clipboard item) and
+            //    "originating" (a system clipboard item or null).
+            struct ReadItem {
+                GC::Ref<ClipboardItem> item;
+                Optional<SystemClipboardItem> originating;
+            };
+            GC::ConservativeVector<ReadItem> items;
+
+            // 6. For each systemClipboardItem in data:
             for (auto const& system_clipboard_item : data) {
                 // 1. Let item be a new clipboard item.
                 auto item = ClipboardItem::create();
@@ -252,78 +256,67 @@ void Clipboard::read(JS::Realm& realm, ClipboardReadOptions formats, GC::Ref<Web
                     if (mime_type.is_empty())
                         continue;
 
-                    auto decoder = TextCodec::decoder_for("UTF-8"sv);
-                    auto string = MUST(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, system_clipboard_representation.data));
-
                     // 3. Let representation be a new representation.
                     ClipboardItem::Representation representation {
                         // 4. Set representation’s MIME type to mimeType.
                         .mime_type = Utf16String::from_utf8(mime_type),
 
-                        // 7. Resolve representation’s data with systemClipboardRepresentation’s data.
-                        .data = WebIDL::create_resolved_promise(realm, JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(string))),
+                        // 5. Set representation’s data to a new promise in realm.
+                        .data = WebIDL::create_promise(realm),
                     };
 
-                    // 5. Let isUnsanitized be false.
-                    auto is_unsanitized = false;
-
-                    // 6. If formats is not empty, then:
-                    if (formats.unsanitized.has_value()) {
-                        // 1. For each format in formats["unsanitized"]:
-                        for (auto const& format : *formats.unsanitized) {
-                            // 1. If format is equal to MIME type, set isUnsanitized to true.
-                            if (format == representation.mime_type) {
-                                is_unsanitized = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    // 8. The user agent, MAY sanitize representation’s data, unless representation’s MIME type's essence
-                    //    is "image/png", which should remain unsanitized to preserve meta data, or if it satisfies the
-                    //    below conditions:
-                    //     1. representation’s MIME type is in optional unsanitized data types list.
-                    //     2. isUnsanitized is true.
-                    // FIXME: Sanitization is an underspecified spec feature. See:
-                    //        https://github.com/w3c/clipboard-apis/issues/73
-                    (void)is_unsanitized;
-
-                    // 9. Append representation to item’s list of representations.
+                    // 6. Append representation to item’s list of representations.
                     item->append_representation(move(representation));
-
-                    // 10. Set isUnsanitized to false.
-                    is_unsanitized = false;
                 }
 
-                // 3. If item’s list of representations size is greater than 0, append item to items.
+                // 3. If item’s list of representations size is greater than 0, append the ordered map
+                //    «[ "item" → item, "originating" → systemClipboardItem ]» to items.
                 if (!item->representations().is_empty())
-                    items.append(item);
+                    items.empend(item, system_clipboard_item);
             }
 
-            // 6. If items has a size > 0, then:
+            // 7. If items has a size > 0, then:
             if (!items.is_empty()) {
-                // FIXME: 1. Let firstItem be items[0]
+                // FIXME: 1. Let firstItem be items[0]["item"]
                 // FIXME: 2. Run the read web custom format algorithm given firstItem.
             }
-            // 7. Else:
+            // 8. Else:
             else {
                 // FIXME: 1. Let customItem be a new clipboard item.
                 // FIXME: 2. Run the read web custom format algorithm given customItem.
-                // FIXME: 3. If customItem’s list of representations size is greater than 0, append customItem to items.
+                // FIXME: 3. If customItem’s list of representations size is greater than 0, append the ordered map
+                //           «[ "item" → customItem, "originating" → null ]» to items.
             }
 
-            // 8. Queue a global task on the clipboard task source, given realm’s global object, to perform the below steps:
-            queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, promise, items = move(items)]() mutable {
+            // 9. Queue a global task on the clipboard task source, given realm’s global object, to perform the below steps:
+            queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, promise, formats = move(formats), snapshot_change_count, items = move(items)]() mutable {
                 HTML::TemporaryExecutionContext execution_context { realm };
 
                 // 1. Let clipboardItems be a sequence<ClipboardItem>.
-                // 2. For each clipboard item underlyingItem of items:
-                //     1. Let clipboardItem be the result of running the steps of create a ClipboardItem object given
-                //        underlyingItem and realm.
-                //     2. Append clipboardItem to clipboardItems.
+                auto clipboard_items = GC::Heap::the().allocate<GC::HeapVector<GC::Ref<ClipboardItem>>>();
 
-                // 2. Resolve p with clipboardItems.
-                resolve_clipboard_items_promise(realm, promise, items);
+                // 2. For each ordered map entry of items:
+                for (auto& [item, originating] : items) {
+                    // 1. Let clipboardItem be the result of running the steps of create a ClipboardItem object given
+                    //    entry["item"] and realm.
+                    auto clipboard_item = item;
+
+                    // 2. Set clipboardItem’s clipboard change count at read to snapshotChangeCount.
+                    clipboard_item->set_clipboard_change_count_at_read(snapshot_change_count);
+
+                    // 3. Set clipboardItem’s originating system clipboard item to entry["originating"].
+                    clipboard_item->set_originating_system_clipboard_item(move(originating));
+
+                    // 4. If formats is not empty, set clipboardItem’s unsanitized MIME types to formats["unsanitized"].
+                    if (formats.unsanitized.has_value())
+                        clipboard_item->set_unsanitized_mime_types(*formats.unsanitized);
+
+                    // 5. Append clipboardItem to clipboardItems.
+                    clipboard_items->elements().append(clipboard_item);
+                }
+
+                // 3. Resolve p with clipboardItems.
+                resolve_clipboard_items_promise(realm, promise, clipboard_items->elements());
             }));
         }));
     }));

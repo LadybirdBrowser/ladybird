@@ -1,0 +1,3 @@
+Size: 572
+Type: image/png
+PNG managed to round-trip: true
