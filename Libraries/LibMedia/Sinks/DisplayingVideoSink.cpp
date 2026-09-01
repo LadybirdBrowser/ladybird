@@ -155,6 +155,11 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
         if (m_next_frame->timestamp() > current_time)
             break;
 
+        if (m_current_frame && m_current_frame->timestamp() > m_next_frame->timestamp()) {
+            m_next_frame.clear();
+            continue;
+        }
+
         if (auto frame_size = m_next_frame->size(); frame_size != m_last_dispatched_size) {
             m_last_dispatched_size = frame_size;
             if (m_on_resize)
