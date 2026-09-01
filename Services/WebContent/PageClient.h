@@ -17,6 +17,7 @@
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/CrossProcessId.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
@@ -157,7 +158,18 @@ private:
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
-    void schedule_frame_dispatch();
+    enum class FrameTimerPurpose {
+        Inactive,
+        LocalFallback,
+        CompositorWatchdog,
+    };
+
+    void request_rendering_opportunity_if_needed();
+    void schedule_local_rendering_opportunity();
+    void schedule_compositor_watchdog();
+    void frame_timer_fired();
+    void grant_rendering_opportunity(double frame_time, Web::HTML::EventLoop::RenderingOpportunitySource);
+    void deliver_granted_rendering_opportunity();
 
     // ^PageClient
     virtual bool is_connection_open() const override;
@@ -177,6 +189,10 @@ private:
     virtual Web::CSS::PreferredContrast preferred_contrast() const override { return m_preferred_contrast; }
     virtual Web::CSS::PreferredMotion preferred_motion() const override { return m_preferred_motion; }
     virtual void request_frame() override;
+    virtual void rendering_opportunity(i64 frame_time_nanoseconds, double frame_interval_milliseconds) override;
+    virtual void will_begin_rendering_update() override;
+    virtual bool has_rendering_opportunity() const override;
+    virtual void did_finish_rendering_update() override;
     virtual void page_did_request_cursor_change(Gfx::Cursor const&) override;
     virtual void page_did_change_title(Utf16String const&) override;
     virtual void page_did_update_editing_history_state(bool can_undo, bool can_redo) override;
@@ -335,7 +351,16 @@ private:
     GC::Ptr<WebContentConsoleClient> m_top_level_document_console_client;
 
     RefPtr<Core::Timer> m_frame_timer;
+    FrameTimerPurpose m_frame_timer_purpose { FrameTimerPurpose::Inactive };
     Optional<double> m_last_scheduled_frame_dispatch_time;
+    double m_last_rendering_opportunity_frame_interval { 1000.0 / 60.0 };
+    double m_compositor_watchdog_deadline { 0 };
+    bool m_rendering_update_requested { false };
+    bool m_compositor_rendering_opportunity_outstanding { false };
+    bool m_rendering_opportunity_granted { false };
+    bool m_rendering_opportunity_for_current_update { false };
+    Optional<double> m_granted_rendering_opportunity_time;
+    Web::HTML::EventLoop::RenderingOpportunitySource m_granted_rendering_opportunity_source { Web::HTML::EventLoop::RenderingOpportunitySource::LocalTimer };
     Queue<PendingDOMMutation> m_pending_dom_mutations;
     HashMap<Web::HTML::CrossProcessId, Web::Compositor::CompositorContextId> m_remote_child_frame_compositor_contexts;
     Optional<Web::HTML::CrossProcessId> m_pending_root_navigable_id;

@@ -69,11 +69,13 @@ private:
     virtual void cancel_smooth_scroll(Web::Compositor::CompositorContextId, Web::Compositor::AsyncScrollNodeStableID) override;
     virtual Messages::CompositorWebContentServer::TakePendingAsyncScrollUpdatesResponse take_pending_async_scroll_updates(Web::Compositor::CompositorContextId) override;
     virtual void viewport_size_updated(Web::Compositor::CompositorContextId, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress) override;
+    virtual void request_rendering_opportunity(Web::Compositor::CompositorContextId, double maximum_frames_per_second) override;
     virtual void present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect viewport_rect) override;
     virtual void request_screenshot(Web::Compositor::CompositorContextId, Web::Compositor::ScreenshotRequestId request_id, Gfx::ShareableBitmap target_bitmap) override;
 
     virtual void dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const&) override;
     virtual void request_rendering_update() override;
+    virtual void rendering_opportunity(Web::Compositor::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds) override;
     virtual void create_video_edge(Media::VideoSinkHandle) override;
     virtual void release_video_edge(Media::VideoSinkHandle) override;
     bool context_is_owned_by_this_connection(Web::Compositor::CompositorContextId);

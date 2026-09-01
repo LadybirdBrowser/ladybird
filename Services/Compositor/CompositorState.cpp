@@ -545,6 +545,9 @@ void CompositorState::set_display_metadata(Web::Compositor::CompositorContextId 
         if (m_unpainted_video_update_timer)
             m_unpainted_video_update_timer->set_interval(unpainted_video_update_interval_ms());
     }
+
+    if (context->rendering_opportunity_requested() && context_is_effectively_visible(*context))
+        vsync_scheduler_for_display(display_id_for_context(*context)).schedule(display_refresh_rate_for_context(*context));
 }
 
 void CompositorState::set_context_visibility(Web::Compositor::CompositorContextId context_id, Web::Compositor::ContextVisibility visibility)
@@ -569,10 +572,38 @@ void CompositorState::resume_presentation_after_becoming_visible(Web::Compositor
             continue;
         if (context.has_active_smooth_scroll_animations() || context.has_active_visual_animations())
             vsync_scheduler_for_display(display_id_for_context(context)).schedule(display_refresh_rate_for_context(context));
+        if (context.rendering_opportunity_requested())
+            vsync_scheduler_for_display(display_id_for_context(context)).schedule(display_refresh_rate_for_context(context));
     }
 
     if (auto frame_rect_to_present = root_context.frame_rect_to_repaint(); frame_rect_to_present.has_value())
         schedule_present_frame(root_context_id, root_context, *frame_rect_to_present);
+}
+
+void CompositorState::request_rendering_opportunity(Web::Compositor::CompositorContextId context_id, double maximum_frames_per_second)
+{
+    auto* context = context_if_present(context_id);
+    VERIFY(context);
+
+    if (!context->request_rendering_opportunity(maximum_frames_per_second))
+        return;
+    if (!context_is_effectively_visible(*context))
+        return;
+
+    auto display_id = display_id_for_context(*context);
+    auto display_refresh_rate = display_refresh_rate_for_context(*context);
+    auto& scheduler = vsync_scheduler_for_display(display_id);
+    // INTEROP: Like Chromium's missed BeginFrame delivery, reuse a recent display tick when a context requests its
+    //          next opportunity after the tick has already happened. This keeps heavy frames from waiting an extra tick.
+    if (auto frame_time = scheduler.most_recent_tick_time(MonotonicTime::now(), display_refresh_rate);
+        frame_time.has_value() && context->rendering_opportunity_is_due(*frame_time, display_refresh_rate)) {
+        auto frame_interval = context->rendering_opportunity_frame_interval(display_refresh_rate);
+        context->did_deliver_rendering_opportunity(*frame_time);
+        context->web_content_client().rendering_opportunity(context_id, frame_time->nanoseconds(), frame_interval);
+        return;
+    }
+
+    scheduler.schedule(display_refresh_rate);
 }
 
 void CompositorState::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect)
@@ -672,17 +703,16 @@ void CompositorState::schedule_caret_repaint(Web::Compositor::CompositorContextI
 VSyncScheduler& CompositorState::vsync_scheduler_for_display(Optional<u64> display_id)
 {
     return *m_vsync_schedulers_by_display.ensure(display_id, [this, display_id] {
-        return create_vsync_scheduler(display_id, [this, display_id] {
-            present_pending_frames_on_vsync(display_id);
+        return create_vsync_scheduler(display_id, [this, display_id](MonotonicTime frame_time) {
+            present_pending_frames_on_vsync(display_id, frame_time);
         });
     });
 }
 
-void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id)
+void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id, MonotonicTime frame_time)
 {
     update_video_sinks_for_display(display_id);
 
-    auto now = MonotonicTime::now();
     for (auto& context_entry : m_contexts) {
         auto context_id = context_entry.key;
         auto& context = *context_entry.value;
@@ -690,14 +720,26 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id)
             context.unschedule_pending_present_frame();
             continue;
         }
+
+        if (context.rendering_opportunity_requested() && display_id_for_context(context) == display_id) {
+            auto display_refresh_rate = display_refresh_rate_for_context(context);
+            if (context.rendering_opportunity_is_due(frame_time, display_refresh_rate)) {
+                auto frame_interval = context.rendering_opportunity_frame_interval(display_refresh_rate);
+                context.did_deliver_rendering_opportunity(frame_time);
+                context.web_content_client().rendering_opportunity(context_id, frame_time.nanoseconds(), frame_interval);
+            } else {
+                vsync_scheduler_for_display(display_id).schedule(display_refresh_rate);
+            }
+        }
+
         auto has_active_animation_on_display = (context.has_active_smooth_scroll_animations() || context.has_active_visual_animations()) && display_id_for_context(context) == display_id;
         if (!context.has_pending_present_frame_scheduled_on(display_id) && !has_active_animation_on_display)
             continue;
 
-        if (auto animation_frame = context.advance_smooth_scroll_animations(now); animation_frame.has_value())
+        if (auto animation_frame = context.advance_smooth_scroll_animations(frame_time); animation_frame.has_value())
             context.queue_present_frame(ContextState::PendingFrame::repainting_changes(*animation_frame));
         if (context.has_active_visual_animations()) {
-            context.advance_visual_animations(now);
+            context.advance_visual_animations(frame_time);
             // Visual animation damage deliberately covers the full viewport until we track the animated nodes' bounds
             // before and after sampling.
             if (auto viewport_rect = context.viewport_rect_for_ui_overlay(); viewport_rect.has_value())

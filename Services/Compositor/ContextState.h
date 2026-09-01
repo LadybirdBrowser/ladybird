@@ -152,6 +152,12 @@ public:
     bool set_visibility(Web::Compositor::ContextVisibility);
     Web::Compositor::ContextVisibility visibility() const { return m_visibility; }
 
+    bool request_rendering_opportunity(double maximum_frames_per_second);
+    bool rendering_opportunity_requested() const { return m_rendering_opportunity_requested; }
+    double rendering_opportunity_frame_interval(double display_refresh_rate) const;
+    bool rendering_opportunity_is_due(MonotonicTime frame_time, double display_refresh_rate) const;
+    void did_deliver_rendering_opportunity(MonotonicTime frame_time);
+
     void queue_present_frame(PendingFrame);
     Optional<Gfx::IntRect> pending_present_frame_viewport_rect() const;
     void mark_pending_present_frame_scheduled();
@@ -271,6 +277,10 @@ private:
     Optional<u64> m_display_id;
     double m_display_refresh_rate { 60.0 };
     Web::Compositor::ContextVisibility m_visibility { Web::Compositor::ContextVisibility::Visible };
+
+    bool m_rendering_opportunity_requested { false };
+    double m_maximum_rendering_frames_per_second { 60.0 };
+    Optional<i64> m_last_rendering_opportunity_time_nanoseconds;
 
     Optional<PendingFrame> m_pending_present_frame;
     bool m_pending_present_frame_scheduled { false };

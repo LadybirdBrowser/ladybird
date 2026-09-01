@@ -52,6 +52,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
+#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWebView/Debugger.h>
@@ -143,10 +144,7 @@ PageClient::PageClient(PageHost& owner, u64 id, Optional<Web::HTML::CrossProcess
     m_page->set_async_scrolling_enabled(s_async_scrolling_enabled);
     setup_palette();
 
-    m_frame_timer = Core::Timer::create_single_shot(0, [this] {
-        if (!Web::HTML::main_thread_event_loop().rendering_opportunity())
-            schedule_frame_dispatch();
-    });
+    m_frame_timer = Core::Timer::create_single_shot(0, [this] { frame_timer_fired(); });
 }
 
 PageClient::~PageClient() = default;
@@ -427,6 +425,12 @@ void PageClient::compositor_process_lost()
 {
     page().notify_all_webgl_contexts_lost();
     page().detach_all_media_element_video_sinks_after_compositor_lost();
+
+    m_compositor_rendering_opportunity_outstanding = false;
+    m_compositor_watchdog_deadline = 0;
+    m_frame_timer->stop();
+    m_frame_timer_purpose = FrameTimerPurpose::Inactive;
+    request_rendering_opportunity_if_needed();
 }
 
 void PageClient::compositor_process_reconnected()
@@ -441,6 +445,10 @@ void PageClient::compositor_process_reconnected()
     page().notify_all_canvas_elements_of_lost_backing_storage();
     page().prepare_canvas_contexts_for_compositing();
     page().restore_all_media_element_video_sinks();
+    m_compositor_rendering_opportunity_outstanding = false;
+    m_compositor_watchdog_deadline = 0;
+    m_frame_timer->stop();
+    m_frame_timer_purpose = FrameTimerPurpose::Inactive;
     request_frame();
 }
 
@@ -506,13 +514,42 @@ void PageClient::set_zoom_level(double zoom_level)
 
 void PageClient::request_frame()
 {
-    if (!Web::HTML::main_thread_event_loop().request_rendering_update())
+    Web::HTML::main_thread_event_loop().request_rendering_update();
+
+    if (m_rendering_opportunity_granted)
         return;
 
-    schedule_frame_dispatch();
+    if (m_rendering_update_requested) {
+        request_rendering_opportunity_if_needed();
+        return;
+    }
+
+    m_rendering_update_requested = true;
+    request_rendering_opportunity_if_needed();
 }
 
-void PageClient::schedule_frame_dispatch()
+void PageClient::request_rendering_opportunity_if_needed()
+{
+    if (!m_rendering_update_requested)
+        return;
+    if (m_compositor_rendering_opportunity_outstanding || m_frame_timer->is_active())
+        return;
+    if (Web::HTML::main_thread_event_loop().rendering_task_queued_or_running())
+        return;
+
+    if (page().top_level_traversable_is_initialized()) {
+        auto& traversable = *page().top_level_traversable();
+        if (traversable.has_compositor_context() && traversable.compositor_context().request_rendering_opportunity(m_maximum_frames_per_second)) {
+            m_compositor_rendering_opportunity_outstanding = true;
+            schedule_compositor_watchdog();
+            return;
+        }
+    }
+
+    schedule_local_rendering_opportunity();
+}
+
+void PageClient::schedule_local_rendering_opportunity()
 {
     VERIFY(!m_frame_timer->is_active());
 
@@ -527,12 +564,136 @@ void PageClient::schedule_frame_dispatch()
         m_last_scheduled_frame_dispatch_time = now;
     }
 
+    m_frame_timer_purpose = FrameTimerPurpose::LocalFallback;
     m_frame_timer->restart(static_cast<int>(AK::ceil(delay)));
+}
+
+void PageClient::schedule_compositor_watchdog()
+{
+    VERIFY(!m_frame_timer->is_active());
+    auto delay = 4.0 * m_last_rendering_opportunity_frame_interval;
+    m_compositor_watchdog_deadline = Web::HighResolutionTime::unsafe_shared_current_time() + delay;
+    m_frame_timer_purpose = FrameTimerPurpose::CompositorWatchdog;
+    m_frame_timer->restart(static_cast<int>(AK::ceil(delay)));
+}
+
+void PageClient::frame_timer_fired()
+{
+    auto purpose = m_frame_timer_purpose;
+    m_frame_timer_purpose = FrameTimerPurpose::Inactive;
+
+    auto document = page().top_level_traversable_is_initialized() ? page().top_level_traversable()->active_document() : nullptr;
+    // NB: The Compositor keeps its pending request while the context is hidden. Forget our copy once its watchdog
+    //     fires so becoming visible can arm a new watchdog for the retained request.
+    if (document && document->hidden()) {
+        if (purpose == FrameTimerPurpose::CompositorWatchdog) {
+            m_compositor_rendering_opportunity_outstanding = false;
+            m_compositor_watchdog_deadline = 0;
+        }
+        return;
+    }
+
+    auto now = Web::HighResolutionTime::unsafe_shared_current_time();
+    if (purpose == FrameTimerPurpose::CompositorWatchdog) {
+        if (!m_compositor_rendering_opportunity_outstanding)
+            return;
+        // A timer event that became runnable before stop() may survive a subsequent restart. Do not let an event from
+        // an earlier request satisfy the current request before its own watchdog deadline.
+        if (now < m_compositor_watchdog_deadline) {
+            m_frame_timer_purpose = FrameTimerPurpose::CompositorWatchdog;
+            m_frame_timer->restart(static_cast<int>(AK::ceil(m_compositor_watchdog_deadline - now)));
+            return;
+        }
+        // An opportunity IPC may already be waiting behind a long main-thread task when this timer becomes runnable.
+        // Defer the fallback once so an arrived reply is handled first, while a genuinely lost reply still falls back
+        // on the next event-loop dispatch.
+        auto watchdog_deadline = m_compositor_watchdog_deadline;
+        Web::Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [page_client = GC::Ref { *this }, watchdog_deadline] {
+            if (!page_client->m_compositor_rendering_opportunity_outstanding)
+                return;
+            if (page_client->m_compositor_watchdog_deadline != watchdog_deadline)
+                return;
+            auto document = page_client->page().top_level_traversable_is_initialized() ? page_client->page().top_level_traversable()->active_document() : nullptr;
+            if (document && document->hidden()) {
+                page_client->m_compositor_rendering_opportunity_outstanding = false;
+                page_client->m_compositor_watchdog_deadline = 0;
+                return;
+            }
+            page_client->m_compositor_rendering_opportunity_outstanding = false;
+            page_client->m_compositor_watchdog_deadline = 0;
+            page_client->grant_rendering_opportunity(Web::HighResolutionTime::unsafe_shared_current_time(), Web::HTML::EventLoop::RenderingOpportunitySource::Watchdog);
+        }));
+        return;
+    }
+
+    if (purpose == FrameTimerPurpose::LocalFallback && m_rendering_update_requested)
+        grant_rendering_opportunity(now, Web::HTML::EventLoop::RenderingOpportunitySource::LocalTimer);
+}
+
+void PageClient::rendering_opportunity(i64 frame_time_nanoseconds, double frame_interval_milliseconds)
+{
+    if (!m_compositor_rendering_opportunity_outstanding)
+        return;
+
+    m_compositor_rendering_opportunity_outstanding = false;
+    m_compositor_watchdog_deadline = 0;
+    m_frame_timer->stop();
+    m_frame_timer_purpose = FrameTimerPurpose::Inactive;
+    if (isfinite(frame_interval_milliseconds) && frame_interval_milliseconds > 0)
+        m_last_rendering_opportunity_frame_interval = frame_interval_milliseconds;
+    grant_rendering_opportunity(static_cast<double>(frame_time_nanoseconds) / 1'000'000.0, Web::HTML::EventLoop::RenderingOpportunitySource::Compositor);
+}
+
+void PageClient::grant_rendering_opportunity(double frame_time, Web::HTML::EventLoop::RenderingOpportunitySource source)
+{
+    m_rendering_update_requested = false;
+    m_rendering_opportunity_granted = true;
+    m_granted_rendering_opportunity_time = frame_time;
+    m_granted_rendering_opportunity_source = source;
+
+    if (!Web::HTML::main_thread_event_loop().running_rendering_task())
+        deliver_granted_rendering_opportunity();
+}
+
+void PageClient::deliver_granted_rendering_opportunity()
+{
+    VERIFY(m_rendering_opportunity_granted);
+    VERIFY(m_granted_rendering_opportunity_time.has_value());
+    if (!Web::HTML::main_thread_event_loop().rendering_opportunity(*m_granted_rendering_opportunity_time, m_granted_rendering_opportunity_source)) {
+        m_rendering_opportunity_granted = false;
+        m_granted_rendering_opportunity_time.clear();
+        m_rendering_update_requested = true;
+    }
+}
+
+void PageClient::will_begin_rendering_update()
+{
+    m_rendering_opportunity_for_current_update = m_rendering_opportunity_granted;
+    m_rendering_opportunity_granted = false;
+    m_granted_rendering_opportunity_time.clear();
+}
+
+bool PageClient::has_rendering_opportunity() const
+{
+    return m_rendering_opportunity_granted || m_rendering_opportunity_for_current_update;
+}
+
+void PageClient::did_finish_rendering_update()
+{
+    m_rendering_opportunity_for_current_update = false;
+    if (m_rendering_opportunity_granted) {
+        deliver_granted_rendering_opportunity();
+        return;
+    }
+    request_rendering_opportunity_if_needed();
 }
 
 void PageClient::set_maximum_frames_per_second(double maximum_frames_per_second)
 {
+    if (!isfinite(maximum_frames_per_second) || maximum_frames_per_second <= 0)
+        return;
     m_maximum_frames_per_second = maximum_frames_per_second;
+    m_last_rendering_opportunity_frame_interval = 1000.0 / maximum_frames_per_second;
 }
 
 void PageClient::page_did_request_cursor_change(Gfx::Cursor const& cursor)

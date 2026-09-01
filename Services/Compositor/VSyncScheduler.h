@@ -9,6 +9,7 @@
 #include <AK/Function.h>
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
+#include <AK/Time.h>
 
 namespace Compositor {
 
@@ -20,11 +21,12 @@ public:
     virtual ~VSyncScheduler() = default;
 
     virtual void schedule(double refresh_rate) = 0;
+    virtual Optional<MonotonicTime> most_recent_tick_time(MonotonicTime now, double refresh_rate) = 0;
 
 protected:
     VSyncScheduler() = default;
 };
 
-OwnPtr<VSyncScheduler> create_vsync_scheduler(Optional<u64> display_id, Function<void()>&&);
+OwnPtr<VSyncScheduler> create_vsync_scheduler(Optional<u64> display_id, Function<void(MonotonicTime)>&&);
 
 }

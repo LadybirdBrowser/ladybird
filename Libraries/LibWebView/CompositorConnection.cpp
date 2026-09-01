@@ -245,6 +245,14 @@ void CompositorConnection::viewport_size_updated(Web::Compositor::CompositorCont
     async_viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
 }
 
+bool CompositorConnection::request_rendering_opportunity(Web::Compositor::CompositorContextId context_id, double maximum_frames_per_second)
+{
+    if (!can_send_message_to_compositor())
+        return false;
+    async_request_rendering_opportunity(context_id, maximum_frames_per_second);
+    return true;
+}
+
 void CompositorConnection::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect)
 {
     if (!can_send_message_to_compositor())
@@ -375,6 +383,18 @@ void CompositorConnection::request_rendering_update()
     for (auto& navigable : Web::HTML::all_local_navigables()) {
         if (navigable->is_traversable())
             navigable->page().client().request_frame();
+    }
+}
+
+void CompositorConnection::rendering_opportunity(Web::Compositor::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds)
+{
+    for (auto& navigable : Web::HTML::all_local_navigables()) {
+        if (!navigable->is_traversable() || !navigable->has_compositor_context())
+            continue;
+        if (navigable->compositor_context().id() != context_id)
+            continue;
+        navigable->page().client().rendering_opportunity(frame_time_nanoseconds, frame_interval_milliseconds);
+        return;
     }
 }
 

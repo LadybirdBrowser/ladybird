@@ -96,6 +96,11 @@ void CompositorContextHandle::viewport_size_updated(Gfx::IntSize viewport_size, 
     m_host.viewport_size_updated(m_context_id, viewport_size, window_resize_in_progress);
 }
 
+bool CompositorContextHandle::request_rendering_opportunity(double maximum_frames_per_second)
+{
+    return m_host.request_rendering_opportunity(m_context_id, maximum_frames_per_second);
+}
+
 void CompositorContextHandle::present_frame(Gfx::IntRect viewport_rect)
 {
     m_host.flush_canvas_2d_stream();

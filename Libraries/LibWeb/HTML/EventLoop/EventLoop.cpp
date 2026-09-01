@@ -236,7 +236,7 @@ void EventLoop::process()
     }
 }
 
-bool EventLoop::request_rendering_update()
+void EventLoop::request_rendering_update()
 {
     ++m_rendering_scheduler_counters.update_requests;
     if (m_running_rendering_task)
@@ -244,22 +244,26 @@ bool EventLoop::request_rendering_update()
 
     if (m_rendering_update_requested || m_rendering_task_queued) {
         ++m_rendering_scheduler_counters.coalesced_update_requests;
-        return false;
+        return;
     }
 
     m_rendering_update_requested = true;
-    return true;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model
-bool EventLoop::rendering_opportunity()
+bool EventLoop::rendering_opportunity(HighResolutionTime::DOMHighResTimeStamp frame_time, RenderingOpportunitySource source)
 {
     ++m_rendering_scheduler_counters.opportunities_received;
+    if (source == RenderingOpportunitySource::Watchdog)
+        ++m_rendering_scheduler_counters.watchdog_opportunities;
 
     // FIXME: 1. Wait until at least one navigable whose active document's relevant agent's event loop is eventLoop might have a rendering opportunity.
 
     // 2. Set eventLoop's last render opportunity time to the unsafe shared current time.
-    m_last_render_opportunity_time = HighResolutionTime::unsafe_shared_current_time();
+    // INTEROP: Compositor-provided display timestamps match the shared monotonic clock. Clamp delayed or out-of-order
+    //          IPC delivery so rendering timestamps remain monotonic and never describe a future frame.
+    auto now = HighResolutionTime::unsafe_shared_current_time();
+    m_last_render_opportunity_time = max(m_last_render_opportunity_time, min(frame_time, now));
 
     // AD-HOC: A nested event loop can deliver a timer while a rendering update is running. Keep the request pending
     //         so the PageClient can schedule it for the next opportunity instead of queueing a second rendering task.
@@ -267,6 +271,9 @@ bool EventLoop::rendering_opportunity()
         return false;
 
     m_rendering_update_requested = false;
+
+    if (m_rendering_task_queued)
+        return true;
 
     // 3. For each navigable that has a rendering opportunity, queue a global task on the rendering task source given navigable's active window to update the rendering:
     bool has_eligible_navigable = false;
@@ -287,7 +294,7 @@ bool EventLoop::rendering_opportunity()
     }
 
     if (!has_eligible_navigable)
-        return true;
+        return false;
 
     // AD-HOC: One rendering update services every document in this event loop, so queue one event-loop task for the
     //         opportunity instead of one global task per traversable.
@@ -386,12 +393,21 @@ void EventLoop::update_the_rendering()
 {
     VERIFY(!m_running_rendering_task);
     m_running_rendering_task = true;
+    for (auto& navigable : all_local_navigables()) {
+        if (navigable->is_traversable())
+            navigable->page().client().will_begin_rendering_update();
+    }
     auto update_start_time = HighResolutionTime::unsafe_shared_current_time();
     ++m_rendering_scheduler_counters.updates_run;
     ScopeGuard const guard = [this, update_start_time] {
         auto update_end_time = HighResolutionTime::unsafe_shared_current_time();
         m_rendering_scheduler_counters.update_microseconds += static_cast<u64>((update_end_time - update_start_time) * 1000.0);
         m_running_rendering_task = false;
+
+        for (auto& navigable : all_local_navigables()) {
+            if (navigable->is_traversable())
+                navigable->page().client().did_finish_rendering_update();
+        }
 
         auto const& current = m_rendering_scheduler_counters;
         auto const& previous = m_rendering_scheduler_counters_at_last_update;
@@ -423,6 +439,12 @@ void EventLoop::update_the_rendering()
 
     // 1. Let frameTimestamp be eventLoop's last render opportunity time.
     auto frame_timestamp = m_last_render_opportunity_time;
+
+    // INTEROP: A compositor timestamp may describe a display tick immediately before a newly created document's
+    //          time origin. Keep document-relative rendering timestamps within the DOMHighResTimeStamp domain.
+    auto relative_frame_timestamp_for = [&](DOM::Document const& document) {
+        return max(0.0, HighResolutionTime::relative_high_resolution_time(frame_timestamp, relevant_global_object(document)));
+    };
 
     // 2. Let docs be all fully active Document objects whose relevant agent's event loop is
     //    eventLoop, sorted arbitrarily except that the following conditions must be met:
@@ -493,7 +515,7 @@ void EventLoop::update_the_rendering()
 
     // 11. For each doc of docs, update animations and send events for doc, passing in relative high resolution time given frameTimestamp and doc's relevant global object as the timestamp [WEBANIMATIONS]
     for (auto& document : docs) {
-        document->update_animations_and_send_events(HighResolutionTime::relative_high_resolution_time(frame_timestamp, relevant_global_object(*document)));
+        document->update_animations_and_send_events(relative_frame_timestamp_for(*document));
     };
 
     // 12. For each doc of docs, run the fullscreen steps for doc. [FULLSCREEN]
@@ -505,7 +527,7 @@ void EventLoop::update_the_rendering()
 
     // 14. For each doc of docs, run the animation frame callbacks for doc, passing in the relative high resolution time given frameTimestamp and doc's relevant global object as the timestamp.
     for (auto& document : docs) {
-        auto now = HighResolutionTime::relative_high_resolution_time(frame_timestamp, relevant_global_object(*document));
+        auto now = relative_frame_timestamp_for(*document);
         run_animation_frame_callbacks(*document, now);
     }
 
@@ -636,7 +658,7 @@ void EventLoop::update_the_rendering()
         //     Re-run layout here since intersection observations need up-to-date geometry.
         document->update_layout(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate);
 
-        auto now = HighResolutionTime::relative_high_resolution_time(frame_timestamp, relevant_global_object(*document));
+        auto now = relative_frame_timestamp_for(*document);
         document->run_the_update_intersection_observations_steps(now);
 
         // AD-HOC: Whether a video sink is ticked depends on whether the element would be painted, which is only known
@@ -979,8 +1001,17 @@ EventLoop::PauseHandle EventLoop::pause()
     auto time_before_pause = HighResolutionTime::current_high_resolution_time(global);
 
     // 3. If necessary, update the rendering or user interface of any Document or navigable to reflect the current state.
-    if (!m_running_rendering_task)
+    if (!m_running_rendering_task) {
+        if (m_rendering_task_queued) {
+            m_task_queue->remove_tasks_matching([](auto const& task) {
+                return task.source() == Task::Source::Rendering;
+            });
+            m_rendering_task_queued = false;
+        }
+        m_last_render_opportunity_time = max(m_last_render_opportunity_time, HighResolutionTime::unsafe_shared_current_time());
+        TemporaryChange synchronous_rendering_update { m_running_synchronous_rendering_update, true };
         update_the_rendering();
+    }
 
     // 4. Wait until the condition goal is met. While a user agent has a paused task, the corresponding event loop must
     //    not run further tasks, and any script in the currently running task must block. User agents should remain
