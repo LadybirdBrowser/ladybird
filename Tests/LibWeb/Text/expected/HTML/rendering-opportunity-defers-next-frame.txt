@@ -1,0 +1,4 @@
+callbacks after first opportunity: 1
+callbacks after another task: 1
+callbacks after second opportunity: 2
+two updates ran: true

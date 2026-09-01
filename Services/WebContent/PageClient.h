@@ -193,6 +193,8 @@ private:
     virtual void will_begin_rendering_update() override;
     virtual bool has_rendering_opportunity() const override;
     virtual void did_finish_rendering_update() override;
+    virtual void set_manual_rendering_opportunities(bool enabled) override;
+    virtual void inject_rendering_opportunity(double frame_time) override;
     virtual void page_did_request_cursor_change(Gfx::Cursor const&) override;
     virtual void page_did_change_title(Utf16String const&) override;
     virtual void page_did_update_editing_history_state(bool can_undo, bool can_redo) override;
@@ -359,6 +361,7 @@ private:
     bool m_compositor_rendering_opportunity_outstanding { false };
     bool m_rendering_opportunity_granted { false };
     bool m_rendering_opportunity_for_current_update { false };
+    bool m_manual_rendering_opportunities { false };
     Optional<double> m_granted_rendering_opportunity_time;
     Web::HTML::EventLoop::RenderingOpportunitySource m_granted_rendering_opportunity_source { Web::HTML::EventLoop::RenderingOpportunitySource::LocalTimer };
     Queue<PendingDOMMutation> m_pending_dom_mutations;

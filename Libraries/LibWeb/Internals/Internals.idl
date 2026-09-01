@@ -179,6 +179,8 @@ interface Internals {
     undefined resetStyleInvalidationCounters();
     object getRenderingSchedulerCounters();
     undefined resetRenderingSchedulerCounters();
+    undefined setManualRenderingOpportunities(boolean enabled);
+    undefined injectRenderingOpportunity(double frameTimeMs);
     undefined updateCompositorAnimations();
     boolean runEmptyAnimationStyleUpdateForTesting();
     undefined armCompositorAnimationTimersForTesting();

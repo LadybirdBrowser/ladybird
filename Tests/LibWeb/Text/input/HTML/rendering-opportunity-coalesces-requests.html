@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
+    asyncTest(async done => {
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        internals.resetRenderingSchedulerCounters();
+
+        let callbackCount = 0;
+        for (let i = 0; i < 20; ++i)
+            requestAnimationFrame(() => ++callbackCount);
+
+        const before = internals.getRenderingSchedulerCounters();
+        internals.injectRenderingOpportunity(performance.now());
+        await nextTask();
+        const after = internals.getRenderingSchedulerCounters();
+        internals.setManualRenderingOpportunities(false);
+
+        println(`updates before opportunity: ${before.updatesRun}`);
+        println(`callbacks after one opportunity: ${callbackCount}`);
+        println(`one opportunity received: ${after.opportunitiesReceived === 1}`);
+        println(`one update ran: ${after.updatesRun === 1}`);
+        println(`requests were coalesced: ${after.updateRequests >= 20 && after.coalescedUpdateRequests >= 19}`);
+        done();
+    });
+</script>

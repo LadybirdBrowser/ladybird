@@ -1,0 +1,5 @@
+posted messages before opportunity: 10
+animation frame stayed pending: true
+posted-message tasks progressed: true
+animation frame ran after opportunity: true
+one update ran: true

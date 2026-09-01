@@ -195,6 +195,8 @@ public:
     void reset_style_invalidation_counters();
     GC::Ref<JS::Object> get_rendering_scheduler_counters() const;
     void reset_rendering_scheduler_counters();
+    void set_manual_rendering_opportunities(bool enabled);
+    void inject_rendering_opportunity(double frame_time_ms);
     void update_compositor_animations();
     bool run_empty_animation_style_update_for_testing();
     void arm_compositor_animation_timers_for_testing();
