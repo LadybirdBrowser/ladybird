@@ -119,6 +119,7 @@ enum class SetNeedsLayoutReason {
     X(NodeRemove)                                         \
     X(NodeSetTextContent)                                 \
     X(None)                                               \
+    X(PseudoElementBoxEscapedRebuildRoot)                 \
     X(ShadowRootSetInnerHTML)                             \
     X(SlotAssignmentChange)                               \
     X(StyleChange)                                        \

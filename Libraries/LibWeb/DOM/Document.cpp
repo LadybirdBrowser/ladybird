@@ -2225,7 +2225,7 @@ Document::PartialRelayoutResult Document::try_partial_relayout(HashTable<WeakPtr
         set_layout_root(as<Layout::Viewport>(*tree_build_result.root));
         record_layout_tree_build(tree_build_result.rebuilt_subtree_roots.size(), tree_build_result.layout_tree_update_escaped_rebuild_roots);
         needs_layout_tree_rebuild = false;
-        if (reconcile_stale_list_item_counters_after_tree_build(tree_build_result.rebuilt_subtree_roots))
+        if (reconcile_stale_list_item_counters_after_tree_build(tree_build_result.rebuilt_subtree_roots) || tree_build_result.needs_another_build_pass)
             return PartialRelayoutResult::NeedsAnotherLayoutPass;
         layout_tree_was_built_in_partial_branch = true;
         pending_updates_escaped_during_partial_build = m_partial_relayout_invalidation.escapes()
@@ -2411,6 +2411,9 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
             // NB: Called during layout update.
             if (document_element && document_element->unsafe_layout_node())
                 propagate_scrollbar_width_to_viewport(*document_element, *m_layout_root);
+
+            if (tree_build_result.needs_another_build_pass)
+                continue;
 
             set_needs_full_layout_tree_update(false);
 

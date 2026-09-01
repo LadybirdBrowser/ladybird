@@ -1,0 +1,293 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .dc {
+        display: contents;
+    }
+    .flex {
+        display: flex;
+    }
+    .bt::before {
+        content: "b";
+    }
+    .at::after {
+        content: "a";
+    }
+    .bblock::before {
+        content: "b";
+        display: block;
+    }
+    .ablock::after {
+        content: "a";
+        display: block;
+    }
+    .bli::before {
+        content: "b";
+        display: list-item;
+    }
+    .ali::after {
+        content: "a";
+        display: list-item;
+    }
+    .bflex::before {
+        content: "b";
+        display: flex;
+    }
+    .aflex::after {
+        content: "a";
+        display: flex;
+    }
+    .btable::before {
+        content: "b";
+        display: table;
+    }
+    .atable::after {
+        content: "a";
+        display: table;
+    }
+    .bfl::before {
+        content: "fl";
+        float: left;
+    }
+    .afl::after {
+        content: "fl";
+        float: right;
+    }
+    .babs::before {
+        content: "abs";
+        position: absolute;
+    }
+    .aabs::after {
+        content: "abs";
+        position: absolute;
+    }
+    .afix::after {
+        content: "fix";
+        position: fixed;
+    }
+</style>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const fixture = document.getElementById("fixture");
+        const el = (tag, attributes, ...children) => {
+            const element = document.createElement(tag);
+            for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+            element.append(
+                ...children.map(child => (typeof child === "string" ? document.createTextNode(child) : child))
+            );
+            return element;
+        };
+        const x = () => document.getElementById("x");
+        const clearInnerHTML = () => (x().innerHTML = "");
+        const setInnerHTML = () => (x().innerHTML = "<b>u</b>");
+        const setTextContent = () => (x().textContent = "u");
+        const attachShadow = () => x().attachShadow({ mode: "open" });
+        const appendInline = () => x().append(el("b", {}, "u"));
+        const removeFirstChild = () => x().firstChild.remove();
+        const addClass = className => () => x().classList.add(className);
+        const removeClass = className => () => x().classList.remove(className);
+
+        const escapingPseudos = [
+            "bfl",
+            "afl",
+            "babs",
+            "aabs",
+            "afix",
+            "bblock",
+            "ablock",
+            "bli",
+            "ali",
+            "bflex",
+            "aflex",
+            "btable",
+            "atable",
+        ];
+        const mutations = [
+            ["innerHTML cleared", clearInnerHTML],
+            ["innerHTML set", setInnerHTML],
+            ["textContent set", setTextContent],
+            ["shadow root attached", attachShadow],
+            ["inline child appended", appendInline],
+            ["first child removed", removeFirstChild],
+        ];
+
+        const cases = [];
+        for (const pseudo of escapingPseudos) {
+            for (const [mutationName, mutate] of mutations) {
+                cases.push({
+                    name: `${pseudo} inline host between inline siblings; ${mutationName}`,
+                    root: () => [
+                        el("span", {}, "p"),
+                        el("span", { id: "x", class: pseudo }, el("i", {}, "t")),
+                        el("span", {}, "s"),
+                    ],
+                    mutate,
+                });
+            }
+            cases.push(
+                {
+                    name: `${pseudo} nested inline host; innerHTML cleared`,
+                    root: () => [
+                        el("span", {}, el("span", { id: "x", class: pseudo }, el("i", {}, "t")), el("span", {}, "c")),
+                        el("span", {}, "d"),
+                    ],
+                    mutate: clearInnerHTML,
+                },
+                {
+                    name: `${pseudo} nested inline host after a block sibling; innerHTML cleared`,
+                    root: () => [
+                        el("div", {}),
+                        el("span", {}, el("span", { id: "x", class: pseudo }, el("i", {}, "t")), el("span", {}, "c")),
+                        el("span", {}, "d"),
+                    ],
+                    mutate: clearInnerHTML,
+                },
+                {
+                    name: `${pseudo} nested inline host in a flex container; innerHTML cleared`,
+                    root: () => [
+                        el(
+                            "div",
+                            { class: "flex" },
+                            el(
+                                "span",
+                                {},
+                                el("span", { id: "x", class: pseudo }, el("i", {}, "t")),
+                                el("span", {}, "c")
+                            ),
+                            el("span", {}, "d")
+                        ),
+                    ],
+                    mutate: clearInnerHTML,
+                },
+                {
+                    name: `${pseudo} inline ancestor of a nested inline host; innerHTML set`,
+                    root: () => [
+                        el("span", { id: "x" }, el("span", { class: pseudo }, el("i", {}, "t")), el("span", {}, "c")),
+                        el("span", {}, "d"),
+                    ],
+                    mutate: setInnerHTML,
+                },
+                {
+                    name: `${pseudo} display: contents element inside a rebuilt inline; inline child appended`,
+                    root: () => [
+                        el(
+                            "span",
+                            { id: "x" },
+                            el("span", { class: `dc ${pseudo}` }, el("i", {}, "t")),
+                            el("span", {}, "c")
+                        ),
+                        el("span", {}, "d"),
+                    ],
+                    mutate: appendInline,
+                }
+            );
+            cases.push(
+                {
+                    name: `${pseudo} added to a nested inline`,
+                    root: () => [
+                        el("span", {}, el("span", { id: "x" }, "t"), el("span", {}, "c")),
+                        el("span", {}, "d"),
+                    ],
+                    mutate: addClass(pseudo),
+                },
+                {
+                    name: `${pseudo} removed from a nested inline`,
+                    root: () => [
+                        el("span", {}, el("span", { id: "x", class: pseudo }, "t"), el("span", {}, "c")),
+                        el("span", {}, "d"),
+                    ],
+                    mutate: removeClass(pseudo),
+                },
+                {
+                    name: `${pseudo} added to an inline between inline siblings`,
+                    root: () => [el("span", {}, "p"), el("span", { id: "x" }, "t"), el("span", {}, "s")],
+                    mutate: addClass(pseudo),
+                },
+                {
+                    name: `${pseudo} removed from an inline between inline siblings`,
+                    root: () => [el("span", {}, "p"), el("span", { id: "x", class: pseudo }, "t"), el("span", {}, "s")],
+                    mutate: removeClass(pseudo),
+                }
+            );
+        }
+        cases.push(
+            {
+                name: "floating ::before and ::after on an inline host; innerHTML cleared",
+                root: () => [el("span", { id: "x", class: "bfl afl" }, "t"), el("span", {}, "s")],
+                mutate: clearInnerHTML,
+            },
+            {
+                name: "floating ::after on the host and on its next sibling; innerHTML cleared",
+                root: () => [el("span", { id: "x", class: "afl" }, "t"), el("span", { class: "afl" }, "s")],
+                mutate: clearInnerHTML,
+            },
+            {
+                name: "floating ::after on the host and on its previous sibling; innerHTML cleared",
+                root: () => [el("span", { class: "afl" }, "p"), el("span", { id: "x", class: "afl" }, "t")],
+                mutate: clearInnerHTML,
+            },
+            {
+                name: "floating ::after on a nested host and its inline ancestor; innerHTML cleared",
+                root: () => [
+                    el("span", { class: "afl bfl" }, el("span", { id: "x", class: "afl" }, "t"), el("span", {}, "c")),
+                    el("span", {}, "d"),
+                ],
+                mutate: clearInnerHTML,
+            },
+            {
+                name: "absolutely positioned ::before on two nested hosts; innerHTML cleared",
+                root: () => [
+                    el("span", {}, el("span", { id: "x", class: "babs" }, "t"), el("span", { class: "babs" }, "c")),
+                    el("span", {}, "d"),
+                ],
+                mutate: clearInnerHTML,
+            },
+            {
+                name: "block ::after on a nested host and floating ::before on its ancestor; innerHTML cleared",
+                root: () => [
+                    el("span", { class: "bfl" }, el("span", { id: "x", class: "ablock" }, "t"), el("span", {}, "c")),
+                    el("span", {}, "d"),
+                ],
+                mutate: clearInnerHTML,
+            },
+            {
+                name: "inline ::before and floating ::after on an inline host; innerHTML cleared",
+                root: () => [el("span", { id: "x", class: "bt afl" }, "t"), el("span", {}, "s")],
+                mutate: clearInnerHTML,
+            },
+            {
+                name: "floating ::after on an inline host; descendant rebuilt in place",
+                root: () => [el("span", { class: "afl" }, el("span", { id: "x" }, "t")), el("span", {}, "s")],
+                mutate: clearInnerHTML,
+            },
+            {
+                name: "floating ::after on an inline host inside an inline-block; innerHTML cleared",
+                root: () => [
+                    el(
+                        "span",
+                        { style: "display: inline-block" },
+                        el("span", { id: "x", class: "afl" }, "t"),
+                        el("span", {}, "c")
+                    ),
+                    el("span", {}, "d"),
+                ],
+                mutate: clearInnerHTML,
+            }
+        );
+
+        let checkNumber = 0;
+        const check = description => {
+            const result = internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL";
+            println(`check ${checkNumber++}: ${result} (${description})`);
+        };
+        for (const testCase of cases) {
+            fixture.replaceChildren(...testCase.root());
+            document.body.offsetHeight;
+            check(`${testCase.name}: before`);
+            testCase.mutate();
+            document.body.offsetHeight;
+            check(`${testCase.name}: after mutation`);
+        }
+    });
+</script>
