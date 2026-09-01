@@ -183,6 +183,7 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
             if (auto* first_letter_owner = parent->first_letter_owner_for_layout_subtree_from(*parent))
                 first_letter_owner->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData);
         }
+        auto whitespace_only_changed = old_data.is_ascii_whitespace() != m_data.is_ascii_whitespace();
         if (is<Layout::TextSliceNode>(unsafe_layout_node())) {
             // NB: Slice nodes cache data that is calculated at layout tree construction time.
             // So for them, we need to invalidate the layout tree, not just layout.
@@ -196,6 +197,12 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
 
             // We also need to relayout.
             text_layout_node->set_needs_layout_update(SetNeedsLayoutReason::CharacterDataReplaceData);
+
+            if (whitespace_only_changed)
+                set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData);
+        } else if (whitespace_only_changed && is_connected()) {
+            if (auto* parent = this->parent())
+                parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData);
         }
     }
 

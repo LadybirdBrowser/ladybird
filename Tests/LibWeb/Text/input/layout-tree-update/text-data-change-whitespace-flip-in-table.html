@@ -1,0 +1,84 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .d-trow {
+        display: table-row;
+    }
+    .d-tcap {
+        display: table-caption;
+    }
+</style>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const fixture = document.getElementById("fixture");
+        const el = (tag, attributes, ...children) => {
+            const element = document.createElement(tag);
+            for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+            element.append(
+                ...children.map(child => (typeof child === "string" ? document.createTextNode(child) : child))
+            );
+            return element;
+        };
+        const childAt = (node, path) => path.reduce((current, index) => current.childNodes[index], node);
+
+        const cases = [
+            {
+                name: "text after misparented table-row becomes whitespace",
+                root: () => el("div", {}, el("div", { class: "d-trow" }), "l"),
+                text: [1],
+                data: "  ",
+            },
+            {
+                name: "whitespace after misparented table-row becomes text",
+                root: () => el("div", {}, el("div", { class: "d-trow" }), "  "),
+                text: [1],
+                data: "l",
+            },
+            {
+                name: "empty text between misparented caption and text becomes whitespace",
+                root: () => el("div", {}, "", el("div", { class: "d-tcap" }), "", "l"),
+                text: [2],
+                data: "\n  \n",
+            },
+            {
+                name: "text after misparented caption becomes whitespace",
+                root: () => el("div", {}, "", el("div", { class: "d-tcap" }), "", "l"),
+                text: [3],
+                data: "\n",
+            },
+            {
+                name: "whitespace after misparented caption becomes text",
+                root: () => el("div", {}, el("div", { class: "d-tcap" }), " "),
+                text: [1],
+                data: "l",
+            },
+            {
+                name: "text between two misparented rows becomes whitespace",
+                root: () => el("div", {}, el("div", { class: "d-trow" }), "x", el("div", { class: "d-trow" })),
+                text: [1],
+                data: " ",
+            },
+            {
+                name: "whitespace between two misparented rows becomes text",
+                root: () => el("div", {}, el("div", { class: "d-trow" }), " ", el("div", { class: "d-trow" })),
+                text: [1],
+                data: "x",
+            },
+        ];
+
+        let checkNumber = 0;
+        const check = description => {
+            const result = internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL";
+            println(`check ${checkNumber++}: ${result} (${description})`);
+        };
+        for (const testCase of cases) {
+            fixture.replaceChildren(testCase.root());
+            document.body.offsetHeight;
+            check(`${testCase.name}: before`);
+            childAt(fixture.firstChild, testCase.text).data = testCase.data;
+            document.body.offsetHeight;
+            check(`${testCase.name}: after`);
+        }
+    });
+</script>

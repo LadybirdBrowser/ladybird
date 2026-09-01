@@ -1,0 +1,81 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .d-contents {
+        display: contents;
+    }
+</style>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const fixture = document.getElementById("fixture");
+        const el = (tag, attributes, ...children) => {
+            const element = document.createElement(tag);
+            for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+            element.append(
+                ...children.map(child => (typeof child === "string" ? document.createTextNode(child) : child))
+            );
+            return element;
+        };
+        const childAt = (node, path) => path.reduce((current, index) => current.childNodes[index], node);
+
+        const cases = [
+            {
+                name: "second empty text in display:contents becomes text",
+                root: () => el("div", { class: "d-contents" }, "", ""),
+                text: [1],
+                data: '"q',
+            },
+            {
+                name: "empty text in display:contents becomes text",
+                root: () => el("div", { class: "d-contents" }, ""),
+                text: [0],
+                data: "abc",
+            },
+            {
+                name: "text in display:contents becomes whitespace",
+                root: () => el("div", { class: "d-contents" }, "abc"),
+                text: [0],
+                data: " ",
+            },
+            {
+                name: "text in display:contents becomes empty",
+                root: () => el("span", { class: "d-contents" }, "x"),
+                text: [0],
+                data: "",
+            },
+            {
+                name: "text in display:contents next to a block becomes whitespace",
+                root: () => el("div", {}, el("div", { class: "d-contents" }, "x"), el("div", {})),
+                text: [0, 0],
+                data: "\n",
+            },
+            {
+                name: "whitespace in display:contents next to a block becomes text",
+                root: () => el("div", {}, el("div", { class: "d-contents" }, "\n"), el("div", {})),
+                text: [0, 0],
+                data: "x",
+            },
+            {
+                name: "text in display:contents stays text",
+                root: () => el("div", { class: "d-contents" }, "abc"),
+                text: [0],
+                data: "def",
+            },
+        ];
+
+        let checkNumber = 0;
+        const check = description => {
+            const result = internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL";
+            println(`check ${checkNumber++}: ${result} (${description})`);
+        };
+        for (const testCase of cases) {
+            fixture.replaceChildren(testCase.root());
+            document.body.offsetHeight;
+            check(`${testCase.name}: before`);
+            childAt(fixture.firstChild, testCase.text).data = testCase.data;
+            document.body.offsetHeight;
+            check(`${testCase.name}: after`);
+        }
+    });
+</script>
