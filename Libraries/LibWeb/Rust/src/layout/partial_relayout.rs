@@ -97,6 +97,29 @@ impl LayoutNodeArena {
             )
         )
     }
+
+    pub(crate) fn register_partial_relayout_boundary_root(&self, node: NodeSlotId) {
+        // SAFETY: The caller supplies a live slot; data() generation-checks it.
+        let kind = unsafe { (*self.data(node)).kind };
+        assert!(node_facts::kind_is_box(kind));
+        let mut roots = self.partial_relayout_boundary_roots.borrow_mut();
+        roots.retain(|candidate| !self.shell_if_live(*candidate).is_null());
+        if roots.contains(&node) {
+            return;
+        }
+        roots.push(node);
+    }
+
+    /// Counts stale entries for freed nodes on purpose: the C++ side treats a nonempty
+    /// root set as "layout is not up to date", and a freed boundary still attributes a
+    /// pending update, exactly as a nulled-out weak pointer did.
+    pub(crate) fn has_partial_relayout_boundary_roots(&self) -> bool {
+        !self.partial_relayout_boundary_roots.borrow().is_empty()
+    }
+
+    pub(crate) fn take_partial_relayout_boundary_roots(&self) -> Vec<NodeSlotId> {
+        std::mem::take(&mut *self.partial_relayout_boundary_roots.borrow_mut())
+    }
 }
 
 /// # Safety
@@ -111,10 +134,71 @@ pub unsafe extern "C" fn layout_arena_node_is_partial_relayout_boundary(arena: *
     })
 }
 
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call, and `node` must name a live node
+/// in this arena.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_register_partial_relayout_boundary_root(arena: *mut c_void, node: NodeSlotId) {
+    abort_on_panic(|| {
+        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+        unsafe { LayoutNodeArena::from_handle(arena) }.register_partial_relayout_boundary_root(node);
+    });
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_has_partial_relayout_boundary_roots(arena: *mut c_void) -> bool {
+    abort_on_panic(|| {
+        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+        unsafe { LayoutNodeArena::from_handle(arena) }.has_partial_relayout_boundary_roots()
+    })
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call. The drained slot ids may name
+/// freed slots; the caller resolves liveness before dereferencing anything.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_take_partial_relayout_boundary_roots(
+    arena: *mut c_void,
+    context: *mut c_void,
+    push_root: unsafe extern "C" fn(*mut c_void, NodeSlotId),
+) {
+    abort_on_panic(|| {
+        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+        let arena = unsafe { LayoutNodeArena::from_handle(arena) };
+        for root in arena.take_partial_relayout_boundary_roots() {
+            // SAFETY: The C++ callback appends the slot id to a caller-owned collection.
+            unsafe { push_root(context, root) };
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::layout::layout_node_arena::LayoutNodeArena;
+    use crate::layout::layout_node_arena::{LayoutNodeArena, NodeAllocation};
     use crate::layout::node_data::NodeKind;
+
+    fn allocate_box_with_a_dummy_shell(arena: &mut LayoutNodeArena) -> NodeAllocation {
+        let allocation = arena.allocate();
+        // SAFETY: allocate() returned this live slot's data pointer. The dummy shell
+        // pointer is only ever compared against null, never dereferenced.
+        unsafe {
+            (*allocation.data).kind = NodeKind::Box;
+            (*allocation.data).shell = allocation.data.cast();
+        }
+        allocation
+    }
+
+    fn free_node(arena: &mut LayoutNodeArena, allocation: &NodeAllocation) {
+        arena
+            .free(allocation.slot, allocation.generation)
+            .detached_children
+            .release_all();
+    }
 
     #[test]
     fn a_box_without_a_committed_row_or_splice_derivable_ancestors_is_not_a_boundary() {
@@ -125,9 +209,46 @@ mod tests {
             (*allocation.data).kind = NodeKind::Box;
         }
         assert!(!arena.node_is_partial_relayout_boundary(allocation.slot));
-        arena
-            .free(allocation.slot, allocation.generation)
-            .detached_children
-            .release_all();
+        free_node(&mut arena, &allocation);
+    }
+
+    #[test]
+    fn registering_a_boundary_root_twice_yields_a_single_drained_entry() {
+        let mut arena = LayoutNodeArena::new();
+        let allocation = allocate_box_with_a_dummy_shell(&mut arena);
+        assert!(!arena.has_partial_relayout_boundary_roots());
+        arena.register_partial_relayout_boundary_root(allocation.slot);
+        arena.register_partial_relayout_boundary_root(allocation.slot);
+        assert!(arena.has_partial_relayout_boundary_roots());
+        assert_eq!(arena.take_partial_relayout_boundary_roots(), vec![allocation.slot]);
+        assert!(!arena.has_partial_relayout_boundary_roots());
+        free_node(&mut arena, &allocation);
+    }
+
+    #[test]
+    fn a_freed_boundary_root_still_counts_as_pending_but_resolves_to_a_dead_shell() {
+        let mut arena = LayoutNodeArena::new();
+        let allocation = allocate_box_with_a_dummy_shell(&mut arena);
+        arena.register_partial_relayout_boundary_root(allocation.slot);
+        free_node(&mut arena, &allocation);
+        assert!(arena.has_partial_relayout_boundary_roots());
+        let reused = allocate_box_with_a_dummy_shell(&mut arena);
+        let drained = arena.take_partial_relayout_boundary_roots();
+        assert_eq!(drained, vec![allocation.slot]);
+        assert!(arena.shell_if_live(allocation.slot).is_null());
+        assert!(!arena.shell_if_live(reused.slot).is_null());
+        free_node(&mut arena, &reused);
+    }
+
+    #[test]
+    fn registering_a_boundary_root_prunes_entries_for_freed_nodes() {
+        let mut arena = LayoutNodeArena::new();
+        let first = allocate_box_with_a_dummy_shell(&mut arena);
+        arena.register_partial_relayout_boundary_root(first.slot);
+        free_node(&mut arena, &first);
+        let second = allocate_box_with_a_dummy_shell(&mut arena);
+        arena.register_partial_relayout_boundary_root(second.slot);
+        assert_eq!(arena.take_partial_relayout_boundary_roots(), vec![second.slot]);
+        free_node(&mut arena, &second);
     }
 }

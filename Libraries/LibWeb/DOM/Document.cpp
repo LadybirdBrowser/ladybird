@@ -1760,7 +1760,7 @@ void Document::invalidate_layout_tree(InvalidateLayoutTreeReason reason)
 
 void Document::PartialRelayoutInvalidation::record_boundary(Layout::Box& box)
 {
-    m_registered_roots.set(box.make_weak_ptr<Layout::Box>());
+    Layout::RustFFI::layout_arena_register_partial_relayout_boundary_root(box.arena_handle(), Layout::Node::slot_id(&box));
 }
 
 void Document::PartialRelayoutInvalidation::record_escape(PartialRelayoutEscapeReason reason)
@@ -2236,12 +2236,12 @@ bool Document::needs_style_update_after_layout()
 // relayout boundary subtrees. Runs the incremental layout tree build itself when tree updates
 // are pending (consuming `needs_layout_tree_rebuild`), so an ineligible update continues to
 // the full layout path without rebuilding again.
-Document::PartialRelayoutResult Document::try_partial_relayout(HashTable<WeakPtr<Layout::Box>> registered_partial_relayout_roots, bool& needs_layout_tree_rebuild, bool should_collect_devtools_layout_data)
+Document::PartialRelayoutResult Document::try_partial_relayout(Vector<Layout::RustFFI::NodeSlotId> registered_partial_relayout_root_slots, bool& needs_layout_tree_rebuild, bool should_collect_devtools_layout_data)
 {
     if (!m_layout_root
         || needs_full_layout_tree_update()
         || m_partial_relayout_invalidation.escapes()
-        || registered_partial_relayout_roots.is_empty()
+        || registered_partial_relayout_root_slots.is_empty()
         || m_layout_root->needs_layout_update()
         || !m_query_containers_needing_container_query_evaluation_after_layout.is_empty()
         || should_collect_devtools_layout_data
@@ -2299,15 +2299,17 @@ Document::PartialRelayoutResult Document::try_partial_relayout(HashTable<WeakPtr
         return true;
     };
 
-    for (auto const& root : registered_partial_relayout_roots) {
-        auto* box = root.ptr();
+    for (auto slot : registered_partial_relayout_root_slots) {
         // A boundary that did not survive the build was either replaced (re-discovered
         // through the rebuilt subtree roots below) or removed together with the dirt
         // inside it (the removal dirtied its parent, whose own marking covers the
-        // mutation).
-        if (!box || !box->parent())
+        // mutation). Slot generations make the stale slot ids of such boundaries
+        // resolve to no shell.
+        auto* node = static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_node_shell_if_live(layout_node_arena().handle(), slot));
+        if (!node || !node->parent())
             continue;
-        if (!box->is_partial_relayout_boundary() || !collect_boundary(*box, false))
+        auto& box = as<Layout::Box>(*node);
+        if (!box.is_partial_relayout_boundary() || !collect_boundary(box, false))
             return PartialRelayoutResult::NotEligible;
     }
 
@@ -2413,7 +2415,12 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
             return;
         }
 
-        auto registered_partial_relayout_roots = m_partial_relayout_invalidation.take_registered_roots();
+        Vector<Layout::RustFFI::NodeSlotId> registered_partial_relayout_root_slots;
+        Layout::RustFFI::layout_arena_take_partial_relayout_boundary_roots(
+            layout_node_arena().handle(), &registered_partial_relayout_root_slots,
+            [](void* context, Layout::RustFFI::NodeSlotId slot) {
+                static_cast<Vector<Layout::RustFFI::NodeSlotId>*>(context)->append(slot);
+            });
 
         // NOTE: If this is a document hosting <template> contents, layout is unnecessary.
         if (m_created_for_appropriate_template_contents)
@@ -2421,7 +2428,7 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
 
         auto needs_layout_tree_rebuild = !m_layout_root || needs_layout_tree_update() || child_needs_layout_tree_update() || needs_full_layout_tree_update();
 
-        switch (try_partial_relayout(move(registered_partial_relayout_roots), needs_layout_tree_rebuild, should_collect_devtools_layout_data)) {
+        switch (try_partial_relayout(move(registered_partial_relayout_root_slots), needs_layout_tree_rebuild, should_collect_devtools_layout_data)) {
         case PartialRelayoutResult::Done:
             return;
         case PartialRelayoutResult::NeedsAnotherLayoutPass:
@@ -2569,7 +2576,7 @@ bool Document::layout_is_up_to_date() const
         && !needs_layout_tree_update()
         && !child_needs_layout_tree_update()
         && !needs_full_layout_tree_update()
-        && !m_partial_relayout_invalidation.has_registered_roots();
+        && (!m_layout_node_arena || !Layout::RustFFI::layout_arena_has_partial_relayout_boundary_roots(m_layout_node_arena->handle()));
 }
 
 void Document::update_style_computer_viewport_rect()
