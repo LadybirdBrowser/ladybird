@@ -325,15 +325,6 @@ pub struct FfiImagePaintFacts {
     pub list_height: i32,
 }
 
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiStackingContextDumpEntry {
-    pub layout_node_shell: *mut c_void,
-    pub depth: usize,
-    pub has_effective_z_index: bool,
-    pub effective_z_index: i32,
-}
-
 // A recording lent to C++ for the duration of one call. An empty Vec's pointer is dangling, so
 // the C++ side never dereferences a pointer whose count is zero.
 #[derive(Clone, Copy, Debug)]

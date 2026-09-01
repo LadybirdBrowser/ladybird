@@ -175,6 +175,13 @@ pub(crate) fn committed_svg_viewport_percentage_basis(arena: &impl PaintableRows
     })
 }
 
+pub(crate) fn absolute_rect_or_default(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixelRect {
+    if !arena.paintable_row_is_populated(slot) {
+        return CssPixelRect::default();
+    }
+    absolute_rect(arena, slot)
+}
+
 pub(crate) fn absolute_rect(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixelRect {
     if let Some(rect) = arena.memoized_absolute_rect(slot) {
         return rect;

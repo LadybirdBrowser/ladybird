@@ -64,7 +64,6 @@ WEB_API Optional<int> effective_z_index(Layout::Node const&);
 WEB_API CSS::Display display(Layout::Node const&);
 WEB_API bool is_positioned(Layout::Node const&);
 WEB_API bool is_fixed_position(Layout::Node const&);
-WEB_API bool has_css_transform(Layout::Node const&);
 WEB_API bool uses_collapsing_borders_model(Layout::Node const&);
 WEB_API SelectionState selection_state(Layout::Node const&);
 WEB_API CSS::StyleRecordID style_record_identity(Layout::Node const&);

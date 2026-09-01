@@ -3099,6 +3099,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/painting/host/paint.rs"),
             manifest_dir.join("src/painting/host/replay.rs"),
             manifest_dir.join("src/painting/display_list/dump.rs"),
+            manifest_dir.join("src/painting/stacking_context/dump.rs"),
             manifest_dir.join("src/painting/ffi.rs"),
         ],
         &out_dir,
