@@ -60,8 +60,6 @@ public:
 
     [[nodiscard]] NonnullRefPtr<GlyphRun> slice(size_t start, size_t length) const;
 
-    [[nodiscard]] FloatRect bounding_box(float scale) const;
-
 private:
     Vector<DrawGlyph> m_glyphs;
     NonnullRefPtr<Font const> m_font;

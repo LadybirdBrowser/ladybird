@@ -1616,21 +1616,6 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
 
 /// # Safety
 ///
-/// `sink` must be the pointer handed to the callback, used synchronously.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paint_push_overlay_glyph(sink: *mut c_void, glyph_id: u32, x: f32, y: f32) {
-    abort_on_panic(|| {
-        // SAFETY: `sink` is the Vec pointer handed out by FfiPaintHostCallbacks::overlay_label.
-        let glyphs = unsafe { &mut *sink.cast::<Vec<crate::painting::display_list::commands::DisplayListGlyph>>() };
-        glyphs.push(crate::painting::display_list::commands::DisplayListGlyph {
-            position: libgfx_rust::FloatPoint { x, y },
-            glyph_id,
-        });
-    });
-}
-
-/// # Safety
-///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_last_recording_spliced_capture_count(arena: *mut c_void) -> usize {

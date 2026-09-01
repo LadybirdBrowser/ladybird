@@ -17,6 +17,11 @@ unsafe extern "C" {
     fn ladybird_gfx_font_pixel_metrics(font: *const c_void, ascent: *mut f32, descent: *mut f32);
     fn ladybird_gfx_font_pixel_size(font: *const c_void) -> f32;
     fn ladybird_gfx_font_x_height(font: *const c_void) -> f32;
+    fn ladybird_gfx_font_measure_text_width(
+        font: *const c_void,
+        text_utf16: *const u16,
+        length_in_code_units: usize,
+    ) -> f32;
     fn ladybird_gfx_font_cascade_list_font_for_code_point(
         list: *const c_void,
         code_point: u32,
@@ -114,6 +119,12 @@ impl<'a> FontRef<'a> {
         // SAFETY: FontRef's constructor requires the Gfx::Font to remain live
         // for this reference's lifetime.
         unsafe { ladybird_gfx_font_x_height(self.raw.as_ptr()) }
+    }
+
+    pub fn measure_text_width(self, text: &[u16]) -> f32 {
+        // SAFETY: The font is live for this reference's lifetime, and the text
+        // slice stays valid for the synchronous measuring call.
+        unsafe { ladybird_gfx_font_measure_text_width(self.raw.as_ptr(), text.as_ptr(), text.len()) }
     }
 
     pub fn is_emoji_font(self) -> bool {

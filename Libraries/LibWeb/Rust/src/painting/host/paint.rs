@@ -74,18 +74,6 @@ pub struct FfiFlexOverlayInput {
     pub color: Color,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiOverlayLabelFacts {
-    pub font_id: u64,
-    pub css_width: f32,
-    pub css_pixel_size: f32,
-    pub device_glyph_width: f32,
-    pub device_ascent: f32,
-    pub device_descent: f32,
-    pub blob_bounds: FloatRect,
-}
-
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiImageIntrinsicFacts {
@@ -414,15 +402,13 @@ pub struct FfiPaintHostCallbacks {
     ) -> FfiSvgPaintStyle,
     pub nested_display_list_from_tree:
         unsafe extern "C" fn(*mut c_void, FfiRecordedDisplayList, *const c_void, *const u64, usize) -> u64,
-    pub overlay_label: unsafe extern "C" fn(
+    pub overlay_label_font: unsafe extern "C" fn(*mut c_void, f32) -> *const c_void,
+    pub overlay_node_label_text: unsafe extern "C" fn(
         *mut c_void,
         *mut c_void,
-        *const u16,
-        usize,
-        usize,
-        f32,
         *mut c_void,
-    ) -> FfiOverlayLabelFacts,
+        unsafe extern "C" fn(*mut c_void, *const u16, usize),
+    ),
 }
 
 #[derive(Default)]
@@ -440,30 +426,31 @@ impl FfiPaintHostCallbacks {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
         unsafe { (self.async_scroll_facts)(self.context, layout_node_shell) }
     }
-    pub(crate) fn overlay_label(
-        &self,
-        layout_node_shell: *mut c_void,
-        text: &[u16],
-        utf16_fly_string_raw: usize,
-        css_font_size: f32,
-    ) -> (
-        FfiOverlayLabelFacts,
-        Vec<crate::painting::display_list::commands::DisplayListGlyph>,
-    ) {
-        let mut glyphs: Vec<crate::painting::display_list::commands::DisplayListGlyph> = Vec::new();
-        // SAFETY: The C++ host pushes into the sink through the exported function, synchronously.
-        let facts = unsafe {
-            (self.overlay_label)(
-                self.context,
-                layout_node_shell,
-                text.as_ptr(),
-                text.len(),
-                utf16_fly_string_raw,
-                css_font_size,
-                (&raw mut glyphs).cast(),
-            )
-        };
-        (facts, glyphs)
+    /// Resolves the platform default UI font at `point_size`. The returned
+    /// `Gfx::Font` pointer is borrowed; the platform font caches keep it live
+    /// for the synchronous window in which the caller retains it.
+    pub(crate) fn overlay_label_font(&self, point_size: f32) -> *const c_void {
+        // SAFETY: The C++ host answers synchronously.
+        unsafe { (self.overlay_label_font)(self.context, point_size) }
+    }
+
+    pub(crate) fn overlay_node_label_text(&self, layout_node_shell: *mut c_void) -> Vec<u16> {
+        unsafe extern "C" fn emit(sink: *mut c_void, units: *const u16, count: usize) {
+            // SAFETY: `sink` is the Vec passed below, and the units stay live
+            // for this synchronous callback.
+            let text = unsafe { &mut *sink.cast::<Vec<u16>>() };
+            assert!(count == 0 || !units.is_null());
+            if count != 0 {
+                // SAFETY: The C++ host hands a pointer to count code units
+                // that outlive the callback.
+                text.extend_from_slice(unsafe { std::slice::from_raw_parts(units, count) });
+            }
+        }
+        let mut text: Vec<u16> = Vec::new();
+        // SAFETY: The C++ host answers synchronously from a live layout node
+        // shell; emit runs against the local Vec.
+        unsafe { (self.overlay_node_label_text)(self.context, layout_node_shell, (&raw mut text).cast(), emit) };
+        text
     }
     pub(crate) fn text_control_selection(&self, layout_node_shell: *mut c_void) -> FfiTextControlSelection {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.

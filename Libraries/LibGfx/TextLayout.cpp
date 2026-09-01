@@ -48,11 +48,6 @@ NonnullRefPtr<GlyphRun> GlyphRun::slice(size_t start, size_t length) const
     return adopt_ref(*new GlyphRun(move(sliced_glyphs), m_font, m_text_type, width));
 }
 
-FloatRect GlyphRun::bounding_box(float scale) const
-{
-    return glyph_run_bounding_box(m_font, m_glyphs, scale);
-}
-
 FloatRect glyph_run_bounding_box(Font const& font, ReadonlySpan<DrawGlyph> glyphs, float scale)
 {
     auto font_ascent = font.pixel_metrics().ascent;
@@ -671,6 +666,7 @@ static_assert(offsetof(Gfx::FFI::DrawGlyph, should_paint) == offsetof(Gfx::DrawG
 
 extern "C" {
 void ladybird_gfx_shape_text_uncached(void const*, u16 const*, size_t, Gfx::FFI::TextType, float, float, void*, void (*)(void*, Gfx::FFI::DrawGlyph const*, size_t, float, size_t, float));
+float ladybird_gfx_font_measure_text_width(void const*, u16 const*, size_t);
 void ladybird_gfx_glyph_run_bounding_box(void const*, Gfx::FFI::DrawGlyph const*, size_t, float, float*);
 void ladybird_gfx_glyph_run_glyph_intercepts(void const*, Gfx::FFI::DrawGlyph const*, size_t, float, float, float, void*, void (*)(void*, float));
 }
@@ -704,6 +700,19 @@ extern "C" void ladybird_gfx_shape_text_uncached(
         shape->width,
         shape->trailing_whitespace.length_in_code_units,
         shape->trailing_whitespace.advance);
+}
+
+extern "C" float ladybird_gfx_font_measure_text_width(
+    void const* font,
+    u16 const* text_utf16,
+    size_t length_in_code_units)
+{
+    VERIFY(font);
+    VERIFY(text_utf16 || length_in_code_units == 0);
+    auto text = length_in_code_units == 0
+        ? Utf16View {}
+        : Utf16View { reinterpret_cast<char16_t const*>(text_utf16), length_in_code_units };
+    return Gfx::measure_text_width(text, *static_cast<Gfx::Font const*>(font));
 }
 
 extern "C" void ladybird_gfx_glyph_run_bounding_box(
