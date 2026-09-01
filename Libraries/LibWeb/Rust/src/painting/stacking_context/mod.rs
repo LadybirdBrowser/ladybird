@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+pub mod dump;
 pub mod entries;
 pub mod verify;
 

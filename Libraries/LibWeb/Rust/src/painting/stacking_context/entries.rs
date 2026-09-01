@@ -26,6 +26,22 @@ pub(crate) struct StackingContextEntries {
     pub needs_resort: bool,
 }
 
+impl StackingContextEntries {
+    pub(crate) fn negative_z_index_child_contexts(&self) -> &[NonzeroZIndexChildContext] {
+        let first_positive = self
+            .child_contexts_with_nonzero_z_index
+            .partition_point(|entry| entry.z_index < 0);
+        &self.child_contexts_with_nonzero_z_index[..first_positive]
+    }
+
+    pub(crate) fn positive_z_index_child_contexts(&self) -> &[NonzeroZIndexChildContext] {
+        let first_positive = self
+            .child_contexts_with_nonzero_z_index
+            .partition_point(|entry| entry.z_index < 0);
+        &self.child_contexts_with_nonzero_z_index[first_positive..]
+    }
+}
+
 impl LayoutNodeArena {
     pub(crate) fn stacking_context_entries(&self, root: NodeSlotId) -> Option<Ref<'_, StackingContextEntries>> {
         if !self.paintable_row_is_populated(root) {

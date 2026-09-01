@@ -20,7 +20,6 @@ use crate::painting::host::{
 use crate::painting::node_painting;
 use crate::painting::record::RecordingOutput;
 use crate::painting::record::masks::MaskLayerSet;
-use crate::painting::stacking_context::NO_STACKING_CONTEXT;
 use crate::painting::style_queries;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -60,6 +59,7 @@ fn to_paint_phase(phase: StackingContextPaintPhase) -> PaintPhase {
 pub(crate) fn record_display_list(
     layout_arena: &LayoutNodeArena,
     paint_state: &crate::painting::paint_state::PaintState,
+    viewport: NodeSlotId,
     host: &FfiHitTestHostCallbacks,
     paint_host: &FfiPaintHostCallbacks,
     visual_context_host: &FfiVisualContextHostCallbacks,
@@ -68,10 +68,6 @@ pub(crate) fn record_display_list(
     command_cache_source: Option<Rc<RecordingOutput>>,
     item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
 ) -> RecordingOutput {
-    let stacking_contexts = paint_state
-        .stacking_context_tree
-        .as_ref()
-        .expect("recording needs a built stacking context tree");
     let structural_epoch = paint_state.visual_context.structural_epoch();
     let command_cache_source = command_cache_source
         .filter(|source| source.recorded_device_pixels_per_css_pixel == inputs.device_pixels_per_css_pixel);
@@ -79,7 +75,6 @@ pub(crate) fn record_display_list(
     let mut recorder = PaintRecorder {
         layout_arena: &paintable_rows,
         paint_state,
-        stacking_contexts,
         host,
         paint_host,
         inputs,
@@ -95,10 +90,7 @@ pub(crate) fn record_display_list(
         item_cache_source,
         display_list_id: inputs.display_list_id,
         hit_test_list_generation,
-        viewport: stacking_contexts
-            .nodes
-            .first()
-            .map_or(NodeSlotId::INVALID, |root| root.paintable),
+        viewport,
         has_blocking_wheel_event_listeners: false,
         spliced_capture_count: 0,
         uncacheable_paint_generation: 0,
@@ -135,9 +127,7 @@ pub(crate) fn record_display_list(
     }
     recorder.recorder.fill_rect(inputs.bitmap_rect, inputs.background_color);
     recorder.prerecord_nested_display_lists();
-    if !stacking_contexts.nodes.is_empty() {
-        recorder.paint_stacking_context(0);
-    }
+    recorder.paint_stacking_context(viewport);
     crate::painting::record::paint::inspector_overlay::record_inspector_overlays(&mut recorder);
     let mask_display_lists = recorder.recorder.take_mask_display_lists();
     let mut hit_test_list = recorder.list;
@@ -179,8 +169,11 @@ impl PaintRecorder<'_> {
             && !style_queries::is_positioned(self.layout_arena, paintable)
     }
 
-    fn paint_stacking_context(&mut self, index: u32) {
-        let paintable = self.stacking_contexts.nodes[index as usize].paintable;
+    fn paint_stacking_context(&mut self, paintable: NodeSlotId) {
+        debug_assert!(self.layout_arena.paintable_row_is_populated(paintable));
+        if !self.layout_arena.paintable_row_is_populated(paintable) {
+            return;
+        }
         // https://drafts.csswg.org/css-transforms-1/#transform-function-lists
         // If a transform function causes the current transformation matrix of an object to be
         // non-invertible, the object and its content do not get displayed. Retain content whose
@@ -207,18 +200,15 @@ impl PaintRecorder<'_> {
         self.register_mask_display_lists(paintable, MaskLayerSet::CssAndSvg);
 
         let context_before_children = self.recorder.accumulated_visual_context();
-        self.with_context(context_before_children, |this| this.paint_internal(index));
+        self.with_context(context_before_children, |this| this.paint_internal(paintable));
     }
 
-    fn paint_child(&mut self, child: u32) {
+    fn paint_child(&mut self, child: NodeSlotId) {
         self.paint_stacking_context(child);
     }
 
-    fn paint_internal(&mut self, index: u32) {
-        let stacking_contexts = self.stacking_contexts;
-        let node = &stacking_contexts.nodes[index as usize];
-        let paintable = node.paintable;
-        let children = &node.children;
+    fn paint_internal(&mut self, paintable: NodeSlotId) {
+        let entries = self.layout_arena.stacking_context_entries(paintable);
         if self.layout_kind(paintable) == Some(NodeKind::SVGSVGBox) {
             self.paint_node(paintable, PaintPhase::Background);
             self.paint_node(paintable, PaintPhase::Border);
@@ -226,8 +216,20 @@ impl PaintRecorder<'_> {
             // An `<svg>` that establishes a stacking context still has descendants that establish
             // one of their own - a `<foreignObject>` always does - and those are painted by their
             // own context rather than by the SVG walk.
-            for child in children {
-                self.paint_child(*child);
+            if let Some(entries) = &entries {
+                for entry in entries.negative_z_index_child_contexts() {
+                    self.paint_child(entry.slot);
+                }
+                for &descendant in &entries.stack_level_zero_boxes {
+                    if self.layout_arena.paintable_row_is_populated(descendant)
+                        && self.data(descendant).establishes_stacking_context
+                    {
+                        self.paint_child(descendant);
+                    }
+                }
+                for entry in entries.positive_z_index_child_contexts() {
+                    self.paint_child(entry.slot);
+                }
             }
             self.paint_node(paintable, PaintPhase::Outline);
             if self.inputs.should_paint_overlay {
@@ -246,10 +248,9 @@ impl PaintRecorder<'_> {
         // Here, we treat non-positioned stacking contexts as if they were positioned, because CSS 2.0 spec does not
         // account for new properties like `transform` and `opacity` that can create stacking contexts.
         // https://github.com/w3c/csswg-drafts/issues/2717
-        for child in children {
-            let z_index = stacking_contexts.nodes[*child as usize].effective_z_index;
-            if z_index.is_some_and(|z| z < 0) {
-                self.paint_child(*child);
+        if let Some(entries) = &entries {
+            for entry in entries.negative_z_index_child_contexts() {
+                self.paint_child(entry.slot);
             }
         }
 
@@ -261,14 +262,17 @@ impl PaintRecorder<'_> {
             self.paint_node(paintable, PaintPhase::TableCollapsedBorder);
         }
         // Draw the non-positioned floats (step 5)
-        if !self.stacking_contexts.nodes[index as usize]
-            .non_positioned_floating_descendants
-            .is_empty()
+        if entries
+            .as_ref()
+            .is_some_and(|entries| entries.non_positioned_float_count > 0)
         {
             self.paint_descendants(paintable, StackingContextPaintPhase::Floats);
         }
         // Draw inline content, replaced content, etc. (steps 6, 7)
-        if self.stacking_contexts.nodes[index as usize].contains_inline_or_replaced_descendants {
+        if entries
+            .as_ref()
+            .is_some_and(|entries| entries.inline_or_replaced_count > 0)
+        {
             self.paint_descendants(
                 paintable,
                 StackingContextPaintPhase::BackgroundAndBordersForInlineLevelAndReplaced,
@@ -281,19 +285,17 @@ impl PaintRecorder<'_> {
         // Here, we treat non-positioned stacking contexts as if they were positioned, because CSS 2.0 spec does not
         // account for new properties like `transform` and `opacity` that can create stacking contexts.
         // https://github.com/w3c/csswg-drafts/issues/2717
-        for &descendant in
-            &stacking_contexts.nodes[index as usize].positioned_descendants_and_stacking_contexts_with_stack_level_0
-        {
-            if !self.layout_arena.paintable_row_is_populated(descendant) {
-                continue;
-            }
-            let child_context = self.data(descendant).stacking_context;
-            // At this point, `paintable` is a positioned descendant with z-index: auto.
-            // FIXME: This is basically duplicating logic found elsewhere in this same function. Find a way to make this more elegant.
-            if child_context != NO_STACKING_CONTEXT {
-                self.paint_child(child_context);
-            } else {
-                self.paint_node_as_stacking_context(descendant);
+        if let Some(entries) = &entries {
+            for &descendant in &entries.stack_level_zero_boxes {
+                debug_assert!(self.layout_arena.paintable_row_is_populated(descendant));
+                if !self.layout_arena.paintable_row_is_populated(descendant) {
+                    continue;
+                }
+                if self.data(descendant).establishes_stacking_context {
+                    self.paint_child(descendant);
+                } else {
+                    self.paint_node_as_stacking_context(descendant);
+                }
             }
         }
 
@@ -302,10 +304,9 @@ impl PaintRecorder<'_> {
         // Here, we treat non-positioned stacking contexts as if they were positioned, because CSS 2.0 spec does not
         // account for new properties like `transform` and `opacity` that can create stacking contexts.
         // https://github.com/w3c/csswg-drafts/issues/2717
-        for child in children {
-            let z_index = stacking_contexts.nodes[*child as usize].effective_z_index;
-            if z_index.is_some_and(|z| z >= 1) {
-                self.paint_child(*child);
+        if let Some(entries) = &entries {
+            for entry in entries.positive_z_index_child_contexts() {
+                self.paint_child(entry.slot);
             }
         }
 

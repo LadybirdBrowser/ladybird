@@ -327,9 +327,9 @@ pub struct FfiImagePaintFacts {
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct FfiStackingContextNodeExport {
+pub struct FfiStackingContextDumpEntry {
     pub layout_node_shell: *mut c_void,
-    pub child_count: usize,
+    pub depth: usize,
     pub has_effective_z_index: bool,
     pub effective_z_index: i32,
 }
