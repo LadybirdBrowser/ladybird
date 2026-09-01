@@ -963,25 +963,6 @@ pub unsafe extern "C" fn layout_arena_paintable_visual_context_copy_node_indices
     });
 }
 
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_build_stacking_context_tree(arena: *mut c_void, root: NodeSlotId) {
-    abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle_mut(arena) };
-        let mut paintable_rows = arena.paintable_rows_mut();
-        let tree = {
-            if !paintable_rows.paintable_row_is_populated(root) {
-                return;
-            }
-            crate::painting::stacking_context::build_stacking_context_tree(&mut paintable_rows, root)
-        };
-        paintable_rows.paint_state().borrow_mut().stacking_context_tree = Some(tree);
-        crate::painting::fragment_ownership::assign_fragment_ownership(&paintable_rows, root);
-    });
-}
-
 use crate::painting::host::FfiVisualContextHostCallbacks;
 
 fn apply_walk_assignments(
@@ -1053,6 +1034,8 @@ fn fresh_visual_context_tree_build(
     outcome.mask_node_owners_changed = true;
     apply_walk_assignments(arena, viewport, &mut outcome, state);
     arena.rebuild_all_stacking_context_entries_from_records(viewport);
+    arena.take_line_roots_needing_fragment_ownership();
+    crate::painting::fragment_ownership::assign_fragment_ownership(&arena.paintable_rows(), viewport);
     arena.mark_all_paint_caches_dirty();
     state.quarantined_slots_are_releasable = false;
     debug_assert_every_live_node_is_owned(
@@ -1174,6 +1157,7 @@ pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
                     let arena_mut = unsafe { arena_from_handle_mut(arena) };
                     apply_walk_assignments(arena_mut, viewport, &mut outcome, &mut state);
                     arena_mut.resort_stacking_context_entries_flagged_for_resort();
+                    crate::painting::fragment_ownership::assign_fragment_ownership_for_pending_line_roots(arena_mut);
                     let performed_full_build = scope == VisualContextUpdateScope::EveryBox;
                     if performed_full_build {
                         state.build_count += 1;

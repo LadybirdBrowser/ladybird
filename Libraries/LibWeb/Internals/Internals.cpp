@@ -969,7 +969,6 @@ Utf16String Internals::stacking_context_structure_verification_report()
     document.update_layout(DOM::UpdateLayoutReason::DumpDisplayList);
     if (!document.has_committed_viewport_box())
         return {};
-    document.paint_state().build_stacking_context_tree_if_needed(document);
     document.update_paint_and_hit_testing_properties_if_needed();
     StringBuilder builder;
     Layout::RustFFI::layout_arena_stacking_context_structure_verification_report(

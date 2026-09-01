@@ -79,19 +79,6 @@ void DocumentPaintState::viewport_row_was_reset(DOM::Document& document)
     m_visual_context_tree_needs_compositor_update = false;
 }
 
-void DocumentPaintState::build_stacking_context_tree_if_needed(DOM::Document& document)
-{
-    if (m_stacking_context_tree_is_valid)
-        return;
-    rust_build_stacking_context_tree(document);
-    m_stacking_context_tree_is_valid = true;
-}
-
-void DocumentPaintState::invalidate_stacking_context_tree()
-{
-    m_stacking_context_tree_is_valid = false;
-}
-
 void DocumentPaintState::refresh_sticky_constraints(DOM::Document& document)
 {
     m_needs_to_refresh_scroll_state = true;

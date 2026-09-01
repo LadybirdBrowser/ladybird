@@ -1867,7 +1867,6 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed, Layout
     // NB: Called during layout update.
     m_layout_root->invalidate_text_blocks_cache();
 
-    invalidate_stacking_context_tree();
     set_needs_to_record_display_list();
     set_needs_to_refresh_scroll_state(true);
 
@@ -5593,14 +5592,6 @@ void Document::set_page_showing(bool page_showing)
         return document_observer.document_page_showing_observer();
     },
         m_page_showing);
-}
-
-void Document::invalidate_stacking_context_tree()
-{
-    // NB: Called during stacking context invalidation.
-    auto const* layout_node = this->unsafe_layout_node();
-    if (layout_node && Painting::has_committed_box(*layout_node))
-        Painting::invalidate_stacking_context(*layout_node);
 }
 
 void Document::check_favicon_after_loading_link_resource()
@@ -10447,7 +10438,6 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
         page().client().page_did_change_background_color(canvas_background_color);
     }
 
-    document_paint_state.build_stacking_context_tree_if_needed(*this);
     document_paint_state.refresh_scroll_state(*this);
 
     Painting::InspectorOverlayInputs overlay_inputs;

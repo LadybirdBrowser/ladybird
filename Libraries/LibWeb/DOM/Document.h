@@ -528,7 +528,6 @@ public:
     bool is_running_update_layout() const { return m_is_running_update_layout; }
 
     void invalidate_layout_tree(InvalidateLayoutTreeReason);
-    void invalidate_stacking_context_tree();
 
     void tear_down_layout_tree_for_svg_image_document(Badge<SVG::SVGDecodedImageData>);
 

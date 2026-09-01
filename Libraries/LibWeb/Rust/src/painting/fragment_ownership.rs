@@ -98,8 +98,6 @@ pub(crate) fn nearest_self_painting_inline_box(
 }
 
 pub(crate) fn assign_fragment_ownership(layout_arena: &impl PaintableRowsRead, viewport: NodeSlotId) {
-    // Whether a box is self-painting depends on the stacking context tree, so this runs
-    // whenever that tree is rebuilt.
     let mut stack = vec![viewport];
     while let Some(current) = stack.pop() {
         if let Some(next) = crate::painting::paint_order::next_paint_sibling(layout_arena, current)
@@ -114,6 +112,21 @@ pub(crate) fn assign_fragment_ownership(layout_arena: &impl PaintableRowsRead, v
             && !layout_arena.paintable_side_data(current).inline_box_pieces.is_empty()
         {
             assign_for_block(layout_arena, current);
+        }
+    }
+}
+
+pub(crate) fn assign_fragment_ownership_for_pending_line_roots(layout_arena: &LayoutNodeArena) {
+    let mut line_roots = layout_arena.take_line_roots_needing_fragment_ownership();
+    line_roots.sort_unstable_by_key(|slot| (slot.index, slot.generation()));
+    line_roots.dedup();
+    let paintable_rows = layout_arena.paintable_rows();
+    for line_root in line_roots {
+        if paintable_rows.paintable_row_is_populated(line_root)
+            && node_painting::has_lines(&paintable_rows, line_root)
+            && !layout_arena.paintable_side_data(line_root).inline_box_pieces.is_empty()
+        {
+            assign_for_block(&paintable_rows, line_root);
         }
     }
 }

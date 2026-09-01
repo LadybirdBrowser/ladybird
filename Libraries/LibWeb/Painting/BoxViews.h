@@ -111,7 +111,6 @@ WEB_API SelectionStyle selection_style_for_node(Layout::Node const&, GC::Ptr<DOM
 WEB_API void set_needs_repaint(Layout::Node const&, InvalidateDisplayList = InvalidateDisplayList::Yes);
 WEB_API void invalidate_paint_cache(Layout::Node const&);
 WEB_API void repaint_after_style_change(Layout::Node const&, CSS::RequiredInvalidationAfterStyleChange const&);
-WEB_API void invalidate_stacking_context(Layout::Node const&);
 WEB_API void clear_overflow_data(Layout::Node const&);
 WEB_API void clear_cached_overflow_data(Layout::Node const&);
 

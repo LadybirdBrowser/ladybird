@@ -85,8 +85,6 @@ static void apply_document_style_invalidation_after_style_change(DOM::Document& 
 {
     if (invalidation.needs_repaint())
         document.set_needs_to_record_display_list();
-    if (invalidation.needs_stacking_context_tree_rebuild())
-        document.invalidate_stacking_context_tree();
 }
 
 // Consume everything recorded since the last transaction boundary and publish its match answers.

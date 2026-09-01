@@ -22,7 +22,6 @@ namespace Web::Painting {
 
 struct ImagePaint;
 
-WEB_API void rust_build_stacking_context_tree(DOM::Document&);
 WEB_API void dump_stacking_context_tree(StringBuilder&, DOM::Document const&);
 
 struct VisualContextTreeUpdateResult {

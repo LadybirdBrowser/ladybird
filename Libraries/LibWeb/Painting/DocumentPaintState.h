@@ -30,8 +30,6 @@ public:
     void viewport_row_was_reset(DOM::Document&);
 
     BlockingWheelEventRegionState collect_root_blocking_wheel_event_regions(DOM::Document&);
-    void build_stacking_context_tree_if_needed(DOM::Document&);
-    void invalidate_stacking_context_tree();
 
     void refresh_scroll_state(DOM::Document&);
     void refresh_sticky_constraints(DOM::Document&);
@@ -76,7 +74,6 @@ private:
     void clear_scroll_state(DOM::Document&);
 
     NonnullRefPtr<Layout::NodeArena> m_layout_node_arena;
-    bool m_stacking_context_tree_is_valid { false };
 
     ScrollStateSnapshot m_scroll_state_snapshot;
     bool m_needs_to_refresh_scroll_state { true };
