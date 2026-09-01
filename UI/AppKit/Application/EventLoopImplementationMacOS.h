@@ -30,9 +30,6 @@ public:
 
 class EventLoopImplementationMacOS final : public Core::EventLoopImplementation {
 public:
-    // FIXME: This currently only manages the main NSApp event loop, as that is all we currently
-    //        interact with. When we need multiple event loops, or an event loop that isn't the
-    //        NSApp loop, we will need to create our own CFRunLoop.
     static NonnullOwnPtr<EventLoopImplementationMacOS> create();
 
     virtual int exec() override;
@@ -42,6 +39,8 @@ public:
     virtual void deferred_invoke(Function<void()>&&) override;
     virtual bool was_exit_requested() const override;
 
+    void set_main_loop();
+
     virtual ~EventLoopImplementationMacOS() override;
 
 private:
@@ -50,7 +49,7 @@ private:
     struct Impl;
     NonnullOwnPtr<Impl> m_impl;
 
-    int m_exit_code { 0 };
+    bool m_main_loop { false };
 };
 
 }
