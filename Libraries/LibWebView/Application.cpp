@@ -1979,7 +1979,7 @@ Utf16String Application::clipboard_text(ClipboardType) const
     if (!m_clipboard.has_value())
         return {};
     for (auto const& representation : m_clipboard->system_clipboard_representations) {
-        if (representation.mime_type == "text/plain"sv)
+        if (representation.name == "text/plain"sv)
             return Utf16String::from_utf8(representation.data);
     }
     return {};
@@ -1990,8 +1990,8 @@ void Application::set_clipboard_text(String text, ClipboardType)
     m_clipboard = Web::Clipboard::SystemClipboardItem {
         .system_clipboard_representations = {
             {
+                .name = "text/plain"_string,
                 .data = text.to_byte_string(),
-                .mime_type = "text/plain"_string,
             },
         },
     };
@@ -2148,14 +2148,14 @@ void Application::initialize_actions()
         if (auto view = active_web_view(); view.has_value())
             view->selected_text()->when_resolved([this](auto& text) {
                 if (!text.is_empty())
-                    insert_clipboard_entry({ text, "text/plain"_string });
+                    insert_clipboard_entry({ "text/plain"_string, text });
             });
     });
     m_cut_selection_action = Action::create("Cut"sv, ActionID::CutSelection, [this]() {
         if (auto view = active_web_view(); view.has_value())
             view->cut_selected_text()->when_resolved([this](auto& text) {
                 if (!text.is_empty())
-                    insert_clipboard_entry({ text, "text/plain"_string });
+                    insert_clipboard_entry({ "text/plain"_string, text });
             });
     });
     m_paste_action = Action::create("Paste"sv, ActionID::Paste, [this]() {

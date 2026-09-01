@@ -11,18 +11,18 @@
 template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, Web::Clipboard::SystemClipboardRepresentation const& output)
 {
+    TRY(encoder.encode(output.name));
     TRY(encoder.encode(output.data));
-    TRY(encoder.encode(output.mime_type));
     return {};
 }
 
 template<>
 ErrorOr<Web::Clipboard::SystemClipboardRepresentation> IPC::decode(Decoder& decoder)
 {
+    auto name = TRY(decoder.decode<String>());
     auto data = TRY(decoder.decode<ByteString>());
-    auto mime_type = TRY(decoder.decode<String>());
 
-    return Web::Clipboard::SystemClipboardRepresentation { move(data), move(mime_type) };
+    return Web::Clipboard::SystemClipboardRepresentation { move(name), move(data) };
 }
 
 template<>
