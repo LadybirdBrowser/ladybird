@@ -147,7 +147,7 @@ static void write_blobs_and_option_to_clipboard(JS::Realm& realm, ReadonlySpan<G
         auto payload = MUST(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, item->raw_bytes()));
 
         // 4. Insert payload and presentationStyle into the system clipboard using formatString as the native clipboard format.
-        representations.empend(payload.to_byte_string(), move(format_string));
+        representations.empend(move(format_string), payload.to_byte_string());
     }
 
     window.page().client().page_did_insert_clipboard_item({ move(representations) }, presentation_style);
@@ -244,7 +244,7 @@ void Clipboard::read(JS::Realm& realm, ClipboardReadOptions formats, GC::Ref<Web
                 for (auto const& system_clipboard_representation : system_clipboard_item.system_clipboard_representations) {
                     // 1. Let mimeType be the result of running the well-known mime type from os specific format
                     //    algorithm given systemClipboardRepresentation’s name.
-                    auto mime_type = os_specific_well_known_format(system_clipboard_representation.mime_type);
+                    auto mime_type = os_specific_well_known_format(system_clipboard_representation.name);
 
                     // 2. If mimeType is null, continue this loop.
                     if (mime_type.is_empty())
@@ -360,7 +360,7 @@ void Clipboard::read_text(JS::Realm& realm, GC::Ref<WebIDL::Promise> promise)
                     for (auto const& system_clipboard_representation : system_clipboard_item.system_clipboard_representations) {
                         // 1. Let mimeType be the result of running the well-known mime type from os specific format
                         //    algorithm given systemClipboardRepresentation’s name.
-                        auto mime_type = os_specific_well_known_format(system_clipboard_representation.mime_type);
+                        auto mime_type = os_specific_well_known_format(system_clipboard_representation.name);
 
                         // 2. If mimeType is null, continue this loop.
                         if (mime_type.is_empty())

@@ -897,10 +897,10 @@ Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_ent
         return {};
 
     for (auto const& format : mime_data->formats()) {
-        auto data = ak_byte_string_from_qbytearray(mime_data->data(format));
         auto mime_type = ak_string_from_qstring(format);
+        auto data = ak_byte_string_from_qbytearray(mime_data->data(format));
 
-        representations.empend(move(data), move(mime_type));
+        representations.empend(move(mime_type), move(data));
     }
 
     return representations;
@@ -915,7 +915,7 @@ void Application::insert_clipboard_item(Web::Clipboard::SystemClipboardItem item
 
     auto* mime_data = new QMimeData();
     for (auto const& entry : item.system_clipboard_representations)
-        mime_data->setData(qstring_from_ak_string(entry.mime_type), qbytearray_from_ak_string(entry.data));
+        mime_data->setData(qstring_from_ak_string(entry.name), qbytearray_from_ak_string(entry.data));
 
     auto* clipboard = QGuiApplication::clipboard();
     clipboard->setMimeData(mime_data);

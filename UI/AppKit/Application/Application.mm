@@ -239,7 +239,7 @@ Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_ent
             continue;
 
         auto data = Ladybird::ns_data_to_string([paste_board dataForType:type]);
-        representations.empend(move(data), mime_type.release_value());
+        representations.empend(mime_type.release_value(), move(data));
     }
 
     return representations;
@@ -251,7 +251,7 @@ void Application::insert_clipboard_item(Web::Clipboard::SystemClipboardItem item
     [paste_board clearContents];
 
     for (auto const& entry : item.system_clipboard_representations) {
-        NSPasteboardType pasteboard_type = Ladybird::pasteboard_type_for_mime_type(entry.mime_type);
+        NSPasteboardType pasteboard_type = Ladybird::pasteboard_type_for_mime_type(entry.name);
         if (!pasteboard_type)
             continue;
 

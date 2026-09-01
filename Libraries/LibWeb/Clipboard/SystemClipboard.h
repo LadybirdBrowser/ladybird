@@ -16,8 +16,8 @@ namespace Web::Clipboard {
 
 // https://w3c.github.io/clipboard-apis/#system-clipboard-representation
 struct SystemClipboardRepresentation {
+    String name;
     ByteString data;
-    String mime_type;
 };
 
 // https://w3c.github.io/clipboard-apis/#system-clipboard-item

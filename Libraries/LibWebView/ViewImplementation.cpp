@@ -3394,7 +3394,7 @@ void ViewImplementation::initialize_context_menus()
         download_context_menu_url(PromptForPath::Yes);
     });
     m_copy_url_action = Action::create("Copy URL"sv, ActionID::CopyURL, [this]() {
-        Application::the().insert_clipboard_entry({ url_text_to_copy(m_context_menu_url), "text/plain"_string });
+        Application::the().insert_clipboard_entry({ "text/plain"_string, url_text_to_copy(m_context_menu_url) });
     });
 
     m_open_image_action = Action::create("Open Image"sv, ActionID::OpenImage, [this]() {
@@ -3415,7 +3415,7 @@ void ViewImplementation::initialize_context_menus()
         if (encoded.is_error())
             return;
 
-        Application::the().insert_clipboard_entry({ ByteString { encoded.value().bytes() }, "image/png"_string });
+        Application::the().insert_clipboard_entry({ "image/png"_string, ByteString { encoded.value().bytes() } });
     });
 
     m_open_audio_action = Action::create("Open Audio"sv, ActionID::OpenAudio, [this]() {
@@ -3591,7 +3591,7 @@ void ViewImplementation::initialize_context_menus()
         if (!bookmark.has_value() || !bookmark->is_bookmark())
             return;
 
-        application.insert_clipboard_entry({ url_text_to_copy(bookmark->bookmark().url), "text/plain"_string });
+        application.insert_clipboard_entry({ "text/plain"_string, url_text_to_copy(bookmark->bookmark().url) });
     }));
     m_bookmark_context_menu->add_separator();
     m_bookmark_context_menu->add_action(Action::create("Edit Bookmark..."sv, ActionID::EditBookmark, []() {
