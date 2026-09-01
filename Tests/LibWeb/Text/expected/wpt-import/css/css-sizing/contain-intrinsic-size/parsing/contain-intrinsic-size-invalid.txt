@@ -1,0 +1,45 @@
+Harness status: OK
+
+Found 40 tests
+
+40 Pass
+Pass	e.style['contain-intrinsic-size'] = "legacy" should not set the property value
+Pass	e.style['contain-intrinsic-size'] = "auto legacy" should not set the property value
+Pass	e.style['contain-intrinsic-size'] = "auto legacy auto" should not set the property value
+Pass	e.style['contain-intrinsic-size'] = "10%" should not set the property value
+Pass	e.style['contain-intrinsic-size'] = "2em 3px 5px" should not set the property value
+Pass	e.style['contain-intrinsic-size'] = "1px 1%" should not set the property value
+Pass	e.style['contain-intrinsic-size'] = "1px auto auto" should not set the property value
+Pass	e.style['contain-intrinsic-size'] = "-1px" should not set the property value
+Pass	e.style['contain-intrinsic-size'] = "auto" should not set the property value
+Pass	e.style['contain-intrinsic-size'] = "auto 1px 1px auto" should not set the property value
+Pass	e.style['contain-intrinsic-size'] = "1px 1px auto" should not set the property value
+Pass	e.style['contain-intrinsic-width'] = "legacy" should not set the property value
+Pass	e.style['contain-intrinsic-width'] = "-1px" should not set the property value
+Pass	e.style['contain-intrinsic-width'] = "1px 1px" should not set the property value
+Pass	e.style['contain-intrinsic-width'] = "1px none" should not set the property value
+Pass	e.style['contain-intrinsic-width'] = "auto 1px auto" should not set the property value
+Pass	e.style['contain-intrinsic-width'] = "20%" should not set the property value
+Pass	e.style['contain-intrinsic-width'] = "1px auto" should not set the property value
+Pass	e.style['contain-intrinsic-height'] = "legacy" should not set the property value
+Pass	e.style['contain-intrinsic-height'] = "-1px" should not set the property value
+Pass	e.style['contain-intrinsic-height'] = "1px 1px" should not set the property value
+Pass	e.style['contain-intrinsic-height'] = "1px none" should not set the property value
+Pass	e.style['contain-intrinsic-height'] = "auto 1px auto" should not set the property value
+Pass	e.style['contain-intrinsic-height'] = "20%" should not set the property value
+Pass	e.style['contain-intrinsic-height'] = "1px auto" should not set the property value
+Pass	e.style['contain-intrinsic-inline-size'] = "legacy" should not set the property value
+Pass	e.style['contain-intrinsic-inline-size'] = "-1px" should not set the property value
+Pass	e.style['contain-intrinsic-inline-size'] = "1px 1px" should not set the property value
+Pass	e.style['contain-intrinsic-inline-size'] = "1px none" should not set the property value
+Pass	e.style['contain-intrinsic-inline-size'] = "auto 1px auto" should not set the property value
+Pass	e.style['contain-intrinsic-inline-size'] = "20%" should not set the property value
+Pass	e.style['contain-intrinsic-inline-size'] = "1px auto" should not set the property value
+Pass	e.style['contain-intrinsic-block-size'] = "legacy" should not set the property value
+Pass	e.style['contain-intrinsic-block-size'] = "-1px" should not set the property value
+Pass	e.style['contain-intrinsic-block-size'] = "1px 1px" should not set the property value
+Pass	e.style['contain-intrinsic-block-size'] = "1px none" should not set the property value
+Pass	e.style['contain-intrinsic-block-size'] = "auto 1px auto" should not set the property value
+Pass	e.style['contain-intrinsic-block-size'] = "20%" should not set the property value
+Pass	e.style['contain-intrinsic-block-size'] = "1px auto" should not set the property value
+Pass	e.style['contain-intrinsic-block-size'] = "none auto" should not set the property value

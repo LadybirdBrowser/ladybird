@@ -1,0 +1,26 @@
+Harness status: OK
+
+Found 21 tests
+
+21 Pass
+Pass	Property contain-intrinsic-size value 'none'
+Pass	Property contain-intrinsic-size value '1px'
+Pass	Property contain-intrinsic-size value 'auto 1px'
+Pass	Property contain-intrinsic-size value 'auto 1px auto 1px'
+Pass	Property contain-intrinsic-size value '1px auto 1px'
+Pass	Property contain-intrinsic-size value '2vw 3px'
+Pass	Property contain-intrinsic-size value '2px 3vh'
+Pass	Property contain-intrinsic-size value '2px 3.3vh'
+Pass	Property contain-intrinsic-size value '5px 5px'
+Pass	Property contain-intrinsic-size value 'inherit'
+Pass	Property contain-intrinsic-width value 'none'
+Pass	Property contain-intrinsic-width value '1px'
+Pass	Property contain-intrinsic-width value 'auto 1px'
+Pass	Property contain-intrinsic-width value '2vw'
+Pass	Property contain-intrinsic-width value '3vh'
+Pass	Property contain-intrinsic-height value 'none'
+Pass	Property contain-intrinsic-height value '1px'
+Pass	Property contain-intrinsic-height value 'auto 1px'
+Pass	Property contain-intrinsic-height value '2vw'
+Pass	Property contain-intrinsic-height value '3vh'
+Pass	Property contain-intrinsic-height value 'auto none'

@@ -1,0 +1,31 @@
+initial values:
+  contain-intrinsic-width: none
+  contain-intrinsic-height: none
+  contain-intrinsic-block-size: none
+  contain-intrinsic-inline-size: none
+longhand parsing:
+  contain-intrinsic-width: none -> 'none'
+  contain-intrinsic-width: 100px -> '100px'
+  contain-intrinsic-width: auto 100px -> 'auto 100px'
+  contain-intrinsic-width: auto none -> 'auto none'
+  contain-intrinsic-width: from-element 100px -> 'none'
+  contain-intrinsic-width: from-element none -> 'none'
+  contain-intrinsic-width: from-element -> 'none'
+  contain-intrinsic-width: auto from-element 100px -> 'none'
+  contain-intrinsic-height: 10em -> '160px'
+  contain-intrinsic-width: -5px -> 'none'
+  contain-intrinsic-width: auto -> 'none'
+  contain-intrinsic-width: 50% -> 'none'
+  contain-intrinsic-width: calc(1em + 4px) -> '20px'
+  contain-intrinsic-width: calc(50%) -> 'none'
+  contain-intrinsic-height: auto calc(10px * 2) -> 'auto 20px'
+shorthand:
+  contain-intrinsic-size: 111px 222px -> width '111px', height '222px', shorthand '111px 222px'
+  contain-intrinsic-size: 111px -> width '111px', height '111px', shorthand '111px'
+  contain-intrinsic-size: auto 111px auto 222px -> width 'auto 111px', height 'auto 222px', shorthand 'auto 111px auto 222px'
+  contain-intrinsic-size: none none -> width 'none', height 'none', shorthand 'none'
+  contain-intrinsic-size: 1px none -> width '1px', height 'none', shorthand '1px none'
+  contain-intrinsic-size: none 1px -> width 'none', height '1px', shorthand 'none 1px'
+  contain-intrinsic-size: from-element 111px -> width 'none', height 'none', shorthand ''
+  contain-intrinsic-size: from-element 111px auto 222px -> width 'none', height 'none', shorthand ''
+  contain-intrinsic-size: calc(1em + 4px) 222px -> width '20px', height '222px', shorthand 'calc(1em + 4px) 222px'

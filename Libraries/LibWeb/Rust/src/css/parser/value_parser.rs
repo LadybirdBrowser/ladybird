@@ -1651,6 +1651,116 @@ fn parse_scroll_snap_type_property(values: &[ComponentValue]) -> ParseOutcome {
     }
 }
 
+// https://drafts.csswg.org/css-sizing-4/#propdef-contain-intrinsic-size
+fn parse_contain_intrinsic_size_shorthand(
+    context: &ParseContext,
+    property: u16,
+    values: &[ComponentValue],
+) -> ParseOutcome {
+    if property != property_id::CONTAIN_INTRINSIC_SIZE {
+        return ParseOutcome::NotHandled;
+    }
+    // [ auto? [ none | <length [0,∞]> ] ]{1,2}. A position can span two tokens, so the generic positional splitter
+    // can't be used: it parses each component value on its own, and a leading auto is invalid alone.
+    let non_whitespace = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
+    let mut positions: Vec<&[&ComponentValue]> = Vec::new();
+    let mut index = 0;
+    while index < non_whitespace.len() {
+        let leads_with_auto = parse_specific_keyword(non_whitespace[index], &[keyword::AUTO]).is_some();
+        let span = if leads_with_auto { 2 } else { 1 };
+        if index + span > non_whitespace.len() || positions.len() == 2 {
+            return ParseOutcome::Invalid;
+        }
+        positions.push(&non_whitespace[index..index + span]);
+        index += span;
+    }
+    if positions.is_empty() {
+        return ParseOutcome::Invalid;
+    }
+
+    let longhands = longhands_for_shorthand(property);
+    let mut parsed = Vec::with_capacity(positions.len());
+    for position in &positions {
+        let owned = position.iter().map(|value| (*value).clone()).collect::<Vec<_>>();
+        match parse_contain_intrinsic_size_property(context, longhands[0], &owned) {
+            ParseOutcome::Parsed(value) => parsed.push((*value).clone()),
+            ParseOutcome::Invalid | ParseOutcome::NotHandled => return ParseOutcome::Invalid,
+        }
+    }
+    let expanded = match parsed.as_slice() {
+        [only] => vec![only.clone(), only.clone()],
+        [width, height] => vec![width.clone(), height.clone()],
+        _ => return ParseOutcome::Invalid,
+    };
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::Shorthand {
+        shorthand_property: property,
+        sub_properties: RetainedPropertyIdList::from_property_ids(longhands.to_vec()),
+        values: RetainedStyleValueDataList::from_retained_values(
+            expanded.into_iter().map(RetainedStyleValueData::from_owned).collect(),
+        ),
+    }))
+}
+
+// https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override
+// FIXME: auto parses and computes here, but doesn't change layout yet: "If auto is specified and the element has a
+//        last remembered size and is currently skipping its contents, its explicit intrinsic inner size in the
+//        corresponding axis is the last remembered size in that axis." Nothing tracks a last remembered size yet.
+fn parse_contain_intrinsic_size_property(
+    context: &ParseContext,
+    property: u16,
+    values: &[ComponentValue],
+) -> ParseOutcome {
+    // auto? [ none | <length [0,∞]> ]
+    let non_whitespace = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
+    // Unlike aspect-ratio, the leading keyword only leads here.
+    let leading_keyword = non_whitespace
+        .first()
+        .and_then(|value| parse_specific_keyword(value, &[keyword::AUTO]));
+    let has_auto = leading_keyword.is_some();
+    let remainder = if has_auto {
+        &non_whitespace[1..]
+    } else {
+        non_whitespace.as_slice()
+    };
+    let [size_value] = remainder else {
+        return ParseOutcome::Invalid;
+    };
+    let size = if parse_specific_keyword(size_value, &[keyword::NONE]).is_some() {
+        StyleValueData::Keyword { keyword: keyword::NONE }
+    } else if let Some((name, arguments)) = size_value.function()
+        && math_function_from_name(name).is_some()
+    {
+        // The grammar is a plain <length>, not <length-percentage>, so a calc() with percentages stays invalid.
+        let Some(length) = parse_calculated_numeric_value_with_ranges(
+            context,
+            property,
+            VALUE_TYPE_LENGTH,
+            None,
+            NumericRange::NON_NEGATIVE,
+            name,
+            arguments,
+        ) else {
+            return ParseOutcome::Invalid;
+        };
+        length
+    } else if let Some(length) = parse_length_value(context, property, size_value, NumericRange::NON_NEGATIVE) {
+        length
+    } else {
+        return ParseOutcome::Invalid;
+    };
+    if !has_auto {
+        return ParseOutcome::Parsed(shared_style_value(size));
+    }
+    let Some(StyleValueData::Keyword { keyword: leading }) = leading_keyword else {
+        return ParseOutcome::Invalid;
+    };
+    ParseOutcome::Parsed(shared_style_value(value_list(
+        vec![StyleValueData::Keyword { keyword: leading }, size],
+        0,
+        true,
+    )))
+}
+
 fn parse_aspect_ratio_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
     let non_whitespace = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
     let auto_at_start = non_whitespace
@@ -5282,6 +5392,10 @@ fn parse_css_value_after_substitution_scan(
         if !matches!(outcome, ParseOutcome::NotHandled) {
             return outcome;
         }
+        let outcome = parse_contain_intrinsic_size_shorthand(context, property_id, values);
+        if !matches!(outcome, ParseOutcome::NotHandled) {
+            return outcome;
+        }
         let outcome = parse_positional_value_list_shorthand(context, property_id, values);
         if !matches!(outcome, ParseOutcome::NotHandled) {
             return outcome;
@@ -5385,6 +5499,15 @@ fn parse_css_value_after_substitution_scan(
     }
     if property_id == property_id::SCROLL_SNAP_TYPE {
         return parse_scroll_snap_type_property(values);
+    }
+    if matches!(
+        property_id,
+        property_id::CONTAIN_INTRINSIC_WIDTH
+            | property_id::CONTAIN_INTRINSIC_HEIGHT
+            | property_id::CONTAIN_INTRINSIC_BLOCK_SIZE
+            | property_id::CONTAIN_INTRINSIC_INLINE_SIZE
+    ) {
+        return parse_contain_intrinsic_size_property(context, property_id, values);
     }
     if property_id == property_id::ASPECT_RATIO {
         return parse_aspect_ratio_property(context, property_id, values);

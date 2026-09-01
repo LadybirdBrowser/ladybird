@@ -1,0 +1,51 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const style = getComputedStyle(target);
+        const properties = [
+            "contain-intrinsic-width",
+            "contain-intrinsic-height",
+            "contain-intrinsic-block-size",
+            "contain-intrinsic-inline-size",
+        ];
+
+        println("initial values:");
+        for (const property of properties)
+            println(`  ${property}: ${style.getPropertyValue(property)}`);
+
+        const cases = [
+            ["contain-intrinsic-width", "none"],
+            ["contain-intrinsic-width", "100px"],
+            ["contain-intrinsic-width", "auto 100px"],
+            ["contain-intrinsic-width", "auto none"],
+            // from-element left the spec in March 2026 (replaced by frame-sizing), so these four must not parse.
+            ["contain-intrinsic-width", "from-element 100px"],
+            ["contain-intrinsic-width", "from-element none"],
+            ["contain-intrinsic-width", "from-element"],
+            ["contain-intrinsic-width", "auto from-element 100px"],
+            ["contain-intrinsic-height", "10em"],
+            ["contain-intrinsic-width", "-5px"],
+            ["contain-intrinsic-width", "auto"],
+            ["contain-intrinsic-width", "50%"],
+            ["contain-intrinsic-width", "calc(1em + 4px)"],
+            ["contain-intrinsic-width", "calc(50%)"],
+            ["contain-intrinsic-height", "auto calc(10px * 2)"],
+        ];
+        println("longhand parsing:");
+        for (const [property, value] of cases) {
+            target.style.cssText = "";
+            target.style.setProperty(property, value);
+            println(`  ${property}: ${value} -> '${style.getPropertyValue(property)}'`);
+        }
+
+        println("shorthand:");
+        for (const value of ["111px 222px", "111px", "auto 111px auto 222px", "none none", "1px none", "none 1px", "from-element 111px", "from-element 111px auto 222px", "calc(1em + 4px) 222px"]) {
+            target.style.cssText = "";
+            target.style.setProperty("contain-intrinsic-size", value);
+            println(`  contain-intrinsic-size: ${value} -> width '${style.getPropertyValue("contain-intrinsic-width")}', height '${style.getPropertyValue("contain-intrinsic-height")}', shorthand '${target.style.getPropertyValue("contain-intrinsic-size")}'`);
+        }
+    });
+</script>

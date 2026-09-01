@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Intrinsic Size Test: intrinsic-size with invalid values</title>
+<link rel="author" title="Vladimir Levin" href="mailto:vmpstr@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override">
+<meta name="assert" content="contain-intrinsic-size supports the full grammar 'none | [auto || <length> | <length>]{1,2}'.">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("contain-intrinsic-size", "legacy");
+test_invalid_value("contain-intrinsic-size", "auto legacy");
+test_invalid_value("contain-intrinsic-size", "auto legacy auto");
+test_invalid_value("contain-intrinsic-size", "10%");
+test_invalid_value("contain-intrinsic-size", "2em 3px 5px");
+test_invalid_value("contain-intrinsic-size", "1px 1%");
+test_invalid_value("contain-intrinsic-size", "1px auto auto");
+test_invalid_value("contain-intrinsic-size", "-1px");
+test_invalid_value("contain-intrinsic-size", "auto");
+test_invalid_value("contain-intrinsic-size", "auto 1px 1px auto");
+test_invalid_value("contain-intrinsic-size", "1px 1px auto");
+
+test_invalid_value("contain-intrinsic-width", "legacy");
+test_invalid_value("contain-intrinsic-width", "-1px");
+test_invalid_value("contain-intrinsic-width", "1px 1px");
+test_invalid_value("contain-intrinsic-width", "1px none");
+test_invalid_value("contain-intrinsic-width", "auto 1px auto");
+test_invalid_value("contain-intrinsic-width", "20%");
+test_invalid_value("contain-intrinsic-width", "1px auto");
+
+test_invalid_value("contain-intrinsic-height", "legacy");
+test_invalid_value("contain-intrinsic-height", "-1px");
+test_invalid_value("contain-intrinsic-height", "1px 1px");
+test_invalid_value("contain-intrinsic-height", "1px none");
+test_invalid_value("contain-intrinsic-height", "auto 1px auto");
+test_invalid_value("contain-intrinsic-height", "20%");
+test_invalid_value("contain-intrinsic-height", "1px auto");
+
+test_invalid_value("contain-intrinsic-inline-size", "legacy");
+test_invalid_value("contain-intrinsic-inline-size", "-1px");
+test_invalid_value("contain-intrinsic-inline-size", "1px 1px");
+test_invalid_value("contain-intrinsic-inline-size", "1px none");
+test_invalid_value("contain-intrinsic-inline-size", "auto 1px auto");
+test_invalid_value("contain-intrinsic-inline-size", "20%");
+test_invalid_value("contain-intrinsic-inline-size", "1px auto");
+
+test_invalid_value("contain-intrinsic-block-size", "legacy");
+test_invalid_value("contain-intrinsic-block-size", "-1px");
+test_invalid_value("contain-intrinsic-block-size", "1px 1px");
+test_invalid_value("contain-intrinsic-block-size", "1px none");
+test_invalid_value("contain-intrinsic-block-size", "auto 1px auto");
+test_invalid_value("contain-intrinsic-block-size", "20%");
+test_invalid_value("contain-intrinsic-block-size", "1px auto");
+
+test_invalid_value("contain-intrinsic-block-size", "none auto");
+</script>
+</body>
+</html>
+
