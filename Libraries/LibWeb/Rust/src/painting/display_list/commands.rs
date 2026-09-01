@@ -700,8 +700,13 @@ impl DisplayListCommand for DrawGlyphRun {
 pub struct FillRect {
     pub rect: IntRect,
     pub color: Color,
+    pub compositing_and_blending_operator: CompositingAndBlendingOperator,
 }
-ffi_bytes_fields!(FillRect { rect, color });
+ffi_bytes_fields!(FillRect {
+    rect,
+    color,
+    compositing_and_blending_operator
+});
 
 impl DisplayListCommand for FillRect {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::FillRect;
@@ -793,6 +798,7 @@ pub struct DrawRepeatedDisplayList {
     pub clip_rect: IntRect,
     pub display_list_id: DisplayListResourceId,
     pub scaling_mode: ScalingMode,
+    pub compositing_and_blending_operator: CompositingAndBlendingOperator,
     pub repeat: Repeat,
 }
 ffi_bytes_fields!(DrawRepeatedDisplayList {
@@ -800,6 +806,7 @@ ffi_bytes_fields!(DrawRepeatedDisplayList {
     clip_rect,
     display_list_id,
     scaling_mode,
+    compositing_and_blending_operator,
     repeat
 });
 
@@ -914,6 +921,7 @@ pub struct PaintLinearGradient {
     pub first_stop_position: f32,
     pub repeat_length: f32,
     pub interpolation_method: GradientInterpolationMethod,
+    pub compositing_and_blending_operator: CompositingAndBlendingOperator,
 }
 ffi_bytes_fields!(PaintLinearGradient {
     gradient_rect,
@@ -921,7 +929,8 @@ ffi_bytes_fields!(PaintLinearGradient {
     color_stops,
     first_stop_position,
     repeat_length,
-    interpolation_method
+    interpolation_method,
+    compositing_and_blending_operator
 });
 
 impl DisplayListCommand for PaintLinearGradient {
@@ -1055,6 +1064,7 @@ pub struct FillPath {
     pub paint_style: DisplayListPaintStyle,
     pub winding_rule: WindingRule,
     pub should_anti_alias: ShouldAntiAlias,
+    pub compositing_and_blending_operator: CompositingAndBlendingOperator,
 }
 ffi_bytes_fields!(FillPath {
     path_bounding_rect,
@@ -1064,7 +1074,8 @@ ffi_bytes_fields!(FillPath {
     color,
     paint_style,
     winding_rule,
-    should_anti_alias
+    should_anti_alias,
+    compositing_and_blending_operator
 });
 
 impl DisplayListCommand for FillPath {
@@ -1202,13 +1213,15 @@ pub struct PaintRadialGradient {
     pub interpolation_method: GradientInterpolationMethod,
     pub center: IntPoint,
     pub size: IntSize,
+    pub compositing_and_blending_operator: CompositingAndBlendingOperator,
 }
 ffi_bytes_fields!(PaintRadialGradient {
     rect,
     color_stops,
     interpolation_method,
     center,
-    size
+    size,
+    compositing_and_blending_operator
 });
 
 impl DisplayListCommand for PaintRadialGradient {
@@ -1226,13 +1239,15 @@ pub struct PaintConicGradient {
     pub color_stops: DisplayListGradientColorStops,
     pub interpolation_method: GradientInterpolationMethod,
     pub position: IntPoint,
+    pub compositing_and_blending_operator: CompositingAndBlendingOperator,
 }
 ffi_bytes_fields!(PaintConicGradient {
     rect,
     start_angle,
     color_stops,
     interpolation_method,
-    position
+    position,
+    compositing_and_blending_operator
 });
 
 impl DisplayListCommand for PaintConicGradient {

@@ -528,6 +528,15 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
                 //     standalone surfaces and cannot read the destination, so they are not followed.
                 recurse_into_nested_display_list(command.display_list_id);
             }
+            if constexpr (requires { command.compositing_and_blending_operator; }) {
+                bool blends_with_isolated_backdrop_color = false;
+                if constexpr (requires { command.isolated_backdrop_color; })
+                    blends_with_isolated_backdrop_color = command.isolated_backdrop_color.has_value();
+                if (command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal
+                    && !blends_with_isolated_backdrop_color
+                    && !visual_context_tree.frame_is_isolated_by_layer_frame(header.context.frame))
+                    requires_direct_replay = true;
+            }
         });
     });
 

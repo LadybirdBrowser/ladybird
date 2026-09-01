@@ -101,7 +101,7 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_display_list(Web::Painting
 {
     ByteBuffer command_bytes;
     if (color.has_value()) {
-        auto command = Web::Painting::FillRect { { 0, 0, 4, 4 }, *color };
+        auto command = Web::Painting::FillRect { { 0, 0, 4, 4 }, *color, Gfx::CompositingAndBlendingOperator::Normal };
         append_display_list_command(command_bytes, command, command.rect, context);
     }
     return decode_display_list(visual_context_tree, move(command_bytes), surface_clear_color);
@@ -502,9 +502,9 @@ TEST_CASE(culled_initial_animation_content_becomes_visible)
     });
 
     ByteBuffer command_bytes;
-    auto opacity_command = Web::Painting::FillRect { { 0, 0, 4, 4 }, Gfx::Color::Red };
+    auto opacity_command = Web::Painting::FillRect { { 0, 0, 4, 4 }, Gfx::Color::Red, Gfx::CompositingAndBlendingOperator::Normal };
     append_display_list_command(command_bytes, opacity_command, opacity_command.rect, { opacity_spatial, opacity_frame });
-    auto scale_command = Web::Painting::FillRect { { 8, 0, 4, 4 }, Gfx::Color::Red };
+    auto scale_command = Web::Painting::FillRect { { 8, 0, 4, 4 }, Gfx::Color::Red, Gfx::CompositingAndBlendingOperator::Normal };
     append_display_list_command(command_bytes, scale_command, scale_command.rect, { scale_spatial, Web::Painting::NO_FRAME_NODE });
 
     Gfx::IntRect viewport_rect { 0, 0, 12, 4 };
@@ -775,7 +775,7 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_fills_display_list(Web::Pa
 {
     ByteBuffer command_bytes;
     for (auto const& fill : fills) {
-        Web::Painting::FillRect command { fill.rect, fill.color };
+        Web::Painting::FillRect command { fill.rect, fill.color, Gfx::CompositingAndBlendingOperator::Normal };
         append_display_list_command(command_bytes, command, fill.bounded ? Optional<Gfx::IntRect> { fill.rect } : Optional<Gfx::IntRect> {}, fill.context);
     }
     return decode_display_list(visual_context_tree, move(command_bytes), surface_clear_color, async_scrolling_metadata);
@@ -1217,9 +1217,9 @@ TEST_CASE(async_scroll_presents_report_the_damage_of_the_scrolled_content)
         },
         {},
         in_spatial_node(viewport_scroll_node_index.value()));
-    Web::Painting::FillRect nested_content { { 10, 10, 40, 10 }, Gfx::Color::Red };
+    Web::Painting::FillRect nested_content { { 10, 10, 40, 10 }, Gfx::Color::Red, Gfx::CompositingAndBlendingOperator::Normal };
     append_display_list_command(command_bytes, nested_content, nested_content.rect, in_spatial_node(nested_scroll_node_index.value()));
-    Web::Painting::FillRect viewport_content { { 60, 60, 10, 10 }, Gfx::Color::Green };
+    Web::Painting::FillRect viewport_content { { 60, 60, 10, 10 }, Gfx::Color::Green, Gfx::CompositingAndBlendingOperator::Normal };
     append_display_list_command(command_bytes, viewport_content, viewport_content.rect, in_spatial_node(viewport_scroll_node_index.value()));
     fixture.install(decode_display_list(visual_context_tree, move(command_bytes), {}, Web::Painting::DisplayList::AsyncScrollingMetadata { .viewport_rect = { 0, 0, 100, 100 } }), visual_context_tree);
     fixture.present();

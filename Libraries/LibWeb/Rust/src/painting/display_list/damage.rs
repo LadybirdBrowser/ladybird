@@ -672,7 +672,15 @@ mod tests {
     }
 
     fn fill_command_bytes(rect: IntRect, color: Color) -> Vec<u8> {
-        command_bytes(&FillRect { rect, color }, Some(rect), ContextRef::default())
+        command_bytes(
+            &FillRect {
+                rect,
+                color,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            },
+            Some(rect),
+            ContextRef::default(),
+        )
     }
 
     fn glyph_run_command_bytes(inline_padding: usize) -> Vec<u8> {
@@ -814,12 +822,20 @@ mod tests {
 
         let rect = IntRect::new(10, 10, 20, 20);
         let old_commands = command_bytes(
-            &FillRect { rect, color: RED },
+            &FillRect {
+                rect,
+                color: RED,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            },
             Some(rect),
             context_in(in_order_transform, FrameNodeIndex::NONE),
         );
         let new_commands = command_bytes(
-            &FillRect { rect, color: RED },
+            &FillRect {
+                rect,
+                color: RED,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            },
             Some(rect),
             context_in(permuted_transform, FrameNodeIndex::NONE),
         );
@@ -891,7 +907,11 @@ mod tests {
         let mut new_display_list = Vec::new();
         append_record(
             &mut new_display_list,
-            &FillRect { rect, color: RED },
+            &FillRect {
+                rect,
+                color: RED,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            },
             &[],
             Some(rect),
             ContextRef::default(),
@@ -947,6 +967,7 @@ mod tests {
             &FillRect {
                 rect: IntRect::new(0, 0, 10, 10),
                 color: RED,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
             },
             None,
             ContextRef::default(),
@@ -955,6 +976,7 @@ mod tests {
             &FillRect {
                 rect: IntRect::new(0, 0, 10, 10),
                 color: BLUE,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
             },
             None,
             ContextRef::default(),
@@ -1014,6 +1036,7 @@ mod tests {
             &FillRect {
                 rect: IntRect::new(10, 10, 20, 20),
                 color: RED,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
             },
             Some(IntRect::new(10, 10, 20, 20)),
             context_in(VISUAL_VIEWPORT_NODE_INDEX, old_mask_frame),
@@ -1042,6 +1065,7 @@ mod tests {
             &FillRect {
                 rect: IntRect::new(10, 10, 20, 20),
                 color: RED,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
             },
             Some(IntRect::new(10, 10, 20, 20)),
             context_in(VISUAL_VIEWPORT_NODE_INDEX, old_frame),
@@ -1050,6 +1074,7 @@ mod tests {
             &FillRect {
                 rect: IntRect::new(30, 30, 20, 20),
                 color: BLUE,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
             },
             Some(IntRect::new(30, 30, 20, 20)),
             context_in(VISUAL_VIEWPORT_NODE_INDEX, new_frame),
@@ -1077,6 +1102,7 @@ mod tests {
         let fill = FillRect {
             rect: IntRect::new(10, 10, 20, 20),
             color: RED,
+            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
         };
         let old_display_list = command_bytes(
             &fill,
@@ -1118,6 +1144,7 @@ mod tests {
         let fill = FillRect {
             rect: IntRect::new(10, 10, 20, 20),
             color: RED,
+            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
         };
         let old_display_list = command_bytes(
             &fill,

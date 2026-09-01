@@ -94,6 +94,8 @@ void DrawGlyphRun::dump(StringBuilder& builder) const
 void FillRect::dump(StringBuilder& builder) const
 {
     builder.appendff(" rect={} color={}", rect, color);
+    if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
+        builder.appendff(" blend_mode={}", static_cast<int>(compositing_and_blending_operator));
 }
 
 void PaintCaret::dump(StringBuilder& builder) const
@@ -124,6 +126,8 @@ void DrawRepeatedDecodedImageFrame::dump(StringBuilder& builder) const
 void DrawRepeatedDisplayList::dump(StringBuilder& builder) const
 {
     builder.appendff(" dst_rect={} clip_rect={} scaling_mode={}", dst_rect, clip_rect, scaling_mode_name(scaling_mode));
+    if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
+        builder.appendff(" blend_mode={}", static_cast<int>(compositing_and_blending_operator));
 }
 
 void DrawTiledDecodedImageFrame::dump(StringBuilder& builder) const
@@ -157,16 +161,22 @@ void DrawVideoFrame::dump(StringBuilder& builder) const
 void PaintLinearGradient::dump(StringBuilder& builder) const
 {
     builder.appendff(" rect={}", gradient_rect);
+    if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
+        builder.appendff(" blend_mode={}", static_cast<int>(compositing_and_blending_operator));
 }
 
 void PaintRadialGradient::dump(StringBuilder& builder) const
 {
     builder.appendff(" rect={} center={} size={}", rect, center, size);
+    if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
+        builder.appendff(" blend_mode={}", static_cast<int>(compositing_and_blending_operator));
 }
 
 void PaintConicGradient::dump(StringBuilder& builder) const
 {
     builder.appendff(" rect={} position={} angle={}", rect, position, start_angle);
+    if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
+        builder.appendff(" blend_mode={}", static_cast<int>(compositing_and_blending_operator));
 }
 
 void PaintOuterBoxShadow::dump(StringBuilder& builder) const
@@ -192,6 +202,8 @@ void FillRectWithRoundedCorners::dump(StringBuilder& builder) const
 void FillPath::dump(StringBuilder& builder) const
 {
     builder.appendff(" path_bounding_rect={}", path_bounding_rect);
+    if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
+        builder.appendff(" blend_mode={}", static_cast<int>(compositing_and_blending_operator));
 }
 
 void StrokePath::dump(StringBuilder& builder) const
