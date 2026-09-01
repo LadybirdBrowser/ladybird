@@ -2089,15 +2089,6 @@ pub(crate) fn font_family_is_monospace(value: &StyleValueData) -> bool {
         )
 }
 
-///
-/// # Safety
-/// `data` must point at a valid StyleValueData.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_font_family_is_monospace(data: *const c_void) -> bool {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| font_family_is_monospace(unsafe { &*data.cast::<StyleValueData>() }))
-}
-
 /// Computes a font-feature-settings or font-variation-settings value list:
 /// deduplicate by tag with the later occurrence taking precedence, then sort
 /// the survivors ascending by tag.
@@ -6604,11 +6595,6 @@ pub unsafe extern "C" fn rust_compute_font_weight(
         compute_font_weight(value, inherited_font_weight)
     })
 }
-
-// The exported computed-values FFI shares one header; keep an anchor so the
-// context types stay in the generated bindings even without other references.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_compute_context_anchor(_context: *const c_void) {}
 
 // The standalone cargo test binary has no C++ side, so release callbacks are
 // stubbed out here.

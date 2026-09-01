@@ -210,16 +210,6 @@ pub extern "C" fn rust_property_metadata_is_inherited(property_id: u16) -> bool 
     property_is_inherited(property_id)
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_property_metadata_requires_computation_level(property_id: u16) -> u8 {
-    property_requires_computation_level(property_id)
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_property_metadata_animation_type(property_id: u16) -> u8 {
-    property_animation_type(property_id)
-}
-
 /// # Safety
 /// `out_length` must be a valid pointer.
 #[unsafe(no_mangle)]
@@ -321,12 +311,6 @@ pub(crate) fn animation_property_is_preferred(a: u16, b: u16) -> bool {
     //    the CSS property to IDL attribute algorithm [CSSOM]) appears earlier when sorted in ascending order
     //    by the Unicode codepoints that make up each IDL name, override those who appear later.
     PROPERTY_IDL_NAMES[property_index(a)] < PROPERTY_IDL_NAMES[property_index(b)]
-}
-
-/// FFI accessor for the metadata parity test on the C++ side.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_animation_property_is_preferred(a: u16, b: u16) -> bool {
-    animation_property_is_preferred(a, b)
 }
 
 #[cfg(test)]

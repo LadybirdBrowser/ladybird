@@ -5906,26 +5906,6 @@ pub unsafe extern "C" fn rust_is_valid_animation_name_custom_ident(source: FfiUt
     })
 }
 
-/// Parses an entire CSS source as one known keyword, or returns `u16::MAX`.
-///
-/// # Safety
-/// All pointers must be valid for their accompanying lengths.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_css_keyword_from_source(source: FfiUtf16View) -> u16 {
-    crate::abort_on_panic(|| {
-        let Some(source) = (unsafe { source.units() }) else {
-            return u16::MAX;
-        };
-        let Ok(values) = component_values_from_source(source) else {
-            return u16::MAX;
-        };
-        single_non_whitespace_value(&values)
-            .and_then(ComponentValue::ident)
-            .and_then(keyword_from_ascii_case_insensitive)
-            .unwrap_or(u16::MAX)
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
