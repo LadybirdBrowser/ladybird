@@ -850,7 +850,6 @@ public:
     // boundary qualification depends on, so it clears the bit.
     class PartialRelayoutInvalidation {
     public:
-        void record_boundary(Layout::Box&);
         void record_escape(PartialRelayoutEscapeReason);
         void clear_escape(PartialRelayoutEscapeClearReason);
         [[nodiscard]] bool escapes() const { return m_escapes; }

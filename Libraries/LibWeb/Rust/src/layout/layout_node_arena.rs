@@ -518,6 +518,21 @@ impl LayoutNodeArena {
         }
     }
 
+    pub(crate) fn reset_cached_intrinsic_sizes(&self, node: NodeSlotId) {
+        let data = self.data(node);
+        // SAFETY: data() validated that node names a live slot, and layout
+        // serializes mutation on the arena's owner thread.
+        let bumped_epoch = unsafe {
+            let epoch = &raw mut (*data).intrinsic_cache_epoch;
+            let bumped = epoch.read().wrapping_add(1);
+            epoch.write(bumped);
+            bumped
+        };
+        if bumped_epoch == 0 {
+            self.drop_intrinsic_size_cache(data);
+        }
+    }
+
     pub(crate) fn fc_run_cache_store(&self) -> &super::fc_run_cache::FcRunCacheArenaStore {
         &self.fc_run_cache_store
     }
@@ -2150,11 +2165,6 @@ pub unsafe extern "C" fn layout_arena_free(arena: *mut c_void, id: NodeSlotId, g
             reset.invoke_callback();
         }
     });
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn layout_fc_run_cache_epochs_enabled() -> bool {
-    super::fc_run_cache::fc_run_cache_mode_from_environment() != super::fc_run_cache::FcRunCacheMode::Disabled
 }
 
 #[unsafe(no_mangle)]
