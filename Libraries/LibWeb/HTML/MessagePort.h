@@ -68,6 +68,7 @@ public:
     void start();
 
     void close();
+    void discard_pending_messages();
 
     void set_onmessageerror(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onmessageerror();
@@ -116,6 +117,7 @@ private:
 
     Vector<SerializedTransferRecord> m_pending_incoming_messages;
     Vector<SerializedTransferRecord> m_pending_outgoing_messages;
+    u64 m_message_task_generation { 0 };
     bool m_should_shutdown_on_enable { false };
     bool m_enabled { false };
 };

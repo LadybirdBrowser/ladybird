@@ -30,6 +30,8 @@ public:
     static WEB_API void did_report_worker_exception(WorkerAgentOwnerToken, Utf16String message, Utf16String filename, u32 lineno, u32 colno);
     static WEB_API void did_close_worker(WorkerAgentOwnerToken);
 
+    void terminate();
+
 protected:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
