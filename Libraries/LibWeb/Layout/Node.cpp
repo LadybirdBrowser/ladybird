@@ -174,12 +174,6 @@ Box* Node::containing_block()
     return static_cast<Box*>(tree_node_from_slot_if_live(m_data->containing_block));
 }
 
-static void invalidate_paint_caches(Node& node)
-{
-    if (Painting::has_committed_box(node))
-        Painting::invalidate_paint_cache(node);
-}
-
 void Node::pin_style_record_for_detachment()
 {
     if (auto* node_with_style = as_if<NodeWithStyle>(*this))
@@ -189,7 +183,7 @@ void Node::pin_style_record_for_detachment()
 void Node::prepare_for_detach_from_layout_tree()
 {
     pin_style_record_for_detachment();
-    invalidate_paint_caches(*this);
+    Painting::invalidate_paint_cache(*this);
     if (auto* node_with_style = as_if<NodeWithStyle>(*this))
         node_with_style->clear_image_observers();
     if (kind() == RustFFI::NodeKind::ImageBox)
@@ -1191,7 +1185,6 @@ bool NodeWithStyle::is_scroll_container() const
 
 void Node::clear_committed_box()
 {
-    invalidate_paint_caches(*this);
     RustFFI::layout_arena_paintable_cleared_from_node(arena_handle(), slot_id(this));
 }
 

@@ -303,6 +303,7 @@ pub unsafe extern "C" fn layout_arena_paintable_cleared_from_node(arena: *mut c_
     abort_on_panic(|| {
         let reset = {
             let arena = unsafe { arena_from_handle(arena) };
+            arena.invalidate_paint_cache(layout_node);
             arena.clear_committed_fragment_link(layout_node);
             arena.prepare_paintable_row_cleared_reset(layout_node)
         };
