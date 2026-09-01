@@ -4,27 +4,17 @@ AccumulatedVisualContext Tree:
       [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip_path=[bounds: 8,8 140x20, path: M8 8L8 8L28 28L128 28L148 8L148 8] (BlockContainer<DIV>)
-      [f2 in s1] clip_path=[bounds: 8,28 140x20, path: M8 28L8 28L28 48L128 48L148 28L148 28] (BlockContainer<DIV>.dotted)
-      [f4 in s1] clip_path=[bounds: 128,48 20x100, path: M148 48L148 48L128 68L128 128L148 148L148 148] (BlockContainer<DIV>.mixed-colors)
-      [f5 in s1] clip_path=[bounds: 8,128 140x20, path: M148 148L148 148L128 128L28 128L8 148L8 148] (BlockContainer<DIV>.mixed-colors)
-      [f6 in s1] clip_path=[bounds: 8,48 20x100, path: M8 148L8 148L28 128L28 68L8 48L8 48] (BlockContainer<DIV>.mixed-colors)
-      [f3 in s1] clip_path=[bounds: 8,48 140x20, path: M8 48L8 48L28 68L128 68L148 48L148 48] (BlockContainer<DIV>.mixed-colors)
-      [f8 in s1] clip_path=[bounds: 128,148 20x100, path: M148 148L148 148L128 168L128 228L148 248L148 248] (BlockContainer<DIV>.mixed-colors.dotted)
-      [f9 in s1] clip_path=[bounds: 8,228 140x20, path: M148 248L148 248L128 228L28 228L8 248L8 248] (BlockContainer<DIV>.mixed-colors.dotted)
-      [f10 in s1] clip_path=[bounds: 8,148 20x100, path: M8 248L8 248L28 228L28 168L8 148L8 148] (BlockContainer<DIV>.mixed-colors.dotted)
-      [f7 in s1] clip_path=[bounds: 8,148 140x20, path: M8 148L8 148L28 168L128 168L148 148L148 148] (BlockContainer<DIV>.mixed-colors.dotted)
 
 DisplayList:
-StrokePath@s1/f1 path_bounding_rect=[-2,8 160x20] thickness=20 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=17.50
-StrokePath@s1/f2 path_bounding_rect=[-2,28 160x20] thickness=20 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=17.50
-StrokePath@s1/f4 path_bounding_rect=[128,38 20x120] thickness=20 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=25.00
-StrokePath@s1/f5 path_bounding_rect=[-2,128 160x20] thickness=20 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=17.50
-StrokePath@s1/f6 path_bounding_rect=[8,38 20x120] thickness=20 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=25.00
-StrokePath@s1/f3 path_bounding_rect=[-2,48 160x20] thickness=20 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=17.50
-StrokePath@s1/f8 path_bounding_rect=[128,138 20x120] thickness=20 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=16.67
-StrokePath@s1/f9 path_bounding_rect=[-2,228 160x20] thickness=20 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=17.50
-StrokePath@s1/f10 path_bounding_rect=[8,138 20x120] thickness=20 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=16.67
-StrokePath@s1/f7 path_bounding_rect=[-2,148 160x20] thickness=20 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=17.50
+StrokePath@s1/f0 path_bounding_rect=[-2,8 160x20] thickness=20 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=17.50 inline_clips=[clip_path=[bounds: [8,8 140x20], path: M8 8L8 8L28 28L128 28L148 8L148 8]]
+StrokePath@s1/f0 path_bounding_rect=[-2,28 160x20] thickness=20 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=17.50 inline_clips=[clip_path=[bounds: [8,28 140x20], path: M8 28L8 28L28 48L128 48L148 28L148 28]]
+StrokePath@s1/f0 path_bounding_rect=[128,38 20x120] thickness=20 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=25.00 inline_clips=[clip_path=[bounds: [128,48 20x100], path: M148 48L148 48L128 68L128 128L148 148L148 148]]
+StrokePath@s1/f0 path_bounding_rect=[-2,128 160x20] thickness=20 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=17.50 inline_clips=[clip_path=[bounds: [8,128 140x20], path: M148 148L148 148L128 128L28 128L8 148L8 148]]
+StrokePath@s1/f0 path_bounding_rect=[8,38 20x120] thickness=20 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=25.00 inline_clips=[clip_path=[bounds: [8,48 20x100], path: M8 148L8 148L28 128L28 68L8 48L8 48]]
+StrokePath@s1/f0 path_bounding_rect=[-2,48 160x20] thickness=20 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=17.50 inline_clips=[clip_path=[bounds: [8,48 140x20], path: M8 48L8 48L28 68L128 68L148 48L148 48]]
+StrokePath@s1/f0 path_bounding_rect=[128,138 20x120] thickness=20 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=16.67 inline_clips=[clip_path=[bounds: [128,148 20x100], path: M148 148L148 148L128 168L128 228L148 248L148 248]]
+StrokePath@s1/f0 path_bounding_rect=[-2,228 160x20] thickness=20 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=17.50 inline_clips=[clip_path=[bounds: [8,228 140x20], path: M148 248L148 248L128 228L28 228L8 248L8 248]]
+StrokePath@s1/f0 path_bounding_rect=[8,138 20x120] thickness=20 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=16.67 inline_clips=[clip_path=[bounds: [8,148 20x100], path: M8 248L8 248L28 228L28 168L8 148L8 148]]
+StrokePath@s1/f0 path_bounding_rect=[-2,148 160x20] thickness=20 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=17.50 inline_clips=[clip_path=[bounds: [8,148 140x20], path: M8 148L8 148L28 168L128 168L148 148L148 148]]
 StrokePath@s1/f0 path_bounding_rect=[-2,248 120x20] thickness=20 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=25.00
 

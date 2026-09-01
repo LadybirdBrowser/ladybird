@@ -4,12 +4,10 @@ AccumulatedVisualContext Tree:
       [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip_path=[bounds: 8,8 10x80, path: M8 88L8 88L18 78L18 18L8 8L8 8] (BlockContainer<DIV>.last-edge-dashed)
-      [f2 in s1] clip_path=[bounds: 8,88 120x10, path: M8 88L8 88L18 98L118 98L128 88L128 88] (BlockContainer<DIV>.first-edge-dashed)
 
 DisplayList:
 FillPath@s1/f0 path_bounding_rect=[8,8 120x80]
-StrokePath@s1/f1 path_bounding_rect=[8,3 10x90] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=10.00
-StrokePath@s1/f2 path_bounding_rect=[3,88 130x10] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=10.00
+StrokePath@s1/f0 path_bounding_rect=[8,3 10x90] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=10.00 inline_clips=[clip_path=[bounds: [8,8 10x80], path: M8 88L8 88L18 78L18 18L8 8L8 8]]
+StrokePath@s1/f0 path_bounding_rect=[3,88 130x10] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=10.00 inline_clips=[clip_path=[bounds: [8,88 120x10], path: M8 88L8 88L18 98L118 98L128 88L128 88]]
 FillPath@s1/f0 path_bounding_rect=[8,88 120x80]
 

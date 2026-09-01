@@ -4,26 +4,18 @@ AccumulatedVisualContext Tree:
       [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f6 in s1] clip_path=[bounds: 112,96 16x64, curved path: 68 commands] (BlockContainer<DIV>.mixed-colors)
-      [f7 in s1] clip_path=[bounds: 16,152 104x17, curved path: 68 commands] (BlockContainer<DIV>.mixed-colors)
-      [f8 in s1] clip_path=[bounds: 7,96 17x64, curved path: 68 commands] (BlockContainer<DIV>.mixed-colors)
-      [f5 in s1] clip_path=[bounds: 16,88 104x16, curved path: 68 commands] (BlockContainer<DIV>.mixed-colors)
-      [f18 in s1] clip_path=[bounds: 112,336 16x64, curved path: 68 commands] (BlockContainer<DIV>.dotted.mixed-colors)
-      [f19 in s1] clip_path=[bounds: 16,392 104x16, curved path: 68 commands] (BlockContainer<DIV>.dotted.mixed-colors)
-      [f20 in s1] clip_path=[bounds: 7,336 17x64, curved path: 68 commands] (BlockContainer<DIV>.dotted.mixed-colors)
-      [f17 in s1] clip_path=[bounds: 16,328 104x16, curved path: 68 commands] (BlockContainer<DIV>.dotted.mixed-colors)
 
 DisplayList:
 StrokePath@s1/f0 path_bounding_rect=[8,8 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=29.63
-StrokePath@s1/f6 path_bounding_rect=[110.677666,95.322334 17.322334x65.35534] thickness=10 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=14.75
-StrokePath@s1/f7 path_bounding_rect=[15.322332,150.67767 105.35533x17.322327] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=12.38
-StrokePath@s1/f8 path_bounding_rect=[8,95.322334 17.322332x65.35534] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=14.75
-StrokePath@s1/f5 path_bounding_rect=[15.322332,87.99999 105.35533x17.322342] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=12.38
+StrokePath@s1/f0 path_bounding_rect=[110.677666,95.322334 17.322334x65.35534] thickness=10 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=14.75 inline_clips=[clip_path=[bounds: [112,96 16x64], curved path: 68 commands]]
+StrokePath@s1/f0 path_bounding_rect=[15.322332,150.67767 105.35533x17.322327] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=12.38 inline_clips=[clip_path=[bounds: [16,152 104x17], curved path: 68 commands]]
+StrokePath@s1/f0 path_bounding_rect=[8,95.322334 17.322332x65.35534] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=14.75 inline_clips=[clip_path=[bounds: [7,96 17x64], curved path: 68 commands]]
+StrokePath@s1/f0 path_bounding_rect=[15.322332,87.99999 105.35533x17.322342] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=12.38 inline_clips=[clip_path=[bounds: [16,88 104x16], curved path: 68 commands]]
 StrokePath@s1/f0 path_bounding_rect=[8,168 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=30.92
 StrokePath@s1/f0 path_bounding_rect=[8,248 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.88
-StrokePath@s1/f18 path_bounding_rect=[110.677666,335.32233 17.322334x65.35535] thickness=10 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=9.84
-StrokePath@s1/f19 path_bounding_rect=[15.322332,390.67767 105.35533x17.322327] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.90
-StrokePath@s1/f20 path_bounding_rect=[8,335.32233 17.322332x65.35535] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.84
-StrokePath@s1/f17 path_bounding_rect=[15.322332,327.99997 105.35533x17.322357] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.90
+StrokePath@s1/f0 path_bounding_rect=[110.677666,335.32233 17.322334x65.35535] thickness=10 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=9.84 inline_clips=[clip_path=[bounds: [112,336 16x64], curved path: 68 commands]]
+StrokePath@s1/f0 path_bounding_rect=[15.322332,390.67767 105.35533x17.322327] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.90 inline_clips=[clip_path=[bounds: [16,392 104x16], curved path: 68 commands]]
+StrokePath@s1/f0 path_bounding_rect=[8,335.32233 17.322332x65.35535] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.84 inline_clips=[clip_path=[bounds: [7,336 17x64], curved path: 68 commands]]
+StrokePath@s1/f0 path_bounding_rect=[15.322332,327.99997 105.35533x17.322357] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.90 inline_clips=[clip_path=[bounds: [16,328 104x16], curved path: 68 commands]]
 StrokePath@s1/f0 path_bounding_rect=[8,408 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=10.31
 
