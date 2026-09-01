@@ -192,10 +192,11 @@ public:
         Optional<Utf16String> navigation_id,
         NavigationParamsVariant navigation_params,
         ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type,
+        Bindings::NavigationTimingType navigation_timing_type,
         GC::Ref<PopulateSessionHistoryEntryDocumentOutput> output,
         GC::Ptr<GC::Function<void(GC::Ptr<PopulateSessionHistoryEntryDocumentOutput>)>> completion_steps);
 
-    void create_navigation_params_for_navigation(NavigationPopulationRequest, GC::Ref<SourceSnapshotParams>, NavigationParamsVariant);
+    void create_navigation_params_for_navigation(NavigationPopulationRequest, GC::Ref<SourceSnapshotParams>, NavigationParamsVariant, Bindings::NavigationTimingType);
 
     struct NavigateParams {
         URL::URL url;

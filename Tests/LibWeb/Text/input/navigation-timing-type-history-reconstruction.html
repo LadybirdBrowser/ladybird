@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const token = crypto.randomUUID();
+
+        const secondChildURL = await server.createEcho("GET", `/navigation-timing-type-history-child-second-${token}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `
+                <!DOCTYPE html>
+                <script>
+                    const entry = performance.getEntriesByType("navigation")[0];
+                    top.postMessage({ source: "second child", type: entry ? entry.type : "missing" }, "*");
+                    addEventListener("message", event => {
+                        if (event.data === "reload")
+                            location.reload();
+                    });
+                <\/script>
+            `,
+        });
+        const firstChildURL = await server.createEcho("GET", `/navigation-timing-type-history-child-first-${token}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `
+                <!DOCTYPE html>
+                <script>
+                    const entry = performance.getEntriesByType("navigation")[0];
+                    top.postMessage({ source: "first child", type: entry ? entry.type : "missing" }, "*");
+                    addEventListener("message", event => {
+                        if (event.data === "navigate")
+                            location.href = ${JSON.stringify(secondChildURL)};
+                    });
+                <\/script>
+            `,
+        });
+        const firstParentURL = await server.createEcho("GET", `/navigation-timing-type-history-parent-first-${token}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><iframe src=${JSON.stringify(firstChildURL)}></iframe>`,
+        });
+        const secondParentURL = await server.createEcho("GET", `/navigation-timing-type-history-parent-second-${token}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `
+                <!DOCTYPE html>
+                <script>
+                    top.postMessage({ source: "second parent" }, "*");
+                    addEventListener("message", event => {
+                        if (event.data === "back")
+                            history.back();
+                    });
+                <\/script>
+            `,
+        });
+
+        let state = "initial child";
+        addEventListener("message", event => {
+            if (state === "initial child" && event.data.source === "first child") {
+                println(`initial child navigation type: ${event.data.type}`);
+                state = "second child";
+                event.source.postMessage("navigate", "*");
+                return;
+            }
+
+            if (state === "second child" && event.data.source === "second child") {
+                println(`second child navigation type: ${event.data.type}`);
+                state = "second parent";
+                parentFrame.src = secondParentURL;
+                return;
+            }
+
+            if (state === "second parent" && event.data.source === "second parent") {
+                state = "reconstructed child";
+                event.source.postMessage("back", "*");
+                return;
+            }
+
+            if (state === "reconstructed child" && event.data.source === "second child") {
+                println(`reconstructed child navigation type: ${event.data.type}`);
+                state = "reloaded child";
+                event.source.postMessage("reload", "*");
+                return;
+            }
+
+            if (state === "reloaded child" && event.data.source === "second child") {
+                println(`reloaded child navigation type: ${event.data.type}`);
+                done();
+            }
+        });
+
+        const parentFrame = document.createElement("iframe");
+        parentFrame.src = firstParentURL;
+        document.body.appendChild(parentFrame);
+    });
+</script>

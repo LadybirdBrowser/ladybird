@@ -38,7 +38,7 @@ public:
 
     Utf16String const& name() const { return m_name; }
     HighResolutionTime::DOMHighResTimeStamp start_time() const { return m_start_time; }
-    HighResolutionTime::DOMHighResTimeStamp duration() const { return m_duration; }
+    virtual HighResolutionTime::DOMHighResTimeStamp duration() const { return m_duration; }
 
     // https://w3c.github.io/timing-entrytypes-registry/#dfn-should-add-entry
     virtual PerformanceTimeline::ShouldAddEntry should_add_entry(Optional<PerformanceObserverInit const&> = {}) const = 0;

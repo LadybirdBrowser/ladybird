@@ -127,6 +127,7 @@
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
+#include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/HTML/AttributeNames.h>
@@ -210,6 +211,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/NavigationTiming/PerformanceNavigationTiming.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
@@ -472,10 +474,20 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
 
     // 8. Let loadTimingInfo be a new document load timing info with its navigation start time set to navigationParams's response's timing info's start time.
     DOM::DocumentLoadTimingInfo load_timing_info;
-    // AD-HOC: The response object no longer has an associated timing info object. For now, we use response's non-standard response time property,
-    //         which represents the time that the time that the response object was created.
-    auto response_creation_time = navigation_params.response->monotonic_response_time().nanoseconds() / 1e6;
-    load_timing_info.navigation_start_time = HighResolutionTime::coarsen_time(response_creation_time, HTML::relevant_settings_object(*window).cross_origin_isolated_capability());
+    auto timing_info = Fetch::Infrastructure::FetchTimingInfo::create();
+    if (navigation_params.fetch_controller && navigation_params.fetch_controller->timing_info()) {
+        timing_info = *navigation_params.fetch_controller->timing_info();
+        load_timing_info.navigation_start_time = timing_info->start_time();
+    } else {
+        // AD-HOC: Non-fetch navigations do not have timing info, so use the time at which the response was created.
+        auto response_creation_time = navigation_params.response->monotonic_response_time().nanoseconds() / 1e6;
+        load_timing_info.navigation_start_time = HighResolutionTime::coarsen_time(response_creation_time, HTML::relevant_settings_object(*window).cross_origin_isolated_capability());
+        timing_info->set_start_time(load_timing_info.navigation_start_time);
+        timing_info->set_post_redirect_start_time(load_timing_info.navigation_start_time);
+        timing_info->set_final_network_request_start_time(load_timing_info.navigation_start_time);
+        timing_info->set_final_network_response_start_time(load_timing_info.navigation_start_time);
+        timing_info->set_end_time(load_timing_info.navigation_start_time);
+    }
 
     // 9. Let document be a new Document, with
     //    type: type
@@ -525,6 +537,26 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
 
     // 10. Set window's associated Document to document.
     window->set_associated_document(*document);
+
+    bool has_cross_origin_redirects = false;
+    if (!navigation_params.response->url_list().is_empty()) {
+        auto initial_origin = navigation_params.response->url_list().first().origin();
+        for (auto const& url : navigation_params.response->url_list()) {
+            if (!url.origin().is_same_origin(initial_origin)) {
+                has_cross_origin_redirects = true;
+                break;
+            }
+        }
+    }
+    auto redirect_count = navigation_params.request && !has_cross_origin_redirects ? navigation_params.request->redirect_count() : 0;
+    NavigationTiming::PerformanceNavigationTiming::create_navigation_timing_entry(
+        *document,
+        timing_info,
+        redirect_count,
+        navigation_params.navigation_timing_type,
+        navigation_params.response->cache_state(),
+        navigation_params.response->body_info(),
+        navigation_params.response->status());
 
     // 11. Set document's internal ancestor origin objects list to the result of running the internal ancestor origin
     //     objects list creation steps given document and navigationParams's iframe element referrer policy.
@@ -758,6 +790,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_history);
     visitor.visit(m_html_parser_end_state);
     visitor.visit(m_ongoing_navigation_fetch_controller);
+    visitor.visit(m_navigation_timing_entry);
     visitor.visit(m_style_computer);
     visitor.visit(m_font_computer);
     visitor.visit(m_browsing_context);

@@ -1,0 +1,13 @@
+entry count: 1
+constructor: PerformanceNavigationTiming
+name matches location: true
+entryType: navigation
+startTime: 0
+responseStart is non-negative: true
+type: navigate
+redirectCount: 0
+navigation is supported: true
+domInteractive is non-negative: true
+DOMContentLoaded timestamps are ordered: true
+load timestamps are ordered: true
+duration matches loadEventEnd: true

@@ -1,0 +1,2 @@
+cross-origin redirect count: 0
+same-origin redirect count: 1

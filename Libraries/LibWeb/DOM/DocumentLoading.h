@@ -20,7 +20,7 @@ bool can_load_document_with_type(MimeSniff::MimeType const&);
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-ua-inline
 template<typename MutateDocument>
-GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::LocalNavigable> navigable, Optional<Utf16String> navigation_id, HTML::UserNavigationInvolvement user_involvement, MutateDocument mutate_document)
+GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::LocalNavigable> navigable, Optional<Utf16String> navigation_id, Bindings::NavigationTimingType navigation_timing_type, HTML::UserNavigationInvolvement user_involvement, MutateDocument mutate_document)
 {
     VERIFY(navigable->active_document());
 
@@ -54,7 +54,7 @@ GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::LocalNav
     //    final sandboxing flag set: an empty set
     //    iframe element referrer policy: the empty string
     //    opener policy: coop
-    //    FIXME: navigation timing type: navTimingType
+    //    navigation timing type: navTimingType
     //    about base URL: null
     //    user involvement: userInvolvement
     auto response = Fetch::Infrastructure::Response::create();
@@ -74,6 +74,7 @@ GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::LocalNav
         HTML::SandboxingFlagSet {},
         ReferrerPolicy::ReferrerPolicy::EmptyString,
         move(coop),
+        navigation_timing_type,
         OptionalNone {},
         user_involvement);
 

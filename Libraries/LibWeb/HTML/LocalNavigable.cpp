@@ -145,6 +145,7 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
     GC::Ref<Fetch::Infrastructure::Request> request;
     GC::Ptr<LocalNavigable> navigable;
     ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type;
+    Bindings::NavigationTimingType navigation_timing_type { Bindings::NavigationTimingType::Navigate };
     TargetSnapshotParams target_snapshot_params;
     Optional<Utf16String> navigation_id;
 
@@ -1586,7 +1587,8 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
     GC::Ptr<LocalNavigable> navigable,
     TargetSnapshotParams const& target_snapshot_params,
     UserNavigationInvolvement user_involvement,
-    Optional<Utf16String> navigation_id)
+    Optional<Utf16String> navigation_id,
+    Bindings::NavigationTimingType navigation_timing_type)
 {
     auto& vm = navigable->vm();
     VERIFY(navigable->active_window());
@@ -1650,7 +1652,7 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
     //    final sandboxing flag set: targetSnapshotParams's sandboxing flags
     //    iframe element referrer policy: targetSnapshotParams's iframe element referrer policy
     //    opener policy: coop
-    //    FIXME: navigation timing type: navTimingType
+    //    navigation timing type: navTimingType
     //    about base URL: entry's document state's about base URL
     //    user involvement: userInvolvement
     return vm.heap().allocate<NavigationParams>(
@@ -1667,6 +1669,7 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
         target_snapshot_params.sandboxing_flags,
         target_snapshot_params.iframe_element_referrer_policy,
         move(coop),
+        navigation_timing_type,
         about_base_url,
         user_involvement);
 }
@@ -1912,6 +1915,7 @@ static void create_navigation_params_by_fetching(
     ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type,
     UserNavigationInvolvement user_involvement,
     Optional<Utf16String> navigation_id,
+    Bindings::NavigationTimingType navigation_timing_type,
     GC::Ref<GC::Function<void(GC::Ref<InternalNavigationResult>)>> completion_steps)
 {
     auto& vm = navigable->vm();
@@ -2079,6 +2083,7 @@ static void create_navigation_params_by_fetching(
         request_referrer, request_referrer_policy, move(origin), move(document_resource), ever_populated, move(navigable_target_name));
     state_holder->navigable = navigable;
     state_holder->csp_navigation_type = csp_navigation_type;
+    state_holder->navigation_timing_type = navigation_timing_type;
     state_holder->target_snapshot_params = target_snapshot_params;
     state_holder->navigation_id = move(navigation_id);
 
@@ -2097,7 +2102,7 @@ static void create_navigation_params_by_fetching(
             // - target snapshot sandboxing flags: targetSnapshotParams's sandboxing flags
             // - source snapshot has transient activation: sourceSnapshotParams's has transient activation
             // - initiator origin: responseOrigin
-            // FIXME: - navigation timing type: navTimingType
+            // - navigation timing type: navTimingType
             // - user involvement: userInvolvement
             result->navigation_params = realm.heap().allocate<NonFetchSchemeNavigationParams>(
                 state_holder->navigation_id,
@@ -2106,6 +2111,7 @@ static void create_navigation_params_by_fetching(
                 state_holder->target_snapshot_params.sandboxing_flags,
                 state_holder->source_snapshot_params->has_transient_activation,
                 *state_holder->response_origin,
+                state_holder->navigation_timing_type,
                 user_involvement);
             completion_steps->function()(*result);
             return;
@@ -2162,7 +2168,7 @@ static void create_navigation_params_by_fetching(
         //     policy container: resultPolicyContainer
         //     final sandboxing flag set: finalSandboxFlags
         //     COOP enforcement result: coopEnforcementResult
-        //     FIXME: navigation timing type: navTimingType
+        //     navigation timing type: navTimingType
         //     about base URL: entry's document state's about base URL
         //     user involvement: userInvolvement
         // FIXME: Value for iframe element referrer policy is missing in the spec. https://github.com/whatwg/html/issues/12567
@@ -2181,6 +2187,7 @@ static void create_navigation_params_by_fetching(
             state_holder->final_sandbox_flags,
             ReferrerPolicy::ReferrerPolicy::EmptyString,
             state_holder->response_coop,
+            state_holder->navigation_timing_type,
             state_holder->about_base_url,
             user_involvement);
         completion_steps->function()(*result);
@@ -2208,6 +2215,7 @@ static void create_navigation_params_for_population(
     Optional<Utf16String> navigation_id,
     LocalNavigable::NavigationParamsVariant navigation_params,
     ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type,
+    Bindings::NavigationTimingType navigation_timing_type,
     bool allow_POST,
     GC::Ref<NavigationParamsCreationCompletion> completion_steps)
 {
@@ -2229,7 +2237,7 @@ static void create_navigation_params_for_population(
                 origin,
                 history_policy_container,
                 about_base_url,
-                &navigable, target_snapshot_params, user_involvement, navigation_id));
+                &navigable, target_snapshot_params, user_involvement, navigation_id, navigation_timing_type));
         }
         // 2. Otherwise, if all of the following are true:
         //    - entry's URL's scheme is a fetch scheme; and
@@ -2257,6 +2265,7 @@ static void create_navigation_params_for_population(
                 csp_navigation_type,
                 user_involvement,
                 navigation_id,
+                navigation_timing_type,
                 completion_steps);
         }
         // 3. Otherwise, if entry's URL's scheme is not a fetch scheme, then set navigationParams to a new non-fetch
@@ -2268,7 +2277,7 @@ static void create_navigation_params_for_population(
             // - target snapshot sandboxing flags: targetSnapshotParams's sandboxing flags
             // - source snapshot has transient activation: sourceSnapshotParams's has transient activation
             // - initiator origin: entry's document state's initiator origin
-            // FIXME: - navigation timing type: navTimingType
+            // - navigation timing type: navTimingType
             // - user involvement: userInvolvement
             wrap_navigation_params(navigable.vm().heap().allocate<NonFetchSchemeNavigationParams>(
                 navigation_id,
@@ -2277,6 +2286,7 @@ static void create_navigation_params_for_population(
                 target_snapshot_params.sandboxing_flags,
                 source_snapshot_params->has_transient_activation,
                 *initiator_origin,
+                navigation_timing_type,
                 user_involvement));
         }
     } else {
@@ -2312,7 +2322,8 @@ void LocalNavigable::populate_session_history_entry_document(
         return;
     }
 
-    auto received_navigation_params = GC::create_function(heap(), [this, url, navigation_id, user_involvement, completion_steps, csp_navigation_type, source_snapshot_params](GC::Ref<InternalNavigationResult> result) {
+    auto navigation_timing_type = reload_pending ? Bindings::NavigationTimingType::Reload : Bindings::NavigationTimingType::BackForward;
+    auto received_navigation_params = GC::create_function(heap(), [this, url, navigation_id, navigation_timing_type, user_involvement, completion_steps, csp_navigation_type, source_snapshot_params](GC::Ref<InternalNavigationResult> result) {
         // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
         if (!active_window()) {
             stop_or_resume_response_body_delivery(result->navigation_params);
@@ -2335,6 +2346,7 @@ void LocalNavigable::populate_session_history_entry_document(
             navigation_id,
             move(result->navigation_params),
             csp_navigation_type,
+            navigation_timing_type,
             output,
             completion_steps);
     });
@@ -2358,6 +2370,7 @@ void LocalNavigable::populate_session_history_entry_document(
         move(navigation_id),
         move(navigation_params),
         csp_navigation_type,
+        navigation_timing_type,
         allow_POST,
         received_navigation_params);
 }
@@ -2370,6 +2383,7 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
     Optional<Utf16String> navigation_id,
     NavigationParamsVariant navigation_params,
     ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type,
+    Bindings::NavigationTimingType navigation_timing_type,
     GC::Ref<PopulateSessionHistoryEntryDocumentOutput> output,
     GC::Ptr<GC::Function<void(GC::Ptr<PopulateSessionHistoryEntryDocumentOutput>)>> completion_steps)
 {
@@ -2379,7 +2393,7 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
     }
 
     // 5. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these steps:
-    queue_global_task(Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window()), GC::create_function(heap(), [this, url, source_allows_downloading, source_interface_origin, user_involvement, navigation_id, navigation_params, csp_navigation_type, output, completion_steps]() mutable {
+    queue_global_task(Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window()), GC::create_function(heap(), [this, url, source_allows_downloading, source_interface_origin, user_involvement, navigation_id, navigation_params, csp_navigation_type, navigation_timing_type, output, completion_steps]() mutable {
         // 1. If navigable's ongoing navigation no longer equals navigationId, then run completionSteps and abort these steps.
         if (navigation_id.has_value() && ongoing_navigation() != navigation_id) {
             stop_or_resume_response_body_delivery(navigation_params);
@@ -2428,7 +2442,7 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
             //         any — rather than the URL it started at.
             auto error_url = output->redirected_url.value_or(url);
             auto error_html = load_error_page(error_url, error_message_utf8).release_value_but_fixme_should_propagate_errors();
-            output->document = create_document_for_inline_content(this, navigation_id, user_involvement, [this, error_html](auto& document) {
+            output->document = create_document_for_inline_content(this, navigation_id, navigation_timing_type, user_involvement, [this, error_html](auto& document) {
                 auto scripting_mode = document.is_scripting_enabled() ? HTML::ParserScriptingMode::Normal : HTML::ParserScriptingMode::Disabled;
                 auto parser = HTMLParser::create_from_byte_string(document, error_html, scripting_mode, "utf-8"sv);
                 document.set_url(URL::about_error());
@@ -2527,7 +2541,7 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
     }));
 }
 
-void LocalNavigable::create_navigation_params_for_navigation(NavigationPopulationRequest request, GC::Ref<SourceSnapshotParams> source_snapshot_params, NavigationParamsVariant navigation_params)
+void LocalNavigable::create_navigation_params_for_navigation(NavigationPopulationRequest request, GC::Ref<SourceSnapshotParams> source_snapshot_params, NavigationParamsVariant navigation_params, Bindings::NavigationTimingType navigation_timing_type)
 {
     auto navigation_id = request.navigation_id;
 
@@ -2589,6 +2603,7 @@ void LocalNavigable::create_navigation_params_for_navigation(NavigationPopulatio
         request.navigation_id,
         move(navigation_params),
         request.csp_navigation_type,
+        navigation_timing_type,
         true,
         received_navigation_params);
 }
@@ -2770,7 +2785,7 @@ void LocalNavigable::continue_navigation_after_population_dispatch(PreparedNavig
         //    final sandboxing flag set: finalSandboxFlags
         //    iframe element referrer policy: targetSnapshotParams's iframe element referrer policy
         //    opener policy: coop
-        //    FIXME: navigation timing type: "navigate"
+        //    navigation timing type: "navigate"
         //    about base URL: documentState's about base URL
         //    user involvement: userInvolvement
         navigation_params = heap().allocate<NavigationParams>(
@@ -2787,6 +2802,7 @@ void LocalNavigable::continue_navigation_after_population_dispatch(PreparedNavig
             final_sandbox_flags,
             population_request.target_snapshot_params.iframe_element_referrer_policy,
             response_coop,
+            Bindings::NavigationTimingType::Navigate,
             population_request.history_entry.document_state.about_base_url,
             params.user_involvement);
     }
@@ -2794,7 +2810,7 @@ void LocalNavigable::continue_navigation_after_population_dispatch(PreparedNavig
     // 9. Attempt to populate the history entry's document for historyEntry, given navigable, "navigate",
     //    sourceSnapshotParams, targetSnapshotParams, userInvolvement, navigationId, navigationParams,
     //    cspNavigationType, with allowPOST set to true and completionSteps set to the following step:
-    create_navigation_params_for_navigation(move(population_request), source_snapshot_params, move(navigation_params));
+    create_navigation_params_for_navigation(move(population_request), source_snapshot_params, move(navigation_params), Bindings::NavigationTimingType::Navigate);
 }
 
 // Continue the navigate algorithm at step 7 with the values snapshotted by steps 1-6 in navigate().
@@ -3109,7 +3125,9 @@ void LocalNavigable::request_population_for_reconstructed_history_entry(Navigati
     auto continue_steps = GC::create_function(heap(), [this, source_snapshot_params](Optional<PreparedNavigation> pending_navigation, Optional<NavigationPopulationRequest> population_request) mutable {
         VERIFY(!pending_navigation.has_value());
         VERIFY(population_request.has_value());
-        create_navigation_params_for_navigation(population_request.release_value(), source_snapshot_params, NullOrError {});
+        auto request = population_request.release_value();
+        auto navigation_timing_type = request.history_entry.document_state.reload_pending ? Bindings::NavigationTimingType::Reload : Bindings::NavigationTimingType::BackForward;
+        create_navigation_params_for_navigation(move(request), source_snapshot_params, NullOrError {}, navigation_timing_type);
     });
 
     park_navigation_for_population(navigation_id, {}, continue_steps);
@@ -3291,7 +3309,7 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
     //     final sandboxing flag set: finalSandboxFlags
     //     iframe element referrer policy: targetSnapshotParams's iframe element referrer policy
     //     opener policy: coop
-    //     FIXME: navigation timing type: "navigate"
+    //     navigation timing type: "navigate"
     //     about base URL: targetNavigable's active document's about base URL
     //     user involvement: userInvolvement
     auto navigation_params = vm.heap().allocate<NavigationParams>(
@@ -3308,6 +3326,7 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
         final_sandbox_flags,
         target_snapshot_params.iframe_element_referrer_policy,
         coop,
+        Bindings::NavigationTimingType::Navigate,
         active_document()->about_base_url(),
         user_involvement);
 

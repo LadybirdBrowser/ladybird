@@ -420,6 +420,7 @@ void LocalTraversableNavigable::continue_navigation_at_population(NavigationPopu
         request.navigation_id,
         move(navigation_params),
         request.csp_navigation_type,
+        Bindings::NavigationTimingType::Navigate,
         output,
         GC::create_function(navigable->heap(), [navigable, history_entry, history_handling = request.history_handling, navigation_id = request.navigation_id, user_involvement = request.user_involvement](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) mutable {
             if (output && output->download_handled) {
