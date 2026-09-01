@@ -85,13 +85,6 @@ fn expand_dirty_entries(
             bits.insert(VisualContextBoxDirtyKind::MovedWithDescendants);
         }
         work.entry(*slot).or_default().merge(bits);
-        if layout_arena.node_kind_if_live(*slot) == Some(NodeKind::LegendBox)
-            && let Some(fieldset) = paint_order::paint_parent(layout_arena, *slot)
-        {
-            work.entry(fieldset)
-                .or_default()
-                .insert(VisualContextBoxDirtyKind::RecommittedInPlace);
-        }
         let is_body = layout_arena.node_flags_if_live(*slot) & NodeFlag::IsBody as u32 != 0;
         if is_body
             && root_background_source.use_body_background_properties

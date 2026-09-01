@@ -4,20 +4,17 @@ AccumulatedVisualContext Tree:
       [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[10,15 780x43] (FieldSetBox<FIELDSET>)
-      [f2 in s1] clip=[10,15 780x2] (FieldSetBox<FIELDSET>)
-        [f3 in s1] clip=[24,15 57x2] mode=difference (FieldSetBox<FIELDSET>)
 
 DisplayList:
-FillRect@s1/f1 rect=[10,8 780x50] color=rgb(0, 0, 255)
+FillRect@s1/f0 rect=[10,8 780x50] color=rgb(0, 0, 255) inline_clips=[clip=[10,15 780x43]]
 FillPath@s1/f0 path_bounding_rect=[789,15 1x43]
 FillPath@s1/f0 path_bounding_rect=[788,14 1x43]
 FillPath@s1/f0 path_bounding_rect=[10,57 780x1]
 FillPath@s1/f0 path_bounding_rect=[11,56 778x1]
 FillPath@s1/f0 path_bounding_rect=[10,15 1x43]
 FillPath@s1/f0 path_bounding_rect=[11,14 1x43]
-FillPath@s1/f3 path_bounding_rect=[10,15 780x1]
-FillPath@s1/f3 path_bounding_rect=[9,16 782x1]
+FillPath@s1/f0 path_bounding_rect=[10,15 780x1] inline_clips=[clip=[10,15 780x2], clip=[24,15 57x2] mode=difference]
+FillPath@s1/f0 path_bounding_rect=[9,16 782x1] inline_clips=[clip=[10,15 780x2], clip=[24,15 57x2] mode=difference]
 DrawGlyphRun@s1/f0 rect=[26,8 54x16] translation=[26,20.796875] color=rgb(0, 0, 0)
 DrawGlyphRun@s1/f0 rect=[24,29 63x16] translation=[24,42.390625] color=rgb(0, 0, 0)
 
