@@ -1,0 +1,59 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    .row { display: flex; flex-wrap: wrap; width: 400px; }
+    .box { position: relative; width: 60px; height: 40px; margin: 2px; border: 1px solid #ccc; }
+    #outer { overflow: auto; }
+    #inner { overflow: auto; width: 40px; height: 20px; }
+    .tall { height: 200px; }
+</style>
+<div id="row" class="row"></div>
+<div id="second-row" class="row"></div>
+<script>
+    test(() => {
+        function fillRow(row, count) {
+            for (let i = 0; i < count; ++i) {
+                const box = document.createElement("div");
+                box.className = "box";
+                box.textContent = "B" + i;
+                row.appendChild(box);
+            }
+        }
+        const row = document.getElementById("row");
+        const secondRow = document.getElementById("second-row");
+        fillRow(row, 60);
+        fillRow(secondRow, 5);
+        const outer = row.children[5];
+        outer.id = "outer";
+        outer.innerHTML = '<div id="inner"><div class="tall"></div></div><div id="filler"></div>';
+        function scrollersNestedBelowAnotherScroller() {
+            const elementScrollers = internals.asyncScrollingState().scrollNodes.filter(node => !node.isViewport);
+            return elementScrollers.filter(node => elementScrollers.some(parent => parent.documentID === node.parentDocumentID && parent.scrollNodeIndex === node.parentScrollNodeIndex)).length;
+        }
+        internals.asyncScrollingState();
+        const nestedBeforeFlip = scrollersNestedBelowAnotherScroller();
+
+        row.children[30].style.color = "red";
+        internals.asyncScrollingState();
+        const visitedWithOneBoxWalked = internals.paintCacheCaptureSiteVisitCount();
+
+        document.getElementById("filler").className = "tall";
+        internals.asyncScrollingState();
+        const visitedWithOuterFlipped = internals.paintCacheCaptureSiteVisitCount();
+        const nestedAfterFlip = scrollersNestedBelowAnotherScroller();
+
+        const inserted = document.createElement("div");
+        inserted.className = "box";
+        inserted.style.overflow = "hidden";
+        inserted.innerHTML = '<div class="tall"></div>';
+        secondRow.children[2].after(inserted);
+        internals.asyncScrollingState();
+        const visitedWithScrollableBoxInserted = internals.paintCacheCaptureSiteVisitCount();
+
+        println(`inner reports no element scroller as its parent while outer does not scroll: ${nestedBeforeFlip === 0}`);
+        println(`inner reports outer as its parent once outer scrolls: ${nestedAfterFlip === 1}`);
+        println(`outer becoming scrollable visits about as many captures as a change inside one box: ${visitedWithOuterFlipped < visitedWithOneBoxWalked * 1.5}`);
+        println(`inserting a box with scrollable overflow visits about as many captures as a change inside one box: ${visitedWithScrollableBoxInserted < visitedWithOneBoxWalked * 1.5}`);
+    });
+</script>
