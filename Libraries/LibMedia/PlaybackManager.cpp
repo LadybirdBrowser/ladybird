@@ -165,6 +165,9 @@ PlaybackManager::PlaybackManager()
 
 PlaybackManager::~PlaybackManager()
 {
+    if (auto* playback_sink = m_audio_output.get_pointer<NonnullRefPtr<AudioPlaybackSink>>())
+        (*playback_sink)->set_audio_output_state_change_handler(nullptr);
+    set_audio_output_is_non_silent(false);
     m_clock->pause();
     if (auto* pull_output = m_audio_output.get_pointer<PullAudioOutput>()) {
         if (pull_output->is_connected && m_audio_time_stretch_processor) {
@@ -496,6 +499,10 @@ void PlaybackManager::ensure_audio_output_pipeline()
                 return;
             self->on_audio_sink_state_changed(status);
         }));
+    audio_sink->set_audio_output_state_change_handler([self](bool is_non_silent) {
+        if (self)
+            self->set_audio_output_is_non_silent(is_non_silent);
+    });
     MUST(audio_sink->connect_input(*m_audio_time_stretch_processor));
     audio_sink->set_volume(m_volume);
     m_audio_output = audio_sink;
@@ -523,8 +530,12 @@ void PlaybackManager::set_audio_pull_sink(NonnullRefPtr<AudioPullSink> sink, boo
         pull_output->sink->set_state_change_handler(nullptr);
     }
 
-    if (auto* playback_sink = m_audio_output.get_pointer<NonnullRefPtr<AudioPlaybackSink>>(); playback_sink && m_audio_time_stretch_processor)
-        (*playback_sink)->disconnect_input(*m_audio_time_stretch_processor);
+    if (auto* playback_sink = m_audio_output.get_pointer<NonnullRefPtr<AudioPlaybackSink>>()) {
+        (*playback_sink)->set_audio_output_state_change_handler(nullptr);
+        if (m_audio_time_stretch_processor)
+            (*playback_sink)->disconnect_input(*m_audio_time_stretch_processor);
+    }
+    set_audio_output_is_non_silent(false);
 
     sink->set_volume(m_volume);
     sink->set_state_change_handler([self = weak()](PipelineStatus status) {
@@ -555,6 +566,9 @@ void PlaybackManager::set_audio_pull_sink_ticking(bool ticking)
 
 void PlaybackManager::disable_audio()
 {
+    if (auto* playback_sink = m_audio_output.get_pointer<NonnullRefPtr<AudioPlaybackSink>>())
+        (*playback_sink)->set_audio_output_state_change_handler(nullptr);
+    set_audio_output_is_non_silent(false);
     if (m_audio_time_stretch_processor) {
         if (auto* playback_sink = m_audio_output.get_pointer<NonnullRefPtr<AudioPlaybackSink>>())
             (*playback_sink)->disconnect_input(*m_audio_time_stretch_processor);
@@ -570,6 +584,16 @@ void PlaybackManager::disable_audio()
     m_audio_time_stretch_processor = nullptr;
     set_clock(MUST(MonotonicMediaClock::try_create()));
     on_audio_sink_state_changed(PipelineStatus::EndOfStream);
+}
+
+void PlaybackManager::set_audio_output_is_non_silent(bool is_non_silent)
+{
+    if (m_audio_output_is_non_silent == is_non_silent)
+        return;
+
+    m_audio_output_is_non_silent = is_non_silent;
+    if (on_audio_output_state_change)
+        on_audio_output_state_change(is_non_silent);
 }
 
 void PlaybackManager::disable_audio_after_error(Error const& error)

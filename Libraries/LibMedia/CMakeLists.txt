@@ -2,6 +2,7 @@ include(audio)
 
 set(SOURCES
     Audio/AudioDevices.cpp
+    Audio/AudioOutputMonitor.cpp
     Audio/AudioRingBuffer.cpp
     Audio/NullPlaybackStream.cpp
     Audio/PlaybackStream.cpp

@@ -330,6 +330,7 @@ AudioOutputQueue::InterleavedSamples AudioOutputQueue::read_interleaved(Span<flo
         return { {}, channel_count };
 
     size_t samples_written = 0;
+    bool contains_non_silent_samples = false;
     while (samples_written < buffer.size() && m_block_count > 0) {
         auto const& head_block = m_blocks[m_block_head];
         auto channel_count = head_block.channel_count();
@@ -352,11 +353,12 @@ AudioOutputQueue::InterleavedSamples AudioOutputQueue::read_interleaved(Span<flo
         }
 
         auto offset_in_head_frames = static_cast<size_t>(m_next_frame_to_play - block_start_frame);
-        auto samples_to_copy = head_block.copy_to_interleaved(buffer.slice(samples_written), offset_in_head_frames);
-        samples_written += samples_to_copy;
-        m_next_frame_to_play += static_cast<i64>(samples_to_copy / channel_count);
+        auto copy = head_block.copy_to_interleaved(buffer.slice(samples_written), offset_in_head_frames);
+        samples_written += copy.sample_count;
+        contains_non_silent_samples |= copy.contains_non_silent_samples;
+        m_next_frame_to_play += static_cast<i64>(copy.sample_count / channel_count);
 
-        if ((offset_in_head_frames * channel_count) + samples_to_copy == head_block.sample_count()) {
+        if ((offset_in_head_frames * channel_count) + copy.sample_count == head_block.sample_count()) {
             m_block_head = (m_block_head + 1) % BLOCK_QUEUE_CAPACITY;
             m_block_count--;
         }
@@ -375,7 +377,7 @@ AudioOutputQueue::InterleavedSamples AudioOutputQueue::read_interleaved(Span<flo
         dispatch_state_if_changed(PipelineStatus::EndOfStream, m_seek_id);
 
     m_condition.broadcast();
-    return { buffer, channel_count };
+    return { buffer, channel_count, contains_non_silent_samples };
 }
 
 void AudioOutputQueue::dispatch_state_if_changed(PipelineStatus status, u32 seek_id)
