@@ -5295,7 +5295,15 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
         let mut depends_on_viewport_metrics = false;
         let mut font_metrics_depend_on_viewport_metrics = false;
         for indices in longhands_by_keyframe.values() {
-            let mut table = ComputedLonghandTable::copied_for_drive(underlying_longhand_table);
+            // The keyframe drive reads only the selected longhands and the coordination inputs
+            // seeded below. Starting from the underlying table would retain and release every
+            // unrelated longhand for every keyframe on every animation sample.
+            let mut table = ComputedLonghandTable::new();
+            // Background lists coordinate against the underlying background-image layer count
+            // when background-image is not selected by this keyframe.
+            if let Some(value) = underlying_longhand_table.get(property_id::BACKGROUND_IMAGE) {
+                table.set(property_id::BACKGROUND_IMAGE, value.clone_retained(), -1);
+            }
             let mut store = CascadedPropertyStore::new();
             for property_id in FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID {
                 if !is_required_driver_input(property_id) {
