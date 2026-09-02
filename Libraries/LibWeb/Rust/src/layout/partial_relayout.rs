@@ -577,7 +577,7 @@ mod tests {
     use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 
     fn allocate_box_with_a_dummy_shell(arena: &mut LayoutNodeArena) -> NodeAllocation {
-        let allocation = arena.allocate();
+        let allocation = arena.allocate_for_test();
         // SAFETY: allocate() returned this live slot's data pointer. The dummy shell
         // pointer is only ever compared against null, never dereferenced.
         unsafe {
@@ -594,7 +594,7 @@ mod tests {
     #[test]
     fn a_box_without_a_committed_row_or_splice_derivable_ancestors_is_not_a_boundary() {
         let mut arena = LayoutNodeArena::new();
-        let allocation = arena.allocate();
+        let allocation = arena.allocate_for_test();
         // SAFETY: allocate() returned this live slot's data pointer.
         unsafe {
             (*allocation.data).kind = NodeKind::Box;

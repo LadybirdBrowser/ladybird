@@ -23,9 +23,9 @@ NodeArena::~NodeArena()
     RustFFI::layout_arena_destroy(m_handle);
 }
 
-RustFFI::NodeAllocation NodeArena::allocate()
+RustFFI::NodeAllocation NodeArena::allocate(RustFFI::FfiNodeConstructionFacts const& construction_facts)
 {
-    auto allocation = RustFFI::layout_arena_allocate(m_handle);
+    auto allocation = RustFFI::layout_arena_allocate(m_handle, construction_facts);
     VERIFY(allocation.data);
     return allocation;
 }

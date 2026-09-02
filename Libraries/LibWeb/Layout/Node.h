@@ -60,7 +60,7 @@ enum class LayoutUpdatePropagation : u8 {
 
 class NodeArenaAllocation {
 protected:
-    explicit NodeArenaAllocation(DOM::Document&);
+    NodeArenaAllocation(DOM::Document&, RustFFI::FfiNodeConstructionFacts const&);
     ~NodeArenaAllocation();
 
     NonnullRefPtr<NodeArena> m_arena;
@@ -341,7 +341,7 @@ public:
     };
 
 protected:
-    Node(DOM::Document&, GC::Ptr<DOM::Node>, AttachToDOMNode = AttachToDOMNode::Yes);
+    Node(DOM::Document&, GC::Ptr<DOM::Node>, RustFFI::NodeKind, AttachToDOMNode = AttachToDOMNode::Yes);
 
     bool has_flag(RustFFI::NodeFlag flag) const
     {
@@ -384,7 +384,6 @@ private:
     }
 
 protected:
-    void set_node_kind(RustFFI::NodeKind);
     void enroll_for_arena_replaced_content_facts_sync_if_eligible();
 
 private:
@@ -392,8 +391,6 @@ private:
     // layout node is destroyed so detach hooks never observe a collected image provider or other element state.
     GC::Root<DOM::Node> m_dom_node;
     GC::Weak<DOM::Element> m_pseudo_element_generator;
-
-    bool m_enrolled_for_arena_replaced_content_facts_sync { false };
 };
 
 class WEB_API NodeWithStyle : public Node {

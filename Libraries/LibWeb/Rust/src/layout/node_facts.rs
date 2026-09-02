@@ -189,6 +189,28 @@ pub(crate) fn node_creates_block_formatting_context(
     parent_style.is_some_and(|parent| parent.display().is_flex_inside() || parent.display().is_grid_inside())
 }
 
+pub(crate) fn construction_flags(facts: &FfiNodeConstructionFacts) -> u32 {
+    let has_style = facts.kind != NodeKind::Node && !kind_is_text(facts.kind);
+    // Some native controls use a generic box so they can host their internal shadow tree, but
+    // remain replaced elements for CSS box generation and inline layout.
+    let is_replaced_element = kind_is_replaced_box(facts.kind) || facts.is_html_input_element;
+    [
+        (NodeFlag::Anonymous, facts.is_anonymous),
+        (NodeFlag::HasStyle, has_style),
+        (NodeFlag::IsReplacedElement, is_replaced_element),
+        (NodeFlag::IsHtmlInputElement, facts.is_html_input_element),
+        (NodeFlag::IsHtmlHtmlElement, facts.is_html_html_element),
+        (NodeFlag::IsDocumentElement, facts.is_document_element),
+        (NodeFlag::IsInUserAgentShadowTree, facts.is_in_user_agent_shadow_tree),
+        (NodeFlag::UsesButtonLayout, facts.uses_button_layout),
+        (NodeFlag::IsEditingHost, facts.is_editing_host),
+        (NodeFlag::IsBody, facts.is_body),
+    ]
+    .into_iter()
+    .filter(|(_, is_set)| *is_set)
+    .fold(0, |flags, (flag, _)| flags | flag as u32)
+}
+
 pub(crate) fn has_flag(data: &NodeData, flag: NodeFlag) -> bool {
     data.flags & flag as u32 != 0
 }

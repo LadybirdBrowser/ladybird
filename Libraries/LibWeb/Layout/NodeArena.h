@@ -31,7 +31,7 @@ public:
     NodeArena();
     ~NodeArena();
 
-    RustFFI::NodeAllocation allocate();
+    RustFFI::NodeAllocation allocate(RustFFI::FfiNodeConstructionFacts const&);
     void free(RustFFI::NodeSlotId);
     void* handle() const { return m_handle; }
     u64 formatting_context_run_cache_hit_count() const;

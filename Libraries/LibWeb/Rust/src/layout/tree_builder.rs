@@ -2417,12 +2417,6 @@ pub unsafe extern "C" fn layout_node_data_is_fragmented_inline(data: *const Node
     node_facts::node_is_fragmented_inline(data, node_facts::node_style_view(data))
 }
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_node_data_may_have_replaced_content_facts(data: *const NodeData) -> bool {
-    // SAFETY: The C++ caller passes the node's live arena slot.
-    node_facts::node_may_have_replaced_content_facts_including_size_containment(unsafe { &*data })
-}
-
 fn node_is_generated_for_pseudo_element(data: &NodeData) -> bool {
     data.generated_for != 0
 }

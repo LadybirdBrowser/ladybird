@@ -171,6 +171,21 @@ pub enum NodeFlag {
     IsDocumentElement = 1 << 30,
 }
 
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiNodeConstructionFacts {
+    pub kind: NodeKind,
+    pub shell: *mut c_void,
+    pub is_anonymous: bool,
+    pub is_html_input_element: bool,
+    pub is_html_html_element: bool,
+    pub is_document_element: bool,
+    pub is_in_user_agent_shadow_tree: bool,
+    pub uses_button_layout: bool,
+    pub is_editing_host: bool,
+    pub is_body: bool,
+}
+
 #[repr(C)]
 pub struct NodeData {
     pub parent: NodeSlotId,
