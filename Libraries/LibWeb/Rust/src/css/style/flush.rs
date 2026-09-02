@@ -43,6 +43,13 @@ impl StyleEngine {
         let initial_tree_was_bulk_loaded = self.initial_tree_bulk_load_is_pending && document_root_arrival_is_pending;
         let publish_document_root_arrival = document_root_arrival_is_pending;
 
+        // Whatever the last flush's late exact asks left in the flush-local workspace was measured
+        // in the previous topology. Every exact evaluation below reads current-side sibling
+        // geometry from it, so it starts empty here, before this transaction's tree is applied.
+        let stale_match_workspace_bytes = self.match_workspace.capacity_bytes();
+        self.match_workspace = MatchEvaluationWorkspace::default();
+        self.memory
+            .release(MemoryCategory::BatchScratch, stale_match_workspace_bytes);
         let mut transaction = self.drain_transaction();
         self.apply_staged_transaction(&mut transaction);
         if transaction.is_empty() {
