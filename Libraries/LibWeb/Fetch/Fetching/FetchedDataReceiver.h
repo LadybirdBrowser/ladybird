@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
+#include <AK/WeakPtr.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibGC/CellAllocator.h>
 #include <LibHTTP/Forward.h>
@@ -27,6 +28,7 @@ public:
 
     void set_response(GC::Ref<Fetch::Infrastructure::Response const> response) { m_response = response; }
     void set_body(GC::Ref<Fetch::Infrastructure::Body> body);
+    void set_network_request(RefPtr<Requests::Request> const& request) { m_network_request = request; }
 
     enum class NetworkState {
         Ongoing,
@@ -41,6 +43,8 @@ private:
 
     virtual void visit_edges(Visitor& visitor) override;
 
+    void queue_delivery_task(JS::Realm&);
+    void deliver_pending_bytes(JS::Realm&);
     void enqueue_into_stream(JS::Realm&, ReadonlyBytes);
     void close_stream(JS::Realm&);
 
@@ -62,6 +66,13 @@ private:
     bool m_cache_body_replaces_network_buffer { false };
 
     bool m_network_complete { false };
+
+    // Bytes read off the network but not yet handed to the stream. They are delivered by a queued networking task
+    // so that consumers see them interleaved with other tasks, and reading pauses while too many pile up.
+    WeakPtr<Requests::Request> m_network_request;
+    ByteBuffer m_pending_bytes;
+    bool m_delivery_task_queued { false };
+    bool m_paused_network_delivery { false };
 };
 
 }
