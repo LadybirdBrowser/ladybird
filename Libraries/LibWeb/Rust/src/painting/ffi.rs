@@ -22,7 +22,7 @@ use std::rc::Rc;
 
 /// SAFETY: `arena` must be a live handle from `layout_arena_create`, borrowed for this call on
 /// the document thread.
-unsafe fn arena_from_handle<'a>(arena: *mut c_void) -> &'a LayoutNodeArena {
+pub(crate) unsafe fn arena_from_handle<'a>(arena: *mut c_void) -> &'a LayoutNodeArena {
     unsafe { LayoutNodeArena::from_handle(arena) }
 }
 

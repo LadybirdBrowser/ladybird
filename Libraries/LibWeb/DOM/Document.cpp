@@ -10821,28 +10821,7 @@ Utf16String Document::dump_display_list()
         return "No display list"_utf16;
 
     auto visual_context_tree = paint_state().visual_context_tree(*this);
-
-    HashMap<Painting::SpatialNodeIndex, Layout::Node const*> spatial_node_owners;
-    HashMap<Painting::FrameNodeIndex, Layout::Node const*> frame_node_owners;
-    spatial_node_owners.set(Painting::VISUAL_VIEWPORT_NODE_INDEX, m_layout_root.ptr());
-    spatial_node_owners.set(Painting::own_scroll_node_index(*m_layout_root), m_layout_root.ptr());
-    m_layout_root->for_each_in_inclusive_subtree([&](Layout::Node const& layout_node) {
-        for (auto spatial : Painting::rust_owned_visual_context_node_indices(layout_node, Layout::RustFFI::FfiVisualContextBoxNodeList::SpatialNodes))
-            spatial_node_owners.set(Painting::SpatialNodeIndex { spatial }, &layout_node);
-        for (auto frame : Painting::rust_owned_visual_context_node_indices(layout_node, Layout::RustFFI::FfiVisualContextBoxNodeList::FrameNodes))
-            frame_node_owners.set(Painting::FrameNodeIndex { frame }, &layout_node);
-        return TraversalDecision::Continue;
-    });
-
-    auto owner_label = [](auto owner) -> Optional<String> {
-        if (!owner.has_value())
-            return {};
-        return (*owner)->debug_description();
-    };
-    return Painting::serialize_painting_dump(
-        visual_context_tree, *display_list, resource_storage,
-        [&](Painting::SpatialNodeIndex index) { return owner_label(spatial_node_owners.get(index)); },
-        [&](Painting::FrameNodeIndex index) { return owner_label(frame_node_owners.get(index)); });
+    return Painting::serialize_painting_dump(*this, visual_context_tree, *display_list, resource_storage);
 }
 
 Utf16String Document::dump_stacking_context_tree()

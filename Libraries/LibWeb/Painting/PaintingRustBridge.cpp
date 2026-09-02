@@ -654,32 +654,19 @@ void rust_invalidate_propagated_text_decoration_caches(Layout::Node const& node)
     Layout::RustFFI::layout_arena_paintable_invalidate_paint_cache(node.arena_handle(), committed_row_slot(node), true);
 }
 
-Utf16String serialize_painting_dump(
-    AccumulatedVisualContextTree const& visual_context_tree,
-    DisplayList const& display_list,
-    DisplayListResourceStorage const& resource_storage,
-    Function<Optional<String>(SpatialNodeIndex)> const& spatial_node_owner_label,
-    Function<Optional<String>(FrameNodeIndex)> const& frame_node_owner_label)
+Utf16String serialize_painting_dump(DOM::Document const& document, AccumulatedVisualContextTree const& visual_context_tree, DisplayList const& display_list, DisplayListResourceStorage const& resource_storage)
 {
     struct DumpContext {
         DisplayListResourceStorage const& resource_storage;
-        Function<Optional<String>(SpatialNodeIndex)> const& spatial_node_owner_label;
-        Function<Optional<String>(FrameNodeIndex)> const& frame_node_owner_label;
         Utf16String dump;
-    } context { resource_storage, spatial_node_owner_label, frame_node_owner_label, {} };
+    } context { resource_storage, {} };
 
     Layout::RustFFI::FfiPaintingDumpCallbacks callbacks {
         .context = &context,
-        .owner_label = [](void* context_pointer, bool is_frame, u32 index, void* label_sink) {
-            auto& context = *static_cast<DumpContext*>(context_pointer);
-            auto label = is_frame
-                ? context.frame_node_owner_label(FrameNodeIndex { index })
-                : context.spatial_node_owner_label(SpatialNodeIndex { index });
-            if (!label.has_value())
-                return false;
-            auto label_bytes = label->bytes();
-            Layout::RustFFI::layout_arena_paint_push_bytes(label_sink, label_bytes.data(), label_bytes.size());
-            return true; },
+        .debug_description = [](void*, void* layout_node_shell, void* description_sink) {
+            auto description = static_cast<Layout::Node const*>(layout_node_shell)->debug_description();
+            auto bytes = description.bytes();
+            Layout::RustFFI::layout_arena_paint_push_bytes(description_sink, bytes.data(), bytes.size()); },
         .command_bytes = [](void*, void const* display_list_pointer, size_t* byte_count) -> u8 const* {
             auto bytes = static_cast<DisplayList const*>(display_list_pointer)->command_bytes();
             *byte_count = bytes.size();
@@ -702,7 +689,7 @@ Utf16String serialize_painting_dump(
         .append_text = [](void* context_pointer, u8 const* bytes, size_t byte_count) { static_cast<DumpContext*>(context_pointer)->dump = Utf16String::from_utf8_without_validation(StringView { bytes, byte_count }); },
     };
     auto command_runs = display_list.command_runs();
-    Layout::RustFFI::painting_dump(visual_context_tree.rust_handle(), command_runs.data(), command_runs.size(), &display_list, callbacks);
+    Layout::RustFFI::painting_dump(layout_arena_handle(document), viewport_row_slot(document), visual_context_tree.rust_handle(), command_runs.data(), command_runs.size(), &display_list, callbacks);
     return move(context.dump);
 }
 
