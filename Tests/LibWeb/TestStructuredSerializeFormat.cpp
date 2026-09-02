@@ -681,9 +681,21 @@ TEST_CASE(serializable_encode_completeness)
 {
     // Every registry entry must have an encode golden.
     Array covered {
-        "Blob"sv, "File"sv, "FileList"sv, "DOMException"sv, "QuotaExceededError"sv,
-        "DOMMatrix"sv, "DOMMatrixReadOnly"sv, "DOMPoint"sv, "DOMPointReadOnly"sv,
-        "DOMRect"sv, "DOMRectReadOnly"sv, "DOMQuad"sv, "ImageData"sv, "ImageBitmap"sv, "CryptoKey"sv
+        "Blob"sv,
+        "CryptoKey"sv,
+        "DOMException"sv,
+        "DOMMatrix"sv,
+        "DOMMatrixReadOnly"sv,
+        "DOMPoint"sv,
+        "DOMPointReadOnly"sv,
+        "DOMQuad"sv,
+        "DOMRect"sv,
+        "DOMRectReadOnly"sv,
+        "File"sv,
+        "FileList"sv,
+        "ImageBitmap"sv,
+        "ImageData"sv,
+        "QuotaExceededError"sv,
     };
     auto is_covered = [&](StringView identifier) {
         for (auto candidate : covered) {

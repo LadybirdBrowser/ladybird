@@ -90,7 +90,7 @@ TEST_CASE(crypto_key_storage_record_round_trips)
         handle_bytes[i] = static_cast<u8>(i);
     ReadonlyBytes handle { handle_bytes.data(), handle_bytes.size() };
 
-    auto value = MUST(crypto_storage_deserialize(crypto_key_secret_record(handle, handle.size())));
+    auto value = MUST(principal_storage_deserialize(crypto_key_secret_record(handle, handle.size())));
     auto& key = unwrap_wrappable<Web::Crypto::CryptoKey>(value);
     EXPECT_EQ(key.type(), Web::Crypto::KeyType::Secret);
     EXPECT_EQ(key.extractable(), false);
@@ -541,7 +541,7 @@ TEST_CASE(crypto_key_algorithm_variants_decode_from_frozen_bytes)
 {
     for (auto const& golden : crypto_algorithm_goldens()) {
         auto record = crypto_key_full_record(golden.type, golden.usage, golden.algorithm, golden.handle);
-        auto value = MUST(crypto_storage_deserialize(record));
+        auto value = MUST(principal_storage_deserialize(record));
         auto& key = unwrap_wrappable<Web::Crypto::CryptoKey>(value);
 
         if (golden.tag == KeyAlgorithmTag::EcKeyAlgorithm) {
@@ -556,7 +556,7 @@ TEST_CASE(crypto_key_handle_variants_decode_from_frozen_bytes)
 {
     for (auto const& golden : crypto_handle_goldens()) {
         auto record = crypto_key_full_record(golden.type, golden.usage, golden.algorithm, golden.handle);
-        auto value = MUST(crypto_storage_deserialize(record));
+        auto value = MUST(principal_storage_deserialize(record));
         auto& key = unwrap_wrappable<Web::Crypto::CryptoKey>(value);
 
         switch (golden.tag) {
@@ -619,11 +619,11 @@ TEST_CASE(crypto_key_payload_version_rejects)
 {
     Array<u8, 8> handle_bytes {};
     ReadonlyBytes handle { handle_bytes.data(), handle_bytes.size() };
-    EXPECT(crypto_storage_deserialize(crypto_key_secret_record(handle, handle.size())).is_error() == false);
+    EXPECT(principal_storage_deserialize(crypto_key_secret_record(handle, handle.size())).is_error() == false);
 
-    EXPECT(crypto_storage_deserialize(serializable_storage_record("CryptoKey"sv, 0)).is_error());
-    EXPECT(crypto_storage_deserialize(serializable_storage_record("CryptoKey"sv, 255)).is_error());
-    EXPECT(crypto_storage_deserialize(serializable_storage_record("CryptoKey"sv, 0x10000)).is_error());
+    EXPECT(principal_storage_deserialize(serializable_storage_record("CryptoKey"sv, 0)).is_error());
+    EXPECT(principal_storage_deserialize(serializable_storage_record("CryptoKey"sv, 255)).is_error());
+    EXPECT(principal_storage_deserialize(serializable_storage_record("CryptoKey"sv, 0x10000)).is_error());
 }
 
 TEST_CASE(every_typed_array_constructor_decodes_from_frozen_bytes)
@@ -718,9 +718,21 @@ TEST_CASE(serializable_registry_completeness)
 {
     // Every registry entry must have a decode golden.
     Array covered {
-        "Blob"sv, "File"sv, "FileList"sv, "DOMException"sv, "QuotaExceededError"sv,
-        "DOMMatrix"sv, "DOMMatrixReadOnly"sv, "DOMPoint"sv, "DOMPointReadOnly"sv,
-        "DOMRect"sv, "DOMRectReadOnly"sv, "DOMQuad"sv, "ImageData"sv, "ImageBitmap"sv, "CryptoKey"sv
+        "Blob"sv,
+        "CryptoKey"sv,
+        "DOMException"sv,
+        "DOMMatrix"sv,
+        "DOMMatrixReadOnly"sv,
+        "DOMPoint"sv,
+        "DOMPointReadOnly"sv,
+        "DOMQuad"sv,
+        "DOMRect"sv,
+        "DOMRectReadOnly"sv,
+        "File"sv,
+        "FileList"sv,
+        "ImageBitmap"sv,
+        "ImageData"sv,
+        "QuotaExceededError"sv,
     };
     auto is_covered = [&](StringView identifier) {
         for (auto candidate : covered) {
