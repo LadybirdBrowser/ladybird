@@ -4129,13 +4129,23 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_animated_computed_value
 
     VERIFY(computation_context_cache_is_empty());
     ScopeGuard clear_computation_context_cache = [&] { clear_computation_context_caches(); };
-    auto const& computation_context = get_computation_context_for_property(PropertyID::Color, computed_properties, abstract_element);
-    ColorResolutionContext color_resolution_context {
-        .color_scheme = computation_context.color_scheme,
-        .current_color = InitialValues::color(),
-        .current_color_style_value_data = computed_properties.effective_property_data(PropertyID::Color),
-        .calculation_resolution_context = { .length_resolution_context = computation_context.length_resolution_context },
-    };
+    auto color_resolution_context = [&] {
+        if ((groups_to_apply & (1u << to_underlying(StyleGroupIndex::FontValues))) == 0) {
+            return ColorResolutionContext {
+                .color_scheme = previous_values.color_scheme(),
+                .current_color = InitialValues::color(),
+                .current_color_style_value_data = computed_properties.effective_property_data(PropertyID::Color),
+                .calculation_resolution_context = { .length_resolution_context = Length::ResolutionContext::for_element(abstract_element, previous_values) },
+            };
+        }
+        auto const& computation_context = get_computation_context_for_property(PropertyID::Color, computed_properties, abstract_element);
+        return ColorResolutionContext {
+            .color_scheme = computation_context.color_scheme,
+            .current_color = InitialValues::color(),
+            .current_color_style_value_data = computed_properties.effective_property_data(PropertyID::Color),
+            .calculation_resolution_context = { .length_resolution_context = computation_context.length_resolution_context },
+        };
+    }();
 
     auto base_values = ComputedValues::Builder { previous_values.base_values() }.build();
     auto animated_values = ComputedValues::create_over_base(computed_properties, document(), style_scope, move(color_resolution_context), *base_values, groups_to_apply);
