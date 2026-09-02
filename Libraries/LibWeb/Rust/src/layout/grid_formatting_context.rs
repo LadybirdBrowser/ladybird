@@ -2313,21 +2313,50 @@ impl GridFormattingContext {
         content
     }
 
+    fn item_contributes_to_track_sizing(&self, item: GridItem, axis: Axis) -> bool {
+        let available = self.axis_available(axis);
+        let tracks = self.axis_tracks(axis);
+        let start = item.position(axis).max(0) as usize;
+        let end = start.saturating_add(item.span(axis)).min(tracks.len());
+        if start >= end {
+            return false;
+        }
+        tracks[start..end].iter().any(|track| {
+            track.min_sizing.is_intrinsic(available)
+                || track.max_sizing.is_intrinsic(available)
+                || (track.max_sizing.flex_factor().is_some() && !matches!(available, AvailableSize::Definite(_)))
+        })
+    }
+
     fn item_contribution(&self, item: GridItem, axis: Axis, combined_track_count: usize) -> ItemContribution {
+        let spanned_tracks = Self::spanned_interleaved_indices(item, axis, combined_track_count);
+        let is_scroll_container = self.facts(item.box_).is_scroll_container();
+        if !self.item_contributes_to_track_sizing(item, axis) {
+            return ItemContribution {
+                spanned_tracks,
+                span: item.span(axis),
+                minimum: CssPixels::default(),
+                min_content: CssPixels::default(),
+                limited_min_content: CssPixels::default(),
+                max_content: CssPixels::default(),
+                limited_max_content: CssPixels::default(),
+                is_scroll_container,
+            };
+        }
         let minimum = self.minimum_contribution(item, axis);
         let min_content = self.min_content_contribution(item, axis);
         let max_content = self.max_content_contribution(item, axis);
         let limited_min = self.limited_content_contribution(min_content, minimum, item, axis);
         let limited_max = self.limited_content_contribution(max_content, minimum, item, axis);
         ItemContribution {
-            spanned_tracks: Self::spanned_interleaved_indices(item, axis, combined_track_count),
+            spanned_tracks,
             span: item.span(axis),
             minimum,
             min_content,
             limited_min_content: limited_min,
             max_content,
             limited_max_content: limited_max,
-            is_scroll_container: self.facts(item.box_).is_scroll_container(),
+            is_scroll_container,
         }
     }
 
