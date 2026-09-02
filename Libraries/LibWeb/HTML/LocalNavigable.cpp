@@ -1239,7 +1239,7 @@ void LocalNavigable::prepare_to_populate_reconstructed_history_entry(Utf16String
 LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View name, TokenizedFeature::NoOpener no_opener, ActivateTab activate_tab, Optional<TokenizedFeature::Map const&> window_features)
 {
     // 1. Let chosen be null.
-    GC::Ptr<LocalNavigable> chosen = nullptr;
+    GC::Ptr<Navigable> chosen;
 
     // 2. Let windowType be "existing or none".
     auto window_type = WindowType::ExistingOrNone;
@@ -1256,7 +1256,7 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
     //    set chosen to currentNavigable's parent, if any, and currentNavigable otherwise.
     else if (name.equals_ignoring_ascii_case(u"_parent"sv)) {
         if (auto parent = this->parent())
-            chosen = as<LocalNavigable>(*parent);
+            chosen = parent;
         else
             chosen = this;
     }
@@ -1331,7 +1331,7 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
             if (!name.equals_ignoring_ascii_case(u"_blank"sv))
                 target_name = Utf16String::from_utf16(name);
 
-            auto create_new_traversable_closure = [page = new_web_view.page, system_visibility_state = new_web_view.system_visibility_state, window_handle = move(new_web_view.window_handle), target_name](GC::Ptr<BrowsingContext> opener) -> GC::Ref<LocalNavigable> {
+            auto create_new_traversable_closure = [page = new_web_view.page, system_visibility_state = new_web_view.system_visibility_state, window_handle = move(new_web_view.window_handle), target_name](GC::Ptr<BrowsingContext> opener) -> GC::Ref<LocalTraversableNavigable> {
                 auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*page, opener, target_name, {}, system_visibility_state);
                 page->set_top_level_traversable(traversable);
                 traversable->set_window_handle(Utf16String::from_ascii_without_validation(window_handle.bytes()));
@@ -1359,13 +1359,13 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
                 // 2. If sandboxingFlagSet's sandboxed navigation browsing context flag is set,
                 //    then set chosen's active browsing context's one permitted sandboxed navigator to currentNavigable's active browsing context.
                 if (has_flag(sandboxing_flag_set, SandboxingFlagSet::SandboxedNavigation))
-                    chosen->active_browsing_context()->set_the_one_permitted_sandboxed_navigator(active_browsing_context().ptr());
+                    as<LocalNavigable>(*chosen).active_browsing_context()->set_the_one_permitted_sandboxed_navigator(active_browsing_context().ptr());
             }
 
             // 9. If sandboxingFlagSet's sandbox propagates to auxiliary browsing contexts flag is set,
             //     then all the flags that are set in sandboxingFlagSet must be set in chosen's active browsing context's popup sandboxing flag set.
             if (has_flag(sandboxing_flag_set, SandboxingFlagSet::SandboxPropagatesToAuxiliaryBrowsingContexts))
-                chosen->active_browsing_context()->set_popup_sandboxing_flag_set(chosen->active_browsing_context()->popup_sandboxing_flag_set() | sandboxing_flag_set);
+                as<LocalNavigable>(*chosen).active_browsing_context()->set_popup_sandboxing_flag_set(as<LocalNavigable>(*chosen).active_browsing_context()->popup_sandboxing_flag_set() | sandboxing_flag_set);
 
             // 10. Set chosen's is created by web content to true.
             as<LocalTraversableNavigable>(*chosen).set_is_created_by_web_content(true);
@@ -1384,11 +1384,11 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
     }
 
     // 9. Return chosen and windowType
-    return { chosen.ptr(), window_type };
+    return { chosen, window_type };
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#find-a-navigable-by-target-name
-GC::Ptr<LocalNavigable> LocalNavigable::find_a_navigable_by_target_name(Utf16View name)
+GC::Ptr<Navigable> LocalNavigable::find_a_navigable_by_target_name(Utf16View name)
 {
     // 1. Let currentDocument be currentNavigable's active document.
     auto& current_document = *active_document();

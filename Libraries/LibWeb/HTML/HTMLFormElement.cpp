@@ -304,7 +304,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
 
     // 25. If form document equals targetNavigable's active document, and form document has not yet completely loaded,
     //     then set historyHandling to "replace".
-    if (form_document == target_navigable->active_document() && !form_document->is_completely_loaded())
+    if (form_document == as<LocalNavigable>(*target_navigable).active_document() && !form_document->is_completely_loaded())
         history_handling = NavigationHistoryBehavior::Replace;
 
     // 25. Select the appropriate row in the table below based on scheme as given by the first cell of each row.

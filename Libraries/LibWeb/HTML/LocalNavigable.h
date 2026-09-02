@@ -134,13 +134,13 @@ public:
     [[nodiscard]] bool is_focused() const;
 
     struct ChosenNavigable {
-        GC::Ptr<LocalNavigable> navigable;
+        GC::Ptr<Navigable> navigable;
         WindowType window_type;
     };
 
     ChosenNavigable choose_a_navigable(Utf16View name, TokenizedFeature::NoOpener no_opener, ActivateTab = ActivateTab::Yes, Optional<TokenizedFeature::Map const&> window_features = {});
 
-    GC::Ptr<LocalNavigable> find_a_navigable_by_target_name(Utf16View name);
+    GC::Ptr<Navigable> find_a_navigable_by_target_name(Utf16View name);
 
     void handle_as_a_download(GC::Ref<Fetch::Infrastructure::Response>, URL::URL const& fallback_url, GC::Ptr<Fetch::Infrastructure::FetchController>, Optional<ByteString> proposed_filename, Optional<URL::Origin> interface_origin);
 
