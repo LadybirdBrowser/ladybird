@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	postMessaging to a dedicated worker allows them to instantiate
+Pass	postMessaging to a same-origin iframe allows them to instantiate
+Pass	postMessaging to a same-origin deeply-nested iframe allows them to instantiate
+Pass	postMessaging to a same-origin opened window allows them to instantiate

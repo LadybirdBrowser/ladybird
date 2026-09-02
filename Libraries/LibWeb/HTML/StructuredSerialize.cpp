@@ -137,6 +137,7 @@ static constexpr auto s_serializable_storage_registry = to_array<SerializableReg
     { Bindings::InterfaceName::FileList, "FileList"sv },
     { Bindings::InterfaceName::ImageBitmap, "ImageBitmap"sv },
     { Bindings::InterfaceName::ImageData, "ImageData"sv },
+    { Bindings::InterfaceName::Module, "Module"sv },
     { Bindings::InterfaceName::QuotaExceededError, "QuotaExceededError"sv },
 });
 

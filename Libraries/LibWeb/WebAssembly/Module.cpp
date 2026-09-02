@@ -10,6 +10,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/Module.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebAssembly/Module.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -18,6 +19,11 @@
 namespace Web::WebAssembly {
 
 GC_DEFINE_ALLOCATOR(Module);
+
+GC::Ref<Module> Module::create()
+{
+    return GC::Heap::the().allocate<Module>();
+}
 
 WebIDL::ExceptionOr<GC::Ref<Module>> Module::create(JS::Realm& realm, WebIDL::BufferSource bytes)
 {
@@ -31,7 +37,13 @@ WebIDL::ExceptionOr<GC::Ref<Module>> Module::create(JS::Realm& realm, WebIDL::Bu
     auto stable_bytes = stable_bytes_or_error.release_value();
 
     auto compiled_module = TRY(Detail::compile_a_webassembly_module(realm, stable_bytes));
-    return GC::Heap::the().allocate<Module>(move(compiled_module));
+    return GC::Heap::the().allocate<Module>(move(compiled_module), move(stable_bytes));
+}
+
+Module::Module(NonnullRefPtr<Detail::CompiledWebAssemblyModule> compiled_module, ByteBuffer bytes)
+    : m_compiled_module(move(compiled_module))
+    , m_bytes(move(bytes))
+{
 }
 
 // https://webassembly.github.io/threads/js-api/index.html#dom-module-imports
@@ -140,9 +152,36 @@ WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::ArrayBuffer>>> Module::custom_sec
     return array_buffers;
 }
 
-Module::Module(NonnullRefPtr<Detail::CompiledWebAssemblyModule> compiled_module)
-    : m_compiled_module(move(compiled_module))
+// https://webassembly.github.io/spec/web-api/#ref-for-serialization-steps
+WebIDL::ExceptionOr<void> Module::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool for_storage, HTML::SerializationMemory&)
 {
+    // 1. If forStorage is true, throw a "DataCloneError" DOMException.
+    if (for_storage)
+        return WebIDL::DataCloneError::create("WebAssembly Module instances may not be serialized for storage"_utf16);
+
+    // 2. Set serialized.[[Bytes]] to the sub-serialization of value.[[Bytes]].
+    serialized.encode(m_bytes);
+
+    // FIXME: 3. Set serialized.[[AgentCluster]] to the current Realm’s corresponding agent cluster.
+
+    return {};
+}
+
+// https://webassembly.github.io/spec/web-api/#ref-for-deserialization-steps
+WebIDL::ExceptionOr<void> Module::deserialization_steps(JS::Realm& realm, HTML::StructuredSerializeReader& serialized, HTML::DeserializationMemory&)
+{
+    // 1. Let bytes be the sub-deserialization of serialized.[[Bytes]].
+    auto bytes = TRY(HTML::decode_or_throw_data_clone_error<ByteBuffer>(realm, serialized));
+
+    // 2. Set value.[[Bytes]] to bytes.
+    m_bytes = move(bytes);
+
+    // FIXME: 3. If targetRealm’s corresponding agent cluster is not serialized.[[AgentCluster]], then throw a "DataCloneError" DOMException.
+
+    // 4. Compile a WebAssembly module from bytes and set value.[[Module]] to the result.
+    m_compiled_module = TRY(Detail::compile_a_webassembly_module(realm, m_bytes));
+
+    return {};
 }
 
 }

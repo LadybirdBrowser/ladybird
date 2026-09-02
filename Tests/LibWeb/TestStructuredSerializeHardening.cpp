@@ -33,6 +33,7 @@ TEST_CASE(storage_reader_rejects_unknown_and_reserved_serializable_versions)
         "FileList"sv,
         "ImageBitmap"sv,
         "ImageData"sv,
+        "Module"sv,
         "QuotaExceededError"sv,
     };
 
