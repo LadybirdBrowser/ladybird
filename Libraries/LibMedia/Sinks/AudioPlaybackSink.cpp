@@ -83,7 +83,7 @@ void AudioPlaybackSink::create_playback_stream()
         self->m_output_queue->set_data_available_handler([stream = stream.ptr()] {
             stream->notify_data_available();
         });
-        self->set_volume(self->m_volume);
+        self->update_volume();
         self->m_output_queue->start();
 
         if (self->m_seek_target_awaiting_drain.has_value()) {
@@ -241,10 +241,22 @@ void AudioPlaybackSink::seek(AK::Duration time)
 void AudioPlaybackSink::set_volume(double volume)
 {
     m_volume = volume;
-    m_audio_output_monitor->set_muted(volume == 0.0);
+    update_volume();
+}
+
+void AudioPlaybackSink::set_muted(bool muted)
+{
+    m_muted = muted;
+    update_volume();
+}
+
+void AudioPlaybackSink::update_volume()
+{
+    auto effective_volume = m_muted ? 0.0 : m_volume;
+    m_audio_output_monitor->set_muted(effective_volume == 0.0);
 
     if (m_playback_stream) {
-        m_playback_stream->set_volume(m_volume)
+        m_playback_stream->set_volume(effective_volume)
             ->when_rejected([](Error&&) {
                 // FIXME: Do we even need this function to return a promise?
             });

@@ -775,7 +775,6 @@ void HTMLMediaElement::volume_or_muted_attribute_changed()
 void HTMLMediaElement::page_mute_state_changed(Badge<Page>)
 {
     update_volume();
-    update_audio_play_state();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#effective-media-volume
@@ -783,8 +782,7 @@ double HTMLMediaElement::effective_media_volume() const
 {
     // 1. If the user has indicated that the user agent is to override the volume of the element, then return the
     //    volume desired by the user.
-    if (document().page().page_mute_state() == MuteState::Muted)
-        return 0.0;
+    // NOTE: Page muting is applied to the final audio output, rather than overriding the volume of the element.
 
     // 2. If the element's audio output is muted, then return zero.
     if (m_muted)
@@ -802,8 +800,11 @@ double HTMLMediaElement::effective_media_volume() const
 
 void HTMLMediaElement::update_volume()
 {
-    if (m_playback_manager)
-        m_playback_manager->set_volume(effective_media_volume());
+    if (!m_playback_manager)
+        return;
+
+    m_playback_manager->set_volume(effective_media_volume());
+    m_playback_manager->set_audio_output_muted(document().page().page_mute_state() == MuteState::Muted);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-addtexttrack
