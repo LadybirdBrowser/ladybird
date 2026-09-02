@@ -53,6 +53,10 @@ private:
     void* m_engine_query { nullptr };
     bool m_can_match_in_dom { false };
 
+    // Whether the selector is a lone `*`, which every element matches: a query then collects the
+    // subtree's elements without matching any of them.
+    bool m_matches_every_element { false };
+
     // Whether matching can only change when the document's dom_tree_version (plus character_data_version, see below)
     // changes. Queries with selectors that depend on other state (:hover, :checked, :target, etc) are not cacheable.
     bool m_is_result_cacheable { false };

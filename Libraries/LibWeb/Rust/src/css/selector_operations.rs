@@ -206,6 +206,36 @@ pub unsafe extern "C" fn rust_selector_supports_simple_dom_matching(selector: *c
     }
 }
 
+/// Whether a selector is a lone universal selector, which every element matches. A query API has
+/// no default namespace, so `*` and `*|*` name the same elements there.
+fn matches_every_element(selector: &CompiledSelector) -> bool {
+    let [compound] = selector.compound_selectors.as_ref() else {
+        return false;
+    };
+    let [SimpleSelector::Universal(name)] = compound.simple_selectors.as_ref() else {
+        return false;
+    };
+    matches!(
+        name.namespace_type,
+        super::selector::NamespaceType::Any | super::selector::NamespaceType::Default
+    )
+}
+
+/// Returns whether every element matches the selector, so that a query over a subtree can collect
+/// its elements without matching any of them.
+///
+/// # Safety
+/// `selector` must point to a live `RustSelector`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_selector_matches_every_element(selector: *const RustSelector) -> bool {
+    unsafe {
+        crate::abort_on_panic(|| {
+            assert!(!selector.is_null());
+            matches_every_element((*selector).compiled())
+        })
+    }
+}
+
 unsafe fn replacement(
     use_parent_selectors: bool,
     parent_selectors: *const *const RustSelector,
