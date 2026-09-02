@@ -1764,6 +1764,10 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
                 paint_state.recorded_wheel_event_listener_state_generation =
                     Some(inputs.wheel_event_listener_state_generation);
             }
+            if paint_state.recorded_canvas_color != Some(inputs.canvas_color) {
+                arena.mark_all_paint_caches_dirty();
+                paint_state.recorded_canvas_color = Some(inputs.canvas_color);
+            }
         }
         let mut output = {
             let paint_state = arena.paint_state().borrow();
