@@ -470,7 +470,7 @@ impl LayoutNodeArena {
     pub(crate) fn schedule_scrollable_overflow_recalculation(&self, node: NodeSlotId) {
         // SAFETY: The caller supplies a live slot; data() generation-checks every slot the
         // containing-block walk visits.
-        let node_kind = unsafe { (&raw const (*self.data(node)).kind).read() };
+        let node_kind = self.data(node).kind.get();
         if crate::layout::node_facts::kind_is_box(node_kind) {
             let paintable_rows = self.paintable_rows();
             let mut containing_box = node;
@@ -479,7 +479,7 @@ impl LayoutNodeArena {
                     paintable_rows.clear_cached_overflow_data(containing_box);
                 }
                 // SAFETY: As above.
-                let next = unsafe { (&raw const (*self.data(containing_box)).containing_block).read() };
+                let next = self.data(containing_box).containing_block.get();
                 if next.is_invalid() || !self.slot_is_live(next) {
                     break;
                 }

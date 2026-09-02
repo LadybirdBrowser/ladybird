@@ -70,8 +70,8 @@ impl<'a> PaintableCommit<'a> {
             let data = self.callbacks.node_data(node);
             (
                 (has_used_values || (facts.is_fragmented_inline() && facts.has_dom_node()))
-                    && node_painting::has_paintable(data.kind),
-                data.kind,
+                    && node_painting::has_paintable(data.kind.get()),
+                data.kind.get(),
             )
         };
         let row_existed_before_this_commit = self.arena().paintable_rows().paintable_row_is_populated(node);
@@ -344,7 +344,7 @@ impl<'a> PaintableCommit<'a> {
         has_trailing_whitespace: bool,
     ) -> (usize, usize, usize, usize) {
         let data = self.callbacks.node_data(layout_node);
-        if !node_facts::kind_is_text(data.kind) {
+        if !node_facts::kind_is_text(data.kind.get()) {
             return (
                 start_offset,
                 start_offset + length_in_code_units,
@@ -396,7 +396,7 @@ impl<'a> PaintableCommit<'a> {
     }
 
     pub(crate) fn stamp_containing_block(&mut self, node: formatting_context::Node) {
-        let containing_block = self.callbacks.node_data(node).containing_block;
+        let containing_block = self.callbacks.node_data(node).containing_block.get();
         let arena = self.arena_mut();
         let mut paintable_rows = arena.paintable_rows_mut();
         if !paintable_rows.paintable_row_is_populated(node) {

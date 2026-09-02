@@ -670,7 +670,7 @@ fn matching_children<T: TableTree>(tree: &T, parent: Node, predicate: impl Fn(Ff
     let mut result = Vec::new();
     let mut child = tree.first_child(parent);
     while !child.is_invalid() {
-        if node_facts::kind_is_box(tree.node_data(child).kind) && predicate(tree.display(child)) {
+        if node_facts::kind_is_box(tree.node_data(child).kind.get()) && predicate(tree.display(child)) {
             result.push(child);
         }
         child = tree.next_sibling(child);
@@ -689,7 +689,7 @@ fn count_columns_in_subtree<T: TableTree>(tree: &T, root: Node) -> usize {
             child = tree.next_sibling(child);
         }
         for child in children.into_iter().rev() {
-            if node_facts::kind_is_box(tree.node_data(child).kind) && tree.display(child).is_table_column() {
+            if node_facts::kind_is_box(tree.node_data(child).kind.get()) && tree.display(child).is_table_column() {
                 count = count.saturating_add(tree.table_column_span(child));
             }
             stack.push(child);
@@ -765,7 +765,7 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node) -> Table
 
     let mut child = tree.first_child(table);
     while !child.is_invalid() {
-        let child_is_box = node_facts::kind_is_box(tree.node_data(child).kind);
+        let child_is_box = node_facts::kind_is_box(tree.node_data(child).kind.get());
         let child_display = tree.display(child);
         if child_is_box
             && (child_display.is_table_row_group()
@@ -824,11 +824,11 @@ pub(crate) trait TableTree {
     fn display(&self, node: Node) -> FfiDisplay;
 
     fn table_column_span(&self, node: Node) -> usize {
-        self.node_data(node).table_column_span as usize
+        self.node_data(node).table_column_span.get() as usize
     }
 
     fn table_row_span(&self, node: Node) -> usize {
-        self.node_data(node).table_row_span as usize
+        self.node_data(node).table_row_span.get() as usize
     }
 
     fn row_is_collapsed(&self, _row: Node, _row_group: Option<Node>) -> bool {

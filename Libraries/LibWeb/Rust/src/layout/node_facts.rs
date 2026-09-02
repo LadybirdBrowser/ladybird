@@ -7,9 +7,9 @@
 use super::*;
 
 pub(crate) fn node_may_have_replaced_content_facts(data: &NodeData) -> bool {
-    kind_is_replaced_box(data.kind)
+    kind_is_replaced_box(data.kind.get())
         || matches!(
-            data.kind,
+            data.kind.get(),
             NodeKind::RangeInputBox | NodeKind::TextAreaBox | NodeKind::TextInputBox
         )
         || has_flag(data, NodeFlag::IsHtmlInputElement)
@@ -22,7 +22,7 @@ pub(crate) fn node_may_have_replaced_content_facts_including_size_containment(da
     if node_may_have_replaced_content_facts(data) {
         return true;
     }
-    if !kind_is_box(data.kind) {
+    if !kind_is_box(data.kind.get()) {
         return false;
     }
     let Some(style) = node_style_view(data) else {
@@ -34,12 +34,12 @@ pub(crate) fn node_may_have_replaced_content_facts_including_size_containment(da
 /// The node's own computed style, read off the style container the node data points at. Callers inside a layout pass go
 /// through the pass callbacks instead; this is for the node-data entry points the C++ side calls directly.
 pub(crate) fn node_style_view(data: &NodeData) -> Option<ComputedValuesView<'_>> {
-    if data.style.is_null() {
+    if data.style.get().is_null() {
         return None;
     }
     // SAFETY: A non-null style pointer addresses the container's group
     // pointer array, which FfiStylePayloads mirrors exactly.
-    let payloads = unsafe { &*data.style.cast::<crate::layout::FfiStylePayloads>() };
+    let payloads = unsafe { &*data.style.get().cast::<crate::layout::FfiStylePayloads>() };
     Some(ComputedValuesView::new(&payloads.groups))
 }
 
@@ -82,7 +82,7 @@ pub(crate) fn node_display(style: Option<ComputedValuesView<'_>>) -> crate::css:
 }
 
 pub(crate) fn node_can_have_children(data: &NodeData) -> bool {
-    match data.kind {
+    match data.kind.get() {
         NodeKind::BreakNode => false,
         NodeKind::AudioBox | NodeKind::VideoBox => has_flag(data, NodeFlag::ReplacedBoxCanHaveChildren),
         NodeKind::SVGSVGBox => true,
@@ -96,7 +96,7 @@ pub(crate) fn node_can_have_children(data: &NodeData) -> bool {
 /// has to ask it too: the boxes inside such a box are laid out against it, not against the block container of the
 /// context the walk started in.
 pub(crate) fn node_forms_containing_block_for_children(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
-    if kind_is_block_container(data.kind) && !node_is_fragmented_inline(data, style) {
+    if kind_is_block_container(data.kind.get()) && !node_is_fragmented_inline(data, style) {
         return true;
     }
     if let Some(style) = style {
@@ -105,7 +105,7 @@ pub(crate) fn node_forms_containing_block_for_children(data: &NodeData, style: O
             return true;
         }
     }
-    kind_is_replaced_box(data.kind) && node_can_have_children(data)
+    kind_is_replaced_box(data.kind.get()) && node_can_have_children(data)
 }
 
 /// https://drafts.csswg.org/css-display/#atomic-inline
@@ -116,7 +116,7 @@ pub(crate) fn node_forms_containing_block_for_children(data: &NodeData, style: O
 /// <fieldset> get a block container box whatever their computed display says.
 pub(crate) fn node_is_atomic_inline(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
     has_flag(data, NodeFlag::IsReplacedElement)
-        || data.kind == NodeKind::ListItemMarkerBox
+        || data.kind.get() == NodeKind::ListItemMarkerBox
         || style.is_some_and(|style| {
             let display = style.display();
             display.is_inline_outside()
@@ -125,8 +125,8 @@ pub(crate) fn node_is_atomic_inline(data: &NodeData, style: Option<ComputedValue
 }
 
 pub(crate) fn node_is_fragmented_inline(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
-    data.kind == NodeKind::InlineNode
-        || (data.kind == NodeKind::ListItemBox
+    data.kind.get() == NodeKind::InlineNode
+        || (data.kind.get() == NodeKind::ListItemBox
             && style.is_some_and(|style| {
                 let display = style.display();
                 display.is_inline_outside() && display.is_flow_inside()
@@ -134,9 +134,9 @@ pub(crate) fn node_is_fragmented_inline(data: &NodeData, style: Option<ComputedV
 }
 
 pub(crate) fn node_has_auto_content_box_size(data: &NodeData) -> bool {
-    (kind_is_replaced_box(data.kind) && data.kind != NodeKind::AudioBox)
+    (kind_is_replaced_box(data.kind.get()) && data.kind.get() != NodeKind::AudioBox)
         || matches!(
-            data.kind,
+            data.kind.get(),
             NodeKind::RangeInputBox | NodeKind::TextAreaBox | NodeKind::TextInputBox
         )
 }
@@ -151,10 +151,10 @@ pub(crate) fn node_creates_block_formatting_context(
     style: Option<ComputedValuesView<'_>>,
     parent_style: Option<ComputedValuesView<'_>>,
 ) -> bool {
-    if kind_is_replaced_box(data.kind) {
+    if kind_is_replaced_box(data.kind.get()) {
         return false;
     }
-    if data.kind == NodeKind::SVGForeignObjectBox {
+    if data.kind.get() == NodeKind::SVGForeignObjectBox {
         return true;
     }
     if let Some(style) = style {
@@ -178,10 +178,10 @@ pub(crate) fn node_creates_block_formatting_context(
         }
     }
     if has_flag(data, NodeFlag::IsHtmlHtmlElement)
-        || data.kind == NodeKind::FieldSetBox
+        || data.kind.get() == NodeKind::FieldSetBox
         // https://drafts.csswg.org/css-lists-3/#list-style-position-outside
         // "If the list item is a block container: the marker box is a block container"
-        || data.kind == NodeKind::ListItemMarkerBox
+        || data.kind.get() == NodeKind::ListItemMarkerBox
         || has_flag(data, NodeFlag::UsesButtonLayout)
     {
         return true;
@@ -212,7 +212,7 @@ pub(crate) fn construction_flags(facts: &FfiNodeConstructionFacts) -> u32 {
 }
 
 pub(crate) fn has_flag(data: &NodeData, flag: NodeFlag) -> bool {
-    data.flags & flag as u32 != 0
+    data.flags.get() & flag as u32 != 0
 }
 
 pub(crate) fn kind_is_text(kind: NodeKind) -> bool {
@@ -315,7 +315,8 @@ impl<'pass> NodeFacts<'pass> {
         // SAFETY: A non-null style pointer addresses the container's group
         // pointer array, which FfiStylePayloads mirrors exactly. The node's
         // ComputedValues keep the container alive for the layout pass.
-        let style_payloads = (!data.style.is_null()).then(|| unsafe { &*data.style.cast::<FfiStylePayloads>() });
+        let style_payloads =
+            (!data.style.get().is_null()).then(|| unsafe { &*data.style.get().cast::<FfiStylePayloads>() });
         Self {
             callbacks,
             node,
@@ -329,7 +330,7 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     fn parent_data(&self) -> Option<&'pass NodeData> {
-        let parent = self.data().parent;
+        let parent = self.data().parent.get();
         (!parent.is_invalid()).then(|| self.callbacks.node_data(parent))
     }
 
@@ -346,7 +347,7 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(super) fn parent_computed_values_view_if_styled(&self) -> Option<ComputedValuesView<'pass>> {
-        let parent = self.data().parent;
+        let parent = self.data().parent.get();
         if parent.is_invalid() {
             return None;
         }
@@ -372,35 +373,35 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn is_text_node(&self) -> bool {
-        kind_is_text(self.data().kind)
+        kind_is_text(self.data().kind.get())
     }
 
     pub(crate) fn is_break_node(&self) -> bool {
-        self.data().kind == NodeKind::BreakNode
+        self.data().kind.get() == NodeKind::BreakNode
     }
 
     pub(crate) fn is_box(&self) -> bool {
-        kind_is_box(self.data().kind)
+        kind_is_box(self.data().kind.get())
     }
 
     pub(crate) fn is_block_container(&self) -> bool {
-        kind_is_block_container(self.data().kind)
+        kind_is_block_container(self.data().kind.get())
     }
 
     pub(crate) fn is_replaced_box(&self) -> bool {
-        kind_is_replaced_box(self.data().kind)
+        kind_is_replaced_box(self.data().kind.get())
     }
 
     pub(crate) fn is_native_form_control_box(&self) -> bool {
         matches!(
-            self.data().kind,
+            self.data().kind.get(),
             NodeKind::RangeInputBox | NodeKind::TextAreaBox | NodeKind::TextInputBox
         )
     }
 
     pub(crate) fn is_replaced_box_with_children(&self) -> bool {
         let data = self.data();
-        kind_is_replaced_box(data.kind) && node_can_have_children(data)
+        kind_is_replaced_box(data.kind.get()) && node_can_have_children(data)
     }
 
     pub(crate) fn is_floating(&self) -> bool {
@@ -428,7 +429,7 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn is_inline(&self) -> bool {
-        kind_is_text(self.data().kind)
+        kind_is_text(self.data().kind.get())
             || self
                 .computed_values_view_if_styled()
                 .is_some_and(|style| style.display().is_inline_outside())
@@ -440,7 +441,7 @@ impl<'pass> NodeFacts<'pass> {
 
     pub(crate) fn has_box_model_metrics(&self) -> bool {
         !matches!(
-            self.data().kind,
+            self.data().kind.get(),
             NodeKind::Unset
                 | NodeKind::Node
                 | NodeKind::NodeWithStyle
@@ -486,35 +487,37 @@ impl<'pass> NodeFacts<'pass> {
         if display.is_internal_table() || display.is_table_caption() {
             return false;
         }
-        if parent.kind == NodeKind::SVGForeignObjectBox {
+        if parent.kind.get() == NodeKind::SVGForeignObjectBox {
             return false;
         }
-        if kind_is_svg_box(data.kind) || data.kind == NodeKind::SVGForeignObjectBox {
+        if kind_is_svg_box(data.kind.get()) || data.kind.get() == NodeKind::SVGForeignObjectBox {
             return false;
         }
-        if data.kind == NodeKind::SVGSVGBox && (kind_is_svg_box(parent.kind) || parent.kind == NodeKind::SVGSVGBox) {
+        if data.kind.get() == NodeKind::SVGSVGBox
+            && (kind_is_svg_box(parent.kind.get()) || parent.kind.get() == NodeKind::SVGSVGBox)
+        {
             return false;
         }
-        if kind_is_replaced_box(parent.kind) && node_can_have_children(parent) {
+        if kind_is_replaced_box(parent.kind.get()) && node_can_have_children(parent) {
             return false;
         }
         true
     }
 
     pub(crate) fn is_list_item_marker_box(&self) -> bool {
-        self.data().kind == NodeKind::ListItemMarkerBox
+        self.data().kind.get() == NodeKind::ListItemMarkerBox
     }
 
     pub(crate) fn is_list_item_box(&self) -> bool {
-        self.data().kind == NodeKind::ListItemBox
+        self.data().kind.get() == NodeKind::ListItemBox
     }
 
     pub(crate) fn is_svg_mask_box(&self) -> bool {
-        self.data().kind == NodeKind::SVGMaskBox
+        self.data().kind.get() == NodeKind::SVGMaskBox
     }
 
     pub(crate) fn is_svg_clip_box(&self) -> bool {
-        self.data().kind == NodeKind::SVGClipBox
+        self.data().kind.get() == NodeKind::SVGClipBox
     }
 
     pub(crate) fn is_flow_layout_participant(&self) -> bool {
@@ -539,7 +542,7 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn is_generated_for_pseudo_element(&self) -> bool {
-        self.data().generated_for != 0
+        self.data().generated_for.get() != 0
     }
 
     pub(crate) fn children_are_inline(&self) -> bool {
@@ -588,7 +591,7 @@ impl<'pass> NodeFacts<'pass> {
 
     pub(crate) fn vertical_align_applies(&self) -> bool {
         let data = self.data();
-        kind_is_box(data.kind) && !has_flag(data, NodeFlag::IsFlexItem) && !has_flag(data, NodeFlag::IsGridItem)
+        kind_is_box(data.kind.get()) && !has_flag(data, NodeFlag::IsFlexItem) && !has_flag(data, NodeFlag::IsGridItem)
     }
 
     pub(crate) fn is_html_input_element(&self) -> bool {
@@ -596,23 +599,23 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn is_fieldset_box(&self) -> bool {
-        self.data().kind == NodeKind::FieldSetBox
+        self.data().kind.get() == NodeKind::FieldSetBox
     }
 
     pub(crate) fn rendered_legend(&self) -> Node {
         let data = self.data();
-        if data.kind != NodeKind::FieldSetBox {
+        if data.kind.get() != NodeKind::FieldSetBox {
             return Node::INVALID;
         }
-        let mut child = data.first_child;
+        let mut child = data.first_child.get();
         while !child.is_invalid() {
             let child_data = self.callbacks.node_data(child);
-            if child_data.kind == NodeKind::LegendBox
+            if child_data.kind.get() == NodeKind::LegendBox
                 && !node_is_out_of_flow(child_data, self.callbacks.computed_values_view_if_styled(child))
             {
                 return child;
             }
-            child = child_data.next_sibling;
+            child = child_data.next_sibling.get();
         }
         Node::INVALID
     }
@@ -624,30 +627,30 @@ impl<'pass> NodeFacts<'pass> {
         // Outside markers are direct children. Inside markers participate in
         // an inline run and can therefore move below anonymous block wrappers.
         // Walk those wrappers, but not nested authored or generated list items.
-        let mut candidate = self.data().first_child;
+        let mut candidate = self.data().first_child.get();
         while !candidate.is_invalid() {
             let data = self.callbacks.node_data(candidate);
-            if data.kind == NodeKind::ListItemMarkerBox {
+            if data.kind.get() == NodeKind::ListItemMarkerBox {
                 return candidate;
             }
-            if data.kind == NodeKind::BlockContainer
+            if data.kind.get() == NodeKind::BlockContainer
                 && has_flag(data, NodeFlag::Anonymous)
-                && data.generated_for == 0
-                && !data.first_child.is_invalid()
+                && data.generated_for.get() == 0
+                && !data.first_child.get().is_invalid()
             {
-                candidate = data.first_child;
+                candidate = data.first_child.get();
                 continue;
             }
             let mut current_data = data;
             loop {
-                if !current_data.next_sibling.is_invalid() {
-                    candidate = current_data.next_sibling;
+                if !current_data.next_sibling.get().is_invalid() {
+                    candidate = current_data.next_sibling.get();
                     break;
                 }
-                if current_data.parent == self.node {
+                if current_data.parent.get() == self.node {
                     return Node::INVALID;
                 }
-                current_data = self.callbacks.node_data(current_data.parent);
+                current_data = self.callbacks.node_data(current_data.parent.get());
             }
         }
         Node::INVALID
@@ -739,22 +742,22 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn is_scroll_container(&self) -> bool {
-        kind_and_style_make_scroll_container(self.data().kind, self.computed_values_view_if_styled())
+        kind_and_style_make_scroll_container(self.data().kind.get(), self.computed_values_view_if_styled())
     }
 
     pub(crate) fn display(&self) -> crate::layout::FfiDisplay {
-        if self.data().style.is_null() {
+        if self.data().style.get().is_null() {
             return crate::layout::FfiDisplay::block();
         }
         self.style().display()
     }
 
     pub(crate) fn is_svg_box(&self) -> bool {
-        kind_is_svg_box(self.data().kind)
+        kind_is_svg_box(self.data().kind.get())
     }
 
     pub(crate) fn is_svg_svg_box(&self) -> bool {
-        self.data().kind == NodeKind::SVGSVGBox
+        self.data().kind.get() == NodeKind::SVGSVGBox
     }
 
     pub(crate) fn is_table_box(&self) -> bool {
@@ -762,7 +765,7 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn is_table_wrapper(&self) -> bool {
-        self.data().kind == NodeKind::TableWrapper
+        self.data().kind.get() == NodeKind::TableWrapper
     }
 
     pub(crate) fn is_table_row_group(&self) -> bool {
@@ -802,7 +805,7 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn is_viewport(&self) -> bool {
-        self.data().kind == NodeKind::Viewport
+        self.data().kind.get() == NodeKind::Viewport
     }
 
     pub(crate) fn document_in_quirks_mode(&self) -> bool {
@@ -825,10 +828,11 @@ impl<'pass> NodeFacts<'pass> {
 #[cfg(test)]
 mod node_facts_tests {
     use crate::layout::node_data::{NodeData, NodeFlag, NodeKind};
+    use std::cell::Cell;
 
     fn data_with_kind(kind: NodeKind) -> NodeData {
         NodeData {
-            kind,
+            kind: Cell::new(kind),
             ..NodeData::default()
         }
     }
@@ -849,11 +853,11 @@ mod node_facts_tests {
         assert!(super::node_can_have_children(&data_with_kind(NodeKind::InlineNode)));
         assert!(super::node_can_have_children(&data_with_kind(NodeKind::TextNode)));
 
-        let mut media = data_with_kind(NodeKind::AudioBox);
+        let media = data_with_kind(NodeKind::AudioBox);
         assert!(!super::node_can_have_children(&media));
-        media.flags = NodeFlag::ReplacedBoxCanHaveChildren as u32;
+        media.flags.set(NodeFlag::ReplacedBoxCanHaveChildren as u32);
         assert!(super::node_can_have_children(&media));
-        media.kind = NodeKind::VideoBox;
+        media.kind.set(NodeKind::VideoBox);
         assert!(super::node_can_have_children(&media));
     }
 }

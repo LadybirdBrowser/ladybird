@@ -928,9 +928,7 @@ impl FfiLayoutFcCallbacks {
     }
 
     pub(crate) fn node_data(&self, node: Node) -> &NodeData {
-        // SAFETY: Entry points guarantee that the arena remains live, and
-        // data() validates the slot generation.
-        unsafe { &*self.arena().data(node) }
+        self.arena().data(node)
     }
 
     pub(crate) fn text_content(&self, node: Node) -> &'static crate::layout::layout_node_arena::TextContent {
@@ -971,24 +969,25 @@ impl FfiLayoutFcCallbacks {
 
     pub(crate) fn can_skip_is_anonymous_text_run(&self, node: Node) -> bool {
         let data = self.node_data(node);
-        if !node_facts::has_flag(data, NodeFlag::Anonymous) || data.generated_for != 0 {
+        if !node_facts::has_flag(data, NodeFlag::Anonymous) || data.generated_for.get() != 0 {
             return false;
         }
 
-        let mut child = data.first_child;
+        let mut child = data.first_child.get();
         while !child.is_invalid() {
             let data = self.node_data(child);
-            if !node_facts::kind_is_text(data.kind) || !self.text_content(child).untransformed_text_is_ascii_whitespace
+            if !node_facts::kind_is_text(data.kind.get())
+                || !self.text_content(child).untransformed_text_is_ascii_whitespace
             {
                 return false;
             }
-            child = data.next_sibling;
+            child = data.next_sibling.get();
         }
         true
     }
 
     pub(crate) fn shell(&self, node: Node) -> *mut c_void {
-        let shell = self.node_data(node).shell;
+        let shell = self.node_data(node).shell.get();
         assert!(!shell.is_null());
         shell
     }
@@ -1004,8 +1003,7 @@ impl FfiLayoutFcCallbacks {
 
     pub(crate) fn saved_abspos_layout_inputs(&self, node: Node) -> Option<abspos_inputs::AbsposLayoutInputs> {
         let data = self.arena().data(node);
-        // SAFETY: node_data_pointer() returns a live arena slot.
-        assert!(unsafe { node_facts::kind_is_box((*data).kind) });
+        assert!(node_facts::kind_is_box(data.kind.get()));
         self.arena().saved_abspos_layout_inputs(data)
     }
 
@@ -1019,14 +1017,13 @@ impl FfiLayoutFcCallbacks {
 
     #[inline]
     pub(crate) fn has_committed_fragment_link(&self, node: Node) -> bool {
-        self.node_data(node).flags & NodeFlag::HasCommittedFragmentLink as u32 != 0
+        self.node_data(node).flags.get() & NodeFlag::HasCommittedFragmentLink as u32 != 0
     }
 
     pub(crate) fn set_saved_abspos_layout_inputs(&self, node: Node, inputs: Option<abspos_inputs::AbsposLayoutInputs>) {
         let data = self.arena().data(node);
         // Match prepare_node's former as_if<Box>() guard.
-        // SAFETY: node_data_pointer() returns a live arena slot.
-        if !unsafe { node_facts::kind_is_box((*data).kind) } {
+        if !node_facts::kind_is_box(data.kind.get()) {
             return;
         }
         self.arena().set_saved_abspos_layout_inputs(data, inputs);
@@ -1034,27 +1031,27 @@ impl FfiLayoutFcCallbacks {
 
     #[inline]
     pub(crate) fn parent(&self, node: Node) -> Node {
-        self.node_data(node).parent
+        self.node_data(node).parent.get()
     }
 
     #[inline]
     pub(crate) fn first_child(&self, node: Node) -> Node {
-        self.node_data(node).first_child
+        self.node_data(node).first_child.get()
     }
 
     #[inline]
     pub(crate) fn next_sibling(&self, node: Node) -> Node {
-        self.node_data(node).next_sibling
+        self.node_data(node).next_sibling.get()
     }
 
     #[inline]
     pub(crate) fn containing_block(&self, node: Node) -> Node {
-        self.node_data(node).containing_block
+        self.node_data(node).containing_block.get()
     }
 
     #[inline]
     pub(crate) fn inline_containing_block(&self, node: Node) -> Node {
-        self.node_data(node).inline_containing_block
+        self.node_data(node).inline_containing_block.get()
     }
 
     pub(crate) fn is_ancestor(&self, ancestor: Node, mut node: Node) -> bool {
@@ -1062,16 +1059,16 @@ impl FfiLayoutFcCallbacks {
             if node == ancestor {
                 return true;
             }
-            node = self.node_data(node).parent;
+            node = self.node_data(node).parent.get();
         }
         false
     }
 
     pub(crate) fn non_anonymous_containing_block(&self, node: Node) -> Node {
-        let mut containing_block = self.node_data(node).containing_block;
+        let mut containing_block = self.node_data(node).containing_block.get();
         assert!(!containing_block.is_invalid());
-        while self.node_data(containing_block).flags & NodeFlag::Anonymous as u32 != 0 {
-            containing_block = self.node_data(containing_block).containing_block;
+        while self.node_data(containing_block).flags.get() & NodeFlag::Anonymous as u32 != 0 {
+            containing_block = self.node_data(containing_block).containing_block.get();
             assert!(!containing_block.is_invalid());
         }
         containing_block
@@ -1133,10 +1130,10 @@ pub(crate) fn formatting_context_type_created_by_node_data(
     style: Option<ComputedValuesView<'_>>,
     parent_style: Option<ComputedValuesView<'_>>,
 ) -> Option<FfiFormattingContextType> {
-    if data.kind == crate::layout::node_data::NodeKind::SVGSVGBox {
+    if data.kind.get() == crate::layout::node_data::NodeKind::SVGSVGBox {
         return Some(FfiFormattingContextType::Svg);
     }
-    let is_replaced_box = node_facts::kind_is_replaced_box(data.kind);
+    let is_replaced_box = node_facts::kind_is_replaced_box(data.kind.get());
     let can_have_children = node_facts::node_can_have_children(data);
     if is_replaced_box && can_have_children {
         return Some(FfiFormattingContextType::ReplacedWithChildren);
@@ -1153,7 +1150,7 @@ pub(crate) fn formatting_context_type_created_by_node_data(
             display.is_table_inside() || display.is_internal_table() || display.is_table_caption()
         })
     {
-        return Some(if node_facts::kind_is_block_container(data.kind) {
+        return Some(if node_facts::kind_is_block_container(data.kind.get()) {
             FfiFormattingContextType::Block
         } else {
             FfiFormattingContextType::InternalReplaced
@@ -1212,13 +1209,12 @@ pub extern "C" fn rust_layout_formatting_context_type_for_box(facts: FfiFormatti
     // SAFETY: The C++ caller borrows the box's arena for this synchronous
     // classification.
     let arena = unsafe { LayoutNodeArena::from_handle(facts.arena) };
-    // SAFETY: The caller supplies the live box's arena slot.
-    let data = unsafe { &*arena.data(facts.node) };
+    let data = arena.data(facts.node);
     let style = arena
         .style_payloads(facts.node)
         .map(|payloads| ComputedValuesView::new(&payloads.groups));
-    let parent_style = (!data.parent.is_invalid())
-        .then(|| arena.style_payloads(data.parent))
+    let parent_style = (!data.parent.get().is_invalid())
+        .then(|| arena.style_payloads(data.parent.get()))
         .flatten()
         .map(|payloads| ComputedValuesView::new(&payloads.groups));
     formatting_context_type_created_by_node_data(data, style, parent_style)

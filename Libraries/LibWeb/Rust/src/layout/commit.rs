@@ -46,7 +46,7 @@ fn commit_subtree(
         debug_assert!(
             fragment.computed_svg_path.is_some()
                 || !matches!(
-                    callbacks.node_data(node).kind,
+                    callbacks.node_data(node).kind.get(),
                     NodeKind::SVGGeometryBox | NodeKind::SVGTextBox | NodeKind::SVGTextPathBox
                 ),
             "committed path-like fragment carries no computed SVG path"

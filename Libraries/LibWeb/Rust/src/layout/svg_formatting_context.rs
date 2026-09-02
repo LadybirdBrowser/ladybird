@@ -425,19 +425,19 @@ impl SvgFormattingContext {
     }
 
     fn first_child(&self, node: Node) -> Node {
-        self.callbacks.node_data(node).first_child
+        self.callbacks.node_data(node).first_child.get()
     }
 
     fn next_sibling(&self, node: Node) -> Node {
-        self.callbacks.node_data(node).next_sibling
+        self.callbacks.node_data(node).next_sibling.get()
     }
 
     fn parent(&self, node: Node) -> Node {
-        self.callbacks.node_data(node).parent
+        self.callbacks.node_data(node).parent.get()
     }
 
     fn node_kind(&self, node: Node) -> NodeKind {
-        self.callbacks.node_data(node).kind
+        self.callbacks.node_data(node).kind.get()
     }
 
     fn svg_facts(&self, node: Node) -> FfiSvgElementFacts {
