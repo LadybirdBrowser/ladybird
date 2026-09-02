@@ -823,7 +823,10 @@ pub struct StyleEngine {
     /// computed half of the eventual base style record; custom properties and metadata remain
     /// separate inputs until that record is complete.
     computed_group_sets: ComputedGroupSets,
-    pending_style_computation_selections: HashMap<computed::ComputedStyleTarget, StyleComputationSelection>,
+    /// Pending selections for elements, and separately for the few pseudo-elements that hold one.
+    /// Both are keyed by the element so that retiring it releases every selection by key.
+    pending_element_style_computation_selections: HashMap<StyleNodeID, StyleComputationSelection>,
+    pending_pseudo_style_computation_selections: HashMap<StyleNodeID, Vec<(u8, StyleComputationSelection)>>,
     computed_group_set_memory: MemoryLease,
     custom_property_environment_memory: MemoryLease,
     computed_fixed_metadata_memory: MemoryLease,
