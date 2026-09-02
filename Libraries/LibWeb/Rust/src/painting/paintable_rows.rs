@@ -225,6 +225,20 @@ where
         }
     }
 
+    pub(crate) fn mark_descendant_subtree_caches_dirty_in_paint_subtree(&self, root: NodeSlotId) {
+        if !self.paintable_row_is_populated(root) {
+            return;
+        }
+        self.arena.debug_assert_not_recording();
+        let next_dirty_gen = self.arena.paint_cache_next_dirty_gen();
+        crate::painting::paint_order::for_each_in_paint_subtree(self, root, |slot| {
+            self.arena
+                .paintable_paint_cache(slot)
+                .mark_descendants_dirty(next_dirty_gen);
+        });
+        self.mark_descendant_subtree_caches_dirty_along_paint_chain(root);
+    }
+
     pub(crate) fn invalidate_paint_cache(&self, id: NodeSlotId) {
         self.mark_paint_cache_self_dirty(id);
     }
