@@ -779,6 +779,22 @@ impl LayoutNodeArena {
         data
     }
 
+    pub(crate) fn set_node_generated_for(&self, id: NodeSlotId, generated_for: u8) {
+        self.assert_owner_thread();
+        let data = self.data(id);
+        // SAFETY: data() validated that id names a live slot, and layout
+        // serializes mutation on the arena's owner thread.
+        unsafe { (&raw mut (*data).generated_for).write(generated_for) };
+    }
+
+    pub(crate) fn set_node_style_payloads(&self, id: NodeSlotId, payloads: *const c_void) {
+        self.assert_owner_thread();
+        let data = self.data(id);
+        // SAFETY: As above.
+        unsafe { (&raw mut (*data).style).write(payloads) };
+        self.enroll_node_for_replaced_content_facts_sync_if_eligible(id);
+    }
+
     pub(crate) fn set_node_flag(&self, id: NodeSlotId, flag: NodeFlag, value: bool) {
         self.assert_owner_thread();
         let data = self.data(id);
@@ -2404,6 +2420,32 @@ pub unsafe extern "C" fn layout_arena_set_replaced_content_facts(
     // SAFETY: The C++ wrapper keeps the arena alive for this call and
     // serializes all access on the document thread.
     unsafe { &mut *arena.cast::<LayoutNodeArena>() }.set_replaced_content_facts(id, facts)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_node_flag(arena: *mut c_void, id: NodeSlotId, flag: NodeFlag, value: bool) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and
+    // serializes all access on the document thread.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_node_flag(id, flag, value);
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_node_generated_for(arena: *mut c_void, id: NodeSlotId, generated_for: u8) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: As above.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_node_generated_for(id, generated_for);
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_node_style_payloads(
+    arena: *mut c_void,
+    id: NodeSlotId,
+    payloads: *const c_void,
+) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: As above.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_node_style_payloads(id, payloads);
 }
 
 #[unsafe(no_mangle)]

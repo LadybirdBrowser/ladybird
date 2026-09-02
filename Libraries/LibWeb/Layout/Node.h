@@ -352,10 +352,7 @@ protected:
 
     void set_flag(RustFFI::NodeFlag flag, bool value)
     {
-        if (value)
-            m_data->flags |= static_cast<u32>(flag);
-        else
-            m_data->flags &= ~static_cast<u32>(flag);
+        RustFFI::layout_arena_set_node_flag(m_arena->handle(), m_slot, flag, value);
     }
 
     RustFFI::NodeData& node_data() { return *m_data; }
@@ -384,8 +381,6 @@ private:
     }
 
 protected:
-    void enroll_for_arena_replaced_content_facts_sync_if_eligible();
-
 private:
     // A DOM mutation can disconnect a node before the next layout-tree update. Keep the DOM node alive until this
     // layout node is destroyed so detach hooks never observe a collected image provider or other element state.
