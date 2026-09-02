@@ -19,14 +19,14 @@ class WEB_API NavigableContainer : public HTMLElement {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    static GC::Ptr<NavigableContainer> navigable_container_with_content_navigable(GC::Ref<LocalNavigable> navigable);
+    static GC::Ptr<NavigableContainer> navigable_container_with_content_navigable(GC::Ref<Navigable> navigable);
 
     virtual ~NavigableContainer() override;
 
     static HashTable<NavigableContainer*>& all_instances();
 
-    GC::Ptr<LocalNavigable> content_navigable() { return m_content_navigable; }
-    GC::Ptr<LocalNavigable const> content_navigable() const { return m_content_navigable; }
+    GC::Ptr<Navigable> content_navigable() { return m_content_navigable; }
+    GC::Ptr<Navigable const> content_navigable() const { return m_content_navigable; }
 
     bool has_painted_foreground() const { return m_has_painted_foreground; }
     Optional<u64> compositor_context_id_at_last_paint() const { return m_compositor_context_id_at_last_paint; }
@@ -66,7 +66,7 @@ protected:
     void create_new_child_navigable();
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#content-navigable
-    GC::Ptr<LocalNavigable> m_content_navigable { nullptr };
+    GC::Ptr<Navigable> m_content_navigable { nullptr };
     bool m_has_painted_foreground { false };
     Optional<u64> m_compositor_context_id_at_last_paint;
 
