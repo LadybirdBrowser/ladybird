@@ -9,8 +9,6 @@
 
 #include "ConicGradientStyleValue.h"
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
-#include <LibWeb/Layout/Node.h>
-#include <LibWeb/Painting/PaintingRustBridge.h>
 
 namespace Web::CSS {
 
@@ -31,9 +29,9 @@ ConicGradientStyleValue::ConicGradientStyleValue(StyleValueFFI::StyleValueData c
 {
 }
 
-ResolvedImage ConicGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node, CSSPixelSize size) const
+Optional<Painting::ImagePaint> ConicGradientStyleValue::image_paint(Painting::ImagePaintRequest const&) const
 {
-    return Painting::rust_resolve_gradient_for_size(*this, node, size);
+    return Painting::ImagePaint { Painting::ImagePaint::Gradient { *this } };
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> ConicGradientStyleValue::absolutized(ComputationContext const& context) const

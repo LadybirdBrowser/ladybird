@@ -28,7 +28,7 @@ public:
 
     virtual void load_any_resources(DOM::Document&) override;
 
-    virtual ResolvedImage resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
+    virtual Optional<Painting::ImagePaint> image_paint(Painting::ImagePaintRequest const&) const override;
     virtual bool is_paintable(GC::Ptr<HTML::DecodedImageData>) const override;
     virtual SizeWithAspectRatio natural_size(HTML::DecodedImageData const&) const override;
 

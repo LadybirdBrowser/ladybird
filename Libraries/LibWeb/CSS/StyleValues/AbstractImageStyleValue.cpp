@@ -90,11 +90,9 @@ SizeWithAspectRatio AbstractImageStyleValue::natural_size(HTML::DecodedImageData
     };
 }
 
-Optional<Painting::ImagePaint> AbstractImageStyleValue::image_paint(Painting::ImagePaintRequest const&, ResolvedImage const& resolved) const
+Optional<Painting::ImagePaint> AbstractImageStyleValue::image_paint(Painting::ImagePaintRequest const&) const
 {
-    return resolved.visit(
-        [](Empty const&) -> Optional<Painting::ImagePaint> { return OptionalNone {}; },
-        [](auto const& gradient) -> Optional<Painting::ImagePaint> { return Painting::ImagePaint { gradient }; });
+    return {};
 }
 
 ColorStopListElement ColorStopListElement::absolutized(ComputationContext const& context) const

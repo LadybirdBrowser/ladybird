@@ -800,7 +800,6 @@ fn paint_image_layer(
                 image.list,
                 image.computed_index,
                 tile_dest_rect,
-                image_rect.size().into(),
                 image_rendering,
                 libgfx_rust::FloatSize {
                     width: 1.0,
@@ -873,7 +872,6 @@ fn paint_image_layer(
                 image.list,
                 image.computed_index,
                 dest_rect,
-                image_rect.size().into(),
                 image_rendering,
                 accumulated_scale,
             );

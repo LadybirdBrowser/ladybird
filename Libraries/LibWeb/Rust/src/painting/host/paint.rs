@@ -397,7 +397,6 @@ pub struct FfiPaintHostCallbacks {
         FfiLayerImageList,
         u32,
         FloatRect,
-        used_values::FfiCssPixelSize,
         u8,
         FloatSize,
     ) -> FfiImagePaintFacts,
@@ -534,14 +533,12 @@ impl FfiPaintHostCallbacks {
             (self.layer_image_current_frame)(self.context, layout_node_shell, list, computed_index, device_dest_rect)
         }
     }
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn layer_image_paint(
         &self,
         layout_node_shell: *mut c_void,
         list: FfiLayerImageList,
         computed_index: u32,
         dest: FloatRect,
-        css_tile_size: used_values::FfiCssPixelSize,
         image_rendering: u8,
         accumulated_scale: libgfx_rust::FloatSize,
     ) -> FfiImagePaintFacts {
@@ -553,7 +550,6 @@ impl FfiPaintHostCallbacks {
                 list,
                 computed_index,
                 dest,
-                css_tile_size,
                 image_rendering,
                 accumulated_scale,
             )

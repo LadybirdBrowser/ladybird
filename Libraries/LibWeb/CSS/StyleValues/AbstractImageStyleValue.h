@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include <AK/Variant.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
@@ -19,23 +18,16 @@
 
 namespace Web::CSS {
 
-// Size-dependent painting state resolved from an abstract image before painting it.
-// Gradients resolve their stop and geometry data here; other images have none. The
-// caller owns the resolved state (paintables memoize it per box size), so the style
-// values themselves stay immutable.
-using ResolvedImage = Variant<Empty, Painting::LinearGradientData, Painting::ResolvedConicGradient, Painting::ResolvedRadialGradient>;
-
 class WEB_API AbstractImageStyleValue : public StyleValue {
 public:
     using StyleValue::StyleValue;
 
     virtual void load_any_resources(DOM::Document&) { }
     virtual void load_any_resources(Layout::NodeWithStyle const&);
-    virtual ResolvedImage resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const { return Empty {}; }
 
     virtual bool is_paintable(GC::Ptr<HTML::DecodedImageData>) const = 0;
     virtual SizeWithAspectRatio natural_size(HTML::DecodedImageData const&) const;
-    virtual Optional<Painting::ImagePaint> image_paint(Painting::ImagePaintRequest const&, ResolvedImage const&) const;
+    virtual Optional<Painting::ImagePaint> image_paint(Painting::ImagePaintRequest const&) const;
 
     ImageStyleValue const* selected_image_style_value() const;
 

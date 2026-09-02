@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    div {
+        position: absolute;
+        top: 0;
+        width: 100px;
+        height: 100px;
+    }
+    #linear-gradient-cursor {
+        left: 0;
+        cursor: linear-gradient(blue, green), help;
+    }
+    #image-set-gradient-cursor {
+        left: 200px;
+        cursor: image-set(radial-gradient(red, blue) 1x) 5 5, help;
+    }
+</style>
+<div id="linear-gradient-cursor"></div>
+<div id="image-set-gradient-cursor"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        internals.mouseMove(50, 50);
+        println(internals.currentCursor());
+        internals.mouseMove(250, 50);
+        println(internals.currentCursor());
+    });
+</script>
