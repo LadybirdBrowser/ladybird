@@ -157,7 +157,7 @@ impl PaintRecorder<'_> {
                 .map(|(frame, _)| *frame)
                 .collect();
             assert!(!frames.is_empty(), "a mask display list without a mask node");
-            self.prevent_descendant_subtree_caching();
+            self.mark_open_captures_unsplicable();
             self.recorder.register_mask_display_list(&frames, display_list_id);
         }
         any_svg_mask_layer_area_is_empty
