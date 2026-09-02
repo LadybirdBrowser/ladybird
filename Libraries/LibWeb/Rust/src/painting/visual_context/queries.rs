@@ -659,17 +659,24 @@ impl VisualContextTree {
         sampled
     }
 
+    pub fn visual_animation_target_is_valid(&self, target_is_frame: bool, target: u32) -> bool {
+        if target_is_frame {
+            matches!(
+                self.frame_nodes.get(target as usize).map(|node| &node.data),
+                Some(FrameData::Effects(_))
+            )
+        } else {
+            matches!(
+                self.spatial_nodes.get(target as usize).map(|node| &node.data),
+                Some(SpatialData::Transform(transform)) if transform.role == TransformDataRole::CssTransform && !transform.synthetic_plane
+            )
+        }
+    }
+
     pub fn visual_animation_targets_are_valid(&self, targets_are_frames: bool, targets: &[u32]) -> bool {
-        targets.iter().all(|&target| {
-            if targets_are_frames {
-                matches!(self.frame_nodes.get(target as usize).map(|node| &node.data), Some(FrameData::Effects(_)))
-            } else {
-                matches!(
-                    self.spatial_nodes.get(target as usize).map(|node| &node.data),
-                    Some(SpatialData::Transform(transform)) if transform.role == TransformDataRole::CssTransform && !transform.synthetic_plane
-                )
-            }
-        })
+        targets
+            .iter()
+            .all(|&target| self.visual_animation_target_is_valid(targets_are_frames, target))
     }
 
     pub fn effects_opacity(&self, frame: FrameNodeIndex) -> Option<f32> {

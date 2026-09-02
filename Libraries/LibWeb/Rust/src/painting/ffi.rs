@@ -1312,6 +1312,39 @@ pub unsafe extern "C" fn layout_arena_visual_context_pending_dirty_box_count(are
 
 /// # Safety
 ///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
+/// `tree` a live retained tree handle. `append` is called synchronously with every node the
+/// paintable owns that an animation of the given kind can target.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_visual_animation_target_indices(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+    tree: *const c_void,
+    targets_are_frames: bool,
+    context: *mut c_void,
+    append: unsafe extern "C" fn(*mut c_void, u32),
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let tree = unsafe { tree_from_handle(tree) };
+        arena.with_paintable_visual_context_node_handles(slot, |handles| {
+            let owned_indices: Vec<u32> = if targets_are_frames {
+                handles.frame_handles().map(|index| index.0).collect()
+            } else {
+                handles.spatial.iter().map(|index| index.0).collect()
+            };
+            for index in owned_indices {
+                if tree.visual_animation_target_is_valid(targets_are_frames, index) {
+                    // SAFETY: the host appends into its own storage synchronously.
+                    unsafe { append(context, index) };
+                }
+            }
+        });
+    });
+}
+
+/// # Safety
+///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_visual_context_node_count(

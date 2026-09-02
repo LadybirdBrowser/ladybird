@@ -81,8 +81,6 @@ public:
     WEB_API AccumulatedVisualContextTree with_visual_viewport_transform(TransformWithOrigin const&) const;
     WEB_API AccumulatedVisualContextTree with_visual_animation_samples(i64 monotonic_time_ns) const;
     WEB_API bool visual_animation_targets_are_valid(Compositor::VisualAnimation const&) const;
-    WEB_API bool frame_is_effects(FrameNodeIndex) const;
-    WEB_API bool spatial_node_is_css_transform(SpatialNodeIndex) const;
     WEB_API Optional<float> effects_opacity(FrameNodeIndex) const;
     WEB_API Vector<bool> spatial_nodes_in_subtrees_of(ReadonlySpan<SpatialNodeIndex> roots) const;
 
