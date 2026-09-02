@@ -131,8 +131,6 @@ public:
 
     GC::Ptr<LocalTraversableNavigable> traversable_navigable() const;
 
-    virtual bool is_top_level_traversable() const { return false; }
-
     [[nodiscard]] bool is_focused() const;
 
     struct ChosenNavigable {
@@ -198,8 +196,6 @@ public:
     WebIDL::ExceptionOr<void> navigate(NavigateParams);
 
     GC::Ptr<DOM::Document> evaluate_javascript_url(URL::URL const&, URL::Origin const& new_document_origin, UserNavigationInvolvement, Utf16String navigation_id);
-
-    bool allowed_by_sandboxing_to_navigate(LocalNavigable const& target, SourceSnapshotParams const&);
 
     void reload(Optional<StorageSerializationRecord> navigation_api_state = {}, UserNavigationInvolvement = UserNavigationInvolvement::None);
 
