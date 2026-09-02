@@ -21,6 +21,7 @@
 #include <LibWeb/Geometry/DOMRectReadOnly.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/ImageData.h>
+#include <LibWeb/WebAssembly/Module.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/QuotaExceededError.h>
 
@@ -186,6 +187,7 @@ TEST_CASE(storage_writer_encodes_enum_like_values_as_stable_identifiers)
     expect_storage_identifier_encoding(Web::Bindings::InterfaceName::DOMQuad, "DOMQuad"sv);
     expect_storage_identifier_encoding(Web::Bindings::InterfaceName::ImageData, "ImageData"sv);
     expect_storage_identifier_encoding(Web::Bindings::InterfaceName::ImageBitmap, "ImageBitmap"sv);
+    expect_storage_identifier_encoding(Web::Bindings::InterfaceName::Module, "Module"sv);
     expect_storage_identifier_encoding(Web::Bindings::InterfaceName::QuotaExceededError, "QuotaExceededError"sv);
 }
 
@@ -264,6 +266,7 @@ TEST_CASE(all_public_writer_reader_types_round_trip_through_ipc_and_storage)
     expect_structured_round_trip(Web::Bindings::InterfaceName::DOMQuad);
     expect_structured_round_trip(Web::Bindings::InterfaceName::ImageData);
     expect_structured_round_trip(Web::Bindings::InterfaceName::ImageBitmap);
+    expect_structured_round_trip(Web::Bindings::InterfaceName::Module);
     expect_structured_round_trip(Web::Bindings::InterfaceName::QuotaExceededError);
 
     Array<u8, 4> raw_bytes { 0xde, 0xad, 0xbe, 0xef };
@@ -457,6 +460,19 @@ TEST_CASE(ipc_serializable_object_has_no_version_framing)
     EXPECT_EQ(MUST(reader.decode<double>()), 2.0);
     EXPECT_EQ(MUST(reader.decode<double>()), 3.0);
     EXPECT_EQ(MUST(reader.decode<double>()), 4.0);
+}
+
+TEST_CASE(webassembly_module_encodes_to_frozen_ipc_bytes)
+{
+    auto value = MUST(principal_storage_deserialize(webassembly_module_storage_record(s_minimal_webassembly_module_bytes.span())));
+    auto module = GC::Ref { unwrap_wrappable<Web::WebAssembly::Module>(value) };
+
+    auto record = structured_serialize(test_realm().vm(), module);
+    Web::HTML::StructuredSerializeReader reader { record };
+
+    EXPECT_EQ(MUST(reader.decode<u8>()), to_underlying(ValueTag::SerializableObject));
+    EXPECT_EQ(MUST(reader.decode<Web::Bindings::InterfaceName>()), Web::Bindings::InterfaceName::Module);
+    EXPECT_EQ(MUST(reader.decode<ByteBuffer>()).span(), s_minimal_webassembly_module_bytes.span());
 }
 
 TEST_CASE(realm_helpers_share_vm_initialization)
@@ -695,6 +711,7 @@ TEST_CASE(serializable_encode_completeness)
         "FileList"sv,
         "ImageBitmap"sv,
         "ImageData"sv,
+        "Module"sv,
         "QuotaExceededError"sv,
     };
     auto is_covered = [&](StringView identifier) {

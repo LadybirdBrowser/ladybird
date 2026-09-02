@@ -255,6 +255,8 @@ static Vector<CorpusEntry> build_corpus_entries()
         add("serializable-ImageBitmap"_string, image_bitmap_record(2, 2, 8, "BGRA8888"sv, "premultiplied"sv, { bitmap_pixels.data(), bitmap_pixels.size() }));
     }
 
+    add("serializable-Module"_string, webassembly_module_storage_record(s_minimal_webassembly_module_bytes.span()));
+
     add("serializable-CryptoKey"_string, crypto_key_full_record("secret"sv, "deriveKey"sv, alg_key_algorithm("HKDF"sv), handle_byte_buffer("0123456789abcdef"sv.bytes())));
     for (auto const& golden : crypto_algorithm_goldens())
         add(MUST(String::formatted("cryptokey-algorithm-{}", to_underlying(golden.tag))), crypto_key_full_record(golden.type, golden.usage, golden.algorithm, golden.handle));

@@ -989,7 +989,7 @@ GC::Ref<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::Realm& re
         auto module_or_error = Detail::compile_a_webassembly_module(realm, bytes);
 
         // 2. Queue a task to perform the following steps. If taskSource was provided, queue the task on that task source.
-        HTML::queue_a_task(task_source, nullptr, nullptr, GC::create_function(GC::Heap::the(), [&realm, promise, module_or_error = move(module_or_error)]() mutable {
+        HTML::queue_a_task(task_source, nullptr, nullptr, GC::create_function(GC::Heap::the(), [&realm, bytes = move(bytes), promise, module_or_error = move(module_or_error)]() mutable {
             HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             auto& realm = HTML::relevant_realm(*promise->promise());
 
@@ -1001,8 +1001,7 @@ GC::Ref<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::Realm& re
             // 2. Otherwise,
             else {
                 // 1. Construct a WebAssembly module object from module and bytes, and let moduleObject be the result.
-                // FIXME: Save bytes to the Module instance instead of moving into compile_a_webassembly_module
-                auto module_object = GC::Heap::the().allocate<Module>(module_or_error.release_value());
+                auto module_object = GC::Heap::the().allocate<Module>(module_or_error.release_value(), move(bytes));
 
                 // 2. Resolve promise with moduleObject.
                 Bindings::resolve_webassembly_module_promise(realm, promise, module_object);

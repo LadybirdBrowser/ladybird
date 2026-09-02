@@ -17,7 +17,7 @@ dictionary ModuleImportDescriptor {
 };
 
 // https://webassembly.github.io/spec/js-api/#modules
-[LegacyNamespace=WebAssembly, Exposed=*]
+[LegacyNamespace=WebAssembly, Exposed=*, Serializable]
 interface Module {
     constructor(BufferSource bytes);
 
