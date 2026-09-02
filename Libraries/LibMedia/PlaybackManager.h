@@ -101,6 +101,7 @@ public:
     Function<void()> on_playback_state_change;
     Function<void(AK::Duration)> on_duration_change;
     Function<void()> on_buffered_ranges_change;
+    Function<void(bool)> on_audio_output_state_change;
     Function<void(DecoderError&&)> on_error;
 
     void add_media_source(NonnullRefPtr<MediaStream> const&);
@@ -164,6 +165,7 @@ private:
     void set_up_producers();
     void attach_video_sink(VideoTrackData&, NonnullRefPtr<VideoSink>);
     void on_audio_sink_state_changed(PipelineStatus);
+    void set_audio_output_is_non_silent(bool);
     void on_video_sink_state_changed(Track const&, PipelineStatus);
     void update_duration_from_scan_states();
     bool is_enabled_supported_track(Track const&) const;
@@ -248,6 +250,7 @@ private:
     Optional<AK::UnixDateTime> m_start_time_realtime;
 
     PipelineStatus m_audio_sink_status { PipelineStatus::HaveData };
+    bool m_audio_output_is_non_silent { false };
 
     bool m_is_in_error_state { false };
 };

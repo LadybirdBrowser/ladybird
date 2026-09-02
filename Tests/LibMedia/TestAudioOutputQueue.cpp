@@ -57,8 +57,11 @@ TEST_CASE(reads_hold_their_position_while_the_queue_was_empty)
     queue->seek(AK::Duration::zero());
 
     Array<float, QUANTUM_SAMPLE_COUNT> buffer;
-    for (int i = 0; i < 3; ++i)
-        EXPECT(queue->read_interleaved(buffer, {}).samples.is_empty());
+    for (int i = 0; i < 3; ++i) {
+        auto empty_read = queue->read_interleaved(buffer, {});
+        EXPECT(empty_read.samples.is_empty());
+        EXPECT(!empty_read.contains_non_silent_samples);
+    }
 
     producer->append_block(0, 1024);
     producer->wake();
@@ -68,6 +71,7 @@ TEST_CASE(reads_hold_their_position_while_the_queue_was_empty)
     EXPECT_EQ(read.samples.size(), QUANTUM_SAMPLE_COUNT);
     EXPECT_EQ(read.samples[0], 0.0f);
     EXPECT_EQ(read.samples[2], 1.0f);
+    EXPECT(read.contains_non_silent_samples);
     queue->stop();
 }
 

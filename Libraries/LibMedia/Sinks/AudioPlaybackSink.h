@@ -11,6 +11,7 @@
 #include <AK/RefPtr.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Forward.h>
+#include <LibMedia/Audio/AudioOutputMonitor.h>
 #include <LibMedia/Audio/Forward.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
@@ -41,6 +42,7 @@ public:
     virtual void set_playback_rate(float) override;
 
     void set_volume(double);
+    void set_audio_output_state_change_handler(Function<void(bool)>);
 
     Function<void(Error&&)> on_audio_output_error;
 
@@ -69,6 +71,7 @@ private:
     Optional<AK::Duration> m_seek_target_awaiting_drain;
 
     NonnullRefPtr<AudioOutputQueue> m_output_queue;
+    NonnullRefPtr<Audio::AudioOutputMonitor> m_audio_output_monitor;
     RefPtr<Audio::PlaybackStream> m_playback_stream;
     RefPtr<Core::Timer> m_clock_refresh_timer;
     MediaTimeReader m_time_reader;
