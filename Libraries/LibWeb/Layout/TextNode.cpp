@@ -627,8 +627,16 @@ TextNode::TextForRendering TextNode::compute_text_for_rendering(TextForRendering
         edits = move(sliced_edits);
     }
 
-    // The logic below deals with converting whitespace characters. If we don't have them, return early.
-    if (text.is_empty() || !any_of(text, is_ascii_space)) {
+    // The logic below converts tabs and segment breaks. Text without them is rendered as it is.
+    auto text_has_tab_or_newline = [&] {
+        auto view = text.utf16_view();
+        if (view.has_ascii_storage()) {
+            auto ascii = view.ascii_span();
+            return memchr(ascii.data(), '\n', ascii.size()) || memchr(ascii.data(), '\t', ascii.size());
+        }
+        return any_of(view.utf16_span(), [](char16_t code_unit) { return code_unit == u'\n' || code_unit == u'\t'; });
+    };
+    if (!text_has_tab_or_newline()) {
         return { move(text), move(edits) };
     }
 
