@@ -27,6 +27,7 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
 AudioPlaybackSink::AudioPlaybackSink(NonnullRefPtr<AudioOutputQueue> output_queue, MediaTimeReader time_reader)
     : m_main_thread_event_loop(Core::EventLoop::current())
     , m_output_queue(move(output_queue))
+    , m_audio_output_monitor(Audio::AudioOutputMonitor::create(m_main_thread_event_loop))
     , m_time_reader(move(time_reader))
 {
     m_clock_refresh_timer = Core::Timer::create_repeating(CLOCK_REFRESH_INTERVAL_MS, [this] {
@@ -40,6 +41,7 @@ AudioPlaybackSink::AudioPlaybackSink(NonnullRefPtr<AudioOutputQueue> output_queu
 
 AudioPlaybackSink::~AudioPlaybackSink()
 {
+    m_audio_output_monitor->set_enabled(false);
     m_output_queue->set_data_available_handler(nullptr);
     m_output_queue->stop();
 }
@@ -61,8 +63,10 @@ void AudioPlaybackSink::create_playback_stream()
 
     m_started_creating_playback_stream = true;
 
-    auto data_callback = [output_queue = m_output_queue](Span<float> buffer) -> ReadonlySpan<float> {
-        return output_queue->read_interleaved(buffer, {}).samples;
+    auto data_callback = [output_queue = m_output_queue, audio_output_monitor = m_audio_output_monitor](Span<float> buffer) -> ReadonlySpan<float> {
+        auto output = output_queue->read_interleaved(buffer, {});
+        audio_output_monitor->update(output.contains_non_silent_samples);
+        return output.samples;
     };
     constexpr u32 target_latency_ms = 100;
 
@@ -161,6 +165,7 @@ void AudioPlaybackSink::resume_playback_stream()
 
     VERIFY(!m_clock_refresh_timer->is_active());
     m_stream_state = StreamState::Playing;
+    m_audio_output_monitor->set_enabled(true);
     m_clock_refresh_timer->start();
     m_playback_stream->resume()
         ->when_resolved([self = NonnullRefPtr(*this)](auto new_device_time) {
@@ -183,6 +188,7 @@ void AudioPlaybackSink::pause_playback_stream()
 
     VERIFY(m_clock_refresh_timer->is_active());
     m_stream_state = StreamState::Suspended;
+    m_audio_output_monitor->set_enabled(false);
     m_clock_refresh_timer->stop();
     m_playback_stream->drain_buffer_and_suspend()
         ->when_resolved([self = NonnullRefPtr(*this)]() {
@@ -235,6 +241,7 @@ void AudioPlaybackSink::seek(AK::Duration time)
 void AudioPlaybackSink::set_volume(double volume)
 {
     m_volume = volume;
+    m_audio_output_monitor->set_muted(volume == 0.0);
 
     if (m_playback_stream) {
         m_playback_stream->set_volume(m_volume)
@@ -242,6 +249,11 @@ void AudioPlaybackSink::set_volume(double volume)
                 // FIXME: Do we even need this function to return a promise?
             });
     }
+}
+
+void AudioPlaybackSink::set_audio_output_state_change_handler(Function<void(bool)> handler)
+{
+    m_audio_output_monitor->set_output_state_change_handler(move(handler));
 }
 
 void AudioPlaybackSink::set_playback_rate(float rate)

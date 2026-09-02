@@ -48,6 +48,7 @@ public:
     struct InterleavedSamples {
         ReadonlySpan<float> samples;
         u8 channel_count { 0 };
+        bool contains_non_silent_samples { false };
     };
     // A pull consumer supplies how far its renderer runs ahead so periodic clock refreshes can publish the frame being
     // heard.

@@ -2,6 +2,7 @@ include(audio)
 
 set(TEST_SOURCES
     TestAudioBlockTimingRing.cpp
+    TestAudioOutputMonitor.cpp
     TestAudioOutputQueue.cpp
     TestAudioPullSink.cpp
     TestBufferedRanges.cpp
