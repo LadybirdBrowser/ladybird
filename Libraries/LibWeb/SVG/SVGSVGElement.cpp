@@ -184,13 +184,13 @@ GC::Ref<Geometry::DOMPointReadOnly> SVGSVGElement::current_translate() const
 GC::Ref<DOM::NodeList> SVGSVGElement::get_intersection_list(GC::Ref<Geometry::DOMRectReadOnly>, GC::Ptr<SVGElement>) const
 {
     dbgln("(STUBBED) SVGSVGElement::get_intersection_list(). Called on: {}", debug_description());
-    return DOM::StaticNodeList::create({});
+    return DOM::StaticNodeList::create(Vector<GC::RawRef<DOM::Node>> {});
 }
 
 GC::Ref<DOM::NodeList> SVGSVGElement::get_enclosure_list(GC::Ref<Geometry::DOMRectReadOnly>, GC::Ptr<SVGElement>) const
 {
     dbgln("(STUBBED) SVGSVGElement::get_enclosure_list(). Called on: {}", debug_description());
-    return DOM::StaticNodeList::create({});
+    return DOM::StaticNodeList::create(Vector<GC::RawRef<DOM::Node>> {});
 }
 
 bool SVGSVGElement::check_intersection(GC::Ref<SVGElement>, GC::Ref<Geometry::DOMRectReadOnly>) const
