@@ -4419,8 +4419,12 @@ impl StyleEngine {
                     // scope has no bound but the document.
                     Some(Lookup::KnownAbsent) => continue,
                     Some(Lookup::Missing(_)) | None => {
-                        if let Some(narrowed) = self.regions_from_subject_position(compiled, entry_index, document_root)
-                        {
+                        if let Some(narrowed) = self.regions_from_subject_position(
+                            compiled,
+                            entry_index,
+                            document_root,
+                            bounded_by_scope.then_some(scopes.as_slice()),
+                        ) {
                             for region in narrowed {
                                 regions.add_if_not_covered(region, &self.tree, &mut self.counters);
                             }
