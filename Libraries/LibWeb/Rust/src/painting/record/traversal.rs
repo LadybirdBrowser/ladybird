@@ -21,7 +21,7 @@ use crate::painting::host::{
 use crate::painting::node_painting;
 use crate::painting::record::cache::{
     CachedSubtreeCapture, CaptureAddress, CaptureKind, CaptureSite, EnclosingCaptureAnchor, OpenCapture, RecordGen,
-    ResolvedEnclosingCaptureMemo, SourceTapePosition, narrow_record_gen, resolve_capture_address_in_source_tape,
+    SourceTapePosition, narrow_record_gen, resolve_capture_address_in_source_tape,
 };
 use crate::painting::record::masks::MaskLayerSet;
 use crate::painting::record::verify::{CaptureLog, LoggedCapture};
@@ -78,6 +78,10 @@ pub(crate) fn record_display_list(
     let command_cache_source = command_cache_source
         .filter(|source| source.recorded_device_pixels_per_css_pixel == inputs.device_pixels_per_css_pixel);
     let paintable_rows = layout_arena.paintable_rows();
+    paint_state
+        .per_recording_memo_tables
+        .borrow_mut()
+        .begin_recording(layout_arena.paintable_row_count());
     let mut recorder = PaintRecorder {
         layout_arena: &paintable_rows,
         paint_state,
@@ -96,7 +100,6 @@ pub(crate) fn record_display_list(
         item_cache_source,
         hit_test_list_generation,
         open_capture_stack: Vec::new(),
-        resolved_enclosing_capture_memo: std::cell::RefCell::new(ResolvedEnclosingCaptureMemo::default()),
         deferred_whole_tape_splice: None,
         viewport,
         has_blocking_wheel_event_listeners: false,
@@ -105,14 +108,7 @@ pub(crate) fn record_display_list(
         capture_log_for_verification: crate::painting::record::verify::enabled_by_environment()
             .then(CaptureLog::default),
         list: HitTestList::default(),
-        base_paint_facts_cache: vec![None; layout_arena.paintable_row_count()],
-        paintable_facts_cache: vec![None; layout_arena.paintable_row_count()],
-        absolute_position_cache: (0..layout_arena.paintable_row_count())
-            .map(|_| std::cell::Cell::new(None))
-            .collect(),
-        captured_position_at_recording_start_cache: (0..layout_arena.paintable_row_count())
-            .map(|_| std::cell::Cell::new(None))
-            .collect(),
+        memo_tables: &paint_state.per_recording_memo_tables,
         completed_record_gen: narrow_record_gen(layout_arena.paint_cache_completed_record_gen()),
         all_paint_caches_dirty: layout_arena.all_paint_caches_dirty(),
         all_descendant_subtree_caches_dirty: layout_arena.all_descendant_subtree_caches_dirty(),
@@ -518,7 +514,7 @@ impl PaintRecorder<'_> {
             self.completed_record_gen,
             address,
             &lookup_enclosing_capture_anchor,
-            &mut self.resolved_enclosing_capture_memo.borrow_mut(),
+            self.memo_tables.borrow_mut().resolved_enclosing_capture_memo(),
         )
     }
 
@@ -777,10 +773,10 @@ impl PaintRecorder<'_> {
     }
 
     fn captured_position_at_recording_start(&self, paintable: NodeSlotId) -> used_values::FfiCssPixelPoint {
-        let index = paintable.slot_index() as usize;
-        if let Some(cell) = self.captured_position_at_recording_start_cache.get(index)
-            && let Some((memoized_id, position)) = cell.get()
-            && memoized_id == paintable
+        if let Some(position) = self
+            .memo_tables
+            .borrow()
+            .captured_position_at_recording_start(paintable)
         {
             return position;
         }
@@ -788,25 +784,19 @@ impl PaintRecorder<'_> {
             .layout_arena
             .paintable_paint_cache(paintable)
             .captured_absolute_position();
-        if let Some(cell) = self.captured_position_at_recording_start_cache.get(index) {
-            cell.set(Some((paintable, position)));
-        }
+        self.memo_tables
+            .borrow_mut()
+            .set_captured_position_at_recording_start(paintable, position);
         position
     }
 
     fn current_absolute_position(&self, paintable: NodeSlotId) -> used_values::FfiCssPixelPoint {
-        let index = paintable.slot_index() as usize;
-        if let Some(cell) = self.absolute_position_cache.get(index)
-            && let Some((memoized_id, position)) = cell.get()
-            && memoized_id == paintable
-        {
+        if let Some(position) = self.memo_tables.borrow().absolute_position(paintable) {
             return position;
         }
         let position: used_values::FfiCssPixelPoint =
             crate::painting::paintable_geometry::absolute_position(self.layout_arena, paintable).into();
-        if let Some(cell) = self.absolute_position_cache.get(index) {
-            cell.set(Some((paintable, position)));
-        }
+        self.memo_tables.borrow_mut().set_absolute_position(paintable, position);
         position
     }
 
