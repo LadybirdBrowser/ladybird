@@ -178,6 +178,7 @@ def define_the_regular_operations(
                 f"""    object.define_native_function(realm, "{name}"_utf16_fly_string, {idl_identifier_cpp_name(operation)}, {overload_resolution.operation_overload_set_length(operations)}, default_attributes);
 
 """,
+                f"{interface.name}.{name}",
             )
         )
 
@@ -207,6 +208,7 @@ def define_the_static_operations(out: TextIO, includes: GeneratedIncludes, inter
                 f"""    object.define_native_function(realm, "{name}"_utf16_fly_string, {idl_identifier_cpp_name(operation)}, {overload_resolution.operation_overload_set_length(operations)}, JS::Attribute::Enumerable | JS::Attribute::Configurable | JS::Attribute::Writable);
 
 """,
+                f"{interface.name}.{name}",
             )
         )
 
@@ -258,6 +260,7 @@ def define_the_stringifier(
             extended_attributes,
             """    object.define_native_function(realm, "toString"_utf16_fly_string, to_string, 0, default_attributes);
 """,
+            f"{interface.name}.toString",
         )
     )
     out.write(
@@ -677,6 +680,7 @@ def collect_attribute_values(
     // 3. Perform ! CreateDataPropertyOrThrow(result, k, v).
     MUST(result->create_data_property({key_name}, {js_value_name}));
 """,
+                f"{interface.name}.{attribute.name}",
             )
         )
 

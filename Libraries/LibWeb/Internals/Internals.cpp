@@ -76,6 +76,7 @@
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/Internals/InternalGamepad.h>
 #include <LibWeb/Internals/Internals.h>
 #include <LibWeb/Layout/NodeArena.h>
@@ -818,6 +819,12 @@ WebIDL::ExceptionOr<void> Internals::set_site_compatibility_data(Utf16String con
 
     ResourceLoader::the().set_site_compatibility_data(data.release_value());
     return {};
+}
+
+// Tests run with every [Experimental] interface exposed, so this is the only way one can watch the gate itself.
+void Internals::set_experimental_interfaces_exposed(bool exposed)
+{
+    HTML::WindowOrWorkerGlobalScopeMixin::set_experimental_interfaces_exposed(exposed);
 }
 
 void Internals::set_content_blocking_enabled(bool enabled)

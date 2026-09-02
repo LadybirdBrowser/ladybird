@@ -1,0 +1,4 @@
+expose_experimental_interfaces as a string: rejected (InternalError)
+user_agent as a string: rejected (InternalError)
+matched document: navigator.permissions is object, PermissionStatus is function
+unmatched document: navigator.permissions is undefined, PermissionStatus is undefined

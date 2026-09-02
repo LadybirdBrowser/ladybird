@@ -58,6 +58,7 @@
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/NavigationTiming/PerformanceNavigationTiming.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
@@ -1567,6 +1568,21 @@ void WindowOrWorkerGlobalScopeMixin::set_experimental_interfaces_exposed(bool ex
 bool WindowOrWorkerGlobalScopeMixin::expose_experimental_interfaces()
 {
     return s_experimental_interfaces_exposed;
+}
+
+// A site-compatibility rule can expose a gated interface or member to the documents and workers it matches, without
+// exposing it to the web at large. The rule is keyed by the URL the environment was created with, so it holds for the
+// lifetime of that global, the same way the global switch does.
+bool WindowOrWorkerGlobalScopeMixin::expose_experimental_interface(EnvironmentSettingsObject& settings, StringView name)
+{
+    if (s_experimental_interfaces_exposed)
+        return true;
+
+    // The first global of a page is set up before the loader exists, and holds nothing a rule could match anyway.
+    if (!ResourceLoader::is_initialized())
+        return false;
+
+    return ResourceLoader::the().site_compatibility_exposes_experimental_interface(settings.creation_url, name);
 }
 
 }

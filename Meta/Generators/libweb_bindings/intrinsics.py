@@ -251,6 +251,7 @@ namespace Web::Bindings {
 
     write_secure_context_switch(out, interface_sets.intrinsics)
     write_experimental_switch(out, interface_sets.intrinsics)
+    write_experimental_name_switch(out, interface_sets.intrinsics)
     write_global_exposed_switch(out, "window", interface_sets.window_exposed)
     write_global_exposed_switch(out, "dedicated_worker", interface_sets.dedicated_worker_exposed)
     write_global_exposed_switch(out, "shared_worker", interface_sets.shared_worker_exposed)
@@ -281,8 +282,8 @@ bool is_exposed(InterfaceName name, JS::Realm& realm)
     if (is_secure_context_interface(name) && HTML::is_non_secure_context(principal_host_defined_environment_settings_object(realm)))
         return false;
 
-    // AD-HOC: Do not expose experimental interfaces unless instructed to do so.
-    if (!HTML::WindowOrWorkerGlobalScopeMixin::expose_experimental_interfaces() && is_experimental_interface(name))
+    // AD-HOC: Do not expose experimental interfaces unless the global switch or a site-compatibility rule says so.
+    if (is_experimental_interface(name) && !HTML::WindowOrWorkerGlobalScopeMixin::expose_experimental_interface(principal_host_defined_environment_settings_object(realm), experimental_interface_name(name)))
         return false;
 
     // FIXME: 3. If realm’s settings object’s cross-origin isolated capability is false, and construct is
@@ -325,6 +326,29 @@ def write_secure_context_switch(out: TextIO, interfaces: List[Interface]) -> Non
         return false;
     }
 }
+"""
+    )
+
+
+def write_experimental_name_switch(out: TextIO, interfaces: List[Interface]) -> None:
+    # The name a site-compatibility rule lists to expose the interface for the sites it matches.
+    out.write(
+        """static constexpr StringView experimental_interface_name(InterfaceName name)
+{
+    switch (name) {
+"""
+    )
+    for interface in interfaces:
+        if "Experimental" not in interface.extended_attributes:
+            continue
+        out.write(f'    case InterfaceName::{interface.name}:\n        return "{interface.name}"sv;\n')
+
+    out.write(
+        """    default:
+        return {};
+    }
+}
+
 """
     )
 
@@ -602,7 +626,7 @@ void add_{snake_name}_exposed_interfaces(JS::Object& global)
     static constexpr u8 attr = JS::Attribute::Writable | JS::Attribute::Configurable;
 
     [[maybe_unused]] bool is_secure_context = HTML::is_secure_context(HTML::relevant_settings_object(global));
-    [[maybe_unused]] bool expose_experimental_interfaces = HTML::WindowOrWorkerGlobalScopeMixin::expose_experimental_interfaces();
+    [[maybe_unused]] auto& global_settings = HTML::relevant_settings_object(global);
 """
     )
 
@@ -647,7 +671,7 @@ def write_interface_global_accessor(out: TextIO, class_name: str, interface: Int
 
     if "Experimental" in interface.extended_attributes:
         out.write(
-            f"""{indentation}if (expose_experimental_interfaces) {{
+            f"""{indentation}if (HTML::WindowOrWorkerGlobalScopeMixin::expose_experimental_interface(global_settings, "{interface.name}"sv)) {{
 """
         )
         indentation += "    "
