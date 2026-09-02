@@ -3804,6 +3804,8 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
         if (element.has_relevant_animations()
             || element.has_css_defined_animations())
             groups_to_rebuild = ComputedValues::all_style_groups;
+        else if (auto animated_properties = computed_properties->animated_properties_snapshot(); animated_properties && !animated_properties->is_empty())
+            groups_to_rebuild |= animated_overlay_style_groups(*animated_properties, abstract_element).value_or(ComputedValues::all_style_groups);
     }
     auto computed_values = build_computed_values(
         *computed_properties,
@@ -4029,29 +4031,39 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_computed_values(Compute
     return style;
 }
 
+Optional<u32> StyleComputer::animated_overlay_style_groups(AnimatedProperties const& animated_properties, DOM::AbstractElement abstract_element) const
+{
+    u32 groups = 0;
+    for (auto const& entry : animated_properties.entries()) {
+        auto property_id = static_cast<PropertyID>(entry.property);
+        auto group = ComputedValues::style_group_of_property(property_id);
+        if (!group.has_value())
+            return {};
+        groups |= 1u << to_underlying(group.value());
+        if (property_id != PropertyID::Color)
+            continue;
+        auto style_node_id = abstract_element.element().style_node_id();
+        if (style_node_id == 0)
+            return {};
+        auto current_color_dependent_groups = m_style_engine.current_color_dependent_style_groups(style_node_id, pseudo_element_to_ffi(abstract_element.pseudo_element()));
+        if (!current_color_dependent_groups.has_value())
+            return {};
+        groups |= *current_color_dependent_groups;
+    }
+    return groups;
+}
+
 NonnullRefPtr<ComputedValues const> StyleComputer::build_animated_computed_values(ComputedStyleWorkingSet& computed_properties, DOM::AbstractElement abstract_element, StyleScope const& style_scope, ComputedValues const& previous_values) const
 {
     // The base half of an animated style does not move between frames, and everything the overlay
     // touches is named by the animated property set, so a frame keeps the previous base and
-    // rebuilds only the groups the animation writes. A property whose group is unknown takes the
-    // full build, and so does the color, because currentcolor consumers in other groups bake their
-    // resolved colors against it.
+    // rebuilds only the groups the animation writes.
     auto& counters = document().style_invalidation_counters();
     auto animated_properties = computed_properties.animated_properties_snapshot();
-    u32 groups_to_apply = 0;
-    bool touched_groups_known = animated_properties && !animated_properties->is_empty();
-    if (touched_groups_known) {
-        for (auto const& entry : animated_properties->entries()) {
-            auto property_id = static_cast<PropertyID>(entry.property);
-            auto group = ComputedValues::style_group_of_property(property_id);
-            if (!group.has_value() || property_id == PropertyID::Color) {
-                touched_groups_known = false;
-                break;
-            }
-            groups_to_apply |= 1u << to_underlying(group.value());
-        }
-    }
-    if (!touched_groups_known) {
+    Optional<u32> groups_to_apply;
+    if (animated_properties && !animated_properties->is_empty())
+        groups_to_apply = animated_overlay_style_groups(*animated_properties, abstract_element);
+    if (!groups_to_apply.has_value()) {
         counters.animated_style_full_builds++;
         return build_computed_values(computed_properties, abstract_element, style_scope);
     }
@@ -4060,7 +4072,7 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_animated_computed_value
     VERIFY(computation_context_cache_is_empty());
     ScopeGuard clear_computation_context_cache = [&] { clear_computation_context_caches(); };
     auto color_resolution_context = [&] {
-        if ((groups_to_apply & (1u << to_underlying(StyleGroupIndex::FontValues))) == 0) {
+        if ((*groups_to_apply & (1u << to_underlying(StyleGroupIndex::FontValues))) == 0) {
             return ColorResolutionContext {
                 .color_scheme = previous_values.color_scheme(),
                 .current_color = InitialValues::color(),
@@ -4078,7 +4090,7 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_animated_computed_value
     }();
 
     auto base_values = ComputedValues::Builder { previous_values.base_values() }.build();
-    auto animated_values = ComputedValues::create_over_base(computed_properties, document(), style_scope, move(color_resolution_context), *base_values, groups_to_apply);
+    auto animated_values = ComputedValues::create_over_base(computed_properties, document(), style_scope, move(color_resolution_context), *base_values, *groups_to_apply);
     ComputedValues::Builder builder { *animated_values };
     ComputedValuesFFI::FfiStyleFinalizationInput finalization_input {};
     finalization_input.mode = ComputedValuesFFI::FfiStyleFinalizationMode::Overflow;

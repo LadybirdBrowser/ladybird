@@ -15,7 +15,7 @@
     }
     #slider { animation: slide 1s linear paused; background-color: rgb(0, 0, 255); }
     #fader { animation: fade 1s linear paused; }
-    #tinter { animation: tint 1s linear paused; }
+    #tinter { animation: tint 1s linear paused; border: 1px solid currentcolor; }
 </style>
 <div id="slider">slide</div>
 <div id="fader">fade</div>
@@ -35,9 +35,10 @@
         println(`background: ${getComputedStyle(slider).backgroundColor}`);
         println(`opacity: ${getComputedStyle(fader).opacity}`);
 
-        // A color animation resolves currentcolor consumers baked in other groups, so it takes the
-        // full build.
+        // A color animation also rebuilds the groups whose values are resolved against the
+        // element's color.
         println(`color: ${getComputedStyle(tinter).color}`);
+        println(`border color: ${getComputedStyle(tinter).borderTopColor}`);
 
         const counters = internals.getStyleInvalidationCounters();
         println(`reconstruction fallbacks: ${counters.animatedStyleReconstructionFallbacks > 0 ? "some" : "none"}`);

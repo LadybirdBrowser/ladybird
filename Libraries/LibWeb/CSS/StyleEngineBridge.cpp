@@ -207,6 +207,14 @@ bool StyleEngine::animation_overlay_changed(StyleRecordID old_style_record, void
     return StyleEngineFFI::style_engine_animation_overlay_changed(m_impl, old_style_record.value(), animated_overlay);
 }
 
+Optional<u32> StyleEngine::current_color_dependent_style_groups(StyleNodeID node, u8 pseudo_kind) const
+{
+    auto groups = StyleEngineFFI::style_engine_current_color_dependent_group_mask(m_impl, node.value(), pseudo_kind);
+    if (groups == NumericLimits<u32>::max())
+        return {};
+    return groups;
+}
+
 StyleEngineFFI::FfiAnimationInvalidation StyleEngine::compare_animation_overlay(StyleRecordID old_style_record, void const* animated_overlay, ReadonlySpan<void const*> payloads, bool is_document_element) const
 {
     return StyleEngineFFI::style_engine_compare_animation_overlay(m_impl, old_style_record.value(), animated_overlay, payloads.data(), payloads.size(), is_document_element);
