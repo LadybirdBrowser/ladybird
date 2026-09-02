@@ -238,17 +238,58 @@ impl DisplayListBuilder {
         note_command(&mut self.runs, &header, start, padded_record_size);
     }
 
-    pub fn append_command_range(&mut self, source: &[u8], range: CommandRange, rewrite: Option<ContextRewrite>) -> u32 {
+    pub fn append_command_range(
+        &mut self,
+        source: &RecordedDisplayList,
+        range: CommandRange,
+        rewrite: Option<ContextRewrite>,
+    ) -> u32 {
         debug_assert_eq!(self.bytes.len() % COMMAND_ALIGNMENT, 0);
         debug_assert_eq!(range.size as usize % COMMAND_ALIGNMENT, 0);
         let destination_offset = self.bytes.len();
         if range.is_empty() {
             return u32::try_from(destination_offset).expect("display list exceeds u32");
         }
-        let source_range = &source[range.offset as usize..(range.offset + range.size) as usize];
+        let source_range = &source.bytes[range.offset as usize..(range.offset + range.size) as usize];
         self.bytes.extend_from_slice(source_range);
-        self.note_appended_records(destination_offset, rewrite.filter(|rewrite| !rewrite.is_identity()));
+        match rewrite.filter(|rewrite| !rewrite.is_identity()) {
+            Some(rewrite) => self.note_appended_records(destination_offset, Some(rewrite)),
+            None => self.note_runs_copied_from_source(&source.command_runs, range, destination_offset),
+        }
         u32::try_from(destination_offset).expect("display list exceeds u32")
+    }
+
+    fn note_runs_copied_from_source(
+        &mut self,
+        source_runs: &[DisplayListCommandRun],
+        range: CommandRange,
+        destination_offset: usize,
+    ) {
+        let range_end = range.offset + range.size;
+        let first = source_runs.partition_point(|run| run.offset + run.size <= range.offset);
+        for run in &source_runs[first..] {
+            if run.offset >= range_end {
+                break;
+            }
+            let start = run.offset.max(range.offset);
+            let end = (run.offset + run.size).min(range_end);
+            let destination_start = destination_offset + (start - range.offset) as usize;
+            if start == run.offset && end == run.offset + run.size {
+                push_or_merge_run(
+                    &mut self.runs,
+                    DisplayListCommandRun {
+                        offset: u32::try_from(destination_start).expect("display list exceeds u32"),
+                        ..*run
+                    },
+                );
+                continue;
+            }
+            let Self { bytes, runs } = self;
+            let destination_end = destination_offset + (end - range.offset) as usize;
+            for_each_command(&bytes[destination_start..destination_end], |header, offset, payload| {
+                note_command(runs, header, destination_start + offset, HEADER_SIZE + payload.len());
+            });
+        }
     }
 
     // Folds the records appended from `start` on into the run table, first rewriting their
@@ -272,6 +313,20 @@ impl DisplayListBuilder {
         }
         assert_eq!(offset, bytes.len());
     }
+}
+
+fn push_or_merge_run(runs: &mut Vec<DisplayListCommandRun>, run: DisplayListCommandRun) {
+    if let Some(last) = runs.last_mut()
+        && last.context == run.context
+    {
+        debug_assert_eq!(last.offset + last.size, run.offset);
+        last.size += run.size;
+        last.has_compositor_metadata |= run.has_compositor_metadata;
+        last.has_unbounded_draw |= run.has_unbounded_draw;
+        last.ink_bounds = last.ink_bounds.united(run.ink_bounds);
+        return;
+    }
+    runs.push(run);
 }
 
 fn note_command(
@@ -383,6 +438,13 @@ mod tests {
             rect: IntRect::new(x, y, width, height),
             color: Color::default(),
             compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+        }
+    }
+
+    fn finished(builder: &DisplayListBuilder) -> RecordedDisplayList {
+        RecordedDisplayList {
+            bytes: builder.bytes().to_vec(),
+            command_runs: builder.command_runs().to_vec(),
         }
     }
 
@@ -571,8 +633,11 @@ mod tests {
 
         let mut builder = DisplayListBuilder::new();
         let current = context(7, Some(1));
-        let destination_offset =
-            builder.append_command_range(source.bytes(), whole_tape(&source), Some(rewrite(recorded, current)));
+        let destination_offset = builder.append_command_range(
+            &finished(&source),
+            whole_tape(&source),
+            Some(rewrite(recorded, current)),
+        );
         let source_header = read_header(source.bytes());
         let spliced_header = read_header(&builder.bytes()[destination_offset as usize..]);
         assert_eq!(spliced_header.context, current);
@@ -597,8 +662,11 @@ mod tests {
         let mut builder = DisplayListBuilder::new();
         let current = context(7, Some(1));
         builder.append(&fill_rect(100, 100, 10, 10), &[], current);
-        let destination_offset =
-            builder.append_command_range(source.bytes(), whole_tape(&source), Some(rewrite(recorded, current)));
+        let destination_offset = builder.append_command_range(
+            &finished(&source),
+            whole_tape(&source),
+            Some(rewrite(recorded, current)),
+        );
         assert_ne!(destination_offset, 0);
         assert_runs_cover_tape(&builder);
         let runs = builder.command_runs();
@@ -617,7 +685,7 @@ mod tests {
 
         let mut builder = DisplayListBuilder::new();
         builder.append_command_range(
-            source.bytes(),
+            &finished(&source),
             whole_tape(&source),
             Some(rewrite(context(2, Some(1)), context(3, Some(7)))),
         );
@@ -647,7 +715,7 @@ mod tests {
 
         let mut builder = DisplayListBuilder::new();
         builder.append(&fill_rect(0, 0, 1, 1), &[], context(9, None));
-        let destination_offset = builder.append_command_range(source.bytes(), whole_tape(&source), None);
+        let destination_offset = builder.append_command_range(&finished(&source), whole_tape(&source), None);
         assert_runs_cover_tape(&builder);
         let spliced_runs = &builder.command_runs()[1..];
         assert_eq!(spliced_runs.len(), source_runs.len());
@@ -660,6 +728,59 @@ mod tests {
                 },
                 *original
             );
+        }
+    }
+
+    #[test]
+    fn copied_runs_match_a_walk_of_the_copied_records_for_every_range() {
+        let mut source = DisplayListBuilder::new();
+        let contexts = [
+            context(1, None),
+            context(1, None),
+            context(2, Some(0)),
+            context(1, None),
+            context(1, None),
+        ];
+        for (index, run_context) in contexts.iter().enumerate() {
+            let size = 10 * (index as i32 + 1);
+            source.append(&fill_rect(size, size, size, size), &[], *run_context);
+            if index == 2 {
+                source.append(
+                    &CompositorBlockingWheelEventRegion {
+                        rect: FloatRect::new(0.0, 0.0, 500.0, 500.0),
+                    },
+                    &[],
+                    *run_context,
+                );
+            }
+        }
+        let source = finished(&source);
+        let mut record_offsets = Vec::new();
+        for_each_command(&source.bytes, |_, offset, _| record_offsets.push(offset as u32));
+        record_offsets.push(source.bytes.len() as u32);
+
+        for (start_index, &start) in record_offsets.iter().enumerate() {
+            for &end in &record_offsets[start_index + 1..] {
+                let range = CommandRange {
+                    offset: start,
+                    size: end - start,
+                };
+                let mut copied = DisplayListBuilder::new();
+                copied.append(&fill_rect(0, 0, 1, 1), &[], context(1, None));
+                copied.append_command_range(&source, range, None);
+
+                let mut walked = DisplayListBuilder::new();
+                walked.append(&fill_rect(0, 0, 1, 1), &[], context(1, None));
+                let destination_offset = walked.bytes.len();
+                walked
+                    .bytes
+                    .extend_from_slice(&source.bytes[start as usize..end as usize]);
+                walked.note_appended_records(destination_offset, None);
+
+                assert_eq!(copied.bytes(), walked.bytes());
+                assert_eq!(copied.command_runs(), walked.command_runs(), "range {range:?}");
+                assert_runs_cover_tape(&copied);
+            }
         }
     }
 }
