@@ -115,6 +115,9 @@ public:
     [[nodiscard]] virtual bool timing_allow_passed() const { return m_timing_allow_passed; }
     virtual void set_timing_allow_passed(bool timing_allow_passed) { m_timing_allow_passed = timing_allow_passed; }
 
+    [[nodiscard]] virtual Vector<Vector<String>> const& navigation_timing_allow_values_list() const { return m_navigation_timing_allow_values_list; }
+    virtual void set_navigation_timing_allow_values_list(Vector<Vector<String>> navigation_timing_allow_values_list) { m_navigation_timing_allow_values_list = move(navigation_timing_allow_values_list); }
+
     [[nodiscard]] virtual BodyInfo const& body_info() const { return m_body_info; }
     virtual void set_body_info(BodyInfo body_info) { m_body_info = move(body_info); }
 
@@ -125,8 +128,8 @@ public:
     [[nodiscard]] Optional<NonnullRefPtr<HTTP::HeaderList>> const& javascript_bytecode_cache_memory_cache_request_headers() const { return m_javascript_bytecode_cache_memory_cache_request_headers; }
     void set_javascript_bytecode_cache_memory_cache_request_headers(Optional<NonnullRefPtr<HTTP::HeaderList>> request_headers) { m_javascript_bytecode_cache_memory_cache_request_headers = move(request_headers); }
 
-    [[nodiscard]] RedirectTaint redirect_taint() const { return m_redirect_taint; }
-    void set_redirect_taint(RedirectTaint redirect_taint) { m_redirect_taint = redirect_taint; }
+    [[nodiscard]] virtual RedirectTaint redirect_taint() const { return m_redirect_taint; }
+    virtual void set_redirect_taint(RedirectTaint redirect_taint) { m_redirect_taint = redirect_taint; }
 
     [[nodiscard]] bool is_aborted_network_error() const;
     [[nodiscard]] bool is_network_error() const;
@@ -204,6 +207,10 @@ private:
     // A response has an associated timing allow passed flag, which is initially unset.
     bool m_timing_allow_passed { false };
 
+    // https://fetch.spec.whatwg.org/#response-navigation-timing-allow-values-list
+    // A response has an associated navigation timing allow values list (a list of lists of strings). Unless stated otherwise, it is « ».
+    Vector<Vector<String>> m_navigation_timing_allow_values_list;
+
     // https://fetch.spec.whatwg.org/#concept-response-body-info
     // A response has an associated body info (a response body info). Unless stated otherwise, it is a new response body info.
     BodyInfo m_body_info;
@@ -274,8 +281,14 @@ public:
     [[nodiscard]] virtual bool timing_allow_passed() const override { return m_internal_response->timing_allow_passed(); }
     virtual void set_timing_allow_passed(bool timing_allow_passed) override { m_internal_response->set_timing_allow_passed(timing_allow_passed); }
 
+    [[nodiscard]] virtual Vector<Vector<String>> const& navigation_timing_allow_values_list() const override { return m_internal_response->navigation_timing_allow_values_list(); }
+    virtual void set_navigation_timing_allow_values_list(Vector<Vector<String>> navigation_timing_allow_values_list) override { m_internal_response->set_navigation_timing_allow_values_list(move(navigation_timing_allow_values_list)); }
+
     [[nodiscard]] virtual BodyInfo const& body_info() const override { return m_internal_response->body_info(); }
     virtual void set_body_info(BodyInfo body_info) override { m_internal_response->set_body_info(move(body_info)); }
+
+    [[nodiscard]] virtual RedirectTaint redirect_taint() const override { return m_internal_response->redirect_taint(); }
+    virtual void set_redirect_taint(RedirectTaint redirect_taint) override { m_internal_response->set_redirect_taint(redirect_taint); }
     [[nodiscard]] virtual Optional<RequestServerRequest> const& request_server_request() const override { return m_internal_response->request_server_request(); }
     virtual void set_request_server_request(RequestServerRequest request) override { m_internal_response->set_request_server_request(move(request)); }
     virtual void release_request_transfer_lease() const override { m_internal_response->release_request_transfer_lease(); }

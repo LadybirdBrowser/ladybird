@@ -1,2 +1,3 @@
 cross-origin redirect count: 0
+cross-origin-with-tao redirect count: 2
 same-origin redirect count: 1

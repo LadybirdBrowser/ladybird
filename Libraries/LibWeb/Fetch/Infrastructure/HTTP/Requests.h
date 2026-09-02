@@ -31,6 +31,8 @@
 
 namespace Web::Fetch::Infrastructure {
 
+class Response;
+
 // https://fetch.spec.whatwg.org/#concept-request
 class WEB_API Request final : public JS::Cell {
     GC_CELL(Request, JS::Cell);
@@ -290,6 +292,9 @@ public:
     [[nodiscard]] bool timing_allow_failed() const { return m_timing_allow_failed; }
     void set_timing_allow_failed(bool timing_allow_failed) { m_timing_allow_failed = timing_allow_failed; }
 
+    [[nodiscard]] Vector<Vector<String>> const& navigation_timing_allow_values_list() const { return m_navigation_timing_allow_values_list; }
+    void append_to_navigation_timing_allow_values_list(Response const&);
+
     [[nodiscard]] URL::URL& url();
     [[nodiscard]] URL::URL const& url() const;
     [[nodiscard]] URL::URL& current_url();
@@ -519,6 +524,10 @@ private:
     // https://fetch.spec.whatwg.org/#timing-allow-failed
     // A request has an associated timing allow failed flag. Unless stated otherwise, it is unset.
     bool m_timing_allow_failed { false };
+
+    // https://fetch.spec.whatwg.org/#request-navigation-timing-allow-values-list
+    // A request has an associated navigation timing allow values list (a list of lists of strings). Unless stated otherwise, it is « ».
+    Vector<Vector<String>> m_navigation_timing_allow_values_list;
 
     // Non-standard
     Vector<GC::Ref<Fetching::PendingResponse>> m_pending_responses;

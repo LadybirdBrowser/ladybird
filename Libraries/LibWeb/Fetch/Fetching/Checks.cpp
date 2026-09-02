@@ -82,4 +82,25 @@ bool tao_check(Infrastructure::Request const& request, Infrastructure::Response 
     return false;
 }
 
+// https://fetch.spec.whatwg.org/#navigation-tao-check
+bool navigation_tao_check(Infrastructure::Response const& response, URL::Origin const& destination_origin)
+{
+    // 1. For each taoValues of response's navigation timing allow values list:
+    for (auto const& tao_values : response.navigation_timing_allow_values_list()) {
+        // 1. If taoValues contains "*", then continue.
+        if (tao_values.contains_slow("*"sv))
+            continue;
+
+        // 2. If taoValues contains destinationOrigin, serialized, then continue.
+        if (tao_values.contains_slow(destination_origin.serialize()))
+            continue;
+
+        // 3. Return failure.
+        return false;
+    }
+
+    // 2. Return success.
+    return true;
+}
+
 }

@@ -44,6 +44,7 @@ static NavigationRequestDescriptor create_navigation_request_descriptor(Fetch::I
     return {
         .url_list = request.url_list(),
         .method = request.method(),
+        .client_is_null = !request.client(),
         .referrer = request.referrer(),
         .referrer_policy = request.referrer_policy(),
         .policy_container = serialize_request_policy_container(request),
@@ -87,6 +88,8 @@ static NavigationResponseDescriptor create_navigation_response_descriptor(Fetch:
         .headers = move(headers),
         .network_error_message = response.network_error_message(),
         .timing_allow_passed = response.timing_allow_passed(),
+        .navigation_timing_allow_values_list = response.navigation_timing_allow_values_list(),
+        .redirect_taint = response.redirect_taint(),
         .body = move(body),
     };
 }
@@ -179,7 +182,8 @@ static GC::Ptr<Fetch::Infrastructure::Request> create_navigation_request_from_de
     auto request = Fetch::Infrastructure::Request::create(realm.vm());
     request->set_url_list(descriptor->url_list);
     request->set_method(descriptor->method);
-    request->set_client(&navigable.active_document()->relevant_settings_object());
+    if (!descriptor->client_is_null)
+        request->set_client(&navigable.active_document()->relevant_settings_object());
     request->set_referrer(descriptor->referrer);
     request->set_referrer_policy(descriptor->referrer_policy);
     request->set_policy_container(create_a_policy_container_from_serialized_policy_container(descriptor->policy_container));
@@ -259,6 +263,8 @@ static ErrorOr<GC::Ref<Fetch::Infrastructure::Response>> create_navigation_respo
     response->set_status_message(move(descriptor.status_message));
     response->set_header_list(HTTP::HeaderList::create(move(descriptor.headers)));
     response->set_timing_allow_passed(descriptor.timing_allow_passed);
+    response->set_navigation_timing_allow_values_list(move(descriptor.navigation_timing_allow_values_list));
+    response->set_redirect_taint(descriptor.redirect_taint);
 
     if (descriptor.body.has<ByteBuffer>()) {
         response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, descriptor.body.get<ByteBuffer>().bytes()));
@@ -378,6 +384,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationRequestDescriptor co
 {
     TRY(encoder.encode(request.url_list));
     TRY(encoder.encode(request.method));
+    TRY(encoder.encode(request.client_is_null));
     TRY(encoder.encode(request.referrer));
     TRY(encoder.encode(request.referrer_policy));
     TRY(encoder.encode(request.policy_container));
@@ -391,6 +398,7 @@ ErrorOr<Web::HTML::NavigationRequestDescriptor> decode(Decoder& decoder)
     return Web::HTML::NavigationRequestDescriptor {
         .url_list = TRY(decoder.decode<Vector<URL::URL>>()),
         .method = TRY(decoder.decode<ByteString>()),
+        .client_is_null = TRY(decoder.decode<bool>()),
         .referrer = TRY(decoder.decode<Web::Fetch::Infrastructure::Request::ReferrerType>()),
         .referrer_policy = TRY(decoder.decode<Web::ReferrerPolicy::ReferrerPolicy>()),
         .policy_container = TRY(decoder.decode<Web::HTML::SerializedPolicyContainer>()),
@@ -424,6 +432,8 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationResponseDescriptor c
     TRY(encoder.encode(response.headers));
     TRY(encoder.encode(response.network_error_message));
     TRY(encoder.encode(response.timing_allow_passed));
+    TRY(encoder.encode(response.navigation_timing_allow_values_list));
+    TRY(encoder.encode(response.redirect_taint));
     TRY(encoder.encode(response.body));
     return {};
 }
@@ -438,6 +448,8 @@ ErrorOr<Web::HTML::NavigationResponseDescriptor> decode(Decoder& decoder)
         .headers = TRY(decoder.decode<Vector<HTTP::Header>>()),
         .network_error_message = TRY(decoder.decode<Optional<String>>()),
         .timing_allow_passed = TRY(decoder.decode<bool>()),
+        .navigation_timing_allow_values_list = TRY(decoder.decode<Vector<Vector<String>>>()),
+        .redirect_taint = TRY(decoder.decode<Web::Fetch::Infrastructure::RedirectTaint>()),
         .body = TRY(decoder.decode<Web::HTML::NavigationResponseBody>()),
     };
 }

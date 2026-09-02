@@ -5,7 +5,7 @@
         const server = httpTestServer();
         const token = crypto.randomUUID();
 
-        async function createRedirectedDocument(label, crossOrigin) {
+        async function createRedirectedDocument(label, crossOrigin, timingAllowOrigin) {
             const finalURL = new URL(await server.createEcho("GET", `/navigation-timing-redirect-final-${label}-${token}`, {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
@@ -18,29 +18,82 @@
                 `,
             }));
             if (crossOrigin)
-                finalURL.hostname = uniqueLocalhostHostname("navigation-timing-redirect");
+                finalURL.hostname = uniqueLocalhostHostname("navigation-timing-redirect-final");
+
+            let location = finalURL.href;
+            if (crossOrigin) {
+                const intermediateHeaders = { Location: finalURL.href };
+                if (timingAllowOrigin)
+                    intermediateHeaders["Timing-Allow-Origin"] = finalURL.origin;
+
+                const intermediateURL = new URL(await server.createEcho("GET", `/navigation-timing-redirect-intermediate-${label}-${token}`, {
+                    status: 302,
+                    headers: intermediateHeaders,
+                }));
+                intermediateURL.hostname = uniqueLocalhostHostname("navigation-timing-redirect-intermediate");
+                location = intermediateURL.href;
+            }
+
+            const headers = { Location: location };
+            if (timingAllowOrigin)
+                headers["Timing-Allow-Origin"] = finalURL.origin;
 
             return server.createEcho("GET", `/navigation-timing-redirect-initial-${label}-${token}`, {
                 status: 302,
-                headers: { Location: finalURL.href },
+                headers,
             });
         }
 
-        const results = [];
+        const navigations = [];
+        for (const [label, crossOrigin, timingAllowOrigin] of [
+            ["cross-origin", true, false],
+            ["cross-origin-with-tao", true, true],
+            ["same-origin", false, false],
+        ]) {
+            navigations.push({
+                label,
+                url: await createRedirectedDocument(label, crossOrigin, timingAllowOrigin),
+            });
+        }
+
         addEventListener("message", event => {
-            results.push(event.data);
-            if (results.length !== 2)
+            if (event.data.type !== "navigation-timing-redirect-counts")
                 return;
 
+            const results = event.data.results;
             results.sort((a, b) => a.label.localeCompare(b.label));
             for (const result of results)
                 println(`${result.label} redirect count: ${result.redirectCount}`);
             done();
         });
 
-        for (const [label, crossOrigin] of [["cross-origin", true], ["same-origin", false]]) {
+        const runnerURL = await server.createEcho("GET", `/navigation-timing-redirect-runner-${token}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `
+                <!DOCTYPE html>
+                <body>
+                <script>
+                    const navigations = ${JSON.stringify(navigations)};
+                    const results = [];
+                    addEventListener("message", event => {
+                        results.push(event.data);
+                        if (results.length === navigations.length)
+                            parent.postMessage({ type: "navigation-timing-redirect-counts", results }, "*");
+                    });
+
+                    for (const navigation of navigations) {
+                        const frame = document.createElement("iframe");
+                        frame.src = navigation.url;
+                        document.body.appendChild(frame);
+                    }
+                <\/script>
+            `,
+        });
+
+        {
             const frame = document.createElement("iframe");
-            frame.src = await createRedirectedDocument(label, crossOrigin);
+            frame.src = runnerURL;
             document.body.appendChild(frame);
         }
     });

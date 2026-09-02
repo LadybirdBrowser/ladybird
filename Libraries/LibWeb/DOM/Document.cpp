@@ -130,6 +130,7 @@
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Editing/EditingHistory.h>
+#include <LibWeb/Fetch/Fetching/Checks.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
@@ -505,7 +506,8 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     //    active sandboxing flag set: navigationParams's final sandboxing flag set
     //    FIXME: opener policy: navigationParams's opener policy
     //    load timing info: loadTimingInfo
-    //    FIXME: was created via cross-origin redirects: navigationParams's response's has cross-origin redirects
+    //    FIXME: was created via cross-origin redirects: true if navigationParams's response's redirect taint is not
+    //           "same-origin"; otherwise false
     //    during-loading navigation ID for WebDriver BiDi: navigationParams's id
     //    URL: creationURL
     //    current document readiness: "loading"
@@ -544,26 +546,6 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     // 10. Set window's associated Document to document.
     window->set_associated_document(*document);
 
-    bool has_cross_origin_redirects = false;
-    if (!navigation_params.response->url_list().is_empty()) {
-        auto initial_origin = navigation_params.response->url_list().first().origin();
-        for (auto const& url : navigation_params.response->url_list()) {
-            if (!url.origin().is_same_origin(initial_origin)) {
-                has_cross_origin_redirects = true;
-                break;
-            }
-        }
-    }
-    auto redirect_count = navigation_params.request && !has_cross_origin_redirects ? navigation_params.request->redirect_count() : 0;
-    NavigationTiming::PerformanceNavigationTiming::create_navigation_timing_entry(
-        *document,
-        timing_info,
-        redirect_count,
-        navigation_params.navigation_timing_type,
-        navigation_params.response->cache_state(),
-        navigation_params.response->body_info(),
-        navigation_params.response->status());
-
     // 11. Set document's internal ancestor origin objects list to the result of running the internal ancestor origin
     //     objects list creation steps given document and navigationParams's iframe element referrer policy.
     document->set_internal_ancestor_origin_objects_list(document->internal_ancestor_origin_objects_list_creation_steps(navigation_params.iframe_element_referrer_policy));
@@ -589,24 +571,66 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
         }
     }
 
+    // NOTE: Step 16 is treated as the else branch of step 15. Otherwise, redirectCount is undefined when the fetch
+    //       controller is null, and two navigation timing entries are created when it is non-null. Since both branches
+    //       consume redirectCount, perform steps 15.2 and 15.3 before selecting the branch.
+
+    // 15.2. Let redirectCount be 0.
+    u16 redirect_count = 0;
+    if (navigation_params.request) {
+        auto const& request = *navigation_params.request;
+
+        // 15.3. If navigationParams's response's redirect taint is "same-origin", or all of the following are true:
+        auto may_expose_redirect_count = navigation_params.response->redirect_taint() == Fetch::Infrastructure::RedirectTaint::SameOrigin;
+        if (!may_expose_redirect_count) {
+            // - navigationParams's request's client is null, or navigationParams's request's referrer is not "no-referrer", and
+            auto request_has_eligible_referrer = !request.referrer().has<Fetch::Infrastructure::Request::Referrer>()
+                || request.referrer().get<Fetch::Infrastructure::Request::Referrer>() != Fetch::Infrastructure::Request::Referrer::NoReferrer;
+
+            // - navigation TAO check given navigationParams's response and navigationParams's origin returns success,
+            may_expose_redirect_count = (!request.client() || request_has_eligible_referrer)
+                && Fetch::Fetching::navigation_tao_check(*navigation_params.response, navigation_params.origin);
+        }
+
+        // then set redirectCount to navigationParams's request's redirect count.
+        if (may_expose_redirect_count)
+            redirect_count = request.redirect_count();
+    }
+
+    // 15. If navigationParams's fetch controller is not null:
+    if (navigation_params.fetch_controller) {
+        // 1. Let fullTimingInfo be the result of extracting the full timing info from navigationParams's fetch controller.
+        auto full_timing_info = navigation_params.fetch_controller->extract_full_timing_info();
+
+        // 4. Create the navigation timing entry for document, given fullTimingInfo, redirectCount, navigationTimingType,
+        //    navigationParams's response's service worker timing info, and navigationParams's response's body info.
+        NavigationTiming::PerformanceNavigationTiming::create_navigation_timing_entry(
+            *document,
+            full_timing_info,
+            redirect_count,
+            navigation_params.navigation_timing_type,
+            navigation_params.response->cache_state(),
+            navigation_params.response->body_info(),
+            navigation_params.response->status());
+    }
+
+    // 16. Create the navigation timing entry for document, with navigationParams's response's timing info,
+    //     redirectCount, navigationParams's navigation timing type, and navigationParams's response's service worker timing info.
+    else {
+        NavigationTiming::PerformanceNavigationTiming::create_navigation_timing_entry(
+            *document,
+            timing_info,
+            redirect_count,
+            navigation_params.navigation_timing_type,
+            navigation_params.response->cache_state(),
+            navigation_params.response->body_info(),
+            navigation_params.response->status());
+    }
+
     // AD-HOC: Retain the navigation fetch controller so aborting the document can cancel the main resource after
     //         response commitment. Navigation fetches are not included in the document's subresource fetch group.
     if (navigation_params.fetch_controller)
         document->m_ongoing_navigation_fetch_controller = navigation_params.fetch_controller;
-
-    // FIXME: 15. If navigationParams's fetch controller is not null:
-    //            1. Let fullTimingInfo be the result of extracting the full timing info from navigationParams's fetch controller.
-    //            2. Let redirectCount be 0.
-    //            3. If navigationParams's response's has cross-origin redirects is false, or all of the following are true:
-    //                - navigationParams's request's client is null, or navigationParams's request's referrer is not "no-referrer", and
-    //                - navigation TAO check given navigationParams's response and navigationParams's origin returns success,
-    //               then set redirectCount to navigationParams's request's redirect count.
-    //            4. Create the navigation timing entry for document, given fullTimingInfo, redirectCount, navigationTimingType,
-    //               navigationParams's response's service worker timing info, and navigationParams's response's body info.
-
-    // FIXME: 16. Create the navigation timing entry for document, with navigationParams's response's timing info,
-    //        redirectCount, navigationParams's navigation timing type, and navigationParams's response's service
-    //        worker timing info.
 
     // 17. If navigationParams's response has a `Refresh` header, then:
     if (auto maybe_refresh = navigation_params.response->header_list()->get("Refresh"sv); maybe_refresh.has_value()) {

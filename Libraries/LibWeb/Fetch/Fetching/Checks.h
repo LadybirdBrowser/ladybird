@@ -7,11 +7,13 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibURL/Forward.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Fetch::Fetching {
 
 [[nodiscard]] bool cors_check(Infrastructure::Request const&, Infrastructure::Response const&);
 [[nodiscard]] bool tao_check(Infrastructure::Request const&, Infrastructure::Response const&);
+[[nodiscard]] bool navigation_tao_check(Infrastructure::Response const&, URL::Origin const& destination_origin);
 
 }
