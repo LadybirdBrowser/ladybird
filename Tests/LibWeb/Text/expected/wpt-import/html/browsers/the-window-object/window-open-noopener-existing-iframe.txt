@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	window.open() with noopener targeting an existing named iframe does not set its opener
