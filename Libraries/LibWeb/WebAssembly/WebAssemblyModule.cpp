@@ -46,9 +46,7 @@ JS::ThrowCompletionOr<GC::Ref<WebAssemblyModule>> WebAssemblyModule::parse(ByteB
     auto& vm = realm.vm();
 
     // 1. Let stableBytes be a copy of the bytes held by the buffer bytes.
-    auto stable_bytes
-        = MUST(ByteBuffer::create_uninitialized(bytes.size()));
-    bytes.bytes().copy_to(stable_bytes);
+    auto stable_bytes = MUST(ByteBuffer::copy(bytes));
 
     // 2. Compile the WebAssembly module stableBytes and store the result as module.
     // 3. If module is error, throw a CompileError exception.

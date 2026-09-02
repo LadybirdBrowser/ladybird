@@ -122,7 +122,7 @@ private:
 NonnullRefPtr<WebAssemblyCache> get_cache(JS::Realm&);
 
 JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS::Realm&, Wasm::Module const&, GC::Ptr<JS::Object> import_object);
-JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webassembly_module(JS::Realm&, ByteBuffer);
+JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webassembly_module(JS::Realm&, ReadonlyBytes);
 Utf16FlyString name_of_webassembly_function(Wasm::Store&, Wasm::FunctionAddress);
 GC::Ptr<JS::NativeFunction> create_native_function(JS::Realm&, Wasm::FunctionAddress address, Utf16FlyString name, GC::Ptr<Instance> instance = nullptr);
 JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::Realm&, JS::Value value, Wasm::ValueType const& type);
