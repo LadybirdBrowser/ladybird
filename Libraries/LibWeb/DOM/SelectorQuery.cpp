@@ -418,10 +418,12 @@ GC::Ptr<Element> SelectorQuery::query_first(ParentNode& root) const
 
 static GC::Ref<NodeList> create_node_list(Vector<GC::RawPtr<Element>> const& elements)
 {
-    Vector<GC::Root<Node>> nodes;
+    // The elements are descendants of a live query root, which keeps them alive until the list
+    // owns them; rooting each of them here would cost a heap registration per element.
+    Vector<GC::RawRef<Node>> nodes;
     nodes.ensure_capacity(elements.size());
     for (auto const& element : elements)
-        nodes.unchecked_append(GC::make_root(static_cast<Node&>(*element)));
+        nodes.unchecked_append(static_cast<Node&>(*element));
     return StaticNodeList::create(move(nodes));
 }
 
