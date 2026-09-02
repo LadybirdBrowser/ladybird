@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        function step(name) {
+            println(`PASS: ${name}`);
+        }
+
+        function fail(name, error) {
+            println(`FAIL: ${name}: ${error}`);
+            done();
+        }
+
+        function topLevelBoxes(bytes) {
+            const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+            const boxes = [];
+            for (let offset = 0; offset + 8 <= bytes.length;) {
+                const size = view.getUint32(offset);
+                boxes.push({ offset, type: String.fromCharCode(...bytes.subarray(offset + 4, offset + 8)) });
+                offset += size;
+            }
+            return boxes;
+        }
+
+        try {
+            const video = document.getElementById("video");
+            const mimeType = 'video/mp4;codecs="av01.0.00M.08,mp4a.40.2"';
+            if (!MediaSource.isTypeSupported(mimeType)) {
+                fail("isTypeSupported", `${mimeType} not supported`);
+                return;
+            }
+
+            const mediaSource = new MediaSource();
+            video.src = URL.createObjectURL(mediaSource);
+
+            mediaSource.addEventListener("sourceopen", async () => {
+                try {
+                    const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
+
+                    const response = await fetch("../../../Assets/av1-aac-fragmented.mp4");
+                    if (!response.ok) {
+                        fail("fetch media", `HTTP ${response.status}`);
+                        return;
+                    }
+                    const data = new Uint8Array(await response.arrayBuffer());
+
+                    const boxes = topLevelBoxes(data);
+                    const movieFragments = boxes.filter(box => box.type === "moof").map(box => box.offset);
+                    const mediaEnd = boxes.find(box => box.type === "mfra")?.offset ?? data.length;
+                    const initializationSegment = data.subarray(0, movieFragments[0]);
+                    const mediaSegments = movieFragments.map((start, index) =>
+                        data.subarray(start, index + 1 < movieFragments.length ? movieFragments[index + 1] : mediaEnd));
+
+                    function formatRanges() {
+                        const buffered = sourceBuffer.buffered;
+                        const ranges = [];
+                        for (let i = 0; i < buffered.length; i++)
+                            ranges.push(`${buffered.start(i)}-${buffered.end(i)}`);
+                        return `[${ranges.join(", ")}]`;
+                    }
+
+                    async function append(bytes) {
+                        await new Promise((resolve, reject) => {
+                            sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                            sourceBuffer.addEventListener("error", () =>
+                                reject(new Error("error event on SourceBuffer")), { once: true });
+                            sourceBuffer.appendBuffer(bytes);
+                        });
+                    }
+
+                    async function seekTo(time) {
+                        await new Promise(resolve => {
+                            video.addEventListener("seeked", resolve, { once: true });
+                            video.currentTime = time;
+                        });
+                    }
+
+                    await append(initializationSegment);
+
+                    // Place the two halves of the media ten seconds apart, so each half is a run of its own with
+                    // a hole between them far wider than any frame.
+                    sourceBuffer.timestampOffset = 5;
+                    for (const segment of mediaSegments.slice(0, 2))
+                        await append(segment);
+                    sourceBuffer.timestampOffset = 15;
+                    for (const segment of mediaSegments.slice(2))
+                        await append(segment);
+                    println(`buffered: ${formatRanges()}`);
+
+                    await new Promise(resolve => {
+                        mediaSource.addEventListener("sourceended", resolve);
+                        mediaSource.endOfStream();
+                    });
+
+                    video.addEventListener("error", () => {
+                        fail("playback", video.error?.message ?? "unknown error");
+                    });
+
+                    // Players seek slightly before a segment they hold and expect the seek to resolve on that
+                    // segment's first frame, as it does in other engines.
+                    const secondRunStart = sourceBuffer.buffered.start(1);
+                    await seekTo(secondRunStart - 0.009);
+                    step("seeked to just before the second run");
+
+                    const firstRunStart = sourceBuffer.buffered.start(0);
+                    await seekTo(firstRunStart - 0.009);
+                    step("seeked to just before the first run");
+
+                    done();
+                } catch (e) {
+                    fail("sourceopen handler", e);
+                }
+            });
+        } catch (e) {
+            fail("setup", e);
+        }
+    });
+</script>
