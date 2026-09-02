@@ -495,7 +495,7 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
     // Content-keyed disk cache: hash the wasm bytes, slot into the HTTP side-data shelf under a synthetic wasm-cache://<hex> URL
     Optional<Wasm::CompileCacheConfig> wasm_cache_config;
     if (ResourceLoader::is_initialized() && ResourceLoader::the().request_client()) {
-        auto digest = ::Crypto::Hash::SHA256::hash(data.data(), data.size());
+        auto digest = ::Crypto::Hash::SHA256::hash(data);
         __builtin_memcpy(stats.wasm_hash.data(), digest.bytes().data(), 32);
 
         StringBuilder hex_builder;
