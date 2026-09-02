@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::*;
-
 use crate::layout::used_values;
 use crate::painting::display_list::builder::RecordedDisplayList;
 use crate::painting::display_list::commands::{DisplayListCommandRun, DisplayListResourceId, FrameNodeIndex};
@@ -16,7 +14,6 @@ use std::ffi::c_void;
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiRecordingInputs {
-    pub device_pixels_per_css_pixel: f64,
     pub device_viewport_rect: IntRect,
     pub css_viewport_rect: used_values::FfiCssPixelRect,
     pub should_show_line_box_borders: bool,
@@ -25,14 +22,11 @@ pub struct FfiRecordingInputs {
     pub document_id: i64,
     pub has_blocking_wheel_event_region_covering_viewport: bool,
     pub wheel_event_listener_state_generation: u64,
-    pub viewport_wheel_overflow_x: u8,
-    pub viewport_wheel_overflow_y: u8,
     pub chrome_metrics: crate::painting::ffi::FfiChromeMetrics,
     pub paint_viewport_scrollbars: bool,
     pub async_scrolling_enabled: bool,
     pub middle_button_scroll_active: bool,
     pub middle_button_scroll_origin: used_values::FfiCssPixelPoint,
-    pub root_background_source: FfiRootBackgroundSource,
     pub canvas_fill_rect: used_values::OptionalIntRect,
     pub canvas_color: Color,
     pub opaque_canvas: bool,

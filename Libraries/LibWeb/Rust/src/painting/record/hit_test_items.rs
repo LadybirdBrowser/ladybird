@@ -38,7 +38,7 @@ pub(crate) struct HitTestFacts {
 pub(crate) fn hit_test_facts(
     arena: &impl crate::painting::paintable_rows::PaintableRowsRead,
     paintable: NodeSlotId,
-    inputs: &crate::painting::host::FfiRecordingInputs,
+    inputs: &crate::painting::record::RecordingInputs,
     dom: crate::painting::host::FfiHitTestPaintableFacts,
 ) -> HitTestFacts {
     let Some(style) = arena.node_style_if_live(paintable) else {

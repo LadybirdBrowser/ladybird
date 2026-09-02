@@ -1308,7 +1308,6 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     inputs.flex_overlays = ffi_flex_overlays.data();
     inputs.flex_overlay_count = ffi_flex_overlays.size();
     inputs.caret_debug_rect = overlay_inputs.caret_debug_rect;
-    inputs.device_pixels_per_css_pixel = device_pixels_per_css_pixel;
     inputs.device_viewport_rect = device_viewport_rect.to_type<int>();
     if (auto navigable = document.navigable())
         inputs.css_viewport_rect = navigable->viewport_rect();
@@ -1318,10 +1317,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     inputs.document_id = document.unique_id().value();
     inputs.has_blocking_wheel_event_region_covering_viewport = wheel_event_region_state.has_blocking_wheel_event_region_covering_viewport;
     inputs.wheel_event_listener_state_generation = document.page().wheel_event_listener_state_generation();
-    inputs.viewport_wheel_overflow_x = static_cast<u8>(to_underlying(overflow_value_applied_to_viewport_for_wheel_scrolling(document, ScrollDirection::Horizontal)));
-    inputs.viewport_wheel_overflow_y = static_cast<u8>(to_underlying(overflow_value_applied_to_viewport_for_wheel_scrolling(document, ScrollDirection::Vertical)));
     inputs.chrome_metrics = document.page().chrome_metrics();
-    inputs.root_background_source = rust_root_background_source(document);
     inputs.paint_viewport_scrollbars = should_paint_viewport_scrollbars();
     inputs.async_scrolling_enabled = document.page().async_scrolling_enabled();
     if (auto navigable = document.navigable()) {

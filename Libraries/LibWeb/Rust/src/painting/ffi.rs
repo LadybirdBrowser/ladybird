@@ -1816,6 +1816,16 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             if !arena.paintable_row_is_populated(viewport) || arena.stacking_context_entries(viewport).is_none() {
                 return 0;
             }
+            let visual_context = &paint_state.visual_context;
+            let inputs = crate::painting::record::RecordingInputs::from_host_and_last_visual_context_update(
+                inputs,
+                visual_context
+                    .last_tree_inputs
+                    .expect("a recording follows a visual context update"),
+                visual_context
+                    .last_root_background_source
+                    .expect("a recording follows a visual context update"),
+            );
             let command_cache_source = (!inputs.should_show_line_box_borders)
                 .then(|| paint_state.paint_command_cache_source.clone())
                 .flatten();

@@ -24,7 +24,8 @@ use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::hit_test::HitTestList;
 use crate::painting::host::{
     FfiHitTestHostCallbacks, FfiHitTestTextNodeFacts, FfiMaskDisplayListRegistration, FfiPaintHostCallbacks,
-    FfiPaintRecordingStats, FfiRecordingInputs, FfiVisualContextHostCallbacks,
+    FfiPaintRecordingStats, FfiRecordingInputs, FfiRootBackgroundSource, FfiVisualContextHostCallbacks,
+    FfiVisualContextTreeInputs,
 };
 use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData};
 use crate::painting::paintable_rows::PaintableRowsRef;
@@ -33,6 +34,45 @@ use crate::painting::visual_context::nested::NestedAssignments;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+
+#[derive(Clone, Copy)]
+pub(crate) struct RecordingInputs {
+    pub(crate) host: FfiRecordingInputs,
+    pub(crate) device_pixels_per_css_pixel: f64,
+    pub(crate) viewport_wheel_overflow_x: u8,
+    pub(crate) viewport_wheel_overflow_y: u8,
+    pub(crate) root_background_source: FfiRootBackgroundSource,
+}
+
+impl RecordingInputs {
+    pub(crate) fn from_host_and_last_visual_context_update(
+        host: FfiRecordingInputs,
+        tree_inputs: FfiVisualContextTreeInputs,
+        root_background_source: FfiRootBackgroundSource,
+    ) -> Self {
+        Self {
+            host,
+            device_pixels_per_css_pixel: tree_inputs.device_pixels_per_css_pixel,
+            viewport_wheel_overflow_x: tree_inputs.viewport_wheel_overflow_x,
+            viewport_wheel_overflow_y: tree_inputs.viewport_wheel_overflow_y,
+            root_background_source,
+        }
+    }
+}
+
+impl std::ops::Deref for RecordingInputs {
+    type Target = FfiRecordingInputs;
+
+    fn deref(&self) -> &FfiRecordingInputs {
+        &self.host
+    }
+}
+
+impl std::ops::DerefMut for RecordingInputs {
+    fn deref_mut(&mut self) -> &mut FfiRecordingInputs {
+        &mut self.host
+    }
+}
 
 #[derive(Default)]
 pub struct RecordingOutput {
@@ -78,7 +118,7 @@ pub struct PaintRecorder<'a> {
     pub(crate) paint_state: &'a crate::painting::paint_state::PaintState,
     pub(crate) host: &'a FfiHitTestHostCallbacks,
     pub(crate) paint_host: &'a FfiPaintHostCallbacks,
-    pub(crate) inputs: FfiRecordingInputs,
+    pub(crate) inputs: RecordingInputs,
     pub(crate) recorder: DisplayListRecorder,
     pub(crate) converter: DevicePixelConverter,
     pub(crate) draw_svg_geometry_for_clip_path: bool,
