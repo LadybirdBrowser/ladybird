@@ -93,6 +93,7 @@ public:
     TimeRanges buffered_time_ranges() const;
 
     void set_volume(double);
+    void set_audio_output_muted(bool);
     void set_playback_rate(float);
 
     Function<void()> on_metadata_parsed;
@@ -240,6 +241,7 @@ private:
     RefPtr<AudioTimeStretchProcessor> m_audio_time_stretch_processor;
     AudioOutput m_audio_output;
     double m_volume { 1.0 };
+    bool m_audio_output_muted { false };
     AudioTracks m_audio_tracks;
     AudioTrackDatas m_audio_track_datas;
 

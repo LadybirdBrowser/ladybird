@@ -5,11 +5,13 @@
  */
 
 #include <AK/Array.h>
+#include <AK/Atomic.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/Audio/ChannelMap.h>
 #include <LibMedia/PipelineStatus.h>
+#include <LibMedia/PlaybackManager.h>
 #include <LibMedia/Sinks/AudioPullSink.h>
 #include <LibTest/TestCase.h>
 #include <unistd.h>
@@ -85,6 +87,35 @@ TEST_CASE(render_delivers_frames_only_for_the_current_channel_map)
 
     // A renderer still sized for the previous channel map is given nothing rather than misinterleaved samples.
     EXPECT_EQ(sink->render(stereo_channels, 0), 0u);
+}
+
+TEST_CASE(muting_playback_output_does_not_mute_pull_sink)
+{
+    auto& loop = never_destroyed_event_loop();
+    auto producer = ScriptedAudioProducer::create();
+    auto sink = TRY_OR_FAIL(Media::AudioPullSink::try_create(8'000));
+    TRY_OR_FAIL(sink->set_channel_map(Audio::ChannelMap::mono()));
+    TRY_OR_FAIL(sink->connect_input(producer));
+
+    auto manager = Media::PlaybackManager::create();
+    manager->set_audio_pull_sink(sink, true);
+    manager->set_volume(0.5);
+    manager->set_audio_output_muted(true);
+
+    Atomic<bool> have_data { false };
+    sink->set_state_change_handler([&](Media::PipelineStatus status) {
+        if (status == Media::PipelineStatus::HaveData)
+            have_data.store(true);
+    });
+    producer->append_block(0, QUANTUM_FRAME_COUNT);
+    producer->wake();
+    EXPECT(pump_until(loop, [&] { return have_data.load(); }));
+
+    Array<float, QUANTUM_FRAME_COUNT> samples;
+    Array<Span<float>, 1> channels { samples.span() };
+    sink->resume();
+    EXPECT_EQ(sink->render(channels, 0), QUANTUM_FRAME_COUNT);
+    EXPECT_EQ(samples[1], 0.5f);
 }
 
 TEST_CASE(clock_follows_the_frames_that_were_rendered)

@@ -505,6 +505,7 @@ void PlaybackManager::ensure_audio_output_pipeline()
     });
     MUST(audio_sink->connect_input(*m_audio_time_stretch_processor));
     audio_sink->set_volume(m_volume);
+    audio_sink->set_muted(m_audio_output_muted);
     m_audio_output = audio_sink;
     set_clock(audio_sink);
     audio_sink->on_audio_output_error = [self, sink = audio_sink.ptr()](Error&& error) {
@@ -867,6 +868,13 @@ void PlaybackManager::set_volume(double volume)
         (*playback_sink)->set_volume(volume);
     if (auto* pull_output = m_audio_output.get_pointer<PullAudioOutput>())
         pull_output->sink->set_volume(volume);
+}
+
+void PlaybackManager::set_audio_output_muted(bool muted)
+{
+    m_audio_output_muted = muted;
+    if (auto* playback_sink = m_audio_output.get_pointer<NonnullRefPtr<AudioPlaybackSink>>())
+        (*playback_sink)->set_muted(muted);
 }
 
 void PlaybackManager::set_playback_rate(float rate)

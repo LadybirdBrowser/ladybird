@@ -42,6 +42,7 @@ public:
     virtual void set_playback_rate(float) override;
 
     void set_volume(double);
+    void set_muted(bool);
     void set_audio_output_state_change_handler(Function<void(bool)>);
 
     Function<void(Error&&)> on_audio_output_error;
@@ -58,6 +59,7 @@ private:
     void update_playback_stream_state();
     void resume_playback_stream();
     void pause_playback_stream();
+    void update_volume();
 
     Core::EventLoop& m_main_thread_event_loop;
 
@@ -65,6 +67,7 @@ private:
     bool m_playing { false };
     StreamState m_stream_state { StreamState::Suspended };
     double m_volume { 1 };
+    bool m_muted { false };
 
     AK::Duration m_anchor_stream_time;
     i64 m_anchor_output_frame_index { 0 };
