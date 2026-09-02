@@ -27,11 +27,8 @@
 namespace Web::Layout {
 
 Box::Box(DOM::Document& document, GC::Ptr<DOM::Node> node, CSS::LayoutStyle style, RustFFI::NodeKind kind)
-    : NodeWithStyle(document, node, move(style))
+    : NodeWithStyle(document, node, move(style), kind)
 {
-    set_node_kind(kind);
-    if (RustFFI::layout_node_kind_is_replaced_box(kind))
-        set_flag(RustFFI::NodeFlag::IsReplacedElement, true);
 }
 
 Box::~Box()

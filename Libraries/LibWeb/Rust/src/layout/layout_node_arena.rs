@@ -14,7 +14,9 @@ use super::used_values::UsedValues;
 use crate::css::style::fast_hash::FastMap as HashMap;
 use crate::layout::CssPixels;
 use crate::layout::FfiReplacedContentFacts;
-use crate::layout::node_data::{FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId};
+use crate::layout::node_data::{
+    FfiNodeConstructionFacts, FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId,
+};
 use crate::layout::tree_mutation::{DetachedShell, DetachedShells};
 use std::cell::Cell;
 use std::cell::RefCell;
@@ -571,7 +573,34 @@ impl LayoutNodeArena {
 
     // Freshly created chunks are default-initialized and free() resets slots on release, so
     // allocate() always hands out clean NodeData without writing it again.
-    pub(crate) fn allocate(&mut self) -> NodeAllocation {
+    pub(crate) fn allocate(&mut self, construction_facts: FfiNodeConstructionFacts) -> NodeAllocation {
+        let allocation = self.allocate_slot();
+        let data = self.data_mut(allocation.slot.slot_index());
+        data.kind = construction_facts.kind;
+        data.shell = construction_facts.shell;
+        data.flags = super::node_facts::construction_flags(&construction_facts);
+        self.enroll_node_for_replaced_content_facts_sync_if_eligible(allocation.slot);
+        allocation
+    }
+
+    #[cfg(test)]
+    pub(crate) fn allocate_for_test(&mut self) -> NodeAllocation {
+        self.allocate_slot()
+    }
+
+    pub(crate) fn enroll_node_for_replaced_content_facts_sync_if_eligible(&self, node: NodeSlotId) {
+        // SAFETY: data() validated that node names a live slot.
+        let data = unsafe { &*self.data(node) };
+        if !super::node_facts::node_may_have_replaced_content_facts_including_size_containment(data) {
+            return;
+        }
+        let mut enrolled_nodes = self.nodes_enrolled_for_replaced_content_facts_sync.borrow_mut();
+        if !enrolled_nodes.contains(&node) {
+            enrolled_nodes.push(node);
+        }
+    }
+
+    fn allocate_slot(&mut self) -> NodeAllocation {
         self.assert_owner_thread();
 
         let index = if let Some(index) = self.free_list.pop() {
@@ -2156,11 +2185,14 @@ pub unsafe extern "C" fn layout_arena_destroy(arena: *mut c_void) {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_allocate(arena: *mut c_void) -> NodeAllocation {
+pub unsafe extern "C" fn layout_arena_allocate(
+    arena: *mut c_void,
+    construction_facts: FfiNodeConstructionFacts,
+) -> NodeAllocation {
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: The C++ wrapper keeps the arena alive for this call and
     // serializes all access on the document thread.
-    unsafe { &mut *arena.cast::<LayoutNodeArena>() }.allocate()
+    unsafe { &mut *arena.cast::<LayoutNodeArena>() }.allocate(construction_facts)
 }
 
 #[unsafe(no_mangle)]
@@ -2390,16 +2422,13 @@ pub unsafe extern "C" fn layout_arena_enroll_text_node_for_content_sync(arena: *
 /// The arena must remain valid for the duration of the call, and `node` must name a live node
 /// in this arena.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_enroll_node_for_replaced_content_facts_sync(
+pub unsafe extern "C" fn layout_arena_enroll_node_for_replaced_content_facts_sync_if_eligible(
     arena: *mut c_void,
     node: NodeSlotId,
 ) {
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }
-        .nodes_enrolled_for_replaced_content_facts_sync
-        .borrow_mut()
-        .push(node);
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.enroll_node_for_replaced_content_facts_sync_if_eligible(node);
 }
 
 /// # Safety
@@ -2562,12 +2591,12 @@ mod tests {
     #[test]
     fn node_data_addresses_remain_stable_when_chunks_are_added() {
         let mut arena = LayoutNodeArena::new();
-        let first = arena.allocate();
+        let first = arena.allocate_for_test();
         let first_data = first.data;
 
         let mut allocations = Vec::new();
         for _ in 0..SLOTS_PER_CHUNK * 2 {
-            allocations.push(arena.allocate());
+            allocations.push(arena.allocate_for_test());
         }
 
         assert_eq!(first_data, arena.data(first.slot));
@@ -2587,7 +2616,7 @@ mod tests {
     fn node_data_slots_are_cache_line_aligned() {
         assert_eq!(align_of::<Chunk>() % 64, 0);
         let mut arena = LayoutNodeArena::new();
-        let allocation = arena.allocate();
+        let allocation = arena.allocate_for_test();
         assert_eq!(allocation.data as usize % 64, 0);
         arena.free(allocation.slot).detached_children.release_all();
     }
@@ -2595,10 +2624,10 @@ mod tests {
     #[test]
     fn freed_slots_are_reused_with_a_new_generation() {
         let mut arena = LayoutNodeArena::new();
-        let first = arena.allocate();
+        let first = arena.allocate_for_test();
         arena.free(first.slot).detached_children.release_all();
 
-        let second = arena.allocate();
+        let second = arena.allocate_for_test();
         assert_eq!(second.slot.slot_index(), first.slot.slot_index());
         assert_ne!(second.slot, first.slot);
         assert_ne!(second.slot.generation(), first.slot.generation());
@@ -2608,8 +2637,8 @@ mod tests {
     #[test]
     fn default_scroll_shift_anchors_behave_like_weak_references() {
         let mut arena = LayoutNodeArena::new();
-        let positioned = arena.allocate();
-        let anchor = arena.allocate();
+        let positioned = arena.allocate_for_test();
+        let anchor = arena.allocate_for_test();
 
         arena.set_default_scroll_shift(positioned.slot, anchor.slot, true, false);
         assert!(arena.may_have_default_scroll_shift_anchor());
@@ -2622,7 +2651,7 @@ mod tests {
         arena.free(anchor.slot).detached_children.release_all();
         assert!(arena.default_scroll_shift_anchor(positioned.slot).is_invalid());
 
-        let anchor_slot_reoccupant = arena.allocate();
+        let anchor_slot_reoccupant = arena.allocate_for_test();
         assert_eq!(anchor_slot_reoccupant.slot.slot_index(), anchor.slot.slot_index());
         assert!(arena.default_scroll_shift_anchor(positioned.slot).is_invalid());
 
@@ -2639,7 +2668,7 @@ mod tests {
         assert_eq!(cleared_flags & NodeFlag::CompensatesForVerticalScroll as u32, 0);
 
         arena.free(positioned.slot).detached_children.release_all();
-        let positioned_slot_reoccupant = arena.allocate();
+        let positioned_slot_reoccupant = arena.allocate_for_test();
         assert_eq!(
             positioned_slot_reoccupant.slot.slot_index(),
             positioned.slot.slot_index()
@@ -2649,7 +2678,7 @@ mod tests {
             .free(positioned_slot_reoccupant.slot)
             .detached_children
             .release_all();
-        let next_reoccupant = arena.allocate();
+        let next_reoccupant = arena.allocate_for_test();
         assert!(arena.default_scroll_shift_anchor(next_reoccupant.slot).is_invalid());
 
         arena.free(next_reoccupant.slot).detached_children.release_all();
@@ -2659,9 +2688,9 @@ mod tests {
     #[test]
     fn layout_update_flags_are_reset_only_in_the_requested_subtree() {
         let mut arena = LayoutNodeArena::new();
-        let root = arena.allocate();
-        let child = arena.allocate();
-        let detached = arena.allocate();
+        let root = arena.allocate_for_test();
+        let child = arena.allocate_for_test();
+        let detached = arena.allocate_for_test();
         arena.insert_child(root.slot, child.slot, NodeSlotId::INVALID);
         let update_flags = NodeFlag::NeedsLayoutUpdate as u32 | NodeFlag::NeedsOwnGeometryUpdate as u32;
         // SAFETY: All three allocations remain live for the duration of the test.
@@ -2688,9 +2717,9 @@ mod tests {
     #[test]
     fn stale_slot_ids_do_not_resolve_to_a_new_occupant() {
         let mut arena = LayoutNodeArena::new();
-        let first = arena.allocate();
+        let first = arena.allocate_for_test();
         arena.free(first.slot).detached_children.release_all();
-        let second = arena.allocate();
+        let second = arena.allocate_for_test();
 
         let stale_read = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| arena.data(first.slot)));
         assert!(stale_read.is_err());
@@ -2700,7 +2729,7 @@ mod tests {
     #[test]
     fn clearing_a_committed_box_evicts_its_fragment_link() {
         let mut arena = LayoutNodeArena::new();
-        let allocation = arena.allocate();
+        let allocation = arena.allocate_for_test();
         arena.set_committed_fragment_link(allocation.data, test_fragment_link(allocation.slot));
         assert!(arena.committed_fragment_link(allocation.data).is_some());
 
@@ -2720,8 +2749,8 @@ mod tests {
     #[test]
     fn committed_fragment_links_move_between_slots() {
         let mut arena = LayoutNodeArena::new();
-        let old = arena.allocate();
-        let new = arena.allocate();
+        let old = arena.allocate_for_test();
+        let new = arena.allocate_for_test();
         let link = test_fragment_link(old.slot);
         let retained_fragment = link.fragment.clone();
         arena.set_committed_fragment_link(old.data, link);
@@ -2744,7 +2773,7 @@ mod tests {
     #[test]
     fn intrinsic_size_cache_validates_epoch_and_generation() {
         let mut arena = LayoutNodeArena::new();
-        let first = arena.allocate();
+        let first = arena.allocate_for_test();
         let key = IntrinsicSizeCacheKey {
             measured_at_inline_size: Some(CssPixels::from_raw(64)),
             ..Default::default()
@@ -2819,7 +2848,7 @@ mod tests {
         assert_eq!(dependency_computations.get(), 2);
         arena.free(first.slot).detached_children.release_all();
 
-        let second = arena.allocate();
+        let second = arena.allocate_for_test();
         assert_eq!(second.slot.slot_index(), first.slot.slot_index());
         assert_ne!(second.slot, first.slot);
         // SAFETY: The second allocation is live and reuses the first allocation's slot.
@@ -2842,7 +2871,7 @@ mod tests {
     #[test]
     fn intrinsic_size_cache_answers_masked_probes_only_from_independent_measurements() {
         let mut arena = LayoutNodeArena::new();
-        let allocation = arena.allocate();
+        let allocation = arena.allocate_for_test();
         // SAFETY: The allocation remains live until it is explicitly freed below.
         let data = unsafe { &mut *allocation.data };
         let key_with_basis = |basis: i32| IntrinsicSizeCacheKey {
@@ -2942,7 +2971,7 @@ mod tests {
     #[test]
     fn table_cell_measurements_follow_the_intrinsic_cache_epoch() {
         let mut arena = LayoutNodeArena::new();
-        let first = arena.allocate();
+        let first = arena.allocate_for_test();
         let key = TableCellMeasurementKey {
             layout_mode: crate::layout::layout_node_arena::LayoutMode::Normal,
             available_space: crate::layout::layout_node_arena::AvailableSpace {
@@ -2986,7 +3015,7 @@ mod tests {
         assert_eq!(arena.table_cell_measurement_cache_get(first_data, key), None);
         arena.free(first.slot).detached_children.release_all();
 
-        let second = arena.allocate();
+        let second = arena.allocate_for_test();
         assert_eq!(second.slot.slot_index(), first.slot.slot_index());
         // SAFETY: The second allocation is live and reuses the first allocation's slot.
         let second_data = unsafe { &*second.data };

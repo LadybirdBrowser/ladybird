@@ -25,25 +25,22 @@
 namespace Web::Layout {
 
 TextNode::TextNode(DOM::Document& document, DOM::Text& text)
-    : Node(document, &text)
+    : Node(document, &text, RustFFI::NodeKind::TextNode)
 {
-    set_node_kind(RustFFI::NodeKind::TextNode);
     enroll_for_arena_text_content_sync();
     update_produces_line_box_fragment_when_empty_flag();
 }
 
 TextNode::TextNode(DOM::Document& document, DOM::Text& text, AttachToDOMNode attach_to_dom_node, RustFFI::NodeKind kind)
-    : Node(document, &text, attach_to_dom_node)
+    : Node(document, &text, kind, attach_to_dom_node)
 {
-    set_node_kind(kind);
     enroll_for_arena_text_content_sync();
     update_produces_line_box_fragment_when_empty_flag();
 }
 
 TextNode::TextNode(DOM::Document& document, RustFFI::NodeKind kind)
-    : Node(document, nullptr)
+    : Node(document, nullptr, kind)
 {
-    set_node_kind(kind);
     enroll_for_arena_text_content_sync();
 }
 
