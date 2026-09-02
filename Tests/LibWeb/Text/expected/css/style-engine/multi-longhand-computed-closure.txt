@@ -1,0 +1,8 @@
+mark full builds: 0
+mark partial builds: 16
+mark unrelated longhands skipped: true
+mark color: rgb(100, 100, 100) opacity: 0.5 text-decoration-line: line-through
+unmark full builds: 0
+unmark partial builds: 16
+unmark unrelated longhands skipped: true
+unmark color: rgb(0, 0, 0) opacity: 1 text-decoration-line: none

@@ -27,7 +27,7 @@ use crate::css::parser::value_parser::{
 };
 use crate::css::property_metadata::{
     FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, LONGHAND_WORD_COUNT, NUMBER_OF_LONGHAND_PROPERTIES,
-    property_is_in_logical_group, property_logical_group,
+    property_computed_dependents, property_is_in_logical_group, property_logical_group,
 };
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style_compute::{expand_shorthands_with, font_family_is_monospace};
@@ -630,48 +630,23 @@ fn select_coupled_border_style_and_width_groups(words: &mut [u64]) {
     }
 }
 
-fn property_has_independent_computed_closure(property_id: u16) -> bool {
-    use crate::css::property_metadata::property_id as prop;
-
-    property_is_in_logical_group(property_id)
-        || matches!(
-            property_id,
-            prop::ASPECT_RATIO
-                | prop::BACKDROP_FILTER
-                | prop::BACKGROUND_COLOR
-                | prop::BOX_SHADOW
-                | prop::CLIP_PATH
-                | prop::CX
-                | prop::CY
-                | prop::FILL
-                | prop::FILTER
-                | prop::ISOLATION
-                | prop::MIX_BLEND_MODE
-                | prop::OBJECT_FIT
-                | prop::OBJECT_POSITION
-                | prop::OPACITY
-                | prop::PERSPECTIVE
-                | prop::PERSPECTIVE_ORIGIN
-                | prop::R
-                | prop::ROTATE
-                | prop::RX
-                | prop::RY
-                | prop::SCALE
-                | prop::STROKE
-                | prop::TRANSFORM
-                | prop::TRANSFORM_ORIGIN
-                | prop::TRANSITION_BEHAVIOR
-                | prop::TRANSITION_DELAY
-                | prop::TRANSITION_DURATION
-                | prop::TRANSITION_PROPERTY
-                | prop::TRANSITION_TIMING_FUNCTION
-                | prop::TRANSLATE
-                | prop::VISIBILITY
-                | prop::WILL_CHANGE
-                | prop::X
-                | prop::Y
-                | prop::Z_INDEX
-        )
+fn select_known_computed_dependents(words: &mut [u64]) -> bool {
+    let mut dependents = [0u64; LONGHAND_WORD_COUNT];
+    for property_id in FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID {
+        if !longhand_is_selected(words, property_id) || property_is_in_logical_group(property_id) {
+            continue;
+        }
+        let Some(property_dependents) = property_computed_dependents(property_id) else {
+            return false;
+        };
+        for &dependent in property_dependents {
+            select_longhand(&mut dependents, dependent);
+        }
+    }
+    for (word, dependents) in words.iter_mut().zip(dependents) {
+        *word |= dependents;
+    }
+    true
 }
 
 unsafe fn plan_style_computation(
@@ -718,17 +693,13 @@ unsafe fn plan_style_computation(
         }
         expand_logical_property_closure(&mut computed_property_words);
         select_coupled_border_style_and_width_groups(&mut computed_property_words);
-        let only_independent_properties_changed =
-            (FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).all(|property_id| {
-                !longhand_is_selected(&computed_property_words, property_id)
-                    || property_has_independent_computed_closure(property_id)
-            });
+        let selected_closure_is_known = select_known_computed_dependents(&mut computed_property_words);
         // A full initial mask can mean the retained selection could not represent an inherited
-        // change. Independent transition properties do not make that missing input safe to skip.
-        // An empty initial mask means neither cascade winners nor inherited groups changed and is
-        // normalized above only because the driver cannot process an empty group selection.
+        // change. A known closure of the changed longhands does not make that missing input safe
+        // to skip. An empty initial mask means neither cascade winners nor inherited groups changed
+        // and is normalized above only because the driver cannot process an empty group selection.
         has_computed_property_selection = retained_selection.computed_property_closure_is_exact
-            || (input.initial_computed_group_mask != input.all_computed_groups && only_independent_properties_changed);
+            || (input.initial_computed_group_mask != input.all_computed_groups && selected_closure_is_known);
     }
     (
         has_monospace_font_family,
@@ -2214,10 +2185,10 @@ mod tests {
     }
 
     #[test]
-    fn computed_property_closure_identifies_independent_properties() {
-        assert!(property_has_independent_computed_closure(prop::OPACITY));
-        assert!(property_has_independent_computed_closure(prop::MARGIN_BLOCK_START));
-        assert!(!property_has_independent_computed_closure(prop::COLOR));
-        assert!(!property_has_independent_computed_closure(prop::FONT_SIZE));
+    fn computed_dependents_are_named_for_independent_properties() {
+        assert_eq!(property_computed_dependents(prop::OPACITY), Some(&[][..]));
+        assert!(property_is_in_logical_group(prop::MARGIN_BLOCK_START));
+        assert!(property_computed_dependents(prop::COLOR).is_none());
+        assert!(property_computed_dependents(prop::FONT_SIZE).is_none());
     }
 }

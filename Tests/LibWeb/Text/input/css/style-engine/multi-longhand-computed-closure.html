@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    /* The image keeps the computation out of the engine's own path. */
+    #container > div { color: black; background-image: url(data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22/%3E); }
+    #container > div.marked { color: rgb(100, 100, 100); opacity: 0.5; text-decoration-line: line-through; }
+</style>
+<div id="container"></div>
+<script>
+    test(() => {
+        for (let index = 0; index < 16; ++index) {
+            const child = container.appendChild(document.createElement("div"));
+            child.style.marginLeft = `${index}px`;
+        }
+        internals.updateStyle();
+
+        function mutate(label, mutation) {
+            const before = internals.getStyleInvalidationCounters();
+            mutation();
+            internals.updateStyle();
+            const after = internals.getStyleInvalidationCounters();
+            println(`${label} full builds: ${after.baseStyleFullBuilds - before.baseStyleFullBuilds}`);
+            println(`${label} partial builds: ${after.baseStylePartialBuilds - before.baseStylePartialBuilds}`);
+            println(`${label} unrelated longhands skipped: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations < 800}`);
+            const style = getComputedStyle(container.firstElementChild);
+            println(`${label} color: ${style.color} opacity: ${style.opacity} text-decoration-line: ${style.textDecorationLine}`);
+        }
+
+        mutate("mark", () => { for (const child of container.children) child.classList.add("marked"); });
+        mutate("unmark", () => { for (const child of container.children) child.classList.remove("marked"); });
+    });
+</script>
