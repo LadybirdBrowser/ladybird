@@ -32,7 +32,6 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
-#include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/AudioTrack.h>
 #include <LibWeb/HTML/AudioTrackList.h>
 #include <LibWeb/HTML/AutoplaySettings.h>
@@ -2171,6 +2170,9 @@ void HTMLMediaElement::on_metadata_parsed()
 void HTMLMediaElement::set_up_playback_manager_for_remote()
 {
     m_playback_manager = Media::PlaybackManager::create();
+    m_playback_manager->on_audio_output_state_change = GC::weak_callback(document().page(), [](auto& page, bool is_non_silent) {
+        page.audio_output_state_changed(is_non_silent);
+    });
     m_playback_manager->set_audio_output_disabled(document().page().client().is_headless());
     if (m_audio_pull_sink_attachment)
         m_playback_manager->set_audio_pull_sink(m_audio_pull_sink_attachment->sink(), m_audio_pull_sink_attachment->is_ticking());
@@ -2254,6 +2256,9 @@ void HTMLMediaElement::set_up_playback_manager_for_local()
     set_media_data_must_be_silenced(false);
 
     m_playback_manager = Media::PlaybackManager::create();
+    m_playback_manager->on_audio_output_state_change = GC::weak_callback(document().page(), [](auto& page, bool is_non_silent) {
+        page.audio_output_state_changed(is_non_silent);
+    });
     m_playback_manager->set_audio_output_disabled(document().page().client().is_headless());
     if (m_audio_pull_sink_attachment)
         m_playback_manager->set_audio_pull_sink(m_audio_pull_sink_attachment->sink(), m_audio_pull_sink_attachment->is_ticking());
@@ -2995,8 +3000,6 @@ void HTMLMediaElement::notify_about_playing()
 
 void HTMLMediaElement::update_audio_play_state()
 {
-    // AD-HOC: Browser chrome should indicate that this element is playing audio only while it can produce audible
-    //         output. Remember the state reported for each element so that changes to any input remain balanced.
     auto const is_playing_audio = m_has_started_playback
         && m_audio_tracks->has_enabled_track()
         && effective_media_volume() > 0;
@@ -3004,8 +3007,6 @@ void HTMLMediaElement::update_audio_play_state()
         return;
 
     m_is_playing_audio = is_playing_audio;
-    document().page().client().page_did_change_audio_play_state(
-        m_is_playing_audio ? AudioPlayState::Playing : AudioPlayState::Paused);
     document().media_element_audio_play_state_changed({});
 }
 
