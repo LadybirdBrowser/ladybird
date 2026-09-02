@@ -1565,8 +1565,16 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
     auto recompute_pseudo_element_style = [&](CSS::PseudoElement pseudo_element, bool has_implicit_style = false) {
         auto old_style_record = style_record_identity(pseudo_element);
-        auto pseudo_element_style = computed_style(pseudo_element);
         auto preserved_style_record = preserved_pseudo_element_styles ? preserved_pseudo_element_styles->at(to_underlying(pseudo_element)) : CSS::StyleRecordID {};
+        // Most elements have no style for most pseudo-elements. Decide that from the record
+        // identities before materializing any record view.
+        if (!has_implicit_style
+            && !old_style_record
+            && !preserved_style_record
+            && !(old_originating_style && old_originating_style->has_pseudo_element_style(pseudo_element))
+            && !(originating_style && originating_style->has_pseudo_element_style(pseudo_element)))
+            return;
+        auto pseudo_element_style = computed_style(pseudo_element);
         if (!old_style_record)
             old_style_record = preserved_style_record;
         auto preserved_pseudo_element_style = style_computer.computed_style_record_view(preserved_style_record);
