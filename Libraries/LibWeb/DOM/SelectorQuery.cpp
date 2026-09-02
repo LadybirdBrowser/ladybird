@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineBridge.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
+#include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ParentNode.h>
@@ -19,21 +20,17 @@
 
 namespace Web::DOM {
 
+// The style engine of one disconnected tree, populated with every element in it. Each query against the tree is
+// compiled into the engine once, on first use, and matched there from then on.
 class IsolatedSelectorQueryEngine {
 public:
-    IsolatedSelectorQueryEngine(ParentNode& root, CSS::SelectorList const& selectors)
+    explicit IsolatedSelectorQueryEngine(ParentNode& root)
         : m_engine(CSS::StyleEngine::DeviceClass::ForegroundDesktop)
         , m_has_document_root(is<Document>(root))
     {
-        // Attribute-name and default value case behavior are compiled into the query, so publish
-        // the document kind before compiling rather than while facts are populated afterward.
+        // Attribute-name and default value case behavior are compiled into a query, so publish the document kind
+        // before any query is compiled rather than while facts are populated afterward.
         CSS::configure_isolated_selector_query_engine(m_engine, root.document());
-        Vector<void const*> selector_handles;
-        selector_handles.ensure_capacity(selectors.size());
-        for (auto const& selector : selectors)
-            selector_handles.unchecked_append(&selector->rust_selector());
-        m_query = m_engine.compile_selector_query(selector_handles);
-
         CSS::populate_isolated_selector_query_engine(m_engine, root, [&](GC::Ref<Element> element, CSS::StyleNodeID identity) {
             m_identities.set(element, identity);
         });
@@ -41,45 +38,112 @@ public:
 
     ~IsolatedSelectorQueryEngine()
     {
-        CSS::StyleEngine::destroy_selector_query(m_query);
+        destroy_compiled_queries();
     }
 
-    bool matches(Element const& element, ParentNode const& scope)
+    bool matches(SelectorQuery const& query, Element const& element, ParentNode const& scope)
     {
         auto node = m_identities.get(GC::Ptr { element });
         VERIFY(node.has_value());
         CSS::StyleNodeID scope_root;
         if (GC::Ptr<Element const> scope_element = as_if<Element>(scope))
             scope_root = m_identities.get(scope_element).value_or(0);
+        auto const* compiled_query = compiled_query_for(query);
         auto result = m_has_document_root
-            ? m_engine.selector_query_matches(m_query, *node, scope_root, 0)
-            : m_engine.selector_query_matches_without_document_root(m_query, *node, scope_root, 0);
+            ? m_engine.selector_query_matches(compiled_query, *node, scope_root, 0)
+            : m_engine.selector_query_matches_without_document_root(compiled_query, *node, scope_root, 0);
         VERIFY(result.has_value());
         return *result;
     }
 
 private:
+    void const* compiled_query_for(SelectorQuery const& query)
+    {
+        if (auto it = m_compiled_queries.find(&query); it != m_compiled_queries.end())
+            return it->value.handle;
+
+        // A page can manufacture selector strings without end; the engine must not grow with them.
+        static constexpr size_t max_compiled_queries = 256;
+        if (m_compiled_queries.size() >= max_compiled_queries)
+            destroy_compiled_queries();
+
+        Vector<void const*> selector_handles;
+        selector_handles.ensure_capacity(query.selectors().size());
+        for (auto const& selector : query.selectors())
+            selector_handles.unchecked_append(&selector->rust_selector());
+        // Facts were published before this query existed, so any attribute value text it is the first to demand has
+        // to be published now, from the elements the engine was populated with, and the engine prepared against
+        // the facts again before the query matches.
+        auto* handle = m_engine.compile_selector_query(selector_handles, [&] {
+            for (auto const& it : m_identities) {
+                it.key->for_each_attribute([&](Attr const& attribute) {
+                    auto name_atom = m_engine.intern_attribute_name(attribute.local_name(), attribute.namespace_uri());
+                    m_engine.backfill_attribute_value_text_if_required(name_atom, attribute.value());
+                });
+            }
+        });
+        m_engine.prepare_selector_query();
+        m_compiled_queries.set(&query, CompiledQuery { query, handle });
+        return handle;
+    }
+
+    void destroy_compiled_queries()
+    {
+        for (auto& it : m_compiled_queries)
+            CSS::StyleEngine::destroy_selector_query(it.value.handle);
+        m_compiled_queries.clear();
+    }
+
+    struct CompiledQuery {
+        // Keeps the query alive, so its address cannot be taken over by another query while this entry is keyed on it.
+        NonnullRefPtr<SelectorQuery const> query;
+        void* handle { nullptr };
+    };
+
     CSS::StyleEngine m_engine;
     HashMap<GC::Ptr<Element const>, CSS::StyleNodeID> m_identities;
-    void* m_query { nullptr };
+    HashMap<SelectorQuery const*, CompiledQuery> m_compiled_queries;
     bool m_has_document_root { false };
 };
 
-class IsolatedSelectorQueryCacheEntry {
-public:
-    IsolatedSelectorQueryCacheEntry(ParentNode& root, CSS::SelectorList const& selectors)
-        : root(root)
-        , dom_tree_version(root.dom_tree_version())
-        , character_data_version(root.character_data_version())
-        , engine(root, selectors)
-    {
+IsolatedSelectorQueryEngineCache::IsolatedSelectorQueryEngineCache() = default;
+IsolatedSelectorQueryEngineCache::~IsolatedSelectorQueryEngineCache() = default;
+
+IsolatedSelectorQueryEngine& IsolatedSelectorQueryEngineCache::engine_for(ParentNode& root)
+{
+    if (auto it = m_entries.find(&root); it != m_entries.end()) {
+        auto& entry = it->value;
+        if (entry.root.ptr() == GC::Ptr { root }
+            && entry.dom_tree_version == root.dom_tree_version()
+            && entry.character_data_version == root.character_data_version())
+            return *entry.engine;
+        m_entries.remove(it);
     }
 
-    GC::Weak<ParentNode> root;
-    u64 dom_tree_version { 0 };
-    u64 character_data_version { 0 };
-    IsolatedSelectorQueryEngine engine;
-};
+    static constexpr size_t max_entry_count = 64;
+    if (m_entries.size() >= max_entry_count) {
+        m_entries.remove_all_matching([](auto&, auto& entry) { return !entry.root; });
+        if (m_entries.size() >= max_entry_count)
+            m_entries.remove(m_entries.begin());
+    }
+
+    auto engine = make<IsolatedSelectorQueryEngine>(root);
+    auto& engine_reference = *engine;
+    m_entries.set(&root, Entry { root, root.dom_tree_version(), root.character_data_version(), move(engine) });
+    return engine_reference;
+}
+
+void IsolatedSelectorQueryEngineCache::clear()
+{
+    m_entries.clear();
+}
+
+void IsolatedSelectorQueryEngineCache::visit_edges(GC::Cell::Visitor&)
+{
+    // Entries intentionally contain only weak or raw GC pointers, so the cache does not keep disconnected trees
+    // alive.
+    (void)m_entries;
+}
 
 template<typename Matcher>
 static GC::Ptr<Element> first_match(ParentNode& root, Matcher&& matcher)
@@ -280,9 +344,9 @@ bool SelectorQuery::matches(Element const& element, ParentNode const& scope) con
 
     auto& root = as<ParentNode>(const_cast<Node&>(element.root()));
     if (m_is_result_cacheable)
-        return isolated_engine_for(root).matches(element, scope);
-    IsolatedSelectorQueryEngine engine(root, m_selectors);
-    return engine.matches(element, scope);
+        return document.isolated_selector_query_engine_cache().engine_for(root).matches(*this, element, scope);
+    IsolatedSelectorQueryEngine engine(root);
+    return engine.matches(*this, element, scope);
 }
 
 bool SelectorQuery::matches_in_style_engine(Element const& element, ParentNode const& scope) const
@@ -300,35 +364,6 @@ bool SelectorQuery::matches_in_style_engine(Element const& element, ParentNode c
     auto result = const_cast<Document&>(element.document()).style_computer().style_engine().selector_query_matches(m_engine_query, element.style_node_id(), scope_root, shadow_root);
     VERIFY(result.has_value());
     return *result;
-}
-
-IsolatedSelectorQueryEngine& SelectorQuery::isolated_engine_for(ParentNode& root) const
-{
-    auto dom_tree_version = root.dom_tree_version();
-    auto character_data_version = root.character_data_version();
-    for (size_t index = 0; index < m_isolated_engine_cache.size();) {
-        auto& entry = *m_isolated_engine_cache[index];
-        if (!entry.root) {
-            m_isolated_engine_cache.remove(index);
-            continue;
-        }
-        if (entry.root.ptr() != GC::Ptr { root }) {
-            ++index;
-            continue;
-        }
-        if (entry.dom_tree_version == dom_tree_version && entry.character_data_version == character_data_version)
-            return entry.engine;
-        m_isolated_engine_cache.remove(index);
-        break;
-    }
-
-    static constexpr size_t max_isolated_engine_cache_size = 64;
-    if (m_isolated_engine_cache.size() >= max_isolated_engine_cache_size)
-        m_isolated_engine_cache.remove(0);
-    auto entry = make<IsolatedSelectorQueryCacheEntry>(root, m_selectors);
-    auto& engine = entry->engine;
-    m_isolated_engine_cache.append(move(entry));
-    return engine;
 }
 
 GC::Ptr<Element const> SelectorQuery::closest(Element const& element) const
@@ -354,17 +389,17 @@ GC::Ptr<Element const> SelectorQuery::closest(Element const& element) const
 
     auto& root = as<ParentNode>(const_cast<Node&>(element.root()));
     if (m_is_result_cacheable) {
-        auto& engine = isolated_engine_for(root);
+        auto& engine = const_cast<Document&>(element.document()).isolated_selector_query_engine_cache().engine_for(root);
         for (GC::Ptr<Element const> ancestor = &element; ancestor; ancestor = ancestor->parent_element()) {
-            if (engine.matches(*ancestor, element))
+            if (engine.matches(*this, *ancestor, element))
                 return ancestor;
         }
         return nullptr;
     }
 
-    IsolatedSelectorQueryEngine engine(root, m_selectors);
+    IsolatedSelectorQueryEngine engine(root);
     for (GC::Ptr<Element const> ancestor = GC::Ptr { element }; ancestor; ancestor = ancestor->parent_element()) {
-        if (engine.matches(*ancestor, element))
+        if (engine.matches(*this, *ancestor, element))
             return ancestor;
     }
     return nullptr;
@@ -399,11 +434,11 @@ GC::Ptr<Element> SelectorQuery::query_first(ParentNode& root) const
     if (!root.is_connected()) {
         auto& tree_root = as<ParentNode>(root.root());
         if (m_is_result_cacheable) {
-            auto& engine = isolated_engine_for(tree_root);
-            return cache_result(first_match(root, [&](auto& element) { return engine.matches(element, root); }));
+            auto& engine = root.document().isolated_selector_query_engine_cache().engine_for(tree_root);
+            return cache_result(first_match(root, [&](auto& element) { return engine.matches(*this, element, root); }));
         }
-        IsolatedSelectorQueryEngine engine(tree_root, m_selectors);
-        return first_match(root, [&](auto& element) { return engine.matches(element, root); });
+        IsolatedSelectorQueryEngine engine(tree_root);
+        return first_match(root, [&](auto& element) { return engine.matches(*this, element, root); });
     }
 
     auto& document = root.document();
@@ -452,11 +487,11 @@ GC::Ref<NodeList> SelectorQuery::query_all(ParentNode& root) const
     } else if (!root.is_connected()) {
         auto& tree_root = as<ParentNode>(root.root());
         if (m_is_result_cacheable) {
-            auto& engine = isolated_engine_for(tree_root);
-            collect_matches(root, [&](auto& element) { return engine.matches(element, root); }, elements);
+            auto& engine = document.isolated_selector_query_engine_cache().engine_for(tree_root);
+            collect_matches(root, [&](auto& element) { return engine.matches(*this, element, root); }, elements);
         } else {
-            IsolatedSelectorQueryEngine engine(tree_root, m_selectors);
-            collect_matches(root, [&](auto& element) { return engine.matches(element, root); }, elements);
+            IsolatedSelectorQueryEngine engine(tree_root);
+            collect_matches(root, [&](auto& element) { return engine.matches(*this, element, root); }, elements);
         }
     } else {
         settle_connected_selector_query(document);

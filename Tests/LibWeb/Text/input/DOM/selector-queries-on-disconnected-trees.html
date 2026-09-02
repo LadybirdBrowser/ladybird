@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="connected"><span class="item"></span></div>
+<script>
+    test(() => {
+        // Selector queries against disconnected trees match in an engine built for the tree, shared by every query
+        // against it and kept until the tree itself changes. Each step below changes one thing and checks that the
+        // next query sees it.
+        const root = document.createElement("div");
+        root.innerHTML = `
+            <section data-kind="a"><p id="first"></p><p id="second" class="x">text</p><p id="third"></p></section>
+            <react-partial partial-name="one"><div class="inner"></div></react-partial>`;
+        const section = root.querySelector("section");
+        const first = root.querySelector("#first");
+        const second = root.querySelector("#second");
+        const third = root.querySelector("#third");
+        const partial = root.querySelector("react-partial");
+        const inner = root.querySelector(".inner");
+
+        const report = (label) => {
+            const facts = [
+                `partial[one]=${partial.matches('react-partial[partial-name="one"]')}`,
+                `partial[two]=${partial.matches('react-partial[partial-name="two"]')}`,
+                `inner-closest=${inner.closest('react-partial[partial-name="one"] .inner') === inner}`,
+                `second:not(.x)=${second.matches("p:not(.x)")}`,
+                `first:first-child=${first.matches("p:first-child")}`,
+                `third:last-child=${third.matches("section > p:last-child")}`,
+                `second:empty=${second.matches(":empty")}`,
+                `first:empty=${first.matches(":empty")}`,
+                `kind-a-count=${root.querySelectorAll('[data-kind="a"] p').length}`,
+                `nth=${root.querySelector("p:nth-child(2)")?.id}`,
+                `root:root=${root.matches(":root")}`,
+                `scope=${root.querySelectorAll(":scope > section").length}`,
+            ];
+            println(`${label}: ${facts.join(" ")}`);
+        };
+
+        report("initial");
+
+        // Attribute changes in the disconnected tree, with nothing else changing.
+        partial.setAttribute("partial-name", "two");
+        report("after partial-name=two");
+        second.classList.remove("x");
+        report("after second loses .x");
+
+        // Structural changes in the disconnected tree.
+        const fourth = document.createElement("p");
+        fourth.id = "fourth";
+        section.appendChild(fourth);
+        report("after fourth appended");
+        section.removeChild(first);
+        report("after first removed");
+        section.insertBefore(first, second);
+        report("after first reinserted");
+
+        // Character data changes in the disconnected tree.
+        second.firstChild.data = "";
+        report("after second text emptied");
+        first.textContent = "filled";
+        report("after first text filled");
+
+        // Changes in the document must not disturb queries against the disconnected tree, and the other way around.
+        const connected = document.getElementById("connected");
+        for (let i = 0; i < 3; ++i) {
+            const item = document.createElement("span");
+            item.className = "item";
+            connected.appendChild(item);
+        }
+        report("after document changes");
+        println(`connected .item count: ${document.querySelectorAll("#connected .item").length}`);
+        section.setAttribute("data-kind", "b");
+        println(`connected .item count after disconnected change: ${document.querySelectorAll("#connected .item").length}`);
+        report("after data-kind=b");
+
+        // A tree that joins the document, changes there, and leaves again must be seen as it is now.
+        connected.appendChild(root);
+        partial.setAttribute("partial-name", "three");
+        section.appendChild(document.createElement("p")).id = "fifth";
+        println(`connected partial[three]=${partial.matches('react-partial[partial-name="three"]')} p count=${root.querySelectorAll("p").length}`);
+        connected.removeChild(root);
+        println(`disconnected again partial[three]=${partial.matches('react-partial[partial-name="three"]')} p count=${root.querySelectorAll("p").length} last=${root.querySelector("section > p:last-child").id}`);
+
+        // A subtree moved between two disconnected trees is seen in its new tree, and again on its own once removed.
+        const other = document.createElement("div");
+        other.className = "other";
+        other.appendChild(section);
+        println(`moved: closest=${first.closest(".other") === other} in root=${root.querySelectorAll("p").length} in other=${other.querySelectorAll("p").length}`);
+        section.appendChild(document.createElement("p")).id = "sixth";
+        other.removeChild(section);
+        println(`removed: closest=${first.closest(".other")} p count=${section.querySelectorAll("p").length} last=${section.querySelector("p:last-child").id}`);
+
+        // A tree adopted into another document, changed there, and adopted back must be seen as it is now.
+        const otherDocument = document.implementation.createHTMLDocument("");
+        otherDocument.adoptNode(section);
+        section.appendChild(otherDocument.createElement("p")).id = "seventh";
+        println(`adopted away: p count=${section.querySelectorAll("p").length} owner=${section.ownerDocument === otherDocument}`);
+        document.adoptNode(section);
+        println(`adopted back: p count=${section.querySelectorAll("p").length} last=${section.querySelector("p:last-child").id}`);
+
+        // Live collections rooted in a disconnected tree follow its changes too.
+        const paragraphs = section.getElementsByTagName("p");
+        println(`live list: ${paragraphs.length}`);
+        section.removeChild(paragraphs[0]);
+        println(`live list after removal: ${paragraphs.length}`);
+
+        // Many different queries against one disconnected tree, as a selector observer makes.
+        let matched = 0;
+        for (let i = 0; i < 200; ++i) {
+            if (partial.matches(`react-partial[partial-name="${i === 3 ? "three" : i}"]`))
+                ++matched;
+        }
+        println(`observer-style queries matched: ${matched}`);
+    });
+</script>

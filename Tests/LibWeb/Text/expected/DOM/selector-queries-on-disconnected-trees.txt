@@ -1,0 +1,21 @@
+initial: partial[one]=true partial[two]=false inner-closest=true second:not(.x)=false first:first-child=true third:last-child=true second:empty=false first:empty=true kind-a-count=3 nth=second root:root=false scope=1
+after partial-name=two: partial[one]=false partial[two]=true inner-closest=false second:not(.x)=false first:first-child=true third:last-child=true second:empty=false first:empty=true kind-a-count=3 nth=second root:root=false scope=1
+after second loses .x: partial[one]=false partial[two]=true inner-closest=false second:not(.x)=true first:first-child=true third:last-child=true second:empty=false first:empty=true kind-a-count=3 nth=second root:root=false scope=1
+after fourth appended: partial[one]=false partial[two]=true inner-closest=false second:not(.x)=true first:first-child=true third:last-child=false second:empty=false first:empty=true kind-a-count=4 nth=second root:root=false scope=1
+after first removed: partial[one]=false partial[two]=true inner-closest=false second:not(.x)=true first:first-child=true third:last-child=false second:empty=false first:empty=true kind-a-count=3 nth=third root:root=false scope=1
+after first reinserted: partial[one]=false partial[two]=true inner-closest=false second:not(.x)=true first:first-child=true third:last-child=false second:empty=false first:empty=true kind-a-count=4 nth=second root:root=false scope=1
+after second text emptied: partial[one]=false partial[two]=true inner-closest=false second:not(.x)=true first:first-child=true third:last-child=false second:empty=true first:empty=true kind-a-count=4 nth=second root:root=false scope=1
+after first text filled: partial[one]=false partial[two]=true inner-closest=false second:not(.x)=true first:first-child=true third:last-child=false second:empty=true first:empty=false kind-a-count=4 nth=second root:root=false scope=1
+after document changes: partial[one]=false partial[two]=true inner-closest=false second:not(.x)=true first:first-child=true third:last-child=false second:empty=true first:empty=false kind-a-count=4 nth=second root:root=false scope=1
+connected .item count: 4
+connected .item count after disconnected change: 4
+after data-kind=b: partial[one]=false partial[two]=true inner-closest=false second:not(.x)=true first:first-child=true third:last-child=false second:empty=true first:empty=false kind-a-count=0 nth=second root:root=false scope=1
+connected partial[three]=true p count=5
+disconnected again partial[three]=true p count=5 last=fifth
+moved: closest=true in root=0 in other=5
+removed: closest=null p count=6 last=sixth
+adopted away: p count=7 owner=true
+adopted back: p count=7 last=seventh
+live list: 7
+live list after removal: 6
+observer-style queries matched: 1

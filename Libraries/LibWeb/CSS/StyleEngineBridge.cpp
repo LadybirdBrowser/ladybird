@@ -796,9 +796,18 @@ bool StyleEngine::consume_published_match_answer(StyleNodeID node, Vector<RuleMa
 
 void* StyleEngine::compile_selector_query(ReadonlySpan<void const*> selectors)
 {
+    return compile_selector_query(selectors, {});
+}
+
+void* StyleEngine::compile_selector_query(ReadonlySpan<void const*> selectors, Function<void()> const& backfill_attribute_value_texts)
+{
     auto* query = StyleEngineFFI::style_engine_compile_selector_query(m_impl, selectors.data(), selectors.size());
-    if (refresh_attribute_value_text_requirements() && m_style_computer)
-        publish_required_attribute_value_texts(*this, *m_style_computer);
+    if (refresh_attribute_value_text_requirements()) {
+        if (m_style_computer)
+            publish_required_attribute_value_texts(*this, *m_style_computer);
+        else if (backfill_attribute_value_texts)
+            backfill_attribute_value_texts();
+    }
     return query;
 }
 

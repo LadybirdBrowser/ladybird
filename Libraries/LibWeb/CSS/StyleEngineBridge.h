@@ -256,6 +256,9 @@ public:
     // traversal. False means that transaction did not publish an answer for this node.
     bool consume_published_match_answer(StyleNodeID node, Vector<RuleMatch>&);
     void* compile_selector_query(ReadonlySpan<void const*> selectors);
+    // For an engine with no StyleComputer to reach its elements through: when the new query demands attribute value
+    // text that earlier facts were published without, the callback republishes every attribute value the engine holds.
+    void* compile_selector_query(ReadonlySpan<void const*> selectors, Function<void()> const& backfill_attribute_value_texts);
     static void destroy_selector_query(void*);
     void prepare_selector_query();
     Optional<bool> selector_query_matches(void const* query, StyleNodeID node, StyleNodeID scope_root, StyleNodeID shadow_root);
