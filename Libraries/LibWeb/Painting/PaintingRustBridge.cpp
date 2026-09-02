@@ -489,17 +489,13 @@ static void* layout_arena_handle(DOM::Document const& document)
     return const_cast<DOM::Document&>(document).layout_node_arena().handle();
 }
 
-VisualContextTreeUpdateResult rust_update_accumulated_visual_contexts(DOM::Document& document)
+Layout::RustFFI::FfiVisualContextUpdateOutcome rust_update_accumulated_visual_contexts(DOM::Document& document)
 {
     auto update_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
     auto outcome = Layout::RustFFI::layout_arena_update_accumulated_visual_contexts(layout_arena_handle(document), viewport_row_slot(document), visual_context_host_callbacks(document));
     if (rust_painting_timing_enabled())
         dbgln("AVC_UPDATE rust={} µs {}", update_timer.elapsed_time().to_microseconds(), outcome.performed_full_build ? "full"sv : "incremental"sv);
-    return {
-        .performed_full_build = outcome.performed_full_build,
-        .structural_epoch_changed = outcome.structural_epoch_changed,
-        .requires_display_list_recording = outcome.requires_display_list_recording,
-    };
+    return outcome;
 }
 
 Vector<u32> rust_owned_visual_context_node_indices(Layout::Node const& layout_node, Layout::RustFFI::FfiVisualContextBoxNodeList list)
