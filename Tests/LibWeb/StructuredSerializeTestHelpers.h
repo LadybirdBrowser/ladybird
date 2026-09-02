@@ -390,7 +390,7 @@ inline Web::HTML::StorageSerializationRecord frozen_image_data_record(ReadonlyBy
 }
 
 // CryptoKey is [SecureContext], so decode it through a principal realm.
-inline Web::WebIDL::ExceptionOr<JS::Value> crypto_storage_deserialize(Web::HTML::StorageSerializationRecord const& record)
+inline Web::WebIDL::ExceptionOr<JS::Value> principal_storage_deserialize(Web::HTML::StorageSerializationRecord const& record)
 {
     static GC::Root<JS::Realm> realm;
     auto& vm = test_realm().vm();
@@ -678,7 +678,7 @@ inline Vector<CryptoHandleGolden> crypto_handle_goldens()
 // Deserialize first so encode goldens use slot-consistent CryptoKeys.
 inline GC::Ref<Web::Crypto::CryptoKey> build_live_crypto_key(StringView type, StringView usage, Vector<u8> const& algorithm, Vector<u8> const& handle)
 {
-    auto value = MUST(crypto_storage_deserialize(crypto_key_full_record(type, usage, algorithm, handle)));
+    auto value = MUST(principal_storage_deserialize(crypto_key_full_record(type, usage, algorithm, handle)));
     return unwrap_wrappable<Web::Crypto::CryptoKey>(value);
 }
 

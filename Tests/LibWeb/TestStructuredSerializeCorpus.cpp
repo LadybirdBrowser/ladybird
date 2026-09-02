@@ -386,7 +386,7 @@ TEST_CASE(corpus_files_are_present_and_decode)
         auto bytes = MUST(file->read_until_eof());
 
         Web::HTML::StorageSerializationRecord record { move(bytes) };
-        auto result = crypto_storage_deserialize(record);
+        auto result = principal_storage_deserialize(record);
         if (result.is_exception())
             FAIL(MUST(String::formatted("Corpus file {} no longer deserializes", name)));
         ++decoded_count;

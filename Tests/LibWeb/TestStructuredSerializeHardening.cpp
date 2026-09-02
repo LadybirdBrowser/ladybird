@@ -20,9 +20,20 @@ TEST_CASE(storage_reader_rejects_unknown_and_reserved_serializable_versions)
 {
     // CryptoKey is covered separately because it is [SecureContext].
     Array identifiers {
-        "Blob"sv, "File"sv, "FileList"sv, "DOMException"sv, "QuotaExceededError"sv,
-        "DOMMatrix"sv, "DOMMatrixReadOnly"sv, "DOMPoint"sv, "DOMPointReadOnly"sv,
-        "DOMRect"sv, "DOMRectReadOnly"sv, "DOMQuad"sv, "ImageData"sv, "ImageBitmap"sv
+        "Blob"sv,
+        "DOMException"sv,
+        "DOMMatrix"sv,
+        "DOMMatrixReadOnly"sv,
+        "DOMPoint"sv,
+        "DOMPointReadOnly"sv,
+        "DOMQuad"sv,
+        "DOMRect"sv,
+        "DOMRectReadOnly"sv,
+        "File"sv,
+        "FileList"sv,
+        "ImageBitmap"sv,
+        "ImageData"sv,
+        "QuotaExceededError"sv,
     };
 
     for (auto identifier : identifiers) {
@@ -427,7 +438,7 @@ TEST_CASE(crypto_key_with_truncated_handle_is_rejected)
     Array<u8, 8> handle_bytes {};
     ReadonlyBytes handle { handle_bytes.data(), handle_bytes.size() };
 
-    EXPECT(crypto_storage_deserialize(crypto_key_secret_record(handle, 128)).is_error());
+    EXPECT(principal_storage_deserialize(crypto_key_secret_record(handle, 128)).is_error());
 
-    EXPECT(!crypto_storage_deserialize(crypto_key_secret_record(handle, handle.size())).is_error());
+    EXPECT(!principal_storage_deserialize(crypto_key_secret_record(handle, handle.size())).is_error());
 }
