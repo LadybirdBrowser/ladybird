@@ -120,6 +120,7 @@ pub fn rects_overlap_in_block_axis(a: CssPixelRect, b: CssPixelRect, writing_mod
 pub struct HitTestList {
     pub generation: u64,
     pub items: std::rc::Rc<Vec<HitTestItem>>,
+    pub item_capacity_hint_from_previous_list: usize,
     pub derived_structures_built: bool,
     pub caret_item_indices: Vec<usize>,
     pub caret_lines: Vec<CaretLine>,
@@ -133,7 +134,11 @@ impl HitTestList {
             !self.derived_structures_built,
             "hit-test item appended after the derived structures were built"
         );
-        std::rc::Rc::make_mut(&mut self.items).push(item);
+        let items = std::rc::Rc::make_mut(&mut self.items);
+        if items.capacity() == 0 {
+            items.reserve(self.item_capacity_hint_from_previous_list);
+        }
+        items.push(item);
     }
 
     pub fn caret_line_rect_for_item(item: &HitTestItem) -> CssPixelRect {
