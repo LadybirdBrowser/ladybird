@@ -1205,16 +1205,11 @@ void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)
 
     // An effect that animates `display` can be the very thing holding its `display: none` target visible, and
     // the update being skipped is the one that applies or removes that override, so it must always run.
-    bool affects_display = false;
-    if (auto const* key_frame_set = this->key_frame_set()) {
-        for (auto it = key_frame_set->keyframes_by_key.begin(); !affects_display && it != key_frame_set->keyframes_by_key.end(); ++it)
-            affects_display = it->properties.contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Display));
-    }
-    if (!affects_display && target->has_inclusive_ancestor_with_display_none_ignoring_animations()) {
-        // FIXME: Reaching this point means we failed to cancel animation for an element that started
-        //        being nested in "display: none".
-        //        For now this hack is needed to avoid lots of unnecessary work.
-        return;
+    if (!target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Display))) {
+        auto style_record = target->style_record_identity();
+        auto dependency_flags = target->document().style_computer().style_engine().style_record_dependency_flags(style_record);
+        if (dependency_flags & to_underlying(CSS::StyleRecordDependencyFlag::InDisplayNoneSubtree))
+            return;
     }
 
     target->update_animated_properties({}, pseudo_element_type(), *this, context);
