@@ -730,7 +730,10 @@ void StyleComputer::collect_animations_into(DOM::AbstractElement abstract_elemen
             parent->add_children_explicitly_inherited_non_inherited_style_groups(m_keyframes_inherited_non_inherited_style_groups);
         m_keyframes_inherited_non_inherited_style_groups = 0;
     }
-    finalize_style(computed_properties, abstract_element, ComputedValuesFFI::FfiStyleFinalizationMode::AnimatedBoxType);
+    if (computed_properties.requires_animated_post_compute_adjustments()) {
+        computed_properties.prepare_for_animated_post_compute_adjustments(Badge<StyleComputer> {});
+        finalize_style(computed_properties, abstract_element, ComputedValuesFFI::FfiStyleFinalizationMode::AnimatedBoxType);
+    }
 }
 
 void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedStyleWorkingSet& computed_properties) const
@@ -3729,6 +3732,27 @@ StyleEngine::StyleRecordDelta StyleComputer::publish_computed_style_inputs(DOM::
         }
     }
     return publication;
+}
+
+StyleEngine::StyleRecordDelta StyleComputer::publish_animation_overlay(DOM::AbstractElement abstract_element, ComputedValues const& values) const
+{
+    auto animated_properties = values.animated_properties();
+    Array<void const*, to_underlying(StyleGroupIndex::Count)> payloads;
+    ReadonlySpan<void const*> payload_span;
+    if (animated_properties) {
+        for (size_t index = 0; index < payloads.size(); ++index)
+            payloads[index] = values.style_group_payload(static_cast<StyleGroupIndex>(index));
+        payload_span = payloads;
+    }
+    auto publication = const_cast<StyleComputer&>(*this).style_engine().publish_animation_overlay(
+        abstract_element.element().style_node_id(),
+        pseudo_element_to_ffi(abstract_element.pseudo_element()),
+        animated_properties ? animated_properties->identity() : 0,
+        animated_properties ? animated_properties->overlay() : nullptr,
+        payload_span);
+    if (publication.has_value())
+        return publication.release_value();
+    return publish_computed_style_inputs(abstract_element, values);
 }
 
 StyleRecordID StyleComputer::intern_computed_style_inputs(DOM::AbstractElement abstract_element, ComputedValues const& values) const

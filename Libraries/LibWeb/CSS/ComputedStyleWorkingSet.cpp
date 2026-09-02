@@ -59,6 +59,7 @@ ComputedStyleWorkingSet::ComputedStyleWorkingSet(ComputedValuesFFI::ComputedLong
 
 ComputedStyleWorkingSet::ComputedStyleWorkingSet(ShareFrozenTable, ComputedStyleWorkingSet const& other)
     : m_computed_longhand_table(const_cast<ComputedValuesFFI::ComputedLonghandTable*>(ComputedValuesFFI::rust_computed_longhand_table_retain(other.m_computed_longhand_table)))
+    , m_computed_longhand_table_is_shared(true)
     , m_mint_cache(other.m_mint_cache)
 {
 }
@@ -129,10 +130,31 @@ NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_base
 
 NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_for_animation_update(ComputedValues const& style)
 {
-    auto working_set = create_with_base_values_from(style);
-    if (auto animated_properties = style.animated_properties_snapshot())
+    auto const* table = style.base_values().computed_longhand_table();
+    VERIFY(table);
+    auto* retained_table = const_cast<ComputedValuesFFI::ComputedLonghandTable*>(ComputedValuesFFI::rust_computed_longhand_table_retain(static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(table)));
+    auto working_set = create_with_longhand_table(retained_table);
+    working_set->m_computed_longhand_table_is_shared = true;
+    if (auto animated_properties = style.animated_properties_snapshot()) {
+        working_set->m_had_animated_post_compute_adjustment_property = animated_properties->has_property(PropertyID::Display)
+            || animated_properties->has_property(PropertyID::Position)
+            || animated_properties->has_property(PropertyID::Float)
+            || animated_properties->has_property(PropertyID::LineHeight)
+            || animated_properties->has_property(PropertyID::TextAlign);
         working_set->m_animated_properties = adopt_ref(*new AnimatedProperties(*animated_properties));
+    }
     return working_set;
+}
+
+void ComputedStyleWorkingSet::ensure_mutable_computed_longhand_table()
+{
+    if (!m_computed_longhand_table_is_shared)
+        return;
+    auto* table = ComputedValuesFFI::rust_computed_longhand_table_create();
+    ComputedValuesFFI::rust_computed_longhand_table_copy_from(table, m_computed_longhand_table);
+    ComputedValuesFFI::rust_computed_longhand_table_release(m_computed_longhand_table);
+    m_computed_longhand_table = table;
+    m_computed_longhand_table_is_shared = false;
 }
 
 void ComputedStyleWorkingSet::freeze_computed_longhand_table()
@@ -439,6 +461,21 @@ void ComputedStyleWorkingSet::finish_animated_overlay_rust_mutation(Badge<StyleC
 {
     if (m_animated_properties && m_animated_properties->is_empty())
         m_animated_properties = nullptr;
+}
+
+bool ComputedStyleWorkingSet::requires_animated_post_compute_adjustments() const
+{
+    return m_had_animated_post_compute_adjustment_property
+        || has_animated_property(PropertyID::Display)
+        || has_animated_property(PropertyID::Position)
+        || has_animated_property(PropertyID::Float)
+        || has_animated_property(PropertyID::LineHeight)
+        || has_animated_property(PropertyID::TextAlign);
+}
+
+void ComputedStyleWorkingSet::prepare_for_animated_post_compute_adjustments(Badge<StyleComputer>)
+{
+    ensure_mutable_computed_longhand_table();
 }
 
 void ComputedStyleWorkingSet::did_apply_style_finalization_from_rust(u16 invalidated_longhands)

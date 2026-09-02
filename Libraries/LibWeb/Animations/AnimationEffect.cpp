@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Bitmap.h>
 #include <AK/ScopeGuard.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Animations/Animation.h>
@@ -838,44 +837,36 @@ struct AnimatedPropertyInvalidation {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
     u32 changed_non_inherited_style_groups { 0 };
     bool requires_base_style_recomputation { false };
+    bool requires_layout_node_style_application { false };
+    bool requires_style_resource_update { false };
 };
 
 static AnimatedPropertyInvalidation compute_required_invalidation_for_animated_properties(CSS::AnimatedProperties const* old_properties, CSS::AnimatedProperties const* new_properties, DOM::AbstractElement const& target)
 {
     AnimatedPropertyInvalidation result;
-    auto current_style = target.computed_style();
-    auto old_and_new_properties = MUST(Bitmap::create(CSS::number_of_longhand_properties, 0));
     bool text_decoration_line_animated = false;
-    if (old_properties) {
-        for (auto const& entry : old_properties->entries())
-            old_and_new_properties.set(entry.property - to_underlying(CSS::first_longhand_property_id), 1);
-    }
-    if (new_properties) {
-        for (auto const& entry : new_properties->entries())
-            old_and_new_properties.set(entry.property - to_underlying(CSS::first_longhand_property_id), 1);
-    }
-    for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
-        if (!old_and_new_properties.get(i - to_underlying(CSS::first_longhand_property_id)))
-            continue;
-        auto property_id = static_cast<CSS::PropertyID>(i);
+    auto process_property = [&](CSS::PropertyID property_id) {
         auto const* old_value = animated_property_value(old_properties, property_id);
         auto const* new_value = animated_property_value(new_properties, property_id);
         RefPtr<CSS::StyleValue const> old_effective_value;
         RefPtr<CSS::StyleValue const> new_effective_value;
         // Box-type adjustments can add a synthetic animated value for a property not covered by
         // the effect. Compare that value with the effective style instead of treating it as new.
-        if (!old_value && current_style) {
-            old_effective_value = current_style->computed_style_value(property_id, CSS::ComputedValues::WithAnimationsApplied::Yes);
-            old_value = old_effective_value.ptr();
-        }
-        if (!new_value && current_style) {
-            new_effective_value = current_style->computed_style_value(property_id, CSS::ComputedValues::WithAnimationsApplied::No);
-            new_value = new_effective_value.ptr();
+        if (!old_value || !new_value) {
+            auto current_style = target.computed_style();
+            if (!old_value && current_style) {
+                old_effective_value = current_style->computed_style_value(property_id, CSS::ComputedValues::WithAnimationsApplied::Yes);
+                old_value = old_effective_value.ptr();
+            }
+            if (!new_value && current_style) {
+                new_effective_value = current_style->computed_style_value(property_id, CSS::ComputedValues::WithAnimationsApplied::No);
+                new_value = new_effective_value.ptr();
+            }
         }
         if (!old_value && !new_value)
-            continue;
+            return;
         if (old_value && new_value && old_value->equals(*new_value))
-            continue;
+            return;
         if (first_is_one_of(property_id,
                 CSS::PropertyID::Direction,
                 CSS::PropertyID::Display,
@@ -885,6 +876,13 @@ static AnimatedPropertyInvalidation compute_required_invalidation_for_animated_p
                 CSS::PropertyID::Position,
                 CSS::PropertyID::TextAlign))
             result.requires_base_style_recomputation = true;
+        if (CSS::is_inherited_property(property_id))
+            result.requires_layout_node_style_application = true;
+        if (first_is_one_of(property_id,
+                CSS::PropertyID::BackgroundImage,
+                CSS::PropertyID::BorderImageSource,
+                CSS::PropertyID::MaskImage))
+            result.requires_style_resource_update = true;
         auto property_invalidation = compute_property_invalidation(property_id, old_value, new_value);
         bool const root_background_color_animation_may_move_body_background_propagation = property_id == CSS::PropertyID::BackgroundColor && !target.pseudo_element().has_value() && target.element().is_document_element();
         if (root_background_color_animation_may_move_body_background_propagation)
@@ -901,6 +899,17 @@ static AnimatedPropertyInvalidation compute_required_invalidation_for_animated_p
         if (property_id == CSS::PropertyID::TextDecorationLine)
             text_decoration_line_animated = true;
         result.invalidation |= property_invalidation;
+    };
+    if (old_properties) {
+        for (auto const& entry : old_properties->entries())
+            process_property(static_cast<CSS::PropertyID>(entry.property));
+    }
+    if (new_properties) {
+        for (auto const& entry : new_properties->entries()) {
+            auto property_id = static_cast<CSS::PropertyID>(entry.property);
+            if (!old_properties || !old_properties->has_property(property_id))
+                process_property(property_id);
+        }
     }
     // Animated properties other than text-decoration-line cannot make an undecorated box decorated.
     if (result.invalidation.repaint_propagated_text_decorations && !text_decoration_line_animated) {
@@ -965,7 +974,7 @@ AnimationUpdateContext::~AnimationUpdateContext()
             && (target->document().style_stabilization_has_style_reactions() || animated_property_invalidation.requires_base_style_recomputation)) {
             target->document().style_computer().record_transition_stabilization_baseline(element);
         }
-        auto publication = target->document().style_computer().publish_computed_style_inputs(element, *computed_values);
+        auto publication = target->document().style_computer().publish_animation_overlay(element, *computed_values);
         target->refresh_computed_style(element.pseudo_element(), publication.new_style_record);
 
         // Box-type, overflow, and text-alignment adjustments consume the unadjusted base values,
@@ -1002,13 +1011,19 @@ AnimationUpdateContext::~AnimationUpdateContext()
                     inherited_style_groups);
         }
 
-        // NB: Called from animation update context destructor during style recalculation.
+        // NB: refresh_computed_style() already publishes the new record to the layout node. Only
+        // inherited values and image resources require the additional C++ style side effects.
+        auto apply_layout_node_style_side_effects = [&](Layout::NodeWithStyle& layout_node, CSS::StyleRecordID style_record) {
+            if (animated_property_invalidation.requires_layout_node_style_application)
+                layout_node.apply_style(style_record);
+            else if (animated_property_invalidation.requires_style_resource_update)
+                layout_node.attach_style_resources();
+        };
         if (!element.pseudo_element().has_value()) {
-            if (target->unsafe_layout_node())
-                target->unsafe_layout_node()->apply_style(target->style_record_identity());
-        } else {
-            if (auto pseudo_element_node = target->pseudo_element_unsafe_layout_node(element.pseudo_element().value()))
-                pseudo_element_node->apply_style(target->style_record_identity(element.pseudo_element()));
+            if (auto* layout_node = target->unsafe_layout_node())
+                apply_layout_node_style_side_effects(*layout_node, target->style_record_identity());
+        } else if (auto pseudo_element_node = target->pseudo_element_unsafe_layout_node(element.pseudo_element().value())) {
+            apply_layout_node_style_side_effects(*pseudo_element_node, target->style_record_identity(element.pseudo_element()));
         }
 
         if (invalidation.changes_containing_block_establishment)
