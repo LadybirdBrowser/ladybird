@@ -27,6 +27,7 @@
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/InitialInsertion.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/NavigateParams.h>
 #include <LibWeb/HTML/NavigationObserver.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/NavigationPopulationRequest.h>
@@ -193,26 +194,6 @@ public:
         GC::Ptr<GC::Function<void(GC::Ptr<PopulateSessionHistoryEntryDocumentOutput>)>> completion_steps);
 
     void create_navigation_params_for_navigation(NavigationPopulationRequest, GC::Ref<SourceSnapshotParams>, NavigationParamsVariant, Bindings::NavigationTimingType);
-
-    struct NavigateParams {
-        URL::URL url;
-        GC::Ptr<DOM::Document> source_document = nullptr;
-        DocumentResource document_resource = Empty {};
-        GC::Ptr<Fetch::Infrastructure::Response> response = nullptr;
-        bool exceptions_enabled = false;
-        Bindings::NavigationHistoryBehavior history_handling = Bindings::NavigationHistoryBehavior::Auto;
-        Optional<StorageSerializationRecord> navigation_api_state = {};
-        Optional<Vector<XHR::FormDataEntry>> form_data_entry_list = {};
-        ReferrerPolicy::ReferrerPolicy referrer_policy = ReferrerPolicy::ReferrerPolicy::EmptyString;
-        UserNavigationInvolvement user_involvement = UserNavigationInvolvement::None;
-        // NB: A load requested by the UI process carries the ID the UI generated when it recorded the
-        //     navigation; otherwise step 7 of the navigate algorithm generates one.
-        Optional<Utf16String> navigation_id = {};
-        GC::Ptr<DOM::Element> source_element = nullptr;
-        InitialInsertion initial_insertion = InitialInsertion::No;
-
-        void visit_edges(Cell::Visitor& visitor);
-    };
 
     WebIDL::ExceptionOr<void> navigate(NavigateParams);
 
