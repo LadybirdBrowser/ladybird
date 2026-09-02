@@ -354,6 +354,25 @@ static DisplayListResourceStorage* visual_context_filter_image_storage(DOM::Docu
     return &navigable->display_list_resource_storage();
 }
 
+static bool push_serialized_css_filter(ResolvedCSSFilter const& resolved_filter, double device_pixels_per_css_pixel, DisplayListResourceStorage* image_storage, void* sink)
+{
+    auto gfx_filter = to_gfx_filter(resolved_filter, device_pixels_per_css_pixel);
+    if (!gfx_filter.has_value())
+        return false;
+    bool has_unregistered_image = false;
+    auto filter_data = Gfx::serialize_filter(*gfx_filter, [&](Gfx::DecodedImageFrame const& frame) -> u64 {
+        if (!image_storage) {
+            has_unregistered_image = true;
+            return frame.id();
+        }
+        return image_storage->add_image_frame(frame).value();
+    });
+    if (has_unregistered_image)
+        return false;
+    Layout::RustFFI::layout_arena_paint_push_bytes(sink, filter_data.data(), filter_data.size());
+    return true;
+}
+
 struct LayerImage {
     CSS::AbstractImageStyleValue const* value { nullptr };
     GC::Ptr<HTML::DecodedImageData> decoded_image_data;
@@ -460,23 +479,7 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM
             result.svg_filter_bounds = resolved_filter.svg_filter_bounds;
             if (!resolved_filter.has_filters())
                 return result;
-            auto pixel_ratio = document.page().client().device_pixels_per_css_pixel();
-            auto gfx_filter = to_gfx_filter(resolved_filter, pixel_ratio);
-            if (!gfx_filter.has_value())
-                return result;
-            auto* filter_image_storage = visual_context_filter_image_storage(document);
-            bool has_unregistered_image = false;
-            auto filter_data = Gfx::serialize_filter(*gfx_filter, [&](Gfx::DecodedImageFrame const& frame) -> u64 {
-                if (!filter_image_storage) {
-                    has_unregistered_image = true;
-                    return frame.id();
-                }
-                return filter_image_storage->add_image_frame(frame).value();
-            });
-            if (has_unregistered_image)
-                return result;
-            Layout::RustFFI::layout_arena_paint_push_bytes(sink, filter_data.data(), filter_data.size());
-            result.has_filter = true;
+            result.has_filter = push_serialized_css_filter(resolved_filter, document.page().client().device_pixels_per_css_pixel(), visual_context_filter_image_storage(document), sink);
             return result;
         },
     };
@@ -1154,15 +1157,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             auto const& backdrop_filter = layout_node.backdrop_filter();
             if (!backdrop_filter.has_filters())
                 return false;
-            auto resolved = resolve_css_filter(backdrop_filter, layout_node);
-            auto gfx_filter = to_gfx_filter(resolved, context.device_pixels_per_css_pixel);
-            if (!gfx_filter.has_value())
-                return false;
-            auto filter_data = Gfx::serialize_filter(*gfx_filter, [&](Gfx::DecodedImageFrame const& frame) {
-                return context.resource_storage.add_image_frame(frame).value();
-            });
-            Layout::RustFFI::layout_arena_paint_push_bytes(sink, filter_data.data(), filter_data.size());
-            return true;
+            return push_serialized_css_filter(resolve_css_filter(backdrop_filter, layout_node), context.device_pixels_per_css_pixel, &context.resource_storage, sink);
         },
         .svg_image_facts = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiSvgImageFacts {
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
