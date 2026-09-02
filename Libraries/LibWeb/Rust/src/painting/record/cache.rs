@@ -20,6 +20,12 @@ pub(crate) enum CaptureKind {
     DescendantSubtreePhase(StackingContextPaintPhase),
 }
 
+pub(crate) type RecordGen = u32;
+
+pub(crate) fn narrow_record_gen(generation: u64) -> RecordGen {
+    RecordGen::try_from(generation).expect("paint cache record generation exceeds u32")
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CachedBoxPhaseCommands {
     // Display list ids start at 1, so a default-constructed entry never matches a real source list.
@@ -118,6 +124,13 @@ impl PaintCache {
         self.clear_descendant_subtrees();
     }
 
+    pub(crate) fn reset_entries_position_and_dirty_gens(&self) {
+        self.clear();
+        self.captured_absolute_position.set(FfiCssPixelPoint::default());
+        self.self_dirty_gen.set(0);
+        self.descendant_dirty_gen.set(0);
+    }
+
     pub(crate) fn captured_absolute_position(&self) -> FfiCssPixelPoint {
         self.captured_absolute_position.get()
     }
@@ -147,12 +160,12 @@ impl PaintCache {
         already_marked
     }
 
-    pub(crate) fn is_self_dirty_since(&self, completed_record_gen: u64) -> bool {
-        self.self_dirty_gen.get() > completed_record_gen
+    pub(crate) fn is_self_dirty_since(&self, completed_record_gen: RecordGen) -> bool {
+        self.self_dirty_gen.get() > u64::from(completed_record_gen)
     }
 
-    pub(crate) fn has_dirty_descendants_since(&self, completed_record_gen: u64) -> bool {
-        self.descendant_dirty_gen.get() > completed_record_gen
+    pub(crate) fn has_dirty_descendants_since(&self, completed_record_gen: RecordGen) -> bool {
+        self.descendant_dirty_gen.get() > u64::from(completed_record_gen)
     }
 }
 

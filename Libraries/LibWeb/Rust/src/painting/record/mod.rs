@@ -28,6 +28,7 @@ use crate::painting::host::{
 };
 use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData};
 use crate::painting::paintable_rows::PaintableRowsRef;
+use crate::painting::record::cache::RecordGen;
 use crate::painting::visual_context::nested::NestedAssignments;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -96,7 +97,7 @@ pub struct PaintRecorder<'a> {
     // would then wrongly accept their stale captures.
     pub(crate) captured_position_at_recording_start_cache:
         Vec<std::cell::Cell<Option<(NodeSlotId, used_values::FfiCssPixelPoint)>>>,
-    pub(crate) completed_record_gen: u64,
+    pub(crate) completed_record_gen: RecordGen,
     pub(crate) all_paint_caches_dirty: bool,
     pub(crate) all_descendant_subtree_caches_dirty: bool,
     text_node_facts_cache: HashMap<u32, FfiHitTestTextNodeFacts>,
