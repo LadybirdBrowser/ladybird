@@ -7,6 +7,8 @@
 use super::builder::for_each_command;
 use super::commands::*;
 use crate::css::color_resolution::format_to_8bit_compatible;
+use crate::layout::LayoutNodeArena;
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::dump::{
     push_float_like_ak, push_float_point, push_float_rect, push_float_size, push_int_point, push_int_rect,
     push_int_size,
@@ -16,6 +18,7 @@ use libgfx_rust::{
     Color, CompositingAndBlendingOperator, CornerRadii, FloatPoint, FloatRect, FloatSize, IntPoint, IntRect, IntSize,
     LineStyle, ScalingMode,
 };
+use std::collections::HashMap;
 use std::ffi::c_void;
 use std::fmt::Write;
 
@@ -23,8 +26,8 @@ use std::fmt::Write;
 #[repr(C)]
 pub struct FfiPaintingDumpCallbacks {
     pub context: *mut c_void,
-    pub owner_label:
-        unsafe extern "C" fn(context: *mut c_void, is_frame: bool, index: u32, label_sink: *mut c_void) -> bool,
+    pub debug_description:
+        unsafe extern "C" fn(context: *mut c_void, layout_node_shell: *mut c_void, description_sink: *mut c_void),
     pub command_bytes:
         unsafe extern "C" fn(context: *mut c_void, display_list: *const c_void, byte_count: *mut usize) -> *const u8,
     pub nested_display_list: unsafe extern "C" fn(context: *mut c_void, display_list_id: u64) -> *const c_void,
@@ -39,11 +42,12 @@ pub struct FfiPaintingDumpCallbacks {
 }
 
 impl FfiPaintingDumpCallbacks {
-    fn owner_label(&self, is_frame: bool, index: u32) -> Option<String> {
-        let mut label = Vec::new();
-        // SAFETY: The C++ host fills the label sink synchronously through the exported push function.
-        let has_label = unsafe { (self.owner_label)(self.context, is_frame, index, (&raw mut label).cast()) };
-        has_label.then(|| String::from_utf8_lossy(&label).into_owned())
+    fn debug_description(&self, layout_node_shell: *mut c_void) -> String {
+        let mut description = Vec::new();
+        // SAFETY: The C++ host fills the description sink synchronously through the exported push
+        // function.
+        unsafe { (self.debug_description)(self.context, layout_node_shell, (&raw mut description).cast()) };
+        String::from_utf8_lossy(&description).into_owned()
     }
 
     fn command_bytes(&self, display_list: *const c_void) -> &[u8] {
@@ -95,15 +99,63 @@ impl FfiPaintingDumpCallbacks {
     }
 }
 
+struct VisualContextNodeOwners {
+    spatial: HashMap<u32, NodeSlotId>,
+    frame: HashMap<u32, NodeSlotId>,
+}
+
+impl VisualContextNodeOwners {
+    fn collect(arena: &LayoutNodeArena, viewport: NodeSlotId) -> Self {
+        let paintable_rows = arena.paintable_rows();
+        let mut owners = Self {
+            spatial: HashMap::new(),
+            frame: HashMap::new(),
+        };
+        owners.spatial.insert(VISUAL_VIEWPORT_NODE_INDEX.0, viewport);
+        owners.spatial.insert(
+            paintable_rows.paintable_data(viewport).own_scroll_node_index.0,
+            viewport,
+        );
+        let mut pending = vec![viewport];
+        while let Some(slot) = pending.pop() {
+            arena.with_paintable_visual_context_node_handles(slot, |handles| {
+                for spatial in &handles.spatial {
+                    owners.spatial.insert(spatial.0, slot);
+                }
+                for frame in handles.frame_handles() {
+                    owners.frame.insert(frame.0, slot);
+                }
+            });
+            let mut child = arena.node_first_child_if_live(slot);
+            while let Some(current) = child {
+                pending.push(current);
+                child = arena.node_next_sibling_if_live(current);
+            }
+        }
+        owners
+    }
+
+    fn owner(&self, is_frame: bool, index: u32) -> Option<NodeSlotId> {
+        if is_frame {
+            self.frame.get(&index).copied()
+        } else {
+            self.spatial.get(&index).copied()
+        }
+    }
+}
+
 /// # Safety
 ///
-/// `visual_context_tree` must be a live retained tree handle; `command_runs` must address
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
+/// `visual_context_tree` a live retained tree handle built from it; `command_runs` must address
 /// `command_run_count` runs; `display_list` and every pointer returned by `callbacks` must remain
 /// live for this call. The callback byte spans must contain display-list records produced by this
-/// build of LibWeb. `owner_label` is called synchronously with a `Vec<u8>` sink the host fills
-/// through `layout_arena_paint_push_bytes`.
+/// build of LibWeb. `debug_description` is called synchronously with a `Vec<u8>` sink the host
+/// fills through `layout_arena_paint_push_bytes`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn painting_dump(
+    arena: *mut c_void,
+    viewport: NodeSlotId,
     visual_context_tree: *const c_void,
     command_runs: *const DisplayListCommandRun,
     command_run_count: usize,
@@ -112,10 +164,14 @@ pub unsafe extern "C" fn painting_dump(
 ) {
     crate::abort_on_panic(|| {
         assert!(!display_list.is_null());
+        let arena = unsafe { crate::painting::ffi::arena_from_handle(arena) };
         let visual_context_tree = unsafe { crate::painting::ffi::tree_from_handle(visual_context_tree) };
         let command_runs = unsafe { crate::painting::ffi::ffi_slice(command_runs, command_run_count) };
-        let mut output = visual_context_tree
-            .dump_nodes_reachable_from_runs(command_runs, |is_frame, index| callbacks.owner_label(is_frame, index));
+        let owners = VisualContextNodeOwners::collect(arena, viewport);
+        let mut output = visual_context_tree.dump_nodes_reachable_from_runs(command_runs, |is_frame, index| {
+            let shell = arena.shell_if_live(owners.owner(is_frame, index)?);
+            (!shell.is_null()).then(|| callbacks.debug_description(shell))
+        });
         output.push_str("\nDisplayList:\n");
         dump_commands(&mut output, &callbacks, display_list, 0);
         callbacks.append_text(&output);
