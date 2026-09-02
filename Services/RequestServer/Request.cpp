@@ -29,6 +29,8 @@ namespace RequestServer {
 extern OwnPtr<ResourceSubstitutionMap> g_resource_substitution_map;
 
 static long s_connect_timeout_seconds = 90L;
+static AK::Duration s_wait_for_cache_timeout = AK::Duration::from_seconds(10);
+static AK::Duration s_revalidation_stall_timeout = AK::Duration::from_seconds(30);
 
 static CURLcode configure_ssl_context(CURL*, [[maybe_unused]] void* ssl_context, [[maybe_unused]] void* aia_collector)
 {
@@ -545,6 +547,16 @@ Request::Request(
         wire_stats().ensure(this).created_at = MonotonicTime::now();
 }
 
+void Request::set_wait_for_cache_timeout(AK::Duration timeout)
+{
+    s_wait_for_cache_timeout = timeout;
+}
+
+void Request::set_revalidation_stall_timeout(AK::Duration timeout)
+{
+    s_revalidation_stall_timeout = timeout;
+}
+
 Request::~Request()
 {
     if constexpr (REQUESTSERVER_DEBUG) {
@@ -567,8 +579,14 @@ Request::~Request()
 
 void Request::notify_request_unblocked(Badge<HTTP::DiskCache>)
 {
-    // FIXME: We may want a timer to limit how long we are waiting for a request before proceeding with a network
-    //        request that skips the disk cache.
+    // The wait may already have timed out, in which case this request went on without the disk cache.
+    if (m_state != State::WaitForCache)
+        return;
+
+    if (m_wait_for_cache_timer) {
+        m_wait_for_cache_timer->stop();
+        m_wait_for_cache_timer = nullptr;
+    }
     transition_to_state(State::Init);
 }
 
@@ -719,7 +737,7 @@ void Request::process()
         handle_read_cache_state();
         break;
     case State::WaitForCache:
-        // Do nothing; we are waiting for the disk cache to notify us to proceed.
+        handle_wait_for_cache_state();
         break;
     case State::WaitForAIA:
         // Do nothing; we are waiting for the AIA intermediate-certificate fetch to notify us to proceed.
@@ -819,6 +837,45 @@ void Request::handle_initial_state()
             return;
     }
 
+    transition_to_state(State::DNSLookup);
+}
+
+void Request::handle_wait_for_cache_state()
+{
+    // The disk cache notifies us once the request holding our cache entry open completes. If that request has stalled,
+    // it never will: a connection that silently died keeps a transfer alive indefinitely, and the entry it holds would
+    // otherwise block every later request for the same URL for the lifetime of this process.
+    if (m_wait_for_cache_timer)
+        return;
+
+    m_wait_for_cache_timer = Core::Timer::create_single_shot(static_cast<int>(s_wait_for_cache_timeout.to_milliseconds()), [this] {
+        wait_for_cache_timed_out();
+    });
+    m_wait_for_cache_timer->start();
+}
+
+void Request::wait_for_cache_timed_out()
+{
+    if (m_state != State::WaitForCache)
+        return;
+
+    dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Request {} waited {}ms for the cache entry of {} to be released; continuing without the disk cache", m_request_id, s_wait_for_cache_timeout.to_milliseconds(), m_url);
+
+    // A background revalidation exists only to refresh the entry it could not open, so there's nothing left for it
+    // to do.
+    if (m_type == RequestType::BackgroundRevalidation) {
+        transition_to_state(State::Complete);
+        return;
+    }
+
+    if (is_cache_only_request()) {
+        transition_to_state(State::FailedCacheOnly);
+        return;
+    }
+
+    // Fetch over the network without reading from or writing to the disk cache. We remain in the cache's list of
+    // waiting requests, and notify_request_unblocked() ignores the notification when it eventually arrives.
+    m_cache_status = CacheStatus::NotCached;
     transition_to_state(State::DNSLookup);
 }
 
@@ -1103,6 +1160,14 @@ void Request::handle_fetch_state()
 
     if (m_alt_svc_cache_path.has_value())
         set_option(CURLOPT_ALTSVC, m_alt_svc_cache_path->characters());
+
+    // Nobody waits on a background revalidation, so nothing else would ever notice one whose connection silently died.
+    // While it lives, it holds its cache entry open and every request for the same URL waits on it, so give up on it
+    // once it has stopped receiving data.
+    if (m_type == RequestType::BackgroundRevalidation) {
+        set_option(CURLOPT_LOW_SPEED_LIMIT, 1L);
+        set_option(CURLOPT_LOW_SPEED_TIME, static_cast<long>(s_revalidation_stall_timeout.to_seconds()));
+    }
 
     set_option(CURLOPT_CUSTOMREQUEST, m_method.characters());
     set_option(CURLOPT_FOLLOWLOCATION, 0);
