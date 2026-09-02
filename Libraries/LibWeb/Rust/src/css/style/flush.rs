@@ -582,6 +582,7 @@ impl StyleEngine {
             self.flush_deferred_sequence_routes(
                 deferred_sequence_routes,
                 prefix_convergence.positional_routes_are_covered,
+                &sequences,
                 &mut regions,
                 &mut planning_workspace,
             );

@@ -1230,18 +1230,81 @@ impl StyleEngine {
         let entry_scratch_bytes = (entries.capacity() * size_of::<SequenceEntry>()) as u64;
         self.memory
             .reserve_required(MemoryCategory::BatchScratch, entry_scratch_bytes);
-        let mut cached_entry_index =
-            use_cached_index.then(|| routing.live_sequence_index(&self.program, &self.programs));
-        let mut owned_entry_index = (!use_cached_index).then(|| SequenceEntryIndex::build(&entries, &routing));
-        let entry_index_bytes = owned_entry_index.as_ref().map_or(0, SequenceEntryIndex::capacity_bytes);
-        let entry_index = match (&mut cached_entry_index, &mut owned_entry_index) {
-            (Some(cached), None) => &mut **cached,
-            (None, Some(owned)) => owned,
-            _ => unreachable!(),
-        };
-        self.memory
-            .reserve_required(MemoryCategory::BatchScratch, entry_index_bytes);
-        let parent_emptiness = entries.iter().any(|entry| entry.operator == SelectorOp::Empty);
+        // An entry the automaton answers exactly waits for the convergence walk: when the walk
+        // re-compares every member of every touched sequence, its exact diffs subsume this
+        // route's generic narrowing entirely, so routing it here would only be discarded. Shadow-
+        // scope sequences stay on the immediate path, since the walk serves only the document
+        // scope. Should the walk fail to cover, the held entries are routed afterwards.
+        let sequences_are_document_scoped = sequences
+            .iter()
+            .all(|(parent, _)| self.tree.tree_scope(parent) == TreeScopeID::DOCUMENT);
+        let (_, dispatch) = self.ranked_scope_program(TreeScopeID::DOCUMENT);
+        let deferred_mask: Vec<bool> = entries
+            .iter()
+            .map(|entry| {
+                sequences_are_document_scoped && dispatch.prefixes().contains_entry(routing.route(entry.route).entry)
+            })
+            .collect();
+        let mask_bytes = deferred_mask.capacity() as u64;
+        self.memory.reserve_required(MemoryCategory::BatchScratch, mask_bytes);
+        let any_deferred = deferred_mask.iter().any(|&deferred| deferred);
+        let any_immediate = deferred_mask.iter().any(|&deferred| !deferred);
+        if any_immediate {
+            let mut cached_entry_index =
+                use_cached_index.then(|| routing.live_sequence_index(&self.program, &self.programs));
+            let mut owned_entry_index = (!use_cached_index).then(|| SequenceEntryIndex::build(&entries, &routing));
+            let entry_index_bytes = owned_entry_index.as_ref().map_or(0, SequenceEntryIndex::capacity_bytes);
+            let entry_index = match (&mut cached_entry_index, &mut owned_entry_index) {
+                (Some(cached), None) => &mut **cached,
+                (None, Some(owned)) => owned,
+                _ => unreachable!(),
+            };
+            self.memory
+                .reserve_required(MemoryCategory::BatchScratch, entry_index_bytes);
+            self.route_sequence_entries(
+                sequences,
+                &entries,
+                entry_index,
+                SequenceEntrySelection {
+                    mask: &deferred_mask,
+                    route_masked: false,
+                },
+                regions,
+                workspace,
+            );
+            self.memory.release(MemoryCategory::BatchScratch, entry_index_bytes);
+        }
+        // The held entries and mask move onto the deferred lease, which charges them again.
+        self.memory.release(MemoryCategory::BatchScratch, mask_bytes);
+        self.memory.release(MemoryCategory::BatchScratch, entry_scratch_bytes);
+        let mut deferred = DeferredSequenceRoutes::default();
+        if any_deferred {
+            deferred.entries = entries;
+            deferred.deferred = deferred_mask;
+        }
+        let deferred_header_bytes = deferred.capacity_bytes();
+        deferred
+            .memory
+            .resize_required_to(&mut self.memory, deferred_header_bytes);
+        deferred
+    }
+
+    /// Route the selected sequence entries through every touched child sequence and narrow each
+    /// entry's routed regions.
+    fn route_sequence_entries(
+        &mut self,
+        sequences: &SequenceChanges,
+        entries: &[SequenceEntry],
+        entry_index: &mut SequenceEntryIndex,
+        selection: SequenceEntrySelection<'_>,
+        regions: &mut ImpactRegions,
+        workspace: &mut ImpactPlanningWorkspace,
+    ) {
+        let routing = Rc::clone(&self.routing);
+        let parent_emptiness = entry_index
+            .empty
+            .iter()
+            .any(|&empty_index| selection.selects(empty_index));
         let mut pending_regions: Vec<Vec<ImpactRegion>> = (0..entries.len()).map(|_| Vec::new()).collect();
         let pending_outer_bytes = (pending_regions.capacity() * size_of::<Vec<ImpactRegion>>()) as u64;
         self.memory
@@ -1252,74 +1315,75 @@ impl StyleEngine {
             // retained answer refreshes those instead of poisoning to a full re-derivation.
             if parent_emptiness {
                 for &empty_index in &entry_index.empty {
+                    if !selection.selects(empty_index) {
+                        continue;
+                    }
                     let route = entries[empty_index].route;
                     let point = self.routing.route(route);
                     self.record_selector_truth_refresh(parent, Some((self.routing.rule_of(route), point.entry)));
                 }
                 regions.add(ImpactRegion::Node(parent), &mut self.counters);
             }
-            self.add_sequence_region(parent, change, &entries, entry_index, &mut pending_regions, regions);
+            self.add_sequence_region(
+                parent,
+                change,
+                entries,
+                entry_index,
+                selection,
+                &mut pending_regions,
+                regions,
+            );
         }
-        // An entry the automaton answers exactly can wait for the convergence walk: when the
-        // walk re-compares every member of every touched sequence, its exact diffs subsume this
-        // route's generic narrowing entirely. Shadow-scope sequences stay on the immediate
-        // path, since the walk serves only the document scope.
-        let sequences_are_document_scoped = sequences
-            .iter()
-            .all(|(parent, _)| self.tree.tree_scope(parent) == TreeScopeID::DOCUMENT);
-        let (_, dispatch) = self.ranked_scope_program(TreeScopeID::DOCUMENT);
-        let mut deferred = DeferredSequenceRoutes::default();
         let mut pending_inner_bytes = 0_u64;
         for (entry, routed_regions) in entries.iter().zip(&mut pending_regions) {
-            routed_regions.sort_unstable();
-            routed_regions.dedup();
-            let routed_region_bytes = (routed_regions.capacity() * size_of::<ImpactRegion>()) as u64;
-            pending_inner_bytes += routed_region_bytes;
-            let point = routing.route(entry.route);
-            if sequences_are_document_scoped && dispatch.prefixes().contains_entry(point.entry) {
-                deferred.entries.push(entry.clone());
-                deferred.regions.push(std::mem::take(routed_regions));
-                deferred.nested_memory.grow_committed(routed_region_bytes);
+            if routed_regions.is_empty() {
                 continue;
             }
+            routed_regions.sort_unstable();
+            routed_regions.dedup();
+            pending_inner_bytes += (routed_regions.capacity() * size_of::<ImpactRegion>()) as u64;
             let site = entry.site(&routing);
             self.discard_regions_covered_by_subtree(routed_regions, &site, regions);
             self.add_narrowed_regions_with_workspace(routed_regions, &site, regions, workspace);
         }
         self.memory
             .release(MemoryCategory::BatchScratch, pending_outer_bytes + pending_inner_bytes);
-        self.memory.release(MemoryCategory::BatchScratch, entry_index_bytes);
-        self.memory.release(MemoryCategory::BatchScratch, entry_scratch_bytes);
-        let nested = deferred.nested_memory.bytes();
-        deferred.nested_memory.reconcile_committed(&mut self.memory, nested);
-        let deferred_header_bytes = deferred.capacity_bytes() - deferred.nested_memory.bytes();
-        deferred
-            .memory
-            .resize_required_to(&mut self.memory, deferred_header_bytes);
-        deferred
     }
 
     /// Flush the sequence routes held back for the convergence walk: drop them when the walk's
-    /// exact diffs covered every touched sequence, narrow them the ordinary way otherwise.
+    /// exact diffs covered every touched sequence, route and narrow them the ordinary way
+    /// otherwise.
     pub(super) fn flush_deferred_sequence_routes(
         &mut self,
         mut deferred: DeferredSequenceRoutes,
         covered: bool,
+        sequences: &SequenceChanges,
         regions: &mut ImpactRegions,
         workspace: &mut ImpactPlanningWorkspace,
     ) {
-        let routing = Rc::clone(&self.routing);
         let entries = std::mem::take(&mut deferred.entries);
-        let route_regions = std::mem::take(&mut deferred.regions);
+        let deferred_mask = std::mem::take(&mut deferred.deferred);
         let covered = covered || regions.covers_document();
-        for (entry, mut routed_regions) in entries.into_iter().zip(route_regions) {
-            if covered {
-                continue;
-            }
-            let site = entry.site(&routing);
-            self.discard_regions_covered_by_subtree(&mut routed_regions, &site, regions);
-            self.add_narrowed_regions_with_workspace(&routed_regions, &site, regions, workspace);
+        if covered || entries.is_empty() {
+            return;
         }
+        let routing = Rc::clone(&self.routing);
+        let mut entry_index = SequenceEntryIndex::build(&entries, &routing);
+        let entry_index_bytes = entry_index.capacity_bytes();
+        self.memory
+            .reserve_required(MemoryCategory::BatchScratch, entry_index_bytes);
+        self.route_sequence_entries(
+            sequences,
+            &entries,
+            &mut entry_index,
+            SequenceEntrySelection {
+                mask: &deferred_mask,
+                route_masked: true,
+            },
+            regions,
+            workspace,
+        );
+        self.memory.release(MemoryCategory::BatchScratch, entry_index_bytes);
     }
 
     /// Whether an of-type position kept the same truth across this transaction.
@@ -1362,12 +1426,14 @@ impl StyleEngine {
     /// and `:nth-child(3)` about three, and a selector with a step sees the whole sequence. A
     /// selector whose subject carries features narrows further, so an insertion between two divs
     /// costs nothing to a document whose positional rules are about table cells.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn add_sequence_region(
         &mut self,
         parent: StyleNodeID,
         change: &SequenceChange,
         entries: &[SequenceEntry],
         entry_index: &mut SequenceEntryIndex,
+        selection: SequenceEntrySelection<'_>,
         pending_regions: &mut [Vec<ImpactRegion>],
         regions: &mut ImpactRegions,
     ) {
@@ -1396,6 +1462,9 @@ impl StyleEngine {
         // A child arriving or leaving changes whether the parent is empty, and nothing else about
         // it. The parent is the element that test is asked of, so it is the witness.
         for &entry_index in &entry_index.empty {
+            if !selection.selects(entry_index) {
+                continue;
+            }
             let entry = &entries[entry_index];
             let point = routing.route(entry.route);
             let path = routing.path_of(entry.route);
@@ -1460,7 +1529,7 @@ impl StyleEngine {
                     }
                 }
                 let candidates = engine.sequence_origin_candidates(child, group);
-                if candidates.is_empty() {
+                if !candidates.iter().any(|&candidate| selection.selects(candidate)) {
                     return;
                 }
                 // The moved side names every child whose count COULD have crossed the test, but
@@ -1494,6 +1563,9 @@ impl StyleEngine {
                         false => false,
                     };
                 for &entry_index in candidates {
+                    if !selection.selects(entry_index) {
+                        continue;
+                    }
                     let entry = &entries[entry_index];
                     let point = routing.route(entry.route);
                     if truth_unchanged_on_both_sides && point.anchor.is_none() {
