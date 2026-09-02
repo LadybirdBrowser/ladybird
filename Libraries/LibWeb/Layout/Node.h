@@ -66,7 +66,6 @@ protected:
     NonnullRefPtr<NodeArena> m_arena;
     RustFFI::NodeSlotId m_slot {};
     RustFFI::NodeData* m_data { nullptr };
-    u32 m_slot_generation { 0 };
 };
 
 class WEB_API Node

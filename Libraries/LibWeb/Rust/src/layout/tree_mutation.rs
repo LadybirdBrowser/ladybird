@@ -212,10 +212,7 @@ mod tests {
     }
 
     fn free(arena: &mut LayoutNodeArena, allocation: NodeAllocation) {
-        arena
-            .free(allocation.slot, allocation.generation)
-            .detached_children
-            .release_all();
+        arena.free(allocation.slot).detached_children.release_all();
     }
 
     #[test]
@@ -317,7 +314,7 @@ mod tests {
         arena.attach_child(root.slot, owned(a.slot), NodeSlotId::INVALID);
         arena.attach_child(root.slot, owned(b.slot), NodeSlotId::INVALID);
 
-        let freed = arena.free(root.slot, root.generation);
+        let freed = arena.free(root.slot);
         assert_eq!(freed.detached_children.len(), 2);
         assert!(links(&arena, a.slot).parent.is_invalid());
         assert!(links(&arena, b.slot).parent.is_invalid());
@@ -335,7 +332,7 @@ mod tests {
         let parent = arena.allocate();
         let child = arena.allocate();
         arena.attach_child(parent.slot, owned(child.slot), NodeSlotId::INVALID);
-        let _ = arena.free(child.slot, child.generation);
+        let _ = arena.free(child.slot);
     }
 
     #[test]

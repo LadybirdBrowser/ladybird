@@ -621,21 +621,15 @@ impl LayoutNodeArena {
         NodeAllocation {
             slot: NodeSlotId::new(index, generation),
             data: self.data_mut(index),
-            generation: u32::from(generation),
         }
     }
 
-    pub(crate) fn free(&mut self, id: NodeSlotId, generation: u32) -> FreedSlot {
+    pub(crate) fn free(&mut self, id: NodeSlotId) -> FreedSlot {
         self.assert_owner_thread();
 
         assert!(!id.is_invalid(), "invalid layout node arena slot ID");
         let index = id.slot_index();
         let id_generation = id.generation();
-        assert_eq!(
-            u32::from(id_generation),
-            generation,
-            "layout node arena slot ID and allocation generation disagree"
-        );
         self.mark_descendant_subtree_caches_dirty_from_layout_node(id);
         let detached_children = self.unlink_children_for_free(id);
         let should_reuse = {
@@ -2144,7 +2138,6 @@ impl LayoutNodeArena {
 pub struct NodeAllocation {
     pub slot: NodeSlotId,
     pub data: *mut NodeData,
-    pub generation: u32,
 }
 
 #[unsafe(no_mangle)]
@@ -2171,13 +2164,13 @@ pub unsafe extern "C" fn layout_arena_allocate(arena: *mut c_void) -> NodeAlloca
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_free(arena: *mut c_void, id: NodeSlotId, generation: u32) {
+pub unsafe extern "C" fn layout_arena_free(arena: *mut c_void, id: NodeSlotId) {
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: The C++ wrapper keeps the arena alive for this call and
     // serializes all access on the document thread.
     let freed = {
         let arena = unsafe { &mut *arena.cast::<LayoutNodeArena>() };
-        arena.free(id, generation)
+        arena.free(id)
     };
     freed.detached_children.release_all();
     if let Some(reset) = freed.paintable_row_reset {
@@ -2584,12 +2577,9 @@ mod tests {
             (*first_data).table_column_span = 42;
             assert_eq!((*arena.data(first.slot)).table_column_span, 42);
         }
-        arena.free(first.slot, first.generation).detached_children.release_all();
+        arena.free(first.slot).detached_children.release_all();
         for allocation in allocations {
-            arena
-                .free(allocation.slot, allocation.generation)
-                .detached_children
-                .release_all();
+            arena.free(allocation.slot).detached_children.release_all();
         }
     }
 
@@ -2599,26 +2589,20 @@ mod tests {
         let mut arena = LayoutNodeArena::new();
         let allocation = arena.allocate();
         assert_eq!(allocation.data as usize % 64, 0);
-        arena
-            .free(allocation.slot, allocation.generation)
-            .detached_children
-            .release_all();
+        arena.free(allocation.slot).detached_children.release_all();
     }
 
     #[test]
     fn freed_slots_are_reused_with_a_new_generation() {
         let mut arena = LayoutNodeArena::new();
         let first = arena.allocate();
-        arena.free(first.slot, first.generation).detached_children.release_all();
+        arena.free(first.slot).detached_children.release_all();
 
         let second = arena.allocate();
         assert_eq!(second.slot.slot_index(), first.slot.slot_index());
         assert_ne!(second.slot, first.slot);
-        assert_ne!(second.generation, first.generation);
-        arena
-            .free(second.slot, second.generation)
-            .detached_children
-            .release_all();
+        assert_ne!(second.slot.generation(), first.slot.generation());
+        arena.free(second.slot).detached_children.release_all();
     }
 
     #[test]
@@ -2635,10 +2619,7 @@ mod tests {
         assert_ne!(flags & NodeFlag::CompensatesForHorizontalScroll as u32, 0);
         assert_eq!(flags & NodeFlag::CompensatesForVerticalScroll as u32, 0);
 
-        arena
-            .free(anchor.slot, anchor.generation)
-            .detached_children
-            .release_all();
+        arena.free(anchor.slot).detached_children.release_all();
         assert!(arena.default_scroll_shift_anchor(positioned.slot).is_invalid());
 
         let anchor_slot_reoccupant = arena.allocate();
@@ -2657,10 +2638,7 @@ mod tests {
         assert_eq!(cleared_flags & NodeFlag::CompensatesForHorizontalScroll as u32, 0);
         assert_eq!(cleared_flags & NodeFlag::CompensatesForVerticalScroll as u32, 0);
 
-        arena
-            .free(positioned.slot, positioned.generation)
-            .detached_children
-            .release_all();
+        arena.free(positioned.slot).detached_children.release_all();
         let positioned_slot_reoccupant = arena.allocate();
         assert_eq!(
             positioned_slot_reoccupant.slot.slot_index(),
@@ -2668,20 +2646,14 @@ mod tests {
         );
         arena.set_default_scroll_shift(positioned_slot_reoccupant.slot, anchor_slot_reoccupant.slot, true, true);
         arena
-            .free(positioned_slot_reoccupant.slot, positioned_slot_reoccupant.generation)
+            .free(positioned_slot_reoccupant.slot)
             .detached_children
             .release_all();
         let next_reoccupant = arena.allocate();
         assert!(arena.default_scroll_shift_anchor(next_reoccupant.slot).is_invalid());
 
-        arena
-            .free(next_reoccupant.slot, next_reoccupant.generation)
-            .detached_children
-            .release_all();
-        arena
-            .free(anchor_slot_reoccupant.slot, anchor_slot_reoccupant.generation)
-            .detached_children
-            .release_all();
+        arena.free(next_reoccupant.slot).detached_children.release_all();
+        arena.free(anchor_slot_reoccupant.slot).detached_children.release_all();
     }
 
     #[test]
@@ -2708,27 +2680,21 @@ mod tests {
             assert_eq!((*detached.data).flags & update_flags, update_flags);
         }
         arena.remove_child(root.slot, child.slot);
-        arena.free(root.slot, root.generation).detached_children.release_all();
-        arena.free(child.slot, child.generation).detached_children.release_all();
-        arena
-            .free(detached.slot, detached.generation)
-            .detached_children
-            .release_all();
+        arena.free(root.slot).detached_children.release_all();
+        arena.free(child.slot).detached_children.release_all();
+        arena.free(detached.slot).detached_children.release_all();
     }
 
     #[test]
     fn stale_slot_ids_do_not_resolve_to_a_new_occupant() {
         let mut arena = LayoutNodeArena::new();
         let first = arena.allocate();
-        arena.free(first.slot, first.generation).detached_children.release_all();
+        arena.free(first.slot).detached_children.release_all();
         let second = arena.allocate();
 
         let stale_read = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| arena.data(first.slot)));
         assert!(stale_read.is_err());
-        arena
-            .free(second.slot, second.generation)
-            .detached_children
-            .release_all();
+        arena.free(second.slot).detached_children.release_all();
     }
 
     #[test]
@@ -2748,10 +2714,7 @@ mod tests {
         }
 
         assert!(arena.committed_fragment_link(allocation.data).is_none());
-        arena
-            .free(allocation.slot, allocation.generation)
-            .detached_children
-            .release_all();
+        arena.free(allocation.slot).detached_children.release_all();
     }
 
     #[test]
@@ -2774,8 +2737,8 @@ mod tests {
             .committed_fragment_link(new.data)
             .expect("new slot must receive the committed fragment");
         assert!(std::rc::Rc::ptr_eq(&moved.fragment, &retained_fragment));
-        arena.free(old.slot, old.generation).detached_children.release_all();
-        arena.free(new.slot, new.generation).detached_children.release_all();
+        arena.free(old.slot).detached_children.release_all();
+        arena.free(new.slot).detached_children.release_all();
     }
 
     #[test]
@@ -2854,7 +2817,7 @@ mod tests {
             false
         }));
         assert_eq!(dependency_computations.get(), 2);
-        arena.free(first.slot, first.generation).detached_children.release_all();
+        arena.free(first.slot).detached_children.release_all();
 
         let second = arena.allocate();
         assert_eq!(second.slot.slot_index(), first.slot.slot_index());
@@ -2873,10 +2836,7 @@ mod tests {
             ),
             None
         );
-        arena
-            .free(second.slot, second.generation)
-            .detached_children
-            .release_all();
+        arena.free(second.slot).detached_children.release_all();
     }
 
     #[test]
@@ -2976,10 +2936,7 @@ mod tests {
             arena.intrinsic_block_size_cache_get(data, max_content, key_at_another_inline_size_with_inline_basis(400)),
             None
         );
-        arena
-            .free(allocation.slot, allocation.generation)
-            .detached_children
-            .release_all();
+        arena.free(allocation.slot).detached_children.release_all();
     }
 
     #[test]
@@ -3027,16 +2984,13 @@ mod tests {
 
         first_data.intrinsic_cache_epoch += 1;
         assert_eq!(arena.table_cell_measurement_cache_get(first_data, key), None);
-        arena.free(first.slot, first.generation).detached_children.release_all();
+        arena.free(first.slot).detached_children.release_all();
 
         let second = arena.allocate();
         assert_eq!(second.slot.slot_index(), first.slot.slot_index());
         // SAFETY: The second allocation is live and reuses the first allocation's slot.
         let second_data = unsafe { &*second.data };
         assert_eq!(arena.table_cell_measurement_cache_get(second_data, key), None);
-        arena
-            .free(second.slot, second.generation)
-            .detached_children
-            .release_all();
+        arena.free(second.slot).detached_children.release_all();
     }
 }
