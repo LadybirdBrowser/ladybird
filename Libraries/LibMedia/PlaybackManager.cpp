@@ -465,6 +465,13 @@ void PlaybackManager::ensure_audio_output_pipeline()
         m_audio_mixer = MUST(AudioMixer::try_create());
         m_audio_time_stretch_processor = MUST(AudioTimeStretchProcessor::try_create());
         MUST(m_audio_time_stretch_processor->connect_input(*m_audio_mixer));
+
+        // Tracks enabled while there was no audio output are connected now that there is one. The mixer has no output
+        // specification yet, so connecting cannot fail.
+        for (auto const& track_data : m_audio_track_datas) {
+            if (track_data.enabled)
+                MUST(m_audio_mixer->connect_input(track_data.producer));
+        }
     }
 
     if (pull_output) {
