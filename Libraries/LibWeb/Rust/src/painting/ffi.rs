@@ -3640,7 +3640,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_visit_caret_roots_and_chrome_widg
     visit: unsafe extern "C" fn(*mut c_void, NodeSlotId, u8, *mut c_void),
 ) {
     abort_on_panic(|| {
-        with_hit_test_list(arena, (), |list, arena| {
+        with_hit_test_list_items_only(arena, (), |list, arena| {
             for item in list.items.iter() {
                 let caret_node_shell = arena.shell_if_live(item.caret_node);
                 if item.chrome_widget_kind == crate::painting::hit_test::CHROME_WIDGET_NONE
@@ -3665,7 +3665,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_item_facts(
     index: usize,
 ) -> crate::painting::host::FfiHitTestItemExport {
     abort_on_panic(|| {
-        with_hit_test_list(arena, None, |list, arena| {
+        with_hit_test_list_items_only(arena, None, |list, arena| {
             let item = &list.items[index];
             assert!(
                 arena.paintable_row_is_populated(item.paintable),
@@ -3696,7 +3696,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_item_facts(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_item_target_shell(arena: *mut c_void, item_index: usize) -> *mut c_void {
     abort_on_panic(|| {
-        with_hit_test_list(arena, std::ptr::null_mut(), |list, arena| {
+        with_hit_test_list_items_only(arena, std::ptr::null_mut(), |list, arena| {
             list.item_target_shell(arena, item_index)
         })
     })
@@ -3714,7 +3714,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_item_dispatch_shell(
     out_allow_pseudo_fallback: *mut bool,
 ) -> *mut c_void {
     abort_on_panic(|| {
-        with_hit_test_list(arena, std::ptr::null_mut(), |list, arena| {
+        with_hit_test_list_items_only(arena, std::ptr::null_mut(), |list, arena| {
             let (shell, allow_pseudo_fallback) = list.item_dispatch_shell(arena, item_index);
             // SAFETY: The caller provides writable storage for the synchronous result.
             unsafe { *out_allow_pseudo_fallback = allow_pseudo_fallback };
@@ -3734,7 +3734,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_resolve_hit(
     local_point: FfiCssPixelPoint,
 ) -> crate::painting::host::FfiResolvedHit {
     abort_on_panic(|| {
-        with_hit_test_list(arena, Default::default(), |list, arena| {
+        with_hit_test_list_items_only(arena, Default::default(), |list, arena| {
             list.resolve_hit(arena, item_index, local_point.into())
         })
     })
@@ -3752,7 +3752,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_resolve_caret(
     position_type: u8,
 ) -> crate::painting::host::FfiResolvedCaret {
     abort_on_panic(|| {
-        with_hit_test_list(arena, Default::default(), |list, arena| {
+        with_hit_test_list_items_only(arena, Default::default(), |list, arena| {
             list.resolve_caret(
                 arena,
                 item_index,
@@ -3775,7 +3775,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_caret_line_for_position(
     affinity_is_downstream: bool,
 ) -> crate::painting::host::FfiCaretLineForPosition {
     abort_on_panic(|| {
-        with_hit_test_list(arena, Default::default(), |list, arena| {
+        with_hit_test_list_and_derived_structures(arena, Default::default(), |list, arena| {
             match list.caret_line_for_position(arena, &callbacks, offset, affinity_is_downstream) {
                 Some(line_index) => crate::painting::host::FfiCaretLineForPosition {
                     has_line: true,
@@ -3871,7 +3871,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_caret_line(
     line_index: usize,
 ) -> crate::painting::host::FfiCaretLineExport {
     abort_on_panic(|| {
-        with_hit_test_list(arena, Default::default(), |list, _| {
+        with_hit_test_list_and_derived_structures(arena, Default::default(), |list, _| {
             let line = &list.caret_lines[line_index];
             crate::painting::host::FfiCaretLineExport {
                 rect: line.rect.into(),
@@ -3898,7 +3898,21 @@ pub unsafe extern "C" fn layout_arena_hit_test_list_generation(arena: *mut c_voi
     })
 }
 
-fn with_hit_test_list<R>(
+fn with_hit_test_list_items_only<R>(
+    arena: *mut c_void,
+    default: R,
+    query: impl FnOnce(&crate::painting::hit_test::HitTestList, &crate::layout::LayoutNodeArena) -> R,
+) -> R {
+    // SAFETY: The caller passes a live arena handle (documented on every entry point below).
+    let arena = unsafe { arena_from_handle(arena) };
+    let paint_state = arena.paint_state().borrow();
+    let Some(list) = paint_state.hit_test_list.as_ref() else {
+        return default;
+    };
+    query(list, arena)
+}
+
+fn with_hit_test_list_and_derived_structures<R>(
     arena: *mut c_void,
     default: R,
     query: impl FnOnce(&crate::painting::hit_test::HitTestList, &crate::layout::LayoutNodeArena) -> R,
@@ -3913,7 +3927,7 @@ fn with_hit_test_list<R>(
     query(list, arena)
 }
 
-fn with_hit_test_list_and_visual_context_tree<R>(
+fn with_hit_test_list_and_derived_structures_and_visual_context_tree<R>(
     arena: *mut c_void,
     default: R,
     query: impl FnOnce(
@@ -3961,9 +3975,11 @@ pub unsafe extern "C" fn layout_arena_hit_test_find_topmost_item(
     point: FfiCssPixelPoint,
 ) -> crate::painting::host::FfiTopmostItem {
     abort_on_panic(|| {
-        with_hit_test_list_and_visual_context_tree(arena, Default::default(), |list, tree, arena| {
-            ffi_topmost(list.find_topmost_item(arena, tree, &callbacks, point.into()))
-        })
+        with_hit_test_list_and_derived_structures_and_visual_context_tree(
+            arena,
+            Default::default(),
+            |list, tree, arena| ffi_topmost(list.find_topmost_item(arena, tree, &callbacks, point.into())),
+        )
     })
 }
 
@@ -3977,13 +3993,17 @@ pub unsafe extern "C" fn layout_arena_hit_test_find_topmost_items_for_caret(
     point: FfiCssPixelPoint,
 ) -> crate::painting::host::FfiTopmostItemsForCaret {
     abort_on_panic(|| {
-        with_hit_test_list_and_visual_context_tree(arena, Default::default(), |list, tree, arena| {
-            let (caret_item, hit_item) = list.find_topmost_items_for_caret(arena, tree, &callbacks, point.into());
-            crate::painting::host::FfiTopmostItemsForCaret {
-                caret_item: ffi_topmost(caret_item),
-                hit_item: ffi_topmost(hit_item),
-            }
-        })
+        with_hit_test_list_and_derived_structures_and_visual_context_tree(
+            arena,
+            Default::default(),
+            |list, tree, arena| {
+                let (caret_item, hit_item) = list.find_topmost_items_for_caret(arena, tree, &callbacks, point.into());
+                crate::painting::host::FfiTopmostItemsForCaret {
+                    caret_item: ffi_topmost(caret_item),
+                    hit_item: ffi_topmost(hit_item),
+                }
+            },
+        )
     })
 }
 
@@ -3999,9 +4019,11 @@ pub unsafe extern "C" fn layout_arena_hit_test_all(
     push: unsafe extern "C" fn(*mut c_void, usize),
 ) {
     abort_on_panic(|| {
-        let indices = with_hit_test_list_and_visual_context_tree(arena, Vec::new(), |list, tree, arena| {
-            list.hit_test_all(arena, tree, &callbacks, point.into())
-        });
+        let indices = with_hit_test_list_and_derived_structures_and_visual_context_tree(
+            arena,
+            Vec::new(),
+            |list, tree, arena| list.hit_test_all(arena, tree, &callbacks, point.into()),
+        );
         for index in indices {
             // SAFETY: The C++ sink consumes the index synchronously.
             unsafe { push(push_context, index) };
@@ -4020,7 +4042,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_item_at_line_edge(
 ) -> usize {
     abort_on_panic(|| {
         let position_type = crate::painting::hit_test::caret::CaretPositionType::from_u8(position_type);
-        with_hit_test_list(arena, usize::MAX, |list, _| {
+        with_hit_test_list_and_derived_structures(arena, usize::MAX, |list, _| {
             list.item_at_line_edge(line_index, position_type)
         })
     })
@@ -4037,7 +4059,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_caret_item_for_line(
     mode: u8,
 ) -> crate::painting::host::FfiCaretItemForLine {
     abort_on_panic(|| {
-        with_hit_test_list(arena, Default::default(), |list, _| {
+        with_hit_test_list_and_derived_structures(arena, Default::default(), |list, _| {
             match list.caret_item_for_line(
                 line_index,
                 point.into(),
@@ -4059,7 +4081,11 @@ pub unsafe extern "C" fn layout_arena_hit_test_caret_item_for_line(
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_line_block_coordinate(arena: *mut c_void, line_index: usize) -> i32 {
-    abort_on_panic(|| with_hit_test_list(arena, 0, |list, _| list.line_block_coordinate(line_index).raw_value()))
+    abort_on_panic(|| {
+        with_hit_test_list_and_derived_structures(arena, 0, |list, _| {
+            list.line_block_coordinate(line_index).raw_value()
+        })
+    })
 }
 
 /// # Safety
@@ -4072,7 +4098,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_item_is_inline_adjacent_to_line(
     line_index: usize,
 ) -> bool {
     abort_on_panic(|| {
-        with_hit_test_list(arena, false, |list, _| {
+        with_hit_test_list_and_derived_structures(arena, false, |list, _| {
             list.item_is_inline_adjacent_to_line(item_index, line_index)
         })
     })
@@ -4091,29 +4117,33 @@ pub unsafe extern "C" fn layout_arena_hit_test_find_closest_line(
     respect_clip: bool,
 ) -> crate::painting::host::FfiClosestLine {
     abort_on_panic(|| {
-        with_hit_test_list_and_visual_context_tree(arena, Default::default(), |list, tree, arena| {
-            let closest = list.find_closest_line(
-                arena,
-                tree,
-                &callbacks,
-                point.into(),
-                crate::painting::hit_test::caret::CaretPositionMode::from_u8(mode),
-                scoped,
-                respect_clip,
-            );
-            crate::painting::host::FfiClosestLine {
-                has_index: closest.index.is_some(),
-                index: closest.index.unwrap_or(0),
-                local_x: closest.local_point.x.raw_value(),
-                local_y: closest.local_point.y.raw_value(),
-                block_distance: closest.block_distance.raw_value(),
-                block_start_distance: closest.block_start_distance.raw_value(),
-                inline_distance: closest.inline_distance.raw_value(),
-                block_container_margin_rect: closest.block_container_margin_rect.map(Into::into).into(),
-                is_before_point: closest.is_before_point,
-                contains_point_in_block_axis: closest.contains_point_in_block_axis,
-            }
-        })
+        with_hit_test_list_and_derived_structures_and_visual_context_tree(
+            arena,
+            Default::default(),
+            |list, tree, arena| {
+                let closest = list.find_closest_line(
+                    arena,
+                    tree,
+                    &callbacks,
+                    point.into(),
+                    crate::painting::hit_test::caret::CaretPositionMode::from_u8(mode),
+                    scoped,
+                    respect_clip,
+                );
+                crate::painting::host::FfiClosestLine {
+                    has_index: closest.index.is_some(),
+                    index: closest.index.unwrap_or(0),
+                    local_x: closest.local_point.x.raw_value(),
+                    local_y: closest.local_point.y.raw_value(),
+                    block_distance: closest.block_distance.raw_value(),
+                    block_start_distance: closest.block_start_distance.raw_value(),
+                    inline_distance: closest.inline_distance.raw_value(),
+                    block_container_margin_rect: closest.block_container_margin_rect.map(Into::into).into(),
+                    is_before_point: closest.is_before_point,
+                    contains_point_in_block_axis: closest.contains_point_in_block_axis,
+                }
+            },
+        )
     })
 }
 
@@ -4134,7 +4164,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_adjacent_line(
         } else {
             crate::painting::hit_test::caret::CaretLineDirection::Previous
         };
-        with_hit_test_list(arena, Default::default(), |list, arena| {
+        with_hit_test_list_and_derived_structures(arena, Default::default(), |list, arena| {
             match list.adjacent_line(
                 arena,
                 &callbacks,
