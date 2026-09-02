@@ -100,7 +100,7 @@ pub(crate) fn record_display_list(
         absolute_position_cache: (0..layout_arena.paintable_row_count())
             .map(|_| std::cell::Cell::new(None))
             .collect(),
-        previously_captured_position_cache: (0..layout_arena.paintable_row_count())
+        captured_position_at_recording_start_cache: (0..layout_arena.paintable_row_count())
             .map(|_| std::cell::Cell::new(None))
             .collect(),
         completed_record_gen: layout_arena.paint_cache_completed_record_gen(),
@@ -367,7 +367,7 @@ impl PaintRecorder<'_> {
         }
         // SVG paint servers and filters are resolved while recording and can change without invalidating the
         // paintable that references them. Do not cache an enclosing descendant subtree.
-        self.prevent_descendant_subtree_caching();
+        self.mark_open_captures_unsplicable();
         self.paint_node(paintable, PaintPhase::Background);
         self.paint_node(paintable, PaintPhase::Border);
         self.paint_svg_box(paintable, phase);
@@ -380,12 +380,12 @@ impl PaintRecorder<'_> {
             if self.append_cached_descendant_subtree(child, phase) {
                 continue;
             }
-            let command_start = self.recorder.byte_size();
+            let command_byte_start = self.recorder.byte_size();
             let hit_test_start = self.list.items.len();
             let uncacheable_paint_generation = self.uncacheable_paint_generation;
             self.paint_descendant(child, phase);
             if self.uncacheable_paint_generation == uncacheable_paint_generation {
-                self.cache_descendant_subtree(child, phase, command_start, hit_test_start);
+                self.cache_descendant_subtree(child, phase, command_byte_start, hit_test_start);
             }
         }
     }
@@ -493,7 +493,7 @@ impl PaintRecorder<'_> {
             return false;
         }
         drop(cache);
-        if self.previously_captured_position(paintable) != self.current_absolute_position(paintable) {
+        if self.captured_position_at_recording_start(paintable) != self.current_absolute_position(paintable) {
             return false;
         }
 
@@ -523,7 +523,7 @@ impl PaintRecorder<'_> {
         &self,
         paintable: NodeSlotId,
         phase: StackingContextPaintPhase,
-        command_start: usize,
+        command_byte_start: usize,
         hit_test_start: usize,
     ) {
         if !self.inputs.paint_command_cache_read_write || self.nested.is_some() {
@@ -533,17 +533,17 @@ impl PaintRecorder<'_> {
             paintable,
             phase,
             CommandRange {
-                offset: command_start as u32,
-                size: (self.recorder.byte_size() - command_start) as u32,
+                offset: command_byte_start as u32,
+                size: (self.recorder.byte_size() - command_byte_start) as u32,
             },
             hit_test_start,
             self.list.items.len() - hit_test_start,
         );
     }
 
-    fn previously_captured_position(&self, paintable: NodeSlotId) -> used_values::FfiCssPixelPoint {
+    fn captured_position_at_recording_start(&self, paintable: NodeSlotId) -> used_values::FfiCssPixelPoint {
         let index = paintable.slot_index() as usize;
-        if let Some(cell) = self.previously_captured_position_cache.get(index)
+        if let Some(cell) = self.captured_position_at_recording_start_cache.get(index)
             && let Some((memoized_id, position)) = cell.get()
             && memoized_id == paintable
         {
@@ -553,7 +553,7 @@ impl PaintRecorder<'_> {
             .layout_arena
             .paintable_paint_cache(paintable)
             .captured_absolute_position();
-        if let Some(cell) = self.previously_captured_position_cache.get(index) {
+        if let Some(cell) = self.captured_position_at_recording_start_cache.get(index) {
             cell.set(Some((paintable, position)));
         }
         position
@@ -687,7 +687,7 @@ impl PaintRecorder<'_> {
             && (data.own_scroll_node_index != VISUAL_VIEWPORT_NODE_INDEX
                 || self.layout_kind(paintable) == Some(NodeKind::Viewport));
         if skip_cache {
-            self.prevent_descendant_subtree_caching();
+            self.mark_open_captures_unsplicable();
         }
         let skip_phase_capture = skip_cache || phase_records_scrollbars_with_scroll_node_indices;
         let cache_writes_enabled = self.inputs.paint_command_cache_read_write && !is_nested;
@@ -777,7 +777,10 @@ impl PaintRecorder<'_> {
         &self,
         paintable: NodeSlotId,
         phase: PaintPhase,
-    ) -> Option<(Rc<RecordingOutput>, crate::painting::record::cache::CachedCommands)> {
+    ) -> Option<(
+        Rc<RecordingOutput>,
+        crate::painting::record::cache::CachedBoxPhaseCommands,
+    )> {
         let source = self.command_cache_source.as_ref()?;
         let cache = self.layout_arena.paintable_paint_cache_if_allocated(paintable)?;
         // Checked before loading the entry so a dirty row's miss stays as cheap as the
@@ -790,7 +793,7 @@ impl PaintRecorder<'_> {
             return None;
         }
         drop(cache);
-        if self.previously_captured_position(paintable) != self.current_absolute_position(paintable) {
+        if self.captured_position_at_recording_start(paintable) != self.current_absolute_position(paintable) {
             return None;
         }
         Some((source.clone(), entry))
@@ -827,7 +830,7 @@ impl PaintRecorder<'_> {
             return None;
         }
         drop(cache);
-        if self.previously_captured_position(paintable) != self.current_absolute_position(paintable) {
+        if self.captured_position_at_recording_start(paintable) != self.current_absolute_position(paintable) {
             return None;
         }
         Some((source.items.clone(), entry.start as usize, entry.count as usize))
@@ -852,7 +855,7 @@ impl PaintRecorder<'_> {
         cache.register_capture_position(self.current_absolute_position(paintable));
         cache.set_commands(
             phase,
-            crate::painting::record::cache::CachedCommands {
+            crate::painting::record::cache::CachedBoxPhaseCommands {
                 source_display_list_id: self.display_list_id,
                 range,
                 recorded_context,
@@ -928,7 +931,7 @@ impl PaintRecorder<'_> {
         cache.register_capture_position(self.current_absolute_position(paintable));
         cache.set_hit_test_items(
             phase,
-            crate::painting::record::cache::CachedHitTestItems {
+            crate::painting::record::cache::CachedBoxPhaseHitTestItems {
                 source_hit_test_display_list_id: self.hit_test_list_generation,
                 start: start as u32,
                 count: count as u32,

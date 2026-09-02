@@ -15,7 +15,7 @@ use crate::painting::record::PaintPhase;
 use crate::painting::record::traversal::StackingContextPaintPhase;
 
 #[derive(Clone, Copy, Debug, Default)]
-pub struct CachedCommands {
+pub struct CachedBoxPhaseCommands {
     // Display list ids start at 1, so a default-constructed entry never matches a real source list.
     pub source_display_list_id: u64,
     pub range: CommandRange,
@@ -23,7 +23,7 @@ pub struct CachedCommands {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
-pub struct CachedHitTestItems {
+pub struct CachedBoxPhaseHitTestItems {
     // Hit-test display list ids start at 1, so a default-constructed entry never matches a real source list.
     pub source_hit_test_display_list_id: u64,
     pub start: u32,
@@ -45,8 +45,8 @@ pub struct CachedDescendantSubtree {
 }
 
 pub struct PaintCache {
-    commands: [Cell<Option<CachedCommands>>; PaintPhase::COUNT],
-    hit_test_items: [Cell<Option<CachedHitTestItems>>; PaintPhase::COUNT],
+    commands: [Cell<Option<CachedBoxPhaseCommands>>; PaintPhase::COUNT],
+    hit_test_items: [Cell<Option<CachedBoxPhaseHitTestItems>>; PaintPhase::COUNT],
     descendant_subtrees: [Cell<Option<CachedDescendantSubtree>>; StackingContextPaintPhase::COUNT],
     // One captured position per row covers every entry: register_capture_position() drops the
     // row's entries whenever a registration moves the stamp, so live entries are always captures
@@ -72,19 +72,19 @@ impl Default for PaintCache {
 }
 
 impl PaintCache {
-    pub fn commands(&self, phase: PaintPhase) -> Option<CachedCommands> {
+    pub fn commands(&self, phase: PaintPhase) -> Option<CachedBoxPhaseCommands> {
         self.commands[phase as usize].get()
     }
 
-    pub fn hit_test_items(&self, phase: PaintPhase) -> Option<CachedHitTestItems> {
+    pub fn hit_test_items(&self, phase: PaintPhase) -> Option<CachedBoxPhaseHitTestItems> {
         self.hit_test_items[phase as usize].get()
     }
 
-    pub fn set_commands(&self, phase: PaintPhase, commands: CachedCommands) {
+    pub fn set_commands(&self, phase: PaintPhase, commands: CachedBoxPhaseCommands) {
         self.commands[phase as usize].set(Some(commands));
     }
 
-    pub fn set_hit_test_items(&self, phase: PaintPhase, hit_test_items: CachedHitTestItems) {
+    pub fn set_hit_test_items(&self, phase: PaintPhase, hit_test_items: CachedBoxPhaseHitTestItems) {
         self.hit_test_items[phase as usize].set(Some(hit_test_items));
     }
 

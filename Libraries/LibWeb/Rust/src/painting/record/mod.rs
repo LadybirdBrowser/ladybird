@@ -91,7 +91,7 @@ pub struct PaintRecorder<'a> {
     // Validity checks must compare against this recording-start snapshot, not the live per-row
     // cell: the first phase that re-records a moved row updates the cell, and later phases
     // would then wrongly accept their stale captures.
-    pub(crate) previously_captured_position_cache:
+    pub(crate) captured_position_at_recording_start_cache:
         Vec<std::cell::Cell<Option<(NodeSlotId, used_values::FfiCssPixelPoint)>>>,
     pub(crate) completed_record_gen: u64,
     pub(crate) all_paint_caches_dirty: bool,
@@ -112,7 +112,7 @@ pub(crate) struct BasePaintFacts {
 }
 
 impl<'a> PaintRecorder<'a> {
-    pub(crate) fn prevent_descendant_subtree_caching(&mut self) {
+    pub(crate) fn mark_open_captures_unsplicable(&mut self) {
         self.uncacheable_paint_generation = self
             .uncacheable_paint_generation
             .checked_add(1)
@@ -220,7 +220,7 @@ impl<'a> PaintRecorder<'a> {
             absolute_position_cache: (0..self.layout_arena.paintable_row_count())
                 .map(|_| std::cell::Cell::new(None))
                 .collect(),
-            previously_captured_position_cache: (0..self.layout_arena.paintable_row_count())
+            captured_position_at_recording_start_cache: (0..self.layout_arena.paintable_row_count())
                 .map(|_| std::cell::Cell::new(None))
                 .collect(),
             completed_record_gen: self.completed_record_gen,
