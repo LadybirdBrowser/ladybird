@@ -121,6 +121,8 @@ public:
     ComputedValuesFFI::AnimatedOverlay const* animated_overlay(Badge<StyleComputer>) const;
     void finish_animated_overlay_rust_mutation(Badge<StyleComputer>);
     void did_apply_style_finalization_from_rust(u16 invalidated_longhands);
+    bool requires_animated_post_compute_adjustments() const;
+    void prepare_for_animated_post_compute_adjustments(Badge<StyleComputer>);
     void set_animated_custom_property(Badge<StyleComputer>, Utf16FlyString name, NonnullRefPtr<StyleValue const> value);
     void clear_animated_properties(Badge<StyleComputer>);
     OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> const& animated_custom_properties() const { return m_animated_custom_properties; }
@@ -215,8 +217,13 @@ private:
 
     AnimatedProperties const& animated_properties() const;
     AnimatedProperties& mutable_animated_properties();
-    ComputedValuesFFI::FfiComputedStyleMetadata& metadata() { return *ComputedValuesFFI::rust_computed_longhand_table_metadata(m_computed_longhand_table); }
+    ComputedValuesFFI::FfiComputedStyleMetadata& metadata()
+    {
+        ensure_mutable_computed_longhand_table();
+        return *ComputedValuesFFI::rust_computed_longhand_table_metadata(m_computed_longhand_table);
+    }
     ComputedValuesFFI::FfiComputedStyleMetadata const& metadata() const { return *ComputedValuesFFI::rust_computed_longhand_table_metadata(m_computed_longhand_table); }
+    void ensure_mutable_computed_longhand_table();
     void set_animated_property_internal(PropertyID, NonnullRefPtr<StyleValue const>, AnimatedPropertyResultOfTransition, Inherited);
     void clear_computed_font_list_cache()
     {
@@ -228,8 +235,10 @@ private:
     // and evaluation flags plus the recorded inheritance-dependent specified values,
     // written by the store funnels and the flag setters and frozen when the drive completes.
     ComputedValuesFFI::ComputedLonghandTable* m_computed_longhand_table { nullptr };
+    bool m_computed_longhand_table_is_shared { false };
     NonnullRefPtr<WrapperMintCache> m_mint_cache;
     RefPtr<AnimatedProperties> m_animated_properties;
+    bool m_had_animated_post_compute_adjustment_property { false };
     OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> m_animated_custom_properties;
 
     mutable RefPtr<Gfx::FontCascadeList const> m_cached_computed_font_list;

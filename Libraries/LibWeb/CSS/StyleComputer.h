@@ -114,6 +114,7 @@ public:
     // Publish a computed style built outside the ordinary cascade path, such as an inherited-group
     // swap, so StyleEngine's final node-to-style relation remains authoritative.
     [[nodiscard]] StyleEngine::StyleRecordDelta publish_computed_style_inputs(DOM::AbstractElement, ComputedValues const&) const;
+    [[nodiscard]] StyleEngine::StyleRecordDelta publish_animation_overlay(DOM::AbstractElement, ComputedValues const&) const;
     // Give a layout-only variant of an element or pseudo-element style an authoritative record
     // without replacing the StyleEngine assignment of its DOM target.
     [[nodiscard]] StyleRecordID intern_computed_style_inputs(DOM::AbstractElement, ComputedValues const&) const;

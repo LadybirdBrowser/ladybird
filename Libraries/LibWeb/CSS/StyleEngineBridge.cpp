@@ -235,6 +235,14 @@ StyleEngine::StyleRecordDelta StyleEngine::publish_computed_groups(StyleNodeID n
     return { StyleRecordID { delta.old_style_record }, StyleRecordID { delta.new_style_record } };
 }
 
+Optional<StyleEngine::StyleRecordDelta> StyleEngine::publish_animation_overlay(StyleNodeID node, u8 pseudo_kind, u64 animation_overlay_identity, void const* animated_overlay, ReadonlySpan<void const*> payloads)
+{
+    auto delta = StyleEngineFFI::style_engine_publish_animation_overlay(m_impl, node.value(), pseudo_kind, animation_overlay_identity, animated_overlay, payloads.data(), payloads.size());
+    if (delta.new_style_record == 0)
+        return {};
+    return StyleRecordDelta { StyleRecordID { delta.old_style_record }, StyleRecordID { delta.new_style_record } };
+}
+
 StyleEngine::StyleRecordDelta StyleEngine::assign_shared_style_record(StyleNodeID node, u8 pseudo_kind, StyleRecordID style_record, bool inherited_group_swap_eligible)
 {
     auto delta = StyleEngineFFI::style_engine_assign_shared_style_record(m_impl, node.value(), pseudo_kind, style_record.value(), ComputedValues::inherited_style_group_count, inherited_group_swap_eligible);

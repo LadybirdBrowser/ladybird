@@ -2338,6 +2338,53 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
     })
 }
 
+/// Replaces only the animation overlay on an already-published target. Recording falls back to
+/// `style_engine_publish_computed_groups`, which captures the complete base-style input.
+///
+/// # Safety
+/// `engine` must be live. `animated_overlay` must be null when `animation_overlay_identity` is
+/// zero and otherwise point at a live animation overlay. `payloads` must contain live group
+/// payloads for a non-empty overlay.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_publish_animation_overlay(
+    engine: *mut c_void,
+    node: u32,
+    pseudo_kind: u8,
+    animation_overlay_identity: u64,
+    animated_overlay: *const c_void,
+    payloads: *const *const c_void,
+    payload_count: usize,
+) -> FfiStyleRecordDelta {
+    abort_on_panic(|| {
+        let Some(node) = StyleNodeID::from_raw(node) else {
+            return FfiStyleRecordDelta::default();
+        };
+        if animation_overlay_identity != 0 && animated_overlay.is_null() {
+            return FfiStyleRecordDelta::default();
+        }
+        if payload_count != 0 && payloads.is_null() {
+            return FfiStyleRecordDelta::default();
+        }
+        let payloads = match payload_count {
+            0 => &[],
+            _ => unsafe { std::slice::from_raw_parts(payloads, payload_count) },
+        };
+        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        let Some(publication) = engine.publish_animation_overlay_impl(
+            super::computed::ComputedStyleTarget::new(node, pseudo_kind),
+            animation_overlay_identity,
+            animated_overlay.cast(),
+            payloads,
+        ) else {
+            return FfiStyleRecordDelta::default();
+        };
+        FfiStyleRecordDelta {
+            old_style_record: publication.previous_style_record.raw(),
+            new_style_record: publication.style_record.raw(),
+        }
+    })
+}
+
 /// Assigns an already-interned base style record to one element or pseudo-element.
 /// Returns an empty delta when recording is active so the caller can use the fully recorded
 /// publication path instead.

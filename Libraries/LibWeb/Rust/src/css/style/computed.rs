@@ -515,6 +515,15 @@ struct AnimationOverlayPublication {
     record_updated: bool,
 }
 
+pub struct AnimationOverlayUpdate {
+    pub previous_style_record: FinalStyleRecordID,
+    pub style_record: FinalStyleRecordID,
+    pub slot_allocated: bool,
+    pub slot_released: bool,
+    pub record_updated: bool,
+    pub live_records: usize,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ComputedStyleTarget {
     node: StyleNodeID,
@@ -1274,6 +1283,52 @@ impl ComputedGroupSets {
                     .final_style_record
             },
         )
+    }
+
+    pub fn publish_animation_overlay(
+        &mut self,
+        target: ComputedStyleTarget,
+        source_identity: u64,
+        animated_overlay: *const crate::css::animated_overlay::AnimatedOverlay,
+        payloads: &[*const c_void],
+    ) -> Option<AnimationOverlayUpdate> {
+        let (base_style_record, current_slot) = if target.is_pseudo() {
+            let assignment = self.pseudo_row(target.node, target.pseudo_kind)?.assignment?;
+            (assignment.style_record, assignment.animation_overlay_slot)
+        } else {
+            let index = target.node.element_index()? as usize;
+            (
+                *self.style_record_column.get(index)?.as_ref()?,
+                self.columns.animation_overlay_slot(index),
+            )
+        };
+        let previous_style_record = self.final_style_record(base_style_record, current_slot);
+        let mut animated_overlay =
+            (!animated_overlay.is_null()).then(|| Box::new(unsafe { &*animated_overlay }.clone()));
+        let publication = self.update_animation_overlay(
+            current_slot,
+            base_style_record,
+            source_identity,
+            &mut animated_overlay,
+            payloads,
+        );
+        if target.is_pseudo() {
+            self.ensure_pseudo_row(target.node, target.pseudo_kind)
+                .assignment
+                .as_mut()?
+                .animation_overlay_slot = publication.slot;
+        } else {
+            self.columns
+                .set_animation_overlay_slot(target.node.element_index()? as usize, publication.slot);
+        }
+        Some(AnimationOverlayUpdate {
+            previous_style_record,
+            style_record: publication.final_style_record,
+            slot_allocated: publication.slot_allocated,
+            slot_released: publication.slot_released,
+            record_updated: publication.record_updated,
+            live_records: self.live_animation_overlay_assignments,
+        })
     }
 
     pub fn publish(

@@ -392,6 +392,34 @@ impl StyleEngine {
         publication
     }
 
+    pub(super) fn publish_animation_overlay_impl(
+        &mut self,
+        target: computed::ComputedStyleTarget,
+        source_identity: u64,
+        animated_overlay: *const crate::css::animated_overlay::AnimatedOverlay,
+        payloads: &[*const std::ffi::c_void],
+    ) -> Option<computed::AnimationOverlayUpdate> {
+        if self.recording_id().is_some() {
+            return None;
+        }
+        let publication =
+            self.computed_group_sets
+                .publish_animation_overlay(target, source_identity, animated_overlay, payloads)?;
+        self.settle_computed_memory();
+        if publication.slot_allocated {
+            self.counters.bump(Counter::AnimationOverlaySlotsAllocated);
+        }
+        if publication.slot_released {
+            self.counters.bump(Counter::AnimationOverlaySlotsReleased);
+        }
+        if publication.record_updated {
+            self.counters.bump(Counter::AnimationOverlayRecordsUpdated);
+        }
+        self.counters
+            .set(Counter::LiveAnimationOverlayRecords, publication.live_records as u64);
+        Some(publication)
+    }
+
     pub(crate) fn publish_exact_cascade_state(
         &mut self,
         target: computed::ComputedStyleTarget,
