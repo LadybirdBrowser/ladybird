@@ -122,23 +122,23 @@ static ErrorOr<String> utf16_to_utf8_text(Utf16String const& text)
 }
 
 // Explicit return types keep these non-capturing lambdas function-pointer compatible.
-static constexpr Array<SerializableRegistryEntry, 15> s_serializable_storage_registry { {
+static constexpr auto s_serializable_storage_registry = to_array<SerializableRegistryEntry>({
     { Bindings::InterfaceName::Blob, "Blob"sv },
+    { Bindings::InterfaceName::CryptoKey, "CryptoKey"sv },
+    { Bindings::InterfaceName::DOMException, "DOMException"sv },
+    { Bindings::InterfaceName::DOMMatrix, "DOMMatrix"sv },
+    { Bindings::InterfaceName::DOMMatrixReadOnly, "DOMMatrixReadOnly"sv },
+    { Bindings::InterfaceName::DOMPoint, "DOMPoint"sv },
+    { Bindings::InterfaceName::DOMPointReadOnly, "DOMPointReadOnly"sv },
+    { Bindings::InterfaceName::DOMQuad, "DOMQuad"sv },
+    { Bindings::InterfaceName::DOMRect, "DOMRect"sv },
+    { Bindings::InterfaceName::DOMRectReadOnly, "DOMRectReadOnly"sv },
     { Bindings::InterfaceName::File, "File"sv },
     { Bindings::InterfaceName::FileList, "FileList"sv },
-    { Bindings::InterfaceName::DOMException, "DOMException"sv },
-    { Bindings::InterfaceName::DOMMatrixReadOnly, "DOMMatrixReadOnly"sv },
-    { Bindings::InterfaceName::DOMMatrix, "DOMMatrix"sv },
-    { Bindings::InterfaceName::DOMPointReadOnly, "DOMPointReadOnly"sv },
-    { Bindings::InterfaceName::DOMPoint, "DOMPoint"sv },
-    { Bindings::InterfaceName::DOMRectReadOnly, "DOMRectReadOnly"sv },
-    { Bindings::InterfaceName::DOMRect, "DOMRect"sv },
-    { Bindings::InterfaceName::CryptoKey, "CryptoKey"sv },
-    { Bindings::InterfaceName::DOMQuad, "DOMQuad"sv },
-    { Bindings::InterfaceName::ImageData, "ImageData"sv },
     { Bindings::InterfaceName::ImageBitmap, "ImageBitmap"sv },
+    { Bindings::InterfaceName::ImageData, "ImageData"sv },
     { Bindings::InterfaceName::QuotaExceededError, "QuotaExceededError"sv },
-} };
+});
 
 ReadonlySpan<SerializableRegistryEntry> serializable_storage_registry()
 {
