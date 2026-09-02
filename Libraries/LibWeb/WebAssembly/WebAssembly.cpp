@@ -468,7 +468,7 @@ JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS
 
 // https://webassembly.github.io/spec/js-api/#compile-a-webassembly-module
 // https://webassembly.github.io/content-security-policy/js-api/#compile-a-webassembly-module
-JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webassembly_module(JS::Realm& realm, ByteBuffer data)
+JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webassembly_module(JS::Realm& realm, ReadonlyBytes data)
 {
     auto& vm = realm.vm();
     TRY(host_ensure_can_compile_wasm_bytes(realm));
@@ -477,7 +477,7 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
     stats.input_size_bytes = data.size();
 
     auto parse_start = MonotonicTime::now();
-    FixedMemoryStream stream { data.bytes() };
+    FixedMemoryStream stream { data };
     auto module_result = Wasm::Module::parse(stream);
     stats.parse_time = MonotonicTime::now() - parse_start;
     if (module_result.is_error()) {
@@ -986,7 +986,7 @@ GC::Ref<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::Realm& re
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, bytes = move(bytes), promise, task_source]() mutable {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 1. Compile the WebAssembly module bytes and store the result as module.
-        auto module_or_error = Detail::compile_a_webassembly_module(realm, move(bytes));
+        auto module_or_error = Detail::compile_a_webassembly_module(realm, bytes);
 
         // 2. Queue a task to perform the following steps. If taskSource was provided, queue the task on that task source.
         HTML::queue_a_task(task_source, nullptr, nullptr, GC::create_function(GC::Heap::the(), [&realm, promise, module_or_error = move(module_or_error)]() mutable {
