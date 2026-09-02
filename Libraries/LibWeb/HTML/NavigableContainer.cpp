@@ -53,7 +53,7 @@ void NavigableContainer::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_content_navigable);
 }
 
-GC::Ptr<NavigableContainer> NavigableContainer::navigable_container_with_content_navigable(GC::Ref<LocalNavigable> navigable)
+GC::Ptr<NavigableContainer> NavigableContainer::navigable_container_with_content_navigable(GC::Ref<Navigable> navigable)
 {
     for (auto* navigable_container : all_instances()) {
         if (navigable_container->content_navigable() == navigable)
@@ -162,7 +162,7 @@ DOM::Document const* NavigableContainer::content_document() const
         return nullptr;
 
     // 2. Let document be container's content navigable's active document.
-    auto document = m_content_navigable->active_document();
+    auto document = as<LocalNavigable>(*m_content_navigable).active_document();
 
     // AD-HOC: The active document can be null during navigation, after the old document
     //         has been destroyed but before the new document has been set.
@@ -182,7 +182,7 @@ DOM::Document const* NavigableContainer::content_document_without_origin_check()
     if (!m_content_navigable)
         return nullptr;
 
-    return m_content_navigable->active_document().ptr();
+    return as<LocalNavigable>(*m_content_navigable).active_document().ptr();
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content-other.html#dom-media-getsvgdocument
@@ -242,7 +242,7 @@ Optional<URL::URL> NavigableContainer::shared_attribute_processing_steps_for_ifr
     //         navigable's ongoing_navigation, causing the real navigation to be dropped when its populate completion
     //         callback checks ongoing_navigation != navigation_id. Non-blank src navigations must still be processed
     //         here, and will be queued by LocalNavigable::navigate() until the child navigable is ready for navigation.
-    auto& local_navigable = *m_content_navigable;
+    auto& local_navigable = as<LocalNavigable>(*m_content_navigable);
 
     if (url_matches_about_blank(url) && initial_insertion == InitialInsertion::Yes
         && (local_navigable.has_pending_navigations() || !local_navigable.ongoing_navigation().has<Empty>())) {
@@ -270,7 +270,7 @@ void NavigableContainer::navigate_an_iframe_or_frame(URL::URL url, ReferrerPolic
     //         the previous document may have parsed and run scripts but not yet fired its load event;
     //         forcing "replace" in that case would incorrectly discard the history entry.
     if (initial_insertion == InitialInsertion::Yes) {
-        auto active_document = m_content_navigable->active_document();
+        auto active_document = as<LocalNavigable>(*m_content_navigable).active_document();
         if (active_document && !active_document->is_completely_loaded())
             history_handling = NavigationHistoryBehavior::Replace;
     }
@@ -354,7 +354,7 @@ void NavigableContainer::destroy_the_child_navigable()
 
         // Not in the spec:
         as<LocalNavigable>(*navigable).report_child_frame_destroyed();
-        navigable->remove_from_all_local_navigables();
+        as<LocalNavigable>(*navigable).remove_from_all_local_navigables();
 
         // 6. Let parentDocState be container's node navigable's active session history entry's document state.
         auto parent_navigable = this->navigable();
