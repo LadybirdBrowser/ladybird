@@ -107,7 +107,13 @@ pub(crate) fn record_display_list(
         uncacheable_paint_generation: 0,
         capture_log_for_verification: crate::painting::record::verify::enabled_by_environment()
             .then(CaptureLog::default),
-        list: HitTestList::default(),
+        list: HitTestList {
+            item_capacity_hint_from_previous_list: paint_state
+                .hit_test_list
+                .as_ref()
+                .map_or(0, |list| list.items.len()),
+            ..HitTestList::default()
+        },
         memo_tables: &paint_state.per_recording_memo_tables,
         completed_record_gen: narrow_record_gen(layout_arena.paint_cache_completed_record_gen()),
         all_paint_caches_dirty: layout_arena.all_paint_caches_dirty(),
