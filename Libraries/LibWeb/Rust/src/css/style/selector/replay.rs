@@ -62,6 +62,7 @@ pub fn write(program: &SelectorProgram, payload: &mut PayloadWriter) {
         payload.write_u32(*length);
     }
     payload.write_bool(program.can_leave_scope);
+    payload.write_bool(program.subject_can_leave_scope);
 }
 
 pub fn read(payload: &mut PayloadReader) -> Result<SelectorProgram, Error> {
@@ -101,6 +102,7 @@ pub fn read(payload: &mut PayloadReader) -> Result<SelectorProgram, Error> {
         dispatch_metadata: CachedDispatchMetadata::default(),
         relation_target_blooms: Box::default(),
         can_leave_scope: payload.read_bool()?,
+        subject_can_leave_scope: payload.read_bool()?,
     };
     program.cache_dispatch_metadata();
     Ok(program)
@@ -638,6 +640,7 @@ mod tests {
             language_ranges: vec![(0, 2)],
             dispatch_metadata: CachedDispatchMetadata::default(),
             can_leave_scope: true,
+            subject_can_leave_scope: false,
         };
         program.cache_dispatch_metadata();
 

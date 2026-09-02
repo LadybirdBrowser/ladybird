@@ -30,7 +30,7 @@ use std::sync::Mutex;
 use std::sync::OnceLock;
 
 const MAGIC: [u8; 8] = *b"SGREPLAY";
-const FORMAT_VERSION: u64 = 10;
+const FORMAT_VERSION: u64 = 11;
 const EVENT_HEADER_SIZE: usize = 3 * size_of::<u64>();
 const PAYLOAD_ALIGNMENT: usize = 8;
 

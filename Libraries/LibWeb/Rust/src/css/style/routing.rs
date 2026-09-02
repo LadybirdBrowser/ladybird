@@ -4127,7 +4127,7 @@ impl StyleEngine {
                         self.counters.bump(Counter::ProgramCandidatesRejectedByCascade);
                         continue;
                     }
-                    let winning_nodes = (!compiled.can_leave_its_scope()
+                    let winning_nodes = (!compiled.subject_can_leave_its_scope()
                         && compiled
                             .entries()
                             .iter()
@@ -4176,7 +4176,8 @@ impl StyleEngine {
                 + first_program_rule;
             let program_rules = &programs[first_program_rule..end_program_rule];
             let can_leave_scope = self.programs.get(selector_program).can_leave_its_scope();
-            let bounded_by_scope = !scopes.is_empty() && !can_leave_scope;
+            let subject_can_leave_scope = self.programs.get(selector_program).subject_can_leave_its_scope();
+            let bounded_by_scope = !scopes.is_empty() && !subject_can_leave_scope;
             // Activation is one input of an active rule match; selector truth is the other. The
             // dispatch posting is only a candidate source, so test the complete selector before
             // admitting one of its nodes. Turning a rule off reads the old side and turning it on
@@ -4427,7 +4428,7 @@ impl StyleEngine {
                         }
                         match self.regions_reachable_from_scopes(
                             &scopes,
-                            compiled.can_leave_its_scope(),
+                            compiled.subject_can_leave_its_scope(),
                             compiled.host_is_a_subject(),
                         ) {
                             Some(reachable) => {

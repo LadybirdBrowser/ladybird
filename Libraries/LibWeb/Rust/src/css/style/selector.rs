@@ -691,6 +691,7 @@ pub struct SelectorProgram {
     /// name); everything else stays out — rather than risking a bit facts never set.
     relation_target_blooms: Box<[u64]>,
     can_leave_scope: bool,
+    subject_can_leave_scope: bool,
 }
 
 impl SelectorProgram {
@@ -878,7 +879,7 @@ impl SelectorProgram {
                     })
                     .sum::<u64>(),
             ];
-            skip [self.can_leave_scope];
+            skip [self.can_leave_scope, self.subject_can_leave_scope];
         }
     }
 }
@@ -1089,6 +1090,11 @@ impl SelectorProgramBuilder {
             .entries
             .iter()
             .any(|entry| self.program.leaves_its_scope(entry.root));
+        self.program.subject_can_leave_scope = self
+            .program
+            .entries
+            .iter()
+            .any(|entry| self.program.subject_leaves_its_scope(entry.root));
         self.program
     }
 }
@@ -2185,10 +2191,61 @@ impl SelectorProgram {
         }
     }
 
+    /// Whether this node's subject itself can lie outside the scope its rule is attached to.
+    ///
+    /// `leaves_its_scope` answers whether the program reads anything outside the scope, and a
+    /// `:host()` under a combinator does: the host's facts decide the rule. Its subject still stays
+    /// inside the tree, because a shadow sheet's combinators never reach the host's light-DOM
+    /// children. So only a `:host`, `::slotted()` or `::part()` in subject position, and the
+    /// implicit scoping root that can be the host, move the subject out; a combinator step, a
+    /// relative selector and an `of` selector all constrain something other than the subject.
+    fn subject_leaves_its_scope(&self, id: SelectorNodeID) -> bool {
+        match self.node(id) {
+            SelectorOp::Host(_) | SelectorOp::Slotted(_) | SelectorOp::ExposedToHost { .. } => true,
+            SelectorOp::Part(_) => true,
+            SelectorOp::IsNode(_) => true,
+            SelectorOp::InScope { root, limit, inner, .. } => {
+                self.subject_leaves_its_scope(inner)
+                    || self.leaves_its_scope(root)
+                    || limit.is_some_and(|limit| self.leaves_its_scope(limit))
+            }
+            SelectorOp::And { first, count } | SelectorOp::Or { first, count } => self
+                .operands(first, count)
+                .iter()
+                .any(|&operand| self.subject_leaves_its_scope(operand)),
+            SelectorOp::Where(inner) | SelectorOp::Not(inner) => self.subject_leaves_its_scope(inner),
+            SelectorOp::Parent(_)
+            | SelectorOp::Ancestor(_)
+            | SelectorOp::PreviousSibling(_)
+            | SelectorOp::PrecedingSibling(_)
+            | SelectorOp::RelativeExists(_)
+            | SelectorOp::NthPosition(_)
+            | SelectorOp::AssignedSlot(_)
+            | SelectorOp::Language { .. }
+            | SelectorOp::ScopeRootInstance
+            | SelectorOp::RelativeAnchorInstance
+            | SelectorOp::Feature(_)
+            | SelectorOp::State(_)
+            | SelectorOp::Root
+            | SelectorOp::Empty
+            | SelectorOp::Scope
+            | SelectorOp::ValueState { .. }
+            | SelectorOp::Heading(_) => false,
+        }
+    }
+
     /// Whether any of this program's entries can decide outside the scope it is attached to.
     #[must_use]
     pub fn can_leave_its_scope(&self) -> bool {
         self.can_leave_scope
+    }
+
+    /// Whether any of this program's entries can have a subject outside the scope it is attached
+    /// to. Narrower than `can_leave_its_scope`: a program whose `:host()` only constrains an
+    /// ancestor reads the host but names subjects inside its own tree.
+    #[must_use]
+    pub fn subject_can_leave_its_scope(&self) -> bool {
+        self.subject_can_leave_scope
     }
 
     /// Whether the host itself is a subject of this program, rather than only a step on the way to
@@ -8045,6 +8102,58 @@ mod tests {
         let part_rule = single_entry(|builder| builder.push(SelectorOp::Part(StyleAtomID(77))));
         assert!(fixture.matches(&part_rule, 2));
         assert!(!fixture.matches(&part_rule, 1));
+    }
+
+    #[test]
+    fn a_host_guard_under_a_combinator_keeps_the_subject_in_its_scope() {
+        // `:host(.theme) > .item` reads the host, so it can leave its scope, but its subject is a
+        // child of the host in the shadow tree and never anything outside it.
+        let host_child = single_entry(|builder| {
+            let theme = builder.push_feature(FeatureTest::Class(CLASS_THEME));
+            let host = builder.push(SelectorOp::Host(theme));
+            let parent = builder.push(SelectorOp::Parent(host));
+            let item = builder.push_feature(FeatureTest::Class(CLASS_ITEM));
+            builder.push_compound(&[item, parent])
+        });
+        assert!(host_child.can_leave_its_scope());
+        assert!(!host_child.subject_can_leave_its_scope());
+
+        // `:host .item`
+        let host_descendant = single_entry(|builder| {
+            let any = builder.push_feature(FeatureTest::AnyElement);
+            let host = builder.push(SelectorOp::Host(any));
+            let ancestor = builder.push(SelectorOp::Ancestor(host));
+            let item = builder.push_feature(FeatureTest::Class(CLASS_ITEM));
+            builder.push_compound(&[item, ancestor])
+        });
+        assert!(host_descendant.can_leave_its_scope());
+        assert!(!host_descendant.subject_can_leave_its_scope());
+
+        // `:host(.theme)` names the host itself.
+        let host = single_entry(|builder| {
+            let theme = builder.push_feature(FeatureTest::Class(CLASS_THEME));
+            builder.push(SelectorOp::Host(theme))
+        });
+        assert!(host.can_leave_its_scope());
+        assert!(host.subject_can_leave_its_scope());
+
+        // `::slotted(.item)` names a light-DOM element of the host.
+        let slotted = single_entry(|builder| {
+            let item = builder.push_feature(FeatureTest::Class(CLASS_ITEM));
+            builder.push(SelectorOp::Slotted(item))
+        });
+        assert!(slotted.can_leave_its_scope());
+        assert!(slotted.subject_can_leave_its_scope());
+
+        // `.theme .item` reads nothing outside its scope.
+        let plain = single_entry(|builder| {
+            let theme = builder.push_feature(FeatureTest::Class(CLASS_THEME));
+            let ancestor = builder.push(SelectorOp::Ancestor(theme));
+            let item = builder.push_feature(FeatureTest::Class(CLASS_ITEM));
+            builder.push_compound(&[item, ancestor])
+        });
+        assert!(!plain.can_leave_its_scope());
+        assert!(!plain.subject_can_leave_its_scope());
     }
 
     #[test]

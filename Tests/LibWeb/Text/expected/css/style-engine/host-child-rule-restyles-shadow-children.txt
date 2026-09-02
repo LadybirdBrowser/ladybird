@@ -1,0 +1,4 @@
+light child: rgb(0, 0, 0)
+shadow child: rgb(0, 128, 0)
+shadow last child: rgb(0, 128, 0)
+reactions: 26, recomputes: 26

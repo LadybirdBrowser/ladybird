@@ -1731,7 +1731,7 @@ impl StyleEngine {
     pub(super) fn regions_reachable_from_scopes(
         &self,
         scopes: &[TreeScopeID],
-        leaves_scope: bool,
+        subject_leaves_scope: bool,
         host_is_a_subject: bool,
     ) -> Option<Vec<ImpactRegion>> {
         if scopes.is_empty() {
@@ -1754,10 +1754,10 @@ impl StyleEngine {
                 //
                 // A program that leaves its scope reaches the host instead, so it needs the root to
                 // find one, and a scope with no root names no host either.
-                None if !leaves_scope => continue,
+                None if !subject_leaves_scope => continue,
                 None => continue,
             };
-            match leaves_scope {
+            match subject_leaves_scope {
                 // `:host` and `::slotted()` describe the host and what is slotted into it, which are
                 // in the host's own tree and not in the one the sheet is attached to. A rule using
                 // them says nothing about the shadow tree, so naming it would be the widest part of
