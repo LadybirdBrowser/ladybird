@@ -235,23 +235,26 @@ Vector<CrossOriginProperty> cross_origin_properties(Variant<HTML::Location const
             };
         },
         // 3. Return « { [[Property]]: "window", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "self", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "location", [[NeedsGet]]: true, [[NeedsSet]]: true }, { [[Property]]: "close" }, { [[Property]]: "closed", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "focus" }, { [[Property]]: "blur" }, { [[Property]]: "frames", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "length", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "top", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "opener", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "parent", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "postMessage" } ».
-        [](HTML::Window const*) -> Vector<CrossOriginProperty> {
-            return {
-                { .property = "window"_utf16_fly_string, .needs_get = true, .needs_set = false },
-                { .property = "self"_utf16_fly_string, .needs_get = true, .needs_set = false },
-                { .property = "location"_utf16_fly_string, .needs_get = true, .needs_set = true },
-                { .property = "close"_utf16_fly_string },
-                { .property = "closed"_utf16_fly_string, .needs_get = true, .needs_set = false },
-                { .property = "focus"_utf16_fly_string },
-                { .property = "blur"_utf16_fly_string },
-                { .property = "frames"_utf16_fly_string, .needs_get = true, .needs_set = false },
-                { .property = "length"_utf16_fly_string, .needs_get = true, .needs_set = false },
-                { .property = "top"_utf16_fly_string, .needs_get = true, .needs_set = false },
-                { .property = "opener"_utf16_fly_string, .needs_get = true, .needs_set = false },
-                { .property = "parent"_utf16_fly_string, .needs_get = true, .needs_set = false },
-                { .property = "postMessage"_utf16_fly_string },
-            };
-        });
+        [](HTML::Window const*) { return cross_origin_window_properties(); });
+}
+
+Vector<CrossOriginProperty> cross_origin_window_properties()
+{
+    return {
+        { .property = "window"_utf16_fly_string, .needs_get = true, .needs_set = false },
+        { .property = "self"_utf16_fly_string, .needs_get = true, .needs_set = false },
+        { .property = "location"_utf16_fly_string, .needs_get = true, .needs_set = true },
+        { .property = "close"_utf16_fly_string },
+        { .property = "closed"_utf16_fly_string, .needs_get = true, .needs_set = false },
+        { .property = "focus"_utf16_fly_string },
+        { .property = "blur"_utf16_fly_string },
+        { .property = "frames"_utf16_fly_string, .needs_get = true, .needs_set = false },
+        { .property = "length"_utf16_fly_string, .needs_get = true, .needs_set = false },
+        { .property = "top"_utf16_fly_string, .needs_get = true, .needs_set = false },
+        { .property = "opener"_utf16_fly_string, .needs_get = true, .needs_set = false },
+        { .property = "parent"_utf16_fly_string, .needs_get = true, .needs_set = false },
+        { .property = "postMessage"_utf16_fly_string },
+    };
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#cross-origin-accessible-window-property-name
