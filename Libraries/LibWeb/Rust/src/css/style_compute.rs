@@ -2701,7 +2701,7 @@ pub struct FfiComputePropertiesInput {
     pub use_retained_style_computation_selection: bool,
     pub selected_transition_properties: *const u16,
     pub selected_transition_property_count: usize,
-    pub has_relevant_animations: bool,
+    pub has_relevant_animations_other_than_transitions: bool,
     pub has_css_defined_animations: bool,
     pub stop_after_longhand_drive: bool,
     pub callback_context: *mut c_void,
@@ -5041,7 +5041,7 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
         retained_selection,
         selected_transition_properties: &selected_transition_properties,
         has_retained_transition_candidates,
-        has_relevant_animations: input.has_relevant_animations,
+        has_relevant_animations_other_than_transitions: input.has_relevant_animations_other_than_transitions,
         has_css_defined_animations: input.has_css_defined_animations,
     };
     let requirements =

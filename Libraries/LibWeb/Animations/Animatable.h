@@ -59,6 +59,7 @@ public:
     void invalidate_associated_animation_composite_order();
     bool has_relevant_animations() const;
     bool has_associated_animations() const;
+    bool has_relevant_animations_other_than_transitions() const;
 
     void associate_with_animation(GC::Ref<Animation>);
     void disassociate_with_animation(GC::Ref<Animation>);

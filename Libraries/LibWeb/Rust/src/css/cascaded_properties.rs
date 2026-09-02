@@ -544,7 +544,7 @@ pub(crate) struct StyleComputationPlanInput<'a> {
     pub retained_selection: Option<crate::css::style::StyleComputationSelection>,
     pub selected_transition_properties: &'a [u16],
     pub has_retained_transition_candidates: bool,
-    pub has_relevant_animations: bool,
+    pub has_relevant_animations_other_than_transitions: bool,
     pub has_css_defined_animations: bool,
 }
 
@@ -693,11 +693,17 @@ unsafe fn plan_style_computation(
     let retained_transition_candidates = input.has_retained_transition_candidates;
     let must_compute_all_properties = previous_values.is_none()
         || has_monospace_font_family
-        || input.has_relevant_animations
+        || input.has_relevant_animations_other_than_transitions
         || input.has_css_defined_animations;
     let mut computed_group_mask = input.initial_computed_group_mask;
-    if must_compute_all_properties || retained_transition_candidates {
+    if must_compute_all_properties {
         computed_group_mask = input.all_computed_groups;
+    } else if computed_group_mask != input.all_computed_groups {
+        // The transition step compares the after-change value of every transition property with
+        // the before-change one, whether or not the cascade delta named the property.
+        for &property_id in input.selected_transition_properties {
+            computed_group_mask |= crate::css::computed_values::computed_group_output_mask(property_id).unwrap_or(0);
+        }
     }
 
     let mut computed_property_words = [0; LONGHAND_WORD_COUNT];

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    li { color: black; }
+    li > label { transition: color 1s linear; }
+    li.completed > label { color: rgb(100, 100, 100); text-decoration-line: line-through; }
+    li > label.padded { padding-left: 2px; }
+</style>
+<ul id="list"></ul>
+<script>
+    test(() => {
+        for (let index = 0; index < 16; ++index) {
+            const item = list.appendChild(document.createElement("li"));
+            item.appendChild(document.createElement("label")).textContent = `item ${index}`;
+        }
+        internals.updateStyle();
+        const labels = [...list.querySelectorAll("label")];
+
+        function mutate(label, mutation, { checkLonghandDrive = true } = {}) {
+            const before = internals.getStyleInvalidationCounters();
+            mutation();
+            internals.updateStyle();
+            const after = internals.getStyleInvalidationCounters();
+            println(`${label} full builds: ${after.baseStyleFullBuilds - before.baseStyleFullBuilds}`);
+            if (checkLonghandDrive)
+                println(`${label} longhand drive bounded: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations < 4000}`);
+        }
+
+        mutate("complete", () => { for (const item of list.children) item.classList.add("completed"); });
+        println(`transitions started: ${labels.every(label => label.getAnimations().length === 1)}`);
+        for (const label of labels) {
+            const animation = label.getAnimations()[0];
+            animation.pause();
+            animation.currentTime = 500;
+        }
+        println(`midpoint color: ${getComputedStyle(labels[0]).color}`);
+        println(`midpoint text-decoration-line: ${getComputedStyle(labels[0]).textDecorationLine}`);
+
+        mutate("recompute mid-transition", () => { for (const label of labels) label.classList.add("padded"); }, { checkLonghandDrive: false });
+        println(`running transition kept: ${labels.every(label => label.getAnimations().length === 1)}`);
+        println(`running color: ${getComputedStyle(labels[0]).color}`);
+
+        mutate("uncomplete", () => { for (const item of list.children) item.classList.remove("completed"); });
+        println(`uncompleted text-decoration-line: ${getComputedStyle(labels[0]).textDecorationLine}`);
+    });
+</script>

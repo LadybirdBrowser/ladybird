@@ -3801,7 +3801,7 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
     auto groups_to_rebuild = sharing.computed_groups_to_rebuild.value_or(ComputedValues::all_style_groups);
     auto& element = abstract_element.element();
     if (groups_to_rebuild != ComputedValues::all_style_groups) {
-        if (element.has_relevant_animations()
+        if (element.has_relevant_animations_other_than_transitions()
             || element.has_css_defined_animations())
             groups_to_rebuild = ComputedValues::all_style_groups;
         else if (auto animated_properties = computed_properties->animated_properties_snapshot(); animated_properties && !animated_properties->is_empty())
@@ -3828,7 +3828,7 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
     // record retained by value is refused for it. Neither is an animation or transition: it carries
     // state on the element itself, and its values are published by the animation refresh rather
     // than derived here.
-    bool const computation_read_only_the_record = !element.has_relevant_animations()
+    bool const computation_read_only_the_record = !element.has_relevant_animations_other_than_transitions()
         && !element.has_css_defined_animations()
         && !element.style_uses_attr_css_function()
         && !element.style_uses_if_css_function()
@@ -5582,7 +5582,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         .use_retained_style_computation_selection = use_retained_style_computation_selection,
         .selected_transition_properties = selected_transition_properties.data(),
         .selected_transition_property_count = selected_transition_properties.size(),
-        .has_relevant_animations = abstract_element.element().has_relevant_animations(),
+        .has_relevant_animations_other_than_transitions = abstract_element.element().has_relevant_animations_other_than_transitions(),
         .has_css_defined_animations = abstract_element.element().has_css_defined_animations(),
         .stop_after_longhand_drive = stop_after_longhand_drive,
         .callback_context = &native_context,
