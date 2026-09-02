@@ -43,27 +43,72 @@ pub(super) struct FcRunCacheKey {
     root_cells: used_values::UsedValuesCellState,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct RunInputsTheStoredRunNeverObserved {
+    pub(super) percentage_block_basis_and_block_size_definiteness: bool,
+    pub(super) definite_available_inline_sizes_at_or_above: Option<CssPixels>,
+    pub(super) percentage_inline_basis: bool,
+}
+
+impl RunInputsTheStoredRunNeverObserved {
+    fn proven_by_stored_run(outputs: &formatting_context::RunOutputs) -> Self {
+        Self {
+            percentage_block_basis_and_block_size_definiteness: !outputs.result.depends_on_percentage_block_size,
+            definite_available_inline_sizes_at_or_above: outputs
+                .atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+            percentage_inline_basis: outputs
+                .atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above
+                .is_some(),
+        }
+    }
+
+    fn accepted_when_reusing_stale_line_data_after_structural_inline_damage(
+        outputs: &formatting_context::RunOutputs,
+    ) -> Self {
+        Self {
+            definite_available_inline_sizes_at_or_above: None,
+            percentage_inline_basis: false,
+            ..Self::proven_by_stored_run(outputs)
+        }
+    }
+
+    fn relaxes_any_input(self) -> bool {
+        let Self {
+            percentage_block_basis_and_block_size_definiteness,
+            definite_available_inline_sizes_at_or_above,
+            percentage_inline_basis,
+        } = self;
+        percentage_block_basis_and_block_size_definiteness
+            || definite_available_inline_sizes_at_or_above.is_some()
+            || percentage_inline_basis
+    }
+}
+
 impl FcRunCacheKey {
-    fn matches(&self, probe: &Self, entry_depends_on_percentage_block_size: bool) -> bool {
+    fn matches(&self, probe: &Self, unobserved: RunInputsTheStoredRunNeverObserved) -> bool {
         if self == probe {
             return true;
         }
-        if entry_depends_on_percentage_block_size {
+        if !unobserved.relaxes_any_input() {
             return false;
         }
         self.fc_type == probe.fc_type
             && self.root_cells == probe.root_cells
-            && layout_inputs_match_ignoring_percentage_block_size(&self.input, &probe.input)
+            && layout_inputs_match_ignoring_unobserved(&self.input, &probe.input, unobserved)
     }
 }
 
-fn available_block_sizes_are_interchangeable(a: AvailableSize, b: AvailableSize) -> bool {
+fn available_block_sizes_match(a: AvailableSize, b: AvailableSize, block_size_definiteness_unobserved: bool) -> bool {
     let is_definite_or_indefinite =
         |size: AvailableSize| matches!(size, AvailableSize::Definite(_) | AvailableSize::Indefinite);
-    a == b || (is_definite_or_indefinite(a) && is_definite_or_indefinite(b))
+    a == b || (block_size_definiteness_unobserved && is_definite_or_indefinite(a) && is_definite_or_indefinite(b))
 }
 
-fn layout_inputs_match_ignoring_percentage_block_size(a: &LayoutInput, b: &LayoutInput) -> bool {
+fn layout_inputs_match_ignoring_unobserved(
+    a: &LayoutInput,
+    b: &LayoutInput,
+    unobserved: RunInputsTheStoredRunNeverObserved,
+) -> bool {
     let LayoutInput {
         available_space,
         containing_block_constraints,
@@ -73,18 +118,48 @@ fn layout_inputs_match_ignoring_percentage_block_size(a: &LayoutInput, b: &Layou
     } = *a;
     let ContainingBlockConstraints {
         percentage_basis_inline_size,
-        percentage_basis_block_size: _,
-        quirks_mode_percentage_basis_block_size: _,
+        percentage_basis_block_size,
+        quirks_mode_percentage_basis_block_size,
     } = containing_block_constraints;
-    available_space.inline_size == b.available_space.inline_size
-        && available_block_sizes_are_interchangeable(available_space.block_size, b.available_space.block_size)
-        && percentage_basis_inline_size == b.containing_block_constraints.percentage_basis_inline_size
-        && content_box_position_in_bfc_root == b.content_box_position_in_bfc_root
-        && participation == b.participation
-        && sizing_directives_match_ignoring_percentage_block_size(&sizing, &b.sizing)
+    if participation != b.participation || content_box_position_in_bfc_root != b.content_box_position_in_bfc_root {
+        return false;
+    }
+    let available_inline_sizes_match = available_space.inline_size == b.available_space.inline_size
+        || match (
+            unobserved.definite_available_inline_sizes_at_or_above,
+            available_space.inline_size,
+            b.available_space.inline_size,
+        ) {
+            (Some(threshold), AvailableSize::Definite(_), AvailableSize::Definite(probe)) => probe >= threshold,
+            _ => false,
+        };
+    let inline_bases_match = percentage_basis_inline_size
+        == b.containing_block_constraints.percentage_basis_inline_size
+        || unobserved.percentage_inline_basis;
+    let block_bases_match = (percentage_basis_block_size == b.containing_block_constraints.percentage_basis_block_size
+        && quirks_mode_percentage_basis_block_size
+            == b.containing_block_constraints.quirks_mode_percentage_basis_block_size)
+        || unobserved.percentage_block_basis_and_block_size_definiteness;
+    available_inline_sizes_match
+        && available_block_sizes_match(
+            available_space.block_size,
+            b.available_space.block_size,
+            unobserved.percentage_block_basis_and_block_size_definiteness,
+        )
+        && inline_bases_match
+        && block_bases_match
+        && sizing_directives_match_ignoring_unobserved(
+            &sizing,
+            &b.sizing,
+            unobserved.percentage_block_basis_and_block_size_definiteness,
+        )
 }
 
-fn sizing_directives_match_ignoring_percentage_block_size(a: &RootSizingDirectives, b: &RootSizingDirectives) -> bool {
+fn sizing_directives_match_ignoring_unobserved(
+    a: &RootSizingDirectives,
+    b: &RootSizingDirectives,
+    block_size_definiteness_unobserved: bool,
+) -> bool {
     let RootSizingDirectives {
         forced_content_inline_size,
         forced_content_block_size,
@@ -116,7 +191,11 @@ fn sizing_directives_match_ignoring_percentage_block_size(a: &RootSizingDirectiv
             (None, None) => true,
             (Some(a_space), Some(b_space)) => {
                 a_space.inline_size == b_space.inline_size
-                    && available_block_sizes_are_interchangeable(a_space.block_size, b_space.block_size)
+                    && available_block_sizes_match(
+                        a_space.block_size,
+                        b_space.block_size,
+                        block_size_definiteness_unobserved,
+                    )
             }
             _ => false,
         }
@@ -177,6 +256,9 @@ impl FcRunCacheEntry {
             result: self.outputs.result,
             root,
             root_outcome: self.outputs.root_outcome.clone(),
+            atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: self
+                .outputs
+                .atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
         }
     }
 }
@@ -266,10 +348,10 @@ impl FcRunCacheArenaStore {
         if entry.validity != validity {
             return None;
         }
-        if !entry
-            .key
-            .matches(key, entry.outputs.result.depends_on_percentage_block_size)
-        {
+        if !entry.key.matches(
+            key,
+            RunInputsTheStoredRunNeverObserved::proven_by_stored_run(&entry.outputs),
+        ) {
             return None;
         }
         Some(entry.clone())
@@ -288,7 +370,12 @@ impl FcRunCacheArenaStore {
         let entries = self.entries.borrow();
         let entry = entries.get(slot as usize)?.as_ref()?;
         if entry.validity.slot_generation != validity.slot_generation
-            || !entry.key.matches(key, entry.outputs.result.depends_on_percentage_block_size)
+            || !entry.key.matches(
+                key,
+                RunInputsTheStoredRunNeverObserved::accepted_when_reusing_stale_line_data_after_structural_inline_damage(
+                    &entry.outputs,
+                ),
+            )
             // Each child-list edit bumps once when topology changes and once
             // when the parent is marked for layout-tree-update layout.
             || validity
@@ -581,6 +668,23 @@ fn verify_cached_entry_against_fresh_run(root_slot: u32, cached: &FcRunCacheEntr
         fresh.outputs.root_outcome.rare.as_ref(),
     );
     assert_unplaced_roots_match(root_slot, cached.outputs.root.as_ref(), fresh.outputs.root.as_ref());
+    assert_available_inline_size_threshold_matches_after_the_cells_it_derives_from(root_slot, cached, fresh);
+}
+
+fn assert_available_inline_size_threshold_matches_after_the_cells_it_derives_from(
+    root_slot: u32,
+    cached: &FcRunCacheEntry,
+    fresh: &FcRunCacheEntry,
+) {
+    assert!(
+        cached
+            .outputs
+            .atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above
+            == fresh
+                .outputs
+                .atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+        "run cache shadow: available inline size independence diverged for slot {root_slot}"
+    );
 }
 
 /// The comparable view of the payloads both `UsedValuesRareData` and
@@ -799,5 +903,127 @@ fn collect_diverged_fragment_fields(
     }
     if !line_data_matches(cached.line_data.as_deref(), fresh.line_data.as_deref()) {
         diverged.push("line_data");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn key(available_inline: AvailableSize, percentage_basis_inline_size: Option<CssPixels>) -> FcRunCacheKey {
+        FcRunCacheKey {
+            fc_type: formatting_context::FfiFormattingContextType::Block,
+            input: LayoutInput::new(
+                AvailableSpace {
+                    inline_size: available_inline,
+                    block_size: AvailableSize::Indefinite,
+                },
+                ContainingBlockConstraints {
+                    percentage_basis_inline_size,
+                    ..ContainingBlockConstraints::default()
+                },
+                ParticipationInParentFormattingContext::AtomicInline,
+            ),
+            root_cells: used_values::UsedValuesCellState::capture(&UsedValues::default()),
+        }
+    }
+
+    fn px(value: i64) -> CssPixels {
+        CssPixels::from_integer(value)
+    }
+
+    fn inline_inputs_unobserved_at_or_above(threshold: i64) -> RunInputsTheStoredRunNeverObserved {
+        RunInputsTheStoredRunNeverObserved {
+            percentage_block_basis_and_block_size_definiteness: false,
+            definite_available_inline_sizes_at_or_above: Some(px(threshold)),
+            percentage_inline_basis: true,
+        }
+    }
+
+    #[test]
+    fn identical_keys_match_without_relaxations() {
+        let stored = key(AvailableSize::definite(px(300)), Some(px(300)));
+        assert!(stored.matches(&stored, RunInputsTheStoredRunNeverObserved::default()));
+    }
+
+    #[test]
+    fn a_different_available_inline_size_misses_without_the_inline_relaxation() {
+        let stored = key(AvailableSize::definite(px(300)), Some(px(300)));
+        let probe = key(AvailableSize::definite(px(320)), Some(px(320)));
+        assert!(!stored.matches(&probe, RunInputsTheStoredRunNeverObserved::default()));
+        assert!(!stored.matches(
+            &probe,
+            RunInputsTheStoredRunNeverObserved {
+                percentage_block_basis_and_block_size_definiteness: true,
+                definite_available_inline_sizes_at_or_above: None,
+                percentage_inline_basis: false,
+            }
+        ));
+    }
+
+    #[test]
+    fn the_inline_guarantees_are_granted_separately() {
+        let stored = key(AvailableSize::definite(px(300)), Some(px(300)));
+        let only_available_inline_sizes_unobserved = RunInputsTheStoredRunNeverObserved {
+            definite_available_inline_sizes_at_or_above: Some(px(0)),
+            ..RunInputsTheStoredRunNeverObserved::default()
+        };
+        let only_inline_basis_unobserved = RunInputsTheStoredRunNeverObserved {
+            percentage_inline_basis: true,
+            ..RunInputsTheStoredRunNeverObserved::default()
+        };
+        let wider_with_same_basis = key(AvailableSize::definite(px(320)), Some(px(300)));
+        assert!(stored.matches(&wider_with_same_basis, only_available_inline_sizes_unobserved));
+        assert!(!stored.matches(&wider_with_same_basis, only_inline_basis_unobserved));
+        let same_width_with_other_basis = key(AvailableSize::definite(px(300)), Some(px(320)));
+        assert!(stored.matches(&same_width_with_other_basis, only_inline_basis_unobserved));
+        assert!(!stored.matches(&same_width_with_other_basis, only_available_inline_sizes_unobserved));
+    }
+
+    #[test]
+    fn the_inline_relaxation_accepts_available_sizes_at_or_above_the_threshold() {
+        let stored = key(AvailableSize::definite(px(300)), Some(px(300)));
+        assert!(stored.matches(
+            &key(AvailableSize::definite(px(320)), Some(px(320))),
+            inline_inputs_unobserved_at_or_above(100)
+        ));
+        assert!(stored.matches(
+            &key(AvailableSize::definite(px(100)), Some(px(100))),
+            inline_inputs_unobserved_at_or_above(100)
+        ));
+        assert!(!stored.matches(
+            &key(AvailableSize::definite(px(99)), Some(px(99))),
+            inline_inputs_unobserved_at_or_above(100)
+        ));
+    }
+
+    #[test]
+    fn the_inline_relaxation_needs_definite_available_sizes_on_both_sides() {
+        let stored = key(AvailableSize::definite(px(300)), Some(px(300)));
+        assert!(!stored.matches(
+            &key(AvailableSize::MaxContent, None),
+            inline_inputs_unobserved_at_or_above(0)
+        ));
+        let stored_intrinsic = key(AvailableSize::MaxContent, None);
+        assert!(!stored_intrinsic.matches(
+            &key(AvailableSize::definite(px(300)), Some(px(300))),
+            inline_inputs_unobserved_at_or_above(0)
+        ));
+    }
+
+    #[test]
+    fn the_inline_relaxation_leaves_every_other_input_exact() {
+        let stored = key(AvailableSize::definite(px(300)), Some(px(300)));
+        let mutators: [fn(&mut FcRunCacheKey); 4] = [
+            |probe| probe.input.containing_block_constraints.percentage_basis_block_size = Some(px(10)),
+            |probe| probe.input.available_space.block_size = AvailableSize::definite(px(10)),
+            |probe| probe.input.sizing.adopt_automatic_content_block_size = true,
+            |probe| probe.input.participation = ParticipationInParentFormattingContext::Float,
+        ];
+        for mutate in mutators {
+            let mut probe = key(AvailableSize::definite(px(320)), Some(px(320)));
+            mutate(&mut probe);
+            assert!(!stored.matches(&probe, inline_inputs_unobserved_at_or_above(0)));
+        }
     }
 }

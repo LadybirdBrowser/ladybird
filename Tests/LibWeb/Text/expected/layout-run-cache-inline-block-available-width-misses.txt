@@ -1,0 +1,3 @@
+hit delta: 0
+before: 0,0,240,20
+after: 0,0,200,40

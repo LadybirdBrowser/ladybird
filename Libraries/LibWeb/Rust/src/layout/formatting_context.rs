@@ -814,6 +814,7 @@ pub(crate) struct RunOutputs {
     pub(crate) result: ChildLayoutResult,
     pub(crate) root: Option<fragment_tree::UnplacedRootFragment>,
     pub(crate) root_outcome: RunRootOutcome,
+    pub(crate) atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: Option<CssPixels>,
 }
 
 pub(crate) enum ChildLayoutOutcome {
@@ -1098,6 +1099,7 @@ impl FormattingContextRun {
         &self,
         result: ChildLayoutResult,
         root: Option<fragment_tree::UnplacedRootFragment>,
+        atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: Option<CssPixels>,
     ) -> RunOutputs {
         let record = self.records.used_values(self.box_);
         let root_outcome = RunRootOutcome {
@@ -1110,6 +1112,7 @@ impl FormattingContextRun {
             result,
             root,
             root_outcome,
+            atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
         }
     }
 }
@@ -1375,16 +1378,31 @@ fn eagerly_resolve_atomic_flex_root_auto_block_size(
     );
 }
 
-fn apply_root_sizing_directives(run: &FormattingContextRun, input: &LayoutInput) -> LayoutInput {
-    match input.participation {
+struct RootSizingOutcome {
+    body_input: LayoutInput,
+    atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: Option<CssPixels>,
+}
+
+fn apply_root_sizing_directives(
+    run: &FormattingContextRun,
+    input: &LayoutInput,
+    fc_type: FfiFormattingContextType,
+) -> RootSizingOutcome {
+    let mut atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above = None;
+    let body_input = match input.participation {
         ParticipationInParentFormattingContext::BlockLevel => dimension_block_level_root(run, input),
         ParticipationInParentFormattingContext::Float => body_input_with_inner_available_space(run, input),
         ParticipationInParentFormattingContext::AtomicInline => {
-            run.sizing().dimension_atomic_root(
+            let run_cache_may_store_this_block_formatting_context_run = fc_type == FfiFormattingContextType::Block
+                && run.layout_mode == LayoutMode::Normal
+                && !run.purpose.is_measurement()
+                && fc_run_cache::fc_run_cache_mode_from_environment() != fc_run_cache::FcRunCacheMode::Disabled;
+            atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above = run.sizing().dimension_atomic_root(
                 run.box_,
                 input.available_space,
                 input.containing_block_constraints,
                 run.layout_mode,
+                run_cache_may_store_this_block_formatting_context_run,
             );
             let mut body_input = body_input_with_inner_available_space(run, input);
             let inline_definite_space = AvailableSpace {
@@ -1431,6 +1449,10 @@ fn apply_root_sizing_directives(run: &FormattingContextRun, input: &LayoutInput)
             }
             *input
         }
+    };
+    RootSizingOutcome {
+        body_input,
+        atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
     }
 }
 
@@ -1680,7 +1702,10 @@ fn execute_formatting_context_run(
         run.records
             .store_table_inline_layout(table_inline_layout.table_box(), table_inline_layout);
     }
-    let body_input = apply_root_sizing_directives(run, &input);
+    let RootSizingOutcome {
+        body_input,
+        atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+    } = apply_root_sizing_directives(run, &input, fc_type);
 
     let cached_atomic_block_size = if matches!(
         input.participation,
@@ -1823,7 +1848,11 @@ fn execute_formatting_context_run(
 
     let registered_abspos_children_could_never_be_laid_out = run.fragments.is_none();
     if registered_abspos_children_could_never_be_laid_out {
-        return run.outputs(result, take_run_fragments());
+        return run.outputs(
+            result,
+            take_run_fragments(),
+            atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+        );
     }
     if let Some(implementation) = implementation {
         match &implementation {
@@ -1840,12 +1869,20 @@ fn execute_formatting_context_run(
             }
             FormattingContextImplementation::Svg(_) | FormattingContextImplementation::ReplacedWithChildren => {}
             FormattingContextImplementation::InternalReplaced | FormattingContextImplementation::InternalDummy => {
-                return run.outputs(result, take_run_fragments());
+                return run.outputs(
+                    result,
+                    take_run_fragments(),
+                    atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+                );
             }
         }
     }
     run.records.used_values(run.box_).seal_own_metrics();
-    run.outputs(result, take_run_fragments())
+    run.outputs(
+        result,
+        take_run_fragments(),
+        atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+    )
 }
 
 fn finalize_atomic_root_block_size(
@@ -1974,6 +2011,7 @@ pub(crate) fn layout_inside_child(
             input.available_space,
             input.containing_block_constraints,
             layout_mode,
+            false,
         );
         sizing.resolve_used_block_size_if_treated_as_auto(
             child,
@@ -2064,6 +2102,7 @@ fn absorb_run_outputs(
         result,
         root,
         root_outcome,
+        atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: _,
     } = outputs;
     root_outcome.apply_to_record(parent_used);
     if let (Some(fragments), Some(root)) = (parent_fragments, root) {
