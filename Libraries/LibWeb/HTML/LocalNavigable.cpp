@@ -44,7 +44,6 @@
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
-#include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/DocumentState.h>
@@ -732,19 +731,6 @@ void LocalNavigable::visit_edges(Cell::Visitor& visitor)
         visitor.visit(smooth_scroll.promises);
     for (auto& entry : m_pending_user_scrollend_targets)
         visitor.visit(entry.target);
-}
-
-void LocalNavigable::NavigateParams::visit_edges(Cell::Visitor& visitor)
-{
-    visitor.visit(response);
-    visitor.visit(source_document);
-    visitor.visit(source_element);
-    if (form_data_entry_list.has_value()) {
-        for (auto& entry : form_data_entry_list.value()) {
-            entry.value.visit([&](GC::Ref<FileAPI::File> const& file) { visitor.visit(file); },
-                [&](auto const&) {});
-        }
-    }
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-closable

@@ -644,6 +644,7 @@ set(SOURCES
     HTML/Navigable.cpp
     HTML/CrossProcessId.cpp
     HTML/NavigableContainer.cpp
+    HTML/NavigateParams.cpp
     HTML/NavigateEvent.cpp
     HTML/Navigation.cpp
     HTML/NavigationActivation.cpp
