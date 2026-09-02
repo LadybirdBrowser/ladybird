@@ -715,7 +715,8 @@ void PlaybackManager::enable_an_audio_track(Track const& track)
     m_audio_sink_status = PipelineStatus::HaveData;
     if (m_audio_mixer) {
         m_audio_mixer->seek(current_time());
-        MUST(m_audio_mixer->connect_input(track_data.producer));
+        if (auto result = m_audio_mixer->connect_input(track_data.producer); result.is_error())
+            disable_audio_after_error(result.error());
     }
     track_data.enabled = true;
     if (auto result = update_audio_pull_sink_channel_map(); result.is_error())
