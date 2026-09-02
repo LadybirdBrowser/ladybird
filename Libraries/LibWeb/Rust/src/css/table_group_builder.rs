@@ -1850,9 +1850,7 @@ unsafe fn build_border_group(
 
 // --- SVG, list and content lowering -----------------------------------------
 
-const SVG_PAINT_NONE: u8 = 0;
-const SVG_PAINT_COLOR: u8 = 1;
-const SVG_PAINT_URL: u8 = 2;
+use crate::css::computed_value_types::{SVG_PAINT_COLOR, SVG_PAINT_NONE, SVG_PAINT_URL};
 
 fn lower_svg_paint(values: &EffectiveValues, property: u16, input: &ColorResolutionInput) -> ComputedSvgPaint {
     let mut paint = ComputedSvgPaint {
