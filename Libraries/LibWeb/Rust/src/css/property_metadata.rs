@@ -298,6 +298,65 @@ pub(crate) fn property_logical_group(property_id: u16) -> Option<u8> {
     }
 }
 
+/// `None` for a longhand whose readers no fixed list names, among them `color`, `color-scheme` and
+/// the font properties, whose readers are whichever specified values of the element mention them.
+pub(crate) fn property_computed_dependents(property: u16) -> Option<&'static [u16]> {
+    use property_id as prop;
+
+    match property {
+        // NB: The background properties are coordinated at compute time rather than use time.
+        prop::BACKGROUND_IMAGE => Some(&[
+            prop::BACKGROUND_ATTACHMENT,
+            prop::BACKGROUND_CLIP,
+            prop::BACKGROUND_ORIGIN,
+            prop::BACKGROUND_POSITION_X,
+            prop::BACKGROUND_POSITION_Y,
+            prop::BACKGROUND_REPEAT,
+            prop::BACKGROUND_SIZE,
+        ]),
+        prop::ASPECT_RATIO
+        | prop::BACKDROP_FILTER
+        | prop::BACKGROUND_COLOR
+        | prop::BOX_SHADOW
+        | prop::CLIP_PATH
+        | prop::CX
+        | prop::CY
+        | prop::FILL
+        | prop::FILTER
+        | prop::ISOLATION
+        | prop::MIX_BLEND_MODE
+        | prop::OBJECT_FIT
+        | prop::OBJECT_POSITION
+        | prop::OPACITY
+        | prop::PERSPECTIVE
+        | prop::PERSPECTIVE_ORIGIN
+        | prop::R
+        | prop::ROTATE
+        | prop::RX
+        | prop::RY
+        | prop::SCALE
+        | prop::STROKE
+        | prop::TEXT_DECORATION_COLOR
+        | prop::TEXT_DECORATION_LINE
+        | prop::TEXT_DECORATION_STYLE
+        | prop::TEXT_DECORATION_THICKNESS
+        | prop::TRANSFORM
+        | prop::TRANSFORM_ORIGIN
+        | prop::TRANSITION_BEHAVIOR
+        | prop::TRANSITION_DELAY
+        | prop::TRANSITION_DURATION
+        | prop::TRANSITION_PROPERTY
+        | prop::TRANSITION_TIMING_FUNCTION
+        | prop::TRANSLATE
+        | prop::VISIBILITY
+        | prop::WILL_CHANGE
+        | prop::X
+        | prop::Y
+        | prop::Z_INDEX => Some(&[]),
+        _ => None,
+    }
+}
+
 /// Returns whether `a` wins a keyframe declaration conflict with `b`.
 pub(crate) fn animation_property_is_preferred(a: u16, b: u16) -> bool {
     // https://drafts.csswg.org/web-animations-1/#ref-for-computed-keyframes

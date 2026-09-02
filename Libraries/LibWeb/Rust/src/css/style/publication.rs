@@ -2836,8 +2836,6 @@ impl StyleEngine {
                 self.computed_group_sets
                     .current_color_dependency_properties(dependency_target)
             });
-        let mut computed_property_closure_is_exact = delta.properties().len() == 1
-            && current_color_dependency_properties.is_some_and(|properties| properties.is_some());
         if let Some(Some(dependencies)) = current_color_dependency_properties {
             for (word, dependencies) in computed_property_words.iter_mut().zip(dependencies) {
                 *word |= dependencies;
@@ -2869,10 +2867,6 @@ impl StyleEngine {
                 self.computed_group_sets
                     .color_scheme_dependency_properties(dependency_target)
             });
-        if delta.properties().len() == 1 {
-            computed_property_closure_is_exact |=
-                color_scheme_dependency_properties.is_some_and(|properties| properties.is_some());
-        }
         if let Some(Some(dependencies)) = color_scheme_dependency_properties {
             for (word, dependencies) in computed_property_words.iter_mut().zip(dependencies) {
                 *word |= dependencies;
@@ -2898,13 +2892,38 @@ impl StyleEngine {
                     .any(|property| computed_group_output_mask(property) == Some(font_group_mask)))
             .then(|| self.computed_group_sets.font_dependency_properties(dependency_target))
         });
-        if delta.properties().len() == 1 {
-            computed_property_closure_is_exact |=
-                font_dependency_properties.is_some_and(|properties| properties.is_some());
-        }
         if let Some(Some(dependencies)) = font_dependency_properties {
             for (word, dependencies) in computed_property_words.iter_mut().zip(dependencies) {
                 *word |= dependencies;
+            }
+        }
+        let property_closure_is_known = |property: u16| {
+            if property == crate::css::property_metadata::property_id::COLOR {
+                return current_color_dependency_properties.is_some_and(|properties| properties.is_some());
+            }
+            if property == crate::css::property_metadata::property_id::COLOR_SCHEME {
+                return color_scheme_dependency_properties.is_some_and(|properties| properties.is_some());
+            }
+            if font_group_mask.is_some() && computed_group_output_mask(property) == font_group_mask {
+                return font_dependency_properties.is_some_and(|properties| properties.is_some());
+            }
+            if !(crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
+                ..=crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID)
+                .contains(&property)
+            {
+                return false;
+            }
+            crate::css::property_metadata::property_is_in_logical_group(property)
+                || crate::css::property_metadata::property_computed_dependents(property).is_some()
+        };
+        let mut computed_property_closure_is_exact =
+            !delta.properties().is_empty() && delta.properties().iter().copied().all(property_closure_is_known);
+        if computed_property_closure_is_exact {
+            for property in delta.properties().iter().copied() {
+                for &dependent in crate::css::property_metadata::property_computed_dependents(property).unwrap_or(&[]) {
+                    let index = usize::from(dependent - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
+                    computed_property_words[index / 64] |= 1 << (index % 64);
+                }
             }
         }
         const INHERITED_STATIC_GROUPS: u8 = (1 << 0) | (1 << 1) | (1 << 3);
