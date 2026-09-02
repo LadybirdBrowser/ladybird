@@ -199,6 +199,19 @@ bool Animatable::has_relevant_animations() const
     return false;
 }
 
+bool Animatable::has_relevant_animations_other_than_transitions() const
+{
+    if (!m_impl)
+        return false;
+
+    for (auto const& animation : m_impl->associated_animations) {
+        if (!animation->is_css_transition() && animation->is_relevant())
+            return true;
+    }
+
+    return false;
+}
+
 void Animatable::associate_with_animation(GC::Ref<Animation> animation)
 {
     auto& impl = ensure_impl();
