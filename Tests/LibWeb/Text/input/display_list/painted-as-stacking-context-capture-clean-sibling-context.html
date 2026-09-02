@@ -1,0 +1,36 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    #a, #b { position: relative; width: 200px; }
+    .row { padding: 2px; border-bottom: 1px solid #ccc; }
+</style>
+<div id="a"><div class="row">A 0</div><div class="row">A 1</div></div>
+<div id="b"></div>
+<script>
+    test(() => {
+        const b = document.getElementById("b");
+        for (let i = 0; i < 40; ++i) {
+            const row = document.createElement("div");
+            row.className = "row";
+            row.textContent = "B " + i;
+            b.appendChild(row);
+        }
+        internals.asyncScrollingState();
+        internals.asyncScrollingState();
+        const visitedQuiet = internals.paintCacheCaptureSiteVisitCount();
+
+        b.firstChild.style.color = "red";
+        internals.asyncScrollingState();
+        const visitedWithBWalked = internals.paintCacheCaptureSiteVisitCount();
+
+        a.firstChild.style.color = "red";
+        internals.asyncScrollingState();
+        const visitedWithAWalked = internals.paintCacheCaptureSiteVisitCount();
+        const splicedWithAWalked = internals.paintCacheSplicedCaptureCount();
+
+        println(`quiet recording hits the viewport root and visits nothing else: ${visitedQuiet === 1}`);
+        println(`change inside A visits far fewer captures than a change inside B: ${visitedWithAWalked * 4 < visitedWithBWalked}`);
+        println(`B splices as one capture when A changes: ${splicedWithAWalked > 0}`);
+    });
+</script>

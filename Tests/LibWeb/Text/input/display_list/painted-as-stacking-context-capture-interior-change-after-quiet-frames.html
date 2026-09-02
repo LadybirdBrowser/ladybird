@@ -1,0 +1,39 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    #a, #b { position: relative; width: 200px; }
+    .row { padding: 2px; border-bottom: 1px solid #ccc; }
+</style>
+<div id="a"><div class="row">A 0</div></div>
+<div id="b"></div>
+<script>
+    test(() => {
+        const b = document.getElementById("b");
+        for (let i = 0; i < 8; ++i) {
+            const row = document.createElement("div");
+            row.className = "row";
+            row.textContent = "B " + i;
+            b.appendChild(row);
+        }
+        internals.asyncScrollingState();
+
+        b.firstChild.style.color = "red";
+        internals.asyncScrollingState();
+        const splicedAfterFirstChange = internals.paintCacheSplicedCaptureCount();
+        const visitedAfterFirstChange = internals.paintCacheCaptureSiteVisitCount();
+
+        internals.asyncScrollingState();
+        internals.asyncScrollingState();
+        const visitedQuiet = internals.paintCacheCaptureSiteVisitCount();
+
+        b.firstChild.style.color = "blue";
+        internals.asyncScrollingState();
+        const splicedAfterSecondChange = internals.paintCacheSplicedCaptureCount();
+        const visitedAfterSecondChange = internals.paintCacheCaptureSiteVisitCount();
+
+        println(`quiet recordings visit only the viewport root: ${visitedQuiet === 1}`);
+        println(`second change visits the same captures as the first: ${visitedAfterSecondChange === visitedAfterFirstChange}`);
+        println(`second change splices the same captures as the first: ${splicedAfterSecondChange === splicedAfterFirstChange}`);
+    });
+</script>

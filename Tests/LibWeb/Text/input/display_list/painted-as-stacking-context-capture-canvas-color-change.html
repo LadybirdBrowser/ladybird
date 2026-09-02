@@ -1,0 +1,27 @@
+<!doctype html>
+<meta name="color-scheme" content="light dark">
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #tall { height: 3000px; }
+</style>
+<div id="tall"></div>
+<script>
+    test(() => {
+        internals.setPreferredColorScheme("light");
+        internals.asyncScrollingState();
+        internals.asyncScrollingState();
+        const visitedQuiet = internals.paintCacheCaptureSiteVisitCount();
+
+        internals.setPreferredColorScheme("dark");
+        internals.asyncScrollingState();
+        const visitedAfterSchemeChange = internals.paintCacheCaptureSiteVisitCount();
+        internals.asyncScrollingState();
+        const visitedQuietAgain = internals.paintCacheCaptureSiteVisitCount();
+        internals.setPreferredColorScheme("auto");
+
+        println(`quiet recording visits only the viewport root: ${visitedQuiet === 1}`);
+        println(`a canvas color change re-records the viewport root: ${visitedAfterSchemeChange > 1}`);
+        println(`the next quiet recording hits the viewport root again: ${visitedQuietAgain === 1}`);
+    });
+</script>

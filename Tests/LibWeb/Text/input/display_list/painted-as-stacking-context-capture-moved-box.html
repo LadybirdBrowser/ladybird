@@ -1,0 +1,31 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    #a, #b { position: relative; width: 200px; }
+    .row { height: 20px; }
+</style>
+<div id="a"><div class="row">A 0</div><div class="row">A 1</div></div>
+<div id="b"><div class="row" id="b0">B 0</div><div class="row" id="b1">B 1</div><div class="row" id="b2">B 2</div></div>
+<script>
+    test(() => {
+        internals.asyncScrollingState();
+        internals.asyncScrollingState();
+        const visitedQuiet = internals.paintCacheCaptureSiteVisitCount();
+        const hitBeforeMove = document.elementFromPoint(10, 110).id;
+
+        b.style.top = "20px";
+        internals.asyncScrollingState();
+        const visitedAfterMove = internals.paintCacheCaptureSiteVisitCount();
+        const hitAfterMove = document.elementFromPoint(10, 110).id;
+
+        internals.asyncScrollingState();
+        const visitedQuietAgain = internals.paintCacheCaptureSiteVisitCount();
+
+        println(`quiet recording visits only the viewport root: ${visitedQuiet === 1}`);
+        println(`hit test before the move: ${hitBeforeMove}`);
+        println(`hit test after the move: ${hitAfterMove}`);
+        println(`moving B walks B: ${visitedAfterMove > 1}`);
+        println(`the next quiet recording hits the viewport root again: ${visitedQuietAgain === 1}`);
+    });
+</script>

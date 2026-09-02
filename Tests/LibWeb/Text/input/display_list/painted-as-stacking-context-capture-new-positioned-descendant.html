@@ -1,0 +1,34 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    #a, #b { position: relative; width: 200px; }
+    .row { height: 20px; }
+</style>
+<div id="a"><div class="row">A 0</div><div class="row">A 1</div></div>
+<div id="b"><div class="row">B 0</div></div>
+<script>
+    test(() => {
+        internals.asyncScrollingState();
+        internals.asyncScrollingState();
+        const visitedQuiet = internals.paintCacheCaptureSiteVisitCount();
+
+        const inserted = document.createElement("div");
+        inserted.id = "inserted";
+        inserted.className = "row";
+        inserted.style.position = "relative";
+        inserted.textContent = "B 1";
+        b.appendChild(inserted);
+        internals.asyncScrollingState();
+        const visitedAfterInsert = internals.paintCacheCaptureSiteVisitCount();
+        const hit = document.elementFromPoint(10, 70).id;
+
+        internals.asyncScrollingState();
+        const visitedQuietAgain = internals.paintCacheCaptureSiteVisitCount();
+
+        println(`quiet recording visits only the viewport root: ${visitedQuiet === 1}`);
+        println(`inserting a positioned box walks B: ${visitedAfterInsert > 1}`);
+        println(`the new box is hit-testable: ${hit}`);
+        println(`the next quiet recording hits the viewport root again: ${visitedQuietAgain === 1}`);
+    });
+</script>

@@ -1,0 +1,3 @@
+quiet recording visits only the viewport root: true
+a canvas color change re-records the viewport root: true
+the next quiet recording hits the viewport root again: true

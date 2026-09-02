@@ -19,6 +19,7 @@ use crate::painting::record::traversal::StackingContextPaintPhase;
 pub(crate) enum CaptureKind {
     BoxPhase(PaintPhase),
     DescendantSubtreePhase(StackingContextPaintPhase),
+    PaintedAsStackingContext,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -72,6 +73,7 @@ pub struct CachedSubtreeCapture {
     pub hit_test_item_count: u32,
     pub(crate) gen_of_last_fresh_walk: RecordGen,
     pub may_be_spliced_verbatim: bool,
+    pub recorded_with_should_paint_overlay: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -174,6 +176,7 @@ pub struct PaintCache {
     commands: [Cell<Option<CachedBoxPhaseCommands>>; PaintPhase::COUNT],
     hit_test_items: [Cell<Option<CachedBoxPhaseHitTestItems>>; PaintPhase::COUNT],
     descendant_subtrees: [Cell<Option<CachedSubtreeCapture>>; StackingContextPaintPhase::COUNT],
+    painted_as_stacking_context: Cell<Option<CachedSubtreeCapture>>,
     // One captured position per row covers every entry: register_capture_position() drops the
     // row's entries whenever a registration moves the stamp, so live entries are always captures
     // taken at this position.
@@ -190,6 +193,7 @@ impl Default for PaintCache {
             commands: std::array::from_fn(|_| Cell::new(None)),
             hit_test_items: std::array::from_fn(|_| Cell::new(None)),
             descendant_subtrees: std::array::from_fn(|_| Cell::new(None)),
+            painted_as_stacking_context: Cell::new(None),
             captured_absolute_position: Cell::new(FfiCssPixelPoint::default()),
             self_dirty_gen: Cell::new(0),
             descendant_dirty_gen: Cell::new(0),
@@ -218,6 +222,7 @@ impl PaintCache {
         match kind {
             CaptureKind::BoxPhase(_) => None,
             CaptureKind::DescendantSubtreePhase(phase) => self.descendant_subtrees[phase as usize].get(),
+            CaptureKind::PaintedAsStackingContext => self.painted_as_stacking_context.get(),
         }
     }
 
@@ -225,6 +230,7 @@ impl PaintCache {
         match kind {
             CaptureKind::BoxPhase(_) => unreachable!("a box phase capture is not a subtree capture"),
             CaptureKind::DescendantSubtreePhase(phase) => self.descendant_subtrees[phase as usize].set(Some(capture)),
+            CaptureKind::PaintedAsStackingContext => self.painted_as_stacking_context.set(Some(capture)),
         }
     }
 
@@ -246,6 +252,7 @@ impl PaintCache {
             hit_test_items.set(None);
         }
         self.clear_descendant_subtrees();
+        self.painted_as_stacking_context.set(None);
     }
 
     pub(crate) fn reset_entries_position_and_dirty_gens(&self) {

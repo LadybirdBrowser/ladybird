@@ -1,0 +1,28 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    #root { position: relative; z-index: 0; width: 200px; }
+    #scroller { position: relative; z-index: 0; overflow: scroll; height: 60px; }
+    #content { height: 300px; }
+</style>
+<div id="root"><div id="scroller"><div id="content">scrollable</div></div></div>
+<script>
+    asyncTest(async (done) => {
+        internals.asyncScrollingState();
+        internals.asyncScrollingState();
+        const visitedQuiet = internals.paintCacheCaptureSiteVisitCount();
+
+        await animationFrame();
+        await animationFrame();
+        internals.asyncScrollingState();
+        const visitedAfterOverlayPaint = internals.paintCacheCaptureSiteVisitCount();
+        internals.asyncScrollingState();
+        const visitedQuietAgain = internals.paintCacheCaptureSiteVisitCount();
+
+        println(`quiet recording visits only the viewport root: ${visitedQuiet === 1}`);
+        println(`recording after an overlay paint walks the roots: ${visitedAfterOverlayPaint > 1}`);
+        println(`next quiet recording hits the viewport root again: ${visitedQuietAgain === 1}`);
+        done();
+    });
+</script>

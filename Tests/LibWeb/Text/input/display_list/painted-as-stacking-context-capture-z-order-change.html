@@ -1,0 +1,31 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #a, #b { position: absolute; left: 0; top: 0; width: 100px; height: 100px; }
+    #a { background: red; z-index: 0; }
+    #b { background: blue; z-index: 1; }
+</style>
+<div id="a"></div>
+<div id="b"></div>
+<script>
+    test(() => {
+        internals.asyncScrollingState();
+        internals.asyncScrollingState();
+        const onTopBefore = document.elementFromPoint(50, 50).id;
+
+        b.style.zIndex = "-1";
+        internals.asyncScrollingState();
+        const spliced = internals.paintCacheSplicedCaptureCount();
+        const onTopAfter = document.elementFromPoint(50, 50).id;
+
+        b.style.zIndex = "1";
+        internals.asyncScrollingState();
+        const onTopAgain = document.elementFromPoint(50, 50).id;
+
+        println(`on top before: ${onTopBefore}`);
+        println(`on top after flipping to a negative z-index: ${onTopAfter}`);
+        println(`on top after flipping back: ${onTopAgain}`);
+        println(`A splices while the order changes: ${spliced > 0}`);
+    });
+</script>

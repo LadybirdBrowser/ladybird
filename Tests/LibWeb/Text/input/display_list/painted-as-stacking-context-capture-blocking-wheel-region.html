@@ -1,0 +1,26 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #a, #b { position: relative; width: 100px; height: 100px; }
+    #target { width: 100px; height: 100px; }
+</style>
+<div id="a"></div>
+<div id="b"><div id="target"></div></div>
+<script>
+    test(() => {
+        internals.asyncScrollingState();
+        internals.asyncScrollingState();
+        const blockedBefore = internals.asyncScrollingStateBlocksWheelEventAt(50, 150);
+        const visitedQuiet = internals.paintCacheCaptureSiteVisitCount();
+
+        target.addEventListener("wheel", () => {}, { passive: false });
+        const blockedAfterAdding = internals.asyncScrollingStateBlocksWheelEventAt(50, 150);
+        const visitedAfterAdding = internals.paintCacheCaptureSiteVisitCount();
+
+        println(`blocked before adding the listener: ${blockedBefore}`);
+        println(`quiet recording visits only the viewport root: ${visitedQuiet === 1}`);
+        println(`blocked after adding the listener: ${blockedAfterAdding}`);
+        println(`adding the listener re-records B: ${visitedAfterAdding > 1}`);
+    });
+</script>
