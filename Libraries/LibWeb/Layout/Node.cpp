@@ -43,9 +43,7 @@ namespace Web::Layout {
 NodeArenaAllocation::NodeArenaAllocation(DOM::Document& document, RustFFI::FfiNodeConstructionFacts const& construction_facts)
     : m_arena(document.layout_node_arena())
 {
-    auto allocation = m_arena->allocate(construction_facts);
-    m_slot = allocation.slot;
-    m_data = allocation.data;
+    m_slot = m_arena->allocate(construction_facts);
 }
 
 NodeArenaAllocation::~NodeArenaAllocation()

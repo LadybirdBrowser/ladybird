@@ -31,25 +31,6 @@ namespace Web::Layout {
 static_assert(sizeof(RustFFI::NodeSlotId) == sizeof(u32));
 static_assert(offsetof(RustFFI::NodeSlotId, index) == 0);
 
-static_assert(sizeof(RustFFI::NodeData) == 64);
-static_assert(offsetof(RustFFI::NodeData, parent) == 0);
-static_assert(offsetof(RustFFI::NodeData, first_child) == 4);
-static_assert(offsetof(RustFFI::NodeData, last_child) == 8);
-static_assert(offsetof(RustFFI::NodeData, previous_sibling) == 12);
-static_assert(offsetof(RustFFI::NodeData, next_sibling) == 16);
-static_assert(offsetof(RustFFI::NodeData, containing_block) == 20);
-static_assert(offsetof(RustFFI::NodeData, inline_containing_block) == 24);
-static_assert(offsetof(RustFFI::NodeData, kind) == 28);
-static_assert(offsetof(RustFFI::NodeData, generated_for) == 29);
-static_assert(offsetof(RustFFI::NodeData, intrinsic_cache_epoch) == 30);
-static_assert(offsetof(RustFFI::NodeData, flags) == 32);
-static_assert(offsetof(RustFFI::NodeData, fragment_cache_epoch) == 36);
-static_assert(offsetof(RustFFI::NodeData, slot_generation) == 40);
-static_assert(offsetof(RustFFI::NodeData, table_column_span) == 42);
-static_assert(offsetof(RustFFI::NodeData, table_row_span) == 44);
-static_assert(offsetof(RustFFI::NodeData, style) == 48);
-static_assert(offsetof(RustFFI::NodeData, shell) == 56);
-
 static_assert(sizeof(RustFFI::NodeKind) == sizeof(u8));
 static_assert(sizeof(RustFFI::NodeFlag) == sizeof(u32));
 
@@ -65,7 +46,6 @@ protected:
 
     NonnullRefPtr<NodeArena> m_arena;
     RustFFI::NodeSlotId m_slot {};
-    RustFFI::NodeData* m_data { nullptr };
 };
 
 class WEB_API Node

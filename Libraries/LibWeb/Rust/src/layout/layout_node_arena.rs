@@ -574,19 +574,23 @@ impl LayoutNodeArena {
 
     // Freshly created chunks are default-initialized and free() resets slots on release, so
     // allocate() always hands out clean NodeData without writing it again.
-    pub(crate) fn allocate(&mut self, construction_facts: FfiNodeConstructionFacts) -> NodeAllocation {
-        let allocation = self.allocate_slot();
-        let data = self.data_mut(allocation.slot.slot_index());
+    pub(crate) fn allocate(&mut self, construction_facts: FfiNodeConstructionFacts) -> NodeSlotId {
+        let slot = self.allocate_slot();
+        let data = self.data_mut(slot.slot_index());
         data.kind = construction_facts.kind;
         data.shell = construction_facts.shell;
         data.flags = super::node_facts::construction_flags(&construction_facts);
-        self.enroll_node_for_replaced_content_facts_sync_if_eligible(allocation.slot);
-        allocation
+        self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
+        slot
     }
 
     #[cfg(test)]
     pub(crate) fn allocate_for_test(&mut self) -> NodeAllocation {
-        self.allocate_slot()
+        let slot = self.allocate_slot();
+        NodeAllocation {
+            slot,
+            data: self.data_mut(slot.slot_index()),
+        }
     }
 
     pub(crate) fn enroll_node_for_replaced_content_facts_sync_if_eligible(&self, node: NodeSlotId) {
@@ -601,7 +605,7 @@ impl LayoutNodeArena {
         }
     }
 
-    fn allocate_slot(&mut self) -> NodeAllocation {
+    fn allocate_slot(&mut self) -> NodeSlotId {
         self.assert_owner_thread();
 
         let index = if let Some(index) = self.free_list.pop() {
@@ -648,10 +652,7 @@ impl LayoutNodeArena {
         let generation = metadata.generation;
         self.data_mut(index).slot_generation = generation;
 
-        NodeAllocation {
-            slot: NodeSlotId::new(index, generation),
-            data: self.data_mut(index),
-        }
+        NodeSlotId::new(index, generation)
     }
 
     pub(crate) fn free(&mut self, id: NodeSlotId) -> FreedSlot {
@@ -2213,11 +2214,11 @@ impl LayoutNodeArena {
     }
 }
 
+#[cfg(test)]
 #[derive(Clone, Copy)]
-#[repr(C)]
-pub struct NodeAllocation {
-    pub slot: NodeSlotId,
-    pub data: *mut NodeData,
+pub(crate) struct NodeAllocation {
+    pub(crate) slot: NodeSlotId,
+    pub(crate) data: *mut NodeData,
 }
 
 #[unsafe(no_mangle)]
@@ -2239,7 +2240,7 @@ pub unsafe extern "C" fn layout_arena_destroy(arena: *mut c_void) {
 pub unsafe extern "C" fn layout_arena_allocate(
     arena: *mut c_void,
     construction_facts: FfiNodeConstructionFacts,
-) -> NodeAllocation {
+) -> NodeSlotId {
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: The C++ wrapper keeps the arena alive for this call and
     // serializes all access on the document thread.
@@ -2323,16 +2324,6 @@ pub unsafe extern "C" fn layout_arena_pre_order_relabel_count(arena: *mut c_void
     // SAFETY: The C++ wrapper keeps the arena alive for this call and
     // serializes all access on the document thread.
     unsafe { &*arena.cast::<LayoutNodeArena>() }.pre_order_relabel_count()
-}
-
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call, and `id` must
-/// name a live node in this arena.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_node_data(arena: *mut c_void, id: NodeSlotId) -> *mut NodeData {
-    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }.data(id)
 }
 
 /// # Safety
