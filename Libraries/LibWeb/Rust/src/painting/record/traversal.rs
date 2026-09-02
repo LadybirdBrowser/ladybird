@@ -236,6 +236,7 @@ impl PaintRecorder<'_> {
         // For elements with SVG filters, emit a transparent FillRect to trigger filter application.
         // This ensures content-generating filters (feFlood, feImage) work even with empty source.
         if let Some(svg_filter_bounds) = self.layout_arena.paintable_side_data(paintable).svg_filter_bounds.get() {
+            self.mark_open_captures_unsplicable();
             let device_rect = self
                 .converter
                 .enclosing_device_rect(crate::css::css_pixels::CssPixelRect::from(svg_filter_bounds));
@@ -269,7 +270,6 @@ impl PaintRecorder<'_> {
     fn paint_internal(&mut self, paintable: NodeSlotId) {
         let entries = self.layout_arena.stacking_context_entries(paintable);
         if self.layout_kind(paintable) == Some(NodeKind::SVGSVGBox) {
-            self.mark_open_captures_unsplicable();
             self.paint_node(paintable, PaintPhase::Background);
             self.paint_node(paintable, PaintPhase::Border);
             self.paint_svg_box(paintable, PaintPhase::Foreground);
@@ -421,9 +421,6 @@ impl PaintRecorder<'_> {
         if phase != PaintPhase::Foreground {
             return;
         }
-        // SVG paint servers and filters are resolved while recording and can change without invalidating the
-        // paintable that references them. Do not cache an enclosing descendant subtree.
-        self.mark_open_captures_unsplicable();
         self.paint_node(paintable, PaintPhase::Background);
         self.paint_node(paintable, PaintPhase::Border);
         self.paint_svg_box(paintable, phase);
@@ -813,6 +810,7 @@ impl PaintRecorder<'_> {
         // For elements with SVG filters, emit a transparent FillRect to trigger filter application.
         // This ensures content-generating filters (feFlood, feImage) work even with empty source.
         if let Some(svg_filter_bounds) = self.layout_arena.paintable_side_data(svg_box).svg_filter_bounds.get() {
+            self.mark_open_captures_unsplicable();
             let device_rect = self
                 .converter
                 .enclosing_device_rect(crate::css::css_pixels::CssPixelRect::from(svg_filter_bounds));

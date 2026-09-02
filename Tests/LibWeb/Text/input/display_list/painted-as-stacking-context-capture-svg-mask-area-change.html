@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+</style>
+<svg width="200" height="200">
+    <mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="0" height="200">
+        <rect width="200" height="200" fill="white"/>
+    </mask>
+    <g mask="url(#m)"><rect id="masked" width="100" height="100"/></g>
+</svg>
+<script>
+    test(() => {
+        internals.asyncScrollingState();
+        internals.asyncScrollingState();
+        const hitWhileEmpty = document.elementFromPoint(50, 50) === masked;
+        const visitedWhileEmpty = internals.paintCacheCaptureSiteVisitCount();
+
+        m.setAttribute("width", "200");
+        internals.asyncScrollingState();
+        const visitedAfterChange = internals.paintCacheCaptureSiteVisitCount();
+        const hitAfterChange = document.elementFromPoint(50, 50) === masked;
+
+        println(`a mask reference keeps the roots above it walked: ${visitedWhileEmpty > 1}`);
+        println(`the rect is not hit while its mask area is empty: ${!hitWhileEmpty}`);
+        println(`a mask area change re-records the masked subtree: ${visitedAfterChange > 1}`);
+        println(`the rect is hit once its mask area covers it: ${hitAfterChange}`);
+    });
+</script>

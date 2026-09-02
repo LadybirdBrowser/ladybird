@@ -1,0 +1,4 @@
+a mask reference keeps the roots above it walked: true
+the rect is not hit while its mask area is empty: true
+a mask area change re-records the masked subtree: true
+the rect is hit once its mask area covers it: true
