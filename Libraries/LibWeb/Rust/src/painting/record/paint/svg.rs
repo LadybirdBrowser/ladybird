@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::computed_value_types::{ComputedSvgPaint, SVG_PAINT_COLOR, SVG_PAINT_NONE};
+use crate::css::computed_value_types::{ComputedSvgPaint, SVG_PAINT_COLOR, SVG_PAINT_NONE, SVG_PAINT_URL};
 use crate::css::css_enums::paint_order;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::display_list::builder::PendingInlineClip;
@@ -46,6 +46,7 @@ struct SvgPaintFacts {
     natural_height: f32,
     overflow_is_visible: bool,
     image_rendering: u8,
+    references_paint_server: bool,
 }
 
 pub(crate) fn svg_paint_color(paint: &ComputedSvgPaint) -> Option<u32> {
@@ -103,6 +104,7 @@ fn svg_paint_facts(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) -> (
     facts.stroke_opacity = svg.stroke_opacity;
     facts.fill_color = svg_paint_color(&svg.fill);
     facts.stroke_color = svg_paint_color(&svg.stroke);
+    facts.references_paint_server = svg.fill.kind == SVG_PAINT_URL || svg.stroke.kind == SVG_PAINT_URL;
     facts.cap_style = match svg.stroke_linecap {
         stroke_linecap::ROUND => CapStyle::Round,
         stroke_linecap::SQUARE => CapStyle::Square,
@@ -294,6 +296,12 @@ pub(crate) fn paint_path(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId
         return;
     };
     let (facts, dash_array) = svg_paint_facts(recorder, paintable);
+    let output_is_resolved_through_another_element = facts.references_paint_server
+        || recorder.layout_arena.node_kind_if_live(paintable)
+            == Some(crate::layout::node_data::NodeKind::SVGTextPathBox);
+    if output_is_resolved_through_another_element {
+        recorder.mark_open_captures_unsplicable();
+    }
     if recorder.draw_svg_geometry_for_clip_path {
         if !facts.contributes_to_clip_path {
             return;

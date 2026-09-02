@@ -139,14 +139,13 @@ impl PaintRecorder<'_> {
         }
         let mut any_svg_mask_layer_area_is_empty = false;
         for layer in layers {
-            if set == MaskLayerSet::SvgOnly {
-                if layer.origin == MaskLayerOrigin::CssMaskLayers {
-                    continue;
-                }
-                if layer.mask_layer_area_is_empty {
-                    any_svg_mask_layer_area_is_empty = true;
-                    continue;
-                }
+            if set == MaskLayerSet::SvgOnly && layer.origin == MaskLayerOrigin::CssMaskLayers {
+                continue;
+            }
+            self.mark_open_captures_unsplicable();
+            if set == MaskLayerSet::SvgOnly && layer.mask_layer_area_is_empty {
+                any_svg_mask_layer_area_is_empty = true;
+                continue;
             }
             let Some(display_list_id) = layer.display_list_id else {
                 continue;
@@ -157,7 +156,6 @@ impl PaintRecorder<'_> {
                 .map(|(frame, _)| *frame)
                 .collect();
             assert!(!frames.is_empty(), "a mask display list without a mask node");
-            self.mark_open_captures_unsplicable();
             self.recorder.register_mask_display_list(&frames, display_list_id);
         }
         any_svg_mask_layer_area_is_empty
