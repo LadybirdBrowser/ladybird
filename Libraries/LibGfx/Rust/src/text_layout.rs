@@ -224,25 +224,27 @@ impl FontShapeCache {
                 .get_or_insert_with(|| Box::new(shape_uncached()));
         }
 
-        let is_shaped_already = self
-            .shapes_by_text
-            .get(text)
-            .is_some_and(|shapes| shapes.iter().any(|entry| entry.params.matches(&params)));
-        if !is_shaped_already {
-            if !self.shapes_by_text.contains_key(text) && self.shapes_by_text.len() >= MAX_SHAPE_CACHE_TEXTS_PER_FONT {
+        if !self.shapes_by_text.contains_key(text) {
+            if self.shapes_by_text.len() >= MAX_SHAPE_CACHE_TEXTS_PER_FONT {
                 self.shapes_by_text.clear();
             }
-            let shape = shape_uncached();
-            self.shapes_by_text
-                .entry(Box::from(text))
-                .or_default()
-                .push(ShapeForParams { params, shape });
+            self.shapes_by_text.insert(Box::from(text), Vec::new());
         }
-        self.shapes_by_text
-            .get(text)
-            .and_then(|shapes| shapes.iter().find(|entry| entry.params.matches(&params)))
-            .map(|entry| &entry.shape)
-            .expect("the shape was cached just above")
+        let shapes = self
+            .shapes_by_text
+            .get_mut(text)
+            .expect("the entry was inserted just above");
+        let index = shapes
+            .iter()
+            .position(|entry| entry.params.matches(&params))
+            .unwrap_or_else(|| {
+                shapes.push(ShapeForParams {
+                    params,
+                    shape: shape_uncached(),
+                });
+                shapes.len() - 1
+            });
+        &shapes[index].shape
     }
 }
 
