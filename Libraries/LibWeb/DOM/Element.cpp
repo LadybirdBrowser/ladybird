@@ -1427,8 +1427,12 @@ struct ElementDependentInvalidationState {
             return;
         if (auto const& content = layout_node->content(); content.has_value())
             content_counter_style_dependencies = content->counter_style_dependencies;
-        if (auto const& list_style_type = layout_node->list_style_type(); list_style_type.has<RefPtr<CSS::CounterStyle const>>())
-            list_counter_style = list_style_type.get<RefPtr<CSS::CounterStyle const>>();
+        // Only a list item renders a marker, so only its counter style can matter; a display
+        // change to or from list-item rebuilds the box regardless.
+        if (layout_node->display().is_list_item()) {
+            if (auto const& list_style_type = layout_node->list_style_type(); list_style_type.has<RefPtr<CSS::CounterStyle const>>())
+                list_counter_style = list_style_type.get<RefPtr<CSS::CounterStyle const>>();
+        }
         layout_node = nullptr;
         has_snapshot = true;
     }
@@ -1460,8 +1464,10 @@ static void add_element_dependent_invalidation(CSS::RequiredInvalidationAfterSty
         if (auto const& content = old_state.layout_node->content(); content.has_value())
             old_content_dependencies = content->counter_style_dependencies;
         Optional<ValueComparingRefPtr<CSS::CounterStyle const>> old_list_counter_style;
-        if (auto const& list_style_type = old_state.layout_node->list_style_type(); list_style_type.has<RefPtr<CSS::CounterStyle const>>())
-            old_list_counter_style = list_style_type.get<RefPtr<CSS::CounterStyle const>>();
+        if (old_state.layout_node->display().is_list_item()) {
+            if (auto const& list_style_type = old_state.layout_node->list_style_type(); list_style_type.has<RefPtr<CSS::CounterStyle const>>())
+                old_list_counter_style = list_style_type.get<RefPtr<CSS::CounterStyle const>>();
+        }
         compare(old_content_dependencies, old_list_counter_style);
     } else if (old_state.has_snapshot) {
         compare(old_state.content_counter_style_dependencies, old_state.list_counter_style);
