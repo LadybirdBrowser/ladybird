@@ -9,10 +9,11 @@ use crate::css::css_pixels::{CssPixelFraction, CssPixelPoint, CssPixelRect, CssP
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::display_list::commands::VISUAL_VIEWPORT_NODE_INDEX;
 use crate::painting::ffi::{FfiChromeMetrics, ScrollDirection};
-use crate::painting::host::{FfiHitTestQueryCallbacks, FfiRecordingInputs, FfiRootBackgroundSource};
+use crate::painting::host::{FfiHitTestQueryCallbacks, FfiRootBackgroundSource};
 use crate::painting::paintable_data::PaintableFlag;
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
+use crate::painting::record::RecordingInputs;
 use crate::painting::style_queries;
 use libgfx_rust::Color;
 
@@ -211,7 +212,7 @@ pub(crate) struct ChromeGeometry<'a, Arena: PaintableRowsRead> {
 }
 
 impl<'a, Arena: PaintableRowsRead> ChromeGeometry<'a, Arena> {
-    pub(crate) fn for_recording(arena: &'a Arena, inputs: &FfiRecordingInputs) -> Self {
+    pub(crate) fn for_recording(arena: &'a Arena, inputs: &RecordingInputs) -> Self {
         Self {
             arena,
             metrics: inputs.chrome_metrics,
