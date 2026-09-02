@@ -558,7 +558,7 @@ Web::WebDriver::Response WebDriverConnection::new_window(JsonValue payload)
         auto [target_navigable, no_opener, window_type] = MUST(active_window->window_open_steps_internal("about:blank"sv, ""sv, "noopener"sv));
 
         // 6. Let handle be the associated window handle of the newly created window.
-        auto handle = target_navigable->traversable_navigable()->window_handle().to_utf8();
+        auto handle = as<Web::HTML::LocalNavigable>(*target_navigable).traversable_navigable()->window_handle().to_utf8();
 
         // 7. Let type be "tab" if the newly created window shares an OS-level window with the current browsing context, or "window" otherwise.
         auto type = "tab"sv;

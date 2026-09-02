@@ -140,7 +140,7 @@ public:
     WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> window_open_steps(Utf16View url, Utf16View target, Utf16View features);
 
     struct OpenedWindow {
-        GC::Ptr<LocalNavigable> navigable;
+        GC::Ptr<Navigable> navigable;
         TokenizedFeature::NoOpener no_opener { TokenizedFeature::NoOpener::No };
         WindowType window_type { WindowType::ExistingOrNone };
     };

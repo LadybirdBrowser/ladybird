@@ -451,8 +451,10 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Utf
 
     // 15. If windowType is either "new and unrestricted" or "new with no opener", then:
     if (window_type == WindowType::NewAndUnrestricted || window_type == WindowType::NewWithNoOpener) {
+        auto& local_target_navigable = as<LocalNavigable>(*target_navigable);
+
         // 1. Set targetNavigable's active browsing context's is popup to the result of checking if a popup window is requested, given tokenizedFeatures.
-        target_navigable->active_browsing_context()->set_is_popup(check_if_a_popup_window_is_requested(tokenized_features));
+        local_target_navigable.active_browsing_context()->set_is_popup(check_if_a_popup_window_is_requested(tokenized_features));
 
         // 2. Set up browsing context features for target browsing context given tokenizedFeatures. [CSSOMVIEW]
         // NOTE: This is implemented in choose_a_navigable when creating the top level traversable.
@@ -465,10 +467,10 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Utf
         if (url_matches_about_blank(url_record.value())) {
             // AD-HOC: Mark the initial about:blank for the new window as load complete
             // FIXME: We do this other places too when creating a new about:blank document. Perhaps it's worth a spec issue?
-            auto document = GC::Ref(*target_navigable->active_document());
+            auto document = GC::Ref(*local_target_navigable.active_document());
             HTML::HTMLParser::the_end(document, HTML::HTMLParser::parserless_completion_token(document));
 
-            perform_url_and_history_update_steps(*target_navigable->active_document(), url_record.release_value());
+            perform_url_and_history_update_steps(*local_target_navigable.active_document(), url_record.release_value());
         }
 
         // 5. Otherwise, navigate targetNavigable to urlRecord using sourceDocument, with referrerPolicy set to referrerPolicy and exceptionsEnabled set to true.
@@ -484,7 +486,7 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Utf
 
         // 2. If noopener is false, then set targetNavigable's active browsing context's opener browsing context to sourceDocument's browsing context.
         if (no_opener == TokenizedFeature::NoOpener::No)
-            target_navigable->active_browsing_context()->set_opener_browsing_context(source_document.browsing_context());
+            as<LocalNavigable>(*target_navigable).active_browsing_context()->set_opener_browsing_context(source_document.browsing_context());
     }
 
     // NOTE: Steps 17 and 18 are implemented in window_open_steps().
