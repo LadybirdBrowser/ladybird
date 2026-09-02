@@ -2152,16 +2152,21 @@ impl StyleEngine {
         let mut candidates = Vec::new();
         let attributed_rule = site.attribution();
         regions.for_each_batch(&batch, |candidate| {
+            // A node the entry's subject cannot name matches it on neither side, so it has no
+            // delta to contribute - whether or not an earlier route already planned it. Filtering
+            // before the already-planned check keeps every entry whose batch merely contains a
+            // planned node from queueing a full exact evaluation of that node later.
+            if !(self.node_carries_any(site.subject, candidate, site.in_flux)
+                && self.node_carries_all(site.subject_required, candidate, site.in_flux)
+                && self.path_meets_waypoints(site.path, site.waypoints, candidate, site.in_flux))
+            {
+                return;
+            }
             if regions.contains_node(candidate) {
                 self.record_already_planned_selector_truth(candidate, site);
                 return;
             }
-            if self.node_carries_any(site.subject, candidate, site.in_flux)
-                && self.node_carries_all(site.subject_required, candidate, site.in_flux)
-                && self.path_meets_waypoints(site.path, site.waypoints, candidate, site.in_flux)
-            {
-                candidates.push(candidate);
-            }
+            candidates.push(candidate);
         });
         let charged_bytes = if batch_is_cached {
             (candidates.capacity() * size_of::<StyleNodeID>()) as u64
