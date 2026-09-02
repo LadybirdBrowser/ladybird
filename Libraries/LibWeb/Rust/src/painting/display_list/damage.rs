@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::painting::display_list::builder::{HEADER_SIZE, read_header};
+use crate::painting::display_list::builder::for_each_command;
 use crate::painting::display_list::commands::{
     ContextRef, DisplayListCommandHeader, DisplayListCommandType, DisplayListDataSpan, DisplayListInlineClip,
     DrawGlyphRun, DrawScaledDecodedImageFrame, INLINE_CLIP_ENTRY_SIZE, OptionalColor, OptionalFloatRect,
@@ -24,14 +24,12 @@ struct CommandReference<'a> {
 
 fn collect_command_references(command_bytes: &[u8]) -> Vec<CommandReference<'_>> {
     let mut commands = Vec::new();
-    let mut offset = 0;
-    while offset < command_bytes.len() {
-        let header = read_header(&command_bytes[offset..]);
-        offset += HEADER_SIZE;
-        let payload = &command_bytes[offset..offset + header.payload_size as usize];
-        offset += header.payload_size as usize;
-        commands.push(CommandReference { header, payload });
-    }
+    for_each_command(command_bytes, |header, _, payload| {
+        commands.push(CommandReference {
+            header: *header,
+            payload,
+        });
+    });
     commands
 }
 
@@ -605,6 +603,7 @@ pub fn compute_display_list_damage(
 mod tests {
     use super::*;
     use crate::layout::node_data::NodeSlotId;
+    use crate::painting::display_list::builder::HEADER_SIZE;
     use crate::painting::display_list::commands::{
         CanvasId, CompositorMainThreadWheelEventRegion, DisplayListCommand, DisplayListGlyph, DrawCanvas, FillRect,
         FontResourceId, FrameNodeIndex, ImageFrameResourceId, InlineClipKind,

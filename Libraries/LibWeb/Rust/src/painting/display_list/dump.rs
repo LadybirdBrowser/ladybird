@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::builder::{HEADER_SIZE, read_header};
+use super::builder::for_each_command;
 use super::commands::*;
 use crate::css::color_resolution::format_to_8bit_compatible;
 use crate::painting::dump::{
@@ -132,27 +132,18 @@ fn dump_commands(
     display_list: *const c_void,
     base_indent: usize,
 ) {
-    let bytes = callbacks.command_bytes(display_list);
-    let mut offset = 0;
-    while offset < bytes.len() {
-        let header = read_header(&bytes[offset..]);
-        offset += HEADER_SIZE;
-        let payload_size = header.payload_size as usize;
-        assert!(payload_size <= bytes.len() - offset);
-        let payload = &bytes[offset..offset + payload_size];
-        offset += payload_size;
-
+    for_each_command(callbacks.command_bytes(display_list), |header, _, payload| {
         push_indent(output, base_indent);
         write!(output, "{}@", header.command_type.name()).unwrap();
         write_context(output, header.context);
         dump_command(output, header.command_type, payload);
         if header.inline_clip_count > 0 {
-            dump_inline_clips(output, &header, payload);
+            dump_inline_clips(output, header, payload);
         }
         output.push('\n');
 
         let Some(nested) = nested_display_lists(header.command_type, payload) else {
-            continue;
+            return;
         };
         dump_commands(
             output,
@@ -165,8 +156,7 @@ fn dump_commands(
             output.push_str("Mask:\n");
             dump_commands(output, callbacks, callbacks.nested_display_list(mask), base_indent + 2);
         }
-    }
-    assert_eq!(offset, bytes.len());
+    });
 
     for (frame, id) in callbacks.mask_display_lists(display_list) {
         push_indent(output, base_indent);
@@ -616,6 +606,7 @@ fn write_inline_clip_radii(output: &mut String, radii: CornerRadii) {
 mod tests {
     use super::*;
     use crate::painting::display_list::builder::DisplayListBuilder;
+    use crate::painting::display_list::builder::{HEADER_SIZE, read_header};
     use libgfx_rust::IntRect;
 
     #[test]
