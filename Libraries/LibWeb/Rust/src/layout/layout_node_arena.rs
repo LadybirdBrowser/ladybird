@@ -335,6 +335,9 @@ pub(crate) struct TextContent {
     pub(crate) untransformed_text_is_ascii_whitespace: bool,
     pub(crate) may_require_bidi_processing: bool,
     pub(crate) dom_start_offset: usize,
+    /// Whether rendering changed the length of any part of the DOM text. Otherwise a rendered
+    /// offset converts to a DOM offset by adding the DOM start offset alone.
+    pub(crate) rendered_text_has_edits: bool,
     grapheme_segmenter: std::cell::OnceCell<super::text_chunker::GraphemeSegmenter>,
 }
 
@@ -1554,6 +1557,7 @@ impl LayoutNodeArena {
         untransformed_text_is_ascii_whitespace: bool,
         may_require_bidi_processing: bool,
         dom_start_offset: usize,
+        rendered_text_has_edits: bool,
     ) -> bool {
         self.assert_owner_thread();
         self.data(id);
@@ -1569,6 +1573,7 @@ impl LayoutNodeArena {
                         || content.untransformed_text_is_ascii_whitespace != untransformed_text_is_ascii_whitespace
                         || content.may_require_bidi_processing != may_require_bidi_processing
                         || content.dom_start_offset != dom_start_offset
+                        || content.rendered_text_has_edits != rendered_text_has_edits
                 }
                 None => true,
             };
@@ -1582,6 +1587,7 @@ impl LayoutNodeArena {
                 untransformed_text_is_ascii_whitespace,
                 may_require_bidi_processing,
                 dom_start_offset,
+                rendered_text_has_edits,
                 grapheme_segmenter: std::cell::OnceCell::new(),
             })),
         };
@@ -2057,6 +2063,11 @@ impl LayoutNodeArena {
         if shell.is_null() || !self.node_kind_if_live(id).is_some_and(super::node_facts::kind_is_text) {
             return offset;
         }
+        if let Some(content) = self.text_content(id)
+            && !content.rendered_text_has_edits
+        {
+            return content.dom_start_offset + offset.min(content.text.len());
+        }
         // SAFETY: shell_if_live() returned the live C++ TextNode corresponding to this text layout node.
         unsafe {
             ladybird_layout_text_node_dom_offset_for_rendered_text_offset(
@@ -2076,6 +2087,12 @@ impl LayoutNodeArena {
         let shell = self.shell_if_live(id);
         if shell.is_null() || !self.node_kind_if_live(id).is_some_and(super::node_facts::kind_is_text) {
             return offset;
+        }
+        if let Some(content) = self.text_content(id)
+            && !content.rendered_text_has_edits
+        {
+            let dom_end_offset = content.dom_start_offset + content.text.len();
+            return offset.clamp(content.dom_start_offset, dom_end_offset) - content.dom_start_offset;
         }
         // SAFETY: shell_if_live() returned the live C++ TextNode corresponding to this text layout node.
         unsafe {
@@ -2351,6 +2368,7 @@ pub unsafe extern "C" fn layout_arena_set_text_content(
     untransformed_text_is_ascii_whitespace: bool,
     may_require_bidi_processing: bool,
     dom_start_offset: usize,
+    rendered_text_has_edits: bool,
 ) -> bool {
     abort_on_panic(|| {
         assert!(!arena.is_null(), "layout node arena handle is null");
@@ -2377,6 +2395,7 @@ pub unsafe extern "C" fn layout_arena_set_text_content(
             untransformed_text_is_ascii_whitespace,
             may_require_bidi_processing,
             dom_start_offset,
+            rendered_text_has_edits,
         )
     })
 }
