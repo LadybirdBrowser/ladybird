@@ -113,6 +113,8 @@ interface Internals {
     unsigned long long tableCellMeasurementCacheMissCount();
     unsigned long long intrinsicMeasurementCount();
     unsigned long long accumulatedVisualContextTreeBuildCount();
+    unsigned long long paintCacheSplicedCaptureCount();
+    unsigned long long paintCacheCaptureSiteVisitCount();
     undefined setAutoplayPolicy(Utf16DOMString policy);
 
     Utf16DOMString getComputedRole(Element element);

@@ -1363,8 +1363,13 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
         wheel_event_region_state.has_blocking_wheel_event_listeners = true;
 
     auto recorded = Layout::RustFFI::layout_arena_recorded_display_list(arena);
-    if (rust_painting_timing_enabled())
-        dbgln("PAINT_RECORD rust={} µs commands={} bytes spliced={} captures", rust_timer.elapsed_time().to_microseconds(), recorded.byte_count, Layout::RustFFI::layout_arena_last_recording_spliced_capture_count(arena));
+    if (rust_painting_timing_enabled()) {
+        auto stats = Layout::RustFFI::layout_arena_last_recording_stats(arena);
+        dbgln("PAINT_RECORD rust={} µs commands={} bytes box_phase_visits={} painted_as_stacking_context={}/{} descendant_subtrees={}/{} box_phase_commands={}/{} box_phase_hit_test_items={} hit_test_items_copied={} command_bytes_spliced={}",
+            rust_timer.elapsed_time().to_microseconds(), recorded.byte_count,
+            stats.box_phase_visits, stats.painted_as_stacking_context_capture_hits, stats.painted_as_stacking_context_capture_attempts, stats.descendant_subtree_capture_hits, stats.descendant_subtree_capture_attempts,
+            stats.box_phase_command_capture_hits, stats.box_phase_command_capture_attempts, stats.box_phase_hit_test_item_capture_hits, stats.hit_test_items_copied_from_source, stats.command_bytes_spliced_from_source);
+    }
 
     auto display_list = display_list_from_rust_recording(document.visual_context_tree(), recorded);
     auto registration_count = Layout::RustFFI::layout_arena_display_list_mask_registration_count(arena);

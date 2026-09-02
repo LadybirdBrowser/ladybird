@@ -14,6 +14,7 @@ use crate::painting::display_list::commands::{ContextRef, VISUAL_VIEWPORT_NODE_I
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::hit_test::*;
+use crate::painting::host::FfiPaintRecordingStats;
 use crate::painting::host::{
     FfiHitTestHostCallbacks, FfiPaintHostCallbacks, FfiRecordingInputs, FfiVisualContextHostCallbacks,
 };
@@ -92,7 +93,7 @@ pub(crate) fn record_display_list(
         hit_test_list_generation,
         viewport,
         has_blocking_wheel_event_listeners: false,
-        spliced_capture_count: 0,
+        recording_stats: FfiPaintRecordingStats::default(),
         uncacheable_paint_generation: 0,
         list: HitTestList::default(),
         base_paint_facts_cache: vec![None; layout_arena.paintable_row_count()],
@@ -140,7 +141,7 @@ pub(crate) fn record_display_list(
         display_list: recorder.recorder.into_builder().finish(),
         has_blocking_wheel_event_listeners: recorder.has_blocking_wheel_event_listeners,
         mask_display_lists,
-        spliced_capture_count: recorder.spliced_capture_count,
+        recording_stats: recorder.recording_stats,
     }
 }
 
@@ -470,6 +471,7 @@ impl PaintRecorder<'_> {
         if self.nested.is_some() {
             return false;
         }
+        self.recording_stats.descendant_subtree_capture_attempts += 1;
         let Some(command_source) = self.command_cache_source.as_ref() else {
             return false;
         };
@@ -515,7 +517,9 @@ impl PaintRecorder<'_> {
                 cached.hit_test_count as usize,
             );
         }
-        self.spliced_capture_count += 1;
+        self.recording_stats.descendant_subtree_capture_hits += 1;
+        self.recording_stats.command_bytes_spliced_from_source += command_range.size as usize;
+        self.recording_stats.hit_test_items_copied_from_source += cached.hit_test_count as usize;
         true
     }
 
@@ -691,6 +695,9 @@ impl PaintRecorder<'_> {
         }
         let skip_phase_capture = skip_cache || phase_records_scrollbars_with_scroll_node_indices;
         let cache_writes_enabled = self.inputs.paint_command_cache_read_write && !is_nested;
+        if !is_nested {
+            self.recording_stats.box_phase_visits += 1;
+        }
 
         if phase_can_record_hit_test_items && !is_nested {
             let own_context = self.own_context(paintable);
@@ -709,6 +716,8 @@ impl PaintRecorder<'_> {
                 for item in &source[start..start + count] {
                     self.append_spliced_hit_test_item(item);
                 }
+                self.recording_stats.box_phase_hit_test_item_capture_hits += 1;
+                self.recording_stats.hit_test_items_copied_from_source += count;
                 if cache_writes_enabled {
                     self.set_cached_hit_test_items(
                         paintable,
@@ -745,6 +754,7 @@ impl PaintRecorder<'_> {
         let cached_commands = if skip_phase_capture || is_nested {
             None
         } else {
+            self.recording_stats.box_phase_command_capture_attempts += 1;
             self.valid_cached_commands(paintable, phase)
         };
         if let Some((source, cached)) = cached_commands {
@@ -756,7 +766,8 @@ impl PaintRecorder<'_> {
             if cache_writes_enabled {
                 self.set_cached_commands(paintable, phase, destination_range, phase_context);
             }
-            self.spliced_capture_count += 1;
+            self.recording_stats.box_phase_command_capture_hits += 1;
+            self.recording_stats.command_bytes_spliced_from_source += destination_range.size as usize;
         } else {
             let command_range_start = self.recorder.byte_size();
             self.paint(paintable, phase);

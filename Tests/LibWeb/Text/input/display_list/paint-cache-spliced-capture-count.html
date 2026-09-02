@@ -1,0 +1,25 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    .card { display: flow-root; margin: 0 0 4px; padding: 4px; border: 1px solid #ccc; }
+</style>
+<div id="root"></div>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        for (let i = 0; i < 8; ++i) {
+            const card = document.createElement("div");
+            card.className = "card";
+            card.textContent = "Card " + i;
+            root.appendChild(card);
+        }
+        internals.asyncScrollingState();
+        println(`first recording splices nothing: ${internals.paintCacheSplicedCaptureCount() === 0}`);
+        println(`first recording visits captures: ${internals.paintCacheCaptureSiteVisitCount() > 0}`);
+
+        root.children[3].firstChild.data = "Edited";
+        internals.asyncScrollingState();
+        println(`relayout splices unchanged cards: ${internals.paintCacheSplicedCaptureCount() > 0}`);
+    });
+</script>

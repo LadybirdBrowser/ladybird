@@ -22,8 +22,8 @@ use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::hit_test::HitTestList;
 use crate::painting::host::{
-    FfiHitTestHostCallbacks, FfiHitTestTextNodeFacts, FfiPaintHostCallbacks, FfiRecordingInputs,
-    FfiVisualContextHostCallbacks,
+    FfiHitTestHostCallbacks, FfiHitTestTextNodeFacts, FfiPaintHostCallbacks, FfiPaintRecordingStats,
+    FfiRecordingInputs, FfiVisualContextHostCallbacks,
 };
 use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData};
 use crate::painting::paintable_rows::PaintableRowsRef;
@@ -41,7 +41,7 @@ pub struct RecordingOutput {
     pub display_list: RecordedDisplayList,
     pub has_blocking_wheel_event_listeners: bool,
     pub mask_display_lists: Vec<(FrameNodeIndex, DisplayListResourceId)>,
-    pub spliced_capture_count: usize,
+    pub recording_stats: FfiPaintRecordingStats,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -82,7 +82,7 @@ pub struct PaintRecorder<'a> {
     display_list_id: u64,
     hit_test_list_generation: u64,
     pub(crate) has_blocking_wheel_event_listeners: bool,
-    spliced_capture_count: usize,
+    pub(crate) recording_stats: FfiPaintRecordingStats,
     uncacheable_paint_generation: u64,
     list: HitTestList,
     base_paint_facts_cache: Vec<Option<(NodeSlotId, BasePaintFacts)>>,
@@ -212,7 +212,7 @@ impl<'a> PaintRecorder<'a> {
             display_list_id: self.display_list_id,
             hit_test_list_generation: self.hit_test_list_generation,
             has_blocking_wheel_event_listeners: false,
-            spliced_capture_count: 0,
+            recording_stats: FfiPaintRecordingStats::default(),
             uncacheable_paint_generation: 0,
             list: HitTestList::default(),
             base_paint_facts_cache: vec![None; self.layout_arena.paintable_row_count()],

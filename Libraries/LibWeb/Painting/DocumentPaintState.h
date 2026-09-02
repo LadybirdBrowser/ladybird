@@ -42,6 +42,8 @@ public:
     bool has_visual_context_tree() const;
     u64 accumulated_visual_context_tree_build_count() const { return m_accumulated_visual_context_tree_build_count; }
     u64 accumulated_visual_context_tree_incremental_update_count() const { return m_accumulated_visual_context_tree_incremental_update_count; }
+    u64 last_recording_spliced_capture_count() const;
+    u64 last_recording_capture_site_visit_count() const;
 
     void recompute_selection_states(DOM::Document&, DOM::Range&);
     void reset_selection_states(DOM::Document&);
