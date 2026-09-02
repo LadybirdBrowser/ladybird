@@ -206,8 +206,13 @@ public:
 
     ~AudioState()
     {
-        if (m_audio_unit != nullptr)
-            AudioOutputUnitStop(m_audio_unit);
+        if (m_audio_unit == nullptr)
+            return;
+        // The render callback dereferences this state through its raw refcon, so the unit must have stopped running
+        // (which only returns once any in-flight callback has finished) before the state is freed.
+        AudioOutputUnitStop(m_audio_unit);
+        AudioUnitUninitialize(m_audio_unit);
+        AudioComponentInstanceDispose(m_audio_unit);
     }
 
     void queue_task(AudioTask task)
