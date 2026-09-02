@@ -1332,7 +1332,6 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
         }
     }
     inputs.paint_command_cache_read_write = cache_mode == PaintCommandCacheMode::ReadWrite;
-    inputs.display_list_id = placeholder_display_list.id();
     {
         auto navigable = document.navigable();
         inputs.window_is_focused = navigable && navigable->is_focused();

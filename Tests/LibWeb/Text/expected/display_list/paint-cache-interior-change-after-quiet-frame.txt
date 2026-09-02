@@ -1,0 +1,2 @@
+quiet recording splices fewer captures than a change: true
+siblings splice after a quiet frame: true

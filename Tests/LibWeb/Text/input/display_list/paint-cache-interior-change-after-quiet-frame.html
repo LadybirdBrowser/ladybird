@@ -1,0 +1,34 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    #container { display: flow-root; padding: 4px; }
+    .card { display: flow-root; margin: 0 0 4px; padding: 4px; border: 1px solid #ccc; }
+</style>
+<div id="container"></div>
+<script>
+    test(() => {
+        const container = document.getElementById("container");
+        for (let i = 0; i < 8; ++i) {
+            const card = document.createElement("div");
+            card.className = "card";
+            card.textContent = "Card " + i;
+            container.appendChild(card);
+        }
+        internals.asyncScrollingState();
+
+        container.children[0].style.color = "red";
+        internals.asyncScrollingState();
+        const splicedAfterFirstChange = internals.paintCacheSplicedCaptureCount();
+
+        internals.asyncScrollingState();
+        const splicedWhenQuiet = internals.paintCacheSplicedCaptureCount();
+
+        container.children[0].style.color = "blue";
+        internals.asyncScrollingState();
+        const splicedAfterSecondChange = internals.paintCacheSplicedCaptureCount();
+
+        println(`quiet recording splices fewer captures than a change: ${splicedWhenQuiet < splicedAfterFirstChange}`);
+        println(`siblings splice after a quiet frame: ${splicedAfterSecondChange === splicedAfterFirstChange}`);
+    });
+</script>
