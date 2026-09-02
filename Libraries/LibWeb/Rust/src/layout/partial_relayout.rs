@@ -588,10 +588,7 @@ mod tests {
     }
 
     fn free_node(arena: &mut LayoutNodeArena, allocation: &NodeAllocation) {
-        arena
-            .free(allocation.slot, allocation.generation)
-            .detached_children
-            .release_all();
+        arena.free(allocation.slot).detached_children.release_all();
     }
 
     #[test]

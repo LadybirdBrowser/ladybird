@@ -19,10 +19,9 @@ namespace Web::Layout {
 class Node;
 class TextNode;
 
-static_assert(sizeof(RustFFI::NodeAllocation) == 24);
+static_assert(sizeof(RustFFI::NodeAllocation) == 16);
 static_assert(offsetof(RustFFI::NodeAllocation, slot) == 0);
 static_assert(offsetof(RustFFI::NodeAllocation, data) == 8);
-static_assert(offsetof(RustFFI::NodeAllocation, generation) == 16);
 
 class WEB_API NodeArena : public RefCounted<NodeArena> {
     AK_MAKE_NONCOPYABLE(NodeArena);
@@ -33,7 +32,7 @@ public:
     ~NodeArena();
 
     RustFFI::NodeAllocation allocate();
-    void free(RustFFI::NodeSlotId, u32 generation);
+    void free(RustFFI::NodeSlotId);
     void* handle() const { return m_handle; }
     u64 formatting_context_run_cache_hit_count() const;
     u64 table_cell_measurement_cache_miss_count() const;

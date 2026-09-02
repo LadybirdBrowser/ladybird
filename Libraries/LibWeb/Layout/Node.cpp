@@ -46,12 +46,11 @@ NodeArenaAllocation::NodeArenaAllocation(DOM::Document& document)
     auto allocation = m_arena->allocate();
     m_slot = allocation.slot;
     m_data = allocation.data;
-    m_slot_generation = allocation.generation;
 }
 
 NodeArenaAllocation::~NodeArenaAllocation()
 {
-    m_arena->free(m_slot, m_slot_generation);
+    m_arena->free(m_slot);
 }
 
 Node::Node(DOM::Document& document, GC::Ptr<DOM::Node> node, AttachToDOMNode attach_to_dom_node)
