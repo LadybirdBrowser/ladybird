@@ -1237,19 +1237,14 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             // it within the synchronous call.
             return font.ptr();
         },
-        .overlay_node_label_text = [](void*, void* layout_node_shell, void* sink, void (*emit)(void*, u16 const*, size_t)) {
+        .overlay_node_label_text = [](void*, void* layout_node_shell, void* label_sink) {
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
             auto border_rect = absolute_border_box_rect(layout_node);
-            Utf16StringBuilder builder;
+            StringBuilder builder;
             builder.appendff("{}", layout_node.debug_description());
             builder.appendff(" {}x{} @ {},{}", border_rect.width(), border_rect.height(), border_rect.x(), border_rect.y());
-            auto text = builder.to_string();
-            auto view = text.utf16_view();
-            Vector<u16> units;
-            units.ensure_capacity(view.length_in_code_units());
-            for (size_t i = 0; i < view.length_in_code_units(); ++i)
-                units.unchecked_append(view.code_unit_at(i));
-            emit(sink, units.data(), units.size()); },
+            auto bytes = builder.string_view().bytes();
+            Layout::RustFFI::layout_arena_paint_push_bytes(label_sink, bytes.data(), bytes.size()); },
     };
 }
 

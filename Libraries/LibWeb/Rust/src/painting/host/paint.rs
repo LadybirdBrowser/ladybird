@@ -441,12 +441,7 @@ pub struct FfiPaintHostCallbacks {
     ) -> FfiSvgPaintStyle,
     pub nested_display_list_from_tree: unsafe extern "C" fn(*mut c_void, FfiRecordedDisplayList, *const c_void) -> u64,
     pub overlay_label_font: unsafe extern "C" fn(*mut c_void, f32) -> *const c_void,
-    pub overlay_node_label_text: unsafe extern "C" fn(
-        *mut c_void,
-        *mut c_void,
-        *mut c_void,
-        unsafe extern "C" fn(*mut c_void, *const u16, usize),
-    ),
+    pub overlay_node_label_text: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
 }
 
 #[derive(Default)]
@@ -473,22 +468,11 @@ impl FfiPaintHostCallbacks {
     }
 
     pub(crate) fn overlay_node_label_text(&self, layout_node_shell: *mut c_void) -> Vec<u16> {
-        unsafe extern "C" fn emit(sink: *mut c_void, units: *const u16, count: usize) {
-            // SAFETY: `sink` is the Vec passed below, and the units stay live
-            // for this synchronous callback.
-            let text = unsafe { &mut *sink.cast::<Vec<u16>>() };
-            assert!(count == 0 || !units.is_null());
-            if count != 0 {
-                // SAFETY: The C++ host hands a pointer to count code units
-                // that outlive the callback.
-                text.extend_from_slice(unsafe { std::slice::from_raw_parts(units, count) });
-            }
-        }
-        let mut text: Vec<u16> = Vec::new();
-        // SAFETY: The C++ host answers synchronously from a live layout node
-        // shell; emit runs against the local Vec.
-        unsafe { (self.overlay_node_label_text)(self.context, layout_node_shell, (&raw mut text).cast(), emit) };
-        text
+        let mut label = Vec::new();
+        // SAFETY: The C++ host fills the label sink synchronously through the exported push
+        // function.
+        unsafe { (self.overlay_node_label_text)(self.context, layout_node_shell, (&raw mut label).cast()) };
+        String::from_utf8_lossy(&label).encode_utf16().collect()
     }
     pub(crate) fn text_control_selection(&self, layout_node_shell: *mut c_void) -> FfiTextControlSelection {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
