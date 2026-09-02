@@ -139,11 +139,6 @@ StringView Node::class_name() const
     VERIFY_NOT_REACHED();
 }
 
-void Node::enroll_for_arena_replaced_content_facts_sync_if_eligible()
-{
-    RustFFI::layout_arena_enroll_node_for_replaced_content_facts_sync_if_eligible(arena_handle(), slot_id(this));
-}
-
 void Node::bump_fragment_cache_epoch_of_self_and_ancestors()
 {
     RustFFI::layout_arena_bump_fragment_cache_epoch_of_self_and_ancestors(arena_handle(), slot_id(this));
@@ -352,7 +347,6 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, GC::Ptr<DOM::Node> node, C
     publish_style_record_to_node_data();
     set_flag(RustFFI::NodeFlag::HasPreserve3dTransformStyle, transform_style() == CSS::TransformStyle::Preserve3d);
     synchronize_table_span_data();
-    enroll_for_arena_replaced_content_facts_sync_if_eligible();
     if (m_owned_computed_values)
         pin_style_record_for_cxx_consumers();
 }
@@ -480,7 +474,6 @@ void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
     set_flag(RustFFI::NodeFlag::HasPreserve3dTransformStyle, transform_style() == CSS::TransformStyle::Preserve3d);
     // A style change can introduce the properties that make a node carry replaced-content facts,
     // such as size containment arriving on a kept layout node.
-    enroll_for_arena_replaced_content_facts_sync_if_eligible();
     propagate_style_to_anonymous_wrappers();
     attach_style_resources();
     // A pseudo layout node can outlive replacement of the DOM pseudo's record until the layout
@@ -703,7 +696,6 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
     set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, false);
     publish_style_record_to_node_data();
     set_flag(RustFFI::NodeFlag::HasPreserve3dTransformStyle, transform_style() == CSS::TransformStyle::Preserve3d);
-    enroll_for_arena_replaced_content_facts_sync_if_eligible();
     if (m_owned_computed_values)
         pin_style_record_for_cxx_consumers();
 
@@ -750,7 +742,6 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
     set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, false);
     publish_style_record_to_node_data();
     set_flag(RustFFI::NodeFlag::HasPreserve3dTransformStyle, transform_style() == CSS::TransformStyle::Preserve3d);
-    enroll_for_arena_replaced_content_facts_sync_if_eligible();
     if (should_repin_style_record)
         pin_style_record_for_cxx_consumers();
 
@@ -806,7 +797,7 @@ void NodeWithStyle::publish_style_record_to_node_data()
 {
     auto const* payloads = document().style_computer().style_engine().style_record_payloads(m_style_record_identity);
     VERIFY(payloads);
-    node_data().style = payloads;
+    RustFFI::layout_arena_set_node_style_payloads(arena_handle(), slot_id(this), payloads);
     if (content_visibility() == CSS::ContentVisibility::Auto)
         document().note_content_visibility_auto_style();
 
@@ -994,7 +985,7 @@ void Node::set_generated_for(CSS::PseudoElement type, DOM::Element& element)
 {
     static_assert(encode_generated_for(CSS::PseudoElement::After) == RustFFI::GENERATED_FOR_AFTER);
     static_assert(encode_generated_for(CSS::PseudoElement::Marker) == RustFFI::GENERATED_FOR_MARKER);
-    m_data->generated_for = encode_generated_for(type);
+    RustFFI::layout_arena_set_node_generated_for(arena_handle(), slot_id(this), encode_generated_for(type));
     m_pseudo_element_generator = element;
     if (auto* node_with_style = as_if<NodeWithStyle>(*this))
         node_with_style->bind_generated_style_record(element.style_record_identity(type));
