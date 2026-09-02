@@ -5582,67 +5582,58 @@ pub unsafe extern "C" fn rust_parse_css_value(
     source: FfiUtf16View,
     out_status: *mut FfiParseStatus,
 ) -> *const c_void {
-    crate::abort_on_panic(|| {
-        let invalid_ffi_result = || {
-            if !out_status.is_null() {
-                unsafe { *out_status = FfiParseStatus::NotHandled };
+    let invalid_ffi_result = || {
+        if !out_status.is_null() {
+            unsafe { *out_status = FfiParseStatus::NotHandled };
+        }
+        std::ptr::null()
+    };
+
+    if context.is_null() || out_status.is_null() {
+        return invalid_ffi_result();
+    }
+    let Some(source) = (unsafe { source.units() }) else {
+        return invalid_ffi_result();
+    };
+    let mut source_utf16 = Vec::with_capacity(source.len());
+    source.append_to(&mut source_utf16);
+    let context = unsafe { &*context };
+    let outcome = match component_values_from_source(source) {
+        Ok(values) => {
+            let mut substitution_presence = SubstitutionFunctionsPresence::default();
+            if collect_arbitrary_substitution_function_presence(&values, &mut substitution_presence).is_err() {
+                ParseOutcome::Invalid
+            } else if property_id == property_id::CUSTOM || substitution_presence.has_any() {
+                match consume_a_list_of_component_values(tokenize_for_parser(source_utf16.as_slice())) {
+                    Ok(values) => parse_css_value_with_utf16_source(context, property_id, &values, &source_utf16),
+                    Err(()) => ParseOutcome::NotHandled,
+                }
+            } else {
+                parse_css_value_after_substitution_scan(context, property_id, &values, &[], &[], substitution_presence)
+            }
+        }
+        Err(()) => ParseOutcome::NotHandled,
+    };
+    match outcome {
+        ParseOutcome::Parsed(value) => {
+            unsafe {
+                *out_status = FfiParseStatus::Parsed;
+            }
+            Arc::into_raw(value).cast()
+        }
+        ParseOutcome::Invalid => {
+            unsafe {
+                *out_status = FfiParseStatus::Invalid;
             }
             std::ptr::null()
-        };
-
-        if context.is_null() || out_status.is_null() {
-            return invalid_ffi_result();
         }
-        let Some(source) = (unsafe { source.units() }) else {
-            return invalid_ffi_result();
-        };
-        let mut source_utf16 = Vec::with_capacity(source.len());
-        source.append_to(&mut source_utf16);
-        let context = unsafe { &*context };
-        let outcome = match component_values_from_source(source) {
-            Ok(values) => {
-                let mut substitution_presence = SubstitutionFunctionsPresence::default();
-                if collect_arbitrary_substitution_function_presence(&values, &mut substitution_presence).is_err() {
-                    ParseOutcome::Invalid
-                } else if property_id == property_id::CUSTOM || substitution_presence.has_any() {
-                    match consume_a_list_of_component_values(tokenize_for_parser(source_utf16.as_slice())) {
-                        Ok(values) => parse_css_value_with_utf16_source(context, property_id, &values, &source_utf16),
-                        Err(()) => ParseOutcome::NotHandled,
-                    }
-                } else {
-                    parse_css_value_after_substitution_scan(
-                        context,
-                        property_id,
-                        &values,
-                        &[],
-                        &[],
-                        substitution_presence,
-                    )
-                }
+        ParseOutcome::NotHandled => {
+            unsafe {
+                *out_status = FfiParseStatus::NotHandled;
             }
-            Err(()) => ParseOutcome::NotHandled,
-        };
-        match outcome {
-            ParseOutcome::Parsed(value) => {
-                unsafe {
-                    *out_status = FfiParseStatus::Parsed;
-                }
-                Arc::into_raw(value).cast()
-            }
-            ParseOutcome::Invalid => {
-                unsafe {
-                    *out_status = FfiParseStatus::Invalid;
-                }
-                std::ptr::null()
-            }
-            ParseOutcome::NotHandled => {
-                unsafe {
-                    *out_status = FfiParseStatus::NotHandled;
-                }
-                std::ptr::null()
-            }
+            std::ptr::null()
         }
-    })
+    }
 }
 
 /// Returns a substitution-function presence bitmap for CSS source.
@@ -5655,22 +5646,20 @@ pub unsafe extern "C" fn rust_collect_arbitrary_substitution_function_presence_f
     source: FfiUtf16View,
     out_presence: *mut u8,
 ) -> bool {
-    crate::abort_on_panic(|| {
-        if out_presence.is_null() {
-            return false;
-        }
-        let Some(source) = (unsafe { source.units() }) else {
-            return false;
-        };
-        let Ok(values) = component_values_from_source(source) else {
-            return false;
-        };
-        let Some(presence) = substitution_function_presence_bits(&values) else {
-            return false;
-        };
-        unsafe { *out_presence = presence };
-        true
-    })
+    if out_presence.is_null() {
+        return false;
+    }
+    let Some(source) = (unsafe { source.units() }) else {
+        return false;
+    };
+    let Ok(values) = component_values_from_source(source) else {
+        return false;
+    };
+    let Some(presence) = substitution_function_presence_bits(&values) else {
+        return false;
+    };
+    unsafe { *out_presence = presence };
+    true
 }
 
 type VisitMarginComponent = unsafe extern "C" fn(*mut c_void, u8, f64, *const u16, usize);
@@ -5685,37 +5674,35 @@ pub unsafe extern "C" fn rust_visit_margin_components(
     context: *mut c_void,
     visit: VisitMarginComponent,
 ) -> bool {
-    crate::abort_on_panic(|| {
-        let Some(source) = (unsafe { source.units() }) else {
-            return false;
-        };
-        let Ok(values) = component_values_from_source(source) else {
-            return false;
-        };
-        let values = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
-        if values.len() > 4
-            || values.iter().any(|value| {
-                !matches!(
-                    value.kind,
-                    ComponentKind::Token(ParserTokenKind::Dimension { .. } | ParserTokenKind::Percentage { .. })
-                )
-            })
-        {
-            return false;
+    let Some(source) = (unsafe { source.units() }) else {
+        return false;
+    };
+    let Ok(values) = component_values_from_source(source) else {
+        return false;
+    };
+    let values = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
+    if values.len() > 4
+        || values.iter().any(|value| {
+            !matches!(
+                value.kind,
+                ComponentKind::Token(ParserTokenKind::Dimension { .. } | ParserTokenKind::Percentage { .. })
+            )
+        })
+    {
+        return false;
+    }
+    for value in values {
+        match &value.kind {
+            ComponentKind::Token(ParserTokenKind::Dimension { value, unit, .. }) => unsafe {
+                visit(context, 0, *value, unit.as_ptr(), unit.len());
+            },
+            ComponentKind::Token(ParserTokenKind::Percentage { value, .. }) => unsafe {
+                visit(context, 1, *value, std::ptr::null(), 0);
+            },
+            _ => unreachable!(),
         }
-        for value in values {
-            match &value.kind {
-                ComponentKind::Token(ParserTokenKind::Dimension { value, unit, .. }) => unsafe {
-                    visit(context, 0, *value, unit.as_ptr(), unit.len());
-                },
-                ComponentKind::Token(ParserTokenKind::Percentage { value, .. }) => unsafe {
-                    visit(context, 1, *value, std::ptr::null(), 0);
-                },
-                _ => unreachable!(),
-            }
-        }
-        true
-    })
+    }
+    true
 }
 
 fn parse_css_primitive_values(
@@ -5829,27 +5816,25 @@ pub unsafe extern "C" fn rust_parse_entire_css_primitive_from_source(
     range_min: f64,
     range_max: f64,
 ) -> *const c_void {
-    crate::abort_on_panic(|| {
-        if context.is_null() {
-            return std::ptr::null();
-        }
-        let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null();
-        };
-        let Ok(values) = component_values_from_source(source) else {
-            return std::ptr::null();
-        };
-        let Some((parsed, consumed)) =
-            parse_css_primitive_values(unsafe { &*context }, value_type, &values, range_min, range_max)
-        else {
-            return std::ptr::null();
-        };
-        if values[consumed..].iter().all(ComponentValue::is_whitespace) {
-            Arc::into_raw(Arc::new(parsed)).cast()
-        } else {
-            std::ptr::null()
-        }
-    })
+    if context.is_null() {
+        return std::ptr::null();
+    }
+    let Some(source) = (unsafe { source.units() }) else {
+        return std::ptr::null();
+    };
+    let Ok(values) = component_values_from_source(source) else {
+        return std::ptr::null();
+    };
+    let Some((parsed, consumed)) =
+        parse_css_primitive_values(unsafe { &*context }, value_type, &values, range_min, range_max)
+    else {
+        return std::ptr::null();
+    };
+    if values[consumed..].iter().all(ComponentValue::is_whitespace) {
+        Arc::into_raw(Arc::new(parsed)).cast()
+    } else {
+        std::ptr::null()
+    }
 }
 
 #[derive(Clone, Copy, Default)]
@@ -5868,42 +5853,38 @@ pub struct FfiSimpleColor {
 /// The source view must contain exactly one valid pointer when non-empty.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_simple_color(source: FfiUtf16View) -> FfiSimpleColor {
-    crate::abort_on_panic(|| {
-        let Some(source) = (unsafe { source.units() }) else {
-            return FfiSimpleColor::default();
-        };
-        let Some([red, green, blue, alpha]) = parse_simple_color(source) else {
-            return FfiSimpleColor::default();
-        };
-        FfiSimpleColor {
-            success: true,
-            red,
-            green,
-            blue,
-            alpha,
-        }
-    })
+    let Some(source) = (unsafe { source.units() }) else {
+        return FfiSimpleColor::default();
+    };
+    let Some([red, green, blue, alpha]) = parse_simple_color(source) else {
+        return FfiSimpleColor::default();
+    };
+    FfiSimpleColor {
+        success: true,
+        red,
+        green,
+        blue,
+        alpha,
+    }
 }
 
 /// # Safety
 /// The source view must contain exactly one valid pointer when non-empty.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_is_valid_animation_name_custom_ident(source: FfiUtf16View) -> bool {
-    crate::abort_on_panic(|| {
-        let Some(source) = (unsafe { source.units() }) else {
-            return false;
-        };
-        is_valid_custom_ident_matching(
-            |expected| {
-                source.len() == expected.len()
-                    && expected.iter().enumerate().all(|(index, &expected)| {
-                        u8::try_from(source.code_unit_at(index))
-                            .is_ok_and(|code_unit| code_unit.eq_ignore_ascii_case(&expected))
-                    })
-            },
-            &["none"],
-        )
-    })
+    let Some(source) = (unsafe { source.units() }) else {
+        return false;
+    };
+    is_valid_custom_ident_matching(
+        |expected| {
+            source.len() == expected.len()
+                && expected.iter().enumerate().all(|(index, &expected)| {
+                    u8::try_from(source.code_unit_at(index))
+                        .is_ok_and(|code_unit| code_unit.eq_ignore_ascii_case(&expected))
+                })
+        },
+        &["none"],
+    )
 }
 
 #[cfg(test)]

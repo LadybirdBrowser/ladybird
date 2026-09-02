@@ -1440,7 +1440,7 @@ pub unsafe extern "C" fn rust_style_group_registry_register(
     count: usize,
     out_default_payloads: *mut *const c_void,
 ) {
-    abort_on_panic(|| unsafe {
+    unsafe {
         let tables: Box<[StyleGroupVTable]> = std::slice::from_raw_parts(vtables, count).into();
         let mut defaults = Vec::with_capacity(count);
         for (index, table) in tables.iter().enumerate() {
@@ -1465,7 +1465,7 @@ pub unsafe extern "C" fn rust_style_group_registry_register(
                 .is_ok(),
             "style group registry registered twice"
         );
-    });
+    };
 }
 
 /// Allocates a new payload for `group_index` with a reference count of one,
@@ -1476,12 +1476,12 @@ pub unsafe extern "C" fn rust_style_group_registry_register(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_group_clone(group_index: usize, source: *const c_void) -> *mut c_void {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleGroupCloneEntry);
-    abort_on_panic(|| unsafe {
+    unsafe {
         let table = vtable(group_index);
         let payload = allocate_payload(table, 1);
         copy_construct(table, payload, source);
         payload
-    })
+    }
 }
 
 /// Retains one reference to each style-group payload in `payloads`.
@@ -1491,14 +1491,14 @@ pub unsafe extern "C" fn rust_style_group_clone(group_index: usize, source: *con
 /// order.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_groups_retain(payloads: *const *const c_void, group_count: usize) {
-    abort_on_panic(|| unsafe {
+    unsafe {
         assert!(!payloads.is_null(), "style group payload array is null");
         for group_index in 0..group_count {
             let payload = *payloads.add(group_index);
             assert!(!payload.is_null(), "style group payload is null");
             retain_group_payload(group_index, payload);
         }
-    });
+    };
 }
 
 /// Releases one reference to each style-group payload in `payloads`.
@@ -1508,14 +1508,14 @@ pub unsafe extern "C" fn rust_style_groups_retain(payloads: *const *const c_void
 /// order, each with an outstanding reference.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_groups_release(payloads: *const *const c_void, group_count: usize) {
-    abort_on_panic(|| unsafe {
+    unsafe {
         assert!(!payloads.is_null(), "style group payload array is null");
         for group_index in 0..group_count {
             let payload = *payloads.add(group_index);
             assert!(!payload.is_null(), "style group payload is null");
             release_group_payload(group_index, payload);
         }
-    });
+    };
 }
 
 /// Destroys and deallocates a payload whose reference count has reached zero.
@@ -1526,13 +1526,13 @@ pub unsafe extern "C" fn rust_style_groups_release(payloads: *const *const c_voi
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_group_free(group_index: usize, payload: *mut c_void) {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleGroupFreeEntry);
-    abort_on_panic(|| unsafe {
+    unsafe {
         let table = vtable(group_index);
         debug_assert!(refcount_of(payload, payload_align(table)).load(Ordering::Relaxed) == 0);
         destruct(table, payload);
         let allocation = (payload as *mut u8).sub(header_size(payload_align(table)));
         dealloc(allocation, allocation_layout(table));
-    });
+    };
 }
 
 pub(crate) fn release_group_payload(group_index: usize, payload: *const c_void) {
@@ -1567,7 +1567,7 @@ pub unsafe extern "C" fn rust_style_group_payloads_equal(
     a: *const c_void,
     b: *const c_void,
 ) -> bool {
-    abort_on_panic(|| style_group_payloads_equal(group_index, a, b))
+    style_group_payloads_equal(group_index, a, b)
 }
 
 /// One field of a style group the generic builder can populate or check: a
@@ -1723,37 +1723,35 @@ pub unsafe extern "C" fn rust_style_group_register_field_descriptors(
     descriptors: *const FfiGroupFieldDescriptor,
     count: usize,
 ) {
-    abort_on_panic(|| {
-        let slice = unsafe { std::slice::from_raw_parts(descriptors, count) };
-        let copied: Box<[FfiGroupFieldDescriptor]> = slice
-            .iter()
-            .map(|descriptor| FfiGroupFieldDescriptor { ..*descriptor })
-            .collect();
-        let group_count = copied
-            .iter()
-            .map(|descriptor| descriptor.group_index as usize + 1)
-            .max()
-            .unwrap_or(0);
-        let mut group_ranges = vec![0..0; group_count];
-        for (index, descriptor) in copied.iter().enumerate() {
-            let range = &mut group_ranges[descriptor.group_index as usize];
-            if range.start == range.end {
-                *range = index..index + 1;
-            } else {
-                assert_eq!(range.end, index, "a group's field descriptors must be contiguous");
-                range.end += 1;
-            }
+    let slice = unsafe { std::slice::from_raw_parts(descriptors, count) };
+    let copied: Box<[FfiGroupFieldDescriptor]> = slice
+        .iter()
+        .map(|descriptor| FfiGroupFieldDescriptor { ..*descriptor })
+        .collect();
+    let group_count = copied
+        .iter()
+        .map(|descriptor| descriptor.group_index as usize + 1)
+        .max()
+        .unwrap_or(0);
+    let mut group_ranges = vec![0..0; group_count];
+    for (index, descriptor) in copied.iter().enumerate() {
+        let range = &mut group_ranges[descriptor.group_index as usize];
+        if range.start == range.end {
+            *range = index..index + 1;
+        } else {
+            assert_eq!(range.end, index, "a group's field descriptors must be contiguous");
+            range.end += 1;
         }
-        assert!(
-            FIELD_DESCRIPTORS
-                .set(FieldDescriptors {
-                    entries: copied,
-                    group_ranges: group_ranges.into_boxed_slice(),
-                })
-                .is_ok(),
-            "field descriptors installed twice"
-        );
-    });
+    }
+    assert!(
+        FIELD_DESCRIPTORS
+            .set(FieldDescriptors {
+                entries: copied,
+                group_ranges: group_ranges.into_boxed_slice(),
+            })
+            .is_ok(),
+        "field descriptors installed twice"
+    );
 }
 
 /// Installs the dependency closure from longhand winners to computed style groups.
@@ -1767,20 +1765,18 @@ pub unsafe extern "C" fn rust_style_group_register_property_dependency_masks(
     output_masks: *const u32,
     count: usize,
 ) {
-    abort_on_panic(|| {
-        let masks = unsafe { std::slice::from_raw_parts(masks, count) };
-        let output_masks = unsafe { std::slice::from_raw_parts(output_masks, count) };
-        assert!(
-            PROPERTY_DEPENDENCY_MASKS
-                .set(PropertyDependencyMasks {
-                    first_property,
-                    masks: masks.into(),
-                    output_masks: output_masks.into(),
-                })
-                .is_ok(),
-            "property dependency masks installed twice"
-        );
-    });
+    let masks = unsafe { std::slice::from_raw_parts(masks, count) };
+    let output_masks = unsafe { std::slice::from_raw_parts(output_masks, count) };
+    assert!(
+        PROPERTY_DEPENDENCY_MASKS
+            .set(PropertyDependencyMasks {
+                first_property,
+                masks: masks.into(),
+                output_masks: output_masks.into(),
+            })
+            .is_ok(),
+        "property dependency masks installed twice"
+    );
 }
 
 /// One decoded write into a scratch payload.
@@ -2086,7 +2082,7 @@ pub unsafe extern "C" fn rust_build_style_group(
     count: usize,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    abort_on_panic(|| {
+    let build_or_reuse_group_payload = || {
         let descriptors = registered_group_field_descriptors(group_index)?;
         if descriptors.len() != count {
             return None;
@@ -2127,8 +2123,8 @@ pub unsafe extern "C" fn rust_build_style_group(
             return Some(default_payload);
         }
         Some(scratch as *const c_void)
-    })
-    .unwrap_or(std::ptr::null())
+    };
+    build_or_reuse_group_payload().unwrap_or(std::ptr::null())
 }
 
 /// Shares one group's immortal default payload - or the parent payload when
@@ -2214,45 +2210,41 @@ pub unsafe extern "C" fn rust_build_inherited_box_group(
 ) -> *const c_void {
     use crate::css::style_value::StyleValueData;
 
-    abort_on_panic(|| {
-        let keyword_code = |data: *const c_void, map: fn(u16) -> Option<u8>| -> u8 {
-            match unsafe { (data as *const StyleValueData).as_ref() } {
-                Some(StyleValueData::Keyword { keyword }) => {
-                    map(*keyword).expect("computed keyword has a supported value")
-                }
-                _ => panic!("computed inherited box value is not a keyword"),
-            }
-        };
-        let built = InheritedBoxValues {
-            visibility: keyword_code(visibility, crate::css::style_compute::keyword_to_visibility),
-            direction: keyword_code(direction, crate::css::style_compute::keyword_to_direction),
-            writing_mode: keyword_code(writing_mode, crate::css::style_compute::keyword_to_writing_mode),
-            content_visibility: keyword_code(
-                content_visibility,
-                crate::css::style_compute::keyword_to_content_visibility,
-            ),
-            image_rendering: keyword_code(image_rendering, crate::css::style_compute::keyword_to_image_rendering),
-        };
-
-        if !parent_payload.is_null() {
-            // SAFETY: The caller guarantees a valid inherited box payload.
-            if built == unsafe { *(parent_payload as *const InheritedBoxValues) } {
-                retain_group_payload(group_index, parent_payload);
-                return parent_payload;
-            }
+    let keyword_code = |data: *const c_void, map: fn(u16) -> Option<u8>| -> u8 {
+        match unsafe { (data as *const StyleValueData).as_ref() } {
+            Some(StyleValueData::Keyword { keyword }) => map(*keyword).expect("computed keyword has a supported value"),
+            _ => panic!("computed inherited box value is not a keyword"),
         }
+    };
+    let built = InheritedBoxValues {
+        visibility: keyword_code(visibility, crate::css::style_compute::keyword_to_visibility),
+        direction: keyword_code(direction, crate::css::style_compute::keyword_to_direction),
+        writing_mode: keyword_code(writing_mode, crate::css::style_compute::keyword_to_writing_mode),
+        content_visibility: keyword_code(
+            content_visibility,
+            crate::css::style_compute::keyword_to_content_visibility,
+        ),
+        image_rendering: keyword_code(image_rendering, crate::css::style_compute::keyword_to_image_rendering),
+    };
 
-        let default_payload = default_group_payload(group_index);
-        // SAFETY: The default payload is a valid inherited box payload.
-        if built == unsafe { *(default_payload as *const InheritedBoxValues) } {
-            return default_payload;
+    if !parent_payload.is_null() {
+        // SAFETY: The caller guarantees a valid inherited box payload.
+        if built == unsafe { *(parent_payload as *const InheritedBoxValues) } {
+            retain_group_payload(group_index, parent_payload);
+            return parent_payload;
         }
+    }
 
-        let payload = allocate_payload(vtable(group_index), 1);
-        // SAFETY: The payload was allocated for this group's layout.
-        unsafe { *(payload as *mut InheritedBoxValues) = built };
-        payload as *const c_void
-    })
+    let default_payload = default_group_payload(group_index);
+    // SAFETY: The default payload is a valid inherited box payload.
+    if built == unsafe { *(default_payload as *const InheritedBoxValues) } {
+        return default_payload;
+    }
+
+    let payload = allocate_payload(vtable(group_index), 1);
+    // SAFETY: The payload was allocated for this group's layout.
+    unsafe { *(payload as *mut InheritedBoxValues) = built };
+    payload as *const c_void
 }
 
 impl ComputedSize {
@@ -3123,7 +3115,7 @@ pub unsafe extern "C" fn rust_build_alignment_group(
 ) -> *const c_void {
     use crate::css::style_value::StyleValueData;
 
-    abort_on_panic(|| {
+    let build_or_reuse_group_payload = || {
         let keyword_code = |data: *const c_void, map: fn(u16) -> Option<u8>| -> Option<u8> {
             match unsafe { data.cast::<StyleValueData>().as_ref() } {
                 Some(StyleValueData::Keyword { keyword }) => map(*keyword),
@@ -3159,8 +3151,8 @@ pub unsafe extern "C" fn rust_build_alignment_group(
         let payload = allocate_payload(vtable(group_index), 1);
         unsafe { payload.cast::<AlignmentValues>().write(built) };
         Some(payload.cast_const())
-    })
-    .unwrap_or(std::ptr::null())
+    };
+    build_or_reuse_group_payload().unwrap_or(std::ptr::null())
 }
 
 /// Interns a complete non-inherited SVG geometry and painting group.
@@ -3212,40 +3204,38 @@ pub unsafe extern "C" fn rust_build_text_reset_group(
     white_space_trim_discard_inner: bool,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    abort_on_panic(|| {
-        let lines = if text_decoration_line_count == 0 {
-            &[]
+    let lines = if text_decoration_line_count == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(text_decoration_lines, text_decoration_line_count) }
+    };
+    let built = TextResetValues {
+        text_decoration_lines: RetainedTextDecorationLineList::from_vec(lines.to_vec()),
+        text_decoration_thickness_kind,
+        text_decoration_thickness: if text_decoration_thickness_kind == 2 {
+            ComputedStyleValueHandle::retained(text_decoration_thickness.cast())
         } else {
-            unsafe { std::slice::from_raw_parts(text_decoration_lines, text_decoration_line_count) }
-        };
-        let built = TextResetValues {
-            text_decoration_lines: RetainedTextDecorationLineList::from_vec(lines.to_vec()),
-            text_decoration_thickness_kind,
-            text_decoration_thickness: if text_decoration_thickness_kind == 2 {
-                ComputedStyleValueHandle::retained(text_decoration_thickness.cast())
-            } else {
-                ComputedStyleValueHandle::empty()
-            },
-            text_decoration_style,
-            text_decoration_color,
-            white_space_trim_discard_before,
-            white_space_trim_discard_after,
-            white_space_trim_discard_inner,
-        };
+            ComputedStyleValueHandle::empty()
+        },
+        text_decoration_style,
+        text_decoration_color,
+        white_space_trim_discard_before,
+        white_space_trim_discard_after,
+        white_space_trim_discard_inner,
+    };
 
-        if !parent_payload.is_null() && built.eq(unsafe { &*parent_payload.cast::<TextResetValues>() }) {
-            retain_group_payload(group_index, parent_payload);
-            return parent_payload;
-        }
-        let default_payload = default_group_payload(group_index);
-        if built.eq(unsafe { &*default_payload.cast::<TextResetValues>() }) {
-            return default_payload;
-        }
+    if !parent_payload.is_null() && built.eq(unsafe { &*parent_payload.cast::<TextResetValues>() }) {
+        retain_group_payload(group_index, parent_payload);
+        return parent_payload;
+    }
+    let default_payload = default_group_payload(group_index);
+    if built.eq(unsafe { &*default_payload.cast::<TextResetValues>() }) {
+        return default_payload;
+    }
 
-        let payload = allocate_payload(vtable(group_index), 1);
-        unsafe { payload.cast::<TextResetValues>().write(built) };
-        payload.cast_const()
-    })
+    let payload = allocate_payload(vtable(group_index), 1);
+    unsafe { payload.cast::<TextResetValues>().write(built) };
+    payload.cast_const()
 }
 
 /// # Safety
@@ -3257,14 +3247,12 @@ pub unsafe extern "C" fn rust_text_reset_set_decoration_lines(
     lines: *const u8,
     line_count: usize,
 ) {
-    abort_on_panic(|| {
-        let lines = if line_count == 0 {
-            &[]
-        } else {
-            unsafe { std::slice::from_raw_parts(lines, line_count) }
-        };
-        unsafe { (*target).text_decoration_lines = RetainedTextDecorationLineList::from_vec(lines.to_vec()) };
-    });
+    let lines = if line_count == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(lines, line_count) }
+    };
+    unsafe { (*target).text_decoration_lines = RetainedTextDecorationLineList::from_vec(lines.to_vec()) };
 }
 
 /// # Safety
@@ -3276,14 +3264,14 @@ pub unsafe extern "C" fn rust_text_reset_set_decoration_thickness(
     kind: u8,
     value: *const c_void,
 ) {
-    abort_on_panic(|| unsafe {
+    unsafe {
         (*target).text_decoration_thickness_kind = kind;
         (*target).text_decoration_thickness = if kind == 2 {
             ComputedStyleValueHandle { pointer: value }
         } else {
             ComputedStyleValueHandle::empty()
         };
-    });
+    };
 }
 
 /// Builds the complete surround group from the physical inset, margin, and
@@ -3314,7 +3302,7 @@ pub unsafe extern "C" fn rust_build_surround_group(
 ) -> *const c_void {
     use crate::css::style_value::StyleValueData;
 
-    abort_on_panic(|| {
+    let build_or_reuse_group_payload = || {
         let anchor = |data: *const c_void| {
             let data = data.cast::<StyleValueData>();
             if matches!(unsafe { data.as_ref() }, Some(StyleValueData::Anchor { .. })) {
@@ -3371,8 +3359,8 @@ pub unsafe extern "C" fn rust_build_surround_group(
         let payload = allocate_payload(vtable(group_index), 1);
         unsafe { payload.cast::<SurroundValues>().write(built) };
         Some(payload.cast_const())
-    })
-    .unwrap_or(std::ptr::null())
+    };
+    build_or_reuse_group_payload().unwrap_or(std::ptr::null())
 }
 
 /// Replaces the position-anchor style value retained for Rust layout.
@@ -3382,7 +3370,7 @@ pub unsafe extern "C" fn rust_build_surround_group(
 /// transfer one leaked fly-string reference when nonzero.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_surround_set_position_anchor(target: *mut SurroundValues, name_raw: usize) {
-    abort_on_panic(|| unsafe {
+    unsafe {
         (*target).position_anchor = if name_raw == 0 {
             ComputedStyleValueHandle::empty()
         } else {
@@ -3390,7 +3378,7 @@ pub unsafe extern "C" fn rust_surround_set_position_anchor(target: *mut Surround
                 pointer: crate::css::style_value::rust_style_value_create_custom_ident(name_raw).cast(),
             }
         };
-    });
+    };
 }
 
 /// Replaces the position-anchor value in a uniquely owned anchor payload.
@@ -3404,10 +3392,10 @@ pub unsafe extern "C" fn rust_anchor_set_position_anchor(
     position_anchor_type: u8,
     name_raw: usize,
 ) {
-    abort_on_panic(|| unsafe {
+    unsafe {
         (*target).position_anchor_type = position_anchor_type;
         (*target).position_anchor_name = RetainedUtf16FlyString::from_leaked_raw(name_raw);
-    });
+    };
 }
 
 /// Builds the box group from a fully materialized payload value. C++ resolves
@@ -3430,22 +3418,20 @@ pub unsafe extern "C" fn rust_build_box_group(
     values: *const BoxValues,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    abort_on_panic(|| {
-        let built = unsafe { values.read() };
+    let built = unsafe { values.read() };
 
-        if !parent_payload.is_null() && built.eq(unsafe { &*parent_payload.cast::<BoxValues>() }) {
-            retain_group_payload(group_index, parent_payload);
-            return parent_payload;
-        }
-        let default_payload = default_group_payload(group_index);
-        if built.eq(unsafe { &*default_payload.cast::<BoxValues>() }) {
-            return default_payload;
-        }
+    if !parent_payload.is_null() && built.eq(unsafe { &*parent_payload.cast::<BoxValues>() }) {
+        retain_group_payload(group_index, parent_payload);
+        return parent_payload;
+    }
+    let default_payload = default_group_payload(group_index);
+    if built.eq(unsafe { &*default_payload.cast::<BoxValues>() }) {
+        return default_payload;
+    }
 
-        let payload = allocate_payload(vtable(group_index), 1);
-        unsafe { payload.cast::<BoxValues>().write(built) };
-        payload.cast_const()
-    })
+    let payload = allocate_payload(vtable(group_index), 1);
+    unsafe { payload.cast::<BoxValues>().write(built) };
+    payload.cast_const()
 }
 
 /// # Safety
@@ -3458,22 +3444,20 @@ pub unsafe extern "C" fn rust_build_grid_group(
     values: *const GridValues,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    abort_on_panic(|| {
-        let built = unsafe { values.read() };
+    let built = unsafe { values.read() };
 
-        if !parent_payload.is_null() && built.eq(unsafe { &*parent_payload.cast::<GridValues>() }) {
-            retain_group_payload(group_index, parent_payload);
-            return parent_payload;
-        }
-        let default_payload = default_group_payload(group_index);
-        if built.eq(unsafe { &*default_payload.cast::<GridValues>() }) {
-            return default_payload;
-        }
+    if !parent_payload.is_null() && built.eq(unsafe { &*parent_payload.cast::<GridValues>() }) {
+        retain_group_payload(group_index, parent_payload);
+        return parent_payload;
+    }
+    let default_payload = default_group_payload(group_index);
+    if built.eq(unsafe { &*default_payload.cast::<GridValues>() }) {
+        return default_payload;
+    }
 
-        let payload = allocate_payload(vtable(group_index), 1);
-        unsafe { payload.cast::<GridValues>().write(built) };
-        payload.cast_const()
-    })
+    let payload = allocate_payload(vtable(group_index), 1);
+    unsafe { payload.cast::<GridValues>().write(built) };
+    payload.cast_const()
 }
 
 /// # Safety
@@ -3481,37 +3465,35 @@ pub unsafe extern "C" fn rust_build_grid_group(
 /// group value.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_grid_values_copy_placements(source: *const GridValues, target: *mut GridValues) {
-    abort_on_panic(|| {
-        // SAFETY: The caller passes a valid source payload and a uniquely
-        // owned target value.
-        let (source, target) = unsafe { (&*source, &mut *target) };
-        let mut remapped = |placement: ComputedGridPlacement| {
-            let mut remap_index = |index: u32| {
-                if index == GRID_NO_INDEX {
-                    return GRID_NO_INDEX;
-                }
-                target.intern_name(&source.names.as_slice()[index as usize])
-            };
-            ComputedGridPlacement {
-                name_index: remap_index(placement.name_index),
-                implicit_start_name_index: remap_index(placement.implicit_start_name_index),
-                implicit_end_name_index: remap_index(placement.implicit_end_name_index),
-                ..placement
+    // SAFETY: The caller passes a valid source payload and a uniquely
+    // owned target value.
+    let (source, target) = unsafe { (&*source, &mut *target) };
+    let mut remapped = |placement: ComputedGridPlacement| {
+        let mut remap_index = |index: u32| {
+            if index == GRID_NO_INDEX {
+                return GRID_NO_INDEX;
             }
+            target.intern_name(&source.names.as_slice()[index as usize])
         };
-        let column_start = remapped(source.column_start);
-        let column_end = remapped(source.column_end);
-        let row_start = remapped(source.row_start);
-        let row_end = remapped(source.row_end);
-        target.column_start = column_start;
-        target.column_end = column_end;
-        target.row_start = row_start;
-        target.row_end = row_end;
-        target.grid_column_start_style_value = source.grid_column_start_style_value.clone();
-        target.grid_column_end_style_value = source.grid_column_end_style_value.clone();
-        target.grid_row_start_style_value = source.grid_row_start_style_value.clone();
-        target.grid_row_end_style_value = source.grid_row_end_style_value.clone();
-    });
+        ComputedGridPlacement {
+            name_index: remap_index(placement.name_index),
+            implicit_start_name_index: remap_index(placement.implicit_start_name_index),
+            implicit_end_name_index: remap_index(placement.implicit_end_name_index),
+            ..placement
+        }
+    };
+    let column_start = remapped(source.column_start);
+    let column_end = remapped(source.column_end);
+    let row_start = remapped(source.row_start);
+    let row_end = remapped(source.row_end);
+    target.column_start = column_start;
+    target.column_end = column_end;
+    target.row_start = row_start;
+    target.row_end = row_end;
+    target.grid_column_start_style_value = source.grid_column_start_style_value.clone();
+    target.grid_column_end_style_value = source.grid_column_end_style_value.clone();
+    target.grid_row_start_style_value = source.grid_row_start_style_value.clone();
+    target.grid_row_end_style_value = source.grid_row_end_style_value.clone();
 }
 
 /// # Safety
@@ -3521,61 +3503,57 @@ pub unsafe extern "C" fn rust_grid_values_placements_equal(
     source: *const GridValues,
     target: *const GridValues,
 ) -> bool {
-    abort_on_panic(|| {
-        // SAFETY: The caller passes valid payloads and only reads them.
-        let (source, target) = unsafe { (&*source, &*target) };
-        let name_raw = |grid: &GridValues, index: u32| {
-            if index == GRID_NO_INDEX {
-                return 0;
-            }
-            grid.names.as_slice()[index as usize].raw()
-        };
-        // Name indices are payload-local, so a placement compares as its index-neutralized
-        // shape plus the raw names those indices resolve to; a field added to
-        // ComputedGridPlacement flows into the comparison through the struct update.
-        let comparable_placement = |grid: &GridValues, placement: &ComputedGridPlacement| {
-            (
-                ComputedGridPlacement {
-                    name_index: GRID_NO_INDEX,
-                    implicit_start_name_index: GRID_NO_INDEX,
-                    implicit_end_name_index: GRID_NO_INDEX,
-                    ..*placement
-                },
-                name_raw(grid, placement.name_index),
-                name_raw(grid, placement.implicit_start_name_index),
-                name_raw(grid, placement.implicit_end_name_index),
-            )
-        };
-        let placements_equal = |ours: &ComputedGridPlacement, theirs: &ComputedGridPlacement| {
-            comparable_placement(source, ours) == comparable_placement(target, theirs)
-        };
-        placements_equal(&source.column_start, &target.column_start)
-            && placements_equal(&source.column_end, &target.column_end)
-            && placements_equal(&source.row_start, &target.row_start)
-            && placements_equal(&source.row_end, &target.row_end)
-            && source.grid_column_start_style_value == target.grid_column_start_style_value
-            && source.grid_column_end_style_value == target.grid_column_end_style_value
-            && source.grid_row_start_style_value == target.grid_row_start_style_value
-            && source.grid_row_end_style_value == target.grid_row_end_style_value
-    })
+    // SAFETY: The caller passes valid payloads and only reads them.
+    let (source, target) = unsafe { (&*source, &*target) };
+    let name_raw = |grid: &GridValues, index: u32| {
+        if index == GRID_NO_INDEX {
+            return 0;
+        }
+        grid.names.as_slice()[index as usize].raw()
+    };
+    // Name indices are payload-local, so a placement compares as its index-neutralized
+    // shape plus the raw names those indices resolve to; a field added to
+    // ComputedGridPlacement flows into the comparison through the struct update.
+    let comparable_placement = |grid: &GridValues, placement: &ComputedGridPlacement| {
+        (
+            ComputedGridPlacement {
+                name_index: GRID_NO_INDEX,
+                implicit_start_name_index: GRID_NO_INDEX,
+                implicit_end_name_index: GRID_NO_INDEX,
+                ..*placement
+            },
+            name_raw(grid, placement.name_index),
+            name_raw(grid, placement.implicit_start_name_index),
+            name_raw(grid, placement.implicit_end_name_index),
+        )
+    };
+    let placements_equal = |ours: &ComputedGridPlacement, theirs: &ComputedGridPlacement| {
+        comparable_placement(source, ours) == comparable_placement(target, theirs)
+    };
+    placements_equal(&source.column_start, &target.column_start)
+        && placements_equal(&source.column_end, &target.column_end)
+        && placements_equal(&source.row_start, &target.row_start)
+        && placements_equal(&source.row_end, &target.row_end)
+        && source.grid_column_start_style_value == target.grid_column_start_style_value
+        && source.grid_column_end_style_value == target.grid_column_end_style_value
+        && source.grid_row_start_style_value == target.grid_row_start_style_value
+        && source.grid_row_end_style_value == target.grid_row_end_style_value
 }
 
 /// # Safety
 /// `target` must be a uniquely owned grid group value.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_grid_values_reset_placements_to_auto(target: *mut GridValues) {
-    abort_on_panic(|| {
-        // SAFETY: The caller passes a uniquely owned target value.
-        let target = unsafe { &mut *target };
-        target.column_start = AUTO_GRID_PLACEMENT;
-        target.column_end = AUTO_GRID_PLACEMENT;
-        target.row_start = AUTO_GRID_PLACEMENT;
-        target.row_end = AUTO_GRID_PLACEMENT;
-        target.grid_column_start_style_value = ComputedStyleValueHandle::empty();
-        target.grid_column_end_style_value = ComputedStyleValueHandle::empty();
-        target.grid_row_start_style_value = ComputedStyleValueHandle::empty();
-        target.grid_row_end_style_value = ComputedStyleValueHandle::empty();
-    });
+    // SAFETY: The caller passes a uniquely owned target value.
+    let target = unsafe { &mut *target };
+    target.column_start = AUTO_GRID_PLACEMENT;
+    target.column_end = AUTO_GRID_PLACEMENT;
+    target.row_start = AUTO_GRID_PLACEMENT;
+    target.row_end = AUTO_GRID_PLACEMENT;
+    target.grid_column_start_style_value = ComputedStyleValueHandle::empty();
+    target.grid_column_end_style_value = ComputedStyleValueHandle::empty();
+    target.grid_row_start_style_value = ComputedStyleValueHandle::empty();
+    target.grid_row_end_style_value = ComputedStyleValueHandle::empty();
 }
 
 /// Builds the complete sizing group from its six computed values. Accepted
@@ -3597,30 +3575,28 @@ pub unsafe extern "C" fn rust_build_sizing_group(
     max_height: *const c_void,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    abort_on_panic(|| {
-        let built = SizingValues {
-            width: ComputedSize::from_data(width),
-            min_width: ComputedSize::from_data(min_width),
-            max_width: ComputedSize::from_data(max_width),
-            height: ComputedSize::from_data(height),
-            min_height: ComputedSize::from_data(min_height),
-            max_height: ComputedSize::from_data(max_height),
-        };
+    let built = SizingValues {
+        width: ComputedSize::from_data(width),
+        min_width: ComputedSize::from_data(min_width),
+        max_width: ComputedSize::from_data(max_width),
+        height: ComputedSize::from_data(height),
+        min_height: ComputedSize::from_data(min_height),
+        max_height: ComputedSize::from_data(max_height),
+    };
 
-        if !parent_payload.is_null() && built.eq(unsafe { &*(parent_payload as *const SizingValues) }) {
-            retain_group_payload(group_index, parent_payload);
-            return parent_payload;
-        }
+    if !parent_payload.is_null() && built.eq(unsafe { &*(parent_payload as *const SizingValues) }) {
+        retain_group_payload(group_index, parent_payload);
+        return parent_payload;
+    }
 
-        let default_payload = default_group_payload(group_index);
-        if built.eq(unsafe { &*(default_payload as *const SizingValues) }) {
-            return default_payload;
-        }
+    let default_payload = default_group_payload(group_index);
+    if built.eq(unsafe { &*(default_payload as *const SizingValues) }) {
+        return default_payload;
+    }
 
-        let payload = allocate_payload(vtable(group_index), 1);
-        unsafe { (payload as *mut SizingValues).write(built) };
-        payload
-    })
+    let payload = allocate_payload(vtable(group_index), 1);
+    unsafe { (payload as *mut SizingValues).write(built) };
+    payload
 }
 
 /// Builds an inherited table group payload from the computed values, with the
@@ -3641,54 +3617,50 @@ pub unsafe extern "C" fn rust_build_inherited_table_group(
 ) -> *const c_void {
     use crate::css::style_value::StyleValueData;
 
-    abort_on_panic(|| {
-        let keyword_code = |data: *const c_void, map: fn(u16) -> Option<u8>| -> u8 {
-            match unsafe { (data as *const StyleValueData).as_ref() } {
-                Some(StyleValueData::Keyword { keyword }) => {
-                    map(*keyword).expect("computed keyword has a supported value")
-                }
-                _ => panic!("computed inherited table value is not a keyword"),
-            }
-        };
-        let spacing_component = |data: &StyleValueData| -> i32 {
-            match data {
-                StyleValueData::Length { value, unit } if *unit == crate::css::style_compute::px_length_unit() => {
-                    crate::css::css_pixels::CssPixels::nearest_value_for(*value).raw_value()
-                }
-                _ => panic!("computed border-spacing component is not an absolute pixel length"),
-            }
-        };
-        let components = match unsafe { (border_spacing as *const StyleValueData).as_ref() } {
-            Some(StyleValueData::ValueList { values, .. }) if values.as_slice().len() == 2 => values.as_slice(),
-            _ => panic!("computed border-spacing is not a pair"),
-        };
-        let built = InheritedTableValues {
-            border_collapse: keyword_code(border_collapse, crate::css::style_compute::keyword_to_border_collapse),
-            caption_side: keyword_code(caption_side, crate::css::style_compute::keyword_to_caption_side),
-            empty_cells: keyword_code(empty_cells, crate::css::style_compute::keyword_to_empty_cells),
-            border_spacing_horizontal: spacing_component(components[0].data()),
-            border_spacing_vertical: spacing_component(components[1].data()),
-        };
-
-        if !parent_payload.is_null() {
-            // SAFETY: The caller guarantees a valid inherited table payload.
-            if built == unsafe { *(parent_payload as *const InheritedTableValues) } {
-                retain_group_payload(group_index, parent_payload);
-                return parent_payload;
-            }
+    let keyword_code = |data: *const c_void, map: fn(u16) -> Option<u8>| -> u8 {
+        match unsafe { (data as *const StyleValueData).as_ref() } {
+            Some(StyleValueData::Keyword { keyword }) => map(*keyword).expect("computed keyword has a supported value"),
+            _ => panic!("computed inherited table value is not a keyword"),
         }
-
-        let default_payload = default_group_payload(group_index);
-        // SAFETY: The default payload is a valid inherited table payload.
-        if built == unsafe { *(default_payload as *const InheritedTableValues) } {
-            return default_payload;
+    };
+    let spacing_component = |data: &StyleValueData| -> i32 {
+        match data {
+            StyleValueData::Length { value, unit } if *unit == crate::css::style_compute::px_length_unit() => {
+                crate::css::css_pixels::CssPixels::nearest_value_for(*value).raw_value()
+            }
+            _ => panic!("computed border-spacing component is not an absolute pixel length"),
         }
+    };
+    let components = match unsafe { (border_spacing as *const StyleValueData).as_ref() } {
+        Some(StyleValueData::ValueList { values, .. }) if values.as_slice().len() == 2 => values.as_slice(),
+        _ => panic!("computed border-spacing is not a pair"),
+    };
+    let built = InheritedTableValues {
+        border_collapse: keyword_code(border_collapse, crate::css::style_compute::keyword_to_border_collapse),
+        caption_side: keyword_code(caption_side, crate::css::style_compute::keyword_to_caption_side),
+        empty_cells: keyword_code(empty_cells, crate::css::style_compute::keyword_to_empty_cells),
+        border_spacing_horizontal: spacing_component(components[0].data()),
+        border_spacing_vertical: spacing_component(components[1].data()),
+    };
 
-        let payload = allocate_payload(vtable(group_index), 1);
-        // SAFETY: The payload was allocated for this group's layout.
-        unsafe { *(payload as *mut InheritedTableValues) = built };
-        payload as *const c_void
-    })
+    if !parent_payload.is_null() {
+        // SAFETY: The caller guarantees a valid inherited table payload.
+        if built == unsafe { *(parent_payload as *const InheritedTableValues) } {
+            retain_group_payload(group_index, parent_payload);
+            return parent_payload;
+        }
+    }
+
+    let default_payload = default_group_payload(group_index);
+    // SAFETY: The default payload is a valid inherited table payload.
+    if built == unsafe { *(default_payload as *const InheritedTableValues) } {
+        return default_payload;
+    }
+
+    let payload = allocate_payload(vtable(group_index), 1);
+    // SAFETY: The payload was allocated for this group's layout.
+    unsafe { *(payload as *mut InheritedTableValues) = built };
+    payload as *const c_void
 }
 
 /// Layout of the inherited table style value group.

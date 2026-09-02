@@ -516,27 +516,25 @@ pub unsafe extern "C" fn rust_parse_css_descriptor(
     name: FfiUtf16View,
     source: FfiUtf16View,
 ) -> *const c_void {
-    crate::abort_on_panic(|| {
-        let Some(context) = (unsafe { context.as_ref() }) else {
-            return std::ptr::null();
-        };
-        let Some(name) = (unsafe { name.units() }) else {
-            return std::ptr::null();
-        };
-        let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null();
-        };
-        let Ok(values) = consume_a_list_of_component_values(tokenize_for_parser(source)) else {
-            return std::ptr::null();
-        };
-        let mut name_units = Vec::with_capacity(name.len());
-        name.append_to(&mut name_units);
-        let mut source_units = Vec::with_capacity(source.len());
-        source.append_to(&mut source_units);
-        parse_descriptor(context, at_rule, &name_units, &values, &source_units)
-            .map(|descriptor| Arc::into_raw(descriptor.value).cast::<c_void>())
-            .unwrap_or(std::ptr::null())
-    })
+    let Some(context) = (unsafe { context.as_ref() }) else {
+        return std::ptr::null();
+    };
+    let Some(name) = (unsafe { name.units() }) else {
+        return std::ptr::null();
+    };
+    let Some(source) = (unsafe { source.units() }) else {
+        return std::ptr::null();
+    };
+    let Ok(values) = consume_a_list_of_component_values(tokenize_for_parser(source)) else {
+        return std::ptr::null();
+    };
+    let mut name_units = Vec::with_capacity(name.len());
+    name.append_to(&mut name_units);
+    let mut source_units = Vec::with_capacity(source.len());
+    source.append_to(&mut source_units);
+    parse_descriptor(context, at_rule, &name_units, &values, &source_units)
+        .map(|descriptor| Arc::into_raw(descriptor.value).cast::<c_void>())
+        .unwrap_or(std::ptr::null())
 }
 
 #[cfg(test)]

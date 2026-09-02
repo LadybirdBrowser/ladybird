@@ -530,15 +530,13 @@ pub unsafe extern "C" fn rust_numeric_type_operate(
     second: *const FfiNumericType,
 ) -> FfiNumericType {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
-    crate::abort_on_panic(|| {
-        let first = unsafe { &*first }.to_calc();
-        let result = match operation {
-            FfiNumericTypeOperation::Add => first.added_to(&unsafe { &*second }.to_calc()),
-            FfiNumericTypeOperation::Multiply => first.multiplied_by(&unsafe { &*second }.to_calc()),
-            FfiNumericTypeOperation::Invert => Some(first.inverted()),
-        };
-        FfiNumericType::from_calc(result)
-    })
+    let first = unsafe { &*first }.to_calc();
+    let result = match operation {
+        FfiNumericTypeOperation::Add => first.added_to(&unsafe { &*second }.to_calc()),
+        FfiNumericTypeOperation::Multiply => first.multiplied_by(&unsafe { &*second }.to_calc()),
+        FfiNumericTypeOperation::Invert => Some(first.inverted()),
+    };
+    FfiNumericType::from_calc(result)
 }
 
 /// Tests a numeric type against one of the CSS numeric matching categories.
@@ -554,18 +552,16 @@ pub unsafe extern "C" fn rust_numeric_type_matches(
     percentages_resolve_as: u8,
 ) -> bool {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
-    crate::abort_on_panic(|| {
-        let numeric_type = unsafe { &*numeric_type }.to_calc();
-        let resolve_as = resolve_as_for_value_type(has_percentages_resolve_as.then_some(percentages_resolve_as));
-        match match_kind {
-            FfiNumericTypeMatch::Dimension => numeric_type.matches_dimension(base_type as usize, resolve_as),
-            FfiNumericTypeMatch::Percentage => numeric_type.matches_percentage(),
-            FfiNumericTypeMatch::DimensionPercentage => {
-                numeric_type.matches_dimension_percentage(base_type as usize, resolve_as)
-            }
-            FfiNumericTypeMatch::Number => numeric_type.matches_number(resolve_as),
+    let numeric_type = unsafe { &*numeric_type }.to_calc();
+    let resolve_as = resolve_as_for_value_type(has_percentages_resolve_as.then_some(percentages_resolve_as));
+    match match_kind {
+        FfiNumericTypeMatch::Dimension => numeric_type.matches_dimension(base_type as usize, resolve_as),
+        FfiNumericTypeMatch::Percentage => numeric_type.matches_percentage(),
+        FfiNumericTypeMatch::DimensionPercentage => {
+            numeric_type.matches_dimension_percentage(base_type as usize, resolve_as)
         }
-    })
+        FfiNumericTypeMatch::Number => numeric_type.matches_number(resolve_as),
+    }
 }
 
 /// https://drafts.csswg.org/css-values-4/#round-func
@@ -1084,29 +1080,27 @@ unsafe fn children_from_raw(children: *const *const CalcNode, count: usize) -> V
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_calc_node_create_numeric_dimension(kind: u8, value: f64, unit: u8) -> *const CalcNode {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
-    crate::abort_on_panic(|| {
-        let numeric = match kind {
-            0 => CalcNumericValue::Number {
-                value,
-                number_type: unit,
-            },
-            1 => CalcNumericValue::Angle { value, unit },
-            2 => CalcNumericValue::Flex { value, unit },
-            3 => CalcNumericValue::Frequency { value, unit },
-            4 => CalcNumericValue::Length { value, unit },
-            5 => CalcNumericValue::Percentage(value),
-            6 => CalcNumericValue::Resolution { value, unit },
-            7 => CalcNumericValue::Time { value, unit },
-            _ => unreachable!("invalid numeric dimension kind {kind}"),
-        };
-        handle(CalcNode::Numeric(numeric))
-    })
+    let numeric = match kind {
+        0 => CalcNumericValue::Number {
+            value,
+            number_type: unit,
+        },
+        1 => CalcNumericValue::Angle { value, unit },
+        2 => CalcNumericValue::Flex { value, unit },
+        3 => CalcNumericValue::Frequency { value, unit },
+        4 => CalcNumericValue::Length { value, unit },
+        5 => CalcNumericValue::Percentage(value),
+        6 => CalcNumericValue::Resolution { value, unit },
+        7 => CalcNumericValue::Time { value, unit },
+        _ => unreachable!("invalid numeric dimension kind {kind}"),
+    };
+    handle(CalcNode::Numeric(numeric))
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_calc_node_create_channel_keyword(channel: u8) -> *const CalcNode {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
-    crate::abort_on_panic(|| handle(CalcNode::ChannelKeyword(channel)))
+    handle(CalcNode::ChannelKeyword(channel))
 }
 
 /// Creates a variadic node: kind selects sum (0), product (1), min (2),
@@ -1121,18 +1115,16 @@ pub unsafe extern "C" fn rust_calc_node_create_variadic(
     count: usize,
 ) -> *const CalcNode {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
-    crate::abort_on_panic(|| {
-        let children = unsafe { children_from_raw(children, count) };
-        let node = match kind {
-            0 => CalcNode::Sum(children),
-            1 => CalcNode::Product(children),
-            2 => CalcNode::Min(children),
-            3 => CalcNode::Max(children),
-            4 => CalcNode::Hypot(children),
-            _ => unreachable!("invalid variadic calc node kind {kind}"),
-        };
-        handle(node)
-    })
+    let children = unsafe { children_from_raw(children, count) };
+    let node = match kind {
+        0 => CalcNode::Sum(children),
+        1 => CalcNode::Product(children),
+        2 => CalcNode::Min(children),
+        3 => CalcNode::Max(children),
+        4 => CalcNode::Hypot(children),
+        _ => unreachable!("invalid variadic calc node kind {kind}"),
+    };
+    handle(node)
 }
 
 /// Creates a single-child node: kind selects negate (0), invert (1), abs (2),
@@ -1144,25 +1136,23 @@ pub unsafe extern "C" fn rust_calc_node_create_variadic(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_create_unary(kind: u8, child: *const CalcNode) -> *const CalcNode {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
-    crate::abort_on_panic(|| {
-        let child = unsafe { Arc::from_raw(child) };
-        let node = match kind {
-            0 => CalcNode::Negate(child),
-            1 => CalcNode::Invert(child),
-            2 => CalcNode::Abs(child),
-            3 => CalcNode::Sign(child),
-            4 => CalcNode::Sin(child),
-            5 => CalcNode::Cos(child),
-            6 => CalcNode::Tan(child),
-            7 => CalcNode::Asin(child),
-            8 => CalcNode::Acos(child),
-            9 => CalcNode::Atan(child),
-            10 => CalcNode::Sqrt(child),
-            11 => CalcNode::Exp(child),
-            _ => unreachable!("invalid unary calc node kind {kind}"),
-        };
-        handle(node)
-    })
+    let child = unsafe { Arc::from_raw(child) };
+    let node = match kind {
+        0 => CalcNode::Negate(child),
+        1 => CalcNode::Invert(child),
+        2 => CalcNode::Abs(child),
+        3 => CalcNode::Sign(child),
+        4 => CalcNode::Sin(child),
+        5 => CalcNode::Cos(child),
+        6 => CalcNode::Tan(child),
+        7 => CalcNode::Asin(child),
+        8 => CalcNode::Acos(child),
+        9 => CalcNode::Atan(child),
+        10 => CalcNode::Sqrt(child),
+        11 => CalcNode::Exp(child),
+        _ => unreachable!("invalid unary calc node kind {kind}"),
+    };
+    handle(node)
 }
 
 /// Creates a two-child node: kind selects atan2 (0), pow (1), log (2),
@@ -1177,31 +1167,29 @@ pub unsafe extern "C" fn rust_calc_node_create_binary(
     second: *const CalcNode,
 ) -> *const CalcNode {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
-    crate::abort_on_panic(|| {
-        let first = unsafe { Arc::from_raw(first) };
-        let second = unsafe { Arc::from_raw(second) };
-        let node = match kind {
-            0 => CalcNode::Atan2 { y: first, x: second },
-            1 => CalcNode::Pow {
-                base: first,
-                exponent: second,
-            },
-            2 => CalcNode::Log {
-                value: first,
-                base: second,
-            },
-            3 => CalcNode::Mod {
-                value: first,
-                modulus: second,
-            },
-            4 => CalcNode::Rem {
-                value: first,
-                divisor: second,
-            },
-            _ => unreachable!("invalid binary calc node kind {kind}"),
-        };
-        handle(node)
-    })
+    let first = unsafe { Arc::from_raw(first) };
+    let second = unsafe { Arc::from_raw(second) };
+    let node = match kind {
+        0 => CalcNode::Atan2 { y: first, x: second },
+        1 => CalcNode::Pow {
+            base: first,
+            exponent: second,
+        },
+        2 => CalcNode::Log {
+            value: first,
+            base: second,
+        },
+        3 => CalcNode::Mod {
+            value: first,
+            modulus: second,
+        },
+        4 => CalcNode::Rem {
+            value: first,
+            divisor: second,
+        },
+        _ => unreachable!("invalid binary calc node kind {kind}"),
+    };
+    handle(node)
 }
 
 /// # Safety
@@ -1213,12 +1201,10 @@ pub unsafe extern "C" fn rust_calc_node_create_clamp(
     max: *const CalcNode,
 ) -> *const CalcNode {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
-    crate::abort_on_panic(|| {
-        handle(CalcNode::Clamp {
-            min: unsafe { Arc::from_raw(min) },
-            center: unsafe { Arc::from_raw(center) },
-            max: unsafe { Arc::from_raw(max) },
-        })
+    handle(CalcNode::Clamp {
+        min: unsafe { Arc::from_raw(min) },
+        center: unsafe { Arc::from_raw(center) },
+        max: unsafe { Arc::from_raw(max) },
     })
 }
 
@@ -1232,13 +1218,11 @@ pub unsafe extern "C" fn rust_calc_node_create_progress(
     to: *const CalcNode,
 ) -> *const CalcNode {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
-    crate::abort_on_panic(|| {
-        handle(CalcNode::Progress {
-            no_clamp,
-            progress: unsafe { Arc::from_raw(progress) },
-            from: unsafe { Arc::from_raw(from) },
-            to: unsafe { Arc::from_raw(to) },
-        })
+    handle(CalcNode::Progress {
+        no_clamp,
+        progress: unsafe { Arc::from_raw(progress) },
+        from: unsafe { Arc::from_raw(from) },
+        to: unsafe { Arc::from_raw(to) },
     })
 }
 
@@ -1251,12 +1235,10 @@ pub unsafe extern "C" fn rust_calc_node_create_round(
     interval: *const CalcNode,
 ) -> *const CalcNode {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
-    crate::abort_on_panic(|| {
-        handle(CalcNode::Round {
-            strategy,
-            value: unsafe { Arc::from_raw(value) },
-            interval: unsafe { Arc::from_raw(interval) },
-        })
+    handle(CalcNode::Round {
+        strategy,
+        value: unsafe { Arc::from_raw(value) },
+        interval: unsafe { Arc::from_raw(interval) },
     })
 }
 
@@ -1271,17 +1253,15 @@ pub unsafe extern "C" fn rust_calc_node_create_random(
     sharing: *const std::ffi::c_void,
 ) -> *const CalcNode {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
-    crate::abort_on_panic(|| {
-        handle(CalcNode::Random {
-            min: unsafe { Arc::from_raw(min) },
-            max: unsafe { Arc::from_raw(max) },
-            step: if step.is_null() {
-                None
-            } else {
-                Some(unsafe { Arc::from_raw(step) })
-            },
-            sharing: unsafe { RetainedStyleValueData::from_retained_pointer(sharing.cast()) },
-        })
+    handle(CalcNode::Random {
+        min: unsafe { Arc::from_raw(min) },
+        max: unsafe { Arc::from_raw(max) },
+        step: if step.is_null() {
+            None
+        } else {
+            Some(unsafe { Arc::from_raw(step) })
+        },
+        sharing: unsafe { RetainedStyleValueData::from_retained_pointer(sharing.cast()) },
     })
 }
 
@@ -1293,11 +1273,9 @@ pub unsafe extern "C" fn rust_calc_node_create_non_math_function(
     numeric_type: *const FfiNumericType,
 ) -> *const CalcNode {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
-    crate::abort_on_panic(|| {
-        handle(CalcNode::NonMathFunction {
-            value: unsafe { RetainedStyleValueData::from_retained_pointer(value.cast()) },
-            numeric_type: unsafe { &*numeric_type }.to_calc(),
-        })
+    handle(CalcNode::NonMathFunction {
+        value: unsafe { RetainedStyleValueData::from_retained_pointer(value.cast()) },
+        numeric_type: unsafe { &*numeric_type }.to_calc(),
     })
 }
 
@@ -1306,7 +1284,7 @@ pub unsafe extern "C" fn rust_calc_node_create_non_math_function(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_release(node: *const CalcNode) {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeRetainReleaseEntry);
-    crate::abort_on_panic(|| drop(unsafe { Arc::from_raw(node) }));
+    drop(unsafe { Arc::from_raw(node) });
 }
 
 /// Retains an additional strong reference to a calculation node, so the C++
@@ -1317,7 +1295,7 @@ pub unsafe extern "C" fn rust_calc_node_release(node: *const CalcNode) {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_retain(node: *const CalcNode) {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeRetainReleaseEntry);
-    crate::abort_on_panic(|| unsafe { Arc::increment_strong_count(node) });
+    unsafe { Arc::increment_strong_count(node) };
 }
 
 /// https://drafts.csswg.org/css-values-4/#determine-the-type-of-a-calculation
@@ -1335,11 +1313,9 @@ pub unsafe extern "C" fn rust_calc_node_determine_type(
     resolve_as_base: u8,
 ) -> FfiNumericType {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeQueryEntry);
-    crate::abort_on_panic(|| {
-        let resolve_as = resolve_as_from_fields(has_percentages_resolve_as, resolve_as_is_number, resolve_as_base);
-        let percentage_leaf_type = percentage_leaf_type_for(resolve_as);
-        FfiNumericType::from_calc(unsafe { &*node }.numeric_type(&percentage_leaf_type))
-    })
+    let resolve_as = resolve_as_from_fields(has_percentages_resolve_as, resolve_as_is_number, resolve_as_base);
+    let percentage_leaf_type = percentage_leaf_type_for(resolve_as);
+    FfiNumericType::from_calc(unsafe { &*node }.numeric_type(&percentage_leaf_type))
 }
 
 /// Whether any leaf of the calculation is a percentage.
@@ -1349,7 +1325,7 @@ pub unsafe extern "C" fn rust_calc_node_determine_type(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_contains_percentage(node: *const CalcNode) -> bool {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeQueryEntry);
-    crate::abort_on_panic(|| unsafe { &*node }.contains_percentage())
+    unsafe { &*node }.contains_percentage()
 }
 
 /// What percentages resolve against in the surrounding context.
@@ -2760,39 +2736,37 @@ pub unsafe extern "C" fn rust_calc_external_resolutions(
     basis_unit: u8,
 ) -> FfiCalcExternalResolutions {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
-    crate::abort_on_panic(|| {
-        let mut resolutions = Vec::new();
-        let root = unsafe { &*root };
-        collect_external_resolutions(root, &mut resolutions);
-        if basis_kind == 3
-            && root.contains_percentage()
-            && crate::css::style_compute::LENGTH_UNIT_NAMES[basis_unit as usize].starts_with("cq")
-        {
-            resolutions.push(FfiCalcExternalResolution {
-                kind: FfiCalcExternalResolutionKind::Length,
-                source: std::ptr::null(),
-                input_value: basis_value,
-                unit_or_channel: basis_unit,
-                has_number: false,
-                number: 0.0,
-                resolved_node: std::ptr::null(),
-                resolved_style_value: std::ptr::null(),
-            });
-        }
-        let storage = Box::new(CalcExternalResolutionStorage {
-            resolutions: resolutions.into_boxed_slice(),
+    let mut resolutions = Vec::new();
+    let root = unsafe { &*root };
+    collect_external_resolutions(root, &mut resolutions);
+    if basis_kind == 3
+        && root.contains_percentage()
+        && crate::css::style_compute::LENGTH_UNIT_NAMES[basis_unit as usize].starts_with("cq")
+    {
+        resolutions.push(FfiCalcExternalResolution {
+            kind: FfiCalcExternalResolutionKind::Length,
+            source: std::ptr::null(),
+            input_value: basis_value,
+            unit_or_channel: basis_unit,
+            has_number: false,
+            number: 0.0,
+            resolved_node: std::ptr::null(),
+            resolved_style_value: std::ptr::null(),
         });
-        let result = FfiCalcExternalResolutions {
-            resolutions: storage.resolutions.as_ptr().cast_mut(),
-            resolution_count: storage.resolutions.len(),
-            storage: std::ptr::null_mut(),
-        };
-        let storage = Box::into_raw(storage);
-        FfiCalcExternalResolutions {
-            storage: storage.cast(),
-            ..result
-        }
-    })
+    }
+    let storage = Box::new(CalcExternalResolutionStorage {
+        resolutions: resolutions.into_boxed_slice(),
+    });
+    let result = FfiCalcExternalResolutions {
+        resolutions: storage.resolutions.as_ptr().cast_mut(),
+        resolution_count: storage.resolutions.len(),
+        storage: std::ptr::null_mut(),
+    };
+    let storage = Box::into_raw(storage);
+    FfiCalcExternalResolutions {
+        storage: storage.cast(),
+        ..result
+    }
 }
 
 /// Returns the borrowed calculation-tree root stored in calculated style value
@@ -2802,14 +2776,12 @@ pub unsafe extern "C" fn rust_calc_external_resolutions(
 /// `calculated` must point at live Calculated style value data.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_root_from_calculated(calculated: *const std::ffi::c_void) -> *const CalcNode {
-    crate::abort_on_panic(|| {
-        let crate::css::style_value::StyleValueData::Calculated { rust_calculation, .. } =
-            (unsafe { &*(calculated as *const crate::css::style_value::StyleValueData) })
-        else {
-            unreachable!("rust_calc_root_from_calculated requires calculated value data");
-        };
-        rust_calculation.node()
-    })
+    let crate::css::style_value::StyleValueData::Calculated { rust_calculation, .. } =
+        (unsafe { &*(calculated as *const crate::css::style_value::StyleValueData) })
+    else {
+        unreachable!("rust_calc_root_from_calculated requires calculated value data");
+    };
+    rust_calculation.node()
 }
 
 /// # Safety
@@ -3484,47 +3456,45 @@ pub unsafe extern "C" fn rust_calc_resolve(
 ) -> FfiResolvedCalc {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
     use crate::css::style_value::StyleValueData;
-    crate::abort_on_panic(|| {
-        let StyleValueData::Calculated {
-            rust_calculation,
-            has_percentages_resolve_as,
-            resolve_as_is_number,
-            resolve_as_base,
-            resolve_numbers_as_integers,
-            accepted_ranges,
-            ..
-        } = (unsafe { &*(calculated as *const StyleValueData) })
-        else {
-            unreachable!("rust_calc_resolve requires calculated value data");
-        };
-        let context = unsafe { &*context };
-        let root = rust_calculation.node_arc();
+    let StyleValueData::Calculated {
+        rust_calculation,
+        has_percentages_resolve_as,
+        resolve_as_is_number,
+        resolve_as_base,
+        resolve_numbers_as_integers,
+        accepted_ranges,
+        ..
+    } = (unsafe { &*(calculated as *const StyleValueData) })
+    else {
+        unreachable!("rust_calc_resolve requires calculated value data");
+    };
+    let context = unsafe { &*context };
+    let root = rust_calculation.node_arc();
 
-        // The percentage leaf type and resolve-as target from the creation-time fields.
-        let resolve_as = resolve_as_from_fields(*has_percentages_resolve_as, *resolve_as_is_number, *resolve_as_base);
-        with_ffi_evaluation(resolve_as, context, |evaluation_context, callbacks| {
-            // The calculation tree is again simplified at used value time.
-            let simplified = root.simplify(evaluation_context, callbacks);
-            match resolve_simplified_calculation(
-                &simplified,
-                evaluation_context,
-                resolve_as,
-                *resolve_numbers_as_integers,
-                accepted_ranges.as_slice(),
-                apply_censoring_and_clamping,
-            ) {
-                Some((value, numeric_type)) => FfiResolvedCalc {
-                    resolved: true,
-                    value,
-                    numeric_type: FfiNumericType::from_calc(numeric_type),
-                },
-                None => FfiResolvedCalc {
-                    resolved: false,
-                    value: 0.0,
-                    numeric_type: FfiNumericType::from_calc(None),
-                },
-            }
-        })
+    // The percentage leaf type and resolve-as target from the creation-time fields.
+    let resolve_as = resolve_as_from_fields(*has_percentages_resolve_as, *resolve_as_is_number, *resolve_as_base);
+    with_ffi_evaluation(resolve_as, context, |evaluation_context, callbacks| {
+        // The calculation tree is again simplified at used value time.
+        let simplified = root.simplify(evaluation_context, callbacks);
+        match resolve_simplified_calculation(
+            &simplified,
+            evaluation_context,
+            resolve_as,
+            *resolve_numbers_as_integers,
+            accepted_ranges.as_slice(),
+            apply_censoring_and_clamping,
+        ) {
+            Some((value, numeric_type)) => FfiResolvedCalc {
+                resolved: true,
+                value,
+                numeric_type: FfiNumericType::from_calc(numeric_type),
+            },
+            None => FfiResolvedCalc {
+                resolved: false,
+                value: 0.0,
+                numeric_type: FfiNumericType::from_calc(None),
+            },
+        }
     })
 }
 
@@ -4550,18 +4520,15 @@ impl CalcNode {
 pub unsafe extern "C" fn rust_calc_equals(first: *const std::ffi::c_void, second: *const std::ffi::c_void) -> bool {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
     use crate::css::style_value::StyleValueData;
-    crate::abort_on_panic(|| {
-        let tree_of = |data: *const std::ffi::c_void| {
-            let StyleValueData::Calculated { rust_calculation, .. } = (unsafe { &*(data as *const StyleValueData) })
-            else {
-                unreachable!("rust_calc_equals requires calculated value data");
-            };
-            rust_calculation.node_arc()
+    let tree_of = |data: *const std::ffi::c_void| {
+        let StyleValueData::Calculated { rust_calculation, .. } = (unsafe { &*(data as *const StyleValueData) }) else {
+            unreachable!("rust_calc_equals requires calculated value data");
         };
-        let first_tree = tree_of(first);
-        let second_tree = tree_of(second);
-        first_tree.structurally_equals(&second_tree)
-    })
+        rust_calculation.node_arc()
+    };
+    let first_tree = tree_of(first);
+    let second_tree = tree_of(second);
+    first_tree.structurally_equals(&second_tree)
 }
 
 /// Whether a calculated style value contains an anchor() function.
@@ -4571,14 +4538,12 @@ pub unsafe extern "C" fn rust_calc_equals(first: *const std::ffi::c_void, second
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_contains_anchor(calculated: *const std::ffi::c_void) -> bool {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
-    crate::abort_on_panic(|| {
-        let crate::css::style_value::StyleValueData::Calculated { rust_calculation, .. } =
-            (unsafe { &*(calculated as *const crate::css::style_value::StyleValueData) })
-        else {
-            unreachable!("rust_calc_contains_anchor requires calculated value data");
-        };
-        rust_calculation.node().contains_anchor_function()
-    })
+    let crate::css::style_value::StyleValueData::Calculated { rust_calculation, .. } =
+        (unsafe { &*(calculated as *const crate::css::style_value::StyleValueData) })
+    else {
+        unreachable!("rust_calc_contains_anchor requires calculated value data");
+    };
+    rust_calculation.node().contains_anchor_function()
 }
 
 /// The node kind codes exposed to C++ in a stable documented order.
@@ -4702,57 +4667,55 @@ fn append_reification_node(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_describe_for_typed_om(calculated: *const std::ffi::c_void) -> FfiCalcReification {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
-    crate::abort_on_panic(|| {
-        let crate::css::style_value::StyleValueData::Calculated {
-            rust_calculation,
-            has_percentages_resolve_as,
-            resolve_as_is_number,
-            resolve_as_base,
-            ..
-        } = (unsafe { &*(calculated as *const crate::css::style_value::StyleValueData) })
-        else {
-            unreachable!("rust_calc_describe_for_typed_om requires calculated value data");
-        };
-        let percentage_leaf_type = percentage_leaf_type_for(resolve_as_from_fields(
-            *has_percentages_resolve_as,
-            *resolve_as_is_number,
-            *resolve_as_base,
-        ));
-        let mut nodes = Vec::new();
-        let mut children = Vec::new();
-        if append_reification_node(
-            rust_calculation.node(),
-            &percentage_leaf_type,
-            &mut nodes,
-            &mut children,
-        )
-        .is_none()
-        {
-            return FfiCalcReification {
-                nodes: std::ptr::null(),
-                node_count: 0,
-                children: std::ptr::null(),
-                child_count: 0,
-                storage: std::ptr::null_mut(),
-            };
-        }
-        let storage = Box::new(CalcReificationStorage {
-            nodes: nodes.into_boxed_slice(),
-            children: children.into_boxed_slice(),
-        });
-        let result = FfiCalcReification {
-            nodes: storage.nodes.as_ptr(),
-            node_count: storage.nodes.len(),
-            children: storage.children.as_ptr(),
-            child_count: storage.children.len(),
+    let crate::css::style_value::StyleValueData::Calculated {
+        rust_calculation,
+        has_percentages_resolve_as,
+        resolve_as_is_number,
+        resolve_as_base,
+        ..
+    } = (unsafe { &*(calculated as *const crate::css::style_value::StyleValueData) })
+    else {
+        unreachable!("rust_calc_describe_for_typed_om requires calculated value data");
+    };
+    let percentage_leaf_type = percentage_leaf_type_for(resolve_as_from_fields(
+        *has_percentages_resolve_as,
+        *resolve_as_is_number,
+        *resolve_as_base,
+    ));
+    let mut nodes = Vec::new();
+    let mut children = Vec::new();
+    if append_reification_node(
+        rust_calculation.node(),
+        &percentage_leaf_type,
+        &mut nodes,
+        &mut children,
+    )
+    .is_none()
+    {
+        return FfiCalcReification {
+            nodes: std::ptr::null(),
+            node_count: 0,
+            children: std::ptr::null(),
+            child_count: 0,
             storage: std::ptr::null_mut(),
         };
-        let storage = Box::into_raw(storage);
-        FfiCalcReification {
-            storage: storage.cast(),
-            ..result
-        }
-    })
+    }
+    let storage = Box::new(CalcReificationStorage {
+        nodes: nodes.into_boxed_slice(),
+        children: children.into_boxed_slice(),
+    });
+    let result = FfiCalcReification {
+        nodes: storage.nodes.as_ptr(),
+        node_count: storage.nodes.len(),
+        children: storage.children.as_ptr(),
+        child_count: storage.children.len(),
+        storage: std::ptr::null_mut(),
+    };
+    let storage = Box::into_raw(storage);
+    FfiCalcReification {
+        storage: storage.cast(),
+        ..result
+    }
 }
 
 /// # Safety
@@ -4773,11 +4736,11 @@ pub unsafe extern "C" fn rust_calc_reification_release(storage: *mut std::ffi::c
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_style_value(node: *const CalcNode) -> *const std::ffi::c_void {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeQueryEntry);
-    crate::abort_on_panic(|| match unsafe { &*node } {
+    match unsafe { &*node } {
         CalcNode::Random { sharing, .. } => sharing.data() as *const _ as *const _,
         CalcNode::NonMathFunction { value, .. } => value.data() as *const _ as *const _,
         _ => std::ptr::null(),
-    })
+    }
 }
 
 /// Simplifies a free-standing calculation tree: the css-values-4 algorithm
@@ -4799,14 +4762,12 @@ pub unsafe extern "C" fn rust_calc_simplify_tree(
     resolve_as_base: u8,
 ) -> *const CalcNode {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
-    crate::abort_on_panic(|| {
-        let context = unsafe { &*context };
-        unsafe { Arc::increment_strong_count(root) };
-        let root = unsafe { Arc::from_raw(root) };
-        let resolve_as = resolve_as_from_fields(has_percentages_resolve_as, resolve_as_is_number, resolve_as_base);
-        with_ffi_evaluation(resolve_as, context, |evaluation_context, callbacks| {
-            Arc::into_raw(root.simplify(evaluation_context, callbacks))
-        })
+    let context = unsafe { &*context };
+    unsafe { Arc::increment_strong_count(root) };
+    let root = unsafe { Arc::from_raw(root) };
+    let resolve_as = resolve_as_from_fields(has_percentages_resolve_as, resolve_as_is_number, resolve_as_base);
+    with_ffi_evaluation(resolve_as, context, |evaluation_context, callbacks| {
+        Arc::into_raw(root.simplify(evaluation_context, callbacks))
     })
 }
 
@@ -4837,52 +4798,50 @@ pub unsafe extern "C" fn rust_calc_absolutize(
 ) -> FfiAbsolutizedCalc {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
     use crate::css::style_value::StyleValueData;
-    crate::abort_on_panic(|| {
-        let StyleValueData::Calculated {
-            rust_calculation,
-            has_percentages_resolve_as,
-            resolve_as_is_number,
-            resolve_as_base,
-            resolve_numbers_as_integers,
-            accepted_ranges,
-            ..
-        } = (unsafe { &*(calculated as *const StyleValueData) })
-        else {
-            unreachable!("rust_calc_absolutize requires calculated value data");
-        };
-        let context = unsafe { &*context };
-        let root = rust_calculation.node_arc();
+    let StyleValueData::Calculated {
+        rust_calculation,
+        has_percentages_resolve_as,
+        resolve_as_is_number,
+        resolve_as_base,
+        resolve_numbers_as_integers,
+        accepted_ranges,
+        ..
+    } = (unsafe { &*(calculated as *const StyleValueData) })
+    else {
+        unreachable!("rust_calc_absolutize requires calculated value data");
+    };
+    let context = unsafe { &*context };
+    let root = rust_calculation.node_arc();
 
-        let resolve_as = resolve_as_from_fields(*has_percentages_resolve_as, *resolve_as_is_number, *resolve_as_base);
-        with_ffi_evaluation(resolve_as, context, |evaluation_context, callbacks| {
-            let simplified = root.simplify(evaluation_context, callbacks);
+    let resolve_as = resolve_as_from_fields(*has_percentages_resolve_as, *resolve_as_is_number, *resolve_as_base);
+    with_ffi_evaluation(resolve_as, context, |evaluation_context, callbacks| {
+        let simplified = root.simplify(evaluation_context, callbacks);
 
-            if let Some(percentage) = percentage_dimension_mix(&simplified, evaluation_context) {
-                return FfiAbsolutizedCalc {
-                    is_percentage: true,
-                    percentage_value: percentage,
-                    collapsed: std::ptr::null(),
-                    simplified: std::ptr::null(),
-                };
-            }
+        if let Some(percentage) = percentage_dimension_mix(&simplified, evaluation_context) {
+            return FfiAbsolutizedCalc {
+                is_percentage: true,
+                percentage_value: percentage,
+                collapsed: std::ptr::null(),
+                simplified: std::ptr::null(),
+            };
+        }
 
-            if let Some(collapsed) =
-                collapse_absolutized_calculation(&simplified, *resolve_numbers_as_integers, accepted_ranges.as_slice())
-            {
-                return FfiAbsolutizedCalc {
-                    is_percentage: false,
-                    percentage_value: 0.0,
-                    collapsed: Arc::into_raw(Arc::new(collapsed)).cast(),
-                    simplified: std::ptr::null(),
-                };
-            }
-
-            FfiAbsolutizedCalc {
+        if let Some(collapsed) =
+            collapse_absolutized_calculation(&simplified, *resolve_numbers_as_integers, accepted_ranges.as_slice())
+        {
+            return FfiAbsolutizedCalc {
                 is_percentage: false,
                 percentage_value: 0.0,
-                collapsed: std::ptr::null(),
-                simplified: Arc::into_raw(simplified),
-            }
-        })
+                collapsed: Arc::into_raw(Arc::new(collapsed)).cast(),
+                simplified: std::ptr::null(),
+            };
+        }
+
+        FfiAbsolutizedCalc {
+            is_percentage: false,
+            percentage_value: 0.0,
+            collapsed: std::ptr::null(),
+            simplified: Arc::into_raw(simplified),
+        }
     })
 }

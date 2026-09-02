@@ -199,10 +199,8 @@ fn supports_simple_dom_matching(selector: &CompiledSelector) -> bool {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_supports_simple_dom_matching(selector: *const RustSelector) -> bool {
     unsafe {
-        crate::abort_on_panic(|| {
-            assert!(!selector.is_null());
-            supports_simple_dom_matching((*selector).compiled())
-        })
+        assert!(!selector.is_null());
+        supports_simple_dom_matching((*selector).compiled())
     }
 }
 
@@ -229,10 +227,8 @@ fn matches_every_element(selector: &CompiledSelector) -> bool {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_matches_every_element(selector: *const RustSelector) -> bool {
     unsafe {
-        crate::abort_on_panic(|| {
-            assert!(!selector.is_null());
-            matches_every_element((*selector).compiled())
-        })
+        assert!(!selector.is_null());
+        matches_every_element((*selector).compiled())
     }
 }
 
@@ -268,10 +264,8 @@ unsafe fn replacement(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_contains_nesting(selector: *const RustSelector) -> bool {
     unsafe {
-        crate::abort_on_panic(|| {
-            assert!(!selector.is_null());
-            contains_nesting((*selector).compiled())
-        })
+        assert!(!selector.is_null());
+        contains_nesting((*selector).compiled())
     }
 }
 
@@ -280,10 +274,8 @@ pub unsafe extern "C" fn rust_selector_contains_nesting(selector: *const RustSel
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_contains_pseudo_class(selector: *const RustSelector, value: u8) -> bool {
     unsafe {
-        crate::abort_on_panic(|| {
-            assert!(!selector.is_null());
-            contains_pseudo_class((*selector).compiled(), pseudo_class_from_ffi(value))
-        })
+        assert!(!selector.is_null());
+        contains_pseudo_class((*selector).compiled(), pseudo_class_from_ffi(value))
     }
 }
 
@@ -292,10 +284,8 @@ pub unsafe extern "C" fn rust_selector_contains_pseudo_class(selector: *const Ru
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_contains_named_namespace(selector: *const RustSelector) -> bool {
     unsafe {
-        crate::abort_on_panic(|| {
-            assert!(!selector.is_null());
-            contains_named_namespace((*selector).compiled())
-        })
+        assert!(!selector.is_null());
+        contains_named_namespace((*selector).compiled())
     }
 }
 
@@ -321,74 +311,72 @@ pub unsafe extern "C" fn rust_selector_matches_simple_dom(
     fold_id_and_classes: bool,
 ) -> u8 {
     unsafe {
-        crate::abort_on_panic(|| {
-            assert!(!selector.is_null());
-            let compounds = &(*selector).compiled().compound_selectors;
-            if !supports_simple_dom_matching((*selector).compiled()) {
+        assert!(!selector.is_null());
+        let compounds = &(*selector).compiled().compound_selectors;
+        if !supports_simple_dom_matching((*selector).compiled()) {
+            return u8::MAX;
+        }
+        let compound = &compounds[0];
+        let classes = if class_count == 0 {
+            &[][..]
+        } else {
+            if classes.is_null() {
                 return u8::MAX;
             }
-            let compound = &compounds[0];
-            let classes = if class_count == 0 {
-                &[][..]
-            } else {
-                if classes.is_null() {
-                    return u8::MAX;
-                }
-                std::slice::from_raw_parts(classes, class_count)
-            };
-            let lowercase_classes = if !fold_id_and_classes || class_count == 0 {
-                &[][..]
-            } else {
-                if lowercase_classes.is_null() {
-                    return u8::MAX;
-                }
-                std::slice::from_raw_parts(lowercase_classes, class_count)
-            };
-            for simple in &compound.simple_selectors {
-                let matches = match simple {
-                    SimpleSelector::Universal(name)
-                        if matches!(
-                            name.namespace_type,
-                            super::selector::NamespaceType::Any | super::selector::NamespaceType::Default
-                        ) =>
-                    {
-                        true
-                    }
-                    SimpleSelector::TagName(name)
-                        if matches!(
-                            name.namespace_type,
-                            super::selector::NamespaceType::Any | super::selector::NamespaceType::Default
-                        ) =>
-                    {
-                        if fold_tag_name {
-                            name.interned_lowercase_name_identity() == Some(lowercase_tag_name)
-                        } else {
-                            name.interned_name_identity() == Some(tag_name)
-                        }
-                    }
-                    SimpleSelector::Id(name) => {
-                        if fold_id_and_classes {
-                            name.interned_lowercase_name_identity() == Some(lowercase_id)
-                        } else {
-                            name.interned_name_identity() == Some(id)
-                        }
-                    }
-                    SimpleSelector::Class(name) => {
-                        let (expected, candidates) = if fold_id_and_classes {
-                            (name.interned_lowercase_name_identity(), lowercase_classes)
-                        } else {
-                            (name.interned_name_identity(), classes)
-                        };
-                        expected.is_some_and(|expected| candidates.contains(&expected))
-                    }
-                    _ => unreachable!(),
-                };
-                if !matches {
-                    return 0;
-                }
+            std::slice::from_raw_parts(classes, class_count)
+        };
+        let lowercase_classes = if !fold_id_and_classes || class_count == 0 {
+            &[][..]
+        } else {
+            if lowercase_classes.is_null() {
+                return u8::MAX;
             }
-            1
-        })
+            std::slice::from_raw_parts(lowercase_classes, class_count)
+        };
+        for simple in &compound.simple_selectors {
+            let matches = match simple {
+                SimpleSelector::Universal(name)
+                    if matches!(
+                        name.namespace_type,
+                        super::selector::NamespaceType::Any | super::selector::NamespaceType::Default
+                    ) =>
+                {
+                    true
+                }
+                SimpleSelector::TagName(name)
+                    if matches!(
+                        name.namespace_type,
+                        super::selector::NamespaceType::Any | super::selector::NamespaceType::Default
+                    ) =>
+                {
+                    if fold_tag_name {
+                        name.interned_lowercase_name_identity() == Some(lowercase_tag_name)
+                    } else {
+                        name.interned_name_identity() == Some(tag_name)
+                    }
+                }
+                SimpleSelector::Id(name) => {
+                    if fold_id_and_classes {
+                        name.interned_lowercase_name_identity() == Some(lowercase_id)
+                    } else {
+                        name.interned_name_identity() == Some(id)
+                    }
+                }
+                SimpleSelector::Class(name) => {
+                    let (expected, candidates) = if fold_id_and_classes {
+                        (name.interned_lowercase_name_identity(), lowercase_classes)
+                    } else {
+                        (name.interned_name_identity(), classes)
+                    };
+                    expected.is_some_and(|expected| candidates.contains(&expected))
+                }
+                _ => unreachable!(),
+            };
+            if !matches {
+                return 0;
+            }
+        }
+        1
     }
 }
 
@@ -397,14 +385,12 @@ pub unsafe extern "C" fn rust_selector_matches_simple_dom(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_first_combinator(selector: *const RustSelector) -> Combinator {
     unsafe {
-        crate::abort_on_panic(|| {
-            assert!(!selector.is_null());
-            (*selector)
-                .compiled()
-                .compound_selectors
-                .first()
-                .map_or(Combinator::None, |compound| compound.combinator)
-        })
+        assert!(!selector.is_null());
+        (*selector)
+            .compiled()
+            .compound_selectors
+            .first()
+            .map_or(Combinator::None, |compound| compound.combinator)
     }
 }
 
@@ -413,16 +399,14 @@ pub unsafe extern "C" fn rust_selector_first_combinator(selector: *const RustSel
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_with_first_combinator_none(selector: *const RustSelector) -> *mut RustSelector {
     unsafe {
-        crate::abort_on_panic(|| {
-            assert!(!selector.is_null());
-            let mut compounds = (*selector).compiled().compound_selectors.clone();
-            if let Some(first) = compounds.first_mut() {
-                first.combinator = Combinator::None;
-            }
-            Box::into_raw(Box::new(RustSelector {
-                selector: CompiledSelector::new(compounds),
-            }))
-        })
+        assert!(!selector.is_null());
+        let mut compounds = (*selector).compiled().compound_selectors.clone();
+        if let Some(first) = compounds.first_mut() {
+            first.combinator = Combinator::None;
+        }
+        Box::into_raw(Box::new(RustSelector {
+            selector: CompiledSelector::new(compounds),
+        }))
     }
 }
 
@@ -431,12 +415,10 @@ pub unsafe extern "C" fn rust_selector_with_first_combinator_none(selector: *con
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_relative_to_nesting(selector: *const RustSelector) -> *mut RustSelector {
     unsafe {
-        crate::abort_on_panic(|| {
-            assert!(!selector.is_null());
-            Box::into_raw(Box::new(RustSelector {
-                selector: relative_to((*selector).compiled(), SimpleSelector::Nesting),
-            }))
-        })
+        assert!(!selector.is_null());
+        Box::into_raw(Box::new(RustSelector {
+            selector: relative_to((*selector).compiled(), SimpleSelector::Nesting),
+        }))
     }
 }
 
@@ -451,13 +433,11 @@ pub unsafe extern "C" fn rust_selector_relative_to_scope(
     count: usize,
 ) -> *mut RustSelector {
     unsafe {
-        crate::abort_on_panic(|| {
-            assert!(!selector.is_null());
-            let parent = replacement(use_parent_selectors, parents, count);
-            Box::into_raw(Box::new(RustSelector {
-                selector: relative_to((*selector).compiled(), parent),
-            }))
-        })
+        assert!(!selector.is_null());
+        let parent = replacement(use_parent_selectors, parents, count);
+        Box::into_raw(Box::new(RustSelector {
+            selector: relative_to((*selector).compiled(), parent),
+        }))
     }
 }
 
@@ -472,13 +452,11 @@ pub unsafe extern "C" fn rust_selector_absolutize(
     count: usize,
 ) -> *mut RustSelector {
     unsafe {
-        crate::abort_on_panic(|| {
-            assert!(!selector.is_null());
-            let replacement = replacement(use_parent_selectors, parents, count);
-            absolutize((*selector).compiled(), &replacement)
-                .map(|selector| Box::into_raw(Box::new(RustSelector { selector })))
-                .unwrap_or(std::ptr::null_mut())
-        })
+        assert!(!selector.is_null());
+        let replacement = replacement(use_parent_selectors, parents, count);
+        absolutize((*selector).compiled(), &replacement)
+            .map(|selector| Box::into_raw(Box::new(RustSelector { selector })))
+            .unwrap_or(std::ptr::null_mut())
     }
 }
 

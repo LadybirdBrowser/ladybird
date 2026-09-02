@@ -3357,17 +3357,15 @@ pub unsafe extern "C" fn rust_parse_css_stylesheet_syntax(
     source: FfiUtf16View,
     parse_context: *const ParseContext,
 ) -> *mut FfiSyntaxParse {
-    crate::abort_on_panic(|| {
-        let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null_mut();
-        };
-        let (mut parser, diagnostics) = Parser::from_source(source, Vec::new());
-        let mut parse = FfiSyntaxParse::new(parse_context, false);
-        parse.diagnostics = diagnostics;
-        let rules = parser.consume_stylesheet_contents();
-        parse.append_roots(&rules);
-        Box::into_raw(Box::new(parse))
-    })
+    let Some(source) = (unsafe { source.units() }) else {
+        return std::ptr::null_mut();
+    };
+    let (mut parser, diagnostics) = Parser::from_source(source, Vec::new());
+    let mut parse = FfiSyntaxParse::new(parse_context, false);
+    parse.diagnostics = diagnostics;
+    let rules = parser.consume_stylesheet_contents();
+    parse.append_roots(&rules);
+    Box::into_raw(Box::new(parse))
 }
 
 /// Parses exactly one CSS rule into a Rust-owned arena.
@@ -3382,36 +3380,34 @@ pub unsafe extern "C" fn rust_parse_css_rule_syntax(
     nested: bool,
     parse_context: *const ParseContext,
 ) -> *mut FfiSyntaxParse {
-    crate::abort_on_panic(|| {
-        let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null_mut();
-        };
-        let Some(contexts) = (unsafe { crate::bytes_from_raw(contexts, context_count) }) else {
-            return std::ptr::null_mut();
-        };
-        let Some(contexts) = contexts
-            .iter()
-            .copied()
-            .map(|context| {
-                if context > RuleContext::Margin as u8 {
-                    return None;
-                }
-                // SAFETY: RuleContext has contiguous repr(u8) discriminants and the value was range-checked.
-                Some(unsafe { std::mem::transmute::<u8, RuleContext>(context) })
-            })
-            .collect::<Option<Vec<_>>>()
-        else {
-            return std::ptr::null_mut();
-        };
-        let (parser, diagnostics) = Parser::from_source(source, contexts);
-        let mut parse = FfiSyntaxParse::new(parse_context, false);
-        parse.diagnostics = diagnostics;
-        let rule = parse_rule_from_tokens(parser.tokens, parser.rule_context, nested);
-        if let Some(rule) = rule {
-            parse.append_roots(std::slice::from_ref(&rule));
-        }
-        Box::into_raw(Box::new(parse))
-    })
+    let Some(source) = (unsafe { source.units() }) else {
+        return std::ptr::null_mut();
+    };
+    let Some(contexts) = (unsafe { crate::bytes_from_raw(contexts, context_count) }) else {
+        return std::ptr::null_mut();
+    };
+    let Some(contexts) = contexts
+        .iter()
+        .copied()
+        .map(|context| {
+            if context > RuleContext::Margin as u8 {
+                return None;
+            }
+            // SAFETY: RuleContext has contiguous repr(u8) discriminants and the value was range-checked.
+            Some(unsafe { std::mem::transmute::<u8, RuleContext>(context) })
+        })
+        .collect::<Option<Vec<_>>>()
+    else {
+        return std::ptr::null_mut();
+    };
+    let (parser, diagnostics) = Parser::from_source(source, contexts);
+    let mut parse = FfiSyntaxParse::new(parse_context, false);
+    parse.diagnostics = diagnostics;
+    let rule = parse_rule_from_tokens(parser.tokens, parser.rule_context, nested);
+    if let Some(rule) = rule {
+        parse.append_roots(std::slice::from_ref(&rule));
+    }
+    Box::into_raw(Box::new(parse))
 }
 
 /// Parses a keyframe selector list into a Rust-owned syntax arena.
@@ -3423,27 +3419,25 @@ pub unsafe extern "C" fn rust_parse_css_keyframe_selectors_syntax(
     source: FfiUtf16View,
     parse_context: *const ParseContext,
 ) -> *mut FfiSyntaxParse {
-    crate::abort_on_panic(|| {
-        let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null_mut();
-        };
-        let tokens = tokenize_for_parser(source);
-        let diagnostics = token_diagnostics(&tokens);
-        let prelude = consume_a_list_of_component_values(tokens).unwrap_or_default();
-        let mut parse = FfiSyntaxParse::new(parse_context, false);
-        parse.diagnostics = diagnostics;
-        parse.append_roots(&[Rule::Qualified(QualifiedRule {
-            prelude,
-            prelude_is_selector: false,
-            prelude_is_relative: false,
-            valid_in_context: true,
-            outer_rule_name: None,
-            declarations: Vec::new(),
-            children: Vec::new(),
-            source_position: None,
-        })]);
-        Box::into_raw(Box::new(parse))
-    })
+    let Some(source) = (unsafe { source.units() }) else {
+        return std::ptr::null_mut();
+    };
+    let tokens = tokenize_for_parser(source);
+    let diagnostics = token_diagnostics(&tokens);
+    let prelude = consume_a_list_of_component_values(tokens).unwrap_or_default();
+    let mut parse = FfiSyntaxParse::new(parse_context, false);
+    parse.diagnostics = diagnostics;
+    parse.append_roots(&[Rule::Qualified(QualifiedRule {
+        prelude,
+        prelude_is_selector: false,
+        prelude_is_relative: false,
+        valid_in_context: true,
+        outer_rule_name: None,
+        declarations: Vec::new(),
+        children: Vec::new(),
+        source_position: None,
+    })]);
+    Box::into_raw(Box::new(parse))
 }
 
 /// Parses a CSS page selector list into a Rust-owned arena.
@@ -3452,15 +3446,13 @@ pub unsafe extern "C" fn rust_parse_css_keyframe_selectors_syntax(
 /// `source` must remain readable for this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_page_selector_list(source: FfiUtf16View) -> *mut FfiPageSelectorList {
-    crate::abort_on_panic(|| {
-        let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null_mut();
-        };
-        let Some(selectors) = parse_page_selector_list(source) else {
-            return std::ptr::null_mut();
-        };
-        Box::into_raw(Box::new(FfiPageSelectorList::new(selectors)))
-    })
+    let Some(source) = (unsafe { source.units() }) else {
+        return std::ptr::null_mut();
+    };
+    let Some(selectors) = parse_page_selector_list(source) else {
+        return std::ptr::null_mut();
+    };
+    Box::into_raw(Box::new(FfiPageSelectorList::new(selectors)))
 }
 
 /// Returns borrowed arena slices which remain live until `rust_page_selector_list_free`.
@@ -3469,18 +3461,16 @@ pub unsafe extern "C" fn rust_parse_page_selector_list(source: FfiUtf16View) -> 
 /// `list` must be a live handle returned by `rust_parse_page_selector_list`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_page_selector_list_data(list: *const FfiPageSelectorList) -> FfiPageSelectorListData {
-    crate::abort_on_panic(|| unsafe { &*list }.data())
+    unsafe { &*list }.data()
 }
 
 /// # Safety
 /// `list` must be null or a live page-selector-list handle and must only be freed once.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_page_selector_list_free(list: *mut FfiPageSelectorList) {
-    crate::abort_on_panic(|| {
-        if !list.is_null() {
-            drop(unsafe { Box::from_raw(list) });
-        }
-    });
+    if !list.is_null() {
+        drop(unsafe { Box::from_raw(list) });
+    }
 }
 
 /// Parses block contents into a Rust-owned arena.
@@ -3495,34 +3485,32 @@ pub unsafe extern "C" fn rust_parse_css_block_syntax(
     parse_context: *const ParseContext,
     preserve_property_source_text: bool,
 ) -> *mut FfiSyntaxParse {
-    crate::abort_on_panic(|| {
-        let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null_mut();
-        };
-        let Some(contexts) = (unsafe { crate::bytes_from_raw(contexts, context_count) }) else {
-            return std::ptr::null_mut();
-        };
-        let Some(contexts) = contexts
-            .iter()
-            .copied()
-            .map(|context| {
-                if context > RuleContext::Margin as u8 {
-                    return None;
-                }
-                // SAFETY: RuleContext has contiguous repr(u8) discriminants and the value was range-checked.
-                Some(unsafe { std::mem::transmute::<u8, RuleContext>(context) })
-            })
-            .collect::<Option<Vec<_>>>()
-        else {
-            return std::ptr::null_mut();
-        };
-        let (mut parser, diagnostics) = Parser::from_source(source, contexts);
-        let mut parse = FfiSyntaxParse::new(parse_context, preserve_property_source_text);
-        parse.diagnostics = diagnostics;
-        let items = parser.consume_block_contents();
-        parse.append_root_items(&items);
-        Box::into_raw(Box::new(parse))
-    })
+    let Some(source) = (unsafe { source.units() }) else {
+        return std::ptr::null_mut();
+    };
+    let Some(contexts) = (unsafe { crate::bytes_from_raw(contexts, context_count) }) else {
+        return std::ptr::null_mut();
+    };
+    let Some(contexts) = contexts
+        .iter()
+        .copied()
+        .map(|context| {
+            if context > RuleContext::Margin as u8 {
+                return None;
+            }
+            // SAFETY: RuleContext has contiguous repr(u8) discriminants and the value was range-checked.
+            Some(unsafe { std::mem::transmute::<u8, RuleContext>(context) })
+        })
+        .collect::<Option<Vec<_>>>()
+    else {
+        return std::ptr::null_mut();
+    };
+    let (mut parser, diagnostics) = Parser::from_source(source, contexts);
+    let mut parse = FfiSyntaxParse::new(parse_context, preserve_property_source_text);
+    parse.diagnostics = diagnostics;
+    let items = parser.consume_block_contents();
+    parse.append_root_items(&items);
+    Box::into_raw(Box::new(parse))
 }
 
 /// Returns borrowed arena slices which remain live until `rust_css_syntax_parse_free`.
@@ -3531,18 +3519,16 @@ pub unsafe extern "C" fn rust_parse_css_block_syntax(
 /// `parse` must be a live handle returned by a Rust syntax parse function.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_css_syntax_parse_data(parse: *const FfiSyntaxParse) -> FfiSyntaxParseData {
-    crate::abort_on_panic(|| unsafe { &*parse }.data())
+    unsafe { &*parse }.data()
 }
 
 /// # Safety
 /// `parse` must be null or a live syntax parse handle and must only be freed once.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_css_syntax_parse_free(parse: *mut FfiSyntaxParse) {
-    crate::abort_on_panic(|| {
-        if !parse.is_null() {
-            drop(unsafe { Box::from_raw(parse) });
-        }
-    });
+    if !parse.is_null() {
+        drop(unsafe { Box::from_raw(parse) });
+    }
 }
 
 #[cfg(test)]

@@ -162,20 +162,18 @@ pub unsafe extern "C" fn painting_dump(
     display_list: *const c_void,
     callbacks: FfiPaintingDumpCallbacks,
 ) {
-    crate::abort_on_panic(|| {
-        assert!(!display_list.is_null());
-        let arena = unsafe { crate::painting::ffi::arena_from_handle(arena) };
-        let visual_context_tree = unsafe { crate::painting::ffi::tree_from_handle(visual_context_tree) };
-        let command_runs = unsafe { crate::painting::ffi::ffi_slice(command_runs, command_run_count) };
-        let owners = VisualContextNodeOwners::collect(arena, viewport);
-        let mut output = visual_context_tree.dump_nodes_reachable_from_runs(command_runs, |is_frame, index| {
-            let shell = arena.shell_if_live(owners.owner(is_frame, index)?);
-            (!shell.is_null()).then(|| callbacks.debug_description(shell))
-        });
-        output.push_str("\nDisplayList:\n");
-        dump_commands(&mut output, &callbacks, display_list, 0);
-        callbacks.append_text(&output);
+    assert!(!display_list.is_null());
+    let arena = unsafe { crate::painting::ffi::arena_from_handle(arena) };
+    let visual_context_tree = unsafe { crate::painting::ffi::tree_from_handle(visual_context_tree) };
+    let command_runs = unsafe { crate::painting::ffi::ffi_slice(command_runs, command_run_count) };
+    let owners = VisualContextNodeOwners::collect(arena, viewport);
+    let mut output = visual_context_tree.dump_nodes_reachable_from_runs(command_runs, |is_frame, index| {
+        let shell = arena.shell_if_live(owners.owner(is_frame, index)?);
+        (!shell.is_null()).then(|| callbacks.debug_description(shell))
     });
+    output.push_str("\nDisplayList:\n");
+    dump_commands(&mut output, &callbacks, display_list, 0);
+    callbacks.append_text(&output);
 }
 
 fn push_indent(output: &mut String, indent: usize) {

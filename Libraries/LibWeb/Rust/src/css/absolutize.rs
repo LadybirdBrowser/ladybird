@@ -1643,49 +1643,47 @@ pub unsafe extern "C" fn rust_style_value_absolutize(
     scheme: u8,
 ) -> FfiAbsolutizedValue {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleValueQueryEntry);
-    crate::abort_on_panic(|| {
-        let value = unsafe { &*value.cast::<StyleValueData>() };
-        let length = unsafe { length.cast::<FfiLengthResolutionContext>().as_ref() };
-        // Without a length context the recursion still handles everything that does not
-        // resolve lengths; a zeroed context would silently mis-resolve, so decline instead.
-        let Some(length) = length else {
-            return match value {
-                value if crate::css::style_compute::value_absolutization_is_identity(value) => FfiAbsolutizedValue {
-                    kind: ABSOLUTIZED_UNCHANGED,
-                    data: core::ptr::null(),
-                },
-                _ => FfiAbsolutizedValue {
-                    kind: ABSOLUTIZED_DECLINED,
-                    data: core::ptr::null(),
-                },
-            };
-        };
-        let context = AbsolutizationContext {
-            length,
-            scheme: has_scheme.then_some(scheme),
-            resolved_viewport_relative_length: Cell::new(false),
-            tree_counting: None,
-            random_base_values: &[],
-            document_base_url: &[],
-            style_sheet_resource_context: None,
-        };
-        match absolutize(value, &context) {
-            Some(Absolutized::Unchanged) => FfiAbsolutizedValue {
+    let value = unsafe { &*value.cast::<StyleValueData>() };
+    let length = unsafe { length.cast::<FfiLengthResolutionContext>().as_ref() };
+    // Without a length context the recursion still handles everything that does not
+    // resolve lengths; a zeroed context would silently mis-resolve, so decline instead.
+    let Some(length) = length else {
+        return match value {
+            value if crate::css::style_compute::value_absolutization_is_identity(value) => FfiAbsolutizedValue {
                 kind: ABSOLUTIZED_UNCHANGED,
                 data: core::ptr::null(),
             },
-            Some(Absolutized::Changed(new_value)) => {
-                let pointer = new_value.pointer();
-                core::mem::forget(new_value);
-                FfiAbsolutizedValue {
-                    kind: ABSOLUTIZED_CHANGED,
-                    data: pointer.cast(),
-                }
-            }
-            None => FfiAbsolutizedValue {
+            _ => FfiAbsolutizedValue {
                 kind: ABSOLUTIZED_DECLINED,
                 data: core::ptr::null(),
             },
+        };
+    };
+    let context = AbsolutizationContext {
+        length,
+        scheme: has_scheme.then_some(scheme),
+        resolved_viewport_relative_length: Cell::new(false),
+        tree_counting: None,
+        random_base_values: &[],
+        document_base_url: &[],
+        style_sheet_resource_context: None,
+    };
+    match absolutize(value, &context) {
+        Some(Absolutized::Unchanged) => FfiAbsolutizedValue {
+            kind: ABSOLUTIZED_UNCHANGED,
+            data: core::ptr::null(),
+        },
+        Some(Absolutized::Changed(new_value)) => {
+            let pointer = new_value.pointer();
+            core::mem::forget(new_value);
+            FfiAbsolutizedValue {
+                kind: ABSOLUTIZED_CHANGED,
+                data: pointer.cast(),
+            }
         }
-    })
+        None => FfiAbsolutizedValue {
+            kind: ABSOLUTIZED_DECLINED,
+            data: core::ptr::null(),
+        },
+    }
 }

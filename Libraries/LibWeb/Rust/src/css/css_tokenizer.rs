@@ -83,15 +83,13 @@ pub unsafe extern "C" fn rust_css_tokenize_for_syntax_highlighting(
     callback: unsafe extern "C" fn(ctx: *mut c_void, token: *const CssSyntaxToken),
 ) {
     unsafe {
-        crate::abort_on_panic(|| {
-            let Some(input) = TokenizerInput::from_raw_parts(ascii_input, utf16_input, input_len) else {
-                return;
-            };
+        let Some(input) = TokenizerInput::from_raw_parts(ascii_input, utf16_input, input_len) else {
+            return;
+        };
 
-            tokenize(input, |token, _| {
-                let ffi_token = token.as_syntax_ffi();
-                callback(ctx, &raw const ffi_token);
-            });
+        tokenize(input, |token, _| {
+            let ffi_token = token.as_syntax_ffi();
+            callback(ctx, &raw const ffi_token);
         });
     }
 }

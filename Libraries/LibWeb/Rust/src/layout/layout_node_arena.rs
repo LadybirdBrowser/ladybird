@@ -11,7 +11,6 @@ use super::geometry::AvailableSize;
 use super::geometry::AvailableSpace;
 use super::used_values::SizeConstraint;
 use super::used_values::UsedValues;
-use crate::abort_on_panic;
 use crate::css::style::fast_hash::FastMap as HashMap;
 use crate::layout::CssPixels;
 use crate::layout::FfiReplacedContentFacts;
@@ -2150,68 +2149,58 @@ pub struct NodeAllocation {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_arena_create() -> *mut c_void {
-    abort_on_panic(|| Box::into_raw(Box::new(LayoutNodeArena::new())).cast())
+    Box::into_raw(Box::new(LayoutNodeArena::new())).cast()
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_destroy(arena: *mut c_void) {
-    abort_on_panic(|| {
-        assert!(!arena.is_null(), "layout node arena handle is null");
-        // SAFETY: The handle came from layout_arena_create and ownership is
-        // transferred back exactly once by the C++ RAII wrapper.
-        let arena = unsafe { Box::from_raw(arena.cast::<LayoutNodeArena>()) };
-        arena.assert_owner_thread();
-        assert_eq!(arena.live_count, 0, "layout node arena destroyed with live slots");
-    });
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The handle came from layout_arena_create and ownership is
+    // transferred back exactly once by the C++ RAII wrapper.
+    let arena = unsafe { Box::from_raw(arena.cast::<LayoutNodeArena>()) };
+    arena.assert_owner_thread();
+    assert_eq!(arena.live_count, 0, "layout node arena destroyed with live slots");
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_allocate(arena: *mut c_void) -> NodeAllocation {
-    abort_on_panic(|| {
-        assert!(!arena.is_null(), "layout node arena handle is null");
-        // SAFETY: The C++ wrapper keeps the arena alive for this call and
-        // serializes all access on the document thread.
-        unsafe { &mut *arena.cast::<LayoutNodeArena>() }.allocate()
-    })
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and
+    // serializes all access on the document thread.
+    unsafe { &mut *arena.cast::<LayoutNodeArena>() }.allocate()
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_free(arena: *mut c_void, id: NodeSlotId, generation: u32) {
-    abort_on_panic(|| {
-        assert!(!arena.is_null(), "layout node arena handle is null");
-        // SAFETY: The C++ wrapper keeps the arena alive for this call and
-        // serializes all access on the document thread.
-        let freed = {
-            let arena = unsafe { &mut *arena.cast::<LayoutNodeArena>() };
-            arena.free(id, generation)
-        };
-        freed.detached_children.release_all();
-        if let Some(reset) = freed.paintable_row_reset {
-            reset.invoke_callback();
-        }
-    });
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and
+    // serializes all access on the document thread.
+    let freed = {
+        let arena = unsafe { &mut *arena.cast::<LayoutNodeArena>() };
+        arena.free(id, generation)
+    };
+    freed.detached_children.release_all();
+    if let Some(reset) = freed.paintable_row_reset {
+        reset.invoke_callback();
+    }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_fc_run_cache_hit_count(arena: *mut c_void) -> u64 {
-    abort_on_panic(|| {
-        assert!(!arena.is_null(), "layout node arena handle is null");
-        // SAFETY: The C++ wrapper keeps the arena alive for this call and
-        // serializes all access on the document thread.
-        unsafe { &*arena.cast::<LayoutNodeArena>() }
-            .fc_run_cache_store()
-            .hit_count()
-    })
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and
+    // serializes all access on the document thread.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }
+        .fc_run_cache_store()
+        .hit_count()
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_table_cell_measurement_cache_miss_count(arena: *mut c_void) -> u64 {
-    abort_on_panic(|| {
-        assert!(!arena.is_null(), "layout node arena handle is null");
-        // SAFETY: The C++ wrapper keeps the arena alive for this call and
-        // serializes all access on the document thread.
-        unsafe { &*arena.cast::<LayoutNodeArena>() }.table_cell_measurement_cache_miss_count()
-    })
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and
+    // serializes all access on the document thread.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.table_cell_measurement_cache_miss_count()
 }
 
 /// # Safety
@@ -2219,12 +2208,10 @@ pub unsafe extern "C" fn layout_arena_table_cell_measurement_cache_miss_count(ar
 /// The arena must remain valid for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_intrinsic_measurement_count(arena: *mut c_void) -> u64 {
-    abort_on_panic(|| {
-        assert!(!arena.is_null(), "layout node arena handle is null");
-        // SAFETY: The C++ wrapper keeps the arena alive for this call and
-        // serializes all access on the document thread.
-        unsafe { &*arena.cast::<LayoutNodeArena>() }.intrinsic_measurement_count()
-    })
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and
+    // serializes all access on the document thread.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.intrinsic_measurement_count()
 }
 
 /// # Safety
@@ -2232,25 +2219,23 @@ pub unsafe extern "C" fn layout_arena_intrinsic_measurement_count(arena: *mut c_
 /// The arena must remain valid for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_pre_order_label_violation_count(arena: *mut c_void, root: NodeSlotId) -> u64 {
-    abort_on_panic(|| {
-        assert!(!arena.is_null(), "layout node arena handle is null");
-        // SAFETY: The C++ wrapper keeps the arena alive for this call and
-        // serializes all access on the document thread.
-        let arena = unsafe { &*arena.cast::<LayoutNodeArena>() };
-        if arena.shell_if_live(root).is_null() {
-            return 0;
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and
+    // serializes all access on the document thread.
+    let arena = unsafe { &*arena.cast::<LayoutNodeArena>() };
+    if arena.shell_if_live(root).is_null() {
+        return 0;
+    }
+    let mut violation_count = 0u64;
+    let mut previous_label: Option<u64> = None;
+    arena.for_each_node_in_layout_subtree_in_pre_order(root, |node| {
+        let label = arena.node_pre_order_label(node);
+        if previous_label.is_some_and(|previous| label <= previous) {
+            violation_count += 1;
         }
-        let mut violation_count = 0u64;
-        let mut previous_label: Option<u64> = None;
-        arena.for_each_node_in_layout_subtree_in_pre_order(root, |node| {
-            let label = arena.node_pre_order_label(node);
-            if previous_label.is_some_and(|previous| label <= previous) {
-                violation_count += 1;
-            }
-            previous_label = Some(label);
-        });
-        violation_count
-    })
+        previous_label = Some(label);
+    });
+    violation_count
 }
 
 /// # Safety
@@ -2258,12 +2243,10 @@ pub unsafe extern "C" fn layout_arena_pre_order_label_violation_count(arena: *mu
 /// The arena must remain valid for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_pre_order_relabel_count(arena: *mut c_void) -> u64 {
-    abort_on_panic(|| {
-        assert!(!arena.is_null(), "layout node arena handle is null");
-        // SAFETY: The C++ wrapper keeps the arena alive for this call and
-        // serializes all access on the document thread.
-        unsafe { &*arena.cast::<LayoutNodeArena>() }.pre_order_relabel_count()
-    })
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and
+    // serializes all access on the document thread.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.pre_order_relabel_count()
 }
 
 /// # Safety
@@ -2272,10 +2255,8 @@ pub unsafe extern "C" fn layout_arena_pre_order_relabel_count(arena: *mut c_void
 /// name a live node in this arena.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_node_data(arena: *mut c_void, id: NodeSlotId) -> *mut NodeData {
-    abort_on_panic(|| {
-        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-        unsafe { LayoutNodeArena::from_handle(arena) }.data(id)
-    })
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }.data(id)
 }
 
 /// # Safety
@@ -2284,10 +2265,8 @@ pub unsafe extern "C" fn layout_arena_node_data(arena: *mut c_void, id: NodeSlot
 /// name the root of a live subtree in this arena.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_reset_layout_update_flags_in_subtree(arena: *mut c_void, root: NodeSlotId) {
-    abort_on_panic(|| {
-        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-        unsafe { LayoutNodeArena::from_handle(arena) }.reset_layout_update_flags_in_subtree(root);
-    });
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }.reset_layout_update_flags_in_subtree(root);
 }
 
 /// # Safety
@@ -2304,10 +2283,8 @@ pub unsafe extern "C" fn layout_arena_recompute_containing_blocks(
     root: NodeSlotId,
     inline_cb_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
 ) {
-    abort_on_panic(|| {
-        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-        unsafe { LayoutNodeArena::from_handle(arena) }.recompute_containing_blocks_in_subtree(root, inline_cb_lookup);
-    });
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }.recompute_containing_blocks_in_subtree(root, inline_cb_lookup);
 }
 
 /// # Safety
@@ -2316,10 +2293,8 @@ pub unsafe extern "C" fn layout_arena_recompute_containing_blocks(
 /// invalid or stale; null is returned in that case.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_node_shell_if_live(arena: *mut c_void, id: NodeSlotId) -> *mut c_void {
-    abort_on_panic(|| {
-        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-        unsafe { LayoutNodeArena::from_handle(arena) }.shell_if_live(id)
-    })
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }.shell_if_live(id)
 }
 
 /// # Safety
@@ -2329,18 +2304,16 @@ pub unsafe extern "C" fn layout_arena_node_shell_if_live(arena: *mut c_void, id:
 /// Unless the caller holds its own reference, the node may be destroyed before this returns.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_detach_node_for_destruction(arena: *mut c_void, node: NodeSlotId) -> bool {
-    abort_on_panic(|| {
-        // SAFETY: The C++ caller keeps the arena alive for this synchronous call; the borrow
-        // ends before the release below re-enters the arena.
-        let detached = unsafe { LayoutNodeArena::from_handle(arena) }.detach_from_parent(node);
-        match detached {
-            Some(detached) => {
-                detached.release();
-                true
-            }
-            None => false,
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call; the borrow
+    // ends before the release below re-enters the arena.
+    let detached = unsafe { LayoutNodeArena::from_handle(arena) }.detach_from_parent(node);
+    match detached {
+        Some(detached) => {
+            detached.release();
+            true
         }
-    })
+        None => false,
+    }
 }
 
 /// # Safety
@@ -2352,10 +2325,8 @@ pub unsafe extern "C" fn layout_arena_bump_fragment_cache_epoch_of_self_and_ance
     arena: *mut c_void,
     node: NodeSlotId,
 ) {
-    abort_on_panic(|| {
-        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-        unsafe { LayoutNodeArena::from_handle(arena) }.bump_fragment_cache_epoch_of_self_and_ancestors(node);
-    });
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }.bump_fragment_cache_epoch_of_self_and_ancestors(node);
 }
 
 #[unsafe(no_mangle)]
@@ -2370,34 +2341,32 @@ pub unsafe extern "C" fn layout_arena_set_text_content(
     dom_start_offset: usize,
     rendered_text_has_edits: bool,
 ) -> bool {
-    abort_on_panic(|| {
-        assert!(!arena.is_null(), "layout node arena handle is null");
-        let text = if length_in_code_units == 0 {
-            Vec::new()
-        } else if !ascii_text.is_null() {
-            // SAFETY: The C++ caller passes the live ASCII storage of the
-            // node's rendered text for the duration of this synchronous call.
-            unsafe { std::slice::from_raw_parts(ascii_text, length_in_code_units) }
-                .iter()
-                .map(|unit| u16::from(*unit))
-                .collect()
-        } else {
-            assert!(!utf16_text.is_null(), "text content push carries no storage");
-            // SAFETY: The C++ caller passes the live UTF-16 storage of the
-            // node's rendered text for the duration of this synchronous call.
-            unsafe { std::slice::from_raw_parts(utf16_text, length_in_code_units) }.to_vec()
-        };
-        // SAFETY: The C++ wrapper keeps the arena alive for this call and
-        // serializes all access on the document thread.
-        unsafe { &mut *arena.cast::<LayoutNodeArena>() }.set_text_content(
-            id,
-            text,
-            untransformed_text_is_ascii_whitespace,
-            may_require_bidi_processing,
-            dom_start_offset,
-            rendered_text_has_edits,
-        )
-    })
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    let text = if length_in_code_units == 0 {
+        Vec::new()
+    } else if !ascii_text.is_null() {
+        // SAFETY: The C++ caller passes the live ASCII storage of the
+        // node's rendered text for the duration of this synchronous call.
+        unsafe { std::slice::from_raw_parts(ascii_text, length_in_code_units) }
+            .iter()
+            .map(|unit| u16::from(*unit))
+            .collect()
+    } else {
+        assert!(!utf16_text.is_null(), "text content push carries no storage");
+        // SAFETY: The C++ caller passes the live UTF-16 storage of the
+        // node's rendered text for the duration of this synchronous call.
+        unsafe { std::slice::from_raw_parts(utf16_text, length_in_code_units) }.to_vec()
+    };
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and
+    // serializes all access on the document thread.
+    unsafe { &mut *arena.cast::<LayoutNodeArena>() }.set_text_content(
+        id,
+        text,
+        untransformed_text_is_ascii_whitespace,
+        may_require_bidi_processing,
+        dom_start_offset,
+        rendered_text_has_edits,
+    )
 }
 
 #[unsafe(no_mangle)]
@@ -2406,25 +2375,21 @@ pub unsafe extern "C" fn layout_arena_set_replaced_content_facts(
     id: NodeSlotId,
     facts: FfiReplacedContentFacts,
 ) -> bool {
-    abort_on_panic(|| {
-        assert!(!arena.is_null(), "layout node arena handle is null");
-        // SAFETY: The C++ wrapper keeps the arena alive for this call and
-        // serializes all access on the document thread.
-        unsafe { &mut *arena.cast::<LayoutNodeArena>() }.set_replaced_content_facts(id, facts)
-    })
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and
+    // serializes all access on the document thread.
+    unsafe { &mut *arena.cast::<LayoutNodeArena>() }.set_replaced_content_facts(id, facts)
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_enroll_text_node_for_content_sync(arena: *mut c_void, node: NodeSlotId) {
-    abort_on_panic(|| {
-        assert!(!arena.is_null(), "layout node arena handle is null");
-        // SAFETY: The C++ wrapper keeps the arena alive for this call and
-        // serializes all access on the document thread.
-        unsafe { &*arena.cast::<LayoutNodeArena>() }
-            .text_nodes_enrolled_for_content_sync
-            .borrow_mut()
-            .push(node);
-    });
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and
+    // serializes all access on the document thread.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }
+        .text_nodes_enrolled_for_content_sync
+        .borrow_mut()
+        .push(node);
 }
 
 /// # Safety
@@ -2436,14 +2401,12 @@ pub unsafe extern "C" fn layout_arena_enroll_node_for_replaced_content_facts_syn
     arena: *mut c_void,
     node: NodeSlotId,
 ) {
-    abort_on_panic(|| {
-        assert!(!arena.is_null(), "layout node arena handle is null");
-        // SAFETY: As above.
-        unsafe { &*arena.cast::<LayoutNodeArena>() }
-            .nodes_enrolled_for_replaced_content_facts_sync
-            .borrow_mut()
-            .push(node);
-    });
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: As above.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }
+        .nodes_enrolled_for_replaced_content_facts_sync
+        .borrow_mut()
+        .push(node);
 }
 
 /// # Safety
@@ -2457,68 +2420,66 @@ pub unsafe extern "C" fn layout_arena_sync_enrolled_content_for_layout(
     sync_text_content: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     build_replaced_content_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut FfiReplacedContentFacts),
 ) {
-    abort_on_panic(|| {
-        assert!(!arena.is_null(), "layout node arena handle is null");
-        // SAFETY (for every derive below): the C++ wrapper keeps the arena alive for this call
-        // and serializes all access on the document thread; no shared borrow outlives a callback.
-        let enrolled_text_nodes = std::mem::take(
-            &mut *unsafe { &*arena.cast::<LayoutNodeArena>() }
-                .text_nodes_enrolled_for_content_sync
-                .borrow_mut(),
-        );
-        // A node that is alive but detached keeps its enrollment: it cannot
-        // resolve style-dependent text without a parent, and it may be reinserted
-        // by a later tree update without another enrollment trigger.
-        let mut still_detached_text_nodes = Vec::new();
-        for node in enrolled_text_nodes {
-            let shell = unsafe { &*arena.cast::<LayoutNodeArena>() }.shell_if_live(node);
-            if shell.is_null() {
-                continue;
-            }
-            // SAFETY: shell_if_live established a live slot of this generation.
-            let parent = unsafe { (&raw const (*(&*arena.cast::<LayoutNodeArena>()).data(node)).parent).read() };
-            if parent.is_invalid() {
-                still_detached_text_nodes.push(node);
-                continue;
-            }
-            // Changed rendered text invalidates cached formatting-context runs regardless of
-            // which channel produced the change, including sources with no invalidation of
-            // their own (e.g. lang-keyed locale-sensitive casing).
-            // SAFETY: The callback receives a live shell.
-            if unsafe { sync_text_content(context, shell) } {
-                unsafe { &*arena.cast::<LayoutNodeArena>() }.bump_fragment_cache_epoch_of_self_and_ancestors(node);
-            }
-        }
-        unsafe { &*arena.cast::<LayoutNodeArena>() }
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY (for every derive below): the C++ wrapper keeps the arena alive for this call
+    // and serializes all access on the document thread; no shared borrow outlives a callback.
+    let enrolled_text_nodes = std::mem::take(
+        &mut *unsafe { &*arena.cast::<LayoutNodeArena>() }
             .text_nodes_enrolled_for_content_sync
-            .borrow_mut()
-            .extend(still_detached_text_nodes);
-
-        let enrolled_replaced_nodes = unsafe { &*arena.cast::<LayoutNodeArena>() }
-            .nodes_enrolled_for_replaced_content_facts_sync
-            .borrow()
-            .clone();
-        let mut live_replaced_nodes = Vec::with_capacity(enrolled_replaced_nodes.len());
-        for node in enrolled_replaced_nodes {
-            let shell = unsafe { &*arena.cast::<LayoutNodeArena>() }.shell_if_live(node);
-            if shell.is_null() {
-                continue;
-            }
-            live_replaced_nodes.push(node);
-            let mut facts = FfiReplacedContentFacts::default();
-            // SAFETY: The callback receives a live shell and a valid out-pointer.
-            unsafe { build_replaced_content_facts(context, shell, &raw mut facts) };
-            // Changed facts invalidate cached formatting-context runs regardless of which
-            // channel produced the change, including sources with no invalidation of their own.
-            // SAFETY: As above; the shared borrows ended with their statements.
-            if unsafe { &mut *arena.cast::<LayoutNodeArena>() }.set_replaced_content_facts(node, facts) {
-                unsafe { &*arena.cast::<LayoutNodeArena>() }.bump_fragment_cache_epoch_of_self_and_ancestors(node);
-            }
+            .borrow_mut(),
+    );
+    // A node that is alive but detached keeps its enrollment: it cannot
+    // resolve style-dependent text without a parent, and it may be reinserted
+    // by a later tree update without another enrollment trigger.
+    let mut still_detached_text_nodes = Vec::new();
+    for node in enrolled_text_nodes {
+        let shell = unsafe { &*arena.cast::<LayoutNodeArena>() }.shell_if_live(node);
+        if shell.is_null() {
+            continue;
         }
-        *unsafe { &*arena.cast::<LayoutNodeArena>() }
-            .nodes_enrolled_for_replaced_content_facts_sync
-            .borrow_mut() = live_replaced_nodes;
-    });
+        // SAFETY: shell_if_live established a live slot of this generation.
+        let parent = unsafe { (&raw const (*(&*arena.cast::<LayoutNodeArena>()).data(node)).parent).read() };
+        if parent.is_invalid() {
+            still_detached_text_nodes.push(node);
+            continue;
+        }
+        // Changed rendered text invalidates cached formatting-context runs regardless of
+        // which channel produced the change, including sources with no invalidation of
+        // their own (e.g. lang-keyed locale-sensitive casing).
+        // SAFETY: The callback receives a live shell.
+        if unsafe { sync_text_content(context, shell) } {
+            unsafe { &*arena.cast::<LayoutNodeArena>() }.bump_fragment_cache_epoch_of_self_and_ancestors(node);
+        }
+    }
+    unsafe { &*arena.cast::<LayoutNodeArena>() }
+        .text_nodes_enrolled_for_content_sync
+        .borrow_mut()
+        .extend(still_detached_text_nodes);
+
+    let enrolled_replaced_nodes = unsafe { &*arena.cast::<LayoutNodeArena>() }
+        .nodes_enrolled_for_replaced_content_facts_sync
+        .borrow()
+        .clone();
+    let mut live_replaced_nodes = Vec::with_capacity(enrolled_replaced_nodes.len());
+    for node in enrolled_replaced_nodes {
+        let shell = unsafe { &*arena.cast::<LayoutNodeArena>() }.shell_if_live(node);
+        if shell.is_null() {
+            continue;
+        }
+        live_replaced_nodes.push(node);
+        let mut facts = FfiReplacedContentFacts::default();
+        // SAFETY: The callback receives a live shell and a valid out-pointer.
+        unsafe { build_replaced_content_facts(context, shell, &raw mut facts) };
+        // Changed facts invalidate cached formatting-context runs regardless of which
+        // channel produced the change, including sources with no invalidation of their own.
+        // SAFETY: As above; the shared borrows ended with their statements.
+        if unsafe { &mut *arena.cast::<LayoutNodeArena>() }.set_replaced_content_facts(node, facts) {
+            unsafe { &*arena.cast::<LayoutNodeArena>() }.bump_fragment_cache_epoch_of_self_and_ancestors(node);
+        }
+    }
+    *unsafe { &*arena.cast::<LayoutNodeArena>() }
+        .nodes_enrolled_for_replaced_content_facts_sync
+        .borrow_mut() = live_replaced_nodes;
 }
 
 /// # Safety
@@ -2533,25 +2494,23 @@ pub unsafe extern "C" fn layout_arena_set_table_spans(
     row_span: u16,
     raw_column_span: u32,
 ) -> bool {
-    abort_on_panic(|| {
-        assert!(!arena.is_null(), "layout node arena handle is null");
-        // SAFETY: The C++ wrapper keeps the arena alive for this call and
-        // serializes all access on the document thread.
-        let arena = unsafe { &mut *arena.cast::<LayoutNodeArena>() };
-        let data = arena.data(id);
-        // SAFETY: data() validated that id names a live slot, and layout
-        // serializes mutation on the arena's owner thread.
-        let effective_spans_changed = unsafe {
-            let stored_column_span = &raw mut (*data).table_column_span;
-            let stored_row_span = &raw mut (*data).table_row_span;
-            let changed = stored_column_span.read() != column_span || stored_row_span.read() != row_span;
-            stored_column_span.write(column_span);
-            stored_row_span.write(row_span);
-            changed
-        };
-        let previous_raw_column_span = arena.set_raw_table_column_span(id, raw_column_span);
-        effective_spans_changed || previous_raw_column_span != raw_column_span
-    })
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and
+    // serializes all access on the document thread.
+    let arena = unsafe { &mut *arena.cast::<LayoutNodeArena>() };
+    let data = arena.data(id);
+    // SAFETY: data() validated that id names a live slot, and layout
+    // serializes mutation on the arena's owner thread.
+    let effective_spans_changed = unsafe {
+        let stored_column_span = &raw mut (*data).table_column_span;
+        let stored_row_span = &raw mut (*data).table_row_span;
+        let changed = stored_column_span.read() != column_span || stored_row_span.read() != row_span;
+        stored_column_span.write(column_span);
+        stored_row_span.write(row_span);
+        changed
+    };
+    let previous_raw_column_span = arena.set_raw_table_column_span(id, raw_column_span);
+    effective_spans_changed || previous_raw_column_span != raw_column_span
 }
 
 #[cfg(test)]

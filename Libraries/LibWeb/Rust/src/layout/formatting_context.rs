@@ -1209,23 +1209,21 @@ pub struct FfiFormattingContextArenaFacts {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_layout_formatting_context_type_for_box(facts: FfiFormattingContextArenaFacts) -> u8 {
-    abort_on_panic(|| {
-        // SAFETY: The C++ caller borrows the box's arena for this synchronous
-        // classification.
-        let arena = unsafe { LayoutNodeArena::from_handle(facts.arena) };
-        // SAFETY: The caller supplies the live box's arena slot.
-        let data = unsafe { &*arena.data(facts.node) };
-        let style = arena
-            .style_payloads(facts.node)
-            .map(|payloads| ComputedValuesView::new(&payloads.groups));
-        let parent_style = (!data.parent.is_invalid())
-            .then(|| arena.style_payloads(data.parent))
-            .flatten()
-            .map(|payloads| ComputedValuesView::new(&payloads.groups));
-        formatting_context_type_created_by_node_data(data, style, parent_style)
-            .map(|type_| type_ as u8)
-            .unwrap_or(NO_FORMATTING_CONTEXT)
-    })
+    // SAFETY: The C++ caller borrows the box's arena for this synchronous
+    // classification.
+    let arena = unsafe { LayoutNodeArena::from_handle(facts.arena) };
+    // SAFETY: The caller supplies the live box's arena slot.
+    let data = unsafe { &*arena.data(facts.node) };
+    let style = arena
+        .style_payloads(facts.node)
+        .map(|payloads| ComputedValuesView::new(&payloads.groups));
+    let parent_style = (!data.parent.is_invalid())
+        .then(|| arena.style_payloads(data.parent))
+        .flatten()
+        .map(|payloads| ComputedValuesView::new(&payloads.groups));
+    formatting_context_type_created_by_node_data(data, style, parent_style)
+        .map(|type_| type_ as u8)
+        .unwrap_or(NO_FORMATTING_CONTEXT)
 }
 
 fn create_formatting_context_implementation<'pass>(
@@ -2187,82 +2185,80 @@ pub unsafe extern "C" fn rust_layout_run_root_layout(
     callbacks: *const FfiLayoutFcCallbacks,
     sink: *const commit::FfiCommitSink,
 ) {
-    abort_on_panic(|| {
-        assert!(!root.is_invalid());
-        assert!(!callbacks.is_null());
-        assert!(!sink.is_null());
-        // SAFETY: The C++ pass host keeps both callback tables live for this
-        // synchronous entry.
-        let callbacks = unsafe { *callbacks };
-        let sink = unsafe { &*sink };
-        let viewport_inline_size = CssPixels::from_raw(viewport_inline_size_raw);
-        let viewport_block_size = CssPixels::from_raw(viewport_block_size_raw);
+    assert!(!root.is_invalid());
+    assert!(!callbacks.is_null());
+    assert!(!sink.is_null());
+    // SAFETY: The C++ pass host keeps both callback tables live for this
+    // synchronous entry.
+    let callbacks = unsafe { *callbacks };
+    let sink = unsafe { &*sink };
+    let viewport_inline_size = CssPixels::from_raw(viewport_inline_size_raw);
+    let viewport_block_size = CssPixels::from_raw(viewport_block_size_raw);
 
-        let root_constraints = ContainingBlockConstraints {
-            percentage_basis_inline_size: Some(viewport_inline_size),
-            percentage_basis_block_size: Some(viewport_block_size),
-            ..ContainingBlockConstraints::default()
-        };
-        let entry_records = std::rc::Rc::new(RunRecords::new_unrooted(callbacks.arena, root));
-        let viewport_used = entry_records.create_used_values(&callbacks, root, root_constraints);
-        let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(root));
-        let entry_run = FormattingContextRun {
-            purpose: LayoutPurpose::Commit,
-            records: entry_records.clone(),
-            box_: root,
-            layout_mode: LayoutMode::Normal,
-            callbacks,
-            should_collect_devtools_layout_data,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: false,
-            fragments: Some(entry_fragments.clone()),
-            previous_line_data: None,
-        };
+    let root_constraints = ContainingBlockConstraints {
+        percentage_basis_inline_size: Some(viewport_inline_size),
+        percentage_basis_block_size: Some(viewport_block_size),
+        ..ContainingBlockConstraints::default()
+    };
+    let entry_records = std::rc::Rc::new(RunRecords::new_unrooted(callbacks.arena, root));
+    let viewport_used = entry_records.create_used_values(&callbacks, root, root_constraints);
+    let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(root));
+    let entry_run = FormattingContextRun {
+        purpose: LayoutPurpose::Commit,
+        records: entry_records.clone(),
+        box_: root,
+        layout_mode: LayoutMode::Normal,
+        callbacks,
+        should_collect_devtools_layout_data,
+        treat_block_axis_percentage_insets_as_auto_beyond_root: false,
+        fragments: Some(entry_fragments.clone()),
+        previous_line_data: None,
+    };
 
-        let mut root_for_layout = root;
-        let mut root_for_layout_used = viewport_used.clone();
-        let first_child = callbacks.first_child(root);
-        if !first_child.is_invalid() && NodeFacts::new(&callbacks, first_child).is_svg_svg_box() {
-            viewport_used.set_content_inline_size(viewport_inline_size);
-            viewport_used.set_content_block_size(viewport_block_size);
-            place_child(&entry_run, root, FfiCssPixelPoint::default(), None);
-            root_for_layout_used = entry_records.create_used_values(&callbacks, first_child, root_constraints);
-            root_for_layout = first_child;
-        }
-        let input = LayoutInput::new(
-            AvailableSpace {
-                inline_size: AvailableSize::definite(viewport_inline_size),
-                block_size: AvailableSize::definite(viewport_block_size),
-            },
-            ContainingBlockConstraints::default(),
-            ParticipationInParentFormattingContext::Root,
-        )
-        .with_forced_sizes(viewport_inline_size, viewport_block_size);
-        let fc_type = independent_formatting_context_type(root_for_layout, &callbacks);
-        run_formatting_context(
-            LayoutPurpose::Commit,
-            Some(&entry_fragments),
-            &root_for_layout_used,
-            root_for_layout,
-            None,
-            fc_type,
-            LayoutMode::Normal,
-            should_collect_devtools_layout_data,
-            callbacks,
-            input,
-            None,
-            None,
-        );
-        place_child(&entry_run, root_for_layout, FfiCssPixelPoint::default(), None);
-        drain_and_commit_entry_pass(
-            &entry_records,
-            &entry_fragments,
-            &callbacks,
-            should_collect_devtools_layout_data,
-            root,
-            sink,
-        );
-        callbacks.arena().sweep_stale_fc_run_cache_entries();
-    });
+    let mut root_for_layout = root;
+    let mut root_for_layout_used = viewport_used.clone();
+    let first_child = callbacks.first_child(root);
+    if !first_child.is_invalid() && NodeFacts::new(&callbacks, first_child).is_svg_svg_box() {
+        viewport_used.set_content_inline_size(viewport_inline_size);
+        viewport_used.set_content_block_size(viewport_block_size);
+        place_child(&entry_run, root, FfiCssPixelPoint::default(), None);
+        root_for_layout_used = entry_records.create_used_values(&callbacks, first_child, root_constraints);
+        root_for_layout = first_child;
+    }
+    let input = LayoutInput::new(
+        AvailableSpace {
+            inline_size: AvailableSize::definite(viewport_inline_size),
+            block_size: AvailableSize::definite(viewport_block_size),
+        },
+        ContainingBlockConstraints::default(),
+        ParticipationInParentFormattingContext::Root,
+    )
+    .with_forced_sizes(viewport_inline_size, viewport_block_size);
+    let fc_type = independent_formatting_context_type(root_for_layout, &callbacks);
+    run_formatting_context(
+        LayoutPurpose::Commit,
+        Some(&entry_fragments),
+        &root_for_layout_used,
+        root_for_layout,
+        None,
+        fc_type,
+        LayoutMode::Normal,
+        should_collect_devtools_layout_data,
+        callbacks,
+        input,
+        None,
+        None,
+    );
+    place_child(&entry_run, root_for_layout, FfiCssPixelPoint::default(), None);
+    drain_and_commit_entry_pass(
+        &entry_records,
+        &entry_fragments,
+        &callbacks,
+        should_collect_devtools_layout_data,
+        root,
+        sink,
+    );
+    callbacks.arena().sweep_stale_fc_run_cache_entries();
 }
 
 fn drain_and_commit_entry_pass(
@@ -2299,86 +2295,84 @@ pub unsafe extern "C" fn rust_layout_compute_subtree_layout(
     callbacks: *const FfiLayoutFcCallbacks,
     sink: *const commit::FfiCommitSink,
 ) {
-    abort_on_panic(|| {
-        assert!(!root.is_invalid());
-        assert!(!callbacks.is_null());
-        assert!(!sink.is_null());
-        // SAFETY: The C++ pass host keeps both callback tables live for this
-        // synchronous entry.
-        let callbacks = unsafe { *callbacks };
-        let sink = unsafe { &*sink };
+    assert!(!root.is_invalid());
+    assert!(!callbacks.is_null());
+    assert!(!sink.is_null());
+    // SAFETY: The C++ pass host keeps both callback tables live for this
+    // synchronous entry.
+    let callbacks = unsafe { *callbacks };
+    let sink = unsafe { &*sink };
 
-        let entry_records = std::rc::Rc::new(RunRecords::new_unrooted(callbacks.arena, root));
-        let root_used = used_values::used_values_from_committed_fragment_link(&callbacks, root)
-            .expect("partial relayout root must have committed geometry");
-        entry_records.register(root, root_used.clone());
-        let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(root));
-        let entry_run = FormattingContextRun {
-            purpose: LayoutPurpose::Commit,
-            records: entry_records.clone(),
-            box_: root,
-            layout_mode: LayoutMode::Normal,
-            callbacks,
-            should_collect_devtools_layout_data: false,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: false,
-            fragments: Some(entry_fragments.clone()),
-            previous_line_data: None,
+    let entry_records = std::rc::Rc::new(RunRecords::new_unrooted(callbacks.arena, root));
+    let root_used = used_values::used_values_from_committed_fragment_link(&callbacks, root)
+        .expect("partial relayout root must have committed geometry");
+    entry_records.register(root, root_used.clone());
+    let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(root));
+    let entry_run = FormattingContextRun {
+        purpose: LayoutPurpose::Commit,
+        records: entry_records.clone(),
+        box_: root,
+        layout_mode: LayoutMode::Normal,
+        callbacks,
+        should_collect_devtools_layout_data: false,
+        treat_block_axis_percentage_insets_as_auto_beyond_root: false,
+        fragments: Some(entry_fragments.clone()),
+        previous_line_data: None,
+    };
+    if !viewport.is_invalid() && viewport != root {
+        let viewport_inline_size = CssPixels::from_raw(viewport_inline_size_raw);
+        let viewport_block_size = CssPixels::from_raw(viewport_block_size_raw);
+        let viewport_constraints = ContainingBlockConstraints {
+            percentage_basis_inline_size: Some(viewport_inline_size),
+            percentage_basis_block_size: Some(viewport_block_size),
+            ..ContainingBlockConstraints::default()
         };
-        if !viewport.is_invalid() && viewport != root {
-            let viewport_inline_size = CssPixels::from_raw(viewport_inline_size_raw);
-            let viewport_block_size = CssPixels::from_raw(viewport_block_size_raw);
-            let viewport_constraints = ContainingBlockConstraints {
-                percentage_basis_inline_size: Some(viewport_inline_size),
-                percentage_basis_block_size: Some(viewport_block_size),
-                ..ContainingBlockConstraints::default()
-            };
-            let viewport_used = entry_records.create_used_values(&callbacks, viewport, viewport_constraints);
-            viewport_used.set_content_inline_size(viewport_inline_size);
-            viewport_used.set_content_block_size(viewport_block_size);
-            place_child(&entry_run, viewport, FfiCssPixelPoint::default(), None);
-        }
-        let input = LayoutInput::new(
-            AvailableSpace {
-                inline_size: AvailableSize::definite(root_used.content_inline_size.get()),
-                block_size: AvailableSize::definite(root_used.content_block_size.get()),
-            },
-            // The subtree root has definite sizes in both axes, so boxes
-            // below it do not need inherited percentage constraints.
-            ContainingBlockConstraints::default(),
-            ParticipationInParentFormattingContext::Root,
-        );
+        let viewport_used = entry_records.create_used_values(&callbacks, viewport, viewport_constraints);
+        viewport_used.set_content_inline_size(viewport_inline_size);
+        viewport_used.set_content_block_size(viewport_block_size);
+        place_child(&entry_run, viewport, FfiCssPixelPoint::default(), None);
+    }
+    let input = LayoutInput::new(
+        AvailableSpace {
+            inline_size: AvailableSize::definite(root_used.content_inline_size.get()),
+            block_size: AvailableSize::definite(root_used.content_block_size.get()),
+        },
+        // The subtree root has definite sizes in both axes, so boxes
+        // below it do not need inherited percentage constraints.
+        ContainingBlockConstraints::default(),
+        ParticipationInParentFormattingContext::Root,
+    );
 
-        let facts = NodeFacts::new(&callbacks, root);
-        let fc_type = formatting_context_type_created_by_box(facts)
-            .expect("partial relayout root must establish an independent formatting context");
-        run_formatting_context(
-            LayoutPurpose::Commit,
-            Some(&entry_fragments),
-            &root_used,
-            root,
-            None,
-            fc_type,
-            LayoutMode::Normal,
-            false,
-            callbacks,
-            input,
-            None,
-            None,
-        );
-        entry_fragments.normalize_arrivals_for_placement(root);
-        entry_fragments.build_fragment_for_placed_box(
-            &callbacks,
-            root,
-            None,
-            &root_used,
-            false,
-            None,
-            root_used.content_offset.get(),
-            None,
-        );
-        drain_and_commit_entry_pass(&entry_records, &entry_fragments, &callbacks, false, root, sink);
-        callbacks.arena().sweep_stale_fc_run_cache_entries();
-    });
+    let facts = NodeFacts::new(&callbacks, root);
+    let fc_type = formatting_context_type_created_by_box(facts)
+        .expect("partial relayout root must establish an independent formatting context");
+    run_formatting_context(
+        LayoutPurpose::Commit,
+        Some(&entry_fragments),
+        &root_used,
+        root,
+        None,
+        fc_type,
+        LayoutMode::Normal,
+        false,
+        callbacks,
+        input,
+        None,
+        None,
+    );
+    entry_fragments.normalize_arrivals_for_placement(root);
+    entry_fragments.build_fragment_for_placed_box(
+        &callbacks,
+        root,
+        None,
+        &root_used,
+        false,
+        None,
+        root_used.content_offset.get(),
+        None,
+    );
+    drain_and_commit_entry_pass(&entry_records, &entry_fragments, &callbacks, false, root, sink);
+    callbacks.arena().sweep_stale_fc_run_cache_entries();
 }
 
 /// # Safety
@@ -2390,33 +2384,31 @@ pub unsafe extern "C" fn rust_layout_replay_saved_abspos_layout(
     callbacks: *const FfiLayoutFcCallbacks,
     sink: *const commit::FfiCommitSink,
 ) {
-    abort_on_panic(|| {
-        assert!(!box_.is_invalid());
-        assert!(!callbacks.is_null());
-        assert!(!sink.is_null());
-        // SAFETY: The C++ pass host keeps both callback tables live for this
-        // synchronous entry.
-        let callbacks = unsafe { *callbacks };
-        let sink = unsafe { &*sink };
-        let containing_block = callbacks.containing_block(box_);
-        assert!(!containing_block.is_invalid());
-        let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(
-            containing_block,
-        ));
-        let entry_records = std::rc::Rc::new(RunRecords::new_unrooted(callbacks.arena, containing_block));
-        let run = FormattingContextRun {
-            purpose: LayoutPurpose::Commit,
-            records: entry_records.clone(),
-            box_: containing_block,
-            layout_mode: LayoutMode::Normal,
-            callbacks,
-            should_collect_devtools_layout_data: false,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: false,
-            fragments: Some(entry_fragments.clone()),
-            previous_line_data: None,
-        };
-        abspos_engine::AbsposEngine::for_run(&run).replay(&run, box_);
-        drain_and_commit_entry_pass(&entry_records, &entry_fragments, &callbacks, false, box_, sink);
-        callbacks.arena().sweep_stale_fc_run_cache_entries();
-    });
+    assert!(!box_.is_invalid());
+    assert!(!callbacks.is_null());
+    assert!(!sink.is_null());
+    // SAFETY: The C++ pass host keeps both callback tables live for this
+    // synchronous entry.
+    let callbacks = unsafe { *callbacks };
+    let sink = unsafe { &*sink };
+    let containing_block = callbacks.containing_block(box_);
+    assert!(!containing_block.is_invalid());
+    let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(
+        containing_block,
+    ));
+    let entry_records = std::rc::Rc::new(RunRecords::new_unrooted(callbacks.arena, containing_block));
+    let run = FormattingContextRun {
+        purpose: LayoutPurpose::Commit,
+        records: entry_records.clone(),
+        box_: containing_block,
+        layout_mode: LayoutMode::Normal,
+        callbacks,
+        should_collect_devtools_layout_data: false,
+        treat_block_axis_percentage_insets_as_auto_beyond_root: false,
+        fragments: Some(entry_fragments.clone()),
+        previous_line_data: None,
+    };
+    abspos_engine::AbsposEngine::for_run(&run).replay(&run, box_);
+    drain_and_commit_entry_pass(&entry_records, &entry_fragments, &callbacks, false, box_, sink);
+    callbacks.arena().sweep_stale_fc_run_cache_entries();
 }

@@ -19,7 +19,6 @@ use std::ffi::c_void;
 use std::hash::BuildHasherDefault;
 use std::hash::Hasher;
 
-use crate::abort_on_panic;
 use crate::css::custom_properties::CustomPropertyStore;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::query_parser::FfiMediaEnvironment;
@@ -448,16 +447,14 @@ impl CascadedPropertyStore {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_cascaded_properties_create() -> *mut CascadedPropertyStore {
-    abort_on_panic(|| {
-        // A store lives exactly as long as the computation of one element's style, and a style pass
-        // builds one per element. Recycling the emptied ones keeps the arena's capacity and the
-        // map's buckets, so only the first few elements of a pass allocate at all. The store itself
-        // is still created and destroyed as C++ asks, so nothing about its lifetime changes.
-        let store = STORE_POOL
-            .with_borrow_mut(Vec::pop)
-            .unwrap_or_else(CascadedPropertyStore::new);
-        Box::into_raw(Box::new(store))
-    })
+    // A store lives exactly as long as the computation of one element's style, and a style pass
+    // builds one per element. Recycling the emptied ones keeps the arena's capacity and the
+    // map's buckets, so only the first few elements of a pass allocate at all. The store itself
+    // is still created and destroyed as C++ asks, so nothing about its lifetime changes.
+    let store = STORE_POOL
+        .with_borrow_mut(Vec::pop)
+        .unwrap_or_else(CascadedPropertyStore::new);
+    Box::into_raw(Box::new(store))
 }
 
 thread_local! {
@@ -473,15 +470,13 @@ const STORE_POOL_CAPACITY: usize = 4;
 /// destroyed yet; no references into the store may outlive this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_cascaded_properties_destroy(store: *mut CascadedPropertyStore) {
-    abort_on_panic(|| {
-        let mut store = unsafe { Box::from_raw(store) };
-        STORE_POOL.with_borrow_mut(|pool| {
-            if pool.len() >= STORE_POOL_CAPACITY {
-                return;
-            }
-            store.reset();
-            pool.push(*store);
-        });
+    let mut store = unsafe { Box::from_raw(store) };
+    STORE_POOL.with_borrow_mut(|pool| {
+        if pool.len() >= STORE_POOL_CAPACITY {
+            return;
+        }
+        store.reset();
+        pool.push(*store);
     });
 }
 
@@ -495,10 +490,10 @@ pub unsafe extern "C" fn rust_cascaded_properties_property(
     property_id: u16,
 ) -> *const c_void {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadedStoreQueryEntry);
-    abort_on_panic(|| match unsafe { &*store }.last_entry(property_id) {
+    match unsafe { &*store }.last_entry(property_id) {
         Some(entry) => entry.value.pointer().cast(),
         None => std::ptr::null(),
-    })
+    }
 }
 
 /// Returns the winning declaration's source slot, or -1 when the property has no cascaded value.
@@ -511,10 +506,10 @@ pub unsafe extern "C" fn rust_cascaded_properties_source_slot(
     property_id: u16,
 ) -> i64 {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadedStoreQueryEntry);
-    abort_on_panic(|| match unsafe { &*store }.last_entry(property_id) {
+    match unsafe { &*store }.last_entry(property_id) {
         Some(entry) => entry.source_slot as i64,
         None => -1,
-    })
+    }
 }
 
 /// Returns whether the winning declaration's original C++ facade carried
@@ -528,11 +523,9 @@ pub unsafe extern "C" fn rust_cascaded_properties_has_style_sheet_context(
     property_id: u16,
 ) -> bool {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadedStoreQueryEntry);
-    abort_on_panic(|| {
-        unsafe { &*store }
-            .last_entry(property_id)
-            .is_some_and(|entry| entry.has_style_sheet_context)
-    })
+    unsafe { &*store }
+        .last_entry(property_id)
+        .is_some_and(|entry| entry.has_style_sheet_context)
 }
 
 pub const CASCADED_ENVIRONMENT_NEEDS_DOCUMENT_BASE_URL: u8 = 1 << 0;
@@ -1793,83 +1786,80 @@ pub unsafe extern "C" fn rust_resolve_unresolved_style_values(
     finalizer_context: *mut c_void,
     finalize_component: Option<unsafe extern "C" fn(*mut c_void, *const u32, usize, *mut FfiResolvedStyleValue)>,
 ) -> FfiCustomPropertyResolutionStats {
-    crate::abort_on_panic(|| {
-        let resolution_context = unsafe { *resolution_context };
-        let inputs = if input_count == 0 {
-            &[]
-        } else {
-            unsafe { std::slice::from_raw_parts(inputs, input_count) }
-        };
-        let outputs = if input_count == 0 {
-            &mut []
-        } else {
-            unsafe { std::slice::from_raw_parts_mut(outputs, input_count) }
-        };
-        let mut resolution_environment = unsafe {
-            crate::css::custom_properties::prepare_var_resolution_environment(
-                resolution_context.attributes,
-                resolution_context.attribute_count,
-                resolution_context.custom_functions,
-                resolution_context.custom_function_count,
-                resolution_context.custom_function_scope_identity,
-            )
-        };
-        let (components, cycle_participants, use_final_custom_properties) = if finalize_component.is_some() {
-            custom_property_components(inputs)
-        } else {
-            ((0..input_count as u32).map(|index| vec![index]).collect(), 0, false)
-        };
-        let mut final_custom_properties = HashMap::new();
-        for mut component in components {
-            component.sort_unstable();
-            for &member in &component {
-                let input = &inputs[member as usize];
-                if !input.resolve_substitutions {
-                    outputs[member as usize].data = unsafe {
-                        crate::css::style_value::retain_style_value(input.data.cast::<StyleValueData>()).cast()
-                    };
-                    continue;
-                }
-                let mut member_context = resolution_context;
-                member_context.root_custom_property_name = input.root_custom_property_name;
-                let resolved = resolve_cascade_value(
-                    &member_context,
-                    resolution_environment.as_mut(),
-                    0,
-                    input.property_id,
-                    input.data,
-                    false,
-                    use_final_custom_properties.then_some(&final_custom_properties),
+    let resolution_context = unsafe { *resolution_context };
+    let inputs = if input_count == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(inputs, input_count) }
+    };
+    let outputs = if input_count == 0 {
+        &mut []
+    } else {
+        unsafe { std::slice::from_raw_parts_mut(outputs, input_count) }
+    };
+    let mut resolution_environment = unsafe {
+        crate::css::custom_properties::prepare_var_resolution_environment(
+            resolution_context.attributes,
+            resolution_context.attribute_count,
+            resolution_context.custom_functions,
+            resolution_context.custom_function_count,
+            resolution_context.custom_function_scope_identity,
+        )
+    };
+    let (components, cycle_participants, use_final_custom_properties) = if finalize_component.is_some() {
+        custom_property_components(inputs)
+    } else {
+        ((0..input_count as u32).map(|index| vec![index]).collect(), 0, false)
+    };
+    let mut final_custom_properties = HashMap::new();
+    for mut component in components {
+        component.sort_unstable();
+        for &member in &component {
+            let input = &inputs[member as usize];
+            if !input.resolve_substitutions {
+                outputs[member as usize].data =
+                    unsafe { crate::css::style_value::retain_style_value(input.data.cast::<StyleValueData>()).cast() };
+                continue;
+            }
+            let mut member_context = resolution_context;
+            member_context.root_custom_property_name = input.root_custom_property_name;
+            let resolved = resolve_cascade_value(
+                &member_context,
+                resolution_environment.as_mut(),
+                0,
+                input.property_id,
+                input.data,
+                false,
+                use_final_custom_properties.then_some(&final_custom_properties),
+            );
+            outputs[member as usize].data = resolved.value.pointer().cast();
+            std::mem::forget(resolved.value);
+        }
+        if let Some(finalize_component) = finalize_component {
+            unsafe {
+                finalize_component(
+                    finalizer_context,
+                    component.as_ptr(),
+                    component.len(),
+                    outputs.as_mut_ptr(),
                 );
-                outputs[member as usize].data = resolved.value.pointer().cast();
-                std::mem::forget(resolved.value);
-            }
-            if let Some(finalize_component) = finalize_component {
-                unsafe {
-                    finalize_component(
-                        finalizer_context,
-                        component.as_ptr(),
-                        component.len(),
-                        outputs.as_mut_ptr(),
-                    );
-                };
-                for &member in &component {
-                    let name = unsafe { inputs[member as usize].root_custom_property_name.to_utf16() }
-                        .expect("custom-property resolution input name");
-                    final_custom_properties.insert(name, outputs[member as usize].data);
-                }
+            };
+            for &member in &component {
+                let name = unsafe { inputs[member as usize].root_custom_property_name.to_utf16() }
+                    .expect("custom-property resolution input name");
+                final_custom_properties.insert(name, outputs[member as usize].data);
             }
         }
-        FfiCustomPropertyResolutionStats {
-            final_value_hits: resolution_environment
-                .as_ref()
-                .map_or(0, |environment| environment.final_value_hits()),
-            final_value_misses: resolution_environment
-                .as_ref()
-                .map_or(0, |environment| environment.final_value_misses()),
-            cycle_participants,
-        }
-    })
+    }
+    FfiCustomPropertyResolutionStats {
+        final_value_hits: resolution_environment
+            .as_ref()
+            .map_or(0, |environment| environment.final_value_hits()),
+        final_value_misses: resolution_environment
+            .as_ref()
+            .map_or(0, |environment| environment.final_value_misses()),
+        cycle_participants,
+    }
 }
 
 /// Runs the longhand cascade for one element in css-cascade-5 origin order
@@ -1902,129 +1892,126 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
     resolution_context: *const FfiCascadeResolutionContext,
 ) -> FfiCascadeResult {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadeBulkEntry);
-    abort_on_panic(|| {
-        let store = unsafe { &mut *store };
-        let blocks = if block_count == 0 {
+    let store = unsafe { &mut *store };
+    let blocks = if block_count == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(blocks, block_count) }
+    };
+    let resolution_context = unsafe { &*resolution_context };
+
+    let (custom_properties_apply, custom_properties, mut unadopted_custom_property_store) = cascade_custom_properties(
+        blocks,
+        author_context_count,
+        pseudo_element,
+        resolution_context.custom_property_store,
+    );
+    let mut resolution_context = *resolution_context;
+    if custom_properties_apply {
+        resolution_context.custom_property_store = unsafe {
+            (resolution_context
+                .install_custom_properties
+                .expect("missing custom property installer"))(
+                resolution_context.callback_context,
+                custom_properties.as_ptr(),
+                custom_properties.len(),
+                &raw mut unadopted_custom_property_store,
+            )
+        };
+    }
+    if !unadopted_custom_property_store.is_null() {
+        drop(unsafe { std::sync::Arc::from_raw(unadopted_custom_property_store.cast::<CustomPropertyStore>()) });
+    }
+
+    let mut resolution_environment = None;
+
+    let application_order = cascade_application_order(blocks, author_context_count);
+    let has_pseudo_element = pseudo_element != NO_PSEUDO_ELEMENT;
+    let block_layer_names: Vec<Option<RetainedUtf16FlyString>> = blocks
+        .iter()
+        .map(|block| {
+            block
+                .has_layer_name
+                .then(|| unsafe { RetainedUtf16FlyString::from_leaked_raw(block.layer_name_raw) })
+        })
+        .collect();
+
+    let mut source_slot_assignments: Vec<FfiSourceSlotAssignment> = Vec::new();
+    let mut apply = |block_index: usize, important: bool, use_layer_name: bool| {
+        let block = &blocks[block_index];
+        let declarations = if block.declaration_count == 0 {
             &[]
         } else {
-            unsafe { std::slice::from_raw_parts(blocks, block_count) }
+            unsafe { std::slice::from_raw_parts(block.declarations, block.declaration_count) }
         };
-        let resolution_context = unsafe { &*resolution_context };
-
-        let (custom_properties_apply, custom_properties, mut unadopted_custom_property_store) =
-            cascade_custom_properties(
-                blocks,
-                author_context_count,
-                pseudo_element,
-                resolution_context.custom_property_store,
-            );
-        let mut resolution_context = *resolution_context;
-        if custom_properties_apply {
-            resolution_context.custom_property_store = unsafe {
-                (resolution_context
-                    .install_custom_properties
-                    .expect("missing custom property installer"))(
-                    resolution_context.callback_context,
-                    custom_properties.as_ptr(),
-                    custom_properties.len(),
-                    &raw mut unadopted_custom_property_store,
-                )
-            };
-        }
-        if !unadopted_custom_property_store.is_null() {
-            drop(unsafe { std::sync::Arc::from_raw(unadopted_custom_property_store.cast::<CustomPropertyStore>()) });
-        }
-
-        let mut resolution_environment = None;
-
-        let application_order = cascade_application_order(blocks, author_context_count);
-        let has_pseudo_element = pseudo_element != NO_PSEUDO_ELEMENT;
-        let block_layer_names: Vec<Option<RetainedUtf16FlyString>> = blocks
-            .iter()
-            .map(|block| {
-                block
-                    .has_layer_name
-                    .then(|| unsafe { RetainedUtf16FlyString::from_leaked_raw(block.layer_name_raw) })
-            })
-            .collect();
-
-        let mut source_slot_assignments: Vec<FfiSourceSlotAssignment> = Vec::new();
-        let mut apply = |block_index: usize, important: bool, use_layer_name: bool| {
-            let block = &blocks[block_index];
-            let declarations = if block.declaration_count == 0 {
-                &[]
+        let is_property_disallowed = |property_id: u16| -> bool {
+            if block.bypass_pseudo_element_property_whitelist || !has_pseudo_element {
+                return false;
+            }
+            !crate::css::property_metadata::pseudo_element_supports_property(pseudo_element, property_id)
+        };
+        apply_declaration_block(
+            store,
+            declarations,
+            important,
+            block.origin,
+            if use_layer_name {
+                block_layer_names[block_index].as_ref()
             } else {
-                unsafe { std::slice::from_raw_parts(block.declarations, block.declaration_count) }
-            };
-            let is_property_disallowed = |property_id: u16| -> bool {
-                if block.bypass_pseudo_element_property_whitelist || !has_pseudo_element {
-                    return false;
-                }
-                !crate::css::property_metadata::pseudo_element_supports_property(pseudo_element, property_id)
-            };
-            apply_declaration_block(
-                store,
-                declarations,
-                important,
-                block.origin,
-                if use_layer_name {
-                    block_layer_names[block_index].as_ref()
-                } else {
-                    None
-                },
-                block.source_shadow_root_identity,
-                unset_data,
-                &is_property_disallowed,
-                &mut |style_engine_rule_id, property_id, unresolved_data, has_style_sheet_context| {
-                    let resolution_environment = resolution_environment.get_or_insert_with(|| unsafe {
-                        crate::css::custom_properties::prepare_var_resolution_environment(
-                            resolution_context.attributes,
-                            resolution_context.attribute_count,
-                            resolution_context.custom_functions,
-                            resolution_context.custom_function_count,
-                            resolution_context.custom_function_scope_identity,
-                        )
-                    });
-                    resolve_cascade_value(
-                        &resolution_context,
-                        resolution_environment.as_mut(),
-                        style_engine_rule_id,
-                        property_id,
-                        unresolved_data,
-                        has_style_sheet_context,
-                        None,
+                None
+            },
+            block.source_shadow_root_identity,
+            unset_data,
+            &is_property_disallowed,
+            &mut |style_engine_rule_id, property_id, unresolved_data, has_style_sheet_context| {
+                let resolution_environment = resolution_environment.get_or_insert_with(|| unsafe {
+                    crate::css::custom_properties::prepare_var_resolution_environment(
+                        resolution_context.attributes,
+                        resolution_context.attribute_count,
+                        resolution_context.custom_functions,
+                        resolution_context.custom_function_count,
+                        resolution_context.custom_function_scope_identity,
                     )
-                },
-                block.style_engine_rule_id,
-                |slot| {
-                    source_slot_assignments.push(FfiSourceSlotAssignment {
-                        slot,
-                        source_id: block.source_id,
-                    });
-                },
-            );
+                });
+                resolve_cascade_value(
+                    &resolution_context,
+                    resolution_environment.as_mut(),
+                    style_engine_rule_id,
+                    property_id,
+                    unresolved_data,
+                    has_style_sheet_context,
+                    None,
+                )
+            },
+            block.style_engine_rule_id,
+            |slot| {
+                source_slot_assignments.push(FfiSourceSlotAssignment {
+                    slot,
+                    source_id: block.source_id,
+                });
+            },
+        );
+    };
+
+    for &(block_index, important, use_layer_name) in &application_order {
+        apply(block_index, important, use_layer_name);
+    }
+
+    if source_slot_assignments.is_empty() {
+        return FfiCascadeResult {
+            source_slot_assignments: std::ptr::null(),
+            source_slot_assignment_count: 0,
+            storage: std::ptr::null_mut(),
         };
-
-        for &(block_index, important, use_layer_name) in &application_order {
-            apply(block_index, important, use_layer_name);
-        }
-
-        if source_slot_assignments.is_empty() {
-            return FfiCascadeResult {
-                source_slot_assignments: std::ptr::null(),
-                source_slot_assignment_count: 0,
-                storage: std::ptr::null_mut(),
-            };
-        }
-        let source_slot_assignments = source_slot_assignments.into_boxed_slice();
-        let source_slot_assignment_count = source_slot_assignments.len();
-        let storage = Box::into_raw(source_slot_assignments);
-        FfiCascadeResult {
-            source_slot_assignments: storage.cast::<FfiSourceSlotAssignment>(),
-            source_slot_assignment_count,
-            storage: storage.cast(),
-        }
-    })
+    }
+    let source_slot_assignments = source_slot_assignments.into_boxed_slice();
+    let source_slot_assignment_count = source_slot_assignments.len();
+    let storage = Box::into_raw(source_slot_assignments);
+    FfiCascadeResult {
+        source_slot_assignments: storage.cast::<FfiSourceSlotAssignment>(),
+        source_slot_assignment_count,
+        storage: storage.cast(),
+    }
 }
 
 /// # Safety

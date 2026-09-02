@@ -2622,25 +2622,23 @@ pub unsafe extern "C" fn rust_parse_sizes_attribute(
     media_environment: *const FfiMediaEnvironment,
     img_auto_width: *const f64,
 ) -> *const c_void {
-    crate::abort_on_panic(|| {
-        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SizesAttributeParseEntry);
-        let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null();
-        };
-        let Some(context) = (unsafe { context.as_ref() }) else {
-            return std::ptr::null();
-        };
-        let media_environment =
-            unsafe { media_environment.as_ref() }.and_then(|environment| unsafe { ffi_media_environment(environment) });
-        let img_auto_width = unsafe { img_auto_width.as_ref() }.copied();
-        Arc::into_raw(Arc::new(parse_sizes_attribute(
-            context,
-            source,
-            media_environment,
-            img_auto_width,
-        )))
-        .cast()
-    })
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SizesAttributeParseEntry);
+    let Some(source) = (unsafe { source.units() }) else {
+        return std::ptr::null();
+    };
+    let Some(context) = (unsafe { context.as_ref() }) else {
+        return std::ptr::null();
+    };
+    let media_environment =
+        unsafe { media_environment.as_ref() }.and_then(|environment| unsafe { ffi_media_environment(environment) });
+    let img_auto_width = unsafe { img_auto_width.as_ref() }.copied();
+    Arc::into_raw(Arc::new(parse_sizes_attribute(
+        context,
+        source,
+        media_environment,
+        img_auto_width,
+    )))
+    .cast()
 }
 
 pub(crate) unsafe fn declared_namespaces_from_context(context: &ParseContext) -> Option<Vec<TokenizerInput<'_>>> {
@@ -2667,21 +2665,19 @@ pub unsafe extern "C" fn rust_visit_media_query_list(
     context: *mut c_void,
     visit: VisitQueryHandle,
 ) -> bool {
-    crate::abort_on_panic(|| {
-        let Some(source) = (unsafe { source.units() }) else {
-            return false;
-        };
-        let Some(queries) = parse_media_query_list(source, &resolve_query_feature) else {
-            return false;
-        };
-        for query in queries {
-            let handle = Arc::new(FfiQueryHandle {
-                tree: QueryTree::MediaQuery(query),
-            });
-            unsafe { visit(context, Arc::as_ptr(&handle)) };
-        }
-        true
-    })
+    let Some(source) = (unsafe { source.units() }) else {
+        return false;
+    };
+    let Some(queries) = parse_media_query_list(source, &resolve_query_feature) else {
+        return false;
+    };
+    for query in queries {
+        let handle = Arc::new(FfiQueryHandle {
+            tree: QueryTree::MediaQuery(query),
+        });
+        unsafe { visit(context, Arc::as_ptr(&handle)) };
+    }
+    true
 }
 
 #[allow(clippy::arc_with_non_send_sync)]
@@ -2698,38 +2694,34 @@ pub unsafe extern "C" fn rust_parse_supports_condition(
     source: FfiUtf16View,
     context: *const ParseContext,
 ) -> *const FfiQueryHandle {
-    crate::abort_on_panic(|| {
-        let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null();
-        };
-        let Some(context) = (unsafe { context.as_ref() }) else {
-            return std::ptr::null();
-        };
-        let Some(declared_namespaces) = (unsafe { declared_namespaces_from_context(context) }) else {
-            return std::ptr::null();
-        };
-        let Some(expression) = parse_supports_condition(source, &|kind, value| {
-            supports_feature_matches(context, &declared_namespaces, kind, value)
-        }) else {
-            return std::ptr::null();
-        };
-        create_expression_handle(expression, QueryKind::Supports)
-    })
+    let Some(source) = (unsafe { source.units() }) else {
+        return std::ptr::null();
+    };
+    let Some(context) = (unsafe { context.as_ref() }) else {
+        return std::ptr::null();
+    };
+    let Some(declared_namespaces) = (unsafe { declared_namespaces_from_context(context) }) else {
+        return std::ptr::null();
+    };
+    let Some(expression) = parse_supports_condition(source, &|kind, value| {
+        supports_feature_matches(context, &declared_namespaces, kind, value)
+    }) else {
+        return std::ptr::null();
+    };
+    create_expression_handle(expression, QueryKind::Supports)
 }
 
 /// # Safety
 /// The source pointers must identify readable storage for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_style_query(source: FfiUtf16View) -> *const FfiQueryHandle {
-    crate::abort_on_panic(|| {
-        let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null();
-        };
-        let Some(expression) = parse_style_query_from_source(source, &resolve_query_feature) else {
-            return std::ptr::null();
-        };
-        create_expression_handle(expression, QueryKind::Style)
-    })
+    let Some(source) = (unsafe { source.units() }) else {
+        return std::ptr::null();
+    };
+    let Some(expression) = parse_style_query_from_source(source, &resolve_query_feature) else {
+        return std::ptr::null();
+    };
+    create_expression_handle(expression, QueryKind::Style)
 }
 
 /// Adds one strong reference to a borrowed query handle.
@@ -2738,12 +2730,10 @@ pub unsafe extern "C" fn rust_parse_style_query(source: FfiUtf16View) -> *const 
 /// `handle` must be null or point to a live query handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn css_query_ref(handle: *const FfiQueryHandle) -> *const FfiQueryHandle {
-    crate::abort_on_panic(|| {
-        if !handle.is_null() {
-            unsafe { Arc::increment_strong_count(handle) };
-        }
-        handle
-    })
+    if !handle.is_null() {
+        unsafe { Arc::increment_strong_count(handle) };
+    }
+    handle
 }
 
 /// Releases one strong reference to a query handle.
@@ -2752,21 +2742,17 @@ pub unsafe extern "C" fn css_query_ref(handle: *const FfiQueryHandle) -> *const 
 /// `handle` must be null or own one strong reference to a live query handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn css_query_unref(handle: *const FfiQueryHandle) {
-    crate::abort_on_panic(|| {
-        if !handle.is_null() {
-            unsafe { Arc::decrement_strong_count(handle) };
-        }
-    });
+    if !handle.is_null() {
+        unsafe { Arc::decrement_strong_count(handle) };
+    }
 }
 
 #[unsafe(no_mangle)]
 #[allow(clippy::arc_with_non_send_sync)]
 pub extern "C" fn css_query_create_not_all() -> *const FfiQueryHandle {
-    crate::abort_on_panic(|| {
-        Arc::into_raw(Arc::new(FfiQueryHandle {
-            tree: QueryTree::MediaQuery(invalid_media_query()),
-        }))
-    })
+    Arc::into_raw(Arc::new(FfiQueryHandle {
+        tree: QueryTree::MediaQuery(invalid_media_query()),
+    }))
 }
 
 /// Serializes a retained media query without changing its UTF-16 representation.
@@ -2780,17 +2766,15 @@ pub unsafe extern "C" fn css_query_serialize_media_query(
     context: *mut c_void,
     visit: VisitQuerySerialization,
 ) -> bool {
-    crate::abort_on_panic(|| {
-        let Some(handle) = (unsafe { handle.as_ref() }) else {
-            return false;
-        };
-        let QueryTree::MediaQuery(query) = &handle.tree else {
-            return false;
-        };
-        let serialized = serialize_media_query(query);
-        unsafe { visit(context, serialized.as_ptr(), serialized.len()) };
-        true
-    })
+    let Some(handle) = (unsafe { handle.as_ref() }) else {
+        return false;
+    };
+    let QueryTree::MediaQuery(query) = &handle.tree else {
+        return false;
+    };
+    let serialized = serialize_media_query(query);
+    unsafe { visit(context, serialized.as_ptr(), serialized.len()) };
+    true
 }
 
 /// Evaluates a retained media query against an immutable feature snapshot.
@@ -2803,18 +2787,16 @@ pub unsafe extern "C" fn css_query_evaluate_media(
     handle: *const FfiQueryHandle,
     environment: FfiMediaEnvironment,
 ) -> bool {
-    crate::abort_on_panic(|| {
-        let Some(handle) = (unsafe { handle.as_ref() }) else {
-            return false;
-        };
-        let QueryTree::MediaQuery(query) = &handle.tree else {
-            return false;
-        };
-        let Some((values, length_context)) = (unsafe { ffi_media_environment(&environment) }) else {
-            return false;
-        };
-        evaluate_media_query(query, values, length_context) == MatchResult::True
-    })
+    let Some(handle) = (unsafe { handle.as_ref() }) else {
+        return false;
+    };
+    let QueryTree::MediaQuery(query) = &handle.tree else {
+        return false;
+    };
+    let Some((values, length_context)) = (unsafe { ffi_media_environment(&environment) }) else {
+        return false;
+    };
+    evaluate_media_query(query, values, length_context) == MatchResult::True
 }
 
 /// Evaluates a retained standalone media condition against an immutable feature snapshot.
@@ -2828,22 +2810,20 @@ pub unsafe extern "C" fn css_query_evaluate_media_condition(
     handle: *const FfiQueryHandle,
     environment: FfiMediaEnvironment,
 ) -> u8 {
-    crate::abort_on_panic(|| {
-        let Some(handle) = (unsafe { handle.as_ref() }) else {
-            return 3;
-        };
-        let QueryTree::Expression {
-            expression,
-            kind: QueryKind::Media,
-        } = &handle.tree
-        else {
-            return 3;
-        };
-        let Some((values, length_context)) = (unsafe { ffi_media_environment(&environment) }) else {
-            return MatchResult::False as u8;
-        };
-        evaluate_media_expression(expression, values, length_context) as u8
-    })
+    let Some(handle) = (unsafe { handle.as_ref() }) else {
+        return 3;
+    };
+    let QueryTree::Expression {
+        expression,
+        kind: QueryKind::Media,
+    } = &handle.tree
+    else {
+        return 3;
+    };
+    let Some((values, length_context)) = (unsafe { ffi_media_environment(&environment) }) else {
+        return MatchResult::False as u8;
+    };
+    evaluate_media_expression(expression, values, length_context) as u8
 }
 
 /// Evaluates a retained supports condition whose feature results were captured while parsing.
@@ -2853,19 +2833,17 @@ pub unsafe extern "C" fn css_query_evaluate_media_condition(
 /// `handle` must point to a live supports-expression handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn css_query_evaluate_supports(handle: *const FfiQueryHandle) -> u8 {
-    crate::abort_on_panic(|| {
-        let Some(handle) = (unsafe { handle.as_ref() }) else {
-            return 3;
-        };
-        let QueryTree::Expression {
-            expression,
-            kind: QueryKind::Supports,
-        } = &handle.tree
-        else {
-            return 3;
-        };
-        evaluate_supports_expression(expression) as u8
-    })
+    let Some(handle) = (unsafe { handle.as_ref() }) else {
+        return 3;
+    };
+    let QueryTree::Expression {
+        expression,
+        kind: QueryKind::Supports,
+    } = &handle.tree
+    else {
+        return 3;
+    };
+    evaluate_supports_expression(expression) as u8
 }
 
 /// Returns the query-container capabilities needed by a retained container condition.
@@ -2874,19 +2852,17 @@ pub unsafe extern "C" fn css_query_evaluate_supports(handle: *const FfiQueryHand
 /// `handle` must point to a live container-expression handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn css_query_container_requirements(handle: *const FfiQueryHandle) -> u8 {
-    crate::abort_on_panic(|| {
-        let Some(handle) = (unsafe { handle.as_ref() }) else {
-            return CONTAINER_QUERY_HAS_UNKNOWN_FEATURE;
-        };
-        let QueryTree::Expression {
-            expression,
-            kind: QueryKind::Size,
-        } = &handle.tree
-        else {
-            return CONTAINER_QUERY_HAS_UNKNOWN_FEATURE;
-        };
-        container_requirements(expression)
-    })
+    let Some(handle) = (unsafe { handle.as_ref() }) else {
+        return CONTAINER_QUERY_HAS_UNKNOWN_FEATURE;
+    };
+    let QueryTree::Expression {
+        expression,
+        kind: QueryKind::Size,
+    } = &handle.tree
+    else {
+        return CONTAINER_QUERY_HAS_UNKNOWN_FEATURE;
+    };
+    container_requirements(expression)
 }
 
 /// Evaluates a retained container condition against immutable size facts and style callbacks.
@@ -2896,27 +2872,25 @@ pub unsafe extern "C" fn css_query_container_requirements(handle: *const FfiQuer
 /// `facts` must remain valid for the duration of this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn css_query_evaluate_container(handle: *const FfiQueryHandle, facts: FfiContainerFacts) -> u8 {
-    crate::abort_on_panic(|| {
-        let Some(handle) = (unsafe { handle.as_ref() }) else {
-            return MatchResult::Unknown as u8;
-        };
-        let QueryTree::Expression { expression, kind } = &handle.tree else {
-            return MatchResult::Unknown as u8;
-        };
-        if !matches!(kind, QueryKind::Size | QueryKind::Style) {
-            return MatchResult::Unknown as u8;
-        }
-        if !facts.container_available {
-            return MatchResult::Unknown as u8;
-        }
-        let length_context = unsafe {
-            facts
-                .length_resolution_context
-                .cast::<FfiLengthResolutionContext>()
-                .as_ref()
-        };
-        evaluate_container_expression(expression, &facts, length_context) as u8
-    })
+    let Some(handle) = (unsafe { handle.as_ref() }) else {
+        return MatchResult::Unknown as u8;
+    };
+    let QueryTree::Expression { expression, kind } = &handle.tree else {
+        return MatchResult::Unknown as u8;
+    };
+    if !matches!(kind, QueryKind::Size | QueryKind::Style) {
+        return MatchResult::Unknown as u8;
+    }
+    if !facts.container_available {
+        return MatchResult::Unknown as u8;
+    }
+    let length_context = unsafe {
+        facts
+            .length_resolution_context
+            .cast::<FfiLengthResolutionContext>()
+            .as_ref()
+    };
+    evaluate_container_expression(expression, &facts, length_context) as u8
 }
 
 /// Serializes a retained query condition without changing its UTF-16 representation.
@@ -2930,19 +2904,17 @@ pub unsafe extern "C" fn css_query_serialize_condition(
     context: *mut c_void,
     visit: VisitQuerySerialization,
 ) -> bool {
-    crate::abort_on_panic(|| {
-        let Some(handle) = (unsafe { handle.as_ref() }) else {
-            return false;
-        };
-        let QueryTree::Expression { expression, kind } = &handle.tree else {
-            return false;
-        };
-        let mut sink = TextSink::new();
-        serialize_expression(&mut sink, expression, *kind);
-        let serialized = sink.into_utf16();
-        unsafe { visit(context, serialized.as_ptr(), serialized.len()) };
-        true
-    })
+    let Some(handle) = (unsafe { handle.as_ref() }) else {
+        return false;
+    };
+    let QueryTree::Expression { expression, kind } = &handle.tree else {
+        return false;
+    };
+    let mut sink = TextSink::new();
+    serialize_expression(&mut sink, expression, *kind);
+    let serialized = sink.into_utf16();
+    unsafe { visit(context, serialized.as_ptr(), serialized.len()) };
+    true
 }
 
 #[cfg(test)]

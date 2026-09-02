@@ -19,7 +19,6 @@
 use std::ffi::c_void;
 use std::rc::Rc;
 
-use crate::abort_on_panic;
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData, release_style_value, retain_style_value};
 
 #[derive(Default)]
@@ -140,12 +139,10 @@ pub(crate) fn overlay_wins(entry: &FfiAnimatedOverlayEntry, base_value_is_import
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_animated_overlay_create() -> *mut AnimatedOverlay {
-    abort_on_panic(|| {
-        Box::into_raw(Box::new(AnimatedOverlay {
-            entries: Vec::new(),
-            animation_preparation: None,
-        }))
-    })
+    Box::into_raw(Box::new(AnimatedOverlay {
+        entries: Vec::new(),
+        animation_preparation: None,
+    }))
 }
 
 /// Returns a new overlay holding retained copies of `overlay`'s entries.
@@ -154,7 +151,7 @@ pub extern "C" fn rust_animated_overlay_create() -> *mut AnimatedOverlay {
 /// `overlay` must be a valid overlay.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_animated_overlay_clone(overlay: *const AnimatedOverlay) -> *mut AnimatedOverlay {
-    abort_on_panic(|| Box::into_raw(Box::new(unsafe { &*overlay }.clone())))
+    Box::into_raw(Box::new(unsafe { &*overlay }.clone()))
 }
 
 /// Returns a new overlay holding retained copies of `overlay`'s inherited entries.
@@ -165,21 +162,21 @@ pub unsafe extern "C" fn rust_animated_overlay_clone(overlay: *const AnimatedOve
 pub unsafe extern "C" fn rust_animated_overlay_clone_inherited(
     overlay: *const AnimatedOverlay,
 ) -> *mut AnimatedOverlay {
-    abort_on_panic(|| Box::into_raw(Box::new(unsafe { &*overlay }.clone_inherited())))
+    Box::into_raw(Box::new(unsafe { &*overlay }.clone_inherited()))
 }
 
 /// # Safety
 /// `overlay` must be a valid overlay.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_animated_overlay_contains(overlay: *const AnimatedOverlay, property: u16) -> bool {
-    abort_on_panic(|| unsafe { &*overlay }.get(property).is_some())
+    unsafe { &*overlay }.get(property).is_some()
 }
 
 /// # Safety
 /// `overlay` must be a valid overlay that is not used after this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_animated_overlay_free(overlay: *mut AnimatedOverlay) {
-    abort_on_panic(|| drop(unsafe { Box::from_raw(overlay) }));
+    drop(unsafe { Box::from_raw(overlay) });
 }
 
 /// Stores or replaces the overlay entry for a longhand, retaining `value`.
@@ -195,13 +192,11 @@ pub unsafe extern "C" fn rust_animated_overlay_set(
     inherited: bool,
     result_of_transition: bool,
 ) {
-    abort_on_panic(|| {
-        let retained = unsafe {
-            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(value.cast()))
-        };
-        let overlay = unsafe { &mut *overlay };
-        overlay.set_owned(property, retained, inherited, result_of_transition);
-    });
+    let retained = unsafe {
+        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(value.cast()))
+    };
+    let overlay = unsafe { &mut *overlay };
+    overlay.set_owned(property, retained, inherited, result_of_transition);
 }
 
 /// Returns the overlay's borrowed entries, valid until its next mutation.
@@ -214,11 +209,9 @@ pub unsafe extern "C" fn rust_animated_overlay_entries(
     overlay: *const AnimatedOverlay,
     count: *mut usize,
 ) -> *const FfiAnimatedOverlayEntry {
-    abort_on_panic(|| {
-        let entries = &unsafe { &*overlay }.entries;
-        unsafe { *count = entries.len() };
-        entries.as_ptr()
-    })
+    let entries = &unsafe { &*overlay }.entries;
+    unsafe { *count = entries.len() };
+    entries.as_ptr()
 }
 
 /// The overlay's effective value for a longhand under the overlay read rule,
@@ -232,11 +225,9 @@ pub unsafe extern "C" fn rust_animated_overlay_effective_value(
     property: u16,
     base_value_is_important: bool,
 ) -> *const c_void {
-    abort_on_panic(|| {
-        unsafe { &*overlay }
-            .get(property)
-            .filter(|entry| overlay_wins(entry, base_value_is_important))
-            .map_or(std::ptr::null(), FfiAnimatedOverlayEntry::value_pointer)
-            .cast()
-    })
+    unsafe { &*overlay }
+        .get(property)
+        .filter(|entry| overlay_wins(entry, base_value_is_important))
+        .map_or(std::ptr::null(), FfiAnimatedOverlayEntry::value_pointer)
+        .cast()
 }

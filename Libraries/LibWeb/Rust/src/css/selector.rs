@@ -7,7 +7,6 @@
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::abort_on_panic;
 use crate::css::ffi_support::ascii_lowercase;
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 
@@ -665,26 +664,22 @@ pub fn is_ascii_case_insensitive_html_attribute(name: &[u16]) -> bool {
 /// `selector` must be an owned selector handle that has not already been destroyed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_destroy(selector: *mut RustSelector) {
-    abort_on_panic(|| {
-        if !selector.is_null() {
-            // SAFETY: The caller guarantees that this is an owned handle returned by
-            // a selector-producing FFI function and that it has not already been destroyed.
-            drop(unsafe { Box::from_raw(selector) });
-        }
-    });
+    if !selector.is_null() {
+        // SAFETY: The caller guarantees that this is an owned handle returned by
+        // a selector-producing FFI function and that it has not already been destroyed.
+        drop(unsafe { Box::from_raw(selector) });
+    }
 }
 
 /// # Safety
 /// `selector` must point to a live selector handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_target_pseudo_element(selector: *const RustSelector) -> u8 {
-    abort_on_panic(|| {
-        assert!(!selector.is_null());
-        // SAFETY: The caller guarantees that `selector` points to a live selector handle.
-        unsafe { &(*selector).selector }
-            .target_pseudo_element
-            .map_or(u8::MAX, |pseudo_element| pseudo_element as u8)
-    })
+    assert!(!selector.is_null());
+    // SAFETY: The caller guarantees that `selector` points to a live selector handle.
+    unsafe { &(*selector).selector }
+        .target_pseudo_element
+        .map_or(u8::MAX, |pseudo_element| pseudo_element as u8)
 }
 
 /// Returns the selector's specificity in the packed representation used by the DevTools protocol.
@@ -693,11 +688,9 @@ pub unsafe extern "C" fn rust_selector_target_pseudo_element(selector: *const Ru
 /// `selector` must point to a live selector handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_specificity(selector: *const RustSelector) -> u32 {
-    abort_on_panic(|| {
-        assert!(!selector.is_null());
-        // SAFETY: The caller guarantees that the selector handle remains valid for this call.
-        unsafe { &(*selector).selector }.specificity().packed()
-    })
+    assert!(!selector.is_null());
+    // SAFETY: The caller guarantees that the selector handle remains valid for this call.
+    unsafe { &(*selector).selector }.specificity().packed()
 }
 
 fn can_simple_selector_use_fast_matches(simple_selector: &SimpleSelector) -> bool {

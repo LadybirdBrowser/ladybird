@@ -344,35 +344,33 @@ pub unsafe extern "C" fn rust_should_preserve_svg_resource_layout_node(
     layout_node: NodeSlotId,
     cleared_subtree_root: *mut c_void,
 ) -> bool {
-    abort_on_panic(|| {
-        assert!(!callbacks.is_null());
-        assert!(!arena.is_null());
-        assert!(!layout_node.is_invalid());
-        // SAFETY: Guaranteed by the entry point's contract.
-        let callbacks = unsafe { &*callbacks };
-        let arena = arena.cast::<LayoutNodeArena>();
-        if cleared_subtree_root.is_null() {
-            return true;
-        }
+    assert!(!callbacks.is_null());
+    assert!(!arena.is_null());
+    assert!(!layout_node.is_invalid());
+    // SAFETY: Guaranteed by the entry point's contract.
+    let callbacks = unsafe { &*callbacks };
+    let arena = arena.cast::<LayoutNodeArena>();
+    if cleared_subtree_root.is_null() {
+        return true;
+    }
 
-        // SAFETY: The arena and layout node remain live throughout the ancestor walk.
-        let mut ancestor = unsafe { &*(*arena).data(layout_node) }.parent;
-        while !ancestor.is_invalid() {
-            // SAFETY: `ancestor` is a live layout node with a live shell.
-            let data = unsafe { &*(*arena).data(ancestor) };
-            let shell = data.shell;
-            let parent = data.parent;
-            let dom_node = unsafe { (callbacks.layout_dom_node)(shell) };
-            // SAFETY: Both DOM pointers remain live throughout cleanup.
-            if !dom_node.is_null()
-                && unsafe { (callbacks.dom_is_shadow_including_inclusive_descendant)(dom_node, cleared_subtree_root) }
-            {
-                return false;
-            }
-            ancestor = parent;
+    // SAFETY: The arena and layout node remain live throughout the ancestor walk.
+    let mut ancestor = unsafe { &*(*arena).data(layout_node) }.parent;
+    while !ancestor.is_invalid() {
+        // SAFETY: `ancestor` is a live layout node with a live shell.
+        let data = unsafe { &*(*arena).data(ancestor) };
+        let shell = data.shell;
+        let parent = data.parent;
+        let dom_node = unsafe { (callbacks.layout_dom_node)(shell) };
+        // SAFETY: Both DOM pointers remain live throughout cleanup.
+        if !dom_node.is_null()
+            && unsafe { (callbacks.dom_is_shadow_including_inclusive_descendant)(dom_node, cleared_subtree_root) }
+        {
+            return false;
         }
-        true
-    })
+        ancestor = parent;
+    }
+    true
 }
 
 #[repr(C)]
@@ -420,46 +418,44 @@ pub unsafe extern "C" fn rust_detach_top_layer_element_layout_subtree(
     arena: *mut c_void,
     element: *mut c_void,
 ) {
-    abort_on_panic(|| {
-        assert!(!callbacks.is_null());
-        assert!(!arena.is_null());
-        assert!(!element.is_null());
-        // SAFETY: Guaranteed by the entry point's contract.
-        let callbacks = unsafe { &*callbacks };
-        let arena = arena.cast::<LayoutNodeArena>();
-        // SAFETY: The element remains live throughout the call.
-        let element_layout_node = unsafe { (callbacks.element_layout_node)(element) };
-        if !element_layout_node.is_invalid() {
-            let topmost = topmost_layout_node_of_top_layer_placement(arena, element_layout_node);
-            let layout_node_to_detach = if topmost.is_invalid() {
-                element_layout_node
-            } else {
-                topmost
-            };
-            // SAFETY: The chosen layout subtree and its shell remain live throughout detachment.
-            let shell = unsafe { (*(*arena).data(layout_node_to_detach)).shell };
-            // SAFETY: The C++ detach preparation walks the still-linked subtree; the arena borrow
-            // ends before the release below re-enters it.
-            unsafe { (callbacks.prepare_subtree_for_detach)(shell) };
-            let detached = unsafe { &*arena }.detach_from_parent(layout_node_to_detach);
-            if let Some(detached) = detached {
-                detached.release();
-            }
+    assert!(!callbacks.is_null());
+    assert!(!arena.is_null());
+    assert!(!element.is_null());
+    // SAFETY: Guaranteed by the entry point's contract.
+    let callbacks = unsafe { &*callbacks };
+    let arena = arena.cast::<LayoutNodeArena>();
+    // SAFETY: The element remains live throughout the call.
+    let element_layout_node = unsafe { (callbacks.element_layout_node)(element) };
+    if !element_layout_node.is_invalid() {
+        let topmost = topmost_layout_node_of_top_layer_placement(arena, element_layout_node);
+        let layout_node_to_detach = if topmost.is_invalid() {
+            element_layout_node
+        } else {
+            topmost
+        };
+        // SAFETY: The chosen layout subtree and its shell remain live throughout detachment.
+        let shell = unsafe { (*(*arena).data(layout_node_to_detach)).shell };
+        // SAFETY: The C++ detach preparation walks the still-linked subtree; the arena borrow
+        // ends before the release below re-enters it.
+        unsafe { (callbacks.prepare_subtree_for_detach)(shell) };
+        let detached = unsafe { &*arena }.detach_from_parent(layout_node_to_detach);
+        if let Some(detached) = detached {
+            detached.release();
         }
+    }
 
-        // SAFETY: The element remains live throughout subtree cleanup.
-        unsafe { (callbacks.clear_stale_subtree)(element) };
-        // SAFETY: The callback returns the element's adjusted HTMLSlotElement pointer, if any.
-        let slot_element = unsafe { (callbacks.slot_element)(element) };
-        if !slot_element.is_null() {
-            clear_stale_assigned_slottables(
-                slot_element,
-                |slot| unsafe { (callbacks.assigned_node_count)(slot) },
-                |slot, index| unsafe { (callbacks.assigned_node_at)(slot, index) },
-                |root| unsafe { (callbacks.clear_stale_subtree)(root) },
-            );
-        }
-    });
+    // SAFETY: The element remains live throughout subtree cleanup.
+    unsafe { (callbacks.clear_stale_subtree)(element) };
+    // SAFETY: The callback returns the element's adjusted HTMLSlotElement pointer, if any.
+    let slot_element = unsafe { (callbacks.slot_element)(element) };
+    if !slot_element.is_null() {
+        clear_stale_assigned_slottables(
+            slot_element,
+            |slot| unsafe { (callbacks.assigned_node_count)(slot) },
+            |slot, index| unsafe { (callbacks.assigned_node_at)(slot, index) },
+            |root| unsafe { (callbacks.clear_stale_subtree)(root) },
+        );
+    }
 }
 
 fn clear_stale_assigned_slottables(
@@ -1794,61 +1790,58 @@ pub unsafe extern "C" fn rust_build_layout_tree(
     arena: *mut c_void,
     document: *mut c_void,
 ) {
-    abort_on_panic(|| {
-        assert!(!document.is_null());
-        // SAFETY: Guaranteed by the entry point's contract.
-        let host = unsafe { dom_tree_builder_host(callbacks, arena) };
-        let mut state = TreeBuilderState::default();
-        let mut context = TreeBuilderContext::default();
-        // SAFETY: All pointers remain live throughout the build.
-        let entry_facts =
-            unsafe { (host.callbacks.principal_node_entry_facts)(host.callbacks.builder, document, false) };
-        assert!(entry_facts.is_document);
+    assert!(!document.is_null());
+    // SAFETY: Guaranteed by the entry point's contract.
+    let host = unsafe { dom_tree_builder_host(callbacks, arena) };
+    let mut state = TreeBuilderState::default();
+    let mut context = TreeBuilderContext::default();
+    // SAFETY: All pointers remain live throughout the build.
+    let entry_facts = unsafe { (host.callbacks.principal_node_entry_facts)(host.callbacks.builder, document, false) };
+    assert!(entry_facts.is_document);
 
-        update_layout_tree(
-            &host,
-            &mut state,
-            document,
-            &mut context,
-            false,
-            FfiInsertionMode::Append,
-        );
+    update_layout_tree(
+        &host,
+        &mut state,
+        document,
+        &mut context,
+        false,
+        FfiInsertionMode::Append,
+    );
 
-        // NB: Called during layout tree construction.
-        // SAFETY: The document remains live and any attached layout root is owned by it and the builder.
-        let document_layout_node = unsafe { (host.callbacks.document_layout_node)(document) };
-        if !document_layout_node.is_invalid() {
-            let layout_host = host.layout();
-            if entry_facts.document_needs_full_layout_tree_update
-                || !entry_facts.has_layout_node
-                || state.layout_tree_update_escaped_rebuild_roots
-            {
-                fixup_tables(&layout_host, document_layout_node);
-            } else {
-                fixup_tables_in_rebuilt_subtrees(
-                    &layout_host,
-                    &state.rebuilt_subtree_roots,
-                    &state.reused_child_list_update_roots,
-                    &state.additional_table_fixup_roots,
-                );
-            }
-        }
-
-        for &element in &state.layout_tree_rebuild_requests {
-            // SAFETY: The builder remains live, and the walk that could clear DOM update flags is complete.
-            unsafe { (host.callbacks.request_layout_tree_rebuild)(host.callbacks.builder, element) };
-        }
-
-        // SAFETY: The builder remains live and copies the reported shell pointers before returning.
-        unsafe {
-            (host.callbacks.report_rebuild_outcome)(
-                host.callbacks.builder,
-                state.rebuilt_subtree_root_shells.as_ptr(),
-                state.rebuilt_subtree_root_shells.len(),
-                state.layout_tree_update_escaped_rebuild_roots,
+    // NB: Called during layout tree construction.
+    // SAFETY: The document remains live and any attached layout root is owned by it and the builder.
+    let document_layout_node = unsafe { (host.callbacks.document_layout_node)(document) };
+    if !document_layout_node.is_invalid() {
+        let layout_host = host.layout();
+        if entry_facts.document_needs_full_layout_tree_update
+            || !entry_facts.has_layout_node
+            || state.layout_tree_update_escaped_rebuild_roots
+        {
+            fixup_tables(&layout_host, document_layout_node);
+        } else {
+            fixup_tables_in_rebuilt_subtrees(
+                &layout_host,
+                &state.rebuilt_subtree_roots,
+                &state.reused_child_list_update_roots,
+                &state.additional_table_fixup_roots,
             );
         }
-    });
+    }
+
+    for &element in &state.layout_tree_rebuild_requests {
+        // SAFETY: The builder remains live, and the walk that could clear DOM update flags is complete.
+        unsafe { (host.callbacks.request_layout_tree_rebuild)(host.callbacks.builder, element) };
+    }
+
+    // SAFETY: The builder remains live and copies the reported shell pointers before returning.
+    unsafe {
+        (host.callbacks.report_rebuild_outcome)(
+            host.callbacks.builder,
+            state.rebuilt_subtree_root_shells.as_ptr(),
+            state.rebuilt_subtree_root_shells.len(),
+            state.layout_tree_update_escaped_rebuild_roots,
+        );
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
