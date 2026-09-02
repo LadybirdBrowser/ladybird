@@ -13,6 +13,7 @@ set(TEST_SOURCES
     TestFetchResponse.cpp
     TestFetchURL.cpp
     TestHTMLTokenizer.cpp
+    TestHighResolutionTime.cpp
     TestImageData.cpp
     TestLengthAbsolutizeParity.cpp
     TestMicrosyntax.cpp
