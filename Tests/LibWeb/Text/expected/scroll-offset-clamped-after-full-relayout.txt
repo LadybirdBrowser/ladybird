@@ -1,0 +1,5 @@
+scrollTop after scrolling: 400
+scrollTop after the overflow shrank: 150
+scrollTop after the box was rebuilt: 120
+scrollTop after the overflow shrank again: 50
+scrollTop after scrolling back: 0

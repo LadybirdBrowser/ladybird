@@ -5549,17 +5549,29 @@ CSSPixelPoint Element::scroll_offset(Optional<CSS::PseudoElement> pseudo_element
     return rare_data ? rare_data->scroll_offset : CSSPixelPoint {};
 }
 
+// The layout arena measures a box that holds a scroll offset eagerly after a full commit, so the
+// current box re-derives that fact whenever the stored offset changes. Layout need not be up to
+// date for that: the box is only annotated, not read, and a box that a pending layout tree rebuild
+// replaces is never consulted again, while its replacement derives the fact when it is constructed.
+// That is why the unchecked layout node accessor is the right one here.
 void Element::set_scroll_offset(Optional<CSS::PseudoElement> pseudo_element_type, CSSPixelPoint offset)
 {
     if (pseudo_element_type.has_value()) {
-        if (auto pseudo_element = get_synthetic_pseudo_element(*pseudo_element_type); pseudo_element.has_value())
-            pseudo_element->set_scroll_offset(offset);
-    } else {
-        if (!offset.is_zero())
-            ensure_element_rare_data().scroll_offset = offset;
-        else if (auto* rare_data = element_rare_data())
-            rare_data->scroll_offset = {};
+        auto pseudo_element = get_synthetic_pseudo_element(*pseudo_element_type);
+        if (!pseudo_element.has_value())
+            return;
+        pseudo_element->set_scroll_offset(offset);
+        if (auto* layout_node = pseudo_element->unsafe_layout_node())
+            layout_node->update_has_scroll_offset_flag();
+        return;
     }
+
+    if (!offset.is_zero())
+        ensure_element_rare_data().scroll_offset = offset;
+    else if (auto* rare_data = element_rare_data())
+        rare_data->scroll_offset = {};
+    if (auto* layout_node = unsafe_layout_node())
+        layout_node->update_has_scroll_offset_flag();
 }
 
 Optional<Element::Dir> Element::dir() const
