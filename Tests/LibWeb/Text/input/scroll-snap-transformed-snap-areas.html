@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+    }
+    .item {
+        width: 100%;
+        height: 200px;
+        scroll-snap-align: start;
+    }
+    #translated {
+        transform: translateY(-60px);
+    }
+    #scaled {
+        transform: scale(0.5);
+    }
+</style>
+<div id="scroller">
+    <div class="item"></div>
+    <div class="item" id="translated"></div>
+    <div class="item" id="scaled"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+
+        const stepSettled = deltaY => scrollSettled(scroller, () => internals.wheel(50, 50, 0, deltaY));
+
+        // The snap area of a transformed box is its transformed border box, so the item translated up by 60px snaps
+        // at 140 instead of 200.
+        await stepSettled(100);
+        println(`scroll offset after stepping onto the translated item: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        // Scaling about the default origin shrinks the 400..600 border box towards its center, so the next snap
+        // position is the scaled top edge at 450.
+        await stepSettled(200);
+        println(`scroll offset after stepping onto the scaled item: ${scroller.scrollLeft},${scroller.scrollTop}`);
+    });
+</script>

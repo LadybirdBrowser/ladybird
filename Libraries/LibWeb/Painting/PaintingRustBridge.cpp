@@ -522,21 +522,10 @@ void const* retain_rust_main_visual_context_tree(DOM::Document const& document)
     return tree;
 }
 
-Optional<TransformWithOrigin> rust_compute_css_transform(Layout::Node const& box, double pixel_ratio)
+CSSPixelRect rust_apply_css_transform_to_rect(Layout::Node const& box, CSSPixelRect const& rect)
 {
     auto& document = const_cast<DOM::Document&>(box.document());
-    float matrix_values[16];
-    float origin_values[2];
-    if (!Layout::RustFFI::layout_arena_compute_css_transform(box.arena_handle(), committed_row_slot(box), visual_context_host_callbacks(document), pixel_ratio, matrix_values, origin_values))
-        return {};
-    return TransformWithOrigin {
-        Gfx::FloatMatrix4x4(
-            matrix_values[0], matrix_values[1], matrix_values[2], matrix_values[3],
-            matrix_values[4], matrix_values[5], matrix_values[6], matrix_values[7],
-            matrix_values[8], matrix_values[9], matrix_values[10], matrix_values[11],
-            matrix_values[12], matrix_values[13], matrix_values[14], matrix_values[15]),
-        { origin_values[0], origin_values[1] },
-    };
+    return Layout::RustFFI::layout_arena_apply_css_transform_to_rect(box.arena_handle(), committed_row_slot(box), visual_context_host_callbacks(document), rect);
 }
 
 Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Layout::Node const& box)

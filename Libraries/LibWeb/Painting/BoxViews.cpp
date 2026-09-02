@@ -710,20 +710,6 @@ CSSPixelRect transform_reference_box(Layout::Node const& node)
     return Layout::RustFFI::layout_arena_paintable_transform_reference_box(node.arena_handle(), committed_row_slot(node));
 }
 
-CSSPixelRect apply_css_transform_to_rect(Layout::Node const& box, CSSPixelRect const& rect)
-{
-    auto transform_data = rust_compute_css_transform(box, 1.0);
-    if (!transform_data.has_value())
-        return rect;
-
-    auto affine_transform = Gfx::extract_2d_affine_transform(transform_data->matrix);
-    auto transformed_rect = rect.to_type<float>();
-    transformed_rect.translate_by(-transform_data->origin);
-    transformed_rect = affine_transform.map(transformed_rect);
-    transformed_rect.translate_by(transform_data->origin);
-    return transformed_rect.to_type<CSSPixels>();
-}
-
 CSSPixelRect transform_rect_to_viewport(Layout::Node const& node, CSSPixelRect const& rect, AccumulatedVisualContextTree::IncludeVisualViewportTransform include_visual_viewport_transform)
 {
     return transform_rect_to_viewport(node, rect, node.document().visual_context_tree(), include_visual_viewport_transform);

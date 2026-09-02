@@ -1600,37 +1600,44 @@ pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the
-/// document thread; `out_matrix` and `out_origin` must hold 16 and 2 floats.
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_compute_css_transform(
+pub unsafe extern "C" fn layout_arena_apply_css_transform_to_rect(
     arena: *mut c_void,
     node: NodeSlotId,
     callbacks: FfiVisualContextHostCallbacks,
-    pixel_ratio: f64,
-    out_matrix: *mut f32,
-    out_origin: *mut f32,
-) -> bool {
+    rect: FfiCssPixelRect,
+) -> FfiCssPixelRect {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let Some((transform, _is_invertible)) = crate::painting::visual_context::node_values::compute_transform(
             &arena.paintable_rows(),
             &callbacks,
             node,
-            pixel_ratio,
+            1.0,
         ) else {
-            return false;
+            return rect;
         };
-        for (index, value) in transform.matrix.elements.into_iter().flatten().enumerate() {
-            // SAFETY: the caller warrants 16 floats behind out_matrix.
-            unsafe { out_matrix.add(index).write(value) };
+        let origin = transform.origin;
+        let mapped = transform
+            .matrix
+            .extract_2d_affine()
+            .map_rect(
+                libgfx_rust::FloatRect::new(
+                    rect.x.to_float(),
+                    rect.y.to_float(),
+                    rect.width.to_float(),
+                    rect.height.to_float(),
+                )
+                .translated(-origin.x, -origin.y),
+            )
+            .translated(origin.x, origin.y);
+        FfiCssPixelRect {
+            x: CssPixels::nearest_value_for_f32(mapped.x),
+            y: CssPixels::nearest_value_for_f32(mapped.y),
+            width: CssPixels::nearest_value_for_f32(mapped.width),
+            height: CssPixels::nearest_value_for_f32(mapped.height),
         }
-        // SAFETY: the caller warrants 2 floats behind out_origin.
-        unsafe {
-            out_origin.write(transform.origin.x);
-            out_origin.add(1).write(transform.origin.y);
-        }
-        true
     })
 }
 

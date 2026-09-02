@@ -13,6 +13,7 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ScrollSnap.h>
 #include <LibWeb/Painting/Scrolling.h>
 
@@ -102,9 +103,9 @@ static CSSPixelRect snap_area_rect(Layout::NodeWithStyle const& snap_area, Layou
     // NB: A snap area is captured by the nearest scroll container in its containing block chain, so the boxes between
     //     an area and its container contribute transforms only, and mapping the border box through each of them in
     //     turn lands it in the container's coordinate space.
-    auto rect = apply_css_transform_to_rect(snap_area, absolute_border_box_rect(snap_area));
+    auto rect = rust_apply_css_transform_to_rect(snap_area, absolute_border_box_rect(snap_area));
     for (auto const* containing_block = snap_area.containing_block(); containing_block && containing_block != &snap_container; containing_block = containing_block->containing_block())
-        rect = apply_css_transform_to_rect(*containing_block, rect);
+        rect = rust_apply_css_transform_to_rect(*containing_block, rect);
 
     auto const& scroll_margin = snap_area.scroll_margin();
     rect.inflate(
