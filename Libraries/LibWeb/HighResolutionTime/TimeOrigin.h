@@ -16,7 +16,7 @@ namespace Web::HighResolutionTime {
 
 DOMHighResTimeStamp estimated_monotonic_time_of_the_unix_epoch();
 DOMHighResTimeStamp get_time_origin_timestamp(JS::Object const&);
-DOMHighResTimeStamp coarsen_time(DOMHighResTimeStamp timestamp, HTML::CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability = HTML::CanUseCrossOriginIsolatedAPIs::No);
+WEB_API DOMHighResTimeStamp coarsen_time(DOMHighResTimeStamp timestamp, HTML::CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability = HTML::CanUseCrossOriginIsolatedAPIs::No);
 DOMHighResTimeStamp current_high_resolution_time(JS::Object const&);
 DOMHighResTimeStamp relative_high_resolution_time(DOMHighResTimeStamp, JS::Object const&);
 DOMHighResTimeStamp relative_high_resolution_coarsen_time(DOMHighResTimeStamp, JS::Object const&);

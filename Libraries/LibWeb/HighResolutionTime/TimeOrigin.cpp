@@ -48,14 +48,19 @@ DOMHighResTimeStamp get_time_origin_timestamp(JS::Object const& global)
 DOMHighResTimeStamp coarsen_time(DOMHighResTimeStamp timestamp, HTML::CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability)
 {
     // 1. Let time resolution be 100 microseconds, or a higher implementation-defined value.
-    auto time_resolution_milliseconds = 0.1;
+    i64 coarsening_factor = 10;
 
     // 2. If crossOriginIsolatedCapability is true, set time resolution to be 5 microseconds, or a higher implementation-defined value.
     if (cross_origin_isolated_capability == HTML::CanUseCrossOriginIsolatedAPIs::Yes)
-        time_resolution_milliseconds = 0.005;
+        coarsening_factor = 200;
 
     // 3. In an implementation-defined manner, coarsen and potentially jitter timestamp such that its resolution will not exceed time resolution
-    timestamp = floor(timestamp / time_resolution_milliseconds) * time_resolution_milliseconds;
+    auto bucket = static_cast<i64>(floor(timestamp * static_cast<double>(coarsening_factor)));
+    timestamp = static_cast<double>(bucket) / static_cast<double>(coarsening_factor);
+    // NB: Division can represent the exact bucket boundary slightly below its intended value. Move such a result up
+    //     by one representable value so that coarsening it again does not select the previous bucket.
+    if (floor(timestamp * static_cast<double>(coarsening_factor)) < static_cast<double>(bucket))
+        timestamp = nextafter(timestamp, AK::Infinity<double>);
 
     // FIXME: Applying jitter to the coarsened timestamp here may decrease our susceptibility to timing attacks.
 
