@@ -80,6 +80,7 @@ void Application::create_platform_options(WebView::BrowserOptions& browser_optio
             "LIBWEB_VERIFY_STYLE_INPUT_REUSE"sv,
             "LIBWEB_VERIFY_COMPUTED_CLOSURE"sv,
             "LIBWEB_VERIFY_STYLE_DIFF_FAST_PATH"sv,
+            "LIBWEB_VERIFY_SCROLL_OFFSET_FLAGS"sv,
         };
         for (auto variable : verification_variables)
             MUST(Core::Environment::set(variable, "1"sv, Core::Environment::Overwrite::Yes));
