@@ -704,6 +704,15 @@ impl UsedValues {
         self.border_bottom_collapsed(collapsed) + self.padding_bottom.get()
     }
 
+    pub(crate) fn horizontal_margin_border_padding(&self) -> CssPixels {
+        self.margin_left.get()
+            + self.border_left.get()
+            + self.padding_left.get()
+            + self.padding_right.get()
+            + self.border_right.get()
+            + self.margin_right.get()
+    }
+
     pub(crate) fn border_box_inline_size(&self, collapsed: bool) -> CssPixels {
         self.border_box_left(collapsed) + self.content_inline_size.get() + self.border_box_right(collapsed)
     }
@@ -862,13 +871,7 @@ pub(crate) fn create_used_values(
             {
                 let available = containing_block_size_for_axis(Axis::Inline);
                 return Some(clamp_to_max_dimension_value(
-                    available
-                        - used.margin_left.get()
-                        - used.margin_right.get()
-                        - used.padding_left.get()
-                        - used.padding_right.get()
-                        - used.border_left.get()
-                        - used.border_right.get(),
+                    available - used.horizontal_margin_border_padding(),
                 ));
             }
             return None;

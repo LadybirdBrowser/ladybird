@@ -6,6 +6,12 @@
 
 use super::*;
 
+pub(crate) struct AtomicRootInlineSizeResolution {
+    pub(crate) content_inline_size: CssPixels,
+    pub(crate) width_was_treated_as_auto: bool,
+    pub(crate) max_content_size_that_fit_the_definite_available_inner_space: Option<CssPixels>,
+}
+
 pub(crate) struct SizingContext {
     purpose: formatting_context::LayoutPurpose,
     records: std::rc::Rc<RunRecords>,
@@ -1261,7 +1267,8 @@ impl SizingContext {
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
         layout_mode: LayoutMode,
-    ) {
+        report_for_run_cache_the_available_inline_sizes_this_sizing_repeats_for: bool,
+    ) -> Option<CssPixels> {
         let containing_inline_size = available_space.inline_size.to_px_or_zero();
         let style = self.style(node);
         self.resolve_box_model_metrics_against_inline_basis(node, containing_inline_size);
@@ -1294,18 +1301,85 @@ impl SizingContext {
             if native_control_block_size_constraint_is_active || block_size_is_definite_from_aspect_ratio {
                 self.used(node).has_definite_block_size.set(true);
             }
-            return;
+            return None;
         }
 
-        let inline_size = self.calculate_atomic_root_content_inline_size(node, available_space, constraints, None);
-        self.used(node).set_content_inline_size(inline_size);
+        let resolution = self.calculate_atomic_root_content_inline_size(node, available_space, constraints, None);
+        self.used(node).set_content_inline_size(resolution.content_inline_size);
+        let sizing_repeats_for_available_inline_sizes_at_or_above =
+            report_for_run_cache_the_available_inline_sizes_this_sizing_repeats_for
+                .then(|| {
+                    self.available_inline_size_at_or_above_which_this_atomic_root_sizing_repeats(
+                        node,
+                        available_space,
+                        &resolution,
+                    )
+                })
+                .flatten();
 
         let inline_definite_space = AvailableSpace {
-            inline_size: AvailableSize::definite(inline_size),
+            inline_size: AvailableSize::definite(resolution.content_inline_size),
             block_size: AvailableSize::Indefinite,
         };
         self.resolve_used_block_size_if_not_treated_as_auto(node, inline_definite_space, constraints);
         self.make_button_content_box_definite(node, layout_mode, available_space, constraints, None);
+        sizing_repeats_for_available_inline_sizes_at_or_above
+    }
+
+    fn available_inline_size_at_or_above_which_this_atomic_root_sizing_repeats(
+        &self,
+        node: Node,
+        available_space: AvailableSpace,
+        resolution: &AtomicRootInlineSizeResolution,
+    ) -> Option<CssPixels> {
+        if !matches!(available_space.inline_size, AvailableSize::Definite(_)) {
+            return None;
+        }
+        let facts = self.facts(node);
+        let button_content_is_measured_against_the_raw_available_space = facts.uses_button_layout();
+        let aspect_ratio_transfers_the_available_size_between_axes = facts.has_preferred_aspect_ratio();
+        let box_model_or_width_resolves_a_percentage_against_the_inline_basis =
+            self.measurement_root_observes_percentage_inline_basis(node);
+        if button_content_is_measured_against_the_raw_available_space
+            || aspect_ratio_transfers_the_available_size_between_axes
+            || box_model_or_width_resolves_a_percentage_against_the_inline_basis
+        {
+            return None;
+        }
+        let style = self.style(node);
+        let percentage_free_length_or_intrinsic_keyword_never_reads_the_available_inline_size =
+            |size: &ComputedSize| size.is_length_percentage() || size.is_min_content() || size.is_max_content();
+        let width = style.width();
+        if !resolution.width_was_treated_as_auto
+            && !percentage_free_length_or_intrinsic_keyword_never_reads_the_available_inline_size(width)
+        {
+            return None;
+        }
+        let min_width = style.min_width();
+        if !min_width.is_auto()
+            && !percentage_free_length_or_intrinsic_keyword_never_reads_the_available_inline_size(min_width)
+        {
+            return None;
+        }
+        let max_width = style.max_width();
+        if !max_width.is_none()
+            && !percentage_free_length_or_intrinsic_keyword_never_reads_the_available_inline_size(max_width)
+        {
+            return None;
+        }
+        let block_axis_intrinsic_keywords_measure_against_the_available_inline_size =
+            style.height().is_intrinsic_sizing_constraint()
+                || style.min_height().is_intrinsic_sizing_constraint()
+                || style.max_height().is_intrinsic_sizing_constraint();
+        if block_axis_intrinsic_keywords_measure_against_the_available_inline_size {
+            return None;
+        }
+        if !resolution.width_was_treated_as_auto {
+            let every_definite_available_inline_size = CssPixels::default();
+            return Some(every_definite_available_inline_size);
+        }
+        let max_content_size = resolution.max_content_size_that_fit_the_definite_available_inner_space?;
+        Some(max_content_size + self.used(node).horizontal_margin_border_padding())
     }
 
     fn calculate_atomic_root_content_inline_size(
@@ -1314,20 +1388,17 @@ impl SizingContext {
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
         intrinsic_content_inline_size: Option<CssPixels>,
-    ) -> CssPixels {
+    ) -> AtomicRootInlineSizeResolution {
         let style = self.style(node);
-        let unconstrained_inline_size = if self.should_treat_inline_size_as_auto(node, available_space) {
+        let mut max_content_size_that_fit_the_definite_available_inner_space = None;
+        let width_was_treated_as_auto = self.should_treat_inline_size_as_auto(node, available_space);
+        let unconstrained_inline_size = if width_was_treated_as_auto {
             if matches!(available_space.inline_size, AvailableSize::Definite(_)) {
-                let used = self.used(node);
-                let available = available_space.inline_size.to_px_or_zero()
-                    - used.margin_left.get()
-                    - used.border_left.get()
-                    - used.padding_left.get()
-                    - used.padding_right.get()
-                    - used.border_right.get()
-                    - used.margin_right.get();
+                let available =
+                    available_space.inline_size.to_px_or_zero() - self.used(node).horizontal_margin_border_padding();
                 let preferred = self.calculate_max_content_inline_size(node, constraints);
                 if preferred <= available {
+                    max_content_size_that_fit_the_definite_available_inner_space = Some(preferred);
                     preferred
                 } else {
                     self.calculate_min_content_inline_size(node, constraints)
@@ -1366,7 +1437,11 @@ impl SizingContext {
                 constraints,
             ));
         }
-        inline_size
+        AtomicRootInlineSizeResolution {
+            content_inline_size: inline_size,
+            width_was_treated_as_auto,
+            max_content_size_that_fit_the_definite_available_inner_space,
+        }
     }
 
     pub(crate) fn paired_min_content_inline_size_for_atomic_root(
@@ -1390,15 +1465,18 @@ impl SizingContext {
         } else {
             CssPixels::default()
         };
-        Some(self.calculate_atomic_root_content_inline_size(
-            node,
-            AvailableSpace {
-                inline_size: AvailableSize::MinContent,
-                ..available_space
-            },
-            constraints,
-            Some(min_content_inline_size),
-        ))
+        Some(
+            self.calculate_atomic_root_content_inline_size(
+                node,
+                AvailableSpace {
+                    inline_size: AvailableSize::MinContent,
+                    ..available_space
+                },
+                constraints,
+                Some(min_content_inline_size),
+            )
+            .content_inline_size,
+        )
     }
 
     fn calculate_stretch_fit_inline_size(&self, node: Node, available: AvailableSize) -> CssPixels {
@@ -1410,14 +1488,7 @@ impl SizingContext {
         if !matches!(available, AvailableSize::Definite(_)) {
             return CssPixels::default();
         }
-        let used = self.used(node);
-        available.to_px_or_zero()
-            - used.margin_left.get()
-            - used.margin_right.get()
-            - used.padding_left.get()
-            - used.padding_right.get()
-            - used.border_left.get()
-            - used.border_right.get()
+        available.to_px_or_zero() - self.used(node).horizontal_margin_border_padding()
     }
 
     fn calculate_stretch_fit_block_size(&self, node: Node, available: AvailableSize) -> CssPixels {

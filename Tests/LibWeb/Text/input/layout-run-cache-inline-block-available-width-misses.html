@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #narrowed-container { width: 300px; }
+    #inline-block-whose-max-content-no-longer-fits { display: inline-block; vertical-align: top; }
+    .wide { display: inline-block; width: 120px; height: 20px; vertical-align: top; }
+</style>
+<div id="narrowed-container"><div id="inline-block-whose-max-content-no-longer-fits"><div class="wide"></div><div class="wide"></div></div></div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+        const onlyCacheRoot = document.getElementById("inline-block-whose-max-content-no-longer-fits");
+        const before = rectToString(onlyCacheRoot.getBoundingClientRect());
+
+        const hitsBefore = internals.layoutRunCacheHitCount();
+        document.getElementById("narrowed-container").style.width = "200px";
+        document.body.offsetHeight;
+
+        println(`hit delta: ${internals.layoutRunCacheHitCount() - hitsBefore}`);
+        println(`before: ${before}`);
+        println(`after: ${rectToString(onlyCacheRoot.getBoundingClientRect())}`);
+        done();
+    });
+</script>
