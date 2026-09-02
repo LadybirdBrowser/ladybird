@@ -900,13 +900,23 @@ impl StyleEngine {
         });
         self.computed_group_sets
             .set_pending_cascade_state(target, (generation, state));
-        self.pending_style_computation_selections.insert(
-            target,
-            StyleComputationSelection {
-                computed_property_words,
-                computed_property_closure_is_exact,
-            },
-        );
+        let selection = StyleComputationSelection {
+            computed_property_words,
+            computed_property_closure_is_exact,
+        };
+        if target.is_pseudo() {
+            let selections = self
+                .pending_pseudo_style_computation_selections
+                .entry(target.node())
+                .or_default();
+            match selections.iter_mut().find(|(kind, _)| *kind == target.pseudo_kind()) {
+                Some((_, existing)) => *existing = selection,
+                None => selections.push((target.pseudo_kind(), selection)),
+            }
+        } else {
+            self.pending_element_style_computation_selections
+                .insert(target.node(), selection);
+        }
         bridge::FfiExactCascadePublication {
             unchanged,
             computed_group_mask,
@@ -919,7 +929,14 @@ impl StyleEngine {
         pseudo_kind: u8,
     ) -> Option<StyleComputationSelection> {
         let target = computed::ComputedStyleTarget::new(node, pseudo_kind);
-        self.pending_style_computation_selections.get(&target).copied()
+        if !target.is_pseudo() {
+            return self.pending_element_style_computation_selections.get(&node).copied();
+        }
+        self.pending_pseudo_style_computation_selections
+            .get(&node)?
+            .iter()
+            .find(|(kind, _)| *kind == pseudo_kind)
+            .map(|(_, selection)| *selection)
     }
 
     unsafe fn cascade_operator_of_style_value(value: *const StyleValueData) -> CascadeOperator {
@@ -982,7 +999,21 @@ impl StyleEngine {
 
     pub(crate) fn discard_pending_exact_cascade_state(&mut self, target: computed::ComputedStyleTarget) {
         self.computed_group_sets.take_pending_cascade_state(target);
-        self.pending_style_computation_selections.remove(&target);
+        self.remove_pending_style_computation_selection(target);
+    }
+
+    fn remove_pending_style_computation_selection(&mut self, target: computed::ComputedStyleTarget) {
+        if !target.is_pseudo() {
+            self.pending_element_style_computation_selections.remove(&target.node());
+            return;
+        }
+        let Some(selections) = self.pending_pseudo_style_computation_selections.get_mut(&target.node()) else {
+            return;
+        };
+        selections.retain(|(kind, _)| *kind != target.pseudo_kind());
+        if selections.is_empty() {
+            self.pending_pseudo_style_computation_selections.remove(&target.node());
+        }
     }
 
     pub(crate) fn remove_computed_pseudo(
@@ -991,7 +1022,7 @@ impl StyleEngine {
         pseudo_kind: u8,
     ) -> Option<computed::FinalStyleRecordID> {
         let target = computed::ComputedStyleTarget::new(node, pseudo_kind);
-        self.pending_style_computation_selections.remove(&target);
+        self.remove_pending_style_computation_selection(target);
         if let Some(state) = self.computed_group_sets.take_pending_cascade_state(target) {
             self.computed_group_sets
                 .observe_absent_pseudo_cascade_state(target, state);
