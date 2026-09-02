@@ -154,8 +154,10 @@ pub(crate) fn record_display_list(
         hit_test_list,
         display_list,
         has_blocking_wheel_event_listeners: recorder.has_blocking_wheel_event_listeners,
+        wheel_event_listener_state_generation: inputs.wheel_event_listener_state_generation,
         mask_display_lists,
         recording_stats: recorder.recording_stats,
+        is_identical_to_cache_source: false,
         capture_log_for_verification: recorder.capture_log_for_verification,
     }
 }

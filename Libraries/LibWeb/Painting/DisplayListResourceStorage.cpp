@@ -181,6 +181,7 @@ DisplayListResourceStorage::~DisplayListResourceStorage() = default;
 
 FontResourceId DisplayListResourceStorage::add_font(Gfx::Font const& font)
 {
+    m_has_resources_added_since_last_retain = true;
     auto id = font.id();
     m_fonts.ensure(id, [&]() -> NonnullRefPtr<Gfx::Font const> { return font; });
     return { id };
@@ -188,6 +189,7 @@ FontResourceId DisplayListResourceStorage::add_font(Gfx::Font const& font)
 
 ImageFrameResourceId DisplayListResourceStorage::add_image_frame(Gfx::DecodedImageFrame const& frame)
 {
+    m_has_resources_added_since_last_retain = true;
     auto id = frame.id();
     m_image_frames.ensure(id, [&] { return make<DisplayListStoredImageFrameResource>(frame); });
     return { id };
@@ -195,12 +197,14 @@ ImageFrameResourceId DisplayListResourceStorage::add_image_frame(Gfx::DecodedIma
 
 VideoSinkResourceId DisplayListResourceStorage::add_video_sink(VideoSinkResourceId id, Media::VideoSinkHandle sink_handle)
 {
+    m_has_resources_added_since_last_retain = true;
     m_video_sink_handles.set(id.value(), sink_handle, AK::HashSetExistingEntryBehavior::Keep);
     return id;
 }
 
 DisplayListResourceId DisplayListResourceStorage::add_display_list(NonnullRefPtr<DisplayList const> display_list, AccumulatedVisualContextTree const& visual_context_tree)
 {
+    m_has_resources_added_since_last_retain = true;
     auto id = display_list->id();
     m_display_lists.ensure(id, [&] {
         return DisplayListResource { move(display_list), visual_context_tree };
@@ -210,6 +214,7 @@ DisplayListResourceId DisplayListResourceStorage::add_display_list(NonnullRefPtr
 
 DisplayListResourceId DisplayListResourceStorage::add_display_list(DisplayListResource&& resource)
 {
+    m_has_resources_added_since_last_retain = true;
     auto id = resource.display_list->id();
     m_display_lists.set(id, move(resource), AK::HashSetExistingEntryBehavior::Keep);
     return { id };
@@ -217,11 +222,13 @@ DisplayListResourceId DisplayListResourceStorage::add_display_list(DisplayListRe
 
 void DisplayListResourceStorage::set_font(FontResourceId id, NonnullRefPtr<Gfx::Font const> font)
 {
+    m_has_resources_added_since_last_retain = true;
     m_fonts.set(id.value(), move(font));
 }
 
 void DisplayListResourceStorage::set_image_frame(ImageFrameResourceId id, Gfx::DecodedImageFrame frame)
 {
+    m_has_resources_added_since_last_retain = true;
     m_image_frames.set(id.value(), make<DisplayListStoredImageFrameResource>(move(frame)));
 }
 
@@ -711,6 +718,7 @@ DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(
 
 void DisplayListResourceStorage::apply_transaction(DisplayListResourceTransaction&& transaction)
 {
+    m_has_resources_added_since_last_retain = true;
     for (auto& font : transaction.fonts)
         set_font(font.id, move(font.font));
     for (auto& frame : transaction.image_frames)
@@ -761,10 +769,12 @@ void DisplayListResourceStorage::retain_only(DisplayListResourceSet const& resou
     m_display_list_cached_nested_rasters.remove_all_matching([&](auto id, auto const&) {
         return !resource_set.display_lists.contains(DisplayListResourceId { id });
     });
+    m_has_resources_added_since_last_retain = false;
 }
 
 void DisplayListResourceStorage::set_video_sink(VideoSinkResourceId id, RefPtr<Media::VideoSink> sink)
 {
+    m_has_resources_added_since_last_retain = true;
     m_video_sinks.ensure(id.value(), [] { return make<DisplayListStoredVideoSinkResource>(); })->sink = move(sink);
 }
 

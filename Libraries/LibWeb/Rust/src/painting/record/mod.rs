@@ -42,8 +42,10 @@ pub struct RecordingOutput {
     pub hit_test_list: HitTestList,
     pub display_list: Rc<RecordedDisplayList>,
     pub has_blocking_wheel_event_listeners: bool,
+    pub wheel_event_listener_state_generation: u64,
     pub mask_display_lists: Vec<(FrameNodeIndex, DisplayListResourceId)>,
     pub recording_stats: FfiPaintRecordingStats,
+    pub is_identical_to_cache_source: bool,
     pub(crate) capture_log_for_verification: Option<verify::CaptureLog>,
 }
 

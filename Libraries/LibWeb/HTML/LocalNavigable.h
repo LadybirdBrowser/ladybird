@@ -538,6 +538,7 @@ private:
     bool m_should_show_line_box_borders { false };
     bool m_should_show_caret_hit_test_debug_overlay { false };
     Optional<PaintConfig> m_compositor_display_list_paint_config;
+    RefPtr<Painting::DisplayList> m_compositor_display_list;
     u64 m_compositor_display_list_visual_context_tree_structural_epoch { 0 };
     Painting::DisplayListResourceStorage m_display_list_resource_storage;
     Painting::DisplayListResourceSet m_compositor_display_list_resources;
