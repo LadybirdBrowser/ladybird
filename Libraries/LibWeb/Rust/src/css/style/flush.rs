@@ -354,7 +354,15 @@ impl StyleEngine {
                     .collect();
                 self.retain_selector_incidences(&programs, root);
             }
-            let mut resident_nodes: Vec<StyleNodeID> = if outer_arrivals.is_empty() {
+            // Only program routing joins against the resident nodes, and a transaction of pure
+            // DOM inputs has no program joins at all. Walking every element of the document to
+            // enumerate them for such a transaction would be the flush's single largest cost.
+            let program_routing_needs_resident_nodes = !outer_arrivals.is_empty()
+                && transaction
+                    .inputs
+                    .iter()
+                    .any(|input| !transaction.program_joins_for(input.key).is_empty());
+            let mut resident_nodes: Vec<StyleNodeID> = if !program_routing_needs_resident_nodes {
                 Vec::new()
             } else if regions.topology_node_count() == connected_element_count {
                 regions
@@ -428,7 +436,7 @@ impl StyleEngine {
                     &program_delta.arriving_rules,
                     &program_delta.departed_scopes,
                     ProgramRoutingContext {
-                        resident_nodes: (!outer_arrivals.is_empty()).then_some(resident_nodes.as_slice()),
+                        resident_nodes: program_routing_needs_resident_nodes.then_some(resident_nodes.as_slice()),
                         winner_program_version: transaction.program_base_version,
                         document_root: root,
                         attachment_scopes: None,
@@ -449,7 +457,7 @@ impl StyleEngine {
                         &program_delta.arriving_rules,
                         &program_delta.departed_scopes,
                         ProgramRoutingContext {
-                            resident_nodes: (!outer_arrivals.is_empty()).then_some(resident_nodes.as_slice()),
+                            resident_nodes: program_routing_needs_resident_nodes.then_some(resident_nodes.as_slice()),
                             winner_program_version: transaction.program_base_version,
                             document_root: root,
                             attachment_scopes: Some(scopes),
