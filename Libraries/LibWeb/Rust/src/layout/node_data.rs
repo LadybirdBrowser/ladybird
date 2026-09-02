@@ -197,7 +197,7 @@ pub struct FfiNodeConstructionFacts {
 }
 
 #[repr(C)]
-pub struct NodeData {
+pub(crate) struct NodeData {
     pub parent: NodeSlotId,
     pub first_child: NodeSlotId,
     pub last_child: NodeSlotId,
