@@ -5896,8 +5896,8 @@ fn positional_answers_stay_cold_equivalent_across_sequence_mutations() {
     let (_, dispatch) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
     assert_eq!(
         dispatch.prefixes().positional_tests().len(),
-        4,
-        "the step-free structural tests are admitted while the step-bearing rules stay routed"
+        6,
+        "every an+b test without an of-selector is admitted, stepped or not"
     );
 
     // A trailing arrival: the previously last child keeps its facts but loses
