@@ -17,7 +17,7 @@ use crate::layout::node_data::NodeSlotId;
 use crate::layout::node_data::{NodeFlag, NodeKind};
 use crate::layout::used_values;
 use crate::painting::border_radii::BorderRadii;
-use crate::painting::display_list::builder::{PendingInlineClip, RecordedDisplayList};
+use crate::painting::display_list::builder::{CommandRange, PendingInlineClip, RecordedDisplayList};
 use crate::painting::display_list::commands::{ContextRef, DisplayListResourceId, FrameNodeIndex, SpatialNodeIndex};
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
@@ -40,7 +40,7 @@ pub struct RecordingOutput {
     // A default-constructed output's 0.0 never matches a real recording scale.
     pub recorded_device_pixels_per_css_pixel: f64,
     pub hit_test_list: HitTestList,
-    pub display_list: RecordedDisplayList,
+    pub display_list: Rc<RecordedDisplayList>,
     pub has_blocking_wheel_event_listeners: bool,
     pub mask_display_lists: Vec<(FrameNodeIndex, DisplayListResourceId)>,
     pub recording_stats: FfiPaintRecordingStats,
@@ -65,6 +65,12 @@ pub(crate) struct NestedRecordingState {
     pub(crate) assignments: NestedAssignments,
 }
 
+pub(crate) struct DeferredWholeTapeSplice {
+    pub(crate) source_display_list: Rc<RecordedDisplayList>,
+    pub(crate) prologue_byte_count: usize,
+    pub(crate) source_range: CommandRange,
+}
+
 pub struct PaintRecorder<'a> {
     pub(crate) layout_arena: &'a PaintableRowsRef<'a>,
     pub(crate) paint_state: &'a crate::painting::paint_state::PaintState,
@@ -85,6 +91,7 @@ pub struct PaintRecorder<'a> {
     hit_test_list_generation: u64,
     open_capture_stack: Vec<OpenCapture>,
     resolved_enclosing_capture_memo: RefCell<ResolvedEnclosingCaptureMemo>,
+    deferred_whole_tape_splice: Option<DeferredWholeTapeSplice>,
     pub(crate) has_blocking_wheel_event_listeners: bool,
     pub(crate) recording_stats: FfiPaintRecordingStats,
     uncacheable_paint_generation: u64,
@@ -217,6 +224,7 @@ impl<'a> PaintRecorder<'a> {
             hit_test_list_generation: self.hit_test_list_generation,
             open_capture_stack: Vec::new(),
             resolved_enclosing_capture_memo: RefCell::new(ResolvedEnclosingCaptureMemo::default()),
+            deferred_whole_tape_splice: None,
             has_blocking_wheel_event_listeners: false,
             recording_stats: FfiPaintRecordingStats::default(),
             uncacheable_paint_generation: 0,

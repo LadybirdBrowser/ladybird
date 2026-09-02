@@ -3804,7 +3804,7 @@ pub unsafe extern "C" fn layout_arena_recorded_display_list(arena: *mut c_void) 
             .last_recording
             .as_ref()
             .map_or_else(FfiRecordedDisplayList::empty, |recording| {
-                (&recording.display_list).into()
+                recording.display_list.as_ref().into()
             })
     })
 }
