@@ -128,20 +128,20 @@ NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_base
     return working_set;
 }
 
-NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_for_animation_update(ComputedValues const& style)
+NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_for_animation_update(ComputedValuesFFI::ComputedLonghandTable const* table, ComputedValuesFFI::AnimatedOverlay const* overlay)
 {
-    auto const* table = style.base_values().computed_longhand_table();
     VERIFY(table);
-    auto* retained_table = const_cast<ComputedValuesFFI::ComputedLonghandTable*>(ComputedValuesFFI::rust_computed_longhand_table_retain(static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(table)));
+    auto* retained_table = const_cast<ComputedValuesFFI::ComputedLonghandTable*>(ComputedValuesFFI::rust_computed_longhand_table_retain(table));
     auto working_set = create_with_longhand_table(retained_table);
     working_set->m_computed_longhand_table_is_shared = true;
-    if (auto animated_properties = style.animated_properties_snapshot()) {
+    if (overlay) {
+        auto animated_properties = adopt_ref(*new AnimatedProperties(overlay));
         working_set->m_had_animated_post_compute_adjustment_property = animated_properties->has_property(PropertyID::Display)
             || animated_properties->has_property(PropertyID::Position)
             || animated_properties->has_property(PropertyID::Float)
             || animated_properties->has_property(PropertyID::LineHeight)
             || animated_properties->has_property(PropertyID::TextAlign);
-        working_set->m_animated_properties = adopt_ref(*new AnimatedProperties(*animated_properties));
+        working_set->m_animated_properties = move(animated_properties);
     }
     return working_set;
 }
