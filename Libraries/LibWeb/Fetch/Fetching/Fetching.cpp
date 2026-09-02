@@ -2318,6 +2318,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         ? Requests::RequestClient::TransferLease::Yes
         : Requests::RequestClient::TransferLease::No;
     auto network_request = ResourceLoader::the().load(load_request, on_headers_received, on_data_received, on_cached_body_available, on_complete, transfer_lease);
+    fetched_data_receiver->set_network_request(network_request);
     if (network_request && fetch_params.has_response_body_transfer_lease())
         network_request->set_body_delivery_paused(true);
     fetch_params.controller()->set_pending_request(network_request);

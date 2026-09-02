@@ -374,6 +374,8 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
             m_internal_stream_data->on_data_available(ResponseData::from_bytes(read_bytes));
             if (!m_internal_stream_data || !m_internal_stream_data->read_stream)
                 return;
+            if (m_body_delivery_paused)
+                break;
 
             if (m_internal_stream_data->body_delivery_remaining_byte_count.has_value()) {
                 if (read_bytes.size() >= *m_internal_stream_data->body_delivery_remaining_byte_count) {

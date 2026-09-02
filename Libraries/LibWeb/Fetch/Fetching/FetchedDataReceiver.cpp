@@ -12,8 +12,8 @@
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
-#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Streams/ReadableByteStreamController.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamOperations.h>
@@ -22,6 +22,8 @@
 namespace Web::Fetch::Fetching {
 
 GC_DEFINE_ALLOCATOR(FetchedDataReceiver);
+
+static constexpr size_t maximum_pending_bytes = 5 * MiB;
 
 FetchedDataReceiver::FetchedDataReceiver(GC::Ref<Streams::ReadableStream> stream)
     : FetchedDataReceiver(nullptr, stream, {})
@@ -73,9 +75,8 @@ void FetchedDataReceiver::handle_network_data(JS::Realm& realm, Requests::Respon
 
         // 2. Otherwise, if the bytes transmission for response’s message body is done normally and stream is readable,
         //    then close stream, and abort these in-parallel steps.
-        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, &realm]() {
-            close_stream(realm);
-        }));
+        // NB: The close follows any pending bytes through the same task queue; see deliver_pending_bytes().
+        queue_delivery_task(realm);
         return;
     }
 
@@ -118,10 +119,66 @@ void FetchedDataReceiver::handle_network_data(JS::Realm& realm, Requests::Respon
     }
 
     // 7. Append bytes to buffer.
-    enqueue_into_stream(realm, bytes);
+    m_pending_bytes.append(bytes);
+    queue_delivery_task(realm);
 
-    // FIXME: 8. If the size of buffer is larger than an upper limit chosen by the user agent, ask the user agent
-    //           to suspend the ongoing fetch.
+    // 8. If the size of buffer is larger than an upper limit chosen by the user agent, ask the user agent to suspend
+    //    the ongoing fetch.
+    if (m_pending_bytes.size() >= maximum_pending_bytes && !m_paused_network_delivery) {
+        if (auto request = m_network_request.strong_ref()) {
+            request->set_body_delivery_paused(true);
+            m_paused_network_delivery = true;
+        }
+    }
+}
+
+// AD-HOC: These tasks are queued without a document on purpose. A navigation reads its new document's body through
+//         this receiver while the fetch's task destination is still the previous document's global, and tasks
+//         queued on that document stop running once it is replaced.
+static void queue_networking_task(GC::Ref<GC::Function<void()>> steps)
+{
+    HTML::queue_a_task(HTML::Task::Source::Networking, HTML::main_thread_event_loop(), nullptr, steps);
+}
+
+// This implements the task-queueing half of the pullAlgorithm in HTTP-network-fetch: bytes are handed to the
+// stream from a networking task rather than from the network callback, so consumers see them interleaved with
+// the tasks their own reactions queue.
+// https://fetch.spec.whatwg.org/#ref-for-in-parallel④
+void FetchedDataReceiver::queue_delivery_task(JS::Realm& realm)
+{
+    if (m_delivery_task_queued)
+        return;
+    m_delivery_task_queued = true;
+
+    queue_networking_task(GC::create_function(heap(), [this, &realm]() {
+        deliver_pending_bytes(realm);
+    }));
+}
+
+void FetchedDataReceiver::deliver_pending_bytes(JS::Realm& realm)
+{
+    m_delivery_task_queued = false;
+
+    auto bytes = move(m_pending_bytes);
+    m_pending_bytes = {};
+    if (!bytes.is_empty())
+        enqueue_into_stream(realm, bytes);
+
+    // 1. If the size of buffer is smaller than a lower limit chosen by the user agent and the ongoing fetch is
+    //    suspended, resume the fetch.
+    if (m_paused_network_delivery) {
+        m_paused_network_delivery = false;
+        if (auto request = m_network_request.strong_ref())
+            request->set_body_delivery_paused(false);
+    }
+
+    // The close goes through the queue too, so it lands behind whatever the consumer queued in reaction to the
+    // bytes above, the way it does when a network completion trails the last data.
+    if (m_network_complete) {
+        queue_networking_task(GC::create_function(heap(), [this, &realm]() {
+            close_stream(realm);
+        }));
+    }
 }
 
 void FetchedDataReceiver::set_cached_response_body(Core::ImmutableBytes body)
@@ -138,9 +195,6 @@ void FetchedDataReceiver::set_cached_response_body(Core::ImmutableBytes body)
 // https://fetch.spec.whatwg.org/#ref-for-in-parallel④
 void FetchedDataReceiver::enqueue_into_stream(JS::Realm& realm, ReadonlyBytes bytes)
 {
-    // FIXME: 1. If the size of buffer is smaller than a lower limit chosen by the user agent and the ongoing fetch
-    //           is suspended, resume the fetch.
-
     if (!m_stream->is_readable())
         return;
 
