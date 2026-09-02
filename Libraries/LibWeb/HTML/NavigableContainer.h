@@ -28,6 +28,14 @@ public:
     GC::Ptr<LocalNavigable> content_navigable() { return m_content_navigable; }
     GC::Ptr<LocalNavigable const> content_navigable() const { return m_content_navigable; }
 
+    bool has_painted_foreground() const { return m_has_painted_foreground; }
+    Optional<u64> compositor_context_id_at_last_paint() const { return m_compositor_context_id_at_last_paint; }
+    void set_compositor_context_id_at_last_paint(Optional<u64> context_id)
+    {
+        m_has_painted_foreground = true;
+        m_compositor_context_id_at_last_paint = context_id;
+    }
+
     DOM::Document const* content_document() const;
     DOM::Document const* content_document_without_origin_check() const;
 
@@ -59,6 +67,8 @@ protected:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#content-navigable
     GC::Ptr<LocalNavigable> m_content_navigable { nullptr };
+    bool m_has_painted_foreground { false };
+    Optional<u64> m_compositor_context_id_at_last_paint;
 
     void set_potentially_delays_the_load_event(bool value);
 
