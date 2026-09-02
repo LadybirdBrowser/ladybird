@@ -5,6 +5,7 @@
  */
 
 use crate::layout::node_data::NodeSlotId;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 #[derive(Default)]
@@ -19,6 +20,7 @@ pub struct PaintState {
     pub(crate) recorded_canvas_color: Option<libgfx_rust::Color>,
     pub(crate) selection: Option<crate::painting::selection::SelectionRange>,
     pub(crate) scrollable_overflow_contained_boxes: std::collections::HashMap<NodeSlotId, Vec<NodeSlotId>>,
+    pub(crate) per_recording_memo_tables: RefCell<crate::painting::record::scratch::PerRecordingMemoTables>,
 }
 
 impl PaintState {
