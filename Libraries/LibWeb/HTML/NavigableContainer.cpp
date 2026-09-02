@@ -269,9 +269,10 @@ void NavigableContainer::navigate_an_iframe_or_frame(URL::URL url, ReferrerPolic
     // AD-HOC: Only apply this check during initial insertion. For subsequent attribute-driven navigations,
     //         the previous document may have parsed and run scripts but not yet fired its load event;
     //         forcing "replace" in that case would incorrectly discard the history entry.
-    auto& local_navigable = *m_content_navigable;
-    if (initial_insertion == InitialInsertion::Yes && local_navigable.active_document() && !local_navigable.active_document()->is_completely_loaded()) {
-        history_handling = NavigationHistoryBehavior::Replace;
+    if (initial_insertion == InitialInsertion::Yes) {
+        auto active_document = m_content_navigable->active_document();
+        if (active_document && !active_document->is_completely_loaded())
+            history_handling = NavigationHistoryBehavior::Replace;
     }
 
     // 3. If element is an iframe:
@@ -291,7 +292,7 @@ void NavigableContainer::navigate_an_iframe_or_frame(URL::URL url, ReferrerPolic
     if (srcdoc_string.has_value())
         document_resource = *srcdoc_string;
 
-    MUST(local_navigable.navigate({
+    MUST(m_content_navigable->navigate({
         .url = move(url),
         .source_document = document(),
         .document_resource = document_resource,

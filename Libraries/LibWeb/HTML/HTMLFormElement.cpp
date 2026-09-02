@@ -1087,7 +1087,7 @@ void HTMLFormElement::plan_to_navigate_to(URL::URL url, DocumentResource post_re
 
         // 2. Navigate targetNavigable to url using the form element's node document, with historyHandling set to historyHandling,
         //    referrerPolicy set to referrerPolicy, documentResource set to postResource, and formDataEntryList set to entry list.
-        MUST(as<LocalNavigable>(*target_navigable).navigate({ .url = url, .source_document = this->document(), .document_resource = post_resource, .response = nullptr, .exceptions_enabled = false, .history_handling = history_handling, .form_data_entry_list = move(entry_list), .referrer_policy = referrer_policy, .user_involvement = user_involvement }));
+        MUST(target_navigable->navigate({ .url = url, .source_document = this->document(), .document_resource = post_resource, .response = nullptr, .exceptions_enabled = false, .history_handling = history_handling, .form_data_entry_list = move(entry_list), .referrer_policy = referrer_policy, .user_involvement = user_involvement }));
     });
 
     // 5. Set the form's planned navigation to the just-queued task.
