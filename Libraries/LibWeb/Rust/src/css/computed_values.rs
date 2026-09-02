@@ -49,6 +49,7 @@ pub use crate::css::computed_value_types::{
     RetainedTextDecorationLineList, SVGResetValues, SizingValues, SurroundValues, TextResetValues, TransformValues,
 };
 use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
+use crate::css::style_value::StyleValueData;
 use crate::css::style_value::{retained_list_drop, retained_list_partial_eq};
 
 /// Reference count value marking an intentionally leaked payload.
@@ -1304,6 +1305,64 @@ pub(crate) fn style_group_payloads_equal(group_index: usize, a: *const c_void, b
     // SAFETY: Published style-group payloads remain live for the call and both use the registered
     // group type at `group_index`.
     unsafe { payloads_equal(vtable(group_index), a, b) }
+}
+
+/// Whether a layered image property holds an `<image>` in any layer. The value is one layer or a
+/// comma-separated list of them.
+fn layer_values_hold_image(handle: &ComputedStyleValueHandle) -> bool {
+    // StyleValueList::Separator: Space is 0, Comma is 1.
+    const COMMA: u8 = 1;
+    match handle.data() {
+        Some(StyleValueData::ValueList { values, separator, .. }) if *separator == COMMA => {
+            values.as_slice().iter().any(|layer| layer.data().is_image())
+        }
+        Some(value) => value.is_image(),
+        None => false,
+    }
+}
+
+unsafe fn payload_holds_image_values(table: &StyleGroupVTable, payload: *const c_void) -> bool {
+    match table.lifecycle {
+        StyleGroupLifecycle::Background => unsafe {
+            layer_values_hold_image(&(*(payload as *const BackgroundValues)).background_image)
+        },
+        StyleGroupLifecycle::Mask => unsafe { layer_values_hold_image(&(*(payload as *const MaskValues)).mask_image) },
+        StyleGroupLifecycle::Border => unsafe {
+            (*(payload as *const BorderValues))
+                .border_image_source
+                .data()
+                .is_some_and(StyleValueData::is_image)
+        },
+        StyleGroupLifecycle::InheritedList => unsafe {
+            (*(payload as *const InheritedListValues))
+                .list_style_image
+                .data()
+                .is_some_and(StyleValueData::is_image)
+        },
+        StyleGroupLifecycle::InheritedUI => unsafe {
+            let cursors = &(*(payload as *const InheritedUIValues)).cursor;
+            !cursors.pointer.is_null()
+                && std::slice::from_raw_parts(cursors.pointer, cursors.length)
+                    .iter()
+                    .any(|cursor| cursor.is_cursor_value)
+        },
+        _ => false,
+    }
+}
+
+/// Whether any of a record's group payloads holds an `<image>` in a property whose images a layout
+/// node loads and observes: the background and mask layers, the cursor, the border-image source and
+/// the list-style image. Nearly every style holds none, and a record answers that with one flag
+/// instead of materializing its layers to find out.
+pub(crate) fn style_group_payloads_hold_image_values(payloads: &[*const c_void]) -> bool {
+    if replaying_style_groups() {
+        return false;
+    }
+    payloads.iter().enumerate().any(|(group_index, &payload)| {
+        // SAFETY: Published style-group payloads remain live for the call and use the registered
+        // group type at `group_index`.
+        !payload.is_null() && unsafe { payload_holds_image_values(vtable(group_index), payload) }
+    })
 }
 
 pub(crate) fn default_group_payload(group_index: usize) -> *const c_void {

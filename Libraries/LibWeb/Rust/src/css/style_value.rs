@@ -2395,6 +2395,20 @@ impl StyleValueData {
 }
 
 impl StyleValueData {
+    /// Whether this is an `<image>` value: a URL image, an `image-set()` or a gradient.
+    pub(crate) fn is_image(&self) -> bool {
+        matches!(
+            self,
+            Self::Image { .. }
+                | Self::ImageSet { .. }
+                | Self::LinearGradient { .. }
+                | Self::RadialGradient { .. }
+                | Self::ConicGradient { .. }
+        )
+    }
+}
+
+impl StyleValueData {
     /// A content hash consistent with `PartialEq`: equal values always produce equal hashes.
     ///
     /// Consistency holds by construction because the hash only ever omits fields, and derived

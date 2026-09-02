@@ -1015,6 +1015,9 @@ enum class StyleRecordDependencyFlag : u8 {
     DependsOnViewportMetrics = 1 << 0,
     FontMetricsDependOnViewportMetrics = 1 << 1,
     InDisplayNoneSubtree = 1 << 2,
+    // Bit 3 is the engine's publication-time inherited-group swap eligibility, never stored on a record.
+    // The record holds an <image> in a property whose images a layout node loads and observes.
+    HoldsImageValues = 1 << 4,
 };
 
 // The box group payload stores display values in the Rust-defined explicit

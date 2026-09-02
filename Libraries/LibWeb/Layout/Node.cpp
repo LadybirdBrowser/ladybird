@@ -505,6 +505,16 @@ void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
 
 void NodeWithStyle::attach_style_resources()
 {
+    // The style engine notes at publication whether a record holds an <image> anywhere this node would load and
+    // observe one. Nearly every style holds none, and that answer is one flag read; the walk below stays for the
+    // styles that do.
+    auto dependency_flags = document().style_computer().style_engine().style_record_dependency_flags(m_style_record_identity);
+    if (!(dependency_flags & to_underlying(CSS::StyleRecordDependencyFlag::HoldsImageValues))) {
+        m_cursor_style_values.clear();
+        clear_image_observers();
+        return;
+    }
+
     auto load_image = [&](CSS::AbstractImageStyleValue const* image) {
         if (image)
             const_cast<CSS::AbstractImageStyleValue&>(*image).load_any_resources(*this);

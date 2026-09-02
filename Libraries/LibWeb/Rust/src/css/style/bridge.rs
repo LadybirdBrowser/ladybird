@@ -2221,8 +2221,11 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
         let inherited_group_swap_eligible = longhand_table.is_some_and(|table| {
             inherited_group_swap_candidate && table.property_inheritance_is_standard() && !table.display_is_list_item()
         });
+        let holds_image_values = crate::css::computed_values::style_group_payloads_hold_image_values(payloads)
+            || crate::css::computed_values::style_group_payloads_hold_image_values(animation_overlay_payloads);
         let dependency_flags = longhand_table.map_or(0, |table| table.publication_dependency_flags())
-            | (u8::from(inherited_group_swap_eligible) * super::computed::INHERITED_GROUP_SWAP_ELIGIBLE);
+            | (u8::from(inherited_group_swap_eligible) * super::computed::INHERITED_GROUP_SWAP_ELIGIBLE)
+            | (u8::from(holds_image_values) * super::computed::HOLDS_IMAGE_VALUES);
         let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
         if animation_overlay_identity != 0 && animated_overlay.is_null() {
             return FfiStyleRecordDelta::default();
