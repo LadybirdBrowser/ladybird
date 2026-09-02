@@ -161,7 +161,7 @@ public:
     void clear_ongoing_navigation();
     void set_navigation_population_worker(WebContentClient&, u64 page_id);
     bool navigation_population_matches(WebContentClient const&, u64 page_id, Utf16String const& navigation_id) const;
-    void did_finish_navigation_params_creation();
+    bool navigation_population_worker_matches(WebContentClient const&, u64 page_id) const;
     void set_navigation_host(WebContentClient&, u64 page_id);
     bool navigation_host_matches(WebContentClient const&, u64 page_id) const;
     bool navigation_owner_matches(WebContentClient const&, u64 page_id) const;

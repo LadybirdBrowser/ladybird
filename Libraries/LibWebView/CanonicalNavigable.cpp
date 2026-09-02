@@ -387,15 +387,14 @@ bool CanonicalNavigable::navigation_population_matches(WebContentClient const& c
     return m_ongoing_navigation.has_value()
         && m_ongoing_navigation->navigation_id == navigation_id
         && m_ongoing_navigation->phase == OngoingNavigation::Phase::Populating
-        && m_ongoing_navigation->population_worker_client.ptr() == &client
-        && m_ongoing_navigation->population_worker_page_id == page_id;
+        && navigation_population_worker_matches(client, page_id);
 }
 
-void CanonicalNavigable::did_finish_navigation_params_creation()
+bool CanonicalNavigable::navigation_population_worker_matches(WebContentClient const& client, u64 page_id) const
 {
-    VERIFY(m_ongoing_navigation.has_value());
-    m_ongoing_navigation->population_worker_client = {};
-    m_ongoing_navigation->population_worker_page_id = 0;
+    return m_ongoing_navigation.has_value()
+        && m_ongoing_navigation->population_worker_client.ptr() == &client
+        && m_ongoing_navigation->population_worker_page_id == page_id;
 }
 
 void CanonicalNavigable::set_navigation_host(WebContentClient& client, u64 page_id)
@@ -403,6 +402,10 @@ void CanonicalNavigable::set_navigation_host(WebContentClient& client, u64 page_
     auto& ongoing_navigation = ensure_ongoing_navigation();
     ongoing_navigation.host_client = client;
     ongoing_navigation.host_page_id = page_id;
+
+    // The population worker conducts the navigation until the hosting process takes over.
+    ongoing_navigation.population_worker_client = {};
+    ongoing_navigation.population_worker_page_id = 0;
 }
 
 bool CanonicalNavigable::navigation_host_matches(WebContentClient const& client, u64 page_id) const
@@ -414,11 +417,7 @@ bool CanonicalNavigable::navigation_host_matches(WebContentClient const& client,
 
 bool CanonicalNavigable::navigation_owner_matches(WebContentClient const& client, u64 page_id) const
 {
-    if (!m_ongoing_navigation.has_value())
-        return false;
-    auto population_worker_matches = m_ongoing_navigation->population_worker_client.ptr() == &client
-        && m_ongoing_navigation->population_worker_page_id == page_id;
-    return population_worker_matches || navigation_host_matches(client, page_id);
+    return navigation_population_worker_matches(client, page_id) || navigation_host_matches(client, page_id);
 }
 
 bool CanonicalNavigable::navigation_transaction_matches(Utf16String const& navigation_id, WebContentClient const& client, u64 page_id) const

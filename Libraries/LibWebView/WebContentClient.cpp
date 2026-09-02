@@ -342,6 +342,23 @@ Optional<CanonicalNavigable&> WebContentClient::hosted_navigable_for_page(u64 pa
     return {};
 }
 
+// A navigation's population steps run in the process recorded as its population worker at admission, which is
+// the process with the live source document. That is not necessarily the process hosting the target's document.
+Optional<CanonicalNavigable&> WebContentClient::population_worker_navigable_for_page(u64 page_id, Web::HTML::CrossProcessId navigable_id)
+{
+    if (auto navigable = hosted_navigable_for_page(page_id, navigable_id); navigable.has_value())
+        return navigable;
+
+    auto* page_host = navigable_for_page(page_id);
+    if (!page_host)
+        return {};
+
+    auto navigable = page_host->top_level_traversable().find(navigable_id);
+    if (!navigable.has_value() || !navigable->navigation_population_worker_matches(*this, page_id))
+        return {};
+    return *navigable;
+}
+
 Optional<CanonicalNavigable&> WebContentClient::child_frame(u64 page_id, Web::HTML::CrossProcessId frame_id)
 {
     auto* host = navigable_for_page(page_id);
@@ -627,7 +644,7 @@ void WebContentClient::did_request_navigation_start(u64 page_id, Web::HTML::Cros
 
 void WebContentClient::did_complete_navigation_unload_check(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id)
 {
-    auto navigable = hosted_navigable_for_page(page_id, navigable_id);
+    auto navigable = population_worker_navigable_for_page(page_id, navigable_id);
     if (!navigable.has_value())
         return;
 
@@ -729,7 +746,7 @@ void WebContentClient::did_request_navigation_population(u64 page_id, Web::HTML:
 
 void WebContentClient::did_finish_navigation_params_creation(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, Optional<Web::HTML::NavigationPopulationResult> result)
 {
-    auto navigable = hosted_navigable_for_page(page_id, navigable_id);
+    auto navigable = population_worker_navigable_for_page(page_id, navigable_id);
     if (!navigable.has_value()) {
         if (result.has_value())
             NavigationLoader::discard(m_is_private, *result);
@@ -767,7 +784,6 @@ void WebContentClient::did_finish_navigation_params_creation(u64 page_id, Web::H
 
     // Steps 1-4 have produced final navigation params. Keep the pending entry in
     // sync with redirects before choosing the process that will run step 5.
-    navigable->did_finish_navigation_params_creation();
     ongoing_navigation->phase = CanonicalNavigable::OngoingNavigation::Phase::AwaitingResponseBody;
     ongoing_navigation->loader->did_finish_navigation_params_creation(result.release_value());
     ongoing_navigation->url = ongoing_navigation->loader->request().history_entry.url;
@@ -782,13 +798,13 @@ void WebContentClient::did_finish_navigation_params_creation(u64 page_id, Web::H
             navigable.clear_ongoing_navigation();
         };
         if (!succeeded) {
-            if (auto navigable = self->hosted_navigable_for_page(page_id, navigable_id); navigable.has_value())
+            if (auto navigable = self->population_worker_navigable_for_page(page_id, navigable_id); navigable.has_value())
                 cancel_navigation(*navigable);
             return;
         }
         if (self->continue_navigation_population_in_selected_process(page_id, navigable_id, navigation_id))
             return;
-        if (auto navigable = self->hosted_navigable_for_page(page_id, navigable_id); navigable.has_value()) {
+        if (auto navigable = self->population_worker_navigable_for_page(page_id, navigable_id); navigable.has_value()) {
             auto const& ongoing_navigation = navigable->ongoing_navigation();
             if (ongoing_navigation.has_value() && ongoing_navigation->navigation_id == navigation_id)
                 cancel_navigation(*navigable);
@@ -798,7 +814,7 @@ void WebContentClient::did_finish_navigation_params_creation(u64 page_id, Web::H
 
 void WebContentClient::did_fail_navigation_population(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id)
 {
-    auto navigable = hosted_navigable_for_page(page_id, navigable_id);
+    auto navigable = population_worker_navigable_for_page(page_id, navigable_id);
     if (!navigable.has_value())
         return;
 
@@ -1010,7 +1026,7 @@ Messages::WebContentClient::DidStartDownloadResponse WebContentClient::did_start
     // identifiers preserve the original RequestServer transfer lease, so only the process and navigation that
     // received that response may claim it, and only while its population is in flight.
     bool matches_in_flight_navigation = false;
-    if (auto navigable = hosted_navigable_for_page(page_id, navigable_id); navigable.has_value()) {
+    if (auto navigable = population_worker_navigable_for_page(page_id, navigable_id); navigable.has_value()) {
         auto const& ongoing_navigation = navigable->ongoing_navigation();
         if (ongoing_navigation.has_value()
             && ongoing_navigation->navigation_id == navigation_id
