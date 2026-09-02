@@ -925,6 +925,14 @@ void set_needs_repaint(Layout::Node const& node, InvalidateDisplayList should_in
     BoxViewRepaintAccess::set_document_needs_repaint(document, should_invalidate_display_list);
 }
 
+void set_needs_repaint_in_subtree(Layout::Node const& node)
+{
+    if (!has_committed_box(node))
+        return;
+    Layout::RustFFI::layout_arena_paintable_invalidate_subtree_for_repaint(node.arena_handle(), committed_row_slot(node));
+    set_needs_repaint(node);
+}
+
 void invalidate_paint_cache(Layout::Node const& node)
 {
     mirror_rust_invalidate_paint_cache(node);

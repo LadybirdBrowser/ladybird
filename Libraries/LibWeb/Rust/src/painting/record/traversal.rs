@@ -21,7 +21,7 @@ use crate::painting::host::{
 use crate::painting::node_painting;
 use crate::painting::record::cache::{
     CachedSubtreeCapture, CaptureAddress, CaptureKind, CaptureSite, EnclosingCaptureAnchor, OpenCapture, RecordGen,
-    SourceTapePosition, narrow_record_gen, resolve_capture_address_in_source_tape,
+    SourceTapePosition, SubtreeCaptureWalkOutcome, narrow_record_gen, resolve_capture_address_in_source_tape,
 };
 use crate::painting::record::masks::MaskLayerSet;
 use crate::painting::record::verify::{CaptureLog, LoggedCapture};
@@ -102,7 +102,7 @@ pub(crate) fn record_display_list(
         open_capture_stack: Vec::new(),
         deferred_whole_tape_splice: None,
         viewport,
-        has_blocking_wheel_event_listeners: false,
+        blocking_wheel_event_region_count: 0,
         recording_stats: FfiPaintRecordingStats::default(),
         uncacheable_paint_generation: 0,
         capture_log_for_verification: crate::painting::record::verify::enabled_by_environment()
@@ -155,7 +155,7 @@ pub(crate) fn record_display_list(
         recorded_device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
         hit_test_list,
         display_list,
-        has_blocking_wheel_event_listeners: recorder.has_blocking_wheel_event_listeners,
+        has_blocking_wheel_event_listeners: recorder.blocking_wheel_event_region_count > 0,
         wheel_event_listener_state_generation: inputs.wheel_event_listener_state_generation,
         mask_display_lists,
         recording_stats: recorder.recording_stats,
@@ -445,6 +445,7 @@ impl PaintRecorder<'_> {
         let command_byte_start = self.recorder.byte_size();
         let hit_test_item_start = self.list.items.len();
         let uncacheable_paint_generation = self.uncacheable_paint_generation;
+        let blocking_wheel_event_region_count_before = self.blocking_wheel_event_region_count;
         self.open_capture_stack.push(OpenCapture {
             site,
             command_byte_start: command_byte_start as u32,
@@ -471,14 +472,17 @@ impl PaintRecorder<'_> {
         if !self.inputs.paint_command_cache_read_write {
             return;
         }
-        let may_be_spliced_verbatim = self.uncacheable_paint_generation == uncacheable_paint_generation;
         self.store_subtree_capture(
             site,
             command_range,
             hit_test_item_start,
             hit_test_item_count,
-            self.current_record_gen(),
-            may_be_spliced_verbatim,
+            SubtreeCaptureWalkOutcome {
+                gen_of_last_fresh_walk: self.current_record_gen(),
+                may_be_spliced_verbatim: self.uncacheable_paint_generation == uncacheable_paint_generation,
+                contains_blocking_wheel_event_region: self.blocking_wheel_event_region_count
+                    != blocking_wheel_event_region_count_before,
+            },
         );
     }
 
@@ -678,6 +682,9 @@ impl PaintRecorder<'_> {
         } else {
             self.append_spliced_hit_test_items(&item_source.items[source_start..source_end], site.paintable);
         }
+        if cached.contains_blocking_wheel_event_region {
+            self.blocking_wheel_event_region_count += 1;
+        }
         self.log_command_byte_capture_for_verification(site.paintable, site.kind, command_range, true);
         self.log_hit_test_item_capture_for_verification(
             site.paintable,
@@ -692,8 +699,11 @@ impl PaintRecorder<'_> {
                 command_range,
                 hit_test_item_start,
                 cached.hit_test_item_count as usize,
-                cached.gen_of_last_fresh_walk,
-                true,
+                SubtreeCaptureWalkOutcome {
+                    gen_of_last_fresh_walk: cached.gen_of_last_fresh_walk,
+                    may_be_spliced_verbatim: true,
+                    contains_blocking_wheel_event_region: cached.contains_blocking_wheel_event_region,
+                },
             );
         }
         match site.kind {
@@ -713,8 +723,7 @@ impl PaintRecorder<'_> {
         command_range: CommandRange,
         hit_test_item_start: usize,
         hit_test_item_count: usize,
-        gen_of_last_fresh_walk: RecordGen,
-        may_be_spliced_verbatim: bool,
+        walk_outcome: SubtreeCaptureWalkOutcome,
     ) {
         let cache = self.layout_arena.paintable_paint_cache(site.paintable);
         cache.register_capture_position(self.current_absolute_position(site.paintable));
@@ -731,9 +740,10 @@ impl PaintRecorder<'_> {
                     .address_relative_to_innermost_open_capture(command_range.offset, hit_test_item_start as u32),
                 command_byte_count: command_range.size,
                 hit_test_item_count: hit_test_item_count as u32,
-                gen_of_last_fresh_walk,
-                may_be_spliced_verbatim,
+                gen_of_last_fresh_walk: walk_outcome.gen_of_last_fresh_walk,
+                may_be_spliced_verbatim: walk_outcome.may_be_spliced_verbatim,
                 recorded_with_should_paint_overlay: self.inputs.should_paint_overlay,
+                contains_blocking_wheel_event_region: walk_outcome.contains_blocking_wheel_event_region,
             },
         );
     }

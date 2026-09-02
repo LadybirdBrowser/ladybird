@@ -2326,7 +2326,8 @@ void Node::inserted()
         m_is_connected = parent()->is_connected();
 
     recompute_editable_subtree_flag();
-    update_inside_blocking_wheel_event_handler_state();
+    if (update_inside_blocking_wheel_event_handler_state())
+        set_needs_repaint();
 
     // The DOM insertion steps visit shadow-including inclusive descendants in tree order, so an
     // element's parent and preceding siblings already have their identities by the time it records
@@ -2400,7 +2401,8 @@ void Node::removed_from(IsSubtreeRoot, Node* old_parent, Node&)
 void Node::moved_from(IsSubtreeRoot, GC::Ptr<Node>)
 {
     recompute_editable_subtree_flag();
-    update_inside_blocking_wheel_event_handler_state();
+    if (update_inside_blocking_wheel_event_handler_state())
+        set_needs_repaint();
 }
 
 static bool is_root_wheel_event_target(Node const& node)
@@ -2409,27 +2411,48 @@ static bool is_root_wheel_event_target(Node const& node)
     return &node == &document || &node == document.document_element() || &node == document.body();
 }
 
-void Node::update_inside_blocking_wheel_event_handler_state()
+bool Node::update_inside_blocking_wheel_event_handler_state()
 {
+    bool const was_inside_blocking_wheel_event_handler = m_inside_blocking_wheel_event_handler;
     m_inside_blocking_wheel_event_handler = false;
     if (auto* parent = parent_or_shadow_host_node())
         m_inside_blocking_wheel_event_handler = parent->inside_blocking_wheel_event_handler();
 
     if (!m_inside_blocking_wheel_event_handler && !is_root_wheel_event_target(*this) && has_blocking_wheel_event_listener())
         m_inside_blocking_wheel_event_handler = true;
+
+    return was_inside_blocking_wheel_event_handler != m_inside_blocking_wheel_event_handler;
+}
+
+static void set_needs_repaint_of_top_layer_boxes(Element& element, Layout::Node const* layout_node_repainted_by_caller)
+{
+    if (auto* layout_node = element.unsafe_layout_node(); layout_node && layout_node != layout_node_repainted_by_caller)
+        Painting::set_needs_repaint_in_subtree(*layout_node);
+    if (auto* backdrop_layout_node = element.pseudo_element_unsafe_layout_node(CSS::PseudoElement::Backdrop))
+        Painting::set_needs_repaint_in_subtree(*backdrop_layout_node);
 }
 
 void Node::update_inside_blocking_wheel_event_handler_state_for_subtree()
 {
     if (is_root_wheel_event_target(*this)) {
-        update_inside_blocking_wheel_event_handler_state();
+        (void)update_inside_blocking_wheel_event_handler_state();
         return;
     }
 
-    for_each_shadow_including_inclusive_descendant([](Node& node) {
-        node.update_inside_blocking_wheel_event_handler_state();
+    auto* subtree_layout_node = unsafe_layout_node();
+    bool any_descendant_flipped_blocking_wheel_state = false;
+    for_each_shadow_including_inclusive_descendant([&](Node& node) {
+        if (!node.update_inside_blocking_wheel_event_handler_state())
+            return TraversalDecision::Continue;
+        any_descendant_flipped_blocking_wheel_state = true;
+        if (auto* element = as_if<Element>(node); element && element->rendered_in_top_layer())
+            set_needs_repaint_of_top_layer_boxes(*element, subtree_layout_node);
+        else if (!subtree_layout_node)
+            node.set_needs_repaint();
         return TraversalDecision::Continue;
     });
+    if (any_descendant_flipped_blocking_wheel_state && subtree_layout_node)
+        Painting::set_needs_repaint_in_subtree(*subtree_layout_node);
 }
 
 ParentNode* Node::parent_or_shadow_host()

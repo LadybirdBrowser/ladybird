@@ -1,0 +1,33 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #host { position: relative; width: 100px; height: 100px; }
+    dialog { margin: 0; border: 0; padding: 0; inset: auto; left: 200px; top: 200px; width: 100px; height: 100px; }
+    dialog::backdrop { background: rgba(0, 0, 0, 0.1); }
+</style>
+<div id="host"><dialog id="modal"></dialog></div>
+<script>
+    test(() => {
+        modal.showModal();
+        internals.asyncScrollingState();
+        internals.asyncScrollingState();
+        const blockedBefore = internals.asyncScrollingStateBlocksWheelEventAt(250, 250);
+        const visitedQuiet = internals.paintCacheCaptureSiteVisitCount();
+
+        host.style.height = "101px";
+        const blocking = () => {};
+        host.addEventListener("wheel", blocking, { passive: false });
+        const blockedAfterAdding = internals.asyncScrollingStateBlocksWheelEventAt(250, 250);
+        const blockedWhenQuiet = internals.asyncScrollingStateBlocksWheelEventAt(250, 250);
+
+        host.removeEventListener("wheel", blocking);
+        const blockedAfterRemoving = internals.asyncScrollingStateBlocksWheelEventAt(250, 250);
+
+        println(`quiet recording visits only the viewport root: ${visitedQuiet === 1}`);
+        println(`blocked over the modal before adding the listener: ${blockedBefore}`);
+        println(`blocked over the modal after adding the listener on its DOM ancestor: ${blockedAfterAdding}`);
+        println(`still blocked on a quiet recording: ${blockedWhenQuiet}`);
+        println(`blocked over the modal after removing the listener: ${blockedAfterRemoving}`);
+    });
+</script>

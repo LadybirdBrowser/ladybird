@@ -1,4 +1,9 @@
 blocked before adding the listener: false
 quiet recording visits only the viewport root: true
+a passive listener leaves the viewport root hitting: true
 blocked after adding the listener: true
 adding the listener re-records B: true
+a quiet recording with the listener hits the viewport root: true
+and still blocks: true
+blocked after removing the listener: false
+removing the listener re-records B: true

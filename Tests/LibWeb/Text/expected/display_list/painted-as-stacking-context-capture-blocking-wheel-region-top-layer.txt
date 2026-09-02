@@ -1,0 +1,5 @@
+quiet recording visits only the viewport root: true
+blocked over the modal before adding the listener: false
+blocked over the modal after adding the listener on its DOM ancestor: true
+still blocked on a quiet recording: true
+blocked over the modal after removing the listener: false

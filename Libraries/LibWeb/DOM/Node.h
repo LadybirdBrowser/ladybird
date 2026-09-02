@@ -335,7 +335,7 @@ public:
     bool is_connected() const { return m_is_connected; }
     void set_is_connected(bool is_connected) { m_is_connected = is_connected; }
     bool inside_blocking_wheel_event_handler() const { return m_inside_blocking_wheel_event_handler; }
-    void update_inside_blocking_wheel_event_handler_state();
+    bool update_inside_blocking_wheel_event_handler_state();
     void update_inside_blocking_wheel_event_handler_state_for_subtree();
 
     [[nodiscard]] bool is_browsing_context_connected() const;

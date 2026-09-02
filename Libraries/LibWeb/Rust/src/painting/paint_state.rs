@@ -16,7 +16,7 @@ pub struct PaintState {
     pub(crate) last_recording: Option<Rc<crate::painting::record::RecordingOutput>>,
     pub(crate) paint_command_cache_source: Option<Rc<crate::painting::record::RecordingOutput>>,
     pub(crate) hit_test_item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
-    pub(crate) recorded_wheel_event_listener_state_generation: Option<u64>,
+    pub(crate) recorded_has_blocking_wheel_event_region_covering_viewport: Option<bool>,
     pub(crate) recorded_canvas_color: Option<libgfx_rust::Color>,
     pub(crate) selection: Option<crate::painting::selection::SelectionRange>,
     pub(crate) scrollable_overflow_contained_boxes: std::collections::HashMap<NodeSlotId, Vec<NodeSlotId>>,
