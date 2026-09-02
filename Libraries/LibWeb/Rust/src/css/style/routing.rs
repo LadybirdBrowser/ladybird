@@ -2657,6 +2657,9 @@ impl StyleEngine {
         // parent itself for emptiness. An of-type answer additionally reads sibling tag facts,
         // so a tag change re-compares the changed node's whole sequence too.
         let positional_tests = dispatch.prefixes().positional_tests();
+        // The parents whose child sequences this flush touched: only their children can have
+        // moved positional truth, so every other node's retained positional bits still hold.
+        let mut positional_touched_parents: Vec<StyleNodeID> = Vec::new();
         if !positional_tests.is_empty() {
             let has_of_type_tests = positional_tests
                 .iter()
@@ -2697,7 +2700,7 @@ impl StyleEngine {
                 if automaton_has_empty_tests {
                     pending_nodes.extend(touched_parents.iter().copied());
                 }
-                for parent in touched_parents {
+                for &parent in &touched_parents {
                     let child_count = self.tree.children(parent).count();
                     let before_geometry = self
                         .transaction_fact_view
@@ -2747,6 +2750,7 @@ impl StyleEngine {
                 pending_nodes.sort_unstable();
                 pending_nodes.dedup();
             }
+            positional_touched_parents = touched_parents;
         }
 
         // No fact root moved: the cache's own book-keeping is the whole maintenance. Departed
@@ -3074,6 +3078,14 @@ impl StyleEngine {
                             .flatten()
                             .map(Vec::as_slice)
                             .filter(|steps| !steps.is_empty());
+                        // A node's positional bits move when its own sequence moved; its emptiness
+                        // moves when its children did.
+                        let positional_truth_stable = positional_tests.is_empty()
+                            || (positional_touched_parents.binary_search(&node).is_err()
+                                && self
+                                    .tree
+                                    .parent(node)
+                                    .is_none_or(|parent| positional_touched_parents.binary_search(&parent).is_err()));
                         let difference = match states.compare_and_update(
                             &new_evaluation,
                             &old_evaluation,
@@ -3082,6 +3094,7 @@ impl StyleEngine {
                             local_facts_changed,
                             local_prefix_candidates,
                             pending_node.entering_deltas,
+                            positional_truth_stable,
                             &mut prefix_delta_arena,
                             &mut self.counters,
                         ) {
@@ -3122,6 +3135,7 @@ impl StyleEngine {
                                     entering_deltas: PrefixEnteringDeltas {
                                         parent: pending_node.entering_deltas.parent,
                                         previous: difference.right_delta,
+                                        parent_endpoints: pending_node.entering_deltas.parent_endpoints,
                                     },
                                 });
                             } else if prefix_completion_budget != 0 {
@@ -3131,6 +3145,7 @@ impl StyleEngine {
                                     entering_deltas: PrefixEnteringDeltas {
                                         parent: pending_node.entering_deltas.parent,
                                         previous: difference.right_delta,
+                                        parent_endpoints: pending_node.entering_deltas.parent_endpoints,
                                     },
                                 });
                             } else {
@@ -3148,6 +3163,7 @@ impl StyleEngine {
                                         entering_deltas: PrefixEnteringDeltas {
                                             parent: difference.continuation_delta,
                                             previous: None,
+                                            parent_endpoints: difference.continuation_endpoints,
                                         },
                                     });
                                 } else if prefix_completion_budget != 0 {
@@ -3157,6 +3173,7 @@ impl StyleEngine {
                                         entering_deltas: PrefixEnteringDeltas {
                                             parent: difference.continuation_delta,
                                             previous: None,
+                                            parent_endpoints: difference.continuation_endpoints,
                                         },
                                     });
                                 } else {
