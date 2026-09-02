@@ -46,10 +46,13 @@ use crate::css::style_value::retained_value_depends_on_color_scheme;
 use crate::css::style_value::retained_value_depends_on_current_color;
 use crate::css::style_value::retained_value_may_depend_on_font_metrics;
 
-// The high bit is a node-local production capability carried with publication and stripped before
-// the semantic fixed metadata is interned or exposed through a style-record view.
+// Bit 3 is a node-local production capability carried with publication and stripped before the
+// semantic fixed metadata is interned or exposed through a style-record view.
 pub(crate) const INHERITED_GROUP_SWAP_ELIGIBLE: u8 = 1 << 3;
-const COMPUTED_VALUE_DEPENDENCY_FLAGS: u8 = INHERITED_GROUP_SWAP_ELIGIBLE - 1;
+/// The record holds an `<image>` in a property whose images a layout node loads and observes.
+/// Derived from the published payloads; see `style_group_payloads_hold_image_values`.
+pub(crate) const HOLDS_IMAGE_VALUES: u8 = 1 << 4;
+const COMPUTED_VALUE_DEPENDENCY_FLAGS: u8 = (INHERITED_GROUP_SWAP_ELIGIBLE - 1) | HOLDS_IMAGE_VALUES;
 
 define_id! { pub struct ComputedGroupID(); }
 
