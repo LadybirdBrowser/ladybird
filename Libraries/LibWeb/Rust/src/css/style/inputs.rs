@@ -1814,6 +1814,7 @@ impl StyleEngine {
         compiled: &SelectorProgram,
         entry: usize,
         document_root: StyleNodeID,
+        bounding_scopes: Option<&[TreeScopeID]>,
     ) -> Option<Vec<ImpactRegion>> {
         if compiled.subject_is_only_the_root(entry) {
             return Some(vec![ImpactRegion::Node(document_root)]);
@@ -1845,6 +1846,11 @@ impl StyleEngine {
             match self.facts.postings().lookup(key) {
                 Lookup::Known(posting) => {
                     for relative in posting.candidates() {
+                        if bounding_scopes
+                            .is_some_and(|scopes| scopes.binary_search(&self.tree.tree_scope(relative)).is_err())
+                        {
+                            continue;
+                        }
                         regions.push(region(relative));
                     }
                 }

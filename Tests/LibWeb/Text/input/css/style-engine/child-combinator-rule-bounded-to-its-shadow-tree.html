@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<ul id="list"></ul>
+<div id="host"></div>
+<script>
+    test(() => {
+        for (let i = 0; i < 50; ++i) {
+            const bystander = list.appendChild(document.createElement("li"));
+            bystander.appendChild(document.createElement("div"));
+        }
+        const shadow = host.attachShadow({ mode: "open" });
+        const item = shadow.appendChild(document.createElement("li"));
+        const target = item.appendChild(document.createElement("div")).appendChild(document.createElement("button"));
+        internals.updateStyle();
+
+        function recomputationsForSheet(cssText) {
+            const sheet = new CSSStyleSheet();
+            sheet.replaceSync(cssText);
+            const before = internals.getStyleInvalidationCounters();
+            shadow.adoptedStyleSheets = [sheet];
+            internals.updateStyle();
+            const after = internals.getStyleInvalidationCounters();
+            const count = after.elementStyleRecomputations - before.elementStyleRecomputations;
+            shadow.adoptedStyleSheets = [];
+            internals.updateStyle();
+            return count;
+        }
+
+        println(`li > div > :focus: ${recomputationsForSheet("li > div > :focus { color: red }")}`);
+        println(`li > div > *: ${recomputationsForSheet("li > div > * { color: red }")}`);
+        println(`li :focus: ${recomputationsForSheet("li :focus { color: red }")}`);
+
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync("li > div > :focus { color: rgb(1, 2, 3) }");
+        shadow.adoptedStyleSheets = [sheet];
+        println(`before focus: ${getComputedStyle(target).color}`);
+        target.focus();
+        println(`after focus: ${getComputedStyle(target).color}`);
+    });
+</script>
