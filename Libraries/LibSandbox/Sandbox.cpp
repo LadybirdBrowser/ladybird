@@ -325,6 +325,7 @@ ErrorOr<void> apply_macos_sandbox(ReadonlySpan<SeatbeltPath> paths, NetworkAcces
         SYS_openat
         SYS_os_fault_with_payload
         SYS_pathconf
+        SYS_persona
         SYS_pipe
         SYS_poll
         SYS_posix_spawn
