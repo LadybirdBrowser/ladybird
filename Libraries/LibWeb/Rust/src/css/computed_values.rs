@@ -2737,7 +2737,7 @@ impl InheritedSVGValues {
         crate::css::computed_value_types::ComputedSvgPaint {
             kind,
             url: ComputedStyleValueHandle::empty(),
-            has_color: kind == 1,
+            has_color: kind == crate::css::computed_value_types::SVG_PAINT_COLOR,
             color,
             color_is_currentcolor: false,
         }

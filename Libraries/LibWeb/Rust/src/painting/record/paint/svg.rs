@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::css::computed_value_types::{ComputedSvgPaint, SVG_PAINT_COLOR, SVG_PAINT_NONE};
 use crate::css::css_enums::paint_order;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::display_list::builder::PendingInlineClip;
@@ -47,10 +48,10 @@ struct SvgPaintFacts {
     image_rendering: u8,
 }
 
-pub(crate) fn svg_paint_color(paint: &crate::css::computed_value_types::ComputedSvgPaint) -> Option<u32> {
+pub(crate) fn svg_paint_color(paint: &ComputedSvgPaint) -> Option<u32> {
     match paint.kind {
-        0 => None,
-        1 => Some(paint.color),
+        SVG_PAINT_NONE => None,
+        SVG_PAINT_COLOR => Some(paint.color),
         _ => paint.has_color.then_some(paint.color),
     }
 }

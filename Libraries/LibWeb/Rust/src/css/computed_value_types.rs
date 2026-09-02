@@ -857,11 +857,15 @@ pub struct InheritedUIValues {
     pub color_scheme_only: bool,
 }
 
+pub const SVG_PAINT_NONE: u8 = 0;
+pub const SVG_PAINT_COLOR: u8 = 1;
+pub const SVG_PAINT_URL: u8 = 2;
+
 /// One computed SVG paint. A color paint uses `color`; a URL paint retains
 /// the URL style value and may also carry a fallback color.
 #[repr(C)]
 pub struct ComputedSvgPaint {
-    /// 0 none, 1 color, 2 URL.
+    /// One of `SVG_PAINT_NONE`, `SVG_PAINT_COLOR`, `SVG_PAINT_URL`.
     pub kind: u8,
     pub url: ComputedStyleValueHandle,
     pub has_color: bool,
