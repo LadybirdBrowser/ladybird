@@ -127,6 +127,14 @@ NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_base
     return working_set;
 }
 
+NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_for_animation_update(ComputedValues const& style)
+{
+    auto working_set = create_with_base_values_from(style);
+    if (auto animated_properties = style.animated_properties_snapshot())
+        working_set->m_animated_properties = adopt_ref(*new AnimatedProperties(*animated_properties));
+    return working_set;
+}
+
 void ComputedStyleWorkingSet::freeze_computed_longhand_table()
 {
     ComputedValuesFFI::rust_computed_longhand_table_freeze(m_computed_longhand_table);
@@ -482,8 +490,7 @@ void ComputedStyleWorkingSet::reset_non_inherited_animated_properties(Badge<Anim
 
     auto& animated_properties = mutable_animated_properties();
     animated_properties.reset_non_inherited_properties();
-    if (animated_properties.is_empty())
-        m_animated_properties = nullptr;
+    // Keep the overlay alive because it may own reusable animation preparation.
 
     if (should_clear_computed_font_list_cache)
         clear_computed_font_list_cache();

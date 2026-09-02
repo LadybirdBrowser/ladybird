@@ -385,6 +385,8 @@ WebIDL::ExceptionOr<void> AnimationEffect::update_timing(Bindings::OptionalEffec
 void AnimationEffect::set_associated_animation(GC::Ptr<Animation> value)
 {
     m_associated_animation = value;
+    if (auto* keyframe_effect = as_if<KeyframeEffect>(*this))
+        keyframe_effect->invalidate_animation_preparation();
 
     // NB: The normalization of the specified timing depends on the timeline of the associated animation.
     normalize_specified_timing();

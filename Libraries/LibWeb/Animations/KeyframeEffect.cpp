@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <AK/Bitmap.h>
 #include <AK/QuickSort.h>
 #include <LibGC/Heap.h>
@@ -32,6 +33,8 @@
 namespace Web::Animations {
 
 GC_DEFINE_ALLOCATOR(KeyframeEffect);
+
+static Atomic<u64> s_next_animation_preparation_identity { 1 };
 
 template<typename T>
 WebIDL::ExceptionOr<Variant<T, Vector<T>>> convert_value_to_maybe_list(JS::Realm& realm, JS::Value value, Function<WebIDL::ExceptionOr<T>(JS::Value)>& value_converter)
@@ -849,6 +852,7 @@ void KeyframeEffect::set_target(GC::Ptr<DOM::Element> target)
     }
     m_target_element = target;
 
+    invalidate_animation_preparation();
     invalidate_effect();
     // FIXME: We don't remove the animated style from the old target element as part of normal animated style update and
     //        it will remain "stuck" until it's style is fully invalidated for some other reason.
@@ -869,6 +873,7 @@ WebIDL::ExceptionOr<void> KeyframeEffect::set_pseudo_element(Optional<Utf16Strin
     // NOTE: The actual definition is in pseudo_element_parsing().
     m_target_pseudo_selector = TRY(pseudo_element_parsing(value));
 
+    invalidate_animation_preparation();
     invalidate_effect();
     // FIXME: We don't remove the animated style from the old target element as part of normal animated style update and
     //        it will remain "stuck" until it's style is fully invalidated for some other reason.
@@ -904,6 +909,7 @@ Optional<CSS::PseudoElement> KeyframeEffect::pseudo_element_type() const
 void KeyframeEffect::set_composite(Bindings::CompositeOperation value)
 {
     m_composite = value;
+    invalidate_animation_preparation();
     invalidate_effect();
 }
 
@@ -920,6 +926,7 @@ void KeyframeEffect::set_key_frame_set(RefPtr<KeyFrameSet const> key_frame_set)
         }
     }
     m_key_frame_set = move(key_frame_set);
+    invalidate_animation_preparation();
     invalidate_effect();
 }
 
@@ -1026,10 +1033,14 @@ void KeyframeEffect::set_keyframes(Vector<BaseKeyframe> keyframes)
     generate_initial_and_final_frames(keyframe_set, m_target_properties);
     m_key_frame_set = keyframe_set;
 
+    invalidate_animation_preparation();
     invalidate_effect();
 }
 
-KeyframeEffect::KeyframeEffect() = default;
+KeyframeEffect::KeyframeEffect()
+    : m_animation_preparation_identity(s_next_animation_preparation_identity.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
+{
+}
 
 void KeyframeEffect::invalidate_effect()
 {
@@ -1217,7 +1228,7 @@ void KeyframeEffect::update_computed_properties_for_style(AnimationUpdateContext
         if (!computed_values)
             return AnimationUpdateContext::ElementData {};
         auto old_animated_properties = computed_values->animated_properties_snapshot();
-        auto computed_properties = style_computer.reconstruct_computed_properties(*computed_values);
+        auto computed_properties = style_computer.reconstruct_computed_properties_for_animation(*computed_values);
         computed_properties->reset_non_inherited_animated_properties({});
         return AnimationUpdateContext::ElementData { move(old_animated_properties), move(computed_properties) };
     });

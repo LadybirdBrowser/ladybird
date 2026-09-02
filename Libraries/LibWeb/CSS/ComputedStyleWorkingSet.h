@@ -66,6 +66,7 @@ public:
     static NonnullRefPtr<ComputedStyleWorkingSet> create_with_longhand_table(ComputedValuesFFI::ComputedLonghandTable*);
     static NonnullRefPtr<ComputedStyleWorkingSet> create_with_base_values_from(ComputedStyleWorkingSet const&);
     static NonnullRefPtr<ComputedStyleWorkingSet> create_with_base_values_from(ComputedValues const&);
+    static NonnullRefPtr<ComputedStyleWorkingSet> create_for_animation_update(ComputedValues const&);
     ~ComputedStyleWorkingSet();
 
     // Freezes the computed longhand table once the drive has stored every longhand. The

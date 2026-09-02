@@ -19,7 +19,7 @@
                 ],
                 100
             ),
-            target.animate({ width: ["10px", "30px"] }, 100),
+            target.animate({ width: ["10px", "30px"] }, { duration: 100, composite: "add" }),
             target.animate({ color: ["black", "white"] }, 100),
         ];
         for (const animation of animations) {
@@ -37,5 +37,31 @@
 
         println(`animation evaluations: ${counters.animationEvaluationEntries}`);
         println(`keyframe longhand drives: ${counters.animationKeyframeLonghandEntries}`);
+
+        for (const animation of animations)
+            animation.currentTime = 75;
+
+        internals.resetStyleFfiCounters();
+        internals.updateStyle();
+        const resampleCounters = internals.styleFfiCounters();
+        println(`resampled opacity: ${style.opacity}`);
+        println(`resampled width: ${style.width}`);
+        println(`resampled color: ${style.color}`);
+        println(`resample animation evaluations: ${resampleCounters.animationEvaluationEntries}`);
+        println(`resample keyframe longhand drives: ${resampleCounters.animationKeyframeLonghandEntries}`);
+
+        target.style.width = "100px";
+        internals.resetStyleFfiCounters();
+        internals.updateStyle();
+        const baseMutationCounters = internals.styleFfiCounters();
+        println(`base-mutated width: ${style.width}`);
+        println(`base mutation longhand drives: ${baseMutationCounters.animationKeyframeLonghandEntries}`);
+
+        animations[2].effect.setKeyframes({ width: ["20px", "40px"] });
+        internals.resetStyleFfiCounters();
+        internals.updateStyle();
+        const keyframeMutationCounters = internals.styleFfiCounters();
+        println(`mutated width: ${style.width}`);
+        println(`keyframe mutation longhand drives: ${keyframeMutationCounters.animationKeyframeLonghandEntries}`);
     });
 </script>
