@@ -1,7 +1,6 @@
 // https://w3c.github.io/selection-api/#selection-interface
 [Exposed=Window]
 interface Selection {
-
     readonly attribute Node? anchorNode;
     readonly attribute unsigned long anchorOffset;
     readonly attribute Node? focusNode;
@@ -26,5 +25,9 @@ interface Selection {
     [CEReactions] undefined deleteFromDocument();
     boolean containsNode(Node node, optional boolean allowPartialContainment = false);
     stringifier;
+};
 
+// https://w3c.github.io/selection-api/#dom-document-getselection
+partial interface Document {
+    Selection? getSelection();
 };

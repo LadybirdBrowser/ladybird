@@ -35,3 +35,8 @@ enum AnimationPlayState { "idle", "running", "paused", "finished" };
 
 // https://drafts.csswg.org/web-animations-1/#the-animationreplacestate-enumeration
 enum AnimationReplaceState { "active", "removed", "persisted" };
+
+// https://drafts.csswg.org/web-animations-1/#extensions-to-the-document-interface
+partial interface Document {
+    readonly attribute DocumentTimeline timeline;
+};

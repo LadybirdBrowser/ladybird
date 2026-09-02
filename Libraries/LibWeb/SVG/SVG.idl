@@ -1,0 +1,4 @@
+// https://w3c.github.io/svgwg/svg2-draft/struct.html#InterfaceDocumentExtensions
+partial interface Document {
+    readonly attribute SVGSVGElement? rootElement;
+};
