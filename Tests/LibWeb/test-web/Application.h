@@ -56,6 +56,7 @@ public:
     bool shuffle { false };
     bool run_ui_process_session_history_tests { false };
     bool verify_style { false };
+    bool verify_paint_cache { false };
     int per_test_timeout_in_seconds { 30 };
 
     u8 verbosity { 0 };

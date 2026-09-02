@@ -14,6 +14,12 @@ use crate::painting::hit_test::HitTestItem;
 use crate::painting::record::PaintPhase;
 use crate::painting::record::traversal::StackingContextPaintPhase;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) enum CaptureKind {
+    BoxPhase(PaintPhase),
+    DescendantSubtreePhase(StackingContextPaintPhase),
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CachedBoxPhaseCommands {
     // Display list ids start at 1, so a default-constructed entry never matches a real source list.

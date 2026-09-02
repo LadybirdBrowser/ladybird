@@ -20,12 +20,14 @@ use crate::painting::host::{
 };
 use crate::painting::node_painting;
 use crate::painting::record::RecordingOutput;
+use crate::painting::record::cache::CaptureKind;
 use crate::painting::record::masks::MaskLayerSet;
+use crate::painting::record::verify::{CaptureLog, LoggedCapture};
 use crate::painting::style_queries;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub(crate) enum StackingContextPaintPhase {
     BackgroundAndBorders = 0,
@@ -95,6 +97,8 @@ pub(crate) fn record_display_list(
         has_blocking_wheel_event_listeners: false,
         recording_stats: FfiPaintRecordingStats::default(),
         uncacheable_paint_generation: 0,
+        capture_log_for_verification: crate::painting::record::verify::enabled_by_environment()
+            .then(CaptureLog::default),
         list: HitTestList::default(),
         base_paint_facts_cache: vec![None; layout_arena.paintable_row_count()],
         paintable_facts_cache: vec![None; layout_arena.paintable_row_count()],
@@ -142,6 +146,7 @@ pub(crate) fn record_display_list(
         has_blocking_wheel_event_listeners: recorder.has_blocking_wheel_event_listeners,
         mask_display_lists,
         recording_stats: recorder.recording_stats,
+        capture_log_for_verification: recorder.capture_log_for_verification,
     }
 }
 
@@ -508,6 +513,15 @@ impl PaintRecorder<'_> {
         for item in &item_source.items[source_start..source_end] {
             self.append_spliced_hit_test_item(item);
         }
+        let kind = CaptureKind::DescendantSubtreePhase(phase);
+        self.log_command_byte_capture_for_verification(paintable, kind, command_range, true);
+        self.log_hit_test_item_capture_for_verification(
+            paintable,
+            kind,
+            hit_test_start,
+            cached.hit_test_count as usize,
+            true,
+        );
         if self.inputs.paint_command_cache_read_write {
             self.set_cached_descendant_subtree(
                 paintable,
@@ -524,25 +538,64 @@ impl PaintRecorder<'_> {
     }
 
     fn cache_descendant_subtree(
-        &self,
+        &mut self,
         paintable: NodeSlotId,
         phase: StackingContextPaintPhase,
         command_byte_start: usize,
         hit_test_start: usize,
     ) {
-        if !self.inputs.paint_command_cache_read_write || self.nested.is_some() {
+        if self.nested.is_some() {
             return;
         }
-        self.set_cached_descendant_subtree(
-            paintable,
-            phase,
-            CommandRange {
-                offset: command_byte_start as u32,
-                size: (self.recorder.byte_size() - command_byte_start) as u32,
-            },
-            hit_test_start,
-            self.list.items.len() - hit_test_start,
-        );
+        let command_range = CommandRange {
+            offset: command_byte_start as u32,
+            size: (self.recorder.byte_size() - command_byte_start) as u32,
+        };
+        let hit_test_count = self.list.items.len() - hit_test_start;
+        let kind = CaptureKind::DescendantSubtreePhase(phase);
+        self.log_command_byte_capture_for_verification(paintable, kind, command_range, false);
+        self.log_hit_test_item_capture_for_verification(paintable, kind, hit_test_start, hit_test_count, false);
+        if !self.inputs.paint_command_cache_read_write {
+            return;
+        }
+        self.set_cached_descendant_subtree(paintable, phase, command_range, hit_test_start, hit_test_count);
+    }
+
+    fn log_command_byte_capture_for_verification(
+        &mut self,
+        paintable: NodeSlotId,
+        kind: CaptureKind,
+        range: CommandRange,
+        spliced_from_cache: bool,
+    ) {
+        if let Some(log) = self.capture_log_for_verification.as_mut() {
+            log.command_byte_captures.push(LoggedCapture {
+                start: range.offset,
+                length: range.size,
+                paintable,
+                kind,
+                spliced_from_cache,
+            });
+        }
+    }
+
+    fn log_hit_test_item_capture_for_verification(
+        &mut self,
+        paintable: NodeSlotId,
+        kind: CaptureKind,
+        start: usize,
+        count: usize,
+        spliced_from_cache: bool,
+    ) {
+        if let Some(log) = self.capture_log_for_verification.as_mut() {
+            log.hit_test_item_captures.push(LoggedCapture {
+                start: start as u32,
+                length: count as u32,
+                paintable,
+                kind,
+                spliced_from_cache,
+            });
+        }
     }
 
     fn captured_position_at_recording_start(&self, paintable: NodeSlotId) -> used_values::FfiCssPixelPoint {
@@ -716,6 +769,13 @@ impl PaintRecorder<'_> {
                 for item in &source[start..start + count] {
                     self.append_spliced_hit_test_item(item);
                 }
+                self.log_hit_test_item_capture_for_verification(
+                    paintable,
+                    CaptureKind::BoxPhase(phase),
+                    destination_start,
+                    count,
+                    true,
+                );
                 self.recording_stats.box_phase_hit_test_item_capture_hits += 1;
                 self.recording_stats.hit_test_items_copied_from_source += count;
                 if cache_writes_enabled {
@@ -731,8 +791,15 @@ impl PaintRecorder<'_> {
             } else {
                 let items_before = self.list.items.len();
                 self.record_hit_test_items(paintable, phase);
+                let items_after = self.list.items.len();
+                self.log_hit_test_item_capture_for_verification(
+                    paintable,
+                    CaptureKind::BoxPhase(phase),
+                    items_before,
+                    items_after - items_before,
+                    false,
+                );
                 if !skip_phase_capture && cache_writes_enabled {
-                    let items_after = self.list.items.len();
                     self.set_cached_hit_test_items(
                         paintable,
                         phase,
@@ -763,6 +830,12 @@ impl PaintRecorder<'_> {
                 cached.range,
                 cached.recorded_context,
             );
+            self.log_command_byte_capture_for_verification(
+                paintable,
+                CaptureKind::BoxPhase(phase),
+                destination_range,
+                true,
+            );
             if cache_writes_enabled {
                 self.set_cached_commands(paintable, phase, destination_range, phase_context);
             }
@@ -776,6 +849,14 @@ impl PaintRecorder<'_> {
                 offset: command_range_start as u32,
                 size: (command_range_end - command_range_start) as u32,
             };
+            if !is_nested {
+                self.log_command_byte_capture_for_verification(
+                    paintable,
+                    CaptureKind::BoxPhase(phase),
+                    command_range,
+                    false,
+                );
+            }
             if !skip_phase_capture && cache_writes_enabled {
                 self.set_cached_commands(paintable, phase, command_range, phase_context);
             }

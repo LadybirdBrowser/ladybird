@@ -1786,6 +1786,30 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
                 command_cache_source,
                 paint_state.hit_test_item_cache_source.clone(),
             );
+            if crate::painting::record::verify::enabled_by_environment()
+                && output.recording_stats.spliced_capture_count() > 0
+                && !inputs.should_show_line_box_borders
+            {
+                let mut inputs_for_recording_from_scratch = inputs;
+                inputs_for_recording_from_scratch.paint_command_cache_read_write = false;
+                let recording_from_scratch = crate::painting::record::traversal::record_display_list(
+                    arena,
+                    &paint_state,
+                    viewport,
+                    &callbacks,
+                    &paint_callbacks,
+                    &visual_context_callbacks,
+                    inputs_for_recording_from_scratch,
+                    paint_state.hit_test_list_generation + 1,
+                    None,
+                    None,
+                );
+                crate::painting::record::verify::verify_spliced_recording_matches_fresh(
+                    arena,
+                    &output,
+                    &recording_from_scratch,
+                );
+            }
             arena.set_paint_recording_in_progress(false);
             output
         };

@@ -164,6 +164,15 @@ pub struct OwnedPath {
     identity: u64,
 }
 
+impl std::fmt::Debug for OwnedPath {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("OwnedPath")
+            .field("identity", &self.identity)
+            .finish()
+    }
+}
+
 impl OwnedPath {
     /// Assumes sole ownership of a heap-allocated `Gfx::Path`.
     ///

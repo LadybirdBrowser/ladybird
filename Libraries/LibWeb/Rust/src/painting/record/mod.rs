@@ -10,6 +10,7 @@ pub mod hit_test_items;
 pub mod masks;
 pub mod paint;
 pub mod traversal;
+pub(crate) mod verify;
 
 use crate::css::css_enums;
 use crate::layout::node_data::NodeSlotId;
@@ -42,9 +43,10 @@ pub struct RecordingOutput {
     pub has_blocking_wheel_event_listeners: bool,
     pub mask_display_lists: Vec<(FrameNodeIndex, DisplayListResourceId)>,
     pub recording_stats: FfiPaintRecordingStats,
+    pub(crate) capture_log_for_verification: Option<verify::CaptureLog>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum PaintPhase {
     Background,
@@ -84,6 +86,7 @@ pub struct PaintRecorder<'a> {
     pub(crate) has_blocking_wheel_event_listeners: bool,
     pub(crate) recording_stats: FfiPaintRecordingStats,
     uncacheable_paint_generation: u64,
+    pub(crate) capture_log_for_verification: Option<verify::CaptureLog>,
     list: HitTestList,
     base_paint_facts_cache: Vec<Option<(NodeSlotId, BasePaintFacts)>>,
     paintable_facts_cache: Vec<Option<(NodeSlotId, hit_test_items::HitTestFacts)>>,
@@ -214,6 +217,7 @@ impl<'a> PaintRecorder<'a> {
             has_blocking_wheel_event_listeners: false,
             recording_stats: FfiPaintRecordingStats::default(),
             uncacheable_paint_generation: 0,
+            capture_log_for_verification: None,
             list: HitTestList::default(),
             base_paint_facts_cache: vec![None; self.layout_arena.paintable_row_count()],
             paintable_facts_cache: vec![None; self.layout_arena.paintable_row_count()],
