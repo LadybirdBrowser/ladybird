@@ -3,3 +3,12 @@ width: 20px
 color: rgb(128, 128, 128)
 animation evaluations: 1
 keyframe longhand drives: 1
+resampled opacity: 0.6
+resampled width: 25px
+resampled color: rgb(191, 191, 191)
+resample animation evaluations: 1
+resample keyframe longhand drives: 0
+base-mutated width: 125px
+base mutation longhand drives: 1
+mutated width: 135px
+keyframe mutation longhand drives: 1

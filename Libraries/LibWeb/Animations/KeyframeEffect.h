@@ -180,6 +180,9 @@ public:
     void set_is_observation_relevant_compositor_animation(bool value) { m_is_observation_relevant_compositor_animation = value; }
     bool is_observation_relevant_compositor_animation() const { return m_is_observation_relevant_compositor_animation; }
     void request_observation_sample();
+    u64 animation_preparation_identity() const { return m_animation_preparation_identity; }
+    u64 animation_preparation_generation() const { return m_animation_preparation_generation; }
+    void invalidate_animation_preparation() { ++m_animation_preparation_generation; }
     bool request_element_scoped_observation_sample(u64 task_generation)
     {
         if (m_last_element_scoped_observation_sample_task_generation == task_generation)
@@ -238,6 +241,8 @@ private:
     Vector<GC::Ref<JS::Object>> m_keyframe_objects_cache {};
 
     RefPtr<KeyFrameSet const> m_key_frame_set {};
+    u64 m_animation_preparation_identity { 0 };
+    u64 m_animation_preparation_generation { 0 };
     Optional<CompositorKeyframeValueCache> m_compositor_opacity_keyframe_value_cache;
     Optional<CompositorKeyframeValueCache> m_compositor_transform_keyframe_value_cache;
     Vector<Compositor::VisualAnimation> m_retained_compositor_animations;

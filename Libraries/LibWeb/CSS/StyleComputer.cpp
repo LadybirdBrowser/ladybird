@@ -818,6 +818,15 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         }
         return initial_custom_property_value(m_document->get_registered_custom_property(name), *m_document);
     };
+
+    struct ActiveEffect {
+        GC::Ref<Animations::KeyframeEffect> effect;
+        GC::Ref<Animations::Animation> animation;
+        double current_key { 0 };
+    };
+    Vector<ActiveEffect, 1> active_effects;
+    Vector<StyleValueFFI::FfiAnimationPreparationEffect, 1> preparation_effects;
+    Vector<double, 1> current_keys;
     for (auto effect : effects) {
         auto animation = effect->associated_animation();
         auto output_progress = effect->transformed_progress();
@@ -827,6 +836,62 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         auto& keyframes = key_frame_set.keyframes_by_key;
         if (keyframes.size() < 2)
             continue;
+        double current_key = *output_progress * 100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor;
+        current_key = clamp(current_key, static_cast<double>(NumericLimits<i64>::min()), static_cast<double>(NumericLimits<i64>::max()));
+        active_effects.append({ effect, *animation, current_key });
+        preparation_effects.append({
+            .identity = effect->animation_preparation_identity(),
+            .generation = effect->animation_preparation_generation(),
+        });
+        current_keys.append(current_key);
+    }
+    if (active_effects.is_empty()) {
+        computed_properties.clear_animated_properties(Badge<StyleComputer> {});
+        return;
+    }
+
+    StyleValueFFI::FfiAnimationPreparationKey preparation_key {
+        .effects = preparation_effects.data(),
+        .effect_count = preparation_effects.size(),
+    };
+    auto const* animation_overlay = computed_properties.animated_overlay(Badge<StyleComputer> {});
+    if (StyleValueFFI::rust_animation_preparation_matches(animation_overlay, &preparation_key)) {
+        auto* mutable_animation_overlay = computed_properties.prepare_animated_overlay_for_rust_mutation(Badge<StyleComputer> {});
+        StyleValueFFI::FfiAnimationContext animation_context {};
+        animation_context.current_color = static_cast<StyleValueFFI::StyleValueData const*>(computed_properties.effective_property_data(PropertyID::Color));
+        if (auto const* layout_node = abstract_element.element().unsafe_layout_node(); layout_node && Painting::has_committed_box(*layout_node)) {
+            auto reference_box = Painting::transform_reference_box(*layout_node);
+            animation_context.has_transform_reference_box = true;
+            animation_context.transform_reference_box_width = reference_box.width().to_double();
+            animation_context.transform_reference_box_height = reference_box.height().to_double();
+        }
+        StyleValueFFI::FfiComputedAnimationBatch computed_batch {
+            .context = animation_context,
+            .preparation_key = &preparation_key,
+            .current_keys = current_keys.data(),
+            .current_key_count = current_keys.size(),
+            .cache_preparation = true,
+            .resolved_animation_storage = nullptr,
+            .computed_keyframe_storage = nullptr,
+            .underlying_longhand_table = computed_properties.computed_longhand_table(),
+            .overlay = mutable_animation_overlay,
+            .custom_underlying_values = nullptr,
+            .custom_initial_values = nullptr,
+            .custom_value_count = 0,
+            .custom_results = nullptr,
+            .custom_result_count = nullptr,
+        };
+        StyleValueFFI::rust_evaluate_animations(&computed_batch);
+        computed_properties.finish_animated_overlay_rust_mutation(Badge<StyleComputer> {});
+        clear_computation_context_caches();
+        return;
+    }
+
+    for (auto const& active_effect : active_effects) {
+        auto effect = active_effect.effect;
+        auto animation = active_effect.animation;
+        auto const& key_frame_set = *effect->key_frame_set();
+        auto& keyframes = key_frame_set.keyframes_by_key;
         StyleValueFFI::FfiAnimationStyleSheetResourceContext style_sheet_resource_context {};
         if (key_frame_set.style_sheet_resource_context.has_value()) {
             auto bytes = key_frame_set.style_sheet_resource_context->base_url.bytes();
@@ -912,18 +977,17 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
                 });
             }
         }
-        double current_key = *output_progress * 100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor;
-        current_key = clamp(current_key, static_cast<double>(NumericLimits<i64>::min()), static_cast<double>(NumericLimits<i64>::max()));
         ffi_effects.append({
             .first_keyframe_index = first_keyframe_index,
             .keyframe_count = ffi_keyframes.size() - first_keyframe_index,
-            .current_key = current_key,
+            .current_key = active_effect.current_key,
             .result_of_transition = animation->is_css_transition(),
         });
     }
 
-    if (keyframe_declarations.is_empty())
+    if (keyframe_declarations.is_empty()) {
         return;
+    }
 
     Vector<PropertyNameAndID> custom_properties_by_name_id;
     struct CustomPropertyAnimationInfo {
@@ -1158,6 +1222,14 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
 
         return StyleValueFFI::FfiComputedAnimationBatch {
             .context = animation_context,
+            .preparation_key = &preparation_key,
+            .current_keys = current_keys.data(),
+            .current_key_count = current_keys.size(),
+            .cache_preparation = custom_properties_by_name_id.is_empty()
+                && !resolved_batch.uses_tree_counting_function
+                && resolved_batch.container_relative_length_unit_mask == 0
+                && !resolved_batch.needs_document_base_url
+                && resolved_batch.unfixed_random_sharing_count == 0,
             .resolved_animation_storage = resolved_batch.storage,
             .computed_keyframe_storage = computed_keyframe_batch.storage,
             .underlying_longhand_table = computed_properties.computed_longhand_table(),
@@ -4085,6 +4157,14 @@ void StyleComputer::apply_animated_properties_to_reconstruction(ComputedStyleWor
             entry.result_of_transition ? AnimatedPropertyResultOfTransition::Yes : AnimatedPropertyResultOfTransition::No,
             entry.inherited ? ComputedStyleWorkingSet::Inherited::Yes : ComputedStyleWorkingSet::Inherited::No);
     }
+}
+
+NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::reconstruct_computed_properties_for_animation(ComputedValues const& computed_values) const
+{
+    auto style = ComputedStyleWorkingSet::create_for_animation_update(computed_values);
+    if (auto const* animated_properties = computed_values.animated_properties(); animated_properties && animated_properties->has_property(PropertyID::Display))
+        style->set_display_before_box_type_transformation(computed_values.base_values().display());
+    return style;
 }
 
 // Whether the element's own shape can be read off a fixed set of questions, so that two elements

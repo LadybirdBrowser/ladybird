@@ -17,6 +17,7 @@
 //! longhand table.
 
 use std::ffi::c_void;
+use std::rc::Rc;
 
 use crate::abort_on_panic;
 use crate::css::style_value::RetainedStyleValueData;
@@ -25,6 +26,7 @@ use crate::css::style_value::RetainedStyleValueData;
 pub struct AnimatedOverlay {
     entries: Vec<AnimatedOverlayEntry>,
     ffi_entries: Vec<FfiAnimatedOverlayEntry>,
+    pub(crate) animation_preparation: Option<Rc<crate::css::animation::PreparedAnimationBatch>>,
 }
 
 impl Clone for AnimatedOverlay {
@@ -42,6 +44,7 @@ impl Clone for AnimatedOverlay {
         let mut overlay = Self {
             entries,
             ffi_entries: Vec::new(),
+            animation_preparation: self.animation_preparation.clone(),
         };
         overlay.refresh_ffi_entries();
         overlay
@@ -123,6 +126,7 @@ pub extern "C" fn rust_animated_overlay_create() -> *mut AnimatedOverlay {
         Box::into_raw(Box::new(AnimatedOverlay {
             entries: Vec::new(),
             ffi_entries: Vec::new(),
+            animation_preparation: None,
         }))
     })
 }
