@@ -846,6 +846,22 @@ WebIDL::UnsignedLongLong Internals::accumulated_visual_context_tree_build_count(
     return document.paint_state().accumulated_visual_context_tree_build_count();
 }
 
+WebIDL::UnsignedLongLong Internals::paint_cache_spliced_capture_count()
+{
+    auto& document = window().associated_document();
+    if (!document.has_committed_viewport_box())
+        return 0;
+    return document.paint_state().last_recording_spliced_capture_count();
+}
+
+WebIDL::UnsignedLongLong Internals::paint_cache_capture_site_visit_count()
+{
+    auto& document = window().associated_document();
+    if (!document.has_committed_viewport_box())
+        return 0;
+    return document.paint_state().last_recording_capture_site_visit_count();
+}
+
 void Internals::set_autoplay_policy(Utf16String const& policy)
 {
     if (auto parsed = HTML::autoplay_policy_from_string(policy.utf16_view()); parsed.has_value())

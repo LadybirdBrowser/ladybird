@@ -157,6 +157,18 @@ void DocumentPaintState::append_paint_command_cache_source_resources(DisplayList
     retained_resources.include(m_paint_command_cache_source_referenced_resources);
 }
 
+u64 DocumentPaintState::last_recording_spliced_capture_count() const
+{
+    auto stats = Layout::RustFFI::layout_arena_last_recording_stats(m_layout_node_arena->handle());
+    return stats.painted_as_stacking_context_capture_hits + stats.descendant_subtree_capture_hits + stats.box_phase_command_capture_hits;
+}
+
+u64 DocumentPaintState::last_recording_capture_site_visit_count() const
+{
+    auto stats = Layout::RustFFI::layout_arena_last_recording_stats(m_layout_node_arena->handle());
+    return stats.painted_as_stacking_context_capture_attempts + stats.descendant_subtree_capture_attempts + stats.box_phase_visits;
+}
+
 void DocumentPaintState::invalidate_all_cached_paint(DOM::Document& document)
 {
     Layout::RustFFI::layout_arena_invalidate_all_paint_caches(m_layout_node_arena->handle());

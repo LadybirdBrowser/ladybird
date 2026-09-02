@@ -2009,14 +2009,16 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_last_recording_spliced_capture_count(arena: *mut c_void) -> usize {
+pub unsafe extern "C" fn layout_arena_last_recording_stats(
+    arena: *mut c_void,
+) -> crate::painting::host::FfiPaintRecordingStats {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paint_state = arena.paint_state().borrow();
         paint_state
             .last_recording
             .as_ref()
-            .map_or(0, |recording| recording.spliced_capture_count)
+            .map_or_else(Default::default, |recording| recording.recording_stats)
     })
 }
 
