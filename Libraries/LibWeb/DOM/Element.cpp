@@ -1386,7 +1386,7 @@ void Element::run_attribute_change_steps(Utf16FlyString const& local_name, Optio
         auto html_collection_invalidation_types = document().html_collection_attribute_invalidation_types_for_attribute(local_name, namespace_);
         if (html_collection_invalidation_types != 0)
             invalidate_html_collection_caches_in_ancestors_for_attribute_change(html_collection_invalidation_types);
-        document().bump_dom_tree_version();
+        bump_dom_tree_version();
     }
 }
 
@@ -2653,7 +2653,7 @@ void Element::did_update_inline_style()
 
     if (!document().suppresses_attribute_style_invalidation())
         CSS::record_element_declarations_changed(*this, CSS::ElementDeclarationKind::InlineStyle, had_style_attribute, true);
-    document().bump_dom_tree_version();
+    bump_dom_tree_version();
 }
 
 void Element::synchronize_style_attribute() const

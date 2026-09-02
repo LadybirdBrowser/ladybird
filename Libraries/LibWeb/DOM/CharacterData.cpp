@@ -206,7 +206,7 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
         }
     }
 
-    document().bump_character_data_version();
+    bump_character_data_version();
 
     if (auto* rare_data = character_data_rare_data()) {
         if (rare_data->grapheme_segmenter)

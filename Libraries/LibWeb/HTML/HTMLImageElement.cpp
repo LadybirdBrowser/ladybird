@@ -684,7 +684,7 @@ GC::Ptr<HTMLMapElement> HTMLImageElement::associated_map_element()
         return {};
 
     // OPTIMIZATION: Resolving the map element walks the entire tree, so the result is cached until the DOM changes.
-    if (m_cached_associated_map_element_dom_tree_version == document().dom_tree_version())
+    if (m_cached_associated_map_element_dom_tree_version == dom_tree_version())
         return m_cached_associated_map_element;
 
     // 1. Parse the attribute's value using the rules for parsing a hash-name reference to a map element, with the
@@ -692,7 +692,7 @@ GC::Ptr<HTMLMapElement> HTMLImageElement::associated_map_element()
     // 2. If that returned null, then return. The image is not associated with an image map after all.
     // NB: Step 3 is performed by HTMLMapElement::area_for_point() when a pointing device interacts with the image.
     m_cached_associated_map_element = parse_hash_name_reference_to_map_element(usemap->utf16_view(), *this);
-    m_cached_associated_map_element_dom_tree_version = document().dom_tree_version();
+    m_cached_associated_map_element_dom_tree_version = dom_tree_version();
     return m_cached_associated_map_element;
 }
 

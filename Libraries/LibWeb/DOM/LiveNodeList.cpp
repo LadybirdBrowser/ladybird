@@ -58,7 +58,7 @@ void LiveNodeList::update_cache_if_needed() const
     auto& document = m_root->document();
     auto invalidation_version = this->invalidation_version(document);
     if (m_cached_document.ptr().ptr() == &document
-        && m_cached_dom_tree_version == document.dom_tree_version()
+        && m_cached_dom_tree_version == m_root->dom_tree_version()
         && m_cached_invalidation_version == invalidation_version) {
         return;
     }
@@ -79,7 +79,7 @@ void LiveNodeList::update_cache_if_needed() const
     }
 
     m_cached_document = document;
-    m_cached_dom_tree_version = document.dom_tree_version();
+    m_cached_dom_tree_version = m_root->dom_tree_version();
     m_cached_invalidation_version = invalidation_version;
 }
 
