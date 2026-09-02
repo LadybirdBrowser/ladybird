@@ -301,6 +301,22 @@ fn note_command(
     }
 }
 
+pub fn for_each_command<'a>(bytes: &'a [u8], mut f: impl FnMut(&DisplayListCommandHeader, usize, &'a [u8])) {
+    let mut offset = 0;
+    while offset < bytes.len() {
+        let header = read_header(&bytes[offset..]);
+        let payload_start = offset + HEADER_SIZE;
+        let payload_end = payload_start + header.payload_size as usize;
+        f(&header, offset, &bytes[payload_start..payload_end]);
+        offset = payload_end;
+    }
+    assert_eq!(
+        offset,
+        bytes.len(),
+        "display list byte range does not end on a record boundary"
+    );
+}
+
 pub fn read_header(bytes: &[u8]) -> DisplayListCommandHeader {
     assert!(bytes.len() >= HEADER_SIZE);
     let cursor = HeaderReader { bytes };
@@ -386,12 +402,7 @@ mod tests {
 
     fn header_contexts(builder: &DisplayListBuilder) -> Vec<ContextRef> {
         let mut contexts = Vec::new();
-        let mut offset = 0;
-        while offset < builder.byte_size() {
-            let header = read_header(&builder.bytes()[offset..]);
-            contexts.push(header.context);
-            offset += HEADER_SIZE + header.payload_size as usize;
-        }
+        for_each_command(builder.bytes(), |header, _, _| contexts.push(header.context));
         contexts
     }
 

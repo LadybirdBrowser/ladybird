@@ -870,19 +870,15 @@ impl PaintRecorder<'_> {
         range: CommandRange,
         recorded_context: ContextRef,
     ) -> bool {
-        use crate::painting::display_list::builder::{HEADER_SIZE, read_header};
         let bytes = &self.recorder.bytes()[range.offset as usize..(range.offset + range.size) as usize];
-        let mut offset = 0;
-        while offset < bytes.len() {
-            let header = read_header(&bytes[offset..]);
+        let mut only_the_phase_context = true;
+        crate::painting::display_list::builder::for_each_command(bytes, |header, _, _| {
             let frame = header.context.frame;
             let frame_belongs_to_the_capture = frame.is_none() || frame == recorded_context.frame;
-            if header.context.spatial != recorded_context.spatial || !frame_belongs_to_the_capture {
-                return false;
-            }
-            offset += HEADER_SIZE + header.payload_size as usize;
-        }
-        true
+            only_the_phase_context &=
+                header.context.spatial == recorded_context.spatial && frame_belongs_to_the_capture;
+        });
+        only_the_phase_context
     }
 
     #[cfg(not(debug_assertions))]
@@ -897,20 +893,14 @@ impl PaintRecorder<'_> {
 
     #[cfg(debug_assertions)]
     fn captured_range_embeds_no_scroll_node_index_payload(&self, range: CommandRange) -> bool {
-        use crate::painting::display_list::builder::{HEADER_SIZE, read_header};
         use crate::painting::display_list::commands::DisplayListCommandType;
         let bytes = &self.recorder.bytes()[range.offset as usize..(range.offset + range.size) as usize];
-        let mut offset = 0;
-        while offset < bytes.len() {
-            let header = read_header(&bytes[offset..]);
-            if header.command_type.is_compositor_metadata()
-                || header.command_type == DisplayListCommandType::PaintScrollBar
-            {
-                return false;
-            }
-            offset += HEADER_SIZE + header.payload_size as usize;
-        }
-        true
+        let mut embeds_no_scroll_node_index = true;
+        crate::painting::display_list::builder::for_each_command(bytes, |header, _, _| {
+            embeds_no_scroll_node_index &= !header.command_type.is_compositor_metadata()
+                && header.command_type != DisplayListCommandType::PaintScrollBar;
+        });
+        embeds_no_scroll_node_index
     }
 
     #[cfg(not(debug_assertions))]
