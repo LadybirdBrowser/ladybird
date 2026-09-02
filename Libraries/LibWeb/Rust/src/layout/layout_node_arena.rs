@@ -15,7 +15,8 @@ use crate::css::style::fast_hash::FastMap as HashMap;
 use crate::layout::CssPixels;
 use crate::layout::FfiReplacedContentFacts;
 use crate::layout::node_data::{
-    FfiNodeConstructionFacts, FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId,
+    FfiNodeConstructionFacts, FfiNodeLink, FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind,
+    NodeSlotId,
 };
 use crate::layout::tree_mutation::{DetachedShell, DetachedShells};
 use std::cell::Cell;
@@ -2086,6 +2087,40 @@ impl LayoutNodeArena {
         unsafe { (*self.data(id)).shell }
     }
 
+    pub(crate) fn node_link_shell(&self, id: NodeSlotId, link: FfiNodeLink) -> *mut c_void {
+        let data = self.data(id);
+        // SAFETY: data() validated that id names a live slot, and the links are plain values.
+        let linked = unsafe {
+            match link {
+                FfiNodeLink::Parent => (&raw const (*data).parent).read(),
+                FfiNodeLink::FirstChild => (&raw const (*data).first_child).read(),
+                FfiNodeLink::LastChild => (&raw const (*data).last_child).read(),
+                FfiNodeLink::PreviousSibling => (&raw const (*data).previous_sibling).read(),
+                FfiNodeLink::NextSibling => (&raw const (*data).next_sibling).read(),
+            }
+        };
+        if linked.is_invalid() {
+            return std::ptr::null_mut();
+        }
+        self.node_shell(linked)
+    }
+
+    pub(crate) fn node_containing_block_shell_if_live(&self, id: NodeSlotId) -> *mut c_void {
+        // SAFETY: data() validated that id names a live slot.
+        let containing_block = unsafe { (&raw const (*self.data(id)).containing_block).read() };
+        self.shell_if_live(containing_block)
+    }
+
+    pub(crate) fn node_flags(&self, id: NodeSlotId) -> u32 {
+        // SAFETY: data() validated that id names a live slot.
+        unsafe { (&raw const (*self.data(id)).flags).read() }
+    }
+
+    pub(crate) fn node_generated_for(&self, id: NodeSlotId) -> u8 {
+        // SAFETY: data() validated that id names a live slot.
+        unsafe { (&raw const (*self.data(id)).generated_for).read() }
+    }
+
     pub(crate) fn node_shell(&self, id: NodeSlotId) -> *mut c_void {
         // SAFETY: data() validated that id names a live slot.
         unsafe { (&raw const (*self.data(id)).shell).read() }
@@ -2336,6 +2371,37 @@ pub unsafe extern "C" fn layout_arena_recompute_containing_blocks(
 pub unsafe extern "C" fn layout_arena_node_shell_if_live(arena: *mut c_void, id: NodeSlotId) -> *mut c_void {
     // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
     unsafe { LayoutNodeArena::from_handle(arena) }.shell_if_live(id)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_node_link_shell(
+    arena: *mut c_void,
+    id: NodeSlotId,
+    link: FfiNodeLink,
+) -> *mut c_void {
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }.node_link_shell(id, link)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_node_containing_block_shell_if_live(
+    arena: *mut c_void,
+    id: NodeSlotId,
+) -> *mut c_void {
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }.node_containing_block_shell_if_live(id)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_node_flags(arena: *mut c_void, id: NodeSlotId) -> u32 {
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }.node_flags(id)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_node_generated_for(arena: *mut c_void, id: NodeSlotId) -> u8 {
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }.node_generated_for(id)
 }
 
 /// # Safety

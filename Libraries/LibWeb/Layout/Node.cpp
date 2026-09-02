@@ -72,6 +72,7 @@ static RustFFI::FfiNodeConstructionFacts build_node_construction_facts(DOM::Docu
 Node::Node(DOM::Document& document, GC::Ptr<DOM::Node> node, RustFFI::NodeKind kind, AttachToDOMNode attach_to_dom_node)
     : NodeArenaAllocation(document, build_node_construction_facts(document, node, kind, this))
     , m_dom_node(node ? *node : document)
+    , m_kind(kind)
 {
     update_has_scroll_offset_flag();
 
@@ -151,12 +152,12 @@ void* Node::arena_handle() const
 
 Box const* Node::containing_block() const
 {
-    return static_cast<Box const*>(tree_node_from_slot_if_live(m_data->containing_block));
+    return static_cast<Box const*>(containing_block_node_if_live());
 }
 
 Box* Node::containing_block()
 {
-    return static_cast<Box*>(tree_node_from_slot_if_live(m_data->containing_block));
+    return static_cast<Box*>(containing_block_node_if_live());
 }
 
 void Node::pin_style_record_for_detachment()
@@ -606,12 +607,12 @@ bool NodeWithStyle::is_inline_table() const
 
 bool Node::is_atomic_inline() const
 {
-    return RustFFI::layout_node_data_is_atomic_inline(m_data);
+    return RustFFI::layout_arena_node_is_atomic_inline(arena_handle(), slot_id(this));
 }
 
 bool Node::is_fragmented_inline() const
 {
-    return RustFFI::layout_node_data_is_fragmented_inline(m_data);
+    return RustFFI::layout_arena_node_is_fragmented_inline(arena_handle(), slot_id(this));
 }
 
 // https://drafts.csswg.org/css-transforms-1/#transformable-element
@@ -797,6 +798,7 @@ void NodeWithStyle::publish_style_record_to_node_data()
 {
     auto const* payloads = document().style_computer().style_engine().style_record_payloads(m_style_record_identity);
     VERIFY(payloads);
+    m_style_payloads = payloads;
     RustFFI::layout_arena_set_node_style_payloads(arena_handle(), slot_id(this), payloads);
     if (content_visibility() == CSS::ContentVisibility::Auto)
         document().note_content_visibility_auto_style();
