@@ -14,7 +14,7 @@ interface XPathResult {
 
     readonly attribute unsigned short resultType;
     readonly attribute unrestricted double numberValue;
-    readonly attribute Utf16DOMString stringValue;
+    readonly attribute DOMString stringValue;
     readonly attribute boolean booleanValue;
     readonly attribute Node? singleNodeValue;
     readonly attribute boolean invalidIteratorState;

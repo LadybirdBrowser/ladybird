@@ -2,19 +2,19 @@
 // https://drafts.csswg.org/css-animations-2/#interface-animationevent
 [Exposed=Window]
 interface AnimationEvent : Event {
-    constructor([Utf16FlyString] Utf16CSSOMString type, optional AnimationEventInit animationEventInitDict = {});
-    readonly attribute Utf16CSSOMString animationName;
+    constructor([FlyString] CSSOMString type, optional AnimationEventInit animationEventInitDict = {});
+    readonly attribute CSSOMString animationName;
     readonly attribute double elapsedTime;
-    readonly attribute Utf16CSSOMString pseudoElement;
+    readonly attribute CSSOMString pseudoElement;
     [DirectGetter] readonly attribute CSSAnimation? animation;
 };
 
 // https://drafts.csswg.org/css-animations-1/#dictdef-animationeventinit
 // https://drafts.csswg.org/css-animations-2/#interface-animationevent
 dictionary AnimationEventInit : EventInit {
-    Utf16CSSOMString animationName = "";
+    CSSOMString animationName = "";
     double elapsedTime = 0.0;
-    Utf16CSSOMString pseudoElement = "";
+    CSSOMString pseudoElement = "";
     CSSAnimation? animation = null;
 };
 

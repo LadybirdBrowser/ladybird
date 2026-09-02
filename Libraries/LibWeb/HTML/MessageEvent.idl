@@ -18,8 +18,8 @@ interface MessageEvent : Event {
 
 dictionary MessageEventInit : EventInit {
     any data = null;
-    Utf16USVString origin = "";
-    Utf16DOMString lastEventId = "";
+    USVString origin = "";
+    DOMString lastEventId = "";
     MessageEventSource? source = null;
     sequence<MessagePort> ports = [];
 };

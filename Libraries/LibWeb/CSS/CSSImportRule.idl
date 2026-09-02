@@ -1,9 +1,9 @@
 // https://drafts.csswg.org/cssom/#the-cssimportrule-interface
 [Exposed=Window]
 interface CSSImportRule : CSSRule {
-    [ImplementedAs=href_for_bindings] readonly attribute Utf16USVString href;
+    [ImplementedAs=href_for_bindings] readonly attribute USVString href;
     [SameObject, PutForwards=mediaText] readonly attribute MediaList media;
     [DirectGetter=style_sheet, SameObject, ImplementedAs=style_sheet_for_bindings] readonly attribute CSSStyleSheet? styleSheet;
-    readonly attribute Utf16CSSOMString? layerName;
-    readonly attribute Utf16CSSOMString? supportsText;
+    readonly attribute CSSOMString? layerName;
+    readonly attribute CSSOMString? supportsText;
 };

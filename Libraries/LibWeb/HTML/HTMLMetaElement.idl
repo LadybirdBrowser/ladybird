@@ -4,12 +4,12 @@ interface HTMLMetaElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect] attribute Utf16DOMString name;
-    [CEReactions, Reflect=http-equiv] attribute Utf16DOMString httpEquiv;
-    [CEReactions, Reflect] attribute Utf16DOMString content;
-    [CEReactions, Reflect] attribute Utf16DOMString media;
+    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions, Reflect=http-equiv] attribute DOMString httpEquiv;
+    [CEReactions, Reflect] attribute DOMString content;
+    [CEReactions, Reflect] attribute DOMString media;
 
     // Obsolete
-    [CEReactions, Reflect] attribute Utf16DOMString scheme;
+    [CEReactions, Reflect] attribute DOMString scheme;
 
 };

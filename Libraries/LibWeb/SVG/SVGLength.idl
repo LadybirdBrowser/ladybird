@@ -17,7 +17,7 @@ interface SVGLength {
 
     attribute float value;
     attribute float valueInSpecifiedUnits;
-    attribute Utf16DOMString valueAsString;
+    attribute DOMString valueAsString;
 
     undefined newValueSpecifiedUnits(unsigned short unitType, float valueInSpecifiedUnits);
     undefined convertToSpecifiedUnits(unsigned short unitType);

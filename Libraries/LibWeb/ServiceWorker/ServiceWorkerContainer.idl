@@ -4,7 +4,7 @@ interface ServiceWorkerContainer : EventTarget {
     [FIXME] readonly attribute ServiceWorker? controller;
     readonly attribute Promise<ServiceWorkerRegistration> ready;
 
-    [NewObject, CreatesPromise, ImplementedAs=register_] Promise<ServiceWorkerRegistration> register((TrustedScriptURL or Utf16USVString) scriptURL, optional RegistrationOptions options = {});
+    [NewObject, CreatesPromise, ImplementedAs=register_] Promise<ServiceWorkerRegistration> register((TrustedScriptURL or USVString) scriptURL, optional RegistrationOptions options = {});
 
     [NewObject, CreatesPromise] Promise<(ServiceWorkerRegistration or undefined)> getRegistration(optional USVString clientURL = "");
     [NewObject, CreatesPromise] Promise<FrozenArray<ServiceWorkerRegistration>> getRegistrations();
@@ -18,7 +18,7 @@ interface ServiceWorkerContainer : EventTarget {
 };
 
 dictionary RegistrationOptions {
-    Utf16USVString scope;
+    USVString scope;
     WorkerType type = "classic";
     ServiceWorkerUpdateViaCache updateViaCache = "imports";
 };

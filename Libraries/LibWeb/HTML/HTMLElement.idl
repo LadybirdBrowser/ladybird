@@ -5,25 +5,25 @@ interface HTMLElement : Element {
     [HTMLConstructor] constructor();
 
     // metadata attributes
-    [Reflect, CEReactions] attribute Utf16DOMString title;
-    [Reflect, CEReactions] attribute Utf16DOMString lang;
+    [Reflect, CEReactions] attribute DOMString title;
+    [Reflect, CEReactions] attribute DOMString lang;
     [CEReactions] attribute boolean translate;
-    [CEReactions] attribute Utf16DOMString dir;
+    [CEReactions] attribute DOMString dir;
 
     // user interaction
-    [CEReactions] attribute (boolean or unrestricted double or Utf16DOMString)? hidden;
+    [CEReactions] attribute (boolean or unrestricted double or DOMString)? hidden;
     [Reflect, CEReactions] attribute boolean inert;
     undefined click();
-    [Reflect=accesskey, CEReactions] attribute Utf16DOMString accessKey;
-    readonly attribute Utf16DOMString accessKeyLabel;
+    [Reflect=accesskey, CEReactions] attribute DOMString accessKey;
+    readonly attribute DOMString accessKeyLabel;
     [CEReactions] attribute boolean draggable;
     [CEReactions] attribute boolean spellcheck;
-    [CEReactions] attribute Utf16DOMString writingSuggestions;
-    [CEReactions] attribute Utf16DOMString autocapitalize;
+    [CEReactions] attribute DOMString writingSuggestions;
+    [CEReactions] attribute DOMString autocapitalize;
     [CEReactions] attribute boolean autocorrect;
 
-    [LegacyNullToEmptyString, CEReactions] attribute Utf16DOMString innerText;
-    [LegacyNullToEmptyString, CEReactions] attribute Utf16DOMString outerText;
+    [LegacyNullToEmptyString, CEReactions] attribute DOMString innerText;
+    [LegacyNullToEmptyString, CEReactions] attribute DOMString outerText;
 
     ElementInternals attachInternals();
 
@@ -32,7 +32,7 @@ interface HTMLElement : Element {
     [ImplementedAs=hide_popover_for_bindings] undefined hidePopover();
     boolean togglePopover(optional (TogglePopoverOptions or boolean) options = {});
     [CEReactions] attribute DOMString? popover;
-    
+
     // FIXME: Should be `[CEReactions, Reflect, ReflectRange=(0, 8)]`
     [CEReactions, Reflect, ReflectRange=(0, 8)] attribute unsigned long headingOffset;
     [CEReactions, Reflect] attribute boolean headingReset;
@@ -92,10 +92,10 @@ enum InputMode {
 
 // https://html.spec.whatwg.org/multipage/interaction.html#elementcontenteditable
 interface mixin ElementContentEditable {
-    [CEReactions] attribute [Utf16FlyString] Utf16DOMString contentEditable;
-    [Reflect=enterkeyhint, Enumerated=EnterKeyHint, CEReactions] attribute Utf16DOMString enterKeyHint;
+    [CEReactions] attribute [FlyString] DOMString contentEditable;
+    [Reflect=enterkeyhint, Enumerated=EnterKeyHint, CEReactions] attribute DOMString enterKeyHint;
     readonly attribute boolean isContentEditable;
-    [Reflect=inputmode, Enumerated=InputMode, CEReactions] attribute Utf16DOMString inputMode;
+    [Reflect=inputmode, Enumerated=InputMode, CEReactions] attribute DOMString inputMode;
 };
 
 HTMLElement includes ElementCSSInlineStyle;

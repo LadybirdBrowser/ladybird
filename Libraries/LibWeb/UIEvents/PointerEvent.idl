@@ -10,7 +10,7 @@ dictionary PointerEventInit : MouseEventInit {
     long twist = 0;
     double altitudeAngle;
     double azimuthAngle;
-    [Utf16FlyString] Utf16DOMString pointerType = "";
+    [FlyString] DOMString pointerType = "";
     boolean isPrimary = false;
     long persistentDeviceId = 0;
     sequence<PointerEvent> coalescedEvents = [];
@@ -31,7 +31,7 @@ interface PointerEvent : MouseEvent {
     readonly attribute long twist;
     readonly attribute double altitudeAngle;
     readonly attribute double azimuthAngle;
-    readonly attribute [Utf16FlyString] Utf16DOMString pointerType;
+    readonly attribute [FlyString] DOMString pointerType;
     readonly attribute boolean isPrimary;
     readonly attribute long persistentDeviceId;
     [SecureContext] sequence<PointerEvent> getCoalescedEvents();

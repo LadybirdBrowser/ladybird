@@ -123,26 +123,15 @@ def is_string_type(type_name: str) -> bool:
         "DOMString",
         "USVString",
         "ByteString",
-        "Utf16CSSOMString",
-        "Utf16DOMString",
-        "Utf16USVString",
     )
 
 
 def cpp_type_name_for_string(type_name: str, extended_attributes: Optional[dict[str, str]] = None) -> str:
-    is_fly_string = extended_attributes is not None and (
-        "FlyString" in extended_attributes or "Utf16FlyString" in extended_attributes
-    )
-    if type_name in (
-        "CSSOMString",
-        "DOMString",
-        "USVString",
-        "Utf16CSSOMString",
-        "Utf16DOMString",
-        "Utf16USVString",
-    ):
-        return "Utf16FlyString" if is_fly_string else "Utf16String"
-    return "FlyString" if is_fly_string else "String"
+    if type_name == "ByteString":
+        return "String"
+
+    is_fly_string = extended_attributes is not None and "FlyString" in extended_attributes
+    return "Utf16FlyString" if is_fly_string else "Utf16String"
 
 
 def add_include_for_string_cpp_type(cpp_type_name: str, includes: GeneratedIncludes) -> None:

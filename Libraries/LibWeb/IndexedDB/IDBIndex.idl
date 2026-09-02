@@ -1,6 +1,6 @@
 [Exposed=(Window,Worker)]
 interface IDBIndex {
-    attribute Utf16DOMString name;
+    attribute DOMString name;
     [DirectGetter=object_store_handle, SameObject] readonly attribute IDBObjectStore objectStore;
     [ImplementedAs=key_path_value, NeedsCallerRealm] readonly attribute any keyPath;
     readonly attribute boolean multiEntry;

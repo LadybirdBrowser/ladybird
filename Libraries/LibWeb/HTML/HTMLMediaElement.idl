@@ -23,16 +23,16 @@ interface HTMLMediaElement : HTMLElement {
     [DirectGetter] readonly attribute MediaError? error;
 
     // network state
-    [Reflect, CEReactions, URL] attribute Utf16USVString src;
+    [Reflect, CEReactions, URL] attribute USVString src;
     attribute MediaProvider? srcObject;
-    readonly attribute Utf16USVString currentSrc;
-    [Reflect=crossorigin, CEReactions, Enumerated=CORSSettingsAttribute] attribute Utf16DOMString? crossOrigin;
+    readonly attribute USVString currentSrc;
+    [Reflect=crossorigin, CEReactions, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
     const unsigned short NETWORK_EMPTY = 0;
     const unsigned short NETWORK_IDLE = 1;
     const unsigned short NETWORK_LOADING = 2;
     const unsigned short NETWORK_NO_SOURCE = 3;
     readonly attribute unsigned short networkState;
-    [Reflect, CEReactions, Enumerated=Preload] attribute Utf16DOMString preload;
+    [Reflect, CEReactions, Enumerated=Preload] attribute DOMString preload;
     readonly attribute TimeRanges buffered;
     undefined load();
     [ImplementedAs=can_play_type] CanPlayTypeResult canPlayType(DOMString type);

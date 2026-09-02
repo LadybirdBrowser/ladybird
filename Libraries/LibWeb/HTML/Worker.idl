@@ -1,7 +1,7 @@
 // https://html.spec.whatwg.org/multipage/workers.html#worker
 [Exposed=(Window,DedicatedWorker,SharedWorker)]
 interface Worker : EventTarget {
-    constructor((TrustedScriptURL or Utf16USVString) scriptURL, optional WorkerOptions options = {});
+    constructor((TrustedScriptURL or USVString) scriptURL, optional WorkerOptions options = {});
 
     undefined terminate();
     [NeedsCallerRealm] undefined postMessage(any message, sequence<object> transfer);
@@ -12,7 +12,7 @@ interface Worker : EventTarget {
 };
 
 dictionary WorkerOptions {
-    Utf16DOMString name = "";
+    DOMString name = "";
     WorkerType type = "classic";
     RequestCredentials credentials = "same-origin";
 };

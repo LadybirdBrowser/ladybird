@@ -2,5 +2,5 @@
 [Exposed=(Window,Worker)]
 interface TrustedScript {
     stringifier;
-    Utf16DOMString toJSON();
+    DOMString toJSON();
 };

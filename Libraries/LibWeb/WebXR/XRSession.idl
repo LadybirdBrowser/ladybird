@@ -12,14 +12,14 @@
     [FIXME, SameObject] readonly attribute XRRenderState renderState;
     [FIXME, SameObject] readonly attribute XRInputSourceArray inputSources;
     [FIXME, SameObject] readonly attribute XRInputSourceArray trackedSources;
-    [FIXME] readonly attribute FrozenArray<Utf16DOMString> enabledFeatures;
+    [FIXME] readonly attribute FrozenArray<DOMString> enabledFeatures;
     [FIXME] readonly attribute boolean isSystemKeyboardSupported;
-    
+
     // Methods
     undefined updateRenderState(optional XRRenderStateInit state = {});
     [FIXME] Promise<undefined> updateTargetFrameRate(float rate);
     [FIXME, NewObject] Promise<XRReferenceSpace> requestReferenceSpace(XRReferenceSpaceType type);
-    
+
     [FIXME] unsigned long requestAnimationFrame(XRFrameRequestCallback callback);
     [FIXME] undefined cancelAnimationFrame(unsigned long handle);
 

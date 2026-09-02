@@ -1,18 +1,18 @@
 // https://drafts.csswg.org/css-transitions-2/#interface-transitionevent-idl
 [Exposed=Window]
 interface TransitionEvent : Event {
-    constructor([Utf16FlyString] Utf16CSSOMString type, optional TransitionEventInit transitionEventInitDict = {});
-    readonly attribute Utf16CSSOMString propertyName;
+    constructor([FlyString] CSSOMString type, optional TransitionEventInit transitionEventInitDict = {});
+    readonly attribute CSSOMString propertyName;
     readonly attribute double elapsedTime;
-    readonly attribute Utf16CSSOMString pseudoElement;
+    readonly attribute CSSOMString pseudoElement;
     [DirectGetter] readonly attribute CSSTransition? animation;
 };
 
 // https://drafts.csswg.org/css-transitions-2/#interface-transitionevent-idl
 dictionary TransitionEventInit : EventInit {
-    Utf16CSSOMString propertyName = "";
+    CSSOMString propertyName = "";
     double elapsedTime = 0.0;
-    Utf16CSSOMString pseudoElement = "";
+    CSSOMString pseudoElement = "";
     CSSTransition? animation = null;
 };
 

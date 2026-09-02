@@ -1,6 +1,6 @@
 // https://html.spec.whatwg.org/multipage/system-state.html#navigatorlanguage
 interface mixin NavigatorLanguage {
-    readonly attribute Utf16DOMString language;
+    readonly attribute DOMString language;
     // FIXME: This is supposed always return the same object
-    readonly attribute FrozenArray<Utf16DOMString> languages;
+    readonly attribute FrozenArray<DOMString> languages;
 };

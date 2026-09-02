@@ -8,7 +8,7 @@ interface ToggleEvent : Event {
 };
 
 dictionary ToggleEventInit : EventInit {
-    [Utf16FlyString] Utf16DOMString oldState = "";
-    [Utf16FlyString] Utf16DOMString newState = "";
+    [FlyString] DOMString oldState = "";
+    [FlyString] DOMString newState = "";
     Element? source = null;
 };

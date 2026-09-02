@@ -12,12 +12,12 @@ dictionary SerialPortFilter {
     unsigned short usbVendorId;
     unsigned short usbProductId;
     // FIXME: Should be a BluetoothServiceUUID
-    Utf16DOMString bluetoothServiceClassId;
+    DOMString bluetoothServiceClassId;
 };
 
 // https://wicg.github.io/serial/#serialportrequestoptions-dictionary
 dictionary SerialPortRequestOptions {
     sequence<SerialPortFilter> filters;
     // FIXME: Should be a BluetoothServiceUUID
-    sequence<Utf16DOMString> allowedBluetoothServiceClassIds;
+    sequence<DOMString> allowedBluetoothServiceClassIds;
 };

@@ -11,10 +11,10 @@ interface ShadowRoot : DocumentFragment {
 
     // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsing-and-serialization
 
-    [CEReactions, ImplementedInBindings] undefined setHTMLUnsafe((TrustedHTML or Utf16DOMString) html);
+    [CEReactions, ImplementedInBindings] undefined setHTMLUnsafe((TrustedHTML or DOMString) html);
     DOMString getHTML(optional GetHTMLOptions options = {});
 
-    [CEReactions, ImplementedInBindings, LegacyNullToEmptyString] attribute (TrustedHTML or Utf16DOMString) innerHTML;
+    [CEReactions, ImplementedInBindings, LegacyNullToEmptyString] attribute (TrustedHTML or DOMString) innerHTML;
 };
 
 ShadowRoot includes DocumentOrShadowRoot;

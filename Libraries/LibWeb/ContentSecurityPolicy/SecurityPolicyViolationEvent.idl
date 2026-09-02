@@ -23,14 +23,14 @@ interface SecurityPolicyViolationEvent : Event {
 };
 
 dictionary SecurityPolicyViolationEventInit : EventInit {
-    Utf16USVString documentURI = "";
-    Utf16USVString referrer = "";
-    Utf16USVString blockedURI = "";
-    Utf16DOMString violatedDirective = "";
-    Utf16DOMString effectiveDirective = "";
-    Utf16DOMString originalPolicy = "";
-    Utf16USVString sourceFile = "";
-    Utf16DOMString sample = "";
+    USVString documentURI = "";
+    USVString referrer = "";
+    USVString blockedURI = "";
+    DOMString violatedDirective = "";
+    DOMString effectiveDirective = "";
+    DOMString originalPolicy = "";
+    USVString sourceFile = "";
+    DOMString sample = "";
     SecurityPolicyViolationEventDisposition disposition = "enforce";
     unsigned short statusCode = 0;
     unsigned long lineNumber = 0;

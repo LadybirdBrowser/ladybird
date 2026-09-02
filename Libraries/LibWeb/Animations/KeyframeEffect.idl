@@ -7,7 +7,7 @@ enum CompositeOperationOrAuto { "replace", "add", "accumulate", "auto" };
 // https://drafts.csswg.org/web-animations-1/#the-keyframeeffectoptions-dictionary
 dictionary KeyframeEffectOptions : EffectTiming {
     CompositeOperation composite = "replace";
-    Utf16CSSOMString? pseudoElement = null;
+    CSSOMString? pseudoElement = null;
 };
 
 // https://drafts.csswg.org/web-animations-1/#the-keyframeeffect-interface

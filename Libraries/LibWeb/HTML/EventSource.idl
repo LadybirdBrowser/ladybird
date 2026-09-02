@@ -3,7 +3,7 @@
 interface EventSource : EventTarget {
     constructor(USVString url, optional EventSourceInit eventSourceInitDict = {});
 
-    readonly attribute Utf16USVString url;
+    readonly attribute USVString url;
     readonly attribute boolean withCredentials;
 
     // ready state

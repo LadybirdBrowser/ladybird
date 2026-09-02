@@ -42,5 +42,5 @@ interface Range : AbstractRange {
     stringifier;
 
     // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-range-createcontextualfragment
-    [CEReactions, NewObject] DocumentFragment createContextualFragment((TrustedHTML or Utf16DOMString) string);
+    [CEReactions, NewObject] DocumentFragment createContextualFragment((TrustedHTML or DOMString) string);
 };

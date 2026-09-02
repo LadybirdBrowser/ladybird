@@ -6,6 +6,6 @@ interface HTMLUListElement : HTMLElement {
 
     // Obsolete
     [CEReactions, Reflect] attribute boolean compact;
-    [CEReactions, Reflect] attribute Utf16DOMString type;
+    [CEReactions, Reflect] attribute DOMString type;
 
 };

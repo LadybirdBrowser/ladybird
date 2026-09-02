@@ -10,6 +10,7 @@ from Generators.libweb_bindings.context import GenerationContext
 from Generators.libweb_bindings.cpp_types import add_header_includes_for_idl_type
 from Generators.libweb_bindings.cpp_types import fully_qualified_name_for_interface
 from Generators.libweb_bindings.cpp_types import idl_identifier_cpp_name
+from Generators.libweb_bindings.cpp_types import is_string_type
 from Generators.libweb_bindings.cpp_types import libweb_include_path
 from Generators.libweb_bindings.glue_headers import bindings_glue_header_for_interface
 from Generators.libweb_bindings.includes import GeneratedIncludes
@@ -456,15 +457,7 @@ def write_maplike_declaration_functions(
     includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
     includes.add(bindings_glue_header_for_interface(interface))
 
-    if interface.maplike.key_type.name not in (
-        "ByteString",
-        "CSSOMString",
-        "DOMString",
-        "USVString",
-        "Utf16CSSOMString",
-        "Utf16DOMString",
-        "Utf16USVString",
-    ):
+    if not is_string_type(interface.maplike.key_type.name):
         raise RuntimeError(f"Unsupported maplike key type '{interface.maplike.key_type.name}' on '{interface.name}'")
 
     out.write(f"""// https://webidl.spec.whatwg.org/#js-map-size

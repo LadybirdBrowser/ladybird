@@ -2,14 +2,14 @@
 [Exposed=Window]
 interface StyleSheet {
 
-    readonly attribute Utf16CSSOMString type;
-    [ImplementedAs=href_for_bindings] readonly attribute Utf16USVString? href;
+    readonly attribute CSSOMString type;
+    [ImplementedAs=href_for_bindings] readonly attribute USVString? href;
 
     // FIXME: readonly attribute (Element or ProcessingInstruction)? ownerNode;
     [DirectGetter] readonly attribute Element? ownerNode;
 
     [DirectGetter] readonly attribute CSSStyleSheet? parentStyleSheet;
-    [ImplementedAs=title_for_bindings] readonly attribute Utf16DOMString? title;
+    [ImplementedAs=title_for_bindings] readonly attribute DOMString? title;
     [DirectGetter, SameObject, PutForwards=mediaText] readonly attribute MediaList media;
     attribute boolean disabled;
 
