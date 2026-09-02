@@ -529,7 +529,7 @@ fn effective_value<'a>(view: &super::computed::StyleRecordView<'a>, property: u1
     if let Some(entry) = unsafe { view.animated_overlay.as_ref() }.and_then(|overlay| overlay.get(property))
         && overlay_wins(entry, table.is_important(property))
     {
-        return entry.value.data();
+        return entry.value();
     }
     unsafe { &*view.longhand_values[index].cast::<StyleValueData>() }
 }
@@ -544,7 +544,7 @@ fn effective_value_with_overlay(
     if let Some(entry) = overlay.and_then(|overlay| overlay.get(property))
         && overlay_wins(entry, table.is_important(property))
     {
-        return entry.value.data();
+        return entry.value();
     }
     view.longhand_values[index].cast()
 }

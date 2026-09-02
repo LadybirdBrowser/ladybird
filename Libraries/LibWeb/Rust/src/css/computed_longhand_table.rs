@@ -581,7 +581,7 @@ impl ComputedLonghandTable {
             && overlay_wins(entry, self.is_important(property_id))
         {
             return FfiEffectiveLonghandValue {
-                value: entry.value.pointer().cast(),
+                value: entry.value,
                 source: EFFECTIVE_LONGHAND_SOURCE_OVERLAY,
             };
         }
