@@ -35,7 +35,7 @@ pub const CHROME_WIDGET_VERTICAL_SCROLLBAR: u8 = 3;
 
 pub use crate::painting::border_radii::BorderRadii;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct HitTestItem {
     pub kind: HitTestItemKind,
     pub paintable: NodeSlotId,
