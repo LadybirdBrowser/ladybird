@@ -1108,6 +1108,8 @@ pub(super) struct PrefixDifference {
     pub old_matches: PrefixMatchSetID,
     pub new_matches: PrefixMatchSetID,
     pub continuation_delta: Option<PrefixStateDeltaID>,
+    /// The old and new downward output states, for a consumer rebasing across the delta.
+    pub continuation_endpoints: (u32, u32),
     pub right_delta: Option<PrefixStateDeltaID>,
 }
 
@@ -1167,10 +1169,23 @@ pub(super) struct PrefixStateDelta {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct PrefixStateDeltaID(NonZeroU32);
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy)]
 pub(super) struct PrefixEnteringDeltas {
     pub parent: Option<PrefixStateDeltaID>,
     pub previous: Option<PrefixStateDeltaID>,
+    /// The parent's old and new downward output states when `parent` is their exact signed
+    /// difference; `UNKNOWN_STATE` on both sides otherwise.
+    pub parent_endpoints: (u32, u32),
+}
+
+impl Default for PrefixEnteringDeltas {
+    fn default() -> Self {
+        Self {
+            parent: None,
+            previous: None,
+            parent_endpoints: (UNKNOWN_STATE, UNKNOWN_STATE),
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -1183,10 +1198,20 @@ struct PrefixLocalOutputDeltas {
     result_delta_complete: bool,
 }
 
+/// The dispatch key of every step one delta carries, sorted by key.
+type DeltaKeyTable = Box<[(DispatchKey, PrefixStepID)]>;
+
 #[derive(Default)]
 pub(super) struct PrefixDeltaArena {
     steps: Vec<PrefixStepID>,
     deltas: Vec<PrefixStateDelta>,
+    /// Per delta, on demand: the dispatch key of every step it carries - and of every removed
+    /// step's predecessor - sorted by key, so a node's own few keys find the steps that could
+    /// match it without touching the rest.
+    key_tables: Vec<Option<DeltaKeyTable>>,
+    /// The bytes of every materialized key table, kept current because the walk reconciles the
+    /// arena's capacity after each node it visits.
+    key_table_bytes: usize,
     matches: Vec<EntryID>,
     scratch: [Vec<PrefixStepID>; 8],
     match_scratch: [Vec<EntryID>; 2],
@@ -1236,6 +1261,7 @@ impl PrefixDeltaArena {
 
     fn push_delta(&mut self, delta: PrefixStateDelta) -> PrefixStateDeltaID {
         self.deltas.push(delta);
+        self.key_tables.push(None);
         PrefixStateDeltaID(
             NonZeroU32::new(u32::try_from(self.deltas.len()).expect("selector prefix delta arena overflow")).unwrap(),
         )
@@ -1243,6 +1269,40 @@ impl PrefixDeltaArena {
 
     fn delta(&self, id: PrefixStateDeltaID) -> PrefixStateDelta {
         self.deltas[id.0.get() as usize - 1]
+    }
+
+    fn key_table(&mut self, id: PrefixStateDeltaID, automaton: &PrefixAutomaton) -> &[(DispatchKey, PrefixStepID)] {
+        let index = id.0.get() as usize - 1;
+        if self.key_tables[index].is_none() {
+            let delta = self.deltas[index];
+            let key_of = |step: PrefixStepID| {
+                automaton.compounds[automaton.steps[step.0 as usize].compound.0 as usize].dispatch_key
+            };
+            let mut table = Vec::new();
+            for span in [delta.persisting_additions, delta.expiring_additions] {
+                for &step in self.get(span) {
+                    table.push((key_of(step), step));
+                }
+            }
+            for span in [delta.persisting_removals, delta.expiring_removals] {
+                for &step in self.get(span) {
+                    table.push((key_of(step), step));
+                    if let Some(predecessor) = automaton.predecessor_of(step) {
+                        table.push((key_of(predecessor), predecessor));
+                    }
+                }
+            }
+            table.sort_unstable();
+            table.dedup();
+            self.key_table_bytes += table.len() * size_of::<(DispatchKey, PrefixStepID)>();
+            self.key_tables[index] = Some(table.into_boxed_slice());
+        }
+        self.key_tables[index].as_deref().unwrap()
+    }
+
+    fn has_expiring_part(&self, id: PrefixStateDeltaID) -> bool {
+        let delta = self.delta(id);
+        delta.expiring_additions.len != 0 || delta.expiring_removals.len != 0
     }
 
     fn sign_in_spans(&self, additions: PrefixStepSpan, removals: PrefixStepSpan, step: PrefixStepID) -> i8 {
@@ -1367,11 +1427,12 @@ impl PrefixDeltaArena {
 
     pub(super) fn capacity_bytes(&self) -> u64 {
         capacity_bytes! {
-            shallow [self.steps, self.deltas, self.matches, self.signed_scratch];
+            shallow [self.steps, self.deltas, self.matches, self.signed_scratch, self.key_tables];
             cached [];
             nested [
                 self.scratch.iter().map(Vec::capacity).sum::<usize>() * size_of::<PrefixStepID>(),
                 self.match_scratch.iter().map(Vec::capacity).sum::<usize>() * size_of::<EntryID>(),
+                self.key_table_bytes,
             ];
             skip [];
         }
@@ -2360,6 +2421,7 @@ impl PrefixStates {
         local_facts_changed: bool,
         local_affected_candidates: Option<&[PrefixProducer]>,
         entering_deltas: PrefixEnteringDeltas,
+        positional_truth_stable: bool,
         delta_arena: &mut PrefixDeltaArena,
         counters: &mut Counters,
     ) -> PrefixTransitionLookup<PrefixDifference> {
@@ -2392,6 +2454,40 @@ impl PrefixStates {
         } else {
             0
         };
+        // A topology flush walks whole subtrees under a moved sibling because the steps its
+        // positional flip enabled or disabled persist into every descendant. A descendant that
+        // carries none of the features those steps test cannot match them on either side, so
+        // its transition is the old one rebased onto the parent's new state: no compound, no
+        // positional test, no match set changes hands.
+        if !local_facts_changed
+            && selection.is_none()
+            && positional_truth_stable
+            && entering_deltas.previous.is_none()
+            && let Some(old) = old
+            && let Some(old_entering) = self.entering_of(node)
+            && old_entering.previous == previous_state
+            && let Some(delta) = entering_deltas.parent
+            && {
+                let matches = entering_deltas.parent_endpoints == (old_entering.parent, parent_state);
+                if !matches {
+                    counters.bump(Counter::PrefixDeadDeltaBailEndpoints);
+                }
+                matches
+            }
+            && let Some(difference) = self.derive_dead_delta_transition(
+                evaluation,
+                node,
+                row,
+                old,
+                old_entering,
+                parent_state,
+                delta,
+                delta_arena,
+                counters,
+            )
+        {
+            return PrefixTransitionLookup::Known(difference);
+        }
         let local_facts = if local_facts_changed || old.is_none() {
             let identity = match evaluation.facts_are_composite() {
                 true => {
@@ -2576,6 +2672,7 @@ impl PrefixStates {
                 old_matches: self.matches_of(new),
                 new_matches: self.matches_of(new),
                 continuation_delta: None,
+                continuation_endpoints: (UNKNOWN_STATE, UNKNOWN_STATE),
                 right_delta: None,
             });
         };
@@ -2619,7 +2716,12 @@ impl PrefixStates {
             let changed = delta_arena.changes_selected_state(delta, selection.unwrap());
             (changed, changed.then_some(delta))
         } else {
-            (!self.selected_states_equal(old.state, new.state, selection), None)
+            let changed = !self.selected_states_equal(old.state, new.state, selection);
+            // Without a routed selection nothing names the steps that moved, so name them here:
+            // the children can then rebase across the delta instead of recomputing under it.
+            let delta = (changed && selection.is_none() && evaluation.tree.first_element_child(node).is_some())
+                .then(|| self.state_delta_between(old.state, new.state, delta_arena));
+            (changed, delta)
         };
         let (right_changed, right_delta) = if old.right == new.right {
             (false, None)
@@ -2651,8 +2753,241 @@ impl PrefixStates {
             old_matches,
             new_matches,
             continuation_delta,
+            continuation_endpoints: (old.state, new.state),
             right_delta,
         })
+    }
+
+    /// The exact signed difference between two interned states, as a delta whose endpoints name
+    /// both states.
+    fn state_delta_between(
+        &mut self,
+        old_state: u32,
+        new_state: u32,
+        arena: &mut PrefixDeltaArena,
+    ) -> PrefixStateDeltaID {
+        let mut old_steps = std::mem::take(&mut arena.scratch[4]);
+        let mut new_steps = std::mem::take(&mut arena.scratch[5]);
+        for scratch in &mut arena.scratch[..4] {
+            scratch.clear();
+        }
+        for (offset, collect_expiring) in [(0, false), (2, true)] {
+            old_steps.clear();
+            new_steps.clear();
+            match collect_expiring {
+                false => {
+                    self.collect_persisting(old_state, &mut old_steps);
+                    self.collect_persisting(new_state, &mut new_steps);
+                }
+                true => {
+                    old_steps.extend_from_slice(self.expiring_in(old_state));
+                    new_steps.extend_from_slice(self.expiring_in(new_state));
+                }
+            }
+            old_steps.sort_unstable();
+            new_steps.sort_unstable();
+            let (mut old_index, mut new_index) = (0, 0);
+            loop {
+                match (old_steps.get(old_index), new_steps.get(new_index)) {
+                    (Some(&old), Some(&new)) if old == new => {
+                        old_index += 1;
+                        new_index += 1;
+                    }
+                    (Some(&old), Some(&new)) if old < new => {
+                        arena.scratch[offset + 1].push(old);
+                        old_index += 1;
+                    }
+                    (Some(_) | None, Some(&new)) => {
+                        arena.scratch[offset].push(new);
+                        new_index += 1;
+                    }
+                    (Some(&old), None) => {
+                        arena.scratch[offset + 1].push(old);
+                        old_index += 1;
+                    }
+                    (None, None) => break,
+                }
+            }
+        }
+        arena.scratch[4] = old_steps;
+        arena.scratch[5] = new_steps;
+        arena.append_scratch_delta(0)
+    }
+
+    /// Rebase a node's retained transition across a parent-state delta none of whose steps can
+    /// match the node.
+    ///
+    /// A step that moved into or out of the entering state changes the node's outputs only by
+    /// matching there, and a removed step's predecessor matching there would re-admit it, so each
+    /// is evaluated against the node - by dispatch key first, then by its compound under the
+    /// node's retained positional bits. What remains is the old transition with the parent's new
+    /// state under it: the persisting additions the node made still hold, and so do its matches
+    /// and its rightward output.
+    #[allow(clippy::too_many_arguments)]
+    fn derive_dead_delta_transition(
+        &mut self,
+        evaluation: &PrefixEvaluation<'_, '_>,
+        node: StyleNodeID,
+        row: MatchFactRow<'_>,
+        old: PrefixTransition,
+        old_entering: EnteringStates,
+        new_parent: u32,
+        delta: PrefixStateDeltaID,
+        arena: &mut PrefixDeltaArena,
+        counters: &mut Counters,
+    ) -> Option<PrefixDifference> {
+        let automaton = evaluation.automaton;
+        let is_document_root = evaluation.tree.parent(node).is_none();
+        let positional_bits = self.positional_bits_of(node);
+        let signed = arena.delta(delta);
+        let table = arena.key_table(delta, automaton);
+        let mut verdict: Option<bool> = Some(false);
+        row.facts.for_each_dispatch_probe(row.row, is_document_root, |key, _| {
+            if verdict != Some(false) {
+                return;
+            }
+            let first = table.partition_point(|&(candidate, _)| candidate < key);
+            for &(candidate, step) in &table[first..] {
+                if candidate != key {
+                    break;
+                }
+                match evaluation.step_matches(node, positional_bits, step, counters) {
+                    Ok(false) => {}
+                    Ok(true) => {
+                        verdict = Some(true);
+                        return;
+                    }
+                    Err(_) => {
+                        verdict = None;
+                        return;
+                    }
+                }
+            }
+        });
+        match verdict {
+            Some(false) => {}
+            Some(true) => {
+                counters.bump(Counter::PrefixDeadDeltaBailMatched);
+                return None;
+            }
+            None => return None,
+        }
+        let old_parent = old_entering.parent;
+        let new_state = if old.state == self.state_without_expiring(old_parent, counters) {
+            self.state_without_expiring(new_parent, counters)
+        } else {
+            // The node admitted steps of its own. They are exactly the persisting steps its state
+            // holds beyond the parent's, and they survive onto the parent's new state unless the
+            // delta now carries one of them from above, which only a full transition dedups.
+            let mut own = std::mem::take(&mut self.compare_left);
+            own.clear();
+            advance_epoch(&mut self.comparison_epoch, 1, &mut [&mut self.comparison_marks]);
+            let epoch = self.comparison_epoch;
+            let mut marks = std::mem::take(&mut self.comparison_marks);
+            marks.ensure_len(self.automaton_step_count);
+            let mut current = old_parent;
+            loop {
+                for &step in self.additions_in(current) {
+                    marks[step.0 as usize] = epoch;
+                }
+                let base = self.states[current as usize].base;
+                if base == current {
+                    break;
+                }
+                current = base;
+            }
+            current = old.state;
+            loop {
+                for &step in self.additions_in(current) {
+                    if marks[step.0 as usize] != epoch {
+                        own.push(step);
+                    }
+                }
+                let base = self.states[current as usize].base;
+                if base == current {
+                    break;
+                }
+                current = base;
+            }
+            self.comparison_marks = marks;
+            let carried_from_above = arena
+                .get(signed.persisting_additions)
+                .iter()
+                .any(|added| own.contains(added));
+            if carried_from_above {
+                own.clear();
+                self.compare_left = own;
+                counters.bump(Counter::PrefixDeadDeltaBailOwnAdditions);
+                return None;
+            }
+            automaton.sort_steps_by_dispatch_order(&mut own);
+            let own_hash = own.iter().fold(0_u64, |hash, &step| hash.wrapping_add(step_hash(step)));
+            let mut expiring = std::mem::take(&mut self.compare_right);
+            expiring.clear();
+            expiring.extend_from_slice(self.expiring_in(old.state));
+            let expiring_hash = self.states[old.state as usize].expiring_hash;
+            let state = self.intern_extended_state(new_parent, &own, own_hash, &expiring, expiring_hash, counters);
+            own.clear();
+            expiring.clear();
+            self.compare_left = own;
+            self.compare_right = expiring;
+            state
+        };
+        let new = PrefixTransition {
+            state: new_state,
+            right: old.right,
+            result: old.result,
+        };
+        if !evaluation.facts_are_composite() {
+            self.transition_by_row[row.row as usize] = new;
+        }
+        self.set_transition(node, new);
+        let entering = EnteringStates {
+            parent: new_parent,
+            previous: old_entering.previous,
+        };
+        self.set_entering(node, entering);
+        if let Some(local_facts) = self.local_facts_of(node) {
+            self.transitions.insert(
+                PrefixTransitionKey {
+                    parent: new_parent,
+                    previous: old_entering.previous,
+                    local_facts,
+                    is_document_root,
+                    positional_bits,
+                },
+                new,
+            );
+        }
+        counters.bump(Counter::PrefixDeadDeltaTransitions);
+        let matches = self.matches_of(new);
+        let continuation_changed = old.state != new_state;
+        // The children see the same persisting delta; only its expiring part, which applied to
+        // this node alone, is shed.
+        let continuation_delta = continuation_changed.then(|| match arena.has_expiring_part(delta) {
+            true => arena.persisting_only(Some(delta)),
+            false => delta,
+        });
+        Some(PrefixDifference {
+            continuation_changed,
+            right_changed: false,
+            matches_changed: false,
+            arrived: false,
+            old_matches: matches,
+            new_matches: matches,
+            continuation_delta,
+            continuation_endpoints: (old.state, new_state),
+            right_delta: None,
+        })
+    }
+
+    /// The state a node that admits nothing hands its children under `state`: the state itself
+    /// when it carries no expiring steps, its persisting-only form otherwise.
+    fn state_without_expiring(&mut self, state: u32, counters: &mut Counters) -> u32 {
+        match self.states[state as usize].expiring_len == 0 {
+            true => state,
+            false => self.descendant_only_state(state, counters),
+        }
     }
 
     pub(super) fn complete_nodes_with_budget(
