@@ -7812,18 +7812,7 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
         return *cached_values;
     };
     auto build_animation_for_target = [&](Compositor::VisualAnimation::TargetKind target_kind) -> Optional<Compositor::VisualAnimation> {
-        Vector<u32> visual_context_node_indices;
-        if (target_kind == Compositor::VisualAnimation::TargetKind::Opacity) {
-            for (auto index : Painting::rust_owned_visual_context_node_indices(*layout_node, Layout::RustFFI::FfiVisualContextBoxNodeList::FrameNodes)) {
-                if (visual_context_tree.frame_is_effects(Painting::FrameNodeIndex { index }))
-                    visual_context_node_indices.append(index);
-            }
-        } else {
-            for (auto index : Painting::rust_owned_visual_context_node_indices(*layout_node, Layout::RustFFI::FfiVisualContextBoxNodeList::SpatialNodes)) {
-                if (visual_context_tree.spatial_node_is_css_transform(Painting::SpatialNodeIndex { index }))
-                    visual_context_node_indices.append(index);
-            }
-        }
+        auto visual_context_node_indices = Painting::rust_visual_animation_target_node_indices(*layout_node, visual_context_tree, target_kind == Compositor::VisualAnimation::TargetKind::Opacity);
         if (visual_context_node_indices.is_empty())
             return {};
 

@@ -32,6 +32,7 @@ struct VisualContextTreeUpdateResult {
 };
 WEB_API VisualContextTreeUpdateResult rust_update_accumulated_visual_contexts(DOM::Document&);
 WEB_API Vector<u32> rust_owned_visual_context_node_indices(Layout::Node const&, Layout::RustFFI::FfiVisualContextBoxNodeList);
+WEB_API Vector<u32> rust_visual_animation_target_node_indices(Layout::Node const&, AccumulatedVisualContextTree const&, bool targets_are_frames);
 WEB_API void const* retain_rust_main_visual_context_tree(DOM::Document const&);
 WEB_API CSSPixelRect rust_apply_css_transform_to_rect(Layout::Node const&, CSSPixelRect const&);
 WEB_API Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Layout::Node const&);

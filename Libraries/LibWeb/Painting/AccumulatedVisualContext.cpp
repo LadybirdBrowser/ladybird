@@ -162,18 +162,6 @@ bool AccumulatedVisualContextTree::visual_animation_targets_are_valid(Compositor
     return Layout::RustFFI::visual_context_tree_visual_animation_targets_are_valid(m_rust_tree, animation.target_kind == Compositor::VisualAnimation::TargetKind::Opacity, targets.data(), targets.size());
 }
 
-bool AccumulatedVisualContextTree::frame_is_effects(FrameNodeIndex frame) const
-{
-    u32 target = frame.value();
-    return Layout::RustFFI::visual_context_tree_visual_animation_targets_are_valid(m_rust_tree, true, &target, 1);
-}
-
-bool AccumulatedVisualContextTree::spatial_node_is_css_transform(SpatialNodeIndex spatial) const
-{
-    u32 target = spatial.value();
-    return Layout::RustFFI::visual_context_tree_visual_animation_targets_are_valid(m_rust_tree, false, &target, 1);
-}
-
 Optional<float> AccumulatedVisualContextTree::effects_opacity(FrameNodeIndex frame) const
 {
     float opacity = 1;

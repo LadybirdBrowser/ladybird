@@ -515,6 +515,17 @@ Vector<u32> rust_owned_visual_context_node_indices(Layout::Node const& layout_no
     return indices;
 }
 
+Vector<u32> rust_visual_animation_target_node_indices(Layout::Node const& layout_node, AccumulatedVisualContextTree const& visual_context_tree, bool targets_are_frames)
+{
+    Vector<u32> indices;
+    if (!has_committed_box(layout_node))
+        return indices;
+    Layout::RustFFI::layout_arena_paintable_visual_animation_target_indices(
+        layout_node.arena_handle(), committed_row_slot(layout_node), visual_context_tree.rust_handle(), targets_are_frames,
+        &indices, [](void* context, u32 index) { static_cast<Vector<u32>*>(context)->append(index); });
+    return indices;
+}
+
 void const* retain_rust_main_visual_context_tree(DOM::Document const& document)
 {
     auto const* tree = Layout::RustFFI::layout_arena_main_visual_context_tree_retain(layout_arena_handle(document));
