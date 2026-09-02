@@ -219,6 +219,7 @@ impl PaintRecorder<'_> {
     fn paint_internal(&mut self, paintable: NodeSlotId) {
         let entries = self.layout_arena.stacking_context_entries(paintable);
         if self.layout_kind(paintable) == Some(NodeKind::SVGSVGBox) {
+            self.mark_open_captures_unsplicable();
             self.paint_node(paintable, PaintPhase::Background);
             self.paint_node(paintable, PaintPhase::Border);
             self.paint_svg_box(paintable, PaintPhase::Foreground);
