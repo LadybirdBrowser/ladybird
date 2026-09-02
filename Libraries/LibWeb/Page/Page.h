@@ -17,6 +17,7 @@
 #include <AK/Variant.h>
 #include <LibGC/Root.h>
 #include <LibGC/Weak.h>
+#include <LibGC/WeakHashSet.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Palette.h>
@@ -300,6 +301,9 @@ public:
 
     HTML::MuteState page_mute_state() const { return m_mute_state; }
     void set_page_mute_state(HTML::MuteState);
+    void audio_output_state_changed(bool is_non_silent);
+    void register_audio_context(Badge<WebAudio::AudioContext>, WebAudio::AudioContext&);
+    void unregister_audio_context(Badge<WebAudio::AudioContext>, WebAudio::AudioContext&);
 
     Optional<Utf16String> const& user_style() const { return m_user_style_sheet_source; }
     void set_user_style(Utf16String source);
@@ -419,6 +423,7 @@ private:
     Optional<u64> m_active_geolocation_request_id;
 
     Vector<UniqueNodeID> m_media_elements;
+    GC::WeakHashSet<WebAudio::AudioContext> m_audio_contexts;
     Vector<UniqueNodeID> m_canvas_elements;
     Optional<UniqueNodeID> m_media_context_menu_element_id;
 

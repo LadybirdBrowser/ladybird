@@ -45,6 +45,7 @@ WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::create_for_constructor(
 
     // 1. Let context be a new AudioContext object.
     auto context = GC::Heap::the().allocate<AudioContext>(relevant_global_object);
+    auto& page = settings.responsible_document()->page();
     context->set_listener(AudioListener::create(context));
     context->m_destination = TRY(AudioDestinationNode::create(context));
 
@@ -94,6 +95,7 @@ WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::create_for_constructor(
         //    rendering.
         context->m_renderer = Rendering::RealtimeAudioRenderer::create(context->control_message_queue(), context->destination()->node_id(), context->sample_rate(), render_quantum_size());
         context->set_renderer_callbacks();
+        context->m_renderer->set_muted(page.page_mute_state() == HTML::MuteState::Muted);
         // AD-HOC: Headless instances use a null output stream, so their graph follows the same pull path as audio
         // output while discarding the rendered samples.
         if (settings.responsible_document()->page().client().is_headless())
@@ -114,6 +116,8 @@ WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::create_for_constructor(
         }));
     }
 
+    page.register_audio_context({}, *context);
+
     // 12. Return context.
     return context;
 }
@@ -128,6 +132,8 @@ void AudioContext::visit_edges(Cell::Visitor& visitor)
 
 void AudioContext::finalize()
 {
+    update_audio_output_state(false);
+    relevant_window().associated_document().page().unregister_audio_context({}, *this);
     Base::finalize();
     if (m_renderer) {
         m_renderer->stop();
@@ -137,6 +143,7 @@ void AudioContext::finalize()
 
 void AudioContext::document_became_inactive()
 {
+    update_audio_output_state(false);
     // Release the audio output device and the GC roots held by the renderer's callbacks, so a context belonging to a
     // navigated-away document stops playing and can eventually be collected.
     if (m_renderer) {
@@ -292,6 +299,7 @@ WebIDL::ExceptionOr<void> AudioContext::suspend(GC::Ref<WebIDL::Promise> promise
     // 7. Queue a control message to suspend the AudioContext.
     // 7.1: Attempt to release system resources.
     if (m_renderer) {
+        update_audio_output_state(false);
         m_renderer->suspend();
         m_renderer->clear_callbacks();
     }
@@ -343,6 +351,7 @@ WebIDL::ExceptionOr<void> AudioContext::close(GC::Ref<WebIDL::Promise> promise)
     // 5. Queue a control message to close the AudioContext.
     // 5.1: Attempt to release system resources.
     if (m_renderer) {
+        update_audio_output_state(false);
         m_renderer->stop();
         m_renderer->clear_callbacks();
     }
@@ -400,6 +409,24 @@ void AudioContext::set_renderer_callbacks()
     m_renderer->set_on_sources_ended([self = GC::make_root(*this)](Vector<NodeID> const& ended_nodes) {
         self->handle_ended_sources(ended_nodes);
     });
+    m_renderer->set_on_audio_output_state_changed(GC::weak_callback(*this, [](auto& self, bool is_non_silent) {
+        self.update_audio_output_state(is_non_silent);
+    }));
+}
+
+void AudioContext::page_mute_state_changed(Badge<Page>)
+{
+    if (m_renderer)
+        m_renderer->set_muted(relevant_window().associated_document().page().page_mute_state() == HTML::MuteState::Muted);
+}
+
+void AudioContext::update_audio_output_state(bool is_non_silent)
+{
+    if (m_audio_output_is_non_silent == is_non_silent)
+        return;
+
+    m_audio_output_is_non_silent = is_non_silent;
+    relevant_window().associated_document().page().audio_output_state_changed(is_non_silent);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audiocontext-createmediaelementsource
