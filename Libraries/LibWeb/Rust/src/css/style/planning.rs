@@ -1228,21 +1228,21 @@ pub(super) struct SequenceEntry {
 }
 
 /// Sequence routes whose entries the prefix automaton answers exactly, held back until the
-/// convergence walk reports whether its exact per-member diffs subsumed them.
+/// convergence walk reports whether its exact per-member diffs subsumed them. The held entries
+/// are not routed until then: `entries` is the complete live entry list, so the shared entry
+/// index applies to it, and `deferred` marks the ones held back.
 pub(super) struct DeferredSequenceRoutes {
     pub(super) entries: Vec<SequenceEntry>,
-    pub(super) regions: Vec<Vec<ImpactRegion>>,
+    pub(super) deferred: Vec<bool>,
     pub(super) memory: MemoryLease,
-    pub(super) nested_memory: MemoryLease,
 }
 
 impl Default for DeferredSequenceRoutes {
     fn default() -> Self {
         Self {
             entries: Vec::new(),
-            regions: Vec::new(),
+            deferred: Vec::new(),
             memory: MemoryLease::new(MemoryCategory::BatchScratch),
-            nested_memory: MemoryLease::new(MemoryCategory::BatchScratch),
         }
     }
 }
@@ -1250,11 +1250,26 @@ impl Default for DeferredSequenceRoutes {
 impl DeferredSequenceRoutes {
     pub(super) fn capacity_bytes(&self) -> u64 {
         capacity_bytes! {
-            shallow [self.entries, self.regions];
-            cached [self.nested_memory.bytes()];
+            shallow [self.entries, self.deferred];
+            cached [];
             nested [];
             skip [self.memory];
         }
+    }
+}
+
+/// Which sequence entries one routing pass handles: the ones the convergence walk cannot answer
+/// on the immediate pass, and the held-back ones when the walk failed to cover them.
+#[derive(Clone, Copy)]
+pub(super) struct SequenceEntrySelection<'a> {
+    pub(super) mask: &'a [bool],
+    pub(super) route_masked: bool,
+}
+
+impl SequenceEntrySelection<'_> {
+    #[must_use]
+    pub(super) fn selects(self, entry_index: usize) -> bool {
+        self.mask[entry_index] == self.route_masked
     }
 }
 
