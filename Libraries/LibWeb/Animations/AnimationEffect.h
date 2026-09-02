@@ -16,12 +16,7 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/EasingFunction.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
-
-namespace Web::CSS {
-
-class AnimatedProperties;
-
-}
+#include <LibWeb/CSS/StyleRecordID.h>
 
 namespace Web::Animations {
 
@@ -45,12 +40,12 @@ Bindings::OptionalEffectTiming to_optional_effect_timing(Bindings::EffectTiming 
 struct AnimationUpdateContext {
     struct ElementData {
         ElementData();
-        ElementData(RefPtr<CSS::AnimatedProperties const>, RefPtr<CSS::ComputedStyleWorkingSet>);
+        ElementData(CSS::StyleRecordID, RefPtr<CSS::ComputedStyleWorkingSet>);
         ElementData(ElementData&&);
         ElementData& operator=(ElementData&&);
         ~ElementData();
 
-        RefPtr<CSS::AnimatedProperties const> animated_properties_before_update;
+        CSS::StyleRecordID style_record_before_update;
         RefPtr<CSS::ComputedStyleWorkingSet> target_style;
         GC::ConservativeVector<GC::Ref<KeyframeEffect>> effects;
     };

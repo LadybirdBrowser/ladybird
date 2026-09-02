@@ -32,8 +32,8 @@ GC_DEFINE_ALLOCATOR(AnimationEffect);
 
 AnimationUpdateContext::ElementData::ElementData() = default;
 
-AnimationUpdateContext::ElementData::ElementData(RefPtr<CSS::AnimatedProperties const> animated_properties_before_update, RefPtr<CSS::ComputedStyleWorkingSet> target_style)
-    : animated_properties_before_update(move(animated_properties_before_update))
+AnimationUpdateContext::ElementData::ElementData(CSS::StyleRecordID style_record_before_update, RefPtr<CSS::ComputedStyleWorkingSet> target_style)
+    : style_record_before_update(style_record_before_update)
     , target_style(move(target_style))
 {
 }
@@ -826,98 +826,13 @@ void AnimationEffect::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_associated_animation);
 }
 
-static CSS::StyleValue const* animated_property_value(CSS::AnimatedProperties const* properties, CSS::PropertyID property_id)
+static ReadonlySpan<CSS::ComputedValuesFFI::FfiAnimatedOverlayEntry> animated_overlay_entries(CSS::ComputedValuesFFI::AnimatedOverlay const* overlay)
 {
-    if (!properties || !properties->has_property(property_id))
-        return nullptr;
-    return &properties->property(property_id);
-}
-
-struct AnimatedPropertyInvalidation {
-    CSS::RequiredInvalidationAfterStyleChange invalidation;
-    u32 changed_non_inherited_style_groups { 0 };
-    bool requires_base_style_recomputation { false };
-    bool requires_layout_node_style_application { false };
-    bool requires_style_resource_update { false };
-};
-
-static AnimatedPropertyInvalidation compute_required_invalidation_for_animated_properties(CSS::AnimatedProperties const* old_properties, CSS::AnimatedProperties const* new_properties, DOM::AbstractElement const& target)
-{
-    AnimatedPropertyInvalidation result;
-    bool text_decoration_line_animated = false;
-    auto process_property = [&](CSS::PropertyID property_id) {
-        auto const* old_value = animated_property_value(old_properties, property_id);
-        auto const* new_value = animated_property_value(new_properties, property_id);
-        RefPtr<CSS::StyleValue const> old_effective_value;
-        RefPtr<CSS::StyleValue const> new_effective_value;
-        // Box-type adjustments can add a synthetic animated value for a property not covered by
-        // the effect. Compare that value with the effective style instead of treating it as new.
-        if (!old_value || !new_value) {
-            auto current_style = target.computed_style();
-            if (!old_value && current_style) {
-                old_effective_value = current_style->computed_style_value(property_id, CSS::ComputedValues::WithAnimationsApplied::Yes);
-                old_value = old_effective_value.ptr();
-            }
-            if (!new_value && current_style) {
-                new_effective_value = current_style->computed_style_value(property_id, CSS::ComputedValues::WithAnimationsApplied::No);
-                new_value = new_effective_value.ptr();
-            }
-        }
-        if (!old_value && !new_value)
-            return;
-        if (old_value && new_value && old_value->equals(*new_value))
-            return;
-        if (first_is_one_of(property_id,
-                CSS::PropertyID::Direction,
-                CSS::PropertyID::Display,
-                CSS::PropertyID::Float,
-                CSS::PropertyID::OverflowX,
-                CSS::PropertyID::OverflowY,
-                CSS::PropertyID::Position,
-                CSS::PropertyID::TextAlign))
-            result.requires_base_style_recomputation = true;
-        if (CSS::is_inherited_property(property_id))
-            result.requires_layout_node_style_application = true;
-        if (first_is_one_of(property_id,
-                CSS::PropertyID::BackgroundImage,
-                CSS::PropertyID::BorderImageSource,
-                CSS::PropertyID::MaskImage))
-            result.requires_style_resource_update = true;
-        auto property_invalidation = compute_property_invalidation(property_id, old_value, new_value);
-        bool const root_background_color_animation_may_move_body_background_propagation = property_id == CSS::PropertyID::BackgroundColor && !target.pseudo_element().has_value() && target.element().is_document_element();
-        if (root_background_color_animation_may_move_body_background_propagation)
-            property_invalidation.ensure_at_least(CSS::AccumulatedVisualContextInvalidation::Rebuild);
-        if (!property_invalidation.is_none() && CSS::is_inherited_property(property_id)) {
-            auto group = CSS::ComputedValues::style_group_of_property(property_id);
-            if (group.has_value() && to_underlying(*group) < CSS::ComputedValues::inherited_style_group_count)
-                property_invalidation.mark_inherited_style_group_changed(to_underlying(*group));
-            else
-                property_invalidation.mark_all_inherited_style_groups_changed();
-        }
-        if (!CSS::is_inherited_property(property_id))
-            result.changed_non_inherited_style_groups |= CSS::ComputedValues::style_group_bit_of_property(property_id);
-        if (property_id == CSS::PropertyID::TextDecorationLine)
-            text_decoration_line_animated = true;
-        result.invalidation |= property_invalidation;
-    };
-    if (old_properties) {
-        for (auto const& entry : old_properties->entries())
-            process_property(static_cast<CSS::PropertyID>(entry.property));
-    }
-    if (new_properties) {
-        for (auto const& entry : new_properties->entries()) {
-            auto property_id = static_cast<CSS::PropertyID>(entry.property);
-            if (!old_properties || !old_properties->has_property(property_id))
-                process_property(property_id);
-        }
-    }
-    // Animated properties other than text-decoration-line cannot make an undecorated box decorated.
-    if (result.invalidation.repaint_propagated_text_decorations && !text_decoration_line_animated) {
-        auto target_style = target.computed_style();
-        if (target_style && target_style->text_decoration_line().is_empty())
-            result.invalidation.repaint_propagated_text_decorations = false;
-    }
-    return result;
+    if (!overlay)
+        return {};
+    size_t count = 0;
+    auto const* entries = CSS::ComputedValuesFFI::rust_animated_overlay_entries(overlay, &count);
+    return { entries, count };
 }
 
 AnimationUpdateContext::~AnimationUpdateContext()
@@ -956,20 +871,26 @@ AnimationUpdateContext::~AnimationUpdateContext()
         }
         if (!effects_to_collect.is_empty())
             target->document().style_computer().collect_animations_into(element, effects_to_collect.span(), *style, CSS::StyleComputer::AnimationRefresh::Yes);
-        auto animated_properties_after_update = style->animated_properties_snapshot();
-        auto animated_property_invalidation = compute_required_invalidation_for_animated_properties(it.value.animated_properties_before_update.ptr(), animated_properties_after_update.ptr(), element);
-        auto invalidation = animated_property_invalidation.invalidation;
-
-        if (invalidation.is_none())
+        auto& style_computer = target->document().style_computer();
+        if (!style_computer.style_engine().animation_overlay_changed(it.value.style_record_before_update, style->animated_overlay()))
             continue;
 
         auto computed_values = [&] {
             auto previous_values = element.computed_style();
             if (previous_values)
-                return target->document().style_computer().build_animated_computed_values(*style, element, element.style_scope(), *previous_values);
-            return target->document().style_computer().build_computed_values(*style, element, element.style_scope());
+                return style_computer.build_animated_computed_values(*style, element, element.style_scope(), *previous_values);
+            return style_computer.build_computed_values(*style, element, element.style_scope());
         }();
-        if (animated_properties_after_update && !animated_properties_after_update->is_empty()
+        Array<void const*, to_underlying(CSS::StyleGroupIndex::Count)> payloads;
+        for (size_t index = 0; index < payloads.size(); ++index)
+            payloads[index] = computed_values->style_group_payload(static_cast<CSS::StyleGroupIndex>(index));
+        auto animated_property_invalidation = style_computer.style_engine().compare_animation_overlay(
+            it.value.style_record_before_update,
+            style->animated_overlay(),
+            payloads,
+            !element.pseudo_element().has_value() && target->is_document_element());
+        auto invalidation = CSS::decode_style_invalidation(animated_property_invalidation.invalidation);
+        if (style->animated_overlay() && !animated_overlay_entries(style->animated_overlay()).is_empty()
             && target->document().is_in_style_stabilization_epoch()
             && (target->document().style_stabilization_has_style_reactions() || animated_property_invalidation.requires_base_style_recomputation)) {
             target->document().style_computer().record_transition_stabilization_baseline(element);

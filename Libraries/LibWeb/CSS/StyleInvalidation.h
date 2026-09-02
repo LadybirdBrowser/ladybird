@@ -156,5 +156,6 @@ private:
 };
 
 RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID, StyleValue const* old_value, StyleValue const* new_value);
+RequiredInvalidationAfterStyleChange decode_style_invalidation(u32 packed);
 
 }

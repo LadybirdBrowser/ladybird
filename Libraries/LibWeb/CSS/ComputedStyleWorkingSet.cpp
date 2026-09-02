@@ -135,12 +135,12 @@ NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_for_anima
     auto working_set = create_with_longhand_table(retained_table);
     working_set->m_computed_longhand_table_is_shared = true;
     if (overlay) {
-        auto animated_properties = adopt_ref(*new AnimatedProperties(overlay));
-        working_set->m_had_animated_post_compute_adjustment_property = animated_properties->has_property(PropertyID::Display)
-            || animated_properties->has_property(PropertyID::Position)
-            || animated_properties->has_property(PropertyID::Float)
-            || animated_properties->has_property(PropertyID::LineHeight)
-            || animated_properties->has_property(PropertyID::TextAlign);
+        working_set->m_had_animated_post_compute_adjustment_property = ComputedValuesFFI::rust_animated_overlay_contains(overlay, to_underlying(PropertyID::Display))
+            || ComputedValuesFFI::rust_animated_overlay_contains(overlay, to_underlying(PropertyID::Position))
+            || ComputedValuesFFI::rust_animated_overlay_contains(overlay, to_underlying(PropertyID::Float))
+            || ComputedValuesFFI::rust_animated_overlay_contains(overlay, to_underlying(PropertyID::LineHeight))
+            || ComputedValuesFFI::rust_animated_overlay_contains(overlay, to_underlying(PropertyID::TextAlign));
+        auto animated_properties = adopt_ref(*new AnimatedProperties(overlay, AnimatedProperties::InheritedOnly {}));
         working_set->m_animated_properties = move(animated_properties);
     }
     return working_set;
@@ -183,6 +183,12 @@ AnimatedProperties::AnimatedProperties(AnimatedProperties const& other)
 AnimatedProperties::AnimatedProperties(ComputedValuesFFI::AnimatedOverlay const* overlay)
     : m_identity(s_next_animated_properties_identity.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
     , m_overlay(ComputedValuesFFI::rust_animated_overlay_clone(overlay))
+{
+}
+
+AnimatedProperties::AnimatedProperties(ComputedValuesFFI::AnimatedOverlay const* overlay, InheritedOnly)
+    : m_identity(s_next_animated_properties_identity.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
+    , m_overlay(ComputedValuesFFI::rust_animated_overlay_clone_inherited(overlay))
 {
 }
 
@@ -257,12 +263,6 @@ void AnimatedProperties::set_property(PropertyID id, NonnullRefPtr<StyleValue co
     m_wrapper_cache.set(id, move(value));
 }
 
-void AnimatedProperties::reset_non_inherited_properties()
-{
-    ComputedValuesFFI::rust_animated_overlay_reset_non_inherited(m_overlay);
-    m_wrapper_cache.clear();
-}
-
 bool ComputedStyleWorkingSet::is_property_important(PropertyID property_id) const
 {
     return ComputedValuesFFI::rust_computed_longhand_table_is_important(m_computed_longhand_table, to_underlying(property_id));
@@ -312,6 +312,11 @@ void ComputedStyleWorkingSet::remove_inheritance_dependent_specified_value(Prope
 RefPtr<AnimatedProperties const> ComputedStyleWorkingSet::animated_properties_snapshot() const
 {
     return m_animated_properties;
+}
+
+ComputedValuesFFI::AnimatedOverlay const* ComputedStyleWorkingSet::animated_overlay() const
+{
+    return m_animated_properties ? m_animated_properties->overlay() : nullptr;
 }
 
 bool ComputedStyleWorkingSet::has_animated_property(PropertyID property_id) const
@@ -506,31 +511,6 @@ void ComputedStyleWorkingSet::clear_animated_properties(Badge<StyleComputer>)
 
     m_animated_properties = nullptr;
     clear_computed_font_list_cache();
-}
-
-void ComputedStyleWorkingSet::reset_non_inherited_animated_properties(Badge<Animations::KeyframeEffect>)
-{
-    bool has_non_inherited_property = false;
-    bool should_clear_computed_font_list_cache = false;
-    for (auto const& property : animated_properties().entries()) {
-        if (property.inherited)
-            continue;
-        has_non_inherited_property = true;
-        if (property_affects_computed_font_list(static_cast<PropertyID>(property.property))) {
-            should_clear_computed_font_list_cache = true;
-            break;
-        }
-    }
-
-    if (!has_non_inherited_property)
-        return;
-
-    auto& animated_properties = mutable_animated_properties();
-    animated_properties.reset_non_inherited_properties();
-    // Keep the overlay alive because it may own reusable animation preparation.
-
-    if (should_clear_computed_font_list_cache)
-        clear_computed_font_list_cache();
 }
 
 NonnullRefPtr<StyleValue const> wrap_computed_longhand_slot(void const* value_data, GC::Ptr<CSSStyleSheet> style_sheet)

@@ -5,7 +5,7 @@
  */
 
 use super::StyleEngine;
-use super::bridge::FfiStyleInvalidationField;
+use super::bridge::{FfiAnimationInvalidation, FfiStyleInvalidationField};
 use crate::css::animated_overlay::{AnimatedOverlay, overlay_wins};
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::computed_values::style_group_payloads_equal;
@@ -42,6 +42,10 @@ struct StyleInvalidation {
 }
 
 impl StyleInvalidation {
+    fn is_none(self) -> bool {
+        self.pack() == 0
+    }
+
     fn ensure_level(&mut self, level: u8) {
         self.level = self.level.max(level);
         if level >= INVALIDATION_REBUILD_LAYOUT_TREE {
@@ -530,6 +534,49 @@ fn effective_value<'a>(view: &super::computed::StyleRecordView<'a>, property: u1
     unsafe { &*view.longhand_values[index].cast::<StyleValueData>() }
 }
 
+fn effective_value_with_overlay(
+    view: &super::computed::StyleRecordView<'_>,
+    overlay: Option<&AnimatedOverlay>,
+    property: u16,
+) -> *const StyleValueData {
+    let index = usize::from(property - FIRST_LONGHAND_PROPERTY_ID);
+    let table = unsafe { &*view.longhand_table };
+    if let Some(entry) = overlay.and_then(|overlay| overlay.get(property))
+        && overlay_wins(entry, table.is_important(property))
+    {
+        return entry.value.data();
+    }
+    view.longhand_values[index].cast()
+}
+
+fn animation_overlay_properties<'a>(
+    old_overlay: Option<&'a AnimatedOverlay>,
+    new_overlay: Option<&'a AnimatedOverlay>,
+) -> impl Iterator<Item = u16> + 'a {
+    old_overlay
+        .into_iter()
+        .flat_map(AnimatedOverlay::entries)
+        .map(|entry| entry.property)
+        .chain(
+            new_overlay
+                .into_iter()
+                .flat_map(AnimatedOverlay::entries)
+                .filter(move |entry| old_overlay.is_none_or(|overlay| overlay.get(entry.property).is_none()))
+                .map(|entry| entry.property),
+        )
+}
+
+fn animation_value_changed(
+    record: &super::computed::StyleRecordView<'_>,
+    old_overlay: Option<&AnimatedOverlay>,
+    new_overlay: Option<&AnimatedOverlay>,
+    property: u16,
+) -> bool {
+    let old = effective_value_with_overlay(record, old_overlay, property);
+    let new = effective_value_with_overlay(record, new_overlay, property);
+    old != new && unsafe { *old != *new }
+}
+
 fn inheritance_dependent_values_equal(
     old: &crate::css::computed_longhand_table::ComputedLonghandTable,
     new: &crate::css::computed_longhand_table::ComputedLonghandTable,
@@ -548,6 +595,98 @@ fn inheritance_dependent_values_equal(
 }
 
 impl StyleEngine {
+    pub(crate) fn animation_overlay_changed(
+        &self,
+        old_style_record: u64,
+        animated_overlay: *const AnimatedOverlay,
+    ) -> bool {
+        let old_record = self
+            .computed_group_sets
+            .style_record_view(old_style_record)
+            .unwrap_or_else(|| panic!("old style record {old_style_record:#x} is not live"));
+        let old_overlay = unsafe { old_record.animated_overlay.as_ref() };
+        let new_overlay = unsafe { animated_overlay.as_ref() };
+        animation_overlay_properties(old_overlay, new_overlay)
+            .any(|property| animation_value_changed(&old_record, old_overlay, new_overlay, property))
+    }
+
+    pub(crate) fn compare_animation_overlay(
+        &self,
+        old_style_record: u64,
+        animated_overlay: *const AnimatedOverlay,
+        payloads: &[*const std::ffi::c_void],
+        is_document_element: bool,
+    ) -> FfiAnimationInvalidation {
+        let old_record = self
+            .computed_group_sets
+            .style_record_view(old_style_record)
+            .unwrap_or_else(|| panic!("old style record {old_style_record:#x} is not live"));
+        assert_eq!(payloads.len(), old_record.payloads.len());
+        let old_overlay = unsafe { old_record.animated_overlay.as_ref() };
+        let new_overlay = unsafe { animated_overlay.as_ref() };
+        let old_values = ComputedValuesView::new(old_record.payloads);
+        let new_values = ComputedValuesView::new(payloads);
+        let mut ffi_result = FfiAnimationInvalidation::default();
+        let mut invalidation = StyleInvalidation::default();
+        let mut text_decoration_line_animated = false;
+
+        for property in animation_overlay_properties(old_overlay, new_overlay) {
+            if !animation_value_changed(&old_record, old_overlay, new_overlay, property) {
+                continue;
+            }
+            if matches!(
+                property,
+                property_id::DIRECTION
+                    | property_id::DISPLAY
+                    | property_id::FLOAT
+                    | property_id::OVERFLOW_X
+                    | property_id::OVERFLOW_Y
+                    | property_id::POSITION
+                    | property_id::TEXT_ALIGN
+            ) {
+                ffi_result.requires_base_style_recomputation = true;
+            }
+            if property_metadata::property_is_inherited(property) {
+                ffi_result.requires_layout_node_style_application = true;
+            } else {
+                ffi_result.changed_non_inherited_style_groups |=
+                    property_metadata::property_style_group_index(property)
+                        .map_or((1 << payloads.len()) - 1, |group| 1 << group);
+            }
+            if matches!(
+                property,
+                property_id::BACKGROUND_IMAGE | property_id::BORDER_IMAGE_SOURCE | property_id::MASK_IMAGE
+            ) {
+                ffi_result.requires_style_resource_update = true;
+            }
+
+            let mut property_damage = property_invalidation(property, old_values, new_values);
+            if property == property_id::BACKGROUND_COLOR && is_document_element {
+                property_damage.ensure_visual_context(VISUAL_CONTEXT_REBUILD);
+            }
+            if !property_damage.is_none() && property_metadata::property_is_inherited(property) {
+                match property_metadata::property_style_group_index(property) {
+                    Some(group) if group < 7 => property_damage.inherited_groups |= 1 << group,
+                    _ => property_damage.inherited_groups = ALL_INHERITED_STYLE_GROUPS,
+                }
+            }
+            if property == property_id::TEXT_DECORATION_LINE {
+                text_decoration_line_animated = true;
+            }
+            invalidation.merge(property_damage);
+        }
+
+        // Animated properties other than text-decoration-line cannot make an undecorated box decorated.
+        if invalidation.repaint_text_decorations
+            && !text_decoration_line_animated
+            && old_values.text_reset().text_decoration_lines.as_slice().is_empty()
+        {
+            invalidation.repaint_text_decorations = false;
+        }
+        ffi_result.invalidation = invalidation.pack();
+        ffi_result
+    }
+
     pub(crate) fn compare_style_records(
         &mut self,
         old_style_record: u64,

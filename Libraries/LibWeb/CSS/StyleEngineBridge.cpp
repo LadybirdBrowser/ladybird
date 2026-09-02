@@ -264,6 +264,16 @@ u32 StyleEngine::compare_style_records(StyleRecordID old_style_record, StyleReco
     return StyleEngineFFI::style_engine_compare_style_records(m_impl, old_style_record.value(), new_style_record.value(), font_lists_equal, element_folds_transform_into_layout);
 }
 
+bool StyleEngine::animation_overlay_changed(StyleRecordID old_style_record, void const* animated_overlay) const
+{
+    return StyleEngineFFI::style_engine_animation_overlay_changed(m_impl, old_style_record.value(), animated_overlay);
+}
+
+StyleEngineFFI::FfiAnimationInvalidation StyleEngine::compare_animation_overlay(StyleRecordID old_style_record, void const* animated_overlay, ReadonlySpan<void const*> payloads, bool is_document_element) const
+{
+    return StyleEngineFFI::style_engine_compare_animation_overlay(m_impl, old_style_record.value(), animated_overlay, payloads.data(), payloads.size(), is_document_element);
+}
+
 StyleEngine::StyleRecordView StyleEngine::style_record_view(StyleRecordID style_record) const
 {
     return StyleEngineFFI::style_engine_style_record_view(m_impl, style_record.value());

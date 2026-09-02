@@ -73,6 +73,31 @@ pub struct FfiAnimatedOverlayEntry {
 }
 
 impl AnimatedOverlay {
+    fn clone_inherited(&self) -> Self {
+        let entries = self
+            .entries
+            .iter()
+            .filter(|entry| entry.inherited)
+            .map(|entry| AnimatedOverlayEntry {
+                property: entry.property,
+                value: entry.value.clone(),
+                inherited: true,
+                result_of_transition: entry.result_of_transition,
+            })
+            .collect();
+        let mut overlay = Self {
+            entries,
+            ffi_entries: Vec::new(),
+            animation_preparation: self.animation_preparation.clone(),
+        };
+        overlay.refresh_ffi_entries();
+        overlay
+    }
+
+    pub(crate) fn entries(&self) -> &[AnimatedOverlayEntry] {
+        &self.entries
+    }
+
     pub(crate) fn get(&self, property: u16) -> Option<&AnimatedOverlayEntry> {
         self.entries.iter().find(|entry| entry.property == property)
     }
@@ -140,6 +165,24 @@ pub unsafe extern "C" fn rust_animated_overlay_clone(overlay: *const AnimatedOve
     abort_on_panic(|| Box::into_raw(Box::new(unsafe { &*overlay }.clone())))
 }
 
+/// Returns a new overlay holding retained copies of `overlay`'s inherited entries.
+///
+/// # Safety
+/// `overlay` must be a valid overlay.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_animated_overlay_clone_inherited(
+    overlay: *const AnimatedOverlay,
+) -> *mut AnimatedOverlay {
+    abort_on_panic(|| Box::into_raw(Box::new(unsafe { &*overlay }.clone_inherited())))
+}
+
+/// # Safety
+/// `overlay` must be a valid overlay.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_animated_overlay_contains(overlay: *const AnimatedOverlay, property: u16) -> bool {
+    abort_on_panic(|| unsafe { &*overlay }.get(property).is_some())
+}
+
 /// # Safety
 /// `overlay` must be a valid overlay that is not used after this call.
 #[unsafe(no_mangle)]
@@ -166,19 +209,6 @@ pub unsafe extern "C" fn rust_animated_overlay_set(
         };
         let overlay = unsafe { &mut *overlay };
         overlay.set_owned(property, retained, inherited, result_of_transition);
-        overlay.refresh_ffi_entries();
-    });
-}
-
-/// Removes every non-inherited entry from the overlay.
-///
-/// # Safety
-/// `overlay` must be a valid overlay.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_animated_overlay_reset_non_inherited(overlay: *mut AnimatedOverlay) {
-    abort_on_panic(|| {
-        let overlay = unsafe { &mut *overlay };
-        overlay.entries.retain(|entry| entry.inherited);
         overlay.refresh_ffi_entries();
     });
 }
