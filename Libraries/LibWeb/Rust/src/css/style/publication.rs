@@ -3053,6 +3053,14 @@ impl StyleEngine {
             .map(|(_, selection)| *selection)
     }
 
+    pub(crate) fn current_color_dependent_group_mask(&self, node: StyleNodeID, pseudo_kind: u8) -> Option<u32> {
+        let target = computed::ComputedStyleTarget::new(node, pseudo_kind);
+        let dependencies = self.computed_group_sets.current_color_dependency_mask(target)?;
+        let caret_color_group = computed_group_output_mask(crate::css::property_metadata::property_id::CARET_COLOR)?;
+        let accent_color_group = computed_group_output_mask(crate::css::property_metadata::property_id::ACCENT_COLOR)?;
+        Some(dependencies | caret_color_group | accent_color_group)
+    }
+
     unsafe fn cascade_operator_of_style_value(value: *const StyleValueData) -> CascadeOperator {
         let StyleValueData::Keyword { keyword } = (unsafe { &*value }) else {
             return CascadeOperator::Declared;

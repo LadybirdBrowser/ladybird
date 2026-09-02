@@ -2724,6 +2724,23 @@ pub unsafe extern "C" fn style_engine_animation_overlay_changed(
     engine.animation_overlay_changed(old_style_record, animated_overlay.cast())
 }
 
+/// The style groups that bake a color resolved from a style target's `currentColor`, or
+/// `u32::MAX` when the target holds no retained style to answer from.
+///
+/// # Safety
+/// `engine` must be live for this call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_current_color_dependent_group_mask(
+    engine: *const c_void,
+    node: u32,
+    pseudo_kind: u8,
+) -> u32 {
+    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    StyleNodeID::from_raw(node)
+        .and_then(|node| engine.current_color_dependent_group_mask(node, pseudo_kind))
+        .unwrap_or(u32::MAX)
+}
+
 /// Computes property-dependent damage for the sparse changed values in an animation overlay.
 ///
 /// # Safety
