@@ -39,7 +39,6 @@ pub struct FfiRecordingInputs {
     pub bitmap_rect: IntRect,
     pub background_color: Color,
     pub paint_command_cache_read_write: bool,
-    pub display_list_id: u64,
     pub window_is_focused: bool,
     pub outline_auto_color: Color,
     pub has_inspector_highlight: bool,

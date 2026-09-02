@@ -28,14 +28,14 @@ use crate::painting::host::{
 };
 use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData};
 use crate::painting::paintable_rows::PaintableRowsRef;
-use crate::painting::record::cache::RecordGen;
+use crate::painting::record::cache::{OpenCapture, RecordGen, ResolvedEnclosingCaptureMemo};
 use crate::painting::visual_context::nested::NestedAssignments;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 #[derive(Default)]
 pub struct RecordingOutput {
-    pub id: u64,
     pub recorded_structural_epoch: u64,
     // A default-constructed output's 0.0 never matches a real recording scale.
     pub recorded_device_pixels_per_css_pixel: f64,
@@ -82,8 +82,9 @@ pub struct PaintRecorder<'a> {
     pub(crate) viewport: NodeSlotId,
     command_cache_source: Option<Rc<RecordingOutput>>,
     item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
-    display_list_id: u64,
     hit_test_list_generation: u64,
+    open_capture_stack: Vec<OpenCapture>,
+    resolved_enclosing_capture_memo: RefCell<ResolvedEnclosingCaptureMemo>,
     pub(crate) has_blocking_wheel_event_listeners: bool,
     pub(crate) recording_stats: FfiPaintRecordingStats,
     uncacheable_paint_generation: u64,
@@ -213,8 +214,9 @@ impl<'a> PaintRecorder<'a> {
             viewport: self.viewport,
             command_cache_source: None,
             item_cache_source: None,
-            display_list_id: self.display_list_id,
             hit_test_list_generation: self.hit_test_list_generation,
+            open_capture_stack: Vec::new(),
+            resolved_enclosing_capture_memo: RefCell::new(ResolvedEnclosingCaptureMemo::default()),
             has_blocking_wheel_event_listeners: false,
             recording_stats: FfiPaintRecordingStats::default(),
             uncacheable_paint_generation: 0,

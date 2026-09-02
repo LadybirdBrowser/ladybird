@@ -1820,7 +1820,6 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         if inputs.paint_command_cache_read_write {
             paint_state.hit_test_item_cache_source = Some(std::rc::Rc::new(
                 crate::painting::record::cache::HitTestItemCacheSource {
-                    id: list.generation,
                     items: list.items.clone(),
                 },
             ));
