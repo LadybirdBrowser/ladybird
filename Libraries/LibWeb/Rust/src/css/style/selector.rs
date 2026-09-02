@@ -4368,6 +4368,20 @@ pub(super) struct MatchFactRow<'a> {
     pub(super) row: u32,
 }
 
+/// Which positional tests an evaluator answers from its workspace's shared sibling index.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum PositionalIndexPolicy {
+    /// Every test, and every answer is memoized. A traversal that styles whole sequences asks
+    /// many programs about the same children, which amortizes building each index.
+    All,
+    /// Only tests with a step, which have to count the whole sequence anyway, and no memo. A
+    /// bounded test such as `:first-child` stops at its near end, so a narrow exact ask over
+    /// scattered candidates answers it more cheaply than materializing every sequence it walks
+    /// through - and asks the same test about the same node too rarely for a memo to pay for
+    /// its insertion.
+    SteppedOnly,
+}
+
 pub struct MatchEvaluator<'a> {
     tree: &'a StyleNodeTree,
     facts: &'a StyleNodeFacts,
@@ -4389,6 +4403,7 @@ pub struct MatchEvaluator<'a> {
     /// walk runs, and restored after, so that a nested `:has()` names its own anchor.
     relative_anchor: Cell<Option<StyleNodeID>>,
     match_workspace: Option<(&'a MatchEvaluationWorkspace, MatchEvaluationSide)>,
+    positional_index_policy: PositionalIndexPolicy,
     transitive_relation_program: Cell<Option<SelectorProgramID>>,
     /// Where a completed simple relational evaluation records its outcome, when the caller is
     /// evaluating the live tree and current facts. See `MatchEvaluator::observing_witnesses`.
@@ -5061,6 +5076,7 @@ impl<'a> MatchEvaluator<'a> {
             root_matches_parentless_node: true,
             relative_anchor: Cell::new(None),
             match_workspace: None,
+            positional_index_policy: PositionalIndexPolicy::All,
             transitive_relation_program: Cell::new(None),
             witnesses: None,
         }
@@ -5109,6 +5125,14 @@ impl<'a> MatchEvaluator<'a> {
         side: MatchEvaluationSide,
     ) -> Self {
         self.match_workspace = Some((workspace, side));
+        self
+    }
+
+    /// Answer only stepped positional tests from the workspace's sibling index, and memoize no
+    /// positional answer. See [`PositionalIndexPolicy::SteppedOnly`].
+    #[must_use]
+    pub(super) fn indexing_stepped_positions_only(mut self) -> Self {
+        self.positional_index_policy = PositionalIndexPolicy::SteppedOnly;
         self
     }
 
@@ -5823,7 +5847,9 @@ impl<'a> MatchEvaluator<'a> {
                 Ok(false)
             }
             SelectorOp::NthPosition(position) => {
-                if position.of_selector.is_none()
+                let memoizes_answers = self.positional_index_policy == PositionalIndexPolicy::All;
+                if memoizes_answers
+                    && position.of_selector.is_none()
                     && let Some((workspace, side)) = self.match_workspace
                     && let Some(answer) = workspace.positional_answer(position, node, side)
                 {
@@ -5831,7 +5857,8 @@ impl<'a> MatchEvaluator<'a> {
                 }
                 counters.bump(Counter::StructuralTests);
                 let result = self.matches_nth(program, position, node, counters);
-                if position.of_selector.is_none()
+                if memoizes_answers
+                    && position.of_selector.is_none()
                     && let Some((workspace, side)) = self.match_workspace
                     && let Ok(answer) = result
                 {
@@ -6243,6 +6270,7 @@ impl<'a> MatchEvaluator<'a> {
         counters: &mut Counters,
     ) -> Result<bool, Incomplete> {
         if position.of_selector.is_none()
+            && (position.step != 0 || self.positional_index_policy == PositionalIndexPolicy::All)
             && let Some(index) = self.indexed_sibling_position(position, node, counters)?
         {
             return Ok(matches_an_plus_b(position.step, position.offset, index));

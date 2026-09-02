@@ -1482,11 +1482,15 @@ impl ExactTreeEvaluation {
         counters: &mut Counters,
     ) -> Result<ExactEntryResult, Incomplete> {
         let (compiled, entry) = program;
-        // The workspace can retain current-side relation answers from matching before this tree
-        // transaction. Evaluate the new side from the authoritative tree instead of reusing
-        // positions measured in the previous topology.
+        // The new side reads the authoritative tree, which every candidate of this transaction
+        // shares. The workspace's current tree side was reset when the transaction began, so the
+        // sibling positions it memoizes were all measured in this topology, and a sequence that
+        // several positional entries ask about is counted once rather than once per candidate.
         let evaluate_new = |counters: &mut Counters| {
-            MatchEvaluator::new(tree, facts).matches_entry_without_program_caches(compiled, entry, node, counters)
+            MatchEvaluator::new(tree, facts)
+                .with_match_workspace(match_workspace, MatchEvaluationSide::Current)
+                .indexing_stepped_positions_only()
+                .matches_entry_without_program_caches(compiled, entry, node, counters)
         };
         let evaluate_old = |view: &TransactionFactView, counters: &mut Counters| match view.is_present(
             tree,
