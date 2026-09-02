@@ -177,8 +177,7 @@ impl PaintRecorder<'_> {
         if rect.is_empty() {
             return;
         }
-        self.mark_open_captures_unsplicable();
-        self.has_blocking_wheel_event_listeners = true;
+        self.blocking_wheel_event_region_count += 1;
         self.recorder
             .compositor_blocking_wheel_event_region(CompositorBlockingWheelEventRegion { rect });
     }

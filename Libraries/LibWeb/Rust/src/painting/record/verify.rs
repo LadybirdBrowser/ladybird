@@ -265,9 +265,17 @@ pub(crate) fn verify_spliced_recording_matches_fresh(
         with_splices_mask_frames, from_scratch_mask_frames,
         "paint cache verification failed: mask display list registrations differ"
     );
+    let region_count = |commands: &[DecodedCommand]| {
+        commands
+            .iter()
+            .filter(|command| command.header.command_type == DisplayListCommandType::CompositorBlockingWheelEventRegion)
+            .count()
+    };
     assert_eq!(
         recording_with_splices.has_blocking_wheel_event_listeners,
         recording_from_scratch.has_blocking_wheel_event_listeners,
-        "paint cache verification failed: blocking wheel event listener flag differs"
+        "paint cache verification failed: blocking wheel event listener flag differs (tape with splices holds {} region commands, tape from scratch {})",
+        region_count(&with_splices_commands),
+        region_count(&from_scratch_commands)
     );
 }

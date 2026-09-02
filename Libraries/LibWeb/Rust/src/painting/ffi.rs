@@ -1757,12 +1757,14 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         let arena = unsafe { arena_from_handle(arena) };
         {
             let mut paint_state = arena.paint_state().borrow_mut();
-            if paint_state.recorded_wheel_event_listener_state_generation
-                != Some(inputs.wheel_event_listener_state_generation)
+            let has_blocking_wheel_event_region_covering_viewport =
+                inputs.has_blocking_wheel_event_region_covering_viewport;
+            if paint_state.recorded_has_blocking_wheel_event_region_covering_viewport
+                != Some(has_blocking_wheel_event_region_covering_viewport)
             {
                 arena.mark_all_descendant_subtree_caches_dirty();
-                paint_state.recorded_wheel_event_listener_state_generation =
-                    Some(inputs.wheel_event_listener_state_generation);
+                paint_state.recorded_has_blocking_wheel_event_region_covering_viewport =
+                    Some(has_blocking_wheel_event_region_covering_viewport);
             }
             if paint_state.recorded_canvas_color != Some(inputs.canvas_color) {
                 arena.mark_all_paint_caches_dirty();
@@ -2128,6 +2130,20 @@ pub unsafe extern "C" fn layout_arena_paintable_invalidate_for_repaint(arena: *m
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         arena.invalidate_for_repaint(paintable);
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_invalidate_subtree_for_repaint(
+    arena: *mut c_void,
+    paintable: NodeSlotId,
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        arena.invalidate_subtree_for_repaint(paintable);
     });
 }
 

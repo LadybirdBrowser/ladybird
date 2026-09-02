@@ -229,6 +229,12 @@ where
         self.mark_paint_cache_self_dirty(id);
     }
 
+    pub(crate) fn invalidate_subtree_for_repaint(&self, id: NodeSlotId) {
+        crate::painting::paint_order::for_each_in_paint_subtree(self, id, |slot| {
+            self.mark_paint_cache_self_dirty(slot);
+        });
+    }
+
     pub(crate) fn mark_descendant_subtree_caches_dirty_from_layout_node(&self, mut node: NodeSlotId) {
         loop {
             if self.paintable_row_is_populated(node) {
@@ -883,6 +889,10 @@ impl LayoutNodeArena {
 
     pub(crate) fn invalidate_for_repaint(&self, id: NodeSlotId) {
         self.paintable_rows().invalidate_for_repaint(id);
+    }
+
+    pub(crate) fn invalidate_subtree_for_repaint(&self, id: NodeSlotId) {
+        self.paintable_rows().invalidate_subtree_for_repaint(id);
     }
 
     pub(crate) fn invalidate_propagated_text_decoration_caches(&self, root: NodeSlotId) {

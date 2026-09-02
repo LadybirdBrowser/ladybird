@@ -14,13 +14,31 @@
         const blockedBefore = internals.asyncScrollingStateBlocksWheelEventAt(50, 150);
         const visitedQuiet = internals.paintCacheCaptureSiteVisitCount();
 
-        target.addEventListener("wheel", () => {}, { passive: false });
+        const passive = () => {};
+        target.addEventListener("wheel", passive, { passive: true });
+        internals.asyncScrollingStateBlocksWheelEventAt(50, 150);
+        const visitedAfterPassive = internals.paintCacheCaptureSiteVisitCount();
+
+        const blocking = () => {};
+        target.addEventListener("wheel", blocking, { passive: false });
         const blockedAfterAdding = internals.asyncScrollingStateBlocksWheelEventAt(50, 150);
         const visitedAfterAdding = internals.paintCacheCaptureSiteVisitCount();
 
+        const blockedWhenQuiet = internals.asyncScrollingStateBlocksWheelEventAt(50, 150);
+        const visitedQuietWithListener = internals.paintCacheCaptureSiteVisitCount();
+
+        target.removeEventListener("wheel", blocking);
+        const blockedAfterRemoving = internals.asyncScrollingStateBlocksWheelEventAt(50, 150);
+        const visitedAfterRemoving = internals.paintCacheCaptureSiteVisitCount();
+
         println(`blocked before adding the listener: ${blockedBefore}`);
         println(`quiet recording visits only the viewport root: ${visitedQuiet === 1}`);
+        println(`a passive listener leaves the viewport root hitting: ${visitedAfterPassive === 1}`);
         println(`blocked after adding the listener: ${blockedAfterAdding}`);
         println(`adding the listener re-records B: ${visitedAfterAdding > 1}`);
+        println(`a quiet recording with the listener hits the viewport root: ${visitedQuietWithListener === 1}`);
+        println(`and still blocks: ${blockedWhenQuiet}`);
+        println(`blocked after removing the listener: ${blockedAfterRemoving}`);
+        println(`removing the listener re-records B: ${visitedAfterRemoving > 1}`);
     });
 </script>
