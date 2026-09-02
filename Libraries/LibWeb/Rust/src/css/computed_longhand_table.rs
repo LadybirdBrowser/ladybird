@@ -147,6 +147,9 @@ pub struct ComputedLonghandTable {
     /// Whether `inheritance_dependent` was seeded from another table, so that a drive over this
     /// one must replace or drop the record of every row it evaluates.
     inheritance_dependent_is_seeded: bool,
+    /// Which longhands have a recorded inheritance-dependent specified value, so a lookup for
+    /// one of the many that do not never walks the list.
+    inheritance_dependent_bits: [u8; LONGHAND_BITMAP_BYTES],
     /// The winning cascaded font-size retained for monospace recascades.
     raw_cascaded_font_size: Option<RetainedStyleValueData>,
     /// The borrowed view over `inheritance_dependent` handed to C++.
@@ -186,6 +189,7 @@ impl ComputedLonghandTable {
             evaluated_bits: [0; LONGHAND_BITMAP_BYTES],
             inheritance_dependent: Vec::new(),
             inheritance_dependent_is_seeded: false,
+            inheritance_dependent_bits: [0; LONGHAND_BITMAP_BYTES],
             inheritance_dependent_view: Vec::new(),
             raw_cascaded_font_size: None,
             metadata: FfiComputedStyleMetadata {
@@ -436,6 +440,7 @@ impl ComputedLonghandTable {
     fn copy_from(&mut self, source: &ComputedLonghandTable) {
         self.copy_values_and_metadata_from(source);
         self.inheritance_dependent.clone_from(&source.inheritance_dependent);
+        self.inheritance_dependent_bits = source.inheritance_dependent_bits;
         self.rebuild_inheritance_dependent_view();
     }
 
@@ -549,6 +554,7 @@ impl ComputedLonghandTable {
         self.evaluated_bits = [0; LONGHAND_BITMAP_BYTES];
         self.metadata.dependency_flags = 0;
         self.inheritance_dependent.clear();
+        self.inheritance_dependent_bits = [0; LONGHAND_BITMAP_BYTES];
         self.inheritance_dependent_view.clear();
         self.raw_cascaded_font_size = None;
         self.post_compute_restore_values = None;
@@ -578,6 +584,7 @@ impl ComputedLonghandTable {
         self.evaluated_bits = [0; LONGHAND_BITMAP_BYTES];
         self.inheritance_dependent.clear();
         self.inheritance_dependent_is_seeded = false;
+        self.inheritance_dependent_bits = [0; LONGHAND_BITMAP_BYTES];
         self.inheritance_dependent_view.clear();
         self.post_compute_restore_values = None;
     }
@@ -595,6 +602,11 @@ impl ComputedLonghandTable {
             Some((_, existing)) => *existing = value,
             None => self.inheritance_dependent.push((property_id, value)),
         }
+        set_bitmap_bit(
+            &mut self.inheritance_dependent_bits,
+            Self::slot_index(property_id),
+            true,
+        );
         self.rebuild_inheritance_dependent_view();
     }
 
@@ -617,16 +629,23 @@ impl ComputedLonghandTable {
             "the computed longhand table is immutable once its style is created"
         );
         if self.inheritance_dependent_is_seeded {
-            let existing = self
-                .inheritance_dependent
-                .iter()
-                .position(|(property, _)| *property == property_id);
+            let slot = Self::slot_index(property_id);
+            let existing = bitmap_bit(&self.inheritance_dependent_bits, slot).then(|| {
+                self.inheritance_dependent
+                    .iter()
+                    .position(|(property, _)| *property == property_id)
+                    .expect("a longhand with a recorded inheritance-dependent value must be listed")
+            });
             match (existing, value) {
                 (Some(index), Some(value)) => self.inheritance_dependent[index].1 = value,
                 (Some(index), None) => {
                     self.inheritance_dependent.swap_remove(index);
+                    set_bitmap_bit(&mut self.inheritance_dependent_bits, slot, false);
                 }
-                (None, Some(value)) => self.inheritance_dependent.push((property_id, value)),
+                (None, Some(value)) => {
+                    self.inheritance_dependent.push((property_id, value));
+                    set_bitmap_bit(&mut self.inheritance_dependent_bits, slot, true);
+                }
                 (None, None) => {}
             }
             return;
@@ -639,6 +658,11 @@ impl ComputedLonghandTable {
         );
         if let Some(value) = value {
             self.inheritance_dependent.push((property_id, value));
+            set_bitmap_bit(
+                &mut self.inheritance_dependent_bits,
+                Self::slot_index(property_id),
+                true,
+            );
         }
     }
 
@@ -659,10 +683,18 @@ impl ComputedLonghandTable {
             return;
         };
         self.inheritance_dependent.swap_remove(index);
+        set_bitmap_bit(
+            &mut self.inheritance_dependent_bits,
+            Self::slot_index(property_id),
+            false,
+        );
         self.rebuild_inheritance_dependent_view();
     }
 
     fn inheritance_dependent_value(&self, property_id: u16) -> Option<&RetainedStyleValueData> {
+        if !bitmap_bit(&self.inheritance_dependent_bits, Self::slot_index(property_id)) {
+            return None;
+        }
         self.inheritance_dependent
             .iter()
             .find(|(property, _)| *property == property_id)
