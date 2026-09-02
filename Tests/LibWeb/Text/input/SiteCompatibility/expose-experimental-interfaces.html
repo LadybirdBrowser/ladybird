@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A site-compatibility rule can hand named [Experimental] interfaces and members to the documents it matches — and
+    // to nothing else. Tests run with every experimental interface exposed, so the gate is switched off first; only
+    // the documents created after that see the real gate, and only the one a rule matches gets navigator.permissions
+    // back. (Workers live in a process this switch can't reach, so they aren't probed here; they take the same path
+    // with their own creation URL.)
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const testID = crypto.randomUUID();
+
+        async function createDocument(name) {
+            const script = `parent.postMessage({ permissions: typeof navigator.permissions, status: typeof PermissionStatus }, "*");`;
+            return server.createEcho("GET", `/site-compatibility-expose-${name}-${testID}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>${script}<\/script>`,
+            });
+        }
+
+        function loadAndReport(name, url) {
+            return new Promise(resolve => {
+                const frame = document.createElement("iframe");
+                window.addEventListener("message", function handler(event) {
+                    if (event.source !== frame.contentWindow)
+                        return;
+                    window.removeEventListener("message", handler);
+                    frame.remove();
+                    println(`${name}: navigator.permissions is ${event.data.permissions}, PermissionStatus is ${event.data.status}`);
+                    resolve();
+                });
+                frame.src = url;
+                document.body.appendChild(frame);
+            });
+        }
+
+        const matchedURL = await createDocument("matched");
+        const unmatchedURL = await createDocument("unmatched");
+
+        // A rule with a field of the wrong type is rejected as a whole — not run with the half that parsed.
+        for (const [label, rule] of [
+            ["expose_experimental_interfaces as a string", {
+                matches: [matchedURL],
+                user_agent: ["hide_Ladybird"],
+                expose_experimental_interfaces: "PermissionStatus",
+            }],
+            ["user_agent as a string", {
+                matches: [matchedURL],
+                expose_experimental_interfaces: ["PermissionStatus"],
+                user_agent: "hide_Ladybird",
+            }],
+        ]) {
+            try {
+                internals.setSiteCompatibilityData(JSON.stringify([rule]));
+                println(`${label}: accepted`);
+            } catch (error) {
+                println(`${label}: rejected (${error.name})`);
+            }
+        }
+
+        internals.setSiteCompatibilityData(JSON.stringify([{
+            matches: [matchedURL],
+            expose_experimental_interfaces: ["Navigator.permissions", "PermissionStatus"],
+        }]));
+        internals.setExperimentalInterfacesExposed(false);
+
+        try {
+            await loadAndReport("matched document", matchedURL);
+            await loadAndReport("unmatched document", unmatchedURL);
+        } finally {
+            internals.setExperimentalInterfacesExposed(true);
+            internals.setSiteCompatibilityData("[]");
+        }
+
+        done();
+    });
+</script>

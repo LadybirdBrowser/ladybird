@@ -294,6 +294,7 @@ def define_the_attributes(
                 includes,
                 attribute.extended_attributes,
                 definition.getvalue(),
+                f"{interface.name}.{attribute.name}",
             )
         )
 
@@ -305,7 +306,11 @@ def define_the_static_attributes(out: TextIO, includes: GeneratedIncludes, inter
             out.write(wrap_with_extended_attribute_exposure_checks(includes, attribute.extended_attributes, definition))
             continue
         definition = f'    object.define_native_accessor(realm, "{attribute.name}"_utf16_fly_string, {attribute_getter_callback_name(attribute)}, nullptr, default_attributes);\n'
-        out.write(wrap_with_extended_attribute_exposure_checks(includes, attribute.extended_attributes, definition))
+        out.write(
+            wrap_with_extended_attribute_exposure_checks(
+                includes, attribute.extended_attributes, definition, f"{interface.name}.{attribute.name}"
+            )
+        )
 
 
 def write_attribute_getters(

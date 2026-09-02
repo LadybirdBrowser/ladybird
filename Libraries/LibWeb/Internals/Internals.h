@@ -129,6 +129,7 @@ public:
     void simulate_worker_request_server_connection_loss();
     WebIDL::ExceptionOr<void> set_content_blockers(Utf16String const& patterns);
     WebIDL::ExceptionOr<void> set_site_compatibility_data(Utf16String const& source);
+    void set_experimental_interfaces_exposed(bool exposed);
     void set_content_blocking_enabled(bool enabled);
     WebIDL::UnsignedLongLong partial_layout_count();
     WebIDL::UnsignedLongLong full_layout_count();

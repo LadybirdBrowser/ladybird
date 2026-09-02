@@ -55,6 +55,7 @@ public:
     String user_agent_for_websocket_url(URL::URL const& url) const { return m_site_compatibility_data.user_agent_for_websocket_url(url, m_user_agent); }
     void set_user_agent(String user_agent) { m_user_agent = move(user_agent); }
     void set_site_compatibility_data(SiteCompatibilityData data) { m_site_compatibility_data = move(data); }
+    bool site_compatibility_exposes_experimental_interface(URL::URL const& url, StringView name) const { return m_site_compatibility_data.exposes_experimental_interface(url, name); }
 
     String const& platform() const { return m_platform; }
     void set_platform(String platform) { m_platform = move(platform); }

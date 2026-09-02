@@ -1,0 +1,11 @@
+{
+    "matches": [
+        "https://aljazeera.com/*",
+        "https://*.aljazeera.com/*"
+    ],
+    "expose_experimental_interfaces": [
+        "Navigator.permissions",
+        "WorkerNavigator.permissions",
+        "PermissionStatus"
+    ]
+}

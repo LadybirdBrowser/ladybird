@@ -121,6 +121,7 @@ public:
 
     static void set_experimental_interfaces_exposed(bool);
     static bool expose_experimental_interfaces();
+    static bool expose_experimental_interface(EnvironmentSettingsObject&, StringView name);
 
     [[nodiscard]] GC::Ref<Crypto::Crypto> crypto();
     [[nodiscard]] GC::Ref<ServiceWorker::CacheStorage> caches();
