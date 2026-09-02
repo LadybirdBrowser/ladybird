@@ -2606,6 +2606,7 @@ void LocalNavigable::create_navigation_params_for_navigation(NavigationPopulatio
         received_navigation_params);
 }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
 WebIDL::ExceptionOr<void> LocalNavigable::navigate(NavigateParams params)
 {
     // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.

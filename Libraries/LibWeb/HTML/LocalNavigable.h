@@ -193,7 +193,7 @@ public:
 
     void create_navigation_params_for_navigation(NavigationPopulationRequest, GC::Ref<SourceSnapshotParams>, NavigationParamsVariant, Bindings::NavigationTimingType);
 
-    WebIDL::ExceptionOr<void> navigate(NavigateParams);
+    virtual WebIDL::ExceptionOr<void> navigate(NavigateParams) override;
 
     GC::Ptr<DOM::Document> evaluate_javascript_url(URL::URL const&, URL::Origin const& new_document_origin, UserNavigationInvolvement, Utf16String navigation_id);
 
