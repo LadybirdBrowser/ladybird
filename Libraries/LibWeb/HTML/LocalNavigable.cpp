@@ -1267,9 +1267,9 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
         chosen = traversable_navigable();
     }
 
-    // 7. Otherwise, if name is not an ASCII case-insensitive match for "_blank" and noopener is false, then set chosen
-    //    to the result of finding a navigable by target name given name and currentNavigable.
-    else if (!name.equals_ignoring_ascii_case(u"_blank"sv) && no_opener == TokenizedFeature::NoOpener::No) {
+    // 7. Otherwise, if name is not an ASCII case-insensitive match for "_blank", then set chosen to the result of
+    //    finding a navigable by target name given name and currentNavigable.
+    else if (!name.equals_ignoring_ascii_case(u"_blank"sv)) {
         chosen = find_a_navigable_by_target_name(name);
     }
 

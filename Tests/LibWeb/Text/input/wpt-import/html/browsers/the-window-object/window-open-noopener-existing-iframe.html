@@ -1,0 +1,38 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>window.open() with "noopener" targeting an existing navigable does not set its opener</title>
+<link rel=help href="https://html.spec.whatwg.org/multipage/nav-history-apis.html#window-open-steps">
+<script src=../../../resources/testharness.js></script>
+<script src=../../../resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+/**
+ * The name lookup in "the rules for choosing a navigable" happens regardless of
+ * noopener, so window.open() can pick an existing navigable even when noopener
+ * is set. When it does, the window open steps must not set that navigable's
+ * opener, which for a nested navigable such as an iframe means it has to stay
+ * null.
+ */
+async_test(function(t) {
+  var iframe = document.createElement("iframe");
+  iframe.name = "window-open-noopener-existing-iframe";
+  t.add_cleanup(function() { iframe.remove(); });
+
+  iframe.onload = t.step_func(function() {
+    assert_equals(iframe.contentWindow.opener, null,
+                  "A nested navigable has no opener to begin with");
+
+    iframe.onload = t.step_func_done(function() {
+      assert_equals(iframe.contentWindow.location.pathname, "/common/blank.html",
+                    "Should have navigated the existing iframe");
+      assert_equals(iframe.contentWindow.opener, null,
+                    "Should not have set the opener of the existing iframe");
+    });
+
+    assert_equals(window.open("/common/blank.html", iframe.name, "noopener"), null,
+                  "window.open() with noopener returns null");
+  });
+
+  document.body.append(iframe);
+}, "window.open() with noopener targeting an existing named iframe does not set its opener");
+</script>
