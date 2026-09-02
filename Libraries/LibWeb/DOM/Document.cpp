@@ -2816,6 +2816,15 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
     if (!m_layout_node_arena)
         return;
 
+    // The update reads each box's scroll-offset flag in place of the offset it mirrors.
+    static bool const verify_scroll_offset_flags = getenv("LIBWEB_VERIFY_SCROLL_OFFSET_FLAGS") != nullptr;
+    if (verify_scroll_offset_flags && m_layout_root) {
+        m_layout_root->for_each_in_inclusive_subtree([](Layout::Node const& node) {
+            node.verify_has_scroll_offset_flag();
+            return TraversalDecision::Continue;
+        });
+    }
+
     auto outcome = Painting::rust_update_scrollable_overflow(*this,
         derived_structure_updates == ScrollableOverflowDerivedStructureUpdates::HandledByFullLayoutCommit);
     if (!outcome.performed_recalculation)
