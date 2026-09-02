@@ -271,7 +271,7 @@ fn computed_value(
     if let Some(entry) = overlay.and_then(|overlay| overlay.get(property_id))
         && crate::css::animated_overlay::overlay_wins(entry, table.is_important(property_id))
     {
-        return entry.value.pointer();
+        return entry.value_pointer();
     }
     table
         .get(property_id)
@@ -310,9 +310,9 @@ fn prepare_transition_values(
         .and_then(|overlay| overlay.get(property.property_id))
         .filter(|entry| !entry.result_of_transition)
     {
-        property.before_change_value = entry.value.pointer();
-        property.after_change_value = entry.value.pointer();
-        let originates_from_current_color = value_is_current_color(entry.value.pointer());
+        property.before_change_value = entry.value_pointer();
+        property.after_change_value = entry.value_pointer();
+        let originates_from_current_color = value_is_current_color(entry.value_pointer());
         if property.has_running_transition {
             property.current_value = computed_value(after_table, after_overlay, property.property_id);
         }

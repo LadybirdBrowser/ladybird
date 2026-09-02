@@ -7379,7 +7379,6 @@ pub unsafe extern "C" fn rust_evaluate_animations(computed: *const FfiComputedAn
             }
             unsafe { computed.custom_result_count.write(written) };
         }
-        overlay.refresh_ffi_entries();
         resolved.value_plans.len()
     })
 }

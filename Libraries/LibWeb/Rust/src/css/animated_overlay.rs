@@ -20,34 +20,21 @@ use std::ffi::c_void;
 use std::rc::Rc;
 
 use crate::abort_on_panic;
-use crate::css::style_value::RetainedStyleValueData;
+use crate::css::style_value::{RetainedStyleValueData, StyleValueData, release_style_value, retain_style_value};
 
 #[derive(Default)]
 pub struct AnimatedOverlay {
-    entries: Vec<AnimatedOverlayEntry>,
-    ffi_entries: Vec<FfiAnimatedOverlayEntry>,
+    entries: Vec<FfiAnimatedOverlayEntry>,
     pub(crate) animation_preparation: Option<Rc<crate::css::animation::PreparedAnimationBatch>>,
 }
 
 impl Clone for AnimatedOverlay {
     fn clone(&self) -> Self {
-        let entries = self
-            .entries
-            .iter()
-            .map(|entry| AnimatedOverlayEntry {
-                property: entry.property,
-                value: entry.value.clone(),
-                inherited: entry.inherited,
-                result_of_transition: entry.result_of_transition,
-            })
-            .collect();
-        let mut overlay = Self {
+        let entries = self.entries.clone();
+        Self {
             entries,
-            ffi_entries: Vec::new(),
             animation_preparation: self.animation_preparation.clone(),
-        };
-        overlay.refresh_ffi_entries();
-        overlay
+        }
     }
 }
 
@@ -57,13 +44,8 @@ impl Drop for AnimatedOverlay {
     }
 }
 
-pub(crate) struct AnimatedOverlayEntry {
-    pub(crate) property: u16,
-    pub(crate) value: RetainedStyleValueData,
-    pub(crate) inherited: bool,
-    pub(crate) result_of_transition: bool,
-}
-
+/// The authoritative Rust-owned entry. C++ only borrows spans of this representation; while an
+/// entry is stored in the overlay, `value` owns one strong reference.
 #[repr(C)]
 pub struct FfiAnimatedOverlayEntry {
     pub property: u16,
@@ -72,33 +54,62 @@ pub struct FfiAnimatedOverlayEntry {
     pub result_of_transition: bool,
 }
 
-impl AnimatedOverlay {
-    fn clone_inherited(&self) -> Self {
-        let entries = self
-            .entries
-            .iter()
-            .filter(|entry| entry.inherited)
-            .map(|entry| AnimatedOverlayEntry {
-                property: entry.property,
-                value: entry.value.clone(),
-                inherited: true,
-                result_of_transition: entry.result_of_transition,
-            })
-            .collect();
-        let mut overlay = Self {
-            entries,
-            ffi_entries: Vec::new(),
-            animation_preparation: self.animation_preparation.clone(),
-        };
-        overlay.refresh_ffi_entries();
-        overlay
+impl FfiAnimatedOverlayEntry {
+    fn from_owned(property: u16, value: RetainedStyleValueData, inherited: bool, result_of_transition: bool) -> Self {
+        let pointer = value.pointer().cast();
+        std::mem::forget(value);
+        Self {
+            property,
+            value: pointer,
+            inherited,
+            result_of_transition,
+        }
     }
 
-    pub(crate) fn entries(&self) -> &[AnimatedOverlayEntry] {
+    pub(crate) fn value(&self) -> &StyleValueData {
+        unsafe { &*self.value.cast() }
+    }
+
+    pub(crate) fn value_pointer(&self) -> *const StyleValueData {
+        self.value.cast()
+    }
+
+    pub(crate) fn clone_value(&self) -> RetainedStyleValueData {
+        unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(self.value_pointer())) }
+    }
+}
+
+impl Clone for FfiAnimatedOverlayEntry {
+    fn clone(&self) -> Self {
+        Self::from_owned(
+            self.property,
+            self.clone_value(),
+            self.inherited,
+            self.result_of_transition,
+        )
+    }
+}
+
+impl Drop for FfiAnimatedOverlayEntry {
+    fn drop(&mut self) {
+        unsafe { release_style_value(self.value_pointer()) };
+    }
+}
+
+impl AnimatedOverlay {
+    fn clone_inherited(&self) -> Self {
+        let entries = self.entries.iter().filter(|entry| entry.inherited).cloned().collect();
+        Self {
+            entries,
+            animation_preparation: self.animation_preparation.clone(),
+        }
+    }
+
+    pub(crate) fn entries(&self) -> &[FfiAnimatedOverlayEntry] {
         &self.entries
     }
 
-    pub(crate) fn get(&self, property: u16) -> Option<&AnimatedOverlayEntry> {
+    pub(crate) fn get(&self, property: u16) -> Option<&FfiAnimatedOverlayEntry> {
         self.entries.iter().find(|entry| entry.property == property)
     }
 
@@ -113,35 +124,17 @@ impl AnimatedOverlay {
         inherited: bool,
         result_of_transition: bool,
     ) {
-        let entry = AnimatedOverlayEntry {
-            property,
-            value,
-            inherited,
-            result_of_transition,
-        };
+        let entry = FfiAnimatedOverlayEntry::from_owned(property, value, inherited, result_of_transition);
         match self.entries.iter_mut().find(|entry| entry.property == property) {
             Some(existing) => *existing = entry,
             None => self.entries.push(entry),
         }
     }
-
-    pub(crate) fn refresh_ffi_entries(&mut self) {
-        self.ffi_entries = self
-            .entries
-            .iter()
-            .map(|entry| FfiAnimatedOverlayEntry {
-                property: entry.property,
-                value: entry.value.pointer().cast(),
-                inherited: entry.inherited,
-                result_of_transition: entry.result_of_transition,
-            })
-            .collect();
-    }
 }
 
 /// The single implementation of the overlay read rule: important base values
 /// override animated but not transitioned properties.
-pub(crate) fn overlay_wins(entry: &AnimatedOverlayEntry, base_value_is_important: bool) -> bool {
+pub(crate) fn overlay_wins(entry: &FfiAnimatedOverlayEntry, base_value_is_important: bool) -> bool {
     entry.result_of_transition || !base_value_is_important
 }
 
@@ -150,7 +143,6 @@ pub extern "C" fn rust_animated_overlay_create() -> *mut AnimatedOverlay {
     abort_on_panic(|| {
         Box::into_raw(Box::new(AnimatedOverlay {
             entries: Vec::new(),
-            ffi_entries: Vec::new(),
             animation_preparation: None,
         }))
     })
@@ -209,7 +201,6 @@ pub unsafe extern "C" fn rust_animated_overlay_set(
         };
         let overlay = unsafe { &mut *overlay };
         overlay.set_owned(property, retained, inherited, result_of_transition);
-        overlay.refresh_ffi_entries();
     });
 }
 
@@ -224,7 +215,7 @@ pub unsafe extern "C" fn rust_animated_overlay_entries(
     count: *mut usize,
 ) -> *const FfiAnimatedOverlayEntry {
     abort_on_panic(|| {
-        let entries = &unsafe { &*overlay }.ffi_entries;
+        let entries = &unsafe { &*overlay }.entries;
         unsafe { *count = entries.len() };
         entries.as_ptr()
     })
@@ -245,6 +236,7 @@ pub unsafe extern "C" fn rust_animated_overlay_effective_value(
         unsafe { &*overlay }
             .get(property)
             .filter(|entry| overlay_wins(entry, base_value_is_important))
-            .map_or(std::ptr::null(), |entry| entry.value.pointer().cast())
+            .map_or(std::ptr::null(), FfiAnimatedOverlayEntry::value_pointer)
+            .cast()
     })
 }

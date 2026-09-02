@@ -3010,7 +3010,7 @@ impl ParentSnapshot<'_> {
             .and_then(|overlay| overlay.get(property_id))
             && overlay_wins(entry, self.is_important(property_id))
         {
-            return Some(entry.value.data());
+            return Some(entry.value());
         }
         for (property, value) in self.table.retained_inheritance_dependent_values() {
             if property == property_id
@@ -3026,7 +3026,7 @@ impl ParentSnapshot<'_> {
         if let Some(entry) = self.animated_property(property_id)
             && overlay_wins(entry, self.is_important(property_id))
         {
-            return Some(entry.value.data());
+            return Some(entry.value());
         }
         self.value(property_id)
     }
@@ -3043,7 +3043,7 @@ impl ParentSnapshot<'_> {
             .is_some_and(|overlay| !overlay.is_empty())
     }
 
-    fn animated_property(&self, property_id: u16) -> Option<&crate::css::animated_overlay::AnimatedOverlayEntry> {
+    fn animated_property(&self, property_id: u16) -> Option<&crate::css::animated_overlay::FfiAnimatedOverlayEntry> {
         self.inherited_value_overlay
             .or(self.stored_animated_overlay)
             .and_then(|overlay| overlay.get(property_id))
@@ -4304,7 +4304,7 @@ unsafe fn drive_property_computation(
             {
                 animated_overlay.set_owned(
                     property_id,
-                    animated_property.value.clone(),
+                    animated_property.clone_value(),
                     true,
                     animated_property.result_of_transition,
                 );
@@ -4438,9 +4438,6 @@ unsafe fn drive_property_computation(
         );
         if pending_effective_color_scheme >= 0 {
             longhand_table.set_effective_color_scheme(pending_effective_color_scheme);
-        }
-        if let Some(animated_overlay) = unsafe { animated_overlay.as_mut() } {
-            animated_overlay.refresh_ffi_entries();
         }
         if phase != LONGHAND_DRIVE_PHASE_REMAINING {
             return;
@@ -6547,9 +6544,6 @@ fn finalize_style(
         longhand_table.set_important(prop::TEXT_ALIGN, false);
         longhand_table.set_inherited(prop::TEXT_ALIGN, finalization.text_align.inherited);
         finalization.invalidated_longhands |= FINALIZED_TEXT_ALIGN;
-    }
-    if let Some(overlay) = animated_overlay {
-        overlay.refresh_ffi_entries();
     }
     finalization
 }
