@@ -1360,6 +1360,25 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
         return nullptr;
     if (Layout::RustFFI::layout_arena_last_recording_has_blocking_wheel_event_listeners(arena))
         wheel_event_region_state.has_blocking_wheel_event_listeners = true;
+    auto stamp_async_scrolling_metadata_with_current_viewport_rect = [&](DisplayList& display_list) {
+        if (auto navigable = document.navigable()) {
+            display_list.set_async_scrolling_metadata({
+                .viewport_rect = device_viewport_rect.to_type<int>(),
+                .wheel_event_listener_state_generation = navigable->page().wheel_event_listener_state_generation(),
+                .has_blocking_wheel_event_listeners = wheel_event_region_state.has_blocking_wheel_event_listeners,
+                .has_blocking_wheel_event_region_covering_viewport = wheel_event_region_state.has_blocking_wheel_event_region_covering_viewport,
+            });
+        }
+    };
+
+    if (Layout::RustFFI::layout_arena_last_recording_is_identical_to_cache_source(arena)) {
+        if (auto* source = document.paint_state().display_list_used_as_paint_command_cache_source()) {
+            if (rust_painting_timing_enabled())
+                dbgln("PAINT_RECORD rust={} µs identical to the previous recording", rust_timer.elapsed_time().to_microseconds());
+            stamp_async_scrolling_metadata_with_current_viewport_rect(*source);
+            return *source;
+        }
+    }
 
     auto recorded = Layout::RustFFI::layout_arena_recorded_display_list(arena);
     if (rust_painting_timing_enabled()) {
@@ -1380,14 +1399,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     }
     if (auto color = placeholder_display_list.surface_clear_color(); color.has_value())
         display_list->set_surface_clear_color(*color);
-    if (auto navigable = document.navigable()) {
-        display_list->set_async_scrolling_metadata({
-            .viewport_rect = device_viewport_rect.to_type<int>(),
-            .wheel_event_listener_state_generation = navigable->page().wheel_event_listener_state_generation(),
-            .has_blocking_wheel_event_listeners = wheel_event_region_state.has_blocking_wheel_event_listeners,
-            .has_blocking_wheel_event_region_covering_viewport = wheel_event_region_state.has_blocking_wheel_event_region_covering_viewport,
-        });
-    }
+    stamp_async_scrolling_metadata_with_current_viewport_rect(*display_list);
     return display_list;
 }
 

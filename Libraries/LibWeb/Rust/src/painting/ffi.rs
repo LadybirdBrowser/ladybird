@@ -1818,17 +1818,39 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             output
         };
         let mut paint_state = arena.paint_state().borrow_mut();
-        paint_state.hit_test_list_generation += 1;
-        debug_assert_eq!(output.hit_test_list.generation, paint_state.hit_test_list_generation);
+        output.is_identical_to_cache_source = paint_state
+            .paint_command_cache_source
+            .as_ref()
+            .zip(paint_state.hit_test_item_cache_source.as_ref())
+            .is_some_and(|(source, item_source)| {
+                std::rc::Rc::ptr_eq(&output.display_list, &source.display_list)
+                    && std::rc::Rc::ptr_eq(&output.hit_test_list.items, &item_source.items)
+                    && output.recorded_structural_epoch == source.recorded_structural_epoch
+                    && output.wheel_event_listener_state_generation == source.wheel_event_listener_state_generation
+                    && output.has_blocking_wheel_event_listeners == source.has_blocking_wheel_event_listeners
+                    && output.mask_display_lists.is_empty()
+                    && source.mask_display_lists.is_empty()
+            });
         let list = std::mem::take(&mut output.hit_test_list);
-        if inputs.paint_command_cache_read_write {
-            paint_state.hit_test_item_cache_source = Some(std::rc::Rc::new(
-                crate::painting::record::cache::HitTestItemCacheSource {
-                    items: list.items.clone(),
-                },
-            ));
+        let previous_list_is_the_source = paint_state
+            .hit_test_list
+            .as_ref()
+            .zip(paint_state.hit_test_item_cache_source.as_ref())
+            .is_some_and(|(list, source)| std::rc::Rc::ptr_eq(&list.items, &source.items));
+        if output.is_identical_to_cache_source && previous_list_is_the_source {
+            drop(list);
+        } else {
+            paint_state.hit_test_list_generation += 1;
+            debug_assert_eq!(list.generation, paint_state.hit_test_list_generation);
+            if inputs.paint_command_cache_read_write {
+                paint_state.hit_test_item_cache_source = Some(std::rc::Rc::new(
+                    crate::painting::record::cache::HitTestItemCacheSource {
+                        items: list.items.clone(),
+                    },
+                ));
+            }
+            paint_state.hit_test_list = Some(list);
         }
-        paint_state.hit_test_list = Some(list);
         let output = std::rc::Rc::new(output);
         if inputs.paint_command_cache_read_write {
             paint_state.paint_command_cache_source = Some(output.clone());
@@ -2046,6 +2068,21 @@ pub unsafe extern "C" fn layout_arena_last_recording_stats(
             .last_recording
             .as_ref()
             .map_or_else(Default::default, |recording| recording.recording_stats)
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_last_recording_is_identical_to_cache_source(arena: *mut c_void) -> bool {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paint_state = arena.paint_state().borrow();
+        paint_state
+            .last_recording
+            .as_ref()
+            .is_some_and(|recording| recording.is_identical_to_cache_source)
     })
 }
 

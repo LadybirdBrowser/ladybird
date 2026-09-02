@@ -60,12 +60,12 @@ public:
     AccumulatedVisualContextTree visual_context_tree(DOM::Document const&) const;
     u64 visual_context_tree_structural_epoch(DOM::Document const&) const;
 
-    void set_display_list_used_as_paint_command_cache_source(RefPtr<DisplayList const> display_list, DisplayListResourceSet referenced_resources)
+    void set_display_list_used_as_paint_command_cache_source(RefPtr<DisplayList> display_list, DisplayListResourceSet referenced_resources)
     {
         m_display_list_used_as_paint_command_cache_source = move(display_list);
         m_paint_command_cache_source_referenced_resources = move(referenced_resources);
     }
-    DisplayList const* display_list_used_as_paint_command_cache_source() const { return m_display_list_used_as_paint_command_cache_source.ptr(); }
+    DisplayList* display_list_used_as_paint_command_cache_source() const { return m_display_list_used_as_paint_command_cache_source.ptr(); }
     DisplayListResourceSet const& paint_command_cache_source_referenced_resources() const { return m_paint_command_cache_source_referenced_resources; }
 
     void append_paint_command_cache_source_resources(DisplayListResourceSet&) const;
@@ -82,7 +82,7 @@ private:
 
     Vector<Layout::RustFFI::NodeSlotId> m_boxes_with_auto_content_visibility;
 
-    RefPtr<DisplayList const> m_display_list_used_as_paint_command_cache_source;
+    RefPtr<DisplayList> m_display_list_used_as_paint_command_cache_source;
     DisplayListResourceSet m_paint_command_cache_source_referenced_resources;
 
     Vector<Compositor::VisualAnimation> m_visual_animations;

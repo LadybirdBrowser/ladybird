@@ -5132,6 +5132,7 @@ void LocalNavigable::repaint_after_compositor_process_reconnect()
         m_needs_repaint = true;
         m_needs_to_record_display_list = true;
         m_compositor_display_list_paint_config.clear();
+        m_compositor_display_list = nullptr;
         m_compositor_display_list_resources = {};
         m_compositor_display_list_command_resources = {};
     }
@@ -5204,17 +5205,21 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
     Painting::DisplayListResourceTransaction resource_transaction;
     Optional<Painting::AccumulatedVisualContextTree> visual_context_tree;
     auto& document_paint_state = document->paint_state();
+    bool compositor_display_list_is_unchanged = false;
     if (should_record_display_list) {
         display_list = document->record_display_list(paint_config, m_display_list_resource_storage, Painting::PaintCommandCacheMode::ReadWrite);
         if (!display_list)
             return false;
         VERIFY(document->has_committed_viewport_box());
-        visual_context_tree = document_paint_state.visual_context_tree(*document);
-        display_list_command_resources = command_resources_of_display_list(m_display_list_resource_storage, document_paint_state, *display_list);
-        display_list_resources = compositor_display_list_resources(m_display_list_resource_storage, document_paint_state, display_list_command_resources, *visual_context_tree);
-        resource_transaction = m_display_list_resource_storage.create_transaction(
-            m_compositor_display_list_resources,
-            display_list_resources);
+        compositor_display_list_is_unchanged = m_compositor_display_list == display_list;
+        if (!compositor_display_list_is_unchanged) {
+            visual_context_tree = document_paint_state.visual_context_tree(*document);
+            display_list_command_resources = command_resources_of_display_list(m_display_list_resource_storage, document_paint_state, *display_list);
+            display_list_resources = compositor_display_list_resources(m_display_list_resource_storage, document_paint_state, display_list_command_resources, *visual_context_tree);
+            resource_transaction = m_display_list_resource_storage.create_transaction(
+                m_compositor_display_list_resources,
+                display_list_resources);
+        }
     }
 
     VERIFY(document->has_committed_viewport_box());
@@ -5222,16 +5227,23 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
     document_paint_state.refresh_scroll_state(*document);
 
     Painting::ScrollStateSnapshot scroll_state_snapshot { document_paint_state.scroll_state_snapshot() };
-    if (should_record_display_list) {
+    if (should_record_display_list && !compositor_display_list_is_unchanged) {
         m_compositor_display_list_visual_context_tree_structural_epoch = display_list->compatible_visual_context_tree_structural_epoch();
         compositor_context().update_display_list(*display_list, visual_context_tree.release_value(), move(resource_transaction), move(scroll_state_snapshot));
         document_paint_state.did_update_visual_context_tree_in_compositor();
         m_display_list_resource_storage.retain_only(display_list_resources);
+        m_compositor_display_list = display_list;
         m_compositor_display_list_command_resources = move(display_list_command_resources);
         m_compositor_display_list_resources = move(display_list_resources);
         m_needs_to_record_display_list = false;
         m_compositor_display_list_paint_config = paint_config;
     } else {
+        if (compositor_display_list_is_unchanged) {
+            m_needs_to_record_display_list = false;
+            m_compositor_display_list_paint_config = paint_config;
+            if (m_display_list_resource_storage.has_resources_added_since_last_retain())
+                m_display_list_resource_storage.retain_only(m_compositor_display_list_resources);
+        }
         if (visual_context_tree_needs_compositor_update) {
             auto updated_visual_context_tree = document_paint_state.visual_context_tree(*document);
             VERIFY(updated_visual_context_tree.structural_epoch() == m_compositor_display_list_visual_context_tree_structural_epoch);

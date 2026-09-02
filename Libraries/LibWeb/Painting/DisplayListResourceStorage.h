@@ -122,6 +122,7 @@ public:
     DisplayListResourceSet collect_referenced_resources(AccumulatedVisualContextTree const&) const;
     DisplayListResourceSet collect_referenced_resources(ReadonlyBytes command_bytes) const;
     void retain_only(DisplayListResourceSet const&);
+    bool has_resources_added_since_last_retain() const { return m_has_resources_added_since_last_retain; }
     void set_video_sink(VideoSinkResourceId, RefPtr<Media::VideoSink>);
 
     Gfx::Font const& font(FontResourceId id) const { return *m_fonts.get(id.value()).value(); }
@@ -149,6 +150,7 @@ private:
     bool nested_display_list_requires_direct_replay(DisplayListResourceId, HashTable<u64>& visited_display_lists) const;
     void remove_text_blobs_without_font();
 
+    bool m_has_resources_added_since_last_retain { false };
     HashMap<u64, NonnullRefPtr<Gfx::Font const>> m_fonts;
     HashMap<u64, NonnullOwnPtr<DisplayListStoredImageFrameResource>> m_image_frames;
     HashMap<u64, Media::VideoSinkHandle> m_video_sink_handles;
