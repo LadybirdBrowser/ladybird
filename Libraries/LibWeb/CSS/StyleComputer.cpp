@@ -4190,7 +4190,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::reconstruct_computed_prope
     auto style = ComputedStyleWorkingSet::create_for_animation_update(
         static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(record.longhand_table),
         static_cast<ComputedValuesFFI::AnimatedOverlay const*>(record.animated_overlay));
-    if (style->has_animated_property(PropertyID::Display)) {
+    if (record.animated_overlay && ComputedValuesFFI::rust_animated_overlay_contains(static_cast<ComputedValuesFFI::AnimatedOverlay const*>(record.animated_overlay), to_underlying(PropertyID::Display))) {
         auto const* box = static_cast<ComputedValuesFFI::BoxValues const*>(record.base_payloads[to_underlying(StyleGroupIndex::BoxValues)]);
         style->set_display_before_box_type_transformation(display_from_ffi_display(box->display));
     }

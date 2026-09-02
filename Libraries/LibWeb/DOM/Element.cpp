@@ -1391,28 +1391,9 @@ void Element::run_attribute_change_steps(Utf16FlyString const& local_name, Optio
 
 static CSS::StyleComputer::ComputedStyleInvalidation decode_style_record_invalidation(u32 packed)
 {
-    using enum CSS::StyleEngineFFI::FfiStyleInvalidationField;
-    static_assert(CSS::ComputedValues::inherited_style_group_count <= 7);
     CSS::StyleComputer::ComputedStyleInvalidation result;
-    result.invalidation.ensure_at_least(static_cast<CSS::InvalidationLevel>(packed & to_underlying(LevelMask)));
-    result.invalidation.ensure_at_least(static_cast<CSS::AccumulatedVisualContextInvalidation>((packed >> to_underlying(VisualContextShift)) & to_underlying(LevelMask)));
-    if (result.invalidation.needs_layout_tree_rebuild())
-        result.invalidation.set_layout_tree_rebuild_root(static_cast<CSS::LayoutTreeRebuildRoot>((packed >> to_underlying(RebuildRootShift)) & to_underlying(LevelMask)));
-    if (packed & to_underlying(RebuildStackingContext))
-        result.invalidation.set_needs_stacking_context_tree_rebuild();
-    if (packed & to_underlying(RecalculateScrollableOverflow))
-        result.invalidation.set_needs_scrollable_overflow_recalculation();
-    result.invalidation.needs_scroll_container_resnap = packed & to_underlying(ResnapScrollContainer);
-    result.invalidation.recompute_descendant_styles = packed & to_underlying(RecomputeDescendants);
-    auto inherited_groups = static_cast<u8>((packed >> to_underlying(InheritedGroupsShift)) & to_underlying(InheritedGroupsMask));
-    for (u8 group = 0; group < CSS::ComputedValues::inherited_style_group_count; ++group) {
-        if (inherited_groups & (1 << group))
-            result.invalidation.mark_inherited_style_group_changed(group);
-    }
-    result.invalidation.changes_containing_block_establishment = packed & to_underlying(ChangesContainingBlock);
-    result.invalidation.repaint_propagated_text_decorations = packed & to_underlying(RepaintTextDecorations);
-    result.invalidation.non_inherited_property_inheritance_sources_changed = packed & to_underlying(NonInheritedInheritanceSource);
-    result.any_computed_value_changed = packed & to_underlying(AnyComputedValueChanged);
+    result.invalidation = CSS::decode_style_invalidation(packed);
+    result.any_computed_value_changed = packed & to_underlying(CSS::StyleEngineFFI::FfiStyleInvalidationField::AnyComputedValueChanged);
     return result;
 }
 struct ElementDependentInvalidationState {

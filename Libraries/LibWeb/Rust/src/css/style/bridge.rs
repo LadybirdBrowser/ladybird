@@ -92,6 +92,16 @@ pub enum FfiStyleInvalidationField {
     CacheHit = 1 << 21,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiAnimationInvalidation {
+    pub invalidation: u32,
+    pub changed_non_inherited_style_groups: u32,
+    pub requires_base_style_recomputation: bool,
+    pub requires_layout_node_style_application: bool,
+    pub requires_style_resource_update: bool,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FfiStyleDeltaGap {
@@ -2506,6 +2516,44 @@ pub unsafe extern "C" fn style_engine_compare_style_records(
             font_lists_equal,
             element_folds_transform_into_layout,
         )
+    })
+}
+
+/// Returns whether a candidate animation overlay changes any effective value in a style record.
+///
+/// # Safety
+/// `engine` and `animated_overlay` must be live for this call, and the style record must remain
+/// pinned or assigned.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_animation_overlay_changed(
+    engine: *const c_void,
+    old_style_record: u64,
+    animated_overlay: *const c_void,
+) -> bool {
+    abort_on_panic(|| {
+        let engine = unsafe { &*engine.cast::<StyleEngine>() };
+        engine.animation_overlay_changed(old_style_record, animated_overlay.cast())
+    })
+}
+
+/// Computes property-dependent damage for the sparse changed values in an animation overlay.
+///
+/// # Safety
+/// `engine`, `animated_overlay`, and every group payload must be live for this call, and the style
+/// record must remain pinned or assigned.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_compare_animation_overlay(
+    engine: *const c_void,
+    old_style_record: u64,
+    animated_overlay: *const c_void,
+    payloads: *const *const c_void,
+    payload_count: usize,
+    is_document_element: bool,
+) -> FfiAnimationInvalidation {
+    abort_on_panic(|| {
+        let engine = unsafe { &*engine.cast::<StyleEngine>() };
+        let payloads = unsafe { std::slice::from_raw_parts(payloads, payload_count) };
+        engine.compare_animation_overlay(old_style_record, animated_overlay.cast(), payloads, is_document_element)
     })
 }
 

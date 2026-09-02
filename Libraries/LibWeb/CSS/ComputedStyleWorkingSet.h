@@ -103,9 +103,8 @@ public:
     void remove_inheritance_dependent_specified_value(PropertyID);
 
     RefPtr<AnimatedProperties const> animated_properties_snapshot() const;
+    ComputedValuesFFI::AnimatedOverlay const* animated_overlay() const;
     bool has_animated_property(PropertyID property_id) const;
-    void reset_non_inherited_animated_properties(Badge<Animations::KeyframeEffect>);
-
     bool is_property_important(PropertyID property_id) const;
     bool is_property_inherited(PropertyID property_id) const;
     bool is_animated_property_inherited(PropertyID property_id) const;
@@ -247,9 +246,12 @@ private:
 
 class AnimatedProperties final : public RefCounted<AnimatedProperties> {
 public:
+    struct InheritedOnly { };
+
     AnimatedProperties();
     AnimatedProperties(AnimatedProperties const&);
     explicit AnimatedProperties(ComputedValuesFFI::AnimatedOverlay const*);
+    AnimatedProperties(ComputedValuesFFI::AnimatedOverlay const*, InheritedOnly);
     ~AnimatedProperties();
 
     u64 identity() const { return m_identity; }
@@ -274,7 +276,6 @@ public:
     StyleValue const& property(PropertyID) const;
 
     void set_property(PropertyID, NonnullRefPtr<StyleValue const>, AnimatedPropertyResultOfTransition, ComputedStyleWorkingSet::Inherited);
-    void reset_non_inherited_properties();
     void clear_wrapper_cache() { m_wrapper_cache.clear(); }
 
 private:

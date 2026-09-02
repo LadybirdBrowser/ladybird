@@ -1223,9 +1223,7 @@ void KeyframeEffect::update_computed_properties_for_style(AnimationUpdateContext
         if (!style_record)
             return AnimationUpdateContext::ElementData {};
         auto computed_properties = style_computer.reconstruct_computed_properties_for_animation(style_record);
-        auto old_animated_properties = computed_properties->animated_properties_snapshot();
-        computed_properties->reset_non_inherited_animated_properties({});
-        return AnimationUpdateContext::ElementData { move(old_animated_properties), move(computed_properties) };
+        return AnimationUpdateContext::ElementData { style_record, move(computed_properties) };
     });
 
     if (!element_data.target_style)
