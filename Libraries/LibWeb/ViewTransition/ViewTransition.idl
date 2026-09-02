@@ -9,3 +9,16 @@ interface ViewTransition {
     readonly attribute Promise<undefined> finished;
     undefined skipTransition();
 };
+
+// https://drafts.csswg.org/css-view-transitions-1/#additions-to-document-api
+partial interface Document {
+    [ImplementedInBindings, Experimental] ViewTransition startViewTransition(optional ViewTransitionUpdateCallback updateCallback);
+};
+
+// https://drafts.csswg.org/css-view-transitions-2/#additions-to-document-api
+partial interface Document {
+    // FIXME: ViewTransition startViewTransition(
+    //     optional (ViewTransitionUpdateCallback or StartViewTransitionOptions) callbackOptions = {}
+    // );
+    [DirectGetter, Experimental] readonly attribute ViewTransition? activeViewTransition;
+};
