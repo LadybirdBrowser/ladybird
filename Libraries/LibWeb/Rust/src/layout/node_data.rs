@@ -171,6 +171,16 @@ pub enum NodeFlag {
     IsDocumentElement = 1 << 30,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u8)]
+pub enum FfiNodeLink {
+    Parent,
+    FirstChild,
+    LastChild,
+    PreviousSibling,
+    NextSibling,
+}
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiNodeConstructionFacts {

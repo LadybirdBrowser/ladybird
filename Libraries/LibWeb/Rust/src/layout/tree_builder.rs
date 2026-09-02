@@ -2404,16 +2404,20 @@ pub extern "C" fn layout_node_kind_is_svg_graphics_box(kind: NodeKind) -> bool {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_node_data_is_atomic_inline(data: *const NodeData) -> bool {
-    // SAFETY: The C++ caller passes the node's live arena slot.
-    let data = unsafe { &*data };
+pub unsafe extern "C" fn layout_arena_node_is_atomic_inline(arena: *mut c_void, id: NodeSlotId) -> bool {
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
+    // SAFETY: data() validated that id names a live slot.
+    let data = unsafe { &*arena.data(id) };
     node_facts::node_is_atomic_inline(data, node_facts::node_style_view(data))
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_node_data_is_fragmented_inline(data: *const NodeData) -> bool {
-    // SAFETY: The C++ caller passes the node's live arena slot.
-    let data = unsafe { &*data };
+pub unsafe extern "C" fn layout_arena_node_is_fragmented_inline(arena: *mut c_void, id: NodeSlotId) -> bool {
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
+    // SAFETY: data() validated that id names a live slot.
+    let data = unsafe { &*arena.data(id) };
     node_facts::node_is_fragmented_inline(data, node_facts::node_style_view(data))
 }
 
