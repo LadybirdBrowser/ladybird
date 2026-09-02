@@ -679,11 +679,16 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
             // 17. Set internalResponse’s redirect taint to request’s redirect-taint.
             internal_response->set_redirect_taint(request->redirect_taint());
 
-            // 18. If request’s timing allow failed flag is unset, then set internalResponse’s timing allow passed flag.
+            // 18. If request is a navigation request, then set internalResponse's navigation timing allow values list
+            //     to a clone of request's navigation timing allow values list.
+            if (request->is_navigation_request())
+                internal_response->set_navigation_timing_allow_values_list(request->navigation_timing_allow_values_list());
+
+            // 19. If request’s timing allow failed flag is unset, then set internalResponse’s timing allow passed flag.
             if (!request->timing_allow_failed())
                 internal_response->set_timing_allow_passed(true);
 
-            // 19. If response is not a network error and any of the following returns blocked
+            // 20. If response is not a network error and any of the following returns blocked
             if (!response->is_network_error() && (
                     // - should internalResponse to request be blocked as mixed content
                     MixedContent::should_response_to_request_be_blocked_as_mixed_content(request, internal_response) == Infrastructure::RequestOrResponseBlocking::Blocked
@@ -697,7 +702,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
                 response = internal_response = Infrastructure::Response::network_error("Response was blocked"_string);
             }
 
-            // 20. If response’s type is "opaque", internalResponse’s status is 206, internalResponse’s range-requested
+            // 21. If response’s type is "opaque", internalResponse’s status is 206, internalResponse’s range-requested
             //     flag is set, and request’s header list does not contain `Range`, then set response and
             //     internalResponse to a network error.
             // NOTE: Traditionally, APIs accept a ranged response even if a range was not requested. This prevents a
@@ -710,14 +715,14 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
                 response = internal_response = Infrastructure::Response::network_error("Response has status 206 and 'range-requested' flag set, but request has no 'Range' header"_string);
             }
 
-            // 21. If response is not a network error and either request’s method is `HEAD` or `CONNECT`, or
+            // 22. If response is not a network error and either request’s method is `HEAD` or `CONNECT`, or
             //     internalResponse’s status is a null body status, set internalResponse’s body to null and disregard
             //     any enqueuing toward it (if any).
             // NOTE: This standardizes the error handling for servers that violate HTTP.
             if (!response->is_network_error() && (request->method().is_one_of("HEAD"sv, "CONNECT"sv) || Infrastructure::is_null_body_status(internal_response->status())))
                 internal_response->set_body({});
 
-            // 22. If request’s integrity metadata is not the empty string, then:
+            // 23. If request’s integrity metadata is not the empty string, then:
             if (!request->integrity_metadata().is_empty()) {
                 // 1. Let processBodyError be this step: run fetch response handover given fetchParams and a network
                 //    error.
@@ -749,7 +754,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
                 // 4. Fully read response’s body given processBody and processBodyError.
                 response->body()->fully_read(realm, process_body, process_body_error, fetch_params.task_destination());
             }
-            // 23. Otherwise, run fetch response handover given fetchParams and response.
+            // 24. Otherwise, run fetch response handover given fetchParams and response.
             else {
                 fetch_response_handover(realm, fetch_params, *response);
             }
@@ -792,7 +797,16 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
             timing_info->set_server_timing_headers(server_timing_headers.release_value());
     }
 
-    // AD-HOC: We extract steps 1-3 of processResponseEndOfBody into a separate lambda so we can also call it from
+    // https://html.spec.whatwg.org/multipage/document-lifecycle.html#initialise-the-document-object
+    // NOTE: The create and initialize a Document object algorithm extracts full timing info for navigation requests
+    //       whose destination can also be "embed", "frame", "iframe", or "object".
+
+    // 3. If fetchParams's request's destination is "document", then set fetchParams's controller's full timing info
+    //    to fetchParams's timing info.
+    if (fetch_params.request()->is_navigation_request())
+        fetch_params.controller()->set_full_timing_info(fetch_params.timing_info());
+
+    // AD-HOC: We extract steps 1-2 of processResponseEndOfBody into a separate lambda so we can also call it from
     //         the error path. The fetch spec only runs processResponseEndOfBody on successful body read (via the
     //         transform stream's flush algorithm). However, processResponseConsumeBody is called for both success
     //         and failure, and specs like HTML's preload algorithm expect to be able to call reportTiming from
@@ -802,12 +816,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         // 1. Let unsafeEndTime be the unsafe shared current time.
         auto unsafe_end_time = HighResolutionTime::unsafe_shared_current_time();
 
-        // 2. If fetchParams’s request’s destination is "document", then set fetchParams’s controller’s full timing
-        //    info to fetchParams’s timing info.
-        if (fetch_params.request()->destination() == Infrastructure::Request::Destination::Document)
-            fetch_params.controller()->set_full_timing_info(fetch_params.timing_info());
-
-        // 3. Set fetchParams’s controller’s report timing steps to the following steps given a global object global:
+        // 2. Set fetchParams’s controller’s report timing steps to the following steps given a global object global:
         fetch_params.controller()->set_report_timing_steps([&response, &fetch_params, timing_info, unsafe_end_time](JS::Object& global) mutable {
             // 1. If fetchParams’s request’s URL’s scheme is not an HTTP(S) scheme, then return.
             if (!Infrastructure::is_http_or_https_scheme(fetch_params.request()->url().scheme()))
@@ -863,7 +872,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
     // 3. Let processResponseEndOfBody be the following steps:
     auto process_response_end_of_body = [&fetch_params, &response, setup_report_timing_steps] {
-        // 1-3. (See setup_report_timing_steps above)
+        // 1-2. (See setup_report_timing_steps above)
         setup_report_timing_steps();
 
         // 4. Let processResponseEndOfBodyTask be the following steps:
@@ -1404,11 +1413,16 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
 
         // 6. If internalResponse’s status is a redirect status:
         if (Infrastructure::is_redirect_status(internal_response->status())) {
-            // FIXME: 1. If internalResponse’s status is not 303, request’s body is non-null, and the connection uses HTTP/2,
+            // 1. If request is a navigation request, then append to request's navigation timing allow values list
+            //    given request and internalResponse.
+            if (request->is_navigation_request())
+                request->append_to_navigation_timing_allow_values_list(*internal_response);
+
+            // FIXME: 2. If internalResponse’s status is not 303, request’s body is non-null, and the connection uses HTTP/2,
             //           then user agents may, and are even encouraged to, transmit an RST_STREAM frame.
             // NOTE: 303 is excluded as certain communities ascribe special status to it.
 
-            // 2. Switch on request’s redirect mode:
+            // 3. Switch on request’s redirect mode:
             switch (request->redirect_mode()) {
             // -> "error"
             case Infrastructure::Request::RedirectMode::Error:

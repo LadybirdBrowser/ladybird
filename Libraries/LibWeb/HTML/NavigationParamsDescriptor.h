@@ -37,6 +37,11 @@ namespace Web::HTML {
 struct NavigationRequestDescriptor {
     Vector<URL::URL> url_list;
     ByteString method;
+
+    // https://fetch.spec.whatwg.org/#concept-request-client
+    // Preserve whether the request's client is null for the redirect count exposure check performed after a process swap.
+    bool client_is_null { false };
+
     Fetch::Infrastructure::Request::ReferrerType referrer;
     ReferrerPolicy::ReferrerPolicy referrer_policy { ReferrerPolicy::DEFAULT_REFERRER_POLICY };
     SerializedPolicyContainer policy_container;
@@ -59,6 +64,15 @@ struct NavigationResponseDescriptor {
     Vector<HTTP::Header> headers;
     Optional<String> network_error_message;
     bool timing_allow_passed { false };
+
+    // https://fetch.spec.whatwg.org/#response-navigation-timing-allow-values-list
+    // Preserve the redirect chain's TAO values for the navigation TAO check performed after a process swap.
+    Vector<Vector<String>> navigation_timing_allow_values_list;
+
+    // https://fetch.spec.whatwg.org/#response-redirect-taint
+    // Preserve the response's redirect taint for the `redirect taint is "same-origin"` check performed after a process swap.
+    Fetch::Infrastructure::RedirectTaint redirect_taint { Fetch::Infrastructure::RedirectTaint::SameOrigin };
+
     NavigationResponseBody body;
 };
 
