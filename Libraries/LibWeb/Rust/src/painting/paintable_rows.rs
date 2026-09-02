@@ -580,12 +580,21 @@ impl LayoutNodeArena {
 
     pub(crate) fn note_paint_record_completed_with_cache_writes(&self) {
         let generation = &self.paintable_rows.completed_record_gen;
-        generation.set(
-            generation
-                .get()
-                .checked_add(1)
-                .expect("paint cache record generation overflowed"),
-        );
+        let next = generation.get() + 1;
+        if next >= u64::from(u32::MAX) {
+            self.forget_every_paint_cache_entry_before_record_gen_exceeds_u32();
+            return;
+        }
+        generation.set(next);
+    }
+
+    fn forget_every_paint_cache_entry_before_record_gen_exceeds_u32(&self) {
+        for cache in self.paintable_rows.paint_caches.borrow().iter() {
+            cache.reset_entries_position_and_dirty_gens();
+        }
+        self.paintable_rows.all_paint_caches_dirty_gen.set(0);
+        self.paintable_rows.all_descendant_subtree_caches_dirty_gen.set(0);
+        self.paintable_rows.completed_record_gen.set(0);
     }
 
     pub(crate) fn set_paint_recording_in_progress(&self, in_progress: bool) {

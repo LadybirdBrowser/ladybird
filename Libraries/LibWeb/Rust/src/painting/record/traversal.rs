@@ -20,7 +20,7 @@ use crate::painting::host::{
 };
 use crate::painting::node_painting;
 use crate::painting::record::RecordingOutput;
-use crate::painting::record::cache::CaptureKind;
+use crate::painting::record::cache::{CaptureKind, narrow_record_gen};
 use crate::painting::record::masks::MaskLayerSet;
 use crate::painting::record::verify::{CaptureLog, LoggedCapture};
 use crate::painting::style_queries;
@@ -108,7 +108,7 @@ pub(crate) fn record_display_list(
         captured_position_at_recording_start_cache: (0..layout_arena.paintable_row_count())
             .map(|_| std::cell::Cell::new(None))
             .collect(),
-        completed_record_gen: layout_arena.paint_cache_completed_record_gen(),
+        completed_record_gen: narrow_record_gen(layout_arena.paint_cache_completed_record_gen()),
         all_paint_caches_dirty: layout_arena.all_paint_caches_dirty(),
         all_descendant_subtree_caches_dirty: layout_arena.all_descendant_subtree_caches_dirty(),
         text_node_facts_cache: HashMap::new(),
