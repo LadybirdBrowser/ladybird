@@ -789,6 +789,7 @@ name = "libgfx_rust"
 version = "0.1.0"
 dependencies = [
  "cbindgen",
+ "foldhash 0.1.5",
  "yuv",
 ]
 

@@ -191,10 +191,12 @@ struct ShapeForParams {
     shape: CachedShape,
 }
 
+type FastMap<K, V> = std::collections::HashMap<K, V, foldhash::fast::RandomState>;
+
 struct FontShapeCache {
     last_used_tick: u64,
     single_ascii_common_shapes: [Option<Box<CachedShape>>; SINGLE_ASCII_SHAPE_CACHE_SIZE],
-    shapes_by_text: std::collections::HashMap<Box<[u16]>, Vec<ShapeForParams>>,
+    shapes_by_text: FastMap<Box<[u16]>, Vec<ShapeForParams>>,
 }
 
 impl Default for FontShapeCache {
@@ -202,7 +204,7 @@ impl Default for FontShapeCache {
         Self {
             last_used_tick: 0,
             single_ascii_common_shapes: [const { None }; SINGLE_ASCII_SHAPE_CACHE_SIZE],
-            shapes_by_text: std::collections::HashMap::new(),
+            shapes_by_text: FastMap::default(),
         }
     }
 }
@@ -250,7 +252,7 @@ impl FontShapeCache {
 
 #[derive(Default)]
 struct ShapingCache {
-    caches_by_font_id: std::collections::HashMap<u64, FontShapeCache>,
+    caches_by_font_id: FastMap<u64, FontShapeCache>,
     tick: u64,
 }
 
