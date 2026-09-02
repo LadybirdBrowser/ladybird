@@ -615,7 +615,7 @@ impl PaintRecorder<'_> {
         };
 
         let command_range = self.recorder.append_cached_command_range_verbatim(
-            &command_source.display_list.bytes,
+            &command_source.display_list,
             CommandRange {
                 offset: source_position.command_byte_offset,
                 size: cached.command_byte_count,
@@ -931,7 +931,7 @@ impl PaintRecorder<'_> {
         if let Some((source, cached_range, recorded_context)) = cached_commands {
             let destination_range =
                 self.recorder
-                    .append_cached_command_range(&source.display_list.bytes, cached_range, recorded_context);
+                    .append_cached_command_range(&source.display_list, cached_range, recorded_context);
             self.log_command_byte_capture_for_verification(
                 paintable,
                 CaptureKind::BoxPhase(phase),
