@@ -438,8 +438,8 @@ fn collect_fragment_tree_fonts(links: &[FragmentLink], fonts: &mut Vec<*const c_
 fn run_root_validity(callbacks: &FfiLayoutFcCallbacks, box_: Node) -> FcRunCacheValidity {
     let data = NodeFacts::new(callbacks, box_).data();
     FcRunCacheValidity {
-        slot_generation: data.slot_generation,
-        fragment_cache_epoch: data.fragment_cache_epoch,
+        slot_generation: data.slot_generation.get(),
+        fragment_cache_epoch: data.fragment_cache_epoch.get(),
     }
 }
 

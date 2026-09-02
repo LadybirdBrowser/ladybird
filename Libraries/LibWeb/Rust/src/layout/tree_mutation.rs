@@ -120,13 +120,11 @@ impl Drop for OwnedLayoutNode {
 }
 
 fn parent_of(arena: &LayoutNodeArena, node: NodeSlotId) -> NodeSlotId {
-    // SAFETY: data() validated that node names a live slot; the link is a plain value.
-    unsafe { (&raw const (*arena.data(node)).parent).read() }
+    arena.data(node).parent.get()
 }
 
 fn next_sibling_of(arena: &LayoutNodeArena, node: NodeSlotId) -> NodeSlotId {
-    // SAFETY: data() validated that node names a live slot; the link is a plain value.
-    unsafe { (&raw const (*arena.data(node)).next_sibling).read() }
+    arena.data(node).next_sibling.get()
 }
 
 impl LayoutNodeArena {
@@ -190,20 +188,18 @@ mod tests {
     }
 
     fn links(arena: &LayoutNodeArena, node: NodeSlotId) -> Links {
-        // SAFETY: Every test keeps its allocations live while reading them.
-        let data = unsafe { &*arena.data(node) };
+        let data = arena.data(node);
         Links {
-            parent: data.parent,
-            first_child: data.first_child,
-            last_child: data.last_child,
-            previous_sibling: data.previous_sibling,
-            next_sibling: data.next_sibling,
+            parent: data.parent.get(),
+            first_child: data.first_child.get(),
+            last_child: data.last_child.get(),
+            previous_sibling: data.previous_sibling.get(),
+            next_sibling: data.next_sibling.get(),
         }
     }
 
     fn fragment_cache_epoch(arena: &LayoutNodeArena, node: NodeSlotId) -> u32 {
-        // SAFETY: Every test keeps its allocations live while reading them.
-        unsafe { (*arena.data(node)).fragment_cache_epoch }
+        arena.data(node).fragment_cache_epoch.get()
     }
 
     fn owned(slot: NodeSlotId) -> OwnedLayoutNode {
@@ -372,11 +368,8 @@ mod tests {
         let grandparent = arena.allocate_for_test();
         let parent = arena.allocate_for_test();
         let child = arena.allocate_for_test();
-        // SAFETY: The allocations stay live for the whole test.
-        unsafe {
-            (*grandparent.data).kind = NodeKind::BlockContainer;
-            (*parent.data).kind = NodeKind::InlineNode;
-        }
+        arena.data(grandparent.slot).kind.set(NodeKind::BlockContainer);
+        arena.data(parent.slot).kind.set(NodeKind::InlineNode);
         arena.attach_child(grandparent.slot, owned(parent.slot), NodeSlotId::INVALID);
         for node in [grandparent.slot, parent.slot] {
             arena.populate_paintable_row(node);

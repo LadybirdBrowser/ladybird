@@ -5,6 +5,7 @@
  */
 
 use crate::layout::CssPixels;
+use std::cell::Cell;
 use std::ffi::c_void;
 
 pub const INVALID_NODE_SLOT_INDEX: u32 = u32::MAX;
@@ -198,51 +199,51 @@ pub struct FfiNodeConstructionFacts {
 
 #[repr(C)]
 pub(crate) struct NodeData {
-    pub parent: NodeSlotId,
-    pub first_child: NodeSlotId,
-    pub last_child: NodeSlotId,
-    pub previous_sibling: NodeSlotId,
-    pub next_sibling: NodeSlotId,
-    pub containing_block: NodeSlotId,
-    pub inline_containing_block: NodeSlotId,
-    pub kind: NodeKind,
-    pub generated_for: u8,
-    pub intrinsic_cache_epoch: u16,
-    pub flags: u32,
+    pub parent: Cell<NodeSlotId>,
+    pub first_child: Cell<NodeSlotId>,
+    pub last_child: Cell<NodeSlotId>,
+    pub previous_sibling: Cell<NodeSlotId>,
+    pub next_sibling: Cell<NodeSlotId>,
+    pub containing_block: Cell<NodeSlotId>,
+    pub inline_containing_block: Cell<NodeSlotId>,
+    pub kind: Cell<NodeKind>,
+    pub generated_for: Cell<u8>,
+    pub intrinsic_cache_epoch: Cell<u16>,
+    pub flags: Cell<u32>,
     /// Advanced on every layout invalidation that reaches this node or its
     /// subtree, with no propagation boundary: unlike the intrinsic epoch,
     /// changes inside absolutely positioned and SVG descendants must reach
     /// every ancestor, because their fragments live in ancestor run trees.
     /// Wide enough that wrapping between a cache store and the next probe
     /// is unreachable.
-    pub fragment_cache_epoch: u32,
-    pub slot_generation: u8,
-    pub table_column_span: u16,
-    pub table_row_span: u16,
-    pub style: *const c_void,
-    pub shell: *mut c_void,
+    pub fragment_cache_epoch: Cell<u32>,
+    pub slot_generation: Cell<u8>,
+    pub table_column_span: Cell<u16>,
+    pub table_row_span: Cell<u16>,
+    pub style: Cell<*const c_void>,
+    pub shell: Cell<*mut c_void>,
 }
 
 impl Default for NodeData {
     fn default() -> Self {
         Self {
-            parent: NodeSlotId::INVALID,
-            first_child: NodeSlotId::INVALID,
-            last_child: NodeSlotId::INVALID,
-            previous_sibling: NodeSlotId::INVALID,
-            next_sibling: NodeSlotId::INVALID,
-            containing_block: NodeSlotId::INVALID,
-            inline_containing_block: NodeSlotId::INVALID,
-            kind: NodeKind::Unset,
-            generated_for: 0,
-            intrinsic_cache_epoch: 0,
-            flags: 0,
-            slot_generation: 0,
-            table_column_span: 1,
-            table_row_span: 1,
-            fragment_cache_epoch: 0,
-            style: std::ptr::null(),
-            shell: std::ptr::null_mut(),
+            parent: Cell::new(NodeSlotId::INVALID),
+            first_child: Cell::new(NodeSlotId::INVALID),
+            last_child: Cell::new(NodeSlotId::INVALID),
+            previous_sibling: Cell::new(NodeSlotId::INVALID),
+            next_sibling: Cell::new(NodeSlotId::INVALID),
+            containing_block: Cell::new(NodeSlotId::INVALID),
+            inline_containing_block: Cell::new(NodeSlotId::INVALID),
+            kind: Cell::new(NodeKind::Unset),
+            generated_for: Cell::new(0),
+            intrinsic_cache_epoch: Cell::new(0),
+            flags: Cell::new(0),
+            slot_generation: Cell::new(0),
+            table_column_span: Cell::new(1),
+            table_row_span: Cell::new(1),
+            fragment_cache_epoch: Cell::new(0),
+            style: Cell::new(std::ptr::null()),
+            shell: Cell::new(std::ptr::null_mut()),
         }
     }
 }
@@ -254,7 +255,7 @@ mod tests {
     #[test]
     fn node_kind_has_a_stable_default_and_byte_width() {
         assert_eq!(std::mem::size_of::<NodeKind>(), 1);
-        assert_eq!(NodeData::default().kind, NodeKind::Unset);
+        assert_eq!(NodeData::default().kind.get(), NodeKind::Unset);
     }
 
     #[test]

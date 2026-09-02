@@ -524,7 +524,7 @@ impl LayoutNodeArena {
     /// Drops one node's cached intrinsic sizes outright, for the wrap of its epoch:
     /// entries are stamped with the epoch they were measured under, so a stamp reused
     /// after a full lap would match a pre-wrap entry.
-    pub(crate) fn drop_intrinsic_size_cache(&self, data: *const NodeData) {
+    pub(crate) fn drop_intrinsic_size_cache(&self, data: &NodeData) {
         let (index, _) = self.slot_for_data(data);
         if let Some(slot) = self.intrinsic_size_caches.borrow_mut().get_mut(index as usize) {
             *slot = IntrinsicSizeCacheSlot::default();
@@ -533,14 +533,8 @@ impl LayoutNodeArena {
 
     pub(crate) fn reset_cached_intrinsic_sizes(&self, node: NodeSlotId) {
         let data = self.data(node);
-        // SAFETY: data() validated that node names a live slot, and layout
-        // serializes mutation on the arena's owner thread.
-        let bumped_epoch = unsafe {
-            let epoch = &raw mut (*data).intrinsic_cache_epoch;
-            let bumped = epoch.read().wrapping_add(1);
-            epoch.write(bumped);
-            bumped
-        };
+        let bumped_epoch = data.intrinsic_cache_epoch.get().wrapping_add(1);
+        data.intrinsic_cache_epoch.set(bumped_epoch);
         if bumped_epoch == 0 {
             self.drop_intrinsic_size_cache(data);
         }
@@ -562,9 +556,7 @@ impl LayoutNodeArena {
                 return false;
             }
             let id = NodeSlotId::new(slot, metadata.generation);
-            // SAFETY: The slot is occupied at the matching generation, so the
-            // pointer addresses a live NodeData.
-            unsafe { (*self.data(id)).fragment_cache_epoch == validity.fragment_cache_epoch }
+            self.data(id).fragment_cache_epoch.get() == validity.fragment_cache_epoch
         });
     }
 
@@ -577,25 +569,23 @@ impl LayoutNodeArena {
     pub(crate) fn allocate(&mut self, construction_facts: FfiNodeConstructionFacts) -> NodeSlotId {
         let slot = self.allocate_slot();
         let data = self.data_mut(slot.slot_index());
-        data.kind = construction_facts.kind;
-        data.shell = construction_facts.shell;
-        data.flags = super::node_facts::construction_flags(&construction_facts);
+        data.kind.set(construction_facts.kind);
+        data.shell.set(construction_facts.shell);
+        data.flags
+            .set(super::node_facts::construction_flags(&construction_facts));
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
         slot
     }
 
     #[cfg(test)]
     pub(crate) fn allocate_for_test(&mut self) -> NodeAllocation {
-        let slot = self.allocate_slot();
         NodeAllocation {
-            slot,
-            data: self.data_mut(slot.slot_index()),
+            slot: self.allocate_slot(),
         }
     }
 
     pub(crate) fn enroll_node_for_replaced_content_facts_sync_if_eligible(&self, node: NodeSlotId) {
-        // SAFETY: data() validated that node names a live slot.
-        let data = unsafe { &*self.data(node) };
+        let data = self.data(node);
         if !super::node_facts::node_may_have_replaced_content_facts_including_size_containment(data) {
             return;
         }
@@ -650,7 +640,7 @@ impl LayoutNodeArena {
             .expect("retired layout node arena slot was reused");
         metadata.occupied = true;
         let generation = metadata.generation;
-        self.data_mut(index).slot_generation = generation;
+        self.data_mut(index).slot_generation.set(generation);
 
         NodeSlotId::new(index, generation)
     }
@@ -712,11 +702,11 @@ impl LayoutNodeArena {
         self.raw_table_column_spans.remove(&id);
         let data = self.data_mut(index);
         debug_assert!(
-            data.parent.is_invalid()
-                && data.first_child.is_invalid()
-                && data.last_child.is_invalid()
-                && data.previous_sibling.is_invalid()
-                && data.next_sibling.is_invalid(),
+            data.parent.get().is_invalid()
+                && data.first_child.get().is_invalid()
+                && data.last_child.get().is_invalid()
+                && data.previous_sibling.get().is_invalid()
+                && data.next_sibling.get().is_invalid(),
             "layout node arena freed a slot that is still linked into a tree"
         );
         *data = NodeData::default();
@@ -736,22 +726,15 @@ impl LayoutNodeArena {
 
     fn unlink_children_for_free(&self, id: NodeSlotId) -> DetachedShells {
         let data = self.data(id);
-        // SAFETY: data() validated that id names a live slot, and the links are plain values.
-        let (parent, previous_sibling, next_sibling) = unsafe {
-            (
-                (&raw const (*data).parent).read(),
-                (&raw const (*data).previous_sibling).read(),
-                (&raw const (*data).next_sibling).read(),
-            )
-        };
+        let (parent, previous_sibling, next_sibling) =
+            { (data.parent.get(), data.previous_sibling.get(), data.next_sibling.get()) };
         assert!(
             parent.is_invalid() && previous_sibling.is_invalid() && next_sibling.is_invalid(),
             "layout node arena freed a slot that is still linked under a parent"
         );
         let mut detached_children = DetachedShells::default();
         loop {
-            // SAFETY: As above; unlink_child only rewrites link fields of live slots.
-            let child = unsafe { (&raw const (*data).first_child).read() };
+            let child = data.first_child.get();
             if child.is_invalid() {
                 break;
             }
@@ -762,19 +745,16 @@ impl LayoutNodeArena {
         detached_children
     }
 
-    pub(crate) fn data(&self, id: NodeSlotId) -> *mut NodeData {
+    pub(crate) fn data(&self, id: NodeSlotId) -> &NodeData {
         assert!(!id.is_invalid(), "invalid layout node arena slot ID");
         let index = id.slot_index() as usize;
         let chunk = self
             .chunks
             .get(index / SLOTS_PER_CHUNK)
             .expect("invalid layout node arena slot ID");
-        let data = (&raw const chunk.slots[index % SLOTS_PER_CHUNK]).cast_mut();
-        // SAFETY: The chunk bounds check above established that data addresses
-        // an initialized NodeData slot.
-        let generation = unsafe { (&raw const (*data).slot_generation).read() };
+        let data = &chunk.slots[index % SLOTS_PER_CHUNK];
         assert_eq!(
-            generation,
+            data.slot_generation.get(),
             id.generation(),
             "layout node arena read a stale or unused slot"
         );
@@ -784,34 +764,26 @@ impl LayoutNodeArena {
     pub(crate) fn set_node_generated_for(&self, id: NodeSlotId, generated_for: u8) {
         self.assert_owner_thread();
         let data = self.data(id);
-        // SAFETY: data() validated that id names a live slot, and layout
-        // serializes mutation on the arena's owner thread.
-        unsafe { (&raw mut (*data).generated_for).write(generated_for) };
+        data.generated_for.set(generated_for);
     }
 
     pub(crate) fn set_node_style_payloads(&self, id: NodeSlotId, payloads: *const c_void) {
         self.assert_owner_thread();
         let data = self.data(id);
-        // SAFETY: As above.
-        unsafe { (&raw mut (*data).style).write(payloads) };
+        data.style.set(payloads);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(id);
     }
 
     pub(crate) fn set_node_flag(&self, id: NodeSlotId, flag: NodeFlag, value: bool) {
         self.assert_owner_thread();
         let data = self.data(id);
-        // SAFETY: data() validated that id names a live slot, and layout
-        // serializes mutation on the arena's owner thread.
-        unsafe {
-            let flags = &raw mut (*data).flags;
-            let mut updated = flags.read();
-            if value {
-                updated |= flag as u32;
-            } else {
-                updated &= !(flag as u32);
-            }
-            flags.write(updated);
+        let mut updated = data.flags.get();
+        if value {
+            updated |= flag as u32;
+        } else {
+            updated &= !(flag as u32);
         }
+        data.flags.set(updated);
     }
 
     pub(crate) fn for_each_node_in_layout_subtree_in_pre_order(
@@ -823,15 +795,8 @@ impl LayoutNodeArena {
         loop {
             callback(current);
             let data = self.data(current);
-            // SAFETY: data() validated that current names a live slot, and the topology is
-            // stable during this call.
-            let (parent, first_child, next_sibling) = unsafe {
-                (
-                    (&raw const (*data).parent).read(),
-                    (&raw const (*data).first_child).read(),
-                    (&raw const (*data).next_sibling).read(),
-                )
-            };
+            let (parent, first_child, next_sibling) =
+                { (data.parent.get(), data.first_child.get(), data.next_sibling.get()) };
 
             if !first_child.is_invalid() {
                 current = first_child;
@@ -847,15 +812,13 @@ impl LayoutNodeArena {
 
             current = parent;
             while current != root {
-                // SAFETY: Parent links from a live subtree node name live slots in the same tree.
                 let data = self.data(current);
-                let next_sibling = unsafe { (&raw const (*data).next_sibling).read() };
+                let next_sibling = data.next_sibling.get();
                 if !next_sibling.is_invalid() {
                     current = next_sibling;
                     break;
                 }
-                // SAFETY: data() validated current and the topology is stable during this call.
-                current = unsafe { (&raw const (*data).parent).read() };
+                current = data.parent.get();
             }
             if current == root {
                 break;
@@ -868,31 +831,22 @@ impl LayoutNodeArena {
         let flags_to_clear = NodeFlag::NeedsLayoutUpdate as u32 | NodeFlag::NeedsOwnGeometryUpdate as u32;
         self.for_each_node_in_layout_subtree_in_pre_order(root, |node| {
             let data = self.data(node);
-            // SAFETY: data() validated that node names a live slot, and layout tree mutation
-            // is serialized on the arena's owner thread.
-            unsafe {
-                let flags = &raw mut (*data).flags;
-                flags.write(flags.read() & !flags_to_clear);
-            }
+            data.flags.set(data.flags.get() & !flags_to_clear);
         });
     }
 
     fn node_is_capable_of_forming_a_containing_block(&self, id: NodeSlotId) -> bool {
-        // SAFETY: data() validated that id names a live slot.
-        let data = unsafe { &*self.data(id) };
+        let data = self.data(id);
         super::node_facts::node_forms_containing_block_for_children(data, self.node_style_if_live(id))
     }
 
     fn nearest_ancestor_capable_of_forming_a_containing_block(&self, node: NodeSlotId) -> NodeSlotId {
-        // SAFETY: Callers pass a node validated by the subtree walk, and parent
-        // links from a live tree node name live slots.
-        let mut ancestor = unsafe { (&raw const (*self.data(node)).parent).read() };
+        let mut ancestor = self.data(node).parent.get();
         while !ancestor.is_invalid() {
             if self.node_is_capable_of_forming_a_containing_block(ancestor) {
                 return ancestor;
             }
-            // SAFETY: As above.
-            ancestor = unsafe { (&raw const (*self.data(ancestor)).parent).read() };
+            ancestor = self.data(ancestor).parent.get();
         }
         NodeSlotId::INVALID
     }
@@ -907,16 +861,12 @@ impl LayoutNodeArena {
 
         let data = self.data(node);
         // Reset the inline containing block - we'll set it below if applicable.
-        // SAFETY: data() validated that node names a live slot, and layout
-        // serializes arena mutation on the owner thread.
-        unsafe { (&raw mut (*data).inline_containing_block).write(NodeSlotId::INVALID) };
+        data.inline_containing_block.set(NodeSlotId::INVALID);
 
-        // SAFETY: As above.
-        let kind = unsafe { (&raw const (*data).kind).read() };
+        let kind = data.kind.get();
         if super::node_facts::kind_is_text(kind) {
             let containing_block = self.nearest_ancestor_capable_of_forming_a_containing_block(node);
-            // SAFETY: As above.
-            unsafe { (&raw mut (*data).containing_block).write(containing_block) };
+            data.containing_block.set(containing_block);
             return;
         }
 
@@ -926,24 +876,20 @@ impl LayoutNodeArena {
 
         // https://drafts.csswg.org/css-position-3/#absolute-cb
         if position == positioning::ABSOLUTE {
-            // SAFETY: As above; parent links from a live tree name live slots.
-            let mut ancestor = unsafe { (&raw const (*data).parent).read() };
+            let mut ancestor = data.parent.get();
             while !ancestor.is_invalid() && !establishes_positioning_containing_blocks(self, ancestor).0 {
-                // SAFETY: As above.
-                ancestor = unsafe { (&raw const (*self.data(ancestor)).parent).read() };
+                ancestor = self.data(ancestor).parent.get();
             }
-            // SAFETY: As above.
-            unsafe { (&raw mut (*data).containing_block).write(ancestor) };
+            data.containing_block.set(ancestor);
             if !ancestor.is_invalid() {
                 // SAFETY: Both slots are live; the callback only reads DOM ancestry
                 // and per-node facts through the shells and does not mutate the tree.
                 let inline_containing_block = unsafe {
-                    let node_shell = (&raw const (*data).shell).read();
-                    let ancestor_shell = (&raw const (*self.data(ancestor)).shell).read();
+                    let node_shell = data.shell.get();
+                    let ancestor_shell = self.data(ancestor).shell.get();
                     inline_cb_lookup(node_shell, ancestor_shell)
                 };
-                // SAFETY: As above.
-                unsafe { (&raw mut (*data).inline_containing_block).write(inline_containing_block) };
+                data.inline_containing_block.set(inline_containing_block);
             }
             return;
         }
@@ -954,12 +900,10 @@ impl LayoutNodeArena {
             // containing block, with the bounds of the containing block determined identically to the absolute positioning
             // containing block.
             let mut last_visited = node;
-            // SAFETY: As above.
-            let mut ancestor = unsafe { (&raw const (*data).parent).read() };
+            let mut ancestor = data.parent.get();
             while !ancestor.is_invalid() && !establishes_positioning_containing_blocks(self, ancestor).1 {
                 last_visited = ancestor;
-                // SAFETY: As above.
-                ancestor = unsafe { (&raw const (*self.data(ancestor)).parent).read() };
+                ancestor = self.data(ancestor).parent.get();
             }
             // If no ancestor establishes one, the box's fixed positioning containing block is the initial fixed containing
             // block:
@@ -969,20 +913,17 @@ impl LayoutNodeArena {
             //   page. (They are fixed with respect to the page box only, and are not affected by being seen through a
             //   viewport; as in the case of print preview, for example.)
             let containing_block = if ancestor.is_invalid() { last_visited } else { ancestor };
-            // SAFETY: As above.
-            unsafe { (&raw mut (*data).containing_block).write(containing_block) };
+            data.containing_block.set(containing_block);
             return;
         }
 
         let containing_block = self.nearest_ancestor_capable_of_forming_a_containing_block(node);
-        // SAFETY: As above.
-        unsafe { (&raw mut (*data).containing_block).write(containing_block) };
+        data.containing_block.set(containing_block);
     }
 
     fn derive_abspos_escape_flags_for_node(&self, node: NodeSlotId) {
         let data = self.data(node);
-        // SAFETY: data() validated that node names a live slot.
-        let kind = unsafe { (&raw const (*data).kind).read() };
+        let kind = data.kind.get();
         if !super::node_facts::kind_is_box(kind) {
             return;
         }
@@ -993,17 +934,14 @@ impl LayoutNodeArena {
         {
             return;
         }
-        // SAFETY: As above; parent links from a live tree name live slots.
-        let containing_block = unsafe { (&raw const (*data).containing_block).read() };
-        let mut ancestor = unsafe { (&raw const (*data).parent).read() };
+        let containing_block = data.containing_block.get();
+        let mut ancestor = data.parent.get();
         while !ancestor.is_invalid() && ancestor != containing_block {
-            // SAFETY: As above.
-            let ancestor_kind = unsafe { (&raw const (*self.data(ancestor)).kind).read() };
+            let ancestor_kind = self.data(ancestor).kind.get();
             if super::node_facts::kind_is_box(ancestor_kind) {
                 self.set_node_flag(ancestor, NodeFlag::AbsposDescendantEscapes, true);
             }
-            // SAFETY: As above.
-            ancestor = unsafe { (&raw const (*self.data(ancestor)).parent).read() };
+            ancestor = self.data(ancestor).parent.get();
         }
     }
 
@@ -1026,9 +964,8 @@ impl LayoutNodeArena {
         });
     }
 
-    fn slot_for_data(&self, data: *const NodeData) -> (u32, SlotMetadata) {
-        assert!(!data.is_null(), "layout node arena data pointer is null");
-        let data_address = data as usize;
+    fn slot_for_data(&self, data: &NodeData) -> (u32, SlotMetadata) {
+        let data_address = std::ptr::from_ref(data) as usize;
         let slot_size = size_of::<NodeData>();
 
         let address_index = self
@@ -1051,9 +988,7 @@ impl LayoutNodeArena {
         let index = u32::try_from(index).expect("layout node arena slot index overflowed");
         let metadata = *self.metadata(index);
         assert!(metadata.occupied, "layout node arena access for an unused slot");
-        // SAFETY: The range and alignment checks established that data points
-        // to the indexed NodeData slot.
-        let generation = unsafe { (&raw const (*data).slot_generation).read() };
+        let generation = data.slot_generation.get();
         assert_eq!(
             generation, metadata.generation,
             "layout node arena access used a stale slot"
@@ -1083,9 +1018,7 @@ impl LayoutNodeArena {
     fn last_descendant_in_pre_order(&self, node: NodeSlotId) -> NodeSlotId {
         let mut current = node;
         loop {
-            // SAFETY: data() validated that current names a live slot, and child links only
-            // name live slots.
-            let last_child = unsafe { (&raw const (*self.data(current)).last_child).read() };
+            let last_child = self.data(current).last_child.get();
             if last_child.is_invalid() {
                 return current;
             }
@@ -1097,14 +1030,7 @@ impl LayoutNodeArena {
         let mut current = node;
         loop {
             let data = self.data(current);
-            // SAFETY: data() validated that current names a live slot, and the topology links
-            // only name live slots.
-            let (parent, next_sibling) = unsafe {
-                (
-                    (&raw const (*data).parent).read(),
-                    (&raw const (*data).next_sibling).read(),
-                )
-            };
+            let (parent, next_sibling) = { (data.parent.get(), data.next_sibling.get()) };
             if !next_sibling.is_invalid() {
                 return self.node_pre_order_label(next_sibling);
             }
@@ -1117,14 +1043,7 @@ impl LayoutNodeArena {
 
     fn assign_pre_order_labels_to_inserted_subtree(&self, parent: NodeSlotId, child: NodeSlotId) {
         let child_data = self.data(child);
-        // SAFETY: data() validated that child names a live slot, and insert_child wrote its
-        // sibling links before this call.
-        let (previous_sibling, next_sibling) = unsafe {
-            (
-                (&raw const (*child_data).previous_sibling).read(),
-                (&raw const (*child_data).next_sibling).read(),
-            )
-        };
+        let (previous_sibling, next_sibling) = { (child_data.previous_sibling.get(), child_data.next_sibling.get()) };
         let lower = if previous_sibling.is_invalid() {
             self.node_pre_order_label(parent)
         } else {
@@ -1157,9 +1076,7 @@ impl LayoutNodeArena {
         }
         let mut ancestor = parent;
         loop {
-            // SAFETY: data() validated that ancestor names a live slot, and parent links only
-            // name live slots.
-            let ancestor_parent = unsafe { (&raw const (*self.data(ancestor)).parent).read() };
+            let ancestor_parent = self.data(ancestor).parent.get();
             if ancestor_parent.is_invalid() {
                 self.set_node_pre_order_label(ancestor, 0);
                 let spread_succeeded = self.spread_pre_order_labels_evenly_over_descendants(ancestor, 0, u64::MAX);
@@ -1204,9 +1121,7 @@ impl LayoutNodeArena {
     #[cfg(debug_assertions)]
     fn nodes_share_a_layout_tree_root(&self, node: NodeSlotId, other: NodeSlotId) -> bool {
         let root_of = |mut slot: NodeSlotId| loop {
-            // SAFETY: data() validates the live generation, and parent links only name live
-            // slots in this arena.
-            let parent = unsafe { (&raw const (*self.data(slot)).parent).read() };
+            let parent = self.data(slot).parent.get();
             if parent.is_invalid() {
                 return slot;
             }
@@ -1216,8 +1131,8 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn is_before(&self, node: &NodeData, other: &NodeData) -> bool {
-        let (node_index, node_metadata) = self.slot_for_data(std::ptr::from_ref(node));
-        let (other_index, other_metadata) = self.slot_for_data(std::ptr::from_ref(other));
+        let (node_index, node_metadata) = self.slot_for_data(node);
+        let (other_index, other_metadata) = self.slot_for_data(other);
         let node = NodeSlotId::new(node_index, node_metadata.generation);
         let other = NodeSlotId::new(other_index, other_metadata.generation);
         assert_ne!(node, other, "a layout node cannot precede itself");
@@ -1243,10 +1158,10 @@ impl LayoutNodeArena {
             "block size cache kind must use the block axis"
         );
 
-        let (index, metadata) = self.slot_for_data(std::ptr::from_ref(data));
+        let (index, metadata) = self.slot_for_data(data);
         let caches = self.intrinsic_size_caches.borrow();
         let slot = caches.get(index as usize)?;
-        if slot.generation != metadata.generation || slot.epoch != data.intrinsic_cache_epoch {
+        if slot.generation != metadata.generation || slot.epoch != data.intrinsic_cache_epoch.get() {
             return None;
         }
         let map = slot
@@ -1258,16 +1173,16 @@ impl LayoutNodeArena {
     }
 
     fn with_intrinsic_size_maps_mut(&self, data: &NodeData, callback: impl FnOnce(&mut IntrinsicSizeMaps)) {
-        let (index, metadata) = self.slot_for_data(std::ptr::from_ref(data));
+        let (index, metadata) = self.slot_for_data(data);
         let mut caches = self.intrinsic_size_caches.borrow_mut();
         if caches.len() <= index as usize {
             caches.resize_with(index as usize + 1, IntrinsicSizeCacheSlot::default);
         }
         let slot = &mut caches[index as usize];
-        if slot.generation != metadata.generation || slot.epoch != data.intrinsic_cache_epoch {
+        if slot.generation != metadata.generation || slot.epoch != data.intrinsic_cache_epoch.get() {
             *slot = IntrinsicSizeCacheSlot {
                 generation: metadata.generation,
-                epoch: data.intrinsic_cache_epoch,
+                epoch: data.intrinsic_cache_epoch.get(),
                 sizes: Some(Box::default()),
             };
         }
@@ -1303,10 +1218,10 @@ impl LayoutNodeArena {
             "inline measurement cache kind must use the inline axis"
         );
 
-        let (index, metadata) = self.slot_for_data(std::ptr::from_ref(data));
+        let (index, metadata) = self.slot_for_data(data);
         let caches = self.intrinsic_size_caches.borrow();
         let slot = caches.get(index as usize)?;
-        if slot.generation != metadata.generation || slot.epoch != data.intrinsic_cache_epoch {
+        if slot.generation != metadata.generation || slot.epoch != data.intrinsic_cache_epoch.get() {
             return None;
         }
         let map = slot
@@ -1322,12 +1237,12 @@ impl LayoutNodeArena {
         data: &NodeData,
         compute: impl FnOnce() -> bool,
     ) -> bool {
-        let (index, metadata) = self.slot_for_data(std::ptr::from_ref(data));
+        let (index, metadata) = self.slot_for_data(data);
         {
             let caches = self.intrinsic_size_caches.borrow();
             if let Some(slot) = caches.get(index as usize)
                 && slot.generation == metadata.generation
-                && slot.epoch == data.intrinsic_cache_epoch
+                && slot.epoch == data.intrinsic_cache_epoch.get()
                 && let Some(value) = slot
                     .sizes
                     .as_ref()
@@ -1364,10 +1279,10 @@ impl LayoutNodeArena {
         data: &NodeData,
         key: TableCellMeasurementKey,
     ) -> Option<TableCellMeasurement> {
-        let (index, metadata) = self.slot_for_data(std::ptr::from_ref(data));
+        let (index, metadata) = self.slot_for_data(data);
         let caches = self.intrinsic_size_caches.borrow();
         let slot = caches.get(index as usize)?;
-        if slot.generation != metadata.generation || slot.epoch != data.intrinsic_cache_epoch {
+        if slot.generation != metadata.generation || slot.epoch != data.intrinsic_cache_epoch.get() {
             return None;
         }
         slot.sizes.as_ref()?.table_cell_measurements.get(&key).copied()
@@ -1401,7 +1316,7 @@ impl LayoutNodeArena {
         self.intrinsic_measurements.get()
     }
 
-    pub(crate) fn saved_abspos_layout_inputs(&self, data: *const NodeData) -> Option<AbsposLayoutInputs> {
+    pub(crate) fn saved_abspos_layout_inputs(&self, data: &NodeData) -> Option<AbsposLayoutInputs> {
         let (index, metadata) = self.slot_for_data(data);
         let slots = self.saved_abspos_layout_inputs.borrow();
         let inputs = slots
@@ -1409,9 +1324,7 @@ impl LayoutNodeArena {
             .filter(|slot| slot.generation == metadata.generation)
             .and_then(|slot| slot.inputs.as_deref().copied());
 
-        // SAFETY: slot_for_data() established that data points to a live slot
-        // in this arena.
-        let flags = unsafe { (&raw const (*data).flags).read() };
+        let flags = data.flags.get();
         assert_eq!(
             flags & NodeFlag::HasSavedAbsposLayoutInputs as u32 != 0,
             inputs.is_some(),
@@ -1430,7 +1343,7 @@ impl LayoutNodeArena {
         inputs
     }
 
-    pub(crate) fn set_saved_abspos_layout_inputs(&self, data: *mut NodeData, inputs: Option<AbsposLayoutInputs>) {
+    pub(crate) fn set_saved_abspos_layout_inputs(&self, data: &NodeData, inputs: Option<AbsposLayoutInputs>) {
         let (index, metadata) = self.slot_for_data(data);
         let mut slots = self.saved_abspos_layout_inputs.borrow_mut();
         if slots.len() <= index as usize {
@@ -1456,23 +1369,17 @@ impl LayoutNodeArena {
         let saved_abspos_flags = NodeFlag::HasSavedAbsposLayoutInputs as u32
             | NodeFlag::SavedAbsposCbDerivesFromOwnComputedValues as u32
             | NodeFlag::SavedAbsposAlignmentDerivesFromOwnComputedValues as u32;
-        // SAFETY: slot_for_data() established that data points to a live slot
-        // in this arena, and layout/tree building serialize mutation on the
-        // arena's owner thread.
-        unsafe {
-            let flags = &raw mut (*data).flags;
-            let mut value = flags.read() & !saved_abspos_flags;
-            if let Some(inputs) = inputs {
-                value |= NodeFlag::HasSavedAbsposLayoutInputs as u32;
-                if inputs.containing_block_info.derives_from_own_computed_values {
-                    value |= NodeFlag::SavedAbsposCbDerivesFromOwnComputedValues as u32;
-                }
-                if inputs.static_position_rect.alignment_derives_from_own_computed_values {
-                    value |= NodeFlag::SavedAbsposAlignmentDerivesFromOwnComputedValues as u32;
-                }
+        let mut value = data.flags.get() & !saved_abspos_flags;
+        if let Some(inputs) = inputs {
+            value |= NodeFlag::HasSavedAbsposLayoutInputs as u32;
+            if inputs.containing_block_info.derives_from_own_computed_values {
+                value |= NodeFlag::SavedAbsposCbDerivesFromOwnComputedValues as u32;
             }
-            flags.write(value);
+            if inputs.static_position_rect.alignment_derives_from_own_computed_values {
+                value |= NodeFlag::SavedAbsposAlignmentDerivesFromOwnComputedValues as u32;
+            }
         }
+        data.flags.set(value);
     }
 
     pub(crate) fn set_default_scroll_shift(
@@ -1531,15 +1438,13 @@ impl LayoutNodeArena {
         self.any_default_scroll_shift_anchor_ever_stored.get()
     }
 
-    pub(crate) fn committed_fragment_link(&self, data: *const NodeData) -> Option<super::fragment_tree::FragmentLink> {
+    pub(crate) fn committed_fragment_link(&self, data: &NodeData) -> Option<super::fragment_tree::FragmentLink> {
         let (index, metadata) = self.slot_for_data(data);
         let link = self
             .paintable_rows
             .committed_fragment_link_cloned(index, metadata.generation);
 
-        // SAFETY: slot_for_data() established that data points to a live slot
-        // in this arena.
-        let flags = unsafe { (&raw const (*data).flags).read() };
+        let flags = data.flags.get();
         assert_eq!(
             flags & NodeFlag::HasCommittedFragmentLink as u32 != 0,
             link.is_some(),
@@ -1548,41 +1453,28 @@ impl LayoutNodeArena {
         link
     }
 
-    pub(crate) fn set_committed_fragment_link(&self, data: *mut NodeData, link: super::fragment_tree::FragmentLink) {
+    pub(crate) fn set_committed_fragment_link(&self, data: &NodeData, link: super::fragment_tree::FragmentLink) {
         let (index, metadata) = self.slot_for_data(data);
         self.paintable_rows
             .set_committed_fragment_link(index, metadata.generation, link);
 
-        // SAFETY: slot_for_data() established that data points to a live slot
-        // in this arena, and layout/tree building serialize mutation on the
-        // arena's owner thread.
-        unsafe {
-            let flags = &raw mut (*data).flags;
-            flags.write(flags.read() | NodeFlag::HasCommittedFragmentLink as u32);
-        }
+        data.flags
+            .set(data.flags.get() | NodeFlag::HasCommittedFragmentLink as u32);
     }
 
-    pub(crate) fn take_committed_fragment_link(
-        &self,
-        data: *mut NodeData,
-    ) -> Option<super::fragment_tree::FragmentLink> {
+    pub(crate) fn take_committed_fragment_link(&self, data: &NodeData) -> Option<super::fragment_tree::FragmentLink> {
         let (index, metadata) = self.slot_for_data(data);
         let link = self
             .paintable_rows
             .take_committed_fragment_link(index, metadata.generation);
 
-        // SAFETY: slot_for_data() established that data points to a live slot
-        // in this arena, and layout/tree building serialize mutation on the
-        // owner thread.
-        unsafe {
-            let flags = &raw mut (*data).flags;
-            assert_eq!(
-                flags.read() & NodeFlag::HasCommittedFragmentLink as u32 != 0,
-                link.is_some(),
-                "committed fragment link presence flag disagrees with the arena side table"
-            );
-            flags.write(flags.read() & !(NodeFlag::HasCommittedFragmentLink as u32));
-        }
+        assert_eq!(
+            data.flags.get() & NodeFlag::HasCommittedFragmentLink as u32 != 0,
+            link.is_some(),
+            "committed fragment link presence flag disagrees with the arena side table"
+        );
+        data.flags
+            .set(data.flags.get() & !(NodeFlag::HasCommittedFragmentLink as u32));
         link
     }
 
@@ -1692,9 +1584,7 @@ impl LayoutNodeArena {
     /// is only replaced between passes, so the array stays valid for as long
     /// as the node occupies its arena slot.
     pub(crate) fn style_payloads(&self, id: NodeSlotId) -> Option<&FfiStylePayloads> {
-        // SAFETY: data() generation-checks the slot and returns an
-        // initialized NodeData.
-        let style = unsafe { (&raw const (*self.data(id)).style).read() };
+        let style = self.data(id).style.get();
         // SAFETY: A non-null style pointer addresses the container's group
         // pointer array, which FfiStylePayloads mirrors exactly.
         (!style.is_null()).then(|| unsafe { &*style.cast::<FfiStylePayloads>() })
@@ -1818,15 +1708,11 @@ impl LayoutNodeArena {
             if invalidation == AncestorInvalidation::StructuralChange {
                 self.fc_run_cache_store.note_inline_layout_damage(node);
             }
-            // SAFETY: data() validated that node names a live slot, mutation is serialized on
-            // the owner thread, and no reference into the slot is held across this write.
-            let (kind, parent) = unsafe {
-                if epochs_enabled {
-                    let epoch = &raw mut (*data).fragment_cache_epoch;
-                    epoch.write(epoch.read().wrapping_add(1));
-                }
-                ((&raw const (*data).kind).read(), (&raw const (*data).parent).read())
-            };
+            if epochs_enabled {
+                data.fragment_cache_epoch
+                    .set(data.fragment_cache_epoch.get().wrapping_add(1));
+            }
+            let (kind, parent) = (data.kind.get(), data.parent.get());
             if super::node_facts::kind_is_box(kind) {
                 paintable_rows.clear_cached_overflow_data(node);
             }
@@ -1848,79 +1734,61 @@ impl LayoutNodeArena {
         let parent_data = self.data(parent);
         let child_data = self.data(child);
 
-        // SAFETY (for every raw access below): data() validated that the slot IDs name live
-        // nodes, and layout tree mutation is serialized on the arena's owner thread.
-        unsafe {
-            let child_parent = (&raw const (*child_data).parent).read();
-            let child_previous_sibling = (&raw const (*child_data).previous_sibling).read();
-            let child_next_sibling = (&raw const (*child_data).next_sibling).read();
-            assert!(
-                child_parent.is_invalid(),
-                "inserted layout node is still linked to a parent"
-            );
-            assert!(
-                child_previous_sibling.is_invalid(),
-                "inserted layout node is still linked to a previous sibling"
-            );
-            assert!(
-                child_next_sibling.is_invalid(),
-                "inserted layout node is still linked to a next sibling"
-            );
-            debug_assert_eq!(
-                (&raw const (*parent_data).first_child).read().is_invalid(),
-                (&raw const (*parent_data).last_child).read().is_invalid(),
-                "layout node child list endpoints disagree"
-            );
-        }
+        let child_parent = child_data.parent.get();
+        let child_previous_sibling = child_data.previous_sibling.get();
+        let child_next_sibling = child_data.next_sibling.get();
+        assert!(
+            child_parent.is_invalid(),
+            "inserted layout node is still linked to a parent"
+        );
+        assert!(
+            child_previous_sibling.is_invalid(),
+            "inserted layout node is still linked to a previous sibling"
+        );
+        assert!(
+            child_next_sibling.is_invalid(),
+            "inserted layout node is still linked to a next sibling"
+        );
+        debug_assert_eq!(
+            parent_data.first_child.get().is_invalid(),
+            parent_data.last_child.get().is_invalid(),
+            "layout node child list endpoints disagree"
+        );
 
         #[cfg(debug_assertions)]
         {
             let mut ancestor = parent;
             while !ancestor.is_invalid() {
                 assert_ne!(ancestor, child, "layout node insertion would create a cycle");
-                // SAFETY: data() validated that ancestor names a live slot, and parent links
-                // only name live slots.
-                ancestor = unsafe { (&raw const (*self.data(ancestor)).parent).read() };
+                ancestor = self.data(ancestor).parent.get();
             }
         }
 
-        let before_data = if before.is_invalid() {
-            std::ptr::null_mut()
+        let previous = if before.is_invalid() {
+            parent_data.last_child.get()
         } else {
             assert_ne!(before, child, "a layout node cannot be inserted before itself");
-            self.data(before)
-        };
-        let previous = if before_data.is_null() {
-            // SAFETY: parent_data addresses a live node validated above.
-            unsafe { (&raw const (*parent_data).last_child).read() }
-        } else {
-            // SAFETY: data() validated that before names a live node.
-            unsafe {
-                let before_parent = (&raw const (*before_data).parent).read();
-                assert_eq!(
-                    before_parent, parent,
-                    "insertion reference is not a child of the parent"
-                );
-                (&raw const (*before_data).previous_sibling).read()
-            }
+            let before_data = self.data(before);
+            assert_eq!(
+                before_data.parent.get(),
+                parent,
+                "insertion reference is not a child of the parent"
+            );
+            before_data.previous_sibling.get()
         };
 
-        // SAFETY: Every written slot was validated live above (previous comes from a validated
-        // sibling or child-list link), and mutation is serialized on the owner thread.
-        unsafe {
-            (&raw mut (*child_data).parent).write(parent);
-            (&raw mut (*child_data).previous_sibling).write(previous);
-            (&raw mut (*child_data).next_sibling).write(before);
-            if previous.is_invalid() {
-                (&raw mut (*parent_data).first_child).write(child);
-            } else {
-                (&raw mut (*self.data(previous)).next_sibling).write(child);
-            }
-            if before_data.is_null() {
-                (&raw mut (*parent_data).last_child).write(child);
-            } else {
-                (&raw mut (*before_data).previous_sibling).write(child);
-            }
+        child_data.parent.set(parent);
+        child_data.previous_sibling.set(previous);
+        child_data.next_sibling.set(before);
+        if previous.is_invalid() {
+            parent_data.first_child.set(child);
+        } else {
+            self.data(previous).next_sibling.set(child);
+        }
+        if before.is_invalid() {
+            parent_data.last_child.set(child);
+        } else {
+            self.data(before).previous_sibling.set(child);
         }
 
         self.assign_pre_order_labels_to_inserted_subtree(parent, child);
@@ -1938,47 +1806,42 @@ impl LayoutNodeArena {
         let parent_data = self.data(parent);
         let child_data = self.data(child);
 
-        // SAFETY (for every raw access below): data() validated that the slot IDs name live
-        // nodes, sibling and child-list links only name live slots, and layout tree mutation
-        // is serialized on the arena's owner thread.
-        unsafe {
-            let child_parent = (&raw const (*child_data).parent).read();
-            assert_eq!(child_parent, parent, "removed layout node is not a child of the parent");
-            let previous = (&raw const (*child_data).previous_sibling).read();
-            let next = (&raw const (*child_data).next_sibling).read();
+        let child_parent = child_data.parent.get();
+        assert_eq!(child_parent, parent, "removed layout node is not a child of the parent");
+        let previous = child_data.previous_sibling.get();
+        let next = child_data.next_sibling.get();
 
-            if previous.is_invalid() {
-                let first_child = (&raw const (*parent_data).first_child).read();
-                assert_eq!(first_child, child, "layout node child list lost its first child");
-                (&raw mut (*parent_data).first_child).write(next);
-            } else {
-                let previous_data = self.data(previous);
-                let previous_next_sibling = (&raw const (*previous_data).next_sibling).read();
-                assert_eq!(
-                    previous_next_sibling, child,
-                    "layout node sibling chain is inconsistent"
-                );
-                (&raw mut (*previous_data).next_sibling).write(next);
-            }
-
-            if next.is_invalid() {
-                let last_child = (&raw const (*parent_data).last_child).read();
-                assert_eq!(last_child, child, "layout node child list lost its last child");
-                (&raw mut (*parent_data).last_child).write(previous);
-            } else {
-                let next_data = self.data(next);
-                let next_previous_sibling = (&raw const (*next_data).previous_sibling).read();
-                assert_eq!(
-                    next_previous_sibling, child,
-                    "layout node sibling chain is inconsistent"
-                );
-                (&raw mut (*next_data).previous_sibling).write(previous);
-            }
-
-            (&raw mut (*child_data).parent).write(NodeSlotId::INVALID);
-            (&raw mut (*child_data).previous_sibling).write(NodeSlotId::INVALID);
-            (&raw mut (*child_data).next_sibling).write(NodeSlotId::INVALID);
+        if previous.is_invalid() {
+            let first_child = parent_data.first_child.get();
+            assert_eq!(first_child, child, "layout node child list lost its first child");
+            parent_data.first_child.set(next);
+        } else {
+            let previous_data = self.data(previous);
+            let previous_next_sibling = previous_data.next_sibling.get();
+            assert_eq!(
+                previous_next_sibling, child,
+                "layout node sibling chain is inconsistent"
+            );
+            previous_data.next_sibling.set(next);
         }
+
+        if next.is_invalid() {
+            let last_child = parent_data.last_child.get();
+            assert_eq!(last_child, child, "layout node child list lost its last child");
+            parent_data.last_child.set(previous);
+        } else {
+            let next_data = self.data(next);
+            let next_previous_sibling = next_data.previous_sibling.get();
+            assert_eq!(
+                next_previous_sibling, child,
+                "layout node sibling chain is inconsistent"
+            );
+            next_data.previous_sibling.set(previous);
+        }
+
+        child_data.parent.set(NodeSlotId::INVALID);
+        child_data.previous_sibling.set(NodeSlotId::INVALID);
+        child_data.next_sibling.set(NodeSlotId::INVALID);
     }
 
     pub(crate) fn paint_state(&self) -> &RefCell<crate::painting::paint_state::PaintState> {
@@ -1989,32 +1852,28 @@ impl LayoutNodeArena {
         if self.shell_if_live(id).is_null() {
             return 0;
         }
-        // SAFETY: shell_if_live established a live slot of this generation.
-        unsafe { (*self.data(id)).flags }
+        self.data(id).flags.get()
     }
 
     pub(crate) fn node_is_generated_for_pseudo_element(&self, id: NodeSlotId) -> bool {
         if self.shell_if_live(id).is_null() {
             return false;
         }
-        // SAFETY: shell_if_live established a live slot of this generation.
-        unsafe { (*self.data(id)).generated_for != 0 }
+        self.data(id).generated_for.get() != 0
     }
 
     pub(crate) fn node_kind_if_live(&self, id: NodeSlotId) -> Option<NodeKind> {
         if self.shell_if_live(id).is_null() {
             return None;
         }
-        // SAFETY: shell_if_live established a live slot of this generation.
-        Some(unsafe { (*self.data(id)).kind })
+        Some(self.data(id).kind.get())
     }
 
     pub(crate) fn node_parent_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
         if self.shell_if_live(id).is_null() {
             return None;
         }
-        // SAFETY: shell_if_live established a live slot of this generation.
-        let parent = unsafe { (*self.data(id)).parent };
+        let parent = self.data(id).parent.get();
         (!parent.is_invalid()).then_some(parent)
     }
 
@@ -2022,8 +1881,7 @@ impl LayoutNodeArena {
         if self.shell_if_live(id).is_null() {
             return None;
         }
-        // SAFETY: shell_if_live established a live slot of this generation.
-        let child = unsafe { (*self.data(id)).first_child };
+        let child = self.data(id).first_child.get();
         (!child.is_invalid()).then_some(child)
     }
 
@@ -2031,8 +1889,7 @@ impl LayoutNodeArena {
         if self.shell_if_live(id).is_null() {
             return None;
         }
-        // SAFETY: shell_if_live established a live slot of this generation.
-        let sibling = unsafe { (*self.data(id)).next_sibling };
+        let sibling = self.data(id).next_sibling.get();
         (!sibling.is_invalid()).then_some(sibling)
     }
 
@@ -2040,8 +1897,7 @@ impl LayoutNodeArena {
         if self.shell_if_live(id).is_null() {
             return None;
         }
-        // SAFETY: shell_if_live established a live slot of this generation.
-        Some(unsafe { &*self.data(id) })
+        Some(self.data(id))
     }
 
     pub(crate) fn node_is_out_of_flow_if_live(&self, id: NodeSlotId) -> bool {
@@ -2053,8 +1909,7 @@ impl LayoutNodeArena {
         if self.shell_if_live(id).is_null() {
             return None;
         }
-        // SAFETY: shell_if_live established a live slot of this generation.
-        let block = unsafe { (*self.data(id)).containing_block };
+        let block = self.data(id).containing_block.get();
         (!block.is_invalid()).then_some(block)
     }
 
@@ -2084,20 +1939,18 @@ impl LayoutNodeArena {
         if !self.slot_is_live(id) {
             return std::ptr::null_mut();
         }
-        // SAFETY: The metadata check established a live slot of this generation.
-        unsafe { (*self.data(id)).shell }
+        self.data(id).shell.get()
     }
 
     pub(crate) fn node_link_shell(&self, id: NodeSlotId, link: FfiNodeLink) -> *mut c_void {
         let data = self.data(id);
-        // SAFETY: data() validated that id names a live slot, and the links are plain values.
-        let linked = unsafe {
+        let linked = {
             match link {
-                FfiNodeLink::Parent => (&raw const (*data).parent).read(),
-                FfiNodeLink::FirstChild => (&raw const (*data).first_child).read(),
-                FfiNodeLink::LastChild => (&raw const (*data).last_child).read(),
-                FfiNodeLink::PreviousSibling => (&raw const (*data).previous_sibling).read(),
-                FfiNodeLink::NextSibling => (&raw const (*data).next_sibling).read(),
+                FfiNodeLink::Parent => data.parent.get(),
+                FfiNodeLink::FirstChild => data.first_child.get(),
+                FfiNodeLink::LastChild => data.last_child.get(),
+                FfiNodeLink::PreviousSibling => data.previous_sibling.get(),
+                FfiNodeLink::NextSibling => data.next_sibling.get(),
             }
         };
         if linked.is_invalid() {
@@ -2107,24 +1960,20 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn node_containing_block_shell_if_live(&self, id: NodeSlotId) -> *mut c_void {
-        // SAFETY: data() validated that id names a live slot.
-        let containing_block = unsafe { (&raw const (*self.data(id)).containing_block).read() };
+        let containing_block = self.data(id).containing_block.get();
         self.shell_if_live(containing_block)
     }
 
     pub(crate) fn node_flags(&self, id: NodeSlotId) -> u32 {
-        // SAFETY: data() validated that id names a live slot.
-        unsafe { (&raw const (*self.data(id)).flags).read() }
+        self.data(id).flags.get()
     }
 
     pub(crate) fn node_generated_for(&self, id: NodeSlotId) -> u8 {
-        // SAFETY: data() validated that id names a live slot.
-        unsafe { (&raw const (*self.data(id)).generated_for).read() }
+        self.data(id).generated_for.get()
     }
 
     pub(crate) fn node_shell(&self, id: NodeSlotId) -> *mut c_void {
-        // SAFETY: data() validated that id names a live slot.
-        unsafe { (&raw const (*self.data(id)).shell).read() }
+        self.data(id).shell.get()
     }
 
     pub(crate) fn dom_offset_for_rendered_text_offset(
@@ -2218,7 +2067,6 @@ impl LayoutNodeArena {
 #[derive(Clone, Copy)]
 pub(crate) struct NodeAllocation {
     pub(crate) slot: NodeSlotId,
-    pub(crate) data: *mut NodeData,
 }
 
 #[unsafe(no_mangle)]
@@ -2559,7 +2407,7 @@ pub unsafe extern "C" fn layout_arena_sync_enrolled_content_for_layout(
             continue;
         }
         // SAFETY: shell_if_live established a live slot of this generation.
-        let parent = unsafe { (&raw const (*(&*arena.cast::<LayoutNodeArena>()).data(node)).parent).read() };
+        let parent = unsafe { &*arena.cast::<LayoutNodeArena>() }.data(node).parent.get();
         if parent.is_invalid() {
             still_detached_text_nodes.push(node);
             continue;
@@ -2620,16 +2468,9 @@ pub unsafe extern "C" fn layout_arena_set_table_spans(
     // serializes all access on the document thread.
     let arena = unsafe { &mut *arena.cast::<LayoutNodeArena>() };
     let data = arena.data(id);
-    // SAFETY: data() validated that id names a live slot, and layout
-    // serializes mutation on the arena's owner thread.
-    let effective_spans_changed = unsafe {
-        let stored_column_span = &raw mut (*data).table_column_span;
-        let stored_row_span = &raw mut (*data).table_row_span;
-        let changed = stored_column_span.read() != column_span || stored_row_span.read() != row_span;
-        stored_column_span.write(column_span);
-        stored_row_span.write(row_span);
-        changed
-    };
+    let effective_spans_changed = data.table_column_span.get() != column_span || data.table_row_span.get() != row_span;
+    data.table_column_span.set(column_span);
+    data.table_row_span.set(row_span);
     let previous_raw_column_span = arena.set_raw_table_column_span(id, raw_column_span);
     effective_spans_changed || previous_raw_column_span != raw_column_span
 }
@@ -2691,20 +2532,16 @@ mod tests {
     fn node_data_addresses_remain_stable_when_chunks_are_added() {
         let mut arena = LayoutNodeArena::new();
         let first = arena.allocate_for_test();
-        let first_data = first.data;
+        let first_data_address = std::ptr::from_ref(arena.data(first.slot)) as usize;
 
         let mut allocations = Vec::new();
         for _ in 0..SLOTS_PER_CHUNK * 2 {
             allocations.push(arena.allocate_for_test());
         }
 
-        assert_eq!(first_data, arena.data(first.slot));
-        // SAFETY: The first allocation is still live, and the comparison above
-        // confirms that its pointer still addresses the arena slot.
-        unsafe {
-            (*first_data).table_column_span = 42;
-            assert_eq!((*arena.data(first.slot)).table_column_span, 42);
-        }
+        assert_eq!(first_data_address, std::ptr::from_ref(arena.data(first.slot)) as usize);
+        arena.data(first.slot).table_column_span.set(42);
+        assert_eq!(arena.data(first.slot).table_column_span.get(), 42);
         arena.free(first.slot).detached_children.release_all();
         for allocation in allocations {
             arena.free(allocation.slot).detached_children.release_all();
@@ -2716,7 +2553,7 @@ mod tests {
         assert_eq!(align_of::<Chunk>() % 64, 0);
         let mut arena = LayoutNodeArena::new();
         let allocation = arena.allocate_for_test();
-        assert_eq!(allocation.data as usize % 64, 0);
+        assert_eq!(std::ptr::from_ref(arena.data(allocation.slot)) as usize % 64, 0);
         arena.free(allocation.slot).detached_children.release_all();
     }
 
@@ -2742,8 +2579,7 @@ mod tests {
         arena.set_default_scroll_shift(positioned.slot, anchor.slot, true, false);
         assert!(arena.may_have_default_scroll_shift_anchor());
         assert_eq!(arena.default_scroll_shift_anchor(positioned.slot), anchor.slot);
-        // SAFETY: The allocation remains live and the arena keeps its address stable.
-        let flags = unsafe { (*positioned.data).flags };
+        let flags = arena.data(positioned.slot).flags.get();
         assert_ne!(flags & NodeFlag::CompensatesForHorizontalScroll as u32, 0);
         assert_eq!(flags & NodeFlag::CompensatesForVerticalScroll as u32, 0);
 
@@ -2761,8 +2597,7 @@ mod tests {
         );
         arena.set_default_scroll_shift(positioned.slot, NodeSlotId::INVALID, false, false);
         assert!(arena.default_scroll_shift_anchor(positioned.slot).is_invalid());
-        // SAFETY: The allocation remains live and the arena keeps its address stable.
-        let cleared_flags = unsafe { (*positioned.data).flags };
+        let cleared_flags = arena.data(positioned.slot).flags.get();
         assert_eq!(cleared_flags & NodeFlag::CompensatesForHorizontalScroll as u32, 0);
         assert_eq!(cleared_flags & NodeFlag::CompensatesForVerticalScroll as u32, 0);
 
@@ -2792,21 +2627,24 @@ mod tests {
         let detached = arena.allocate_for_test();
         arena.insert_child(root.slot, child.slot, NodeSlotId::INVALID);
         let update_flags = NodeFlag::NeedsLayoutUpdate as u32 | NodeFlag::NeedsOwnGeometryUpdate as u32;
-        // SAFETY: All three allocations remain live for the duration of the test.
-        unsafe {
-            (*root.data).flags |= update_flags;
-            (*child.data).flags |= update_flags;
-            (*detached.data).flags |= update_flags;
-        }
+        arena
+            .data(root.slot)
+            .flags
+            .set(arena.data(root.slot).flags.get() | (update_flags));
+        arena
+            .data(child.slot)
+            .flags
+            .set(arena.data(child.slot).flags.get() | (update_flags));
+        arena
+            .data(detached.slot)
+            .flags
+            .set(arena.data(detached.slot).flags.get() | (update_flags));
 
         arena.reset_layout_update_flags_in_subtree(root.slot);
 
-        // SAFETY: The allocations remain live and the arena keeps their addresses stable.
-        unsafe {
-            assert_eq!((*root.data).flags & update_flags, 0);
-            assert_eq!((*child.data).flags & update_flags, 0);
-            assert_eq!((*detached.data).flags & update_flags, update_flags);
-        }
+        assert_eq!(arena.data(root.slot).flags.get() & update_flags, 0);
+        assert_eq!(arena.data(child.slot).flags.get() & update_flags, 0);
+        assert_eq!(arena.data(detached.slot).flags.get() & update_flags, update_flags);
         arena.remove_child(root.slot, child.slot);
         arena.free(root.slot).detached_children.release_all();
         arena.free(child.slot).detached_children.release_all();
@@ -2829,8 +2667,8 @@ mod tests {
     fn clearing_a_committed_box_evicts_its_fragment_link() {
         let mut arena = LayoutNodeArena::new();
         let allocation = arena.allocate_for_test();
-        arena.set_committed_fragment_link(allocation.data, test_fragment_link(allocation.slot));
-        assert!(arena.committed_fragment_link(allocation.data).is_some());
+        arena.set_committed_fragment_link(arena.data(allocation.slot), test_fragment_link(allocation.slot));
+        assert!(arena.committed_fragment_link(arena.data(allocation.slot)).is_some());
 
         // SAFETY: arena is a live handle on this thread, and allocation names
         // a live slot in it.
@@ -2841,7 +2679,7 @@ mod tests {
             );
         }
 
-        assert!(arena.committed_fragment_link(allocation.data).is_none());
+        assert!(arena.committed_fragment_link(arena.data(allocation.slot)).is_none());
         arena.free(allocation.slot).detached_children.release_all();
     }
 
@@ -2852,17 +2690,17 @@ mod tests {
         let new = arena.allocate_for_test();
         let link = test_fragment_link(old.slot);
         let retained_fragment = link.fragment.clone();
-        arena.set_committed_fragment_link(old.data, link);
+        arena.set_committed_fragment_link(arena.data(old.slot), link);
 
         let moved = arena
-            .take_committed_fragment_link(old.data)
+            .take_committed_fragment_link(arena.data(old.slot))
             .expect("old slot must retain its committed fragment");
         assert!(std::rc::Rc::ptr_eq(&moved.fragment, &retained_fragment));
-        arena.set_committed_fragment_link(new.data, moved);
+        arena.set_committed_fragment_link(arena.data(new.slot), moved);
 
-        assert!(arena.committed_fragment_link(old.data).is_none());
+        assert!(arena.committed_fragment_link(arena.data(old.slot)).is_none());
         let moved = arena
-            .committed_fragment_link(new.data)
+            .committed_fragment_link(arena.data(new.slot))
             .expect("new slot must receive the committed fragment");
         assert!(std::rc::Rc::ptr_eq(&moved.fragment, &retained_fragment));
         arena.free(old.slot).detached_children.release_all();
@@ -2899,8 +2737,7 @@ mod tests {
         };
         let dependency_computations = Cell::new(0);
 
-        // SAFETY: The allocation remains live until it is explicitly freed below.
-        let first_data = unsafe { &mut *first.data };
+        let first_data = arena.data(first.slot);
         arena.intrinsic_block_size_cache_put(first_data, IntrinsicSizeCacheKind::MinContentBlock, key, value);
         arena.intrinsic_inline_size_measurement_cache_put(
             first_data,
@@ -2927,7 +2764,9 @@ mod tests {
         assert!(arena.intrinsic_inline_size_depends_on_block_size(first_data, || false));
         assert_eq!(dependency_computations.get(), 1);
 
-        first_data.intrinsic_cache_epoch += 1;
+        first_data
+            .intrinsic_cache_epoch
+            .set(first_data.intrinsic_cache_epoch.get() + 1);
         assert_eq!(
             arena.intrinsic_block_size_cache_get(first_data, IntrinsicSizeCacheKind::MinContentBlock, key),
             None
@@ -2950,8 +2789,7 @@ mod tests {
         let second = arena.allocate_for_test();
         assert_eq!(second.slot.slot_index(), first.slot.slot_index());
         assert_ne!(second.slot, first.slot);
-        // SAFETY: The second allocation is live and reuses the first allocation's slot.
-        let second_data = unsafe { &*second.data };
+        let second_data = &*arena.data(second.slot);
         assert_eq!(
             arena.intrinsic_block_size_cache_get(second_data, IntrinsicSizeCacheKind::MinContentBlock, key),
             None
@@ -2971,8 +2809,7 @@ mod tests {
     fn intrinsic_size_cache_answers_masked_probes_only_from_independent_measurements() {
         let mut arena = LayoutNodeArena::new();
         let allocation = arena.allocate_for_test();
-        // SAFETY: The allocation remains live until it is explicitly freed below.
-        let data = unsafe { &mut *allocation.data };
+        let data = arena.data(allocation.slot);
         let key_with_basis = |basis: i32| IntrinsicSizeCacheKey {
             measured_at_inline_size: Some(CssPixels::from_raw(64)),
             percentage_basis_block_size: Some(CssPixels::from_raw(basis)),
@@ -3094,8 +2931,7 @@ mod tests {
             },
         };
 
-        // SAFETY: The allocation remains live until it is explicitly freed below.
-        let first_data = unsafe { &mut *first.data };
+        let first_data = arena.data(first.slot);
         assert_eq!(arena.table_cell_measurement_cache_get(first_data, key), None);
         arena.table_cell_measurement_cache_put(first_data, key, value);
         assert_eq!(arena.table_cell_measurement_cache_get(first_data, key), Some(value));
@@ -3110,14 +2946,15 @@ mod tests {
             None
         );
 
-        first_data.intrinsic_cache_epoch += 1;
+        first_data
+            .intrinsic_cache_epoch
+            .set(first_data.intrinsic_cache_epoch.get() + 1);
         assert_eq!(arena.table_cell_measurement_cache_get(first_data, key), None);
         arena.free(first.slot).detached_children.release_all();
 
         let second = arena.allocate_for_test();
         assert_eq!(second.slot.slot_index(), first.slot.slot_index());
-        // SAFETY: The second allocation is live and reuses the first allocation's slot.
-        let second_data = unsafe { &*second.data };
+        let second_data = &*arena.data(second.slot);
         assert_eq!(arena.table_cell_measurement_cache_get(second_data, key), None);
         arena.free(second.slot).detached_children.release_all();
     }
