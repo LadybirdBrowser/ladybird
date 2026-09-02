@@ -1,0 +1,3 @@
+quiet recording walks the masked root: true
+captures inside the masked root splice: true
+hit test inside the masked root after a change: r1

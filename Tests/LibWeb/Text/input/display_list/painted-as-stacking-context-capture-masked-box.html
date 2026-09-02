@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    #root { position: relative; width: 200px; mask-image: linear-gradient(black, transparent); }
+    .row { height: 20px; }
+</style>
+<div id="root"><div class="row" id="r0">R 0</div><div class="row" id="r1">R 1</div><div class="row" id="r2">R 2</div></div>
+<script>
+    test(() => {
+        internals.asyncScrollingState();
+        internals.asyncScrollingState();
+        const visitedQuiet = internals.paintCacheCaptureSiteVisitCount();
+        const splicedQuiet = internals.paintCacheSplicedCaptureCount();
+
+        r1.style.color = "red";
+        internals.asyncScrollingState();
+        const hit = document.elementFromPoint(10, 30).id;
+
+        println(`quiet recording walks the masked root: ${visitedQuiet > 1}`);
+        println(`captures inside the masked root splice: ${splicedQuiet > 0}`);
+        println(`hit test inside the masked root after a change: ${hit}`);
+    });
+</script>

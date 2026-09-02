@@ -1,0 +1,5 @@
+quiet recording visits only the viewport root: true
+hit test before the move: 
+hit test after the move: b2
+moving B walks B: true
+the next quiet recording hits the viewport root again: true

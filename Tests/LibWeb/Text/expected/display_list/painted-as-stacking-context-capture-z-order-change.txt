@@ -1,0 +1,4 @@
+on top before: b
+on top after flipping to a negative z-index: a
+on top after flipping back: b
+A splices while the order changes: true

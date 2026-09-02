@@ -1,0 +1,3 @@
+quiet recording hits the viewport root and visits nothing else: true
+change inside A visits far fewer captures than a change inside B: true
+B splices as one capture when A changes: true

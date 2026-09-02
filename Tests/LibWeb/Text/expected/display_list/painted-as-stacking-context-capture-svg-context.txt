@@ -1,0 +1,2 @@
+quiet recording still walks the stacking contexts painted inside the svg: true
+gradient edit walks the same captures: true

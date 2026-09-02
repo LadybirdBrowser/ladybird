@@ -1,0 +1,4 @@
+blocked before adding the listener: false
+quiet recording visits only the viewport root: true
+blocked after adding the listener: true
+adding the listener re-records B: true

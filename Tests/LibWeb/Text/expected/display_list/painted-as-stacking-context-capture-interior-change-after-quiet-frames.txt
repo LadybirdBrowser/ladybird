@@ -1,0 +1,3 @@
+quiet recordings visit only the viewport root: true
+second change visits the same captures as the first: true
+second change splices the same captures as the first: true

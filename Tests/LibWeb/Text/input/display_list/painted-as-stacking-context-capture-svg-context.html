@@ -1,0 +1,23 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 100px; }
+    svg { display: block; }
+</style>
+<div id="root"><svg width="100" height="100" style="opacity: 0.5"><rect width="100" height="100" fill="url(#g)"/></svg></div>
+<svg width="0" height="0"><defs><linearGradient id="g"><stop id="s0" offset="0" stop-color="red"/><stop offset="1" stop-color="red"/></linearGradient></defs></svg>
+<script>
+    test(() => {
+        internals.asyncScrollingState();
+        internals.asyncScrollingState();
+        const visitedQuiet = internals.paintCacheCaptureSiteVisitCount();
+
+        s0.setAttribute("stop-color", "blue");
+        internals.asyncScrollingState();
+        const visitedAfterEdit = internals.paintCacheCaptureSiteVisitCount();
+
+        println(`quiet recording still walks the stacking contexts painted inside the svg: ${visitedQuiet > 1}`);
+        println(`gradient edit walks the same captures: ${visitedAfterEdit === visitedQuiet}`);
+    });
+</script>

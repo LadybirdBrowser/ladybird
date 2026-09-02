@@ -136,7 +136,7 @@ pub(crate) fn record_display_list(
     }
     recorder.recorder.fill_rect(inputs.bitmap_rect, inputs.background_color);
     recorder.prerecord_nested_display_lists();
-    recorder.paint_stacking_context(viewport);
+    recorder.paint_and_capture_as_stacking_context(viewport);
     crate::painting::record::paint::inspector_overlay::record_inspector_overlays(&mut recorder);
     let mask_display_lists = recorder.recorder.take_mask_display_lists();
     let mut hit_test_list = recorder.list;
@@ -212,8 +212,22 @@ impl PaintRecorder<'_> {
         self.with_context(context_before_children, |this| this.paint_internal(paintable));
     }
 
-    fn paint_child(&mut self, child: NodeSlotId) {
-        self.paint_stacking_context(child);
+    fn paint_and_capture_as_stacking_context(&mut self, paintable: NodeSlotId) {
+        debug_assert!(self.layout_arena.paintable_row_is_populated(paintable));
+        if !self.layout_arena.paintable_row_is_populated(paintable) {
+            return;
+        }
+        let site = CaptureSite {
+            paintable,
+            kind: CaptureKind::PaintedAsStackingContext,
+        };
+        self.splice_or_record_capture(site, |this| {
+            if this.has_stacking_context(paintable) {
+                this.paint_stacking_context(paintable);
+            } else {
+                this.paint_node_as_stacking_context(paintable);
+            }
+        });
     }
 
     fn paint_internal(&mut self, paintable: NodeSlotId) {
@@ -228,17 +242,17 @@ impl PaintRecorder<'_> {
             // own context rather than by the SVG walk.
             if let Some(entries) = &entries {
                 for entry in entries.negative_z_index_child_contexts() {
-                    self.paint_child(entry.slot);
+                    self.paint_and_capture_as_stacking_context(entry.slot);
                 }
                 for &descendant in &entries.stack_level_zero_boxes {
                     if self.layout_arena.paintable_row_is_populated(descendant)
                         && self.data(descendant).establishes_stacking_context
                     {
-                        self.paint_child(descendant);
+                        self.paint_and_capture_as_stacking_context(descendant);
                     }
                 }
                 for entry in entries.positive_z_index_child_contexts() {
-                    self.paint_child(entry.slot);
+                    self.paint_and_capture_as_stacking_context(entry.slot);
                 }
             }
             self.paint_node(paintable, PaintPhase::Outline);
@@ -260,7 +274,7 @@ impl PaintRecorder<'_> {
         // https://github.com/w3c/csswg-drafts/issues/2717
         if let Some(entries) = &entries {
             for entry in entries.negative_z_index_child_contexts() {
-                self.paint_child(entry.slot);
+                self.paint_and_capture_as_stacking_context(entry.slot);
             }
         }
 
@@ -301,11 +315,7 @@ impl PaintRecorder<'_> {
                 if !self.layout_arena.paintable_row_is_populated(descendant) {
                     continue;
                 }
-                if self.data(descendant).establishes_stacking_context {
-                    self.paint_child(descendant);
-                } else {
-                    self.paint_node_as_stacking_context(descendant);
-                }
+                self.paint_and_capture_as_stacking_context(descendant);
             }
         }
 
@@ -316,7 +326,7 @@ impl PaintRecorder<'_> {
         // https://github.com/w3c/csswg-drafts/issues/2717
         if let Some(entries) = &entries {
             for entry in entries.positive_z_index_child_contexts() {
-                self.paint_child(entry.slot);
+                self.paint_and_capture_as_stacking_context(entry.slot);
             }
         }
 
@@ -563,7 +573,12 @@ impl PaintRecorder<'_> {
             return false;
         }
         match site.kind {
-            CaptureKind::DescendantSubtreePhase(_) => self.recording_stats.descendant_subtree_capture_attempts += 1,
+            CaptureKind::PaintedAsStackingContext => {
+                self.recording_stats.painted_as_stacking_context_capture_attempts += 1;
+            }
+            CaptureKind::DescendantSubtreePhase(_) => {
+                self.recording_stats.descendant_subtree_capture_attempts += 1;
+            }
             CaptureKind::BoxPhase(_) => unreachable!("per-phase captures are spliced by paint_node"),
         }
         let Some(command_source) = self.command_cache_source.as_ref() else {
@@ -585,6 +600,11 @@ impl PaintRecorder<'_> {
         };
         drop(cache);
         if !cached.may_be_spliced_verbatim {
+            return false;
+        }
+        if site.kind == CaptureKind::PaintedAsStackingContext
+            && cached.recorded_with_should_paint_overlay != self.inputs.should_paint_overlay
+        {
             return false;
         }
         if self.captured_position_at_recording_start(site.paintable) != self.current_absolute_position(site.paintable) {
@@ -625,7 +645,12 @@ impl PaintRecorder<'_> {
                 true,
             );
         }
-        self.recording_stats.descendant_subtree_capture_hits += 1;
+        match site.kind {
+            CaptureKind::PaintedAsStackingContext => {
+                self.recording_stats.painted_as_stacking_context_capture_hits += 1;
+            }
+            _ => self.recording_stats.descendant_subtree_capture_hits += 1,
+        }
         self.recording_stats.command_bytes_spliced_from_source += command_range.size as usize;
         self.recording_stats.hit_test_items_copied_from_source += cached.hit_test_item_count as usize;
         true
@@ -657,6 +682,7 @@ impl PaintRecorder<'_> {
                 hit_test_item_count: hit_test_item_count as u32,
                 gen_of_last_fresh_walk,
                 may_be_spliced_verbatim,
+                recorded_with_should_paint_overlay: self.inputs.should_paint_overlay,
             },
         );
     }
