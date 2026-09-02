@@ -9,7 +9,7 @@ use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::node_data::{NodeFlag, NodeKind};
 use crate::layout::{node_facts, used_values};
-use crate::painting::display_list::builder::CommandRange;
+use crate::painting::display_list::builder::{CommandRange, DisplayListBuilder, RecordedDisplayList};
 use crate::painting::display_list::commands::{ContextRef, VISUAL_VIEWPORT_NODE_INDEX};
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
@@ -19,13 +19,13 @@ use crate::painting::host::{
     FfiHitTestHostCallbacks, FfiPaintHostCallbacks, FfiRecordingInputs, FfiVisualContextHostCallbacks,
 };
 use crate::painting::node_painting;
-use crate::painting::record::RecordingOutput;
 use crate::painting::record::cache::{
     CachedSubtreeCapture, CaptureAddress, CaptureKind, CaptureSite, EnclosingCaptureAnchor, OpenCapture, RecordGen,
     ResolvedEnclosingCaptureMemo, SourceTapePosition, narrow_record_gen, resolve_capture_address_in_source_tape,
 };
 use crate::painting::record::masks::MaskLayerSet;
 use crate::painting::record::verify::{CaptureLog, LoggedCapture};
+use crate::painting::record::{DeferredWholeTapeSplice, RecordingOutput};
 use crate::painting::style_queries;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -97,6 +97,7 @@ pub(crate) fn record_display_list(
         hit_test_list_generation,
         open_capture_stack: Vec::new(),
         resolved_enclosing_capture_memo: std::cell::RefCell::new(ResolvedEnclosingCaptureMemo::default()),
+        deferred_whole_tape_splice: None,
         viewport,
         has_blocking_wheel_event_listeners: false,
         recording_stats: FfiPaintRecordingStats::default(),
@@ -141,16 +142,47 @@ pub(crate) fn record_display_list(
     let mask_display_lists = recorder.recorder.take_mask_display_lists();
     let mut hit_test_list = recorder.list;
     hit_test_list.generation = hit_test_list_generation;
+    let recorded = recorder.recorder.into_builder().finish();
+    let display_list = match recorder.deferred_whole_tape_splice {
+        Some(deferred) if recorded.bytes.len() == deferred.prologue_byte_count => deferred.source_display_list,
+        Some(deferred) => Rc::new(materialize_deferred_whole_tape_splice(&recorded, &deferred)),
+        None => Rc::new(recorded),
+    };
     RecordingOutput {
         recorded_structural_epoch: structural_epoch,
         recorded_device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
         hit_test_list,
-        display_list: recorder.recorder.into_builder().finish(),
+        display_list,
         has_blocking_wheel_event_listeners: recorder.has_blocking_wheel_event_listeners,
         mask_display_lists,
         recording_stats: recorder.recording_stats,
         capture_log_for_verification: recorder.capture_log_for_verification,
     }
+}
+
+fn materialize_deferred_whole_tape_splice(
+    recorded: &RecordedDisplayList,
+    deferred: &DeferredWholeTapeSplice,
+) -> RecordedDisplayList {
+    let mut builder = DisplayListBuilder::new();
+    builder.append_command_range(
+        recorded,
+        CommandRange {
+            offset: 0,
+            size: deferred.prologue_byte_count as u32,
+        },
+        None,
+    );
+    builder.append_command_range(&deferred.source_display_list, deferred.source_range, None);
+    builder.append_command_range(
+        recorded,
+        CommandRange {
+            offset: deferred.prologue_byte_count as u32,
+            size: (recorded.bytes.len() - deferred.prologue_byte_count) as u32,
+        },
+        None,
+    );
+    builder.finish()
 }
 
 impl PaintRecorder<'_> {
@@ -614,17 +646,37 @@ impl PaintRecorder<'_> {
             return false;
         };
 
-        let command_range = self.recorder.append_cached_command_range_verbatim(
-            &command_source.display_list,
-            CommandRange {
-                offset: source_position.command_byte_offset,
-                size: cached.command_byte_count,
-            },
-        );
         let hit_test_item_start = self.list.items.len();
         let source_start = source_position.hit_test_item_index as usize;
         let source_end = source_start + cached.hit_test_item_count as usize;
-        self.append_spliced_hit_test_items(&item_source.items[source_start..source_end], site.paintable);
+        let splice_covers_entire_source_hit_test_list =
+            hit_test_item_start == 0 && source_start == 0 && source_end == item_source.items.len();
+        let range = CommandRange {
+            offset: source_position.command_byte_offset,
+            size: cached.command_byte_count,
+        };
+        let prologue_byte_count = self.recorder.byte_size();
+        let splice_covers_entire_source_tape_after_prologue = splice_covers_entire_source_hit_test_list
+            && source_position.command_byte_offset as usize == prologue_byte_count
+            && (source_position.command_byte_offset + cached.command_byte_count) as usize
+                == command_source.display_list.bytes.len()
+            && self.recorder.bytes() == &command_source.display_list.bytes[..prologue_byte_count];
+        let command_range = if splice_covers_entire_source_tape_after_prologue {
+            self.deferred_whole_tape_splice = Some(DeferredWholeTapeSplice {
+                source_display_list: command_source.display_list.clone(),
+                prologue_byte_count,
+                source_range: range,
+            });
+            range
+        } else {
+            self.recorder
+                .append_cached_command_range_verbatim(&command_source.display_list, range)
+        };
+        if splice_covers_entire_source_hit_test_list {
+            self.list.items = item_source.items.clone();
+        } else {
+            self.append_spliced_hit_test_items(&item_source.items[source_start..source_end], site.paintable);
+        }
         self.log_command_byte_capture_for_verification(site.paintable, site.kind, command_range, true);
         self.log_hit_test_item_capture_for_verification(
             site.paintable,

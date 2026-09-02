@@ -133,9 +133,7 @@ impl HitTestList {
             !self.derived_structures_built,
             "hit-test item appended after the derived structures were built"
         );
-        std::rc::Rc::get_mut(&mut self.items)
-            .expect("hit-test items are exclusively owned while recording")
-            .push(item);
+        std::rc::Rc::make_mut(&mut self.items).push(item);
     }
 
     pub fn caret_line_rect_for_item(item: &HitTestItem) -> CssPixelRect {
