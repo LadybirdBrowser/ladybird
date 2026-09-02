@@ -580,14 +580,11 @@ Layout::RustFFI::FfiScrollableOverflowUpdateOutcome rust_update_scrollable_overf
         if (!scroll_offset(box).is_zero())
             set_scroll_offset(box, scroll_offset(box));
     };
-    auto scroll_offset_is_zero = [](void*, void* layout_node_shell) -> bool {
-        return scroll_offset(*static_cast<Layout::Node const*>(layout_node_shell)).is_zero();
-    };
 
     return Layout::RustFFI::layout_arena_update_scrollable_overflow(
         layout_arena_handle(document), viewport_row_slot(document), handled_by_full_layout_commit,
         visual_context_host_callbacks(document), scrollable_overflow_host_callbacks(),
-        nullptr, clamp_scroll_offset_if_nonzero, scroll_offset_is_zero);
+        nullptr, clamp_scroll_offset_if_nonzero);
 }
 
 CSS::ResolvedImage rust_resolve_gradient_for_size(CSS::StyleValue const& gradient_style_value, Layout::NodeWithStyle const& layout_node, CSSPixelSize size)

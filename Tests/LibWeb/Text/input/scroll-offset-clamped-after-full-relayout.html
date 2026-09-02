@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<style>
+    #box {
+        width: 100px;
+        height: 100px;
+        overflow: auto;
+    }
+    .hidden {
+        display: none;
+    }
+</style>
+<script src="include.js"></script>
+<div id="box"><div id="tall" style="height: 1000px"></div></div>
+<div id="filler"></div>
+<script>
+    // A box that holds a scroll offset has its overflow measured eagerly after every full layout,
+    // so an offset that the new overflow no longer reaches is clamped right away, and a box built
+    // anew for a scrolled element measures eagerly too.
+    test(() => {
+        const box = document.getElementById("box");
+        const tall = document.getElementById("tall");
+        const filler = document.getElementById("filler");
+        const relayoutEverything = () => {
+            for (let i = 0; i < 20; ++i)
+                filler.appendChild(document.createElement("div"));
+            box.getBoundingClientRect();
+        };
+
+        box.scrollTop = 400;
+        println(`scrollTop after scrolling: ${box.scrollTop}`);
+
+        tall.style.height = "250px";
+        relayoutEverything();
+        println(`scrollTop after the overflow shrank: ${box.scrollTop}`);
+
+        box.scrollTop = 120;
+        box.classList.add("hidden");
+        box.getBoundingClientRect();
+        box.classList.remove("hidden");
+        box.getBoundingClientRect();
+        println(`scrollTop after the box was rebuilt: ${box.scrollTop}`);
+
+        tall.style.height = "150px";
+        relayoutEverything();
+        println(`scrollTop after the overflow shrank again: ${box.scrollTop}`);
+
+        box.scrollTop = 0;
+        tall.style.height = "1000px";
+        relayoutEverything();
+        println(`scrollTop after scrolling back: ${box.scrollTop}`);
+    });
+</script>

@@ -680,6 +680,16 @@ pub unsafe extern "C" fn layout_arena_measure_scrollable_overflow(
     });
 }
 
+/// Whether a box is measured eagerly after a full commit rather than only when an ancestor's
+/// measurement reaches it: a scroll container, or a box whose element or pseudo-element stores a
+/// scroll offset that the new overflow may have to clamp. The offset lives on the DOM side, which
+/// sets `NodeFlag::HasScrollOffset` whenever it stores one and whenever a box becomes an element's
+/// or pseudo-element's box, so the answer is one style query and one flag read.
+fn box_holds_scroll_state(arena: &LayoutNodeArena, slot: NodeSlotId) -> bool {
+    crate::painting::style_queries::is_scroll_container(arena, slot)
+        || arena.node_flags_if_live(slot) & crate::layout::node_data::NodeFlag::HasScrollOffset as u32 != 0
+}
+
 /// # Safety
 ///
 /// `arena_handle` must be a live handle from `layout_arena_create`, used on the document
@@ -734,7 +744,6 @@ pub unsafe extern "C" fn layout_arena_update_scrollable_overflow(
     overflow_callbacks: crate::painting::host::FfiScrollableOverflowHostCallbacks,
     scroll_offset_context: *mut c_void,
     clamp_scroll_offset_if_nonzero: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    scroll_offset_is_zero: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
 ) -> FfiScrollableOverflowUpdateOutcome {
     abort_on_panic(|| {
         let no_recalculation = FfiScrollableOverflowUpdateOutcome {
@@ -785,16 +794,13 @@ pub unsafe extern "C" fn layout_arena_update_scrollable_overflow(
             // containers, and boxes holding a scroll offset are measured eagerly.
             let mut eager_measurement_roots = Vec::new();
             {
-                // SAFETY: As above; the callback receives live shells and does not re-enter.
+                // SAFETY: As above.
                 let arena = unsafe { arena_from_handle(arena) };
                 arena.for_each_node_in_layout_subtree_in_pre_order(viewport, |slot| {
                     if !arena.paintable_rows().paintable_row_is_populated(slot) {
                         return;
                     }
-                    let measures_eagerly = slot == viewport
-                        || crate::painting::style_queries::is_scroll_container(arena, slot)
-                        || !unsafe { scroll_offset_is_zero(scroll_offset_context, arena.node_shell(slot)) };
-                    if measures_eagerly {
+                    if slot == viewport || box_holds_scroll_state(arena, slot) {
                         eager_measurement_roots.push(slot);
                     }
                 });
@@ -918,16 +924,9 @@ pub unsafe extern "C" fn layout_arena_update_scrollable_overflow(
             // measured recursively if an ancestor reaches them. Measuring each one here would
             // repeatedly walk the same containing-block chains after a small subtree update.
             if old_overflow_data.is_none() && slot != viewport {
-                // SAFETY: As above; the callback receives a live shell and does not re-enter.
-                let scroll_offset_is_zero_for_slot = unsafe {
-                    let arena = arena_from_handle(arena);
-                    if crate::painting::style_queries::is_scroll_container(arena, slot) {
-                        None
-                    } else {
-                        Some(scroll_offset_is_zero(scroll_offset_context, arena.node_shell(slot)))
-                    }
-                };
-                if scroll_offset_is_zero_for_slot == Some(true) {
+                // SAFETY: As above.
+                let arena = unsafe { arena_from_handle(arena) };
+                if !box_holds_scroll_state(arena, slot) {
                     continue;
                 }
             }

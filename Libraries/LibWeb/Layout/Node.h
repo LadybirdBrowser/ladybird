@@ -222,6 +222,12 @@ public:
     bool needs_layout_update() const { return has_flag(RustFFI::NodeFlag::NeedsLayoutUpdate); }
     void set_retains_compositor_animated_content(bool value) { set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, value); }
 
+    // The arena measures a box that holds a scroll offset eagerly after a full commit, so the box carries that fact
+    // as a flag: it is set when a box becomes an element's or a pseudo-element's box, and again whenever the stored
+    // offset changes, each time re-derived from the one place the offset is stored.
+    void update_has_scroll_offset_flag();
+    void verify_has_scroll_offset_flag() const;
+
     // Any invalidation below a node must reach every ancestor's epoch: cached runs capture
     // subtree structure, and unlike intrinsic-size invalidation there is no absolutely-positioned
     // or SVG boundary — those descendants' fragments live in ancestor run trees. The arena runs
@@ -342,6 +348,8 @@ protected:
     {
         return (m_data->flags & static_cast<u32>(flag)) != 0;
     }
+
+    bool dom_target_stores_scroll_offset() const;
 
     void set_flag(RustFFI::NodeFlag flag, bool value)
     {
