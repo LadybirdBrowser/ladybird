@@ -214,21 +214,22 @@ impl PaintCache {
         self.hit_test_items[phase as usize].set(Some(hit_test_items));
     }
 
-    pub(crate) fn descendant_subtree(&self, phase: StackingContextPaintPhase) -> Option<CachedSubtreeCapture> {
-        self.descendant_subtrees[phase as usize].get()
+    pub(crate) fn subtree_capture(&self, kind: CaptureKind) -> Option<CachedSubtreeCapture> {
+        match kind {
+            CaptureKind::BoxPhase(_) => None,
+            CaptureKind::DescendantSubtreePhase(phase) => self.descendant_subtrees[phase as usize].get(),
+        }
     }
 
-    pub(crate) fn set_descendant_subtree(&self, phase: StackingContextPaintPhase, subtree: CachedSubtreeCapture) {
-        self.descendant_subtrees[phase as usize].set(Some(subtree));
+    pub(crate) fn set_subtree_capture(&self, kind: CaptureKind, capture: CachedSubtreeCapture) {
+        match kind {
+            CaptureKind::BoxPhase(_) => unreachable!("a box phase capture is not a subtree capture"),
+            CaptureKind::DescendantSubtreePhase(phase) => self.descendant_subtrees[phase as usize].set(Some(capture)),
+        }
     }
 
     pub(crate) fn enclosing_capture_anchor(&self, kind: CaptureKind) -> Option<EnclosingCaptureAnchor> {
-        match kind {
-            CaptureKind::BoxPhase(_) => None,
-            CaptureKind::DescendantSubtreePhase(phase) => {
-                self.descendant_subtree(phase).map(EnclosingCaptureAnchor::from)
-            }
-        }
+        self.subtree_capture(kind).map(EnclosingCaptureAnchor::from)
     }
 
     pub fn clear_descendant_subtrees(&self) {
