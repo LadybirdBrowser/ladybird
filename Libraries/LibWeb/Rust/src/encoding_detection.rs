@@ -38,41 +38,39 @@ pub unsafe extern "C" fn rust_detect_encoding(
     out_encoding_name_len: *mut usize,
 ) -> bool {
     unsafe {
-        crate::abort_on_panic(|| {
-            let Some(input_slice) = crate::bytes_from_raw(input, input_len) else {
-                return false;
-            };
+        let Some(input_slice) = crate::bytes_from_raw(input, input_len) else {
+            return false;
+        };
 
-            let tld_slice = if tld.is_null() || tld_len == 0 {
-                None
-            } else {
-                Some(std::slice::from_raw_parts(tld, tld_len))
-            };
+        let tld_slice = if tld.is_null() || tld_len == 0 {
+            None
+        } else {
+            Some(std::slice::from_raw_parts(tld, tld_len))
+        };
 
-            // Web browsers must use `Iso2022JpDetection::Deny` and `Utf8Detection::Deny` to
-            // prevent charset confusion attacks. See the chardetng documentation for details.
-            // Japanese pages using ISO-2022-JP will have declared it in a <meta> tag, which
-            // is detected in step 5 (prescan) before this step is reached.
-            // We always call `guess()` even for pure-ASCII input because chardetng still
-            // tracks ESC sequences (ISO-2022-JP uses 7-bit escapes) and returns the
-            // correct locale-based fallback (windows-1252 for generic TLD) with
-            // `Utf8Detection::Deny` when no distinctive non-ASCII encoding evidence is found.
-            let mut detector = EncodingDetector::new(Iso2022JpDetection::Deny);
-            // Pass last=false because the caller may only be providing a sniff-bytes prefix
-            // of a longer stream. chardetng docs: "If you want to perform detection on just
-            // the prefix of a longer stream, do not pass last=true."
-            detector.feed(input_slice, false);
+        // Web browsers must use `Iso2022JpDetection::Deny` and `Utf8Detection::Deny` to
+        // prevent charset confusion attacks. See the chardetng documentation for details.
+        // Japanese pages using ISO-2022-JP will have declared it in a <meta> tag, which
+        // is detected in step 5 (prescan) before this step is reached.
+        // We always call `guess()` even for pure-ASCII input because chardetng still
+        // tracks ESC sequences (ISO-2022-JP uses 7-bit escapes) and returns the
+        // correct locale-based fallback (windows-1252 for generic TLD) with
+        // `Utf8Detection::Deny` when no distinctive non-ASCII encoding evidence is found.
+        let mut detector = EncodingDetector::new(Iso2022JpDetection::Deny);
+        // Pass last=false because the caller may only be providing a sniff-bytes prefix
+        // of a longer stream. chardetng docs: "If you want to perform detection on just
+        // the prefix of a longer stream, do not pass last=true."
+        detector.feed(input_slice, false);
 
-            let utf8_detection = if allow_utf8 {
-                Utf8Detection::Allow
-            } else {
-                Utf8Detection::Deny
-            };
-            let encoding = detector.guess(tld_slice, utf8_detection);
-            let name = encoding.name().as_bytes();
-            *out_encoding_name = name.as_ptr();
-            *out_encoding_name_len = name.len();
-            true
-        })
+        let utf8_detection = if allow_utf8 {
+            Utf8Detection::Allow
+        } else {
+            Utf8Detection::Deny
+        };
+        let encoding = detector.guess(tld_slice, utf8_detection);
+        let name = encoding.name().as_bytes();
+        *out_encoding_name = name.as_ptr();
+        *out_encoding_name_len = name.len();
+        true
     }
 }

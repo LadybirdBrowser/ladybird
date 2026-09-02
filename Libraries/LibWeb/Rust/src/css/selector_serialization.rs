@@ -302,42 +302,40 @@ pub unsafe extern "C" fn rust_selector_serialize(
     prefix_count: usize,
 ) -> FfiSelectorSerializedText {
     unsafe {
-        crate::abort_on_panic(|| {
-            assert!(!selector.is_null());
-            let prefix_views = if prefix_count == 0 {
-                &[]
-            } else {
-                assert!(!prefixes_mapping_to_default.is_null());
-                std::slice::from_raw_parts(prefixes_mapping_to_default, prefix_count)
-            };
-            let prefixes = prefix_views
-                .iter()
-                .map(|prefix| {
-                    if prefix.length == 0 {
-                        &[][..]
-                    } else {
-                        assert!(!prefix.data.is_null());
-                        std::slice::from_raw_parts(prefix.data, prefix.length)
-                    }
-                })
-                .collect::<Vec<_>>();
-            let context = NamespaceContext {
-                has_default_namespace,
-                prefixes_mapping_to_default: &prefixes,
-            };
-            let mut sink = TextSink::new();
-            serialize_selector(&mut sink, (*selector).compiled(), &context);
-            let storage = Box::new(sink.into_utf16());
-            let result = FfiSelectorSerializedText {
-                data: storage.as_ptr(),
-                length: storage.len(),
-                storage: std::ptr::null_mut(),
-            };
-            FfiSelectorSerializedText {
-                storage: Box::into_raw(storage).cast(),
-                ..result
-            }
-        })
+        assert!(!selector.is_null());
+        let prefix_views = if prefix_count == 0 {
+            &[]
+        } else {
+            assert!(!prefixes_mapping_to_default.is_null());
+            std::slice::from_raw_parts(prefixes_mapping_to_default, prefix_count)
+        };
+        let prefixes = prefix_views
+            .iter()
+            .map(|prefix| {
+                if prefix.length == 0 {
+                    &[][..]
+                } else {
+                    assert!(!prefix.data.is_null());
+                    std::slice::from_raw_parts(prefix.data, prefix.length)
+                }
+            })
+            .collect::<Vec<_>>();
+        let context = NamespaceContext {
+            has_default_namespace,
+            prefixes_mapping_to_default: &prefixes,
+        };
+        let mut sink = TextSink::new();
+        serialize_selector(&mut sink, (*selector).compiled(), &context);
+        let storage = Box::new(sink.into_utf16());
+        let result = FfiSelectorSerializedText {
+            data: storage.as_ptr(),
+            length: storage.len(),
+            storage: std::ptr::null_mut(),
+        };
+        FfiSelectorSerializedText {
+            storage: Box::into_raw(storage).cast(),
+            ..result
+        }
     }
 }
 
@@ -346,10 +344,8 @@ pub unsafe extern "C" fn rust_selector_serialize(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_serialized_text_release(storage: *mut c_void) {
     unsafe {
-        crate::abort_on_panic(|| {
-            if !storage.is_null() {
-                drop(Box::from_raw(storage.cast::<Vec<u16>>()));
-            }
-        });
+        if !storage.is_null() {
+            drop(Box::from_raw(storage.cast::<Vec<u16>>()));
+        }
     }
 }

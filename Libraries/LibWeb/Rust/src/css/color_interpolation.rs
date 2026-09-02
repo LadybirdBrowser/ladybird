@@ -383,30 +383,28 @@ pub unsafe extern "C" fn rust_interpolate_color(
     delta: f32,
     alpha_multiplier: f32,
 ) -> *const StyleValueData {
-    crate::abort_on_panic(|| {
-        let (Some(from), Some(to), Some(method)) = (unsafe { from.as_ref() }, unsafe { to.as_ref() }, unsafe {
-            color_interpolation_method.as_ref()
-        }) else {
-            return std::ptr::null();
-        };
-        let StyleValueData::ColorInterpolationMethod {
-            is_polar,
-            color_space,
-            hue_interpolation_method,
-        } = method
-        else {
-            return std::ptr::null();
-        };
-        interpolate(
-            from,
-            to,
-            *is_polar,
-            *color_space,
-            *hue_interpolation_method,
-            delta,
-            alpha_multiplier,
-        )
-        .map(|result| Arc::into_raw(Arc::new(result)))
-        .unwrap_or(std::ptr::null())
-    })
+    let (Some(from), Some(to), Some(method)) = (unsafe { from.as_ref() }, unsafe { to.as_ref() }, unsafe {
+        color_interpolation_method.as_ref()
+    }) else {
+        return std::ptr::null();
+    };
+    let StyleValueData::ColorInterpolationMethod {
+        is_polar,
+        color_space,
+        hue_interpolation_method,
+    } = method
+    else {
+        return std::ptr::null();
+    };
+    interpolate(
+        from,
+        to,
+        *is_polar,
+        *color_space,
+        *hue_interpolation_method,
+        delta,
+        alpha_multiplier,
+    )
+    .map(|result| Arc::into_raw(Arc::new(result)))
+    .unwrap_or(std::ptr::null())
 }

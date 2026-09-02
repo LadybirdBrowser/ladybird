@@ -48,16 +48,14 @@ pub unsafe extern "C" fn layout_arena_dump_stacking_context_tree(
     viewport: NodeSlotId,
     callbacks: FfiStackingContextDumpCallbacks,
 ) {
-    crate::abort_on_panic(|| {
-        // SAFETY: The caller guarantees a live arena handle borrowed for this call.
-        let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-        if arena.stacking_context_entries(viewport).is_none() {
-            return;
-        }
-        let mut output = String::new();
-        visit(&mut output, arena, viewport, 0, &callbacks);
-        callbacks.append_text(&output);
-    });
+    // SAFETY: The caller guarantees a live arena handle borrowed for this call.
+    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
+    if arena.stacking_context_entries(viewport).is_none() {
+        return;
+    }
+    let mut output = String::new();
+    visit(&mut output, arena, viewport, 0, &callbacks);
+    callbacks.append_text(&output);
 }
 
 fn visit(

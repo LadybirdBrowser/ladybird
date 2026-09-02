@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-pub(crate) use crate::abort_on_panic;
 pub(crate) use crate::css::computed_value_types::*;
 pub(crate) use crate::css::computed_value_views::*;
 pub(crate) use crate::css::css_enums::*;

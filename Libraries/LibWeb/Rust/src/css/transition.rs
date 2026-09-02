@@ -343,60 +343,58 @@ pub unsafe extern "C" fn rust_decide_transitions(
     input: *mut FfiTransitionInput,
     actions: *mut FfiTransitionAction,
 ) {
-    crate::abort_on_panic(|| {
-        crate::css::ffi_stats::rust_style_ffi_note_transition_decision();
-        let input = unsafe { &mut *input };
-        let properties = if input.property_count == 0 {
-            &mut []
-        } else {
-            unsafe { std::slice::from_raw_parts_mut(input.properties, input.property_count) }
-        };
-        if properties.is_empty() {
-            return;
-        }
-        let style_engine = unsafe { style_engine.cast::<crate::css::style::StyleEngine>().as_ref() };
-        let before_style_view = style_engine
-            .expect("transition decisions require a style engine")
-            .style_record_view(before_style_record)
-            .expect("the transition baseline style record must remain live");
-        let before_style = {
-            let style = &before_style_view;
-            (
-                unsafe {
-                    style
-                        .longhand_table
-                        .as_ref()
-                        .expect("a transition baseline style record must carry a longhand table")
-                },
-                unsafe { style.animated_overlay.as_ref() },
-            )
-        };
-        let after_table = unsafe {
-            after_longhand_table
-                .cast::<crate::css::computed_longhand_table::ComputedLonghandTable>()
-                .as_ref()
-        };
-        let after_overlay = unsafe {
-            after_animated_overlay
-                .cast::<crate::css::animated_overlay::AnimatedOverlay>()
-                .as_ref()
-        };
-        for (index, property) in properties.iter_mut().enumerate() {
-            let values_originate_from_current_color = prepare_transition_values(
-                before_style,
-                after_table.expect("transition decisions require an after-change table"),
-                after_overlay,
-                property,
-            );
+    crate::css::ffi_stats::rust_style_ffi_note_transition_decision();
+    let input = unsafe { &mut *input };
+    let properties = if input.property_count == 0 {
+        &mut []
+    } else {
+        unsafe { std::slice::from_raw_parts_mut(input.properties, input.property_count) }
+    };
+    if properties.is_empty() {
+        return;
+    }
+    let style_engine = unsafe { style_engine.cast::<crate::css::style::StyleEngine>().as_ref() };
+    let before_style_view = style_engine
+        .expect("transition decisions require a style engine")
+        .style_record_view(before_style_record)
+        .expect("the transition baseline style record must remain live");
+    let before_style = {
+        let style = &before_style_view;
+        (
             unsafe {
-                actions.add(index).write(decide_transition(
-                    &input.context,
-                    property,
-                    values_originate_from_current_color,
-                ));
-            };
-        }
-    });
+                style
+                    .longhand_table
+                    .as_ref()
+                    .expect("a transition baseline style record must carry a longhand table")
+            },
+            unsafe { style.animated_overlay.as_ref() },
+        )
+    };
+    let after_table = unsafe {
+        after_longhand_table
+            .cast::<crate::css::computed_longhand_table::ComputedLonghandTable>()
+            .as_ref()
+    };
+    let after_overlay = unsafe {
+        after_animated_overlay
+            .cast::<crate::css::animated_overlay::AnimatedOverlay>()
+            .as_ref()
+    };
+    for (index, property) in properties.iter_mut().enumerate() {
+        let values_originate_from_current_color = prepare_transition_values(
+            before_style,
+            after_table.expect("transition decisions require an after-change table"),
+            after_overlay,
+            property,
+        );
+        unsafe {
+            actions.add(index).write(decide_transition(
+                &input.context,
+                property,
+                values_originate_from_current_color,
+            ));
+        };
+    }
 }
 
 #[cfg(test)]

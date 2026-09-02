@@ -18,7 +18,6 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
 
-use crate::abort_on_panic;
 use crate::css::animated_overlay::AnimatedOverlay;
 use crate::css::calc::{resolve_calculated_flex_without_context, resolve_calculated_integer_without_context};
 use crate::css::color_resolution::{
@@ -3284,120 +3283,110 @@ pub unsafe extern "C" fn rust_build_group_payloads_from_table(
     out_payloads: *mut *const c_void,
     group_count: usize,
 ) {
-    abort_on_panic(|| {
-        assert_eq!(
-            group_count,
-            group_index::COUNT,
-            "the C++ StyleGroupIndex numbering drifted from the table builder's mirror"
-        );
-        let table = unsafe { &*table };
-        let inputs = unsafe { &*inputs };
-        let parents = unsafe { std::slice::from_raw_parts(parent_payloads, group_count) };
-        let out = unsafe { std::slice::from_raw_parts_mut(out_payloads, group_count) };
-        let values = EffectiveValues {
-            table,
-            animated_overlay: unsafe { inputs.animated_overlay.as_ref() },
-        };
-        let color_input = unsafe { &*inputs.color_input.cast::<FfiColorResolutionInput>() };
-        let channels = relative_color_context_from_ffi(color_input);
-        // SAFETY: The caller keeps the input's pointers live across the call.
-        let input = unsafe { resolution_input_from_ffi(color_input, &channels) };
+    assert_eq!(
+        group_count,
+        group_index::COUNT,
+        "the C++ StyleGroupIndex numbering drifted from the table builder's mirror"
+    );
+    let table = unsafe { &*table };
+    let inputs = unsafe { &*inputs };
+    let parents = unsafe { std::slice::from_raw_parts(parent_payloads, group_count) };
+    let out = unsafe { std::slice::from_raw_parts_mut(out_payloads, group_count) };
+    let values = EffectiveValues {
+        table,
+        animated_overlay: unsafe { inputs.animated_overlay.as_ref() },
+    };
+    let color_input = unsafe { &*inputs.color_input.cast::<FfiColorResolutionInput>() };
+    let channels = relative_color_context_from_ffi(color_input);
+    // SAFETY: The caller keeps the input's pointers live across the call.
+    let input = unsafe { resolution_input_from_ffi(color_input, &channels) };
 
-        for group in 0..group_count {
-            out[group] = std::ptr::null();
-            if (groups_to_apply >> group) & 1 == 0 {
-                continue;
-            }
-            let parent_payload = parents[group];
-            // SAFETY: Gathered pointers name live table or override data and
-            // the caller warrants the parent payloads.
-            let payload = unsafe {
-                match group {
-                    group_index::FONT => build_font_group(
-                        &values,
-                        inputs
-                            .font
-                            .as_ref()
-                            .expect("an applied font group has platform font inputs"),
-                        parent_payload,
-                    ),
-                    group_index::BOX => {
-                        build_box_group(&values, inputs.box_display_before_transformation_raw, parent_payload)
-                    }
-                    group_index::INHERITED_TABLE => rust_build_inherited_table_group(
-                        group,
-                        values.pointer(property_id::BORDER_COLLAPSE),
-                        values.pointer(property_id::CAPTION_SIDE),
-                        values.pointer(property_id::EMPTY_CELLS),
-                        values.pointer(property_id::BORDER_SPACING),
-                        parent_payload,
-                    ),
-                    group_index::INHERITED_BOX => rust_build_inherited_box_group(
-                        group,
-                        values.pointer(property_id::VISIBILITY),
-                        values.pointer(property_id::DIRECTION),
-                        values.pointer(property_id::WRITING_MODE),
-                        values.pointer(property_id::CONTENT_VISIBILITY),
-                        values.pointer(property_id::IMAGE_RENDERING),
-                        parent_payload,
-                    ),
-                    group_index::SIZING => rust_build_sizing_group(
-                        group,
-                        values.pointer(property_id::WIDTH),
-                        values.pointer(property_id::MIN_WIDTH),
-                        values.pointer(property_id::MAX_WIDTH),
-                        values.pointer(property_id::HEIGHT),
-                        values.pointer(property_id::MIN_HEIGHT),
-                        values.pointer(property_id::MAX_HEIGHT),
-                        parent_payload,
-                    ),
-                    group_index::SURROUND => build_surround_group(&values, parent_payload),
-                    group_index::ANIMATION => {
-                        build_animation_group(&values, &input, inputs.used_color_scheme, parent_payload)
-                    }
-                    group_index::ANCHOR => {
-                        build_anchor_group(&values, &input, inputs.used_color_scheme, parent_payload)
-                    }
-                    group_index::TEXT_RESET => build_text_reset_group(&values, &input, parent_payload),
-                    group_index::ALIGNMENT => build_alignment_group(&values, parent_payload),
-                    group_index::SVG_RESET => build_svg_reset_group(&values, &input, parent_payload),
-                    group_index::GRID => build_grid_group(&values, parent_payload),
-                    group_index::TRANSFORM => {
-                        build_transform_group(&values, &input, inputs.used_color_scheme, parent_payload)
-                    }
-                    group_index::EFFECTS => {
-                        build_effects_group(&values, &input, inputs.used_color_scheme, parent_payload)
-                    }
-                    group_index::INHERITED_UI => {
-                        build_inherited_ui_group(&values, &input, inputs.used_color_scheme, parent_payload)
-                    }
-                    group_index::INHERITED_TEXT => {
-                        build_inherited_text_group(&values, &input, inputs.used_color_scheme, parent_payload)
-                    }
-                    group_index::MISC_RESET => {
-                        build_misc_reset_group(&values, &input, inputs.used_color_scheme, parent_payload)
-                    }
-                    group_index::INHERITED_SVG => {
-                        build_inherited_svg_group(&values, &input, inputs.used_color_scheme, parent_payload)
-                    }
-                    group_index::INHERITED_LIST => {
-                        build_inherited_list_group(&values, &input, inputs.used_color_scheme, parent_payload)
-                    }
-                    group_index::CONTENT => {
-                        build_content_group(&values, &input, inputs.used_color_scheme, parent_payload)
-                    }
-                    group_index::BACKGROUND => {
-                        build_background_group(&values, &input, inputs.used_color_scheme, parent_payload)
-                    }
-                    group_index::MASK => build_mask_group(&values, &input, inputs.used_color_scheme, parent_payload),
-                    group_index::BORDER => {
-                        build_border_group(&values, &input, inputs.used_color_scheme, parent_payload)
-                    }
-                    _ => build_generic_group(group, &values, &input, inputs.used_color_scheme, parent_payload),
-                }
-            };
-            assert!(!payload.is_null(), "computed group build returned null");
-            out[group] = payload;
+    for group in 0..group_count {
+        out[group] = std::ptr::null();
+        if (groups_to_apply >> group) & 1 == 0 {
+            continue;
         }
-    });
+        let parent_payload = parents[group];
+        // SAFETY: Gathered pointers name live table or override data and
+        // the caller warrants the parent payloads.
+        let payload = unsafe {
+            match group {
+                group_index::FONT => build_font_group(
+                    &values,
+                    inputs
+                        .font
+                        .as_ref()
+                        .expect("an applied font group has platform font inputs"),
+                    parent_payload,
+                ),
+                group_index::BOX => {
+                    build_box_group(&values, inputs.box_display_before_transformation_raw, parent_payload)
+                }
+                group_index::INHERITED_TABLE => rust_build_inherited_table_group(
+                    group,
+                    values.pointer(property_id::BORDER_COLLAPSE),
+                    values.pointer(property_id::CAPTION_SIDE),
+                    values.pointer(property_id::EMPTY_CELLS),
+                    values.pointer(property_id::BORDER_SPACING),
+                    parent_payload,
+                ),
+                group_index::INHERITED_BOX => rust_build_inherited_box_group(
+                    group,
+                    values.pointer(property_id::VISIBILITY),
+                    values.pointer(property_id::DIRECTION),
+                    values.pointer(property_id::WRITING_MODE),
+                    values.pointer(property_id::CONTENT_VISIBILITY),
+                    values.pointer(property_id::IMAGE_RENDERING),
+                    parent_payload,
+                ),
+                group_index::SIZING => rust_build_sizing_group(
+                    group,
+                    values.pointer(property_id::WIDTH),
+                    values.pointer(property_id::MIN_WIDTH),
+                    values.pointer(property_id::MAX_WIDTH),
+                    values.pointer(property_id::HEIGHT),
+                    values.pointer(property_id::MIN_HEIGHT),
+                    values.pointer(property_id::MAX_HEIGHT),
+                    parent_payload,
+                ),
+                group_index::SURROUND => build_surround_group(&values, parent_payload),
+                group_index::ANIMATION => {
+                    build_animation_group(&values, &input, inputs.used_color_scheme, parent_payload)
+                }
+                group_index::ANCHOR => build_anchor_group(&values, &input, inputs.used_color_scheme, parent_payload),
+                group_index::TEXT_RESET => build_text_reset_group(&values, &input, parent_payload),
+                group_index::ALIGNMENT => build_alignment_group(&values, parent_payload),
+                group_index::SVG_RESET => build_svg_reset_group(&values, &input, parent_payload),
+                group_index::GRID => build_grid_group(&values, parent_payload),
+                group_index::TRANSFORM => {
+                    build_transform_group(&values, &input, inputs.used_color_scheme, parent_payload)
+                }
+                group_index::EFFECTS => build_effects_group(&values, &input, inputs.used_color_scheme, parent_payload),
+                group_index::INHERITED_UI => {
+                    build_inherited_ui_group(&values, &input, inputs.used_color_scheme, parent_payload)
+                }
+                group_index::INHERITED_TEXT => {
+                    build_inherited_text_group(&values, &input, inputs.used_color_scheme, parent_payload)
+                }
+                group_index::MISC_RESET => {
+                    build_misc_reset_group(&values, &input, inputs.used_color_scheme, parent_payload)
+                }
+                group_index::INHERITED_SVG => {
+                    build_inherited_svg_group(&values, &input, inputs.used_color_scheme, parent_payload)
+                }
+                group_index::INHERITED_LIST => {
+                    build_inherited_list_group(&values, &input, inputs.used_color_scheme, parent_payload)
+                }
+                group_index::CONTENT => build_content_group(&values, &input, inputs.used_color_scheme, parent_payload),
+                group_index::BACKGROUND => {
+                    build_background_group(&values, &input, inputs.used_color_scheme, parent_payload)
+                }
+                group_index::MASK => build_mask_group(&values, &input, inputs.used_color_scheme, parent_payload),
+                group_index::BORDER => build_border_group(&values, &input, inputs.used_color_scheme, parent_payload),
+                _ => build_generic_group(group, &values, &input, inputs.used_color_scheme, parent_payload),
+            }
+        };
+        assert!(!payload.is_null(), "computed group build returned null");
+        out[group] = payload;
+    }
 }

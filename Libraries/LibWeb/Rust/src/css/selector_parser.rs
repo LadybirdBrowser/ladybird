@@ -1275,45 +1275,43 @@ pub unsafe extern "C" fn rust_selector_parse(
     is_forgiving: bool,
 ) -> *mut RustParsedSelectorList {
     unsafe {
-        crate::abort_on_panic(|| {
-            let Some(input) = input.units() else {
-                return std::ptr::null_mut();
-            };
-            let namespace_views = if namespace_count == 0 {
-                &[]
+        let Some(input) = input.units() else {
+            return std::ptr::null_mut();
+        };
+        let namespace_views = if namespace_count == 0 {
+            &[]
+        } else {
+            assert!(!namespaces.is_null());
+            std::slice::from_raw_parts(namespaces, namespace_count)
+        };
+        let namespace_storage = namespace_views
+            .iter()
+            .map(|namespace| {
+                if namespace.length == 0 {
+                    TokenizerInput::Utf16(&[])
+                } else {
+                    assert!(!namespace.data.is_null());
+                    TokenizerInput::Utf16(std::slice::from_raw_parts(namespace.data, namespace.length))
+                }
+            })
+            .collect::<Vec<_>>();
+        let Ok(selectors) = parse_selector_list(
+            input,
+            &namespace_storage,
+            if is_relative {
+                SelectorType::Relative
             } else {
-                assert!(!namespaces.is_null());
-                std::slice::from_raw_parts(namespaces, namespace_count)
-            };
-            let namespace_storage = namespace_views
-                .iter()
-                .map(|namespace| {
-                    if namespace.length == 0 {
-                        TokenizerInput::Utf16(&[])
-                    } else {
-                        assert!(!namespace.data.is_null());
-                        TokenizerInput::Utf16(std::slice::from_raw_parts(namespace.data, namespace.length))
-                    }
-                })
-                .collect::<Vec<_>>();
-            let Ok(selectors) = parse_selector_list(
-                input,
-                &namespace_storage,
-                if is_relative {
-                    SelectorType::Relative
-                } else {
-                    SelectorType::Standalone
-                },
-                if is_forgiving {
-                    SelectorParsingMode::Forgiving
-                } else {
-                    SelectorParsingMode::Standard
-                },
-            ) else {
-                return std::ptr::null_mut();
-            };
-            Box::into_raw(Box::new(RustParsedSelectorList::new(selectors)))
-        })
+                SelectorType::Standalone
+            },
+            if is_forgiving {
+                SelectorParsingMode::Forgiving
+            } else {
+                SelectorParsingMode::Standard
+            },
+        ) else {
+            return std::ptr::null_mut();
+        };
+        Box::into_raw(Box::new(RustParsedSelectorList::new(selectors)))
     }
 }
 
@@ -1330,24 +1328,22 @@ pub struct FfiParsedPseudoElement {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_parse_pseudo_element(input: FfiUtf16View) -> FfiParsedPseudoElement {
     unsafe {
-        crate::abort_on_panic(|| {
-            let Some(input) = input.units() else {
-                return FfiParsedPseudoElement {
-                    selector: std::ptr::null_mut(),
-                    pseudo_element: u8::MAX,
-                };
+        let Some(input) = input.units() else {
+            return FfiParsedPseudoElement {
+                selector: std::ptr::null_mut(),
+                pseudo_element: u8::MAX,
             };
-            let Ok((selector, pseudo_element)) = parse_pseudo_element_selector(input) else {
-                return FfiParsedPseudoElement {
-                    selector: std::ptr::null_mut(),
-                    pseudo_element: u8::MAX,
-                };
+        };
+        let Ok((selector, pseudo_element)) = parse_pseudo_element_selector(input) else {
+            return FfiParsedPseudoElement {
+                selector: std::ptr::null_mut(),
+                pseudo_element: u8::MAX,
             };
-            FfiParsedPseudoElement {
-                selector: Box::into_raw(Box::new(RustSelector { selector })),
-                pseudo_element: pseudo_element as u8,
-            }
-        })
+        };
+        FfiParsedPseudoElement {
+            selector: Box::into_raw(Box::new(RustSelector { selector })),
+            pseudo_element: pseudo_element as u8,
+        }
     }
 }
 
@@ -1356,11 +1352,9 @@ pub unsafe extern "C" fn rust_selector_parse_pseudo_element(input: FfiUtf16View)
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parsed_selector_list_destroy(list: *mut RustParsedSelectorList) {
     unsafe {
-        crate::abort_on_panic(|| {
-            if !list.is_null() {
-                drop(Box::from_raw(list));
-            }
-        });
+        if !list.is_null() {
+            drop(Box::from_raw(list));
+        }
     }
 }
 
@@ -1368,7 +1362,7 @@ pub unsafe extern "C" fn rust_parsed_selector_list_destroy(list: *mut RustParsed
 /// `list` must point to a live parsed selector list.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parsed_selector_list_length(list: *const RustParsedSelectorList) -> usize {
-    unsafe { crate::abort_on_panic(|| (&*list).selectors.len()) }
+    unsafe { (&*list).selectors.len() }
 }
 
 /// # Safety
@@ -1380,11 +1374,9 @@ pub unsafe extern "C" fn rust_parsed_selector_list_selector(
     index: usize,
 ) -> *mut RustSelector {
     unsafe {
-        crate::abort_on_panic(|| {
-            Box::into_raw(Box::new(RustSelector {
-                selector: (&(*list).selectors)[index].clone(),
-            }))
-        })
+        Box::into_raw(Box::new(RustSelector {
+            selector: (&(*list).selectors)[index].clone(),
+        }))
     }
 }
 
@@ -1392,7 +1384,7 @@ pub unsafe extern "C" fn rust_parsed_selector_list_selector(
 /// `list` must point to a live parsed selector list.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parsed_selector_list_interned_name_count(list: *const RustParsedSelectorList) -> usize {
-    unsafe { crate::abort_on_panic(|| (&*list).interned_names.len()) }
+    unsafe { (&*list).interned_names.len() }
 }
 
 /// # Safety
@@ -1403,13 +1395,11 @@ pub unsafe extern "C" fn rust_parsed_selector_list_interned_name(
     index: usize,
 ) -> FfiStringView {
     unsafe {
-        crate::abort_on_panic(|| {
-            let name = &(&(*list).interned_names)[index];
-            FfiStringView {
-                data: name.as_ptr(),
-                length: name.len(),
-            }
-        })
+        let name = &(&(*list).interned_names)[index];
+        FfiStringView {
+            data: name.as_ptr(),
+            length: name.len(),
+        }
     }
 }
 
@@ -1425,22 +1415,20 @@ pub unsafe extern "C" fn rust_parsed_selector_list_bind_interned_names(
     name_count: usize,
 ) {
     unsafe {
-        crate::abort_on_panic(|| {
-            let list = &mut *list;
-            assert_eq!(name_count, list.interned_names.len());
-            let leaked_name_raws = if name_count == 0 {
-                &[]
-            } else {
-                assert!(!leaked_name_raws.is_null());
-                std::slice::from_raw_parts(leaked_name_raws, name_count)
-            };
-            let retained_names = leaked_name_raws
-                .iter()
-                .map(|&raw| RetainedUtf16FlyString::from_leaked_raw(raw))
-                .collect::<Vec<_>>();
-            for selector in &mut list.selectors {
-                bind_interned_names_in_selector(selector, &list.interned_names, &retained_names);
-            }
-        });
+        let list = &mut *list;
+        assert_eq!(name_count, list.interned_names.len());
+        let leaked_name_raws = if name_count == 0 {
+            &[]
+        } else {
+            assert!(!leaked_name_raws.is_null());
+            std::slice::from_raw_parts(leaked_name_raws, name_count)
+        };
+        let retained_names = leaked_name_raws
+            .iter()
+            .map(|&raw| RetainedUtf16FlyString::from_leaked_raw(raw))
+            .collect::<Vec<_>>();
+        for selector in &mut list.selectors {
+            bind_interned_names_in_selector(selector, &list.interned_names, &retained_names);
+        }
     }
 }

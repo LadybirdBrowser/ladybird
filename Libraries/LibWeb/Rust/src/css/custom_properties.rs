@@ -12,7 +12,6 @@ use std::collections::HashSet;
 use std::ffi::c_void;
 use std::sync::Arc;
 
-use crate::abort_on_panic;
 use crate::css::css_tokenizer::OwnedToken;
 use crate::css::css_tokenizer::OwnedTokenKind;
 use crate::css::css_tokenizer::TokenizerInput;
@@ -2710,15 +2709,13 @@ mod tests {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_custom_property_registry_create() -> *mut c_void {
-    abort_on_panic(|| {
-        Box::into_raw(Box::new(CustomPropertyRegistry {
-            registrations: HashMap::new(),
-            document_url: Vec::new(),
-            document_base_url: Vec::new(),
-            intern_utf16_fly_string: None,
-        }))
-        .cast()
-    })
+    Box::into_raw(Box::new(CustomPropertyRegistry {
+        registrations: HashMap::new(),
+        document_url: Vec::new(),
+        document_base_url: Vec::new(),
+        intern_utf16_fly_string: None,
+    }))
+    .cast()
 }
 
 /// Replaces the effective registered custom-property names for one document.
@@ -2733,49 +2730,47 @@ pub unsafe extern "C" fn rust_custom_property_registry_update(
     registrations: *const FfiCustomPropertyRegistration,
     registration_count: usize,
 ) {
-    abort_on_panic(|| {
-        let Some(context) = (unsafe { context.as_ref() }) else {
-            return;
-        };
-        let registrations = if registration_count == 0 {
-            &[]
-        } else {
-            unsafe { std::slice::from_raw_parts(registrations, registration_count) }
-        };
-        let registry = unsafe { &mut *registry.cast::<CustomPropertyRegistry>() };
-        registry.document_url = unsafe { crate::bytes_from_raw(context.document_url, context.document_url_length) }
+    let Some(context) = (unsafe { context.as_ref() }) else {
+        return;
+    };
+    let registrations = if registration_count == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(registrations, registration_count) }
+    };
+    let registry = unsafe { &mut *registry.cast::<CustomPropertyRegistry>() };
+    registry.document_url = unsafe { crate::bytes_from_raw(context.document_url, context.document_url_length) }
+        .unwrap_or_default()
+        .to_vec();
+    registry.document_base_url =
+        unsafe { crate::bytes_from_raw(context.document_base_url, context.document_base_url_length) }
             .unwrap_or_default()
             .to_vec();
-        registry.document_base_url =
-            unsafe { crate::bytes_from_raw(context.document_base_url, context.document_base_url_length) }
-                .unwrap_or_default()
-                .to_vec();
-        registry.intern_utf16_fly_string = context.intern_utf16_fly_string;
-        registry.registrations.clear();
-        registry.registrations.reserve(registrations.len());
-        for registration in registrations {
-            let name = unsafe { registration.name.to_utf16() }.expect("invalid registered custom property name");
-            let initial_source = if registration.has_initial_value {
-                Some(
-                    unsafe { registration.initial_value.to_utf16() }
-                        .expect("invalid registered custom property initial value"),
-                )
-            } else {
-                None
-            };
-            let Some(syntax) = (unsafe { clone_syntax_handle(registration.syntax) }) else {
-                continue;
-            };
-            registry.registrations.insert(
-                name,
-                RegisteredCustomProperty {
-                    syntax,
-                    inherits: registration.inherits,
-                    initial_source,
-                },
-            );
-        }
-    });
+    registry.intern_utf16_fly_string = context.intern_utf16_fly_string;
+    registry.registrations.clear();
+    registry.registrations.reserve(registrations.len());
+    for registration in registrations {
+        let name = unsafe { registration.name.to_utf16() }.expect("invalid registered custom property name");
+        let initial_source = if registration.has_initial_value {
+            Some(
+                unsafe { registration.initial_value.to_utf16() }
+                    .expect("invalid registered custom property initial value"),
+            )
+        } else {
+            None
+        };
+        let Some(syntax) = (unsafe { clone_syntax_handle(registration.syntax) }) else {
+            continue;
+        };
+        registry.registrations.insert(
+            name,
+            RegisteredCustomProperty {
+                syntax,
+                inherits: registration.inherits,
+                initial_source,
+            },
+        );
+    }
 }
 
 /// # Safety
@@ -2783,7 +2778,7 @@ pub unsafe extern "C" fn rust_custom_property_registry_update(
 /// already been destroyed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_custom_property_registry_destroy(registry: *mut c_void) {
-    abort_on_panic(|| drop(unsafe { Box::from_raw(registry.cast::<CustomPropertyRegistry>()) }));
+    drop(unsafe { Box::from_raw(registry.cast::<CustomPropertyRegistry>()) });
 }
 
 /// Creates one Rust store node. Each entry transfers a leaked fly-string reference and a
@@ -2802,54 +2797,52 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
     inheritance_parent: *const c_void,
 ) -> *const c_void {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CustomPropertyStoreLifecycleEntry);
-    abort_on_panic(|| {
-        let entries = if entry_count == 0 {
-            &[]
-        } else {
-            unsafe { std::slice::from_raw_parts(entries, entry_count) }
-        };
-        assert!(declared_count <= entries.len());
-        let parent = if parent.is_null() {
-            None
-        } else {
-            let parent = parent.cast::<CustomPropertyStore>();
-            unsafe { Arc::increment_strong_count(parent) };
-            Some(unsafe { Arc::from_raw(parent) })
-        };
-        let inheritance_parent = if inheritance_parent.is_null() {
-            None
-        } else {
-            let inheritance_parent = inheritance_parent.cast::<CustomPropertyStore>();
-            unsafe { Arc::increment_strong_count(inheritance_parent) };
-            Some(unsafe { Arc::from_raw(inheritance_parent) })
-        };
-        let mut own_names = HashMap::with_capacity(entries.len());
-        let own_values = entries
-            .iter()
-            .map(|entry| {
-                let name = unsafe { entry.name.to_utf16() }.expect("invalid custom property name");
-                own_names.insert(name.clone(), entry.name_raw);
-                (
-                    entry.name_raw,
-                    CustomPropertyEntry {
-                        _name: unsafe { RetainedUtf16FlyString::from_leaked_raw(entry.name_raw) },
-                        name,
-                        value: unsafe { RetainedStyleValueData::from_retained_pointer(entry.data.cast()) },
-                        important: entry.important,
-                    },
-                )
-            })
-            .collect();
-        Arc::into_raw(Arc::new(CustomPropertyStore {
-            own_values,
-            declared_names: entries[..declared_count].iter().map(|entry| entry.name_raw).collect(),
-            own_names,
-            ancestor_count: parent.as_ref().map_or(0, |parent| parent.ancestor_count + 1),
-            parent,
-            inheritance_parent,
-        }))
-        .cast()
-    })
+    let entries = if entry_count == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(entries, entry_count) }
+    };
+    assert!(declared_count <= entries.len());
+    let parent = if parent.is_null() {
+        None
+    } else {
+        let parent = parent.cast::<CustomPropertyStore>();
+        unsafe { Arc::increment_strong_count(parent) };
+        Some(unsafe { Arc::from_raw(parent) })
+    };
+    let inheritance_parent = if inheritance_parent.is_null() {
+        None
+    } else {
+        let inheritance_parent = inheritance_parent.cast::<CustomPropertyStore>();
+        unsafe { Arc::increment_strong_count(inheritance_parent) };
+        Some(unsafe { Arc::from_raw(inheritance_parent) })
+    };
+    let mut own_names = HashMap::with_capacity(entries.len());
+    let own_values = entries
+        .iter()
+        .map(|entry| {
+            let name = unsafe { entry.name.to_utf16() }.expect("invalid custom property name");
+            own_names.insert(name.clone(), entry.name_raw);
+            (
+                entry.name_raw,
+                CustomPropertyEntry {
+                    _name: unsafe { RetainedUtf16FlyString::from_leaked_raw(entry.name_raw) },
+                    name,
+                    value: unsafe { RetainedStyleValueData::from_retained_pointer(entry.data.cast()) },
+                    important: entry.important,
+                },
+            )
+        })
+        .collect();
+    Arc::into_raw(Arc::new(CustomPropertyStore {
+        own_values,
+        declared_names: entries[..declared_count].iter().map(|entry| entry.name_raw).collect(),
+        own_names,
+        ancestor_count: parent.as_ref().map_or(0, |parent| parent.ancestor_count + 1),
+        parent,
+        inheritance_parent,
+    }))
+    .cast()
 }
 
 /// Creates a store holding an element's animated custom property values on top of the element's
@@ -2866,53 +2859,51 @@ pub unsafe extern "C" fn rust_custom_property_store_create_animation_overlay(
     base: *const c_void,
 ) -> *const c_void {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CustomPropertyStoreLifecycleEntry);
-    abort_on_panic(|| {
-        let entries = if entry_count == 0 {
-            &[]
-        } else {
-            unsafe { std::slice::from_raw_parts(entries, entry_count) }
-        };
-        let base = if base.is_null() {
-            None
-        } else {
-            let base = base.cast::<CustomPropertyStore>();
-            Some(unsafe { &*base })
-        };
-        let (mut own_values, mut own_names, parent, inheritance_parent, ancestor_count) = match base {
-            Some(base) => (
-                base.own_values.clone(),
-                base.own_names.clone(),
-                base.parent.clone(),
-                base.inheritance_parent.clone(),
-                base.ancestor_count,
-            ),
-            None => (HashMap::new(), HashMap::new(), None, None, 0),
-        };
-        let mut declared_names = Vec::with_capacity(entries.len());
-        for entry in entries {
-            let name = unsafe { entry.name.to_utf16() }.expect("invalid custom property name");
-            declared_names.push(entry.name_raw);
-            own_names.insert(name.clone(), entry.name_raw);
-            own_values.insert(
-                entry.name_raw,
-                CustomPropertyEntry {
-                    _name: unsafe { RetainedUtf16FlyString::from_leaked_raw(entry.name_raw) },
-                    name,
-                    value: unsafe { RetainedStyleValueData::from_retained_pointer(entry.data.cast()) },
-                    important: entry.important,
-                },
-            );
-        }
-        Arc::into_raw(Arc::new(CustomPropertyStore {
-            own_values,
-            declared_names,
-            own_names,
-            ancestor_count,
-            parent,
-            inheritance_parent,
-        }))
-        .cast()
-    })
+    let entries = if entry_count == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(entries, entry_count) }
+    };
+    let base = if base.is_null() {
+        None
+    } else {
+        let base = base.cast::<CustomPropertyStore>();
+        Some(unsafe { &*base })
+    };
+    let (mut own_values, mut own_names, parent, inheritance_parent, ancestor_count) = match base {
+        Some(base) => (
+            base.own_values.clone(),
+            base.own_names.clone(),
+            base.parent.clone(),
+            base.inheritance_parent.clone(),
+            base.ancestor_count,
+        ),
+        None => (HashMap::new(), HashMap::new(), None, None, 0),
+    };
+    let mut declared_names = Vec::with_capacity(entries.len());
+    for entry in entries {
+        let name = unsafe { entry.name.to_utf16() }.expect("invalid custom property name");
+        declared_names.push(entry.name_raw);
+        own_names.insert(name.clone(), entry.name_raw);
+        own_values.insert(
+            entry.name_raw,
+            CustomPropertyEntry {
+                _name: unsafe { RetainedUtf16FlyString::from_leaked_raw(entry.name_raw) },
+                name,
+                value: unsafe { RetainedStyleValueData::from_retained_pointer(entry.data.cast()) },
+                important: entry.important,
+            },
+        );
+    }
+    Arc::into_raw(Arc::new(CustomPropertyStore {
+        own_values,
+        declared_names,
+        own_names,
+        ancestor_count,
+        parent,
+        inheritance_parent,
+    }))
+    .cast()
 }
 
 /// Releases one store reference returned by `rust_custom_property_store_create`.
@@ -2923,7 +2914,7 @@ pub unsafe extern "C" fn rust_custom_property_store_create_animation_overlay(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_custom_property_store_destroy(store: *const c_void) {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CustomPropertyStoreLifecycleEntry);
-    abort_on_panic(|| drop(unsafe { Arc::from_raw(store.cast::<CustomPropertyStore>()) }));
+    drop(unsafe { Arc::from_raw(store.cast::<CustomPropertyStore>()) });
 }
 
 #[repr(C)]
@@ -2946,30 +2937,28 @@ pub unsafe extern "C" fn rust_custom_property_store_get(
     name_raw: usize,
 ) -> FfiCustomPropertyStoreValue {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CustomPropertyStoreQueryEntry);
-    abort_on_panic(|| {
-        let store = unsafe { &*store.cast::<CustomPropertyStore>() };
-        let Some(entry) = store.get(name_raw) else {
-            return FfiCustomPropertyStoreValue {
-                found: false,
-                important: false,
-                data: std::ptr::null(),
-                token_source_ascii: std::ptr::null(),
-                token_source_utf16: std::ptr::null(),
-                token_source_length: 0,
-            };
+    let store = unsafe { &*store.cast::<CustomPropertyStore>() };
+    let Some(entry) = store.get(name_raw) else {
+        return FfiCustomPropertyStoreValue {
+            found: false,
+            important: false,
+            data: std::ptr::null(),
+            token_source_ascii: std::ptr::null(),
+            token_source_utf16: std::ptr::null(),
+            token_source_length: 0,
         };
-        let token_source = entry.value.data().unresolved_token_source().unwrap_or_default();
-        let (token_source_ascii, token_source_utf16) = match token_source {
-            TokenizerInput::Ascii(units) => (units.as_ptr(), std::ptr::null()),
-            TokenizerInput::Utf16(units) => (std::ptr::null(), units.as_ptr()),
-        };
-        FfiCustomPropertyStoreValue {
-            found: true,
-            important: entry.important,
-            data: entry.value.data() as *const StyleValueData as *const c_void,
-            token_source_ascii,
-            token_source_utf16,
-            token_source_length: token_source.len(),
-        }
-    })
+    };
+    let token_source = entry.value.data().unresolved_token_source().unwrap_or_default();
+    let (token_source_ascii, token_source_utf16) = match token_source {
+        TokenizerInput::Ascii(units) => (units.as_ptr(), std::ptr::null()),
+        TokenizerInput::Utf16(units) => (std::ptr::null(), units.as_ptr()),
+    };
+    FfiCustomPropertyStoreValue {
+        found: true,
+        important: entry.important,
+        data: entry.value.data() as *const StyleValueData as *const c_void,
+        token_source_ascii,
+        token_source_utf16,
+        token_source_length: token_source.len(),
+    }
 }

@@ -2197,21 +2197,19 @@ pub unsafe extern "C" fn rust_style_value_to_color(
     input: *const FfiColorResolutionInput,
 ) -> FfiResolvedColorValue {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleValueQueryEntry);
-    crate::abort_on_panic(|| {
-        let value = unsafe { &*value.cast::<crate::css::style_value::StyleValueData>() };
-        let input = unsafe { &*input };
-        let channels = relative_color_context_from_ffi(input);
-        // SAFETY: The caller warrants the input's pointers outlive the call.
-        let resolution_input = unsafe { resolution_input_from_ffi(input, &channels) };
-        match to_color(value, &resolution_input) {
-            Some(color) => FfiResolvedColorValue {
-                resolved: true,
-                rgba: [color.r, color.g, color.b, color.a],
-            },
-            None => FfiResolvedColorValue {
-                resolved: false,
-                rgba: [0; 4],
-            },
-        }
-    })
+    let value = unsafe { &*value.cast::<crate::css::style_value::StyleValueData>() };
+    let input = unsafe { &*input };
+    let channels = relative_color_context_from_ffi(input);
+    // SAFETY: The caller warrants the input's pointers outlive the call.
+    let resolution_input = unsafe { resolution_input_from_ffi(input, &channels) };
+    match to_color(value, &resolution_input) {
+        Some(color) => FfiResolvedColorValue {
+            resolved: true,
+            rgba: [color.r, color.g, color.b, color.a],
+        },
+        None => FfiResolvedColorValue {
+            resolved: false,
+            rgba: [0; 4],
+        },
+    }
 }

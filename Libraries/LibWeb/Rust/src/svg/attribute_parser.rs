@@ -283,13 +283,11 @@ fn with_input<T>(input: FfiSvgInput, parse: impl FnOnce(Input<'_>) -> T) -> Opti
 /// `input` must satisfy [`FfiSvgInput::input`]'s requirements and `value` must be writable.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_svg_integer(input: FfiSvgInput, value: *mut i32) -> bool {
-    crate::abort_on_panic(|| {
-        let Some(parsed_value) = with_input(input, parse_integer).flatten() else {
-            return false;
-        };
-        unsafe { value.write(parsed_value) };
-        true
-    })
+    let Some(parsed_value) = with_input(input, parse_integer).flatten() else {
+        return false;
+    };
+    unsafe { value.write(parsed_value) };
+    true
 }
 
 /// # Safety
@@ -300,16 +298,14 @@ pub unsafe extern "C" fn rust_parse_svg_number_percentage(
     value: *mut f32,
     is_percentage: *mut bool,
 ) -> bool {
-    crate::abort_on_panic(|| {
-        let Some(parsed_value) = with_input(input, parse_number_percentage).flatten() else {
-            return false;
-        };
-        unsafe {
-            value.write(parsed_value.value);
-            is_percentage.write(parsed_value.is_percentage);
-        }
-        true
-    })
+    let Some(parsed_value) = with_input(input, parse_number_percentage).flatten() else {
+        return false;
+    };
+    unsafe {
+        value.write(parsed_value.value);
+        is_percentage.write(parsed_value.is_percentage);
+    }
+    true
 }
 
 /// # Safety
@@ -321,17 +317,15 @@ pub unsafe extern "C" fn rust_parse_svg_points(
     context: *mut c_void,
     set_points: unsafe extern "C" fn(*mut c_void, *const FfiSvgPoint, usize),
 ) {
-    crate::abort_on_panic(|| {
-        let points = with_input(input, parse_points).unwrap_or_default();
-        let points: Vec<_> = points
-            .into_iter()
-            .map(|point| FfiSvgPoint {
-                x: point[0],
-                y: point[1],
-            })
-            .collect();
-        unsafe { set_points(context, points.as_ptr(), points.len()) };
-    });
+    let points = with_input(input, parse_points).unwrap_or_default();
+    let points: Vec<_> = points
+        .into_iter()
+        .map(|point| FfiSvgPoint {
+            x: point[0],
+            y: point[1],
+        })
+        .collect();
+    unsafe { set_points(context, points.as_ptr(), points.len()) };
 }
 
 /// # Safety
@@ -343,20 +337,18 @@ pub unsafe extern "C" fn rust_parse_svg_transform(
     context: *mut c_void,
     set_transforms: unsafe extern "C" fn(*mut c_void, *const FfiSvgTransform, usize),
 ) -> bool {
-    crate::abort_on_panic(|| {
-        let Some(transforms) = with_input(input, parse_transform).flatten() else {
-            return false;
-        };
-        let transforms: Vec<_> = transforms
-            .into_iter()
-            .map(|transform| FfiSvgTransform {
-                kind: transform.kind,
-                values: transform.values,
-            })
-            .collect();
-        unsafe { set_transforms(context, transforms.as_ptr(), transforms.len()) };
-        true
-    })
+    let Some(transforms) = with_input(input, parse_transform).flatten() else {
+        return false;
+    };
+    let transforms: Vec<_> = transforms
+        .into_iter()
+        .map(|transform| FfiSvgTransform {
+            kind: transform.kind,
+            values: transform.values,
+        })
+        .collect();
+    unsafe { set_transforms(context, transforms.as_ptr(), transforms.len()) };
+    true
 }
 
 /// # Safety
@@ -367,43 +359,36 @@ pub unsafe extern "C" fn rust_parse_svg_preserve_aspect_ratio(
     align: *mut u8,
     meet_or_slice: *mut u8,
 ) -> bool {
-    crate::abort_on_panic(|| {
-        let Some((parsed_align, parsed_meet_or_slice)) = with_input(input, parse_preserve_aspect_ratio).flatten()
-        else {
-            return false;
-        };
-        unsafe {
-            align.write(parsed_align);
-            meet_or_slice.write(parsed_meet_or_slice);
-        }
-        true
-    })
+    let Some((parsed_align, parsed_meet_or_slice)) = with_input(input, parse_preserve_aspect_ratio).flatten() else {
+        return false;
+    };
+    unsafe {
+        align.write(parsed_align);
+        meet_or_slice.write(parsed_meet_or_slice);
+    }
+    true
 }
 
 /// # Safety
 /// `input` must satisfy [`FfiSvgInput::input`]'s requirements and `value` must be writable.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_svg_units(input: FfiSvgInput, value: *mut u8) -> bool {
-    crate::abort_on_panic(|| {
-        let Some(parsed_value) = with_input(input, parse_units).flatten() else {
-            return false;
-        };
-        unsafe { value.write(parsed_value) };
-        true
-    })
+    let Some(parsed_value) = with_input(input, parse_units).flatten() else {
+        return false;
+    };
+    unsafe { value.write(parsed_value) };
+    true
 }
 
 /// # Safety
 /// `input` must satisfy [`FfiSvgInput::input`]'s requirements and `value` must be writable.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_svg_spread_method(input: FfiSvgInput, value: *mut u8) -> bool {
-    crate::abort_on_panic(|| {
-        let Some(parsed_value) = with_input(input, parse_spread_method).flatten() else {
-            return false;
-        };
-        unsafe { value.write(parsed_value) };
-        true
-    })
+    let Some(parsed_value) = with_input(input, parse_spread_method).flatten() else {
+        return false;
+    };
+    unsafe { value.write(parsed_value) };
+    true
 }
 
 /// # Safety
@@ -415,10 +400,8 @@ pub unsafe extern "C" fn rust_parse_svg_table_values(
     context: *mut c_void,
     set_values: unsafe extern "C" fn(*mut c_void, *const f32, usize),
 ) {
-    crate::abort_on_panic(|| {
-        let values = with_input(input, parse_table_values).unwrap_or_default();
-        unsafe { set_values(context, values.as_ptr(), values.len()) };
-    });
+    let values = with_input(input, parse_table_values).unwrap_or_default();
+    unsafe { set_values(context, values.as_ptr(), values.len()) };
 }
 
 /// # Safety
@@ -431,18 +414,16 @@ pub unsafe extern "C" fn rust_parse_svg_view_box(
     width: *mut f64,
     height: *mut f64,
 ) -> bool {
-    crate::abort_on_panic(|| {
-        let Some(values) = with_input(input, parse_view_box).flatten() else {
-            return false;
-        };
-        unsafe {
-            min_x.write(values[0]);
-            min_y.write(values[1]);
-            width.write(values[2]);
-            height.write(values[3]);
-        }
-        true
-    })
+    let Some(values) = with_input(input, parse_view_box).flatten() else {
+        return false;
+    };
+    unsafe {
+        min_x.write(values[0]);
+        min_y.write(values[1]);
+        width.write(values[2]);
+        height.write(values[3]);
+    }
+    true
 }
 
 #[cfg(test)]

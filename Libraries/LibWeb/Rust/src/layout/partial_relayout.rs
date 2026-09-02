@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::abort_on_panic;
 use crate::layout::LayoutNodeArena;
 use crate::layout::formatting_context::{FfiFormattingContextType, formatting_context_type_created_by_node_data};
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
@@ -458,10 +457,8 @@ impl LayoutNodeArena {
 /// in this arena.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_node_is_partial_relayout_boundary(arena: *mut c_void, node: NodeSlotId) -> bool {
-    abort_on_panic(|| {
-        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-        unsafe { LayoutNodeArena::from_handle(arena) }.node_is_partial_relayout_boundary(node)
-    })
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }.node_is_partial_relayout_boundary(node)
 }
 
 /// # Safety
@@ -469,10 +466,8 @@ pub unsafe extern "C" fn layout_arena_node_is_partial_relayout_boundary(arena: *
 /// The arena must remain valid for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_has_partial_relayout_boundary_roots(arena: *mut c_void) -> bool {
-    abort_on_panic(|| {
-        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-        unsafe { LayoutNodeArena::from_handle(arena) }.has_partial_relayout_boundary_roots()
-    })
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }.has_partial_relayout_boundary_roots()
 }
 
 /// # Safety
@@ -485,14 +480,12 @@ pub unsafe extern "C" fn layout_arena_take_partial_relayout_boundary_roots(
     context: *mut c_void,
     push_root: unsafe extern "C" fn(*mut c_void, NodeSlotId),
 ) {
-    abort_on_panic(|| {
-        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-        let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-        for root in arena.take_partial_relayout_boundary_roots() {
-            // SAFETY: The C++ callback appends the slot id to a caller-owned collection.
-            unsafe { push_root(context, root) };
-        }
-    });
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
+    for root in arena.take_partial_relayout_boundary_roots() {
+        // SAFETY: The C++ callback appends the slot id to a caller-owned collection.
+        unsafe { push_root(context, root) };
+    }
 }
 
 /// # Safety
@@ -510,32 +503,30 @@ pub unsafe extern "C" fn layout_arena_collect_partial_relayout_roots(
     context: *mut c_void,
     push_root: unsafe extern "C" fn(*mut c_void, NodeSlotId),
 ) -> bool {
-    abort_on_panic(|| {
-        // SAFETY: The C++ caller keeps the arena and both slot arrays alive for this call.
-        let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-        let registered = if registered_root_count == 0 {
-            &[]
-        } else {
-            // SAFETY: A nonzero count implies a valid array of that length.
-            unsafe { std::slice::from_raw_parts(registered_root_slots, registered_root_count) }
-        };
-        let rebuilt = if rebuilt_subtree_root_count == 0 {
-            &[]
-        } else {
-            // SAFETY: A nonzero count implies a valid array of that length.
-            unsafe { std::slice::from_raw_parts(rebuilt_subtree_root_slots, rebuilt_subtree_root_count) }
-        };
-        match arena.collect_partial_relayout_roots(registered, rebuilt) {
-            Some(roots) => {
-                for root in roots {
-                    // SAFETY: The C++ callback appends the slot id to a caller-owned collection.
-                    unsafe { push_root(context, root) };
-                }
-                true
+    // SAFETY: The C++ caller keeps the arena and both slot arrays alive for this call.
+    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
+    let registered = if registered_root_count == 0 {
+        &[]
+    } else {
+        // SAFETY: A nonzero count implies a valid array of that length.
+        unsafe { std::slice::from_raw_parts(registered_root_slots, registered_root_count) }
+    };
+    let rebuilt = if rebuilt_subtree_root_count == 0 {
+        &[]
+    } else {
+        // SAFETY: A nonzero count implies a valid array of that length.
+        unsafe { std::slice::from_raw_parts(rebuilt_subtree_root_slots, rebuilt_subtree_root_count) }
+    };
+    match arena.collect_partial_relayout_roots(registered, rebuilt) {
+        Some(roots) => {
+            for root in roots {
+                // SAFETY: The C++ callback appends the slot id to a caller-owned collection.
+                unsafe { push_root(context, root) };
             }
-            None => false,
+            true
         }
-    })
+        None => false,
+    }
 }
 
 /// # Safety
@@ -547,10 +538,8 @@ pub unsafe extern "C" fn layout_arena_reset_cached_intrinsic_sizes_of_self_and_a
     arena: *mut c_void,
     node: NodeSlotId,
 ) {
-    abort_on_panic(|| {
-        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-        unsafe { LayoutNodeArena::from_handle(arena) }.reset_cached_intrinsic_sizes_of_self_and_ancestors(node);
-    });
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }.reset_cached_intrinsic_sizes_of_self_and_ancestors(node);
 }
 
 /// # Safety
@@ -563,11 +552,9 @@ pub unsafe extern "C" fn layout_arena_classify_layout_tree_update(
     node: NodeSlotId,
     reason_is_structural_boundary_self_rebuild: bool,
 ) -> FfiLayoutTreeUpdateClassification {
-    abort_on_panic(|| {
-        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-        unsafe { LayoutNodeArena::from_handle(arena) }
-            .classify_layout_tree_update(node, reason_is_structural_boundary_self_rebuild)
-    })
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }
+        .classify_layout_tree_update(node, reason_is_structural_boundary_self_rebuild)
 }
 
 /// # Safety
@@ -580,10 +567,8 @@ pub unsafe extern "C" fn layout_arena_set_needs_layout_update(
     node: NodeSlotId,
     propagate_through_ancestors: bool,
 ) {
-    abort_on_panic(|| {
-        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-        unsafe { LayoutNodeArena::from_handle(arena) }.set_needs_layout_update(node, propagate_through_ancestors);
-    });
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }.set_needs_layout_update(node, propagate_through_ancestors);
 }
 
 #[cfg(test)]

@@ -392,7 +392,7 @@ pub unsafe extern "C" fn rust_absolutize_length(
     context: *const FfiLengthResolutionContext,
 ) -> FfiAbsolutizedLength {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| absolutize_length(value, unit as usize, unsafe { &*context }))
+    absolutize_length(value, unit as usize, unsafe { &*context })
 }
 
 /// Result of computing a property that resolves to a number.
@@ -558,10 +558,8 @@ fn compute_font_width(value: &StyleValueData) -> FfiComputedNumber {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_compute_font_width(absolutized_value: *const c_void) -> FfiComputedNumber {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| {
-        let value = unsafe { &*(absolutized_value as *const StyleValueData) };
-        compute_font_width(value)
-    })
+    let value = unsafe { &*(absolutized_value as *const StyleValueData) };
+    compute_font_width(value)
 }
 
 /// An <absolute-size> keyword refers to an entry in a table of font sizes computed and kept by
@@ -710,16 +708,14 @@ pub unsafe extern "C" fn rust_compute_font_size(
     default_font_size_raw: i32,
 ) -> FfiComputedNumber {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| {
-        let value = unsafe { &*(absolutized_value as *const StyleValueData) };
-        compute_font_size(
-            value,
-            computed_math_depth,
-            CssPixels::from_raw(inherited_font_size_raw),
-            inherited_math_depth,
-            CssPixels::from_raw(default_font_size_raw),
-        )
-    })
+    let value = unsafe { &*(absolutized_value as *const StyleValueData) };
+    compute_font_size(
+        value,
+        computed_math_depth,
+        CssPixels::from_raw(inherited_font_size_raw),
+        inherited_math_depth,
+        CssPixels::from_raw(default_font_size_raw),
+    )
 }
 
 /// Why a monospace font-size recascade batch stopped.
@@ -884,32 +880,30 @@ pub unsafe extern "C" fn rust_recascade_font_size_batch(
     length_resolution_context: *const FfiLengthResolutionContext,
 ) -> FfiFontSizeRecascadeBatch {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| {
-        let style_engine = unsafe { &*style_engine.cast::<crate::css::style::StyleEngine>() };
-        let style_records = if style_record_count == 0 {
-            &[]
-        } else {
-            unsafe { std::slice::from_raw_parts(style_records, style_record_count) }
-        };
-        recascade_font_size_batch(
-            style_records.len(),
-            |index| {
-                let style_record = style_records[index];
-                if style_record == 0 {
-                    return std::ptr::null();
-                }
-                style_engine
-                    .style_record_view(style_record)
-                    .and_then(|view| unsafe { view.longhand_table.as_ref() })
-                    .map_or(std::ptr::null(), ComputedLonghandTable::raw_cascaded_font_size)
-            },
-            start_index,
-            current_size_raw,
-            current_depends_on_viewport_metrics,
-            default_size_raw,
-            length_resolution_context,
-        )
-    })
+    let style_engine = unsafe { &*style_engine.cast::<crate::css::style::StyleEngine>() };
+    let style_records = if style_record_count == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(style_records, style_record_count) }
+    };
+    recascade_font_size_batch(
+        style_records.len(),
+        |index| {
+            let style_record = style_records[index];
+            if style_record == 0 {
+                return std::ptr::null();
+            }
+            style_engine
+                .style_record_view(style_record)
+                .and_then(|view| unsafe { view.longhand_table.as_ref() })
+                .map_or(std::ptr::null(), ComputedLonghandTable::raw_cascaded_font_size)
+        },
+        start_index,
+        current_size_raw,
+        current_depends_on_viewport_metrics,
+        default_size_raw,
+        length_resolution_context,
+    )
 }
 
 /// Some pseudo-elements are generated regardless of CSS rules, so their
@@ -918,15 +912,13 @@ pub unsafe extern "C" fn rust_recascade_font_size_batch(
 pub extern "C" fn rust_pseudo_element_has_implicit_style(pseudo_element: u8) -> bool {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     use crate::css::selector::PseudoElementType;
-    abort_on_panic(|| {
-        matches!(
-            crate::css::selector::pseudo_element_type_from_code(pseudo_element),
-            PseudoElementType::DetailsContent
-                | PseudoElementType::FileSelectorButton
-                | PseudoElementType::Marker
-                | PseudoElementType::Placeholder
-        )
-    })
+    matches!(
+        crate::css::selector::pseudo_element_type_from_code(pseudo_element),
+        PseudoElementType::DetailsContent
+            | PseudoElementType::FileSelectorButton
+            | PseudoElementType::Marker
+            | PseudoElementType::Placeholder
+    )
 }
 
 /// Whether style computation for a pseudo-element bails because no
@@ -941,27 +933,25 @@ pub extern "C" fn rust_pseudo_element_has_implicit_style(pseudo_element: u8) -> 
 pub unsafe extern "C" fn rust_pseudo_element_content_bails(content_value: *const c_void, pseudo_element: u8) -> bool {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     use crate::css::selector::PseudoElementType;
-    abort_on_panic(|| {
-        let content_is_normal = if content_value.is_null() {
-            // NOTE: `normal` is the initial value, so the absence of a value is treated as `normal`.
-            true
-        } else {
-            match unsafe { &*(content_value as *const StyleValueData) } {
-                StyleValueData::Keyword { keyword } => {
-                    if *keyword == keyword::NONE {
-                        return true;
-                    }
-                    *keyword == keyword::NORMAL
+    let content_is_normal = if content_value.is_null() {
+        // NOTE: `normal` is the initial value, so the absence of a value is treated as `normal`.
+        true
+    } else {
+        match unsafe { &*(content_value as *const StyleValueData) } {
+            StyleValueData::Keyword { keyword } => {
+                if *keyword == keyword::NONE {
+                    return true;
                 }
-                _ => false,
+                *keyword == keyword::NORMAL
             }
-        };
-        content_is_normal
-            && matches!(
-                crate::css::selector::pseudo_element_type_from_code(pseudo_element),
-                PseudoElementType::Before | PseudoElementType::After
-            )
-    })
+            _ => false,
+        }
+    };
+    content_is_normal
+        && matches!(
+            crate::css::selector::pseudo_element_type_from_code(pseudo_element),
+            PseudoElementType::Before | PseudoElementType::After
+        )
 }
 
 /// https://drafts.css-houdini.org/css-properties-values-api/#computationally-independent
@@ -1860,10 +1850,8 @@ pub(crate) fn collect_unfixed_random_sharings_in_value(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_is_computationally_independent(data: *const c_void) -> bool {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleValueQueryEntry);
-    abort_on_panic(|| {
-        value_is_computationally_independent(unsafe { &*(data as *const StyleValueData) })
-            .expect("computational independence requested for an unsupported value")
-    })
+    value_is_computationally_independent(unsafe { &*(data as *const StyleValueData) })
+        .expect("computational independence requested for an unsupported value")
 }
 
 // The computed value of the math-depth value is determined as follows:
@@ -2182,20 +2170,18 @@ pub struct FfiFontStyleComputation {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_compute_font_style(absolutized_value: *const c_void) -> FfiFontStyleComputation {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| {
-        if let StyleValueData::Keyword { keyword } = (unsafe { &*(absolutized_value as *const StyleValueData) })
-            && let Some(font_style_keyword) = keyword_to_font_style_keyword(*keyword)
-        {
-            return FfiFontStyleComputation {
-                is_keyword: true,
-                font_style_keyword,
-            };
-        }
-        FfiFontStyleComputation {
-            is_keyword: false,
-            font_style_keyword: 0,
-        }
-    })
+    if let StyleValueData::Keyword { keyword } = (unsafe { &*(absolutized_value as *const StyleValueData) })
+        && let Some(font_style_keyword) = keyword_to_font_style_keyword(*keyword)
+    {
+        return FfiFontStyleComputation {
+            is_keyword: true,
+            font_style_keyword,
+        };
+    }
+    FfiFontStyleComputation {
+        is_keyword: false,
+        font_style_keyword: 0,
+    }
 }
 
 fn compute_letter_or_word_spacing_value(absolutized_value: &StyleValueData) -> FfiComputedNumber {
@@ -2411,33 +2397,31 @@ static INITIAL_VALUE_TABLE: std::sync::OnceLock<InitialValueTable> = std::sync::
 /// `entries` must point at `length` transferred strong references.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_metadata_set_initial_value_table(entries: *const *const c_void, length: usize) {
-    abort_on_panic(|| {
-        let values: Vec<_> = unsafe { std::slice::from_raw_parts(entries, length) }
-            .iter()
-            .map(|entry| unsafe {
-                crate::css::style_value::RetainedStyleValueData::from_retained_pointer(
-                    (*entry).cast::<crate::css::style_value::StyleValueData>(),
-                )
+    let values: Vec<_> = unsafe { std::slice::from_raw_parts(entries, length) }
+        .iter()
+        .map(|entry| unsafe {
+            crate::css::style_value::RetainedStyleValueData::from_retained_pointer(
+                (*entry).cast::<crate::css::style_value::StyleValueData>(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        length,
+        crate::css::property_metadata::NUMBER_OF_LONGHAND_PROPERTIES,
+        "initial value table has one entry per longhand"
+    );
+    assert!(
+        INITIAL_VALUE_TABLE
+            .set(InitialValueTable {
+                dependencies: values
+                    .iter()
+                    .map(|value| external_value_dependencies(value.data()))
+                    .collect(),
+                values,
             })
-            .collect();
-        assert_eq!(
-            length,
-            crate::css::property_metadata::NUMBER_OF_LONGHAND_PROPERTIES,
-            "initial value table has one entry per longhand"
-        );
-        assert!(
-            INITIAL_VALUE_TABLE
-                .set(InitialValueTable {
-                    dependencies: values
-                        .iter()
-                        .map(|value| external_value_dependencies(value.data()))
-                        .collect(),
-                    values,
-                })
-                .is_ok(),
-            "initial value table installed twice"
-        );
-    });
+            .is_ok(),
+        "initial value table installed twice"
+    );
 }
 
 /// Returns the initial value data of a longhand property.
@@ -2456,7 +2440,7 @@ fn initial_value_dependencies(property_id: u16) -> ExternalValueDependencies {
 /// FFI accessor for the parity test on the C++ side.
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_metadata_initial_value(property_id: u16) -> *const c_void {
-    abort_on_panic(|| initial_value_data(property_id).cast())
+    initial_value_data(property_id).cast()
 }
 
 /// Whether a keyword resolves as a color during computed-value processing.
@@ -4932,155 +4916,151 @@ fn effective_display(table: &ComputedLonghandTable, overlay: Option<&AnimatedOve
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropertiesInput) {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandDriverEntry);
-    abort_on_panic(|| {
-        let input = unsafe { &*input };
-        let style_engine = unsafe { &*input.style_engine.cast::<crate::css::style::StyleEngine>() };
-        let previous_style = (input.previous_style_record != 0).then(|| {
-            style_engine
-                .style_record_view(input.previous_style_record)
-                .expect("the previous style record must remain live during computation")
-        });
-        let previous_longhand_values = previous_style.as_ref().map(|view| view.longhand_values);
-        let mut selected_transition_properties = previous_style
-            .as_ref()
-            .and_then(|view| unsafe { view.longhand_table.as_ref() })
-            .map(active_transition_properties)
-            .unwrap_or_default();
-        let has_retained_transition_candidates = !selected_transition_properties.is_empty();
-        if input.selected_transition_property_count != 0 {
-            selected_transition_properties.extend_from_slice(unsafe {
-                std::slice::from_raw_parts(
-                    input.selected_transition_properties,
-                    input.selected_transition_property_count,
-                )
-            });
-        }
-        let retained_selection = if input.use_retained_style_computation_selection {
-            crate::css::style::tree::StyleNodeID::from_raw(input.style_node)
-                .and_then(|node| style_engine.pending_style_computation_selection(node, input.pseudo_kind))
-        } else {
-            None
-        };
-        let plan = crate::css::cascaded_properties::StyleComputationPlanInput {
-            initial_computed_group_mask: input.initial_computed_group_mask,
-            all_computed_groups: input.all_computed_groups,
-            previous_longhand_values,
-            retained_selection,
-            selected_transition_properties: &selected_transition_properties,
-            has_retained_transition_candidates,
-            has_relevant_animations: input.has_relevant_animations,
-            has_css_defined_animations: input.has_css_defined_animations,
-        };
-        let requirements = unsafe {
-            crate::css::cascaded_properties::collect_style_computation_requirements(input.store, Some(&plan))
-        };
-        let parent_snapshot = if input.inheritance_parent_style_record != 0 {
-            Some(parent_snapshot_for_style_record(
-                style_engine,
-                input.inheritance_parent_style_record,
-                None,
-            ))
-        } else {
-            None
-        };
-        let mut drive_input = std::mem::MaybeUninit::<FfiLonghandDriveInput>::uninit();
-        let rebuilds_over_previous_properties = requirements.computed_group_mask != input.all_computed_groups
-            || requirements.has_computed_property_selection;
-        let longhand_table = if rebuilds_over_previous_properties {
-            let previous_style = previous_style
-                .as_ref()
-                .expect("a partial style drive must have a previous style record");
-            previous_style.longhand_table_for_partial_drive()
-        } else {
-            ComputedLonghandTable::new()
-        };
-        unsafe {
-            (input.prepare_longhand_drive)(
-                input.callback_context,
-                &raw const requirements,
-                longhand_table.into_raw_shared().cast_mut(),
-                parent_snapshot
-                    .as_ref()
-                    .is_some_and(ParentSnapshot::has_animated_values),
-                drive_input.as_mut_ptr(),
-            );
-        }
-        let drive_input = unsafe { drive_input.assume_init() };
-        let parent_text_align_input_is_animated = parent_snapshot.as_ref().is_some_and(|snapshot| {
-            snapshot.has_animated_property(property_id::TEXT_ALIGN)
-                || snapshot.has_animated_property(property_id::DIRECTION)
-        });
-        let (mut result, mut finalization_line_height_metrics) =
-            unsafe { compute_longhands(&drive_input, parent_snapshot.as_ref()) };
-        if !input.stop_after_longhand_drive {
-            result.transitions = build_computed_transition_list(unsafe { &*drive_input.longhand_table });
-            result.animations = build_computed_animation_list(unsafe { &*drive_input.longhand_table });
-        }
-        let mut animated_overlay = drive_input.animated_overlay;
-        let mut animation_values_applied =
-            unsafe { animated_overlay.as_ref() }.is_some_and(|overlay| !overlay.is_empty());
-        unsafe { (input.finish_longhand_drive)(input.callback_context, &raw const result) };
-        unsafe { destroy_style_computation_result(&result) };
-        unsafe { crate::css::cascaded_properties::destroy_style_computation_requirements(requirements.storage) };
-        if input.stop_after_longhand_drive {
-            unsafe { (input.finish_properties)(input.callback_context, false) };
-            unsafe { &mut *drive_input.longhand_table }.freeze();
-            return;
-        }
-
-        unsafe { (input.process_animation_definitions)(input.callback_context) };
-        let has_animations = unsafe { (input.prepare_animations)(input.callback_context) };
-        if animation_values_applied || has_animations {
-            let invalidated = unsafe { restore_post_compute_values(&mut *drive_input.longhand_table, false) };
-            unsafe { (input.did_mutate_post_compute)(input.callback_context, invalidated) };
-        }
-        if has_animations {
-            animated_overlay = unsafe {
-                (input.apply_animations)(
-                    input.callback_context,
-                    (&*drive_input.environment).box_type_input.check_input_line_height,
-                    &raw mut finalization_line_height_metrics,
-                )
-            };
-            animation_values_applied = true;
-        }
-
-        if parent_text_align_input_is_animated && !animation_values_applied {
-            let invalidated = unsafe { restore_post_compute_values(&mut *drive_input.longhand_table, true) };
-            unsafe { (input.did_mutate_post_compute)(input.callback_context, invalidated) };
-        }
-        let finalization_mode = if animation_values_applied {
-            Some(FfiStyleFinalizationMode::All)
-        } else if parent_text_align_input_is_animated {
-            Some(FfiStyleFinalizationMode::TextAlign)
-        } else {
-            None
-        };
-        if let Some(mode) = finalization_mode {
-            let environment = unsafe { &*drive_input.environment };
-            let finalization = finalize_computed_style(
-                mode,
-                environment.box_type_input,
-                environment.is_th_element,
-                parent_snapshot.as_ref(),
-                unsafe { &mut *drive_input.longhand_table },
-                unsafe { animated_overlay.as_mut() },
-                Some(&finalization_line_height_metrics),
-            );
-            unsafe { (input.did_mutate_post_compute)(input.callback_context, finalization.invalidated_longhands) };
-        }
-        let parent_style_in_display_none_subtree = parent_snapshot
-            .as_ref()
-            .is_some_and(|snapshot| snapshot.in_display_none_subtree);
-        let display_is_none = effective_display(unsafe { &*drive_input.longhand_table }, unsafe {
-            animated_overlay.as_ref()
-        })
-        .is_none();
-        unsafe { &mut *drive_input.longhand_table }
-            .set_in_display_none_subtree(parent_style_in_display_none_subtree || display_is_none);
-        unsafe { (input.finish_properties)(input.callback_context, parent_style_in_display_none_subtree) };
-        unsafe { &mut *drive_input.longhand_table }.freeze();
+    let input = unsafe { &*input };
+    let style_engine = unsafe { &*input.style_engine.cast::<crate::css::style::StyleEngine>() };
+    let previous_style = (input.previous_style_record != 0).then(|| {
+        style_engine
+            .style_record_view(input.previous_style_record)
+            .expect("the previous style record must remain live during computation")
     });
+    let previous_longhand_values = previous_style.as_ref().map(|view| view.longhand_values);
+    let mut selected_transition_properties = previous_style
+        .as_ref()
+        .and_then(|view| unsafe { view.longhand_table.as_ref() })
+        .map(active_transition_properties)
+        .unwrap_or_default();
+    let has_retained_transition_candidates = !selected_transition_properties.is_empty();
+    if input.selected_transition_property_count != 0 {
+        selected_transition_properties.extend_from_slice(unsafe {
+            std::slice::from_raw_parts(
+                input.selected_transition_properties,
+                input.selected_transition_property_count,
+            )
+        });
+    }
+    let retained_selection = if input.use_retained_style_computation_selection {
+        crate::css::style::tree::StyleNodeID::from_raw(input.style_node)
+            .and_then(|node| style_engine.pending_style_computation_selection(node, input.pseudo_kind))
+    } else {
+        None
+    };
+    let plan = crate::css::cascaded_properties::StyleComputationPlanInput {
+        initial_computed_group_mask: input.initial_computed_group_mask,
+        all_computed_groups: input.all_computed_groups,
+        previous_longhand_values,
+        retained_selection,
+        selected_transition_properties: &selected_transition_properties,
+        has_retained_transition_candidates,
+        has_relevant_animations: input.has_relevant_animations,
+        has_css_defined_animations: input.has_css_defined_animations,
+    };
+    let requirements =
+        unsafe { crate::css::cascaded_properties::collect_style_computation_requirements(input.store, Some(&plan)) };
+    let parent_snapshot = if input.inheritance_parent_style_record != 0 {
+        Some(parent_snapshot_for_style_record(
+            style_engine,
+            input.inheritance_parent_style_record,
+            None,
+        ))
+    } else {
+        None
+    };
+    let mut drive_input = std::mem::MaybeUninit::<FfiLonghandDriveInput>::uninit();
+    let rebuilds_over_previous_properties =
+        requirements.computed_group_mask != input.all_computed_groups || requirements.has_computed_property_selection;
+    let longhand_table = if rebuilds_over_previous_properties {
+        let previous_style = previous_style
+            .as_ref()
+            .expect("a partial style drive must have a previous style record");
+        previous_style.longhand_table_for_partial_drive()
+    } else {
+        ComputedLonghandTable::new()
+    };
+    unsafe {
+        (input.prepare_longhand_drive)(
+            input.callback_context,
+            &raw const requirements,
+            longhand_table.into_raw_shared().cast_mut(),
+            parent_snapshot
+                .as_ref()
+                .is_some_and(ParentSnapshot::has_animated_values),
+            drive_input.as_mut_ptr(),
+        );
+    }
+    let drive_input = unsafe { drive_input.assume_init() };
+    let parent_text_align_input_is_animated = parent_snapshot.as_ref().is_some_and(|snapshot| {
+        snapshot.has_animated_property(property_id::TEXT_ALIGN)
+            || snapshot.has_animated_property(property_id::DIRECTION)
+    });
+    let (mut result, mut finalization_line_height_metrics) =
+        unsafe { compute_longhands(&drive_input, parent_snapshot.as_ref()) };
+    if !input.stop_after_longhand_drive {
+        result.transitions = build_computed_transition_list(unsafe { &*drive_input.longhand_table });
+        result.animations = build_computed_animation_list(unsafe { &*drive_input.longhand_table });
+    }
+    let mut animated_overlay = drive_input.animated_overlay;
+    let mut animation_values_applied = unsafe { animated_overlay.as_ref() }.is_some_and(|overlay| !overlay.is_empty());
+    unsafe { (input.finish_longhand_drive)(input.callback_context, &raw const result) };
+    unsafe { destroy_style_computation_result(&result) };
+    unsafe { crate::css::cascaded_properties::destroy_style_computation_requirements(requirements.storage) };
+    if input.stop_after_longhand_drive {
+        unsafe { (input.finish_properties)(input.callback_context, false) };
+        unsafe { &mut *drive_input.longhand_table }.freeze();
+        return;
+    }
+
+    unsafe { (input.process_animation_definitions)(input.callback_context) };
+    let has_animations = unsafe { (input.prepare_animations)(input.callback_context) };
+    if animation_values_applied || has_animations {
+        let invalidated = unsafe { restore_post_compute_values(&mut *drive_input.longhand_table, false) };
+        unsafe { (input.did_mutate_post_compute)(input.callback_context, invalidated) };
+    }
+    if has_animations {
+        animated_overlay = unsafe {
+            (input.apply_animations)(
+                input.callback_context,
+                (&*drive_input.environment).box_type_input.check_input_line_height,
+                &raw mut finalization_line_height_metrics,
+            )
+        };
+        animation_values_applied = true;
+    }
+
+    if parent_text_align_input_is_animated && !animation_values_applied {
+        let invalidated = unsafe { restore_post_compute_values(&mut *drive_input.longhand_table, true) };
+        unsafe { (input.did_mutate_post_compute)(input.callback_context, invalidated) };
+    }
+    let finalization_mode = if animation_values_applied {
+        Some(FfiStyleFinalizationMode::All)
+    } else if parent_text_align_input_is_animated {
+        Some(FfiStyleFinalizationMode::TextAlign)
+    } else {
+        None
+    };
+    if let Some(mode) = finalization_mode {
+        let environment = unsafe { &*drive_input.environment };
+        let finalization = finalize_computed_style(
+            mode,
+            environment.box_type_input,
+            environment.is_th_element,
+            parent_snapshot.as_ref(),
+            unsafe { &mut *drive_input.longhand_table },
+            unsafe { animated_overlay.as_mut() },
+            Some(&finalization_line_height_metrics),
+        );
+        unsafe { (input.did_mutate_post_compute)(input.callback_context, finalization.invalidated_longhands) };
+    }
+    let parent_style_in_display_none_subtree = parent_snapshot
+        .as_ref()
+        .is_some_and(|snapshot| snapshot.in_display_none_subtree);
+    let display_is_none = effective_display(unsafe { &*drive_input.longhand_table }, unsafe {
+        animated_overlay.as_ref()
+    })
+    .is_none();
+    unsafe { &mut *drive_input.longhand_table }
+        .set_in_display_none_subtree(parent_style_in_display_none_subtree || display_is_none);
+    unsafe { (input.finish_properties)(input.callback_context, parent_style_in_display_none_subtree) };
+    unsafe { &mut *drive_input.longhand_table }.freeze();
 }
 
 /// Creates the complete initial document longhand table. Unlike a normal
@@ -5095,112 +5075,110 @@ pub unsafe extern "C" fn rust_create_document_longhand_table(
     input: *const FfiDocumentLonghandInput,
 ) -> *mut ComputedLonghandTable {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandDriverEntry);
-    abort_on_panic(|| {
-        let input = unsafe { &*input };
-        let mut longhand_table = ComputedLonghandTable::new();
-        let store = CascadedPropertyStore::new();
-        let environment = FfiStyleComputationEnvironment {
-            box_type_input: FfiBoxTypeTransformationInput {
-                display: FfiDisplay::inline(),
-                position: keyword::STATIC,
-                float_value: keyword::NONE,
-                is_br_element: false,
-                is_document_element: false,
-                is_mathml_element: false,
-                is_mathml_mtable: false,
-                is_mathml_mtr: false,
-                is_mathml_mtd: false,
-                has_parent_display: false,
-                parent_display: FfiDisplay::block(),
-                is_wbr_element: false,
-                disallow_display_contents: false,
-                rewrite_inline_flow: false,
-                is_button_element: false,
-                force_line_height_normal: false,
-                check_input_line_height: false,
-                hide_audio_without_controls: false,
-                is_table_element: false,
-                force_position_static: false,
-                force_symbol_display_inline: false,
-            },
-            color_scheme_input: input.color_scheme_input,
-            is_th_element: false,
-            has_new_font_size: false,
-            has_tree_counting_context: false,
-            sibling_count: 0,
-            sibling_index: 0,
-            random_base_values: std::ptr::null(),
-            random_base_value_count: 0,
-            document_base_url: std::ptr::null(),
-            document_base_url_length: 0,
-            style_sheet_resource_contexts: std::ptr::null(),
-            style_sheet_resource_context_count: 0,
-            device_pixels_per_css_pixel: input.device_pixels_per_css_pixel,
-            initial_font_size_raw: input.initial_font_size_raw,
-            default_font_size_raw: input.default_font_size_raw,
+    let input = unsafe { &*input };
+    let mut longhand_table = ComputedLonghandTable::new();
+    let store = CascadedPropertyStore::new();
+    let environment = FfiStyleComputationEnvironment {
+        box_type_input: FfiBoxTypeTransformationInput {
+            display: FfiDisplay::inline(),
+            position: keyword::STATIC,
+            float_value: keyword::NONE,
+            is_br_element: false,
+            is_document_element: false,
+            is_mathml_element: false,
+            is_mathml_mtable: false,
+            is_mathml_mtr: false,
+            is_mathml_mtd: false,
+            has_parent_display: false,
+            parent_display: FfiDisplay::block(),
+            is_wbr_element: false,
+            disallow_display_contents: false,
+            rewrite_inline_flow: false,
+            is_button_element: false,
+            force_line_height_normal: false,
+            check_input_line_height: false,
+            hide_audio_without_controls: false,
+            is_table_element: false,
+            force_position_static: false,
+            force_symbol_display_inline: false,
+        },
+        color_scheme_input: input.color_scheme_input,
+        is_th_element: false,
+        has_new_font_size: false,
+        has_tree_counting_context: false,
+        sibling_count: 0,
+        sibling_index: 0,
+        random_base_values: std::ptr::null(),
+        random_base_value_count: 0,
+        document_base_url: std::ptr::null(),
+        document_base_url_length: 0,
+        style_sheet_resource_contexts: std::ptr::null(),
+        style_sheet_resource_context_count: 0,
+        device_pixels_per_css_pixel: input.device_pixels_per_css_pixel,
+        initial_font_size_raw: input.initial_font_size_raw,
+        default_font_size_raw: input.default_font_size_raw,
+    };
+    let mut results = empty_longhand_driver_results();
+    let mut effective_color_scheme = -1;
+    for phase in [
+        LONGHAND_DRIVE_PHASE_FONT,
+        LONGHAND_DRIVE_PHASE_LINE_HEIGHT,
+        LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
+        LONGHAND_DRIVE_PHASE_REMAINING,
+    ] {
+        let length_resolution_context = if phase == LONGHAND_DRIVE_PHASE_COLOR_SCHEME {
+            std::ptr::null()
+        } else {
+            &raw const input.length_resolution_context
         };
-        let mut results = empty_longhand_driver_results();
-        let mut effective_color_scheme = -1;
-        for phase in [
-            LONGHAND_DRIVE_PHASE_FONT,
-            LONGHAND_DRIVE_PHASE_LINE_HEIGHT,
-            LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
-            LONGHAND_DRIVE_PHASE_REMAINING,
-        ] {
-            let length_resolution_context = if phase == LONGHAND_DRIVE_PHASE_COLOR_SCHEME {
-                std::ptr::null()
-            } else {
-                &raw const input.length_resolution_context
-            };
-            unsafe {
-                drive_property_computation(
-                    &raw mut longhand_table,
-                    std::ptr::null_mut(),
-                    &raw const store,
-                    None,
-                    &raw const environment,
-                    u32::MAX,
-                    std::ptr::null(),
-                    phase,
-                    length_resolution_context,
-                    std::ptr::null(),
-                    std::ptr::null(),
-                    &raw mut results,
-                    &mut effective_color_scheme,
-                    true,
-                );
-            }
+        unsafe {
+            drive_property_computation(
+                &raw mut longhand_table,
+                std::ptr::null_mut(),
+                &raw const store,
+                None,
+                &raw const environment,
+                u32::MAX,
+                std::ptr::null(),
+                phase,
+                length_resolution_context,
+                std::ptr::null(),
+                std::ptr::null(),
+                &raw mut results,
+                &mut effective_color_scheme,
+                true,
+            );
         }
-        longhand_table.merge_dependency_flags(
-            results.depends_on_viewport_metrics,
-            results.font_metrics_depend_on_viewport_metrics,
-        );
-        longhand_table.set(
-            property_id::WIDTH,
-            retained_new(StyleValueData::Length {
-                value: input.viewport_width,
-                unit: px_length_unit(),
-            }),
-            -1,
-        );
-        longhand_table.set(
-            property_id::HEIGHT,
-            retained_new(StyleValueData::Length {
-                value: input.viewport_height,
-                unit: px_length_unit(),
-            }),
-            -1,
-        );
-        longhand_table.set(
-            property_id::DISPLAY,
-            retained_new(StyleValueData::Display {
-                raw: FfiDisplay::block().encoded(),
-            }),
-            -1,
-        );
-        longhand_table.freeze();
-        longhand_table.into_raw_shared().cast_mut()
-    })
+    }
+    longhand_table.merge_dependency_flags(
+        results.depends_on_viewport_metrics,
+        results.font_metrics_depend_on_viewport_metrics,
+    );
+    longhand_table.set(
+        property_id::WIDTH,
+        retained_new(StyleValueData::Length {
+            value: input.viewport_width,
+            unit: px_length_unit(),
+        }),
+        -1,
+    );
+    longhand_table.set(
+        property_id::HEIGHT,
+        retained_new(StyleValueData::Length {
+            value: input.viewport_height,
+            unit: px_length_unit(),
+        }),
+        -1,
+    );
+    longhand_table.set(
+        property_id::DISPLAY,
+        retained_new(StyleValueData::Display {
+            raw: FfiDisplay::block().encoded(),
+        }),
+        -1,
+    );
+    longhand_table.freeze();
+    longhand_table.into_raw_shared().cast_mut()
 }
 
 /// Computes every selected keyframe longhand through the Rust longhand driver.
@@ -5218,226 +5196,224 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
 ) -> FfiAnimationKeyframeLonghandResult {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandDriverEntry);
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::AnimationKeyframeLonghandEntry);
-    abort_on_panic(|| {
-        use crate::css::property_metadata::{
-            FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, NUMBER_OF_LONGHAND_PROPERTIES,
-        };
+    use crate::css::property_metadata::{
+        FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, NUMBER_OF_LONGHAND_PROPERTIES,
+    };
 
-        let input = unsafe { &*input };
-        let properties = if input.property_count == 0 {
-            &[][..]
-        } else {
-            unsafe {
-                std::slice::from_raw_parts(
-                    input
-                        .resolved_properties
-                        .cast::<crate::css::animation::FfiResolvedAnimationProperty>(),
-                    input.property_count,
-                )
-            }
+    let input = unsafe { &*input };
+    let properties = if input.property_count == 0 {
+        &[][..]
+    } else {
+        unsafe {
+            std::slice::from_raw_parts(
+                input
+                    .resolved_properties
+                    .cast::<crate::css::animation::FfiResolvedAnimationProperty>(),
+                input.property_count,
+            )
+        }
+    };
+    if properties.is_empty() {
+        return FfiAnimationKeyframeLonghandResult {
+            value_count: 0,
+            depends_on_viewport_metrics: false,
+            font_metrics_depend_on_viewport_metrics: false,
+            storage: std::ptr::null_mut(),
         };
-        if properties.is_empty() {
-            return FfiAnimationKeyframeLonghandResult {
-                value_count: 0,
-                depends_on_viewport_metrics: false,
-                font_metrics_depend_on_viewport_metrics: false,
-                storage: std::ptr::null_mut(),
+    }
+    assert!(!input.underlying_longhand_table.is_null());
+    assert!(!input.environment.is_null());
+    assert!(!input.font_length_resolution_context.is_null());
+    assert!(!input.line_height_length_resolution_context.is_null());
+    assert!(!input.remaining_length_resolution_context.is_null());
+    let underlying_longhand_table = unsafe { &*input.underlying_longhand_table };
+    let parent_snapshot = if input.inheritance_parent_style_record == 0 {
+        None
+    } else {
+        let style_engine = unsafe { &*input.style_engine.cast::<crate::css::style::StyleEngine>() };
+        Some(keyframe_parent_snapshot_for_style_record(
+            style_engine,
+            input.inheritance_parent_style_record,
+        ))
+    };
+    let mut longhands_by_keyframe = std::collections::BTreeMap::<usize, Vec<usize>>::new();
+    for (index, property) in properties.iter().enumerate() {
+        if property.custom_name_id != 0 {
+            continue;
+        }
+        assert!((FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property.physical_property_id));
+        assert!(!property.value.is_null());
+        longhands_by_keyframe
+            .entry(property.keyframe_index)
+            .or_default()
+            .push(index);
+    }
+
+    const LONGHAND_WORD_COUNT: usize = NUMBER_OF_LONGHAND_PROPERTIES.div_ceil(64);
+    let mut values = std::iter::repeat_with(|| None)
+        .take(properties.len())
+        .collect::<Vec<_>>();
+    for (index, property) in properties.iter().enumerate() {
+        if property.custom_name_id == 0 {
+            continue;
+        }
+        assert!(!input.custom_property_values.is_null());
+        let value = unsafe { *input.custom_property_values.add(index) };
+        assert!(!value.is_null());
+        values[index] = Some(unsafe {
+            crate::css::style_value::RetainedStyleValueData::from_retained_pointer(
+                crate::css::style_value::retain_style_value(value.cast()),
+            )
+        });
+    }
+    let mut depends_on_viewport_metrics = false;
+    let mut font_metrics_depend_on_viewport_metrics = false;
+    for indices in longhands_by_keyframe.values() {
+        // The keyframe drive reads only the selected longhands and the coordination inputs
+        // seeded below. Starting from the underlying table would retain and release every
+        // unrelated longhand for every keyframe on every animation sample.
+        let mut table = ComputedLonghandTable::new();
+        // Background lists coordinate against the underlying background-image layer count
+        // when background-image is not selected by this keyframe.
+        if let Some(value) = underlying_longhand_table.get(property_id::BACKGROUND_IMAGE) {
+            table.set(property_id::BACKGROUND_IMAGE, value.clone_retained(), -1);
+        }
+        let mut store = CascadedPropertyStore::new();
+        for property_id in FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID {
+            if !is_required_driver_input(property_id) {
+                continue;
+            }
+            if let Some(value) = underlying_longhand_table.get(property_id) {
+                store.seed_retained_property(property_id, value.clone_retained(), false, false);
+            }
+        }
+        let mut selected_longhands = [0; LONGHAND_WORD_COUNT];
+        let mut style_sheet_resource_contexts = Vec::new();
+        for &index in indices {
+            use crate::css::animation::FfiAnimationSpecifiedValueSource;
+
+            let property = &properties[index];
+            let value = match property.value_source {
+                FfiAnimationSpecifiedValueSource::Value => unsafe {
+                    RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
+                        property.value.cast(),
+                    ))
+                },
+                FfiAnimationSpecifiedValueSource::Initial => unsafe {
+                    RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
+                        initial_value_data(property.source_longhand_id).cast(),
+                    ))
+                },
+                FfiAnimationSpecifiedValueSource::Underlying => underlying_longhand_table
+                    .get(property.source_longhand_id)
+                    .expect("an animated longhand must have an underlying value")
+                    .clone_retained(),
+                FfiAnimationSpecifiedValueSource::Inherited => {
+                    let inherited = parent_snapshot
+                        .as_ref()
+                        .and_then(|snapshot| snapshot.value(property.source_longhand_id));
+                    let inherited =
+                        inherited.unwrap_or_else(|| unsafe { &*initial_value_data(property.source_longhand_id) });
+                    unsafe {
+                        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
+                            std::ptr::from_ref(inherited).cast(),
+                        ))
+                    }
+                }
             };
-        }
-        assert!(!input.underlying_longhand_table.is_null());
-        assert!(!input.environment.is_null());
-        assert!(!input.font_length_resolution_context.is_null());
-        assert!(!input.line_height_length_resolution_context.is_null());
-        assert!(!input.remaining_length_resolution_context.is_null());
-        let underlying_longhand_table = unsafe { &*input.underlying_longhand_table };
-        let parent_snapshot = if input.inheritance_parent_style_record == 0 {
-            None
-        } else {
-            let style_engine = unsafe { &*input.style_engine.cast::<crate::css::style::StyleEngine>() };
-            Some(keyframe_parent_snapshot_for_style_record(
-                style_engine,
-                input.inheritance_parent_style_record,
-            ))
-        };
-        let mut longhands_by_keyframe = std::collections::BTreeMap::<usize, Vec<usize>>::new();
-        for (index, property) in properties.iter().enumerate() {
-            if property.custom_name_id != 0 {
+            if property.is_transition {
+                values[index] = Some(value);
                 continue;
             }
-            assert!((FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property.physical_property_id));
-            assert!(!property.value.is_null());
-            longhands_by_keyframe
-                .entry(property.keyframe_index)
-                .or_default()
-                .push(index);
-        }
-
-        const LONGHAND_WORD_COUNT: usize = NUMBER_OF_LONGHAND_PROPERTIES.div_ceil(64);
-        let mut values = std::iter::repeat_with(|| None)
-            .take(properties.len())
-            .collect::<Vec<_>>();
-        for (index, property) in properties.iter().enumerate() {
-            if property.custom_name_id == 0 {
-                continue;
-            }
-            assert!(!input.custom_property_values.is_null());
-            let value = unsafe { *input.custom_property_values.add(index) };
-            assert!(!value.is_null());
-            values[index] = Some(unsafe {
-                crate::css::style_value::RetainedStyleValueData::from_retained_pointer(
-                    crate::css::style_value::retain_style_value(value.cast()),
-                )
-            });
-        }
-        let mut depends_on_viewport_metrics = false;
-        let mut font_metrics_depend_on_viewport_metrics = false;
-        for indices in longhands_by_keyframe.values() {
-            // The keyframe drive reads only the selected longhands and the coordination inputs
-            // seeded below. Starting from the underlying table would retain and release every
-            // unrelated longhand for every keyframe on every animation sample.
-            let mut table = ComputedLonghandTable::new();
-            // Background lists coordinate against the underlying background-image layer count
-            // when background-image is not selected by this keyframe.
-            if let Some(value) = underlying_longhand_table.get(property_id::BACKGROUND_IMAGE) {
-                table.set(property_id::BACKGROUND_IMAGE, value.clone_retained(), -1);
-            }
-            let mut store = CascadedPropertyStore::new();
-            for property_id in FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID {
-                if !is_required_driver_input(property_id) {
-                    continue;
-                }
-                if let Some(value) = underlying_longhand_table.get(property_id) {
-                    store.seed_retained_property(property_id, value.clone_retained(), false, false);
-                }
-            }
-            let mut selected_longhands = [0; LONGHAND_WORD_COUNT];
-            let mut style_sheet_resource_contexts = Vec::new();
-            for &index in indices {
-                use crate::css::animation::FfiAnimationSpecifiedValueSource;
-
-                let property = &properties[index];
-                let value = match property.value_source {
-                    FfiAnimationSpecifiedValueSource::Value => unsafe {
-                        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
-                            property.value.cast(),
-                        ))
-                    },
-                    FfiAnimationSpecifiedValueSource::Initial => unsafe {
-                        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
-                            initial_value_data(property.source_longhand_id).cast(),
-                        ))
-                    },
-                    FfiAnimationSpecifiedValueSource::Underlying => underlying_longhand_table
-                        .get(property.source_longhand_id)
-                        .expect("an animated longhand must have an underlying value")
-                        .clone_retained(),
-                    FfiAnimationSpecifiedValueSource::Inherited => {
-                        let inherited = parent_snapshot
-                            .as_ref()
-                            .and_then(|snapshot| snapshot.value(property.source_longhand_id));
-                        let inherited =
-                            inherited.unwrap_or_else(|| unsafe { &*initial_value_data(property.source_longhand_id) });
-                        unsafe {
-                            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
-                                std::ptr::from_ref(inherited).cast(),
-                            ))
-                        }
+            let style_sheet_resource_context =
+                if matches!(property.value_source, FfiAnimationSpecifiedValueSource::Value) {
+                    FfiStyleSheetResourceContext {
+                        base_url: property.style_sheet_resource_context.base_url,
+                        base_url_length: property.style_sheet_resource_context.base_url_length,
+                        has_value: property.style_sheet_resource_context.has_value,
+                        origin_clean: property.style_sheet_resource_context.origin_clean,
                     }
+                } else {
+                    FfiStyleSheetResourceContext::empty()
                 };
-                if property.is_transition {
-                    values[index] = Some(value);
-                    continue;
+            let has_style_sheet_context = style_sheet_resource_context.has_value;
+            let source_slot =
+                store.seed_retained_property(property.physical_property_id, value, false, has_style_sheet_context);
+            if has_style_sheet_context {
+                let source_slot = source_slot as usize;
+                if style_sheet_resource_contexts.len() <= source_slot {
+                    style_sheet_resource_contexts.resize(source_slot + 1, FfiStyleSheetResourceContext::empty());
                 }
-                let style_sheet_resource_context =
-                    if matches!(property.value_source, FfiAnimationSpecifiedValueSource::Value) {
-                        FfiStyleSheetResourceContext {
-                            base_url: property.style_sheet_resource_context.base_url,
-                            base_url_length: property.style_sheet_resource_context.base_url_length,
-                            has_value: property.style_sheet_resource_context.has_value,
-                            origin_clean: property.style_sheet_resource_context.origin_clean,
-                        }
-                    } else {
-                        FfiStyleSheetResourceContext::empty()
-                    };
-                let has_style_sheet_context = style_sheet_resource_context.has_value;
-                let source_slot =
-                    store.seed_retained_property(property.physical_property_id, value, false, has_style_sheet_context);
-                if has_style_sheet_context {
-                    let source_slot = source_slot as usize;
-                    if style_sheet_resource_contexts.len() <= source_slot {
-                        style_sheet_resource_contexts.resize(source_slot + 1, FfiStyleSheetResourceContext::empty());
-                    }
-                    style_sheet_resource_contexts[source_slot] = style_sheet_resource_context;
-                }
-                set_longhand_bit(&mut selected_longhands, property.physical_property_id);
+                style_sheet_resource_contexts[source_slot] = style_sheet_resource_context;
             }
-            if selected_longhands.iter().all(|word| *word == 0) {
+            set_longhand_bit(&mut selected_longhands, property.physical_property_id);
+        }
+        if selected_longhands.iter().all(|word| *word == 0) {
+            continue;
+        }
+        let mut environment = unsafe { *input.environment };
+        environment.style_sheet_resource_contexts = style_sheet_resource_contexts.as_ptr();
+        environment.style_sheet_resource_context_count = style_sheet_resource_contexts.len();
+
+        let mut results = empty_longhand_driver_results();
+        let mut effective_color_scheme = -1;
+        for phase in [
+            LONGHAND_DRIVE_PHASE_FONT,
+            LONGHAND_DRIVE_PHASE_LINE_HEIGHT,
+            LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
+            LONGHAND_DRIVE_PHASE_REMAINING,
+        ] {
+            let length_resolution_context = match phase {
+                LONGHAND_DRIVE_PHASE_FONT => input.font_length_resolution_context,
+                LONGHAND_DRIVE_PHASE_LINE_HEIGHT => input.line_height_length_resolution_context,
+                LONGHAND_DRIVE_PHASE_COLOR_SCHEME => std::ptr::null(),
+                LONGHAND_DRIVE_PHASE_REMAINING => input.remaining_length_resolution_context,
+                _ => unreachable!(),
+            };
+            unsafe {
+                drive_property_computation(
+                    &raw mut table,
+                    std::ptr::null_mut(),
+                    &raw const store,
+                    parent_snapshot.as_ref(),
+                    &raw const environment,
+                    u32::MAX,
+                    selected_longhands.as_ptr(),
+                    phase,
+                    length_resolution_context,
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    &raw mut results,
+                    &mut effective_color_scheme,
+                    false,
+                );
+            }
+        }
+        depends_on_viewport_metrics |= results.depends_on_viewport_metrics;
+        font_metrics_depend_on_viewport_metrics |= results.font_metrics_depend_on_viewport_metrics;
+        for &index in indices {
+            if properties[index].is_transition {
                 continue;
             }
-            let mut environment = unsafe { *input.environment };
-            environment.style_sheet_resource_contexts = style_sheet_resource_contexts.as_ptr();
-            environment.style_sheet_resource_context_count = style_sheet_resource_contexts.len();
-
-            let mut results = empty_longhand_driver_results();
-            let mut effective_color_scheme = -1;
-            for phase in [
-                LONGHAND_DRIVE_PHASE_FONT,
-                LONGHAND_DRIVE_PHASE_LINE_HEIGHT,
-                LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
-                LONGHAND_DRIVE_PHASE_REMAINING,
-            ] {
-                let length_resolution_context = match phase {
-                    LONGHAND_DRIVE_PHASE_FONT => input.font_length_resolution_context,
-                    LONGHAND_DRIVE_PHASE_LINE_HEIGHT => input.line_height_length_resolution_context,
-                    LONGHAND_DRIVE_PHASE_COLOR_SCHEME => std::ptr::null(),
-                    LONGHAND_DRIVE_PHASE_REMAINING => input.remaining_length_resolution_context,
-                    _ => unreachable!(),
-                };
-                unsafe {
-                    drive_property_computation(
-                        &raw mut table,
-                        std::ptr::null_mut(),
-                        &raw const store,
-                        parent_snapshot.as_ref(),
-                        &raw const environment,
-                        u32::MAX,
-                        selected_longhands.as_ptr(),
-                        phase,
-                        length_resolution_context,
-                        std::ptr::null(),
-                        std::ptr::null(),
-                        &raw mut results,
-                        &mut effective_color_scheme,
-                        false,
-                    );
-                }
-            }
-            depends_on_viewport_metrics |= results.depends_on_viewport_metrics;
-            font_metrics_depend_on_viewport_metrics |= results.font_metrics_depend_on_viewport_metrics;
-            for &index in indices {
-                if properties[index].is_transition {
-                    continue;
-                }
-                let value = table
-                    .get(properties[index].physical_property_id)
-                    .expect("the keyframe longhand drive must store every selected property");
-                values[index] = Some(value.clone_retained());
-            }
+            let value = table
+                .get(properties[index].physical_property_id)
+                .expect("the keyframe longhand drive must store every selected property");
+            values[index] = Some(value.clone_retained());
         }
+    }
 
-        let values = Box::new(
-            values
-                .into_iter()
-                .map(|value| value.expect("the keyframe longhand drive must produce every requested value"))
-                .collect::<Vec<_>>(),
-        );
-        FfiAnimationKeyframeLonghandResult {
-            value_count: values.len(),
-            depends_on_viewport_metrics,
-            font_metrics_depend_on_viewport_metrics,
-            storage: Box::into_raw(values).cast(),
-        }
-    })
+    let values = Box::new(
+        values
+            .into_iter()
+            .map(|value| value.expect("the keyframe longhand drive must produce every requested value"))
+            .collect::<Vec<_>>(),
+    );
+    FfiAnimationKeyframeLonghandResult {
+        value_count: values.len(),
+        depends_on_viewport_metrics,
+        font_metrics_depend_on_viewport_metrics,
+        storage: Box::into_raw(values).cast(),
+    }
 }
 
 /// # Safety
@@ -5698,23 +5674,21 @@ pub unsafe extern "C" fn rust_expand_property_shorthands(
     data: *const c_void,
 ) -> FfiShorthandExpansion {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::ShorthandExpansionEntry);
-    abort_on_panic(|| {
-        let expansion = Box::new(expand_shorthands(property_id, data));
-        let properties = expansion.properties.as_ptr();
-        let count = expansion.properties.len();
-        FfiShorthandExpansion {
-            properties,
-            count,
-            storage: Box::into_raw(expansion).cast(),
-        }
-    })
+    let expansion = Box::new(expand_shorthands(property_id, data));
+    let properties = expansion.properties.as_ptr();
+    let count = expansion.properties.len();
+    FfiShorthandExpansion {
+        properties,
+        count,
+        storage: Box::into_raw(expansion).cast(),
+    }
 }
 
 /// # Safety
 /// `storage` must be a live pointer returned by `rust_expand_property_shorthands`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_shorthand_expansion_destroy(storage: *mut c_void) {
-    abort_on_panic(|| drop(unsafe { Box::from_raw(storage.cast::<ShorthandExpansion>()) }));
+    drop(unsafe { Box::from_raw(storage.cast::<ShorthandExpansion>()) });
 }
 
 pub(crate) fn display_is_none(raw: u32) -> bool {
@@ -6130,14 +6104,12 @@ pub unsafe extern "C" fn rust_resolve_effective_color_scheme(
     value: *const c_void,
     input: *const FfiEffectiveColorSchemeInput,
 ) -> u8 {
-    abort_on_panic(|| {
-        let StyleValueData::ColorScheme { scheme_codes, .. } = (unsafe { &*(value as *const StyleValueData) }) else {
-            unreachable!("computed color-scheme must have color-scheme data");
-        };
-        let input = unsafe { &*input };
-        resolve_effective_color_scheme(scheme_codes.as_slice(), input.preferred_color_scheme, unsafe {
-            input.document_supported_schemes()
-        })
+    let StyleValueData::ColorScheme { scheme_codes, .. } = (unsafe { &*(value as *const StyleValueData) }) else {
+        unreachable!("computed color-scheme must have color-scheme data");
+    };
+    let input = unsafe { &*input };
+    resolve_effective_color_scheme(scheme_codes.as_slice(), input.preferred_color_scheme, unsafe {
+        input.document_supported_schemes()
     })
 }
 
@@ -6564,22 +6536,20 @@ pub unsafe extern "C" fn rust_finalize_style(
     input_line_height_metrics: *const FfiInputLineHeightMetrics,
 ) -> FfiStyleFinalization {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| {
-        let input = unsafe { &*input };
-        if let Some(longhand_table) = unsafe { longhand_table.as_mut() } {
-            finalize_computed_style(
-                input.mode,
-                input.box_type,
-                input.is_th_element,
-                None,
-                longhand_table,
-                unsafe { animated_overlay.as_mut() },
-                unsafe { input_line_height_metrics.as_ref() },
-            )
-        } else {
-            finalize_style(input, None, None, None)
-        }
-    })
+    let input = unsafe { &*input };
+    if let Some(longhand_table) = unsafe { longhand_table.as_mut() } {
+        finalize_computed_style(
+            input.mode,
+            input.box_type,
+            input.is_th_element,
+            None,
+            longhand_table,
+            unsafe { animated_overlay.as_mut() },
+            unsafe { input_line_height_metrics.as_ref() },
+        )
+    } else {
+        finalize_style(input, None, None, None)
+    }
 }
 
 /// Computes the font-weight property from its absolutized value.
@@ -6592,10 +6562,8 @@ pub unsafe extern "C" fn rust_compute_font_weight(
     inherited_font_weight: f64,
 ) -> FfiComputedNumber {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| {
-        let value = unsafe { &*(absolutized_value as *const StyleValueData) };
-        compute_font_weight(value, inherited_font_weight)
-    })
+    let value = unsafe { &*(absolutized_value as *const StyleValueData) };
+    compute_font_weight(value, inherited_font_weight)
 }
 
 // The standalone cargo test binary has no C++ side, so release callbacks are

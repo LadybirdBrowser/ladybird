@@ -3601,14 +3601,12 @@ pub(crate) fn sink_into_ffi(sink: TextSink) -> FfiSerializedText {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_serialize(value: *const c_void, mode: u8) -> FfiSerializedText {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleValueSerializeEntry);
-    crate::abort_on_panic(|| {
-        let value = unsafe { &*value.cast::<StyleValueData>() };
-        let mut sink = TextSink::new();
-        if !serialize_style_value(&mut sink, value, SerializationMode::from_ffi(mode)) {
-            return FfiSerializedText::unported();
-        }
-        sink_into_ffi(sink)
-    })
+    let value = unsafe { &*value.cast::<StyleValueData>() };
+    let mut sink = TextSink::new();
+    if !serialize_style_value(&mut sink, value, SerializationMode::from_ffi(mode)) {
+        return FfiSerializedText::unported();
+    }
+    sink_into_ffi(sink)
 }
 
 /// Serializes the retained component values of an unresolved style value. Mode 0 is normalized
@@ -3622,21 +3620,19 @@ pub unsafe extern "C" fn rust_unresolved_style_value_serialize_components(
     value: *const c_void,
     mode: u8,
 ) -> FfiSerializedText {
-    crate::abort_on_panic(|| {
-        let StyleValueData::Unresolved { components, .. } = (unsafe { &*value.cast::<StyleValueData>() }) else {
-            unreachable!("component serialization requires an unresolved style value");
-        };
-        let mode = match mode {
-            0 => ComponentSerializationMode::Normalized,
-            1 => ComponentSerializationMode::PreserveNumericSource,
-            2 => ComponentSerializationMode::Retokenize,
-            _ => unreachable!("unknown component serialization mode"),
-        };
-        let serialized = serialize_component_values_to_utf16(components.as_slice(), mode);
-        let mut sink = TextSink::new();
-        serialized.into_iter().for_each(|unit| sink.push_code_unit(unit));
-        sink_into_ffi(sink)
-    })
+    let StyleValueData::Unresolved { components, .. } = (unsafe { &*value.cast::<StyleValueData>() }) else {
+        unreachable!("component serialization requires an unresolved style value");
+    };
+    let mode = match mode {
+        0 => ComponentSerializationMode::Normalized,
+        1 => ComponentSerializationMode::PreserveNumericSource,
+        2 => ComponentSerializationMode::Retokenize,
+        _ => unreachable!("unknown component serialization mode"),
+    };
+    let serialized = serialize_component_values_to_utf16(components.as_slice(), mode);
+    let mut sink = TextSink::new();
+    serialized.into_iter().for_each(|unit| sink.push_code_unit(unit));
+    sink_into_ffi(sink)
 }
 
 #[cfg(test)]

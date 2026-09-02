@@ -919,21 +919,19 @@ impl StyleEngine {
 /// Creates one document's style engine.
 #[unsafe(no_mangle)]
 pub extern "C" fn style_engine_create(device_class: FfiDeviceClass) -> *mut c_void {
-    abort_on_panic(|| {
-        let device_class = device_class.decode();
-        let mut engine = Box::new(StyleEngine::new(device_class));
-        engine.begin_recording(device_class);
-        engine.record_boundary_call(EventKind::SetComputedGroupDependencyMasks, |payload| {
-            let mapping = crate::css::computed_values::property_dependency_masks_snapshot();
-            payload.write_bool(mapping.is_some());
-            if let Some((first_property, masks, output_masks)) = mapping {
-                payload.write_u16(first_property);
-                payload.write_u32_slice(masks);
-                payload.write_u32_slice(output_masks);
-            }
-        });
-        Box::into_raw(engine).cast()
-    })
+    let device_class = device_class.decode();
+    let mut engine = Box::new(StyleEngine::new(device_class));
+    engine.begin_recording(device_class);
+    engine.record_boundary_call(EventKind::SetComputedGroupDependencyMasks, |payload| {
+        let mapping = crate::css::computed_values::property_dependency_masks_snapshot();
+        payload.write_bool(mapping.is_some());
+        if let Some((first_property, masks, output_masks)) = mapping {
+            payload.write_u16(first_property);
+            payload.write_u32_slice(masks);
+            payload.write_u32_slice(output_masks);
+        }
+    });
+    Box::into_raw(engine).cast()
 }
 
 /// Installs the C++ ownership callbacks used by live process-global raw atoms.
@@ -957,13 +955,11 @@ pub unsafe extern "C" fn style_engine_install_font_resolver(
     retain: unsafe extern "C" fn(*const c_void),
     release: unsafe extern "C" fn(*const c_void),
 ) {
-    abort_on_panic(|| {
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        assert!(engine.font_resolver.is_none(), "font resolver is installed once");
-        engine.font_resolver = Some(super::font_resolution::FontResolver::new(
-            context, resolve, retain, release,
-        ));
-    });
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    assert!(engine.font_resolver.is_none(), "font resolver is installed once");
+    engine.font_resolver = Some(super::font_resolution::FontResolver::new(
+        context, resolve, retain, release,
+    ));
 }
 
 /// Creates a replay engine whose atom keys are opaque capture tokens rather than live fly strings.
@@ -977,10 +973,8 @@ pub fn style_engine_create_for_replay(device_class: FfiDeviceClass) -> *mut c_vo
 /// `engine` must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_use_recording_memory_policy(engine: *mut c_void) {
-    abort_on_panic(|| {
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        engine.memory.enable_recording_policy();
-    });
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    engine.memory.enable_recording_policy();
 }
 
 /// Accounts C++ substitution-cache capacity against this document's acceleration budget.
@@ -989,10 +983,8 @@ pub unsafe extern "C" fn style_engine_use_recording_memory_policy(engine: *mut c
 /// `engine` must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_resize_parsed_substitution_cache(engine: *mut c_void, bytes: u64) -> bool {
-    abort_on_panic(|| {
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        engine.resize_parsed_substitution_cache(bytes)
-    })
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    engine.resize_parsed_substitution_cache(bytes)
 }
 
 #[unsafe(no_mangle)]
@@ -1004,26 +996,22 @@ pub extern "C" fn style_engine_verification_gate_bits() -> u8 {
 /// `engine` must be a pointer returned by `style_engine_create` and not yet destroyed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_destroy(engine: *mut c_void) {
-    abort_on_panic(|| {
-        let mut engine = unsafe { Box::from_raw(engine.cast::<StyleEngine>()) };
-        engine.end_recording();
-    });
+    let mut engine = unsafe { Box::from_raw(engine.cast::<StyleEngine>()) };
+    engine.end_recording();
 }
 
 /// # Safety
 /// `engine` must be live, and `out` must point at `count` writable `u32` values.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_allocate_style_nodes(engine: *mut c_void, out: *mut u32, count: usize) {
-    abort_on_panic(|| {
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        let out = if count == 0 {
-            &mut []
-        } else {
-            unsafe { std::slice::from_raw_parts_mut(out, count) }
-        };
-        engine.allocate_style_nodes(out);
-        engine.record_boundary_call(EventKind::AllocateStyleNodes, |payload| payload.write_u32_slice(out));
-    });
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let out = if count == 0 {
+        &mut []
+    } else {
+        unsafe { std::slice::from_raw_parts_mut(out, count) }
+    };
+    engine.allocate_style_nodes(out);
+    engine.record_boundary_call(EventKind::AllocateStyleNodes, |payload| payload.write_u32_slice(out));
 }
 
 /// Returns the live element descendants whose inheritance path begins at `root` in the flat tree.
@@ -1033,22 +1021,20 @@ pub unsafe extern "C" fn style_engine_allocate_style_nodes(engine: *mut c_void, 
 /// `style_engine_*` entry point or an explicit discard of the flat-tree descendants.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_flat_tree_descendants(engine: *mut c_void, root: u32) -> FfiStyleNodeSlice {
-    abort_on_panic(|| {
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        engine.clear_ffi_style_node_query();
-        let Some(root) = StyleNodeID::from_raw(root) else {
-            return FfiStyleNodeSlice::default();
-        };
-        let mut descendants = Vec::new();
-        engine.for_each_flat_tree_descendant(root, |node| {
-            descendants.push(node.raw());
-        });
-        engine.record_boundary_call(EventKind::ForEachFlatTreeDescendant, |payload| {
-            payload.write_u32(root.raw());
-            payload.write_u32_slice(&descendants);
-        });
-        engine.install_ffi_style_node_query(descendants)
-    })
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    engine.clear_ffi_style_node_query();
+    let Some(root) = StyleNodeID::from_raw(root) else {
+        return FfiStyleNodeSlice::default();
+    };
+    let mut descendants = Vec::new();
+    engine.for_each_flat_tree_descendant(root, |node| {
+        descendants.push(node.raw());
+    });
+    engine.record_boundary_call(EventKind::ForEachFlatTreeDescendant, |payload| {
+        payload.write_u32(root.raw());
+        payload.write_u32_slice(&descendants);
+    });
+    engine.install_ffi_style_node_query(descendants)
 }
 
 /// Discards the borrowed flat-tree descendant slice.
@@ -1057,10 +1043,8 @@ pub unsafe extern "C" fn style_engine_flat_tree_descendants(engine: *mut c_void,
 /// `engine` must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_discard_flat_tree_descendants(engine: *mut c_void) {
-    abort_on_panic(|| {
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        engine.clear_ffi_style_node_query();
-    });
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    engine.clear_ffi_style_node_query();
 }
 
 /// Returns the owner nodes whose element or pseudo style depends on viewport metrics.
@@ -1070,12 +1054,10 @@ pub unsafe extern "C" fn style_engine_discard_flat_tree_descendants(engine: *mut
 /// explicit discard.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_viewport_dependent_nodes(engine: *mut c_void) -> FfiStyleNodeSlice {
-    abort_on_panic(|| {
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        engine.clear_ffi_style_node_query();
-        let nodes = engine.computed_group_sets.viewport_dependent_nodes();
-        engine.install_ffi_style_node_query(nodes)
-    })
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    engine.clear_ffi_style_node_query();
+    let nodes = engine.computed_group_sets.viewport_dependent_nodes();
+    engine.install_ffi_style_node_query(nodes)
 }
 
 /// Discards the borrowed viewport-dependent node slice.
@@ -1084,10 +1066,8 @@ pub unsafe extern "C" fn style_engine_viewport_dependent_nodes(engine: *mut c_vo
 /// `engine` must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_discard_viewport_dependent_nodes(engine: *mut c_void) {
-    abort_on_panic(|| {
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        engine.clear_ffi_style_node_query();
-    });
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    engine.clear_ffi_style_node_query();
 }
 
 /// Applies one flat style input transaction.
@@ -1097,44 +1077,42 @@ pub unsafe extern "C" fn style_engine_discard_viewport_dependent_nodes(engine: *
 /// records for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_apply_transaction(engine: *mut c_void, transaction: &FfiStyleInputTransaction) {
-    abort_on_panic(|| {
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        // SAFETY: the caller vouches that each pointer covers its stated count for this call.
-        let tree = unsafe { borrow(transaction.tree_deltas, transaction.tree_delta_count) };
-        let arrivals = unsafe { borrow(transaction.element_arrivals, transaction.element_arrival_count) };
-        let arrival_custom_state_atoms = unsafe {
-            borrow(
-                transaction.arrival_custom_state_atoms,
-                transaction.arrival_custom_state_atom_count,
-            )
-        };
-        let features = unsafe { borrow(transaction.local_feature_deltas, transaction.local_feature_delta_count) };
-        let states = unsafe { borrow(transaction.state_deltas, transaction.state_delta_count) };
-        let declarations = unsafe {
-            borrow(
-                transaction.element_declaration_deltas,
-                transaction.element_declaration_delta_count,
-            )
-        };
-        let element_style_inputs =
-            unsafe { borrow(transaction.element_style_inputs, transaction.element_style_input_count) };
-        engine.apply_transaction_batch(
-            tree,
-            (arrivals, arrival_custom_state_atoms),
-            features,
-            states,
-            declarations,
-            element_style_inputs,
-        );
-        engine.record_boundary_call(EventKind::ApplyTransaction, |payload| {
-            write_recording_tree_deltas(tree, payload);
-            payload.write_raw_slice(arrivals);
-            payload.write_u32_slice(arrival_custom_state_atoms);
-            payload.write_raw_slice(features);
-            write_recording_state_deltas(states, payload);
-            payload.write_raw_slice(declarations);
-            write_recording_element_style_inputs(element_style_inputs, payload);
-        });
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    // SAFETY: the caller vouches that each pointer covers its stated count for this call.
+    let tree = unsafe { borrow(transaction.tree_deltas, transaction.tree_delta_count) };
+    let arrivals = unsafe { borrow(transaction.element_arrivals, transaction.element_arrival_count) };
+    let arrival_custom_state_atoms = unsafe {
+        borrow(
+            transaction.arrival_custom_state_atoms,
+            transaction.arrival_custom_state_atom_count,
+        )
+    };
+    let features = unsafe { borrow(transaction.local_feature_deltas, transaction.local_feature_delta_count) };
+    let states = unsafe { borrow(transaction.state_deltas, transaction.state_delta_count) };
+    let declarations = unsafe {
+        borrow(
+            transaction.element_declaration_deltas,
+            transaction.element_declaration_delta_count,
+        )
+    };
+    let element_style_inputs =
+        unsafe { borrow(transaction.element_style_inputs, transaction.element_style_input_count) };
+    engine.apply_transaction_batch(
+        tree,
+        (arrivals, arrival_custom_state_atoms),
+        features,
+        states,
+        declarations,
+        element_style_inputs,
+    );
+    engine.record_boundary_call(EventKind::ApplyTransaction, |payload| {
+        write_recording_tree_deltas(tree, payload);
+        payload.write_raw_slice(arrivals);
+        payload.write_u32_slice(arrival_custom_state_atoms);
+        payload.write_raw_slice(features);
+        write_recording_state_deltas(states, payload);
+        payload.write_raw_slice(declarations);
+        write_recording_element_style_inputs(element_style_inputs, payload);
     });
 }
 
@@ -1227,53 +1205,50 @@ pub unsafe extern "C" fn style_engine_add_style_rule(
     scope_level_implicit_roots: *const u32,
     scope_level_count: usize,
 ) -> u32 {
-    abort_on_panic(|| {
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        if sheet == 0 || count == 0 {
-            engine.record_boundary_call(EventKind::AddStyleRule, |payload| {
-                payload.write_u32(sheet);
-                payload.write_u32(before_rule);
-                payload.write_u32(0);
-            });
-            return 0;
-        }
-        let compiled = unsafe { borrow_selectors(selectors, count) };
-        if compiled.is_empty() {
-            engine.record_boundary_call(EventKind::AddStyleRule, |payload| {
-                payload.write_u32(sheet);
-                payload.write_u32(before_rule);
-                payload.write_u32(0);
-            });
-            return 0;
-        }
-        let scope = unsafe { borrow_selectors(scope_roots, scope_root_count) };
-        let limits = unsafe { borrow_selectors(scope_limits, scope_limit_count) };
-        let levels =
-            unsafe { borrow_scope_levels(scope_level_root_counts, scope_level_limit_counts, scope_level_count) };
-        let implicit_roots = unsafe { borrow_implicit_scope_roots(scope_level_implicit_roots, scope_level_count) };
-        let before = match before_rule {
-            0 => None,
-            id => Some(RuleID(id - 1)),
-        };
-        let namespaces =
-            unsafe { borrow_namespace_scope(default_namespace, namespace_prefixes, namespace_uris, namespace_count) };
-        let scope = ScopeChain {
-            roots: &scope,
-            limits: &limits,
-            levels: &levels,
-            implicit_roots: &implicit_roots,
-        };
-        let rule = engine.add_style_rule_in_scope(SheetID(sheet - 1), before, &compiled, namespaces, &scope);
-        let result = rule.0 + 1;
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    if sheet == 0 || count == 0 {
         engine.record_boundary_call(EventKind::AddStyleRule, |payload| {
             payload.write_u32(sheet);
             payload.write_u32(before_rule);
-            payload.write_u32(result);
-            write_recording_atom_mappings(engine, payload);
-            super::selector::replay::write(engine.selector_program_for_rule(rule), payload);
+            payload.write_u32(0);
         });
-        result
-    })
+        return 0;
+    }
+    let compiled = unsafe { borrow_selectors(selectors, count) };
+    if compiled.is_empty() {
+        engine.record_boundary_call(EventKind::AddStyleRule, |payload| {
+            payload.write_u32(sheet);
+            payload.write_u32(before_rule);
+            payload.write_u32(0);
+        });
+        return 0;
+    }
+    let scope = unsafe { borrow_selectors(scope_roots, scope_root_count) };
+    let limits = unsafe { borrow_selectors(scope_limits, scope_limit_count) };
+    let levels = unsafe { borrow_scope_levels(scope_level_root_counts, scope_level_limit_counts, scope_level_count) };
+    let implicit_roots = unsafe { borrow_implicit_scope_roots(scope_level_implicit_roots, scope_level_count) };
+    let before = match before_rule {
+        0 => None,
+        id => Some(RuleID(id - 1)),
+    };
+    let namespaces =
+        unsafe { borrow_namespace_scope(default_namespace, namespace_prefixes, namespace_uris, namespace_count) };
+    let scope = ScopeChain {
+        roots: &scope,
+        limits: &limits,
+        levels: &levels,
+        implicit_roots: &implicit_roots,
+    };
+    let rule = engine.add_style_rule_in_scope(SheetID(sheet - 1), before, &compiled, namespaces, &scope);
+    let result = rule.0 + 1;
+    engine.record_boundary_call(EventKind::AddStyleRule, |payload| {
+        payload.write_u32(sheet);
+        payload.write_u32(before_rule);
+        payload.write_u32(result);
+        write_recording_atom_mappings(engine, payload);
+        super::selector::replay::write(engine.selector_program_for_rule(rule), payload);
+    });
+    result
 }
 
 /// Installs one already compiled semantic selector program.
@@ -1372,34 +1347,31 @@ pub unsafe extern "C" fn style_engine_replace_style_rule_selectors(
     scope_level_implicit_roots: *const u32,
     scope_level_count: usize,
 ) {
-    abort_on_panic(|| {
-        if rule == 0 || count == 0 {
-            return;
-        }
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        let compiled = unsafe { borrow_selectors(selectors, count) };
-        if compiled.is_empty() {
-            return;
-        }
-        let scope = unsafe { borrow_selectors(scope_roots, scope_root_count) };
-        let limits = unsafe { borrow_selectors(scope_limits, scope_limit_count) };
-        let levels =
-            unsafe { borrow_scope_levels(scope_level_root_counts, scope_level_limit_counts, scope_level_count) };
-        let implicit_roots = unsafe { borrow_implicit_scope_roots(scope_level_implicit_roots, scope_level_count) };
-        let namespaces =
-            unsafe { borrow_namespace_scope(default_namespace, namespace_prefixes, namespace_uris, namespace_count) };
-        let scope = ScopeChain {
-            roots: &scope,
-            limits: &limits,
-            levels: &levels,
-            implicit_roots: &implicit_roots,
-        };
-        engine.replace_style_rule_selectors(RuleID(rule - 1), &compiled, namespaces, &scope);
-        engine.record_boundary_call(EventKind::ReplaceStyleRuleSelectors, |payload| {
-            payload.write_u32(rule);
-            write_recording_atom_mappings(engine, payload);
-            super::selector::replay::write(engine.selector_program_for_rule(RuleID(rule - 1)), payload);
-        });
+    if rule == 0 || count == 0 {
+        return;
+    }
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let compiled = unsafe { borrow_selectors(selectors, count) };
+    if compiled.is_empty() {
+        return;
+    }
+    let scope = unsafe { borrow_selectors(scope_roots, scope_root_count) };
+    let limits = unsafe { borrow_selectors(scope_limits, scope_limit_count) };
+    let levels = unsafe { borrow_scope_levels(scope_level_root_counts, scope_level_limit_counts, scope_level_count) };
+    let implicit_roots = unsafe { borrow_implicit_scope_roots(scope_level_implicit_roots, scope_level_count) };
+    let namespaces =
+        unsafe { borrow_namespace_scope(default_namespace, namespace_prefixes, namespace_uris, namespace_count) };
+    let scope = ScopeChain {
+        roots: &scope,
+        limits: &limits,
+        levels: &levels,
+        implicit_roots: &implicit_roots,
+    };
+    engine.replace_style_rule_selectors(RuleID(rule - 1), &compiled, namespaces, &scope);
+    engine.record_boundary_call(EventKind::ReplaceStyleRuleSelectors, |payload| {
+        payload.write_u32(rule);
+        write_recording_atom_mappings(engine, payload);
+        super::selector::replay::write(engine.selector_program_for_rule(RuleID(rule - 1)), payload);
     });
 }
 /// Records the shadow parts an element exposes and which host each name reaches.
@@ -1414,32 +1386,30 @@ pub unsafe extern "C" fn style_engine_set_element_parts(
     hosts: *const u32,
     count: usize,
 ) {
-    abort_on_panic(|| {
-        let Some(node) = StyleNodeID::from_raw(node) else {
-            return;
-        };
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        let pairs: Vec<(StyleAtomID, StyleNodeID)> = match count == 0 || names.is_null() || hosts.is_null() {
-            true => Vec::new(),
-            false => {
-                let names = unsafe { std::slice::from_raw_parts(names, count) };
-                let hosts = unsafe { std::slice::from_raw_parts(hosts, count) };
-                names
-                    .iter()
-                    .zip(hosts.iter())
-                    .filter_map(|(name, host)| StyleNodeID::from_raw(*host).map(|host| (StyleAtomID(*name), host)))
-                    .collect()
-            }
-        };
-        engine.set_element_parts(node, &pairs);
-        engine.record_boundary_call(EventKind::SetElementParts, |payload| {
-            payload.write_u32(node.raw());
-            payload.write_length(pairs.len());
-            for (name, host) in &pairs {
-                payload.write_u32(name.0);
-                payload.write_u32(host.raw());
-            }
-        });
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return;
+    };
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let pairs: Vec<(StyleAtomID, StyleNodeID)> = match count == 0 || names.is_null() || hosts.is_null() {
+        true => Vec::new(),
+        false => {
+            let names = unsafe { std::slice::from_raw_parts(names, count) };
+            let hosts = unsafe { std::slice::from_raw_parts(hosts, count) };
+            names
+                .iter()
+                .zip(hosts.iter())
+                .filter_map(|(name, host)| StyleNodeID::from_raw(*host).map(|host| (StyleAtomID(*name), host)))
+                .collect()
+        }
+    };
+    engine.set_element_parts(node, &pairs);
+    engine.record_boundary_call(EventKind::SetElementParts, |payload| {
+        payload.write_u32(node.raw());
+        payload.write_length(pairs.len());
+        for (name, host) in &pairs {
+            payload.write_u32(name.0);
+            payload.write_u32(host.raw());
+        }
     });
 }
 /// Records the element's resolved language, as its primary subtag atom.
@@ -1454,25 +1424,23 @@ pub unsafe extern "C" fn style_engine_set_element_language(
     text: *const u16,
     text_length: usize,
 ) {
-    abort_on_panic(|| {
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        let text = match language != 0 && !text.is_null() {
-            true => unsafe { std::slice::from_raw_parts(text, text_length) },
-            false => &[],
-        };
-        if language != 0 && !text.is_empty() {
-            // A range is not a name, so `:lang()` compares against the tag itself. It is recorded
-            // once per language rather than once per element.
-            engine.set_element_language_text(StyleAtomID(language), text);
-        }
-        if let Some(node) = StyleNodeID::from_raw(node) {
-            engine.set_element_language(node, StyleAtomID(language));
-        }
-        engine.record_boundary_call(EventKind::SetElementLanguage, |payload| {
-            payload.write_u32(node);
-            payload.write_u32(language);
-            payload.write_u16_slice(text);
-        });
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let text = match language != 0 && !text.is_null() {
+        true => unsafe { std::slice::from_raw_parts(text, text_length) },
+        false => &[],
+    };
+    if language != 0 && !text.is_empty() {
+        // A range is not a name, so `:lang()` compares against the tag itself. It is recorded
+        // once per language rather than once per element.
+        engine.set_element_language_text(StyleAtomID(language), text);
+    }
+    if let Some(node) = StyleNodeID::from_raw(node) {
+        engine.set_element_language(node, StyleAtomID(language));
+    }
+    engine.record_boundary_call(EventKind::SetElementLanguage, |payload| {
+        payload.write_u32(node);
+        payload.write_u32(language);
+        payload.write_u16_slice(text);
     });
 }
 
@@ -1531,40 +1499,36 @@ pub unsafe extern "C" fn style_engine_compile_selector_query(
     selectors: *const *const c_void,
     count: usize,
 ) -> *mut c_void {
-    abort_on_panic(|| {
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        let selectors = unsafe { borrow_selectors(selectors, count) };
-        let program = engine.compile_selector_query(&selectors);
-        let mut atoms = HashSet::default();
-        program.collect_atoms(&mut atoms);
-        let atoms = engine.atoms.pin(atoms);
-        engine.record_boundary_call(EventKind::SelectorQueryAtomMappings, |payload| {
-            write_recording_atom_mappings(engine, payload);
-        });
-        let bytes = program
-            .capacity_bytes()
-            .saturating_add(std::mem::size_of::<SelectorQuery>() as u64);
-        let mut memory = MemoryLease::new(MemoryCategory::SelectorQuery);
-        memory.resize_required_to(&mut engine.memory, bytes);
-        Box::into_raw(Box::new(SelectorQuery {
-            program,
-            cache: SelectorQueryCache::default(),
-            _atoms: atoms,
-            _memory: memory,
-        }))
-        .cast()
-    })
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let selectors = unsafe { borrow_selectors(selectors, count) };
+    let program = engine.compile_selector_query(&selectors);
+    let mut atoms = HashSet::default();
+    program.collect_atoms(&mut atoms);
+    let atoms = engine.atoms.pin(atoms);
+    engine.record_boundary_call(EventKind::SelectorQueryAtomMappings, |payload| {
+        write_recording_atom_mappings(engine, payload);
+    });
+    let bytes = program
+        .capacity_bytes()
+        .saturating_add(std::mem::size_of::<SelectorQuery>() as u64);
+    let mut memory = MemoryLease::new(MemoryCategory::SelectorQuery);
+    memory.resize_required_to(&mut engine.memory, bytes);
+    Box::into_raw(Box::new(SelectorQuery {
+        program,
+        cache: SelectorQueryCache::default(),
+        _atoms: atoms,
+        _memory: memory,
+    }))
+    .cast()
 }
 
 /// # Safety
 /// `query` must have been returned by `style_engine_compile_selector_query` and not yet destroyed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_destroy_selector_query(query: *mut c_void) {
-    abort_on_panic(|| {
-        if !query.is_null() {
-            drop(unsafe { Box::from_raw(query.cast::<SelectorQuery>()) });
-        }
-    });
+    if !query.is_null() {
+        drop(unsafe { Box::from_raw(query.cast::<SelectorQuery>()) });
+    }
 }
 /// Matches one resident element against an ad-hoc selector list.
 ///
@@ -1618,38 +1582,36 @@ pub unsafe extern "C" fn style_engine_selector_query_all(
     matches: *mut u32,
     capacity: usize,
 ) -> usize {
-    abort_on_panic(|| {
-        let Some(root) = StyleNodeID::from_raw(root) else {
-            return usize::MAX;
-        };
-        if query.is_null() || (capacity != 0 && matches.is_null()) {
-            return usize::MAX;
+    let Some(root) = StyleNodeID::from_raw(root) else {
+        return usize::MAX;
+    };
+    if query.is_null() || (capacity != 0 && matches.is_null()) {
+        return usize::MAX;
+    }
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let query = unsafe { &mut *query.cast::<SelectorQuery>() };
+    let result = engine.selector_query_all(
+        &query.program,
+        &mut query.cache,
+        SelectorQueryContext {
+            root,
+            include_root,
+            scope_root: StyleNodeID::from_raw(scope_root),
+            shadow_root: StyleNodeID::from_raw(shadow_root),
+            has_document_root,
+        },
+    );
+    let query_bytes = query.capacity_bytes();
+    query._memory.resize_required_to(&mut engine.memory, query_bytes);
+    let Ok(result) = result else {
+        return usize::MAX;
+    };
+    if result.len() <= capacity {
+        for (index, node) in result.iter().enumerate() {
+            unsafe { matches.add(index).write(node.raw()) };
         }
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        let query = unsafe { &mut *query.cast::<SelectorQuery>() };
-        let result = engine.selector_query_all(
-            &query.program,
-            &mut query.cache,
-            SelectorQueryContext {
-                root,
-                include_root,
-                scope_root: StyleNodeID::from_raw(scope_root),
-                shadow_root: StyleNodeID::from_raw(shadow_root),
-                has_document_root,
-            },
-        );
-        let query_bytes = query.capacity_bytes();
-        query._memory.resize_required_to(&mut engine.memory, query_bytes);
-        let Ok(result) = result else {
-            return usize::MAX;
-        };
-        if result.len() <= capacity {
-            for (index, node) in result.iter().enumerate() {
-                unsafe { matches.add(index).write(node.raw()) };
-            }
-        }
-        result.len()
-    })
+    }
+    result.len()
 }
 
 /// # Safety
@@ -1666,33 +1628,31 @@ pub unsafe extern "C" fn style_engine_selector_query_first(
     has_document_root: bool,
     matched: *mut u32,
 ) -> bool {
-    abort_on_panic(|| {
-        let Some(root) = StyleNodeID::from_raw(root) else {
-            return false;
-        };
-        if query.is_null() || matched.is_null() {
-            return false;
-        }
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        let query = unsafe { &mut *query.cast::<SelectorQuery>() };
-        let result = engine.selector_query_first(
-            &query.program,
-            SelectorQueryContext {
-                root,
-                include_root,
-                scope_root: StyleNodeID::from_raw(scope_root),
-                shadow_root: StyleNodeID::from_raw(shadow_root),
-                has_document_root,
-            },
-        );
-        let query_bytes = query.capacity_bytes();
-        query._memory.resize_required_to(&mut engine.memory, query_bytes);
-        let Ok(result) = result else {
-            return false;
-        };
-        unsafe { matched.write(result.map_or(0, |node| node.raw())) };
-        true
-    })
+    let Some(root) = StyleNodeID::from_raw(root) else {
+        return false;
+    };
+    if query.is_null() || matched.is_null() {
+        return false;
+    }
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let query = unsafe { &mut *query.cast::<SelectorQuery>() };
+    let result = engine.selector_query_first(
+        &query.program,
+        SelectorQueryContext {
+            root,
+            include_root,
+            scope_root: StyleNodeID::from_raw(scope_root),
+            shadow_root: StyleNodeID::from_raw(shadow_root),
+            has_document_root,
+        },
+    );
+    let query_bytes = query.capacity_bytes();
+    query._memory.resize_required_to(&mut engine.memory, query_bytes);
+    let Ok(result) = result else {
+        return false;
+    };
+    unsafe { matched.write(result.map_or(0, |node| node.raw())) };
+    true
 }
 
 unsafe fn selector_query_matches_impl(
@@ -1821,47 +1781,45 @@ pub unsafe extern "C" fn style_engine_consume_published_match_answer(
     out: *mut FfiRuleMatch,
     capacity: usize,
 ) -> usize {
-    abort_on_panic(|| {
-        let Some(node) = StyleNodeID::from_raw(node) else {
-            return usize::MAX;
-        };
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        let result = engine
-            .consume_published_match_answer_with(
-                node,
-                capacity,
-                |index, node, rule, semantic_declaration, pseudo_element, scope_host, scope_proximity| unsafe {
-                    *out.add(index) = FfiRuleMatch {
-                        node: node.raw(),
-                        rule: rule.0 + 1,
-                        semantic_declaration: semantic_declaration.0,
-                        pseudo_element: pseudo_element.map_or(u32::MAX, |target| u32::from(target.kind.0)),
-                        scope_host,
-                        scope_proximity,
-                    };
-                },
-            )
-            .unwrap_or(usize::MAX);
-        engine.record_boundary_call(EventKind::ConsumePublishedMatchAnswer, |payload| {
-            payload.write_u32(node.raw());
-            payload.write_u64(u64::try_from(capacity).expect("match capacity exceeds u64"));
-            payload.write_u64(u64::try_from(result).expect("match count exceeds u64"));
-            let written = result != usize::MAX && result <= capacity;
-            payload.write_bool(written);
-            if written {
-                let matches = unsafe { std::slice::from_raw_parts(out, result) };
-                payload.write_length(matches.len());
-                for entry in matches {
-                    payload.write_u32(entry.node);
-                    payload.write_u32(entry.rule);
-                    payload.write_u32(entry.pseudo_element);
-                    payload.write_u32(entry.scope_host);
-                    payload.write_u32(entry.scope_proximity);
-                }
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return usize::MAX;
+    };
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let result = engine
+        .consume_published_match_answer_with(
+            node,
+            capacity,
+            |index, node, rule, semantic_declaration, pseudo_element, scope_host, scope_proximity| unsafe {
+                *out.add(index) = FfiRuleMatch {
+                    node: node.raw(),
+                    rule: rule.0 + 1,
+                    semantic_declaration: semantic_declaration.0,
+                    pseudo_element: pseudo_element.map_or(u32::MAX, |target| u32::from(target.kind.0)),
+                    scope_host,
+                    scope_proximity,
+                };
+            },
+        )
+        .unwrap_or(usize::MAX);
+    engine.record_boundary_call(EventKind::ConsumePublishedMatchAnswer, |payload| {
+        payload.write_u32(node.raw());
+        payload.write_u64(u64::try_from(capacity).expect("match capacity exceeds u64"));
+        payload.write_u64(u64::try_from(result).expect("match count exceeds u64"));
+        let written = result != usize::MAX && result <= capacity;
+        payload.write_bool(written);
+        if written {
+            let matches = unsafe { std::slice::from_raw_parts(out, result) };
+            payload.write_length(matches.len());
+            for entry in matches {
+                payload.write_u32(entry.node);
+                payload.write_u32(entry.rule);
+                payload.write_u32(entry.pseudo_element);
+                payload.write_u32(entry.scope_host);
+                payload.write_u32(entry.scope_proximity);
             }
-        });
-        result
-    })
+        }
+    });
+    result
 }
 /// Matches one element and writes its matches, in cascade order, into `out`.
 ///
@@ -1881,40 +1839,38 @@ pub unsafe extern "C" fn style_engine_match_element(
     capacity: usize,
     compact_for_cascade: bool,
 ) -> usize {
-    abort_on_panic(|| {
-        let Some(node) = StyleNodeID::from_raw(node) else {
-            return usize::MAX;
-        };
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        let result = match compact_for_cascade {
-            true => engine.match_element_for_cascade(node),
-            false => engine.match_element(node),
-        };
-        let Ok(matches) = result else {
-            return usize::MAX;
-        };
-        let result = unsafe { write_rule_matches(engine, &matches, out, capacity) };
-        engine.record_boundary_call(EventKind::MatchElement, |payload| {
-            payload.write_u32(node.raw());
-            payload.write_u64(u64::try_from(capacity).expect("match capacity exceeds u64"));
-            payload.write_bool(compact_for_cascade);
-            payload.write_u64(u64::try_from(result).expect("match count exceeds u64"));
-            let written = result != usize::MAX && result <= capacity;
-            payload.write_bool(written);
-            if written {
-                let matches = unsafe { std::slice::from_raw_parts(out, result) };
-                payload.write_length(matches.len());
-                for entry in matches {
-                    payload.write_u32(entry.node);
-                    payload.write_u32(entry.rule);
-                    payload.write_u32(entry.pseudo_element);
-                    payload.write_u32(entry.scope_host);
-                    payload.write_u32(entry.scope_proximity);
-                }
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return usize::MAX;
+    };
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let result = match compact_for_cascade {
+        true => engine.match_element_for_cascade(node),
+        false => engine.match_element(node),
+    };
+    let Ok(matches) = result else {
+        return usize::MAX;
+    };
+    let result = unsafe { write_rule_matches(engine, &matches, out, capacity) };
+    engine.record_boundary_call(EventKind::MatchElement, |payload| {
+        payload.write_u32(node.raw());
+        payload.write_u64(u64::try_from(capacity).expect("match capacity exceeds u64"));
+        payload.write_bool(compact_for_cascade);
+        payload.write_u64(u64::try_from(result).expect("match count exceeds u64"));
+        let written = result != usize::MAX && result <= capacity;
+        payload.write_bool(written);
+        if written {
+            let matches = unsafe { std::slice::from_raw_parts(out, result) };
+            payload.write_length(matches.len());
+            for entry in matches {
+                payload.write_u32(entry.node);
+                payload.write_u32(entry.rule);
+                payload.write_u32(entry.pseudo_element);
+                payload.write_u32(entry.scope_host);
+                payload.write_u32(entry.scope_proximity);
             }
-        });
-        result
-    })
+        }
+    });
+    result
 }
 /// Records which longhand properties one of an element's own declarations covers.
 ///
@@ -1934,58 +1890,56 @@ pub unsafe extern "C" fn style_engine_set_element_declared_properties(
     count: usize,
     declarations_are_complete: bool,
 ) {
-    abort_on_panic(|| {
-        let Some(node) = StyleNodeID::from_raw(node) else {
-            return;
-        };
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        let declared: Vec<DeclaredProperty> = match count == 0 {
-            true => Vec::new(),
-            false => {
-                if properties.is_null()
-                    || important.is_null()
-                    || operators.is_null()
-                    || values.is_null()
-                    || original_values.is_null()
-                {
-                    return;
-                }
-                let properties = unsafe { std::slice::from_raw_parts(properties, count) };
-                let important = unsafe { std::slice::from_raw_parts(important, count) };
-                let operators = unsafe { std::slice::from_raw_parts(operators, count) };
-                let values = unsafe { std::slice::from_raw_parts(values, count) };
-                let original_values = unsafe { std::slice::from_raw_parts(original_values, count) };
-                properties
-                    .iter()
-                    .copied()
-                    .zip(important.iter().copied())
-                    .zip(operators.iter().copied())
-                    .zip(values.iter().copied().zip(original_values.iter().copied()))
-                    .map(|(((property, important), operator), (value, original_value))| {
-                        let specified_value = unsafe { engine.intern_specified_value(value.cast()) };
-                        unsafe { engine.alias_specified_value(original_value.cast(), specified_value) };
-                        DeclaredProperty {
-                            property,
-                            important,
-                            operator: operator.decode(),
-                            value: specified_value,
-                        }
-                    })
-                    .collect()
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return;
+    };
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let declared: Vec<DeclaredProperty> = match count == 0 {
+        true => Vec::new(),
+        false => {
+            if properties.is_null()
+                || important.is_null()
+                || operators.is_null()
+                || values.is_null()
+                || original_values.is_null()
+            {
+                return;
             }
-        };
-        engine.set_element_declared_properties(
-            node,
-            decode_element_declaration_kind(kind),
-            &declared,
-            declarations_are_complete,
-        );
-        engine.record_boundary_call(EventKind::SetElementDeclaredProperties, |payload| {
-            payload.write_u32(node.raw());
-            payload.write_u8(kind as u8);
-            payload.write_bool(declarations_are_complete);
-            write_declared_properties(&declared, payload);
-        });
+            let properties = unsafe { std::slice::from_raw_parts(properties, count) };
+            let important = unsafe { std::slice::from_raw_parts(important, count) };
+            let operators = unsafe { std::slice::from_raw_parts(operators, count) };
+            let values = unsafe { std::slice::from_raw_parts(values, count) };
+            let original_values = unsafe { std::slice::from_raw_parts(original_values, count) };
+            properties
+                .iter()
+                .copied()
+                .zip(important.iter().copied())
+                .zip(operators.iter().copied())
+                .zip(values.iter().copied().zip(original_values.iter().copied()))
+                .map(|(((property, important), operator), (value, original_value))| {
+                    let specified_value = unsafe { engine.intern_specified_value(value.cast()) };
+                    unsafe { engine.alias_specified_value(original_value.cast(), specified_value) };
+                    DeclaredProperty {
+                        property,
+                        important,
+                        operator: operator.decode(),
+                        value: specified_value,
+                    }
+                })
+                .collect()
+        }
+    };
+    engine.set_element_declared_properties(
+        node,
+        decode_element_declaration_kind(kind),
+        &declared,
+        declarations_are_complete,
+    );
+    engine.record_boundary_call(EventKind::SetElementDeclaredProperties, |payload| {
+        payload.write_u32(node.raw());
+        payload.write_u8(kind as u8);
+        payload.write_bool(declarations_are_complete);
+        write_declared_properties(&declared, payload);
     });
 }
 
@@ -1999,53 +1953,51 @@ pub unsafe extern "C" fn style_engine_publish_exact_cascade_state(
     store: *const c_void,
     inherited_style_groups: u8,
 ) -> FfiExactCascadePublication {
-    abort_on_panic(|| {
-        let Some(node) = StyleNodeID::from_raw(node) else {
-            return FfiExactCascadePublication::missing();
-        };
-        if store.is_null() {
-            return FfiExactCascadePublication::missing();
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return FfiExactCascadePublication::missing();
+    };
+    if store.is_null() {
+        return FfiExactCascadePublication::missing();
+    }
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let generation_snapshot =
+        engine.exact_cascade_generation_snapshot(super::computed::ComputedStyleTarget::new(node, pseudo_kind));
+    let (publication, winners, had_previous) = engine.publish_exact_cascade_state(
+        super::computed::ComputedStyleTarget::new(node, pseudo_kind),
+        unsafe { &*store.cast::<crate::css::cascaded_properties::CascadedPropertyStore>() },
+        inherited_style_groups,
+    );
+    engine.record_boundary_call(EventKind::PublishExactCascadeState, |payload| {
+        payload.write_u32(node.raw());
+        payload.write_u8(pseudo_kind);
+        payload.write_u8(inherited_style_groups);
+        payload.write_u64(generation_snapshot.0);
+        payload.write_bool(generation_snapshot.1.is_some());
+        if let Some(generation) = generation_snapshot.1 {
+            payload.write_u64(generation);
         }
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        let generation_snapshot =
-            engine.exact_cascade_generation_snapshot(super::computed::ComputedStyleTarget::new(node, pseudo_kind));
-        let (publication, winners, had_previous) = engine.publish_exact_cascade_state(
-            super::computed::ComputedStyleTarget::new(node, pseudo_kind),
-            unsafe { &*store.cast::<crate::css::cascaded_properties::CascadedPropertyStore>() },
-            inherited_style_groups,
-        );
-        engine.record_boundary_call(EventKind::PublishExactCascadeState, |payload| {
-            payload.write_u32(node.raw());
-            payload.write_u8(pseudo_kind);
-            payload.write_u8(inherited_style_groups);
-            payload.write_u64(generation_snapshot.0);
-            payload.write_bool(generation_snapshot.1.is_some());
-            if let Some(generation) = generation_snapshot.1 {
-                payload.write_u64(generation);
-            }
-            payload.write_length(winners.len());
-            for (property, winner) in winners {
-                payload.write_u16(property);
-                payload.write_u64(winner.value.0);
-                payload.write_u8(match winner.operator {
-                    CascadeOperator::Declared => 0,
-                    CascadeOperator::Inherit => 1,
-                    CascadeOperator::Initial => 2,
-                    CascadeOperator::Unset => 3,
-                    CascadeOperator::Revert => 4,
-                    CascadeOperator::RevertLayer => 5,
-                });
-                payload.write_u32(winner.animation_relevance);
-            }
-            write_exact_cascade_publication(publication, payload);
-            // NB: Whether a previous cascade state was retained decides the publication's group
-            //     mask, and retention differs legitimately between the recording session and a
-            //     replay (memory pressure evicts). Record it so replay can compare accordingly;
-            //     older captures simply end before this byte.
-            payload.write_bool(had_previous);
-        });
-        publication
-    })
+        payload.write_length(winners.len());
+        for (property, winner) in winners {
+            payload.write_u16(property);
+            payload.write_u64(winner.value.0);
+            payload.write_u8(match winner.operator {
+                CascadeOperator::Declared => 0,
+                CascadeOperator::Inherit => 1,
+                CascadeOperator::Initial => 2,
+                CascadeOperator::Unset => 3,
+                CascadeOperator::Revert => 4,
+                CascadeOperator::RevertLayer => 5,
+            });
+            payload.write_u32(winner.animation_relevance);
+        }
+        write_exact_cascade_publication(publication, payload);
+        // NB: Whether a previous cascade state was retained decides the publication's group
+        //     mask, and retention differs legitimately between the recording session and a
+        //     replay (memory pressure evicts). Record it so replay can compare accordingly;
+        //     older captures simply end before this byte.
+        payload.write_bool(had_previous);
+    });
+    publication
 }
 
 /// Seed the ordinary cascade store from a complete retained winner relation.
@@ -2063,35 +2015,33 @@ pub unsafe extern "C" fn style_engine_materialize_retained_cascade_state(
     blocks: *const c_void,
     block_count: usize,
 ) -> FfiSourceSlotAssignmentView {
-    abort_on_panic(|| {
-        if engine.is_null() {
-            return FfiSourceSlotAssignmentView::default();
+    if engine.is_null() {
+        return FfiSourceSlotAssignmentView::default();
+    }
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    engine.clear_ffi_retained_cascade_assignments();
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return FfiSourceSlotAssignmentView::default();
+    };
+    if store.is_null() {
+        return FfiSourceSlotAssignmentView::default();
+    }
+    let blocks = if block_count == 0 {
+        &[]
+    } else {
+        unsafe {
+            std::slice::from_raw_parts(
+                blocks.cast::<crate::css::cascaded_properties::FfiCascadeBlock>(),
+                block_count,
+            )
         }
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        engine.clear_ffi_retained_cascade_assignments();
-        let Some(node) = StyleNodeID::from_raw(node) else {
-            return FfiSourceSlotAssignmentView::default();
-        };
-        if store.is_null() {
-            return FfiSourceSlotAssignmentView::default();
-        }
-        let blocks = if block_count == 0 {
-            &[]
-        } else {
-            unsafe {
-                std::slice::from_raw_parts(
-                    blocks.cast::<crate::css::cascaded_properties::FfiCascadeBlock>(),
-                    block_count,
-                )
-            }
-        };
-        let assignments = engine.materialize_retained_cascade_state(
-            super::computed::ComputedStyleTarget::new(node, pseudo_kind),
-            unsafe { &mut *store.cast::<crate::css::cascaded_properties::CascadedPropertyStore>() },
-            blocks,
-        );
-        engine.install_ffi_retained_cascade_assignments(assignments)
-    })
+    };
+    let assignments = engine.materialize_retained_cascade_state(
+        super::computed::ComputedStyleTarget::new(node, pseudo_kind),
+        unsafe { &mut *store.cast::<crate::css::cascaded_properties::CascadedPropertyStore>() },
+        blocks,
+    );
+    engine.install_ffi_retained_cascade_assignments(assignments)
 }
 
 /// Discards the borrowed retained cascade source-slot assignments.
@@ -2100,10 +2050,8 @@ pub unsafe extern "C" fn style_engine_materialize_retained_cascade_state(
 /// `engine` must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_discard_retained_cascade_assignments(engine: *mut c_void) {
-    abort_on_panic(|| {
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        engine.clear_ffi_retained_cascade_assignments();
-    });
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    engine.clear_ffi_retained_cascade_assignments();
 }
 
 #[cfg(feature = "style-recording")]
@@ -2205,147 +2153,145 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
     animation_overlay_payload_count: usize,
     longhand_table: *const c_void,
 ) -> FfiStyleRecordDelta {
-    abort_on_panic(|| {
-        if count != 0 && payloads.is_null() {
-            return FfiStyleRecordDelta::default();
+    if count != 0 && payloads.is_null() {
+        return FfiStyleRecordDelta::default();
+    }
+    let payloads = match count {
+        0 => &[],
+        _ => unsafe { std::slice::from_raw_parts(payloads, count) },
+    };
+    if animation_overlay_payload_count != 0 && animation_overlay_payloads.is_null() {
+        return FfiStyleRecordDelta::default();
+    }
+    let animation_overlay_payloads = match animation_overlay_payload_count {
+        0 => &[],
+        _ => unsafe { std::slice::from_raw_parts(animation_overlay_payloads, animation_overlay_payload_count) },
+    };
+    let longhand_table = unsafe {
+        longhand_table
+            .cast::<crate::css::computed_longhand_table::ComputedLonghandTable>()
+            .as_ref()
+    };
+    let raw_cascaded_font_size = longhand_table.map_or(std::ptr::null(), |table| table.raw_cascaded_font_size());
+    assert!(longhand_table.is_some() || (node == 0 && pseudo_kind == u8::MAX));
+    let pseudo_element_styles = longhand_table.map_or(0, |table| table.pseudo_element_styles());
+    let inherited_group_swap_eligible = longhand_table.is_some_and(|table| {
+        inherited_group_swap_candidate && table.property_inheritance_is_standard() && !table.display_is_list_item()
+    });
+    let holds_image_values = crate::css::computed_values::style_group_payloads_hold_image_values(payloads)
+        || crate::css::computed_values::style_group_payloads_hold_image_values(animation_overlay_payloads);
+    let dependency_flags = longhand_table.map_or(0, |table| table.publication_dependency_flags())
+        | (u8::from(inherited_group_swap_eligible) * super::computed::INHERITED_GROUP_SWAP_ELIGIBLE)
+        | (u8::from(holds_image_values) * super::computed::HOLDS_IMAGE_VALUES);
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    if animation_overlay_identity != 0 && animated_overlay.is_null() {
+        return FfiStyleRecordDelta::default();
+    }
+    let metadata_input = super::computed::ComputedMetadataInput {
+        pseudo_element_styles,
+        dependency_flags,
+        counter_style_environment_identity,
+        animation_overlay_identity,
+        animated_overlay: animated_overlay.cast(),
+        animation_overlay_payloads,
+        longhand_table: longhand_table.map_or(std::ptr::null(), std::ptr::from_ref),
+    };
+    let publication = if let Some(node) = StyleNodeID::from_raw(node) {
+        engine.publish_computed_groups(
+            super::computed::ComputedStyleTarget::new(node, pseudo_kind),
+            payloads,
+            inherited_group_count,
+            custom_property_environment,
+            metadata_input,
+        )
+    } else {
+        engine.intern_computed_groups(
+            payloads,
+            inherited_group_count,
+            custom_property_environment,
+            metadata_input,
+        )
+    };
+    let result = FfiStyleRecordDelta {
+        old_style_record: publication
+            .previous_style_record_identity
+            .map_or(0, super::computed::FinalStyleRecordID::raw),
+        new_style_record: publication.style_record_identity.raw(),
+    };
+    engine.record_boundary_call(EventKind::PublishComputedGroups, |payload| {
+        let pointer_token = |pointer: *const c_void| match pointer.is_null() {
+            true => 0,
+            false => engine
+                .recording_pointer_token(pointer as usize)
+                .expect("an enabled recorder must tokenize the pointer"),
+        };
+        payload.write_u32(node);
+        payload.write_u8(pseudo_kind);
+        let groups = engine
+            .recording_computed_group_identities(result.new_style_record)
+            .expect("a published style record must retain its computed groups");
+        let retained_bytes = engine
+            .recording_computed_group_retained_bytes(result.new_style_record)
+            .expect("a published style record must retain its computed group sizes");
+        assert_eq!(groups.len(), retained_bytes.len());
+        payload.write_length(groups.len());
+        for (identity, retained_bytes) in groups.into_iter().zip(retained_bytes) {
+            payload.write_u32(identity);
+            payload.write_u64(retained_bytes);
         }
-        let payloads = match count {
-            0 => &[],
-            _ => unsafe { std::slice::from_raw_parts(payloads, count) },
-        };
-        if animation_overlay_payload_count != 0 && animation_overlay_payloads.is_null() {
-            return FfiStyleRecordDelta::default();
+        payload.write_length(inherited_group_count);
+        payload.write_u64(custom_property_environment);
+        payload.write_u64(pseudo_element_styles);
+        payload.write_u8(dependency_flags);
+        payload.write_u64(counter_style_environment_identity);
+        payload.write_u64(animation_overlay_identity);
+        payload.write_u64(u64::from(!animated_overlay.is_null()));
+        payload.write_length(animation_overlay_payloads.len());
+        for &pointer in animation_overlay_payloads {
+            payload.write_u64(pointer_token(pointer));
         }
-        let animation_overlay_payloads = match animation_overlay_payload_count {
-            0 => &[],
-            _ => unsafe { std::slice::from_raw_parts(animation_overlay_payloads, animation_overlay_payload_count) },
-        };
-        let longhand_table = unsafe {
-            longhand_table
-                .cast::<crate::css::computed_longhand_table::ComputedLonghandTable>()
-                .as_ref()
-        };
-        let raw_cascaded_font_size = longhand_table.map_or(std::ptr::null(), |table| table.raw_cascaded_font_size());
-        assert!(longhand_table.is_some() || (node == 0 && pseudo_kind == u8::MAX));
-        let pseudo_element_styles = longhand_table.map_or(0, |table| table.pseudo_element_styles());
-        let inherited_group_swap_eligible = longhand_table.is_some_and(|table| {
-            inherited_group_swap_candidate && table.property_inheritance_is_standard() && !table.display_is_list_item()
+        payload.write_bytes(longhand_table.map_or(&[], |table| table.importance_bits()));
+        payload.write_bytes(longhand_table.map_or(&[], |table| table.inheritance_bits()));
+        payload.write_length(longhand_table.map_or(0, |table| table.inheritance_dependent_values().count()));
+        for (property, value) in longhand_table
+            .into_iter()
+            .flat_map(crate::css::computed_longhand_table::ComputedLonghandTable::inheritance_dependent_values)
+        {
+            payload.write_u16(property);
+            payload.write_u64(pointer_token(value));
+            payload.write_u8(crate::css::style_value::style_value_dependency_flags(value.cast()));
+        }
+        payload.write_u64(pointer_token(raw_cascaded_font_size));
+        payload.write_u8(match raw_cascaded_font_size.is_null() {
+            true => 0,
+            false => crate::css::style_value::style_value_dependency_flags(raw_cascaded_font_size.cast()),
         });
-        let holds_image_values = crate::css::computed_values::style_group_payloads_hold_image_values(payloads)
-            || crate::css::computed_values::style_group_payloads_hold_image_values(animation_overlay_payloads);
-        let dependency_flags = longhand_table.map_or(0, |table| table.publication_dependency_flags())
-            | (u8::from(inherited_group_swap_eligible) * super::computed::INHERITED_GROUP_SWAP_ELIGIBLE)
-            | (u8::from(holds_image_values) * super::computed::HOLDS_IMAGE_VALUES);
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        if animation_overlay_identity != 0 && animated_overlay.is_null() {
-            return FfiStyleRecordDelta::default();
-        }
-        let metadata_input = super::computed::ComputedMetadataInput {
-            pseudo_element_styles,
-            dependency_flags,
-            counter_style_environment_identity,
-            animation_overlay_identity,
-            animated_overlay: animated_overlay.cast(),
-            animation_overlay_payloads,
-            longhand_table: longhand_table.map_or(std::ptr::null(), std::ptr::from_ref),
-        };
-        let publication = if let Some(node) = StyleNodeID::from_raw(node) {
-            engine.publish_computed_groups(
-                super::computed::ComputedStyleTarget::new(node, pseudo_kind),
-                payloads,
-                inherited_group_count,
-                custom_property_environment,
-                metadata_input,
-            )
-        } else {
-            engine.intern_computed_groups(
-                payloads,
-                inherited_group_count,
-                custom_property_environment,
-                metadata_input,
-            )
-        };
-        let result = FfiStyleRecordDelta {
-            old_style_record: publication
-                .previous_style_record_identity
-                .map_or(0, super::computed::FinalStyleRecordID::raw),
-            new_style_record: publication.style_record_identity.raw(),
-        };
-        engine.record_boundary_call(EventKind::PublishComputedGroups, |payload| {
-            let pointer_token = |pointer: *const c_void| match pointer.is_null() {
-                true => 0,
-                false => engine
-                    .recording_pointer_token(pointer as usize)
-                    .expect("an enabled recorder must tokenize the pointer"),
-            };
-            payload.write_u32(node);
-            payload.write_u8(pseudo_kind);
-            let groups = engine
-                .recording_computed_group_identities(result.new_style_record)
-                .expect("a published style record must retain its computed groups");
-            let retained_bytes = engine
-                .recording_computed_group_retained_bytes(result.new_style_record)
-                .expect("a published style record must retain its computed group sizes");
-            assert_eq!(groups.len(), retained_bytes.len());
-            payload.write_length(groups.len());
-            for (identity, retained_bytes) in groups.into_iter().zip(retained_bytes) {
-                payload.write_u32(identity);
-                payload.write_u64(retained_bytes);
-            }
-            payload.write_length(inherited_group_count);
-            payload.write_u64(custom_property_environment);
-            payload.write_u64(pseudo_element_styles);
-            payload.write_u8(dependency_flags);
-            payload.write_u64(counter_style_environment_identity);
-            payload.write_u64(animation_overlay_identity);
-            payload.write_u64(u64::from(!animated_overlay.is_null()));
-            payload.write_length(animation_overlay_payloads.len());
-            for &pointer in animation_overlay_payloads {
-                payload.write_u64(pointer_token(pointer));
-            }
-            payload.write_bytes(longhand_table.map_or(&[], |table| table.importance_bits()));
-            payload.write_bytes(longhand_table.map_or(&[], |table| table.inheritance_bits()));
-            payload.write_length(longhand_table.map_or(0, |table| table.inheritance_dependent_values().count()));
-            for (property, value) in longhand_table
-                .into_iter()
-                .flat_map(crate::css::computed_longhand_table::ComputedLonghandTable::inheritance_dependent_values)
-            {
-                payload.write_u16(property);
-                payload.write_u64(pointer_token(value));
-                payload.write_u8(crate::css::style_value::style_value_dependency_flags(value.cast()));
-            }
-            payload.write_u64(pointer_token(raw_cascaded_font_size));
-            payload.write_u8(match raw_cascaded_font_size.is_null() {
-                true => 0,
-                false => crate::css::style_value::style_value_dependency_flags(raw_cascaded_font_size.cast()),
-            });
-            payload.write_bool(longhand_table.is_some());
-            if longhand_table.is_some() {
-                let (identity, canonical_values) = engine
-                    .recording_computed_longhand_table(result.new_style_record)
-                    .expect("a published style record must retain its longhand table");
-                payload.write_u32(identity);
-                let record_definition = engine.recording_first_response(2, u64::from(identity));
-                payload.write_bool(record_definition);
-                if record_definition {
-                    let stored_values = canonical_values
-                        .iter()
-                        .enumerate()
-                        .filter(|(_, value)| !value.is_null())
-                        .collect::<Vec<_>>();
-                    payload.write_length(stored_values.len());
-                    for (index, &value) in stored_values {
-                        payload.write_u16(crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID + index as u16);
-                        payload.write_u64(pointer_token(value));
-                        payload.write_u8(crate::css::style_value::style_value_dependency_flags(value.cast()));
-                    }
+        payload.write_bool(longhand_table.is_some());
+        if longhand_table.is_some() {
+            let (identity, canonical_values) = engine
+                .recording_computed_longhand_table(result.new_style_record)
+                .expect("a published style record must retain its longhand table");
+            payload.write_u32(identity);
+            let record_definition = engine.recording_first_response(2, u64::from(identity));
+            payload.write_bool(record_definition);
+            if record_definition {
+                let stored_values = canonical_values
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, value)| !value.is_null())
+                    .collect::<Vec<_>>();
+                payload.write_length(stored_values.len());
+                for (index, &value) in stored_values {
+                    payload.write_u16(crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID + index as u16);
+                    payload.write_u64(pointer_token(value));
+                    payload.write_u8(crate::css::style_value::style_value_dependency_flags(value.cast()));
                 }
             }
-            payload.write_u64(result.old_style_record);
-            payload.write_u64(result.new_style_record);
-        });
-        result
-    })
+        }
+        payload.write_u64(result.old_style_record);
+        payload.write_u64(result.new_style_record);
+    });
+    result
 }
 
 /// Replaces only the animation overlay on an already-published target. Recording falls back to
@@ -2365,34 +2311,32 @@ pub unsafe extern "C" fn style_engine_publish_animation_overlay(
     payloads: *const *const c_void,
     payload_count: usize,
 ) -> FfiStyleRecordDelta {
-    abort_on_panic(|| {
-        let Some(node) = StyleNodeID::from_raw(node) else {
-            return FfiStyleRecordDelta::default();
-        };
-        if animation_overlay_identity != 0 && animated_overlay.is_null() {
-            return FfiStyleRecordDelta::default();
-        }
-        if payload_count != 0 && payloads.is_null() {
-            return FfiStyleRecordDelta::default();
-        }
-        let payloads = match payload_count {
-            0 => &[],
-            _ => unsafe { std::slice::from_raw_parts(payloads, payload_count) },
-        };
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        let Some(publication) = engine.publish_animation_overlay_impl(
-            super::computed::ComputedStyleTarget::new(node, pseudo_kind),
-            animation_overlay_identity,
-            animated_overlay.cast(),
-            payloads,
-        ) else {
-            return FfiStyleRecordDelta::default();
-        };
-        FfiStyleRecordDelta {
-            old_style_record: publication.previous_style_record.raw(),
-            new_style_record: publication.style_record.raw(),
-        }
-    })
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return FfiStyleRecordDelta::default();
+    };
+    if animation_overlay_identity != 0 && animated_overlay.is_null() {
+        return FfiStyleRecordDelta::default();
+    }
+    if payload_count != 0 && payloads.is_null() {
+        return FfiStyleRecordDelta::default();
+    }
+    let payloads = match payload_count {
+        0 => &[],
+        _ => unsafe { std::slice::from_raw_parts(payloads, payload_count) },
+    };
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let Some(publication) = engine.publish_animation_overlay_impl(
+        super::computed::ComputedStyleTarget::new(node, pseudo_kind),
+        animation_overlay_identity,
+        animated_overlay.cast(),
+        payloads,
+    ) else {
+        return FfiStyleRecordDelta::default();
+    };
+    FfiStyleRecordDelta {
+        old_style_record: publication.previous_style_record.raw(),
+        new_style_record: publication.style_record.raw(),
+    }
 }
 
 /// Assigns an already-interned base style record to one element or pseudo-element.
@@ -2410,31 +2354,29 @@ pub unsafe extern "C" fn style_engine_assign_shared_style_record(
     inherited_group_count: usize,
     inherited_group_swap_eligible: bool,
 ) -> FfiStyleRecordDelta {
-    abort_on_panic(|| {
-        if engine.is_null() || node == 0 || style_record == 0 {
-            return FfiStyleRecordDelta::default();
-        }
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        if engine.recording_id().is_some() {
-            return FfiStyleRecordDelta::default();
-        }
-        let target = super::computed::ComputedStyleTarget::new(
-            StyleNodeID::from_raw(node).expect("a nonzero node must be a style node"),
-            pseudo_kind,
-        );
-        let publication = engine.assign_shared_style_record(
-            target,
-            style_record,
-            inherited_group_count,
-            inherited_group_swap_eligible,
-        );
-        FfiStyleRecordDelta {
-            old_style_record: publication
-                .previous_style_record_identity
-                .map_or(0, super::computed::FinalStyleRecordID::raw),
-            new_style_record: publication.style_record_identity.raw(),
-        }
-    })
+    if engine.is_null() || node == 0 || style_record == 0 {
+        return FfiStyleRecordDelta::default();
+    }
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    if engine.recording_id().is_some() {
+        return FfiStyleRecordDelta::default();
+    }
+    let target = super::computed::ComputedStyleTarget::new(
+        StyleNodeID::from_raw(node).expect("a nonzero node must be a style node"),
+        pseudo_kind,
+    );
+    let publication = engine.assign_shared_style_record(
+        target,
+        style_record,
+        inherited_group_count,
+        inherited_group_swap_eligible,
+    );
+    FfiStyleRecordDelta {
+        old_style_record: publication
+            .previous_style_record_identity
+            .map_or(0, super::computed::FinalStyleRecordID::raw),
+        new_style_record: publication.style_record_identity.raw(),
+    }
 }
 
 /// Returns the StyleEngine-owned group payload array for a base or live animation-overlay record.
@@ -2443,45 +2385,43 @@ pub unsafe extern "C" fn style_engine_assign_shared_style_record(
 /// `engine` must be live for this call and for every read through the returned pointer.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_style_record_payloads(engine: *const c_void, style_record: u64) -> *const c_void {
-    abort_on_panic(|| {
-        let engine = unsafe { &*engine.cast::<StyleEngine>() };
-        let payloads = engine.style_record_payloads(style_record);
-        let result = payloads.map_or(std::ptr::null(), |payloads| payloads.as_ptr().cast());
-        let record_response = engine.recording_first_response(0, style_record);
-        if !record_response {
-            return result;
+    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let payloads = engine.style_record_payloads(style_record);
+    let result = payloads.map_or(std::ptr::null(), |payloads| payloads.as_ptr().cast());
+    let record_response = engine.recording_first_response(0, style_record);
+    if !record_response {
+        return result;
+    }
+    engine.record_boundary_call(EventKind::StyleRecordPayloads, |payload| {
+        payload.write_u64(style_record);
+        payload.write_bool(record_response);
+        payload.write_bool(payloads.is_some());
+        let Some(style_payloads) = payloads else {
+            return;
+        };
+        let semantic_payloads = if style_record & (1 << 63) != 0 {
+            style_payloads
+                .iter()
+                .map(|&pointer| {
+                    engine
+                        .recording_pointer_token(pointer as usize)
+                        .expect("an enabled recorder must tokenize the pointer")
+                })
+                .collect::<Vec<_>>()
+        } else {
+            engine
+                .recording_computed_group_identities(style_record)
+                .expect("a base style record must retain its computed groups")
+                .into_iter()
+                .map(|identity| u64::from(identity) + 1)
+                .collect()
+        };
+        payload.write_length(semantic_payloads.len());
+        for semantic_payload in semantic_payloads {
+            payload.write_u64(semantic_payload);
         }
-        engine.record_boundary_call(EventKind::StyleRecordPayloads, |payload| {
-            payload.write_u64(style_record);
-            payload.write_bool(record_response);
-            payload.write_bool(payloads.is_some());
-            let Some(style_payloads) = payloads else {
-                return;
-            };
-            let semantic_payloads = if style_record & (1 << 63) != 0 {
-                style_payloads
-                    .iter()
-                    .map(|&pointer| {
-                        engine
-                            .recording_pointer_token(pointer as usize)
-                            .expect("an enabled recorder must tokenize the pointer")
-                    })
-                    .collect::<Vec<_>>()
-            } else {
-                engine
-                    .recording_computed_group_identities(style_record)
-                    .expect("a base style record must retain its computed groups")
-                    .into_iter()
-                    .map(|identity| u64::from(identity) + 1)
-                    .collect()
-            };
-            payload.write_length(semantic_payloads.len());
-            for semantic_payload in semantic_payloads {
-                payload.write_u64(semantic_payload);
-            }
-        });
-        result
-    })
+    });
+    result
 }
 
 /// Returns the dependency flags of one final style record without accessing its group payloads.
@@ -2490,10 +2430,8 @@ pub unsafe extern "C" fn style_engine_style_record_payloads(engine: *const c_voi
 /// `engine` must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_style_record_dependency_flags(engine: *const c_void, style_record: u64) -> u8 {
-    abort_on_panic(|| {
-        let engine = unsafe { &*engine.cast::<StyleEngine>() };
-        engine.style_record_dependency_flags(style_record).unwrap_or(0)
-    })
+    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    engine.style_record_dependency_flags(style_record).unwrap_or(0)
 }
 
 /// Computes the property-dependent damage between two final style records.
@@ -2508,15 +2446,13 @@ pub unsafe extern "C" fn style_engine_compare_style_records(
     font_lists_equal: bool,
     element_folds_transform_into_layout: bool,
 ) -> u32 {
-    abort_on_panic(|| {
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        engine.compare_style_records(
-            old_style_record,
-            new_style_record,
-            font_lists_equal,
-            element_folds_transform_into_layout,
-        )
-    })
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    engine.compare_style_records(
+        old_style_record,
+        new_style_record,
+        font_lists_equal,
+        element_folds_transform_into_layout,
+    )
 }
 
 /// Returns whether a candidate animation overlay changes any effective value in a style record.
@@ -2530,10 +2466,8 @@ pub unsafe extern "C" fn style_engine_animation_overlay_changed(
     old_style_record: u64,
     animated_overlay: *const c_void,
 ) -> bool {
-    abort_on_panic(|| {
-        let engine = unsafe { &*engine.cast::<StyleEngine>() };
-        engine.animation_overlay_changed(old_style_record, animated_overlay.cast())
-    })
+    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    engine.animation_overlay_changed(old_style_record, animated_overlay.cast())
 }
 
 /// Computes property-dependent damage for the sparse changed values in an animation overlay.
@@ -2550,11 +2484,9 @@ pub unsafe extern "C" fn style_engine_compare_animation_overlay(
     payload_count: usize,
     is_document_element: bool,
 ) -> FfiAnimationInvalidation {
-    abort_on_panic(|| {
-        let engine = unsafe { &*engine.cast::<StyleEngine>() };
-        let payloads = unsafe { std::slice::from_raw_parts(payloads, payload_count) };
-        engine.compare_animation_overlay(old_style_record, animated_overlay.cast(), payloads, is_document_element)
-    })
+    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let payloads = unsafe { std::slice::from_raw_parts(payloads, payload_count) };
+    engine.compare_animation_overlay(old_style_record, animated_overlay.cast(), payloads, is_document_element)
 }
 
 /// Returns a synchronous borrowed view of a base or live animation-overlay record.
@@ -2566,101 +2498,98 @@ pub unsafe extern "C" fn style_engine_style_record_view(
     engine: *const c_void,
     style_record: u64,
 ) -> FfiStyleRecordView {
-    abort_on_panic(|| {
-        let engine = unsafe { &*engine.cast::<StyleEngine>() };
-        let view = engine.style_record_view(style_record);
-        let result = match &view {
-            None => FfiStyleRecordView::missing(),
-            Some(view) => FfiStyleRecordView {
-                payloads: view.payloads.as_ptr(),
-                base_payloads: view.base_payloads.as_ptr(),
-                longhand_table: view.longhand_table.cast(),
-                animated_overlay: view.animated_overlay.cast(),
-                payload_count: view.payloads.len(),
-                pseudo_element_styles: view.pseudo_element_styles,
-                counter_style_environment_identity: view.counter_style_environment_identity,
-                animation_overlay_identity: view.animation_overlay_identity,
-                dependency_flags: view.dependency_flags,
-                present: true,
-            },
+    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let view = engine.style_record_view(style_record);
+    let result = match &view {
+        None => FfiStyleRecordView::missing(),
+        Some(view) => FfiStyleRecordView {
+            payloads: view.payloads.as_ptr(),
+            base_payloads: view.base_payloads.as_ptr(),
+            longhand_table: view.longhand_table.cast(),
+            animated_overlay: view.animated_overlay.cast(),
+            payload_count: view.payloads.len(),
+            pseudo_element_styles: view.pseudo_element_styles,
+            counter_style_environment_identity: view.counter_style_environment_identity,
+            animation_overlay_identity: view.animation_overlay_identity,
+            dependency_flags: view.dependency_flags,
+            present: true,
+        },
+    };
+    let record_response = engine.recording_first_response(1, style_record);
+    if !record_response {
+        return result;
+    }
+    engine.record_boundary_call(EventKind::StyleRecordView, |payload| {
+        payload.write_u64(style_record);
+        payload.write_bool(record_response);
+        payload.write_bool(result.present);
+        let Some(view) = view else {
+            return;
         };
-        let record_response = engine.recording_first_response(1, style_record);
-        if !record_response {
-            return result;
-        }
-        engine.record_boundary_call(EventKind::StyleRecordView, |payload| {
-            payload.write_u64(style_record);
-            payload.write_bool(record_response);
-            payload.write_bool(result.present);
-            let Some(view) = view else {
-                return;
-            };
-            let base_payloads = engine
-                .recording_computed_group_identities(style_record)
-                .expect("a style record view must retain its base computed groups")
-                .into_iter()
-                .map(|identity| u64::from(identity) + 1)
-                .collect::<Vec<_>>();
-            let style_payloads = match view.animation_overlay_identity {
-                0 => base_payloads.clone(),
-                _ => view
-                    .payloads
-                    .iter()
-                    .map(|&pointer| {
-                        engine
-                            .recording_pointer_token(pointer as usize)
-                            .expect("an enabled recorder must tokenize the pointer")
-                    })
-                    .collect(),
-            };
-            payload.write_length(style_payloads.len());
-            for pointer in style_payloads {
-                payload.write_u64(pointer);
-            }
-            payload.write_length(base_payloads.len());
-            for pointer in base_payloads {
-                payload.write_u64(pointer);
-            }
-            let longhand_table = unsafe { view.longhand_table.as_ref() };
-            payload.write_bytes(longhand_table.map_or(&[], |table| table.importance_bits()));
-            payload.write_bytes(longhand_table.map_or(&[], |table| table.inheritance_bits()));
-            payload.write_length(longhand_table.map_or(0, |table| table.inheritance_dependent_values().count()));
-            for (property, value) in longhand_table
-                .into_iter()
-                .flat_map(crate::css::computed_longhand_table::ComputedLonghandTable::inheritance_dependent_values)
-            {
-                payload.write_u16(property);
-                payload.write_u64(
+        let base_payloads = engine
+            .recording_computed_group_identities(style_record)
+            .expect("a style record view must retain its base computed groups")
+            .into_iter()
+            .map(|identity| u64::from(identity) + 1)
+            .collect::<Vec<_>>();
+        let style_payloads = match view.animation_overlay_identity {
+            0 => base_payloads.clone(),
+            _ => view
+                .payloads
+                .iter()
+                .map(|&pointer| {
                     engine
-                        .recording_pointer_token(value as usize)
-                        .expect("an enabled recorder must tokenize the pointer"),
-                );
-            }
-            let raw_cascaded_font_size =
-                longhand_table.map_or(std::ptr::null(), |table| table.raw_cascaded_font_size());
-            payload.write_u64(match raw_cascaded_font_size.is_null() {
+                        .recording_pointer_token(pointer as usize)
+                        .expect("an enabled recorder must tokenize the pointer")
+                })
+                .collect(),
+        };
+        payload.write_length(style_payloads.len());
+        for pointer in style_payloads {
+            payload.write_u64(pointer);
+        }
+        payload.write_length(base_payloads.len());
+        for pointer in base_payloads {
+            payload.write_u64(pointer);
+        }
+        let longhand_table = unsafe { view.longhand_table.as_ref() };
+        payload.write_bytes(longhand_table.map_or(&[], |table| table.importance_bits()));
+        payload.write_bytes(longhand_table.map_or(&[], |table| table.inheritance_bits()));
+        payload.write_length(longhand_table.map_or(0, |table| table.inheritance_dependent_values().count()));
+        for (property, value) in longhand_table
+            .into_iter()
+            .flat_map(crate::css::computed_longhand_table::ComputedLonghandTable::inheritance_dependent_values)
+        {
+            payload.write_u16(property);
+            payload.write_u64(
+                engine
+                    .recording_pointer_token(value as usize)
+                    .expect("an enabled recorder must tokenize the pointer"),
+            );
+        }
+        let raw_cascaded_font_size = longhand_table.map_or(std::ptr::null(), |table| table.raw_cascaded_font_size());
+        payload.write_u64(match raw_cascaded_font_size.is_null() {
+            true => 0,
+            false => engine
+                .recording_pointer_token(raw_cascaded_font_size as usize)
+                .expect("an enabled recorder must tokenize the pointer"),
+        });
+        payload.write_u64(u64::from(!view.animated_overlay.is_null()));
+        payload.write_u64(view.pseudo_element_styles);
+        payload.write_u64(view.counter_style_environment_identity);
+        payload.write_u64(view.animation_overlay_identity);
+        payload.write_u8(view.dependency_flags);
+        payload.write_length(view.longhand_values.len());
+        for &value in view.longhand_values {
+            payload.write_u64(match value.is_null() {
                 true => 0,
                 false => engine
-                    .recording_pointer_token(raw_cascaded_font_size as usize)
+                    .recording_pointer_token(value as usize)
                     .expect("an enabled recorder must tokenize the pointer"),
             });
-            payload.write_u64(u64::from(!view.animated_overlay.is_null()));
-            payload.write_u64(view.pseudo_element_styles);
-            payload.write_u64(view.counter_style_environment_identity);
-            payload.write_u64(view.animation_overlay_identity);
-            payload.write_u8(view.dependency_flags);
-            payload.write_length(view.longhand_values.len());
-            for &value in view.longhand_values {
-                payload.write_u64(match value.is_null() {
-                    true => 0,
-                    false => engine
-                        .recording_pointer_token(value as usize)
-                        .expect("an enabled recorder must tokenize the pointer"),
-                });
-            }
-        });
-        result
-    })
+        }
+    });
+    result
 }
 /// Removes the retained computed-input assignment for one pseudo-element kind.
 ///
@@ -2672,25 +2601,23 @@ pub unsafe extern "C" fn style_engine_remove_computed_pseudo(
     node: u32,
     pseudo_kind: u8,
 ) -> FfiStyleRecordDelta {
-    abort_on_panic(|| {
-        let Some(node) = StyleNodeID::from_raw(node) else {
-            return FfiStyleRecordDelta::default();
-        };
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        let result = FfiStyleRecordDelta {
-            old_style_record: engine
-                .remove_computed_pseudo(node, pseudo_kind)
-                .map_or(0, super::computed::FinalStyleRecordID::raw),
-            new_style_record: 0,
-        };
-        engine.record_boundary_call(EventKind::RemoveComputedPseudo, |payload| {
-            payload.write_u32(node.raw());
-            payload.write_u8(pseudo_kind);
-            payload.write_u64(result.old_style_record);
-            payload.write_u64(result.new_style_record);
-        });
-        result
-    })
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return FfiStyleRecordDelta::default();
+    };
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let result = FfiStyleRecordDelta {
+        old_style_record: engine
+            .remove_computed_pseudo(node, pseudo_kind)
+            .map_or(0, super::computed::FinalStyleRecordID::raw),
+        new_style_record: 0,
+    };
+    engine.record_boundary_call(EventKind::RemoveComputedPseudo, |payload| {
+        payload.write_u32(node.raw());
+        payload.write_u8(pseudo_kind);
+        payload.write_u64(result.old_style_record);
+        payload.write_u64(result.new_style_record);
+    });
+    result
 }
 /// Records which longhand properties a rule declares. All four arrays are parallel.
 ///
@@ -2709,52 +2636,50 @@ pub unsafe extern "C" fn style_engine_set_rule_declared_properties(
     count: usize,
     declarations_are_complete: bool,
 ) {
-    abort_on_panic(|| {
-        if rule == 0 {
-            return;
-        }
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        let declared: Vec<DeclaredProperty> = match count == 0 {
-            true => Vec::new(),
-            false => {
-                if properties.is_null()
-                    || important.is_null()
-                    || operators.is_null()
-                    || values.is_null()
-                    || original_values.is_null()
-                {
-                    return;
-                }
-                let properties = unsafe { std::slice::from_raw_parts(properties, count) };
-                let important = unsafe { std::slice::from_raw_parts(important, count) };
-                let operators = unsafe { std::slice::from_raw_parts(operators, count) };
-                let values = unsafe { std::slice::from_raw_parts(values, count) };
-                let original_values = unsafe { std::slice::from_raw_parts(original_values, count) };
-                properties
-                    .iter()
-                    .copied()
-                    .zip(important.iter().copied())
-                    .zip(operators.iter().copied())
-                    .zip(values.iter().copied().zip(original_values.iter().copied()))
-                    .map(|(((property, important), operator), (value, original_value))| {
-                        let value = unsafe { engine.intern_specified_value(value.cast()) };
-                        unsafe { engine.alias_specified_value(original_value.cast(), value) };
-                        DeclaredProperty {
-                            property,
-                            important,
-                            operator: operator.decode(),
-                            value,
-                        }
-                    })
-                    .collect()
+    if rule == 0 {
+        return;
+    }
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let declared: Vec<DeclaredProperty> = match count == 0 {
+        true => Vec::new(),
+        false => {
+            if properties.is_null()
+                || important.is_null()
+                || operators.is_null()
+                || values.is_null()
+                || original_values.is_null()
+            {
+                return;
             }
-        };
-        engine.set_rule_declared_properties_with_operators(RuleID(rule - 1), &declared, declarations_are_complete);
-        engine.record_boundary_call(EventKind::SetRuleDeclaredProperties, |payload| {
-            payload.write_u32(rule);
-            payload.write_bool(declarations_are_complete);
-            write_declared_properties(&declared, payload);
-        });
+            let properties = unsafe { std::slice::from_raw_parts(properties, count) };
+            let important = unsafe { std::slice::from_raw_parts(important, count) };
+            let operators = unsafe { std::slice::from_raw_parts(operators, count) };
+            let values = unsafe { std::slice::from_raw_parts(values, count) };
+            let original_values = unsafe { std::slice::from_raw_parts(original_values, count) };
+            properties
+                .iter()
+                .copied()
+                .zip(important.iter().copied())
+                .zip(operators.iter().copied())
+                .zip(values.iter().copied().zip(original_values.iter().copied()))
+                .map(|(((property, important), operator), (value, original_value))| {
+                    let value = unsafe { engine.intern_specified_value(value.cast()) };
+                    unsafe { engine.alias_specified_value(original_value.cast(), value) };
+                    DeclaredProperty {
+                        property,
+                        important,
+                        operator: operator.decode(),
+                        value,
+                    }
+                })
+                .collect()
+        }
+    };
+    engine.set_rule_declared_properties_with_operators(RuleID(rule - 1), &declared, declarations_are_complete);
+    engine.record_boundary_call(EventKind::SetRuleDeclaredProperties, |payload| {
+        payload.write_u32(rule);
+        payload.write_bool(declarations_are_complete);
+        write_declared_properties(&declared, payload);
     });
 }
 /// Interns one name identity and returns its document-local atom.
@@ -2766,16 +2691,14 @@ pub unsafe extern "C" fn style_engine_set_rule_declared_properties(
 /// `engine` must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_intern_atom(engine: *mut c_void, raw: usize) -> u32 {
-    abort_on_panic(|| {
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        let result = engine.intern_atom(raw).0;
-        let token = engine.recording_atom_pointer_token(raw);
-        engine.record_boundary_call(EventKind::InternAtom, |payload| {
-            payload.write_u64(token.expect("an enabled recorder must tokenize the pointer"));
-            payload.write_u32(result);
-        });
-        result
-    })
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let result = engine.intern_atom(raw).0;
+    let token = engine.recording_atom_pointer_token(raw);
+    engine.record_boundary_call(EventKind::InternAtom, |payload| {
+        payload.write_u64(token.expect("an enabled recorder must tokenize the pointer"));
+        payload.write_u32(result);
+    });
+    result
 }
 
 /// Takes the pending style transaction and returns its versioned semantic match answers.
@@ -2789,66 +2712,64 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
     root: u32,
     computation_inputs: FfiDocumentStyleComputationInputs,
 ) -> FfiStyleTransactionView {
-    abort_on_panic(|| {
-        let Some(root) = StyleNodeID::from_raw(root) else {
-            return FfiStyleTransactionView::default();
-        };
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        engine.document_style_computation_inputs = Some(computation_inputs);
-        engine.clear_ffi_style_transaction_output();
-        let mut output = FfiStyleTransactionOutput::default();
-        output.scoped = engine.take_style_transaction(root, |transaction_version, program_version, answers| {
-            assert!(
-                output.answers.is_empty(),
-                "a style transaction emitted more than one batch"
-            );
-            output.transaction_version = transaction_version.0;
-            output.program_version = program_version.0;
-            output.answers.extend_from_slice(answers);
+    let Some(root) = StyleNodeID::from_raw(root) else {
+        return FfiStyleTransactionView::default();
+    };
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    engine.document_style_computation_inputs = Some(computation_inputs);
+    engine.clear_ffi_style_transaction_output();
+    let mut output = FfiStyleTransactionOutput::default();
+    output.scoped = engine.take_style_transaction(root, |transaction_version, program_version, answers| {
+        assert!(
+            output.answers.is_empty(),
+            "a style transaction emitted more than one batch"
+        );
+        output.transaction_version = transaction_version.0;
+        output.program_version = program_version.0;
+        output.answers.extend_from_slice(answers);
+    });
+    output.reclaimed_style_atoms = std::mem::take(&mut engine.reclaimed_style_atoms)
+        .into_iter()
+        .map(|reclaimed| FfiReclaimedStyleAtom {
+            raw: reclaimed.raw,
+            atom: reclaimed.atom.0,
+        })
+        .collect();
+    output.style_atoms_swept = std::mem::take(&mut engine.style_atoms_swept);
+    if engine.recording_id().is_some() {
+        engine.record_boundary_call(EventKind::StyleDeltaBatch, |payload| {
+            payload.write_u32(root.raw());
+            payload.write_u64(computation_inputs.viewport_width.to_bits());
+            payload.write_u64(computation_inputs.viewport_height.to_bits());
+            payload.write_u64(computation_inputs.root_font_size.to_bits());
+            payload.write_u64(computation_inputs.root_font_x_height.to_bits());
+            payload.write_u64(computation_inputs.root_font_cap_height.to_bits());
+            payload.write_u64(computation_inputs.root_font_zero_advance.to_bits());
+            payload.write_u64(computation_inputs.root_line_height.to_bits());
+            payload.write_bool(computation_inputs.root_font_metrics_depend_on_viewport_metrics);
+            payload.write_i32(computation_inputs.initial_font_size_raw);
+            payload.write_i32(computation_inputs.default_font_size_raw);
+            payload.write_u64(computation_inputs.device_pixels_per_css_pixel.to_bits());
+            payload.write_u64(computation_inputs.font_environment_generation);
+            let mut outputs = super::record_replay::PayloadWriter::default();
+            write_style_transaction_outputs(&output, &mut outputs);
+            payload.write_bytes(outputs.as_bytes());
+            payload.write_u64(outputs.stable_digest());
         });
-        output.reclaimed_style_atoms = std::mem::take(&mut engine.reclaimed_style_atoms)
-            .into_iter()
-            .map(|reclaimed| FfiReclaimedStyleAtom {
-                raw: reclaimed.raw,
-                atom: reclaimed.atom.0,
-            })
-            .collect();
-        output.style_atoms_swept = std::mem::take(&mut engine.style_atoms_swept);
-        if engine.recording_id().is_some() {
-            engine.record_boundary_call(EventKind::StyleDeltaBatch, |payload| {
-                payload.write_u32(root.raw());
-                payload.write_u64(computation_inputs.viewport_width.to_bits());
-                payload.write_u64(computation_inputs.viewport_height.to_bits());
-                payload.write_u64(computation_inputs.root_font_size.to_bits());
-                payload.write_u64(computation_inputs.root_font_x_height.to_bits());
-                payload.write_u64(computation_inputs.root_font_cap_height.to_bits());
-                payload.write_u64(computation_inputs.root_font_zero_advance.to_bits());
-                payload.write_u64(computation_inputs.root_line_height.to_bits());
-                payload.write_bool(computation_inputs.root_font_metrics_depend_on_viewport_metrics);
-                payload.write_i32(computation_inputs.initial_font_size_raw);
-                payload.write_i32(computation_inputs.default_font_size_raw);
-                payload.write_u64(computation_inputs.device_pixels_per_css_pixel.to_bits());
-                payload.write_u64(computation_inputs.font_environment_generation);
-                let mut outputs = super::record_replay::PayloadWriter::default();
-                write_style_transaction_outputs(&output, &mut outputs);
-                payload.write_bytes(outputs.as_bytes());
-                payload.write_u64(outputs.stable_digest());
-            });
-            engine.forget_recording_atom_mappings(output.reclaimed_style_atoms.iter().map(|reclaimed| reclaimed.atom));
-        }
-        engine.install_ffi_style_transaction_output(output);
-        let output = &engine.ffi_style_transaction_output;
-        FfiStyleTransactionView {
-            transaction_version: output.transaction_version,
-            program_version: output.program_version,
-            answers: output.answers.as_ptr(),
-            count: output.answers.len(),
-            reclaimed_style_atoms: output.reclaimed_style_atoms.as_ptr(),
-            reclaimed_style_atom_count: output.reclaimed_style_atoms.len(),
-            scoped: output.scoped,
-            style_atoms_swept: output.style_atoms_swept,
-        }
-    })
+        engine.forget_recording_atom_mappings(output.reclaimed_style_atoms.iter().map(|reclaimed| reclaimed.atom));
+    }
+    engine.install_ffi_style_transaction_output(output);
+    let output = &engine.ffi_style_transaction_output;
+    FfiStyleTransactionView {
+        transaction_version: output.transaction_version,
+        program_version: output.program_version,
+        answers: output.answers.as_ptr(),
+        count: output.answers.len(),
+        reclaimed_style_atoms: output.reclaimed_style_atoms.as_ptr(),
+        reclaimed_style_atom_count: output.reclaimed_style_atoms.len(),
+        scoped: output.scoped,
+        style_atoms_swept: output.style_atoms_swept,
+    }
 }
 
 /// Orders a completed reaction batch for direct application in C++.
@@ -2861,18 +2782,16 @@ pub unsafe extern "C" fn style_engine_sort_style_deltas_for_direct_application(
     deltas: *mut FfiStyleDelta,
     count: usize,
 ) {
-    abort_on_panic(|| {
-        if count == 0 {
-            return;
-        }
-        assert!(!deltas.is_null(), "a non-empty delta span must have storage");
-        let engine = unsafe { &*engine.cast::<StyleEngine>() };
-        let deltas = unsafe { std::slice::from_raw_parts_mut(deltas, count) };
-        deltas.sort_unstable_by(|first, second| {
-            let first = StyleNodeID::from_raw(first.style_node).expect("a style delta must name an element");
-            let second = StyleNodeID::from_raw(second.style_node).expect("a style delta must name an element");
-            engine.tree.compare_style_reaction_order(first, second)
-        });
+    if count == 0 {
+        return;
+    }
+    assert!(!deltas.is_null(), "a non-empty delta span must have storage");
+    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let deltas = unsafe { std::slice::from_raw_parts_mut(deltas, count) };
+    deltas.sort_unstable_by(|first, second| {
+        let first = StyleNodeID::from_raw(first.style_node).expect("a style delta must name an element");
+        let second = StyleNodeID::from_raw(second.style_node).expect("a style delta must name an element");
+        engine.tree.compare_style_reaction_order(first, second)
     });
 }
 
@@ -2886,17 +2805,15 @@ pub unsafe extern "C" fn style_engine_set_replay_reclaimed_style_atoms(
     atoms: *const u32,
     count: usize,
 ) {
-    abort_on_panic(|| {
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        assert!(engine.replay_reclaimed_style_atoms.is_none());
-        let atoms = if count == 0 {
-            &[]
-        } else {
-            assert!(!atoms.is_null());
-            unsafe { std::slice::from_raw_parts(atoms, count) }
-        };
-        engine.replay_reclaimed_style_atoms = Some(atoms.iter().copied().map(StyleAtomID).collect());
-    });
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    assert!(engine.replay_reclaimed_style_atoms.is_none());
+    let atoms = if count == 0 {
+        &[]
+    } else {
+        assert!(!atoms.is_null());
+        unsafe { std::slice::from_raw_parts(atoms, count) }
+    };
+    engine.replay_reclaimed_style_atoms = Some(atoms.iter().copied().map(StyleAtomID).collect());
 }
 /// Reads one counter by index, returning its stable name and writing its value and name length, or
 /// null once the index is past the end. C++ enumerates the counters this way rather than
@@ -2911,26 +2828,24 @@ pub unsafe extern "C" fn style_engine_counter(
     out_value: *mut u64,
     out_name_length: *mut usize,
 ) -> *const u8 {
-    abort_on_panic(|| {
-        let engine = unsafe { &*engine.cast::<StyleEngine>() };
-        let result = engine.counters().iter().nth(index);
-        engine.record_boundary_call(EventKind::Counter, |payload| {
-            payload.write_u64(u64::try_from(index).expect("counter index exceeds u64"));
-            payload.write_bool(result.is_some());
-            if let Some((name, value)) = result {
-                payload.write_bytes(name.as_bytes());
-                payload.write_u64(value);
-            }
-        });
-        let Some((name, value)) = result else {
-            return std::ptr::null();
-        };
-        unsafe {
-            *out_value = value;
-            *out_name_length = name.len();
+    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let result = engine.counters().iter().nth(index);
+    engine.record_boundary_call(EventKind::Counter, |payload| {
+        payload.write_u64(u64::try_from(index).expect("counter index exceeds u64"));
+        payload.write_bool(result.is_some());
+        if let Some((name, value)) = result {
+            payload.write_bytes(name.as_bytes());
+            payload.write_u64(value);
         }
-        name.as_ptr()
-    })
+    });
+    let Some((name, value)) = result else {
+        return std::ptr::null();
+    };
+    unsafe {
+        *out_value = value;
+        *out_name_length = name.len();
+    }
+    name.as_ptr()
 }
 
 /// Records a benchmark phase marker when capture is enabled.
@@ -2945,20 +2860,18 @@ pub unsafe extern "C" fn style_engine_record_benchmark_marker(
     length: usize,
     is_ascii: bool,
 ) {
-    abort_on_panic(|| {
-        let engine = unsafe { &*engine.cast::<StyleEngine>() };
-        if engine.recording_id().is_none() {
-            return;
-        }
-        let name = match is_ascii {
-            true => unsafe { borrow(name.cast::<u8>(), length) }
-                .iter()
-                .map(|&code_unit| u16::from(code_unit))
-                .collect::<Vec<_>>(),
-            false => unsafe { borrow(name.cast::<u16>(), length) }.to_vec(),
-        };
-        engine.record_boundary_call(EventKind::BenchmarkMarker, |payload| payload.write_u16_slice(&name));
-    });
+    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    if engine.recording_id().is_none() {
+        return;
+    }
+    let name = match is_ascii {
+        true => unsafe { borrow(name.cast::<u8>(), length) }
+            .iter()
+            .map(|&code_unit| u16::from(code_unit))
+            .collect::<Vec<_>>(),
+        false => unsafe { borrow(name.cast::<u16>(), length) }.to_vec(),
+    };
+    engine.record_boundary_call(EventKind::BenchmarkMarker, |payload| payload.write_u16_slice(&name));
 }
 
 unsafe fn borrow<'a, T>(pointer: *const T, count: usize) -> &'a [T] {
