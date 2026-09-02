@@ -104,6 +104,7 @@ public:
     // awaiting a detached close remains open; it still coordinates its own close.
     bool is_page_open(u64 page_id) const;
     Optional<CanonicalNavigable&> hosted_navigable_for_page(u64 page_id, Web::HTML::CrossProcessId navigable_id);
+    Optional<CanonicalNavigable&> population_worker_navigable_for_page(u64 page_id, Web::HTML::CrossProcessId navigable_id);
 
     void begin_top_level_load(ViewImplementation&, u64 page_id, Optional<Utf16String> navigation_id, URL::URL const& url);
 
