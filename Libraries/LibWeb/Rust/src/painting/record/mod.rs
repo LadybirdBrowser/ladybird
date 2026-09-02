@@ -18,13 +18,13 @@ use crate::layout::node_data::NodeSlotId;
 use crate::layout::node_data::{NodeFlag, NodeKind};
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::builder::{CommandRange, PendingInlineClip, RecordedDisplayList};
-use crate::painting::display_list::commands::{ContextRef, DisplayListResourceId, FrameNodeIndex, SpatialNodeIndex};
+use crate::painting::display_list::commands::{ContextRef, SpatialNodeIndex};
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::hit_test::HitTestList;
 use crate::painting::host::{
-    FfiHitTestHostCallbacks, FfiHitTestTextNodeFacts, FfiPaintHostCallbacks, FfiPaintRecordingStats,
-    FfiRecordingInputs, FfiVisualContextHostCallbacks,
+    FfiHitTestHostCallbacks, FfiHitTestTextNodeFacts, FfiMaskDisplayListRegistration, FfiPaintHostCallbacks,
+    FfiPaintRecordingStats, FfiRecordingInputs, FfiVisualContextHostCallbacks,
 };
 use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData};
 use crate::painting::paintable_rows::PaintableRowsRef;
@@ -43,7 +43,7 @@ pub struct RecordingOutput {
     pub display_list: Rc<RecordedDisplayList>,
     pub has_blocking_wheel_event_listeners: bool,
     pub wheel_event_listener_state_generation: u64,
-    pub mask_display_lists: Vec<(FrameNodeIndex, DisplayListResourceId)>,
+    pub mask_display_lists: Vec<FfiMaskDisplayListRegistration>,
     pub recording_stats: FfiPaintRecordingStats,
     pub is_identical_to_cache_source: bool,
     pub(crate) capture_log_for_verification: Option<verify::CaptureLog>,

@@ -10,6 +10,7 @@ use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::display_list::commands::DisplayListResourceId;
 use crate::painting::display_list::commands::{ContextRef, VISUAL_VIEWPORT_NODE_INDEX};
 use crate::painting::display_list::recorder::DisplayListRecorder;
+use crate::painting::host::FfiMaskDisplayListRegistration;
 use crate::painting::node_painting;
 use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::record::{NestedRecordingState, PaintPhase, PaintRecorder};
@@ -411,7 +412,12 @@ impl PaintRecorder<'_> {
 
         let tree = session.nested_tree.take().expect("nested tree");
         let nested_recorder = session.recorder;
-        let mask_display_lists = nested_recorder.mask_display_lists().to_vec();
+        let mask_display_lists: Vec<FfiMaskDisplayListRegistration> = nested_recorder
+            .mask_display_lists()
+            .iter()
+            .copied()
+            .map(FfiMaskDisplayListRegistration::from)
+            .collect();
         let recorded = nested_recorder.into_builder().finish();
         self.paint_host
             .nested_display_list_from_tree(&recorded, tree, &mask_display_lists)
