@@ -25,12 +25,7 @@ struct ImagePaintRequest;
 
 WEB_API void dump_stacking_context_tree(StringBuilder&, DOM::Document const&);
 
-struct VisualContextTreeUpdateResult {
-    bool performed_full_build { false };
-    bool structural_epoch_changed { false };
-    bool requires_display_list_recording { false };
-};
-WEB_API VisualContextTreeUpdateResult rust_update_accumulated_visual_contexts(DOM::Document&);
+WEB_API Layout::RustFFI::FfiVisualContextUpdateOutcome rust_update_accumulated_visual_contexts(DOM::Document&);
 WEB_API Vector<u32> rust_owned_visual_context_node_indices(Layout::Node const&, Layout::RustFFI::FfiVisualContextBoxNodeList);
 WEB_API Vector<u32> rust_visual_animation_target_node_indices(Layout::Node const&, AccumulatedVisualContextTree const&, bool targets_are_frames);
 WEB_API void const* retain_rust_main_visual_context_tree(DOM::Document const&);
