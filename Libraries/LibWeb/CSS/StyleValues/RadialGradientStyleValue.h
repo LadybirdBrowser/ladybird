@@ -40,7 +40,7 @@ public:
 
     bool is_paintable(GC::Ptr<HTML::DecodedImageData>) const override { return true; }
 
-    ResolvedImage resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
+    Optional<Painting::ImagePaint> image_paint(Painting::ImagePaintRequest const&) const override;
 
     bool is_repeating() const { return m_value->radial_gradient.repeating; }
 

@@ -8,8 +8,6 @@
  */
 
 #include "LinearGradientStyleValue.h"
-#include <LibWeb/Layout/Node.h>
-#include <LibWeb/Painting/PaintingRustBridge.h>
 
 namespace Web::CSS {
 
@@ -66,9 +64,9 @@ ValueComparingNonnullRefPtr<StyleValue const> LinearGradientStyleValue::absoluti
     return create(direction(), move(absolutized_color_stops), gradient_type(), (is_repeating() ? GradientRepeating::Yes : GradientRepeating::No), move(absolutized_color_interpolation_method));
 }
 
-ResolvedImage LinearGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node, CSSPixelSize size) const
+Optional<Painting::ImagePaint> LinearGradientStyleValue::image_paint(Painting::ImagePaintRequest const&) const
 {
-    return Painting::rust_resolve_gradient_for_size(*this, node, size);
+    return Painting::ImagePaint { Painting::ImagePaint::Gradient { *this } };
 }
 
 }

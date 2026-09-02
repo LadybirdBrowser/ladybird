@@ -108,19 +108,19 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         // Paint the cursor into a bitmap.
         Painting::DisplayListResourceStorage resource_storage;
 
-        auto resolved_image = image.resolve_for_size(layout_node, CSSPixelSize { bitmap.size() });
         // A cursor image is not embedded by any element, so it follows the page's own preference.
         Painting::ImagePaintRequest request {
             .document = document,
             .dest_rect = bitmap.rect().to_type<float>(),
             .image_rendering = ImageRendering::Auto,
             .color_scheme = current_color_scheme,
+            .gradient_stop_color_resolution_context = Painting::gradient_stop_color_resolution_context(layout_node),
             .accumulated_scale = { 1, 1 },
             .resource_storage = resource_storage,
         };
-        auto image_paint = decoded_image_data ? decoded_image_data->image_paint(request) : image.image_paint(request, resolved_image);
+        auto image_paint = decoded_image_data ? decoded_image_data->image_paint(request) : image.image_paint(request);
         if (image_paint.has_value()) {
-            auto cursor_display_list = Painting::record_image_paint_display_list(*image_paint, request.dest_rect, ImageRendering::Auto, document.page().client().device_pixels_per_css_pixel(), resource_storage);
+            auto cursor_display_list = Painting::record_image_paint_display_list(*image_paint, request, document.page().client().device_pixels_per_css_pixel());
             auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
             Painting::DisplayListPlayerSkia display_list_player;
             display_list_player.execute(*cursor_display_list.display_list, cursor_display_list.visual_context_tree, resource_storage, {}, painting_surface);

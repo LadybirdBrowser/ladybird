@@ -1074,7 +1074,6 @@ class DocumentPaintState;
 class ScrollStateSnapshot;
 
 enum class PaintPhase;
-struct LinearGradientData;
 
 }
 

@@ -15,6 +15,7 @@
 #include <LibGfx/Matrix4x4.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/TextLayout.h>
+#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageSetStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/SystemColor.h>
@@ -587,51 +588,21 @@ Layout::RustFFI::FfiScrollableOverflowUpdateOutcome rust_update_scrollable_overf
         nullptr, clamp_scroll_offset_if_nonzero);
 }
 
-CSS::ResolvedImage rust_resolve_gradient_for_size(CSS::StyleValue const& gradient_style_value, Layout::NodeWithStyle const& layout_node, CSSPixelSize size)
+CSS::ColorResolutionContext gradient_stop_color_resolution_context(Layout::NodeWithStyle const& layout_node)
 {
-    void const* current_color_value = nullptr;
+    void const* current_color_style_value_data = nullptr;
     if (auto* dom_node = layout_node.dom_node()) {
         if (auto* element = as_if<DOM::Element>(*dom_node)) {
-            if (auto const* values = element->style_group<CSS::ComputedValues::InheritedTextValues>(); values && values->color_style_value.pointer)
-                current_color_value = values->color_style_value.pointer;
+            if (auto const* values = element->style_group<CSS::ComputedValues::InheritedTextValues>())
+                current_color_style_value_data = values->color_style_value.pointer;
         }
     }
-
-    Layout::RustFFI::FfiResolvedGradientPaint resolved {};
-    ColorStopData color_stops;
-    auto append_stop = [](void* stop_context, Gfx::Color color, float position) {
-        auto& color_stops = *static_cast<ColorStopData*>(stop_context);
-        color_stops.colors.append(color);
-        color_stops.positions.append(position);
+    return {
+        .color_scheme = layout_node.color_scheme(),
+        .current_color = layout_node.color(),
+        .current_color_style_value_data = current_color_style_value_data,
+        .calculation_resolution_context = {},
     };
-    Layout::RustFFI::layout_arena_resolve_gradient_paint_for_size(
-        gradient_style_value.rust_style_value_data(),
-        layout_node.color(),
-        current_color_value,
-        static_cast<u8>(to_underlying(layout_node.color_scheme())),
-        size,
-        &resolved, &color_stops, append_stop);
-    color_stops.repeating = resolved.color_stops_repeating;
-
-    auto interpolation_method = resolved.interpolation_method;
-    switch (resolved.kind) {
-    case Layout::RustFFI::FfiResolvedGradientPaintKind::None:
-        break;
-    case Layout::RustFFI::FfiResolvedGradientPaintKind::Linear:
-        return LinearGradientData { resolved.gradient_angle, resolved.first_stop_position, resolved.repeat_length, move(color_stops), interpolation_method };
-    case Layout::RustFFI::FfiResolvedGradientPaintKind::Radial:
-        return ResolvedRadialGradient {
-            RadialGradientData { move(color_stops), interpolation_method },
-            resolved.size,
-            resolved.center,
-        };
-    case Layout::RustFFI::FfiResolvedGradientPaintKind::Conic:
-        return ResolvedConicGradient {
-            ConicGradientData { resolved.gradient_angle, move(color_stops), interpolation_method },
-            resolved.center,
-        };
-    }
-    VERIFY_NOT_REACHED();
 }
 
 void rust_update_visual_viewport_transform(DOM::Document& document)
@@ -823,7 +794,7 @@ static void write_image_paint_facts(ImagePaint const& paint, PaintHostContext& c
             facts.list_width = nested.list_size.width();
             facts.list_height = nested.list_size.height();
         },
-        [](auto const&) { VERIFY_NOT_REACHED(); });
+        [](ImagePaint::Gradient const&) { VERIFY_NOT_REACHED(); });
 }
 
 static NonnullRefPtr<DisplayList> display_list_from_rust_recording(AccumulatedVisualContextTree const& visual_context_tree, Layout::RustFFI::FfiRecordedDisplayList const& recorded)
@@ -1060,7 +1031,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             }
             return facts;
         },
-        .layer_image_paint = [](void* context_pointer, void* layout_node_shell, Layout::RustFFI::FfiLayerImageList list, u32 computed_index, Gfx::FloatRect dest_rect, CSSPixelSize css_size, u8 image_rendering_raw, Gfx::FloatSize accumulated_scale) -> Layout::RustFFI::FfiImagePaintFacts {
+        .layer_image_paint = [](void* context_pointer, void* layout_node_shell, Layout::RustFFI::FfiLayerImageList list, u32 computed_index, Gfx::FloatRect dest_rect, u8 image_rendering_raw, Gfx::FloatSize accumulated_scale) -> Layout::RustFFI::FfiImagePaintFacts {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
             Layout::RustFFI::FfiImagePaintFacts facts {};
@@ -1072,10 +1043,11 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 .dest_rect = decoded_image_data ? dest_rect.to_type<int>().to_type<float>() : dest_rect,
                 .image_rendering = static_cast<CSS::ImageRendering>(image_rendering_raw),
                 .color_scheme = layout_node.color_scheme(),
+                .gradient_stop_color_resolution_context = gradient_stop_color_resolution_context(layout_node),
                 .accumulated_scale = accumulated_scale,
                 .resource_storage = context.resource_storage,
             };
-            auto paint = decoded_image_data ? decoded_image_data->image_paint(request) : image->image_paint(request, image->resolve_for_size(layout_node, css_size));
+            auto paint = decoded_image_data ? decoded_image_data->image_paint(request) : image->image_paint(request);
             if (paint.has_value())
                 write_image_paint_facts(*paint, context, facts);
             return facts;
@@ -1181,6 +1153,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 .dest_rect = dest_rect,
                 .image_rendering = layout_node.image_rendering(),
                 .color_scheme = layout_node.color_scheme(),
+                .gradient_stop_color_resolution_context = {},
                 .accumulated_scale = accumulated_scale,
                 .resource_storage = context.resource_storage,
             };
@@ -1443,51 +1416,30 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     return display_list;
 }
 
-DisplayListResource record_image_paint_display_list(ImagePaint const& paint, Gfx::FloatRect dest_rect, CSS::ImageRendering image_rendering, double device_pixels_per_css_pixel, DisplayListResourceStorage& resource_storage)
+DisplayListResource record_image_paint_display_list(ImagePaint const& paint, ImagePaintRequest const& request, double device_pixels_per_css_pixel)
 {
     Layout::RustFFI::FfiImagePaintRecordInputs inputs {};
-    inputs.dest_rect = dest_rect;
-    Vector<Gfx::Color> color_stop_colors;
-    auto write_color_stops = [&](ColorStopData const& color_stops) {
-        color_stop_colors = color_stops.colors;
-        inputs.color_stop_colors = color_stop_colors.data();
-        inputs.color_stop_positions = color_stops.positions.data();
-        inputs.color_stop_count = color_stops.colors.size();
-        inputs.color_stops_repeating = color_stops.repeating;
-    };
+    inputs.dest_rect = request.dest_rect;
     inputs.device_pixels_per_css_pixel = device_pixels_per_css_pixel;
+    Optional<CSS::ComputedValuesFFI::FfiLengthResolutionContext> gradient_stop_length_resolution_context_storage;
+    CSS::StyleValueFFI::FfiColorResolutionInput gradient_stop_color_resolution_input {};
     paint.value.visit(
         [&](ImagePaint::DecodedFrame const& decoded_frame) {
             inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::DecodedFrame;
-            inputs.frame_id = resource_storage.add_image_frame(decoded_frame.frame).value();
-            inputs.scaling_mode = CSS::to_gfx_scaling_mode(image_rendering, decoded_frame.natural_size, dest_rect.to_rounded<int>().size());
+            inputs.frame_id = request.resource_storage.add_image_frame(decoded_frame.frame).value();
+            inputs.scaling_mode = CSS::to_gfx_scaling_mode(request.image_rendering, decoded_frame.natural_size, request.dest_rect.to_rounded<int>().size());
         },
         [&](ImagePaint::NestedDisplayList const& nested) {
             inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::NestedDisplayList;
-            inputs.nested_display_list_id = resource_storage.add_display_list(nested.resource.display_list, nested.resource.visual_context_tree).value();
+            inputs.nested_display_list_id = request.resource_storage.add_display_list(nested.resource.display_list, nested.resource.visual_context_tree).value();
             inputs.nested_display_list_size = nested.list_size;
         },
-        [&](LinearGradientData const& gradient) {
-            inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::LinearGradient;
-            inputs.gradient_angle = gradient.gradient_angle;
-            inputs.first_stop_position = gradient.first_stop_position;
-            inputs.repeat_length = gradient.repeat_length;
-            write_color_stops(gradient.color_stops);
-            inputs.interpolation_method = gradient.interpolation_method;
-        },
-        [&](ResolvedRadialGradient const& gradient) {
-            inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::RadialGradient;
-            inputs.center = gradient.center;
-            inputs.size = gradient.gradient_size;
-            write_color_stops(gradient.data.color_stops);
-            inputs.interpolation_method = gradient.data.interpolation_method;
-        },
-        [&](ResolvedConicGradient const& gradient) {
-            inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::ConicGradient;
-            inputs.gradient_angle = gradient.data.start_angle;
-            inputs.position = gradient.position;
-            write_color_stops(gradient.data.color_stops);
-            inputs.interpolation_method = gradient.data.interpolation_method;
+        [&](ImagePaint::Gradient const& gradient) {
+            inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::Gradient;
+            inputs.gradient_style_value = gradient.style_value->rust_style_value_data();
+            inputs.gradient_tile_size = request.dest_rect.size().to_type<CSSPixels>();
+            gradient_stop_color_resolution_input = CSS::make_rust_color_resolution_input(request.gradient_stop_color_resolution_context, gradient_stop_length_resolution_context_storage);
+            inputs.gradient_stop_color_resolution_input = &gradient_stop_color_resolution_input;
         });
     Optional<DisplayListResource> recorded_display_list;
     Layout::RustFFI::ladybird_web_record_image_paint_display_list(&inputs, &recorded_display_list,

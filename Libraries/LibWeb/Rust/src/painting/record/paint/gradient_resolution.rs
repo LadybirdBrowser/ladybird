@@ -8,7 +8,10 @@ use crate::css::color_resolution::{ColorResolutionInput, Rgba, to_color};
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
 use crate::css::style_value::{RetainedColorStop, RetainedStyleValueData, StyleValueData};
-use crate::painting::display_list::recorder::{ColorStops, ConicGradientData, LinearGradientData, RadialGradientData};
+use crate::painting::display_list::device_pixels::DevicePixelConverter;
+use crate::painting::display_list::recorder::{
+    ColorStops, ConicGradientData, DisplayListRecorder, LinearGradientData, RadialGradientData,
+};
 use crate::painting::record::PaintRecorder;
 use crate::painting::style_queries;
 use crate::painting::visual_context::basic_shapes::{position_resolved, resolve_circle_size, resolve_ellipse_size};
@@ -928,6 +931,22 @@ pub(crate) fn record_gradient_fill(
     compositing_and_blending_operator: CompositingAndBlendingOperator,
 ) {
     let converter = recorder.converter;
+    record_resolved_gradient_fill(
+        &mut recorder.recorder,
+        converter,
+        paint,
+        dest_rect,
+        compositing_and_blending_operator,
+    );
+}
+
+pub(crate) fn record_resolved_gradient_fill(
+    recorder: &mut DisplayListRecorder,
+    converter: DevicePixelConverter,
+    paint: &ResolvedGradientPaint,
+    dest_rect: FloatRect,
+    compositing_and_blending_operator: CompositingAndBlendingOperator,
+) {
     let dest_int_rect = IntRect::new(
         dest_rect.x as i32,
         dest_rect.y as i32,
@@ -936,14 +955,12 @@ pub(crate) fn record_gradient_fill(
     );
     match paint {
         ResolvedGradientPaint::Linear(data) => {
-            recorder
-                .recorder
-                .fill_rect_with_linear_gradient(dest_int_rect, data, compositing_and_blending_operator);
+            recorder.fill_rect_with_linear_gradient(dest_int_rect, data, compositing_and_blending_operator);
         }
         ResolvedGradientPaint::Radial { data, center, size } => {
             let center = converter.rounded_device_point(*center);
             let size = converter.rounded_device_size(*size);
-            recorder.recorder.fill_rect_with_radial_gradient(
+            recorder.fill_rect_with_radial_gradient(
                 dest_int_rect,
                 data,
                 center,
@@ -953,12 +970,7 @@ pub(crate) fn record_gradient_fill(
         }
         ResolvedGradientPaint::Conic { data, position } => {
             let position = converter.rounded_device_point(*position);
-            recorder.recorder.fill_rect_with_conic_gradient(
-                dest_int_rect,
-                data,
-                position,
-                compositing_and_blending_operator,
-            );
+            recorder.fill_rect_with_conic_gradient(dest_int_rect, data, position, compositing_and_blending_operator);
         }
     }
 }

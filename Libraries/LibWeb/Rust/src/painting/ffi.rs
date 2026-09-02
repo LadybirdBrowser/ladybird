@@ -1911,9 +1911,7 @@ pub unsafe extern "C" fn layout_arena_paint_push_color_stop(
 pub enum FfiImagePaintRecordKind {
     DecodedFrame,
     NestedDisplayList,
-    LinearGradient,
-    RadialGradient,
-    ConicGradient,
+    Gradient,
 }
 
 #[derive(Clone, Copy)]
@@ -1926,36 +1924,34 @@ pub struct FfiImagePaintRecordInputs {
     pub scaling_mode: libgfx_rust::ScalingMode,
     pub nested_display_list_id: u64,
     pub nested_display_list_size: libgfx_rust::IntSize,
-    pub gradient_angle: f32,
-    pub first_stop_position: f32,
-    pub repeat_length: f32,
-    pub interpolation_method: libgfx_rust::GradientInterpolationMethod,
-    pub center: used_values::FfiCssPixelPoint,
-    pub size: used_values::FfiCssPixelSize,
-    pub position: used_values::FfiCssPixelPoint,
-    pub color_stop_colors: *const libgfx_rust::Color,
-    pub color_stop_positions: *const f32,
-    pub color_stop_count: usize,
-    pub color_stops_repeating: bool,
+    pub gradient_style_value: *const c_void,
+    pub gradient_tile_size: FfiCssPixelSize,
+    /// The `FfiColorResolutionInput` the gradient's color stops resolve against.
+    pub gradient_stop_color_resolution_input: *const c_void,
 }
 
 /// # Safety
 ///
-/// `inputs` and its arrays must be live for the call; `consume` is called synchronously with a
-/// recording that is only valid during that call and a retained visual context tree handle the
-/// host takes ownership of.
+/// `inputs`, and the gradient style value and color resolution input it points at, must be
+/// live for the call; `consume` is called synchronously with a recording that is only valid
+/// during that call and a retained visual context tree handle the host takes ownership of.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
     inputs: *const FfiImagePaintRecordInputs,
     context: *mut c_void,
     consume: unsafe extern "C" fn(*mut c_void, FfiRecordedDisplayList, *const c_void),
 ) {
+    use crate::css::color_resolution::{
+        FfiColorResolutionInput, relative_color_context_from_ffi, resolution_input_from_ffi,
+    };
     use crate::painting::display_list::commands::{DisplayListResourceId, ImageFrameResourceId};
-    use crate::painting::display_list::recorder::{
-        ColorStops, ConicGradientData, DisplayListRecorder, LinearGradientData, RadialGradientData,
+    use crate::painting::display_list::device_pixels::DevicePixelConverter;
+    use crate::painting::display_list::recorder::DisplayListRecorder;
+    use crate::painting::record::paint::gradient_resolution::{
+        record_resolved_gradient_fill, resolve_gradient_paint_with_input,
     };
     use crate::painting::visual_context::{TransformData, TransformDataRole, VisualContextTree};
-    use libgfx_rust::{CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, IntRect};
+    use libgfx_rust::{CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint};
     abort_on_panic(|| {
         let inputs = unsafe { &*inputs };
         let tree = VisualContextTree::create(TransformData {
@@ -1969,32 +1965,6 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
         });
         let mut recorder = DisplayListRecorder::new();
         let dest_rect = inputs.dest_rect;
-        let dest_int_rect = IntRect::new(
-            inputs.dest_rect.x as i32,
-            inputs.dest_rect.y as i32,
-            inputs.dest_rect.width as i32,
-            inputs.dest_rect.height as i32,
-        );
-        let color_stops = || {
-            let count = inputs.color_stop_count;
-            let (colors, positions) = if count == 0 {
-                (Vec::new(), Vec::new())
-            } else {
-                // SAFETY: the host borrows the stop arrays for the duration of the call.
-                unsafe {
-                    (
-                        std::slice::from_raw_parts(inputs.color_stop_colors, count).to_vec(),
-                        std::slice::from_raw_parts(inputs.color_stop_positions, count).to_vec(),
-                    )
-                }
-            };
-            ColorStops {
-                colors,
-                positions,
-                repeating: inputs.color_stops_repeating,
-            }
-        };
-        let interpolation_method = inputs.interpolation_method;
         match inputs.kind {
             FfiImagePaintRecordKind::DecodedFrame => recorder.draw_scaled_decoded_image_frame(
                 dest_rect,
@@ -2009,44 +1979,33 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
                 dest_rect,
                 inputs.nested_display_list_size,
             ),
-            FfiImagePaintRecordKind::LinearGradient => recorder.fill_rect_with_linear_gradient(
-                dest_int_rect,
-                &LinearGradientData {
-                    gradient_angle: inputs.gradient_angle,
-                    color_stops: color_stops(),
-                    first_stop_position: inputs.first_stop_position,
-                    repeat_length: inputs.repeat_length,
-                    interpolation_method,
-                },
-                CompositingAndBlendingOperator::Normal,
-            ),
-            FfiImagePaintRecordKind::RadialGradient => {
-                let converter = crate::painting::display_list::device_pixels::DevicePixelConverter::new(
-                    inputs.device_pixels_per_css_pixel,
+            FfiImagePaintRecordKind::Gradient => {
+                // SAFETY: the host keeps the gradient style value and its color resolution input
+                // live for the duration of the call.
+                let (gradient_style_value, color_resolution_input) = unsafe {
+                    (
+                        &*inputs
+                            .gradient_style_value
+                            .cast::<crate::css::style_value::StyleValueData>(),
+                        &*inputs
+                            .gradient_stop_color_resolution_input
+                            .cast::<FfiColorResolutionInput>(),
+                    )
+                };
+                let relative_color_channels = relative_color_context_from_ffi(color_resolution_input);
+                // SAFETY: the borrowed input outlives the resolution below.
+                let color_input =
+                    unsafe { resolution_input_from_ffi(color_resolution_input, &relative_color_channels) };
+                let resolved = resolve_gradient_paint_with_input(
+                    gradient_style_value,
+                    inputs.gradient_tile_size.into(),
+                    &color_input,
                 );
-                recorder.fill_rect_with_radial_gradient(
-                    dest_int_rect,
-                    &RadialGradientData {
-                        color_stops: color_stops(),
-                        interpolation_method,
-                    },
-                    converter.rounded_device_point(inputs.center.into()),
-                    converter.rounded_device_size(inputs.size.into()),
-                    CompositingAndBlendingOperator::Normal,
-                );
-            }
-            FfiImagePaintRecordKind::ConicGradient => {
-                let converter = crate::painting::display_list::device_pixels::DevicePixelConverter::new(
-                    inputs.device_pixels_per_css_pixel,
-                );
-                recorder.fill_rect_with_conic_gradient(
-                    dest_int_rect,
-                    &ConicGradientData {
-                        start_angle: inputs.gradient_angle,
-                        color_stops: color_stops(),
-                        interpolation_method,
-                    },
-                    converter.rounded_device_point(inputs.position.into()),
+                record_resolved_gradient_fill(
+                    &mut recorder,
+                    DevicePixelConverter::new(inputs.device_pixels_per_css_pixel),
+                    &resolved,
+                    dest_rect,
                     CompositingAndBlendingOperator::Normal,
                 );
             }
@@ -4196,107 +4155,5 @@ pub unsafe extern "C" fn layout_arena_hit_test_push_line_break_caret_target(
         // SAFETY: `sink` is the Vec pointer handed out by FfiHitTestHostCallbacks::line_break_caret_targets.
         let targets = unsafe { &mut *sink.cast::<Vec<crate::painting::host::FfiLineBreakCaretTarget>>() };
         targets.push(target);
-    });
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiResolvedGradientPaintKind {
-    #[default]
-    None,
-    Linear,
-    Radial,
-    Conic,
-}
-
-#[repr(C)]
-pub struct FfiResolvedGradientPaint {
-    pub kind: FfiResolvedGradientPaintKind,
-    pub gradient_angle: f32,
-    pub first_stop_position: f32,
-    pub repeat_length: f32,
-    pub color_stops_repeating: bool,
-    pub interpolation_method: libgfx_rust::GradientInterpolationMethod,
-    pub center: FfiCssPixelPoint,
-    pub size: used_values::FfiCssPixelSize,
-}
-
-/// # Safety
-///
-/// `gradient_value` must point at a live gradient `StyleValueData` and
-/// `current_color_value` at a live `StyleValueData` or null, both borrowed
-/// for this call. `out` must point at writable storage.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_resolve_gradient_paint_for_size(
-    gradient_value: *const c_void,
-    current_color: libgfx_rust::Color,
-    current_color_value: *const c_void,
-    color_scheme: u8,
-    size: FfiCssPixelSize,
-    out: *mut FfiResolvedGradientPaint,
-    stop_context: *mut c_void,
-    append_stop: unsafe extern "C" fn(*mut c_void, libgfx_rust::Color, f32),
-) {
-    abort_on_panic(|| {
-        use crate::painting::record::paint::gradient_resolution::{
-            ResolvedGradientPaint, resolve_gradient_paint_with_input,
-        };
-        let gradient_value = unsafe { &*gradient_value.cast::<crate::css::style_value::StyleValueData>() };
-        let current_color_value = unsafe {
-            current_color_value
-                .cast::<crate::css::style_value::StyleValueData>()
-                .as_ref()
-        };
-        let color_input = crate::css::color_resolution::ColorResolutionInput {
-            scheme: Some(color_scheme),
-            current_color: Some(crate::css::color_resolution::Rgba {
-                r: current_color.red(),
-                g: current_color.green(),
-                b: current_color.blue(),
-                a: current_color.alpha(),
-            }),
-            current_color_value,
-            length: None,
-            channels: None,
-        };
-        let tile_size = size.into();
-        let resolved = resolve_gradient_paint_with_input(gradient_value, tile_size, &color_input);
-        let out = unsafe { &mut *out };
-        let (data_stops, interpolation_method) = match &resolved {
-            ResolvedGradientPaint::Linear(data) => {
-                out.kind = FfiResolvedGradientPaintKind::Linear;
-                out.gradient_angle = data.gradient_angle;
-                out.first_stop_position = data.first_stop_position;
-                out.repeat_length = data.repeat_length;
-                (&data.color_stops, data.interpolation_method)
-            }
-            ResolvedGradientPaint::Radial { data, center, size } => {
-                out.kind = FfiResolvedGradientPaintKind::Radial;
-                out.center = FfiCssPixelPoint {
-                    x: center.x,
-                    y: center.y,
-                };
-                out.size = used_values::FfiCssPixelSize {
-                    width: size.width,
-                    height: size.height,
-                };
-                (&data.color_stops, data.interpolation_method)
-            }
-            ResolvedGradientPaint::Conic { data, position } => {
-                out.kind = FfiResolvedGradientPaintKind::Conic;
-                out.gradient_angle = data.start_angle;
-                out.center = FfiCssPixelPoint {
-                    x: position.x,
-                    y: position.y,
-                };
-                (&data.color_stops, data.interpolation_method)
-            }
-        };
-        out.color_stops_repeating = data_stops.repeating;
-        out.interpolation_method = interpolation_method;
-        for (color, position) in data_stops.colors.iter().zip(data_stops.positions.iter()) {
-            // SAFETY: The C++ caller appends into its own storage synchronously.
-            unsafe { append_stop(stop_context, *color, *position) };
-        }
     });
 }

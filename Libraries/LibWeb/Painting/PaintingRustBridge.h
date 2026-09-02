@@ -21,6 +21,7 @@
 namespace Web::Painting {
 
 struct ImagePaint;
+struct ImagePaintRequest;
 
 WEB_API void dump_stacking_context_tree(StringBuilder&, DOM::Document const&);
 
@@ -36,7 +37,6 @@ WEB_API Optional<TransformWithOrigin> rust_compute_css_transform(Layout::Node co
 WEB_API Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Layout::Node const&);
 WEB_API void rust_measure_scrollable_overflow(Layout::Node const&);
 WEB_API Layout::RustFFI::FfiScrollableOverflowUpdateOutcome rust_update_scrollable_overflow(DOM::Document&, bool handled_by_full_layout_commit);
-WEB_API CSS::ResolvedImage rust_resolve_gradient_for_size(CSS::StyleValue const&, Layout::NodeWithStyle const&, CSSPixelSize);
 WEB_API void rust_update_visual_viewport_transform(DOM::Document&);
 WEB_API void rust_refresh_scroll_state(DOM::Document&);
 WEB_API ScrollStateSnapshot rust_scroll_state_snapshot(DOM::Document&);
@@ -71,6 +71,7 @@ WEB_API Utf16String serialize_painting_dump(
     Function<Optional<String>(SpatialNodeIndex)> const& spatial_node_owner_label,
     Function<Optional<String>(FrameNodeIndex)> const& frame_node_owner_label);
 
-WEB_API DisplayListResource record_image_paint_display_list(ImagePaint const&, Gfx::FloatRect dest_rect, CSS::ImageRendering, double device_pixels_per_css_pixel, DisplayListResourceStorage&);
+WEB_API CSS::ColorResolutionContext gradient_stop_color_resolution_context(Layout::NodeWithStyle const&);
+WEB_API DisplayListResource record_image_paint_display_list(ImagePaint const&, ImagePaintRequest const&, double device_pixels_per_css_pixel);
 
 }

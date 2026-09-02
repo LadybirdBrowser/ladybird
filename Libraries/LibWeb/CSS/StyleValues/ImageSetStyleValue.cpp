@@ -109,11 +109,11 @@ SizeWithAspectRatio ImageSetStyleValue::natural_size(HTML::DecodedImageData cons
     };
 }
 
-ResolvedImage ImageSetStyleValue::resolve_for_size(Layout::NodeWithStyle const& layout_node, CSSPixelSize size) const
+Optional<Painting::ImagePaint> ImageSetStyleValue::image_paint(Painting::ImagePaintRequest const& request) const
 {
     if (m_selected_image)
-        return m_selected_image->resolve_for_size(layout_node, size);
-    return Empty {};
+        return m_selected_image->image_paint(request);
+    return {};
 }
 
 bool ImageSetStyleValue::is_paintable(GC::Ptr<HTML::DecodedImageData> decoded_image_data) const

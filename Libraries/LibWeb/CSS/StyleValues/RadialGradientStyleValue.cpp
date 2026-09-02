@@ -9,8 +9,6 @@
 
 #include "RadialGradientStyleValue.h"
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
-#include <LibWeb/Layout/Node.h>
-#include <LibWeb/Painting/PaintingRustBridge.h>
 
 namespace Web::CSS {
 
@@ -32,9 +30,9 @@ RadialGradientStyleValue::RadialGradientStyleValue(StyleValueFFI::StyleValueData
 {
 }
 
-ResolvedImage RadialGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node, CSSPixelSize size) const
+Optional<Painting::ImagePaint> RadialGradientStyleValue::image_paint(Painting::ImagePaintRequest const&) const
 {
-    return Painting::rust_resolve_gradient_for_size(*this, node, size);
+    return Painting::ImagePaint { Painting::ImagePaint::Gradient { *this } };
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> RadialGradientStyleValue::absolutized(ComputationContext const& context) const
