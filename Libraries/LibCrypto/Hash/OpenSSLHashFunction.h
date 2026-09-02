@@ -82,19 +82,19 @@ public:
         return context;
     }
 
-    static DigestT hash(u8 const* data, size_t length)
+    static DigestT hash(ReadonlyBytes buffer)
     {
         auto hasher = create();
-        hasher->update(data, length);
+        hasher->update(buffer.data(), buffer.size());
         return hasher->digest();
     }
 
-    static DigestT hash(ByteBuffer const& buffer) { return hash(buffer.data(), buffer.size()); }
-    static DigestT hash(StringView buffer) { return hash(reinterpret_cast<u8 const*>(buffer.characters_without_null_termination()), buffer.length()); }
+    static DigestT hash(ByteBuffer const& buffer) { return hash(buffer.bytes()); }
+    static DigestT hash(StringView buffer) { return hash(buffer.bytes()); }
 
 private:
-    EVP_MD const* m_type;
-    EVP_MD_CTX* m_context;
+    EVP_MD const* m_type { nullptr };
+    EVP_MD_CTX* m_context { nullptr };
 };
 
 }
