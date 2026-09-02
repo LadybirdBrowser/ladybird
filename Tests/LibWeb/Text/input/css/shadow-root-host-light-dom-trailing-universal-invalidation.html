@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
-<div id="host-child"><span id="direct-child">direct child</span></div>
-<div id="host-descendant"><div><span id="nested-descendant">nested descendant</span></div></div>
+<div id="host-child"><span id="direct-child" class="light">direct child</span></div>
+<div id="host-descendant"><div><span id="nested-descendant" class="light">nested descendant</span></div></div>
 <script>
     function settleAndReset(triggerElement) {
         getComputedStyle(triggerElement).color;
@@ -38,7 +38,7 @@
 
         settleAndReset(directChild);
         const directStyle = document.createElement("style");
-        directStyle.textContent = ":host > * { color: rgb(0, 128, 0); }";
+        directStyle.textContent = ":host > .light { color: rgb(0, 128, 0); }";
         childShadowRoot.appendChild(directStyle);
         const directColor = getComputedStyle(directChild).color;
         // A shadow-scoped selector cannot cascade into the host's light-DOM children. StyleEngine
@@ -47,7 +47,7 @@
 
         settleAndReset(nestedDescendant);
         const descendantStyle = document.createElement("style");
-        descendantStyle.textContent = ":host * { color: rgb(128, 0, 128); }";
+        descendantStyle.textContent = ":host .light { color: rgb(128, 0, 128); }";
         descendantShadowRoot.appendChild(descendantStyle);
         const descendantColor = getComputedStyle(nestedDescendant).color;
         verifyHostSideWorkStayedScoped("host descendant combinator add keeps work scoped", descendantColor);

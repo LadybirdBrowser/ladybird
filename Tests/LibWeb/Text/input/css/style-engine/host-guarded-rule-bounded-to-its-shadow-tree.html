@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<ul id="list"></ul>
+<div id="host"></div>
+<script>
+    test(() => {
+        for (let i = 0; i < 50; ++i)
+            list.appendChild(document.createElement("li"));
+        const shadow = host.attachShadow({ mode: "open" });
+        const item = document.createElement("li");
+        shadow.appendChild(item);
+        internals.updateStyle();
+
+        function recomputationsForSheet(cssText) {
+            const sheet = new CSSStyleSheet();
+            sheet.replaceSync(cssText);
+            const before = internals.getStyleInvalidationCounters();
+            shadow.adoptedStyleSheets = [sheet];
+            internals.updateStyle();
+            const after = internals.getStyleInvalidationCounters();
+            const count = after.elementStyleRecomputations - before.elementStyleRecomputations;
+            shadow.adoptedStyleSheets = [];
+            internals.updateStyle();
+            return count;
+        }
+
+        println(`li: ${recomputationsForSheet("li { color: red }")}`);
+        println(`:host > li: ${recomputationsForSheet(":host > li { color: red }")}`);
+        println(`:host(.a) li: ${recomputationsForSheet(":host(.a) li { color: red }")}`);
+        println(`:host([data-priority]) > li: ${recomputationsForSheet(":host([data-priority]) > li { color: red }")}`);
+        println(`:host: ${recomputationsForSheet(":host { color: red }")}`);
+
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(":host([data-priority]) > li { color: rgb(1, 2, 3) }");
+        shadow.adoptedStyleSheets = [sheet];
+        println(`without the host attribute: ${getComputedStyle(item).color}`);
+        host.dataset.priority = "1";
+        println(`with the host attribute: ${getComputedStyle(item).color}`);
+        delete host.dataset.priority;
+        println(`after removing the host attribute: ${getComputedStyle(item).color}`);
+    });
+</script>
