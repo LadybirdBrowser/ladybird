@@ -4183,11 +4183,17 @@ void StyleComputer::apply_animated_properties_to_reconstruction(ComputedStyleWor
     }
 }
 
-NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::reconstruct_computed_properties_for_animation(ComputedValues const& computed_values) const
+NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::reconstruct_computed_properties_for_animation(StyleRecordID style_record) const
 {
-    auto style = ComputedStyleWorkingSet::create_for_animation_update(computed_values);
-    if (auto const* animated_properties = computed_values.animated_properties(); animated_properties && animated_properties->has_property(PropertyID::Display))
-        style->set_display_before_box_type_transformation(computed_values.base_values().display());
+    auto record = m_style_engine.style_record_view(style_record);
+    VERIFY(record.present);
+    auto style = ComputedStyleWorkingSet::create_for_animation_update(
+        static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(record.longhand_table),
+        static_cast<ComputedValuesFFI::AnimatedOverlay const*>(record.animated_overlay));
+    if (style->has_animated_property(PropertyID::Display)) {
+        auto const* box = static_cast<ComputedValuesFFI::BoxValues const*>(record.base_payloads[to_underlying(StyleGroupIndex::BoxValues)]);
+        style->set_display_before_box_type_transformation(display_from_ffi_display(box->display));
+    }
     return style;
 }
 
