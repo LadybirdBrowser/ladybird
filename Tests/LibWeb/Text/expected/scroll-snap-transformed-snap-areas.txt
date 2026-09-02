@@ -1,0 +1,2 @@
+scroll offset after stepping onto the translated item: 0,140
+scroll offset after stepping onto the scaled item: 0,450
