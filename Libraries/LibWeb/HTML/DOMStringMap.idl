@@ -1,9 +1,9 @@
 // https://html.spec.whatwg.org/multipage/dom.html#domstringmap
 [Exposed=Window, LegacyOverrideBuiltIns]
 interface DOMStringMap {
-    getter Utf16DOMString (Utf16DOMString name);
+    getter DOMString (DOMString name);
 
     // FIXME: Extended attributes are currently not applied to special operations.
-    [CEReactions] setter undefined (Utf16DOMString name, Utf16DOMString value);
-    [CEReactions] deleter undefined (Utf16DOMString name);
+    [CEReactions] setter undefined (DOMString name, DOMString value);
+    [CEReactions] deleter undefined (DOMString name);
 };

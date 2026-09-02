@@ -510,9 +510,7 @@ def record_to_javascript_value(
     key_name = "record_key"
     value_name = "record_value"
     converted_value = to_javascript_value(value_type, value_name, includes, context, realm, wrapper_world)
-    converted_key = (
-        f"Utf16FlyString {{ {key_name} }}" if "Utf16" in key_type.name else f"Utf16FlyString::from_utf8({key_name})"
-    )
+    converted_key = f"Utf16FlyString::from_utf8({key_name})" if key_type.name == "ByteString" else key_name
 
     return f"""[&]() -> JS::Value {{
         // 1. Let result be OrdinaryObjectCreate(%Object.prototype%).
@@ -664,11 +662,11 @@ def to_javascript_value(
     if type_name == "unrestricted double":
         return unrestricted_double_to_javascript_value(value)
 
-    if type_name in ("CSSOMString", "DOMString", "Utf16CSSOMString", "Utf16DOMString"):
+    if type_name in ("CSSOMString", "DOMString"):
         return domstring_to_javascript_value(value, includes)
     if type_name in ("ByteString",):
         return bytestring_to_javascript_value(value, includes)
-    if type_name in ("USVString", "Utf16USVString"):
+    if type_name == "USVString":
         return usvstring_to_javascript_value(value, includes)
 
     if context.enumeration(idl_type) is not None:

@@ -20,5 +20,5 @@ interface mixin CanvasTextDrawingStyles {
     [FIXME] attribute CanvasFontStretch fontStretch; // (default: "normal")
     [FIXME] attribute CanvasFontVariantCaps fontVariantCaps; // (default: "normal")
     [FIXME] attribute CanvasTextRendering textRendering; // (default: "auto")
-    [FIXME] attribute Utf16DOMString wordSpacing; // (default: "0px")
+    [FIXME] attribute DOMString wordSpacing; // (default: "0px")
 };

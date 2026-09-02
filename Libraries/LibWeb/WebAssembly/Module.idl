@@ -6,13 +6,13 @@ enum ImportExportKind {
 };
 
 dictionary ModuleExportDescriptor {
-    required Utf16USVString name;
+    required USVString name;
     required ImportExportKind kind;
 };
 
 dictionary ModuleImportDescriptor {
-    required Utf16USVString module;
-    required Utf16USVString name;
+    required USVString module;
+    required USVString name;
     required ImportExportKind kind;
 };
 

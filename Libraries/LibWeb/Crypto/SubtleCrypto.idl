@@ -1,7 +1,7 @@
-typedef (object or Utf16DOMString) AlgorithmIdentifier;
+typedef (object or DOMString) AlgorithmIdentifier;
 
 dictionary Algorithm {
-    required Utf16DOMString name;
+    required DOMString name;
 };
 
 // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
@@ -9,41 +9,41 @@ enum KeyFormat { "raw-public", "raw-private", "raw-seed", "raw-secret", "raw", "
 
 dictionary RsaOtherPrimesInfo {
     // The following fields are defined in Section 6.3.2.7 of JSON Web Algorithms
-    Utf16DOMString r;
-    Utf16DOMString d;
-    Utf16DOMString t;
+    DOMString r;
+    DOMString d;
+    DOMString t;
 };
 
 // https://wicg.github.io/webcrypto-modern-algos/#partial-JsonWebKey-dictionary
 [GenerateToValue]
 dictionary JsonWebKey {
     // The following fields are defined in Section 3.1 of JSON Web Key
-    Utf16DOMString kty;
-    Utf16DOMString use;
-    sequence<Utf16DOMString> key_ops;
-    Utf16DOMString alg;
+    DOMString kty;
+    DOMString use;
+    sequence<DOMString> key_ops;
+    DOMString alg;
 
     // The following fields are defined in JSON Web Key Parameters Registration
     boolean ext;
 
     // The following fields are defined in Section 6 of JSON Web Algorithms
-    Utf16DOMString crv;
-    Utf16DOMString x;
-    Utf16DOMString y;
-    Utf16DOMString d;
-    Utf16DOMString n;
-    Utf16DOMString e;
-    Utf16DOMString p;
-    Utf16DOMString q;
-    Utf16DOMString dp;
-    Utf16DOMString dq;
-    Utf16DOMString qi;
+    DOMString crv;
+    DOMString x;
+    DOMString y;
+    DOMString d;
+    DOMString n;
+    DOMString e;
+    DOMString p;
+    DOMString q;
+    DOMString dp;
+    DOMString dq;
+    DOMString qi;
     sequence<RsaOtherPrimesInfo> oth;
-    Utf16DOMString k;
+    DOMString k;
 
     // The following fields are defined in draft-ietf-cose-dilithium-07
-    Utf16DOMString pub;
-    Utf16DOMString priv;
+    DOMString pub;
+    DOMString priv;
 };
 
 // https://wicg.github.io/webcrypto-modern-algos/#encapsulation

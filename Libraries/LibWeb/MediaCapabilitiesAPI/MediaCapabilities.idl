@@ -28,7 +28,7 @@ enum MediaEncodingType {
 
 // https://w3c.github.io/media-capabilities/#dictdef-videoconfiguration
 dictionary VideoConfiguration {
-    required Utf16DOMString contentType;
+    required DOMString contentType;
     required unsigned long width;
     required unsigned long height;
     required unsigned long long bitrate;
@@ -37,7 +37,7 @@ dictionary VideoConfiguration {
     HdrMetadataType hdrMetadataType;
     ColorGamut colorGamut;
     TransferFunction transferFunction;
-    Utf16DOMString scalabilityMode;
+    DOMString scalabilityMode;
     boolean spatialScalability;
 };
 
@@ -64,8 +64,8 @@ enum TransferFunction {
 
 // https://w3c.github.io/media-capabilities/#dictdef-audioconfiguration
 dictionary AudioConfiguration {
-    required Utf16DOMString contentType;
-    Utf16DOMString channels;
+    required DOMString contentType;
+    DOMString channels;
     unsigned long long bitrate;
     unsigned long samplerate;
     boolean spatialRendering;
@@ -73,19 +73,19 @@ dictionary AudioConfiguration {
 
 // https://w3c.github.io/media-capabilities/#mediacapabilitieskeysystemconfiguration
 dictionary MediaCapabilitiesKeySystemConfiguration {
-    required Utf16DOMString keySystem;
-    Utf16DOMString initDataType = "";
+    required DOMString keySystem;
+    DOMString initDataType = "";
     MediaKeysRequirement distinctiveIdentifier = "optional";
     MediaKeysRequirement persistentState = "optional";
-    sequence<Utf16DOMString> sessionTypes;
+    sequence<DOMString> sessionTypes;
     KeySystemTrackConfiguration audio;
     KeySystemTrackConfiguration video;
 };
 
 // https://w3c.github.io/media-capabilities/#keysystemtrackconfiguration
 dictionary KeySystemTrackConfiguration {
-    Utf16DOMString robustness = "";
-    Utf16DOMString? encryptionScheme = null;
+    DOMString robustness = "";
+    DOMString? encryptionScheme = null;
 };
 
 // https://w3c.github.io/media-capabilities/#media-capabilities-info

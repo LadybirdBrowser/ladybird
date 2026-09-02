@@ -2,8 +2,8 @@
 // The implementation is wrapped lazily like other DOM-backed MathML objects.
 [Exposed=Window]
 interface MathMLAnchorElement : MathMLElement {
-    [ReflectSetter] attribute Utf16USVString href;
-    [Reflect] attribute Utf16DOMString target;
+    [ReflectSetter] attribute USVString href;
+    [Reflect] attribute DOMString target;
 };
 
 MathMLAnchorElement includes HyperlinkElementUtils;

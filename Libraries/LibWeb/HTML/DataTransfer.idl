@@ -3,8 +3,8 @@
 interface DataTransfer {
     constructor();
 
-    attribute [Utf16FlyString] Utf16DOMString dropEffect;
-    attribute [Utf16FlyString] Utf16DOMString effectAllowed;
+    attribute [FlyString] DOMString dropEffect;
+    attribute [FlyString] DOMString effectAllowed;
 
     [SameObject] readonly attribute DataTransferItemList items;
 

@@ -1,4 +1,4 @@
-callback FunctionStringCallback = undefined (Utf16DOMString data);
+callback FunctionStringCallback = undefined (DOMString data);
 
 // https://html.spec.whatwg.org/multipage/dnd.html#datatransferitem
 [Exposed=Window]

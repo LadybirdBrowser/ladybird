@@ -3,7 +3,7 @@
 interface Event {
     constructor(DOMString type, optional EventInit eventInitDict = {});
 
-    readonly attribute Utf16DOMString type;
+    readonly attribute DOMString type;
     [DirectGetter] readonly attribute EventTarget? target;
     [DirectGetter=target] readonly attribute EventTarget? srcElement; // legacy
     [ImplementedAs=current_target_value, ImplementedInBindings, ReturnsJSValue] readonly attribute EventTarget? currentTarget;
@@ -29,7 +29,7 @@ interface Event {
     [LegacyUnforgeable] readonly attribute boolean isTrusted;
     readonly attribute DOMHighResTimeStamp timeStamp;
 
-    undefined initEvent([Utf16FlyString] Utf16DOMString type, optional boolean bubbles = false, optional boolean cancelable = false); // legacy
+    undefined initEvent([FlyString] DOMString type, optional boolean bubbles = false, optional boolean cancelable = false); // legacy
 };
 
 dictionary EventInit {

@@ -1,10 +1,10 @@
 // https://w3c.github.io/uievents/#inputevent
 [Exposed=Window]
 interface InputEvent : UIEvent {
-    constructor([Utf16FlyString] Utf16DOMString type, optional InputEventInit eventInitDict = {});
-    readonly attribute Utf16USVString? data;
+    constructor([FlyString] DOMString type, optional InputEventInit eventInitDict = {});
+    readonly attribute USVString? data;
     readonly attribute boolean isComposing;
-    readonly attribute Utf16DOMString inputType;
+    readonly attribute DOMString inputType;
 
     // https://w3c.github.io/input-events/#interface-InputEvent
     [DirectGetter] readonly attribute DataTransfer? dataTransfer;
@@ -13,9 +13,9 @@ interface InputEvent : UIEvent {
 
 // https://w3c.github.io/uievents/#dictdef-inputeventinit
 dictionary InputEventInit : UIEventInit {
-    Utf16DOMString? data = null;
+    DOMString? data = null;
     boolean isComposing = false;
-    [Utf16FlyString] Utf16DOMString inputType = "";
+    [FlyString] DOMString inputType = "";
 
     // https://w3c.github.io/input-events/#interface-InputEvent
     DataTransfer? dataTransfer = null;

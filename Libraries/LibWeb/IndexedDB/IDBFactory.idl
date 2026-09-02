@@ -10,6 +10,6 @@ interface IDBFactory {
 };
 
 dictionary IDBDatabaseInfo {
-    Utf16DOMString name;
+    DOMString name;
     unsigned long long version;
 };

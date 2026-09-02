@@ -4,7 +4,7 @@ interface HTMLMapElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect] attribute Utf16DOMString name;
+    [CEReactions, Reflect] attribute DOMString name;
     [SameObject] readonly attribute HTMLCollection areas;
 
 };

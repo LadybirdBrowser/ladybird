@@ -3,11 +3,11 @@
 interface HashChangeEvent : Event {
     constructor(DOMString type, optional HashChangeEventInit eventInitDict = {});
 
-    readonly attribute Utf16USVString oldURL;
-    readonly attribute Utf16USVString newURL;
+    readonly attribute USVString oldURL;
+    readonly attribute USVString newURL;
 };
 
 dictionary HashChangeEventInit : EventInit {
-    Utf16USVString oldURL = "";
-    Utf16USVString newURL = "";
+    USVString oldURL = "";
+    USVString newURL = "";
 };

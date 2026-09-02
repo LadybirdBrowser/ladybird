@@ -17,5 +17,5 @@ dictionary MutationObserverInit {
     boolean subtree = false;
     boolean attributeOldValue;
     boolean characterDataOldValue;
-    sequence<[Utf16FlyString] Utf16DOMString> attributeFilter;
+    sequence<[FlyString] DOMString> attributeFilter;
 };

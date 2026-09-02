@@ -84,11 +84,11 @@ def reflected_attribute_name(attribute: Attribute) -> str:
 
 
 def is_dom_string_type(attribute: Attribute) -> bool:
-    return attribute.type.name in ("CSSOMString", "DOMString", "Utf16CSSOMString", "Utf16DOMString")
+    return attribute.type.name in ("CSSOMString", "DOMString")
 
 
 def is_usv_string_type(attribute: Attribute) -> bool:
-    return attribute.type.name in ("USVString", "Utf16USVString")
+    return attribute.type.name == "USVString"
 
 
 def attribute_callback_cpp_name(attribute: Attribute) -> str:

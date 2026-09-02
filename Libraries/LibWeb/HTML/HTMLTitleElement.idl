@@ -4,6 +4,6 @@ interface HTMLTitleElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions] attribute Utf16DOMString text;
+    [CEReactions] attribute DOMString text;
 
 };

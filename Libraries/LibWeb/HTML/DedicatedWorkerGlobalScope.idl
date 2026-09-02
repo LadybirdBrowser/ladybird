@@ -1,7 +1,7 @@
 // https://html.spec.whatwg.org/multipage/workers.html#dedicatedworkerglobalscope
 [Global=(Worker,DedicatedWorker),Exposed=DedicatedWorker]
 interface DedicatedWorkerGlobalScope : WorkerGlobalScope {
-    [Replaceable] readonly attribute Utf16DOMString name;
+    [Replaceable] readonly attribute DOMString name;
 
     [NeedsCallerRealm] undefined postMessage(any message, sequence<object> transfer);
     [NeedsCallerRealm] undefined postMessage(any message, optional StructuredSerializeOptions options = {});

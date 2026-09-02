@@ -9,7 +9,7 @@ interface Response {
 
     readonly attribute ResponseType type;
 
-    readonly attribute Utf16USVString url;
+    readonly attribute USVString url;
     readonly attribute boolean redirected;
     readonly attribute unsigned short status;
     readonly attribute boolean ok;

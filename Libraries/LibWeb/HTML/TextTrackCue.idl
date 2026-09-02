@@ -3,7 +3,7 @@
 interface TextTrackCue : EventTarget {
     [DirectGetter] readonly attribute TextTrack? track;
 
-    attribute Utf16DOMString id;
+    attribute DOMString id;
     attribute double startTime;
     attribute unrestricted double endTime;
     attribute boolean pauseOnExit;

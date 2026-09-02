@@ -25,23 +25,23 @@ dictionary PointerLockOptions {
 // https://dom.spec.whatwg.org/#element
 [Exposed=Window]
 interface Element : Node {
-    readonly attribute Utf16DOMString? namespaceURI;
-    readonly attribute Utf16DOMString? prefix;
-    readonly attribute Utf16DOMString localName;
-    readonly attribute Utf16DOMString tagName;
+    readonly attribute DOMString? namespaceURI;
+    readonly attribute DOMString? prefix;
+    readonly attribute DOMString localName;
+    readonly attribute DOMString tagName;
 
-    [Reflect, CEReactions] attribute Utf16DOMString id;
-    [Reflect=class, CEReactions] attribute Utf16DOMString className;
+    [Reflect, CEReactions] attribute DOMString id;
+    [Reflect=class, CEReactions] attribute DOMString className;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList classList;
-    [Reflect, CEReactions, Unscopable] attribute Utf16DOMString slot;
+    [Reflect, CEReactions, Unscopable] attribute DOMString slot;
 
     boolean hasAttributes();
     [SameObject] readonly attribute NamedNodeMap attributes;
     sequence<DOMString> getAttributeNames();
     DOMString? getAttribute(DOMString qualifiedName);
     DOMString? getAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
-    [CEReactions, ImplementedAs=set_attribute, ImplementedInBindings] undefined setAttribute(DOMString qualifiedName, (TrustedType or Utf16DOMString) value);
-    [CEReactions, ImplementedAs=set_attribute_ns, ImplementedInBindings] undefined setAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString qualifiedName, (TrustedType or Utf16DOMString) value);
+    [CEReactions, ImplementedAs=set_attribute, ImplementedInBindings] undefined setAttribute(DOMString qualifiedName, (TrustedType or DOMString) value);
+    [CEReactions, ImplementedAs=set_attribute_ns, ImplementedInBindings] undefined setAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString qualifiedName, (TrustedType or DOMString) value);
     [CEReactions] undefined removeAttribute([FlyString] DOMString qualifiedName);
     [CEReactions] undefined removeAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
     [CEReactions] boolean toggleAttribute(DOMString qualifiedName, optional boolean force);
@@ -59,16 +59,16 @@ interface Element : Node {
 
     readonly attribute CustomElementRegistry? customElementRegistry;
 
-    boolean matches(Utf16DOMString selectors);
-    Element? closest(Utf16DOMString selectors);
-    [ImplementedAs=matches] boolean webkitMatchesSelector(Utf16DOMString selectors); // legacy alias of .matches
+    boolean matches(DOMString selectors);
+    Element? closest(DOMString selectors);
+    [ImplementedAs=matches] boolean webkitMatchesSelector(DOMString selectors); // legacy alias of .matches
 
-    HTMLCollection getElementsByTagName([Utf16FlyString] Utf16DOMString tagName);
-    HTMLCollection getElementsByTagNameNS([Utf16FlyString] Utf16DOMString? namespace, [Utf16FlyString] Utf16DOMString localName);
-    HTMLCollection getElementsByClassName(Utf16DOMString className);
+    HTMLCollection getElementsByTagName([FlyString] DOMString tagName);
+    HTMLCollection getElementsByTagNameNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
+    HTMLCollection getElementsByClassName(DOMString className);
 
-    [CEReactions] Element? insertAdjacentElement(Utf16DOMString where, Element element); // legacy
-    undefined insertAdjacentText(Utf16DOMString where, Utf16DOMString data); // legacy
+    [CEReactions] Element? insertAdjacentElement(DOMString where, Element element); // legacy
+    undefined insertAdjacentText(DOMString where, DOMString data); // legacy
 
     // https://dom.spec.whatwg.org/#interface-nondocumenttypechildnode
     readonly attribute Element? nextElementSibling;
@@ -98,23 +98,23 @@ interface Element : Node {
     readonly attribute double currentCSSZoom;
 
     // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsing-and-serialization
-    [CEReactions, ImplementedInBindings] undefined setHTMLUnsafe((TrustedHTML or Utf16DOMString) html);
+    [CEReactions, ImplementedInBindings] undefined setHTMLUnsafe((TrustedHTML or DOMString) html);
     DOMString getHTML(optional GetHTMLOptions options = {});
 
-    [CEReactions, ImplementedInBindings, LegacyNullToEmptyString] attribute (TrustedHTML or Utf16DOMString) innerHTML;
+    [CEReactions, ImplementedInBindings, LegacyNullToEmptyString] attribute (TrustedHTML or DOMString) innerHTML;
 
-    [CEReactions, ImplementedInBindings, LegacyNullToEmptyString] attribute (TrustedHTML or Utf16DOMString) outerHTML;
+    [CEReactions, ImplementedInBindings, LegacyNullToEmptyString] attribute (TrustedHTML or DOMString) outerHTML;
 
-    [CEReactions, ImplementedInBindings] undefined insertAdjacentHTML(DOMString position, (TrustedHTML or Utf16DOMString) text);
+    [CEReactions, ImplementedInBindings] undefined insertAdjacentHTML(DOMString position, (TrustedHTML or DOMString) text);
 
     // https://w3c.github.io/pointerevents/#extensions-to-the-element-interface
     undefined setPointerCapture(long pointerId);
     undefined releasePointerCapture(long pointerId);
     boolean hasPointerCapture(long pointerId);
-    
+
     // https://drafts.csswg.org/css-shadow-1/#idl
     [SameObject, PutForwards=value, ImplementedAs=part_list] readonly attribute DOMTokenList part;
-    
+
     // https://w3c.github.io/pointerlock/#requestPointerLock
     [ImplementedInBindings] Promise<undefined> requestPointerLock(optional PointerLockOptions options = {});
 };

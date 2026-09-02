@@ -1,6 +1,6 @@
 // https://drafts.csswg.org/cssom/#csspagerule
 [Exposed=Window]
 interface CSSPageRule : CSSGroupingRule {
-    attribute Utf16CSSOMString selectorText;
+    attribute CSSOMString selectorText;
     [DirectGetter, SameObject, PutForwards=cssText] readonly attribute CSSPageDescriptors style;
 };

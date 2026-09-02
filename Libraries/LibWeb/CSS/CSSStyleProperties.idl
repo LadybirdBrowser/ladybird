@@ -2,7 +2,7 @@
 // Generated property accessors live on the shared prototype.
 [Exposed=Window]
 interface CSSStyleProperties : CSSStyleDeclaration {
-    [CEReactions, LegacyNullToEmptyString] attribute Utf16CSSOMString cssFloat;
+    [CEReactions, LegacyNullToEmptyString] attribute CSSOMString cssFloat;
 };
 
 CSSStyleProperties includes GeneratedCSSStyleProperties;

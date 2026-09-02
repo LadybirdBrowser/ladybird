@@ -4,10 +4,10 @@ typedef (TrustedHTML or TrustedScript or TrustedScriptURL) TrustedType;
 // https://w3c.github.io/trusted-types/dist/spec/#trusted-type-policy
 [Exposed=(Window,Worker)]
 interface TrustedTypePolicy {
-    readonly attribute Utf16DOMString name;
-    [NeedsCallerRealm] TrustedHTML createHTML(Utf16DOMString input, any... arguments);
-    [NeedsCallerRealm] TrustedScript createScript(Utf16DOMString input, any... arguments);
-    [NeedsCallerRealm] TrustedScriptURL createScriptURL(Utf16DOMString input, any... arguments);
+    readonly attribute DOMString name;
+    [NeedsCallerRealm] TrustedHTML createHTML(DOMString input, any... arguments);
+    [NeedsCallerRealm] TrustedScript createScript(DOMString input, any... arguments);
+    [NeedsCallerRealm] TrustedScriptURL createScriptURL(DOMString input, any... arguments);
 };
 
 // https://w3c.github.io/trusted-types/dist/spec/#trusted-type-policy-options
@@ -16,6 +16,6 @@ dictionary TrustedTypePolicyOptions {
     CreateScriptCallback createScript;
     CreateScriptURLCallback createScriptURL;
 };
-callback CreateHTMLCallback = Utf16DOMString? (Utf16DOMString input, any... arguments);
-callback CreateScriptCallback = Utf16DOMString? (Utf16DOMString input, any... arguments);
-callback CreateScriptURLCallback = Utf16USVString? (Utf16DOMString input, any... arguments);
+callback CreateHTMLCallback = DOMString? (DOMString input, any... arguments);
+callback CreateScriptCallback = DOMString? (DOMString input, any... arguments);
+callback CreateScriptURLCallback = USVString? (DOMString input, any... arguments);

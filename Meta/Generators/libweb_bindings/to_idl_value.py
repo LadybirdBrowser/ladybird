@@ -1480,7 +1480,7 @@ def to_idl_value_from_type(
         return unrestricted_double_to_idl_value(value_name, includes)
     if type_name == "bigint":
         return bigint_to_idl_value(value_name, includes)
-    if type_name in ("CSSOMString", "DOMString", "Utf16CSSOMString", "Utf16DOMString"):
+    if type_name in ("CSSOMString", "DOMString"):
         return dom_string_to_idl_value(
             value_name,
             includes,
@@ -1489,7 +1489,7 @@ def to_idl_value_from_type(
         )
     if type_name == "ByteString":
         return bytestring_to_idl_value(value_name, includes)
-    if type_name in ("USVString", "Utf16USVString"):
+    if type_name == "USVString":
         return usv_string_to_idl_value(
             value_name,
             includes,

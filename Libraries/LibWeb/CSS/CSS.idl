@@ -1,20 +1,20 @@
 // https://drafts.csswg.org/cssom-1/#cssomstring
-typedef Utf16DOMString Utf16CSSOMString;
+typedef DOMString CSSOMString;
 
 dictionary PropertyDefinition {
-    required Utf16CSSOMString name;
-    Utf16CSSOMString syntax = "*";
+    required CSSOMString name;
+    CSSOMString syntax = "*";
     required boolean inherits;
-    Utf16CSSOMString initialValue;
+    CSSOMString initialValue;
 };
 
 // https://drafts.csswg.org/cssom-1/#namespacedef-css
 [Exposed=Window]
 namespace CSS {
-    Utf16CSSOMString escape(Utf16CSSOMString ident);
+    CSSOMString escape(CSSOMString ident);
 
-    boolean supports(Utf16CSSOMString property, Utf16CSSOMString value);
-    boolean supports(Utf16CSSOMString conditionText);
+    boolean supports(CSSOMString property, CSSOMString value);
+    boolean supports(CSSOMString conditionText);
 
     // https://drafts.css-houdini.org/css-properties-values-api-1/#dom-css-registerproperty
     [ImplementedInBindings] undefined registerProperty(PropertyDefinition definition);

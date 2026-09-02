@@ -3,41 +3,41 @@
 interface HTMLInputElement : HTMLElement {
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect] attribute Utf16DOMString accept;
-    [CEReactions, Reflect] attribute Utf16DOMString alt;
-    [CEReactions] attribute Utf16DOMString autocomplete;
+    [CEReactions, Reflect] attribute DOMString accept;
+    [CEReactions, Reflect] attribute DOMString alt;
+    [CEReactions] attribute DOMString autocomplete;
     [CEReactions, Reflect=checked] attribute boolean defaultChecked;
     attribute boolean checked;
-    [CEReactions, Reflect=dirname] attribute Utf16DOMString dirName;
+    [CEReactions, Reflect=dirname] attribute DOMString dirName;
     [CEReactions, Reflect] attribute boolean disabled;
     readonly attribute HTMLFormElement? form;
     attribute FileList? files;
-    [CEReactions] attribute Utf16USVString formAction;
-    [CEReactions, Reflect=formenctype, Enumerated=FormEnctypeAttribute] attribute Utf16DOMString formEnctype;
-    [CEReactions, Reflect=formmethod, Enumerated=FormMethodAttribute] attribute Utf16DOMString formMethod;
+    [CEReactions] attribute USVString formAction;
+    [CEReactions, Reflect=formenctype, Enumerated=FormEnctypeAttribute] attribute DOMString formEnctype;
+    [CEReactions, Reflect=formmethod, Enumerated=FormMethodAttribute] attribute DOMString formMethod;
     [CEReactions, Reflect=formnovalidate] attribute boolean formNoValidate;
-    [CEReactions, Reflect=formtarget] attribute Utf16DOMString formTarget;
+    [CEReactions, Reflect=formtarget] attribute DOMString formTarget;
     [CEReactions] attribute unsigned long height;
     attribute boolean indeterminate;
     readonly attribute HTMLDataListElement? list;
-    [CEReactions, Reflect] attribute Utf16DOMString max;
+    [CEReactions, Reflect] attribute DOMString max;
     [CEReactions] attribute long maxLength;
-    [CEReactions, Reflect] attribute Utf16DOMString min;
+    [CEReactions, Reflect] attribute DOMString min;
     [CEReactions] attribute long minLength;
     [CEReactions, Reflect] attribute boolean multiple;
-    [CEReactions, Reflect] attribute Utf16DOMString name;
-    [CEReactions, Reflect] attribute Utf16DOMString pattern;
-    [CEReactions, Reflect] attribute Utf16DOMString placeholder;
+    [CEReactions, Reflect] attribute DOMString name;
+    [CEReactions, Reflect] attribute DOMString pattern;
+    [CEReactions, Reflect] attribute DOMString placeholder;
     [CEReactions, Reflect=readonly] attribute boolean readOnly;
     [CEReactions, Reflect] attribute boolean required;
     [CEReactions] attribute unsigned long size;
-    [CEReactions, Reflect, URL] attribute Utf16USVString src;
-    [CEReactions, Reflect] attribute Utf16DOMString step;
+    [CEReactions, Reflect, URL] attribute USVString src;
+    [CEReactions, Reflect] attribute DOMString step;
     // https://whatpr.org/html-attr-input-switch/9546/input.html#the-input-element:dom-input-switch
     [CEReactions, Reflect] attribute boolean switch;
-    [CEReactions] attribute Utf16DOMString type;
-    [CEReactions, Reflect=value] attribute Utf16DOMString defaultValue;
-    [CEReactions, LegacyNullToEmptyString] attribute Utf16DOMString value;
+    [CEReactions] attribute DOMString type;
+    [CEReactions, Reflect=value] attribute DOMString defaultValue;
+    [CEReactions, LegacyNullToEmptyString] attribute DOMString value;
     [ImplementedAs=value_as_date_object] attribute object? valueAsDate;
     attribute unrestricted double valueAsNumber;
     [CEReactions] attribute unsigned long width;
@@ -47,10 +47,10 @@ interface HTMLInputElement : HTMLElement {
 
     readonly attribute boolean willValidate;
     readonly attribute ValidityState validity;
-    readonly attribute Utf16DOMString validationMessage;
+    readonly attribute DOMString validationMessage;
     boolean checkValidity();
     boolean reportValidity();
-    undefined setCustomValidity(Utf16DOMString error);
+    undefined setCustomValidity(DOMString error);
 
     readonly attribute NodeList? labels;
 
@@ -58,14 +58,14 @@ interface HTMLInputElement : HTMLElement {
     [ImplementedAs=selection_start_binding] attribute unsigned long? selectionStart;
     [ImplementedAs=selection_end_binding] attribute unsigned long? selectionEnd;
     [ImplementedAs=selection_direction_binding] attribute DOMString? selectionDirection;
-    [ImplementedAs=set_range_text] undefined setRangeText(Utf16DOMString replacement);
-    [ImplementedAs=set_range_text] undefined setRangeText(Utf16DOMString replacement, unsigned long start, unsigned long end, optional SelectionMode selectionMode = "preserve");
+    [ImplementedAs=set_range_text] undefined setRangeText(DOMString replacement);
+    [ImplementedAs=set_range_text] undefined setRangeText(DOMString replacement, unsigned long start, unsigned long end, optional SelectionMode selectionMode = "preserve");
     undefined setSelectionRange(unsigned long start, unsigned long end, optional DOMString direction);
 
     undefined showPicker();
 
     // Obsolete
-    [CEReactions, Reflect] attribute Utf16DOMString align;
-    [CEReactions, Reflect=usemap] attribute Utf16DOMString useMap;
+    [CEReactions, Reflect] attribute DOMString align;
+    [CEReactions, Reflect=usemap] attribute DOMString useMap;
 };
 HTMLInputElement includes PopoverTargetAttributes;

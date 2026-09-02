@@ -4,5 +4,5 @@ interface HTMLOptGroupElement : HTMLElement {
     [HTMLConstructor] constructor();
 
     [CEReactions, Reflect] attribute boolean disabled;
-    [CEReactions, Reflect] attribute Utf16DOMString label;
+    [CEReactions, Reflect] attribute DOMString label;
 };

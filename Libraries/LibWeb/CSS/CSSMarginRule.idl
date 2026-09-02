@@ -1,7 +1,7 @@
 // https://drafts.csswg.org/cssom/#cssmarginrule
 [Exposed=Window]
 interface CSSMarginRule : CSSRule {
-    readonly attribute Utf16CSSOMString name;
+    readonly attribute CSSOMString name;
     // FIXME: This should be CSSMarginDescriptors, but that has no spec. https://github.com/w3c/csswg-drafts/issues/10106
     [DirectGetter, SameObject, PutForwards=cssText] readonly attribute CSSStyleProperties style;
 };

@@ -9,7 +9,7 @@ interface CacheStorage {
 };
 
 dictionary MultiCacheQueryOptions : CacheQueryOptions {
-    Utf16DOMString cacheName;
+    DOMString cacheName;
 };
 
 // https://w3c.github.io/ServiceWorker/#self-caches

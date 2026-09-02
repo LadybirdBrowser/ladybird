@@ -64,7 +64,7 @@ public:
     bool is_bigint() const { return is_plain() && m_name == "bigint"; }
     bool is_object() const { return is_plain() && m_name == "object"; }
     bool is_symbol() const { return is_plain() && m_name == "symbol"; }
-    bool is_string() const { return is_plain() && m_name.is_one_of("ByteString", "DOMString", "Utf16DOMString", "USVString", "Utf16USVString"); }
+    bool is_string() const { return is_plain() && m_name.is_one_of("ByteString", "DOMString", "USVString"); }
     bool is_integer() const { return is_plain() && m_name.is_one_of("byte", "octet", "short", "unsigned short", "long", "unsigned long", "long long", "unsigned long long"); }
     bool is_numeric() const { return is_plain() && (is_integer() || is_floating_point()); }
     bool is_sequence() const { return is_parameterized() && m_name == "sequence"; }

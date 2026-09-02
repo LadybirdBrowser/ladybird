@@ -8,7 +8,7 @@ enum GamepadMappingType {
 // https://w3c.github.io/gamepad/#dom-gamepad
 [Exposed=Window]
 interface Gamepad {
-    readonly attribute Utf16DOMString id;
+    readonly attribute DOMString id;
     readonly attribute long index;
     readonly attribute boolean connected;
     readonly attribute DOMHighResTimeStamp timestamp;

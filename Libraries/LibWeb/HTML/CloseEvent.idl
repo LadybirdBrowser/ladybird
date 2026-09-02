@@ -5,11 +5,11 @@ interface CloseEvent : Event {
 
     readonly attribute boolean wasClean;
     readonly attribute unsigned short code;
-    readonly attribute Utf16USVString reason;
+    readonly attribute USVString reason;
 };
 
 dictionary CloseEventInit : EventInit {
     boolean wasClean = false;
     unsigned short code = 0;
-    Utf16USVString reason = "";
+    USVString reason = "";
 };

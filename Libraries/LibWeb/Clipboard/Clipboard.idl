@@ -10,5 +10,5 @@ interface Clipboard : EventTarget {
 };
 
 dictionary ClipboardUnsanitizedFormats {
-    sequence<Utf16DOMString> unsanitized;
+    sequence<DOMString> unsanitized;
 };

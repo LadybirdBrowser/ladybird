@@ -14,5 +14,5 @@ interface CustomElementRegistry {
 callback CustomElementConstructor = HTMLElement ();
 
 dictionary ElementDefinitionOptions {
-    [Utf16FlyString] Utf16DOMString extends;
+    [FlyString] DOMString extends;
 };

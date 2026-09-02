@@ -6,7 +6,7 @@ dictionary FakeXRDeviceInit {
     sequence<XRSessionMode> supportedModes;
     // FIXME: required sequence<FakeXRViewInit> views;
     // FIXME: sequence<FakeXRViewInit> secondaryViews;
-    
+
     // https://immersive-web.github.io/webxr/#feature-name
     // The list of feature names that this device supports.
     // Any requests for features not in this list should be rejected, with the exception of those
@@ -14,16 +14,16 @@ dictionary FakeXRDeviceInit {
     // If not specified/empty, the device supports no features.
     // NOTE: This is meant to emulate hardware support, not whether a feature is
     // currently available (e.g. bounds not being tracked per below)
-    sequence<Utf16DOMString> supportedFeatures;
-    
+    sequence<DOMString> supportedFeatures;
+
     // The bounds coordinates. If empty, no bounded reference space is currently tracked.
     // If not, must have at least three elements.
     // FIXME: sequence<FakeXRBoundsPoint> boundsCoordinates;
-    
+
     // A transform used to identify the physical position of the user's floor.
     // If not set, indicates that the device cannot identify the physical floor.
     // FIXME: FakeXRRigidTransformInit floorOrigin;
-    
+
     // native origin of the viewer
     // If not set, the device is currently assumed to not be tracking, and xrFrame.getViewerPose should
     // not return a pose.
@@ -38,31 +38,31 @@ interface FakeXRDevice {
     // Sets the values to be used for subsequent
     // requestAnimationFrame() callbacks.
     // FIXME: undefined setViews(sequence<FakeXRViewInit> primaryViews, sequence<FakeXRViewInit> secondaryViews);
-    
+
     // behaves as if device was disconnected
     Promise<undefined> disconnect();
-    
+
     // Sets the origin of the viewer
     // FIXME: undefined setViewerOrigin(FakeXRRigidTransformInit origin, optional boolean emulatedPosition = false);
-    
+
     // If an origin is not specified, then the device is assumed to not be tracking, emulatedPosition should
     // be assumed for cases where the UA must always provide a pose.
     // FIXME: undefined clearViewerOrigin();
-    
+
     // Simulates devices focusing and blurring sessions.
     // FIXME: undefined simulateVisibilityChange(XRVisibilityState state);
-    
+
     // FIXME: undefined setBoundsGeometry(sequence<FakeXRBoundsPoint> boundsCoordinates);
     // Sets the native origin of the physical floor
     // FIXME: undefined setFloorOrigin(FakeXRRigidTransformInit floorOrigin);
-    
+
     // Indicates that the device can no longer identify the location of the physical floor.
     // FIXME: undefined clearFloorOrigin();
-    
+
     // Used to simulate a major change in tracking and that a reset pose event should be fired
     // https://immersive-web.github.io/webxr/#event-types
     // FIXME: undefined simulateResetPose();
-    
+
     // Used to connect and send input events
     // FIXME: FakeXRInputController simulateInputSourceConnection(FakeXRInputSourceInit init);
 };

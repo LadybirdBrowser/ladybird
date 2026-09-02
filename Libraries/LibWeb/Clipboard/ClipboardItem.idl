@@ -1,4 +1,4 @@
-typedef Promise<(Utf16DOMString or Blob)> ClipboardItemData;
+typedef Promise<(DOMString or Blob)> ClipboardItemData;
 
 // https://w3c.github.io/clipboard-apis/#clipboard-item-interface
 [SecureContext, Exposed=Window]
@@ -11,7 +11,7 @@ interface ClipboardItem {
 
     [NeedsCallerRealm] Promise<Blob> getType(DOMString type);
 
-    static boolean supports(Utf16DOMString type);
+    static boolean supports(DOMString type);
 };
 
 enum PresentationStyle { "unspecified", "inline", "attachment" };

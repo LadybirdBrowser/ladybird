@@ -6,7 +6,7 @@ interface UIEvent : Event {
     readonly attribute long detail;
 
     // Obsolete
-    [ImplementedAs=init_ui_event] undefined initUIEvent([Utf16FlyString] Utf16DOMString typeArg, optional boolean bubblesArg = false, optional boolean cancelableArg = false, optional WindowProxy? viewArg = null, optional long detailArg = 0);
+    [ImplementedAs=init_ui_event] undefined initUIEvent([FlyString] DOMString typeArg, optional boolean bubblesArg = false, optional boolean cancelableArg = false, optional WindowProxy? viewArg = null, optional long detailArg = 0);
     readonly attribute unsigned long which;
 };
 

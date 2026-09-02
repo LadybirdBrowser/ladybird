@@ -7,7 +7,7 @@ interface PerformanceMeasure : PerformanceEntry {
 // https://w3c.github.io/user-timing/#extensions-performance-interface
 dictionary PerformanceMeasureOptions {
     any detail;
-    (Utf16DOMString or DOMHighResTimeStamp) start;
+    (DOMString or DOMHighResTimeStamp) start;
     DOMHighResTimeStamp duration;
-    (Utf16DOMString or DOMHighResTimeStamp) end;
+    (DOMString or DOMHighResTimeStamp) end;
 };

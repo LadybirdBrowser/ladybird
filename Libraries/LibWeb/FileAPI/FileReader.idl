@@ -5,7 +5,7 @@ interface FileReader : EventTarget {
     // async read methods
     undefined readAsArrayBuffer(Blob blob);
     undefined readAsBinaryString(Blob blob);
-    undefined readAsText(Blob blob, optional Utf16DOMString encoding);
+    undefined readAsText(Blob blob, optional DOMString encoding);
     undefined readAsDataURL(Blob blob);
 
     undefined abort();

@@ -1,6 +1,6 @@
 [Exposed=(Window,Worker)]
 interface IDBDatabase : EventTarget {
-    readonly attribute Utf16DOMString name;
+    readonly attribute DOMString name;
     readonly attribute unsigned long long version;
     readonly attribute DOMStringList objectStoreNames;
 
@@ -23,6 +23,6 @@ dictionary IDBTransactionOptions {
 };
 
 dictionary IDBObjectStoreParameters {
-    (Utf16DOMString or sequence<Utf16DOMString>)? keyPath = null;
+    (DOMString or sequence<DOMString>)? keyPath = null;
     boolean autoIncrement = false;
 };
