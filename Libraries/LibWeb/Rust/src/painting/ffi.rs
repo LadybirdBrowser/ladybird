@@ -3748,47 +3748,6 @@ pub unsafe extern "C" fn layout_arena_hit_test_caret_line_for_position(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_display_list_mask_registration_count(arena: *mut c_void) -> usize {
-    abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle(arena) };
-        let paint_state = arena.paint_state().borrow();
-        paint_state
-            .last_recording
-            .as_ref()
-            .map_or(0, |recording| recording.mask_display_lists.len())
-    })
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`; `index` in range.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_display_list_mask_registration(
-    arena: *mut c_void,
-    index: usize,
-    out_frame: *mut crate::painting::display_list::commands::FrameNodeIndex,
-    out_display_list_id: *mut u64,
-) {
-    abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle(arena) };
-        let paint_state = arena.paint_state().borrow();
-        let (frame, id) = paint_state
-            .last_recording
-            .as_ref()
-            .expect("no recording")
-            .mask_display_lists[index];
-        // SAFETY: the caller passes valid out pointers.
-        unsafe {
-            *out_frame = frame;
-            *out_display_list_id = id.0;
-        }
-    });
-}
-
-/// # Safety
-///
 /// `sink` must be the pointer handed to the callback, used synchronously; `bytes` must point at
 /// `length` readable bytes.
 #[unsafe(no_mangle)]
@@ -3816,7 +3775,7 @@ pub unsafe extern "C" fn layout_arena_recorded_display_list(arena: *mut c_void) 
             .last_recording
             .as_ref()
             .map_or_else(FfiRecordedDisplayList::empty, |recording| {
-                recording.display_list.as_ref().into()
+                FfiRecordedDisplayList::with_mask_registrations(&recording.display_list, &recording.mask_display_lists)
             })
     })
 }

@@ -254,12 +254,12 @@ pub(crate) fn verify_spliced_recording_matches_fresh(
     let with_splices_mask_frames: Vec<FrameNodeIndex> = recording_with_splices
         .mask_display_lists
         .iter()
-        .map(|(frame, _)| *frame)
+        .map(|registration| registration.frame)
         .collect();
     let from_scratch_mask_frames: Vec<FrameNodeIndex> = recording_from_scratch
         .mask_display_lists
         .iter()
-        .map(|(frame, _)| *frame)
+        .map(|registration| registration.frame)
         .collect();
     assert_eq!(
         with_splices_mask_frames, from_scratch_mask_frames,

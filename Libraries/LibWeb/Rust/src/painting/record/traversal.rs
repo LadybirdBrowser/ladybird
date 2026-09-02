@@ -16,7 +16,8 @@ use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::hit_test::*;
 use crate::painting::host::FfiPaintRecordingStats;
 use crate::painting::host::{
-    FfiHitTestHostCallbacks, FfiPaintHostCallbacks, FfiRecordingInputs, FfiVisualContextHostCallbacks,
+    FfiHitTestHostCallbacks, FfiMaskDisplayListRegistration, FfiPaintHostCallbacks, FfiRecordingInputs,
+    FfiVisualContextHostCallbacks,
 };
 use crate::painting::node_painting;
 use crate::painting::record::cache::{
@@ -141,7 +142,12 @@ pub(crate) fn record_display_list(
     recorder.prerecord_nested_display_lists();
     recorder.paint_and_capture_as_stacking_context(viewport);
     crate::painting::record::paint::inspector_overlay::record_inspector_overlays(&mut recorder);
-    let mask_display_lists = recorder.recorder.take_mask_display_lists();
+    let mask_display_lists: Vec<FfiMaskDisplayListRegistration> = recorder
+        .recorder
+        .take_mask_display_lists()
+        .into_iter()
+        .map(FfiMaskDisplayListRegistration::from)
+        .collect();
     let mut hit_test_list = recorder.list;
     hit_test_list.generation = hit_test_list_generation;
     let recorded = recorder.recorder.into_builder().finish();
