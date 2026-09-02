@@ -405,8 +405,43 @@ WebIDL::ExceptionOr<void> Node::set_text_content(Optional<Utf16String> const& ma
     if (is_connected() && !is_boxless_style_element)
         set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeSetTextContent);
 
-    document().bump_dom_tree_version();
+    bump_dom_tree_version();
     return {};
+}
+
+// The node holding the version counters of the tree a node is in: its document while connected, otherwise its root.
+// A lone node that cannot have children heads a tree nothing can be cached on, so it holds no counters.
+static ParentNode* tree_version_holder(Node const& node)
+{
+    if (node.is_connected())
+        return const_cast<Document*>(&node.document());
+    return const_cast<ParentNode*>(as_if<ParentNode>(node.root()));
+}
+
+static u64 s_last_tree_version = 0;
+
+u64 Node::dom_tree_version() const
+{
+    auto const* holder = tree_version_holder(*this);
+    return holder ? holder->m_dom_tree_version : 0;
+}
+
+u64 Node::character_data_version() const
+{
+    auto const* holder = tree_version_holder(*this);
+    return holder ? holder->m_character_data_version : 0;
+}
+
+void Node::bump_dom_tree_version()
+{
+    if (auto* holder = tree_version_holder(*this))
+        holder->m_dom_tree_version = ++s_last_tree_version;
+}
+
+void Node::bump_character_data_version()
+{
+    if (auto* holder = tree_version_holder(*this))
+        holder->m_character_data_version = ++s_last_tree_version;
 }
 
 // https://dom.spec.whatwg.org/#dom-node-normalize
@@ -1006,7 +1041,7 @@ void Node::insert_nodes_before(Vector<GC::Root<Node>> nodes, GC::Ptr<Node> child
         }
     }
 
-    document().bump_dom_tree_version();
+    bump_dom_tree_version();
 }
 
 // https://dom.spec.whatwg.org/#concept-node-pre-insert
@@ -1448,7 +1483,11 @@ void Node::remove(bool suppress_observers)
     parent->children_changed(metadata);
     parent->invalidate_html_collection_caches_in_ancestors(affects_elements);
 
-    document().bump_dom_tree_version();
+    parent->bump_dom_tree_version();
+
+    // The removed node heads a tree of its own again. Anything cached on it from the last time it did must not survive
+    // the changes made under it while it was part of another tree, which were counted against that tree.
+    bump_dom_tree_version();
 }
 
 // https://dom.spec.whatwg.org/#concept-node-replace
@@ -1859,7 +1898,8 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     old_parent->invalidate_html_collection_caches_in_ancestors(affects_elements);
     new_parent.invalidate_html_collection_caches_in_ancestors(affects_elements);
 
-    document().bump_dom_tree_version();
+    old_parent->bump_dom_tree_version();
+    new_parent.bump_dom_tree_version();
 
     return {};
 }

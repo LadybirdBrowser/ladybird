@@ -276,11 +276,6 @@ public:
     [[nodiscard]] static GC::Ref<Document> create_for_fragment_parsing(Page&, GC::Ref<EventTarget> relevant_global_event_target);
     virtual ~Document() override;
 
-    // AD-HOC: This number increments whenever a node is added or removed from the document, or an element attribute changes.
-    //         It can be used as a crude invalidation mechanism for caches that depend on the DOM structure.
-    u64 dom_tree_version() const { return m_dom_tree_version; }
-    void bump_dom_tree_version() { ++m_dom_tree_version; }
-
     u64 form_controls_version() const { return m_form_controls_version; }
     void bump_form_controls_version() { ++m_form_controls_version; }
 
@@ -308,10 +303,6 @@ public:
         return identity;
     }
 
-    // AD-HOC: This number increments whenever CharacterData is modified in the document. It is used together with
-    //         dom_tree_version() to understand whether either the DOM tree structure or contents were changed.
-    u64 character_data_version() const { return m_character_data_version; }
-    void bump_character_data_version() { ++m_character_data_version; }
     bool preserve_selection_offsets_during_identical_character_data_replacement() const { return m_preserve_selection_offsets_during_identical_character_data_replacement; }
 
     WebIDL::ExceptionOr<void> populate_with_html_head_and_body();
@@ -1933,14 +1924,12 @@ private:
 
     Optional<AK::UnixDateTime> m_last_modified;
 
-    u64 m_dom_tree_version { 0 };
     u64 m_form_controls_version { 0 };
     u64 m_option_selectedness_version { 0 };
     mutable Array<u64, to_underlying(HTMLCollectionAttributeInvalidationType::Count)> m_html_collection_attribute_invalidation_type_counts {};
     mutable HTMLCollectionAttributeInvalidationTypes m_html_collection_attribute_invalidation_types { 0 };
     u64 m_style_environment_version { 0 };
     u64 m_next_counter_style_environment_identity { 1 };
-    u64 m_character_data_version { 0 };
 
     // https://drafts.csswg.org/css-position-4/#document-top-layer
     // Documents have a top layer, an ordered set containing elements from the document.
@@ -2047,7 +2036,7 @@ private:
     mutable Optional<Utf16String> m_last_selector_query_text;
     mutable RefPtr<SelectorQuery const> m_last_selector_query;
 
-    // Cache of querySelectorAll results, validated lazily against dom_tree_version/character_data_version.
+    // Cache of querySelectorAll results, validated lazily against the query root's dom_tree_version/character_data_version.
     OwnPtr<QuerySelectorResultCache> m_query_selector_result_cache;
 
     // https://fullscreen.spec.whatwg.org/#list-of-pending-fullscreen-events

@@ -279,9 +279,9 @@ ShadowRoot::PartElementMap const& ShadowRoot::part_element_map() const
 {
     // FIXME: dom_tree_version() is crude and invalidates more than necessary.
     //        Come up with a smarter way of invalidating this if it turns out to be slow.
-    if (m_dom_tree_version_when_calculated_part_element_map < document().dom_tree_version()) {
+    if (m_dom_tree_version_when_calculated_part_element_map != dom_tree_version()) {
         const_cast<ShadowRoot*>(this)->calculate_part_element_map();
-        m_dom_tree_version_when_calculated_part_element_map = document().dom_tree_version();
+        m_dom_tree_version_when_calculated_part_element_map = dom_tree_version();
     }
     return m_part_element_map;
 }

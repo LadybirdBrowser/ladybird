@@ -182,7 +182,7 @@ private:
     CSS::StyleScope m_style_scope;
 
     mutable PartElementMap m_part_element_map;
-    mutable u64 m_dom_tree_version_when_calculated_part_element_map { 0 };
+    mutable Optional<u64> m_dom_tree_version_when_calculated_part_element_map;
 
     // https://dom.spec.whatwg.org/#shadowroot-custom-element-registry
     GC::Ptr<HTML::CustomElementRegistry> m_custom_element_registry;

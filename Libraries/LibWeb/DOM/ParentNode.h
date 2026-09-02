@@ -47,6 +47,13 @@ protected:
         : Node(document, type)
     {
     }
+
+private:
+    friend class Node;
+
+    // The counters behind Node::dom_tree_version() and Node::character_data_version(), for the tree rooted here.
+    u64 m_dom_tree_version { 0 };
+    u64 m_character_data_version { 0 };
 };
 
 template<>

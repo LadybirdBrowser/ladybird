@@ -313,6 +313,18 @@ public:
     Document& document() { return *m_document; }
     Document const& document() const { return *m_document; }
 
+    // AD-HOC: Version counters of the tree this node is in, for caches that depend on tree structure or contents.
+    //         The DOM tree version moves whenever a node is inserted into or removed from the tree, or an element
+    //         attribute in it changes; the character data version whenever CharacterData in it is modified.
+    //         A connected node's tree is its document; a disconnected node's is the tree under its root. Counting
+    //         per tree keeps a document's churn from invalidating caches keyed on disconnected trees, and vice versa.
+    //         Every bump takes a stamp no other tree has had, so a version remembered from one tree is never
+    //         mistaken for the version of another.
+    u64 dom_tree_version() const;
+    u64 character_data_version() const;
+    void bump_dom_tree_version();
+    void bump_character_data_version();
+
     GC::Ptr<Document> owner_document() const;
 
     HTML::HTMLHyperlinkElementUtils const* enclosing_link_element() const;

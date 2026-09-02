@@ -57,21 +57,21 @@ private:
     // subtree's elements without matching any of them.
     bool m_matches_every_element { false };
 
-    // Whether matching can only change when the document's dom_tree_version (plus character_data_version, see below)
-    // changes. Queries with selectors that depend on other state (:hover, :checked, :target, etc) are not cacheable.
+    // Whether matching can only change when the dom_tree_version (plus character_data_version, see below) of the
+    // tree the element is in changes. Queries with selectors that depend on other state (:hover, :checked, :target,
+    // etc) are not cacheable.
     bool m_is_result_cacheable { false };
 
     // Whether matching also depends on character data (only :empty), so cached results must additionally be
-    // validated against the document's character_data_version.
+    // validated against the tree's character_data_version.
     bool m_depends_on_character_data { false };
 
     mutable Vector<NonnullOwnPtr<IsolatedSelectorQueryCacheEntry>> m_isolated_engine_cache;
 };
 
 // Caches querySelector first matches and querySelectorAll element lists per (query root, selector query), allowing
-// repeated queries against an unchanged document to skip the subtree walk. Entries are validated lazily against
-// the document's mutation version counters, so no notification on DOM mutation is needed: the whole cache is
-// emptied on first use after dom_tree_version changes.
+// repeated queries against an unchanged tree to skip the subtree walk. Entries are validated lazily against the
+// mutation version counters of the tree the query root is in, so no notification on DOM mutation is needed.
 class QuerySelectorResultCache {
     AK_MAKE_NONCOPYABLE(QuerySelectorResultCache);
     AK_MAKE_NONMOVABLE(QuerySelectorResultCache);
@@ -84,13 +84,12 @@ public:
 
     QuerySelectorResultCache() = default;
 
-    Vector<GC::RawPtr<Element>> const* get(Document const&, ParentNode const& root, SelectorQuery const&, ResultType);
-    void set(Document const&, ParentNode const& root, SelectorQuery const&, ResultType, Vector<GC::RawPtr<Element>>);
+    Vector<GC::RawPtr<Element>> const* get(ParentNode const& root, SelectorQuery const&, ResultType);
+    void set(ParentNode const& root, SelectorQuery const&, ResultType, Vector<GC::RawPtr<Element>>);
+    void clear() { m_entries.clear(); }
     void visit_edges(GC::Cell::Visitor&);
 
 private:
-    void clear_if_dom_tree_changed(Document const&);
-
     struct Key {
         GC::RawPtr<ParentNode const> root;
         SelectorQuery const* query { nullptr };
@@ -109,16 +108,17 @@ private:
         // Keeps the query alive (and its address unique) even if the document's selector query cache evicts it.
         NonnullRefPtr<SelectorQuery const> query;
 
+        u64 dom_tree_version { 0 };
         u64 character_data_version { 0 };
         ResultType result_type { ResultType::FirstOnly };
 
-        // Raw pointers are safe here: the elements were descendants of root when cached, and with dom_tree_version
-        // unchanged no node in this document has been inserted or removed since, so they are still descendants of
-        // root and kept alive by it. Entries are only used after validating the version and that root is alive.
+        // Raw pointers are safe here: the elements were descendants of root when cached, and with the tree's
+        // dom_tree_version unchanged no node has been inserted into or removed from it since, so they are still
+        // descendants of root and kept alive by it. Entries are only used after validating the version and that
+        // root is alive.
         Vector<GC::RawPtr<Element>> elements;
     };
 
-    u64 m_dom_tree_version { 0 };
     HashMap<Key, Entry, KeyTraits> m_entries;
 };
 
