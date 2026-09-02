@@ -107,6 +107,8 @@ void NavigableContainer::create_new_child_navigable()
     m_content_navigable = navigable;
     navigable->set_container({}, this);
 
+    set_needs_repaint();
+
     auto traversable = parent_navigable->traversable_navigable();
     (void)traversable->adopt_canonical_id_for_child_created_during_history_reconstruction(*parent_navigable, navigable);
 
@@ -346,6 +348,7 @@ void NavigableContainer::destroy_the_child_navigable()
         if (m_content_navigable == navigable) {
             m_content_navigable = nullptr;
             document().schedule_html_parser_end_check();
+            set_needs_repaint();
         }
 
         // Not in the spec:

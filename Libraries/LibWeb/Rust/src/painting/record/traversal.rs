@@ -885,11 +885,7 @@ impl PaintRecorder<'_> {
         // Scrolling repaints without invalidating paint caches, so scroll-offset-dependent
         // captures can never be reused.
         let skip_cache = data.has_fixed_background_visual_context
-            || (data.has_scroll_offset_dependent_background && phase == PaintPhase::Background)
-            || (self
-                .layout_kind(paintable)
-                .is_some_and(node_painting::foreground_is_never_cached)
-                && phase == PaintPhase::Foreground);
+            || (data.has_scroll_offset_dependent_background && phase == PaintPhase::Background);
         let phase_records_scrollbars_with_scroll_node_indices = phase == PaintPhase::Overlay
             && (data.own_scroll_node_index != VISUAL_VIEWPORT_NODE_INDEX
                 || self.layout_kind(paintable) == Some(NodeKind::Viewport));

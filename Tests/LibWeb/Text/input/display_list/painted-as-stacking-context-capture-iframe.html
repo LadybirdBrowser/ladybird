@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    #root { position: relative; width: 200px; }
+    iframe { display: block; width: 100px; height: 60px; border: 0; }
+    #after { height: 20px; }
+</style>
+<div id="root"><iframe id="frame" srcdoc="<div style='height:60px;background:lime'></div>"></iframe><div id="after">after</div></div>
+<script>
+    test(() => {
+        internals.asyncScrollingState();
+        internals.asyncScrollingState();
+        const visitedQuiet = internals.paintCacheCaptureSiteVisitCount();
+
+        after.style.color = "red";
+        internals.asyncScrollingState();
+        const visitedAfterChange = internals.paintCacheCaptureSiteVisitCount();
+        const hit = document.elementFromPoint(50, 30).id;
+
+        internals.asyncScrollingState();
+        const visitedQuietAgain = internals.paintCacheCaptureSiteVisitCount();
+
+        println(`quiet recording visits only the viewport root: ${visitedQuiet === 1}`);
+        println(`a change next to the iframe walks the root: ${visitedAfterChange > 1}`);
+        println(`the iframe is hit-testable: ${hit}`);
+        println(`the next quiet recording hits the viewport root again: ${visitedQuietAgain === 1}`);
+    });
+</script>

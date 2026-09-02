@@ -90,7 +90,3 @@ pub(crate) const fn forms_unconnected_subtree(kind: NodeKind) -> bool {
         NodeKind::SVGMaskBox | NodeKind::SVGClipBox | NodeKind::SVGPatternBox
     )
 }
-
-pub(crate) const fn foreground_is_never_cached(kind: NodeKind) -> bool {
-    matches!(kind, NodeKind::NavigableContainerViewport)
-}

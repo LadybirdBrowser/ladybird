@@ -834,6 +834,53 @@ static NonnullRefPtr<DisplayList> display_list_from_rust_recording(AccumulatedVi
     return DisplayList::create_from_command_bytes(visual_context_tree, move(command_bytes), move(command_runs));
 }
 
+static Optional<u64> composited_context_id_for_navigable_container(HTML::NavigableContainer const& navigable_container)
+{
+    auto content_navigable = navigable_container.content_navigable();
+    if (!content_navigable)
+        return {};
+    auto const& local_navigable = as<HTML::LocalNavigable>(*content_navigable);
+    if (local_navigable.has_been_destroyed())
+        return {};
+    auto context_id = navigable_container.document().page().client().compositor_context_id_for_remote_child_frame(content_navigable->id());
+    if (!context_id.has_value() && local_navigable.has_compositor_context()) {
+        auto const* hosted_document = navigable_container.content_document_without_origin_check();
+        if (!hosted_document || !hosted_document->is_render_blocked())
+            context_id = local_navigable.compositor_context().id();
+    }
+    if (!context_id.has_value())
+        return {};
+    return context_id->value();
+}
+
+template<typename Callback>
+static void for_each_child_navigable_including_pending_history_steps(HTML::LocalNavigable const& navigable, Callback callback)
+{
+    for (auto const& child_navigable : HTML::all_local_navigables()) {
+        if (child_navigable->parent().ptr() == &navigable)
+            callback(*child_navigable);
+    }
+}
+
+static void invalidate_navigable_containers_whose_composited_context_changed(DOM::Document& document)
+{
+    if (!document.paint_state().has_painted_navigable_container_foreground())
+        return;
+    auto navigable = document.navigable();
+    if (!navigable)
+        return;
+    for_each_child_navigable_including_pending_history_steps(*navigable, [&](HTML::LocalNavigable& child_navigable) {
+        auto container = child_navigable.container();
+        if (!container || !container->has_painted_foreground())
+            return;
+        auto const* layout_node = container->layout_node();
+        if (!layout_node || !has_committed_box(*layout_node))
+            return;
+        if (container->compositor_context_id_at_last_paint() != composited_context_id_for_navigable_container(*container))
+            invalidate_paint_cache(*layout_node);
+    });
+}
+
 Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& context)
 {
     return {
@@ -1093,21 +1140,13 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                     break;
                 }
             } else if (is_navigable_container_viewport_paintable(layout_node)) {
-                auto const& navigable_container = as<HTML::NavigableContainer>(*layout_node.dom_node());
-                auto content_navigable = navigable_container.content_navigable();
-                VERIFY(content_navigable);
-                auto& local_navigable = as<HTML::LocalNavigable>(*content_navigable);
-                if (!local_navigable.has_been_destroyed()) {
-                    auto context_id = layout_node.document().page().client().compositor_context_id_for_remote_child_frame(content_navigable->id());
-                    if (!context_id.has_value() && local_navigable.has_compositor_context()) {
-                        auto* hosted_document = const_cast<DOM::Document*>(navigable_container.content_document_without_origin_check());
-                        if (!hosted_document || !hosted_document->is_render_blocked())
-                            context_id = local_navigable.compositor_context().id();
-                    }
-                    if (context_id.has_value()) {
-                        facts.has_composited_context = true;
-                        facts.composited_context_id = context_id->value();
-                    }
+                auto& navigable_container = const_cast<HTML::NavigableContainer&>(as<HTML::NavigableContainer>(*layout_node.dom_node()));
+                auto context_id = composited_context_id_for_navigable_container(navigable_container);
+                navigable_container.set_compositor_context_id_at_last_paint(context_id);
+                const_cast<DOM::Document&>(*context.document).paint_state().set_has_painted_navigable_container_foreground();
+                if (context_id.has_value()) {
+                    facts.has_composited_context = true;
+                    facts.composited_context_id = *context_id;
                 }
             } else if (kind == Layout::RustFFI::NodeKind::CheckBox || kind == Layout::RustFFI::NodeKind::RadioButton) {
                 auto const& input = as<HTML::HTMLInputElement const>(*layout_node.dom_node());
@@ -1353,6 +1392,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
         inputs.bitmap_rect = bitmap_rect;
         inputs.background_color = document.background_color();
     }
+    invalidate_navigable_containers_whose_composited_context_changed(document);
     PaintHostContext paint_host_context { resource_storage, document, paint_generation_id, device_pixels_per_css_pixel };
     auto rust_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
     auto generation = Layout::RustFFI::layout_arena_record_display_list(arena, viewport_row_slot(document), hit_test_host_callbacks(), paint_host_callbacks(paint_host_context), visual_context_host_callbacks(document), inputs);
