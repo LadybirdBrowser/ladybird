@@ -1,0 +1,3 @@
+initial width: 150px
+resized width: 250px
+resized back width: 150px

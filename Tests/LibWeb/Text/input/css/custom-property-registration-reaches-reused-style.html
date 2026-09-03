@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        width: var(--x, 10px);
+        height: var(--y, 1px);
+    }
+</style>
+<div id="target">target</div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        internals.updateStyle();
+        println(`unregistered: ${getComputedStyle(target).width}`);
+
+        CSS.registerProperty({ name: "--x", syntax: "<length>", inherits: true, initialValue: "30px" });
+        internals.updateStyle();
+        println(`registered with CSS.registerProperty: ${getComputedStyle(target).width}`);
+
+        document.styleSheets[0].insertRule("@property --y { syntax: '<length>'; inherits: true; initial-value: 5px; }", 0);
+        internals.updateStyle();
+        println(`registered with @property: ${getComputedStyle(target).height}`);
+
+        document.styleSheets[0].deleteRule(0);
+        internals.updateStyle();
+        println(`@property removed: ${getComputedStyle(target).height}`);
+    });
+</script>

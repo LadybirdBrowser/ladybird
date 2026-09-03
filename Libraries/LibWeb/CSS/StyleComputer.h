@@ -413,8 +413,6 @@ private:
         NonnullRefPtr<ComputedValues const> values;
         RefPtr<CustomPropertyData const> custom_property_data;
         Optional<StyleRecordID> style_record_identity;
-        Vector<u64> style_input_declaration_words;
-        Vector<NonnullRefPtr<StyleValue const>> pinned_style_input_values;
         bool read_beyond_the_record { false };
         bool style_reads_resource_context { false };
         bool style_uses_var_css_function { false };
@@ -430,7 +428,6 @@ private:
     static constexpr size_t maximum_style_sharing_donors_per_key = 4;
     mutable HashMap<u64, Vector<u64, maximum_style_sharing_donors_per_key>> m_style_sharing_donor_index;
     mutable u64 m_style_sharing_transaction_generation { 0 };
-    mutable bool m_materializing_for_targeted_style_update { false };
     mutable bool m_last_materialization_kept_pseudo_element_styles { false };
     mutable bool m_materializing_for_derived_reaction { false };
     u64 m_viewport_environment_version { 0 };

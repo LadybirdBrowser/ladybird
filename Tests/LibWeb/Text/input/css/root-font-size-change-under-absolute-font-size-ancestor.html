@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<style>
+    #absorber {
+        font-size: 16px;
+    }
+    #remUser {
+        width: 10rem;
+    }
+</style>
+<div id="absorber"><div id="remUser">rem</div></div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const remUser = document.getElementById("remUser");
+        println(getComputedStyle(remUser).width);
+        document.documentElement.style.fontSize = "20px";
+        await animationFrame();
+        println(getComputedStyle(remUser).width);
+        document.documentElement.style.fontSize = "";
+        await animationFrame();
+        println(getComputedStyle(remUser).width);
+    });
+</script>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+input:enabled { --probe: match; }
+</style>
+<input id="input" type="text">
+<script>
+test(() => {
+    const input = document.getElementById("input");
+    const shadowValues = () => {
+        const values = [];
+        for (const element of internals.getShadowRoot(input).querySelectorAll("*"))
+            values.push(`'${getComputedStyle(element).getPropertyValue("--probe")}'`);
+        return values.join(" ");
+    };
+    println(`input before: '${getComputedStyle(input).getPropertyValue("--probe")}'`);
+    input.disabled = true;
+    println(`input after: '${getComputedStyle(input).getPropertyValue("--probe")}'`);
+    println(`shadow tree after: ${shadowValues()}`);
+    input.disabled = false;
+    println(`shadow tree after restoration: ${shadowValues()}`);
+});
+</script>
