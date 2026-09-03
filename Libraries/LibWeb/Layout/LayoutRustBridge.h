@@ -75,3 +75,4 @@ extern "C" WEB_API size_t ladybird_layout_text_node_dom_offset_for_rendered_text
 extern "C" WEB_API size_t ladybird_layout_text_node_rendered_text_offset_for_dom_offset(void*, size_t, bool use_end_boundary);
 
 extern "C" WEB_API void ladybird_layout_node_shell_release(void*);
+extern "C" WEB_API void ladybird_layout_node_shell_destroy(void*);
