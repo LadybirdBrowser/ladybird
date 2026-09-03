@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['box-decoration-break'] = "auto" should not set the property value
+Pass	e.style['box-decoration-break'] = "slice clone" should not set the property value

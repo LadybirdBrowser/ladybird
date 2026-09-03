@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['column-fill'] = "none" should not set the property value
+Pass	e.style['column-fill'] = "auto balance" should not set the property value

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	e.style['column-fill'] = "auto" should set the property value
+Pass	e.style['column-fill'] = "balance" should set the property value
+Pass	e.style['column-fill'] = "balance-all" should set the property value
