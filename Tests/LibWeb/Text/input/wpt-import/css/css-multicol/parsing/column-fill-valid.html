@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Multi-column Layout: parsing column-fill with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#propdef-column-fill">
+<meta name="assert" content="column-fill supports the full grammar 'auto | balance | balance-all'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("column-fill", "auto");
+test_valid_value("column-fill", "balance");
+test_valid_value("column-fill", "balance-all");
+</script>
+</body>
+</html>

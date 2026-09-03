@@ -1368,6 +1368,16 @@
     ],
     "needs-layout-for-getcomputedstyle": true
   },
+  "box-decoration-break": {
+    "style-group": "MiscResetValues",
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "slice",
+    "requires-computation": "never",
+    "valid-types": [
+      "box-decoration-break"
+    ]
+  },
   "box-shadow": {
     "style-group": "EffectsValues",
     "affects-layout": false,
@@ -1566,6 +1576,16 @@
     ],
     "valid-identifiers": [
       "auto"
+    ]
+  },
+  "column-fill": {
+    "style-group": "MiscResetValues",
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "balance",
+    "requires-computation": "never",
+    "valid-types": [
+      "column-fill"
     ]
   },
   "column-gap": {

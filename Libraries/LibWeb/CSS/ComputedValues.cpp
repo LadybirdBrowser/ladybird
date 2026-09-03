@@ -232,6 +232,8 @@ static void register_style_group_field_descriptors()
     add(misc_reset, PropertyID::BreakBefore, offsetof(MiscReset, break_before), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_break_between>());
     add(misc_reset, PropertyID::BreakAfter, offsetof(MiscReset, break_after), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_break_between>());
     add(misc_reset, PropertyID::BreakInside, offsetof(MiscReset, break_inside), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_break_inside>());
+    add(misc_reset, PropertyID::BoxDecorationBreak, offsetof(MiscReset, box_decoration_break), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_box_decoration_break>());
+    add(misc_reset, PropertyID::ColumnFill, offsetof(MiscReset, column_fill), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_column_fill>());
     // NB: The compatibility keywords normalize to auto for the appearance field but stay raw for
     //     computed_appearance, which the plain enum-keyword decode cannot express: the core's
     //     misc-reset build lowers both fields, and the descriptor only constrains the generic

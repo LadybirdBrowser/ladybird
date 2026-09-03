@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fragmentation Module Level 3: parsing box-decoration-break with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-break/#propdef-box-decoration-break">
+<meta name="assert" content="box-decoration-break supports the full grammar 'slice | clone'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("box-decoration-break", "slice");
+test_valid_value("box-decoration-break", "clone");
+</script>
+</body>
+</html>

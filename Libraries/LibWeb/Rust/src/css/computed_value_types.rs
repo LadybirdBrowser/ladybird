@@ -279,6 +279,8 @@ pub struct MiscResetValues {
     pub break_before: u8,
     pub break_after: u8,
     pub break_inside: u8,
+    pub box_decoration_break: u8,
+    pub column_fill: u8,
     pub appearance: u8,
     pub computed_appearance: u8,
     pub outline_style: u8,
