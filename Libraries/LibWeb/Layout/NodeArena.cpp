@@ -5,6 +5,7 @@
  */
 
 #include <AK/Assertions.h>
+#include <LibWeb/DOM/Node.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/NodeArena.h>
@@ -46,6 +47,13 @@ u64 NodeArena::table_cell_measurement_cache_miss_count() const
 u64 NodeArena::intrinsic_measurement_count() const
 {
     return RustFFI::layout_arena_intrinsic_measurement_count(m_handle);
+}
+
+void NodeArena::visit_dom_nodes(GC::Cell::Visitor& visitor) const
+{
+    RustFFI::layout_arena_visit_dom_nodes(m_handle, &visitor, [](void* visitor_pointer, void* dom_node_pointer) {
+        static_cast<GC::Cell::Visitor*>(visitor_pointer)->visit(static_cast<DOM::Node*>(dom_node_pointer));
+    });
 }
 
 bool destroy_layout_subtree(Node& node)
