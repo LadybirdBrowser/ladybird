@@ -13,6 +13,8 @@
 
 namespace Media::FFmpeg {
 
+static constexpr size_t MAXIMUM_REFERENCE_ONLY_FRAMES_IN_FLIGHT = 64;
+
 Optional<DecoderCapabilities> FFmpegVideoDecoder::capabilities(ParsedCodec const& codec)
 {
     if (track_type_from_codec_id(codec.codec_id()) != TrackType::Video)
@@ -114,7 +116,7 @@ FFmpegVideoDecoder::~FFmpegVideoDecoder()
     avcodec_free_context(&m_codec_context);
 }
 
-DecoderErrorOr<void> FFmpegVideoDecoder::receive_coded_data(CodedFrame const& coded_frame)
+DecoderErrorOr<void> FFmpegVideoDecoder::receive_coded_data(CodedFrame const& coded_frame, DecodeIntent intent)
 {
     auto coded_data = coded_frame.data();
     VERIFY(coded_data.size() < NumericLimits<int>::max());
@@ -124,6 +126,15 @@ DecoderErrorOr<void> FFmpegVideoDecoder::receive_coded_data(CodedFrame const& co
     m_packet->pts = coded_frame.presentation_timestamp().to_microseconds();
     m_packet->dts = coded_frame.decode_timestamp().to_microseconds();
     m_packet->duration = coded_frame.duration().to_microseconds();
+
+    if (intent == DecodeIntent::Reference) {
+        if (m_reference_only_presentation_timestamps.size() >= MAXIMUM_REFERENCE_ONLY_FRAMES_IN_FLIGHT) {
+            dbgln("FFmpegVideoDecoder: {} reference-only frames were never output, so they will no longer be suppressed", m_reference_only_presentation_timestamps.size());
+            m_reference_only_presentation_timestamps.clear();
+        } else {
+            DECODER_TRY_ALLOC(m_reference_only_presentation_timestamps.try_set(m_packet->pts));
+        }
+    }
 
     ScopeGuard clear_packet_side_data { [&] { av_packet_free_side_data(m_packet); } };
     auto new_codec_configuration = coded_frame.new_codec_configuration();
@@ -160,11 +171,13 @@ void FFmpegVideoDecoder::signal_end_of_stream()
 
 DecoderErrorOr<VideoFrameMetadata> FFmpegVideoDecoder::peek_next_output(CodingIndependentCodePoints const& container_cicp)
 {
-    if (!m_has_pending_frame) {
+    while (!m_has_pending_frame) {
         auto result = avcodec_receive_frame(m_codec_context, m_frame);
 
         switch (result) {
         case 0:
+            if (m_reference_only_presentation_timestamps.remove(m_frame->pts))
+                continue;
             m_has_pending_frame = true;
             break;
         case AVERROR(EAGAIN):
@@ -291,6 +304,7 @@ void FFmpegVideoDecoder::flush()
 {
     avcodec_flush_buffers(m_codec_context);
     m_has_pending_frame = false;
+    m_reference_only_presentation_timestamps.clear();
 }
 
 }

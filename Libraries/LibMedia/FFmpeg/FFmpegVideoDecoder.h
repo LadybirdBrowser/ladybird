@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/HashTable.h>
 #include <LibMedia/CodecID.h>
 #include <LibMedia/CodecParameters.h>
 #include <LibMedia/DecoderCapabilities.h>
@@ -23,7 +24,7 @@ public:
     FFmpegVideoDecoder(AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame);
     virtual ~FFmpegVideoDecoder() override;
 
-    virtual DecoderErrorOr<void> receive_coded_data(CodedFrame const&) override;
+    virtual DecoderErrorOr<void> receive_coded_data(CodedFrame const&, DecodeIntent) override;
     virtual void signal_end_of_stream() override;
     virtual DecoderErrorOr<VideoFrameMetadata> peek_next_output(CodingIndependentCodePoints const& container_cicp) override;
     virtual DecoderErrorOr<void> take_next_output_into(Gfx::YUVData&) override;
@@ -35,6 +36,8 @@ private:
     AVPacket* m_packet;
     AVFrame* m_frame;
     bool m_has_pending_frame { false };
+
+    HashTable<i64> m_reference_only_presentation_timestamps;
 };
 
 }
