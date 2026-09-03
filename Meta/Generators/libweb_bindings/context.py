@@ -310,6 +310,27 @@ def merge_interface_members(target: Interface, source: Interface) -> None:
     target.iterable = target.iterable or source.iterable
 
 
+def merge_partial_interface_extended_attributes(target: Interface, partial_interface: Interface) -> Interface:
+    # https://webidl.spec.whatwg.org/#LegacyOverrideBuiltIns
+    # [LegacyOverrideBuiltIns] on a partial interface is considered to appear on the interface itself, and must be on
+    # the partial that defines the named property getter. It is not a member-level attribute, so it is lifted onto
+    # the merged interface rather than propagated onto the partial's members.
+    if "LegacyOverrideBuiltIns" not in partial_interface.extended_attributes:
+        return partial_interface
+
+    if partial_interface.named_property_getter is None:
+        raise RuntimeError(
+            f"[LegacyOverrideBuiltIns] on partial interface '{target.name}' must be on the partial interface that "
+            "defines the named property getter"
+        )
+
+    target.extended_attributes["LegacyOverrideBuiltIns"] = ""
+
+    member_extended_attributes = dict(partial_interface.extended_attributes)
+    del member_extended_attributes["LegacyOverrideBuiltIns"]
+    return replace(partial_interface, extended_attributes=member_extended_attributes)
+
+
 def merge_interface(
     interface: Interface,
     partial_interfaces: list[Interface],
@@ -323,6 +344,7 @@ def merge_interface(
     for partial_interface in partial_interfaces:
         if partial_interface.extended_attributes.get("Exposed") == "Nobody":
             continue
+        partial_interface = merge_partial_interface_extended_attributes(merged_interface, partial_interface)
         merge_interface_members(merged_interface, partial_interface)
 
     for included_mixin in included_mixins:
@@ -351,6 +373,7 @@ def copy_interface(interface: Interface) -> Interface:
         constants=list(interface.constants),
         regular_attributes=list(interface.regular_attributes),
         static_attributes=list(interface.static_attributes),
+        extended_attributes=dict(interface.extended_attributes),
         regular_operations=list(interface.regular_operations),
         static_operations=list(interface.static_operations),
         constructors=list(interface.constructors),
