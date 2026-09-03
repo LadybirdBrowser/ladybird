@@ -98,6 +98,7 @@ public:
     [[nodiscard]] StyleRecordDelta publish_computed_groups(StyleNodeID node, u8 pseudo_kind, ReadonlySpan<void const*> payloads, size_t inherited_group_count, u64 custom_property_environment, bool inherited_group_swap_candidate, u64 counter_style_environment_identity, u64 animation_overlay_identity, void const* animated_overlay, ReadonlySpan<void const*> animation_overlay_payloads, void const* computed_longhand_table, void const* custom_property_store);
     [[nodiscard]] Optional<StyleRecordDelta> publish_animation_overlay(StyleNodeID node, u8 pseudo_kind, u64 animation_overlay_identity, void const* animated_overlay, ReadonlySpan<void const*> payloads);
     [[nodiscard]] StyleRecordDelta assign_shared_style_record(StyleNodeID node, u8 pseudo_kind, StyleRecordID style_record, bool inherited_group_swap_eligible);
+    [[nodiscard]] Optional<StyleRecordDelta> reaffirm_style_record(StyleNodeID node, u8 pseudo_kind);
     // The borrowed payload array is stable while a base record exists or an animation-overlay
     // generation remains assigned or pinned.
     [[nodiscard]] void const* style_record_payloads(StyleRecordID style_record) const;

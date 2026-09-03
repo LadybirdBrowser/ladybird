@@ -2109,29 +2109,8 @@ impl StyleEngine {
                 inherited_group_swap_eligible,
             )
             .expect("a shared style record must name a live base record");
-        if let Some((current_generation, current_cascade_state)) = current_cascade_state {
-            let previous_cascade_state = self
-                .computed_group_sets
-                .bind_cascade_state(target, (current_generation, current_cascade_state))
-                .and_then(|(previous_generation, previous_state)| {
-                    (previous_generation == current_generation).then_some(previous_state)
-                });
-            let delta = self
-                .winner_groups
-                .semantic_delta(previous_cascade_state, current_cascade_state);
-            if delta.is_empty() {
-                self.counters.bump(Counter::CascadeWinnerDeltaStops);
-            } else {
-                self.counters
-                    .add(Counter::CascadeWinnerDeltaProperties, delta.properties().len() as u64);
-                self.counters.add(
-                    Counter::ComputedWinnerDeltaPropertiesConsumed,
-                    delta.properties().len() as u64,
-                );
-                if !publication.node_handle_changed {
-                    self.counters.bump(Counter::ComputedWinnerPropagationStops);
-                }
-            }
+        if let Some(current_cascade_state) = current_cascade_state {
+            self.bind_published_cascade_state(target, current_cascade_state, publication.node_handle_changed);
         } else {
             self.computed_group_sets.clear_cascade_state(target);
         }
@@ -2299,6 +2278,74 @@ impl StyleEngine {
         self.computed_group_sets.unpin_style_record(style_record);
     }
 
+    /// Keep the style record already assigned to a target whose recomputation its input record
+    /// answered. Returns nothing when the target has no assignment or recording is active, so the
+    /// caller publishes the style in full instead.
+    pub(crate) fn reaffirm_style_record(
+        &mut self,
+        target: computed::ComputedStyleTarget,
+    ) -> Option<computed::FinalStyleRecordID> {
+        if self.recording_id().is_some() {
+            return None;
+        }
+        let style_record = self.computed_group_sets.assigned_final_style_record(target)?;
+        if let Some(current_cascade_state) = self.computed_group_sets.take_pending_cascade_state(target) {
+            self.bind_published_cascade_state(target, current_cascade_state, false);
+            let view = self
+                .computed_group_sets
+                .style_record_view(style_record.raw())
+                .expect("an assigned style record must be live");
+            let is_base_record = view.animation_overlay_identity == 0;
+            let pseudo_styles = view.pseudo_element_styles;
+            if let Some(custom_property_environment) = self
+                .computed_group_sets
+                .custom_property_environment_identity(target.node())
+            {
+                self.remember_cold_record_candidate(
+                    target,
+                    current_cascade_state,
+                    custom_property_environment,
+                    pseudo_styles,
+                    Some(style_record),
+                    style_record,
+                    is_base_record,
+                );
+            }
+        }
+        self.counters.bump(Counter::StyleRecordsReaffirmed);
+        Some(style_record)
+    }
+
+    fn bind_published_cascade_state(
+        &mut self,
+        target: computed::ComputedStyleTarget,
+        (current_generation, current_cascade_state): (u64, CascadeStateID),
+        node_handle_changed: bool,
+    ) {
+        let previous_cascade_state = self
+            .computed_group_sets
+            .bind_cascade_state(target, (current_generation, current_cascade_state))
+            .and_then(|(previous_generation, previous_state)| {
+                (previous_generation == current_generation).then_some(previous_state)
+            });
+        let delta = self
+            .winner_groups
+            .semantic_delta(previous_cascade_state, current_cascade_state);
+        if delta.is_empty() {
+            self.counters.bump(Counter::CascadeWinnerDeltaStops);
+            return;
+        }
+        self.counters
+            .add(Counter::CascadeWinnerDeltaProperties, delta.properties().len() as u64);
+        self.counters.add(
+            Counter::ComputedWinnerDeltaPropertiesConsumed,
+            delta.properties().len() as u64,
+        );
+        if !node_handle_changed {
+            self.counters.bump(Counter::ComputedWinnerPropagationStops);
+        }
+    }
+
     pub(super) fn publish_computed_groups_impl(
         &mut self,
         target: Option<computed::ComputedStyleTarget>,
@@ -2326,39 +2373,18 @@ impl StyleEngine {
         {
             self.refresh_root_font_metrics_from_record(publication.style_record_identity);
         }
-        if let Some((current_generation, current_cascade_state)) = current_cascade_state {
+        if let Some(current_cascade_state) = current_cascade_state {
             let target = target.expect("only a target has pending cascade state");
-            let previous_cascade_state = self
-                .computed_group_sets
-                .bind_cascade_state(target, (current_generation, current_cascade_state))
-                .and_then(|(previous_generation, previous_state)| {
-                    (previous_generation == current_generation).then_some(previous_state)
-                });
+            self.bind_published_cascade_state(target, current_cascade_state, publication.node_handle_changed);
             self.remember_cold_record_candidate(
                 target,
-                (current_generation, current_cascade_state),
+                current_cascade_state,
                 custom_property_environment,
                 pseudo_styles,
                 publication.previous_style_record_identity,
                 publication.style_record_identity,
                 is_base_record,
             );
-            let delta = self
-                .winner_groups
-                .semantic_delta(previous_cascade_state, current_cascade_state);
-            if delta.is_empty() {
-                self.counters.bump(Counter::CascadeWinnerDeltaStops);
-            } else {
-                self.counters
-                    .add(Counter::CascadeWinnerDeltaProperties, delta.properties().len() as u64);
-                self.counters.add(
-                    Counter::ComputedWinnerDeltaPropertiesConsumed,
-                    delta.properties().len() as u64,
-                );
-                if !publication.node_handle_changed {
-                    self.counters.bump(Counter::ComputedWinnerPropagationStops);
-                }
-            }
         } else if let Some(target) = target {
             self.computed_group_sets.clear_cascade_state(target);
         }

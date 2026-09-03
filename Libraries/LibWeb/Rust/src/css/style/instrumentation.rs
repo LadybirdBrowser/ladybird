@@ -244,6 +244,7 @@ define_counters! {
     StyleRecordNodeHandlesPublished => "styleRecordNodeHandlesPublished",
     StyleRecordsInterned => "styleRecordsInterned",
     StyleRecordsReused => "styleRecordsReused",
+    StyleRecordsReaffirmed => "styleRecordsReaffirmed",
     AnimationOverlaySlotsAllocated => "animationOverlaySlotsAllocated",
     AnimationOverlaySlotsReleased => "animationOverlaySlotsReleased",
     AnimationOverlayRecordsUpdated => "animationOverlayRecordsUpdated",

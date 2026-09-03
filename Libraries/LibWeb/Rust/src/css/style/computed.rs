@@ -885,6 +885,14 @@ impl ComputedGroupSets {
         Some(self.final_style_record(style_record, self.columns.animation_overlay_slot(index)))
     }
 
+    pub(super) fn assigned_final_style_record(&self, target: ComputedStyleTarget) -> Option<FinalStyleRecordID> {
+        if !target.is_pseudo() {
+            return self.assigned_style_record(target.node);
+        }
+        let assignment = self.pseudo_row(target.node, target.pseudo_kind)?.assignment?;
+        Some(self.final_style_record(assignment.style_record, assignment.animation_overlay_slot))
+    }
+
     pub(super) fn viewport_dependent_nodes(&self) -> Vec<u32> {
         let depends_on_viewport = |fixed_metadata: ComputedFixedMetadataID| {
             self.computed_fixed_metadata.get(fixed_metadata).dependency_flags & 1 != 0

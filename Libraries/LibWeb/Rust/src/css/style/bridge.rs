@@ -2572,6 +2572,35 @@ pub unsafe extern "C" fn style_engine_publish_animation_overlay(
     }
 }
 
+/// Keeps the style record already assigned to one element or pseudo-element, for a recomputation
+/// its input record answered. Returns an empty delta when nothing is assigned or recording is
+/// active, so the caller publishes the style in full instead.
+///
+/// # Safety
+/// `engine` must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_reaffirm_style_record(
+    engine: *mut c_void,
+    node: u32,
+    pseudo_kind: u8,
+) -> FfiStyleRecordDelta {
+    if engine.is_null() || node == 0 {
+        return FfiStyleRecordDelta::default();
+    }
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let target = super::computed::ComputedStyleTarget::new(
+        StyleNodeID::from_raw(node).expect("a nonzero node must be a style node"),
+        pseudo_kind,
+    );
+    let Some(style_record) = engine.reaffirm_style_record(target) else {
+        return FfiStyleRecordDelta::default();
+    };
+    FfiStyleRecordDelta {
+        old_style_record: style_record.raw(),
+        new_style_record: style_record.raw(),
+    }
+}
+
 /// Assigns an already-interned base style record to one element or pseudo-element.
 /// Returns an empty delta when recording is active so the caller can use the fully recorded
 /// publication path instead.
