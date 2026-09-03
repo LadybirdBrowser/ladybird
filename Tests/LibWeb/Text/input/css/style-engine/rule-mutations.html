@@ -105,8 +105,9 @@
             sheet.deleteRule(1);
         });
 
-        // Importance is a cascade fact, not a selector one. With no competing declaration,
-        // changing it leaves the exact cascade output unchanged and publishes no reaction.
+        // Importance is a cascade fact, not a selector one, and it is part of the winner even with
+        // no competing declaration, since an important declaration outranks an animation where an
+        // ordinary one does not.
         plan("make a rule's declaration important", () => sheet.cssRules[0].style.setProperty("color", "teal", "important"));
         plan("make it normal again", () => sheet.cssRules[0].style.setProperty("color", "teal", ""));
 

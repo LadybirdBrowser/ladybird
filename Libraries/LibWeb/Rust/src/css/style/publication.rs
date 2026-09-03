@@ -430,7 +430,7 @@ impl StyleEngine {
         let had_previous = context.0.is_some();
         let exact_winners = store
             .winning_declarations()
-            .map(|(property, value_pointer, origin)| {
+            .map(|(property, value_pointer, origin, important)| {
                 let value = unsafe { self.intern_exact_specified_value(value_pointer) };
                 (
                     property,
@@ -443,6 +443,7 @@ impl StyleEngine {
                             CascadeOrigin::Transition => 2,
                             _ => 0,
                         },
+                        important,
                     },
                 )
             })

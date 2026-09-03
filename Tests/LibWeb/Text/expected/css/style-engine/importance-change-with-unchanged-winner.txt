@@ -1,0 +1,3 @@
+declared: rgb(255, 0, 0)
+declared important: rgb(0, 128, 0)
+declared again: rgb(255, 0, 0)
