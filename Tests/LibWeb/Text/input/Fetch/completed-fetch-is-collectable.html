@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Once a fetch has completed, nothing native may keep its Response alive: the network request's callbacks root
+    // the fetch's objects, and those objects hold the request, so the request has to let go of its callbacks.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const url = await server.createEcho("GET", "/completed-fetch-is-collectable", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "text/plain",
+            },
+            body: "done",
+        });
+
+        const weakResponses = [];
+        await (async () => {
+            for (let i = 0; i < 5; i++) {
+                // no-store keeps every fetch on the network path rather than the memory cache.
+                const response = await fetch(url, { cache: "no-store" });
+                await response.text();
+                weakResponses.push(new WeakRef(response));
+            }
+        })();
+
+        const maximumGcRoundsWhileRequestTeardownTasksDrain = 100;
+        for (let round = 0; round < maximumGcRoundsWhileRequestTeardownTasksDrain; ++round) {
+            await timeout(0);
+            await internals.gcAsync();
+            if (weakResponses.every(weak => weak.deref() === undefined))
+                break;
+        }
+
+        const collected = weakResponses.filter(weak => weak.deref() === undefined).length;
+        println(`collected ${collected} of ${weakResponses.length} completed responses`);
+    });
+</script>

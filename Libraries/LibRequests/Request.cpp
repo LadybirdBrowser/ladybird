@@ -337,6 +337,7 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
             m_internal_stream_data->read_notifier = nullptr;
             m_internal_stream_data->read_stream = nullptr;
             user_on_finish(m_internal_stream_data->total_size, m_internal_stream_data->timing_info, m_internal_stream_data->network_error);
+            defer_teardown();
         }
     };
 
