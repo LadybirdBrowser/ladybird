@@ -380,6 +380,7 @@ pub struct RecordedExactCascadeWinner {
     pub value: u64,
     pub operator: CascadeOperator,
     pub animation_relevance: u32,
+    pub important: bool,
 }
 
 /// The tree relations of one style node on one side of a mutation. Zero means "no such relation".
@@ -1989,6 +1990,7 @@ pub unsafe extern "C" fn style_engine_publish_exact_cascade_state(
                 CascadeOperator::RevertLayer => 5,
             });
             payload.write_u32(winner.animation_relevance);
+            payload.write_bool(winner.important);
         }
         write_exact_cascade_publication(publication, payload);
         // NB: Whether a previous cascade state was retained decides the publication's group
@@ -2074,6 +2076,7 @@ pub unsafe fn replay_publish_exact_cascade_state(
                     operator: winner.operator,
                     continuation: super::cascade::CascadeContinuationID::default(),
                     animation_relevance: winner.animation_relevance,
+                    important: winner.important,
                 },
             )
         })

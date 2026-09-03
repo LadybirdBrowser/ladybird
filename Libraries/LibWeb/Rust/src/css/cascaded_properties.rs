@@ -348,9 +348,9 @@ impl CascadedPropertyStore {
 
     pub(crate) fn winning_declarations(
         &self,
-    ) -> impl Iterator<Item = (u16, *const StyleValueData, CascadeOrigin)> + '_ {
+    ) -> impl Iterator<Item = (u16, *const StyleValueData, CascadeOrigin, bool)> + '_ {
         self.winning_entries()
-            .map(|(property, entry)| (property, entry.value.pointer(), entry.origin))
+            .map(|(property, entry)| (property, entry.value.pointer(), entry.origin, entry.important))
     }
 
     /// Returns whichever of the two properties has the higher-priority winning
@@ -2091,7 +2091,10 @@ mod tests {
             );
         }
 
-        let properties: Vec<_> = store.winning_declarations().map(|(property, _, _)| property).collect();
+        let properties: Vec<_> = store
+            .winning_declarations()
+            .map(|(property, _, _, _)| property)
+            .collect();
         assert!(properties.windows(2).all(|pair| pair[0] < pair[1]));
     }
 

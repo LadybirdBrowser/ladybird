@@ -221,6 +221,7 @@ pub struct SpecifiedWinnerKey {
     pub continuation: CascadeContinuationID,
     /// Animation and transition relevance for this property.
     pub animation_relevance: u32,
+    pub important: bool,
 }
 
 /// The winning declaration for one property of one style node.
@@ -2065,6 +2066,7 @@ mod tests {
             operator: CascadeOperator::Declared,
             continuation: CascadeContinuationID::default(),
             animation_relevance: 0,
+            important: false,
         }
     }
 
@@ -2293,6 +2295,16 @@ mod tests {
             ..revert
         };
         assert_ne!(revert, deeper);
+    }
+
+    #[test]
+    fn importance_is_part_of_the_specified_key() {
+        let declared = winner_key(1);
+        let important = SpecifiedWinnerKey {
+            important: true,
+            ..declared
+        };
+        assert_ne!(declared, important);
     }
 
     #[test]

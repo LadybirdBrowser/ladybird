@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes red { from, to { color: red; } }
+    #target { animation: red 100s linear; }
+</style>
+<style id="sheet">#target { color: green; }</style>
+<div id="target">x</div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        println(`declared: ${getComputedStyle(target).color}`);
+
+        sheet.textContent = "#target { color: green !important; }";
+        internals.updateStyle();
+        println(`declared important: ${getComputedStyle(target).color}`);
+
+        sheet.textContent = "#target { color: green; }";
+        internals.updateStyle();
+        println(`declared again: ${getComputedStyle(target).color}`);
+    });
+</script>
