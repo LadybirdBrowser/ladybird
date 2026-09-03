@@ -4,6 +4,7 @@ interface WorkerGlobalScope : EventTarget {
     readonly attribute WorkerGlobalScope self;
     readonly attribute WorkerLocation location;
     readonly attribute WorkerNavigator navigator;
+    // FIXME: urls should be (TrustedScriptURL or USVString).
     undefined importScripts(USVString... urls);
 
     attribute OnErrorEventHandler onerror;
