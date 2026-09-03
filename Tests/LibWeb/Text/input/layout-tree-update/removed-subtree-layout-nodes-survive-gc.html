@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"><div id="positioned" style="position: absolute"><img id="img" src="data:,"></div></div>
+<script>
+    asyncTest(done => {
+        document.body.offsetHeight;
+        setTimeout(() => {
+            positioned.remove();
+            internals.gc();
+            document.body.offsetHeight;
+            internals.gc();
+            println("PASS (didn't crash)");
+            done();
+        }, 0);
+    });
+</script>
