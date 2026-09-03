@@ -11,6 +11,7 @@
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
+#include <LibGC/Cell.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 
@@ -35,6 +36,7 @@ public:
     u64 intrinsic_measurement_count() const;
 
     void sync_enrolled_content_for_layout();
+    void visit_dom_nodes(GC::Cell::Visitor&) const;
 
 private:
     void* m_handle { nullptr };

@@ -456,6 +456,7 @@ pub(crate) struct LayoutNodeArena {
     chunks: Vec<Box<Chunk>>,
     chunks_by_address: Vec<ChunkAddress>,
     slot_metadata: Vec<SlotMetadata>,
+    dom_nodes: Vec<*mut c_void>,
     pre_order_labels: Vec<Cell<u64>>,
     pre_order_relabel_count: Cell<u64>,
     free_list: Vec<u32>,
@@ -491,6 +492,7 @@ impl LayoutNodeArena {
             chunks: Vec::new(),
             chunks_by_address: Vec::new(),
             slot_metadata: Vec::new(),
+            dom_nodes: Vec::new(),
             pre_order_labels: Vec::new(),
             pre_order_relabel_count: Cell::new(0),
             free_list: Vec::new(),
@@ -583,6 +585,7 @@ impl LayoutNodeArena {
     // allocate() always hands out clean NodeData without writing it again.
     pub(crate) fn allocate(&mut self, construction_facts: FfiNodeConstructionFacts) -> NodeSlotId {
         let slot = self.allocate_slot();
+        self.dom_nodes[slot.slot_index() as usize] = construction_facts.dom_node;
         let data = self.data_mut(slot.slot_index());
         data.kind.set(construction_facts.kind);
         data.shell.set(construction_facts.shell);
@@ -631,6 +634,7 @@ impl LayoutNodeArena {
                 self.chunks.push(chunk);
             }
             self.slot_metadata.push(SlotMetadata::default());
+            self.dom_nodes.push(std::ptr::null_mut());
             self.pre_order_labels.push(Cell::new(0));
             // Grown with the slot space up front: nearly every slot gets a run
             // record each layout pass, so register() never has to resize.
@@ -724,6 +728,7 @@ impl LayoutNodeArena {
         }
         self.pre_order_labels[index as usize].set(0);
         self.metadata_mut(index).occupied = false;
+        self.dom_nodes[index as usize] = std::ptr::null_mut();
 
         if let Some(slot) = self.intrinsic_size_caches.get_mut().get_mut(index as usize) {
             *slot = IntrinsicSizeCacheSlot::default();
@@ -1966,6 +1971,25 @@ impl LayoutNodeArena {
             .is_some_and(|metadata| metadata.occupied && metadata.generation == id.generation())
     }
 
+    pub(crate) fn visit_dom_nodes(&self, mut visit: impl FnMut(*mut c_void)) {
+        for (metadata, dom_node) in self.slot_metadata.iter().zip(&self.dom_nodes) {
+            if metadata.occupied && !dom_node.is_null() {
+                visit(*dom_node);
+            }
+        }
+    }
+
+    pub(crate) fn node_dom_node(&self, id: NodeSlotId) -> *mut c_void {
+        if !self.slot_is_live(id) {
+            return std::ptr::null_mut();
+        }
+        self.dom_nodes[id.slot_index() as usize]
+    }
+
+    pub(crate) fn live_slot_count(&self) -> u32 {
+        self.live_count
+    }
+
     pub(crate) fn shell_if_live(&self, id: NodeSlotId) -> *mut c_void {
         if !self.slot_is_live(id) {
             return std::ptr::null_mut();
@@ -2153,6 +2177,41 @@ pub unsafe extern "C" fn layout_arena_detach_and_free_subtree(arena: *mut c_void
     let was_attached = unsafe { &*arena }.detach_from_parent(node);
     crate::layout::tree_mutation::free_subtree_and_destroy_shells(arena, node);
     was_attached
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call, and the visitor must not
+/// re-enter the arena.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_visit_dom_nodes(
+    arena: *mut c_void,
+    context: *mut c_void,
+    visit: unsafe extern "C" fn(*mut c_void, *mut c_void),
+) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and
+    // serializes all access on the document thread.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.visit_dom_nodes(|dom_node| {
+        // SAFETY: Guaranteed by the entry point's contract.
+        unsafe { visit(context, dom_node) }
+    });
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_node_dom_node(arena: *mut c_void, node: NodeSlotId) -> *mut c_void {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and
+    // serializes all access on the document thread.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.node_dom_node(node)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_live_slot_count(arena: *mut c_void) -> u32 {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and
+    // serializes all access on the document thread.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.live_slot_count()
 }
 
 #[unsafe(no_mangle)]
@@ -2509,8 +2568,56 @@ mod tests {
         Chunk, IntrinsicBlockSizeMeasurement, IntrinsicInlineSizeMeasurement, IntrinsicSizeCacheKey,
         IntrinsicSizeCacheKind, LayoutNodeArena, SLOTS_PER_CHUNK, TableCellMeasurement, TableCellMeasurementKey,
     };
-    use crate::layout::node_data::{NodeFlag, NodeSlotId};
+    use crate::layout::node_data::{FfiNodeConstructionFacts, NodeFlag, NodeKind, NodeSlotId};
     use crate::layout::{CssPixels, fragment_tree, used_values};
+    use std::ffi::c_void;
+
+    fn test_construction_facts(dom_node: *mut c_void) -> FfiNodeConstructionFacts {
+        FfiNodeConstructionFacts {
+            kind: NodeKind::Box,
+            shell: std::ptr::null_mut(),
+            dom_node,
+            is_anonymous: dom_node.is_null(),
+            is_html_input_element: false,
+            is_html_html_element: false,
+            is_document_element: false,
+            is_in_user_agent_shadow_tree: false,
+            uses_button_layout: false,
+            is_editing_host: false,
+            is_body: false,
+        }
+    }
+
+    #[test]
+    fn dom_nodes_are_reported_only_while_their_slot_is_live() {
+        let mut arena = LayoutNodeArena::new();
+        let mut dom_node_storage = 0u8;
+        let dom_node = std::ptr::from_mut(&mut dom_node_storage).cast::<c_void>();
+        let anonymous = arena.allocate(test_construction_facts(std::ptr::null_mut()));
+        let element = arena.allocate(test_construction_facts(dom_node));
+        assert!(arena.node_dom_node(anonymous).is_null());
+        assert_eq!(arena.node_dom_node(element), dom_node);
+        let mut visited = Vec::new();
+        arena.visit_dom_nodes(|node| visited.push(node));
+        assert_eq!(visited, vec![dom_node]);
+        assert_eq!(arena.live_slot_count(), 2);
+
+        arena.free_subtree(element).destroy_shells_and_invoke_callbacks();
+        assert!(arena.node_dom_node(element).is_null());
+        let reoccupant = arena.allocate_for_test();
+        assert_eq!(reoccupant.slot.slot_index(), element.slot_index());
+        assert!(arena.node_dom_node(element).is_null());
+        assert!(arena.node_dom_node(reoccupant.slot).is_null());
+        visited.clear();
+        arena.visit_dom_nodes(|node| visited.push(node));
+        assert!(visited.is_empty());
+
+        arena.free_subtree(anonymous).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(reoccupant.slot)
+            .destroy_shells_and_invoke_callbacks();
+        assert_eq!(arena.live_slot_count(), 0);
+    }
 
     fn test_fragment_link(node: NodeSlotId) -> fragment_tree::FragmentLink {
         fragment_tree::FragmentLink {

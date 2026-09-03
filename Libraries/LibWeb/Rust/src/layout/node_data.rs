@@ -187,6 +187,7 @@ pub enum FfiNodeLink {
 pub struct FfiNodeConstructionFacts {
     pub kind: NodeKind,
     pub shell: *mut c_void,
+    pub dom_node: *mut c_void,
     pub is_anonymous: bool,
     pub is_html_input_element: bool,
     pub is_html_html_element: bool,

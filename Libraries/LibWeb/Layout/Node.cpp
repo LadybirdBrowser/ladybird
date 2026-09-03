@@ -45,6 +45,7 @@ static RustFFI::FfiNodeConstructionFacts build_node_construction_facts(DOM::Docu
     return {
         .kind = kind,
         .shell = shell,
+        .dom_node = node.ptr(),
         .is_anonymous = node == nullptr,
         .is_html_input_element = node && is<HTML::HTMLInputElement>(*node),
         .is_html_html_element = node && node->is_html_html_element(),
