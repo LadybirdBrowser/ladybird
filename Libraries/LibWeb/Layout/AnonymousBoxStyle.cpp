@@ -50,7 +50,7 @@ static CSS::StyleRecordID intern_and_pin_anonymous_box_style(CSS::StyleComputer 
     return style_record;
 }
 
-CSS::StyleRecordID derive_pinned_anonymous_box_style_record(CSS::StyleComputer const& style_computer, CSS::StyleRecordID parent_style_record, AnonymousBoxStyleKind kind, AnonymousBoxStyleOverrides const& overrides)
+CSS::StyleRecordID derive_pinned_anonymous_box_style_record(CSS::StyleComputer const& style_computer, CSS::StyleRecordID parent_style_record, RustFFI::FfiAnonymousStyleKind kind, RustFFI::FfiAnonymousStyleOverrides const& overrides)
 {
     auto parent_values = style_computer.computed_style_record_view(parent_style_record);
     VERIFY(parent_values);
@@ -59,46 +59,46 @@ CSS::StyleRecordID derive_pinned_anonymous_box_style_record(CSS::StyleComputer c
         ? CSS::Display::from_short(CSS::Display::Short::InlineBlock)
         : CSS::Display(CSS::DisplayOutside::Block, CSS::DisplayInside::Flow);
     switch (kind) {
-    case AnonymousBoxStyleKind::Wrapper:
+    case RustFFI::FfiAnonymousStyleKind::Wrapper:
         builder->set_display(block_flow_or_inline_block);
         break;
-    case AnonymousBoxStyleKind::TableRow:
+    case RustFFI::FfiAnonymousStyleKind::TableRow:
         builder->set_display(CSS::Display { CSS::DisplayInternal::TableRow });
         break;
-    case AnonymousBoxStyleKind::TableCell:
+    case RustFFI::FfiAnonymousStyleKind::TableCell:
         builder->set_display(CSS::Display { CSS::DisplayInternal::TableCell });
         break;
-    case AnonymousBoxStyleKind::Table:
+    case RustFFI::FfiAnonymousStyleKind::Table:
         builder->set_display(CSS::Display::from_short(CSS::Display::Short::Table));
         break;
-    case AnonymousBoxStyleKind::InlineTable:
+    case RustFFI::FfiAnonymousStyleKind::InlineTable:
         builder->set_display(CSS::Display::from_short(CSS::Display::Short::InlineTable));
         break;
-    case AnonymousBoxStyleKind::MissingTableCell:
+    case RustFFI::FfiAnonymousStyleKind::MissingTableCell:
         builder->set_display(CSS::Display { CSS::DisplayInternal::TableCell });
         // Ensure that the cell (with zero content height) will have the same height as the row by setting vertical-align to middle.
         builder->set_vertical_align(CSS::VerticalAlign::Middle);
         break;
-    case AnonymousBoxStyleKind::TableWrapper:
+    case RustFFI::FfiAnonymousStyleKind::TableWrapper:
         transfer_table_box_style_to_wrapper(*parent_values, builder);
         break;
-    case AnonymousBoxStyleKind::ButtonFlexWrapper:
+    case RustFFI::FfiAnonymousStyleKind::ButtonFlexWrapper:
         // A full-height flex column that centers the button contents vertically.
         builder->set_display(CSS::Display { CSS::DisplayOutside::Block, CSS::DisplayInside::Flex });
         builder->set_justify_content(CSS::JustifyContent::Center);
         builder->set_flex_direction(CSS::FlexDirection::Column);
         builder->set_height(CSS::Size::make_percentage(CSS::Percentage(100)));
         break;
-    case AnonymousBoxStyleKind::ButtonContentBox:
+    case RustFFI::FfiAnonymousStyleKind::ButtonContentBox:
         // Let percentage-sized descendants shrink to fixed-height buttons instead of the flex
         // item's automatic minimum size.
         builder->set_display(block_flow_or_inline_block);
         builder->set_min_height(CSS::Size::make_px(CSSPixels(0)));
         break;
-    case AnonymousBoxStyleKind::FieldsetContentWrapper:
+    case RustFFI::FfiAnonymousStyleKind::FieldsetContentWrapper:
         builder->set_display(CSS::Display::from_short(CSS::Display::Short::FlowRoot));
-        builder->set_overflow_x(overrides.overflow_x);
-        builder->set_overflow_y(overrides.overflow_y);
+        builder->set_overflow_x(static_cast<CSS::Overflow>(overrides.overflow_x));
+        builder->set_overflow_y(static_cast<CSS::Overflow>(overrides.overflow_y));
         break;
     }
     return intern_and_pin_anonymous_box_style(style_computer, move(builder));

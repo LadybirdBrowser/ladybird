@@ -71,6 +71,16 @@ Node::Node(DOM::Document& document, GC::Ptr<DOM::Node> node, RustFFI::NodeKind k
         node->set_layout_node({}, *this);
 }
 
+Node::Node(DOM::Document& document, BindToPreparedArenaSlot, RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
+    : m_arena(document.layout_node_arena())
+    , m_slot(slot)
+    , m_kind(kind)
+{
+    VERIFY(RustFFI::layout_arena_node_dom_node(m_arena->handle(), m_slot) == nullptr);
+    RustFFI::layout_arena_attach_shell(m_arena->handle(), m_slot, this);
+    update_has_scroll_offset_flag();
+}
+
 Node::~Node()
 {
     VERIFY(m_arena_is_destroying_shell);
@@ -322,7 +332,6 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, GC::Ptr<DOM::Node> node, C
     VERIFY(style);
     if (!!style.style_record_identity()) {
         m_style_record_identity = style.style_record_identity();
-        m_style_record_pinned = style.adopts_style_record_pin();
     } else if (auto* element = as_if<DOM::Element>(node.ptr())) {
         m_owned_computed_values = style.values();
         m_style_record_identity = document.style_computer().intern_computed_style_inputs({ *element }, *style.values());
@@ -330,6 +339,21 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, GC::Ptr<DOM::Node> node, C
         m_owned_computed_values = style.values();
         m_style_record_identity = document.style_computer().intern_anonymous_layout_style(*style.values());
     }
+    initialize_from_style_record();
+    if (m_owned_computed_values)
+        pin_style_record_for_cxx_consumers();
+}
+
+NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bind, RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
+    : Node(document, bind, slot, kind)
+{
+    m_style_record_identity = CSS::StyleRecordID { RustFFI::layout_arena_node_style_record(arena_handle(), slot) };
+    VERIFY(m_style_record_identity);
+    initialize_from_style_record();
+}
+
+void NodeWithStyle::initialize_from_style_record()
+{
     // NB: Nodes constructed from an interned style record own no ComputedValues; read anchor names through the record view there.
     bool has_anchor_names = false;
     bool insets_use_anchor_functions = false;
@@ -346,8 +370,6 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, GC::Ptr<DOM::Node> node, C
     publish_style_record_to_node_data();
     set_flag(RustFFI::NodeFlag::HasPreserve3dTransformStyle, transform_style() == CSS::TransformStyle::Preserve3d);
     synchronize_table_span_data();
-    if (m_owned_computed_values)
-        pin_style_record_for_cxx_consumers();
 }
 
 CSS::ComputedValues const& NodeWithStyle::owned_computed_values() const
@@ -540,7 +562,7 @@ void NodeWithStyle::propagate_style_to_anonymous_wrappers()
     // If this is a `display:table` box with an anonymous wrapper parent,
     // the parent inherits style from *this* node, not the other way around.
     if (auto* table_wrapper = parent() && parent()->is_table_wrapper() ? parent() : nullptr; table_wrapper && display().is_table_inside()) {
-        table_wrapper->adopt_pinned_anonymous_style_record(derive_pinned_anonymous_box_style_record(document().style_computer(), m_style_record_identity, AnonymousBoxStyleKind::TableWrapper));
+        table_wrapper->adopt_pinned_anonymous_style_record(derive_pinned_anonymous_box_style_record(document().style_computer(), m_style_record_identity, RustFFI::FfiAnonymousStyleKind::TableWrapper, {}));
         reset_table_box_computed_values_used_by_wrapper_to_init_values();
     }
 
@@ -577,14 +599,13 @@ void NodeWithStyle::adopt_pinned_anonymous_style_record(CSS::StyleRecordID style
         || CSS::ComputedValues::either_carries_animated_overlay(*old_record_view, *new_record_view)
         || new_record_view->differs_in_any_layout_affecting_group_payload_from(*old_record_view);
 
-    release_pinned_style_record();
     m_background_layers.clear();
     m_mask_layers.clear();
     m_border_image.clear();
     m_list_style_type.clear();
     m_list_style_image.clear();
+    RustFFI::layout_arena_replace_arena_pinned_style_record(arena_handle(), slot_id(this), style_record_identity.value(), document().style_computer().style_record_payloads(style_record_identity));
     m_style_record_identity = style_record_identity;
-    m_style_record_pinned = true;
     set_flag(RustFFI::NodeFlag::HasAnchorNames, !new_record_view->anchor_names().is_empty());
     set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, new_record_view->inset_properties_contain_anchor_functions());
     set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, false);
@@ -820,7 +841,7 @@ void NodeWithStyle::publish_style_record_to_node_data()
     auto const* payloads = document().style_computer().style_engine().style_record_payloads(m_style_record_identity);
     VERIFY(payloads);
     m_style_payloads = payloads;
-    RustFFI::layout_arena_set_node_style_payloads(arena_handle(), slot_id(this), payloads);
+    RustFFI::layout_arena_set_node_style(arena_handle(), slot_id(this), m_style_record_identity.value(), payloads);
     if (content_visibility() == CSS::ContentVisibility::Auto)
         document().note_content_visibility_auto_style();
 

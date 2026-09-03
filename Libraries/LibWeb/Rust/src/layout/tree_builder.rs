@@ -7,7 +7,7 @@
 use super::*;
 
 use crate::abort_on_panic;
-use crate::layout::layout_node_arena::LayoutNodeArena;
+use crate::layout::layout_node_arena::{FfiAnonymousStyleKind, FfiAnonymousStyleOverrides, LayoutNodeArena};
 use crate::layout::node_data::{GENERATED_FOR_AFTER, GENERATED_FOR_MARKER, NodeData, NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::tree_mutation::{UnplacedLayoutNode, free_subtree_and_destroy_shells};
 use crate::layout::{ComputedValuesView, FfiDisplay};
@@ -1077,13 +1077,7 @@ unsafe fn update_principal_node_descendants(
                     // anonymous BlockContainer so that a BFC handles their layout.
                     let first_child = layout_host.first_child(layout_node);
                     if first_child.is_invalid() || !node_has_flag(layout_host.data(first_child), NodeFlag::Anonymous) {
-                        // SAFETY: `layout_node` is a live NodeWithStyle.
-                        let wrapper = layout_host.created(unsafe {
-                            (layout_host.callbacks.create_anonymous_wrapper)(
-                                layout_host.callbacks.context,
-                                layout_host.shell(layout_node),
-                            )
-                        });
+                        let wrapper = layout_host.create_anonymous_wrapper_box(layout_node);
                         layout_host.attach_child(state.current_parent(), wrapper, NodeSlotId::INVALID);
                     }
                     let wrapper = layout_host.first_child(layout_node);
@@ -2254,25 +2248,16 @@ pub(crate) enum FfiInsertionMode {
 }
 
 #[repr(C)]
-pub struct FfiButtonContentWrappers {
-    pub flex_wrapper: NodeSlotId,
-    pub content_box: NodeSlotId,
-}
-
-#[repr(C)]
 pub struct FfiTreeBuilderCallbacks {
     pub context: *mut c_void,
-    pub create_anonymous_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
-    pub create_anonymous_table_box:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, FfiAnonymousTableBoxKind) -> NodeSlotId,
-    pub create_table_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
-    pub create_missing_table_cell: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
+    pub create_anonymous_shell: unsafe extern "C" fn(*mut c_void, NodeSlotId, NodeKind),
+    pub reset_table_box_style_used_by_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub take_fieldset_overflow_for_content_wrapper:
+        unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiAnonymousStyleOverrides,
     pub prepare_subtree_for_detach: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub text_is_ascii_whitespace: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub prepare_first_letter_text:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut FfiFirstLetterTextCallbacks) -> bool,
-    pub create_button_content_wrappers: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiButtonContentWrappers,
-    pub create_fieldset_content_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2488,6 +2473,41 @@ impl TreeBuilderHost<'_> {
         UnplacedLayoutNode::new(slot)
     }
 
+    fn create_anonymous_box(
+        &self,
+        parent: LayoutNode,
+        style_kind: FfiAnonymousStyleKind,
+        overrides: FfiAnonymousStyleOverrides,
+        node_kind: NodeKind,
+    ) -> UnplacedLayoutNode {
+        let derived =
+            self.arena()
+                .derive_anonymous_style_record(self.arena().node_style_record(parent), style_kind, overrides);
+        // SAFETY: Entry points guarantee that the arena remains live, and callers hold no reference derived from
+        // it across the allocation.
+        let slot = unsafe { &mut *self.arena }.allocate_unbound(std::ptr::null_mut());
+        self.arena().stamp_anonymous_box(slot, node_kind, derived);
+        // SAFETY: `slot` is a live anonymous box that only the builder knows.
+        unsafe { (self.callbacks.create_anonymous_shell)(self.callbacks.context, slot, node_kind) };
+        UnplacedLayoutNode::new(slot)
+    }
+
+    fn anonymous_wrapper_overrides(&self, parent: LayoutNode) -> FfiAnonymousStyleOverrides {
+        FfiAnonymousStyleOverrides {
+            inline_block_wrapper: self.display(parent).is_inline_block() && self.first_child(parent).is_invalid(),
+            ..FfiAnonymousStyleOverrides::default()
+        }
+    }
+
+    fn create_anonymous_wrapper_box(&self, parent: LayoutNode) -> UnplacedLayoutNode {
+        self.create_anonymous_box(
+            parent,
+            FfiAnonymousStyleKind::Wrapper,
+            self.anonymous_wrapper_overrides(parent),
+            NodeKind::BlockContainer,
+        )
+    }
+
     fn attach_child(&self, parent: LayoutNode, child: UnplacedLayoutNode, before: LayoutNode) {
         self.arena().attach_child(parent, child, before);
     }
@@ -2579,10 +2599,13 @@ impl TreeBuilderHost<'_> {
         assert!(!nodes.is_empty());
         let parent = self.parent(nodes[0]);
         assert!(!parent.is_invalid());
-        // SAFETY: `parent` is a live NodeWithStyle.
-        let wrapper = self.created(unsafe {
-            (self.callbacks.create_anonymous_table_box)(self.callbacks.context, self.shell(parent), kind)
-        });
+        let (style_kind, node_kind) = match kind {
+            FfiAnonymousTableBoxKind::TableRow => (FfiAnonymousStyleKind::TableRow, NodeKind::Box),
+            FfiAnonymousTableBoxKind::TableCell => (FfiAnonymousStyleKind::TableCell, NodeKind::BlockContainer),
+            FfiAnonymousTableBoxKind::Table => (FfiAnonymousStyleKind::Table, NodeKind::Box),
+            FfiAnonymousTableBoxKind::InlineTable => (FfiAnonymousStyleKind::InlineTable, NodeKind::Box),
+        };
+        let wrapper = self.create_anonymous_box(parent, style_kind, FfiAnonymousStyleOverrides::default(), node_kind);
         let wrapper_slot = wrapper.slot();
         for &node in nodes {
             self.move_child(node, wrapper_slot, NodeSlotId::INVALID);
@@ -2673,9 +2696,7 @@ fn is_out_of_flow_table_internal_child_of_table_root(
 }
 
 fn create_anonymous_wrapper(host: &TreeBuilderHost<'_>, parent: LayoutNode) -> LayoutNode {
-    // SAFETY: `parent` is a live NodeWithStyle.
-    let wrapper =
-        host.created(unsafe { (host.callbacks.create_anonymous_wrapper)(host.callbacks.context, host.shell(parent)) });
+    let wrapper = host.create_anonymous_wrapper_box(parent);
     let wrapper_slot = wrapper.slot();
     host.attach_child(parent, wrapper, NodeSlotId::INVALID);
     wrapper_slot
@@ -2833,10 +2854,7 @@ fn insertion_parent_for_block_node(
         }
         child = layout.next_sibling(child);
     }
-    // SAFETY: `new_parent` is a live NodeWithStyle.
-    let wrapper = layout.created(unsafe {
-        (layout.callbacks.create_anonymous_wrapper)(layout.callbacks.context, layout.shell(new_parent))
-    });
+    let wrapper = layout.create_anonymous_wrapper_box(new_parent);
     let wrapper_slot = wrapper.slot();
     layout.set_children_are_inline(wrapper_slot, true);
     for child in children_to_wrap {
@@ -3225,11 +3243,18 @@ fn wrap_button_contents_if_needed(host: &TreeBuilderHost<'_>, layout_node: Layou
             child = host.next_sibling(child);
         }
 
-        // SAFETY: `layout_node` is a live NodeWithStyle.
-        let wrappers =
-            unsafe { (host.callbacks.create_button_content_wrappers)(host.callbacks.context, host.shell(layout_node)) };
-        let flex_wrapper = host.created(wrappers.flex_wrapper);
-        let content_box = host.created(wrappers.content_box);
+        let flex_wrapper = host.create_anonymous_box(
+            layout_node,
+            FfiAnonymousStyleKind::ButtonFlexWrapper,
+            FfiAnonymousStyleOverrides::default(),
+            NodeKind::BlockContainer,
+        );
+        let content_box = host.create_anonymous_box(
+            layout_node,
+            FfiAnonymousStyleKind::ButtonContentBox,
+            host.anonymous_wrapper_overrides(layout_node),
+            NodeKind::BlockContainer,
+        );
         let flex_wrapper_slot = flex_wrapper.slot();
         let content_box_slot = content_box.slot();
         host.attach_child(flex_wrapper_slot, content_box, NodeSlotId::INVALID);
@@ -3279,9 +3304,15 @@ fn wrap_fieldset_contents_if_needed(host: &TreeBuilderHost<'_>, layout_node: Lay
         }
 
         // SAFETY: `layout_node` is a live fieldset box.
-        let wrapper = host.created(unsafe {
-            (host.callbacks.create_fieldset_content_wrapper)(host.callbacks.context, host.shell(layout_node))
-        });
+        let overrides = unsafe {
+            (host.callbacks.take_fieldset_overflow_for_content_wrapper)(host.callbacks.context, host.shell(layout_node))
+        };
+        let wrapper = host.create_anonymous_box(
+            layout_node,
+            FfiAnonymousStyleKind::FieldsetContentWrapper,
+            overrides,
+            NodeKind::BlockContainer,
+        );
         let wrapper_slot = wrapper.slot();
         host.attach_child(layout_node, wrapper, NodeSlotId::INVALID);
         for child in children {
@@ -3632,10 +3663,16 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
         let parent = host.parent(table_root);
         assert!(!parent.is_invalid());
         if host.data(parent).kind.get() != NodeKind::TableWrapper {
+            let wrapper = host.create_anonymous_box(
+                table_root,
+                FfiAnonymousStyleKind::TableWrapper,
+                FfiAnonymousStyleOverrides::default(),
+                NodeKind::TableWrapper,
+            );
             // SAFETY: `table_root` is a live table box.
-            let wrapper = host.created(unsafe {
-                (host.callbacks.create_table_wrapper)(host.callbacks.context, host.shell(table_root))
-            });
+            unsafe {
+                (host.callbacks.reset_table_box_style_used_by_wrapper)(host.callbacks.context, host.shell(table_root));
+            }
             let wrapper_slot = wrapper.slot();
             host.move_child(table_root, wrapper_slot, NodeSlotId::INVALID);
             host.attach_child(parent, wrapper, nearest_sibling);
@@ -3654,9 +3691,12 @@ fn fixup_row(
         if table_grid.occupancy.contains(&(column_index, row_index)) {
             continue;
         }
-        // SAFETY: `row` is a live table-row box.
-        let cell = host
-            .created(unsafe { (host.callbacks.create_missing_table_cell)(host.callbacks.context, host.shell(row)) });
+        let cell = host.create_anonymous_box(
+            row,
+            FfiAnonymousStyleKind::MissingTableCell,
+            FfiAnonymousStyleOverrides::default(),
+            NodeKind::BlockContainer,
+        );
         host.arena()
             .set_node_flag(cell.slot(), NodeFlag::IsMissingTableCell, true);
         host.attach_child(row, cell, NodeSlotId::INVALID);

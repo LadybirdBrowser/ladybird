@@ -39,6 +39,10 @@ enum class LayoutUpdatePropagation : u8 {
     BoundarySelfOnly,
 };
 
+enum class BindToPreparedArenaSlot {
+    Yes,
+};
+
 class WEB_API Node : public Weakable<Node> {
 public:
     AK_ALLOC_WITH_KMALLOC_PARTITION(HeapPartition::Layout);
@@ -310,6 +314,7 @@ public:
 
 protected:
     Node(DOM::Document&, GC::Ptr<DOM::Node>, RustFFI::NodeKind, AttachToDOMNode = AttachToDOMNode::Yes);
+    Node(DOM::Document&, BindToPreparedArenaSlot, RustFFI::NodeSlotId, RustFFI::NodeKind);
 
     bool has_flag(RustFFI::NodeFlag flag) const
     {
@@ -364,6 +369,7 @@ T& allocate_layout_node(Args&&... args)
 class WEB_API NodeWithStyle : public Node {
 public:
     NodeWithStyle(DOM::Document&, GC::Ptr<DOM::Node>, CSS::LayoutStyle, RustFFI::NodeKind = RustFFI::NodeKind::NodeWithStyle);
+    NodeWithStyle(DOM::Document&, BindToPreparedArenaSlot, RustFFI::NodeSlotId, RustFFI::NodeKind);
 
     virtual ~NodeWithStyle() override;
 
@@ -663,6 +669,7 @@ private:
     virtual bool is_node_with_style() const final { return true; }
 
     void propagate_style_to_anonymous_wrappers();
+    void initialize_from_style_record();
     void publish_style_record_to_node_data();
 
     void rebuild_image_observers();
