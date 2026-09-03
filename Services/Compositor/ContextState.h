@@ -130,6 +130,7 @@ public:
     bool advance_visual_animations(MonotonicTime now);
     bool has_active_visual_animations() const { return m_has_active_visual_animations; }
     Web::Painting::AccumulatedVisualContextTree const& visual_context_tree_for_testing() const { return current_visual_context_tree(); }
+    Web::Painting::AccumulatedVisualContextTree const& sampled_visual_context_tree_for_testing() { return visual_context_tree_for_compositing(); }
     bool has_sampled_visual_animation_values_for_testing() const { return m_sampled_visual_context_tree.has_value(); }
     u64 visual_context_tree_copy_count_for_testing() const { return m_visual_context_tree_copy_count; }
     Gfx::IntRect caret_damage_rect_for_testing() { return caret_damage_rect(); }

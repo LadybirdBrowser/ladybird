@@ -102,6 +102,18 @@ static bool visual_context_tree_has_active_animation_at(Web::Painting::Accumulat
     });
 }
 
+static void update_visual_animation_sampling_state(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Optional<i64>& sample_time_ns, bool& has_active_animations)
+{
+    auto now = MonotonicTime::now();
+    has_active_animations = visual_context_tree_has_active_animation_at(visual_context_tree, now);
+    // A replacement tree can be presented before the next vsync. Keep the most recent sample so that presentation
+    // remains continuous, but sample dormant and completed descriptors at the current boundary when necessary.
+    if (visual_context_tree.visual_animations().is_empty())
+        sample_time_ns.clear();
+    else if (!has_active_animations)
+        sample_time_ns = now.nanoseconds();
+}
+
 static Web::Compositor::AsyncScrollNodeStableID viewport_stable_id_from(Web::Compositor::AsyncScrollNodeID node_id)
 {
     return {
@@ -200,8 +212,7 @@ void ContextState::install_display_list_update(
     invalidate_visual_context_tree_for_compositing();
     m_display_list = move(display_list);
     m_visual_context_tree = move(visual_context_tree);
-    m_visual_animation_sample_time_ns.clear();
-    m_has_active_visual_animations = visual_context_tree_has_active_animation_at(*m_visual_context_tree, MonotonicTime::now());
+    update_visual_animation_sampling_state(*m_visual_context_tree, m_visual_animation_sample_time_ns, m_has_active_visual_animations);
     m_scroll_state_snapshot = move(scroll_state_snapshot);
     m_scroll_state_snapshot.set_node_count(m_visual_context_tree->spatial_node_count());
     update_caret_blink_timer();
@@ -317,8 +328,7 @@ void ContextState::update_visual_context_tree(Web::Painting::AccumulatedVisualCo
     invalidate_visual_context_tree_for_compositing();
     apply_display_list_resource_transaction(move(resource_transaction));
     m_visual_context_tree = move(visual_context_tree);
-    m_visual_animation_sample_time_ns.clear();
-    m_has_active_visual_animations = visual_context_tree_has_active_animation_at(*m_visual_context_tree, MonotonicTime::now());
+    update_visual_animation_sampling_state(*m_visual_context_tree, m_visual_animation_sample_time_ns, m_has_active_visual_animations);
     // A constraints refresh changes sticky payloads without a new snapshot, and the snapshot that
     // pairs with this tree arrives in a separate message.
     Web::Painting::resolve_sticky_offsets(*m_visual_context_tree, m_scroll_state_snapshot);
