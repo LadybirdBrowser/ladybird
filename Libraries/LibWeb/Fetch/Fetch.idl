@@ -1,0 +1,4 @@
+// https://fetch.spec.whatwg.org/#fetch-method
+partial interface mixin WindowOrWorkerGlobalScope {
+    [NewObject, ImplementedInBindings, NeedsCallerRealm] Promise<Response> fetch(RequestInfo input, optional RequestInit init = {});
+};
