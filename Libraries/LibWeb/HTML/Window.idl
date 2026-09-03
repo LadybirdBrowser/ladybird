@@ -4,25 +4,24 @@ interface Window : EventTarget {
     // the current browsing context
     [LegacyUnforgeable] readonly attribute WindowProxy window;
     [Replaceable] readonly attribute WindowProxy self;
-    [CachedAttribute, LegacyUnforgeable] readonly attribute Document document;
+    [LegacyUnforgeable, CachedAttribute] readonly attribute Document document;
     attribute DOMString name;
-    attribute DOMString status;
-    undefined close();
-    readonly attribute boolean closed;
     [PutForwards=href, LegacyUnforgeable] readonly attribute Location location;
     readonly attribute History history;
-    readonly attribute Navigation navigation;
+    [Replaceable] readonly attribute Navigation navigation;
     readonly attribute CustomElementRegistry customElements;
-    undefined stop();
-    undefined focus();
-    undefined blur();
-
     [Replaceable] readonly attribute BarProp locationbar;
     [Replaceable] readonly attribute BarProp menubar;
     [Replaceable] readonly attribute BarProp personalbar;
     [Replaceable] readonly attribute BarProp scrollbars;
     [Replaceable] readonly attribute BarProp statusbar;
     [Replaceable] readonly attribute BarProp toolbar;
+    attribute DOMString status;
+    undefined close();
+    readonly attribute boolean closed;
+    undefined stop();
+    undefined focus();
+    undefined blur();
 
     // other browsing contexts
     [Replaceable] readonly attribute WindowProxy frames;
@@ -41,85 +40,45 @@ interface Window : EventTarget {
     // the user agent
     readonly attribute Navigator navigator;
     [Replaceable, ImplementedAs=navigator] readonly attribute Navigator clientInformation; // legacy alias of .navigator
+    // FIXME: readonly attribute boolean originAgentCluster;
 
     // user prompts
     undefined alert();
     undefined alert(DOMString message);
     boolean confirm(optional DOMString message = "");
     DOMString? prompt(optional DOMString message = "", optional DOMString default = "");
+    // FIXME: undefined print();
 
     [NeedsCallerRealm] undefined postMessage(any message, USVString targetOrigin, optional sequence<object> transfer = []);
-    [ImplementedInBindings, NeedsCallerRealm] undefined postMessage(any message, optional WindowPostMessageOptions options = {});
+    [NeedsCallerRealm, ImplementedInBindings] undefined postMessage(any message, optional WindowPostMessageOptions options = {});
 
-    // https://dom.spec.whatwg.org/#interface-window-extensions
-    [Replaceable] readonly attribute (Event or undefined) event; // legacy
-
-    // https://drafts.csswg.org/cssom/#extensions-to-the-window-interface
-    [NewObject] CSSStyleProperties getComputedStyle(Element elt, optional CSSOMString? pseudoElt);
-
-    // https://w3c.github.io/csswg-drafts/cssom-view/#extensions-to-the-window-interface
-    [NewObject] MediaQueryList matchMedia(CSSOMString query);
-    [SameObject, Replaceable] readonly attribute Screen screen;
-    [SameObject, Replaceable] readonly attribute VisualViewport? visualViewport;
-
-    undefined moveTo(long x, long y);
-    undefined moveBy(long x, long y);
-    undefined resizeTo(long x, long y);
-    undefined resizeBy(long x, long y);
-
-    // viewport
-    [Replaceable] readonly attribute long innerWidth;
-    [Replaceable] readonly attribute long innerHeight;
-
-    // viewport scrolling
-    [Replaceable] readonly attribute double scrollX;
-    [Replaceable, ImplementedAs=scroll_x] readonly attribute double pageXOffset;
-    [Replaceable] readonly attribute double scrollY;
-    [Replaceable, ImplementedAs=scroll_y] readonly attribute double pageYOffset;
-    [CreatesPromise] Promise<undefined> scroll(optional ScrollToOptions options = {});
-    [CreatesPromise] Promise<undefined> scroll(unrestricted double x, unrestricted double y);
-    [ImplementedAs=scroll, CreatesPromise] Promise<undefined> scrollTo(optional ScrollToOptions options = {});
-    [ImplementedAs=scroll, CreatesPromise] Promise<undefined> scrollTo(unrestricted double x, unrestricted double y);
-    [CreatesPromise] Promise<undefined> scrollBy(optional ScrollToOptions options = {});
-    [CreatesPromise] Promise<undefined> scrollBy(unrestricted double x, unrestricted double y);
-
-    // client
-    [Replaceable] readonly attribute long screenX;
-    [Replaceable, ImplementedAs=screen_x] readonly attribute long screenLeft;
-    [Replaceable] readonly attribute long screenY;
-    [Replaceable, ImplementedAs=screen_y] readonly attribute long screenTop;
-    [Replaceable] readonly attribute long outerWidth;
-    [Replaceable] readonly attribute long outerHeight;
-    [Replaceable] readonly attribute double devicePixelRatio;
-
-    // https://w3c.github.io/requestidlecallback/#window_extensions
-    [ImplementedInBindings] unsigned long requestIdleCallback(IdleRequestCallback callback, optional IdleRequestOptions options = {});
-    undefined cancelIdleCallback(unsigned long handle);
-
-    // https://w3c.github.io/selection-api/#extensions-to-window-interface
-    Selection? getSelection();
-
-    // This function is non-standard.
-    boolean find(optional DOMString string = "");
-};
-Window includes AnimationFrameProvider;
-Window includes GlobalEventHandlers;
-Window includes UniversalGlobalScope;
-Window includes WindowEventHandlers;
-Window includes WindowLocalStorage;
-Window includes WindowSessionStorage;
-Window includes WindowOrWorkerGlobalScope;
-
-enum ScrollBehavior { "auto", "instant", "smooth" };
-
-dictionary ScrollOptions {
-    ScrollBehavior behavior = "auto";
-};
-dictionary ScrollToOptions : ScrollOptions {
-    unrestricted double left;
-    unrestricted double top;
+    // also has obsolete members
 };
 
 dictionary WindowPostMessageOptions : StructuredSerializeOptions {
     USVString targetOrigin = "/";
 };
+
+// https://dom.spec.whatwg.org/#interface-window-extensions
+partial interface Window {
+    [Replaceable] readonly attribute (Event or undefined) event; // legacy
+};
+
+// https://w3c.github.io/requestidlecallback/#window_extensions
+partial interface Window {
+    [ImplementedInBindings] unsigned long requestIdleCallback(IdleRequestCallback callback, optional IdleRequestOptions options = {});
+    undefined cancelIdleCallback(unsigned long handle);
+};
+
+// AD-HOC: Non-standard extensions that other browsers implement.
+partial interface Window {
+    boolean find(optional DOMString string = "");
+};
+
+Window includes AnimationFrameProvider;
+Window includes GlobalEventHandlers;
+Window includes UniversalGlobalScope;
+Window includes WindowEventHandlers;
+Window includes WindowLocalStorage;
+Window includes WindowOrWorkerGlobalScope;
+Window includes WindowSessionStorage;
