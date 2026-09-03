@@ -668,11 +668,7 @@ Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target
     HTML::main_thread_event_loop().register_document({}, *this);
 }
 
-Document::~Document()
-{
-    if (m_layout_root)
-        m_layout_node_arena->free_subtree(Layout::Node::slot_id(m_layout_root));
-}
+Document::~Document() = default;
 
 void Document::synchronize_dirty_style_attributes()
 {
@@ -722,8 +718,12 @@ void Document::record_layout_tree_build(u64 rebuilt_subtree_root_count, bool esc
 void Document::finalize()
 {
     stop_compositor_animation_timers();
-    if (m_layout_node_arena)
+    tear_down_layout_tree();
+    if (m_layout_node_arena) {
         Layout::RustFFI::layout_arena_clear_chrome_state_callback(m_layout_node_arena->handle());
+        VERIFY(Layout::RustFFI::layout_arena_live_slot_count(m_layout_node_arena->handle()) == 0);
+        m_layout_node_arena->set_document({}, nullptr);
+    }
     CSS::ComputedValuesFFI::rust_custom_property_registry_destroy(m_rust_custom_property_registry);
     Base::finalize();
     HTML::main_thread_event_loop().unregister_document({}, *this);
@@ -5909,9 +5909,8 @@ void Document::destroy()
     // 6. Run any unloading document cleanup steps for document that are defined by this specification and other applicable specifications.
     run_unloading_cleanup_steps();
 
-    // AD-HOC: Destruction does not go through did_stop_being_active_document_in_navigable(),
-    //         but stale per-node and root layout pointers can still keep the old
-    //         layout tree alive until GC runs.
+    // AD-HOC: Destruction does not go through did_stop_being_active_document_in_navigable().
+    //         Tear the layout tree down now instead of holding it until finalization.
     clear_layout_nodes_for_inactive_document();
     tear_down_layout_tree();
 
