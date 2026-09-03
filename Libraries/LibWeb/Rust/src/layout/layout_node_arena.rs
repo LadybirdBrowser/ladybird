@@ -614,7 +614,7 @@ impl LayoutNodeArena {
 
     pub(crate) fn register_svg_pattern_referencing_node(&self, node: NodeSlotId) {
         let mut nodes = self.svg_pattern_referencing_nodes.borrow_mut();
-        nodes.retain(|candidate| !self.shell_if_live(*candidate).is_null());
+        nodes.retain(|candidate| self.slot_is_live(*candidate));
         if nodes.contains(&node) {
             return;
         }
@@ -623,7 +623,7 @@ impl LayoutNodeArena {
 
     pub(crate) fn svg_pattern_referencing_nodes(&self) -> Vec<NodeSlotId> {
         let mut nodes = self.svg_pattern_referencing_nodes.borrow_mut();
-        nodes.retain(|candidate| !self.shell_if_live(*candidate).is_null());
+        nodes.retain(|candidate| self.slot_is_live(*candidate));
         nodes.clone()
     }
 
@@ -2206,28 +2206,28 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn node_flags_if_live(&self, id: NodeSlotId) -> u32 {
-        if self.shell_if_live(id).is_null() {
+        if !self.slot_is_live(id) {
             return 0;
         }
         self.data(id).flags.get()
     }
 
     pub(crate) fn node_is_generated_for_pseudo_element(&self, id: NodeSlotId) -> bool {
-        if self.shell_if_live(id).is_null() {
+        if !self.slot_is_live(id) {
             return false;
         }
         self.data(id).generated_for.get() != 0
     }
 
     pub(crate) fn node_kind_if_live(&self, id: NodeSlotId) -> Option<NodeKind> {
-        if self.shell_if_live(id).is_null() {
+        if !self.slot_is_live(id) {
             return None;
         }
         Some(self.data(id).kind.get())
     }
 
     pub(crate) fn node_parent_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
-        if self.shell_if_live(id).is_null() {
+        if !self.slot_is_live(id) {
             return None;
         }
         let parent = self.data(id).parent.get();
@@ -2235,7 +2235,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn node_first_child_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
-        if self.shell_if_live(id).is_null() {
+        if !self.slot_is_live(id) {
             return None;
         }
         let child = self.data(id).first_child.get();
@@ -2243,7 +2243,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn node_next_sibling_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
-        if self.shell_if_live(id).is_null() {
+        if !self.slot_is_live(id) {
             return None;
         }
         let sibling = self.data(id).next_sibling.get();
@@ -2251,7 +2251,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn node_data_if_live(&self, id: NodeSlotId) -> Option<&NodeData> {
-        if self.shell_if_live(id).is_null() {
+        if !self.slot_is_live(id) {
             return None;
         }
         Some(self.data(id))
@@ -2263,7 +2263,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn node_containing_block_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
-        if self.shell_if_live(id).is_null() {
+        if !self.slot_is_live(id) {
             return None;
         }
         let block = self.data(id).containing_block.get();
@@ -2274,7 +2274,7 @@ impl LayoutNodeArena {
         &self,
         id: NodeSlotId,
     ) -> Option<crate::css::computed_value_views::ComputedValuesView<'_>> {
-        if self.shell_if_live(id).is_null() {
+        if !self.slot_is_live(id) {
             return None;
         }
         let payloads = self.style_payloads(id)?;

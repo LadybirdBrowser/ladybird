@@ -1469,7 +1469,7 @@ fn transfer_fragments_to_replacement_box(
     let Some(containing_block) = arena.node_containing_block_if_live(old_layout_node) else {
         return;
     };
-    if arena.shell_if_live(containing_block).is_null() {
+    if !arena.slot_is_live(containing_block) {
         return;
     }
     let paintable_rows = arena.paintable_rows();
