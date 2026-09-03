@@ -1,0 +1,80 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Test for the page-break-* legacy shorthands.</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://drafts.csswg.org/css-cascade-4/#legacy-shorthand">
+<link rel="help" href="https://drafts.csswg.org/css-break/#page-break-properties">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/shorthand-testcommon.js"></script>
+<div></div>
+<script>
+const NEW_VALUES = ["page", "column"].filter(v => CSS.supports("break-before", v));
+const LEGACY_VALUES = ["always", "auto", "left", "right", "avoid"];
+const LEGACY_MAPPING = { "always": "page" };
+const REVERSE_LEGACY_MAPPING = { "page": "always" };
+const div = document.querySelector("div");
+const cs = getComputedStyle(div);
+
+test(function() {
+  for (const property of ["break-before", "break-after"]) {
+    for (const val of LEGACY_VALUES) {
+      const mapped_value = LEGACY_MAPPING[val] || val;
+
+      div.style["page-" + property] = val;
+
+      assert_equals(div.style["page-" + property], val);
+      assert_equals(div.style[property], mapped_value);
+      assert_equals(cs.getPropertyValue("page-" + property), val);
+      assert_equals(cs.getPropertyValue(property), mapped_value);
+      assert_not_equals(div.style.cssText.indexOf(property + ": " + mapped_value + ";"), -1);
+      assert_equals(div.style.cssText.indexOf("page-" + property), -1,
+                    "Legacy shorthands don't appear in cssText");
+    }
+  }
+}, "Legacy values of the shorthands work as expected")
+
+test(function() {
+  for (const property of ["break-before", "break-after"]) {
+    for (const val of NEW_VALUES) {
+      const mapped_value = REVERSE_LEGACY_MAPPING[val] || "";
+
+      div.style[property] = val;
+
+      assert_equals(div.style[property], val);
+      assert_equals(div.style["page-" + property], mapped_value);
+      assert_equals(cs.getPropertyValue("page-" + property), mapped_value);
+      assert_equals(cs.getPropertyValue(property), val);
+    }
+  }
+}, "New values work on the new longhands, but serialize to the empty string in the legacy shorthands");
+
+test(function() {
+  for (const property of ["break-before", "break-after"]) {
+    for (const val of NEW_VALUES) {
+      div.style["page-" + property] = "";
+      div.style["page-" + property] = val;
+      assert_equals(div.style["page-" + property], "");
+      assert_equals(div.style[property], "");
+      assert_equals(cs.getPropertyValue("page-" + property), "auto");
+      assert_equals(cs.getPropertyValue(property), "auto");
+    }
+  }
+}, "New values of the break longhands don't work on legacy shorthands");
+
+// See https://github.com/w3c/csswg-drafts/issues/3332
+test(function() {
+  for (const property of ["break-before", "break-after"]) {
+    div.style["page-" + property] = "var(--a)";
+
+    assert_equals(div.style["page-" + property], "var(--a)");
+    assert_equals(div.style[property], "");
+    assert_equals(div.style.cssText.indexOf("page-" + property), -1);
+  }
+}, "Legacy shorthands really never appear on cssText, even when there are variable references");
+
+test_is_legacy_shorthand("page-break-before", "break-before");
+test_is_legacy_shorthand("page-break-after", "break-after");
+test_is_legacy_shorthand("page-break-inside", "break-inside");
+</script>

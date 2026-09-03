@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 697 tests
 
-652 Pass
-45 Fail
+667 Pass
+30 Fail
 Fail	alignment-baseline: baseline
 Fail	alignment-baseline: text-bottom
 Fail	alignment-baseline: alphabetic
@@ -609,21 +609,21 @@ Pass	padding-left: .1em
 Pass	padding-left: 5%
 Pass	padding-left: .5%
 Pass	padding-left: inherit
-Fail	page-break-after: auto
-Fail	page-break-after: always
-Fail	page-break-after: avoid
-Fail	page-break-after: left
-Fail	page-break-after: right
-Fail	page-break-after: inherit
-Fail	page-break-before: auto
-Fail	page-break-before: always
-Fail	page-break-before: avoid
-Fail	page-break-before: left
-Fail	page-break-before: right
-Fail	page-break-before: inherit
-Fail	page-break-inside: avoid
-Fail	page-break-inside: auto
-Fail	page-break-inside: inherit
+Pass	page-break-after: auto
+Pass	page-break-after: always
+Pass	page-break-after: avoid
+Pass	page-break-after: left
+Pass	page-break-after: right
+Pass	page-break-after: inherit
+Pass	page-break-before: auto
+Pass	page-break-before: always
+Pass	page-break-before: avoid
+Pass	page-break-before: left
+Pass	page-break-before: right
+Pass	page-break-before: inherit
+Pass	page-break-inside: avoid
+Pass	page-break-inside: auto
+Pass	page-break-inside: inherit
 Pass	position: static
 Pass	position: relative
 Pass	position: absolute

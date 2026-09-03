@@ -3872,6 +3872,27 @@
     ],
     "needs-layout-for-getcomputedstyle": true
   },
+  "page-break-after": {
+    "legacy-shorthand": true,
+    "initial": "auto",
+    "longhands": [
+      "break-after"
+    ]
+  },
+  "page-break-before": {
+    "legacy-shorthand": true,
+    "initial": "auto",
+    "longhands": [
+      "break-before"
+    ]
+  },
+  "page-break-inside": {
+    "legacy-shorthand": true,
+    "initial": "auto",
+    "longhands": [
+      "break-inside"
+    ]
+  },
   "paint-order": {
     "style-group": "InheritedSVGValues",
     "animation-type": "discrete",

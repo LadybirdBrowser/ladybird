@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Break: !important flag parsing</title>
+    <link rel="help" href="https://crbug.com/345092067">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <div id="target" style="page-break-before: always !important">Some text.</div>
+  </body>
+  <script>
+test(() => {
+  assert_equals(target.style.pageBreakBefore, 'always');
+});
+  </script>
+</html>

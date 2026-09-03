@@ -3368,6 +3368,31 @@ fn serialize_shorthand(
         }
         return true;
     }
+    if matches!(
+        shorthand_property,
+        property_id::PAGE_BREAK_BEFORE | property_id::PAGE_BREAK_AFTER | property_id::PAGE_BREAK_INSIDE
+    ) {
+        let Some(serialized_longhand) = sub_properties
+            .first()
+            .and_then(|&longhand_id| longhand(longhand_id))
+            .and_then(&sub_sink)
+        else {
+            return false;
+        };
+        let legacy_keyword_passes_through = ["auto", "avoid", "left", "right"]
+            .iter()
+            .any(|legacy_keyword| sink_is_ascii_str(&serialized_longhand, legacy_keyword));
+        if legacy_keyword_passes_through {
+            sink.push_sink(&serialized_longhand);
+        } else if sink_is_ascii_str(&serialized_longhand, "page") {
+            sink.push_ascii("always");
+        } else if shorthand_property == property_id::PAGE_BREAK_INSIDE
+            && sink_is_ascii_str(&serialized_longhand, "avoid-page")
+        {
+            sink.push_ascii("avoid");
+        }
+        return true;
+    }
     if shorthand_property == property_id::COLUMNS {
         let (Some(width), Some(count), Some(height)) = (
             longhand(property_id::COLUMN_WIDTH).and_then(&sub_sink),

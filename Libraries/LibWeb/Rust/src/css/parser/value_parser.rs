@@ -3944,6 +3944,42 @@ fn parse_flex_shorthand(context: &ParseContext, values: &[ComponentValue]) -> Pa
     )))
 }
 
+// https://drafts.csswg.org/css-break-3/#page-break-properties
+fn parse_page_break_legacy_shorthand(property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    let values = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
+    let [value] = values.as_slice() else {
+        return ParseOutcome::Invalid;
+    };
+    let Some(ident) = value.ident() else {
+        return ParseOutcome::Invalid;
+    };
+    let longhand = match property {
+        property_id::PAGE_BREAK_BEFORE => property_id::BREAK_BEFORE,
+        property_id::PAGE_BREAK_AFTER => property_id::BREAK_AFTER,
+        property_id::PAGE_BREAK_INSIDE => property_id::BREAK_INSIDE,
+        _ => return ParseOutcome::NotHandled,
+    };
+    let accepts_page_side_keywords = longhand != property_id::BREAK_INSIDE;
+    let keyword = if equals_ascii_case_insensitive(ident, b"auto") {
+        keyword::AUTO
+    } else if equals_ascii_case_insensitive(ident, b"avoid") {
+        keyword::AVOID
+    } else if accepts_page_side_keywords && equals_ascii_case_insensitive(ident, b"always") {
+        keyword::PAGE
+    } else if accepts_page_side_keywords && equals_ascii_case_insensitive(ident, b"left") {
+        keyword::LEFT
+    } else if accepts_page_side_keywords && equals_ascii_case_insensitive(ident, b"right") {
+        keyword::RIGHT
+    } else {
+        return ParseOutcome::Invalid;
+    };
+    ParseOutcome::Parsed(shared_style_value(shorthand_value(
+        property,
+        vec![longhand],
+        vec![StyleValueData::Keyword { keyword }],
+    )))
+}
+
 fn parse_columns_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
     let values = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
     let slash = values.iter().position(|value| value.is_delim(b'/'));
@@ -5264,6 +5300,12 @@ fn parse_css_value_after_substitution_scan(
         if property_id == property_id::COLUMNS {
             return parse_columns_shorthand(context, values);
         }
+        if matches!(
+            property_id,
+            property_id::PAGE_BREAK_BEFORE | property_id::PAGE_BREAK_AFTER | property_id::PAGE_BREAK_INSIDE
+        ) {
+            return parse_page_break_legacy_shorthand(property_id, values);
+        }
         if property_id == property_id::CONTAINER {
             return parse_container_shorthand(context, values);
         }
@@ -6056,6 +6098,9 @@ mod tests {
             (property_id::FLEX, "none", 3),
             (property_id::COLUMNS, "20em 3 / 40em", 3),
             (property_id::COLUMNS, "auto", 3),
+            (property_id::PAGE_BREAK_BEFORE, "always", 1),
+            (property_id::PAGE_BREAK_AFTER, "left", 1),
+            (property_id::PAGE_BREAK_INSIDE, "avoid", 1),
         ] {
             let ParseOutcome::Parsed(value) = parse(property, source) else {
                 panic!("shorthand should parse: {source}");
@@ -6075,6 +6120,10 @@ mod tests {
             (property_id::COLUMNS, "/ auto"),
             (property_id::COLUMNS, "1 / bogus"),
             (property_id::COLUMNS, "10px 20px"),
+            (property_id::PAGE_BREAK_BEFORE, "page"),
+            (property_id::PAGE_BREAK_BEFORE, "column"),
+            (property_id::PAGE_BREAK_INSIDE, "always"),
+            (property_id::PAGE_BREAK_BEFORE, "auto auto"),
             (property_id::COLUMNS, "initial initial"),
         ] {
             assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");

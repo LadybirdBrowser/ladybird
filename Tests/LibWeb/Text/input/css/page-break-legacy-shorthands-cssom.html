@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const style = target.style;
+        for (const [legacy, longhand] of [["page-break-before", "break-before"], ["page-break-after", "break-after"]]) {
+            for (const value of ["always", "auto", "left", "right", "avoid"]) {
+                style.setProperty(legacy, "");
+                style.setProperty(legacy, value);
+                println(`${legacy}: ${value} -> ${legacy}="${style.getPropertyValue(legacy)}" ${longhand}="${style.getPropertyValue(longhand)}" cssText="${style.cssText}"`);
+            }
+            for (const value of ["page", "column", "avoid-page", "recto"]) {
+                style.setProperty(legacy, "");
+                style.setProperty(legacy, value);
+                println(`${legacy}: ${value} (rejected) -> ${legacy}="${style.getPropertyValue(legacy)}" ${longhand}="${style.getPropertyValue(longhand)}"`);
+                style.setProperty(longhand, value);
+                println(`${longhand}: ${value} -> ${legacy}="${style.getPropertyValue(legacy)}" ${longhand}="${style.getPropertyValue(longhand)}"`);
+            }
+        }
+        for (const value of ["auto", "avoid", "always", "avoid-page"]) {
+            style.setProperty("page-break-inside", "");
+            style.setProperty("page-break-inside", value);
+            println(`page-break-inside: ${value} -> page-break-inside="${style.getPropertyValue("page-break-inside")}" break-inside="${style.getPropertyValue("break-inside")}"`);
+        }
+        style.setProperty("break-inside", "avoid-page");
+        println(`break-inside: avoid-page -> page-break-inside="${style.getPropertyValue("page-break-inside")}"`);
+        style.setProperty("page-break-before", "inherit");
+        println(`page-break-before: inherit -> break-before="${style.getPropertyValue("break-before")}" cssText="${style.cssText}"`);
+        style.cssText = "page-break-before: var(--a)";
+        println(`page-break-before: var(--a) -> page-break-before="${style.getPropertyValue("page-break-before")}" break-before="${style.getPropertyValue("break-before")}" cssText="${style.cssText}"`);
+        println(`pageBreakBefore IDL attribute: ${"pageBreakBefore" in style}`);
+        println(`CSS.supports("page-break-before", "always"): ${CSS.supports("page-break-before", "always")}`);
+        println(`CSS.supports("page-break-before", "page"): ${CSS.supports("page-break-before", "page")}`);
+        println(`CSS.supports("break-before", "page"): ${CSS.supports("break-before", "page")}`);
+        const computed = getComputedStyle(target);
+        target.style.cssText = "page-break-after: always";
+        println(`computed page-break-after="${computed.getPropertyValue("page-break-after")}" break-after="${computed.getPropertyValue("break-after")}"`);
+        println(`page-break-after in computed longhand list: ${Array.from(computed).includes("page-break-after")}`);
+    });
+</script>
