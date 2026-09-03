@@ -46,6 +46,11 @@ pub(crate) enum IncrementalUpdateResult {
     NeedsFullBuild(VisualContextGlobalRebuildReason),
 }
 
+fn incremental_tree_requires_fresh_build(tree: &VisualContextTree, delta: &VisualContextTreeDelta) -> bool {
+    (!delta.tombstoned_spatial_node_indices.is_empty() || !delta.tombstoned_frame_node_indices.is_empty())
+        && !tree.node_references_are_consistent()
+}
+
 fn box_is_inside_svg_resource_subtree(layout_arena: &impl PaintableRowsRead, slot: NodeSlotId) -> bool {
     let mut node = Some(slot);
     while let Some(current) = node {
@@ -602,6 +607,9 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
     }
 
     let tree = Rc::make_mut(state.tree.as_mut().expect("the tree exists throughout the pass"));
+    if incremental_tree_requires_fresh_build(tree, &delta) {
+        return IncrementalUpdateResult::NeedsFullBuild(VisualContextGlobalRebuildReason::InvalidIncrementalReferences);
+    }
     let scroll_state = rebuild_scroll_state_from_tree(layout_arena, tree, &tree_inputs, &mut delta);
     delta.finish();
     tree.debug_assert_slot_accounting();
@@ -675,6 +683,41 @@ pub(crate) fn debug_assert_every_live_node_is_owned(
     _tree: &VisualContextTree,
     _viewport: NodeSlotId,
 ) {
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use libgfx_rust::{CompositingAndBlendingOperator, FloatMatrix4x4};
+
+    fn effects() -> FrameData {
+        FrameData::Effects(EffectsData {
+            opacity: 0.5,
+            blend_mode: CompositingAndBlendingOperator::Normal,
+            filter: None,
+        })
+    }
+
+    #[test]
+    fn a_tombstoned_parent_of_a_live_frame_requires_a_fresh_tree() {
+        let mut tree = VisualContextTree::create(TransformData {
+            matrix: FloatMatrix4x4::identity(),
+            origin: FloatPoint::default(),
+            sorting_context_root_index: None,
+            flattens_inherited_transform: false,
+            role: TransformDataRole::CssTransform,
+            synthetic_plane: false,
+            establishes_sorting_context: false,
+        });
+        let parent = tree.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        tree.append_frame(effects(), parent, VISUAL_VIEWPORT_NODE_INDEX);
+
+        let mut delta = VisualContextTreeDelta::default();
+        assert!(tree.tombstone_frame_slot(parent));
+        delta.note_tombstoned_frame(parent.0);
+
+        assert!(incremental_tree_requires_fresh_build(&tree, &delta));
+    }
 }
 
 fn remap_descendant_contexts(

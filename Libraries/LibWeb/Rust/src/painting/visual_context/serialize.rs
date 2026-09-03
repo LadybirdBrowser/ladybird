@@ -452,7 +452,7 @@ fn spatial_node_has_ancestor(nodes: &[SpatialNode], mut node: usize, ancestor: S
 }
 
 impl VisualContextTree {
-    fn decoded_references_are_consistent(&self) -> bool {
+    pub(super) fn node_references_are_consistent(&self) -> bool {
         let spatial_nodes = &self.spatial_nodes;
         let root = &spatial_nodes[VISUAL_VIEWPORT_NODE_INDEX.0 as usize];
         if root.parent != VISUAL_VIEWPORT_NODE_INDEX || !matches!(root.data, SpatialData::Transform(_)) {
@@ -581,7 +581,7 @@ impl VisualContextTree {
             quarantined_frame_slots: Vec::new(),
             sampled_background_colors: std::collections::HashMap::new(),
         };
-        tree.decoded_references_are_consistent().then_some(tree)
+        tree.node_references_are_consistent().then_some(tree)
     }
 }
 
@@ -930,6 +930,7 @@ mod tests {
             frame_under_tombstone.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
         frame_under_tombstone.append_frame(effects(), parent_frame, VISUAL_VIEWPORT_NODE_INDEX);
         assert!(frame_under_tombstone.tombstone_frame_slot(parent_frame));
+        assert!(!frame_under_tombstone.node_references_are_consistent());
         assert!(VisualContextTree::from_bytes(&encode_tree(&frame_under_tombstone)).is_none());
 
         let mut frame_in_tombstone = VisualContextTree::create(transform(FloatMatrix4x4::identity()));
