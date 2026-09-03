@@ -35,7 +35,7 @@ SVGElement::SVGElement(DOM::Document& document, DOM::QualifiedName qualified_nam
 {
 }
 
-RefPtr<Layout::Node> SVGElement::create_layout_node(CSS::LayoutStyle)
+Layout::Node* SVGElement::create_layout_node(CSS::LayoutStyle)
 {
     return nullptr;
 }

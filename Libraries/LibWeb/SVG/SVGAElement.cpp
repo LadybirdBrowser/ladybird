@@ -67,9 +67,9 @@ GC::Ref<DOM::DOMTokenList> SVGAElement::rel_list()
     return *m_rel_list;
 }
 
-RefPtr<Layout::Node> SVGAElement::create_layout_node(CSS::LayoutStyle style)
+Layout::Node* SVGAElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGGraphicsBox);
+    return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGGraphicsBox);
 }
 
 void SVGAElement::activation_behavior(DOM::Event const& event)

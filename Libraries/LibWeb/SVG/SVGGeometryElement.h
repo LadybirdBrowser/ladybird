@@ -16,7 +16,7 @@ class SVGGeometryElement : public SVGGraphicsElement {
     WEB_WRAPPABLE(SVGGeometryElement, SVGGraphicsElement);
 
 public:
-    virtual RefPtr<Layout::Node> create_layout_node(CSS::LayoutStyle) override;
+    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
 
     virtual Gfx::Path get_path(CSSPixelSize viewport_size, CSS::ComputedValues const&) = 0;
 

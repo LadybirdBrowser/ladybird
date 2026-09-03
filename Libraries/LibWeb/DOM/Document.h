@@ -1566,7 +1566,7 @@ private:
     RefPtr<Layout::NodeArena> m_layout_node_arena;
     OwnPtr<Painting::DocumentPaintState> m_paint_state;
     NonnullRefPtr<Painting::ChromeWidgetRegistry> m_chrome_widget_registry;
-    RefPtr<Layout::Viewport> m_layout_root;
+    Layout::Viewport* m_layout_root { nullptr };
     bool m_may_have_content_visibility_auto_style { false };
 
     GC::Ptr<Node> m_hovered_node;

@@ -62,7 +62,7 @@ public:
     };
     Optional<PaintGeometry> resolve_paint_geometry(SVGPaintContext const&, double device_pixels_per_css_pixel, Layout::Node const& target_layout_node) const;
 
-    virtual RefPtr<Layout::Node> create_layout_node(CSS::LayoutStyle) override { return nullptr; }
+    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override { return nullptr; }
 
 protected:
     SVGPatternElement(DOM::Document&, DOM::QualifiedName);

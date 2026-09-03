@@ -19,7 +19,7 @@ public:
 
     HTMLFormElement* form();
 
-    virtual RefPtr<Layout::Node> create_layout_node(CSS::LayoutStyle) override;
+    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
 
 private:
     HTMLLegendElement(DOM::Document&, DOM::QualifiedName);

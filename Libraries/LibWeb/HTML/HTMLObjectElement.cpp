@@ -206,16 +206,16 @@ void HTMLObjectElement::set_data(Utf16View data)
     set_attribute_value(HTML::AttributeNames::data, data);
 }
 
-RefPtr<Layout::Node> HTMLObjectElement::create_layout_node(CSS::LayoutStyle style)
+Layout::Node* HTMLObjectElement::create_layout_node(CSS::LayoutStyle style)
 {
     switch (m_representation) {
     case Representation::Children:
         return NavigableContainer::create_layout_node(style);
     case Representation::ContentNavigable:
-        return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::NavigableContainerViewport);
+        return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::NavigableContainerViewport);
     case Representation::Image:
         if (image_data())
-            return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::ImageBox);
+            return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::ImageBox);
         break;
     default:
         break;

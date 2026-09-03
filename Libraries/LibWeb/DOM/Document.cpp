@@ -668,7 +668,11 @@ Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target
     HTML::main_thread_event_loop().register_document({}, *this);
 }
 
-Document::~Document() = default;
+Document::~Document()
+{
+    if (m_layout_root)
+        m_layout_node_arena->free_subtree(Layout::Node::slot_id(m_layout_root));
+}
 
 void Document::synchronize_dirty_style_attributes()
 {
@@ -1474,9 +1478,13 @@ WebIDL::ExceptionOr<void> Document::set_title(Utf16View title)
 
 void Document::set_layout_root(Layout::Viewport& viewport)
 {
-    if (m_layout_root.ptr() == &viewport)
+    if (m_layout_root == &viewport)
         return;
-    m_layout_root = viewport;
+    if (auto* replaced_layout_root = exchange(m_layout_root, nullptr)) {
+        replaced_layout_root->prepare_subtree_for_detach_from_layout_tree();
+        layout_node_arena().free_subtree(Layout::Node::slot_id(replaced_layout_root));
+    }
+    m_layout_root = &viewport;
     m_paint_state = make<Painting::DocumentPaintState>(layout_node_arena());
 }
 
@@ -1486,7 +1494,8 @@ void Document::tear_down_layout_tree()
         m_layout_root->prepare_subtree_for_detach_from_layout_tree();
     m_hit_test_display_list = nullptr;
     m_chrome_widget_registry->clear();
-    m_layout_root = nullptr;
+    if (auto* layout_root = exchange(m_layout_root, nullptr))
+        layout_node_arena().free_subtree(Layout::Node::slot_id(layout_root));
     m_paint_state = nullptr;
     if (m_layout_node_arena)
         Layout::RustFFI::layout_arena_clear_scrollable_overflow_contained_boxes(m_layout_node_arena->handle());
@@ -1902,7 +1911,7 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed, Layout
     // contained-boxes index; refresh it before overflow measurement follows them. A pending full
     // recalculation rebuilds the index inside its own measurement traversal instead.
     if (layout_tree_changed == LayoutTreeChanged::Yes && !Layout::RustFFI::layout_arena_needs_full_scrollable_overflow_recalculation(layout_node_arena().handle()))
-        Layout::RustFFI::layout_arena_rebuild_scrollable_overflow_contained_boxes(layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root.ptr()));
+        Layout::RustFFI::layout_arena_rebuild_scrollable_overflow_contained_boxes(layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root));
     if (layout_commit_scope == LayoutCommitScope::Full)
         update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates::HandledByFullLayoutCommit);
     else
@@ -2249,7 +2258,7 @@ Document::PartialRelayoutResult Document::try_partial_relayout(Vector<Layout::Ru
     if (needs_layout_tree_rebuild) {
         auto tree_build_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
         auto tree_build_result = Layout::build_layout_tree(*this);
-        set_layout_root(as<Layout::Viewport>(*tree_build_result.root));
+        set_layout_root(*tree_build_result.root);
         record_layout_tree_build(tree_build_result.rebuilt_subtree_roots.size(), tree_build_result.layout_tree_update_escaped_rebuild_roots);
         needs_layout_tree_rebuild = false;
         if (reconcile_stale_list_item_counters_after_tree_build(tree_build_result.rebuilt_subtree_roots) || tree_build_result.needs_another_build_pass)
@@ -2402,7 +2411,7 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
 
         if (needs_layout_tree_rebuild) {
             auto tree_build_result = Layout::build_layout_tree(*this);
-            set_layout_root(as<Layout::Viewport>(*tree_build_result.root));
+            set_layout_root(*tree_build_result.root);
             record_layout_tree_build(tree_build_result.rebuilt_subtree_roots.size(), tree_build_result.layout_tree_update_escaped_rebuild_roots);
 
             // NB: Called during layout update.
@@ -2445,7 +2454,7 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
             viewport_rect.width(),
             viewport_rect.height(),
             should_collect_devtools_layout_data);
-        Layout::RustFFI::layout_arena_rebuild_scrollable_overflow_contained_boxes(layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root.ptr()));
+        Layout::RustFFI::layout_arena_rebuild_scrollable_overflow_contained_boxes(layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root));
 
         style_invalidation_counters().relayouts_performed++;
 
@@ -2456,7 +2465,7 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
         after_layout_commit(LayoutTreeChanged::Yes, LayoutCommitScope::Full);
 
         Layout::RustFFI::layout_arena_reset_layout_update_flags_in_subtree(
-            layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root.ptr()));
+            layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root));
 
         if constexpr (UPDATE_LAYOUT_DEBUG) {
             dbgln("LAYOUT {} {} µs", to_string(reason), timer.elapsed_time().to_microseconds());

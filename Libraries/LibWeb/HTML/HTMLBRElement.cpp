@@ -25,9 +25,9 @@ HTMLBRElement::HTMLBRElement(DOM::Document& document, DOM::QualifiedName qualifi
 
 HTMLBRElement::~HTMLBRElement() = default;
 
-RefPtr<Layout::Node> HTMLBRElement::create_layout_node(CSS::LayoutStyle style)
+Layout::Node* HTMLBRElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return make_ref_counted<Layout::NodeWithStyle>(document(), *this, style, Layout::RustFFI::NodeKind::BreakNode);
+    return &Layout::allocate_layout_node<Layout::NodeWithStyle>(document(), *this, style, Layout::RustFFI::NodeKind::BreakNode);
 }
 
 bool HTMLBRElement::is_presentational_hint(Utf16FlyString const& name) const

@@ -1356,7 +1356,7 @@ void Node::remove(bool suppress_observers)
                     return TraversalDecision::Continue;
                 });
                 layout_node->prepare_subtree_for_detach_from_layout_tree();
-                VERIFY(Layout::detach_layout_node_for_destruction(*layout_node));
+                VERIFY(Layout::destroy_layout_subtree(*layout_node));
                 if (auto* parent_layout_node = parent->unsafe_layout_node(); !parent_layout_node->has_children())
                     parent_layout_node->set_children_are_inline(false);
                 parent->set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate);
@@ -2428,7 +2428,7 @@ void Node::removed_from(IsSubtreeRoot, Node* old_parent, Node&)
     if (m_layout_node) {
         if (auto* top_layer_placement = m_layout_node->topmost_layout_node_of_top_layer_placement()) {
             top_layer_placement->prepare_subtree_for_detach_from_layout_tree();
-            VERIFY(Layout::detach_layout_node_for_destruction(*top_layer_placement));
+            VERIFY(Layout::destroy_layout_subtree(*top_layer_placement));
         }
     }
     m_layout_node = nullptr;

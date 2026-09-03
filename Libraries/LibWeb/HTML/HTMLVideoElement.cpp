@@ -70,11 +70,11 @@ void HTMLVideoElement::attribute_changed(Utf16FlyString const& name, Optional<Ut
     }
 }
 
-RefPtr<Layout::Node> HTMLVideoElement::create_layout_node(CSS::LayoutStyle style)
+Layout::Node* HTMLVideoElement::create_layout_node(CSS::LayoutStyle style)
 {
-    auto video_box = make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::VideoBox);
-    video_box->set_replaced_box_can_have_children(shadow_root() != nullptr);
-    return video_box;
+    auto& video_box = Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::VideoBox);
+    video_box.set_replaced_box_can_have_children(shadow_root() != nullptr);
+    return &video_box;
 }
 
 void HTMLVideoElement::set_intrinsic_video_dimensions(Optional<Gfx::Size<u32>> dimensions)

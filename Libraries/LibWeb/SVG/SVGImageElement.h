@@ -63,7 +63,7 @@ private:
 
     virtual bool is_svg_image_element() const override { return true; }
 
-    virtual RefPtr<Layout::Node> create_layout_node(CSS::LayoutStyle) override;
+    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
     virtual void decoded_image_data_did_update() override { set_needs_repaint(); }
 
     Optional<URL::URL> m_href;

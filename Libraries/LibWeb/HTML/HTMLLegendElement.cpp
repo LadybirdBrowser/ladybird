@@ -33,9 +33,9 @@ HTMLFormElement* HTMLLegendElement::form()
     return nullptr;
 }
 
-RefPtr<Layout::Node> HTMLLegendElement::create_layout_node(CSS::LayoutStyle style)
+Layout::Node* HTMLLegendElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return make_ref_counted<Layout::BlockContainer>(document(), *this, style, Layout::RustFFI::NodeKind::LegendBox);
+    return &Layout::allocate_layout_node<Layout::BlockContainer>(document(), *this, style, Layout::RustFFI::NodeKind::LegendBox);
 }
 
 }

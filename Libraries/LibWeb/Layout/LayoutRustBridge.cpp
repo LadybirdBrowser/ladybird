@@ -677,12 +677,7 @@ extern "C" WEB_API size_t ladybird_layout_text_node_rendered_text_offset_for_dom
     return text_node.rendered_text_offset_for_dom_offset(offset, boundary);
 }
 
-extern "C" WEB_API void ladybird_layout_node_shell_release(void* shell)
-{
-    static_cast<Web::Layout::Node*>(shell)->unref();
-}
-
 extern "C" WEB_API void ladybird_layout_node_shell_destroy(void* shell)
 {
-    delete static_cast<Web::Layout::Node*>(shell);
+    Web::Layout::Node::delete_arena_owned_shell(*static_cast<Web::Layout::Node*>(shell));
 }

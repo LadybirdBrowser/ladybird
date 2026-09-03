@@ -9,7 +9,6 @@ use crate::layout::node_data::NodeSlotId;
 use std::ffi::c_void;
 
 unsafe extern "C" {
-    fn ladybird_layout_node_shell_release(shell: *mut c_void);
     fn ladybird_layout_node_shell_destroy(shell: *mut c_void);
 }
 
@@ -22,85 +21,19 @@ pub(crate) fn destroy_shell(shell: *mut c_void) {
     unsafe { ladybird_layout_node_shell_destroy(shell) };
 }
 
-fn release_shell(shell: *mut c_void) {
-    if shell.is_null() {
-        #[cfg(not(test))]
-        debug_assert!(!shell.is_null(), "layout node has no C++ shell");
-        return;
-    }
-    // SAFETY: Node::unref() may destroy the shell and re-enter layout_arena_free; every caller
-    // releases with no arena borrow live.
-    unsafe { ladybird_layout_node_shell_release(shell) };
+pub(crate) fn free_subtree_and_destroy_shells(arena: *mut LayoutNodeArena, root: NodeSlotId) {
+    // SAFETY: Callers hold no reference derived from the arena across this call, and the
+    // mutable borrow ends before the shells are destroyed.
+    let freed = unsafe { &mut *arena }.free_subtree(root);
+    freed.destroy_shells_and_invoke_callbacks();
 }
 
-#[must_use = "the tree's reference to the detached layout node must be released"]
-pub(crate) struct DetachedShell(*mut c_void);
+#[must_use = "an unplaced layout node must be attached or freed"]
+pub(crate) struct UnplacedLayoutNode(NodeSlotId);
 
-impl DetachedShell {
-    pub(crate) fn from_tree_reference(shell: *mut c_void) -> Self {
-        Self(shell)
-    }
-
-    pub(crate) fn release(self) {
-        let shell = self.0;
-        std::mem::forget(self);
-        release_shell(shell);
-    }
-}
-
-impl Drop for DetachedShell {
-    fn drop(&mut self) {
-        debug_assert!(
-            std::thread::panicking(),
-            "detached layout node shell dropped without being released"
-        );
-    }
-}
-
-#[must_use = "the tree's references to the detached layout nodes must be released"]
-#[derive(Default)]
-pub(crate) struct DetachedShells(Vec<*mut c_void>);
-
-impl DetachedShells {
-    pub(crate) fn push(&mut self, detached: DetachedShell) {
-        let shell = detached.0;
-        std::mem::forget(detached);
-        self.0.push(shell);
-    }
-
-    #[cfg(test)]
-    pub(crate) fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub(crate) fn release_all(mut self) {
-        let shells = std::mem::take(&mut self.0);
-        std::mem::forget(self);
-        for shell in shells {
-            release_shell(shell);
-        }
-    }
-}
-
-impl Drop for DetachedShells {
-    fn drop(&mut self) {
-        debug_assert!(
-            self.0.is_empty() || std::thread::panicking(),
-            "detached layout node shells dropped without being released"
-        );
-    }
-}
-
-#[must_use = "an owned layout node must be attached or released"]
-pub(crate) struct OwnedLayoutNode(NodeSlotId);
-
-impl OwnedLayoutNode {
-    /// # Safety
-    ///
-    /// `slot` must name a live node whose shell carries exactly one reference that was handed
-    /// to the caller.
-    pub(crate) unsafe fn adopt_created(slot: NodeSlotId) -> Self {
-        assert!(!slot.is_invalid(), "adopted an invalid layout node slot");
+impl UnplacedLayoutNode {
+    pub(crate) fn new(slot: NodeSlotId) -> Self {
+        assert!(!slot.is_invalid(), "an unplaced layout node needs a live slot");
         Self(slot)
     }
 
@@ -108,22 +41,22 @@ impl OwnedLayoutNode {
         self.0
     }
 
-    fn into_slot(self) -> NodeSlotId {
+    pub(crate) fn into_slot(self) -> NodeSlotId {
         let slot = self.0;
         std::mem::forget(self);
         slot
     }
 
-    pub(crate) fn into_detached_shell(self, arena: &LayoutNodeArena) -> DetachedShell {
-        DetachedShell(arena.node_shell(self.into_slot()))
+    pub(crate) fn placed_as_layout_root(self) {
+        self.into_slot();
     }
 }
 
-impl Drop for OwnedLayoutNode {
+impl Drop for UnplacedLayoutNode {
     fn drop(&mut self) {
         debug_assert!(
             std::thread::panicking(),
-            "owned layout node {:?} leaked without being attached or released",
+            "unplaced layout node {:?} leaked without being attached or freed",
             self.0
         );
     }
@@ -138,21 +71,23 @@ fn next_sibling_of(arena: &LayoutNodeArena, node: NodeSlotId) -> NodeSlotId {
 }
 
 impl LayoutNodeArena {
-    pub(crate) fn attach_child(&self, parent: NodeSlotId, child: OwnedLayoutNode, before: NodeSlotId) {
+    pub(crate) fn attach_child(&self, parent: NodeSlotId, child: UnplacedLayoutNode, before: NodeSlotId) {
         self.assert_owner_thread();
         self.insert_child(parent, child.into_slot(), before);
     }
 
-    pub(crate) fn detach_child(&self, parent: NodeSlotId, child: NodeSlotId) -> DetachedShell {
+    pub(crate) fn detach_child(&self, parent: NodeSlotId, child: NodeSlotId) {
         self.assert_owner_thread();
-        let shell = self.node_shell(child);
         self.remove_child(parent, child);
-        DetachedShell(shell)
     }
 
-    pub(crate) fn detach_from_parent(&self, node: NodeSlotId) -> Option<DetachedShell> {
+    pub(crate) fn detach_from_parent(&self, node: NodeSlotId) -> bool {
         let parent = parent_of(self, node);
-        (!parent.is_invalid()).then(|| self.detach_child(parent, node))
+        if parent.is_invalid() {
+            return false;
+        }
+        self.detach_child(parent, node);
+        true
     }
 
     pub(crate) fn move_child(&self, child: NodeSlotId, new_parent: NodeSlotId, before: NodeSlotId) {
@@ -167,27 +102,24 @@ impl LayoutNodeArena {
         &self,
         parent: NodeSlotId,
         old_child: NodeSlotId,
-        new_child: OwnedLayoutNode,
-    ) -> DetachedShell {
+        new_child: UnplacedLayoutNode,
+    ) -> NodeSlotId {
         let successor = next_sibling_of(self, old_child);
-        let detached = self.detach_child(parent, old_child);
+        self.detach_child(parent, old_child);
         self.attach_child(parent, new_child, successor);
-        detached
+        old_child
     }
 }
 
 #[cfg(test)]
 mod ffi_test_stubs {
     #[unsafe(no_mangle)]
-    extern "C" fn ladybird_layout_node_shell_release(_shell: *mut std::ffi::c_void) {}
-
-    #[unsafe(no_mangle)]
     extern "C" fn ladybird_layout_node_shell_destroy(_shell: *mut std::ffi::c_void) {}
 }
 
 #[cfg(test)]
 mod tests {
-    use super::OwnedLayoutNode;
+    use super::UnplacedLayoutNode;
     use crate::layout::LayoutNodeArena;
     use crate::layout::layout_node_arena::NodeAllocation;
     use crate::layout::node_data::{NodeKind, NodeSlotId};
@@ -215,13 +147,14 @@ mod tests {
         arena.data(node).fragment_cache_epoch.get()
     }
 
-    fn owned(slot: NodeSlotId) -> OwnedLayoutNode {
-        // SAFETY: Test nodes have no shell, and the release hook skips null shells.
-        unsafe { OwnedLayoutNode::adopt_created(slot) }
+    fn owned(slot: NodeSlotId) -> UnplacedLayoutNode {
+        UnplacedLayoutNode::new(slot)
     }
 
     fn free(arena: &mut LayoutNodeArena, allocation: NodeAllocation) {
-        arena.free(allocation.slot).detached_children.release_all();
+        arena
+            .free_subtree(allocation.slot)
+            .destroy_shells_and_invoke_callbacks();
     }
 
     #[test]
@@ -235,7 +168,7 @@ mod tests {
         assert_eq!(links(&arena, parent.slot).last_child, child.slot);
         assert_eq!(links(&arena, child.slot).parent, parent.slot);
 
-        arena.detach_child(parent.slot, child.slot).release();
+        arena.detach_child(parent.slot, child.slot);
         assert!(links(&arena, parent.slot).first_child.is_invalid());
         assert!(links(&arena, child.slot).parent.is_invalid());
 
@@ -250,9 +183,9 @@ mod tests {
         let child = arena.allocate_for_test();
         arena.attach_child(parent.slot, owned(child.slot), NodeSlotId::INVALID);
 
-        arena.detach_from_parent(child.slot).expect("attached child").release();
+        assert!(arena.detach_from_parent(child.slot));
         assert!(links(&arena, parent.slot).first_child.is_invalid());
-        assert!(arena.detach_from_parent(parent.slot).is_none());
+        assert!(!arena.detach_from_parent(parent.slot));
 
         free(&mut arena, parent);
         free(&mut arena, child);
@@ -270,7 +203,7 @@ mod tests {
             arena.attach_child(parent.slot, owned(child), NodeSlotId::INVALID);
         }
 
-        arena.replace_child(parent.slot, b.slot, owned(d.slot)).release();
+        assert_eq!(arena.replace_child(parent.slot, b.slot, owned(d.slot)), b.slot);
 
         assert_eq!(links(&arena, parent.slot).first_child, a.slot);
         assert_eq!(links(&arena, a.slot).next_sibling, d.slot);
@@ -282,9 +215,6 @@ mod tests {
 
         free(&mut arena, b);
         free(&mut arena, parent);
-        for orphan in [a, d, c] {
-            free(&mut arena, orphan);
-        }
     }
 
     #[test]
@@ -309,29 +239,6 @@ mod tests {
 
         free(&mut arena, first_parent);
         free(&mut arena, second_parent);
-        for orphan in [a, b, c] {
-            free(&mut arena, orphan);
-        }
-    }
-
-    #[test]
-    fn freeing_a_node_unlinks_its_children_and_hands_back_their_references() {
-        let mut arena = LayoutNodeArena::new();
-        let root = arena.allocate_for_test();
-        let a = arena.allocate_for_test();
-        let b = arena.allocate_for_test();
-        arena.attach_child(root.slot, owned(a.slot), NodeSlotId::INVALID);
-        arena.attach_child(root.slot, owned(b.slot), NodeSlotId::INVALID);
-
-        let freed = arena.free(root.slot);
-        assert_eq!(freed.detached_children.len(), 2);
-        assert!(links(&arena, a.slot).parent.is_invalid());
-        assert!(links(&arena, b.slot).parent.is_invalid());
-        assert!(links(&arena, a.slot).next_sibling.is_invalid());
-        freed.detached_children.release_all();
-
-        free(&mut arena, a);
-        free(&mut arena, b);
     }
 
     #[test]
@@ -365,16 +272,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "still linked under a parent")]
-    fn freeing_a_node_still_linked_under_a_parent_panics() {
-        let mut arena = LayoutNodeArena::new();
-        let parent = arena.allocate_for_test();
-        let child = arena.allocate_for_test();
-        arena.attach_child(parent.slot, owned(child.slot), NodeSlotId::INVALID);
-        let _ = arena.free(child.slot);
-    }
-
-    #[test]
     fn a_structural_change_bumps_the_fragment_cache_epoch_of_every_ancestor() {
         if super::super::fc_run_cache::fc_run_cache_mode_from_environment()
             == super::super::fc_run_cache::FcRunCacheMode::Disabled
@@ -400,9 +297,6 @@ mod tests {
         assert_eq!(fragment_cache_epoch(&arena, child.slot), 0);
 
         free(&mut arena, grandparent);
-        for orphan in [parent, sibling, child] {
-            free(&mut arena, orphan);
-        }
     }
 
     #[test]
@@ -438,28 +332,14 @@ mod tests {
         );
 
         free(&mut arena, grandparent);
-        free(&mut arena, parent);
-        free(&mut arena, child);
     }
 
     #[cfg(debug_assertions)]
     #[test]
-    #[should_panic(expected = "without being released")]
-    fn dropping_a_detached_shell_without_releasing_it_panics() {
-        let mut arena = LayoutNodeArena::new();
-        let parent = arena.allocate_for_test();
-        let child = arena.allocate_for_test();
-        arena.attach_child(parent.slot, owned(child.slot), NodeSlotId::INVALID);
-        let _ = arena.detach_child(parent.slot, child.slot);
-    }
-
-    #[cfg(debug_assertions)]
-    #[test]
-    #[should_panic(expected = "leaked without being attached or released")]
-    fn dropping_an_owned_layout_node_without_placing_it_panics() {
+    #[should_panic(expected = "leaked without being attached or freed")]
+    fn dropping_an_unplaced_layout_node_panics() {
         let mut arena = LayoutNodeArena::new();
         let node = arena.allocate_for_test();
-        // SAFETY: Test nodes have no shell, and the hooks skip null shells.
-        let _ = unsafe { OwnedLayoutNode::adopt_created(node.slot) };
+        let _ = UnplacedLayoutNode::new(node.slot);
     }
 }

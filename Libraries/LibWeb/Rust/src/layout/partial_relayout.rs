@@ -551,7 +551,9 @@ mod tests {
     }
 
     fn free_node(arena: &mut LayoutNodeArena, allocation: &NodeAllocation) {
-        arena.free(allocation.slot).detached_children.release_all();
+        arena
+            .free_subtree(allocation.slot)
+            .destroy_shells_and_invoke_callbacks();
     }
 
     #[test]

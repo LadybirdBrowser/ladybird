@@ -48,14 +48,14 @@ bool SVGSymbolElement::is_direct_child_of_use_shadow_tree() const
     return is<SVGUseElement>(host);
 }
 
-RefPtr<Layout::Node> SVGSymbolElement::create_layout_node(CSS::LayoutStyle style)
+Layout::Node* SVGSymbolElement::create_layout_node(CSS::LayoutStyle style)
 {
     // https://svgwg.org/svg2-draft/render.html#TermNeverRenderedElement
     // [..] it also includes a ‘symbol’ element that is not the instance root of a use-element shadow tree.
     if (!is_direct_child_of_use_shadow_tree())
-        return {};
+        return nullptr;
 
-    return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGGraphicsBox);
+    return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGGraphicsBox);
 }
 
 }

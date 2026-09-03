@@ -1235,7 +1235,7 @@ Optional<GC::RootVector<GC::Ref<DOM::Element>>> Element::get_the_attribute_assoc
     return elements;
 }
 
-RefPtr<Layout::Node> Element::create_layout_node(CSS::LayoutStyle style)
+Layout::Node* Element::create_layout_node(CSS::LayoutStyle style)
 {
     if (local_name() == u"noscript"sv && document().is_scripting_enabled())
         return nullptr;
@@ -1246,26 +1246,26 @@ RefPtr<Layout::Node> Element::create_layout_node(CSS::LayoutStyle style)
     return create_layout_node_for_display_type(document(), display, style, this);
 }
 
-RefPtr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM::Document& document, CSS::Display const& display, CSS::LayoutStyle style, Element* element)
+Layout::NodeWithStyle* Element::create_layout_node_for_display_type(DOM::Document& document, CSS::Display const& display, CSS::LayoutStyle style, Element* element)
 {
     if (display.is_none())
-        return {};
+        return nullptr;
 
     if (display.is_contents())
-        return {};
+        return nullptr;
 
     if (display.is_table_inside() || display.is_table_row_group() || display.is_table_header_group() || display.is_table_footer_group() || display.is_table_row())
-        return make_ref_counted<Layout::Box>(document, element, style);
+        return &Layout::allocate_layout_node<Layout::Box>(document, element, style);
 
     if (display.is_list_item())
-        return make_ref_counted<Layout::BlockContainer>(document, element, style, Layout::RustFFI::NodeKind::ListItemBox);
+        return &Layout::allocate_layout_node<Layout::BlockContainer>(document, element, style, Layout::RustFFI::NodeKind::ListItemBox);
 
     if (display.is_table_cell())
-        return make_ref_counted<Layout::BlockContainer>(document, element, style);
+        return &Layout::allocate_layout_node<Layout::BlockContainer>(document, element, style);
 
     if (display.is_table_column() || display.is_table_column_group() || display.is_table_caption()) {
         // FIXME: This is just an incorrect placeholder until we improve table layout support.
-        return make_ref_counted<Layout::BlockContainer>(document, element, style);
+        return &Layout::allocate_layout_node<Layout::BlockContainer>(document, element, style);
     }
 
     if (display.is_math_inside()) {
@@ -1273,35 +1273,35 @@ RefPtr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM::
         // MathML elements with a computed display value equal to block math or inline math control box generation
         // and layout according to their tag name, as described in the relevant sections.
         // FIXME: Figure out what kind of node we should make for them. For now, we'll stick with a generic Box.
-        return make_ref_counted<Layout::BlockContainer>(document, element, style);
+        return &Layout::allocate_layout_node<Layout::BlockContainer>(document, element, style);
     }
 
     if (display.is_inline_outside()) {
         if (display.is_flow_root_inside())
-            return make_ref_counted<Layout::BlockContainer>(document, element, style);
+            return &Layout::allocate_layout_node<Layout::BlockContainer>(document, element, style);
         if (display.is_flow_inside())
-            return make_ref_counted<Layout::NodeWithStyle>(document, element, style, Layout::RustFFI::NodeKind::InlineNode);
+            return &Layout::allocate_layout_node<Layout::NodeWithStyle>(document, element, style, Layout::RustFFI::NodeKind::InlineNode);
         if (display.is_flex_inside())
-            return make_ref_counted<Layout::Box>(document, element, style);
+            return &Layout::allocate_layout_node<Layout::Box>(document, element, style);
         if (display.is_grid_inside())
-            return make_ref_counted<Layout::Box>(document, element, style);
+            return &Layout::allocate_layout_node<Layout::Box>(document, element, style);
         dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Support display: {}", display.to_string());
-        return make_ref_counted<Layout::NodeWithStyle>(document, element, style, Layout::RustFFI::NodeKind::InlineNode);
+        return &Layout::allocate_layout_node<Layout::NodeWithStyle>(document, element, style, Layout::RustFFI::NodeKind::InlineNode);
     }
 
     if (display.is_flex_inside() || display.is_grid_inside())
-        return make_ref_counted<Layout::Box>(document, element, style);
+        return &Layout::allocate_layout_node<Layout::Box>(document, element, style);
 
     if (display.is_flow_inside() || display.is_flow_root_inside())
-        return make_ref_counted<Layout::BlockContainer>(document, element, style);
+        return &Layout::allocate_layout_node<Layout::BlockContainer>(document, element, style);
 
     dbgln("FIXME: CSS display '{}' not implemented yet.", display.to_string());
 
     // FIXME: We don't actually support `display: block ruby`, this is just a hack to prevent a crash
     if (display.is_ruby_inside())
-        return make_ref_counted<Layout::BlockContainer>(document, element, style);
+        return &Layout::allocate_layout_node<Layout::BlockContainer>(document, element, style);
 
-    return make_ref_counted<Layout::NodeWithStyle>(document, element, style, Layout::RustFFI::NodeKind::InlineNode);
+    return &Layout::allocate_layout_node<Layout::NodeWithStyle>(document, element, style, Layout::RustFFI::NodeKind::InlineNode);
 }
 
 void Element::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
@@ -3235,7 +3235,7 @@ void Element::clear_synthetic_pseudo_element_layout_nodes()
                 return TraversalDecision::Continue;
             });
             layout_node->prepare_subtree_for_detach_from_layout_tree();
-            Layout::detach_layout_node_for_destruction(*layout_node);
+            Layout::destroy_layout_subtree(*layout_node);
         }
         pseudo_element.set_layout_node(nullptr);
     });

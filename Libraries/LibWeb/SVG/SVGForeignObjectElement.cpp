@@ -27,9 +27,9 @@ void SVGForeignObjectElement::initialize_element()
 {
 }
 
-RefPtr<Layout::Node> SVGForeignObjectElement::create_layout_node(CSS::LayoutStyle style)
+Layout::Node* SVGForeignObjectElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return make_ref_counted<Layout::BlockContainer>(document(), *this, style, Layout::RustFFI::NodeKind::SVGForeignObjectBox);
+    return &Layout::allocate_layout_node<Layout::BlockContainer>(document(), *this, style, Layout::RustFFI::NodeKind::SVGForeignObjectBox);
 }
 
 void SVGForeignObjectElement::visit_edges(GC::Cell::Visitor& visitor)
