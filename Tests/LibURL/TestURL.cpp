@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashMap.h>
 #include <LibTest/TestCase.h>
 
 #include <LibURL/Parser.h>
@@ -713,6 +714,18 @@ TEST_CASE(same_origin_domain)
     EXPECT(!a_relaxed.is_same_origin_domain(c_relaxed));
     EXPECT(!a_relaxed.is_same_origin_domain(http_relaxed));
     EXPECT(!opaque1.is_same_origin_domain(a_relaxed));
+}
+
+TEST_CASE(origin_hash_uses_same_origin_semantics)
+{
+    auto origin = URL::Origin { "https"_string, "a.ladybird.org"_string, 443 };
+    auto origin_with_domain = URL::Origin { "https"_string, "a.ladybird.org"_string, 443, "ladybird.org"_string };
+
+    EXPECT_EQ(origin, origin_with_domain);
+
+    HashMap<URL::Origin, int> origins;
+    origins.set(origin, 42);
+    EXPECT_EQ(origins.get(origin_with_domain), Optional<int> { 42 });
 }
 
 // resource:// URLs are internal browser resources. They share a single tuple origin regardless
