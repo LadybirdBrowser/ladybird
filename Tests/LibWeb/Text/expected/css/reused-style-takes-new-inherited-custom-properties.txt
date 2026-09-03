@@ -1,0 +1,4 @@
+input before: 'match'
+input after: ''
+shadow tree after: '' '' ''
+shadow tree after restoration: 'match' 'match' 'match'

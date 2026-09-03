@@ -1,0 +1,4 @@
+unregistered: 10px
+registered with CSS.registerProperty: 30px
+registered with @property: 5px
+@property removed: 1px
