@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Property break-inside value 'auto'
+Pass	Property break-inside value 'avoid'
+Pass	Property break-inside value 'avoid-page'
+Pass	Property break-inside value 'avoid-column'
+Pass	Property break-inside value 'avoid-region'

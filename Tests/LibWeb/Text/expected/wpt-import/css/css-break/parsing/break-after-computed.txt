@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	Property break-after value 'auto'
+Pass	Property break-after value 'avoid'
+Pass	Property break-after value 'avoid-page'
+Pass	Property break-after value 'page'
+Pass	Property break-after value 'left'
+Pass	Property break-after value 'right'
+Pass	Property break-after value 'recto'
+Pass	Property break-after value 'verso'
+Pass	Property break-after value 'avoid-column'
+Pass	Property break-after value 'column'
+Pass	Property break-after value 'avoid-region'
+Pass	Property break-after value 'region'

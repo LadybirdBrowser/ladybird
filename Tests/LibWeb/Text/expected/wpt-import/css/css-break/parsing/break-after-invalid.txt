@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['break-after'] = "none" should not set the property value
+Pass	e.style['break-after'] = "avoid region" should not set the property value

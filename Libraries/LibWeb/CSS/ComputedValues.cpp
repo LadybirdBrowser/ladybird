@@ -229,6 +229,9 @@ static void register_style_group_field_descriptors()
     for (auto property : { PropertyID::OverflowClipMarginTop, PropertyID::OverflowClipMarginRight, PropertyID::OverflowClipMarginBottom, PropertyID::OverflowClipMarginLeft })
         add(misc_reset, property, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
     add(misc_reset, PropertyID::ColumnSpan, offsetof(MiscReset, column_span), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_column_span>());
+    add(misc_reset, PropertyID::BreakBefore, offsetof(MiscReset, break_before), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_break_between>());
+    add(misc_reset, PropertyID::BreakAfter, offsetof(MiscReset, break_after), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_break_between>());
+    add(misc_reset, PropertyID::BreakInside, offsetof(MiscReset, break_inside), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_break_inside>());
     // NB: The compatibility keywords normalize to auto for the appearance field but stay raw for
     //     computed_appearance, which the plain enum-keyword decode cannot express: the core's
     //     misc-reset build lowers both fields, and the descriptor only constrains the generic

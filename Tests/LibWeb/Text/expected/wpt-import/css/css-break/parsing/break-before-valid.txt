@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	e.style['break-before'] = "auto" should set the property value
+Pass	e.style['break-before'] = "avoid" should set the property value
+Pass	e.style['break-before'] = "avoid-page" should set the property value
+Pass	e.style['break-before'] = "page" should set the property value
+Pass	e.style['break-before'] = "left" should set the property value
+Pass	e.style['break-before'] = "right" should set the property value
+Pass	e.style['break-before'] = "recto" should set the property value
+Pass	e.style['break-before'] = "verso" should set the property value
+Pass	e.style['break-before'] = "avoid-column" should set the property value
+Pass	e.style['break-before'] = "column" should set the property value
+Pass	e.style['break-before'] = "avoid-region" should set the property value
+Pass	e.style['break-before'] = "region" should set the property value

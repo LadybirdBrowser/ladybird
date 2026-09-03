@@ -1391,6 +1391,36 @@
       "box-sizing"
     ]
   },
+  "break-after": {
+    "style-group": "MiscResetValues",
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "requires-computation": "never",
+    "valid-types": [
+      "break-between"
+    ]
+  },
+  "break-before": {
+    "style-group": "MiscResetValues",
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "requires-computation": "never",
+    "valid-types": [
+      "break-between"
+    ]
+  },
+  "break-inside": {
+    "style-group": "MiscResetValues",
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "requires-computation": "never",
+    "valid-types": [
+      "break-inside"
+    ]
+  },
   "caption-side": {
     "style-group": "InheritedTableValues",
     "animation-type": "discrete",

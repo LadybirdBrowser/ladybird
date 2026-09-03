@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	e.style['break-inside'] = "auto" should set the property value
+Pass	e.style['break-inside'] = "avoid" should set the property value
+Pass	e.style['break-inside'] = "avoid-page" should set the property value
+Pass	e.style['break-inside'] = "avoid-column" should set the property value
+Pass	e.style['break-inside'] = "avoid-region" should set the property value
