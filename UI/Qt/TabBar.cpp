@@ -15,6 +15,7 @@
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/MacWindow.h>
 #endif
+#include <UI/Qt/HiddenPageSizing.h>
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/TabBar.h>
@@ -1613,8 +1614,24 @@ void TabWidget::add_tab(Tab* widget, QString const& label)
     insert_tab(m_tab_bar->count(), widget, label);
 }
 
+// Sizing the hidden page's view alone doesn't hold: The page itself still has its placeholder geometry, and the next
+// pass of the page's own layout pulls the view back to it. So, give the whole page the current page's geometry, laid
+// out now — and only then push the view's viewport.
+static void size_page_like(Tab& page, Tab const& current)
+{
+    size_hidden_page_like(page, current);
+    page.view().push_viewport_size();
+}
+
 void TabWidget::insert_tab(int index, Tab* widget, QString const& label)
 {
+    // A page inserted behind the current one stays at Qt's default geometry until it's selected, and a load can start
+    // into it long before that. Size its view like the current page's view first — as Chrome does for a new background
+    // tab (TabStripModel::AddWebContents) — so the page's first layout sees the real viewport.
+    if (auto* current = as_if<Tab>(m_stacked_widget->currentWidget()); current && current != widget)
+        size_page_like(*widget, *current);
+    widget->view().installEventFilter(this);
+
     m_stacked_widget->insertWidget(index, widget);
     m_tab_bar->insertTab(index, label);
     widget->set_toolbar_container_in_tab_layout(false);
@@ -1640,6 +1657,7 @@ Tab* TabWidget::take_tab(int index)
         return nullptr;
 
     m_stacked_widget->removeWidget(widget);
+    as<Tab>(widget)->view().removeEventFilter(this);
     auto* toolbar = as<Tab>(widget)->toolbar_container();
     if (m_toolbar_container->indexOf(toolbar) != -1)
         m_toolbar_container->removeWidget(toolbar);
@@ -1779,6 +1797,11 @@ bool TabWidget::eventFilter(QObject* watched, QEvent* event)
     if (watched == window() && event->type() == QEvent::Leave)
         defer_update_vertical_tabs_hover_expanded();
 
+    if (event->type() == QEvent::Resize) {
+        if (auto* current = as_if<Tab>(m_stacked_widget->currentWidget()); current && watched == &current->view())
+            size_hidden_pages_like_the_current_one();
+    }
+
     if (watched == m_vertical_tabs_resize_handle) {
         auto reset_resize_handle = [this] {
             m_is_resizing_vertical_tabs = false;
@@ -1886,6 +1909,23 @@ void TabWidget::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
     update_tab_layout();
+}
+
+// The stacked layout sizes only the current page, so the tabs behind it keep stale geometry: Qt's default 100x30 for
+// a tab that was created before the window was first shown — which is every tab but the first on a command line, and
+// every restored one. Their pages may already be loading. So, whenever the current page's view gets its size, then size
+// every hidden page's view the same (Chrome keeps its background tabs at the window's size the same way).
+// NB: This hangs off the view's own resize event, not this widget's: At the window's first show, this widget is laid
+// out before the current page's child layout has run. So at that point the current view still has its placeholder size.
+void TabWidget::size_hidden_pages_like_the_current_one()
+{
+    auto* current = as_if<Tab>(m_stacked_widget->currentWidget());
+    if (!current)
+        return;
+    for (int i = 0; i < m_stacked_widget->count(); ++i) {
+        if (auto* page = as_if<Tab>(m_stacked_widget->widget(i)); page && page != current)
+            size_page_like(*page, *current);
+    }
 }
 
 void TabWidget::accept_tab_drag(QDragMoveEvent* event)

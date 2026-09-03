@@ -1143,6 +1143,15 @@ void WebContentView::set_viewport_rect(Gfx::IntRect rect)
     handle_resize();
 }
 
+// A view in a tab that isn't the current one gets its geometry, but Qt holds the resize event back until the tab is
+// shown — so the page's first layout would run against whatever the viewport was before, and whatever a script
+// computes from that sticks even after the tab is selected and laid out for real. This pushes the viewport for the
+// geometry the view has now — without waiting for that event.
+void WebContentView::push_viewport_size()
+{
+    update_viewport_size();
+}
+
 void WebContentView::set_device_pixel_ratio(double device_pixel_ratio)
 {
     m_device_pixel_ratio = device_pixel_ratio;

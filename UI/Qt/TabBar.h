@@ -221,6 +221,8 @@ private:
     void accept_tab_drop(QDropEvent*, int index);
 
     TabBar* m_tab_bar { nullptr };
+    void size_hidden_pages_like_the_current_one();
+
     QStackedWidget* m_stacked_widget { nullptr };
     QToolButton* m_new_tab_button { nullptr };
     QToolButton* m_minimize_window_button { nullptr };

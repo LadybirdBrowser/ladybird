@@ -32,6 +32,7 @@ target_sources(ladybird PRIVATE
     EventLoopImplementationQtEventTarget.cpp
     FindInPageWidget.cpp
     Icon.cpp
+    HiddenPageSizing.cpp
     InputMethodUtils.cpp
     JavaScriptDialog.cpp
     LocationEdit.cpp
