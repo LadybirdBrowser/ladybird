@@ -1,15 +1,22 @@
-// https://html.spec.whatwg.org/multipage/canvas.html#imagedata
+// FIXME: ImageDataArray should be (Uint8ClampedArray or Float16Array).
+typedef Uint8ClampedArray ImageDataArray;
+
+enum ImageDataPixelFormat { "rgba-unorm8", "rgba-float16" };
 
 dictionary ImageDataSettings {
     PredefinedColorSpace colorSpace;
+    // FIXME: ImageDataPixelFormat pixelFormat = "rgba-unorm8";
 };
 
+// https://html.spec.whatwg.org/multipage/canvas.html#imagedata
 [Exposed=(Window,Worker), Serializable]
 interface ImageData {
     constructor(unsigned long sw, unsigned long sh, optional ImageDataSettings settings = {});
-    constructor(Uint8ClampedArray data, unsigned long sw, optional unsigned long sh, optional ImageDataSettings settings = {});
+    constructor(ImageDataArray data, unsigned long sw, optional unsigned long sh, optional ImageDataSettings settings = {});
+
     readonly attribute unsigned long width;
     readonly attribute unsigned long height;
-    readonly attribute Uint8ClampedArray data;
+    readonly attribute ImageDataArray data;
+    // FIXME: readonly attribute ImageDataPixelFormat pixelFormat;
     readonly attribute PredefinedColorSpace colorSpace;
 };
