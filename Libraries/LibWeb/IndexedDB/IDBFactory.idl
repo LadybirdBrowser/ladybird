@@ -1,3 +1,8 @@
+// https://w3c.github.io/IndexedDB/#factory-interface
+partial interface mixin WindowOrWorkerGlobalScope {
+    [SameObject] readonly attribute IDBFactory indexedDB;
+};
+
 // https://w3c.github.io/IndexedDB/#idbfactory
 [Exposed=(Window,Worker)]
 interface IDBFactory {

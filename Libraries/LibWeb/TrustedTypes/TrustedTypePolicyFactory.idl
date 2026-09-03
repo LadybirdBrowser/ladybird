@@ -1,3 +1,8 @@
+// https://w3c.github.io/trusted-types/dist/spec/#extensions-to-the-windoworworkerglobalscope-interface
+partial interface mixin WindowOrWorkerGlobalScope {
+    readonly attribute TrustedTypePolicyFactory trustedTypes;
+};
+
 // https://w3c.github.io/trusted-types/dist/spec/#trustedtypepolicyfactory
 [Exposed=(Window,Worker)]
 interface TrustedTypePolicyFactory {

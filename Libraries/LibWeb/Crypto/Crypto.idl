@@ -1,9 +1,11 @@
 // https://w3c.github.io/webcrypto/#crypto-interface
+partial interface mixin WindowOrWorkerGlobalScope {
+    [SameObject] readonly attribute Crypto crypto;
+};
+
 [Exposed=(Window,Worker)]
 interface Crypto {
     [SecureContext] readonly attribute SubtleCrypto subtle;
-
     ArrayBufferView getRandomValues(ArrayBufferView array);
-
     [SecureContext] DOMString randomUUID();
 };
