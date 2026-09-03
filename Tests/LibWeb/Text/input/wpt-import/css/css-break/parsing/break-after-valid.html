@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fragmentation Module Level 3: parsing break-after with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-break/#propdef-break-after">
+<meta name="assert" content="break-after supports the full grammar 'auto | avoid | avoid-page | page | left | right | recto | verso | avoid-column | column | avoid-region | region'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("break-after", "auto");
+test_valid_value("break-after", "avoid");
+test_valid_value("break-after", "avoid-page");
+test_valid_value("break-after", "page");
+test_valid_value("break-after", "left");
+test_valid_value("break-after", "right");
+test_valid_value("break-after", "recto");
+test_valid_value("break-after", "verso");
+test_valid_value("break-after", "avoid-column");
+test_valid_value("break-after", "column");
+test_valid_value("break-after", "avoid-region");
+test_valid_value("break-after", "region");
+</script>
+</body>
+</html>

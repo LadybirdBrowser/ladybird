@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fragmentation Module Level 3: parsing break-before with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-break/#propdef-break-before">
+<meta name="assert" content="break-before supports only the grammar 'auto | avoid | avoid-page | page | left | right | recto | verso | avoid-column | column | avoid-region | region'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("break-before", "none");
+test_invalid_value("break-before", "avoid region");
+</script>
+</body>
+</html>

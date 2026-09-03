@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['break-inside'] = "region" should not set the property value
+Pass	e.style['break-inside'] = "auto avoid" should not set the property value

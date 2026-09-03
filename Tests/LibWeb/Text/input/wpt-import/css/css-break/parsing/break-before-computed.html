@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fragmentation Module Level 3: getComputedStyle().breakBefore</title>
+<link rel="help" href="https://drafts.csswg.org/css-break/#propdef-break-before">
+<meta name="assert" content="break-before computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("break-before", "auto");
+test_computed_value("break-before", "avoid");
+test_computed_value("break-before", "avoid-page");
+test_computed_value("break-before", "page");
+test_computed_value("break-before", "left");
+test_computed_value("break-before", "right");
+test_computed_value("break-before", "recto");
+test_computed_value("break-before", "verso");
+test_computed_value("break-before", "avoid-column");
+test_computed_value("break-before", "column");
+test_computed_value("break-before", "avoid-region");
+test_computed_value("break-before", "region");
+</script>
+</body>
+</html>
