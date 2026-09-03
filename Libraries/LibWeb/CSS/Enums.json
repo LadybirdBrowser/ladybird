@@ -151,9 +151,34 @@
     "round",
     "space"
   ],
+  "box-decoration-break": [
+    "slice",
+    "clone"
+  ],
   "box-sizing": [
     "border-box",
     "content-box"
+  ],
+  "break-between": [
+    "auto",
+    "avoid",
+    "avoid-page",
+    "page",
+    "left",
+    "right",
+    "recto",
+    "verso",
+    "avoid-column",
+    "column",
+    "avoid-region",
+    "region"
+  ],
+  "break-inside": [
+    "auto",
+    "avoid",
+    "avoid-page",
+    "avoid-column",
+    "avoid-region"
   ],
   "caption-side": [
     "top",
@@ -186,6 +211,11 @@
     "auto",
     "linearrgb",
     "srgb"
+  ],
+  "column-fill": [
+    "auto",
+    "balance",
+    "balance-all"
   ],
   "column-span": [
     "none",
