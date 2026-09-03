@@ -75,6 +75,7 @@ pub enum VisualContextGlobalRebuildReason {
     Compaction = 7,
     ForcedForTesting = 8,
     CanonicalDumpRequested = 9,
+    InvalidIncrementalReferences = 10,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -94,9 +95,11 @@ impl VisualContextUpdateScope {
             | Reason::DocumentWideStructuralChange
             | Reason::SvgResourceSubtreeChanged
             | Reason::FilterResourcesChanged => Self::EveryBox,
-            Reason::FirstBuild | Reason::Compaction | Reason::ForcedForTesting | Reason::CanonicalDumpRequested => {
-                Self::FreshTree
-            }
+            Reason::FirstBuild
+            | Reason::Compaction
+            | Reason::ForcedForTesting
+            | Reason::CanonicalDumpRequested
+            | Reason::InvalidIncrementalReferences => Self::FreshTree,
         }
     }
 
@@ -287,6 +290,7 @@ mod tests {
             Reason::Compaction,
             Reason::ForcedForTesting,
             Reason::CanonicalDumpRequested,
+            Reason::InvalidIncrementalReferences,
         ];
         let mut previous_reason = Reason::None;
         let mut previous_scope = VisualContextUpdateScope::DirtyPath;
