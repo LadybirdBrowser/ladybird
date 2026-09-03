@@ -110,6 +110,7 @@ struct VideoEdgeTestHarness
         VideoFramePoolID pool_id;
         u32 slot_index { 0 };
         Core::AnonymousBuffer slot_buffer;
+        RefPtr<VideoSurface> surface;
     };
 
     RefPtr<RemoteVideoSink> sink;
@@ -136,7 +137,7 @@ struct VideoEdgeTestHarness
             announces = move(pending_announces);
         }
         for (auto& announcement : announces)
-            slot_directory->notify_slot_announced(announcement.pool_id, announcement.slot_index, move(announcement.slot_buffer));
+            slot_directory->notify_slot_announced(announcement.pool_id, announcement.slot_index, move(announcement.slot_buffer), move(announcement.surface));
         // The pump's delegates only wake this thread; the consumer is single-threaded, so it is notified here.
         consumer->notify_data_available();
     }
@@ -153,13 +154,13 @@ void wire_full_node(VideoEdgeTestHarness& harness, NonnullRefPtr<VideoProducer> 
     };
     sink_delegates.transmit_seek = [] { };
     sink_delegates.transmit_time_reader = [](MediaTimeReader const&) { };
-    sink_delegates.announce_slot = [weak = harness.make_weak_ref()](VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer) {
+    sink_delegates.announce_slot = [weak = harness.make_weak_ref()](VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer, RefPtr<VideoSurface> surface) {
         auto harness = weak.strong_ref();
         if (!harness)
             return;
         {
             Sync::MutexLocker locker { harness->mutex };
-            harness->pending_announces.append({ pool_id, slot_index, move(slot_buffer) });
+            harness->pending_announces.append({ pool_id, slot_index, move(slot_buffer), move(surface) });
         }
         harness->wake();
     };
@@ -481,7 +482,7 @@ TEST_CASE(current_frame_ignores_handles_whose_lend_was_released)
     delegates.ring_data_available = [] { };
     delegates.transmit_seek = [] { };
     delegates.transmit_time_reader = [](MediaTimeReader const&) { };
-    delegates.announce_slot = [](VideoFramePoolID, u32, Core::AnonymousBuffer) { };
+    delegates.announce_slot = [](VideoFramePoolID, u32, Core::AnonymousBuffer, RefPtr<VideoSurface>) { };
     delegates.retire_pool = [](VideoFramePoolID) { };
     auto sink = MUST(RemoteVideoSink::create(move(delegates)));
 

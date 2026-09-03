@@ -10,6 +10,7 @@
 #include <AK/Error.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Platform.h>
+#include <LibIPC/Forward.h>
 #include <LibMedia/Export.h>
 
 #ifdef AK_OS_MACOS
@@ -28,6 +29,7 @@ public:
 
 #ifdef AK_OS_MACOS
     static ErrorOr<NonnullRefPtr<VideoSurface>> create(Core::IOSurfaceHandle);
+    static ErrorOr<NonnullRefPtr<VideoSurface>> create_from_mach_port(Core::MachPort const&);
     Core::MachPort create_mach_port() const { return m_io_surface.create_mach_port(); }
 #endif
 
@@ -45,5 +47,15 @@ private:
 
     u32 m_id { 0 };
 };
+
+}
+
+namespace IPC {
+
+template<>
+MEDIA_API ErrorOr<void> encode(Encoder&, RefPtr<Media::VideoSurface> const&);
+
+template<>
+MEDIA_API ErrorOr<RefPtr<Media::VideoSurface>> decode(Decoder&);
 
 }

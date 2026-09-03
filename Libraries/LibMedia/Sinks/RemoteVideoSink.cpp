@@ -10,6 +10,7 @@
 #include <LibMedia/VideoEdgeQueue.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibMedia/VideoPresentation/PresentedFramePage.h>
+#include <LibMedia/VideoSurface.h>
 #include <LibSync/ConditionVariable.h>
 #include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
@@ -297,7 +298,7 @@ void RemoteVideoSink::ThreadData::lend_slot(PooledVideoFrameSlot const& pool_slo
     // Each new buffer backing the slot is announced exactly once, before the first handle that refers to it.
     auto announced_buffer_id = lent_pool.announced_allocated_buffer_ids_by_slot_index.get(slot_index);
     if (!announced_buffer_id.has_value() || *announced_buffer_id != pool_slot.allocated_buffer_id()) {
-        m_delegates.announce_slot(ledger.id(), slot_index, ledger.slot_buffer(slot_index));
+        m_delegates.announce_slot(ledger.id(), slot_index, ledger.slot_buffer(slot_index), ledger.slot_surface(slot_index));
         lent_pool.announced_allocated_buffer_ids_by_slot_index.set(slot_index, pool_slot.allocated_buffer_id());
     }
 
@@ -355,7 +356,7 @@ RefPtr<VideoFrame> RemoteVideoSink::ThreadData::current_frame()
                 // Hold the slot across the synchronous read so it cannot be recycled mid-use; the resolved frame's
                 // release callback drops the hold.
                 ledger->add_hold(handle->slot_index);
-                auto frame_or_error = resolve_frame_from_slot_buffer(ledger->slot_buffer(handle->slot_index), *handle, [ledger, slot_index = handle->slot_index] {
+                auto frame_or_error = resolve_frame_from_slot(ledger->slot_buffer(handle->slot_index), ledger->slot_surface(handle->slot_index), *handle, [ledger, slot_index = handle->slot_index] {
                     ledger->release_hold(slot_index);
                 });
                 if (frame_or_error.is_error()) {

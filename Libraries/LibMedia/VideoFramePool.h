@@ -164,32 +164,22 @@ private:
 };
 
 // A strong reference to a slot in a frame pool resolved on the remote side.
-class ResolvedVideoFrameSlot : public AtomicRefCounted<ResolvedVideoFrameSlot> {
+class MEDIA_API ResolvedVideoFrameSlot : public AtomicRefCounted<ResolvedVideoFrameSlot> {
 public:
-    ResolvedVideoFrameSlot(Core::AnonymousBuffer slot_buffer, VideoFramePoolID pool_id, u32 slot_index, u64 slot_acquisition_id, Function<void()> on_release)
-        : m_slot_buffer(move(slot_buffer))
-        , m_pool_id(pool_id)
-        , m_slot_index(slot_index)
-        , m_slot_acquisition_id(slot_acquisition_id)
-        , m_on_release(move(on_release))
-    {
-    }
-
-    ~ResolvedVideoFrameSlot()
-    {
-        if (m_on_release)
-            m_on_release();
-    }
+    ResolvedVideoFrameSlot(Core::AnonymousBuffer slot_buffer, RefPtr<VideoSurface> surface, VideoFramePoolID pool_id, u32 slot_index, u64 slot_acquisition_id, Function<void()> on_release);
+    ~ResolvedVideoFrameSlot();
 
     bool revalidate() const;
 
     Core::AnonymousBuffer slot_buffer() const { return m_slot_buffer; }
+    RefPtr<VideoSurface> const& surface() const { return m_surface; }
     VideoFramePoolID pool_id() const { return m_pool_id; }
     u32 slot_index() const { return m_slot_index; }
     u64 slot_acquisition_id() const { return m_slot_acquisition_id; }
 
 private:
     Core::AnonymousBuffer m_slot_buffer;
+    RefPtr<VideoSurface> m_surface;
     VideoFramePoolID m_pool_id { 0 };
     u32 m_slot_index { 0 };
     u64 m_slot_acquisition_id { 0 };
@@ -202,17 +192,18 @@ MEDIA_API ErrorOr<Gfx::YUVData> yuv_data_in_slot_buffer(Core::AnonymousBuffer co
 // Resolves a frame handle against the slot framebuffer it refers to, validating the slot's acquisition ID against the
 // handle's. The resolved frame revalidates it again after its pixels are consumed, seqlock-style, discarding reads of
 // recycled slots.
-MEDIA_API ErrorOr<NonnullRefPtr<VideoFrame>> resolve_frame_from_slot_buffer(Core::AnonymousBuffer const& slot_buffer, VideoFrameHandle const&, Function<void()> on_release);
+MEDIA_API ErrorOr<NonnullRefPtr<VideoFrame>> resolve_frame_from_slot(Core::AnonymousBuffer const& slot_buffer, RefPtr<VideoSurface> surface, VideoFrameHandle const&, Function<void()> on_release);
 
 // Tracks all the active slot framebuffers from a VideoFramePool via announcement and retirement notifications. Used to
 // resolve frames on a remote process. Resolved frames' lifetimes are guaranteed until they are released.
 class MEDIA_API VideoFrameSlotDirectory : public AtomicRefCounted<VideoFrameSlotDirectory> {
 public:
     static NonnullRefPtr<VideoFrameSlotDirectory> create();
+    ~VideoFrameSlotDirectory();
 
     void set_on_slots_changed(Function<void()>);
 
-    void notify_slot_announced(VideoFramePoolID, u32 slot_index, Core::AnonymousBuffer slot_buffer);
+    void notify_slot_announced(VideoFramePoolID, u32 slot_index, Core::AnonymousBuffer slot_buffer, RefPtr<VideoSurface> surface);
     void notify_pool_retired(VideoFramePoolID);
 
     RefPtr<VideoFrame> resolve_frame(VideoFrameHandle const&, Function<void()> on_release) const;
@@ -220,7 +211,11 @@ public:
 private:
     VideoFrameSlotDirectory() = default;
 
-    HashMap<VideoFramePoolID, HashMap<u32, Core::AnonymousBuffer>> m_slot_buffers_by_pool_id;
+    struct AnnouncedSlot {
+        Core::AnonymousBuffer buffer;
+        RefPtr<VideoSurface> surface;
+    };
+    HashMap<VideoFramePoolID, HashMap<u32, AnnouncedSlot>> m_slots_by_pool_id;
     Function<void()> m_on_slots_changed;
 };
 
