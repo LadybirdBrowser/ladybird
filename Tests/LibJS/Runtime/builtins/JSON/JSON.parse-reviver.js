@@ -29,6 +29,14 @@ test("reviver context preserves non-ASCII source text", () => {
     expect(sources).toEqual(['"é"', '"\\u00e9"', '"😀"']);
 });
 
+test("reviver context preserves source text around lone surrogates", () => {
+    const sources = [];
+    JSON.parse('["é", "\uD800", "日\uDC00本", 2]', function (key, value, context) {
+        if (key !== "") sources.push(context.source);
+    });
+    expect(sources).toEqual(['"é"', '"\uD800"', '"日\uDC00本"', "2"]);
+});
+
 test("reviver context has no source for forward-modified values", () => {
     const result = JSON.parse("[1, 2]", function (key, value, { source }) {
         if (key === "0") this[1] = { injected: true };

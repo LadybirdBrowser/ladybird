@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ByteBuffer.h>
 #include <AK/Function.h>
 #include <AK/GenericLexer.h>
 #include <AK/OwnPtr.h>
+#include <AK/StringBuilder.h>
 #include <AK/StringConversions.h>
 #include <AK/TypeCasts.h>
 #include <AK/UnicodeUtils.h>
@@ -799,22 +799,12 @@ static ALWAYS_INLINE ThrowCompletionOr<void> ensure_simdjson_fully_parsed(VM& vm
 }
 
 struct JSONTextBytes {
-    explicit JSONTextBytes(Utf16View text)
-        : text(text)
-    {
-    }
-
     Utf16View text;
-    Optional<ByteBuffer> utf8_storage;
+    StringBuilder utf8;
     Vector<size_t> byte_to_code_unit_offsets;
-    char const* parser_bytes_data { nullptr };
 
-    StringView bytes() const
-    {
-        if (text.has_ascii_storage())
-            return { text.bytes() };
-        return { utf8_storage->bytes() };
-    }
+    StringView bytes() const { return utf8.string_view().substring_view(0, utf8.length() - simdjson::SIMDJSON_PADDING); }
+    simdjson::padded_string_view padded_view() const { return simdjson::padded_string_view { bytes().characters_without_null_termination(), bytes().length(), utf8.length() }; }
 
     size_t byte_offset_to_code_unit_offset(size_t byte_offset) const
     {
@@ -825,56 +815,75 @@ struct JSONTextBytes {
     }
 };
 
-static void append_json_surrogate_escape(StringBuilder& builder, u16 code_unit)
+enum class TrackCodeUnitOffsets {
+    No,
+    Yes,
+};
+
+static void append_code_unit_offsets(Vector<size_t>& offsets, size_t byte_count, size_t code_unit_count, size_t& code_unit_offset)
 {
-    builder.append("\\u"sv);
-    builder.appendff("{:04X}", code_unit);
+    for (size_t trailing = 1; trailing < byte_count; ++trailing)
+        offsets.unchecked_append(code_unit_offset);
+    offsets.unchecked_append(code_unit_offset + code_unit_count);
+    code_unit_offset += code_unit_count;
 }
 
-static ErrorOr<JSONTextBytes> json_text_bytes(Utf16View text)
+static void append_code_unit_offsets(Vector<size_t>& offsets, StringView bytes, size_t& code_unit_offset)
 {
-    JSONTextBytes text_bytes { text };
-    if (text.has_ascii_storage())
-        return text_bytes;
+    for (size_t i = 0; i < bytes.length();) {
+        auto lead = static_cast<u8>(bytes[i]);
+        size_t byte_count = 1;
+        if (lead >= 0xF0)
+            byte_count = 4;
+        else if (lead >= 0xE0)
+            byte_count = 3;
+        else if (lead >= 0xC0)
+            byte_count = 2;
+        append_code_unit_offsets(offsets, byte_count, byte_count == 4 ? 2 : 1, code_unit_offset);
+        i += byte_count;
+    }
+}
 
-    StringBuilder builder;
-    text_bytes.byte_to_code_unit_offsets.append(0);
-    for (size_t code_unit_offset = 0; code_unit_offset < text.length_in_code_units(); ++code_unit_offset) {
-        auto code_unit = text.code_unit_at(code_unit_offset);
-        auto code_point = static_cast<u32>(code_unit);
-        size_t code_unit_length = 1;
-        if (AK::UnicodeUtils::is_utf16_high_surrogate(code_unit) && code_unit_offset + 1 < text.length_in_code_units()) {
-            auto next_code_unit = text.code_unit_at(code_unit_offset + 1);
-            if (AK::UnicodeUtils::is_utf16_low_surrogate(next_code_unit)) {
-                code_point = AK::UnicodeUtils::decode_utf16_surrogate_pair(code_unit, next_code_unit);
-                code_unit_length = 2;
+static ErrorOr<JSONTextBytes> json_text_bytes(Utf16View text, TrackCodeUnitOffsets track_code_unit_offsets)
+{
+    auto maximum_length = text.has_ascii_storage() ? text.length_in_code_units() : 3 * text.length_in_code_units();
+    JSONTextBytes text_bytes { text, StringBuilder { maximum_length + simdjson::SIMDJSON_PADDING }, {} };
+    auto& utf8 = text_bytes.utf8;
+
+    if (text.has_ascii_storage()) {
+        TRY(utf8.try_append(StringView { text.bytes() }));
+    } else {
+        auto& offsets = text_bytes.byte_to_code_unit_offsets;
+        bool track_offsets = track_code_unit_offsets == TrackCodeUnitOffsets::Yes;
+        size_t code_unit_offset = 0;
+        if (track_offsets)
+            TRY(offsets.try_append(0));
+
+        auto remaining = text;
+        while (!remaining.is_empty()) {
+            size_t valid_code_units = 0;
+            bool all_valid = remaining.validate(valid_code_units);
+
+            auto length_before = utf8.length();
+            TRY(utf8.try_append(remaining.substring_view(0, valid_code_units)));
+            if (track_offsets) {
+                auto converted = utf8.string_view().substring_view(length_before);
+                TRY(offsets.try_ensure_capacity(offsets.size() + converted.length()));
+                append_code_unit_offsets(offsets, converted, code_unit_offset);
             }
-        }
+            if (all_valid)
+                break;
 
-        if (code_unit_length == 1 && (AK::UnicodeUtils::is_utf16_high_surrogate(code_unit) || AK::UnicodeUtils::is_utf16_low_surrogate(code_unit))) {
-            append_json_surrogate_escape(builder, code_unit);
-            for (int byte_index = 0; byte_index < 6; ++byte_index) {
-                auto is_code_point_boundary = byte_index == 5;
-                text_bytes.byte_to_code_unit_offsets.append(code_unit_offset + (is_code_point_boundary ? 1 : 0));
+            TRY(utf8.try_appendff("\\u{:04X}", remaining.code_unit_at(valid_code_units)));
+            if (track_offsets) {
+                TRY(offsets.try_ensure_capacity(offsets.size() + 6));
+                append_code_unit_offsets(offsets, 6, 1, code_unit_offset);
             }
-            continue;
+            remaining = remaining.substring_view(valid_code_units + 1);
         }
-
-        auto utf8_length = AK::UnicodeUtils::code_point_to_utf8(code_point, [&](char byte) {
-            builder.append(byte);
-        });
-        VERIFY(utf8_length > 0);
-
-        for (int byte_index = 0; byte_index < utf8_length; ++byte_index) {
-            auto is_code_point_boundary = byte_index == utf8_length - 1;
-            text_bytes.byte_to_code_unit_offsets.append(code_unit_offset + (is_code_point_boundary ? code_unit_length : 0));
-        }
-
-        code_unit_offset += code_unit_length - 1;
     }
 
-    text_bytes.utf8_storage = TRY(builder.to_byte_buffer());
-    VERIFY(text_bytes.byte_to_code_unit_offsets.size() == text_bytes.utf8_storage->size() + 1);
+    TRY(utf8.try_append_repeated('\0', simdjson::SIMDJSON_PADDING));
     return text_bytes;
 }
 
@@ -892,8 +901,7 @@ static Utf16String json_token_source(JSONTextBytes const& json_text, std::string
         --end;
 
     auto bytes = json_text.bytes();
-    auto* bytes_data = json_text.parser_bytes_data;
-    VERIFY(bytes_data);
+    auto* bytes_data = bytes.characters_without_null_termination();
     auto* token_start = source.characters_without_null_termination() + start;
     auto* token_end = source.characters_without_null_termination() + end;
     VERIFY(token_start >= bytes_data);
@@ -1170,15 +1178,11 @@ ThrowCompletionOr<Value> JSONObject::parse_json(VM& vm, Utf16View text, JSONPars
     if (text.length_in_code_units() >= 1 && text.code_unit_at(0) == 0xFEFF)
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
 
-    auto json_text = json_text_bytes(text).release_value_but_fixme_should_propagate_errors();
-    auto text_bytes = json_text.bytes();
+    auto json_text = json_text_bytes(text, root_record ? TrackCodeUnitOffsets::Yes : TrackCodeUnitOffsets::No).release_value_but_fixme_should_propagate_errors();
 
     simdjson::ondemand::parser parser;
-    simdjson::padded_string padded(text_bytes.characters_without_null_termination(), text_bytes.length());
-    json_text.parser_bytes_data = padded.data();
-
     simdjson::ondemand::document document;
-    if (parser.iterate(padded).get(document))
+    if (parser.iterate(json_text.padded_view()).get(document))
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
 
     // 2. Let scriptString be the string-concatenation of "(", text, and ");".
@@ -1309,14 +1313,11 @@ JS_DEFINE_NATIVE_FUNCTION(JSONObject::raw_json)
     // 3. Parse StringToCodePoints(jsonString) as a JSON text as specified in ECMA-404. Throw a SyntaxError exception
     //    if it is not a valid JSON text as defined in that specification, or if its outermost value is an object or
     //    array as defined in that specification.
-    auto json_text = json_text_bytes(json_string_view).release_value_but_fixme_should_propagate_errors();
-    auto text_bytes = json_text.bytes();
+    auto json_text = json_text_bytes(json_string_view, TrackCodeUnitOffsets::No).release_value_but_fixme_should_propagate_errors();
 
     simdjson::ondemand::parser parser;
-    simdjson::padded_string padded(text_bytes.characters_without_null_termination(), text_bytes.length());
-
     simdjson::ondemand::document doc;
-    if (parser.iterate(padded).get(doc))
+    if (parser.iterate(json_text.padded_view()).get(doc))
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
 
     simdjson::ondemand::json_type type;
