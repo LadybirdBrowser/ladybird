@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Multi-column Layout: parsing column-rule-width with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#propdef-column-rule-width">
+<meta name="assert" content="column-rule-width supports only the <line-width> grammar '<length> | thin | medium | thick'.">
+<meta name="assert" content="column-rule-width rejects negative lengths.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("column-rule-width", "auto");
+
+test_invalid_value("column-rule-width", "10");
+test_invalid_value("column-rule-width", "-20px");
+test_invalid_value("column-rule-width", "30%");
+
+</script>
+</body>
+</html>

@@ -41,7 +41,7 @@ use crate::css::computed_value_types::{
 };
 use crate::css::computed_values::{
     FfiGroupValueEntry, GROUP_FIELD_COLOR, GROUP_FIELD_COLOR_OR_KEYWORD, GROUP_FIELD_RESOLVED_F32,
-    GROUP_FIELD_RESOLVED_F64, GROUP_FIELD_RESOLVED_U8, build_svg_reset_group_payload,
+    GROUP_FIELD_RESOLVED_F64, GROUP_FIELD_RESOLVED_U8, MAX_GROUP_FIELD_COUNT, build_svg_reset_group_payload,
     registered_group_field_descriptors, rust_build_alignment_group, rust_build_grid_group,
     rust_build_inherited_box_group, rust_build_inherited_table_group, rust_build_sizing_group, rust_build_style_group,
     rust_build_surround_group, rust_build_text_reset_group,
@@ -126,8 +126,6 @@ struct EffectiveValues<'a> {
     table: &'a ComputedLonghandTable,
     animated_overlay: Option<&'a AnimatedOverlay>,
 }
-
-const MAX_GROUP_FIELD_COUNT: usize = 40;
 
 struct GroupValueEntries {
     entries: [std::mem::MaybeUninit<FfiGroupValueEntry>; MAX_GROUP_FIELD_COUNT],

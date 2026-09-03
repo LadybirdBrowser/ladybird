@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	Property column-rule-style value 'none'
+Pass	Property column-rule-style value 'hidden'
+Pass	Property column-rule-style value 'dotted'
+Pass	Property column-rule-style value 'dashed'
+Pass	Property column-rule-style value 'solid'
+Pass	Property column-rule-style value 'double'
+Pass	Property column-rule-style value 'groove'
+Pass	Property column-rule-style value 'ridge'
+Pass	Property column-rule-style value 'inset'

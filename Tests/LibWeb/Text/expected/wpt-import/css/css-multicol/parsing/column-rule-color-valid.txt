@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['column-rule-color'] = "currentcolor" should set the property value
+Pass	e.style['column-rule-color'] = "red" should set the property value

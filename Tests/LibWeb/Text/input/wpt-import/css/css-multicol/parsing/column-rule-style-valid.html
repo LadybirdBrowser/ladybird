@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Multi-column Layout: parsing column-rule-style with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#propdef-column-rule-style">
+<meta name="assert" content="column-rule-style supports the full <line-style> grammar 'none | hidden | dotted | dashed | solid | double | groove | ridge | inset | outset'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("column-rule-style", "none");
+test_valid_value("column-rule-style", "hidden");
+test_valid_value("column-rule-style", "dotted");
+test_valid_value("column-rule-style", "dashed");
+test_valid_value("column-rule-style", "solid");
+test_valid_value("column-rule-style", "double");
+test_valid_value("column-rule-style", "groove");
+test_valid_value("column-rule-style", "ridge");
+test_valid_value("column-rule-style", "inset");
+</script>
+</body>
+</html>

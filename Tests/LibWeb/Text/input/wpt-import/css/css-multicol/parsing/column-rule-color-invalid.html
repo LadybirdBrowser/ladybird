@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Multi-column Layout: parsing column-rule-color with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#propdef-column-rule-color">
+<meta name="assert" content="column-rule-color supports only the grammar '<color>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("column-rule-color", "auto");
+
+test_invalid_value("column-rule-color", "green blue");
+</script>
+</body>
+</html>

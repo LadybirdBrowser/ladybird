@@ -908,6 +908,8 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
                     return resolve_color_style_value(*computed_value, computed_values->border_right().color).release_nonnull();
                 case PropertyID::BorderTopColor:
                     return resolve_color_style_value(*computed_value, computed_values->border_top().color).release_nonnull();
+                case PropertyID::ColumnRuleColor:
+                    return resolve_color_style_value(*computed_value, computed_values->column_rule_color()).release_nonnull();
                 case PropertyID::OutlineColor:
                     return resolve_color_style_value(*computed_value, computed_values->outline_color()).release_nonnull();
                 case PropertyID::TextDecorationColor:
@@ -1186,6 +1188,8 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         auto current_color_resolution_context = ColorResolutionContext::for_element(*owner_node());
         return resolve_color_style_value(*get_computed_value(property_id), style->color(), &current_color_resolution_context);
     }
+    case PropertyID::ColumnRuleColor:
+        return resolve_color_style_value(*get_computed_value(property_id), layout_node.column_rule_color(), &color_resolution_context);
     case PropertyID::OutlineColor:
         return resolve_color_style_value(*get_computed_value(property_id), layout_node.outline_color(), &color_resolution_context);
     case PropertyID::TextDecorationColor:

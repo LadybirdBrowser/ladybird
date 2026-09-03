@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	e.style['column-rule-style'] = "none" should set the property value
+Pass	e.style['column-rule-style'] = "hidden" should set the property value
+Pass	e.style['column-rule-style'] = "dotted" should set the property value
+Pass	e.style['column-rule-style'] = "dashed" should set the property value
+Pass	e.style['column-rule-style'] = "solid" should set the property value
+Pass	e.style['column-rule-style'] = "double" should set the property value
+Pass	e.style['column-rule-style'] = "groove" should set the property value
+Pass	e.style['column-rule-style'] = "ridge" should set the property value
+Pass	e.style['column-rule-style'] = "inset" should set the property value

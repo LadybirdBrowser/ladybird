@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Multi-column Layout: parsing column-rule-width with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#propdef-column-rule-width">
+<meta name="assert" content="column-rule-width supports the full <line-width> grammar '<length> | thin | medium | thick'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("column-rule-width", "thin");
+test_valid_value("column-rule-width", "medium");
+test_valid_value("column-rule-width", "thick");
+
+test_valid_value("column-rule-width", "0", "0px");
+test_valid_value("column-rule-width", "10px");
+</script>
+</body>
+</html>

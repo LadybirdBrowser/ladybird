@@ -987,6 +987,7 @@ impl ComputedGroupSets {
                         | crate::css::property_metadata::property_id::BORDER_RIGHT_COLOR
                         | crate::css::property_metadata::property_id::BORDER_TOP_COLOR
                         | crate::css::property_metadata::property_id::BOX_SHADOW
+                        | crate::css::property_metadata::property_id::COLUMN_RULE_COLOR
                         | crate::css::property_metadata::property_id::FILTER
                         | crate::css::property_metadata::property_id::FLOOD_COLOR
                         | crate::css::property_metadata::property_id::OUTLINE_COLOR

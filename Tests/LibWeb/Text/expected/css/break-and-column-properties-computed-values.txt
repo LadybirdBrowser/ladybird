@@ -1,0 +1,11 @@
+break-before: recto
+break-after: avoid-column
+break-inside: avoid-page
+box-decoration-break: clone
+column-fill: balance-all
+column-span: all
+column-rule-width: 20px
+column-rule-style: none
+column-rule-color: rgb(0, 255, 0)
+orphans: 3
+widows: 4
