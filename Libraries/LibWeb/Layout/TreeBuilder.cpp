@@ -106,7 +106,7 @@ void LayoutTreeBuilderAccess::set_synthetic_pseudo_element_node(DOM::Element& el
 static RustFFI::FfiPrincipalDisplayFacts ffi_principal_display_facts(CSS::Display);
 static void update_style_if_needed_for_layout_tree_bypass_path(DOM::Element&);
 struct PrincipalNodeFrame;
-static RustFFI::FfiPrincipalTextLayoutNodes create_layout_node_for_text(PrincipalNodeFrame&, DOM::Text&, bool needs_style_wrapper);
+static RustFFI::NodeSlotId create_layout_node_for_text(PrincipalNodeFrame&, DOM::Text&);
 
 static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node)
 {
@@ -1264,11 +1264,19 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 .parent_display_is_contents = style_parent_values && style_parent_values->display().is_contents(),
                 .text_is_ascii_whitespace = text.data().is_ascii_whitespace(),
                 .parent_collapses_whitespace = style_parent_values && first_is_one_of(style_parent_values->white_space_collapse(), CSS::WhiteSpaceCollapse::Collapse),
+                .style_parent_style_record = style_parent ? style_parent->style_record_identity().value() : 0,
             }; },
-        .create_principal_text_layout = [](void* frame_pointer, void* text_pointer, bool needs_style_wrapper) -> RustFFI::FfiPrincipalTextLayoutNodes {
+        .create_principal_text_layout = [](void* frame_pointer, void* text_pointer) -> RustFFI::NodeSlotId {
             VERIFY(frame_pointer);
             VERIFY(text_pointer);
-            return create_layout_node_for_text(*static_cast<PrincipalNodeFrame*>(frame_pointer), *static_cast<DOM::Text*>(text_pointer), needs_style_wrapper); },
+            return create_layout_node_for_text(*static_cast<PrincipalNodeFrame*>(frame_pointer), *static_cast<DOM::Text*>(text_pointer)); },
+        .set_principal_layout_node = [](void* builder_pointer, void* frame_pointer, RustFFI::NodeSlotId slot) {
+            VERIFY(builder_pointer);
+            VERIFY(frame_pointer);
+            auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
+            auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
+            frame.layout_node = static_cast<Node*>(RustFFI::layout_arena_node_shell_if_live(builder.m_document->layout_node_arena().handle(), slot));
+            VERIFY(frame.layout_node); },
         .reuse_principal_layout = [](void* frame_pointer, void* node_pointer) {
             VERIFY(frame_pointer);
             VERIFY(node_pointer);
@@ -1326,29 +1334,10 @@ static void update_style_if_needed_for_layout_tree_bypass_path(DOM::Element& ele
         element.document().update_style_for_element({ element });
 }
 
-static RustFFI::FfiPrincipalTextLayoutNodes create_layout_node_for_text(PrincipalNodeFrame& frame, DOM::Text& text_node, bool needs_style_wrapper)
+static RustFFI::NodeSlotId create_layout_node_for_text(PrincipalNodeFrame& frame, DOM::Text& text_node)
 {
-    auto& document = text_node.document();
-    auto& layout_node = allocate_layout_node<Layout::TextNode>(document, text_node);
-    if (!needs_style_wrapper) {
-        frame.layout_node = &layout_node;
-        return {
-            .layout_node = Node::slot_id(frame.layout_node),
-            .wrapped_text = RustFFI::NodeSlotId_INVALID,
-        };
-    }
-    auto& style_parent = as<DOM::Element>(*text_node.flat_tree_parent());
-    auto style_parent_values = style_parent.computed_style();
-    VERIFY(style_parent_values);
-    auto wrapper_values = CSS::ComputedValues::Builder { *style_parent_values }.build();
-    auto& wrapper = allocate_layout_node<Layout::NodeWithStyle>(document, nullptr, move(wrapper_values), RustFFI::NodeKind::InlineNode);
-    wrapper.attach_style_resources();
-    wrapper.set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
-    frame.layout_node = &wrapper;
-    return {
-        .layout_node = Node::slot_id(frame.layout_node),
-        .wrapped_text = Node::slot_id(&layout_node),
-    };
+    frame.layout_node = &allocate_layout_node<Layout::TextNode>(text_node.document(), text_node);
+    return Node::slot_id(frame.layout_node);
 }
 
 LayoutTreeBuildResult LayoutTreeBuildBridge::build(DOM::Node& dom_node)
@@ -1427,12 +1416,12 @@ RustFFI::FfiTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_tree_builder_ca
             case RustFFI::NodeKind::Box:
                 allocate_layout_node<Box>(document, BindToPreparedArenaSlot::Yes, slot, kind);
                 return;
+            case RustFFI::NodeKind::InlineNode:
+                allocate_layout_node<NodeWithStyle>(document, BindToPreparedArenaSlot::Yes, slot, kind).attach_style_resources();
+                return;
             default:
                 VERIFY_NOT_REACHED();
             } },
-        .reset_table_box_style_used_by_wrapper = [](void*, void* table_box_pointer) {
-            VERIFY(table_box_pointer);
-            as<Box>(*static_cast<Node*>(table_box_pointer)).reset_table_box_computed_values_used_by_wrapper_to_init_values(); },
         .take_fieldset_overflow_for_content_wrapper = [](void*, void* fieldset_box_pointer) -> RustFFI::FfiAnonymousStyleOverrides {
             VERIFY(fieldset_box_pointer);
             auto& fieldset_box = as<BlockContainer>(*static_cast<Node*>(fieldset_box_pointer));

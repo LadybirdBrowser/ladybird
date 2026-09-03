@@ -1296,6 +1296,13 @@ unsafe fn payloads_equal(table: &StyleGroupVTable, a: *const c_void, b: *const c
     }
 }
 
+pub(crate) fn style_group_affects_layout(group_index: usize) -> bool {
+    !matches!(
+        vtable(group_index).lifecycle,
+        StyleGroupLifecycle::Mask | StyleGroupLifecycle::TextReset | StyleGroupLifecycle::Background
+    )
+}
+
 pub(crate) fn style_group_payloads_equal(group_index: usize, a: *const c_void, b: *const c_void) -> bool {
     assert!(!a.is_null());
     assert!(!b.is_null());
