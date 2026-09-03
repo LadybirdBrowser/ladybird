@@ -456,7 +456,7 @@ pub(crate) struct LayoutNodeArena {
     chunks: Vec<Box<Chunk>>,
     chunks_by_address: Vec<ChunkAddress>,
     slot_metadata: Vec<SlotMetadata>,
-    dom_nodes: Vec<*mut c_void>,
+    dom_nodes: Vec<Cell<*mut c_void>>,
     pre_order_labels: Vec<Cell<u64>>,
     pre_order_relabel_count: Cell<u64>,
     free_list: Vec<u32>,
@@ -584,15 +584,33 @@ impl LayoutNodeArena {
     // Freshly created chunks are default-initialized and free() resets slots on release, so
     // allocate() always hands out clean NodeData without writing it again.
     pub(crate) fn allocate(&mut self, construction_facts: FfiNodeConstructionFacts) -> NodeSlotId {
+        let slot = self.allocate_unbound(construction_facts.dom_node);
+        self.bind_shell(slot, construction_facts);
+        slot
+    }
+
+    pub(crate) fn allocate_unbound(&mut self, dom_node: *mut c_void) -> NodeSlotId {
         let slot = self.allocate_slot();
-        self.dom_nodes[slot.slot_index() as usize] = construction_facts.dom_node;
-        let data = self.data_mut(slot.slot_index());
+        self.dom_nodes[slot.slot_index() as usize].set(dom_node);
+        slot
+    }
+
+    pub(crate) fn bind_shell(&self, slot: NodeSlotId, construction_facts: FfiNodeConstructionFacts) {
+        assert!(
+            self.slot_is_live(slot),
+            "layout node arena bound a shell to a dead slot"
+        );
+        let data = self.data(slot);
+        assert!(
+            data.shell.get().is_null(),
+            "layout node arena bound a second shell to a slot"
+        );
+        self.dom_nodes[slot.slot_index() as usize].set(construction_facts.dom_node);
         data.kind.set(construction_facts.kind);
         data.shell.set(construction_facts.shell);
         data.flags
             .set(super::node_facts::construction_flags(&construction_facts));
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
-        slot
     }
 
     #[cfg(test)]
@@ -634,7 +652,7 @@ impl LayoutNodeArena {
                 self.chunks.push(chunk);
             }
             self.slot_metadata.push(SlotMetadata::default());
-            self.dom_nodes.push(std::ptr::null_mut());
+            self.dom_nodes.push(Cell::new(std::ptr::null_mut()));
             self.pre_order_labels.push(Cell::new(0));
             // Grown with the slot space up front: nearly every slot gets a run
             // record each layout pass, so register() never has to resize.
@@ -728,7 +746,7 @@ impl LayoutNodeArena {
         }
         self.pre_order_labels[index as usize].set(0);
         self.metadata_mut(index).occupied = false;
-        self.dom_nodes[index as usize] = std::ptr::null_mut();
+        self.dom_nodes[index as usize].set(std::ptr::null_mut());
 
         if let Some(slot) = self.intrinsic_size_caches.get_mut().get_mut(index as usize) {
             *slot = IntrinsicSizeCacheSlot::default();
@@ -1973,8 +1991,9 @@ impl LayoutNodeArena {
 
     pub(crate) fn visit_dom_nodes(&self, mut visit: impl FnMut(*mut c_void)) {
         for (metadata, dom_node) in self.slot_metadata.iter().zip(&self.dom_nodes) {
+            let dom_node = dom_node.get();
             if metadata.occupied && !dom_node.is_null() {
-                visit(*dom_node);
+                visit(dom_node);
             }
         }
     }
@@ -1983,7 +2002,7 @@ impl LayoutNodeArena {
         if !self.slot_is_live(id) {
             return std::ptr::null_mut();
         }
-        self.dom_nodes[id.slot_index() as usize]
+        self.dom_nodes[id.slot_index() as usize].get()
     }
 
     pub(crate) fn live_slot_count(&self) -> u32 {
@@ -2586,6 +2605,29 @@ mod tests {
             is_editing_host: false,
             is_body: false,
         }
+    }
+
+    #[test]
+    fn an_unbound_slot_has_no_shell_until_a_shell_is_bound() {
+        let mut arena = LayoutNodeArena::new();
+        let mut dom_node_storage = 0u8;
+        let dom_node = std::ptr::from_mut(&mut dom_node_storage).cast::<c_void>();
+        let slot = arena.allocate_unbound(dom_node);
+        assert!(arena.slot_is_live(slot));
+        assert!(arena.node_shell(slot).is_null());
+        assert_eq!(arena.data(slot).kind.get(), NodeKind::Unset);
+        assert_eq!(arena.node_dom_node(slot), dom_node);
+
+        let unbound_freed = arena.free_subtree(slot);
+        assert_eq!(unbound_freed.shell_count(), 1);
+        unbound_freed.destroy_shells_and_invoke_callbacks();
+        assert!(!arena.slot_is_live(slot));
+
+        let slot = arena.allocate_unbound(dom_node);
+        arena.bind_shell(slot, test_construction_facts(dom_node));
+        assert_eq!(arena.data(slot).kind.get(), NodeKind::Box);
+        assert!(arena.data(slot).flags.get() & NodeFlag::HasStyle as u32 != 0);
+        arena.free_subtree(slot).destroy_shells_and_invoke_callbacks();
     }
 
     #[test]
