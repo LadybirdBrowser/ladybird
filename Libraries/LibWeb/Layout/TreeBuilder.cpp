@@ -34,6 +34,7 @@
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
+#include <LibWeb/Layout/AnonymousBoxStyle.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
@@ -1350,28 +1351,21 @@ static RustFFI::FfiPrincipalTextLayoutNodes create_layout_node_for_text(Principa
     };
 }
 
-// A full-height flex column that centers the button contents vertically.
-static NodeWithStyle& create_button_flex_wrapper(NodeWithStyle& parent)
+static CSS::LayoutStyle derived_anonymous_box_style(NodeWithStyle const& parent, AnonymousBoxStyleKind kind, AnonymousBoxStyleOverrides const& overrides = {})
 {
-    auto& flex_wrapper = parent.create_anonymous_wrapper();
-    flex_wrapper.modify_computed_values([](auto& values) {
-        values.set_display(CSS::Display { CSS::DisplayOutside::Block, CSS::DisplayInside::Flex });
-        values.set_justify_content(CSS::JustifyContent::Center);
-        values.set_flex_direction(CSS::FlexDirection::Column);
-        values.set_height(CSS::Size::make_percentage(CSS::Percentage(100)));
-    });
-    return flex_wrapper;
+    return CSS::LayoutStyle::adopting_pinned_style_record(derive_pinned_anonymous_box_style_record(parent.document().style_computer(), parent.style_record_identity(), kind, overrides));
 }
 
-// Let percentage-sized descendants shrink to fixed-height buttons instead of the flex
-// item's automatic minimum size.
-static NodeWithStyle& create_button_content_box_wrapper(NodeWithStyle& parent)
+static AnonymousBoxStyleOverrides anonymous_wrapper_overrides_for(NodeWithStyle const& parent)
 {
-    auto& content_box_wrapper = parent.create_anonymous_wrapper();
-    content_box_wrapper.modify_computed_values([](auto& values) {
-        values.set_min_height(CSS::Size::make_px(CSSPixels(0)));
-    });
-    return content_box_wrapper;
+    // CSS 2.2 9.2.1.1 creates anonymous block boxes, but 9.4.1 states inline-block creates a BFC.
+    // Set wrapper to inline-block to participate correctly in the IFC within the parent inline-block.
+    return { .inline_block_wrapper = parent.display().is_inline_block() && !parent.has_children() };
+}
+
+static BlockContainer& create_anonymous_block_container(NodeWithStyle& parent, AnonymousBoxStyleKind kind, AnonymousBoxStyleOverrides const& overrides = {}, RustFFI::NodeKind node_kind = RustFFI::NodeKind::BlockContainer)
+{
+    return allocate_layout_node<BlockContainer>(parent.document(), nullptr, derived_anonymous_box_style(parent, kind, overrides), node_kind);
 }
 
 LayoutTreeBuildResult LayoutTreeBuildBridge::build(DOM::Node& dom_node)
@@ -1438,60 +1432,40 @@ static RustFFI::NodeSlotId ffi_create_anonymous_table_box(void*, void* parent_po
 {
     VERIFY(parent_pointer);
     auto& parent = as<NodeWithStyle>(*static_cast<Node*>(parent_pointer));
-    auto parent_values = parent.copy_computed_values();
-    auto builder = CSS::ComputedValues::Builder::create_inheriting_from(*parent_values);
     switch (kind) {
     case RustFFI::FfiAnonymousTableBoxKind::TableRow:
-        builder->set_display(CSS::Display { CSS::DisplayInternal::TableRow });
-        break;
+        return Node::slot_id(&allocate_layout_node<Box>(parent.document(), nullptr, derived_anonymous_box_style(parent, AnonymousBoxStyleKind::TableRow)));
     case RustFFI::FfiAnonymousTableBoxKind::TableCell:
-        builder->set_display(CSS::Display { CSS::DisplayInternal::TableCell });
-        break;
+        return Node::slot_id(&create_anonymous_block_container(parent, AnonymousBoxStyleKind::TableCell));
     case RustFFI::FfiAnonymousTableBoxKind::Table:
-        builder->set_display(CSS::Display::from_short(CSS::Display::Short::Table));
-        break;
+        return Node::slot_id(&allocate_layout_node<Box>(parent.document(), nullptr, derived_anonymous_box_style(parent, AnonymousBoxStyleKind::Table)));
     case RustFFI::FfiAnonymousTableBoxKind::InlineTable:
-        builder->set_display(CSS::Display::from_short(CSS::Display::Short::InlineTable));
-        break;
+        return Node::slot_id(&allocate_layout_node<Box>(parent.document(), nullptr, derived_anonymous_box_style(parent, AnonymousBoxStyleKind::InlineTable)));
     }
-
-    if (kind == RustFFI::FfiAnonymousTableBoxKind::TableCell)
-        return Node::slot_id(&allocate_layout_node<BlockContainer>(parent.document(), nullptr, move(builder).build()));
-    return Node::slot_id(&allocate_layout_node<Box>(parent.document(), nullptr, move(builder).build()));
-}
-
-static NonnullRefPtr<CSS::ComputedValues const> table_wrapper_computed_values(Box& table_box)
-{
-    auto table_values = table_box.copy_computed_values();
-    auto builder = CSS::ComputedValues::Builder::create_inheriting_from(*table_values);
-    table_box.transfer_table_box_computed_values_to_wrapper_computed_values(builder);
-    return move(builder).build();
+    VERIFY_NOT_REACHED();
 }
 
 static RustFFI::NodeSlotId ffi_create_table_wrapper(void*, void* table_root_pointer)
 {
     VERIFY(table_root_pointer);
     auto& table_box = as<Box>(*static_cast<Node*>(table_root_pointer));
-    return Node::slot_id(&allocate_layout_node<BlockContainer>(table_box.document(), nullptr, table_wrapper_computed_values(table_box), RustFFI::NodeKind::TableWrapper));
+    auto& wrapper = create_anonymous_block_container(table_box, AnonymousBoxStyleKind::TableWrapper, {}, RustFFI::NodeKind::TableWrapper);
+    table_box.reset_table_box_computed_values_used_by_wrapper_to_init_values();
+    return Node::slot_id(&wrapper);
 }
 
 static RustFFI::NodeSlotId ffi_create_missing_table_cell(void*, void* row_pointer)
 {
     VERIFY(row_pointer);
     auto& row_box = as<Box>(*static_cast<Node*>(row_pointer));
-    auto row_values = row_box.copy_computed_values();
-    auto builder = CSS::ComputedValues::Builder::create_inheriting_from(*row_values);
-    builder->set_display(CSS::Display { CSS::DisplayInternal::TableCell });
-    // Ensure that the cell (with zero content height) will have the same height as the row by setting vertical-align to middle.
-    builder->set_vertical_align(CSS::VerticalAlign::Middle);
-    return Node::slot_id(&allocate_layout_node<BlockContainer>(row_box.document(), nullptr, move(builder).build()));
+    return Node::slot_id(&create_anonymous_block_container(row_box, AnonymousBoxStyleKind::MissingTableCell));
 }
 
 static RustFFI::NodeSlotId ffi_create_anonymous_wrapper(void*, void* parent_pointer)
 {
     VERIFY(parent_pointer);
     auto& parent = as<NodeWithStyle>(*static_cast<Node*>(parent_pointer));
-    return Node::slot_id(&parent.create_anonymous_wrapper());
+    return Node::slot_id(&create_anonymous_block_container(parent, AnonymousBoxStyleKind::Wrapper, anonymous_wrapper_overrides_for(parent)));
 }
 
 static RustFFI::FfiButtonContentWrappers ffi_create_button_content_wrappers(void*, void* layout_node_pointer)
@@ -1501,8 +1475,8 @@ static RustFFI::FfiButtonContentWrappers ffi_create_button_content_wrappers(void
 
     // If the box does not overflow in the vertical axis, then it is centered vertically.
     // FIXME: Only apply alignment when box overflows
-    auto& flex_wrapper = create_button_flex_wrapper(parent);
-    auto& content_box_wrapper = create_button_content_box_wrapper(parent);
+    auto& flex_wrapper = create_anonymous_block_container(parent, AnonymousBoxStyleKind::ButtonFlexWrapper);
+    auto& content_box_wrapper = create_anonymous_block_container(parent, AnonymousBoxStyleKind::ButtonContentBox, anonymous_wrapper_overrides_for(parent));
     return {
         .flex_wrapper = Node::slot_id(&flex_wrapper),
         .content_box = Node::slot_id(&content_box_wrapper),
@@ -1513,8 +1487,6 @@ static RustFFI::NodeSlotId ffi_create_fieldset_content_wrapper(void*, void* layo
 {
     VERIFY(layout_node_pointer);
     auto& fieldset_box = as<BlockContainer>(*static_cast<Node*>(layout_node_pointer));
-    auto& wrapper = fieldset_box.create_anonymous_wrapper();
-    wrapper.set_display(CSS::Display::from_short(CSS::Display::Short::FlowRoot));
 
     // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
     // The following properties are expected to inherit from the fieldset element:
@@ -1523,7 +1495,7 @@ static RustFFI::NodeSlotId ffi_create_fieldset_content_wrapper(void*, void* layo
     //     grid-column-gap, grid-row-gap, grid-template-areas, grid-template-columns, grid-template-rows),
     //     justify-content, justify-items, overflow, padding, text-overflow, unicode-bidi
     // FIXME: Transfer all of these properties, not just overflow.
-    wrapper.set_overflow(fieldset_box.overflow_x(), fieldset_box.overflow_y());
+    auto& wrapper = create_anonymous_block_container(fieldset_box, AnonymousBoxStyleKind::FieldsetContentWrapper, { .overflow_x = fieldset_box.overflow_x(), .overflow_y = fieldset_box.overflow_y() });
     fieldset_box.set_overflow(CSS::InitialValues::overflow(), CSS::InitialValues::overflow());
     return Node::slot_id(&wrapper);
 }

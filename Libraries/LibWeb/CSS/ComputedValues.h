@@ -1266,9 +1266,11 @@ private:
 
 public:
     ReadonlySpan<Utf16FlyString> anchor_names() const { return m_noninherited.anchor->anchor_names_span(); }
+    PositionAnchor position_anchor_value() const { return m_noninherited.anchor->position_anchor_value(); }
     Vector<ComputedAnimationName> animation_names() const { return m_noninherited.animation->animation_names_value(); }
 
     Float float_() const { return static_cast<Float>(m_noninherited.box->float_); }
+    Clear clear() const { return static_cast<Clear>(m_noninherited.box->clear); }
     Color caret_color() const { return m_inherited.ui->caret_color_value(); }
     Clip clip() const { return m_noninherited.effects->clip_value(); }
     ColorInterpolation color_interpolation() const { return m_inherited.svg->color_interpolation_value(); }
@@ -1306,6 +1308,7 @@ public:
     WhiteSpaceCollapse white_space_collapse() const { return m_inherited.text->white_space_collapse_value(); }
     FlexDirection flex_direction() const { return static_cast<FlexDirection>(m_noninherited.alignment->flex_direction); }
     AlignSelf align_self() const { return static_cast<AlignSelf>(m_noninherited.alignment->align_self); }
+    int order() const { return m_noninherited.alignment->order; }
     Appearance appearance() const { return static_cast<Appearance>(m_noninherited.misc->appearance); }
     float opacity() const { return m_noninherited.effects->opacity; }
     Visibility visibility() const { return static_cast<Visibility>(m_inherited.box->visibility); }
@@ -2154,13 +2157,22 @@ public:
     {
     }
 
+    static LayoutStyle adopting_pinned_style_record(StyleRecordID style_record_identity)
+    {
+        LayoutStyle style { style_record_identity };
+        style.m_adopts_style_record_pin = true;
+        return style;
+    }
+
     explicit operator bool() const { return !!m_style_record_identity || m_values; }
     [[nodiscard]] StyleRecordID style_record_identity() const { return m_style_record_identity; }
+    [[nodiscard]] bool adopts_style_record_pin() const { return m_adopts_style_record_pin; }
     [[nodiscard]] RefPtr<ComputedValues const> const& values() const { return m_values; }
 
 private:
     RefPtr<ComputedValues const> m_values;
     StyleRecordID m_style_record_identity;
+    bool m_adopts_style_record_pin { false };
 };
 
 class ComputedValues::Mutator final {
