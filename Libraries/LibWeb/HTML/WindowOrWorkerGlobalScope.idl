@@ -1,4 +1,5 @@
 // https://html.spec.whatwg.org/multipage/webappapis.html#timerhandler
+// FIXME: The TimerHandler union is missing TrustedScript;
 typedef (DOMString or Function) TimerHandler;
 
 // FIXME: Support VoidFunction in the IDL parser
