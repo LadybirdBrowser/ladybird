@@ -61,6 +61,7 @@ set(SOURCES
     VideoFrame.cpp
     VideoFrameHandle.cpp
     VideoFramePool.cpp
+    VideoSurface.cpp
     VideoPresentation/PresentedFramePage.cpp
     VideoPresentation/VideoPresentationClientConnection.cpp
     VideoPresentation/VideoPresentationServerConnection.cpp
