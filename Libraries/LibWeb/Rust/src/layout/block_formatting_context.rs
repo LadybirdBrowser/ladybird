@@ -2959,12 +2959,22 @@ impl BlockFormattingContext {
                 if child_facts.is_list_item_marker_box() {
                     continue;
                 }
+                let child_used = self.used(child);
+                // https://drafts.csswg.org/css-overflow-4/#line-clamp-containers
+                // If a block container contains a clamp point, within itself or in any of its descendants, its
+                // automatic block size will not take into account any invisible boxes, nor any clipped float.
+                if child_used.is_invisible_for_line_clamp.get() {
+                    continue;
+                }
                 if self.margins_collapse_through(child) {
                     continue;
                 }
-                let child_used = self.used(child);
                 let mut margin_state = self.margin_state.borrow_mut();
-                let mut margin_bottom = margin_state.current_collapsed_margin();
+                let mut margin_bottom = if self.line_clamp_reached() {
+                    child_used.margin_bottom.get()
+                } else {
+                    margin_state.current_collapsed_margin()
+                };
                 let used = self.used(node);
                 if used.padding_bottom.get() == CssPixels::default() && used.border_bottom.get() == CssPixels::default()
                 {
@@ -3200,14 +3210,17 @@ impl BlockFormattingContext {
     }
 
     pub(crate) fn automatic_content_block_size(&self) -> CssPixels {
+        let line_clamp_reached = self.line_clamp_reached();
         automatic_block_size_for_bfc_root(
             &self.records,
             self.callbacks,
             self.root,
-            (!self.line_clamp_reached())
+            (!line_clamp_reached)
                 .then_some(self.lowest_floating_descendant_bottom_margin_edge.get())
                 .flatten(),
-            self.trailing_collapsed_margin.get(),
+            (!line_clamp_reached)
+                .then_some(self.trailing_collapsed_margin.get())
+                .flatten(),
         )
     }
 

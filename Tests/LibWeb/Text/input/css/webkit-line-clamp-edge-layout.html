@@ -1,0 +1,275 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .clamp {
+        display: -webkit-box;
+        overflow: hidden;
+        width: 100px;
+        font: 16px/20px monospace;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 1;
+    }
+
+    .independent {
+        -webkit-line-clamp: 2;
+    }
+
+    .independent > div:first-child {
+        display: flex;
+    }
+
+    .independent + .independent > div:first-child {
+        display: grid;
+    }
+
+    .vertical {
+        float: left;
+        width: auto;
+        height: 100px;
+        -webkit-line-clamp: 2;
+    }
+
+    #vertical-rl {
+        writing-mode: vertical-rl;
+    }
+
+    #vertical-lr {
+        writing-mode: vertical-lr;
+    }
+
+    .tall-float {
+        float: left;
+        width: 200px;
+        height: 100px;
+    }
+
+    .nested {
+        overflow: auto;
+        -webkit-line-clamp: 2;
+    }
+
+    .nested > div {
+        padding: 5px;
+        border: 2px solid;
+    }
+
+    .nested > div > div {
+        padding: 7px;
+        border: 3px solid;
+    }
+
+    #nested-fixed > div {
+        height: 60px;
+    }
+
+    #nested-minimum > div {
+        min-height: 60px;
+    }
+
+    .inline-clamp,
+    .inline-reference {
+        display: inline-block;
+        overflow: visible;
+        padding: 0 4px;
+        font: 16px/32px monospace;
+    }
+
+    .inline-clamp {
+        display: -webkit-inline-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+    }
+
+    .placement {
+        position: relative;
+        box-sizing: border-box;
+        height: 20px;
+        text-align: right;
+    }
+
+    .atomic {
+        display: inline-block;
+        width: 20px;
+        height: 10px;
+    }
+
+    .abspos {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+    }
+
+    #intrinsic-clamp {
+        display: -webkit-inline-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 1;
+    }
+
+    .avoidance-float {
+        float: left;
+        width: 80px;
+        height: 50px;
+    }
+
+    .automatic-clamp {
+        line-clamp: auto;
+        width: 100px;
+        font: 16px/20px monospace;
+        white-space: pre;
+    }
+</style>
+
+<div id="independent-flex" class="clamp independent"><div>Line 1<br>Line 2<br>Line 3</div></div>
+<div id="independent-grid" class="clamp independent"><div>Line 1<br>Line 2<br>Line 3</div></div>
+<div id="vertical-rl" class="clamp vertical">Line 1<br>Line 2<br>Line 3</div>
+<div id="vertical-lr" class="clamp vertical">Line 1<br>Line 2<br>Line 3</div>
+<div id="vertical-one-line" class="clamp vertical" style="writing-mode:vertical-rl;-webkit-line-clamp:1">Line 1<br>Line 2</div>
+<div id="vertical-three-lines" class="clamp vertical" style="writing-mode:vertical-rl;-webkit-line-clamp:3">Line 1<br>Line 2<br>Line 3<br>Line 4</div>
+<div id="vertical-blocks" class="clamp vertical" style="writing-mode:vertical-rl;-webkit-line-clamp:1"><div>Line 1</div><div style="width:200px">Hidden</div></div>
+<div id="vertical-float" class="clamp vertical" style="writing-mode:vertical-rl;-webkit-line-clamp:1"><div>Line 1</div><div style="float:left;width:200px">Hidden</div></div>
+<div id="small-min" class="clamp"><div style="min-height:10px">Line 1<br>Line 2</div></div>
+<div id="large-min" class="clamp"><div style="min-height:30px">Line 1<br>Line 2</div></div>
+<div id="small-max" class="clamp"><div style="max-height:10px">Line 1<br>Line 2</div></div>
+<div id="large-max" class="clamp"><div style="max-height:30px">Line 1<br>Line 2</div></div>
+<div id="conflicting" class="clamp"><div style="min-height:30px;max-height:10px">Line 1<br>Line 2</div></div>
+
+<div id="empty-lines" class="clamp" style="overflow:visible">Visible<br><br><br>Hidden</div>
+<div id="visible-empty-lines" class="clamp" style="overflow:visible;-webkit-line-clamp:3">Visible<br><br><br>Hidden</div>
+<div id="wide-float" class="clamp" style="overflow:visible"><div class="tall-float"><div style="width:250px;height:150px"></div></div><div>Line 1</div><div style="height:50px"></div></div>
+<div id="discarded-atomic" class="clamp" style="overflow:visible">Visible<br><span style="display:inline-block;width:95px;height:100px"><span style="display:inline-block;width:200px;height:150px"></span></span><br>Hidden</div>
+<div id="displaced-overflow" class="clamp" style="overflow:auto;white-space:nowrap">A<span style="display:inline-block;width:200px">Wide</span><br>Hidden</div>
+
+<div id="nested-auto" class="clamp nested">Line 1<div><div>Line 2<br>Line 3</div></div></div>
+<div id="nested-fixed" class="clamp nested">Line 1<div><div>Line 2<br>Line 3</div></div></div>
+<div id="nested-minimum" class="clamp nested">Line 1<div><div>Line 2<br>Line 3</div></div></div>
+
+<div id="inline-split" class="inline-clamp"><span>1<br>2<br><div>3</div>4<br>5</span></div>
+<div id="baseline-clamp-row">Before <span class="inline-clamp">Line 1<br>Line 2<br>Line 3<br>Line 4</span> <span id="baseline-clamp-after">After</span></div>
+<div id="baseline-reference-row">Before <span class="inline-reference">Line 1<br>Line 2<br>Line 3</span> <span id="baseline-reference-after">After</span></div>
+
+<div id="atomic-clamp" class="clamp placement">A<span id="atomic-clamp-box" class="atomic"></span><br>Hidden</div>
+<div id="atomic-reference" class="clamp placement" style="display:block">A<span id="atomic-reference-box" class="atomic"></span>…</div>
+<div id="abspos-clamp" class="clamp placement">A<span id="abspos-clamp-box" class="abspos"></span><br>Hidden</div>
+<div id="abspos-reference" class="clamp placement" style="display:block">A<span id="abspos-reference-box" style="display:inline-block;width:0"></span><br>Hidden</div>
+<div id="center-abspos-clamp" class="clamp placement" style="text-align:center">A<span id="center-abspos-clamp-box" class="abspos"></span><br>Hidden</div>
+<div id="center-abspos-reference" class="clamp placement" style="display:block;text-align:center">A<span id="center-abspos-reference-box" style="display:inline-block;width:0"></span><br>Hidden</div>
+<div id="ellipsis-caret" class="clamp" style="position:fixed;top:0;left:0;width:10ch;white-space:nowrap">0123456789ABCDEFGHIJ<br>Hidden</div>
+<div id="ellipsis-hit" style="position:fixed;top:30px;left:0;width:100px"><a id="ellipsis-underlay" style="display:block;height:20px;background:red"></a><div class="clamp" style="margin-top:-20px;pointer-events:none;white-space:nowrap"><span style="pointer-events:auto">0123456789ABCDEFGHIJ</span><br>Hidden</div></div>
+<span id="intrinsic-clamp">x<br><span style="display:inline-block;width:300px"></span></span>
+<div id="escaping-abspos-root" class="clamp" style="position:relative">Visible<div><div><span id="escaping-abspos" class="abspos"></span><span id="escaping-fixed" class="abspos" style="position:fixed"></span><span style="position:relative"><span id="contained-abspos" class="abspos"></span></span></div></div></div>
+<div id="cluster-caret" class="clamp" style="position:fixed;top:60px;left:0;width:7ch;white-space:nowrap">a&#x301;a&#x301;a&#x301;a&#x301;a&#x301;a&#x301;a&#x301;a&#x301;a&#x301;a&#x301;<br>Hidden</div>
+<div id="rtl-cluster-caret" class="clamp" style="position:fixed;top:90px;left:0;width:7ch;white-space:nowrap"><span dir="rtl">א&#x5B0;א&#x5B0;א&#x5B0;א&#x5B0;א&#x5B0;א&#x5B0;א&#x5B0;א&#x5B0;א&#x5B0;א&#x5B0;</span><br>Hidden</div>
+<div id="float-avoidance" class="clamp"><div class="avoidance-float"></div>12345</div>
+<div id="abspos-overflow" class="clamp" style="position:relative;overflow:auto">Visible<br>Hidden<div class="abspos" style="top:0;height:100px"></div></div>
+<div id="padded-overflow" class="clamp" style="box-sizing:content-box;overflow:auto;padding:10px 0 30px">Visible<br>Hidden</div>
+<div id="post-clamp" class="clamp">Visible<div id="post-clamp-box" style="height:30px"><div id="post-clamp-child" style="width:50px;height:10px"></div></div></div>
+<div id="nested-post-clamp" class="clamp"><div id="nested-post-clamp-wrapper"><div>Visible</div><div style="height:100px">Hidden</div></div></div>
+<div id="nested-post-clamp-margin" class="clamp"><div id="nested-post-clamp-margin-wrapper" style="padding-bottom:1px"><div>Visible</div><div style="height:100px;margin-bottom:100px">Hidden</div></div></div>
+<div id="post-clamp-flow" class="clamp" style="position:relative"><div>Visible</div><div style="height:100px">Hidden</div><div id="post-clamp-flow-abspos" class="abspos"></div></div>
+<div id="automatic-clamp-exact" class="automatic-clamp" style="max-height:40px">Line 1
+Line 2
+Line 3</div>
+<div id="automatic-clamp-between" class="automatic-clamp" style="max-height:45px">Line 1
+Line 2
+Line 3</div>
+<div id="automatic-clamp-before-first" class="automatic-clamp" style="max-height:10px">Line 1
+Line 2
+Line 3</div>
+<div id="automatic-clamp-unconstrained" class="automatic-clamp">Line 1
+Line 2
+Line 3</div>
+<div id="automatic-clamp-fixed" class="automatic-clamp" style="height:45px">Line 1
+Line 2
+Line 3</div>
+<div id="automatic-clamp-nested" class="automatic-clamp" style="max-height:40px"><div>Line 1</div><div>Line 2
+Line 3</div></div>
+
+<script>
+    test(() => {
+        const assertEquals = (actual, expected, label = "value") => {
+            if (actual !== expected)
+                throw new Error(`${label}: expected ${expected}, got ${actual}`);
+        };
+        const dimensions = id => {
+            const rect = document.getElementById(id).getBoundingClientRect();
+            return `${rect.width}x${rect.height}`;
+        };
+        for (const [id, expected] of [
+            ["independent-flex", "100x60"], ["independent-grid", "100x60"],
+            ["vertical-rl", "40x100"], ["vertical-lr", "40x100"],
+            ["vertical-one-line", "20x100"], ["vertical-three-lines", "60x100"],
+            ["vertical-blocks", "20x100"], ["vertical-float", "20x100"],
+            ["small-min", "100x20"], ["large-min", "100x30"], ["small-max", "100x10"],
+            ["large-max", "100x20"], ["conflicting", "100x30"], ["empty-lines", "100x20"],
+            ["visible-empty-lines", "100x60"], ["wide-float", "100x120"],
+            ["discarded-atomic", "100x20"], ["displaced-overflow", "100x20"],
+            ["nested-auto", "100x74"], ["nested-fixed", "100x94"], ["nested-minimum", "100x94"],
+            ["float-avoidance", "100x70"], ["abspos-overflow", "100x20"],
+            ["padded-overflow", "100x60"],
+            ["post-clamp-box", "100x30"], ["post-clamp-child", "50x10"],
+            ["nested-post-clamp", "100x20"], ["nested-post-clamp-wrapper", "100x20"],
+            ["nested-post-clamp-margin", "100x21"], ["nested-post-clamp-margin-wrapper", "100x21"],
+            ["post-clamp-flow", "100x20"], ["post-clamp-flow-abspos", "10x10"],
+            ["automatic-clamp-exact", "100x40"], ["automatic-clamp-between", "100x40"],
+            ["automatic-clamp-before-first", "100x0"], ["automatic-clamp-unconstrained", "100x60"],
+            ["automatic-clamp-fixed", "100x45"], ["automatic-clamp-nested", "100x40"],
+        ]) {
+            assertEquals(dimensions(id), expected, id);
+        }
+        const element = id => document.getElementById(id);
+        assertEquals(`${element("wide-float").scrollWidth}x${element("wide-float").scrollHeight}`, "250x120");
+        assertEquals(`${element("discarded-atomic").scrollWidth}x${element("discarded-atomic").scrollHeight}`, "100x20");
+        assertEquals(`${element("displaced-overflow").scrollWidth}x${element("displaced-overflow").scrollHeight}`, "100x20");
+        assertEquals(element("abspos-overflow").scrollHeight, 100, "absolute overflow height");
+        assertEquals(element("padded-overflow").scrollHeight, 60, "padded overflow height");
+        assertEquals(element("automatic-clamp-exact").scrollHeight, 40, "automatic clamp scroll height");
+        assertEquals(element("automatic-clamp-between").scrollHeight, 40, "automatic clamp between lines scroll height");
+        assertEquals(element("automatic-clamp-before-first").scrollHeight, 0, "automatic clamp before first line");
+        assertEquals(element("automatic-clamp-unconstrained").scrollHeight, 60, "unconstrained automatic clamp scroll height");
+        assertEquals(element("automatic-clamp-nested").scrollHeight, 40, "nested automatic clamp scroll height");
+        assertEquals(element("intrinsic-clamp").getBoundingClientRect().width, 300, "intrinsic clamp width");
+        assertEquals(dimensions("escaping-abspos"), "10x10");
+        assertEquals(dimensions("escaping-fixed"), "10x10");
+        assertEquals(dimensions("contained-abspos"), "10x10");
+        assertEquals(element("inline-split").getBoundingClientRect().height, 96);
+
+        const relative = (id, parent, axis) => {
+            const rect = document.getElementById(id).getBoundingClientRect();
+            const parentRect = document.getElementById(parent).getBoundingClientRect();
+            return rect[axis] - parentRect[axis];
+        };
+        assertEquals(relative("post-clamp-flow-abspos", "post-clamp-flow", "top"), 120,
+            "post-clamp content participates in layout");
+        assertEquals(relative("post-clamp-box", "post-clamp", "top"), 20, "post-clamp box position");
+        assertEquals(relative("baseline-clamp-after", "baseline-clamp-row", "top"),
+            relative("baseline-reference-after", "baseline-reference-row", "top"));
+        assertEquals(relative("atomic-clamp-box", "atomic-clamp", "left"),
+            relative("atomic-reference-box", "atomic-reference", "left"));
+        assertEquals(relative("abspos-clamp-box", "abspos-clamp", "left"),
+            relative("abspos-reference-box", "abspos-reference", "left"), "right-aligned absolute position");
+        assertEquals(relative("center-abspos-clamp-box", "center-abspos-clamp", "left"),
+            relative("center-abspos-reference-box", "center-abspos-reference", "left"), "centered absolute position");
+        const caretBox = element("ellipsis-caret").getBoundingClientRect();
+        const caret = document.caretPositionFromPoint(caretBox.right - caretBox.width / 13,
+            caretBox.top + caretBox.height / 2);
+        if (caret.offsetNode !== element("ellipsis-caret").firstChild || caret.offset !== 10)
+            throw new Error("block ellipsis exposed a synthetic DOM offset");
+        const hitBox = element("ellipsis-hit").getBoundingClientRect();
+        assertEquals(document.elementFromPoint(hitBox.right - hitBox.width / 10,
+            hitBox.top + hitBox.height / 2), element("ellipsis-underlay"), "block ellipsis hit target");
+        const clusterBox = element("cluster-caret").getBoundingClientRect();
+        const clusterCaret = document.caretPositionFromPoint(clusterBox.right - clusterBox.width / 9,
+            clusterBox.top + clusterBox.height / 2);
+        assertEquals(clusterCaret.offsetNode, element("cluster-caret").firstChild, "cluster caret node");
+        assertEquals(clusterCaret.offset, 12, "cluster caret offset");
+        const rtlClusterBox = element("rtl-cluster-caret").getBoundingClientRect();
+        const rtlClusterText = element("rtl-cluster-caret").firstElementChild.firstChild;
+        for (let index = 0; index < 8; ++index) {
+            const caret = document.caretPositionFromPoint(rtlClusterBox.left + rtlClusterBox.width * index / 8,
+                rtlClusterBox.top + rtlClusterBox.height / 2);
+            if (caret.offsetNode !== rtlClusterText || caret.offset > rtlClusterText.length || caret.offset % 2)
+                throw new Error("RTL caret escaped a cluster boundary");
+        }
+        println("PASS");
+    });
+</script>
