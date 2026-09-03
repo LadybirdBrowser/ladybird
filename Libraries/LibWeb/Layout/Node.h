@@ -39,18 +39,7 @@ enum class LayoutUpdatePropagation : u8 {
     BoundarySelfOnly,
 };
 
-class NodeArenaAllocation {
-protected:
-    NodeArenaAllocation(DOM::Document&, RustFFI::FfiNodeConstructionFacts const&);
-
-    NonnullRefPtr<NodeArena> m_arena;
-    RustFFI::NodeSlotId m_slot {};
-};
-
-class WEB_API Node
-    : public Weakable<Node>
-    , private NodeArenaAllocation {
-
+class WEB_API Node : public Weakable<Node> {
 public:
     AK_ALLOC_WITH_KMALLOC_PARTITION(HeapPartition::Layout);
 
@@ -84,13 +73,13 @@ public:
     template<typename Callback>
     TraversalDecision for_each_in_inclusive_subtree(Callback callback) const
     {
-        return traverse_ref_counted_preorder(*this, IncludeRefCountedTreeRoot::Yes, callback);
+        return traverse_preorder(*this, IncludeTraversalRoot::Yes, callback);
     }
 
     template<typename Callback>
     TraversalDecision for_each_in_inclusive_subtree(Callback callback)
     {
-        return traverse_ref_counted_preorder(*this, IncludeRefCountedTreeRoot::Yes, callback);
+        return traverse_preorder(*this, IncludeTraversalRoot::Yes, callback);
     }
 
     template<typename U, typename Callback>
@@ -356,8 +345,8 @@ private:
 
     u8 generated_for() const { return RustFFI::layout_arena_node_generated_for(m_arena->handle(), m_slot); }
 
-protected:
-private:
+    NonnullRefPtr<NodeArena> m_arena;
+    RustFFI::NodeSlotId m_slot;
     // A DOM mutation can disconnect a node before the next layout-tree update. Keep the DOM node alive until this
     // layout node is destroyed so detach hooks never observe a collected image provider or other element state.
     GC::Root<DOM::Node> m_dom_node;
