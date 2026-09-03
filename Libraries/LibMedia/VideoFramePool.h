@@ -21,6 +21,7 @@
 namespace Media {
 
 class PooledVideoFrameSlot;
+class VideoSurface;
 
 // The identity and lifetime bookkeeping shared by every kind of frame pool. Each slot owns a shared-memory buffer
 // beginning with the acquisition ID that a remote consumer validates its handle against; what follows the ID is the
@@ -37,17 +38,26 @@ public:
     // The buffer backing a held slot, for lending to consumer processes.
     Core::AnonymousBuffer slot_buffer(u32 slot_index) const;
 
+    // The surface backing a held slot, null when the slot's pixels live in its buffer instead.
+    RefPtr<VideoSurface> slot_surface(u32 slot_index) const;
+
 protected:
     // The slot-freed callback runs on whichever thread frees a slot, without the ledger's lock held, and may run
     // concurrently with itself when separate slots are freed at once.
     explicit VideoFrameEntryLedger(Function<void()> slot_freed_callback);
 
+    ErrorOr<NonnullRefPtr<PooledVideoFrameSlot>> try_adopt_slot(u32 slot_index, u64 slot_acquisition_id, u64 allocated_buffer_id);
+
     struct Slot {
         Core::AnonymousBuffer buffer;
+        RefPtr<VideoSurface> surface;
         u64 last_slot_acquisition_id { 0 };
         u64 allocated_buffer_id { 0 };
         u32 hold_count { 0 };
     };
+
+    // Appends a slot with no payload, for a pool that has no free slot to reuse.
+    Optional<u32> try_grow_while_locked();
 
     virtual void slot_freed_while_locked(Slot&) { }
 
@@ -99,6 +109,30 @@ private:
     size_t const m_byte_budget { 0 };
     size_t m_allocated_bytes { 0 };
     bool m_shed_buffers_on_release { false };
+};
+
+// A pool of surfaces produced by a hardware decoder. The decoder allocates and recycles them, so this pool tracks
+// their identity and lifetime rather than their memory. Its slot count is what bounds how many frames a hardware
+// decoder may have in flight, since the platform's own allocator will keep handing out surfaces indefinitely.
+class MEDIA_API VideoFrameSurfacePool final : public VideoFrameEntryLedger {
+public:
+    static constexpr u32 MAX_SLOT_COUNT = 8;
+
+    static ErrorOr<NonnullRefPtr<VideoFrameSurfacePool>> create(Function<void()> slot_freed_callback = nullptr);
+
+    struct AcquiredSlot {
+        u32 index { 0 };
+        u64 slot_acquisition_id { 0 };
+        u64 allocated_buffer_id { 0 };
+    };
+    // Gets the slot already representing this surface, or a free one, so that a recycled surface keeps its identity.
+    Optional<AcquiredSlot> try_acquire(NonnullRefPtr<VideoSurface> const&);
+    ErrorOr<NonnullRefPtr<PooledVideoFrameSlot>> try_adopt_acquired_slot(AcquiredSlot const&);
+
+private:
+    explicit VideoFrameSurfacePool(Function<void()> slot_freed_callback);
+
+    HashMap<u32, u32> m_slot_indices_by_surface_id;
 };
 
 // A strong reference to a slot in a frame pool to be used within a single process.

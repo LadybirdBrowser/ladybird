@@ -24,7 +24,17 @@ public:
     static IOSurfaceHandle create(int width, int height);
     static IOSurfaceHandle from_mach_port(MachPort const& port);
 
+    // Adopts a surface owned by someone else, such as one a decoder hands back, by retaining it.
+    static IOSurfaceHandle from_ref(void* io_surface_ref);
+
+    // Whoever allocated the surface may recycle it as soon as its use count falls to zero. Retaining it does not
+    // make it used.
+    void increment_use_count();
+    void decrement_use_count();
+
     MachPort create_mach_port() const;
+
+    u32 id() const;
 
     size_t width() const;
     size_t height() const;

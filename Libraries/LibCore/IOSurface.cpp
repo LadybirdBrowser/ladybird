@@ -81,10 +81,33 @@ IOSurfaceHandle IOSurfaceHandle::create(int width, int height)
     return IOSurfaceHandle(make<IOSurfaceRefWrapper>(ref));
 }
 
+u32 IOSurfaceHandle::id() const
+{
+    return IOSurfaceGetID(m_ref_wrapper->ref);
+}
+
 MachPort IOSurfaceHandle::create_mach_port() const
 {
     auto port = IOSurfaceCreateMachPort(m_ref_wrapper->ref);
     return MachPort::adopt_right(port, MachPort::PortRight::Send);
+}
+
+IOSurfaceHandle IOSurfaceHandle::from_ref(void* io_surface_ref)
+{
+    auto* ref = static_cast<IOSurfaceRef>(io_surface_ref);
+    VERIFY(ref);
+    CFRetain(ref);
+    return IOSurfaceHandle(make<IOSurfaceRefWrapper>(ref));
+}
+
+void IOSurfaceHandle::increment_use_count()
+{
+    IOSurfaceIncrementUseCount(m_ref_wrapper->ref);
+}
+
+void IOSurfaceHandle::decrement_use_count()
+{
+    IOSurfaceDecrementUseCount(m_ref_wrapper->ref);
 }
 
 IOSurfaceHandle IOSurfaceHandle::from_mach_port(MachPort const& port)
