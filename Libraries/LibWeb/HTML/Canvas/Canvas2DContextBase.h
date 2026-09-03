@@ -76,8 +76,8 @@ public:
     virtual void fill_text(Utf16View, float x, float y, Optional<double> max_width) override;
     virtual void stroke_text(Utf16View, float x, float y, Optional<double> max_width) override;
 
-    virtual void fill(Utf16FlyString const& fill_rule) override;
-    virtual void fill(Path2D& path, Utf16FlyString const& fill_rule) override;
+    virtual void fill(Bindings::CanvasFillRule) override;
+    virtual void fill(Path2D& path, Bindings::CanvasFillRule) override;
 
     virtual WebIDL::ExceptionOr<GC::Ref<ImageData>> create_image_data(int width, int height, Optional<Bindings::ImageDataSettings> const& settings = {}) const override;
     virtual WebIDL::ExceptionOr<GC::Ref<ImageData>> create_image_data(ImageData const& image_data) const override;
@@ -92,11 +92,11 @@ public:
 
     virtual GC::Ref<TextMetrics> measure_text(Utf16View) override;
 
-    virtual void clip(Utf16FlyString const& fill_rule) override;
-    virtual void clip(Path2D& path, Utf16FlyString const& fill_rule) override;
+    virtual void clip(Bindings::CanvasFillRule) override;
+    virtual void clip(Path2D& path, Bindings::CanvasFillRule) override;
 
-    virtual bool is_point_in_path(double x, double y, Utf16FlyString const& fill_rule) override;
-    virtual bool is_point_in_path(Path2D const& path, double x, double y, Utf16FlyString const& fill_rule) override;
+    virtual bool is_point_in_path(double x, double y, Bindings::CanvasFillRule) override;
+    virtual bool is_point_in_path(Path2D const& path, double x, double y, Bindings::CanvasFillRule) override;
 
     virtual bool image_smoothing_enabled() const override;
     virtual void set_image_smoothing_enabled(bool) override;

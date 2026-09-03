@@ -117,14 +117,14 @@ void OffscreenCanvasRenderingContext2D::stroke_text(Utf16View, float, float, Opt
     dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::stroke_text()");
 }
 
-void OffscreenCanvasRenderingContext2D::fill(Utf16FlyString const&)
+void OffscreenCanvasRenderingContext2D::fill(Bindings::CanvasFillRule)
 {
-    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::fill(Utf16FlyString)");
+    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::fill(CanvasFillRule)");
 }
 
-void OffscreenCanvasRenderingContext2D::fill(Path2D&, Utf16FlyString const&)
+void OffscreenCanvasRenderingContext2D::fill(Path2D&, Bindings::CanvasFillRule)
 {
-    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::fill(Path2D&, Utf16FlyString)");
+    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::fill(Path2D&, CanvasFillRule)");
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createimagedata
@@ -168,25 +168,25 @@ GC::Ref<TextMetrics> OffscreenCanvasRenderingContext2D::measure_text(Utf16View)
     return metrics;
 }
 
-void OffscreenCanvasRenderingContext2D::clip(Utf16FlyString const&)
+void OffscreenCanvasRenderingContext2D::clip(Bindings::CanvasFillRule)
 {
-    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::clip(Utf16FlyString)");
+    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::clip(CanvasFillRule)");
 }
 
-void OffscreenCanvasRenderingContext2D::clip(Path2D&, Utf16FlyString const&)
+void OffscreenCanvasRenderingContext2D::clip(Path2D&, Bindings::CanvasFillRule)
 {
-    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::clip(Path2D&, Utf16FlyString)");
+    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::clip(Path2D&, CanvasFillRule)");
 }
 
-bool OffscreenCanvasRenderingContext2D::is_point_in_path(double, double, Utf16FlyString const&)
+bool OffscreenCanvasRenderingContext2D::is_point_in_path(double, double, Bindings::CanvasFillRule)
 {
-    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::is_point_in_path(double, double, Utf16FlyString)");
+    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::is_point_in_path(double, double, CanvasFillRule)");
     return false;
 }
 
-bool OffscreenCanvasRenderingContext2D::is_point_in_path(Path2D const&, double, double, Utf16FlyString const&)
+bool OffscreenCanvasRenderingContext2D::is_point_in_path(Path2D const&, double, double, Bindings::CanvasFillRule)
 {
-    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::clip(Path2D const&, double, double, Utf16FlyString)");
+    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::clip(Path2D const&, double, double, CanvasFillRule)");
     return false;
 }
 

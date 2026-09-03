@@ -624,14 +624,15 @@ void Canvas2DContextBase::stroke(Path2D const& path)
     stroke_internal(path.path().clone());
 }
 
-static Gfx::WindingRule parse_fill_rule(Utf16FlyString const& fill_rule)
+static constexpr Gfx::WindingRule bindings_to_gfx_fill_rule(Bindings::CanvasFillRule fill_rule)
 {
-    if (fill_rule == u"evenodd"sv)
-        return Gfx::WindingRule::EvenOdd;
-    if (fill_rule == u"nonzero"sv)
+    switch (fill_rule) {
+    case Bindings::CanvasFillRule::Nonzero:
         return Gfx::WindingRule::Nonzero;
-    dbgln("Unrecognized fillRule for CRC2D.fill() - this problem goes away once we pass an enum instead of a string");
-    return Gfx::WindingRule::Nonzero;
+    case Bindings::CanvasFillRule::Evenodd:
+        return Gfx::WindingRule::EvenOdd;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 void Canvas2DContextBase::fill_internal(Gfx::Path path, Gfx::WindingRule winding_rule)
@@ -660,14 +661,14 @@ void Canvas2DContextBase::fill_internal(Gfx::Path path, Gfx::WindingRule winding
     did_draw(bounding_box);
 }
 
-void Canvas2DContextBase::fill(Utf16FlyString const& fill_rule)
+void Canvas2DContextBase::fill(Bindings::CanvasFillRule fill_rule)
 {
-    fill_internal(path().clone(), parse_fill_rule(fill_rule));
+    fill_internal(path().clone(), bindings_to_gfx_fill_rule(fill_rule));
 }
 
-void Canvas2DContextBase::fill(Path2D& path, Utf16FlyString const& fill_rule)
+void Canvas2DContextBase::fill(Path2D& path, Bindings::CanvasFillRule fill_rule)
 {
-    fill_internal(path.path().clone(), parse_fill_rule(fill_rule));
+    fill_internal(path.path().clone(), bindings_to_gfx_fill_rule(fill_rule));
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createimagedata
@@ -1043,22 +1044,22 @@ void Canvas2DContextBase::clip_internal(Gfx::Path& path, Gfx::WindingRule windin
     canvas_command_list->append(Gfx::CanvasCommands::ClipPath { .path = path.clone(), .winding_rule = winding_rule });
 }
 
-void Canvas2DContextBase::clip(Utf16FlyString const& fill_rule)
+void Canvas2DContextBase::clip(Bindings::CanvasFillRule fill_rule)
 {
-    clip_internal(path(), parse_fill_rule(fill_rule));
+    clip_internal(path(), bindings_to_gfx_fill_rule(fill_rule));
 }
 
-void Canvas2DContextBase::clip(Path2D& path, Utf16FlyString const& fill_rule)
+void Canvas2DContextBase::clip(Path2D& path, Bindings::CanvasFillRule fill_rule)
 {
-    clip_internal(path.path(), parse_fill_rule(fill_rule));
+    clip_internal(path.path(), bindings_to_gfx_fill_rule(fill_rule));
 }
 
-static bool is_point_in_path_internal(Gfx::Path path, Gfx::AffineTransform const& transform, double x, double y, Utf16FlyString const& fill_rule)
+static bool is_point_in_path_internal(Gfx::Path path, Gfx::AffineTransform const& transform, double x, double y, Bindings::CanvasFillRule fill_rule)
 {
     auto point = Gfx::FloatPoint(x, y);
     if (auto inverse_transform = transform.inverse(); inverse_transform.has_value())
         point = inverse_transform->map(point);
-    return path.contains(point, parse_fill_rule(fill_rule));
+    return path.contains(point, bindings_to_gfx_fill_rule(fill_rule));
 }
 
 static bool image_provider_is_usable_for_canvas(Layout::ImageProvider const& image_provider)
@@ -1072,12 +1073,12 @@ static bool image_provider_is_usable_for_canvas(Layout::ImageProvider const& ima
         && *intrinsic_width > 0 && *intrinsic_height > 0;
 }
 
-bool Canvas2DContextBase::is_point_in_path(double x, double y, Utf16FlyString const& fill_rule)
+bool Canvas2DContextBase::is_point_in_path(double x, double y, Bindings::CanvasFillRule fill_rule)
 {
     return is_point_in_path_internal(path(), drawing_state().transform, x, y, fill_rule);
 }
 
-bool Canvas2DContextBase::is_point_in_path(Path2D const& path, double x, double y, Utf16FlyString const& fill_rule)
+bool Canvas2DContextBase::is_point_in_path(Path2D const& path, double x, double y, Bindings::CanvasFillRule fill_rule)
 {
     return is_point_in_path_internal(path.path(), drawing_state().transform, x, y, fill_rule);
 }
