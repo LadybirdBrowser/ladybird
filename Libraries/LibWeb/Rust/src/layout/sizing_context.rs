@@ -1186,7 +1186,12 @@ impl SizingContext {
         }
         let style = self.style(node);
         let facts = self.facts(node);
-        let mut block_size = if self.box_is_sized_as_replaced_element(node, available_space, constraints) {
+        let box_is_sized_as_replaced_element =
+            self.box_is_sized_as_replaced_element(node, available_space, constraints);
+        let block_size_is_definite_from_aspect_ratio = self.used(node).has_definite_inline_size()
+            && facts.has_preferred_aspect_ratio()
+            && box_is_sized_as_replaced_element;
+        let mut block_size = if box_is_sized_as_replaced_element {
             self.compute_block_size_for_replaced_element(node, available_space, constraints)
         } else {
             child_automatic_block_size.unwrap_or_else(automatic_block_size_fallback)
@@ -1236,7 +1241,11 @@ impl SizingContext {
                 block_size = block_size.max(size);
             }
         }
-        self.used(node).set_content_block_size(block_size);
+        let used = self.used(node);
+        used.set_content_block_size(block_size);
+        if block_size_is_definite_from_aspect_ratio {
+            used.has_definite_block_size.set(true);
+        }
     }
 
     pub(crate) fn resolve_box_model_metrics_against_inline_basis(&self, node: Node, containing_inline_size: CssPixels) {
