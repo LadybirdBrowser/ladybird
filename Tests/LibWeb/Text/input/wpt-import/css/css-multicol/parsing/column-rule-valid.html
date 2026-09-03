@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Multi-column Layout: parsing column-rule with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#propdef-column-rule">
+<meta name="assert" content="column-rule supports the full grammar '<column-rule-width> || <column-rule-style> || <column-rule-color>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("column-rule", "10px");
+test_valid_value("column-rule", "dotted");
+test_valid_value("column-rule", "red");
+
+test_valid_value("column-rule", "currentcolor hidden medium", "hidden");
+test_valid_value("column-rule", "currentcolor none medium", "medium");
+</script>
+</body>
+</html>

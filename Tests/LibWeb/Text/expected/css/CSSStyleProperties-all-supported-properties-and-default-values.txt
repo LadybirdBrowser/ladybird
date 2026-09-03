@@ -401,6 +401,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'column-gap': 'normal'
 'columnHeight': 'auto'
 'column-height': 'auto'
+'columnRule': '3px rgb(0, 0, 0)'
+'column-rule': '3px rgb(0, 0, 0)'
 'columnRuleColor': 'rgb(0, 0, 0)'
 'column-rule-color': 'rgb(0, 0, 0)'
 'columnRuleStyle': 'none'

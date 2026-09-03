@@ -1616,6 +1616,15 @@
       "auto"
     ]
   },
+  "column-rule": {
+    "affects-layout": false,
+    "initial": "medium none currentColor",
+    "longhands": [
+      "column-rule-width",
+      "column-rule-style",
+      "column-rule-color"
+    ]
+  },
   "column-rule-color": {
     "style-group": "MiscResetValues",
     "affects-layout": false,

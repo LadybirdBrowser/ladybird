@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	e.style['column-rule'] = "medium dotted green" should set column-rule-color
+Pass	e.style['column-rule'] = "medium dotted green" should set column-rule-style
+Pass	e.style['column-rule'] = "medium dotted green" should set column-rule-width
+Pass	e.style['column-rule'] = "medium dotted green" should not set unrelated longhands
+Pass	e.style['column-rule'] = "100px" should set column-rule-color
+Pass	e.style['column-rule'] = "100px" should set column-rule-style
+Pass	e.style['column-rule'] = "100px" should set column-rule-width
+Pass	e.style['column-rule'] = "100px" should not set unrelated longhands
+Pass	e.style['column-rule'] = "blue" should set column-rule-color
+Pass	e.style['column-rule'] = "blue" should set column-rule-style
+Pass	e.style['column-rule'] = "blue" should set column-rule-width
+Pass	e.style['column-rule'] = "blue" should not set unrelated longhands

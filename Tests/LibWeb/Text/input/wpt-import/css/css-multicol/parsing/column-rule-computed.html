@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Multi-column Layout: getComputedStyle().columnRule</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#propdef-column-rule">
+<meta name="assert" content="column-rule computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #reference {
+    column-rule-style: dotted; /* Avoid column-rule-width computed style 0px */
+    column-rule-width: medium;
+  }
+  #target {
+    color: lime;
+  }
+</style>
+</head>
+<body>
+<div id="reference"></div>
+<div id="target"></div>
+<script>
+const currentColor = 'rgb(0, 255, 0)';
+const mediumWidth = getComputedStyle(document.getElementById('reference')).columnRuleWidth; // e.g. 3px
+
+test_computed_value("column-rule", "10px", "10px " + currentColor);
+test_computed_value("column-rule", "dotted", mediumWidth + " dotted " + currentColor);
+test_computed_value("column-rule", "0px none rgb(255, 0, 255)", "0px rgb(255, 0, 255)");
+test_computed_value("column-rule", "10px dotted rgb(255, 0, 255)");
+
+test_computed_value("column-rule", "medium hidden currentcolor", mediumWidth + " hidden " + currentColor);
+test_computed_value("column-rule", "medium solid currentcolor", mediumWidth + " solid " + currentColor);
+</script>
+</body>
+</html>
