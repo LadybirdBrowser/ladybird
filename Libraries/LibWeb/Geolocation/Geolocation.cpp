@@ -525,7 +525,7 @@ void Geolocation::call_back_with_error(GC::Ptr<WebIDL::CallbackType> callback, G
 void Geolocation::run_in_parallel_when_document_is_visible(DOM::Document& document, GC::Ref<GC::Function<void()>> callback)
 {
     // Run callback in parallel if the document is already visible.
-    if (document.visibility_state_value() == HTML::VisibilityState::Visible) {
+    if (document.visibility_state() == HTML::VisibilityState::Visible) {
         auto callback_with_context = GC::create_function(GC::Heap::the(), [this, callback] {
             HTML::TemporaryExecutionContext execution_context { window().relevant_settings_object() };
             callback->function()();

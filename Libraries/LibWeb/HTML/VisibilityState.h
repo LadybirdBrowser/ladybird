@@ -6,11 +6,10 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/Document.h>
+
 namespace Web::HTML {
 
-enum VisibilityState {
-    Hidden,
-    Visible,
-};
+using VisibilityState = Bindings::DocumentVisibilityState;
 
 }

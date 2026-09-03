@@ -4599,19 +4599,6 @@ void Document::scroll_to_the_beginning_of_the_document()
         navigable->perform_scroll_of_viewport_scrolling_box({ 0, 0 });
 }
 
-Utf16FlyString Document::ready_state() const
-{
-    switch (m_readiness) {
-    case HTML::DocumentReadyState::Loading:
-        return "loading"_utf16_fly_string;
-    case HTML::DocumentReadyState::Interactive:
-        return "interactive"_utf16_fly_string;
-    case HTML::DocumentReadyState::Complete:
-        return "complete"_utf16_fly_string;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 // https://html.spec.whatwg.org/multipage/dom.html#update-the-current-document-readiness
 void Document::update_readiness(HTML::DocumentReadyState readiness_value)
 {
@@ -4986,18 +4973,6 @@ GC::Ptr<HTML::Location> Document::location()
 bool Document::hidden() const
 {
     return m_visibility_state == HTML::VisibilityState::Hidden;
-}
-
-// https://html.spec.whatwg.org/multipage/interaction.html#dom-document-visibilitystate
-Utf16FlyString Document::visibility_state() const
-{
-    switch (m_visibility_state) {
-    case HTML::VisibilityState::Hidden:
-        return "hidden"_utf16_fly_string;
-    case HTML::VisibilityState::Visible:
-        return "visible"_utf16_fly_string;
-    }
-    VERIFY_NOT_REACHED();
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#update-the-visibility-state

@@ -2589,7 +2589,7 @@ bool HTMLMediaElement::video_sink_should_tick() const
 {
     if (m_video_frame_was_recently_captured)
         return true;
-    if (document().visibility_state_value() != VisibilityState::Visible)
+    if (document().visibility_state() != VisibilityState::Visible)
         return false;
     auto const* layout_node = this->layout_node();
     return layout_node && Painting::has_committed_box(*layout_node) && Painting::is_visible(*layout_node);

@@ -665,7 +665,6 @@ public:
 
     GC::Ref<Document> appropriate_template_contents_owner_document();
 
-    Utf16FlyString ready_state() const;
     HTML::DocumentReadyState readiness() const { return m_readiness; }
     void update_readiness(HTML::DocumentReadyState);
 
@@ -753,8 +752,7 @@ public:
     void set_page_showing(bool);
 
     bool hidden() const;
-    Utf16FlyString visibility_state() const;
-    HTML::VisibilityState visibility_state_value() const { return m_visibility_state; }
+    HTML::VisibilityState visibility_state() const { return m_visibility_state; }
 
     // https://html.spec.whatwg.org/multipage/interaction.html#update-the-visibility-state
     void update_the_visibility_state(HTML::VisibilityState);
