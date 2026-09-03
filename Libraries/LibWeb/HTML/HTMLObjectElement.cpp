@@ -187,25 +187,6 @@ void HTMLObjectElement::apply_presentational_hints(Vector<CSS::StyleProperty>& p
     });
 }
 
-// https://html.spec.whatwg.org/multipage/iframe-embed-object.html#attr-object-data
-Utf16String HTMLObjectElement::data() const
-{
-    auto data = get_attribute(HTML::AttributeNames::data);
-    if (!data.has_value())
-        return {};
-
-    auto maybe_url = document().encoding_parse_url(*data);
-    if (!maybe_url.has_value())
-        return {};
-
-    return utf16_string_from_url_ascii(maybe_url->to_string());
-}
-
-void HTMLObjectElement::set_data(Utf16View data)
-{
-    set_attribute_value(HTML::AttributeNames::data, data);
-}
-
 Layout::Node* HTMLObjectElement::create_layout_node(CSS::LayoutStyle style)
 {
     switch (m_representation) {
