@@ -34,3 +34,50 @@ partial interface Document {
 dictionary CaretPositionFromPointOptions {
     sequence<ShadowRoot> shadowRoots = [];
 };
+
+// https://drafts.csswg.org/cssom-view/#extension-to-the-element-interface
+enum ScrollLogicalPosition { "start", "center", "end", "nearest" };
+dictionary ScrollIntoViewOptions : ScrollOptions {
+    ScrollLogicalPosition block = "start";
+    ScrollLogicalPosition inline = "nearest";
+    ScrollIntoViewContainer container = "all";
+};
+
+enum ScrollIntoViewContainer { "all", "nearest" };
+
+dictionary CheckVisibilityOptions {
+    boolean checkOpacity = false;
+    boolean checkVisibilityCSS = false;
+    boolean contentVisibilityAuto = false;
+    boolean opacityProperty = false;
+    boolean visibilityProperty = false;
+};
+
+partial interface Element {
+    [ImplementedInBindings] DOMRectList getClientRects();
+    [NewObject, ImplementedInBindings] DOMRect getBoundingClientRect();
+
+    boolean checkVisibility(optional CheckVisibilityOptions options = {});
+
+    [CreatesPromise] Promise<undefined> scrollIntoView(optional (boolean or ScrollIntoViewOptions) arg = {});
+    [CreatesPromise] Promise<undefined> scroll(optional ScrollToOptions options = {});
+    [CreatesPromise] Promise<undefined> scroll(unrestricted double x, unrestricted double y);
+    [CreatesPromise, ImplementedAs=scroll] Promise<undefined> scrollTo(optional ScrollToOptions options = {});
+    [CreatesPromise, ImplementedAs=scroll] Promise<undefined> scrollTo(unrestricted double x, unrestricted double y);
+    [CreatesPromise] Promise<undefined> scrollBy(optional ScrollToOptions options = {});
+    [CreatesPromise] Promise<undefined> scrollBy(unrestricted double x, unrestricted double y);
+    attribute unrestricted double scrollTop;
+    attribute unrestricted double scrollLeft;
+    readonly attribute long scrollWidth;
+    readonly attribute long scrollHeight;
+    readonly attribute long clientTop;
+    readonly attribute long clientLeft;
+    readonly attribute long clientWidth;
+    readonly attribute long clientHeight;
+    readonly attribute double currentCSSZoom;
+};
+
+// https://drafts.csswg.org/css-shadow-1/#idl
+partial interface Element {
+    [SameObject, PutForwards=value, ImplementedAs=part_list] readonly attribute DOMTokenList part;
+};

@@ -10,6 +10,7 @@
 #include <LibGC/Heap.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
+#include <LibWeb/Bindings/CSS.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/Compositor/CompositorHost.h>

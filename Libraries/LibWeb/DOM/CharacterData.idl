@@ -9,10 +9,7 @@ interface CharacterData : Node {
     undefined insertData(unsigned long offset, DOMString data);
     undefined deleteData(unsigned long offset, unsigned long count);
     undefined replaceData(unsigned long offset, unsigned long count, DOMString data);
-
-    // https://dom.spec.whatwg.org/#interface-nondocumenttypechildnode
-    readonly attribute Element? previousElementSibling;
-    readonly attribute Element? nextElementSibling;
 };
 
 CharacterData includes ChildNode;
+CharacterData includes NonDocumentTypeChildNode;

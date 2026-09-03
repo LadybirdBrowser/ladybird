@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/DedicatedWorkerExposedInterfaces.h>
 #include <LibWeb/Bindings/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/MessagePort.h>
 #include <LibWeb/HTML/AnimationFrameCallbackDriver.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/EventHandler.h>
