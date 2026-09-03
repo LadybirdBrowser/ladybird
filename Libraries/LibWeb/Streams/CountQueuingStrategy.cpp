@@ -7,7 +7,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/UniversalGlobalScope.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/Streams/CountQueuingStrategy.h>
 
 namespace Web::Streams {
@@ -38,7 +38,7 @@ CountQueuingStrategy::~CountQueuingStrategy() = default;
 GC::Ref<WebIDL::CallbackType> CountQueuingStrategy::size(JS::Object& relevant_global_object)
 {
     // 1. Return this's relevant global object's count queuing strategy size function.
-    auto& global = HTML::relevant_settings_object(relevant_global_object).universal_global_scope();
+    auto& global = HTML::relevant_window_or_worker_global_scope(relevant_global_object);
     return global.count_queuing_strategy_size_function();
 }
 

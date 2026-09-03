@@ -6,6 +6,7 @@
 
 #include <AK/Enumerate.h>
 #include <LibGC/Heap.h>
+#include <LibGC/HeapVector.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/Realm.h>

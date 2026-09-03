@@ -1726,7 +1726,7 @@ void Animation::discard_provisional_effect()
 
 GC::Ptr<Bindings::Wrappable> Animation::relevant_global_impl() const
 {
-    return &m_environment->universal_global_scope().this_impl();
+    return HTML::relevant_window_or_worker_global_scope(m_environment->global_object()).this_impl();
 }
 
 void Animation::visit_edges(Cell::Visitor& visitor)

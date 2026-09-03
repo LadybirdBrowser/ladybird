@@ -282,7 +282,7 @@ bool is_exposed(InterfaceName name, JS::Realm& realm)
         return false;
 
     // AD-HOC: Do not expose experimental interfaces unless instructed to do so.
-    if (!HTML::UniversalGlobalScopeMixin::expose_experimental_interfaces() && is_experimental_interface(name))
+    if (!HTML::WindowOrWorkerGlobalScopeMixin::expose_experimental_interfaces() && is_experimental_interface(name))
         return false;
 
     // FIXME: 3. If realm’s settings object’s cross-origin isolated capability is false, and construct is
@@ -586,7 +586,7 @@ def write_exposed_interface_implementation(out: TextIO, class_name: str, exposed
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/{class_name}ExposedInterfaces.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/UniversalGlobalScope.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 """
     )
 
@@ -602,7 +602,7 @@ void add_{snake_name}_exposed_interfaces(JS::Object& global)
     static constexpr u8 attr = JS::Attribute::Writable | JS::Attribute::Configurable;
 
     [[maybe_unused]] bool is_secure_context = HTML::is_secure_context(HTML::relevant_settings_object(global));
-    [[maybe_unused]] bool expose_experimental_interfaces = HTML::UniversalGlobalScopeMixin::expose_experimental_interfaces();
+    [[maybe_unused]] bool expose_experimental_interfaces = HTML::WindowOrWorkerGlobalScopeMixin::expose_experimental_interfaces();
 """
     )
 

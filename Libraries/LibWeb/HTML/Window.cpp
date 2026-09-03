@@ -308,7 +308,6 @@ void Window::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     WindowOrWorkerGlobalScopeMixin::visit_edges(visitor);
-    UniversalGlobalScopeMixin::visit_edges(visitor);
 
     visitor.visit(m_associated_document);
     visitor.visit(m_environment_settings_object);

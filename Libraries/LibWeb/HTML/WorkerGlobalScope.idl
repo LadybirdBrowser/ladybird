@@ -15,5 +15,4 @@ interface WorkerGlobalScope : EventTarget {
 };
 
 WorkerGlobalScope includes FontFaceSource;
-WorkerGlobalScope includes UniversalGlobalScope;
 WorkerGlobalScope includes WindowOrWorkerGlobalScope;

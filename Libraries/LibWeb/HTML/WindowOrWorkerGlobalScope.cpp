@@ -7,19 +7,24 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Base64.h>
 #include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
 #include <AK/String.h>
+#include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
 #include <AK/Vector.h>
 #include <LibGC/Function.h>
 #include <LibGC/Heap.h>
+#include <LibGC/HeapVector.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/ScalingMode.h>
+#include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/MessagePort.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
@@ -33,12 +38,13 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventSource.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
-#include <LibWeb/HTML/ImageBitmap.h>
+#include <LibWeb/HTML/PromiseRejectionEvent.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Timer.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
@@ -70,7 +76,6 @@
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
-#include <LibWeb/WebSockets/WebSocket.h>
 
 namespace Web::Bindings {
 
@@ -129,6 +134,10 @@ void WindowOrWorkerGlobalScopeMixin::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_cache_storage);
     visitor.visit(m_resource_timing_secondary_buffer);
     visitor.visit(m_trusted_type_policy_factory);
+    visitor.visit(m_count_queuing_strategy_size_function);
+    visitor.visit(m_byte_length_queuing_strategy_size_function);
+    visitor.ignore(m_outstanding_rejected_promises_weak_set);
+    visitor.visit(m_about_to_be_notified_rejected_promises_list);
 }
 
 void WindowOrWorkerGlobalScopeMixin::finalize()
@@ -157,6 +166,60 @@ bool WindowOrWorkerGlobalScopeMixin::cross_origin_isolated() const
     return relevant_settings_object(*this).cross_origin_isolated_capability() == CanUseCrossOriginIsolatedAPIs::Yes;
 }
 
+// https://html.spec.whatwg.org/multipage/webappapis.html#dom-btoa
+WebIDL::ExceptionOr<Utf16String> WindowOrWorkerGlobalScopeMixin::btoa(Utf16View data) const
+{
+    auto& vm = this_impl().vm();
+
+    // The btoa(data) method must throw an "InvalidCharacterError" DOMException if data contains any character whose code point is greater than U+00FF.
+    Vector<u8> byte_string;
+    byte_string.ensure_capacity(data.length_in_code_units());
+    for (u32 code_point : data) {
+        if (code_point > 0xff)
+            return WebIDL::InvalidCharacterError::create(*vm.current_realm(), "Data contains characters outside the range U+0000 and U+00FF"_utf16);
+        byte_string.append(code_point);
+    }
+
+    // Otherwise, the user agent must convert data to a byte sequence whose nth byte is the eight-bit representation of the nth code point of data,
+    // and then must apply forgiving-base64 encode to that byte sequence and return the result.
+    return TRY_OR_THROW_OOM(vm, encode_base64_to_utf16(byte_string.span()));
+}
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#dom-atob
+WebIDL::ExceptionOr<Utf16String> WindowOrWorkerGlobalScopeMixin::atob(Utf16View data) const
+{
+    auto& vm = this_impl().vm();
+    auto& realm = *vm.current_realm();
+
+    // 1. Let decodedData be the result of running forgiving-base64 decode on data.
+    ByteBuffer decoded_data;
+    TRY_OR_THROW_OOM(vm, decoded_data.try_resize(size_required_to_decode_base64(data)));
+    auto decode_result = decode_base64_into(data, decoded_data);
+
+    // 2. If decodedData is failure, then throw an "InvalidCharacterError" DOMException.
+    if (decode_result.is_error())
+        return WebIDL::InvalidCharacterError::create(realm, "Input string is not valid base64 data"_utf16);
+
+    // 3. Return decodedData.
+    Utf16StringBuilder builder { decoded_data.size() };
+    for (auto byte : decoded_data.bytes())
+        builder.append_code_unit(byte);
+    return builder.to_string();
+}
+
+// https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-queuemicrotask
+void WindowOrWorkerGlobalScopeMixin::queue_microtask(WebIDL::CallbackType& callback)
+{
+    GC::Ptr<DOM::Document> document;
+    if (is<Window>(this_impl()))
+        document = &static_cast<Window&>(this_impl()).associated_document();
+
+    // The queueMicrotask(callback) method must queue a microtask to invoke callback with « » and "report".
+    HTML::queue_a_microtask(document, GC::create_function(GC::Heap::the(), [&callback] {
+        (void)WebIDL::invoke_callback(callback, {}, WebIDL::ExceptionBehavior::Report, {});
+    }));
+}
+
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-createimagebitmap
 void WindowOrWorkerGlobalScopeMixin::create_image_bitmap(JS::Realm& realm, ImageBitmapSource image, ImageBitmapOptions options, GC::Ref<WebIDL::Promise> promise) const
 {
@@ -167,6 +230,19 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap(JS::Realm& realm, Image
 void WindowOrWorkerGlobalScopeMixin::create_image_bitmap(JS::Realm& realm, ImageBitmapSource image, WebIDL::Long sx, WebIDL::Long sy, WebIDL::Long sw, WebIDL::Long sh, ImageBitmapOptions options, GC::Ref<WebIDL::Promise> promise) const
 {
     create_image_bitmap_impl(realm, promise, image, sx, sy, sw, sh, move(options));
+}
+
+// https://html.spec.whatwg.org/multipage/structured-data.html#dom-structuredclone
+WebIDL::ExceptionOr<JS::Value> WindowOrWorkerGlobalScopeMixin::structured_clone(JS::Realm& realm, JS::Value value, Bindings::StructuredSerializeOptions const& options)
+{
+    // 1. Let serialized be ? StructuredSerializeWithTransfer(value, options["transfer"]).
+    auto serialized = TRY(HTML::structured_serialize_with_transfer(realm, value, options.transfer));
+
+    // 2. Let deserializeRecord be ? StructuredDeserializeWithTransfer(serialized, this's relevant realm).
+    auto deserialized = TRY(HTML::structured_deserialize_with_transfer(serialized, realm));
+
+    // 3. Return deserializeRecord.[[Deserialized]].
+    return deserialized.deserialized;
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#cropped-to-the-source-rectangle-with-formatting
@@ -1206,6 +1282,141 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
         timer->start();
 }
 
+// https://streams.spec.whatwg.org/#count-queuing-strategy-size-function
+GC::Ref<WebIDL::CallbackType> WindowOrWorkerGlobalScopeMixin::count_queuing_strategy_size_function()
+{
+    auto& realm = HTML::relevant_realm(*this);
+
+    if (!m_count_queuing_strategy_size_function) {
+        // 1. Let steps be the following steps:
+        auto steps = [](auto const&) {
+            // 1. Return 1.
+            return 1.0;
+        };
+
+        // 2. Let F be ! CreateBuiltinFunction(steps, 0, "size", « », globalObject’s relevant Realm).
+        auto function = JS::NativeFunction::create(realm, move(steps), 0, "size"_utf16_fly_string, &realm);
+
+        // 3. Set globalObject’s count queuing strategy size function to a Function that represents a reference to F, with callback context equal to globalObject’s relevant settings object.
+        // FIXME: Update spec comment to pass globalObject's relevant realm once Streams spec is updated for ShadowRealm spec
+        m_count_queuing_strategy_size_function = GC::Heap::the().allocate<WebIDL::CallbackType>(*function, realm);
+    }
+
+    return GC::Ref { *m_count_queuing_strategy_size_function };
+}
+
+// https://streams.spec.whatwg.org/#byte-length-queuing-strategy-size-function
+GC::Ref<WebIDL::CallbackType> WindowOrWorkerGlobalScopeMixin::byte_length_queuing_strategy_size_function()
+{
+    auto& realm = HTML::relevant_realm(*this);
+
+    if (!m_byte_length_queuing_strategy_size_function) {
+        // 1. Let steps be the following steps, given chunk:
+        auto steps = [](JS::VM& vm) {
+            auto chunk = vm.argument(0);
+
+            // 1. Return ? GetV(chunk, "byteLength").
+            return chunk.get(vm, vm.names.byteLength);
+        };
+
+        // 2. Let F be ! CreateBuiltinFunction(steps, 1, "size", « », globalObject’s relevant Realm).
+        auto function = JS::NativeFunction::create(realm, Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> { move(steps) }, 1, "size"_utf16_fly_string, &realm);
+
+        // 3. Set globalObject’s byte length queuing strategy size function to a Function that represents a reference to F, with callback context equal to globalObject’s relevant settings object.
+        // FIXME: Update spec comment to pass globalObject's relevant realm once Streams spec is updated for ShadowRealm spec
+        m_byte_length_queuing_strategy_size_function = GC::Heap::the().allocate<WebIDL::CallbackType>(*function, realm);
+    }
+
+    return GC::Ref { *m_byte_length_queuing_strategy_size_function };
+}
+
+void WindowOrWorkerGlobalScopeMixin::push_onto_outstanding_rejected_promises_weak_set(GC::Ptr<JS::Promise> promise)
+{
+    m_outstanding_rejected_promises_weak_set.append(promise);
+}
+
+bool WindowOrWorkerGlobalScopeMixin::remove_from_outstanding_rejected_promises_weak_set(GC::Ptr<JS::Promise> promise)
+{
+    return m_outstanding_rejected_promises_weak_set.remove_first_matching([&](GC::Ptr<JS::Promise> promise_in_set) {
+        return promise == promise_in_set;
+    });
+}
+
+void WindowOrWorkerGlobalScopeMixin::push_onto_about_to_be_notified_rejected_promises_list(GC::Ref<JS::Promise> promise)
+{
+    if (!m_about_to_be_notified_rejected_promises_list)
+        m_about_to_be_notified_rejected_promises_list = GC::Heap::the().allocate<GC::HeapVector<GC::Ref<JS::Promise>>>();
+    m_about_to_be_notified_rejected_promises_list->elements().append(promise);
+}
+
+bool WindowOrWorkerGlobalScopeMixin::remove_from_about_to_be_notified_rejected_promises_list(GC::Ref<JS::Promise> promise)
+{
+    if (!m_about_to_be_notified_rejected_promises_list)
+        return false;
+    return m_about_to_be_notified_rejected_promises_list->elements().remove_first_matching([&](auto& promise_in_list) {
+        return promise == promise_in_list;
+    });
+}
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#notify-about-rejected-promises
+void WindowOrWorkerGlobalScopeMixin::notify_about_rejected_promises(Badge<EventLoop>)
+{
+    // 1. Let list be a copy of settings object's about-to-be-notified rejected promises list.
+    auto list = m_about_to_be_notified_rejected_promises_list;
+
+    // 2. If list is empty, return.
+    if (!list || list->elements().is_empty())
+        return;
+
+    // 3. Clear settings object's about-to-be-notified rejected promises list.
+    m_about_to_be_notified_rejected_promises_list = nullptr;
+
+    // 4. Let global be settings object's global object.
+    auto& global = this_impl();
+    auto& global_object = relevant_global_object(*this);
+
+    // 5. Queue a global task on the DOM manipulation task source given global to run the following substep:
+    queue_global_task(Task::Source::DOMManipulation, global_object, GC::create_function(GC::Heap::the(), [this, &global, list = move(list)] {
+        auto& realm = relevant_realm(*this);
+
+        // 1. For each promise p in list:
+        for (auto const& promise : list->elements()) {
+
+            // 1. If p's [[PromiseIsHandled]] internal slot is true, continue to the next iteration of the loop.
+            if (promise->is_handled())
+                continue;
+
+            // 2. Let notHandled be the result of firing an event named unhandledrejection at global, using PromiseRejectionEvent, with the cancelable attribute initialized to true,
+            //    the promise attribute initialized to p, and the reason attribute initialized to the value of p's [[PromiseResult]] internal slot.
+            PromiseRejectionEventInit event_init {
+                {
+                    .bubbles = false,
+                    .cancelable = true,
+                    .composed = false,
+                },
+                // Sadly we can't use .promise and .reason here, as we can't use the designator on the initialization of EventInit above.
+                /* .promise = */ *promise,
+                /* .reason = */ promise->result(),
+            };
+
+            auto promise_rejection_event = PromiseRejectionEvent::create(realm.global_object(), HTML::EventNames::unhandledrejection, event_init);
+
+            bool not_handled = global.dispatch_event(*promise_rejection_event);
+
+            // 3. If notHandled is false, then the promise rejection is handled. Otherwise, the promise rejection is not handled.
+
+            // 4. If p's [[PromiseIsHandled]] internal slot is false, add p to settings object's outstanding rejected promises weak set.
+            if (!promise->is_handled())
+                m_outstanding_rejected_promises_weak_set.append(*promise);
+
+            // This algorithm results in promise rejections being marked as handled or not handled. These concepts parallel handled and not handled script errors.
+            // If a rejection is still not handled after this, then the rejection may be reported to a developer console.
+            if (not_handled)
+                HTML::report_exception_to_console(promise->result(), realm, ErrorInPromise::Yes);
+        }
+    }));
+}
+
 // https://w3c.github.io/hr-time/#dom-windoworworkerglobalscope-performance
 GC::Ref<HighResolutionTime::Performance> WindowOrWorkerGlobalScopeMixin::performance()
 {
@@ -1344,6 +1555,18 @@ Optional<URL::Origin> WindowOrWorkerGlobalScopeMixin::window_or_worker_global_sc
 
     // 2. Return this's relevant settings object's origin.
     return relevant_origin;
+}
+
+static bool s_experimental_interfaces_exposed = false;
+
+void WindowOrWorkerGlobalScopeMixin::set_experimental_interfaces_exposed(bool exposed)
+{
+    s_experimental_interfaces_exposed = exposed;
+}
+
+bool WindowOrWorkerGlobalScopeMixin::expose_experimental_interfaces()
+{
+    return s_experimental_interfaces_exposed;
 }
 
 }

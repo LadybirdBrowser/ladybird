@@ -199,7 +199,7 @@ void initialize_main_thread_vm(HTML::AgentType type)
         auto& settings_object = script ? script->settings_object() : HTML::current_settings_object();
 
         // 5. Let global be settingsObject's global object.
-        auto& global_mixin = settings_object.universal_global_scope();
+        auto& global_mixin = HTML::relevant_window_or_worker_global_scope(settings_object.global_object());
         auto& global = global_mixin.this_impl();
 
         switch (operation) {

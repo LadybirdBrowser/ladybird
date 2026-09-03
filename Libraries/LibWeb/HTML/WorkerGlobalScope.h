@@ -18,7 +18,6 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
 #include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
-#include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WorkerLocation.h>
 #include <LibWeb/HTML/WorkerNavigator.h>
@@ -67,8 +66,7 @@ namespace Web::HTML {
 // user agent runs the run a worker algorithm.
 class WEB_API WorkerGlobalScope
     : public DOM::EventTarget
-    , public WindowOrWorkerGlobalScopeMixin
-    , public UniversalGlobalScopeMixin {
+    , public WindowOrWorkerGlobalScopeMixin {
     WEB_WRAPPABLE(WorkerGlobalScope, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(WorkerGlobalScope);
 
@@ -87,16 +85,6 @@ public:
     // ^WindowOrWorkerGlobalScopeMixin
     virtual DOM::EventTarget& this_impl() override { return *this; }
     virtual DOM::EventTarget const& this_impl() const override { return *this; }
-
-    using UniversalGlobalScopeMixin::atob;
-    using UniversalGlobalScopeMixin::btoa;
-    using UniversalGlobalScopeMixin::queue_microtask;
-    using WindowOrWorkerGlobalScopeMixin::clear_interval;
-    using WindowOrWorkerGlobalScopeMixin::clear_timeout;
-    using WindowOrWorkerGlobalScopeMixin::create_image_bitmap;
-    using WindowOrWorkerGlobalScopeMixin::performance;
-    using WindowOrWorkerGlobalScopeMixin::set_interval;
-    using WindowOrWorkerGlobalScopeMixin::set_timeout;
 
     // Following methods are from the WorkerGlobalScope IDL definition
     // https://html.spec.whatwg.org/multipage/workers.html#the-workerglobalscope-common-interface
@@ -162,8 +150,6 @@ protected:
     GC::Ptr<MessagePort> m_internal_port;
 
 private:
-    virtual bool is_universal_global_scope_mixin() const final { return true; }
-
     GC::Ptr<WorkerLocation> m_location;
     GC::Ptr<WorkerNavigator> m_navigator;
 
