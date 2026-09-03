@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['column-span'] = "none" should set the property value
+Pass	e.style['column-span'] = "all" should set the property value

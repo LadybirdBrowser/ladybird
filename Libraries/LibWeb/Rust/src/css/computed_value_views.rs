@@ -722,15 +722,20 @@ impl<'a> ComputedValuesView<'a> {
             return true;
         }
 
-        // https://drafts.csswg.org/css-multicol-2/#the-multi-column-model
-        // An element whose 'column-width', 'column-count', or 'column-height' property is not 'auto' establishes a
-        // multi-column container (or multicol container for short), and therefore acts as a container for
-        // multi-column layout.
-        if box_values.column_width.kind != ComputedSizeKind::Auto || box_values.column_count_has_value {
+        if self.establishes_multi_column_container() {
             return true;
         }
 
         false
+    }
+
+    // https://drafts.csswg.org/css-multicol-2/#the-multi-column-model
+    // An element whose 'column-width', 'column-count', or 'column-height' property is not 'auto' establishes a
+    // multi-column container (or multicol container for short), and therefore acts as a container for
+    // multi-column layout.
+    pub(crate) fn establishes_multi_column_container(self) -> bool {
+        let box_values = self.box_values();
+        box_values.column_width.kind != ComputedSizeKind::Auto || box_values.column_count_has_value
     }
 
     pub(crate) fn x(self) -> LengthPercentageRef<'a> {

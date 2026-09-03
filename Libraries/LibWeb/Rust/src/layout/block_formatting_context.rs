@@ -2255,7 +2255,7 @@ impl BlockFormattingContext {
     fn determine_used_value_for_column_count(&self, used_inline_size: CssPixels) -> Option<i32> {
         let style = self.style(self.root);
         // (01) if ((column-width = auto) and (column-count = auto)) then
-        if style.column_width().is_auto() && !style.has_column_count() {
+        if !style.establishes_multi_column_container() {
             // (02) exit; /* not a multicol container */
             return None;
         }

@@ -3516,8 +3516,7 @@
     "requires-computation": "cascaded-value",
     "valid-types": [
       "integer [1,∞]"
-    ],
-    "__comment": "FIXME: We don't implement this property any further than compute time"
+    ]
   },
   "outline": {
     "affects-layout": false,
@@ -5273,8 +5272,7 @@
     "requires-computation": "cascaded-value",
     "valid-types": [
       "integer [1,∞]"
-    ],
-    "__comment": "FIXME: We don't implement this property any further than compute time"
+    ]
   },
   "width": {
     "style-group": "SizingValues",
