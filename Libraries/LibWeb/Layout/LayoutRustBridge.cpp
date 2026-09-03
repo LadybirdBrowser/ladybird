@@ -681,3 +681,8 @@ extern "C" WEB_API void ladybird_layout_node_shell_release(void* shell)
 {
     static_cast<Web::Layout::Node*>(shell)->unref();
 }
+
+extern "C" WEB_API void ladybird_layout_node_shell_destroy(void* shell)
+{
+    delete static_cast<Web::Layout::Node*>(shell);
+}

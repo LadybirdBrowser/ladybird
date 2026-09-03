@@ -435,6 +435,28 @@ pub(crate) struct FreedSlot {
     pub(crate) detached_children: DetachedShells,
 }
 
+#[must_use]
+pub(crate) struct FreedSubtree {
+    shells: Vec<*mut c_void>,
+    paintable_row_resets: Vec<crate::painting::paintable_rows::PaintableRowReset>,
+}
+
+impl FreedSubtree {
+    #[cfg(test)]
+    pub(crate) fn shell_count(&self) -> usize {
+        self.shells.len()
+    }
+
+    pub(crate) fn destroy_shells_and_invoke_callbacks(self) {
+        for shell in self.shells {
+            crate::layout::tree_mutation::destroy_shell(shell);
+        }
+        for reset in self.paintable_row_resets {
+            reset.invoke_callback();
+        }
+    }
+}
+
 const MAXIMUM_PRE_ORDER_LABEL_STRIDE: u64 = 1 << 32;
 
 pub(crate) struct LayoutNodeArena {
@@ -649,10 +671,63 @@ impl LayoutNodeArena {
         self.assert_owner_thread();
 
         assert!(!id.is_invalid(), "invalid layout node arena slot ID");
-        let index = id.slot_index();
-        let id_generation = id.generation();
         self.mark_descendant_subtree_caches_dirty_from_layout_node(id);
         let detached_children = self.unlink_children_for_free(id);
+        let paintable_row_reset = self.free_unlinked_slot(id);
+        FreedSlot {
+            paintable_row_reset,
+            detached_children,
+        }
+    }
+
+    pub(crate) fn free_subtree(&mut self, root: NodeSlotId) -> FreedSubtree {
+        self.assert_owner_thread();
+
+        assert!(!root.is_invalid(), "invalid layout node arena slot ID");
+        self.assert_node_is_unlinked_from_parent(root);
+        let mut slots_in_pre_order = Vec::new();
+        self.for_each_node_in_layout_subtree_in_pre_order(root, |slot| slots_in_pre_order.push(slot));
+
+        let mut shells = Vec::with_capacity(slots_in_pre_order.len());
+        let mut paintable_row_resets = Vec::new();
+        for slot in slots_in_pre_order {
+            self.mark_descendant_subtree_caches_dirty_from_layout_node(slot);
+            shells.push(self.node_shell(slot));
+            self.unlink_children_of_node_being_freed(slot);
+            if let Some(reset) = self.free_unlinked_slot(slot) {
+                paintable_row_resets.push(reset);
+            }
+        }
+        FreedSubtree {
+            shells,
+            paintable_row_resets,
+        }
+    }
+
+    fn assert_node_is_unlinked_from_parent(&self, id: NodeSlotId) {
+        let data = self.data(id);
+        assert!(
+            data.parent.get().is_invalid()
+                && data.previous_sibling.get().is_invalid()
+                && data.next_sibling.get().is_invalid(),
+            "layout node arena freed a slot that is still linked under a parent"
+        );
+    }
+
+    fn unlink_children_of_node_being_freed(&self, id: NodeSlotId) {
+        let data = self.data(id);
+        loop {
+            let child = data.first_child.get();
+            if child.is_invalid() {
+                break;
+            }
+            self.unlink_child(id, child);
+        }
+    }
+
+    fn free_unlinked_slot(&mut self, id: NodeSlotId) -> Option<crate::painting::paintable_rows::PaintableRowReset> {
+        let index = id.slot_index();
+        let id_generation = id.generation();
         let should_reuse = {
             let metadata = self.metadata_mut(index);
             assert!(metadata.occupied, "layout node arena freed an unused slot");
@@ -718,20 +793,12 @@ impl LayoutNodeArena {
         if should_reuse {
             self.free_list.push(index);
         }
-        FreedSlot {
-            paintable_row_reset,
-            detached_children,
-        }
+        paintable_row_reset
     }
 
     fn unlink_children_for_free(&self, id: NodeSlotId) -> DetachedShells {
+        self.assert_node_is_unlinked_from_parent(id);
         let data = self.data(id);
-        let (parent, previous_sibling, next_sibling) =
-            { (data.parent.get(), data.previous_sibling.get(), data.next_sibling.get()) };
-        assert!(
-            parent.is_invalid() && previous_sibling.is_invalid() && next_sibling.is_invalid(),
-            "layout node arena freed a slot that is still linked under a parent"
-        );
         let mut detached_children = DetachedShells::default();
         loop {
             let child = data.first_child.get();
@@ -2108,6 +2175,46 @@ pub unsafe extern "C" fn layout_arena_free(arena: *mut c_void, id: NodeSlotId) {
     if let Some(reset) = freed.paintable_row_reset {
         reset.invoke_callback();
     }
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call, and `root` must name a live node
+/// in this arena that has no parent. Every C++-side detach preparation that walks the subtree
+/// must already have run. Every shell in the subtree is destroyed before this returns.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_free_subtree(arena: *mut c_void, root: NodeSlotId) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and serializes all access on
+    // the document thread; the borrow ends before the shells are destroyed.
+    let freed = {
+        let arena = unsafe { &mut *arena.cast::<LayoutNodeArena>() };
+        arena.free_subtree(root)
+    };
+    freed.destroy_shells_and_invoke_callbacks();
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call, and `node` must name a live node
+/// in this arena. Every C++-side detach preparation that walks the subtree must already have
+/// run. The node and every shell in its subtree are destroyed before this returns.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_detach_and_free_subtree(arena: *mut c_void, node: NodeSlotId) -> bool {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and serializes all access on
+    // the document thread; the borrow ends before the shells are destroyed.
+    let (was_attached, freed) = {
+        let arena = unsafe { &mut *arena.cast::<LayoutNodeArena>() };
+        let parent = arena.data(node).parent.get();
+        let was_attached = !parent.is_invalid();
+        if was_attached {
+            arena.remove_child(parent, node);
+        }
+        (was_attached, arena.free_subtree(node))
+    };
+    freed.destroy_shells_and_invoke_callbacks();
+    was_attached
 }
 
 #[unsafe(no_mangle)]

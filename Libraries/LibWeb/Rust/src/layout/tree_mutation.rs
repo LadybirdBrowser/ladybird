@@ -10,6 +10,16 @@ use std::ffi::c_void;
 
 unsafe extern "C" {
     fn ladybird_layout_node_shell_release(shell: *mut c_void);
+    fn ladybird_layout_node_shell_destroy(shell: *mut c_void);
+}
+
+pub(crate) fn destroy_shell(shell: *mut c_void) {
+    if shell.is_null() {
+        return;
+    }
+    // SAFETY: The arena has already freed the shell's slot, and destroying a shell never
+    // re-enters the arena.
+    unsafe { ladybird_layout_node_shell_destroy(shell) };
 }
 
 fn release_shell(shell: *mut c_void) {
@@ -170,6 +180,9 @@ impl LayoutNodeArena {
 mod ffi_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_layout_node_shell_release(_shell: *mut std::ffi::c_void) {}
+
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_layout_node_shell_destroy(_shell: *mut std::ffi::c_void) {}
 }
 
 #[cfg(test)]
@@ -319,6 +332,36 @@ mod tests {
 
         free(&mut arena, a);
         free(&mut arena, b);
+    }
+
+    #[test]
+    fn freeing_a_subtree_frees_every_descendant_in_one_call() {
+        let mut arena = LayoutNodeArena::new();
+        let root = arena.allocate_for_test();
+        let a = arena.allocate_for_test();
+        let b = arena.allocate_for_test();
+        let c = arena.allocate_for_test();
+        arena.attach_child(root.slot, owned(a.slot), NodeSlotId::INVALID);
+        arena.attach_child(a.slot, owned(b.slot), NodeSlotId::INVALID);
+        arena.attach_child(root.slot, owned(c.slot), NodeSlotId::INVALID);
+
+        let freed = arena.free_subtree(root.slot);
+
+        assert_eq!(freed.shell_count(), 4);
+        for slot in [root.slot, a.slot, b.slot, c.slot] {
+            assert!(!arena.slot_is_live(slot));
+        }
+        freed.destroy_shells_and_invoke_callbacks();
+    }
+
+    #[test]
+    #[should_panic(expected = "still linked under a parent")]
+    fn freeing_a_subtree_whose_root_is_still_attached_panics() {
+        let mut arena = LayoutNodeArena::new();
+        let parent = arena.allocate_for_test();
+        let child = arena.allocate_for_test();
+        arena.attach_child(parent.slot, owned(child.slot), NodeSlotId::INVALID);
+        let _ = arena.free_subtree(child.slot);
     }
 
     #[test]
