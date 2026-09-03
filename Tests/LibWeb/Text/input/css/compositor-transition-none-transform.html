@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .target {
+        position: absolute;
+        left: 100px;
+        width: 20px;
+        height: 20px;
+        transition-duration: 400ms;
+        transition-timing-function: linear;
+    }
+
+    #individual {
+        top: 100px;
+        translate: none;
+        transition-property: translate;
+    }
+
+    #list {
+        top: 200px;
+        transform: none;
+        transition-property: transform;
+    }
+
+    #translate-3d {
+        top: 300px;
+        translate: none;
+        transition-property: translate;
+    }
+
+    #scale-3d {
+        top: 400px;
+        scale: none;
+        transition-property: scale;
+    }
+
+    #rotate-x {
+        top: 500px;
+        rotate: none;
+        transition-property: rotate;
+    }
+
+    body.moved #individual {
+        translate: 0 24px;
+    }
+
+    body.moved #list {
+        transform: translateY(24px);
+    }
+
+    body.moved #translate-3d {
+        translate: 0 0 24px;
+    }
+
+    body.moved #scale-3d {
+        scale: 1 1 2;
+    }
+
+    body.moved #rotate-x {
+        rotate: x 45deg;
+    }
+</style>
+<div class="target" id="individual"></div>
+<div class="target" id="list"></div>
+<div class="target" id="translate-3d"></div>
+<div class="target" id="scale-3d"></div>
+<div class="target" id="rotate-x"></div>
+<script>
+    asyncTest(async done => {
+        const initialIndividualTop = individual.getBoundingClientRect().top;
+        const initialListTop = list.getBoundingClientRect().top;
+        document.body.classList.add("moved");
+
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+
+        const animations = [...document.querySelectorAll(".target")].flatMap(target => target.getAnimations());
+        println(`none transform transitions use the compositor in 2D and 3D: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 5}`);
+
+        for (const animation of animations) {
+            animation.pause();
+            await animation.ready;
+            animation.currentTime = 200;
+        }
+        await new Promise(requestAnimationFrame);
+
+        const individualDistance = individual.getBoundingClientRect().top - initialIndividualTop;
+        const listDistance = list.getBoundingClientRect().top - initialListTop;
+        println(`withdrawn mid-transition positions match: ${Math.abs(individualDistance - 12) < 0.1 && Math.abs(listDistance - 12) < 0.1}`);
+        done();
+    });
+</script>

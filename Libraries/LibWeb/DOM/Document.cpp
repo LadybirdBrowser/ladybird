@@ -7493,11 +7493,16 @@ static Optional<CSS::Length> compositor_transform_percentage_basis(CSS::Transfor
 
 static Optional<Compositor::VisualAnimationTransformOperation> compositor_transform_operation(CSS::TransformationStyleValue const& transformation, CSSPixelSize reference_size, float device_pixels_per_css_pixel)
 {
-    auto kind = compositor_transform_operation_kind(transformation.transform_function());
+    auto transform_function = transformation.transform_function();
+    Optional<Compositor::VisualAnimationTransformOperationKind> kind;
+    if (transform_function == CSS::TransformFunction::Rotate3d)
+        kind = Compositor::VisualAnimationTransformOperationKind::Rotate;
+    else
+        kind = compositor_transform_operation_kind(transform_function);
     if (!kind.has_value())
         return {};
 
-    auto metadata = CSS::transform_function_metadata(transformation.transform_function());
+    auto metadata = CSS::transform_function_metadata(transform_function);
     auto style_values = transformation.values();
     Vector<float> values;
     values.ensure_capacity(style_values.size());
@@ -7510,7 +7515,7 @@ static Optional<Compositor::VisualAnimationTransformOperation> compositor_transf
             case CSS::TransformFunctionParameterType::Length:
             case CSS::TransformFunctionParameterType::LengthNone:
             case CSS::TransformFunctionParameterType::LengthPercentage:
-                return CSS::Length::from_style_value(style_value, compositor_transform_percentage_basis(transformation.transform_function(), index, reference_size)).absolute_length_to_px().to_float() * device_pixels_per_css_pixel;
+                return CSS::Length::from_style_value(style_value, compositor_transform_percentage_basis(transform_function, index, reference_size)).absolute_length_to_px().to_float() * device_pixels_per_css_pixel;
             case CSS::TransformFunctionParameterType::Number:
             case CSS::TransformFunctionParameterType::NumberPercentage:
                 return CSS::number_from_style_value(style_value, 1);
@@ -7520,6 +7525,26 @@ static Optional<Compositor::VisualAnimationTransformOperation> compositor_transf
         if (!isfinite(value))
             return {};
         values.unchecked_append(value);
+    }
+    if (transform_function == CSS::TransformFunction::Rotate3d) {
+        if (values.size() != 4)
+            return {};
+        float axis;
+        if (values[0] != 0 && values[1] == 0 && values[2] == 0) {
+            *kind = Compositor::VisualAnimationTransformOperationKind::RotateX;
+            axis = values[0];
+        } else if (values[0] == 0 && values[1] != 0 && values[2] == 0) {
+            *kind = Compositor::VisualAnimationTransformOperationKind::RotateY;
+            axis = values[1];
+        } else if (values[0] == 0 && values[1] == 0 && values[2] != 0) {
+            *kind = Compositor::VisualAnimationTransformOperationKind::RotateZ;
+            axis = values[2];
+        } else {
+            return {};
+        }
+        auto angle = axis < 0 ? -values[3] : values[3];
+        values.clear();
+        values.append(angle);
     }
     if (*kind == Compositor::VisualAnimationTransformOperationKind::Translate && values.size() == 1)
         kind = Compositor::VisualAnimationTransformOperationKind::TranslateX;
@@ -7570,8 +7595,43 @@ static bool is_transform_family_property(CSS::PropertyID property_id)
         CSS::PropertyID::Transform);
 }
 
-static Optional<Compositor::VisualAnimationTransformList> compositor_transform_animation_value(CSS::PropertyID property_id, CSS::StyleValue const& style_value, Layout::Node const& layout_node, float device_pixels_per_css_pixel)
+static Optional<Compositor::VisualAnimationTransformList> compositor_transform_animation_value(CSS::PropertyID property_id, CSS::StyleValue const& style_value, Layout::Node const& layout_node, float device_pixels_per_css_pixel, Compositor::VisualAnimationTransformList const* transform_identity_shape = nullptr)
 {
+    if (style_value.is_keyword() && style_value.to_keyword() == CSS::Keyword::None) {
+        Compositor::VisualAnimationTransformList identity;
+        if (transform_identity_shape) {
+            identity.ensure_capacity(transform_identity_shape->size());
+            for (auto const& operation : *transform_identity_shape) {
+                Vector<float> values;
+                values.resize(operation.values.size());
+                if (first_is_one_of(operation.kind,
+                        Compositor::VisualAnimationTransformOperationKind::Scale,
+                        Compositor::VisualAnimationTransformOperationKind::Scale3d,
+                        Compositor::VisualAnimationTransformOperationKind::ScaleX,
+                        Compositor::VisualAnimationTransformOperationKind::ScaleY,
+                        Compositor::VisualAnimationTransformOperationKind::ScaleZ))
+                    values.fill(1);
+                identity.append({ operation.kind, move(values) });
+            }
+            return identity;
+        }
+        switch (property_id) {
+        case CSS::PropertyID::Translate:
+            identity.append({ Compositor::VisualAnimationTransformOperationKind::Translate, { 0, 0 } });
+            return identity;
+        case CSS::PropertyID::Rotate:
+            identity.append({ Compositor::VisualAnimationTransformOperationKind::Rotate, { 0 } });
+            return identity;
+        case CSS::PropertyID::Scale:
+            identity.append({ Compositor::VisualAnimationTransformOperationKind::Scale, { 1, 1 } });
+            return identity;
+        case CSS::PropertyID::Transform:
+            return {};
+        default:
+            return {};
+        }
+    }
+
     Vector<NonnullRefPtr<CSS::TransformationStyleValue const>> transformations;
     if (property_id == CSS::PropertyID::Transform) {
         transformations = CSS::transformations_for_style_value(style_value);
@@ -7746,6 +7806,22 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
             .values = {},
         };
         new_cache.values.ensure_capacity(key_frame_set->keyframes_by_key.size());
+        HashMap<CSS::PropertyID, Optional<Compositor::VisualAnimationTransformList>> transform_identity_shapes;
+        auto resolve_transform_identity_shape = [&](CSS::PropertyID property_id) -> Compositor::VisualAnimationTransformList const* {
+            auto& transform_identity_shape = transform_identity_shapes.ensure(property_id, [&]() -> Optional<Compositor::VisualAnimationTransformList> {
+                for (auto const& candidate_entry : key_frame_set->keyframes_by_key) {
+                    auto candidate = candidate_entry.properties.get(CSS::PropertyNameAndID::from_id(property_id));
+                    if (!candidate.has_value() || !candidate->has<CSS::RustStyleValueHandle>())
+                        continue;
+                    auto candidate_style_value = resolved_compositor_animation_style_value(property_id, candidate->get<CSS::RustStyleValueHandle>(), *target);
+                    if (!candidate_style_value || (candidate_style_value->is_keyword() && candidate_style_value->to_keyword() == CSS::Keyword::None))
+                        continue;
+                    return compositor_transform_animation_value(property_id, *candidate_style_value, *layout_node, device_pixels_per_css_pixel);
+                }
+                return {};
+            });
+            return transform_identity_shape.has_value() ? &*transform_identity_shape : nullptr;
+        };
         size_t transform_property_count = 0;
         for (auto const& property : effect.target_properties()) {
             if (is_transform_family_property(property.id()))
@@ -7785,7 +7861,10 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
                         new_cache.is_valid = false;
                         break;
                     }
-                    auto property_operations = compositor_transform_animation_value(property_id, *style_value, *layout_node, device_pixels_per_css_pixel);
+                    auto const* transform_identity_shape = style_value->is_keyword() && style_value->to_keyword() == CSS::Keyword::None
+                        ? resolve_transform_identity_shape(property_id)
+                        : nullptr;
+                    auto property_operations = compositor_transform_animation_value(property_id, *style_value, *layout_node, device_pixels_per_css_pixel, transform_identity_shape);
                     if (!property_operations.has_value()) {
                         new_cache.is_valid = false;
                         break;
