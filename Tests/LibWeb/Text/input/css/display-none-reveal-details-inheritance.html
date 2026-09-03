@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function animationFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        iframe.style.width = "500px";
+        iframe.style.height = "200px";
+        iframe.srcdoc = `
+            <!DOCTYPE html>
+            <style>
+                body { font-family: sans-serif; }
+                #sidebar { display: none; }
+                @media (min-width: 401px) {
+                    #sidebar { display: block; }
+                    /* Keep a descendant in the same media-query reaction batch as the sidebar. */
+                    x-item { width: 10px; }
+                }
+            </style>
+            <script>
+                customElements.define("x-outer", class extends HTMLElement {
+                    constructor() {
+                        super();
+                        this.attachShadow({ mode: "open" }).innerHTML = '<slot></slot>';
+                    }
+                });
+                customElements.define("x-middle", class extends HTMLElement {
+                    constructor() {
+                        super();
+                        this.attachShadow({ mode: "open" }).innerHTML = '<slot></slot>';
+                    }
+                });
+                customElements.define("x-item", class extends HTMLElement {
+                    constructor() {
+                        super();
+                        this.attachShadow({ mode: "open" }).innerHTML = '<span id="label">Wordspire</span>';
+                    }
+                });
+            <\/script>
+            <x-outer id="sidebar">
+                <div style="contain: layout">
+                    <x-middle>
+                        <details open>
+                            <x-item id="item"></x-item>
+                        </details>
+                    </x-middle>
+                </div>
+            </x-outer>
+            `;
+
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        document.body.appendChild(iframe);
+        await loaded;
+
+        const child = iframe.contentWindow;
+        const item = child.document.getElementById("item");
+        const label = item.shadowRoot.getElementById("label");
+        child.document.body.offsetHeight;
+        println(`item before: ${child.getComputedStyle(item).fontFamily}`);
+        println(`label before: ${child.getComputedStyle(label).fontFamily}`);
+
+        iframe.style.width = "300px";
+        document.body.offsetHeight;
+        await animationFrame();
+        child.document.body.offsetHeight;
+
+        iframe.style.width = "500px";
+        document.body.offsetHeight;
+        await animationFrame();
+        child.document.body.offsetHeight;
+
+        println(`item after: ${child.getComputedStyle(item).fontFamily}`);
+        println(`label after: ${child.getComputedStyle(label).fontFamily}`);
+    });
+</script>
