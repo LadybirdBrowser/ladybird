@@ -66,8 +66,7 @@ partial interface Document {
     readonly attribute USVString referrer;
     attribute USVString cookie;
     readonly attribute DOMString lastModified;
-    // FIXME: readyState should be a DocumentReadyState enum.
-    readonly attribute [FlyString] DOMString readyState;
+    [ImplementedAs=readiness] readonly attribute DocumentReadyState readyState;
 
     // DOM tree accessors
     getter object (DOMString name);
@@ -103,8 +102,7 @@ partial interface Document {
     boolean queryCommandSupported([FlyString] DOMString commandId);
     DOMString queryCommandValue([FlyString] DOMString commandId);
     readonly attribute boolean hidden;
-    // FIXME: visibilityState should be a DocumentVisibilityState enum.
-    readonly attribute [FlyString] DOMString visibilityState;
+    readonly attribute DocumentVisibilityState visibilityState;
 
     // special event handler IDL attributes that only apply to Document objects
     [LegacyLenientThis] attribute EventHandler onreadystatechange;
@@ -112,6 +110,9 @@ partial interface Document {
 
     // also has obsolete members
 };
+
+enum DocumentReadyState { "loading", "interactive", "complete" };
+enum DocumentVisibilityState { "visible", "hidden" };
 
 // https://html.spec.whatwg.org/multipage/obsolete.html#Document-partial
 partial interface Document {

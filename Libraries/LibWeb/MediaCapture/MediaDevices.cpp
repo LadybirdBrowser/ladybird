@@ -185,7 +185,7 @@ bool MediaDevices::get_user_media_can_proceed() const
 bool MediaDevices::is_in_view() const
 {
     auto const& document = m_window->associated_document();
-    return document.is_fully_active() && document.visibility_state_value() == HTML::VisibilityState::Visible;
+    return document.is_fully_active() && document.visibility_state() == HTML::VisibilityState::Visible;
 }
 
 bool MediaDevices::has_live_device_of_kind(Utf16FlyString const& kind) const

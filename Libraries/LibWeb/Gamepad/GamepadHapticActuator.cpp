@@ -190,7 +190,7 @@ void GamepadHapticActuator::play_effect(GamepadHapticEffectType type, GamepadEff
 
     // 3. If document is null or document is not fully active or document's visibility state is "hidden", return a
     //    promise rejected with an "InvalidStateError" DOMException.
-    if (!document.is_fully_active() || document.visibility_state_value() == HTML::VisibilityState::Hidden) {
+    if (!document.is_fully_active() || document.visibility_state() == HTML::VisibilityState::Hidden) {
         WebIDL::reject_promise(promise, WebIDL::InvalidStateError::create("Haptics are not allowed in a hidden document"_utf16));
         return;
     }
@@ -214,7 +214,7 @@ void GamepadHapticActuator::reset(GC::Ref<WebIDL::Promise> promise)
 
     // 2. If document is null or document is not fully active or document's visibility state is "hidden", return a
     //    promise rejected with an "InvalidStateError" DOMException.
-    if (!document.is_fully_active() || document.visibility_state_value() == HTML::VisibilityState::Hidden) {
+    if (!document.is_fully_active() || document.visibility_state() == HTML::VisibilityState::Hidden) {
         WebIDL::reject_promise(promise, WebIDL::InvalidStateError::create("Haptics are not allowed in a hidden document"_utf16));
         return;
     }

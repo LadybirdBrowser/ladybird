@@ -6,12 +6,10 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/Document.h>
+
 namespace Web::HTML {
 
-enum class DocumentReadyState {
-    Loading,
-    Interactive,
-    Complete,
-};
+using DocumentReadyState = Bindings::DocumentReadyState;
 
 }

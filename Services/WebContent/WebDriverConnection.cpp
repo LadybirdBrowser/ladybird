@@ -2786,7 +2786,7 @@ void WebDriverConnection::wait_for_visibility_state(GC::Ref<GC::Function<void()>
 
     auto* document = current_top_level_browsing_context()->active_document();
 
-    if (document->visibility_state_value() == target_visibility_state) {
+    if (document->visibility_state() == target_visibility_state) {
         on_complete->function()();
         return;
     }
