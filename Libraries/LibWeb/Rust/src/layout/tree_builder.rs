@@ -116,8 +116,8 @@ pub struct FfiDomTreeBuilderCallbacks {
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiElementLayoutKind) -> NodeSlotId,
     pub create_principal_document_layout: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
     pub principal_text_layout_facts: unsafe extern "C" fn(*mut c_void) -> FfiTextLayoutFacts,
-    pub create_principal_text_layout:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, bool) -> FfiPrincipalTextLayoutNodes,
+    pub create_principal_text_layout: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
+    pub set_principal_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void, NodeSlotId),
     pub reuse_principal_layout: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub principal_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     pub attach_principal_style_resources: unsafe extern "C" fn(*mut c_void),
@@ -136,13 +136,6 @@ pub struct FfiDomTreeBuilderCallbacks {
 pub struct FfiPrincipalNodeFrame {
     pub frame: *mut c_void,
     pub old_layout_node: NodeSlotId,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiPrincipalTextLayoutNodes {
-    pub layout_node: NodeSlotId,
-    pub wrapped_text: NodeSlotId,
 }
 
 #[derive(Clone, Copy)]
@@ -170,6 +163,7 @@ pub struct FfiTextLayoutFacts {
     pub parent_display_is_contents: bool,
     pub text_is_ascii_whitespace: bool,
     pub parent_collapses_whitespace: bool,
+    pub style_parent_style_record: u64,
 }
 
 #[derive(Clone, Copy)]
@@ -1431,18 +1425,24 @@ fn construct_principal_layout_node(
                 facts.parent_collapses_whitespace,
             );
             // SAFETY: The frame and DOM text node remain live throughout construction.
-            let created =
-                unsafe { (host.callbacks.create_principal_text_layout)(frame, dom_node, needs_style_wrapper) };
+            let text_layout_node = unsafe { (host.callbacks.create_principal_text_layout)(frame, dom_node) };
             let layout_host = host.layout();
-            if !created.wrapped_text.is_invalid() {
-                layout_host.set_children_are_inline(created.layout_node, true);
-                layout_host.attach_child(
-                    created.layout_node,
-                    layout_host.created(created.wrapped_text),
-                    NodeSlotId::INVALID,
+            if needs_style_wrapper {
+                let wrapper = layout_host.create_anonymous_box_from_style_record(
+                    facts.style_parent_style_record,
+                    FfiAnonymousStyleKind::InlineStyleWrapper,
+                    FfiAnonymousStyleOverrides::default(),
+                    NodeKind::InlineNode,
                 );
+                let wrapper_slot = wrapper.slot();
+                layout_host.set_children_are_inline(wrapper_slot, true);
+                layout_host.attach_child(wrapper_slot, layout_host.created(text_layout_node), NodeSlotId::INVALID);
+                // SAFETY: The builder and frame remain live, and the wrapper is a live node the builder owns.
+                unsafe { (host.callbacks.set_principal_layout_node)(host.callbacks.builder, frame, wrapper_slot) };
+                created_box = Some(wrapper);
+            } else {
+                created_box = Some(layout_host.created(text_layout_node));
             }
-            created_box = Some(layout_host.created(created.layout_node));
         }
     } else {
         // SAFETY: The frame and DOM node remain live throughout the call.
@@ -2251,7 +2251,6 @@ pub(crate) enum FfiInsertionMode {
 pub struct FfiTreeBuilderCallbacks {
     pub context: *mut c_void,
     pub create_anonymous_shell: unsafe extern "C" fn(*mut c_void, NodeSlotId, NodeKind),
-    pub reset_table_box_style_used_by_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub take_fieldset_overflow_for_content_wrapper:
         unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiAnonymousStyleOverrides,
     pub prepare_subtree_for_detach: unsafe extern "C" fn(*mut c_void, *mut c_void),
@@ -2480,9 +2479,24 @@ impl TreeBuilderHost<'_> {
         overrides: FfiAnonymousStyleOverrides,
         node_kind: NodeKind,
     ) -> UnplacedLayoutNode {
-        let derived =
-            self.arena()
-                .derive_anonymous_style_record(self.arena().node_style_record(parent), style_kind, overrides);
+        self.create_anonymous_box_from_style_record(
+            self.arena().node_style_record(parent),
+            style_kind,
+            overrides,
+            node_kind,
+        )
+    }
+
+    fn create_anonymous_box_from_style_record(
+        &self,
+        parent_style_record: u64,
+        style_kind: FfiAnonymousStyleKind,
+        overrides: FfiAnonymousStyleOverrides,
+        node_kind: NodeKind,
+    ) -> UnplacedLayoutNode {
+        let derived = self
+            .arena()
+            .derive_anonymous_style_record(parent_style_record, style_kind, overrides);
         // SAFETY: Entry points guarantee that the arena remains live, and callers hold no reference derived from
         // it across the allocation.
         let slot = unsafe { &mut *self.arena }.allocate_unbound(std::ptr::null_mut());
@@ -3669,10 +3683,7 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
                 FfiAnonymousStyleOverrides::default(),
                 NodeKind::TableWrapper,
             );
-            // SAFETY: `table_root` is a live table box.
-            unsafe {
-                (host.callbacks.reset_table_box_style_used_by_wrapper)(host.callbacks.context, host.shell(table_root));
-            }
+            host.arena().reset_table_box_style_used_by_wrapper(table_root);
             let wrapper_slot = wrapper.slot();
             host.move_child(table_root, wrapper_slot, NodeSlotId::INVALID);
             host.attach_child(parent, wrapper, nearest_sibling);

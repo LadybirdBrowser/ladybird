@@ -12,6 +12,7 @@ use super::geometry::AvailableSpace;
 use super::used_values::SizeConstraint;
 use super::used_values::UsedValues;
 use crate::css::style::fast_hash::FastMap as HashMap;
+use crate::layout::ComputedValuesView;
 use crate::layout::CssPixels;
 use crate::layout::FfiReplacedContentFacts;
 use crate::layout::node_data::{
@@ -441,6 +442,7 @@ pub enum FfiAnonymousStyleKind {
     ButtonFlexWrapper,
     ButtonContentBox,
     FieldsetContentWrapper,
+    InlineStyleWrapper,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -470,6 +472,30 @@ pub struct FfiStyleRecordHostCallbacks {
     ) -> FfiDerivedStyleRecord,
     pub reinherit_anonymous_style_record: unsafe extern "C" fn(*mut c_void, u64, u64) -> FfiDerivedStyleRecord,
     pub unpin_style_record: unsafe extern "C" fn(*mut c_void, u64),
+    pub reinherit_owned_anonymous_box_style: unsafe extern "C" fn(*mut c_void, *mut c_void, u64) -> bool,
+    pub reset_table_box_style_used_by_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub shell_style_changed: unsafe extern "C" fn(*mut c_void, *mut c_void),
+}
+
+fn style_payloads_equal_in_layout_affecting_groups(a: *const c_void, b: *const c_void) -> bool {
+    if a == b {
+        return true;
+    }
+    if a.is_null() || b.is_null() {
+        return false;
+    }
+    // SAFETY: A non-null style pointer addresses the engine's group pointer array, which
+    // FfiStylePayloads mirrors exactly.
+    let (a, b) = unsafe { (&*a.cast::<FfiStylePayloads>(), &*b.cast::<FfiStylePayloads>()) };
+    (0..a.groups.len()).all(|group_index| {
+        !crate::css::computed_values::style_group_affects_layout(group_index)
+            || a.groups[group_index] == b.groups[group_index]
+            || crate::css::computed_values::style_group_payloads_equal(
+                group_index,
+                a.groups[group_index],
+                b.groups[group_index],
+            )
+    })
 }
 
 #[must_use]
@@ -938,6 +964,109 @@ impl LayoutNodeArena {
         let host = self.style_record_host();
         // SAFETY: Registration and unregistration keep the host context live.
         unsafe { (host.derive_anonymous_style_record)(host.context, parent_style_record, kind, overrides) }
+    }
+
+    pub(crate) fn reinherit_anonymous_style_record(
+        &self,
+        style_record: u64,
+        parent_style_record: u64,
+    ) -> FfiDerivedStyleRecord {
+        assert!(style_record != 0 && parent_style_record != 0);
+        let host = self.style_record_host();
+        // SAFETY: Registration and unregistration keep the host context live.
+        unsafe { (host.reinherit_anonymous_style_record)(host.context, style_record, parent_style_record) }
+    }
+
+    pub(crate) fn reset_table_box_style_used_by_wrapper(&self, table_box: NodeSlotId) {
+        let shell = self.node_shell(table_box);
+        assert!(
+            !shell.is_null(),
+            "table box without a shell cannot reset the properties its wrapper took"
+        );
+        let host = self.style_record_host();
+        // SAFETY: Registration and unregistration keep the host context live, and the shell is live.
+        unsafe { (host.reset_table_box_style_used_by_wrapper)(host.context, shell) };
+    }
+
+    pub(crate) fn reinherit_anonymous_descendants(&self, node: NodeSlotId) {
+        self.assert_owner_thread();
+        if self.node_style_record(node) == 0 {
+            return;
+        }
+        let parent = self.data(node).parent.get();
+        let parent_is_table_wrapper_of_this_table_box = !parent.is_invalid()
+            && self.data(parent).kind.get() == NodeKind::TableWrapper
+            && self
+                .style_payloads(node)
+                .is_some_and(|payloads| ComputedValuesView::new(&payloads.groups).display().is_table_inside());
+        if parent_is_table_wrapper_of_this_table_box {
+            let derived = self.derive_anonymous_style_record(
+                self.node_style_record(node),
+                FfiAnonymousStyleKind::TableWrapper,
+                FfiAnonymousStyleOverrides::default(),
+            );
+            self.apply_reinherited_style_record(parent, derived);
+            self.reset_table_box_style_used_by_wrapper(node);
+        }
+        self.reinherit_anonymous_children(node, self.node_style_record(node));
+    }
+
+    fn reinherit_anonymous_children(&self, parent: NodeSlotId, parent_style_record: u64) {
+        let mut child = self.data(parent).first_child.get();
+        while !child.is_invalid() {
+            let next_sibling = self.data(child).next_sibling.get();
+            let data = self.data(child);
+            let flags = data.flags.get();
+            let is_anonymous_styled_child = flags & NodeFlag::Anonymous as u32 != 0
+                && flags & NodeFlag::HasStyle as u32 != 0
+                && data.kind.get() != NodeKind::TableWrapper;
+            if is_anonymous_styled_child {
+                if self.style_records_pinned_by_arena[child.slot_index() as usize].get() {
+                    let derived =
+                        self.reinherit_anonymous_style_record(self.node_style_record(child), parent_style_record);
+                    self.apply_reinherited_style_record(child, derived);
+                    self.reinherit_anonymous_children(child, derived.record);
+                } else if !data.shell.get().is_null() {
+                    let host = self.style_record_host();
+                    // SAFETY: Registration and unregistration keep the host context live, and the shell is live.
+                    let descendants_follow = unsafe {
+                        (host.reinherit_owned_anonymous_box_style)(host.context, data.shell.get(), parent_style_record)
+                    };
+                    if descendants_follow {
+                        self.reinherit_anonymous_children(child, self.node_style_record(child));
+                    }
+                }
+            }
+            child = next_sibling;
+        }
+    }
+
+    fn apply_reinherited_style_record(&self, slot: NodeSlotId, derived: FfiDerivedStyleRecord) {
+        let previous_payloads = self.data(slot).style.get();
+        let changes_layout_affecting_style =
+            !style_payloads_equal_in_layout_affecting_groups(previous_payloads, derived.payloads);
+        self.replace_arena_pinned_style_record(slot, derived);
+        if changes_layout_affecting_style {
+            self.bump_fragment_cache_epoch_of_self_and_ancestors(slot);
+            self.reset_cached_intrinsic_sizes_of_self_and_ancestors(slot);
+        }
+        let mut child = self.data(slot).first_child.get();
+        while !child.is_invalid() {
+            if super::node_facts::kind_is_text(self.data(child).kind.get()) {
+                self.enroll_text_node_for_content_sync(child);
+            }
+            child = self.data(child).next_sibling.get();
+        }
+        let shell = self.node_shell(slot);
+        if !shell.is_null() {
+            let host = self.style_record_host();
+            // SAFETY: Registration and unregistration keep the host context live, and the shell is live.
+            unsafe { (host.shell_style_changed)(host.context, shell) };
+        }
+    }
+
+    pub(crate) fn enroll_text_node_for_content_sync(&self, node: NodeSlotId) {
+        self.text_nodes_enrolled_for_content_sync.borrow_mut().push(node);
     }
 
     pub(crate) fn stamp_anonymous_box(&self, slot: NodeSlotId, kind: NodeKind, derived: FfiDerivedStyleRecord) {
@@ -2662,6 +2791,13 @@ pub unsafe extern "C" fn layout_arena_replace_arena_pinned_style_record(
             payloads,
         },
     );
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_reinherit_anonymous_descendants(arena: *mut c_void, node: NodeSlotId) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: As above.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.reinherit_anonymous_descendants(node);
 }
 
 #[unsafe(no_mangle)]

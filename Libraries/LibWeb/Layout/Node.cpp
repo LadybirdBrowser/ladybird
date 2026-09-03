@@ -23,7 +23,6 @@
 #include <LibWeb/HTML/HTMLTableCellElement.h>
 #include <LibWeb/HTML/HTMLTableColElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
-#include <LibWeb/Layout/AnonymousBoxStyle.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
@@ -495,7 +494,7 @@ void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
     set_flag(RustFFI::NodeFlag::HasPreserve3dTransformStyle, transform_style() == CSS::TransformStyle::Preserve3d);
     // A style change can introduce the properties that make a node carry replaced-content facts,
     // such as size containment arriving on a kept layout node.
-    propagate_style_to_anonymous_wrappers();
+    RustFFI::layout_arena_reinherit_anonymous_descendants(arena_handle(), slot_id(this));
     attach_style_resources();
     // A pseudo layout node can outlive replacement of the DOM pseudo's record until the layout
     // tree is rebuilt. Root its record across that gap, including metadata-only style changes that
@@ -553,74 +552,37 @@ CSS::StyleScope const& NodeWithStyle::style_scope() const
     return document().style_scope();
 }
 
-void NodeWithStyle::propagate_style_to_anonymous_wrappers()
+void NodeWithStyle::refresh_style_from_arena()
 {
-    // Update the style of any anonymous wrappers that inherit from this node.
-    // FIXME: This is pretty hackish. It would be nicer if they shared the inherited style
-    //        data structure somehow, so this wasn't necessary.
-
-    // If this is a `display:table` box with an anonymous wrapper parent,
-    // the parent inherits style from *this* node, not the other way around.
-    if (auto* table_wrapper = parent() && parent()->is_table_wrapper() ? parent() : nullptr; table_wrapper && display().is_table_inside()) {
-        table_wrapper->adopt_pinned_anonymous_style_record(derive_pinned_anonymous_box_style_record(document().style_computer(), m_style_record_identity, RustFFI::FfiAnonymousStyleKind::TableWrapper, {}));
-        reset_table_box_computed_values_used_by_wrapper_to_init_values();
-    }
-
-    // Propagate style to all anonymous children (except table wrappers!)
-    for_each_child_of_type<NodeWithStyle>([&](NodeWithStyle& child) {
-        if (child.is_anonymous() && !child.is_table_wrapper()) {
-            // NB: The principal box of a pseudo-element (::before, ::after, ::marker, etc) has its own computed
-            //     style, which is applied to it separately. Don't clobber that style with inherited values from
-            //     this node.
-            if (child.is_pseudo_element_principal_box())
-                return IterationDecision::Continue;
-            if (child.m_owned_computed_values) {
-                CSS::ComputedValues::Builder builder(child.owned_computed_values());
-                auto values = copy_computed_values();
-                builder->inherit_from(*values);
-                child.set_computed_values(move(builder).build());
-            } else {
-                child.adopt_pinned_anonymous_style_record(reinherit_pinned_anonymous_box_style_record(document().style_computer(), child.m_style_record_identity, m_style_record_identity));
-            }
-            child.propagate_style_to_anonymous_wrappers();
-        }
-        return IterationDecision::Continue;
-    });
-}
-
-void NodeWithStyle::adopt_pinned_anonymous_style_record(CSS::StyleRecordID style_record_identity)
-{
-    VERIFY(is_anonymous());
-    VERIFY(!m_owned_computed_values);
-    auto new_record_view = document().style_computer().computed_style_record_view(style_record_identity);
-    VERIFY(new_record_view);
-    auto old_record_view = computed_style_record_view();
-    bool changes_layout_affecting_style = !old_record_view
-        || CSS::ComputedValues::either_carries_animated_overlay(*old_record_view, *new_record_view)
-        || new_record_view->differs_in_any_layout_affecting_group_payload_from(*old_record_view);
-
+    m_style_record_identity = CSS::StyleRecordID { RustFFI::layout_arena_node_style_record(arena_handle(), slot_id(this)) };
+    VERIFY(m_style_record_identity);
     m_background_layers.clear();
     m_mask_layers.clear();
     m_border_image.clear();
     m_list_style_type.clear();
     m_list_style_image.clear();
-    RustFFI::layout_arena_replace_arena_pinned_style_record(arena_handle(), slot_id(this), style_record_identity.value(), document().style_computer().style_record_payloads(style_record_identity));
-    m_style_record_identity = style_record_identity;
-    set_flag(RustFFI::NodeFlag::HasAnchorNames, !new_record_view->anchor_names().is_empty());
-    set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, new_record_view->inset_properties_contain_anchor_functions());
+    auto record_view = computed_style_record_view();
+    VERIFY(record_view);
+    set_flag(RustFFI::NodeFlag::HasAnchorNames, !record_view->anchor_names().is_empty());
+    set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, record_view->inset_properties_contain_anchor_functions());
     set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, false);
     publish_style_record_to_node_data();
     set_flag(RustFFI::NodeFlag::HasPreserve3dTransformStyle, transform_style() == CSS::TransformStyle::Preserve3d);
+}
 
-    if (changes_layout_affecting_style) {
-        bump_fragment_cache_epoch_of_self_and_ancestors();
-        RustFFI::layout_arena_reset_cached_intrinsic_sizes_of_self_and_ancestors(arena_handle(), slot_id(this));
-    }
-
-    for (auto* child = first_child_ptr(); child; child = child->next_sibling_ptr()) {
-        if (auto* text_child = as_if<TextNode>(*child))
-            text_child->enroll_for_arena_text_content_sync();
-    }
+bool NodeWithStyle::reinherit_owned_computed_values_from(CSS::StyleRecordID parent_style_record_identity)
+{
+    // NB: The principal box of a pseudo-element (::before, ::after, ::marker, etc) has its own computed
+    //     style, which is applied to it separately. Don't clobber that style with inherited values from
+    //     the parent.
+    if (is_pseudo_element_principal_box())
+        return false;
+    auto parent_record_view = document().style_computer().computed_style_record_view(parent_style_record_identity);
+    VERIFY(parent_record_view);
+    CSS::ComputedValues::Builder builder(owned_computed_values());
+    builder->inherit_from(*parent_record_view);
+    set_computed_values(move(builder).build());
+    return true;
 }
 
 bool Node::is_root_element() const

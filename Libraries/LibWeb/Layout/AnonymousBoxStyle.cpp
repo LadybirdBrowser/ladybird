@@ -54,7 +54,9 @@ CSS::StyleRecordID derive_pinned_anonymous_box_style_record(CSS::StyleComputer c
 {
     auto parent_values = style_computer.computed_style_record_view(parent_style_record);
     VERIFY(parent_values);
-    auto builder = CSS::ComputedValues::Builder::create_inheriting_from(*parent_values);
+    auto builder = kind == RustFFI::FfiAnonymousStyleKind::InlineStyleWrapper
+        ? CSS::ComputedValues::Builder { *parent_values }
+        : CSS::ComputedValues::Builder::create_inheriting_from(*parent_values);
     auto block_flow_or_inline_block = overrides.inline_block_wrapper
         ? CSS::Display::from_short(CSS::Display::Short::InlineBlock)
         : CSS::Display(CSS::DisplayOutside::Block, CSS::DisplayInside::Flow);
@@ -99,6 +101,9 @@ CSS::StyleRecordID derive_pinned_anonymous_box_style_record(CSS::StyleComputer c
         builder->set_display(CSS::Display::from_short(CSS::Display::Short::FlowRoot));
         builder->set_overflow_x(static_cast<CSS::Overflow>(overrides.overflow_x));
         builder->set_overflow_y(static_cast<CSS::Overflow>(overrides.overflow_y));
+        break;
+    case RustFFI::FfiAnonymousStyleKind::InlineStyleWrapper:
+        builder->set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
         break;
     }
     return intern_and_pin_anonymous_box_style(style_computer, move(builder));

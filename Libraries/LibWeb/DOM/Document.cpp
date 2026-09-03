@@ -704,6 +704,11 @@ Layout::NodeArena& Document::layout_node_arena()
                 return { .record = reinherited_style_record.value(), .payloads = style_computer.style_record_payloads(reinherited_style_record) };
             },
             .unpin_style_record = [](void* context, u64 style_record) { static_cast<Document*>(context)->style_computer().unpin_style_record(CSS::StyleRecordID { style_record }); },
+            .reinherit_owned_anonymous_box_style = [](void*, void* shell, u64 parent_style_record) -> bool {
+                return as<Layout::NodeWithStyle>(*static_cast<Layout::Node*>(shell)).reinherit_owned_computed_values_from(CSS::StyleRecordID { parent_style_record });
+            },
+            .reset_table_box_style_used_by_wrapper = [](void*, void* table_box_shell) { as<Layout::Box>(*static_cast<Layout::Node*>(table_box_shell)).reset_table_box_computed_values_used_by_wrapper_to_init_values(); },
+            .shell_style_changed = [](void*, void* shell) { as<Layout::NodeWithStyle>(*static_cast<Layout::Node*>(shell)).refresh_style_from_arena(); },
         };
         Layout::RustFFI::layout_arena_set_style_record_host_callbacks(m_layout_node_arena->handle(), style_record_host_callbacks);
         Layout::RustFFI::layout_arena_set_chrome_state_callback(

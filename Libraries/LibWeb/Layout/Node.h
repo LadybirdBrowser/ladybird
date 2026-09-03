@@ -654,7 +654,8 @@ public:
 
     void set_computed_values(NonnullRefPtr<CSS::ComputedValues const>);
     void set_style_record_identity(CSS::StyleRecordID);
-    void adopt_pinned_anonymous_style_record(CSS::StyleRecordID);
+    void refresh_style_from_arena();
+    bool reinherit_owned_computed_values_from(CSS::StyleRecordID parent_style_record_identity);
     void pin_style_record_for_cxx_consumers();
     void release_pinned_style_record();
     void bind_generated_style_record(CSS::StyleRecordID);
@@ -668,7 +669,6 @@ private:
 
     virtual bool is_node_with_style() const final { return true; }
 
-    void propagate_style_to_anonymous_wrappers();
     void initialize_from_style_record();
     void publish_style_record_to_node_data();
 
