@@ -66,27 +66,50 @@
 <div class="target" id="scale-3d"></div>
 <div class="target" id="rotate-x"></div>
 <script>
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
     asyncTest(async done => {
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+
+        const firstFrameTime = performance.now();
+        internals.injectRenderingOpportunity(firstFrameTime);
+        await nextTask();
+
         const initialIndividualTop = individual.getBoundingClientRect().top;
         const initialListTop = list.getBoundingClientRect().top;
         document.body.classList.add("moved");
 
-        await new Promise(requestAnimationFrame);
-        await new Promise(requestAnimationFrame);
+        internals.injectRenderingOpportunity(firstFrameTime + 16);
+        await nextTask();
+        internals.injectRenderingOpportunity(firstFrameTime + 32);
+        await nextTask();
 
         const animations = [...document.querySelectorAll(".target")].flatMap(target => target.getAnimations());
         println(`none transform transitions use the compositor in 2D and 3D: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 5}`);
 
-        for (const animation of animations) {
+        for (const animation of animations)
             animation.pause();
-            await animation.ready;
+
+        internals.injectRenderingOpportunity(firstFrameTime + 48);
+        await nextTask();
+        await Promise.all(animations.map(animation => animation.ready));
+        for (const animation of animations)
             animation.currentTime = 200;
-        }
-        await new Promise(requestAnimationFrame);
+
+        internals.injectRenderingOpportunity(firstFrameTime + 64);
+        await nextTask();
 
         const individualDistance = individual.getBoundingClientRect().top - initialIndividualTop;
         const listDistance = list.getBoundingClientRect().top - initialListTop;
         println(`withdrawn mid-transition positions match: ${Math.abs(individualDistance - 12) < 0.1 && Math.abs(listDistance - 12) < 0.1}`);
+        internals.setManualRenderingOpportunities(false);
         done();
     });
 </script>

@@ -7728,10 +7728,17 @@ static bool keyframe_effect_only_translates_horizontally(Animations::KeyframeEff
 static Optional<Compositor::VisualAnimation> build_compositor_animation(Animations::KeyframeEffect& effect, Painting::AccumulatedVisualContextTree const& visual_context_tree, Compositor::VisualAnimation::TargetKind target_kind, Optional<bool>& only_translates_horizontally)
 {
     auto animation = effect.associated_animation();
-    if (!animation || animation->play_state() != Bindings::AnimationPlayState::Running || animation->pending())
+    if (!animation || animation->play_state() != Bindings::AnimationPlayState::Running)
+        return {};
+    bool is_initial_pending_css_transition = animation->pending()
+        && animation->has_pending_play_task()
+        && animation->is_css_transition()
+        && as<CSS::CSSTransition>(*animation).previous_phase() == CSS::CSSTransition::Phase::Idle;
+    if (animation->pending() && !is_initial_pending_css_transition)
         return {};
     auto timeline = animation->timeline();
-    if (!timeline || !timeline->is_monotonically_increasing() || !effect.is_in_the_active_phase())
+    if (!timeline || !timeline->is_monotonically_increasing()
+        || (!effect.is_in_the_before_phase() && !effect.is_in_the_active_phase()))
         return {};
     if ((!isinf(effect.iteration_count()) && effect.iteration_count() != 1) || effect.composite() != Bindings::CompositeOperation::Replace)
         return {};
@@ -7740,6 +7747,8 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
     if (effect.start_delay().type != Animations::TimeValue::Type::Milliseconds
         || effect.iteration_duration().type != Animations::TimeValue::Type::Milliseconds
         || effect.iteration_duration().value <= 0)
+        return {};
+    if (effect.is_in_the_before_phase() && effect.before_active_boundary_time() != effect.start_delay())
         return {};
     auto current_time = animation->current_time();
     if (!current_time.has_value() || current_time->type != Animations::TimeValue::Type::Milliseconds)
@@ -7756,10 +7765,30 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
     auto target = effect.target_abstract_element();
     if (!target.has_value() || target->element().namespace_uri() == Namespace::SVG)
         return {};
-    auto frame_timestamp = target->document().last_animation_frame_timestamp();
-    if (!frame_timestamp.has_value())
+    auto monotonic_time_at_anchor_ms = [&]() -> Optional<double> {
+        if (!is_initial_pending_css_transition) {
+            auto frame_timestamp = target->document().last_animation_frame_timestamp();
+            if (!frame_timestamp.has_value())
+                return {};
+            return *frame_timestamp + target->document().relevant_settings_object().time_origin();
+        }
+
+        // OPTIMIZATION: A new CSS transition is play-pending until the next animation update. Start its compositor
+        //               descriptor at the style change event time without resolving the Animation's pending task.
+        auto const& transition = as<CSS::CSSTransition>(*animation);
+        auto style_change_event_time = Animations::TimeValue {
+            Animations::TimeValue::Type::Milliseconds,
+            transition.transition_start_time() - effect.start_delay().value,
+        };
+        if (!timeline->can_convert_a_timeline_time_to_an_origin_relative_time())
+            return {};
+        auto origin_relative_time = timeline->convert_a_timeline_time_to_an_origin_relative_time(style_change_event_time);
+        if (!origin_relative_time.has_value())
+            return {};
+        return *origin_relative_time + target->document().relevant_settings_object().time_origin();
+    }();
+    if (!monotonic_time_at_anchor_ms.has_value())
         return {};
-    auto monotonic_time_at_anchor_ms = *frame_timestamp + target->document().relevant_settings_object().time_origin();
     auto const* layout_node = target->unsafe_layout_node();
     if (!layout_node)
         return {};
@@ -7945,7 +7974,7 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
         Compositor::VisualAnimation visual_animation {
             .target_kind = target_kind,
             .visual_context_node_indices = move(visual_context_node_indices),
-            .monotonic_time_at_anchor_ns = static_cast<i64>(monotonic_time_at_anchor_ms * 1'000'000.0),
+            .monotonic_time_at_anchor_ns = static_cast<i64>(*monotonic_time_at_anchor_ms * 1'000'000.0),
             .local_time_at_anchor_ms = current_time->value,
             .playback_rate = animation->playback_rate(),
             .start_delay_ms = effect.start_delay().value,
@@ -7953,6 +7982,9 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
             .iteration_count = effect.iteration_count(),
             .iteration_start = effect.iteration_start(),
             .playback_direction = static_cast<Compositor::VisualAnimationPlaybackDirection>(to_underlying(effect.playback_direction())),
+            .fill_mode = first_is_one_of(effect.fill_mode(), Bindings::FillMode::Backwards, Bindings::FillMode::Both)
+                ? Compositor::VisualAnimationFillMode::Backwards
+                : Compositor::VisualAnimationFillMode::None,
             .easing = Compositor::VisualAnimationEasing::from_css(effect.timing_function()),
             .keyframes = move(keyframes),
         };
@@ -7980,54 +8012,71 @@ void Document::schedule_compositor_animation_wakeup(double delay_ms)
             document.m_compositor_animation_wakeup_deadline.clear();
             auto timestamp = HighResolutionTime::relative_high_resolution_time(
                 HighResolutionTime::unsafe_shared_current_time(), document.relevant_settings_object().global_object());
-            Optional<double> next_wakeup_delay_ms;
-            bool reached_wakeup = false;
-            for (auto& animation : document.m_associated_animations) {
-                if (!animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
-                    continue;
-                auto& effect = static_cast<Animations::KeyframeEffect&>(*animation.effect());
-                auto timeline_time = animation.timeline() ? animation.timeline()->current_time_at_timestamp(timestamp) : Optional<Animations::TimeValue> {};
-                auto current_time = animation.current_time_at(timeline_time);
-                if (!current_time.has_value() || current_time->type != Animations::TimeValue::Type::Milliseconds)
-                    continue;
-                if (!effect.is_compositor_driven()
-                    && !animation.pending()
-                    && animation.playback_rate() > 0
-                    && effect.start_delay().type == Animations::TimeValue::Type::Milliseconds) {
-                    if (current_time->value < effect.start_delay().value) {
-                        auto delay = (effect.start_delay().value - current_time->value) / animation.playback_rate();
-                        if (!next_wakeup_delay_ms.has_value() || delay < *next_wakeup_delay_ms)
-                            next_wakeup_delay_ms = delay;
-                        continue;
-                    }
-                    effect.request_observation_sample();
-                    reached_wakeup = true;
-                    continue;
-                }
-                bool is_compositor_handled = effect.is_compositor_driven()
-                    || effect.is_compositor_replaced()
-                    || !effect.retained_compositor_animations().is_empty();
-                if (!is_compositor_handled || isinf(effect.iteration_count()))
-                    continue;
-                auto active_end = effect.start_delay().value + effect.iteration_duration().value * effect.iteration_count();
-                if (current_time->value < active_end) {
-                    auto delay = (active_end - current_time->value) / animation.playback_rate();
-                    if (!next_wakeup_delay_ms.has_value() || delay < *next_wakeup_delay_ms)
-                        next_wakeup_delay_ms = delay;
-                    continue;
-                }
-                effect.request_observation_sample();
-                reached_wakeup = true;
-            }
-            if (next_wakeup_delay_ms.has_value())
-                document.schedule_compositor_animation_wakeup(*next_wakeup_delay_ms);
-            if (reached_wakeup) {
-                ++document.m_style_invalidation_counters.animation_frame_pump_requests;
-                document.page().client().request_frame();
-            }
+            document.service_compositor_animation_wakeup(timestamp);
         }));
     }
     m_compositor_animation_wakeup_timer->restart(static_cast<int>(timer_delay_ms));
+}
+
+void Document::service_compositor_animation_wakeup(double timestamp)
+{
+    Optional<double> next_wakeup_delay_ms;
+    bool reached_wakeup = false;
+    bool reached_compositor_active_start = false;
+    for (auto& animation : m_associated_animations) {
+        if (!animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
+            continue;
+        auto& effect = static_cast<Animations::KeyframeEffect&>(*animation.effect());
+        auto timeline_time = animation.timeline() ? animation.timeline()->current_time_at_timestamp(timestamp) : Optional<Animations::TimeValue> {};
+        auto current_time = animation.current_time_at(timeline_time);
+        if (!current_time.has_value() || current_time->type != Animations::TimeValue::Type::Milliseconds)
+            continue;
+        bool is_compositor_handled = effect.is_compositor_driven()
+            || effect.is_compositor_replaced()
+            || !effect.retained_compositor_animations().is_empty();
+        if (!animation.pending()
+            && animation.playback_rate() > 0
+            && effect.start_delay().type == Animations::TimeValue::Type::Milliseconds
+            && effect.is_in_the_before_phase()) {
+            if (current_time->value < effect.start_delay().value) {
+                auto delay = (effect.start_delay().value - current_time->value) / animation.playback_rate();
+                if (!next_wakeup_delay_ms.has_value() || delay < *next_wakeup_delay_ms)
+                    next_wakeup_delay_ms = delay;
+            } else {
+                effect.request_observation_sample();
+                reached_wakeup = true;
+                if (is_compositor_handled)
+                    reached_compositor_active_start = true;
+            }
+        }
+        if (!is_compositor_handled || isinf(effect.iteration_count()))
+            continue;
+        auto active_end = effect.start_delay().value + effect.iteration_duration().value * effect.iteration_count();
+        if (current_time->value < active_end) {
+            auto delay = (active_end - current_time->value) / animation.playback_rate();
+            if (!next_wakeup_delay_ms.has_value() || delay < *next_wakeup_delay_ms)
+                next_wakeup_delay_ms = delay;
+            continue;
+        }
+        effect.request_observation_sample();
+        reached_wakeup = true;
+    }
+    if (next_wakeup_delay_ms.has_value())
+        schedule_compositor_animation_wakeup(*next_wakeup_delay_ms);
+    if (reached_wakeup) {
+        if (reached_compositor_active_start)
+            paint_state().republish_visual_animations(*this);
+        ++m_style_invalidation_counters.animation_frame_pump_requests;
+        page().client().request_frame();
+    }
+}
+
+void Document::fire_compositor_animation_wakeup_for_testing(Badge<Internals::Internals>, double frame_time_ms)
+{
+    if (m_compositor_animation_wakeup_timer)
+        m_compositor_animation_wakeup_timer->stop();
+    m_compositor_animation_wakeup_deadline.clear();
+    service_compositor_animation_wakeup(relevant_settings_object().time_origin() + frame_time_ms);
 }
 
 void Document::update_compositor_animations()
@@ -8265,16 +8314,20 @@ void Document::update_compositor_animations()
         effect.set_is_offscreen_throttled(false);
         effect.set_is_observation_relevant_compositor_animation(false);
 
-        if (animation.is_idle() || !effect.is_in_effect())
+        if (animation.is_idle() || (!effect.is_in_effect() && !effect.is_in_the_before_phase()))
             continue;
         auto target = effect.target_abstract_element();
         if (!target.has_value())
             continue;
         auto& effects = competing_effects.ensure(*target);
         auto add_competing_effect = [&](CompetingPropertyEffects& property_effects) {
-            if (effect.composite() != Bindings::CompositeOperation::Replace)
+            bool effect_produces_output = effect.is_in_effect();
+            if (effect_produces_output && effect.composite() != Bindings::CompositeOperation::Replace)
                 property_effects.all_effects_use_replace = false;
-            if (!property_effects.winner || Animations::KeyframeEffect::composite_order(*property_effects.winner, effect) < 0)
+            bool winner_produces_output = property_effects.winner && property_effects.winner->is_in_effect();
+            if (!property_effects.winner
+                || (effect_produces_output && !winner_produces_output)
+                || (effect_produces_output == winner_produces_output && Animations::KeyframeEffect::composite_order(*property_effects.winner, effect) < 0))
                 property_effects.winner = effect;
         };
         if (effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Opacity)))
@@ -8308,16 +8361,20 @@ void Document::update_compositor_animations()
 
     bool has_observation_relevant_compositor_animation = false;
     bool requested_withdrawn_effect_sample = false;
-    auto schedule_active_end_wakeup = [&](Animations::KeyframeEffect const& effect, Animations::Animation const& animation) {
-        if (isinf(effect.iteration_count())
-            || effect.start_delay().type != Animations::TimeValue::Type::Milliseconds
+    auto schedule_next_phase_wakeup = [&](Animations::KeyframeEffect const& effect, Animations::Animation const& animation) {
+        if (effect.start_delay().type != Animations::TimeValue::Type::Milliseconds
             || effect.iteration_duration().type != Animations::TimeValue::Type::Milliseconds
             || !animation.current_time().has_value()
             || animation.current_time()->type != Animations::TimeValue::Type::Milliseconds
             || animation.playback_rate() <= 0)
             return;
-        auto active_end = effect.start_delay().value + effect.iteration_duration().value * effect.iteration_count();
-        auto delay = (active_end - animation.current_time()->value) / animation.playback_rate();
+        auto next_phase_boundary = effect.start_delay().value;
+        if (animation.current_time()->value >= next_phase_boundary) {
+            if (isinf(effect.iteration_count()))
+                return;
+            next_phase_boundary += effect.iteration_duration().value * effect.iteration_count();
+        }
+        auto delay = (next_phase_boundary - animation.current_time()->value) / animation.playback_rate();
         if (delay > 0 && (!compositor_animation_wakeup_delay_ms.has_value() || delay < *compositor_animation_wakeup_delay_ms))
             compositor_animation_wakeup_delay_ms = delay;
     };
@@ -8342,7 +8399,7 @@ void Document::update_compositor_animations()
         auto abstract_target = effect.target_abstract_element();
         if (!abstract_target.has_value() || effect.target_properties().is_empty())
             continue;
-        if (animation.is_idle() || !effect.is_in_effect())
+        if (animation.is_idle() || (!effect.is_in_effect() && !effect.is_in_the_before_phase()))
             continue;
         auto& target = abstract_target->element();
 
@@ -8370,7 +8427,7 @@ void Document::update_compositor_animations()
                 && effect.iteration_duration().type == Animations::TimeValue::Type::Milliseconds;
             if (all_targeted_properties_have_replace_winners && can_throttle_replaced_effect) {
                 effect.set_is_compositor_replaced(true);
-                schedule_active_end_wakeup(effect, animation);
+                schedule_next_phase_wakeup(effect, animation);
             }
             continue;
         }
@@ -8443,7 +8500,7 @@ void Document::update_compositor_animations()
         if (all_targeted_properties_have_replace_winners && opacity_was_handed_off && transform_was_handed_off)
             effect.set_is_compositor_driven(true);
         effect.set_is_observation_relevant_compositor_animation(transform_affects_observation);
-        schedule_active_end_wakeup(effect, animation);
+        schedule_next_phase_wakeup(effect, animation);
         for (auto const& visual_animation : effect_visual_animations)
             visual_animations.append(visual_animation);
         effect.set_retained_compositor_animations(move(effect_visual_animations));

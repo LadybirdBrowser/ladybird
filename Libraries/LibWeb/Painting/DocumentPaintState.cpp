@@ -133,8 +133,12 @@ void DocumentPaintState::set_visual_animations(DOM::Document& document, Vector<C
     if (published_animations == animations.span())
         return;
     bool animation_parameters_changed = m_visual_animations.size() != animations.size();
+    bool animation_timing_anchor_changed = false;
     if (!animation_parameters_changed) {
         for (size_t index = 0; index < animations.size(); ++index) {
+            if (m_visual_animations[index].monotonic_time_at_anchor_ns != animations[index].monotonic_time_at_anchor_ns
+                || m_visual_animations[index].local_time_at_anchor_ms != animations[index].local_time_at_anchor_ms)
+                animation_timing_anchor_changed = true;
             if (!m_visual_animations[index].has_same_animation_parameters(animations[index])) {
                 animation_parameters_changed = true;
                 break;
@@ -150,6 +154,16 @@ void DocumentPaintState::set_visual_animations(DOM::Document& document, Vector<C
     m_visual_context_tree_needs_compositor_update = true;
     if (animation_parameters_changed)
         ++document.style_invalidation_counters().compositor_visual_animation_updates;
+    if (animation_timing_anchor_changed)
+        ++document.style_invalidation_counters().compositor_visual_animation_timing_anchor_updates;
+}
+
+void DocumentPaintState::republish_visual_animations(DOM::Document& document)
+{
+    if (!m_visual_context_tree_visual_animations)
+        return;
+    m_visual_context_tree_needs_compositor_update = true;
+    ++document.style_invalidation_counters().compositor_visual_animation_updates;
 }
 
 void DocumentPaintState::append_paint_command_cache_source_resources(DisplayListResourceSet& retained_resources) const

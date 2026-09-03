@@ -466,6 +466,7 @@ public:
     void schedule_compositor_animation_wakeup(double delay_ms);
     void stop_compositor_animation_timers();
     void arm_compositor_animation_timers_for_testing(Badge<Internals::Internals>);
+    void fire_compositor_animation_wakeup_for_testing(Badge<Internals::Internals>, double frame_time_ms);
     void request_reentrant_animation_style_flush_for_testing(Badge<Internals::Internals>, Node const&);
     bool run_empty_animation_style_update_for_testing(Badge<Internals::Internals>);
     bool compositor_animation_wakeup_timer_is_active() const;
@@ -1105,6 +1106,7 @@ public:
         u64 animation_timeline_synchronizations { 0 };
         u64 animation_timeline_associated_animation_updates { 0 };
         u64 compositor_visual_animation_updates { 0 };
+        u64 compositor_visual_animation_timing_anchor_updates { 0 };
         u64 compositor_keyframe_value_resolutions { 0 };
         u64 base_style_partial_builds { 0 };
         u64 base_style_full_builds { 0 };
@@ -1468,6 +1470,7 @@ private:
     friend struct AdoptedStyleSheetsAccess;
 
     void finish_animated_style_update();
+    void service_compositor_animation_wakeup(double timestamp);
 
     GC::Ref<WebIDL::ObservableArray> adopted_style_sheets() const;
 

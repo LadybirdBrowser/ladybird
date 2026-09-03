@@ -1,0 +1,14 @@
+new transition remains pending: true
+new transition start time remains unresolved: true
+new transition ready promise remains pending: true
+new transition start event remains pending: true
+new transition starts on compositor: true
+next update resolves pending play: true
+next update resolves start time: true
+next update resolves ready promise: true
+next update dispatches transition events: true
+transition remains on compositor: true
+resolved start retains compositor anchor: true
+pending current-time seek re-anchors compositor: true
+pending start-time change re-anchors compositor: true
+pending transition retarget replaces descriptor: true

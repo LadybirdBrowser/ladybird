@@ -25,6 +25,7 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/StateAndProperties.h>
+#include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Bindings/Internals.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -1377,6 +1378,11 @@ void Internals::arm_compositor_animation_timers_for_testing()
     window().associated_document().arm_compositor_animation_timers_for_testing({});
 }
 
+void Internals::fire_compositor_animation_wakeup_for_testing(double frame_time_ms)
+{
+    window().associated_document().fire_compositor_animation_wakeup_for_testing({}, frame_time_ms);
+}
+
 void Internals::request_reentrant_animation_style_flush_for_testing(GC::Ref<DOM::Node> node)
 {
     window().associated_document().request_reentrant_animation_style_flush_for_testing({}, node);
@@ -1980,11 +1986,21 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     object->define_direct_property("animationTimelineAssociatedAnimationUpdates"_utf16_fly_string, JS::Value(counters.animation_timeline_associated_animation_updates), JS::default_attributes);
     object->define_direct_property("associatedAnimations"_utf16_fly_string, JS::Value(document.associated_animation_count()), JS::default_attributes);
     object->define_direct_property("compositorVisualAnimationUpdates"_utf16_fly_string, JS::Value(counters.compositor_visual_animation_updates), JS::default_attributes);
+    object->define_direct_property("compositorVisualAnimationTimingAnchorUpdates"_utf16_fly_string, JS::Value(counters.compositor_visual_animation_timing_anchor_updates), JS::default_attributes);
     object->define_direct_property("compositorKeyframeValueResolutions"_utf16_fly_string, JS::Value(counters.compositor_keyframe_value_resolutions), JS::default_attributes);
-    auto compositor_visual_animation_count = document.has_committed_viewport_box() && document.paint_state().has_visual_context_tree()
-        ? document.paint_state().visual_context_tree(document).visual_animations().size()
-        : 0;
+    size_t compositor_visual_animation_count = 0;
+    Optional<double> compositor_visual_animation_local_time_at_anchor;
+    if (document.has_committed_viewport_box() && document.paint_state().has_visual_context_tree()) {
+        auto visual_context_tree = document.paint_state().visual_context_tree(document);
+        auto visual_animations = visual_context_tree.visual_animations();
+        compositor_visual_animation_count = visual_animations.size();
+        if (!visual_animations.is_empty())
+            compositor_visual_animation_local_time_at_anchor = visual_animations.first().local_time_at_anchor_ms;
+    }
     object->define_direct_property("compositorVisualAnimations"_utf16_fly_string, JS::Value(compositor_visual_animation_count), JS::default_attributes);
+    object->define_direct_property("compositorVisualAnimationLocalTimeAtAnchor"_utf16_fly_string, compositor_visual_animation_local_time_at_anchor.has_value() ? JS::Value(*compositor_visual_animation_local_time_at_anchor) : JS::js_null(), JS::default_attributes);
+    auto document_timeline_current_time = document.timeline()->current_time();
+    object->define_direct_property("documentTimelineCurrentTime"_utf16_fly_string, document_timeline_current_time.has_value() ? JS::Value(document_timeline_current_time->value) : JS::js_null(), JS::default_attributes);
     object->define_direct_property("compositorAnimationWakeupTimerActive"_utf16_fly_string, JS::Value(document.compositor_animation_wakeup_timer_is_active()), JS::default_attributes);
     object->define_direct_property("compositorAnimationObservationTimerActive"_utf16_fly_string, JS::Value(document.compositor_animation_observation_timer_is_active()), JS::default_attributes);
     object->define_direct_property("baseStylePartialBuilds"_utf16_fly_string, JS::Value(counters.base_style_partial_builds), JS::default_attributes);

@@ -59,6 +59,11 @@ enum class VisualAnimationPlaybackDirection : u8 {
     AlternateReverse,
 };
 
+enum class VisualAnimationFillMode : u8 {
+    None,
+    Backwards,
+};
+
 enum class VisualAnimationTransformOperationKind : u8 {
     Translate,
     Translate3d,
@@ -127,6 +132,7 @@ struct VisualAnimation {
     double iteration_count { AK::Infinity<double> };
     double iteration_start { 0 };
     VisualAnimationPlaybackDirection playback_direction { VisualAnimationPlaybackDirection::Normal };
+    VisualAnimationFillMode fill_mode { VisualAnimationFillMode::None };
     VisualAnimationEasing easing;
     Vector<VisualAnimationKeyframe> keyframes;
 
