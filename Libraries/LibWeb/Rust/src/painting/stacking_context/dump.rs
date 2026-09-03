@@ -65,14 +65,13 @@ fn visit(
     depth: usize,
     callbacks: &FfiStackingContextDumpCallbacks,
 ) {
-    let layout_node_shell = arena.shell_if_live(root);
     output.extend(std::iter::repeat_n(' ', depth));
-    if layout_node_shell.is_null() {
+    if !arena.slot_is_live(root) {
         output.push_str("SC for (gone)\n");
     } else {
         push_line(
             output,
-            &callbacks.debug_description(layout_node_shell),
+            &callbacks.debug_description(arena.node_shell(root)),
             paintable_geometry::absolute_rect_or_default(&arena.paintable_rows(), root),
             effective_z_index(arena, root),
             has_css_transform(arena, root),

@@ -150,7 +150,7 @@ impl LayoutNodeArena {
         let kind = self.data(node).kind.get();
         assert!(node_facts::kind_is_box(kind));
         let mut roots = self.partial_relayout_boundary_roots.borrow_mut();
-        roots.retain(|candidate| !self.shell_if_live(*candidate).is_null());
+        roots.retain(|candidate| self.slot_is_live(*candidate));
         if roots.contains(&node) {
             return;
         }
@@ -229,8 +229,8 @@ impl LayoutNodeArena {
             // through the rebuilt subtree roots below) or removed together with the dirt
             // inside it (the removal dirtied its parent, whose own marking covers the
             // mutation). Slot generations make the stale slot ids of such boundaries
-            // resolve to no shell.
-            if self.shell_if_live(slot).is_null() {
+            // resolve to no live slot.
+            if !self.slot_is_live(slot) {
                 continue;
             }
             let parent = self.data(slot).parent.get();
@@ -588,8 +588,8 @@ mod tests {
         let reused = allocate_box_with_a_dummy_shell(&mut arena);
         let drained = arena.take_partial_relayout_boundary_roots();
         assert_eq!(drained, vec![allocation.slot]);
-        assert!(arena.shell_if_live(allocation.slot).is_null());
-        assert!(!arena.shell_if_live(reused.slot).is_null());
+        assert!(!arena.slot_is_live(allocation.slot));
+        assert!(arena.slot_is_live(reused.slot));
         free_node(&mut arena, &reused);
     }
 
