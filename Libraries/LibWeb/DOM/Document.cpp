@@ -693,6 +693,7 @@ Layout::NodeArena& Document::layout_node_arena()
     // fragment-parsing documents) skip the Rust arena round-trip entirely.
     if (!m_layout_node_arena) {
         m_layout_node_arena = make_ref_counted<Layout::NodeArena>();
+        m_layout_node_arena->set_document({}, this);
         Layout::RustFFI::layout_arena_set_chrome_state_callback(
             m_layout_node_arena->handle(), this,
             [](void* context, Layout::RustFFI::NodeSlotId slot, Layout::RustFFI::PaintableRowResetKind kind) {

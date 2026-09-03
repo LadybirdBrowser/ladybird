@@ -1015,14 +1015,14 @@ void Node::verify_has_scroll_offset_flag() const
 
 DOM::Document& Node::document()
 {
-    VERIFY(m_dom_node);
-    return m_dom_node->document();
+    VERIFY(m_arena->document());
+    return *m_arena->document();
 }
 
 DOM::Document const& Node::document() const
 {
-    VERIFY(m_dom_node);
-    return m_dom_node->document();
+    VERIFY(m_arena->document());
+    return *m_arena->document();
 }
 
 // https://drafts.csswg.org/css-ui/#propdef-user-select
