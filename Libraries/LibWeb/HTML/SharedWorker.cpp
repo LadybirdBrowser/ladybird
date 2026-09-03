@@ -23,13 +23,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(SharedWorker);
 
-WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::create_for_constructor(JS::Object& relevant_global_object, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<Utf16String, WorkerOptions> options)
+WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::create_for_constructor(JS::Object& relevant_global_object, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<Utf16String, Bindings::SharedWorkerOptions> options)
 {
     return create(HTML::relevant_window_or_worker_global_scope(relevant_global_object), script_url, move(options));
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-sharedworker
-WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::create(WindowOrWorkerGlobalScopeMixin& global_scope, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<Utf16String, WorkerOptions> options_value)
+WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::create(WindowOrWorkerGlobalScopeMixin& global_scope, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<Utf16String, Bindings::SharedWorkerOptions> options_value)
 {
     // 1. Let compliantScriptURL be the result of invoking the get trusted type compliant string algorithm with
     //    TrustedScriptURL, this's relevant global object, scriptURL, "SharedWorker constructor", and "script".
@@ -40,13 +40,15 @@ WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::create(WindowOrWorkerGl
         TrustedTypes::InjectionSink::SharedWorker_constructor,
         TrustedTypes::Script.view()));
 
-    // 2. If options is a DOMString, set options to a new WorkerOptions dictionary whose name member is set to the
-    //    value of options and whose other members are set to their default values.
+    // 2. If options is a DOMString, set options to a new Bindings::SharedWorkerOptions dictionary whose name member is
+    //    set to the value of options and whose other members are set to their default values.
     auto options = options_value.visit(
-        [&](Utf16String const& options) {
-            return WorkerOptions { .name = options };
+        [](Utf16String const& name) {
+            Bindings::SharedWorkerOptions options;
+            options.name = name;
+            return options;
         },
-        [&](WorkerOptions& options) {
+        [&](Bindings::SharedWorkerOptions& options) {
             return move(options);
         });
 
@@ -82,9 +84,8 @@ WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::create(WindowOrWorkerGl
 }
 
 SharedWorker::SharedWorker(GC::Ref<DOM::EventTarget> relevant_global_object, URL::URL script_url,
-    WorkerOptions options, MessagePort& port)
-    : DOM::EventTarget()
-    , m_script_url(move(script_url))
+    Bindings::SharedWorkerOptions options, MessagePort& port)
+    : m_script_url(move(script_url))
     , m_options(move(options))
     , m_port(port)
     , m_global_object(relevant_global_object)
@@ -93,17 +94,17 @@ SharedWorker::SharedWorker(GC::Ref<DOM::EventTarget> relevant_global_object, URL
 
 SharedWorker::~SharedWorker() = default;
 
-JS::Object& SharedWorker::relevant_global_object() const
-{
-    return HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(*m_global_object));
-}
-
 void SharedWorker::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_port);
     visitor.visit(m_global_object);
     visitor.visit(m_agent);
+}
+
+JS::Object& SharedWorker::relevant_global_object() const
+{
+    return HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(*m_global_object));
 }
 
 }

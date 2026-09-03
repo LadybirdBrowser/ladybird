@@ -8,6 +8,7 @@
 
 #include <AK/Utf16String.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Bindings/SharedWorker.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/AbstractWorker.h>
 #include <LibWeb/HTML/WorkerAgentParent.h>
@@ -24,8 +25,8 @@ class SharedWorker final
     GC_DECLARE_ALLOCATOR(SharedWorker);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<SharedWorker>> create_for_constructor(JS::Object&, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<Utf16String, WorkerOptions> options);
-    static WebIDL::ExceptionOr<GC::Ref<SharedWorker>> create(WindowOrWorkerGlobalScopeMixin&, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<Utf16String, WorkerOptions> options);
+    static WebIDL::ExceptionOr<GC::Ref<SharedWorker>> create_for_constructor(JS::Object&, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<Utf16String, Bindings::SharedWorkerOptions> options);
+    static WebIDL::ExceptionOr<GC::Ref<SharedWorker>> create(WindowOrWorkerGlobalScopeMixin&, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<Utf16String, Bindings::SharedWorkerOptions> options);
 
     virtual ~SharedWorker();
 
@@ -39,8 +40,7 @@ public:
     void set_agent(WorkerAgentParent& agent) { m_agent = agent; }
 
 private:
-    SharedWorker(GC::Ref<DOM::EventTarget> relevant_global_object, URL::URL script_url, WorkerOptions,
-        MessagePort&);
+    SharedWorker(GC::Ref<DOM::EventTarget> relevant_global_object, URL::URL script_url, Bindings::SharedWorkerOptions, MessagePort&);
 
     JS::Object& relevant_global_object() const;
 
@@ -49,7 +49,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     URL::URL m_script_url;
-    WorkerOptions m_options;
+    Bindings::SharedWorkerOptions m_options;
 
     // Each SharedWorker has a port, a MessagePort set when the object is created.
     // https://html.spec.whatwg.org/multipage/workers.html#concept-sharedworker-port
