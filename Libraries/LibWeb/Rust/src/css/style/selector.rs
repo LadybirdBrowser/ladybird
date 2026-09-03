@@ -1921,6 +1921,14 @@ impl SelectorProgram {
                 out.push(DispatchKey::Directionality(value));
                 true
             }
+            // A state is a necessary feature of any compound testing it, and one with a posting
+            // also names the compound's candidates: the focused element, the hovered chain. A state
+            // without one names nothing, and admitting it as a candidate key would take the
+            // compound away from names that do.
+            SelectorOp::State(state) if query == DispatchQuery::Required || state.has_selector_posting() => {
+                out.push(DispatchKey::State(state));
+                true
+            }
             _ => query == DispatchQuery::Required,
         }
     }
@@ -2506,11 +2514,11 @@ fn dispatch_selectivity(key: DispatchKey) -> u8 {
         // A document usually resolves to one direction, so this names most of it.
         DispatchKey::Directionality(_) => 4,
         // These three are ranked behind every name a compound can carry, even though `:root` names
-        // one element and most states name none. A name has a posting to enumerate from and these
-        // do not, so preferring one would trade a tighter reaction batch for a dispatch that is
-        // no more selective in practice: `a:hover` is as well found in the `a` bucket. What they
-        // are for is the compound that carries no name at all, which is where a bare `:root` or
-        // `:hover` rule would otherwise sit in front of every element in the document.
+        // one element and most states name none. A name has a posting to enumerate from and most
+        // of these do not, so preferring one would trade a tighter reaction batch for a dispatch
+        // that is no more selective in practice: `a:hover` is as well found in the `a` bucket.
+        // What they are for is the compound that carries no name at all, which is where a bare
+        // `:root` or `:hover` rule would otherwise sit in front of every element in the document.
         DispatchKey::Root => 5,
         DispatchKey::State(_) => 5,
         DispatchKey::Heading => 5,

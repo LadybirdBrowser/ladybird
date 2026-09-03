@@ -2800,6 +2800,65 @@ fn add_hover_sibling_target_rule(engine: &mut StyleEngine, target: StyleAtomID) 
     engine.replace_rule_version(rule, version);
 }
 
+fn add_focused_grandchild_rule(engine: &mut StyleEngine, guard: StyleAtomID, mid: StyleAtomID) {
+    let mut builder = selector::SelectorProgramBuilder::new();
+    let guard_test = builder.push_feature(selector::FeatureTest::Class(guard));
+    let guard_parent = builder.push(selector::SelectorOp::Parent(guard_test));
+    let mid_test = builder.push_feature(selector::FeatureTest::Class(mid));
+    let mid_compound = builder.push_compound(&[mid_test, guard_parent]);
+    let mid_parent = builder.push(selector::SelectorOp::Parent(mid_compound));
+    let focus = builder.push(selector::SelectorOp::State(StateFact::Focus));
+    let subject = builder.push_compound(&[focus, mid_parent]);
+    builder.push_entry(subject);
+    let program = engine.programs.add(builder.finish());
+
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let rule = engine.append_rule(sheet, None, RuleKind::Style);
+    engine.add_routing_rule(rule, program);
+    let mut version = engine.program.rule_version(rule);
+    version.selector_program = Some(program);
+    version.declaration_block = Some(DeclarationBlockID(1));
+    engine.replace_rule_version(rule, version);
+}
+
+#[test]
+fn an_unfocused_subject_state_routes_to_no_descendant() {
+    let (mut engine, nodes) = nested_document();
+    let guard = StyleAtomID(200);
+    let mid = StyleAtomID(201);
+    add_focused_grandchild_rule(&mut engine, guard, mid);
+    add_feature(&mut engine, nodes[2], LocalFeatureKey::Class(mid));
+    discard_transaction(&mut engine);
+
+    add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(guard));
+    let batch_nodes_before = engine.counters().get(Counter::ExactRegionBatchNodes);
+    let convergence_nodes_before = engine.counters().get(Counter::PrefixConvergenceNodes);
+    let mut planned = Vec::new();
+    assert!(engine.take_style_transaction_nodes(nodes[0], |nodes| planned.extend_from_slice(nodes)));
+    assert!(planned.is_empty());
+    assert_eq!(
+        engine.counters().get(Counter::ExactRegionBatchNodes),
+        batch_nodes_before
+    );
+    assert_eq!(
+        engine.counters().get(Counter::PrefixConvergenceNodes),
+        convergence_nodes_before
+    );
+
+    engine.record_input(
+        InputKey::State(nodes[3], StateFact::Focus),
+        InputValue::State(false),
+        InputValue::State(true),
+    );
+    discard_transaction(&mut engine);
+
+    remove_feature(&mut engine, nodes[1], LocalFeatureKey::Class(guard));
+    let mut planned = Vec::new();
+    assert!(engine.take_style_transaction_nodes(nodes[0], |nodes| planned.extend_from_slice(nodes)));
+    assert!(planned.contains(&nodes[3].raw()));
+}
+
 #[test]
 fn clearing_state_while_departing_routes_following_siblings() {
     let (mut engine, nodes) = linear_document();

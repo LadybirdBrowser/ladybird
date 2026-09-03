@@ -1197,7 +1197,9 @@ impl StyleEngine {
                         .set_attribute(node, name, atom, value.holds(), &mut self.memory);
                 }
             },
-            (InputKey::State(node, fact), InputValue::State(value)) => self.facts.set_state(node, fact, value),
+            (InputKey::State(node, fact), InputValue::State(value)) => {
+                self.facts.set_state(node, fact, value, &mut self.memory);
+            }
             _ => {}
         }
     }

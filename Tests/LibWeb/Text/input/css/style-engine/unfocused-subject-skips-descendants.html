@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .item.completed > div > :focus {
+        color: rgb(0, 128, 0);
+    }
+</style>
+<ul id="list"></ul>
+<script>
+    test(() => {
+        for (let index = 0; index < 20; ++index) {
+            const item = document.createElement("li");
+            item.className = "item";
+            const row = document.createElement("div");
+            for (let field = 0; field < 5; ++field)
+                row.appendChild(document.createElement("input"));
+            item.appendChild(row);
+            list.appendChild(item);
+        }
+        const probe = list.children[3].firstChild.children[2];
+        getComputedStyle(probe).color;
+
+        internals.resetStyleInvalidationCounters();
+        for (const item of list.children)
+            item.classList.add("completed");
+        println(`unfocused probe: ${getComputedStyle(probe).color}`);
+        let counters = internals.getStyleInvalidationCounters();
+        println(`recomputes with no focused element: ${counters.elementStyleRecomputations}`);
+
+        for (const item of list.children)
+            item.classList.remove("completed");
+        probe.focus();
+        getComputedStyle(probe).color;
+
+        internals.resetStyleInvalidationCounters();
+        for (const item of list.children)
+            item.classList.add("completed");
+        println(`focused probe: ${getComputedStyle(probe).color}`);
+        counters = internals.getStyleInvalidationCounters();
+        println(`recomputes with one focused element: ${counters.elementStyleRecomputations}`);
+    });
+</script>
