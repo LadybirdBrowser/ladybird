@@ -23,9 +23,9 @@ def wrap_with_extended_attribute_exposure_checks(
 """
 
     if "Experimental" in extended_attributes:
-        includes.add("LibWeb/HTML/UniversalGlobalScope.h")
+        includes.add("LibWeb/HTML/WindowOrWorkerGlobalScope.h")
         text = text.replace("\n", "\n    ")
-        text = f"""    if (HTML::UniversalGlobalScopeMixin::expose_experimental_interfaces()) {{
+        text = f"""    if (HTML::WindowOrWorkerGlobalScopeMixin::expose_experimental_interfaces()) {{
     {text}    }}
 """
 

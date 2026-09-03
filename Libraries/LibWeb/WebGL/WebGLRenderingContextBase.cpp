@@ -22,8 +22,8 @@ extern "C" {
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
-#include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebGL/EventNames.h>
 #include <LibWeb/WebGL/Extensions/ANGLEInstancedArrays.h>
@@ -136,7 +136,7 @@ Optional<Vector<Utf16String>> WebGLRenderingContextBase::get_supported_extension
         bool supported = !available_extension_info.only_for_webgl_version.has_value()
             || context().webgl_version() == available_extension_info.only_for_webgl_version;
 
-        if (!available_extension_info.factory && !available_extension_info.creates_empty_object && !HTML::UniversalGlobalScopeMixin::expose_experimental_interfaces()) {
+        if (!available_extension_info.factory && !available_extension_info.creates_empty_object && !HTML::WindowOrWorkerGlobalScopeMixin::expose_experimental_interfaces()) {
             supported = false;
         }
 

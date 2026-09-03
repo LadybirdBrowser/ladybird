@@ -8,6 +8,7 @@
 
 #include <AK/SourceLocation.h>
 #include <LibGC/Heap.h>
+#include <LibGC/HeapVector.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibWeb/Bindings/CSS.h>

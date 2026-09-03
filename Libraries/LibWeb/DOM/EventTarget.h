@@ -75,8 +75,6 @@ public:
     bool has_blocking_wheel_event_listener() const;
     bool has_event_listeners() const;
 
-    virtual bool is_universal_global_scope_mixin() const { return false; }
-
 protected:
     EventTarget();
 

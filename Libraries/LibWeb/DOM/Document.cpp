@@ -27,6 +27,7 @@
 #include <LibCore/Timer.h>
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/Heap.h>
+#include <LibGC/HeapVector.h>
 #include <LibGC/RootHashTable.h>
 #include <LibGC/RootVector.h>
 #include <LibHTTP/Cookie/Cookie.h>

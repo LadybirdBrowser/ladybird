@@ -34,7 +34,7 @@ GC::Ref<LockManager> LockManager::create(HTML::EnvironmentSettingsObject& enviro
 
 GC::Ptr<Bindings::Wrappable> LockManager::relevant_global_impl() const
 {
-    return &m_environment->universal_global_scope().this_impl();
+    return HTML::relevant_window_or_worker_global_scope(m_environment->global_object()).this_impl();
 }
 
 LockManager::LockManager(GC::Ref<HTML::EnvironmentSettingsObject> environment)

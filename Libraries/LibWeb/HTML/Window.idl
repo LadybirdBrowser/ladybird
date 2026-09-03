@@ -77,7 +77,6 @@ partial interface Window {
 
 Window includes AnimationFrameProvider;
 Window includes GlobalEventHandlers;
-Window includes UniversalGlobalScope;
 Window includes WindowEventHandlers;
 Window includes WindowLocalStorage;
 Window includes WindowOrWorkerGlobalScope;

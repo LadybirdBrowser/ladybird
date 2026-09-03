@@ -28,7 +28,6 @@
 #include <LibWeb/HTML/MimeType.h>
 #include <LibWeb/HTML/Plugin.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
-#include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/HTML/WindowEventHandlers.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WindowType.h>
@@ -94,8 +93,7 @@ class WEB_API Window final
     : public DOM::EventTarget
     , public GlobalEventHandlers
     , public WindowEventHandlers
-    , public WindowOrWorkerGlobalScopeMixin
-    , public UniversalGlobalScopeMixin {
+    , public WindowOrWorkerGlobalScopeMixin {
     WEB_WRAPPABLE(Window, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(Window);
 
@@ -112,16 +110,6 @@ public:
     JS::Realm& principal_realm() const;
     EnvironmentSettingsObject& relevant_settings_object() const;
     void set_environment_settings_object(Badge<WindowEnvironmentSettingsObject>, WindowEnvironmentSettingsObject&);
-
-    using UniversalGlobalScopeMixin::atob;
-    using UniversalGlobalScopeMixin::btoa;
-    using UniversalGlobalScopeMixin::queue_microtask;
-    using WindowOrWorkerGlobalScopeMixin::clear_interval;
-    using WindowOrWorkerGlobalScopeMixin::clear_timeout;
-    using WindowOrWorkerGlobalScopeMixin::create_image_bitmap;
-    using WindowOrWorkerGlobalScopeMixin::report_error;
-    using WindowOrWorkerGlobalScopeMixin::set_interval;
-    using WindowOrWorkerGlobalScopeMixin::set_timeout;
 
     // ^DOM::EventTarget
     virtual bool dispatch_event(DOM::Event&) override;
@@ -309,8 +297,6 @@ public:
 
 private:
     Window();
-
-    virtual bool is_universal_global_scope_mixin() const final { return true; }
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;

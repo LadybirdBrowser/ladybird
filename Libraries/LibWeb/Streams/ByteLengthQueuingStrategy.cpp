@@ -7,7 +7,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/UniversalGlobalScope.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/Streams/ByteLengthQueuingStrategy.h>
 
 namespace Web::Streams {
@@ -38,7 +38,7 @@ ByteLengthQueuingStrategy::~ByteLengthQueuingStrategy() = default;
 GC::Ref<WebIDL::CallbackType> ByteLengthQueuingStrategy::size(JS::Object& relevant_global_object)
 {
     // 1. Return this's relevant global object's byte length queuing strategy size function.
-    auto& global = HTML::relevant_settings_object(relevant_global_object).universal_global_scope();
+    auto& global = HTML::relevant_window_or_worker_global_scope(relevant_global_object);
     return global.byte_length_queuing_strategy_size_function();
 }
 
