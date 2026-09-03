@@ -34,7 +34,7 @@ interface Node : EventTarget {
     [CEReactions] attribute DOMString? textContent;
     [CEReactions] undefined normalize();
 
-    [CEReactions] Node cloneNode(optional boolean deep = false);
+    [CEReactions] Node cloneNode(optional boolean subtree = false);
     boolean isEqualNode(Node? otherNode);
     boolean isSameNode(Node? otherNode); // legacy alias of ===
 
@@ -44,17 +44,17 @@ interface Node : EventTarget {
     const unsigned short DOCUMENT_POSITION_CONTAINS = 0x08;
     const unsigned short DOCUMENT_POSITION_CONTAINED_BY = 0x10;
     const unsigned short DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC = 0x20;
-    unsigned short compareDocumentPosition(Node? otherNode);
+    unsigned short compareDocumentPosition(Node other);
     boolean contains(Node? other);
 
     DOMString? lookupPrefix(DOMString? namespace);
     DOMString? lookupNamespaceURI(DOMString? prefix);
     boolean isDefaultNamespace(DOMString? namespace);
 
-    [ImplementedAs=pre_insert, CEReactions] Node insertBefore(Node node, Node? child);
+    [CEReactions, ImplementedAs=pre_insert] Node insertBefore(Node node, Node? child);
     [CEReactions] Node appendChild(Node node);
     [CEReactions] Node replaceChild(Node node, Node child);
-    [ImplementedAs=pre_remove, CEReactions] Node removeChild(Node child);
+    [CEReactions, ImplementedAs=pre_remove] Node removeChild(Node child);
 };
 
 dictionary GetRootNodeOptions {
