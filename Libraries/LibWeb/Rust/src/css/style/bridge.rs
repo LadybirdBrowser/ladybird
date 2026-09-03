@@ -362,6 +362,7 @@ impl FfiStyleRecordView {
 pub struct FfiExactCascadePublication {
     pub computed_group_mask: u32,
     pub unchanged: bool,
+    pub donor_used: bool,
 }
 
 impl FfiExactCascadePublication {
@@ -369,6 +370,7 @@ impl FfiExactCascadePublication {
         Self {
             computed_group_mask: u32::MAX,
             unchanged: false,
+            donor_used: false,
         }
     }
 }
@@ -704,6 +706,7 @@ fn write_exact_cascade_publication(
 ) {
     payload.write_u32(publication.computed_group_mask);
     payload.write_bool(publication.unchanged);
+    payload.write_bool(publication.donor_used);
 }
 
 impl StyleEngine {
@@ -1953,6 +1956,8 @@ pub unsafe extern "C" fn style_engine_publish_exact_cascade_state(
     pseudo_kind: u8,
     store: *const c_void,
     inherited_style_groups: u8,
+    donor_node: u32,
+    donor_style_record: u64,
 ) -> FfiExactCascadePublication {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return FfiExactCascadePublication::missing();
@@ -1963,10 +1968,12 @@ pub unsafe extern "C" fn style_engine_publish_exact_cascade_state(
     let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
     let generation_snapshot =
         engine.exact_cascade_generation_snapshot(super::computed::ComputedStyleTarget::new(node, pseudo_kind));
+    let donor = exact_cascade_donor(donor_node, donor_style_record);
     let (publication, winners, had_previous) = engine.publish_exact_cascade_state(
         super::computed::ComputedStyleTarget::new(node, pseudo_kind),
         unsafe { &*store.cast::<crate::css::cascaded_properties::CascadedPropertyStore>() },
         inherited_style_groups,
+        donor,
     );
     engine.record_boundary_call(EventKind::PublishExactCascadeState, |payload| {
         payload.write_u32(node.raw());
@@ -1998,6 +2005,8 @@ pub unsafe extern "C" fn style_engine_publish_exact_cascade_state(
         //     replay (memory pressure evicts). Record it so replay can compare accordingly;
         //     older captures simply end before this byte.
         payload.write_bool(had_previous);
+        payload.write_u32(donor_node);
+        payload.write_u64(donor_style_record);
     });
     publication
 }
@@ -2063,6 +2072,8 @@ pub unsafe fn replay_publish_exact_cascade_state(
     pseudo_kind: u8,
     winners: &[RecordedExactCascadeWinner],
     inherited_style_groups: u8,
+    donor_node: u32,
+    donor_style_record: u64,
 ) -> (FfiExactCascadePublication, bool) {
     let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
     let node = StyleNodeID::from_raw(node).expect("recorded style node identities are nonzero");
@@ -2085,8 +2096,17 @@ pub unsafe fn replay_publish_exact_cascade_state(
         super::computed::ComputedStyleTarget::new(node, pseudo_kind),
         &winners,
         inherited_style_groups,
+        exact_cascade_donor(donor_node, donor_style_record),
     );
     (publication, had_previous)
+}
+
+fn exact_cascade_donor(donor_node: u32, donor_style_record: u64) -> Option<super::publication::ExactCascadeDonor> {
+    let node = StyleNodeID::from_raw(donor_node)?;
+    (donor_style_record != 0).then_some(super::publication::ExactCascadeDonor {
+        node,
+        style_record: donor_style_record,
+    })
 }
 
 #[cfg(feature = "style-recording")]

@@ -643,6 +643,9 @@ fn property_has_independent_computed_closure(property_id: u16) -> bool {
                 | prop::BACKGROUND_COLOR
                 | prop::BOX_SHADOW
                 | prop::CLIP_PATH
+                | prop::CX
+                | prop::CY
+                | prop::FILL
                 | prop::FILTER
                 | prop::ISOLATION
                 | prop::MIX_BLEND_MODE
@@ -651,13 +654,19 @@ fn property_has_independent_computed_closure(property_id: u16) -> bool {
                 | prop::OPACITY
                 | prop::PERSPECTIVE
                 | prop::PERSPECTIVE_ORIGIN
+                | prop::R
                 | prop::ROTATE
+                | prop::RX
+                | prop::RY
                 | prop::SCALE
+                | prop::STROKE
                 | prop::TRANSFORM
                 | prop::TRANSFORM_ORIGIN
                 | prop::TRANSLATE
                 | prop::VISIBILITY
                 | prop::WILL_CHANGE
+                | prop::X
+                | prop::Y
                 | prop::Z_INDEX
         )
 }
@@ -715,11 +724,7 @@ unsafe fn plan_style_computation(
         || input.has_relevant_animations
         || input.has_css_defined_animations
         || transition_definition_changed;
-    let mut computed_group_mask = if input.initial_computed_group_mask == 0 {
-        input.all_computed_groups
-    } else {
-        input.initial_computed_group_mask
-    };
+    let mut computed_group_mask = input.initial_computed_group_mask;
     if must_compute_all_properties || retained_transition_candidates {
         computed_group_mask = input.all_computed_groups;
     }

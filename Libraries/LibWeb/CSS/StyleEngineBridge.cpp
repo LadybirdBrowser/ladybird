@@ -212,9 +212,9 @@ void StyleEngine::set_element_declared_properties(StyleNodeID node, StyleEngineF
     StyleEngineFFI::style_engine_set_element_declared_properties(m_impl, node.value(), kind, properties.data(), important.data(), operators.data(), values.data(), original_values.data(), properties.size(), declarations_are_complete);
 }
 
-StyleEngine::ExactCascadePublication StyleEngine::publish_exact_cascade_state(StyleNodeID node, u8 pseudo_kind, ComputedValuesFFI::CascadedPropertyStore const* store, u8 inherited_style_groups)
+StyleEngine::ExactCascadePublication StyleEngine::publish_exact_cascade_state(StyleNodeID node, u8 pseudo_kind, ComputedValuesFFI::CascadedPropertyStore const* store, u8 inherited_style_groups, StyleNodeID donor_node, StyleRecordID donor_style_record)
 {
-    return StyleEngineFFI::style_engine_publish_exact_cascade_state(m_impl, node.value(), pseudo_kind, store, inherited_style_groups);
+    return StyleEngineFFI::style_engine_publish_exact_cascade_state(m_impl, node.value(), pseudo_kind, store, inherited_style_groups, donor_node.value(), donor_style_record.value());
 }
 
 ReadonlySpan<ComputedValuesFFI::FfiSourceSlotAssignment> StyleEngine::materialize_retained_cascade_state(StyleNodeID node, u8 pseudo_kind, ComputedValuesFFI::CascadedPropertyStore* store, ReadonlySpan<ComputedValuesFFI::FfiCascadeBlock> blocks)

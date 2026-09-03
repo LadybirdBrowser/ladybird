@@ -1,0 +1,3 @@
+partial builds: 1
+first: x 1px, fill rgb(255, 0, 0)
+second: x 20px, fill rgb(0, 0, 255)

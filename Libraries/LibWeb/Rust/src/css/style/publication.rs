@@ -6,6 +6,21 @@
 
 use super::*;
 
+/// Another element's published style that a first-time computation may build over: the element
+/// whose cascade state stands in for the previous one, and the record it must still hold.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ExactCascadeDonor {
+    pub node: StyleNodeID,
+    pub style_record: u64,
+}
+
+pub(super) struct ExactCascadeContext {
+    previous: Option<CascadeStateID>,
+    lower_bound_state: Option<CascadeStateID>,
+    dependency_target: computed::ComputedStyleTarget,
+    donor_used: bool,
+}
+
 impl StyleEngine {
     pub(super) fn retained_store_supports_property(target: computed::ComputedStyleTarget, property: u16) -> bool {
         if property > crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID
@@ -425,9 +440,10 @@ impl StyleEngine {
         target: computed::ComputedStyleTarget,
         store: &CascadedPropertyStore,
         inherited_style_groups: u8,
+        donor: Option<ExactCascadeDonor>,
     ) -> (bridge::FfiExactCascadePublication, Vec<(u16, SpecifiedWinnerKey)>, bool) {
-        let context = self.prepare_exact_cascade_publication(target);
-        let had_previous = context.0.is_some();
+        let context = self.prepare_exact_cascade_publication(target, donor);
+        let had_previous = context.previous.is_some();
         let exact_winners = store
             .winning_declarations()
             .map(|(property, value_pointer, origin, important)| {
@@ -568,9 +584,10 @@ impl StyleEngine {
         target: computed::ComputedStyleTarget,
         exact_winners: &[(u16, SpecifiedWinnerKey)],
         inherited_style_groups: u8,
+        donor: Option<ExactCascadeDonor>,
     ) -> (bridge::FfiExactCascadePublication, bool) {
-        let context = self.prepare_exact_cascade_publication(target);
-        let had_previous = context.0.is_some();
+        let context = self.prepare_exact_cascade_publication(target, donor);
+        let had_previous = context.previous.is_some();
         (
             self.publish_exact_cascade_winners_with_context(target, exact_winners, inherited_style_groups, context),
             had_previous,
@@ -580,14 +597,35 @@ impl StyleEngine {
     pub(super) fn prepare_exact_cascade_publication(
         &mut self,
         target: computed::ComputedStyleTarget,
-    ) -> (Option<CascadeStateID>, Option<CascadeStateID>) {
+        donor: Option<ExactCascadeDonor>,
+    ) -> ExactCascadeContext {
         let generation = self.winner_groups.generation();
-        let previous =
+        let mut previous =
             self.computed_group_sets
                 .cascade_state(target)
                 .and_then(|(previous_generation, previous_state)| {
                     (previous_generation == generation).then_some(previous_state)
                 });
+        let mut dependency_target = target;
+        let mut donor_used = false;
+        if !target.is_pseudo()
+            && let Some(donor) = donor
+            && self
+                .computed_group_sets
+                .assigned_style_record(donor.node)
+                .is_some_and(|record| record.raw() == donor.style_record)
+        {
+            let donor_target = computed::ComputedStyleTarget::new(donor.node, u8::MAX);
+            if let Some(state) = self
+                .computed_group_sets
+                .cascade_state(donor_target)
+                .and_then(|(donor_generation, donor_state)| (donor_generation == generation).then_some(donor_state))
+            {
+                previous = Some(state);
+                dependency_target = donor_target;
+                donor_used = true;
+            }
+        }
         let winner_key = target.pseudo_element_target().map_or_else(
             || WinnerGroupKey::current(target.node(), self.program.version()),
             |pseudo| WinnerGroupKey::current_pseudo(target.node(), pseudo, self.program.version()),
@@ -603,7 +641,12 @@ impl StyleEngine {
                 .observe_pseudo_retained_cascade_state(target, lower_bound_state.map(|state| (generation, state)));
             self.settle_computed_memory();
         }
-        (previous, lower_bound_state)
+        ExactCascadeContext {
+            previous,
+            lower_bound_state,
+            dependency_target,
+            donor_used,
+        }
     }
 
     pub(super) fn publish_exact_cascade_winners_with_context(
@@ -611,8 +654,14 @@ impl StyleEngine {
         target: computed::ComputedStyleTarget,
         exact_winners: &[(u16, SpecifiedWinnerKey)],
         inherited_style_groups: u8,
-        (previous, lower_bound_state): (Option<CascadeStateID>, Option<CascadeStateID>),
+        context: ExactCascadeContext,
     ) -> bridge::FfiExactCascadePublication {
+        let ExactCascadeContext {
+            previous,
+            lower_bound_state,
+            dependency_target,
+            donor_used,
+        } = context;
         let mut winners = Vec::with_capacity(exact_winners.len());
         for &(property, key) in exact_winners {
             let lower_bound_winner = lower_bound_state
@@ -719,7 +768,7 @@ impl StyleEngine {
         self.winner_groups.settle_memory(&mut self.memory);
         let generation = self.winner_groups.generation();
         let delta = self.winner_groups.semantic_delta(previous, state);
-        let unchanged = previous.is_some() && delta.is_empty();
+        let unchanged = previous.is_some() && delta.is_empty() && !donor_used;
         let mut computed_property_words = [0u64; crate::css::property_metadata::LONGHAND_WORD_COUNT];
         for property in delta.properties().iter().copied() {
             let Some(index) = property
@@ -735,11 +784,17 @@ impl StyleEngine {
         let current_color_dependency_mask = delta
             .properties()
             .contains(&crate::css::property_metadata::property_id::COLOR)
-            .then(|| self.computed_group_sets.current_color_dependency_mask(target));
+            .then(|| {
+                self.computed_group_sets
+                    .current_color_dependency_mask(dependency_target)
+            });
         let current_color_dependency_properties = delta
             .properties()
             .contains(&crate::css::property_metadata::property_id::COLOR)
-            .then(|| self.computed_group_sets.current_color_dependency_properties(target));
+            .then(|| {
+                self.computed_group_sets
+                    .current_color_dependency_properties(dependency_target)
+            });
         let mut computed_property_closure_is_exact = delta.properties().len() == 1
             && current_color_dependency_properties.is_some_and(|properties| properties.is_some());
         if let Some(Some(dependencies)) = current_color_dependency_properties {
@@ -765,11 +820,14 @@ impl StyleEngine {
         let color_scheme_dependency_mask = delta
             .properties()
             .contains(&crate::css::property_metadata::property_id::COLOR_SCHEME)
-            .then(|| self.computed_group_sets.color_scheme_dependency_mask(target));
+            .then(|| self.computed_group_sets.color_scheme_dependency_mask(dependency_target));
         let color_scheme_dependency_properties = delta
             .properties()
             .contains(&crate::css::property_metadata::property_id::COLOR_SCHEME)
-            .then(|| self.computed_group_sets.color_scheme_dependency_properties(target));
+            .then(|| {
+                self.computed_group_sets
+                    .color_scheme_dependency_properties(dependency_target)
+            });
         if delta.properties().len() == 1 {
             computed_property_closure_is_exact |=
                 color_scheme_dependency_properties.is_some_and(|properties| properties.is_some());
@@ -786,7 +844,7 @@ impl StyleEngine {
                 .iter()
                 .copied()
                 .any(|property| computed_group_output_mask(property) == Some(font_group_mask))
-                .then(|| self.computed_group_sets.font_dependency_mask(target))
+                .then(|| self.computed_group_sets.font_dependency_mask(dependency_target))
         });
         let font_dependency_properties = font_group_mask.and_then(|font_group_mask| {
             delta
@@ -794,7 +852,7 @@ impl StyleEngine {
                 .iter()
                 .copied()
                 .any(|property| computed_group_output_mask(property) == Some(font_group_mask))
-                .then(|| self.computed_group_sets.font_dependency_properties(target))
+                .then(|| self.computed_group_sets.font_dependency_properties(dependency_target))
         });
         if delta.properties().len() == 1 {
             computed_property_closure_is_exact |=
@@ -813,18 +871,24 @@ impl StyleEngine {
         let inherited_property_closure_requested = delta.is_empty()
             && inherited_style_groups != 0
             && inherited_style_groups & !INHERITED_GROUPS_WITH_COMPUTED_CLOSURE == 0;
-        let inherited_current_color_dependency_mask = (inherited_property_closure_requested
-            && inherited_style_groups & INHERITED_TEXT_GROUP != 0)
-            .then(|| self.computed_group_sets.current_color_dependency_mask(target));
-        let inherited_current_color_dependency_properties = (inherited_property_closure_requested
-            && inherited_style_groups & INHERITED_TEXT_GROUP != 0)
-            .then(|| self.computed_group_sets.current_color_dependency_properties(target));
+        let inherited_current_color_dependency_mask =
+            (inherited_property_closure_requested && inherited_style_groups & INHERITED_TEXT_GROUP != 0).then(|| {
+                self.computed_group_sets
+                    .current_color_dependency_mask(dependency_target)
+            });
+        let inherited_current_color_dependency_properties =
+            (inherited_property_closure_requested && inherited_style_groups & INHERITED_TEXT_GROUP != 0).then(|| {
+                self.computed_group_sets
+                    .current_color_dependency_properties(dependency_target)
+            });
         let inherited_color_scheme_dependency_mask = (inherited_property_closure_requested
             && inherited_style_groups & INHERITED_UI_GROUP != 0)
-            .then(|| self.computed_group_sets.color_scheme_dependency_mask(target));
-        let inherited_color_scheme_dependency_properties = (inherited_property_closure_requested
-            && inherited_style_groups & INHERITED_UI_GROUP != 0)
-            .then(|| self.computed_group_sets.color_scheme_dependency_properties(target));
+            .then(|| self.computed_group_sets.color_scheme_dependency_mask(dependency_target));
+        let inherited_color_scheme_dependency_properties =
+            (inherited_property_closure_requested && inherited_style_groups & INHERITED_UI_GROUP != 0).then(|| {
+                self.computed_group_sets
+                    .color_scheme_dependency_properties(dependency_target)
+            });
         let inherited_property_closure_is_exact = inherited_property_closure_requested
             && (inherited_style_groups & INHERITED_TEXT_GROUP == 0
                 || inherited_current_color_dependency_properties.is_some_and(|properties| properties.is_some()))
@@ -921,6 +985,7 @@ impl StyleEngine {
         bridge::FfiExactCascadePublication {
             unchanged,
             computed_group_mask,
+            donor_used,
         }
     }
 

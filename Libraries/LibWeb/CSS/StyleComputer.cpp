@@ -343,6 +343,7 @@ void StyleComputer::clear_style_sharing_cache() const
         }
     }
     m_style_sharing_cache.clear();
+    m_style_sharing_donor_index.clear();
     m_style_sharing_cache_entry_count = 0;
 }
 
@@ -2505,8 +2506,6 @@ static CascadeBlockKeyDependencies append_cascade_blocks_to_key(Vector<u64>& key
             key.append(block.properties.size());
             for (auto const& property : block.properties) {
                 key.append(to_underlying(property.property_id) | (static_cast<u64>(property.important == Important::Yes) << 32));
-                if (value_comparison == CascadeBlockKeyValueComparison::ByIdentity)
-                    key.append(bit_cast<FlatPtr>(property.value->rust_style_value_data()));
                 pinned_values.append(property.value);
             }
         }
@@ -3018,7 +3017,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         : GC::Ptr<CSSStyleProperties const> {};
 
     if (sharing) {
-        auto dependencies = append_cascade_blocks_to_key(sharing->key, sharing->pinned_key_values, cascade_input, presentational_hint_properties, inline_style, CascadeBlockKeyValueComparison::ByIdentity);
+        auto dependencies = append_cascade_blocks_to_key(sharing->key.computation_inputs, sharing->key.pinned_values, cascade_input, presentational_hint_properties, inline_style, CascadeBlockKeyValueComparison::ByIdentity);
         sharing->cascade_reads_custom_properties = dependencies.reads_custom_properties;
     }
 
@@ -3654,34 +3653,71 @@ NonnullRefPtr<ComputedValues const> StyleComputer::create_document_style() const
     return computed_values;
 }
 
-static u64 compute_style_sharing_key_hash(Vector<u64> const& key)
+u64 StyleSharingKey::hash_without_values() const
 {
-    VERIFY(key.size() >= ComputedValues::inherited_style_group_count);
+    VERIFY(computation_inputs.size() >= ComputedValues::inherited_style_group_count);
     Fnv1a64 hash;
-    for (size_t i = ComputedValues::inherited_style_group_count; i < key.size(); ++i)
-        hash.add(key[i]);
+    for (size_t i = ComputedValues::inherited_style_group_count; i < computation_inputs.size(); ++i)
+        hash.add(computation_inputs[i]);
     return hash.value();
 }
 
-static bool style_sharing_keys_are_equal(Vector<u64> const& first, Vector<u64> const& second)
+u64 StyleSharingKey::hash() const
 {
-    if (first.size() != second.size())
+    VERIFY(computation_inputs.size() >= ComputedValues::inherited_style_group_count);
+    Fnv1a64 hash;
+    for (size_t i = ComputedValues::inherited_style_group_count; i < computation_inputs.size(); ++i)
+        hash.add(computation_inputs[i]);
+    for (auto const& value : pinned_values)
+        hash.add(bit_cast<FlatPtr>(value->rust_style_value_data()));
+    return hash.value();
+}
+
+bool StyleSharingKey::inputs_after_parent_groups_equal(StyleSharingKey const& other) const
+{
+    if (computation_inputs.size() != other.computation_inputs.size())
         return false;
-    VERIFY(first.size() >= ComputedValues::inherited_style_group_count);
-    for (size_t i = ComputedValues::inherited_style_group_count; i < first.size(); ++i) {
-        if (first[i] != second[i])
-            return false;
-    }
-    for (size_t i = 0; i < ComputedValues::inherited_style_group_count; ++i) {
-        if (first[i] == second[i])
-            continue;
-        if (!ComputedValuesFFI::rust_style_group_payloads_equal(
-                i,
-                bit_cast<void const*>(static_cast<FlatPtr>(first[i])),
-                bit_cast<void const*>(static_cast<FlatPtr>(second[i]))))
+    VERIFY(computation_inputs.size() >= ComputedValues::inherited_style_group_count);
+    for (size_t i = ComputedValues::inherited_style_group_count; i < computation_inputs.size(); ++i) {
+        if (computation_inputs[i] != other.computation_inputs[i])
             return false;
     }
     return true;
+}
+
+bool StyleSharingKey::values_equal(StyleSharingKey const& other) const
+{
+    if (pinned_values.size() != other.pinned_values.size())
+        return false;
+    for (size_t i = 0; i < pinned_values.size(); ++i) {
+        if (pinned_values[i]->rust_style_value_data() != other.pinned_values[i]->rust_style_value_data())
+            return false;
+    }
+    return true;
+}
+
+bool StyleSharingKey::parent_groups_equal(StyleSharingKey const& other) const
+{
+    for (size_t i = 0; i < ComputedValues::inherited_style_group_count; ++i) {
+        if (computation_inputs[i] == other.computation_inputs[i])
+            continue;
+        if (!ComputedValuesFFI::rust_style_group_payloads_equal(
+                i,
+                bit_cast<void const*>(static_cast<FlatPtr>(computation_inputs[i])),
+                bit_cast<void const*>(static_cast<FlatPtr>(other.computation_inputs[i]))))
+            return false;
+    }
+    return true;
+}
+
+bool StyleSharingKey::equals(StyleSharingKey const& other) const
+{
+    return inputs_after_parent_groups_equal(other) && values_equal(other) && parent_groups_equal(other);
+}
+
+bool StyleSharingKey::equals_without_values(StyleSharingKey const& other) const
+{
+    return inputs_after_parent_groups_equal(other) && parent_groups_equal(other);
 }
 
 // Whether an element's own custom properties changed is a question about what it now holds against
@@ -3878,6 +3914,8 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
     auto previous_style = abstract_element.computed_style();
     auto const* previous_values = previous_style ? &*previous_style : nullptr;
     auto const* previous_base = previous_values ? &previous_values->base_values() : nullptr;
+    if (sharing.donor_values)
+        previous_base = &sharing.donor_values->base_values();
     auto groups_to_rebuild = sharing.computed_groups_to_rebuild.value_or(ComputedValues::all_style_groups);
     auto& element = abstract_element.element();
     if (groups_to_rebuild != ComputedValues::all_style_groups) {
@@ -3927,7 +3965,7 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
             && !computed_values->animated_properties()
             && !computed_values->has_animated_values();
         if (computation_read_only_the_key) {
-            auto key_hash = compute_style_sharing_key_hash(sharing.key);
+            auto key_hash = sharing.key.hash();
             Vector<u64> style_input_declaration_words;
             Vector<NonnullRefPtr<StyleValue const>> pinned_style_input_values;
             bool cascade_declares_custom_properties = false;
@@ -3941,10 +3979,18 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
             }
             if (sharing.explicitly_inherited_non_inherited_style_groups != 0 && !!sharing.parent_style_record_identity)
                 pin_style_record(sharing.parent_style_record_identity);
+            if (!sharing.key.pinned_values.is_empty()
+                && !abstract_element.pseudo_element().has_value()
+                && sharing.explicitly_inherited_non_inherited_style_groups == 0) {
+                auto& donors = m_style_sharing_donor_index.ensure(sharing.key.hash_without_values());
+                if (donors.size() == maximum_style_sharing_donors_per_key)
+                    donors.remove(0);
+                donors.append(key_hash);
+            }
             m_style_sharing_cache.ensure(key_hash).append({
                 .key = move(sharing.key),
                 .pinned_parent_groups = move(sharing.pinned_parent_groups),
-                .pinned_key_values = move(sharing.pinned_key_values),
+                .style_node_id = abstract_element.pseudo_element().has_value() ? StyleNodeID {} : element.style_node_id(),
                 .parent_style_record_identity = sharing.parent_style_record_identity,
                 .explicitly_inherited_non_inherited_style_groups = sharing.explicitly_inherited_non_inherited_style_groups,
                 .values = computed_values,
@@ -4464,22 +4510,22 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         // A computation that reads more than that is bound to the style it read.
         auto const& inherited_group_identities = get_inherited_style_group_identities();
         for (auto const* group : inherited_group_identities)
-            sharing->key.append(bit_cast<FlatPtr>(group));
+            sharing->key.computation_inputs.append(bit_cast<FlatPtr>(group));
         sharing->pinned_parent_groups.set(inherited_group_identities);
         sharing->pinned_parent_custom_property_data = inheritable_custom_property_data(*inheritance_parent);
-        sharing->key.append(0);
+        sharing->key.computation_inputs.append(0);
         if (previous_style_record.present) {
             auto const* inherited_box = static_cast<ComputedValuesFFI::InheritedBoxValues const*>(previous_style_record.payloads[to_underlying(StyleGroupIndex::InheritedBoxValues)]);
-            sharing->key.append(inherited_box->writing_mode + 1);
+            sharing->key.computation_inputs.append(inherited_box->writing_mode + 1);
         } else {
-            sharing->key.append(0);
+            sharing->key.computation_inputs.append(0);
         }
-        sharing->key.append(0);
-        sharing->key.append(document().style_environment_version());
-        sharing->key.append(abstract_element.pseudo_element().has_value() ? to_underlying(*abstract_element.pseudo_element()) + 1 : 0);
-        sharing->key.append(cascade_input.matching_pseudo_element_styles);
+        sharing->key.computation_inputs.append(0);
+        sharing->key.computation_inputs.append(document().style_environment_version());
+        sharing->key.computation_inputs.append(abstract_element.pseudo_element().has_value() ? to_underlying(*abstract_element.pseudo_element()) + 1 : 0);
+        sharing->key.computation_inputs.append(cascade_input.matching_pseudo_element_styles);
         sharing->parent_style_record_identity = inheritance_parent->style_record_identity();
-        append_element_shape_key(sharing->key);
+        append_element_shape_key(sharing->key.computation_inputs);
     }
 
     // What this computation is allowed to read, recorded so the next one on this element can ask
@@ -4714,12 +4760,12 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     auto find_shared_style = [&]() {
         if (auto data = abstract_element.custom_property_data(); data && data->is_animation_overlay())
             return false;
-        auto key_hash = compute_style_sharing_key_hash(sharing->key);
+        auto key_hash = sharing->key.hash();
         auto bucket = m_style_sharing_cache.get(key_hash);
         if (!bucket.has_value())
             return false;
         for (auto const& entry : *bucket) {
-            if (!style_sharing_keys_are_equal(entry.key, sharing->key))
+            if (!entry.key.equals(sharing->key))
                 continue;
             // An entry that read the half of its inherited style the key does not name answers only
             // for an element inheriting from that very style.
@@ -4827,19 +4873,19 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             presentational_hint_properties = collect_presentational_hint_properties(abstract_element);
             collected_presentational_hints = true;
         }
-        auto const dependencies = append_cascade_blocks_to_key(sharing->key, sharing->pinned_key_values, cascade_input, presentational_hint_properties, inline_style, CascadeBlockKeyValueComparison::ByIdentity);
+        auto const dependencies = append_cascade_blocks_to_key(sharing->key.computation_inputs, sharing->key.pinned_values, cascade_input, presentational_hint_properties, inline_style, CascadeBlockKeyValueComparison::ByIdentity);
         sharing->cascade_reads_custom_properties = dependencies.reads_custom_properties;
         if (dependencies.reads_style_scope)
-            sharing->key[style_sharing_style_scope_index] = style_scope.style_engine_tree_scope().value();
+            sharing->key.computation_inputs[style_sharing_style_scope_index] = style_scope.style_engine_tree_scope().value();
 
         // The key names every block the cascade will apply, so what those blocks read of the
         // inherited custom property environment is settled here rather than after the cascade.
         if (sharing->cascade_reads_custom_properties && inheritance_parent.has_value()) {
             sharing->pinned_parent_custom_property_data = inheritance_parent->custom_property_data();
-            sharing->key.append(bit_cast<FlatPtr>(sharing->pinned_parent_custom_property_data.ptr()));
+            sharing->key.computation_inputs.append(bit_cast<FlatPtr>(sharing->pinned_parent_custom_property_data.ptr()));
         }
-        sharing->key.append(sharing->cascade_reads_custom_properties ? static_cast<FlatPtr>(previous_style_record_identity.value()) : 0);
-        sharing->key.append(sharing->cascade_reads_custom_properties ? m_style_sharing_transaction_generation : 0);
+        sharing->key.computation_inputs.append(sharing->cascade_reads_custom_properties ? static_cast<FlatPtr>(previous_style_record_identity.value()) : 0);
+        sharing->key.computation_inputs.append(sharing->cascade_reads_custom_properties ? m_style_sharing_transaction_generation : 0);
 
         has_complete_sharing_key = true;
         if (find_shared_style()) {
@@ -4865,18 +4911,67 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         collected_presentational_hints ? &presentational_hint_properties : nullptr);
     document().style_invalidation_counters().style_cascade_microseconds += (MonotonicTime::now() - cascade_started_at).to_microseconds();
 
+    // The inherited custom property environment is named only now, because only the collection above
+    // can say whether anything in the cascade reads it. A key already complete before the cascade
+    // has named it there.
+    if (sharing && sharing->is_candidate && !has_complete_sharing_key && sharing->cascade_reads_custom_properties && inheritance_parent.has_value()) {
+        sharing->pinned_parent_custom_property_data = inheritance_parent->custom_property_data();
+        sharing->key.computation_inputs.append(bit_cast<FlatPtr>(sharing->pinned_parent_custom_property_data.ptr()));
+    }
+    if (sharing && sharing->is_candidate && !has_complete_sharing_key)
+        sharing->key.computation_inputs.append(sharing->cascade_reads_custom_properties ? static_cast<FlatPtr>(previous_style_record_identity.value()) : 0);
+    if (sharing && sharing->is_candidate && !has_complete_sharing_key)
+        sharing->key.computation_inputs.append(sharing->cascade_reads_custom_properties ? m_style_sharing_transaction_generation : 0);
+
+    auto find_style_sharing_donor = [&]() -> StyleSharingEntry const* {
+        if (previous_style_record.present || !sharing || !sharing->is_candidate || abstract_element.pseudo_element().has_value())
+            return nullptr;
+        if (sharing->key.pinned_values.is_empty())
+            return nullptr;
+        auto donors = m_style_sharing_donor_index.get(sharing->key.hash_without_values());
+        if (!donors.has_value())
+            return nullptr;
+        StyleSharingEntry const* best_donor = nullptr;
+        size_t best_donor_equal_values = 0;
+        for (auto key_hash : donors->in_reverse()) {
+            auto bucket = m_style_sharing_cache.get(key_hash);
+            if (!bucket.has_value())
+                continue;
+            for (auto const& entry : *bucket) {
+                if (!entry.style_record_identity.has_value() || !entry.style_node_id)
+                    continue;
+                if (!entry.key.equals_without_values(sharing->key))
+                    continue;
+                size_t equal_values = 0;
+                for (size_t i = 0; i < entry.key.pinned_values.size(); ++i) {
+                    if (entry.key.pinned_values[i]->equals(sharing->key.pinned_values[i]))
+                        ++equal_values;
+                }
+                if (!best_donor || equal_values > best_donor_equal_values) {
+                    best_donor = &entry;
+                    best_donor_equal_values = equal_values;
+                }
+            }
+        }
+        return best_donor;
+    };
+
     // What the cascade decided is what the rest of the computation reads, so an element whose
     // cascade came out exactly as it did last time computes the style it already has. A stylesheet
     // arriving mid-load changes which declarations most elements match and which of them win for
     // very few, and this is the case the record's declaration half cannot tell apart on its own.
     bool exact_cascade_is_unchanged = false;
     bool use_retained_style_computation_selection = false;
+    StyleRecordID donor_style_record;
     if (auto node = abstract_element.element().style_node_id(); sharing && node != 0) {
+        auto const* donor = find_style_sharing_donor();
         auto publication = const_cast<StyleComputer&>(*this).style_engine().publish_exact_cascade_state(
             node,
             pseudo_element_to_ffi(abstract_element.pseudo_element()),
             cascaded_properties->rust_store(),
-            sharing->inherited_style_groups);
+            sharing->inherited_style_groups,
+            donor ? donor->style_node_id : StyleNodeID {},
+            donor ? *donor->style_record_identity : StyleRecordID {});
         exact_cascade_is_unchanged = publication.unchanged;
         if (previous_style_record.present
             && (only_declarations_changed || only_inherited_style_changed)
@@ -4886,6 +4981,11 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             && !previous_computation->style_uses_inherit_css_function
             && previous_computation->explicitly_inherited_non_inherited_style_groups == 0) {
             sharing->computed_groups_to_rebuild = publication.computed_group_mask & ComputedValues::all_style_groups;
+            use_retained_style_computation_selection = true;
+        } else if (donor && publication.donor_used) {
+            sharing->computed_groups_to_rebuild = publication.computed_group_mask & ComputedValues::all_style_groups;
+            sharing->donor_values = donor->values;
+            donor_style_record = *donor->style_record_identity;
             use_retained_style_computation_selection = true;
         }
     }
@@ -4925,18 +5025,6 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         reuse_last_computed_style();
         return {};
     }
-
-    // The inherited custom property environment is named only now, because only the collection above
-    // can say whether anything in the cascade reads it. A key already complete before the cascade
-    // has named it there.
-    if (sharing && sharing->is_candidate && !has_complete_sharing_key && sharing->cascade_reads_custom_properties && inheritance_parent.has_value()) {
-        sharing->pinned_parent_custom_property_data = inheritance_parent->custom_property_data();
-        sharing->key.append(bit_cast<FlatPtr>(sharing->pinned_parent_custom_property_data.ptr()));
-    }
-    if (sharing && sharing->is_candidate && !has_complete_sharing_key)
-        sharing->key.append(sharing->cascade_reads_custom_properties ? static_cast<FlatPtr>(previous_style_record_identity.value()) : 0);
-    if (sharing && sharing->is_candidate && !has_complete_sharing_key)
-        sharing->key.append(sharing->cascade_reads_custom_properties ? m_style_sharing_transaction_generation : 0);
 
     // A declared animation registers an animation of its own on the element, which is something the
     // element owns rather than something the values carry, so an element declaring one derives its
@@ -4985,6 +5073,15 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             && new_style_input_record->computed_style_record == previous_style_record_identity
         ? previous_style_record_identity
         : StyleRecordID {};
+    if (sharing && sharing->donor_values) {
+        if (sharing->is_candidate) {
+            previous_computed_style_record = donor_style_record;
+        } else {
+            sharing->donor_values = nullptr;
+            sharing->computed_groups_to_rebuild = {};
+            use_retained_style_computation_selection = false;
+        }
+    }
     u32 computed_group_mask = ComputedValues::all_style_groups;
     auto computed_properties = compute_properties(abstract_element, cascaded_properties, cascade_input.matching_pseudo_element_styles,
         sharing ? &sharing->explicitly_inherited_non_inherited_style_groups : nullptr, previous_computed_style_record,
