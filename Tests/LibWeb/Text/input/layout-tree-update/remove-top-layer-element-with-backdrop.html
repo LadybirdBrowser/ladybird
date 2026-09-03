@@ -1,0 +1,21 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    dialog::backdrop {
+        background: rgba(0, 0, 0, 0.5);
+    }
+</style>
+<div id="container"><dialog id="modal"><div>modal content</div></dialog><div id="sibling">sibling</div></div>
+<script>
+    test(() => {
+        modal.showModal();
+        document.body.offsetHeight;
+        println(`modal is rendered in the top layer: ${getComputedStyle(modal).display !== "none"}`);
+
+        modal.remove();
+        document.body.offsetHeight;
+
+        println(`incremental tree matches full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+        println(`sibling still laid out: ${sibling.offsetHeight > 0}`);
+    });
+</script>

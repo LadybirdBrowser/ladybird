@@ -1,0 +1,39 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .with-generated-content::before {
+        content: "x";
+    }
+</style>
+<div id="container"><div id="sibling">sibling</div></div>
+<script>
+    test(() => {
+        const chainRoot = document.createElement("div");
+        let deepest = chainRoot;
+        for (let depth = 1; depth < 1000; ++depth) {
+            const level = document.createElement("div");
+            if (depth % 100 === 0)
+                level.className = "with-generated-content";
+            deepest.appendChild(level);
+            deepest = level;
+        }
+        deepest.appendChild(document.createElement("span")).textContent = "leaf";
+        container.appendChild(chainRoot);
+        document.body.offsetHeight;
+
+        const containerIdentity = internals.layoutNodeIdentity(container);
+        const siblingIdentity = internals.layoutNodeIdentity(sibling);
+
+        chainRoot.style.display = "none";
+        document.body.offsetHeight;
+
+        println(`container preserved after hiding: ${internals.layoutNodeIdentity(container) === containerIdentity}`);
+        println(`sibling preserved after hiding: ${internals.layoutNodeIdentity(sibling) === siblingIdentity}`);
+        println(`incremental tree matches full rebuild after hiding: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+
+        chainRoot.style.display = "";
+        document.body.offsetHeight;
+
+        println(`incremental tree matches full rebuild after showing: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+    });
+</script>
