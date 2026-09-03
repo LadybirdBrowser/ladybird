@@ -3,22 +3,28 @@
 interface ShadowRoot : DocumentFragment {
     readonly attribute ShadowRootMode mode;
     readonly attribute boolean delegatesFocus;
+    readonly attribute boolean serializable;
     readonly attribute SlotAssignmentMode slotAssignment;
     readonly attribute boolean clonable;
-    readonly attribute boolean serializable;
     readonly attribute Element host;
+
     attribute EventHandler onslotchange;
+};
 
-    // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsing-and-serialization
+enum ShadowRootMode { "open", "closed" };
 
+[MissingValueDefault=named, InvalidValueDefault=named]
+enum SlotAssignmentMode { "manual", "named" };
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsing-and-serialization
+partial interface ShadowRoot {
+    // FIXME: [CEReactions] undefined setHTML(DOMString html, optional SetHTMLOptions options = {});
+    // FIXME: setHTMLUnsafe is missing the SetHTMLUnsafeOptions parameter.
     [CEReactions, ImplementedInBindings] undefined setHTMLUnsafe((TrustedHTML or DOMString) html);
     DOMString getHTML(optional GetHTMLOptions options = {});
 
+    // FIXME: Only the DOMString variant should have the LegacyNullToEmptyString attribute.
     [CEReactions, ImplementedInBindings, LegacyNullToEmptyString] attribute (TrustedHTML or DOMString) innerHTML;
 };
 
 ShadowRoot includes DocumentOrShadowRoot;
-
-enum ShadowRootMode { "open", "closed" };
-[MissingValueDefault=named, InvalidValueDefault=named]
-enum SlotAssignmentMode { "manual", "named" };
