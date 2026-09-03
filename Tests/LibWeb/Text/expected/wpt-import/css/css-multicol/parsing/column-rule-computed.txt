@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Property column-rule value '10px'
+Pass	Property column-rule value 'dotted'
+Pass	Property column-rule value '0px none rgb(255, 0, 255)'
+Pass	Property column-rule value '10px dotted rgb(255, 0, 255)'
+Pass	Property column-rule value 'medium hidden currentcolor'
+Pass	Property column-rule value 'medium solid currentcolor'

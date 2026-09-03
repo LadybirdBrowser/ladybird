@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Multi-column Layout: column-rule sets longhands</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#propdef-column-rule">
+<meta name="assert" content="column-rule supports the full grammar '<column-rule-width> || <column-rule-style> || <column-rule-color>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_shorthand_value('column-rule', 'medium dotted green', {
+  'column-rule-width': 'medium',
+  'column-rule-style': 'dotted',
+  'column-rule-color': 'green'
+});
+
+test_shorthand_value('column-rule', '100px', {
+  'column-rule-width': '100px',
+  'column-rule-style': 'none',
+  'column-rule-color': 'currentcolor'
+});
+
+test_shorthand_value('column-rule', 'blue', {
+  'column-rule-width': 'medium',
+  'column-rule-style': 'none',
+  'column-rule-color': 'blue'
+});
+</script>
+</body>
+</html>

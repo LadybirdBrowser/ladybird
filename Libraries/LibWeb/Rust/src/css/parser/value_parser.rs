@@ -3736,6 +3736,7 @@ fn parse_unordered_shorthand(context: &ParseContext, property: u16, values: &[Co
             | property_id::BORDER_LEFT
             | property_id::BORDER_RIGHT
             | property_id::BORDER_TOP
+            | property_id::COLUMN_RULE
             | property_id::FLEX_FLOW
             | property_id::OUTLINE
             | property_id::TEXT_WRAP
@@ -6018,6 +6019,8 @@ mod tests {
             (property_id::BORDER_INLINE_START, "blue"),
             (property_id::FLEX_FLOW, "wrap column"),
             (property_id::OUTLINE, "2px red"),
+            (property_id::COLUMN_RULE, "1px solid red"),
+            (property_id::COLUMN_RULE, "dotted"),
         ] {
             let ParseOutcome::Parsed(value) = parse(property, source) else {
                 panic!("shorthand should parse: {source}");
@@ -6037,6 +6040,8 @@ mod tests {
             (property_id::BORDER_TOP, "red blue"),
             (property_id::FLEX_FLOW, "wrap nowrap"),
             (property_id::OUTLINE, "initial solid"),
+            (property_id::COLUMN_RULE, "solid dashed"),
+            (property_id::COLUMN_RULE, "inherit solid"),
         ] {
             assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");
         }

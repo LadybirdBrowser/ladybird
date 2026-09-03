@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	e.style['column-rule'] = "10px" should set the property value
+Pass	e.style['column-rule'] = "dotted" should set the property value
+Pass	e.style['column-rule'] = "red" should set the property value
+Pass	e.style['column-rule'] = "currentcolor hidden medium" should set the property value
+Pass	e.style['column-rule'] = "currentcolor none medium" should set the property value

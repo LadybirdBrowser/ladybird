@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const report = () => {
+            const style = target.style;
+            println(`column-rule: "${style.getPropertyValue("column-rule")}"`);
+            println(`  width: "${style.columnRuleWidth}" style: "${style.columnRuleStyle}" color: "${style.columnRuleColor}"`);
+            println(`  cssText: "${style.cssText}"`);
+        };
+        for (const value of ["medium dotted green", "100px", "blue", "dotted", "1px solid red", "inherit"]) {
+            target.style.columnRule = "";
+            target.style.columnRule = value;
+            println(`set "${value}"`);
+            report();
+        }
+        for (const value of ["solid dashed", "1px 2px", "inherit solid"]) {
+            target.style.columnRule = "";
+            target.style.columnRule = value;
+            println(`set invalid "${value}" -> column-rule: "${target.style.getPropertyValue("column-rule")}"`);
+        }
+        target.style.columnRule = "";
+        target.style.columnRuleWidth = "2px";
+        target.style.columnRuleStyle = "solid";
+        target.style.columnRuleColor = "rgb(1, 2, 3)";
+        println("longhands set separately");
+        report();
+    });
+</script>
