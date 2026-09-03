@@ -1,0 +1,304 @@
+<!doctype html>
+<link rel="match" href="../expected/webkit-line-clamp-layout-edges-ref.html">
+<style>
+    body {
+        margin: 0;
+        font: 16px/20px monospace;
+    }
+
+    .clamp {
+        display: -webkit-box;
+        overflow: hidden;
+        width: 12ch;
+        margin-bottom: 8px;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    .right {
+        text-align: right;
+    }
+
+    .center {
+        text-align: center;
+    }
+
+    .end {
+        text-align: end;
+    }
+
+    .justify {
+        width: 8ch;
+        text-align: justify;
+    }
+
+    .justify-no-opportunities {
+        width: 8ch;
+        text-align: justify;
+        -webkit-line-clamp: 1;
+    }
+
+    .rtl {
+        direction: rtl;
+        white-space: pre;
+    }
+
+    .highlight {
+        background: yellow;
+    }
+
+    .decorated {
+        width: 100px;
+        overflow: visible;
+        -webkit-line-clamp: 1;
+    }
+
+    .discarded {
+        position: relative;
+        z-index: 1;
+        height: 30px;
+        border: 4px solid red;
+        background: red;
+        color: white;
+    }
+
+    .padded-descendant {
+        box-sizing: content-box;
+        width: 100px;
+        padding: 10px;
+        border: 3px solid;
+    }
+
+    .padded-descendant > div {
+        padding: 15px;
+        border: 3px solid green;
+    }
+
+    .nested-padded-descendant {
+        width: 100px;
+        overflow: visible;
+    }
+
+    .nested-padded-descendant > div {
+        padding: 5px;
+        border: 2px solid blue;
+        background: lightblue;
+    }
+
+    .nested-padded-descendant > div > div {
+        padding: 7px;
+        border: 3px solid green;
+        background: lightgreen;
+    }
+
+    .float-clipping,
+    .fixed-preserved,
+    .exact-root,
+    .float-after-line {
+        overflow: visible;
+        width: 100px;
+        -webkit-line-clamp: 1;
+    }
+
+    .block-in-inline {
+        -webkit-line-clamp: 3;
+    }
+
+    .float-on-clamped-line {
+        box-sizing: border-box;
+        width: 11.1ch;
+        padding: 0 4px;
+        white-space: pre;
+        -webkit-line-clamp: 1;
+    }
+
+    .right-float {
+        float: right;
+        color: orange;
+    }
+
+    .visible-descendant {
+        visibility: hidden;
+        width: 4ch;
+        -webkit-line-clamp: 3;
+    }
+
+    .visible-descendant > span {
+        visibility: visible;
+    }
+
+    .hidden-descendant {
+        width: 5ch;
+        -webkit-line-clamp: 1;
+    }
+
+    .hidden-descendant > span {
+        visibility: hidden;
+    }
+
+    .intervening-box,
+    .intervening-abspos,
+    .intervening-pseudo {
+        -webkit-line-clamp: 1;
+    }
+
+    .intervening-abspos > div {
+        position: absolute;
+    }
+
+    .intervening-pseudo > span::after {
+        display: block;
+        content: "";
+    }
+
+    .negative-float-translation {
+        transform: translateX(100px);
+    }
+
+    .negative-float-clipping {
+        overflow: visible;
+        width: 100px;
+        -webkit-line-clamp: 1;
+    }
+
+    .negative-tall-float {
+        float: left;
+        width: 100px;
+        height: 100px;
+        margin-left: -80px;
+        background: blue;
+    }
+
+    .trailing-space {
+        width: 12ch;
+        white-space: pre-wrap;
+        -webkit-line-clamp: 2;
+    }
+
+    .trailing-space-center {
+        text-align: center;
+    }
+
+    .tall-float {
+        float: left;
+        width: 20px;
+        height: 100px;
+        background: blue;
+    }
+
+    .exact-following {
+        height: 30px;
+        background: red;
+    }
+
+    .fixed-target {
+        height: 100px;
+        background: lime;
+    }
+
+    .inline-clamp {
+        display: -webkit-inline-box;
+        overflow: hidden;
+        padding: 0 4px;
+        background: yellow;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+        font: 16px/32px monospace;
+    }
+
+    .positioned-inline-clamp {
+        position: relative;
+        width: 70px;
+        height: 20px;
+        overflow: hidden;
+        -webkit-line-clamp: 1;
+    }
+
+    .positioned-inline {
+        position: relative;
+    }
+
+    .positioned-child {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 70px;
+        height: 20px;
+        background: red;
+    }
+
+    .surviving-positioned-child {
+        width: 20px;
+        background: lime;
+    }
+
+    .inline-piece-clamp {
+        width: 7.5ch;
+        -webkit-line-clamp: 1;
+    }
+
+    .inline-decoration {
+        background: red;
+        box-shadow: 0 0 0 2px blue;
+        outline: 1px solid lime;
+    }
+
+    .nested-inline-decoration {
+        background: orange;
+    }
+
+    .plaintext {
+        unicode-bidi: plaintext;
+        width: 14ch;
+        -webkit-line-clamp: 2;
+    }
+
+</style>
+<div class="clamp right">Line 1<br>Line 2<br>Line 3</div>
+<div class="clamp center">Line 1<br><span class="highlight">Line 2</span><br>Line 3</div>
+<div class="clamp justify">XXX XXX XX XX XXXXX</div>
+<div class="clamp justify-no-opportunities">XXXX XXXXX</div>
+<div class="clamp rtl">Line 1
+Line 2
+Line 3</div>
+<div class="clamp decorated">
+    <div>Visible</div>
+    <div class="discarded">Discarded</div>
+</div>
+<div class="clamp padded-descendant">
+    Line 1
+    <div>Line 2<br>Line 3</div>
+    Line 4
+</div>
+<div class="clamp nested-padded-descendant">Line 1<div><div>Line 2<br>Line 3</div></div></div>
+<div class="clamp float-clipping">
+    <div class="tall-float"></div>
+    <div>Visible</div>
+    <div class="exact-following"></div>
+</div>
+<div class="clamp fixed-preserved"><div class="fixed-target">Visible<br>Discarded</div></div>
+<div class="clamp exact-root">Visible<div class="exact-following"></div></div>
+<div class="clamp float-after-line">Visible<div class="tall-float"></div><div class="exact-following"></div></div>
+<div class="clamp block-in-inline">Line 1<span><div>Line 2<br>Line 3<br>Line 4</div></span>Line 5</div>
+<div class="clamp float-on-clamped-line"><div>A B C D<div class="right-float">[f]</div>
+E F G H</div></div>
+<div class="clamp float-after-line">Visible<div class="right-float">[f]</div></div>
+<div class="clamp right trailing-space">Line 1<br>Line 2 <br>Line 3</div>
+<div class="clamp trailing-space trailing-space-center">Line 1<br>Line 2 <br>Line 3</div>
+<div class="clamp visible-descendant"><span>AAA<br>BBB<br>CCCCCC<br>Hidden</span></div>
+<div class="clamp hidden-descendant"><span>AA<br>Hidden</span></div>
+<div class="clamp intervening-box">Visible<div></div>Hidden</div>
+<div class="clamp intervening-abspos">Visible<br><div></div>Hidden</div>
+<div class="clamp intervening-pseudo">Visible<span></span>Hidden</div>
+<div class="negative-float-translation"><div class="clamp negative-float-clipping"><div class="negative-tall-float"></div><div>Visible</div><div class="exact-following"></div></div></div>
+<div class="inline-clamp"><span>1<br>2<br><div>3</div>4<br>5</span></div>
+<div class="clamp positioned-inline-clamp">A <span class="positioned-inline">longword<div class="positioned-child"></div></span><br>Hidden</div>
+<div class="clamp positioned-inline-clamp">A <span class="positioned-inline"><span>longword</span><div class="positioned-child"></div></span><br>Hidden</div>
+<div class="clamp positioned-inline-clamp"><span class="positioned-inline">A longword<div class="positioned-child surviving-positioned-child"></div></span><br>Hidden</div>
+<div class="clamp inline-piece-clamp">one <span class="inline-decoration">four</span><br>hidden</div>
+<div class="clamp inline-piece-clamp"><span class="inline-decoration">one four</span><br>hidden</div>
+<div class="clamp inline-piece-clamp"><span class="nested-inline-decoration">one <span class="inline-decoration">four</span></span><br>hidden</div>
+<div class="clamp right">Line 1 <br>Line 2 <br>Line 3</div>
+<div class="clamp center">Line 1 <br>Line 2 <br>Line 3</div>
+<div class="clamp end">Line 1<br><span>Line 2</span> <br>Line 3</div>
+<div class="clamp plaintext">Story time:<br>روزی<br>Hidden</div>

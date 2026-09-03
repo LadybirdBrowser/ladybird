@@ -1,0 +1,231 @@
+<!doctype html>
+<style>
+    body {
+        margin: 0;
+        font: 16px/20px monospace;
+    }
+
+    .case {
+        overflow: hidden;
+        width: 12ch;
+        margin-bottom: 8px;
+    }
+
+    .right {
+        text-align: right;
+    }
+
+    .center {
+        text-align: center;
+    }
+
+    .end {
+        text-align: end;
+    }
+
+    .justify {
+        width: 8ch;
+    }
+
+    .justify-no-opportunities {
+        width: 8ch;
+    }
+
+    .rtl {
+        text-align: right;
+    }
+
+    .highlight {
+        background: yellow;
+    }
+
+    .justified-line {
+        position: relative;
+    }
+
+    .justified-line span {
+        position: absolute;
+        right: 0;
+    }
+
+    .decorated {
+        width: 100px;
+    }
+
+    .padded-descendant {
+        box-sizing: content-box;
+        width: 100px;
+        padding: 10px;
+        border: 3px solid;
+    }
+
+    .padded-descendant > div {
+        padding: 15px;
+        border: 3px solid green;
+    }
+
+    .nested-padded-descendant {
+        width: 100px;
+        overflow: visible;
+    }
+
+    .nested-padded-descendant > div {
+        padding: 5px;
+        border: 2px solid blue;
+        background: lightblue;
+    }
+
+    .nested-padded-descendant > div > div {
+        padding: 7px;
+        border: 3px solid green;
+        background: lightgreen;
+    }
+
+    .float-clipping,
+    .fixed-preserved,
+    .exact-root,
+    .float-after-line {
+        overflow: visible;
+        width: 100px;
+    }
+
+    .block-in-inline {
+        height: 60px;
+    }
+
+    .float-on-clamped-line {
+        box-sizing: border-box;
+        width: 11.1ch;
+        padding: 0 4px;
+        white-space: pre;
+    }
+
+    .right-float {
+        float: right;
+        color: orange;
+    }
+
+    .visible-descendant {
+        width: 4ch;
+    }
+
+    .hidden-descendant {
+        width: 5ch;
+    }
+
+    .negative-float-translation {
+        transform: translateX(100px);
+    }
+
+    .negative-float-clipping {
+        overflow: visible;
+        width: 100px;
+    }
+
+    .negative-short-float {
+        float: left;
+        width: 100px;
+        height: 20px;
+        margin-left: -80px;
+        background: blue;
+    }
+
+    .trailing-space {
+        width: 12ch;
+    }
+
+    .trailing-space-center {
+        text-align: center;
+    }
+
+    .short-float {
+        float: left;
+        width: 20px;
+        height: 20px;
+        background: blue;
+    }
+
+    .fixed-target {
+        height: 100px;
+        background: lime;
+    }
+
+    .mixed-inline-clamp {
+        display: -webkit-inline-box;
+        overflow: hidden;
+        padding: 0 4px;
+        background: yellow;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+        font: 16px/32px monospace;
+    }
+
+    .positioned-inline-clamp {
+        position: relative;
+        width: 70px;
+        height: 20px;
+        overflow: hidden;
+    }
+
+    .surviving-positioned-child {
+        position: absolute;
+        top: 2px;
+        width: 20px;
+        height: 20px;
+        background: lime;
+    }
+
+    .inline-piece-clamp {
+        width: 7.5ch;
+    }
+
+    .inline-decoration {
+        background: red;
+        box-shadow: 0 0 0 2px blue;
+        outline: 1px solid lime;
+    }
+
+    .nested-inline-decoration {
+        background: orange;
+    }
+
+    .plaintext {
+        unicode-bidi: plaintext;
+        width: 14ch;
+    }
+
+</style>
+<div class="case right">Line 1<br>Line 2…</div>
+<div class="case center">Line 1<br><span class="highlight">Line 2</span>…</div>
+<div class="case justify"><div class="justified-line">XXX<span>XXX</span></div><div class="justified-line">XX<span>XX…</span></div></div>
+<div class="case justify-no-opportunities">XXXX…</div>
+<div class="case rtl">Line 1<br>Line 2…</div>
+<div class="case decorated"><div>Visible…</div></div>
+<div class="case padded-descendant">Line 1<div>Line 2…</div></div>
+<div class="case nested-padded-descendant">Line 1<div><div>Line 2…</div></div></div>
+<div class="case float-clipping"><div class="short-float"></div><div>Visible…</div></div>
+<div class="case fixed-preserved"><div class="fixed-target">Visible…</div></div>
+<div class="case exact-root">Visible…</div>
+<div class="case float-after-line">Visible<div class="short-float"></div>…</div>
+<div class="case block-in-inline">Line 1<div>Line 2<br>Line 3…</div></div>
+<div class="case float-on-clamped-line"><div>A B C D<div class="right-float">[f]</div>…</div></div>
+<div class="case float-after-line">Visible<div class="right-float">[f]</div></div>
+<div class="case right trailing-space">Line 1<br>Line 2…</div>
+<div class="case trailing-space trailing-space-center">Line 1<br>Line 2…</div>
+<div class="case visible-descendant">AAA<br>BBB<br>CCC</div>
+<div class="case hidden-descendant"><span style="visibility: hidden">AA</span>…</div>
+<div class="case">Visible</div>
+<div class="case">Visible…</div>
+<div class="case">Visible</div>
+<div class="negative-float-translation"><div class="case negative-float-clipping"><div class="negative-short-float"></div><div>Visible…</div></div></div>
+<div class="mixed-inline-clamp">1<br>2<br><div>3</div>4<br>5</div>
+<div class="case positioned-inline-clamp">A…</div>
+<div class="case positioned-inline-clamp">A…</div>
+<div class="case positioned-inline-clamp"><div class="surviving-positioned-child"></div></div>
+<div class="case inline-piece-clamp">one…</div>
+<div class="case inline-piece-clamp"><span class="inline-decoration">one</span>…</div>
+<div class="case inline-piece-clamp"><span class="nested-inline-decoration">one</span>…</div>
+<div class="case right">Line 1 <br>Line 2…</div>
+<div class="case center">Line 1 <br>Line 2…</div>
+<div class="case end">Line 1<br><span>Line 2</span>…</div>
+<div class="case plaintext">Story time:<br>روزی…</div>
