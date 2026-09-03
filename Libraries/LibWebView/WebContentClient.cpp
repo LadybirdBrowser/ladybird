@@ -602,7 +602,7 @@ void WebContentClient::cancel_navigation_transactions()
     });
 }
 
-void WebContentClient::did_request_navigation_start(u64 page_id, Web::HTML::CrossProcessId navigable_id, URL::URL current_url, Web::NavigationTarget target, URL::URL url, Utf16String navigation_id, Optional<Web::HTML::NavigationStartRequest> start_request)
+void WebContentClient::did_request_navigation_start(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::NavigationTarget target, URL::URL url, Utf16String navigation_id, Optional<Web::HTML::NavigationStartRequest> start_request)
 {
     auto* target_navigable = navigable_for_page(page_id);
     if (target == Web::NavigationTarget::IFrame) {
@@ -638,8 +638,6 @@ void WebContentClient::did_request_navigation_start(u64 page_id, Web::HTML::Cros
     if (!start_request.has_value()) {
         target_navigable->set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
             .url = url,
-            .current_url = move(current_url),
-            .target = target,
             .navigation_id = navigation_id,
             .sequence_number = sequence_number,
         });
@@ -653,8 +651,6 @@ void WebContentClient::did_request_navigation_start(u64 page_id, Web::HTML::Cros
 
     target_navigable->set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
         .url = move(url),
-        .current_url = move(current_url),
-        .target = target,
         .navigation_id = navigation_id,
         .start_request = move(start_request),
         .sequence_number = sequence_number,
@@ -695,7 +691,7 @@ void WebContentClient::did_complete_navigation_unload_check(u64 page_id, Web::HT
     }
 }
 
-void WebContentClient::did_request_navigation_population(u64 page_id, Web::HTML::CrossProcessId navigable_id, URL::URL current_url, Web::NavigationTarget target, Web::HTML::NavigationPopulationRequest request)
+void WebContentClient::did_request_navigation_population(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::NavigationTarget target, Web::HTML::NavigationPopulationRequest request)
 {
     auto const& target_url = request.history_entry.url;
 
@@ -735,15 +731,11 @@ void WebContentClient::did_request_navigation_population(u64 page_id, Web::HTML:
     if (continues_reconstructed_child_navigation) {
         auto& ongoing_navigation = *target_navigable->ongoing_navigation();
         ongoing_navigation.url = target_url;
-        ongoing_navigation.current_url = move(current_url);
-        ongoing_navigation.target = target;
         ongoing_navigation.phase = CanonicalNavigable::OngoingNavigation::Phase::Populating;
         ongoing_navigation.loader = NavigationLoader::create(m_is_private, move(request));
     } else {
         target_navigable->set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
             .url = target_url,
-            .current_url = move(current_url),
-            .target = target,
             .navigation_id = request.navigation_id,
             .sequence_number = target_navigable->top_level_traversable().next_sequence_number(),
             .phase = CanonicalNavigable::OngoingNavigation::Phase::Populating,
@@ -795,9 +787,7 @@ void WebContentClient::did_finish_navigation_params_creation(u64 page_id, Web::H
     }
 
     auto& ongoing_navigation = navigable->ongoing_navigation();
-    if (!ongoing_navigation.has_value()
-        || !ongoing_navigation->loader
-        || !ongoing_navigation->current_url.has_value()) {
+    if (!ongoing_navigation.has_value() || !ongoing_navigation->loader) {
         NavigationLoader::discard(m_is_private, *result);
         end_recorded_load_for_canceled_navigation();
         navigable->clear_ongoing_navigation();
