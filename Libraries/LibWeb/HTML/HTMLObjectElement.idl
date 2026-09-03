@@ -1,10 +1,10 @@
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#htmlobjectelement
 [Exposed=Window]
 interface HTMLObjectElement : HTMLElement {
-
     [HTMLConstructor] constructor();
 
-    [CEReactions, URL] attribute USVString data;
+    // FIXME: "Reflect, URL" should be "ReflectURL".
+    [CEReactions, Reflect, URL] attribute USVString data;
     [CEReactions, Reflect] attribute DOMString type;
     [CEReactions, Reflect] attribute DOMString name;
     readonly attribute HTMLFormElement? form;
@@ -21,7 +21,11 @@ interface HTMLObjectElement : HTMLElement {
     boolean reportValidity();
     undefined setCustomValidity(DOMString error);
 
-    // Obsolete
+    // also has obsolete members
+};
+
+// https://html.spec.whatwg.org/multipage/obsolete.html#HTMLObjectElement-partial
+partial interface HTMLObjectElement {
     [CEReactions, Reflect] attribute DOMString align;
     [CEReactions, Reflect] attribute DOMString archive;
     [CEReactions, Reflect] attribute DOMString code;
@@ -33,6 +37,6 @@ interface HTMLObjectElement : HTMLElement {
     [CEReactions, Reflect=codetype] attribute DOMString codeType;
     [CEReactions, Reflect=usemap] attribute DOMString useMap;
 
-    [CEReactions, LegacyNullToEmptyString, Reflect] attribute DOMString border;
-
+    // FIXME: The LegacyNullToEmptyString attribute belongs on the DOMString type
+    [CEReactions, Reflect, LegacyNullToEmptyString] attribute DOMString border;
 };
