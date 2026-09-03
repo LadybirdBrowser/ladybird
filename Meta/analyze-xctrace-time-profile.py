@@ -59,8 +59,10 @@ def inclusive_weights(path):
                 if reference := column.get("ref"):
                     names = tagged_backtraces[reference]
                     continue
+                # xctrace 16.0 (Xcode 26) nests a backtrace element inside each tagged-backtrace, and xctrace 27.0
+                # (Xcode 27) puts the frame elements directly under it — so resolve whichever element holds the frames.
                 backtrace = column.find("backtrace")
-                names = [] if backtrace is None else _resolve_backtrace(backtrace, frames, backtraces)
+                names = _resolve_backtrace(column if backtrace is None else backtrace, frames, backtraces)
                 if identity := column.get("id"):
                     tagged_backtraces[identity] = names
 
