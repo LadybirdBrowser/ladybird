@@ -26,11 +26,16 @@ struct VideoFrameMetadata {
     CodingIndependentCodePoints cicp;
 };
 
+enum class DecodeIntent : u8 {
+    Reference,
+    Output,
+};
+
 class VideoDecoder {
 public:
     virtual ~VideoDecoder() { }
 
-    virtual DecoderErrorOr<void> receive_coded_data(CodedFrame const&) = 0;
+    virtual DecoderErrorOr<void> receive_coded_data(CodedFrame const&, DecodeIntent) = 0;
     virtual void signal_end_of_stream() = 0;
 
     virtual DecoderErrorOr<VideoFrameMetadata> peek_next_output(CodingIndependentCodePoints const& container_cicp) = 0;

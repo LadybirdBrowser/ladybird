@@ -74,7 +74,7 @@ private:
 
         void start();
         DecoderErrorOr<void> create_decoder_for_frame(CodedFrame const&);
-        DecoderErrorOr<void> receive_coded_frame(CodedFrame const&);
+        DecoderErrorOr<void> receive_coded_frame(CodedFrame const&, DecodeIntent);
         DecoderErrorOr<bool> replace_drained_decoder();
         void release_decoder();
         void exit();
@@ -137,6 +137,7 @@ private:
         Track m_track;
         CodecID m_decoder_codec_id { CodecID::Unknown };
         Optional<CodedFrame> m_frame_awaiting_decoder_replacement;
+        DecodeIntent m_intent_awaiting_decoder_replacement { DecodeIntent::Output };
         OwnPtr<VideoDecoder> m_decoder;
         RefPtr<VideoFramePool> m_frame_pool;
         bool m_decoder_needs_keyframe_next_seek { false };

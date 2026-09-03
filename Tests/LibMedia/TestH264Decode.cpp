@@ -51,7 +51,7 @@ TEST_CASE(h264_configuration_change)
     bool decoded_frame = false;
     while (!decoded_frame) {
         auto sample = MUST(new_demuxer->get_next_sample_for_track(new_track));
-        MUST(decoder->receive_coded_data(sample));
+        MUST(decoder->receive_coded_data(sample, Media::DecodeIntent::Output));
 
         while (true) {
             auto metadata_result = decoder->peek_next_output(new_track.video_data().cicp);
@@ -86,7 +86,7 @@ TEST_CASE(avc_in_mp4_with_reordered_frames)
 
     auto first_sample = MUST(demuxer->get_next_sample_for_track(track));
     auto decoder = MUST(Media::FFmpeg::FFmpegVideoDecoder::try_create(first_sample.codec_id(), first_sample.new_codec_configuration().value()));
-    MUST(decoder->receive_coded_data(first_sample));
+    MUST(decoder->receive_coded_data(first_sample, Media::DecodeIntent::Output));
 
     size_t frame_count = 0;
     auto last_timestamp = AK::Duration::min();
@@ -119,7 +119,7 @@ TEST_CASE(avc_in_mp4_with_reordered_frames)
         auto sample = sample_result.release_value();
         EXPECT(!sample.duration().is_zero());
 
-        MUST(decoder->receive_coded_data(sample));
+        MUST(decoder->receive_coded_data(sample, Media::DecodeIntent::Output));
         while (true) {
             auto frame_result = take_decoded_frame();
             if (frame_result.is_error()) {
@@ -139,4 +139,49 @@ TEST_CASE(avc_in_mp4_with_reordered_frames)
     }
 
     EXPECT_EQ(frame_count, 50u);
+}
+
+TEST_CASE(h264_reference_only_frames_are_decoded_but_not_produced)
+{
+    auto [demuxer, track] = create_demuxer_and_video_track("./avc.mp4"sv);
+
+    auto first_sample = MUST(demuxer->get_next_sample_for_track(track));
+    auto decoder = MUST(Media::FFmpeg::FFmpegVideoDecoder::try_create(first_sample.codec_id(), first_sample.new_codec_configuration().value()));
+
+    Vector<AK::Duration> presented_timestamps;
+    auto drain = [&] {
+        while (true) {
+            auto metadata_result = decoder->peek_next_output(track.video_data().cicp);
+            if (metadata_result.is_error())
+                return;
+            auto metadata = metadata_result.release_value();
+            auto plane_sizes = MUST(Gfx::YUVData::plane_sizes(metadata.size, metadata.bit_depth, metadata.subsampling));
+            auto storage = MUST(FixedArray<u8>::create(plane_sizes.total));
+            auto yuv_data = MUST(Gfx::YUVData::create(metadata.size, metadata.bit_depth, metadata.subsampling, metadata.cicp,
+                storage.span().slice(0, plane_sizes.y),
+                storage.span().slice(plane_sizes.y, plane_sizes.u),
+                storage.span().slice(plane_sizes.y + plane_sizes.u, plane_sizes.v)));
+            MUST(decoder->take_next_output_into(yuv_data));
+            presented_timestamps.append(metadata.timestamp);
+        }
+    };
+
+    // Only the last of these frames is wanted for display; the rest are decoded so it has something to reference.
+    static constexpr size_t REFERENCE_ONLY_SAMPLE_COUNT = 8;
+    MUST(decoder->receive_coded_data(first_sample, Media::DecodeIntent::Reference));
+    drain();
+    for (size_t index = 1; index < REFERENCE_ONLY_SAMPLE_COUNT; index++) {
+        auto sample = MUST(demuxer->get_next_sample_for_track(track));
+        MUST(decoder->receive_coded_data(sample, Media::DecodeIntent::Reference));
+        drain();
+    }
+
+    auto wanted_sample = MUST(demuxer->get_next_sample_for_track(track));
+    auto wanted_timestamp = wanted_sample.presentation_timestamp();
+    MUST(decoder->receive_coded_data(wanted_sample, Media::DecodeIntent::Output));
+    decoder->signal_end_of_stream();
+    drain();
+
+    EXPECT_EQ(presented_timestamps.size(), 1u);
+    EXPECT_EQ(presented_timestamps.first(), wanted_timestamp);
 }
