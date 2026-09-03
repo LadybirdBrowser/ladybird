@@ -27,6 +27,10 @@ def is_legacy_alias(prop: dict) -> bool:
     return "legacy-alias-for" in prop
 
 
+def is_legacy_shorthand(prop: dict) -> bool:
+    return prop.get("legacy-shorthand", False)
+
+
 def verify_alphabetical(data: dict, path: str) -> None:
     most_recent_name = ""
     for name in data:
@@ -275,6 +279,7 @@ bool property_accepts_resolution(PropertyID, Resolution const&);
 bool property_accepts_time(PropertyID, Time const&);
 
 WEB_API bool property_is_shorthand(PropertyID);
+WEB_API bool property_is_legacy_shorthand(PropertyID);
 WEB_API Vector<PropertyID> const& longhands_for_shorthand(PropertyID);
 Vector<PropertyID> const& expanded_longhands_for_shorthand(PropertyID);
 bool property_maps_to_shorthand(PropertyID);
@@ -987,6 +992,22 @@ bool property_is_shorthand(PropertyID property_id)
             return false;
         }
 }
+
+bool property_is_legacy_shorthand(PropertyID property_id)
+{
+    switch (property_id) {
+""")
+
+    for name, value in properties.items():
+        if is_legacy_shorthand(value):
+            out.write(f"        case PropertyID::{title_casify(name)}:\n")
+
+    out.write("""
+            return true;
+        default:
+            return false;
+        }
+}
 """)
 
     def get_longhands(property_id: str) -> list:
@@ -1054,7 +1075,7 @@ Vector<PropertyID> const& expanded_longhands_for_shorthand(PropertyID property_i
     # shorthands_for_longhand_map: for each longhand, which shorthand(s) contain it.
     shorthands_for_longhand_map = {}
     for name, value in properties.items():
-        if is_legacy_alias(value):
+        if is_legacy_alias(value) or is_legacy_shorthand(value):
             continue
         if "longhands" in value:
             for longhand_name in value["longhands"]:

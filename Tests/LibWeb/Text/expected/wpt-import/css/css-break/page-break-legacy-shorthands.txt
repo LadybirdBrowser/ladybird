@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	Legacy values of the shorthands work as expected
+Pass	New values work on the new longhands, but serialize to the empty string in the legacy shorthands
+Pass	New values of the break longhands don't work on legacy shorthands
+Pass	Legacy shorthands really never appear on cssText, even when there are variable references
+Pass	page-break-before is a legacy name alias for break-before
+Pass	page-break-after is a legacy name alias for break-after
+Pass	page-break-inside is a legacy name alias for break-inside

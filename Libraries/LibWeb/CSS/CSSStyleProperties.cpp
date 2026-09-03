@@ -1751,7 +1751,10 @@ Utf16String CSSStyleProperties::serialized() const
 
             // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value,
             //    and the important flag set if declaration has its important flag set.
-            auto serialized_declaration = serialize_a_css_declaration_to_utf16(string_from_property_id(property), value, declaration.important);
+            auto serialized_property_name = property_is_legacy_shorthand(property)
+                ? string_from_property_id(longhands_for_shorthand(property).first())
+                : string_from_property_id(property);
+            auto serialized_declaration = serialize_a_css_declaration_to_utf16(serialized_property_name, value, declaration.important);
 
             // 7. Append serialized declaration to list.
             list.append(move(serialized_declaration));
