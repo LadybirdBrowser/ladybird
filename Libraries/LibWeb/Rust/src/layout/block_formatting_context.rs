@@ -1675,9 +1675,19 @@ impl BlockFormattingContext {
         let style = self.style(node);
         let box_is_html_element_in_quirks_mode =
             facts.document_in_quirks_mode() && facts.is_html_html_element() && style.height().is_auto();
+        let block_size_is_definite_from_aspect_ratio = self.used(node).has_definite_inline_size()
+            && facts.has_preferred_aspect_ratio()
+            && self.sizing().box_is_sized_as_replaced_element(
+                node,
+                available_space,
+                input.containing_block_constraints,
+            );
 
         // NOTE: In quirks mode, the html element's block size matches the viewport so it can be treated as definite.
-        if self.used(node).has_definite_block_size() || box_is_html_element_in_quirks_mode {
+        if self.used(node).has_definite_block_size()
+            || box_is_html_element_in_quirks_mode
+            || block_size_is_definite_from_aspect_ratio
+        {
             self.resolve_used_block_size_if_treated_as_auto(
                 node,
                 available_space,
@@ -2423,7 +2433,15 @@ impl BlockFormattingContext {
             input.containing_block_constraints,
         );
         self.resolve_used_block_size_if_not_treated_as_auto(node, resolution_space, input.containing_block_constraints);
+        let block_size_is_definite_from_aspect_ratio = self.used(node).has_definite_inline_size()
+            && self.facts(node).has_preferred_aspect_ratio()
+            && self.sizing().box_is_sized_as_replaced_element(
+                node,
+                resolution_space,
+                input.containing_block_constraints,
+            );
         if self.facts(node).has_auto_content_box_size()
+            || block_size_is_definite_from_aspect_ratio
             || (self.style(node).display().is_flex_inside() && !flex_root_resolves_own_auto_block_size)
         {
             self.resolve_used_block_size_if_treated_as_auto(
@@ -2465,7 +2483,15 @@ impl BlockFormattingContext {
             },
         );
         self.resolve_used_block_size_if_not_treated_as_auto(node, available_space, input.containing_block_constraints);
+        let block_size_is_definite_from_aspect_ratio = self.used(node).has_definite_inline_size()
+            && self.facts(node).has_preferred_aspect_ratio()
+            && self.sizing().box_is_sized_as_replaced_element(
+                node,
+                available_space,
+                input.containing_block_constraints,
+            );
         if self.facts(node).has_auto_content_box_size()
+            || block_size_is_definite_from_aspect_ratio
             || (self.style(node).display().is_flex_inside() && !flex_root_resolves_own_auto_block_size)
         {
             self.resolve_used_block_size_if_treated_as_auto(
