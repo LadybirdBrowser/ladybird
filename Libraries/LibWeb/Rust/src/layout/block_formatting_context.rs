@@ -211,10 +211,30 @@ pub(crate) struct BlockFormattingContext {
     should_collect_devtools_layout_data: bool,
     treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
     previous_line_data: Option<std::rc::Rc<used_values::LineData>>,
+    is_line_clamp_container: bool,
+    max_lines: Cell<Option<usize>>,
+    line_clamp_line_count: Cell<usize>,
+    automatic_line_clamp_block_size: Cell<Option<CssPixels>>,
+    automatic_line_clamp_max_lines: Cell<Option<usize>>,
+    automatic_line_clamp_block_size_exceeded: Cell<bool>,
+    laying_out_invisible_line_clamp_content: Cell<bool>,
 }
 
 impl BlockFormattingContext {
     pub(crate) fn new(run: &FormattingContextRun) -> Self {
+        let style = StyleValues::for_node(&run.callbacks, run.box_);
+        let computed_continue = style.continue_();
+        // https://drafts.csswg.org/css-overflow-4/#continue
+        // If the box is a block container, then it must establish an independent formatting context that also becomes
+        // a line-clamp container.
+        // https://drafts.csswg.org/css-overflow-4/#webkit-line-clamp
+        // The -webkit-legacy value behaves identically to collapse, except that it only takes effect if the specified
+        // value of the display property is -webkit-box or -webkit-inline-box and the value of the -webkit-box-orient
+        // property is vertical.
+        let is_line_clamp_container = computed_continue == continue_value::COLLAPSE
+            || (computed_continue == continue_value::_WEBKIT_LEGACY
+                && style.display_before_box_type_transformation().is_webkit_box_inside()
+                && style.webkit_box_orient() == webkit_box_orient::VERTICAL);
         Self {
             purpose: run.purpose,
             records: run.records.clone(),
@@ -238,9 +258,75 @@ impl BlockFormattingContext {
             treat_block_axis_percentage_insets_as_auto_beyond_root: run
                 .treat_block_axis_percentage_insets_as_auto_beyond_root,
             previous_line_data: run.previous_line_data.clone(),
+            is_line_clamp_container,
+            max_lines: Cell::new(
+                ((!run.purpose.is_measurement() || style.writing_mode() != writing_mode::HORIZONTAL_TB)
+                    && is_line_clamp_container
+                    && style.max_lines() > 0)
+                    .then_some(style.max_lines() as usize),
+            ),
+            line_clamp_line_count: Cell::new(0),
+            automatic_line_clamp_block_size: Cell::new(None),
+            automatic_line_clamp_max_lines: Cell::new(None),
+            automatic_line_clamp_block_size_exceeded: Cell::new(false),
+            laying_out_invisible_line_clamp_content: Cell::new(false),
         }
     }
 
+    pub(crate) fn register_line_for_line_clamp(
+        &self,
+        container: Node,
+        line: &mut line_box::LineBoxData,
+        has_immediate_continuation: bool,
+        line_block_end_in_bfc_root: CssPixels,
+    ) -> bool {
+        // https://drafts.csswg.org/css-overflow-4/#max-lines
+        // If the box is a line-clamp container, its line-based clamp point is set to the first possible clamp point
+        // after its Nth descendant in-flow line box.
+        let clamp_point = self.used(self.root).has_line_clamp_point.get();
+        if clamp_point || !self.is_line_clamp_container {
+            return false;
+        }
+        let line_count = self.line_clamp_line_count.get() + 1;
+        self.line_clamp_line_count.set(line_count);
+
+        if let Some(automatic_block_size) = self.automatic_line_clamp_block_size.get() {
+            if !self.automatic_line_clamp_block_size_exceeded.get() {
+                if line_block_end_in_bfc_root <= automatic_block_size {
+                    self.automatic_line_clamp_max_lines.set(Some(line_count));
+                } else {
+                    self.automatic_line_clamp_block_size_exceeded.set(true);
+                    if self.automatic_line_clamp_max_lines.get().is_none() {
+                        self.automatic_line_clamp_max_lines.set(Some(0));
+                    }
+                }
+            }
+            return false;
+        }
+
+        let Some(max_lines) = self.max_lines.get() else {
+            return false;
+        };
+        if line_count != max_lines {
+            return false;
+        }
+        let clamp_anchor = line
+            .visible_fragments()
+            .next_back()
+            .map_or(container, |fragment| fragment.layout_node);
+        let future_content = self.line_clamp_has_future_content(clamp_anchor);
+        if has_immediate_continuation || future_content.is_some() {
+            self.used(self.root).has_line_clamp_point.set(true);
+        }
+        has_immediate_continuation || future_content == Some(true)
+    }
+    pub(crate) fn has_line_clamp(&self) -> bool {
+        self.is_line_clamp_container
+    }
+    pub(crate) fn line_clamp_reached(&self) -> bool {
+        let reached = self.has_line_clamp() && self.used(self.root).has_line_clamp_point.get();
+        reached && !self.laying_out_invisible_line_clamp_content.get()
+    }
     fn formatting_context_run(&self) -> FormattingContextRun {
         FormattingContextRun {
             purpose: self.purpose,
@@ -1637,7 +1723,9 @@ impl BlockFormattingContext {
         }
 
         let block_container_inline_size = self.used(block_container).content_inline_size.get();
-        self.create_used_values(node, input.containing_block_constraints);
+        let used = self.create_used_values(node, input.containing_block_constraints);
+        used.is_invisible_for_line_clamp
+            .set(self.laying_out_invisible_line_clamp_content.get());
 
         self.resolve_vertical_box_model_metrics(node, block_container_inline_size);
         assert_eq!(self.containing_block(node), block_container);
@@ -1711,7 +1799,6 @@ impl BlockFormattingContext {
             );
             return;
         }
-
         // If first child margin top will collapse with margin-top of containing block then margin-top of child is 0
         let margin_top = self.margin_state.borrow().pending_margin_for_next_box();
 
@@ -2046,6 +2133,11 @@ impl BlockFormattingContext {
             .block_offset_of_current_block_container
             .replace(Some(CssPixels::default()));
         for child in self.children(block_container) {
+            let invisible = self.line_clamp_reached() && !self.facts(child).is_absolutely_positioned();
+            let previous_bottom = bottom_of_lowest_margin_box;
+            if invisible {
+                self.laying_out_invisible_line_clamp_content.set(true);
+            }
             self.layout_block_level_box(
                 run,
                 child,
@@ -2054,6 +2146,10 @@ impl BlockFormattingContext {
                 child_input,
                 None,
             );
+            if invisible {
+                self.laying_out_invisible_line_clamp_content.set(false);
+                bottom_of_lowest_margin_box = previous_bottom;
+            }
         }
         self.block_offset_of_current_block_container.set(saved);
         self.finish_block_level_children_layout(block_container, input, available_space, bottom_of_lowest_margin_box);
@@ -2089,7 +2185,16 @@ impl BlockFormattingContext {
             } else {
                 caption_input
             };
+            let invisible = self.line_clamp_reached() && !self.facts(child).is_absolutely_positioned();
+            let previous_bottom = bottom_of_lowest_margin_box;
+            if invisible {
+                self.laying_out_invisible_line_clamp_content.set(true);
+            }
             self.layout_block_level_box(run, child, wrapper, &mut bottom_of_lowest_margin_box, child_input, None);
+            if invisible {
+                self.laying_out_invisible_line_clamp_content.set(false);
+                bottom_of_lowest_margin_box = previous_bottom;
+            }
         }
         self.block_offset_of_current_block_container.set(saved);
         self.finish_block_level_children_layout(
@@ -2179,6 +2284,11 @@ impl BlockFormattingContext {
             let saved = self.block_offset_of_current_block_container.replace(Some(extra_top));
             for child in self.children(fieldset) {
                 if child != legend {
+                    let invisible = self.line_clamp_reached() && !self.facts(child).is_absolutely_positioned();
+                    let previous_bottom = bottom_of_lowest_margin_box;
+                    if invisible {
+                        self.laying_out_invisible_line_clamp_content.set(true);
+                    }
                     self.layout_block_level_box(
                         run,
                         child,
@@ -2187,6 +2297,10 @@ impl BlockFormattingContext {
                         child_input,
                         None,
                     );
+                    if invisible {
+                        self.laying_out_invisible_line_clamp_content.set(false);
+                        bottom_of_lowest_margin_box = previous_bottom;
+                    }
                 }
             }
             self.block_offset_of_current_block_container.set(saved);
@@ -2288,6 +2402,29 @@ impl BlockFormattingContext {
 
     pub(crate) fn run(&self, run: &FormattingContextRun, input: LayoutInput) {
         let available_space = input.available_space;
+        if self.is_line_clamp_container && self.style(self.root).max_lines() == 0 {
+            let automatic_block_size = self.resolve_automatic_line_clamp_block_size(input);
+            if run.purpose.is_measurement() {
+                self.automatic_line_clamp_block_size.set(automatic_block_size);
+            } else if automatic_block_size.is_some() {
+                let measurement = formatting_context::MeasurementState::create(self.callbacks);
+                let measurement_root =
+                    used_values::UsedValuesCellState::capture(&self.used(self.root)).materialize_record();
+                let measurement_result = measurement.run_with_layout_mode(
+                    self.root,
+                    &measurement_root,
+                    self.layout_mode,
+                    LayoutInput {
+                        participation: ParticipationInParentFormattingContext::Root,
+                        ..input
+                    },
+                );
+                self.max_lines.set(measurement_result.automatic_line_clamp_max_lines);
+                if self.max_lines.get() == Some(0) {
+                    self.used(self.root).has_line_clamp_point.set(true);
+                }
+            }
+        }
         // https://drafts.csswg.org/css-multicol-2/#the-multi-column-model
         let root_inline_size = self.used(self.root).content_inline_size.get();
         if let Some(column_count) = self.determine_used_value_for_column_count(root_inline_size) {
@@ -2883,15 +3020,15 @@ impl BlockFormattingContext {
         //
         // Only direct floats participate here. Descendant floats contribute through their containing block's
         // own min-content contribution, not as if they belonged to this box's hypothetical float.
-        for candidate in floats
-            .iter()
-            .filter(|floating_box| self.containing_block(floating_box.box_) == node)
-        {
+        for candidate in floats.iter().filter(|floating_box| {
+            self.containing_block(floating_box.box_) == node
+                && !self.used(floating_box.box_).is_invisible_for_line_clamp.get()
+        }) {
             let mut inline_space = inline_formatting_context::SpaceUsedByFloats::default();
-            for direct_float in floats
-                .iter()
-                .filter(|floating_box| self.containing_block(floating_box.box_) == node)
-            {
+            for direct_float in floats.iter().filter(|floating_box| {
+                self.containing_block(floating_box.box_) == node
+                    && !self.used(floating_box.box_).is_invisible_for_line_clamp.get()
+            }) {
                 if line_box_is_next_to_float(candidate.top_margin_edge, candidate.bottom_margin_edge, direct_float) {
                     let inline_size = inline_size_to_make_room_for_float_margin_box(direct_float);
                     if direct_float.side == FloatSide::Left {
@@ -2913,7 +3050,9 @@ impl BlockFormattingContext {
                     let line_block_end = line.physical_vertical_end();
                     let mut extra_left = CssPixels::default();
                     for left_float in floats.iter().filter(|floating_box| {
-                        floating_box.side == FloatSide::Left && self.containing_block(floating_box.box_) == node
+                        floating_box.side == FloatSide::Left
+                            && self.containing_block(floating_box.box_) == node
+                            && !self.used(floating_box.box_).is_invisible_for_line_clamp.get()
                     }) {
                         // NOTE: Floats directly affect the automatic size of their containing block, but only indirectly anything above in the tree.
                         if line_box_is_next_to_float(line_block_start, line_block_end, left_float) {
@@ -2922,7 +3061,9 @@ impl BlockFormattingContext {
                     }
                     let mut extra_right = CssPixels::default();
                     for right_float in floats.iter().filter(|floating_box| {
-                        floating_box.side == FloatSide::Right && self.containing_block(floating_box.box_) == node
+                        floating_box.side == FloatSide::Right
+                            && self.containing_block(floating_box.box_) == node
+                            && !self.used(floating_box.box_).is_invisible_for_line_clamp.get()
                     }) {
                         // NOTE: Floats directly affect the automatic size of their containing block, but only indirectly anything above in the tree.
                         if line_box_is_next_to_float(line_block_start, line_block_end, right_float) {
@@ -2939,13 +3080,40 @@ impl BlockFormattingContext {
                 if !self.facts(child).is_flow_layout_participant() {
                     continue;
                 }
-                max_inline_size = max_inline_size.max(self.used(child).margin_box_inline_size(false));
+                if let Some(used) = self.records.used_values_if_owned(child) {
+                    if used.is_invisible_for_line_clamp.get() {
+                        continue;
+                    }
+                    max_inline_size = max_inline_size.max(used.margin_box_inline_size(false));
+                }
             }
         }
         max_inline_size
     }
 
     pub(crate) fn automatic_content_inline_size(&self) -> CssPixels {
+        if self.style(self.root).writing_mode() != writing_mode::HORIZONTAL_TB && self.line_clamp_reached() {
+            let used = self.used(self.root);
+            if let Some(line) = used.line_data_ref().as_ref().and_then(|data| data.line_boxes.last()) {
+                // https://drafts.csswg.org/css-overflow-4/#block-ellipsis
+                // The block overflow ellipsis is wrapped in an anonymous inline whose parent is the block
+                // container's root inline box. This inline is assigned line-height: 0.
+                let line_block_size = line
+                    .visible_fragments()
+                    .filter(|fragment| !fragment.is_block_ellipsis)
+                    .map(|fragment| {
+                        if fragment.is_atomic_inline {
+                            self.used(fragment.layout_node).margin_box_block_size(false)
+                        } else {
+                            fragment.block_length
+                        }
+                    })
+                    .max()
+                    .unwrap_or_default()
+                    .max(self.style(self.root).line_height());
+                return line.block_start + line_block_size;
+            }
+        }
         let root_facts = self.facts(self.root);
         if root_facts.children_are_inline() {
             return self.used(self.root).content_inline_size.get();
@@ -2983,14 +3151,107 @@ impl BlockFormattingContext {
         self.min_content_inline_size_from_max_content_layout.get()
     }
 
+    fn resolve_automatic_line_clamp_block_size(&self, input: LayoutInput) -> Option<CssPixels> {
+        let used = self.used(self.root);
+        if used.has_definite_block_size() {
+            return Some(used.content_block_size.get());
+        }
+
+        let style = self.style(self.root);
+        let sizing = self.sizing();
+        if style.max_height().is_auto()
+            || sizing.should_treat_max_block_size_as_none(
+                self.root,
+                input.available_space.block_size,
+                input.containing_block_constraints,
+            )
+        {
+            return None;
+        }
+        let mut block_size = sizing.calculate_inner_block_size(
+            self.root,
+            input.available_space,
+            style.max_height(),
+            input.containing_block_constraints,
+        );
+        if !style.min_height().is_auto() {
+            block_size = block_size.max(sizing.calculate_inner_block_size(
+                self.root,
+                input.available_space,
+                style.min_height(),
+                input.containing_block_constraints,
+            ));
+        }
+        Some(block_size)
+    }
+
+    pub(crate) fn automatic_line_clamp_max_lines(&self) -> Option<usize> {
+        // https://drafts.csswg.org/css-overflow-4/#line-clamp-containers
+        // The auto clamp point will be set to the last possible clamp point such that, for it and all previous
+        // possible clamp points, the line-clamp container's automatic block size is not greater than the block size
+        // the box would have if its automatic block size were infinite.
+        let automatic_block_size = self.automatic_line_clamp_block_size.get()?;
+        if self.automatic_content_block_size() <= automatic_block_size {
+            return None;
+        }
+        self.automatic_line_clamp_max_lines
+            .get()
+            .or_else(|| (self.line_clamp_line_count.get() == 0).then_some(0))
+    }
+
     pub(crate) fn automatic_content_block_size(&self) -> CssPixels {
         automatic_block_size_for_bfc_root(
             &self.records,
             self.callbacks,
             self.root,
-            self.lowest_floating_descendant_bottom_margin_edge.get(),
+            (!self.line_clamp_reached())
+                .then_some(self.lowest_floating_descendant_bottom_margin_edge.get())
+                .flatten(),
             self.trailing_collapsed_margin.get(),
         )
+    }
+
+    fn line_clamp_subtree_contains_line(&self, node: Node) -> bool {
+        let facts = self.facts(node);
+        if facts.is_text_node() {
+            return !self.callbacks.text_content(node).untransformed_text_is_ascii_whitespace;
+        }
+        if facts.is_atomic_inline() || (facts.is_anonymous() && facts.children_are_inline()) {
+            return true;
+        }
+        if facts.has_dom_node()
+            && (facts.is_floating()
+                || facts.is_absolutely_positioned()
+                || self.style(node).own_style_establishes_block_formatting_context()
+                || !self.style(node).display().is_flow_inside())
+        {
+            return false;
+        }
+        self.children(node)
+            .into_iter()
+            .any(|child| self.line_clamp_subtree_contains_line(child))
+    }
+
+    fn line_clamp_has_future_content(&self, anchor: Node) -> Option<bool> {
+        let mut node = anchor;
+        let mut has_intervening_in_flow_box = false;
+        while node != self.root {
+            let mut sibling = self.next_sibling(node);
+            while !sibling.is_invalid() {
+                let facts = self.facts(sibling);
+                if !facts.is_absolutely_positioned() && self.floats.borrow().iter().all(|float| float.box_ != sibling) {
+                    if self.line_clamp_subtree_contains_line(sibling) {
+                        return Some(!has_intervening_in_flow_box);
+                    }
+                    if facts.is_flow_layout_participant() {
+                        has_intervening_in_flow_box = true;
+                    }
+                }
+                sibling = self.next_sibling(sibling);
+            }
+            node = self.callbacks.parent(node);
+        }
+        has_intervening_in_flow_box.then_some(true)
     }
 }
 
@@ -3083,7 +3344,12 @@ pub(crate) fn automatic_block_size_for_bfc_root(
             if !child_facts.is_flow_layout_participant() || child_facts.is_floating() {
                 continue;
             }
-            let child_used = records.used_values(child);
+            let Some(child_used) = records.used_values_if_owned(child) else {
+                continue;
+            };
+            if child_used.is_invisible_for_line_clamp.get() {
+                continue;
+            }
             // Margins cannot collapse out of a BFC root: below the last real in-flow
             // child, the run's trailing collapsed margin (which folds in any trailing
             // collapse-through siblings) replaces that child's own bottom margin.

@@ -10,7 +10,6 @@ use crate::css::css_enums::{
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeSlotId;
-use crate::layout::node_facts;
 use crate::painting::display_list::recorder::{PaintStyleOrColor, StrokePathParams};
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::record::PaintRecorder;
@@ -128,13 +127,7 @@ pub(crate) fn decoration_sets_for_span(
     }
     let arena = recorder.layout_arena;
     let fragment = &recorder.layout_arena.paintable_side_data(block).fragments[span.fragment_index as usize];
-    let text_node = fragment.layout_node;
-    if !arena.node_kind_if_live(text_node).is_some_and(node_facts::kind_is_text) {
-        return sets;
-    }
-    let Some(text_parent) = arena.node_parent_if_live(text_node) else {
-        return sets;
-    };
+    let text_parent = fragment.style_source;
 
     let mut push_set = |decorating_node: crate::layout::node_data::NodeSlotId,
                         lines: &[u8],

@@ -362,7 +362,7 @@ impl<'a> PaintRecorder<'a> {
     // event dispatched from it resolves against. Returns that node, or None when the fragment is not hit-testable.
     fn hit_node_for_text_fragment(&mut self, fragment: &FragmentRecord) -> Option<NodeSlotId> {
         let node = fragment.layout_node;
-        if !node_facts::kind_is_text(self.layout_arena.node_kind_if_live(node)?) {
+        if fragment.is_block_ellipsis || !node_facts::kind_is_text(self.layout_arena.node_kind_if_live(node)?) {
             return None;
         }
         let parent = self.layout_arena.node_parent_if_live(node)?;

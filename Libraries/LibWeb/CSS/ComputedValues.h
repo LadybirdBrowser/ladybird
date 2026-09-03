@@ -1981,7 +1981,8 @@ public:
                     return first.is_normal == second.is_normal;
                 return LengthPercentage::view(first.value) == LengthPercentage::view(second.value);
             };
-            return flex_direction == other.flex_direction
+            return webkit_box_orient == other.webkit_box_orient
+                && flex_direction == other.flex_direction
                 && flex_wrap == other.flex_wrap
                 && flex_basis.is_content == other.flex_basis.is_content
                 && Size::view(flex_basis.size) == Size::view(other.flex_basis.size)

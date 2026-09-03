@@ -64,6 +64,7 @@ pub struct ComputedGap {
 /// Layout of the computed flexbox and box-alignment properties.
 #[repr(C)]
 pub struct AlignmentValues {
+    pub webkit_box_orient: u8,
     pub flex_direction: u8,
     pub flex_wrap: u8,
     pub flex_basis: ComputedFlexBasis,
@@ -182,6 +183,8 @@ pub struct BoxValues {
     pub column_width: ComputedSize,
     pub column_count_has_value: bool,
     pub column_count: i32,
+    pub continue_: u8,
+    pub max_lines: i32,
     pub has_z_index: bool,
     pub z_index: i32,
     pub vertical_align: ComputedVerticalAlign,
@@ -407,6 +410,7 @@ pub struct InheritedTextValues {
     pub text_underline_position: ComputedTextUnderlinePosition,
     pub text_underline_offset: ComputedTextUnderlineOffset,
     pub overflow_wrap: u8,
+    pub block_ellipsis: ComputedStyleValueHandle,
     pub word_spacing_style_value: ComputedStyleValueHandle,
     pub letter_spacing_style_value: ComputedStyleValueHandle,
     pub orphans: u64,

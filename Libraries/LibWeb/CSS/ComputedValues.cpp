@@ -284,6 +284,7 @@ static void register_style_group_field_descriptors()
     add(inherited_text, PropertyID::WhiteSpaceCollapse, offsetof(InheritedText, white_space_collapse), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_white_space_collapse>());
     add(inherited_text, PropertyID::WordBreak, offsetof(InheritedText, word_break), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_word_break>());
     add(inherited_text, PropertyID::OverflowWrap, offsetof(InheritedText, overflow_wrap), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_overflow_wrap>());
+    add(inherited_text, PropertyID::BlockEllipsis, offsetof(InheritedText, block_ellipsis), GROUP_FIELD_RETAINED_DATA, 0, nullptr);
     add(inherited_text, PropertyID::WordSpacing, offsetof(InheritedText, word_spacing), GROUP_FIELD_CSS_PIXELS, 0, nullptr);
     add(inherited_text, PropertyID::WordSpacing, offsetof(InheritedText, word_spacing_style_value), GROUP_FIELD_RETAINED_DATA, 0, nullptr);
     add(inherited_text, PropertyID::LetterSpacing, offsetof(InheritedText, letter_spacing), GROUP_FIELD_CSS_PIXELS, 0, nullptr);
@@ -432,7 +433,7 @@ static void register_style_group_field_descriptors()
     for (auto property : { PropertyID::Width, PropertyID::MinWidth, PropertyID::MaxWidth,
              PropertyID::Height, PropertyID::MinHeight, PropertyID::MaxHeight })
         bind_property_to_group(property, to_underlying(StyleGroupIndex::SizingValues));
-    for (auto property : { PropertyID::FlexDirection, PropertyID::FlexWrap, PropertyID::FlexBasis,
+    for (auto property : { PropertyID::WebkitBoxOrient, PropertyID::FlexDirection, PropertyID::FlexWrap, PropertyID::FlexBasis,
              PropertyID::FlexGrow, PropertyID::FlexShrink, PropertyID::Order,
              PropertyID::AlignContent, PropertyID::AlignItems, PropertyID::AlignSelf,
              PropertyID::JustifyContent, PropertyID::JustifyItems, PropertyID::JustifySelf,
@@ -452,9 +453,10 @@ static void register_style_group_field_descriptors()
     for (auto property : { PropertyID::Display, PropertyID::Float, PropertyID::Clear, PropertyID::Position,
              PropertyID::OverflowX, PropertyID::OverflowY, PropertyID::BoxSizing, PropertyID::Resize,
              PropertyID::TextOverflow, PropertyID::UnicodeBidi, PropertyID::TableLayout, PropertyID::GridAutoFlow,
-             PropertyID::ColumnWidth, PropertyID::ColumnCount, PropertyID::ZIndex, PropertyID::VerticalAlign,
-             PropertyID::AspectRatio, PropertyID::ContainIntrinsicWidth, PropertyID::ContainIntrinsicHeight,
-             PropertyID::Contain, PropertyID::ContainerType, PropertyID::ContainerName })
+             PropertyID::ColumnWidth, PropertyID::ColumnCount, PropertyID::Continue, PropertyID::MaxLines,
+             PropertyID::ZIndex, PropertyID::VerticalAlign, PropertyID::AspectRatio,
+             PropertyID::ContainIntrinsicWidth, PropertyID::ContainIntrinsicHeight, PropertyID::Contain,
+             PropertyID::ContainerType, PropertyID::ContainerName })
         bind_property_to_group(property, to_underlying(StyleGroupIndex::BoxValues));
     // The font group builds in C++; only bindings verified against its setters are made.
     for (auto property : { PropertyID::FontSize, PropertyID::FontWeight, PropertyID::FontWidth, PropertyID::LineHeight })

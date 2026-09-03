@@ -455,6 +455,10 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
         append_frame_to_own_and_positioned_descendant_contexts!(FrameData::Clip(css_clip));
     }
 
+    if let Some(line_clamp_float_clip) = facts.line_clamp_float_clip {
+        append_frame_to_own_and_positioned_descendant_contexts!(FrameData::Clip(line_clamp_float_clip));
+    }
+
     if facts.clip_path.is_some() {
         append_frame_to_own_and_positioned_descendant_contexts!(FrameData::ClipPath(facts.clip_path_data().unwrap()));
     }

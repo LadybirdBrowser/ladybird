@@ -364,13 +364,8 @@ pub(crate) fn is_block_level_box(layout_arena: &impl PaintableRowsRead, fragment
         .is_some_and(|style| style.display().is_block_outside())
 }
 
-pub(crate) fn style_source(layout_arena: &impl PaintableRowsRead, fragment: &FragmentRecord) -> NodeSlotId {
-    if layout_arena.node_style_if_live(fragment.layout_node).is_some() {
-        return fragment.layout_node;
-    }
-    layout_arena
-        .node_parent_if_live(fragment.layout_node)
-        .unwrap_or(NodeSlotId::INVALID)
+pub(crate) fn style_source(_layout_arena: &impl PaintableRowsRead, fragment: &FragmentRecord) -> NodeSlotId {
+    fragment.style_source
 }
 
 pub(crate) fn first_available_font(

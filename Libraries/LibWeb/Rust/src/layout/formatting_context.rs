@@ -733,7 +733,9 @@ pub(crate) fn derive_baselines(
             if container_skips_anonymous_whitespace_runs && callbacks.can_skip_is_anonymous_text_run(child) {
                 continue;
             }
-            let child_state = records.used_values(child);
+            let Some(child_state) = records.used_values_if_owned(child) else {
+                continue;
+            };
             match baseline_set {
                 BaselineSet::First if child_state.has_first_baseline.get() => {}
                 BaselineSet::Last if child_state.has_last_baseline.get() => {}
@@ -781,6 +783,7 @@ pub(crate) struct ChildLayoutResult {
     pub automatic_content_inline_size: CssPixels,
     pub min_content_inline_size_from_max_content_layout: Option<CssPixels>,
     pub automatic_content_block_size: CssPixels,
+    pub automatic_line_clamp_max_lines: Option<usize>,
     pub baselines: DerivedBaselines,
     pub table_box_in_wrapper_border_box_block_size: Option<CssPixels>,
     pub depends_on_percentage_block_size: bool,
@@ -1745,6 +1748,7 @@ fn execute_formatting_context_run(
                     min_content_inline_size_from_max_content_layout: context
                         .min_content_inline_size_from_max_content_layout(),
                     automatic_content_block_size: context.automatic_content_block_size(),
+                    automatic_line_clamp_max_lines: context.automatic_line_clamp_max_lines(),
                     baselines,
                     table_box_in_wrapper_border_box_block_size: context.table_box_in_wrapper_border_box_block_size(),
                     depends_on_percentage_block_size: false,

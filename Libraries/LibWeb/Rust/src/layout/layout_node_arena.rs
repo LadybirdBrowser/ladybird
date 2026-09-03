@@ -3382,6 +3382,8 @@ mod tests {
                 svg_view_box: None,
                 svg_viewport_percentage_basis: CssPixels::default(),
                 computed_svg_path: None,
+                has_line_clamp_point: false,
+                is_invisible_for_line_clamp: false,
                 children: Vec::new(),
             }),
             committed_offset: Default::default(),

@@ -728,7 +728,12 @@ impl StyleEngine {
             && new_record.animated_overlay.is_null()
             && inheritance_dependent_values_equal(old_table, new_table);
         let mut result = StyleInvalidation::default();
-        if !font_lists_equal {
+        if !font_lists_equal
+            || ((old_values.continue_() != crate::css::css_enums::continue_value::AUTO
+                || new_values.continue_() != crate::css::css_enums::continue_value::AUTO)
+                && old_values.display_before_box_type_transformation()
+                    != new_values.display_before_box_type_transformation())
+        {
             result.any_computed_value_changed = true;
             result.ensure_level(INVALIDATION_RELAYOUT);
         }

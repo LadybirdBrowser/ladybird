@@ -235,6 +235,7 @@ impl_computed_payload_clone_and_eq!(SizingValues {
 impl_computed_payload_clone_and_eq!(ComputedFlexBasis { is_content, size });
 impl_computed_payload_clone_and_eq!(ComputedGap { is_normal, value });
 impl_computed_payload_clone_and_eq!(AlignmentValues {
+    webkit_box_orient,
     flex_direction,
     flex_wrap,
     flex_basis,
@@ -457,6 +458,7 @@ impl_computed_payload_clone_and_eq!(InheritedTextValues {
     text_underline_position,
     text_underline_offset,
     overflow_wrap,
+    block_ellipsis,
     word_spacing_style_value,
     letter_spacing_style_value,
     orphans,
@@ -788,6 +790,8 @@ impl_computed_payload_clone_and_eq!(BoxValues {
     column_width,
     column_count_has_value,
     column_count,
+    continue_,
+    max_lines,
     has_z_index,
     z_index,
     vertical_align,
@@ -2375,6 +2379,7 @@ impl AlignmentValues {
         };
 
         Self {
+            webkit_box_orient: crate::css::css_enums::webkit_box_orient::HORIZONTAL,
             flex_direction: flex_direction::ROW,
             flex_wrap: flex_wrap::NOWRAP,
             flex_basis: ComputedFlexBasis {
@@ -2555,6 +2560,8 @@ impl BoxValues {
             column_width: ComputedSize::keyword(ComputedSizeKind::Auto),
             column_count_has_value: false,
             column_count: 0,
+            continue_: crate::css::css_enums::continue_value::AUTO,
+            max_lines: 0,
             has_z_index: false,
             z_index: 0,
             vertical_align: ComputedVerticalAlign {
@@ -2832,6 +2839,7 @@ impl InheritedTextValues {
                 value: ComputedStyleValueHandle::empty(),
             },
             overflow_wrap: enum_value(css_enums::keyword_to_overflow_wrap(css_enums::keyword::NORMAL)),
+            block_ellipsis: ComputedStyleValueHandle::keyword(css_enums::keyword::NO_ELLIPSIS),
             word_spacing_style_value: ComputedStyleValueHandle::empty(),
             letter_spacing_style_value: ComputedStyleValueHandle::empty(),
             orphans: 2,
@@ -3124,6 +3132,7 @@ impl FontValues {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_build_alignment_group(
     group_index: usize,
+    webkit_box_orient: *const c_void,
     flex_direction: *const c_void,
     flex_wrap: *const c_void,
     flex_basis: *const c_void,
@@ -3150,6 +3159,7 @@ pub unsafe extern "C" fn rust_build_alignment_group(
             }
         };
         let built = AlignmentValues {
+            webkit_box_orient: keyword_code(webkit_box_orient, crate::css::css_enums::keyword_to_webkit_box_orient)?,
             flex_direction: keyword_code(flex_direction, crate::css::css_enums::keyword_to_flex_direction)?,
             flex_wrap: keyword_code(flex_wrap, crate::css::css_enums::keyword_to_flex_wrap)?,
             flex_basis: ComputedFlexBasis::from_data(flex_basis),

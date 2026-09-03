@@ -83,7 +83,7 @@ impl SizingContext {
                             }
                             if style.display().is_flex_inside()
                                 && matches!(
-                                    style.flex_direction(),
+                                    style.effective_flex_direction(),
                                     flex_direction::COLUMN | flex_direction::COLUMN_REVERSE
                                 )
                                 && style.flex_wrap() != flex_wrap::NOWRAP

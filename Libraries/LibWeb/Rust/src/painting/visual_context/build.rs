@@ -11,6 +11,7 @@ use crate::layout::node_data::NodeSlotId;
 use crate::painting::host::{FfiVisualContextHostCallbacks, FfiVisualContextTreeInputs};
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
+use crate::painting::style_queries;
 use libgfx_rust::{
     AffineTransform, CompositingAndBlendingOperator, FloatPoint, IntRect, WindingRule, affine_to_matrix,
     scale_matrix_for_device_pixels, translated_then_multiplied,
@@ -62,6 +63,7 @@ pub(crate) struct BoxFacts {
     pub effects: Option<std::rc::Rc<EffectsData>>,
     pub overflow_clip: Option<ClipData>,
     pub css_clip: Option<ClipData>,
+    pub line_clamp_float_clip: Option<ClipData>,
     pub clip_path: Option<(std::rc::Rc<libgfx_rust::path::OwnedPath>, IntRect, WindingRule)>,
     pub mask_layers: Vec<MaskData>,
     pub establishes_absolute_containing_block: bool,
@@ -99,6 +101,7 @@ impl BoxFacts {
             effects: None,
             overflow_clip: None,
             css_clip: None,
+            line_clamp_float_clip: None,
             clip_path: None,
             mask_layers: Vec::new(),
             establishes_absolute_containing_block: false,
@@ -141,6 +144,18 @@ impl BoxFacts {
             })
             .collect();
         facts.css_clip = super::node_values::compute_css_clip_data(layout_arena, slot, pixel_ratio);
+        if style_queries::is_floating(layout_arena, slot)
+            || style_queries::is_invisible_for_line_clamp(layout_arena, slot)
+        {
+            facts.line_clamp_float_clip = style_queries::line_clamp_float_clip_rect(layout_arena, slot).map(|rect| {
+                let converter = crate::painting::display_list::device_pixels::DevicePixelConverter::new(pixel_ratio);
+                ClipData {
+                    rect: converter.rounded_device_rect(rect).to_float(),
+                    corner_radii: CornerRadii::default(),
+                    mode: ClipMode::Intersect,
+                }
+            });
+        }
         facts.may_have_clip = super::node_values::may_have_clip(layout_arena, slot);
         facts.overflow_clip = if facts.may_have_clip {
             super::node_values::compute_clip_data(layout_arena, slot, pixel_ratio)

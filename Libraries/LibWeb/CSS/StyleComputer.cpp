@@ -3586,6 +3586,7 @@ static ComputedValuesFFI::FfiBoxTypeTransformationInput make_box_type_transforma
         .is_table_element = should_adjust_element && is_html_element && local_name == HTML::TagNames::table,
         .force_position_static = should_adjust_element && force_position_static,
         .force_symbol_display_inline = should_adjust_element && force_symbol_display_inline,
+        .webkit_box_layout_transformation_applies = false,
     };
 }
 

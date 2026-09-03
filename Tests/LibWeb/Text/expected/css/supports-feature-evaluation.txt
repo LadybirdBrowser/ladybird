@@ -9,7 +9,7 @@ selector(::-webkit-foo): false
 (display: grid !important): true
 (-webkit-box-orient: horizontal): true
 (-webkit-box-orient: vertical): true
-(-webkit-box-orient: row): true
+(-webkit-box-orient: row): false
 (-webkit-box-orient: invalid): false
 (clip-path: path("M 0 0 L 10 10")): true
 (clip-path: path("M 0 0 X")): false

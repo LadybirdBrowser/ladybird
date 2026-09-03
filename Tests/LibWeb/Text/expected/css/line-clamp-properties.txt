@@ -1,0 +1,52 @@
+"none" -> "none"
+"1" -> "1"
+"6" -> "6"
+"auto" -> "auto"
+"\"more\"" -> "\"more\""
+"7 no-ellipsis" -> "7 no-ellipsis"
+"8 auto" -> "8"
+"9 \"more\"" -> "9 \"more\""
+"no-ellipsis 10" -> "10 no-ellipsis"
+"auto 11" -> "11"
+"\"more\" 12" -> "12 \"more\""
+"1 -webkit-legacy" -> "1 -webkit-legacy"
+"auto -webkit-legacy" -> "auto -webkit-legacy"
+"3 auto -webkit-legacy" -> "3 -webkit-legacy"
+"0" -> ""
+"-5" -> ""
+"none 2" -> ""
+"none no-ellipsis" -> ""
+"3 none" -> ""
+"3 auto no-ellipsis" -> ""
+"-webkit-legacy" -> ""
+"0 -webkit-legacy" -> ""
+legacy: 4
+legacy max-lines: 4
+legacy block-ellipsis: auto
+legacy continue: -webkit-legacy
+legacy none: none
+legacy none max-lines: none
+legacy none block-ellipsis: no-ellipsis
+legacy none continue: auto
+legacy none css text: line-clamp: none;
+max-lines: "none" -> "none"
+max-lines: "1" -> "1"
+max-lines: "0" -> ""
+block-ellipsis: "no-ellipsis" -> "no-ellipsis"
+block-ellipsis: "auto" -> "auto"
+block-ellipsis: "\"continued\"" -> "\"continued\""
+block-ellipsis: "invalid" -> ""
+continue: "auto" -> "auto"
+continue: "collapse" -> "collapse"
+continue: "discard" -> "discard"
+continue: "-webkit-legacy" -> "-webkit-legacy"
+continue: "invalid" -> ""
+inherited block-ellipsis: "continued"
+computed line-clamp: 2
+computed max-lines: 2
+computed block-ellipsis: auto
+computed continue: collapse
+height: 40
+scroll height: 40
+height when line-clamp wins: 40
+height when inactive legacy mode wins: 80

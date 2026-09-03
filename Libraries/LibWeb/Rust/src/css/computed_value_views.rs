@@ -371,6 +371,8 @@ scalar_accessors! {
         grid_auto_flow_dense: bool => grid_auto_flow_dense,
         has_column_count: bool => column_count_has_value,
         column_count: i32 => column_count,
+        continue_: u8 => continue_,
+        max_lines: i32 => max_lines,
         has_size_containment: bool => size_containment,
         contain_intrinsic_width_has_length: bool => contain_intrinsic_width.has_length,
         contain_intrinsic_width_px: f64 => contain_intrinsic_width.length_px,
@@ -425,6 +427,7 @@ scalar_accessors! {
         font_x_height: f32 => font_x_height,
     }
     alignment: {
+        webkit_box_orient: u8 => webkit_box_orient,
         flex_direction: u8 => flex_direction,
         flex_wrap: u8 => flex_wrap,
         flex_grow: f64 => flex_grow,
@@ -482,6 +485,13 @@ reference_accessors! {
 }
 
 impl<'a> ComputedValuesView<'a> {
+    pub(crate) fn block_ellipsis(self) -> &'a StyleValueData {
+        self.inherited_text()
+            .block_ellipsis
+            .data()
+            .expect("computed block-ellipsis has a style value")
+    }
+
     #[inline]
     pub(crate) fn new(groups: &'a [*const c_void]) -> Self {
         Self { groups }
@@ -650,6 +660,16 @@ impl<'a> ComputedValuesView<'a> {
         self.box_values().float_ != crate::css::css_enums::float::NONE
     }
 
+    pub(crate) fn effective_flex_direction(self) -> u8 {
+        if self.display_before_box_type_transformation().is_webkit_box_inside() {
+            if self.webkit_box_orient() == crate::css::css_enums::webkit_box_orient::VERTICAL {
+                return crate::css::css_enums::flex_direction::COLUMN;
+            }
+            return crate::css::css_enums::flex_direction::ROW;
+        }
+        self.flex_direction()
+    }
+
     pub(crate) fn inline_axis_is_reverse(self) -> bool {
         match self.writing_mode() {
             writing_mode::HORIZONTAL_TB
@@ -705,6 +725,17 @@ impl<'a> ComputedValuesView<'a> {
         }
 
         if display.is_flow_root_inside() {
+            return true;
+        }
+
+        // https://drafts.csswg.org/css-overflow-4/#continue
+        // If the box is a block container, then it must establish an independent formatting context.
+        if matches!(
+            box_values.continue_,
+            crate::css::css_enums::continue_value::COLLAPSE | crate::css::css_enums::continue_value::DISCARD
+        ) && display.is_block_outside()
+            && display.is_flow_inside()
+        {
             return true;
         }
 

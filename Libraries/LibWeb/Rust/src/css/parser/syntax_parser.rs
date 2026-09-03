@@ -7,7 +7,7 @@
 // Style values are shared only across the thread-confined CSS object graph.
 #![allow(clippy::arc_with_non_send_sync)]
 
-use crate::css::css_enums::{keyword, keyword_from_ascii_case_insensitive, keyword_to_generic_font_family};
+use crate::css::css_enums::{keyword_from_ascii_case_insensitive, keyword_to_generic_font_family};
 use crate::css::css_tokenizer::{
     CssNumberType, ParserString, ParserToken, ParserTokenKind, SourcePosition, TokenizerInput, tokenize_for_parser,
 };
@@ -1245,18 +1245,6 @@ fn starts_with_ascii(value: &[u16], expected: &[u8]) -> bool {
             .all(|(&left, &right)| u8::try_from(left) == Ok(right))
 }
 
-fn trim_ascii_whitespace(value: &[u16]) -> &[u16] {
-    let start = value
-        .iter()
-        .position(|code_unit| !matches!(*code_unit, 0x09 | 0x0a | 0x0c | 0x0d | 0x20))
-        .unwrap_or(value.len());
-    let end = value
-        .iter()
-        .rposition(|code_unit| !matches!(*code_unit, 0x09 | 0x0a | 0x0c | 0x0d | 0x20))
-        .map_or(start, |index| index + 1);
-    &value[start..end]
-}
-
 fn utf16_from_ascii(value: &[u8]) -> ParserString {
     value
         .iter()
@@ -2000,15 +1988,6 @@ pub(crate) fn supports_declaration_matches(context: &ParseContext, source: &[u16
     };
 
     let source = component_list_source(&declaration.value);
-    if equals_ascii_case_insensitive(declaration.name.as_ref(), b"-webkit-box-orient")
-        && (equals_ascii_case_insensitive(source.as_ref(), b"horizontal")
-            || equals_ascii_case_insensitive(source.as_ref(), b"vertical"))
-    {
-        // NB: Mirrors the legacy -webkit-box-orient acceptance that this series removed from
-        //     Libraries/LibWeb/CSS/Parser/Parser.cpp.
-        return true;
-    }
-
     let property_context = FfiValueParsingContext {
         kind: FfiValueParsingContextKind::Property,
         value: property_id,
@@ -2710,27 +2689,6 @@ impl FfiSyntaxParse {
             };
             return (u16::MAX, u8::MAX, rejection, std::ptr::null());
         };
-
-        if equals_ascii_case_insensitive(declaration.name.as_ref(), b"-webkit-box-orient") {
-            // NB: Mirrors the legacy -webkit-box-orient value mapping that this series removed
-            //     from Libraries/LibWeb/CSS/Parser/Parser.cpp.
-            let source = trim_ascii_whitespace(source_utf16);
-            let legacy_keyword = if equals_ascii_case_insensitive(source, b"horizontal") {
-                Some(keyword::ROW)
-            } else if equals_ascii_case_insensitive(source, b"vertical") {
-                Some(keyword::COLUMN)
-            } else {
-                None
-            };
-            if let Some(keyword) = legacy_keyword {
-                return (
-                    property_id,
-                    u8::MAX,
-                    FfiDeclarationRejection::None,
-                    Arc::into_raw(Arc::new(StyleValueData::Keyword { keyword })).cast(),
-                );
-            }
-        }
 
         let parse_context = unsafe { &*self.parse_context };
         let mut value_contexts = if parse_context.value_context_count == 0 {
