@@ -23,6 +23,7 @@
 #include <LibWeb/HTML/HTMLTableCellElement.h>
 #include <LibWeb/HTML/HTMLTableColElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/Layout/AnonymousBoxStyle.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
@@ -321,6 +322,7 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, GC::Ptr<DOM::Node> node, C
     VERIFY(style);
     if (!!style.style_record_identity()) {
         m_style_record_identity = style.style_record_identity();
+        m_style_record_pinned = style.adopts_style_record_pin();
     } else if (auto* element = as_if<DOM::Element>(node.ptr())) {
         m_owned_computed_values = style.values();
         m_style_record_identity = document.style_computer().intern_computed_style_inputs({ *element }, *style.values());
@@ -538,11 +540,8 @@ void NodeWithStyle::propagate_style_to_anonymous_wrappers()
     // If this is a `display:table` box with an anonymous wrapper parent,
     // the parent inherits style from *this* node, not the other way around.
     if (auto* table_wrapper = parent() && parent()->is_table_wrapper() ? parent() : nullptr; table_wrapper && display().is_table_inside()) {
-        CSS::ComputedValues::Builder builder(table_wrapper->owned_computed_values());
-        auto values = copy_computed_values();
-        builder->inherit_from(*values);
-        transfer_table_box_computed_values_to_wrapper_computed_values(builder);
-        table_wrapper->set_computed_values(move(builder).build());
+        table_wrapper->adopt_pinned_anonymous_style_record(derive_pinned_anonymous_box_style_record(document().style_computer(), m_style_record_identity, AnonymousBoxStyleKind::TableWrapper));
+        reset_table_box_computed_values_used_by_wrapper_to_init_values();
     }
 
     // Propagate style to all anonymous children (except table wrappers!)
@@ -553,14 +552,54 @@ void NodeWithStyle::propagate_style_to_anonymous_wrappers()
             //     this node.
             if (child.is_pseudo_element_principal_box())
                 return IterationDecision::Continue;
-            CSS::ComputedValues::Builder builder(child.owned_computed_values());
-            auto values = copy_computed_values();
-            builder->inherit_from(*values);
-            child.set_computed_values(move(builder).build());
+            if (child.m_owned_computed_values) {
+                CSS::ComputedValues::Builder builder(child.owned_computed_values());
+                auto values = copy_computed_values();
+                builder->inherit_from(*values);
+                child.set_computed_values(move(builder).build());
+            } else {
+                child.adopt_pinned_anonymous_style_record(reinherit_pinned_anonymous_box_style_record(document().style_computer(), child.m_style_record_identity, m_style_record_identity));
+            }
             child.propagate_style_to_anonymous_wrappers();
         }
         return IterationDecision::Continue;
     });
+}
+
+void NodeWithStyle::adopt_pinned_anonymous_style_record(CSS::StyleRecordID style_record_identity)
+{
+    VERIFY(is_anonymous());
+    VERIFY(!m_owned_computed_values);
+    auto new_record_view = document().style_computer().computed_style_record_view(style_record_identity);
+    VERIFY(new_record_view);
+    auto old_record_view = computed_style_record_view();
+    bool changes_layout_affecting_style = !old_record_view
+        || CSS::ComputedValues::either_carries_animated_overlay(*old_record_view, *new_record_view)
+        || new_record_view->differs_in_any_layout_affecting_group_payload_from(*old_record_view);
+
+    release_pinned_style_record();
+    m_background_layers.clear();
+    m_mask_layers.clear();
+    m_border_image.clear();
+    m_list_style_type.clear();
+    m_list_style_image.clear();
+    m_style_record_identity = style_record_identity;
+    m_style_record_pinned = true;
+    set_flag(RustFFI::NodeFlag::HasAnchorNames, !new_record_view->anchor_names().is_empty());
+    set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, new_record_view->inset_properties_contain_anchor_functions());
+    set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, false);
+    publish_style_record_to_node_data();
+    set_flag(RustFFI::NodeFlag::HasPreserve3dTransformStyle, transform_style() == CSS::TransformStyle::Preserve3d);
+
+    if (changes_layout_affecting_style) {
+        bump_fragment_cache_epoch_of_self_and_ancestors();
+        RustFFI::layout_arena_reset_cached_intrinsic_sizes_of_self_and_ancestors(arena_handle(), slot_id(this));
+    }
+
+    for (auto* child = first_child_ptr(); child; child = child->next_sibling_ptr()) {
+        if (auto* text_child = as_if<TextNode>(*child))
+            text_child->enroll_for_arena_text_content_sync();
+    }
 }
 
 bool Node::is_root_element() const
@@ -626,18 +665,6 @@ Gfx::AffineTransform NodeWithStyle::used_svg_element_transform() const
     if (auto const* graphics_element = as_if<SVG::SVGGraphicsElement>(dom_node()))
         transform.multiply(graphics_element->additional_element_transform());
     return transform;
-}
-
-NodeWithStyle& NodeWithStyle::create_anonymous_wrapper() const
-{
-    auto values = copy_computed_values();
-    auto builder = CSS::ComputedValues::Builder::create_inheriting_from(*values);
-    builder->set_display(CSS::Display(CSS::DisplayOutside::Block, CSS::DisplayInside::Flow));
-    // CSS 2.2 9.2.1.1 creates anonymous block boxes, but 9.4.1 states inline-block creates a BFC.
-    // Set wrapper to inline-block to participate correctly in the IFC within the parent inline-block.
-    if (display().is_inline_block() && !has_children())
-        builder->set_display(CSS::Display::from_short(CSS::Display::Short::InlineBlock));
-    return allocate_layout_node<BlockContainer>(const_cast<DOM::Document&>(document()), nullptr, move(builder).build());
 }
 
 void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const> computed_values)
@@ -881,41 +908,6 @@ void NodeWithStyle::reset_table_box_computed_values_used_by_wrapper_to_init_valu
         values.set_clip(CSS::InitialValues::clip());
         values.set_vertical_align(CSS::InitialValues::vertical_align());
     });
-}
-
-void NodeWithStyle::transfer_table_box_computed_values_to_wrapper_computed_values(CSS::ComputedValues::Builder& builder)
-{
-    // The computed values of properties 'position', 'float', 'margin-*', 'top', 'right', 'bottom', and 'left' on the table element are used on the table wrapper box and not the table box;
-    // all other values of non-inheritable properties are used on the table box and not the table wrapper box.
-    // (Where the table element's values are not used on the table and table wrapper boxes, the initial values are used instead.)
-    if (display().is_inline_outside())
-        builder->set_display(CSS::Display::from_short(CSS::Display::Short::InlineBlock));
-    else
-        builder->set_display(CSS::Display::from_short(CSS::Display::Short::FlowRoot));
-    builder->set_position(position());
-    builder->set_position_anchor(position_anchor_value());
-    builder->set_inset(inset());
-    builder->set_float(float_());
-    builder->set_clear(clear());
-    // CSS 2 moves table-root positioning and margins to the wrapper. The wrapper is also the grid item for
-    // display:table, so grid placement, self-alignment, and order need to move there as well.
-    builder->copy_grid_placements_from(style_group<CSS::ComputedValues::GridValues>());
-    builder->set_align_self(align_self());
-    builder->set_justify_self(justify_self());
-    builder->set_order(order());
-    builder->set_margin(margin());
-    // AD-HOC:
-    // To match other browsers, z-index needs to be moved to the wrapper box as well,
-    // even if the spec does not mention that: https://github.com/w3c/csswg-drafts/issues/11689
-    // Note that there may be more properties that need to be added to this list.
-    builder->set_z_index(z_index());
-    // "clip" only takes effect on absolutely-positioned elements; the table box isn't one — the wrapper is.
-    builder->set_clip(clip());
-    // AD-HOC: The wrapper box participates in inline layout in place of the table box, so vertical-align
-    //         must be moved to the wrapper to have any effect.
-    builder->set_vertical_align(vertical_align());
-
-    reset_table_box_computed_values_used_by_wrapper_to_init_values();
 }
 
 bool overflow_value_makes_box_a_scroll_container(CSS::Overflow overflow)

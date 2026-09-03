@@ -641,15 +641,14 @@ public:
     Gfx::Font const& first_available_font() const;
     CSS::StyleScope const& style_scope() const;
 
-    NodeWithStyle& create_anonymous_wrapper() const;
-
-    void transfer_table_box_computed_values_to_wrapper_computed_values(CSS::ComputedValues::Builder& wrapper_computed_values);
+    void reset_table_box_computed_values_used_by_wrapper_to_init_values();
 
     bool is_body() const { return has_flag(RustFFI::NodeFlag::IsBody); }
     bool is_scroll_container() const;
 
     void set_computed_values(NonnullRefPtr<CSS::ComputedValues const>);
     void set_style_record_identity(CSS::StyleRecordID);
+    void adopt_pinned_anonymous_style_record(CSS::StyleRecordID);
     void pin_style_record_for_cxx_consumers();
     void release_pinned_style_record();
     void bind_generated_style_record(CSS::StyleRecordID);
@@ -663,7 +662,6 @@ private:
 
     virtual bool is_node_with_style() const final { return true; }
 
-    void reset_table_box_computed_values_used_by_wrapper_to_init_values();
     void propagate_style_to_anonymous_wrappers();
     void publish_style_record_to_node_data();
 
