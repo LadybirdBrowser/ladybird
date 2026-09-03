@@ -8,11 +8,15 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/Optional.h>
 #include <AK/Time.h>
 #include <AK/Variant.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Size.h>
 #include <LibGfx/YUVData.h>
+#include <LibMedia/Color/CodingIndependentCodePoints.h>
 #include <LibMedia/Export.h>
+#include <LibMedia/Subsampling.h>
 
 namespace Media {
 
@@ -29,7 +33,8 @@ public:
         AK::Duration duration,
         Gfx::Size<u32> size,
         u8 bit_depth,
-        Gfx::YUVData yuv_data,
+        Subsampling subsampling,
+        CodingIndependentCodePoints cicp,
         BackingStorage backing_storage);
     ~VideoFrame();
 
@@ -42,8 +47,10 @@ public:
     u32 height() const { return size().height(); }
 
     u8 bit_depth() const { return m_bit_depth; }
+    Subsampling subsampling() const { return m_subsampling; }
+    CodingIndependentCodePoints const& cicp() const { return m_cicp; }
 
-    Gfx::YUVData const& yuv_data() const { return m_yuv_data; }
+    Optional<Gfx::YUVData> yuv_data() const;
 
     PooledVideoFrameSlot const* pool_slot() const;
     ResolvedVideoFrameSlot const* resolved_slot() const;
@@ -57,7 +64,8 @@ private:
     AK::Duration m_duration;
     Gfx::Size<u32> m_size;
     u8 m_bit_depth;
-    Gfx::YUVData m_yuv_data;
+    Subsampling m_subsampling;
+    CodingIndependentCodePoints m_cicp;
     BackingStorage m_backing_storage;
 };
 

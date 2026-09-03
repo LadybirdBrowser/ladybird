@@ -212,7 +212,7 @@ TEST_CASE(shed_buffers_frees_all_but_held_slots)
     EXPECT_EQ(pool->allocated_byte_count(), measured_slot_buffer_size(resolved_frame_byte_count()));
     auto frame = directory->resolve_frame(make_handle(pool, held), [] { });
     EXPECT(frame != nullptr);
-    EXPECT_EQ(frame->yuv_data().y_data()[0], 0x42);
+    EXPECT_EQ(frame->yuv_data()->y_data()[0], 0x42);
     EXPECT(frame->revalidate_backing());
 
     // The held buffer is freed once its last hold releases, and the directory's mapping
@@ -332,7 +332,7 @@ TEST_CASE(directory_resolves_the_current_slot_acquisition_only)
 
     auto frame = directory->resolve_frame(make_handle(pool, slot), [] { });
     EXPECT(frame != nullptr);
-    EXPECT_EQ(frame->yuv_data().y_data()[0], 0x42);
+    EXPECT_EQ(frame->yuv_data()->y_data()[0], 0x42);
     EXPECT(frame->revalidate_backing());
 
     // Recycling the slot into the same buffer invalidates the old acquisition ID, and the new
@@ -371,7 +371,7 @@ TEST_CASE(replaced_buffers_stay_resolvable_through_old_mappings)
     EXPECT_EQ(replaced.index, slot.index);
     auto old_frame = directory->resolve_frame(make_handle(pool, slot), [] { });
     EXPECT(old_frame != nullptr);
-    EXPECT_EQ(old_frame->yuv_data().y_data()[0], 0x17);
+    EXPECT_EQ(old_frame->yuv_data()->y_data()[0], 0x17);
     EXPECT(old_frame->revalidate_backing());
 
     // The new acquisition resolves only once its buffer is announced.
@@ -395,8 +395,8 @@ TEST_CASE(directory_resolves_through_a_second_mapping)
 
     auto frame = directory->resolve_frame(make_handle(pool, slot), [] { });
     EXPECT(frame != nullptr);
-    EXPECT_NE(frame->yuv_data().y_data().data(), static_cast<u8 const*>(slot.bytes.data()));
-    EXPECT_EQ(frame->yuv_data().y_data()[0], 0x7f);
+    EXPECT_NE(frame->yuv_data()->y_data().data(), static_cast<u8 const*>(slot.bytes.data()));
+    EXPECT_EQ(frame->yuv_data()->y_data()[0], 0x7f);
 }
 
 TEST_CASE(directory_ignores_invalid_slot_buffers)
@@ -433,7 +433,7 @@ TEST_CASE(resolved_frames_read_slots_and_release_on_destruction)
     {
         auto frame = directory->resolve_frame(make_handle(pool, slot), [&] { released = true; });
         EXPECT(frame != nullptr);
-        EXPECT_EQ(frame->yuv_data().y_data()[0], 0x33);
+        EXPECT_EQ(frame->yuv_data()->y_data()[0], 0x33);
         EXPECT_EQ(frame->timestamp(), AK::Duration::from_milliseconds(40));
         EXPECT(frame->revalidate_backing());
         EXPECT(frame->pool_slot() == nullptr);
@@ -492,7 +492,7 @@ TEST_CASE(directory_resolves_announced_slots)
     {
         auto frame = directory->resolve_frame(handle, [&] { released = true; });
         EXPECT(frame != nullptr);
-        EXPECT_EQ(frame->yuv_data().y_data()[0], 0x66);
+        EXPECT_EQ(frame->yuv_data()->y_data()[0], 0x66);
         EXPECT(!released);
     }
     EXPECT(released);
@@ -538,8 +538,8 @@ TEST_CASE(recycle_versus_hold_stress)
             auto frame = directory->resolve_frame(handle, [] { });
             if (frame == nullptr)
                 continue;
-            auto first = frame->yuv_data().y_data()[0];
-            auto last = frame->yuv_data().v_data()[frame->yuv_data().v_data().size() - 1];
+            auto first = frame->yuv_data()->y_data()[0];
+            auto last = frame->yuv_data()->v_data()[frame->yuv_data()->v_data().size() - 1];
             if (!frame->revalidate_backing())
                 continue;
             // Revalidation passed, so the bytes we read must match this slot_acquisition_id's pattern.

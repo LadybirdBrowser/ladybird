@@ -464,13 +464,9 @@ NonnullRefPtr<VideoFrame> create_pooled_frame(VideoFramePool& pool, AK::Duration
 
     auto layout = MUST(frame_plane_layout(frame_size, bit_depth, subsampling));
     auto acquired = pool.try_acquire(layout.total_byte_count).release_value();
-    auto yuv_data = MUST(Gfx::YUVData::create(frame_size, bit_depth, subsampling, CodingIndependentCodePoints {},
-        acquired.bytes.slice(0, layout.y_size),
-        acquired.bytes.slice(layout.u_offset, layout.u_size),
-        acquired.bytes.slice(layout.v_offset, layout.v_size)));
     auto slot = MUST(pool.try_adopt_acquired_slot(acquired));
 
-    return make_ref_counted<VideoFrame>(timestamp, AK::Duration::from_milliseconds(33), Gfx::Size<u32>(frame_size), bit_depth, yuv_data, move(slot));
+    return make_ref_counted<VideoFrame>(timestamp, AK::Duration::from_milliseconds(33), Gfx::Size<u32>(frame_size), bit_depth, subsampling, CodingIndependentCodePoints {}, move(slot));
 }
 
 }

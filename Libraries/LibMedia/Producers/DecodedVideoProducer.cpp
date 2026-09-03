@@ -614,7 +614,7 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> DecodedVideoProducer::ThreadData::take
     auto yuv_data = DECODER_TRY_ALLOC(Gfx::YUVData::create(metadata.size, metadata.bit_depth, metadata.subsampling, metadata.cicp, y_data, u_data, v_data));
     TRY(m_decoder->take_next_output_into(yuv_data));
 
-    return DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(metadata.timestamp, metadata.duration, metadata.size.to_type<u32>(), metadata.bit_depth, yuv_data, move(pool_slot)));
+    return DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(metadata.timestamp, metadata.duration, metadata.size.to_type<u32>(), metadata.bit_depth, metadata.subsampling, metadata.cicp, move(pool_slot)));
 }
 
 void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()

@@ -13,6 +13,7 @@
 #include <AK/Optional.h>
 #include <AK/Vector.h>
 #include <LibCore/AnonymousBuffer.h>
+#include <LibGfx/YUVData.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/VideoFrameHandle.h>
 #include <LibSync/Mutex.h>
@@ -148,6 +149,7 @@ public:
 
     bool revalidate() const;
 
+    Core::AnonymousBuffer slot_buffer() const { return m_slot_buffer; }
     VideoFramePoolID pool_id() const { return m_pool_id; }
     u32 slot_index() const { return m_slot_index; }
     u64 slot_acquisition_id() const { return m_slot_acquisition_id; }
@@ -159,6 +161,9 @@ private:
     u64 m_slot_acquisition_id { 0 };
     Function<void()> m_on_release;
 };
+
+// Views the planes laid out within a slot's buffer, failing if they do not fit its capacity.
+MEDIA_API ErrorOr<Gfx::YUVData> yuv_data_in_slot_buffer(Core::AnonymousBuffer const&, Gfx::IntSize, u8 bit_depth, Subsampling, CodingIndependentCodePoints const&);
 
 // Resolves a frame handle against the slot framebuffer it refers to, validating the slot's acquisition ID against the
 // handle's. The resolved frame revalidates it again after its pixels are consumed, seqlock-style, discarding reads of
