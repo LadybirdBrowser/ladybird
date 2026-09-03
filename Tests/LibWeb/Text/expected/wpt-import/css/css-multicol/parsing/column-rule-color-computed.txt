@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Property column-rule-color value 'currentcolor'
+Pass	Property column-rule-color value 'red'

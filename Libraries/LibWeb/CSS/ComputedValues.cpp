@@ -232,6 +232,7 @@ static void register_style_group_field_descriptors()
     add(misc_reset, PropertyID::BreakBefore, offsetof(MiscReset, break_before), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_break_between>());
     add(misc_reset, PropertyID::BreakAfter, offsetof(MiscReset, break_after), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_break_between>());
     add(misc_reset, PropertyID::BreakInside, offsetof(MiscReset, break_inside), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_break_inside>());
+    add(misc_reset, PropertyID::ColumnRuleStyle, offsetof(MiscReset, column_rule_style), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_line_style>());
     add(misc_reset, PropertyID::BoxDecorationBreak, offsetof(MiscReset, box_decoration_break), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_box_decoration_break>());
     add(misc_reset, PropertyID::ColumnFill, offsetof(MiscReset, column_fill), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_column_fill>());
     // NB: The compatibility keywords normalize to auto for the appearance field but stay raw for
@@ -246,6 +247,8 @@ static void register_style_group_field_descriptors()
     add(misc_reset, PropertyID::OutlineColor, offsetof(MiscReset, outline_color), GROUP_FIELD_COLOR_OR_KEYWORD, to_underlying(Keyword::Auto), nullptr);
     add(misc_reset, PropertyID::OutlineOffset, 0, GROUP_FIELD_REQUIRE_PX, 0, nullptr, 0);
     add(misc_reset, PropertyID::OutlineWidth, offsetof(MiscReset, outline_width), GROUP_FIELD_CSS_PIXELS_NON_NEGATIVE, 0, nullptr);
+    add(misc_reset, PropertyID::ColumnRuleColor, offsetof(MiscReset, column_rule_color), GROUP_FIELD_COLOR, 0, nullptr);
+    add(misc_reset, PropertyID::ColumnRuleWidth, offsetof(MiscReset, column_rule_width), GROUP_FIELD_CSS_PIXELS_NON_NEGATIVE, 0, nullptr);
     add(misc_reset, PropertyID::UserSelect, offsetof(MiscReset, user_select), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_user_select>());
     add(misc_reset, PropertyID::ObjectPosition, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
     add(misc_reset, PropertyID::ViewTransitionName, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);

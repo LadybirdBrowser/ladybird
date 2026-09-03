@@ -1436,6 +1436,7 @@ public:
     CSSPixels line_height() const { return m_inherited.font->line_height_used; }
 
     Color outline_color() const { return Color::from_bgra(m_noninherited.misc->outline_color); }
+    Color column_rule_color() const { return Color::from_bgra(m_noninherited.misc->column_rule_color); }
     OutlineStyle outline_style() const { return static_cast<OutlineStyle>(m_noninherited.misc->outline_style); }
     CSSPixels outline_width() const { return m_noninherited.misc->outline_width; }
 

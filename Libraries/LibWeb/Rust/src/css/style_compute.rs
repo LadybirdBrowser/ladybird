@@ -2852,6 +2852,7 @@ fn property_has_dedicated_compute_rule(property_id: u16) -> bool {
             | prop::BORDER_TOP_WIDTH
             | prop::CONTAIN
             | prop::OUTLINE_WIDTH
+            | prop::COLUMN_RULE_WIDTH
             | prop::CORNER_BOTTOM_LEFT_SHAPE
             | prop::CORNER_BOTTOM_RIGHT_SHAPE
             | prop::CORNER_TOP_LEFT_SHAPE
@@ -3654,7 +3655,8 @@ unsafe fn drive_property_computation(
                         | prop::BORDER_LEFT_WIDTH
                         | prop::BORDER_RIGHT_WIDTH
                         | prop::BORDER_TOP_WIDTH
-                        | prop::OUTLINE_WIDTH,
+                        | prop::OUTLINE_WIDTH
+                        | prop::COLUMN_RULE_WIDTH,
                     ) => {
                         let synthesized = synthesized_px_length(absolutized);
                         let result = compute_border_or_outline_width(
@@ -3674,7 +3676,8 @@ unsafe fn drive_property_computation(
                         | prop::BORDER_LEFT_WIDTH
                         | prop::BORDER_RIGHT_WIDTH
                         | prop::BORDER_TOP_WIDTH
-                        | prop::OUTLINE_WIDTH,
+                        | prop::OUTLINE_WIDTH
+                        | prop::COLUMN_RULE_WIDTH,
                     ) if matches!(value_data, StyleValueData::Calculated { .. }) => {
                         let resolution_context = length_resolution_context
                             .expect("calculated border widths require a length resolution context");

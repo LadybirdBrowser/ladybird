@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['column-rule-color'] = "auto" should not set the property value
+Pass	e.style['column-rule-color'] = "green blue" should not set the property value

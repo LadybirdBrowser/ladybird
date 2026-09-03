@@ -1616,6 +1616,41 @@
       "auto"
     ]
   },
+  "column-rule-color": {
+    "style-group": "MiscResetValues",
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "currentColor",
+    "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "color"
+    ]
+  },
+  "column-rule-style": {
+    "style-group": "MiscResetValues",
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "requires-computation": "never",
+    "valid-types": [
+      "line-style"
+    ]
+  },
+  "column-rule-width": {
+    "style-group": "MiscResetValues",
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "medium",
+    "requires-computation": "non-inherited-value",
+    "valid-types": [
+      "length [0,∞]",
+      "line-width"
+    ]
+  },
   "column-span": {
     "style-group": "MiscResetValues",
     "animation-type": "discrete",

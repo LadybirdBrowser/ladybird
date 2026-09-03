@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Multi-column Layout: getComputedStyle().columnRuleColor</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#propdef-column-rule-color">
+<meta name="assert" content="column-rule-color computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<style>
+  #target {
+    color: lime;
+  }
+</style>
+<script>
+test_computed_value("column-rule-color", "currentcolor", "rgb(0, 255, 0)");
+
+test_computed_value("column-rule-color", "red", "rgb(255, 0, 0)");
+</script>
+</body>
+</html>

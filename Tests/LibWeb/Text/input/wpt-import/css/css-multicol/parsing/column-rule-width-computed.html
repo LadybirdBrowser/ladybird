@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Multi-column Layout: getComputedStyle().columnRuleWidth</title>
+<link rel="help" href="https://drafts.csswg.org/css-multicol/#propdef-column-rule-width">
+<link rel=help href="https://github.com/w3c/csswg-drafts/issues/11494#issuecomment-2628447227">
+<meta name="assert" content="column-rule-width computed value is absolute length.">
+<meta name="assert" content="column-rule-width computed value is 0 if the column rule style is none or hidden.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<style>
+  #target {
+    font-size: 40px;
+    column-rule-style: dotted;
+  }
+</style>
+<script>
+test_computed_value("column-rule-width", "calc(10px + 0.5em)", "30px");
+test_computed_value("column-rule-width", "calc(10px - 0.5em)", "0px");
+
+// thin, medium, thick computed values not yet tested
+
+test(() => {
+  target.style.columnRuleWidth = '10px';
+  assert_equals(getComputedStyle(target).columnRuleWidth, '10px');
+
+  target.style.columnRuleStyle = 'none';
+  assert_equals(getComputedStyle(target).columnRuleWidth, '10px');
+
+  target.style.columnRuleStyle = 'outset';
+  assert_equals(getComputedStyle(target).columnRuleWidth, '10px');
+
+  target.style.columnRuleStyle = 'hidden';
+  assert_equals(getComputedStyle(target).columnRuleWidth, '10px');
+
+  target.style.columnRuleStyle = '';
+}, 'column-rule-width is as specified when column-rule-style is none or hidden');
+</script>
+</body>
+</html>

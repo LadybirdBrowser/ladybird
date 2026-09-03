@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	e.style['column-rule-width'] = "auto" should not set the property value
+Pass	e.style['column-rule-width'] = "10" should not set the property value
+Pass	e.style['column-rule-width'] = "-20px" should not set the property value
+Pass	e.style['column-rule-width'] = "30%" should not set the property value

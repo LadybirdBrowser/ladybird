@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<style>
+    #target {
+        font-size: 20px;
+        color: rgb(0, 255, 0);
+        break-before: recto;
+        break-after: avoid-column;
+        break-inside: avoid-page;
+        box-decoration-break: clone;
+        column-fill: balance-all;
+        column-span: all;
+        column-rule-width: calc(10px + 0.5em);
+        column-rule-style: none;
+        column-rule-color: currentcolor;
+        orphans: 3;
+        widows: 4;
+    }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const style = getComputedStyle(document.getElementById("target"));
+        for (const property of [
+            "break-before",
+            "break-after",
+            "break-inside",
+            "box-decoration-break",
+            "column-fill",
+            "column-span",
+            "column-rule-width",
+            "column-rule-style",
+            "column-rule-color",
+            "orphans",
+            "widows",
+        ]) {
+            println(`${property}: ${style.getPropertyValue(property)}`);
+        }
+    });
+</script>

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Property column-rule-width value 'calc(10px + 0.5em)'
+Pass	Property column-rule-width value 'calc(10px - 0.5em)'
+Pass	column-rule-width is as specified when column-rule-style is none or hidden
