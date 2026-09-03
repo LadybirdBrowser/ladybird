@@ -32,6 +32,7 @@
 #include <LibIPC/Transport.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibURL/Parser.h>
+#include <LibWeb/Bindings/CSS.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>

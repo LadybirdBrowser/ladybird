@@ -37,3 +37,10 @@ interface PointerEvent : MouseEvent {
     [SecureContext] sequence<PointerEvent> getCoalescedEvents();
     sequence<PointerEvent> getPredictedEvents();
 };
+
+// https://w3c.github.io/pointerevents/#extensions-to-the-element-interface
+partial interface Element {
+    undefined setPointerCapture (long pointerId);
+    undefined releasePointerCapture (long pointerId);
+    boolean hasPointerCapture (long pointerId);
+};

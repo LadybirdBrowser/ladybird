@@ -1,27 +1,3 @@
-enum ScrollLogicalPosition { "start", "center", "end", "nearest" };
-// https://drafts.csswg.org/cssom-view-1/#dictdef-scrollintoviewoptions
-dictionary ScrollIntoViewOptions : ScrollOptions {
-    ScrollLogicalPosition block = "start";
-    ScrollLogicalPosition inline = "nearest";
-    ScrollIntoViewContainer container = "all";
-};
-
-enum ScrollIntoViewContainer { "all", "nearest" };
-
-// https://drafts.csswg.org/cssom-view-1/#dictdef-checkvisibilityoptions
-dictionary CheckVisibilityOptions {
-    boolean checkOpacity = false;
-    boolean checkVisibilityCSS = false;
-    boolean contentVisibilityAuto = false;
-    boolean opacityProperty = false;
-    boolean visibilityProperty = false;
-};
-
-// https://w3c.github.io/pointerlock/#pointerlockoptions-dictionary
-dictionary PointerLockOptions {
-    boolean unadjustedMovement = false;
-};
-
 // https://dom.spec.whatwg.org/#element
 [Exposed=Window]
 interface Element : Node {
@@ -30,18 +6,18 @@ interface Element : Node {
     readonly attribute DOMString localName;
     readonly attribute DOMString tagName;
 
-    [Reflect, CEReactions] attribute DOMString id;
-    [Reflect=class, CEReactions] attribute DOMString className;
+    [CEReactions, Reflect] attribute DOMString id;
+    [CEReactions, Reflect=class] attribute DOMString className;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList classList;
-    [Reflect, CEReactions, Unscopable] attribute DOMString slot;
+    [CEReactions, Unscopable, Reflect] attribute DOMString slot;
 
     boolean hasAttributes();
     [SameObject] readonly attribute NamedNodeMap attributes;
     sequence<DOMString> getAttributeNames();
     DOMString? getAttribute(DOMString qualifiedName);
     DOMString? getAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
-    [CEReactions, ImplementedAs=set_attribute, ImplementedInBindings] undefined setAttribute(DOMString qualifiedName, (TrustedType or DOMString) value);
-    [CEReactions, ImplementedAs=set_attribute_ns, ImplementedInBindings] undefined setAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString qualifiedName, (TrustedType or DOMString) value);
+    [CEReactions, ImplementedInBindings] undefined setAttribute(DOMString qualifiedName, (TrustedType or DOMString) value);
+    [CEReactions, ImplementedInBindings] undefined setAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString qualifiedName, (TrustedType or DOMString) value);
     [CEReactions] undefined removeAttribute([FlyString] DOMString qualifiedName);
     [CEReactions] undefined removeAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
     [CEReactions] boolean toggleAttribute(DOMString qualifiedName, optional boolean force);
@@ -50,8 +26,8 @@ interface Element : Node {
 
     Attr? getAttributeNode([FlyString] DOMString qualifiedName);
     Attr? getAttributeNodeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
-    [CEReactions, ImplementedAs=set_attribute_node] Attr? setAttributeNode(Attr attr);
-    [CEReactions, ImplementedAs=set_attribute_node_ns] Attr? setAttributeNodeNS(Attr attr);
+    [CEReactions] Attr? setAttributeNode(Attr attr);
+    [CEReactions] Attr? setAttributeNodeNS(Attr attr);
     [CEReactions] Attr removeAttributeNode(Attr attr);
 
     ShadowRoot attachShadow(ShadowRootInit init);
@@ -59,69 +35,16 @@ interface Element : Node {
 
     readonly attribute CustomElementRegistry? customElementRegistry;
 
-    boolean matches(DOMString selectors);
     Element? closest(DOMString selectors);
+    boolean matches(DOMString selectors);
     [ImplementedAs=matches] boolean webkitMatchesSelector(DOMString selectors); // legacy alias of .matches
 
-    HTMLCollection getElementsByTagName([FlyString] DOMString tagName);
+    HTMLCollection getElementsByTagName([FlyString] DOMString qualifiedName);
     HTMLCollection getElementsByTagNameNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
-    HTMLCollection getElementsByClassName(DOMString className);
+    HTMLCollection getElementsByClassName(DOMString classNames);
 
     [CEReactions] Element? insertAdjacentElement(DOMString where, Element element); // legacy
     undefined insertAdjacentText(DOMString where, DOMString data); // legacy
-
-    // https://dom.spec.whatwg.org/#interface-nondocumenttypechildnode
-    readonly attribute Element? nextElementSibling;
-    readonly attribute Element? previousElementSibling;
-
-    // https://drafts.csswg.org/cssom-view/#extension-to-the-element-interface
-    [ImplementedAs=get_client_rects, ImplementedInBindings] DOMRectList getClientRects();
-    [ImplementedAs=get_bounding_client_rect, ImplementedInBindings] DOMRect getBoundingClientRect();
-
-    boolean checkVisibility(optional CheckVisibilityOptions options = {});
-
-    [CreatesPromise] Promise<undefined> scrollIntoView(optional (boolean or ScrollIntoViewOptions) arg = {});
-    [CreatesPromise] Promise<undefined> scroll(optional ScrollToOptions options = {});
-    [CreatesPromise] Promise<undefined> scroll(unrestricted double x, unrestricted double y);
-    [ImplementedAs=scroll, CreatesPromise] Promise<undefined> scrollTo(optional ScrollToOptions options = {});
-    [ImplementedAs=scroll, CreatesPromise] Promise<undefined> scrollTo(unrestricted double x, unrestricted double y);
-    [CreatesPromise] Promise<undefined> scrollBy(optional ScrollToOptions options = {});
-    [CreatesPromise] Promise<undefined> scrollBy(unrestricted double x, unrestricted double y);
-    attribute unrestricted double scrollTop;
-    attribute unrestricted double scrollLeft;
-    readonly attribute long scrollWidth;
-    readonly attribute long scrollHeight;
-    readonly attribute long clientTop;
-    readonly attribute long clientLeft;
-    readonly attribute long clientWidth;
-    readonly attribute long clientHeight;
-    readonly attribute double currentCSSZoom;
-
-    // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsing-and-serialization
-    [CEReactions, ImplementedInBindings] undefined setHTMLUnsafe((TrustedHTML or DOMString) html);
-    DOMString getHTML(optional GetHTMLOptions options = {});
-
-    [CEReactions, ImplementedInBindings, LegacyNullToEmptyString] attribute (TrustedHTML or DOMString) innerHTML;
-
-    [CEReactions, ImplementedInBindings, LegacyNullToEmptyString] attribute (TrustedHTML or DOMString) outerHTML;
-
-    [CEReactions, ImplementedInBindings] undefined insertAdjacentHTML(DOMString position, (TrustedHTML or DOMString) text);
-
-    // https://w3c.github.io/pointerevents/#extensions-to-the-element-interface
-    undefined setPointerCapture(long pointerId);
-    undefined releasePointerCapture(long pointerId);
-    boolean hasPointerCapture(long pointerId);
-
-    // https://drafts.csswg.org/css-shadow-1/#idl
-    [SameObject, PutForwards=value, ImplementedAs=part_list] readonly attribute DOMTokenList part;
-
-    // https://w3c.github.io/pointerlock/#requestPointerLock
-    [ImplementedInBindings] Promise<undefined> requestPointerLock(optional PointerLockOptions options = {});
-};
-
-dictionary GetHTMLOptions {
-    boolean serializableShadowRoots = false;
-    sequence<ShadowRoot> shadowRoots = [];
 };
 
 dictionary ShadowRootInit {
@@ -133,10 +56,38 @@ dictionary ShadowRootInit {
     CustomElementRegistry? customElementRegistry;
 };
 
-Element includes ParentNode;
-Element includes ChildNode;
-// https://w3c.github.io/aria/#ARIAMixin
-Element includes ARIAMixin;
-Element includes Slottable;
-// https://drafts.csswg.org/web-animations-1/#extensions-to-the-element-interface
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsing-and-serialization
+partial interface Element {
+    // FIXME: [CEReactions] undefined setHTML(DOMString html, optional SetHTMLOptions options = {});
+    // FIXME: setHTMLUnsafe is missing the SetHTMLUnsafeOptions parameter.
+    [CEReactions, ImplementedInBindings] undefined setHTMLUnsafe((TrustedHTML or DOMString) html);
+    DOMString getHTML(optional GetHTMLOptions options = {});
+
+    // FIXME: Only the DOMString variant should have the LegacyNullToEmptyString attribute.
+    [CEReactions, LegacyNullToEmptyString, ImplementedInBindings] attribute (TrustedHTML or DOMString) innerHTML;
+    // FIXME: Only the DOMString variant should have the LegacyNullToEmptyString attribute.
+    [CEReactions, LegacyNullToEmptyString, ImplementedInBindings] attribute (TrustedHTML or DOMString) outerHTML;
+    [CEReactions, ImplementedInBindings] undefined insertAdjacentHTML(DOMString position, (TrustedHTML or DOMString) string);
+};
+
+dictionary GetHTMLOptions {
+    boolean serializableShadowRoots = false;
+    sequence<ShadowRoot> shadowRoots = [];
+};
+
+// https://w3c.github.io/pointerlock/#requestPointerLock
+// FIXME: Move this to a proper home when we have a pointerlock spec folder.
+partial interface Element {
+    [ImplementedInBindings] Promise<undefined> requestPointerLock(optional PointerLockOptions options = {});
+};
+
+dictionary PointerLockOptions {
+    boolean unadjustedMovement = false;
+};
+
 Element includes Animatable;
+Element includes ARIAMixin;
+Element includes ChildNode;
+Element includes NonDocumentTypeChildNode;
+Element includes ParentNode;
+Element includes Slottable;

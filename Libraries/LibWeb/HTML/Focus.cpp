@@ -9,7 +9,7 @@
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
 #include <LibGC/Root.h>
-#include <LibWeb/Bindings/Element.h>
+#include <LibWeb/Bindings/CSS.h>
 #include <LibWeb/CSS/Invalidation/PseudoClassInvalidator.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/Document.h>
