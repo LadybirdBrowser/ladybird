@@ -3784,9 +3784,22 @@ NonnullRefPtr<ComputedValues const> StyleComputer::materialize_style_record(DOM:
     };
 
     auto& style_scope = abstract_element.style_scope();
+    auto const custom_property_data_before = abstract_element.custom_property_data();
     auto computed_properties = compute_style_impl(abstract_element, ComputeStyleMode::Normal, did_change_custom_properties, style_scope, IncludeInlineStyle::Yes, reusable_matches, &sharing);
-    if (sharing.reused_values)
-        return publish_computed_groups(sharing.reused_values.release_nonnull());
+    if (sharing.reused_values) {
+        // Only a publication tells the engine that the custom property environment moved.
+        VERIFY(!sharing.new_style_sharing_entry_hash.has_value());
+        if (abstract_element.custom_property_data().ptr() != custom_property_data_before.ptr())
+            return publish_computed_groups(sharing.reused_values.release_nonnull());
+        auto publication = const_cast<StyleComputer&>(*this).style_engine().reaffirm_style_record(
+            abstract_element.element().style_node_id(),
+            pseudo_element_to_ffi(abstract_element.pseudo_element()));
+        if (!publication.has_value())
+            return publish_computed_groups(sharing.reused_values.release_nonnull());
+        if (style_record_delta.has_value())
+            *style_record_delta = *publication;
+        return sharing.reused_values.release_nonnull();
+    }
     if (sharing.shared_values && sharing.shared_style_record_identity.has_value()) {
         auto& values = *sharing.shared_values;
         // An inherited-group swap does not run the transition step, so an element with transitions
