@@ -14,8 +14,8 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibCore/Forward.h>
+#include <LibWeb/Bindings/CSS.h>
 #include <LibWeb/Bindings/Navigation.h>
-#include <LibWeb/Bindings/Window.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/Compositor/SmoothScrollAnimation.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>

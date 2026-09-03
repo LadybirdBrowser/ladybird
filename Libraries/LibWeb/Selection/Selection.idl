@@ -27,6 +27,11 @@ interface Selection {
     stringifier;
 };
 
+// https://w3c.github.io/selection-api/#extensions-to-window-interface
+partial interface Window {
+    Selection? getSelection();
+};
+
 // https://w3c.github.io/selection-api/#dom-document-getselection
 partial interface Document {
     Selection? getSelection();
