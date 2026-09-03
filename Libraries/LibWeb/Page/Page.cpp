@@ -1393,24 +1393,24 @@ void PageClient::history_navigation_params_creation_finished(HTML::CrossProcessI
     page().top_level_traversable()->resume_history_navigation_population(operation_id, move(population));
 }
 
-void PageClient::request_navigation_start(HTML::LocalNavigable& navigable, URL::URL const& current_url, NavigationTarget target, URL::URL const&, Utf16String navigation_id, Optional<HTML::NavigationStartRequest> start_request)
+void PageClient::request_navigation_start(HTML::LocalNavigable& navigable, NavigationTarget target, URL::URL const&, Utf16String navigation_id, Optional<HTML::NavigationStartRequest> start_request)
 {
     // A javascript: navigation runs synchronously in this process and never populates an entry; there is nothing
     // for the embedder to retain.
     if (!start_request.has_value())
         return;
 
-    navigable.run_navigation_unload_check(navigation_id, GC::create_function(navigable.heap(), [client = GC::Ref { *this }, navigable = GC::Ref { navigable }, current_url, target, navigation_id, start_request = start_request.release_value()](bool should_continue) mutable {
+    navigable.run_navigation_unload_check(navigation_id, GC::create_function(navigable.heap(), [client = GC::Ref { *this }, navigable = GC::Ref { navigable }, target, navigation_id, start_request = start_request.release_value()](bool should_continue) mutable {
         if (!should_continue) {
             navigable->resume_navigation_params_creation(navigation_id, {});
             return;
         }
         auto population_request = HTML::create_navigation_population_request(move(start_request), client->allocate_cross_process_id());
-        client->request_navigation_population(navigable, current_url, target, move(population_request));
+        client->request_navigation_population(navigable, target, move(population_request));
     }));
 }
 
-void PageClient::request_navigation_population(HTML::LocalNavigable& navigable, URL::URL const&, NavigationTarget, HTML::NavigationPopulationRequest request)
+void PageClient::request_navigation_population(HTML::LocalNavigable& navigable, NavigationTarget, HTML::NavigationPopulationRequest request)
 {
     navigable.resume_navigation_params_creation(request.navigation_id, move(request));
 }

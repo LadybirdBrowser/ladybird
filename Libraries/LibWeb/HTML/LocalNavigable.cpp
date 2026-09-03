@@ -2932,7 +2932,7 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
     // 20. If url's scheme is "javascript", then:
     if (url.scheme() == "javascript"sv) {
         if (is_top_level_traversable())
-            active_browsing_context()->page().client().request_navigation_start(*this, active_document.url(), NavigationTarget::TopLevel, url, navigation_id, {});
+            active_browsing_context()->page().client().request_navigation_start(*this, NavigationTarget::TopLevel, url, navigation_id, {});
 
         // 1. Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, sourceSnapshotParams, initiatorOriginSnapshot, userInvolvement, cspNavigationType, initialInsertion, and navigationId.
         VERIFY(active_window());
@@ -3035,7 +3035,7 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
     park_navigation_for_population(navigation_id, move(navigation), continue_steps);
 
     auto target = is_top_level_traversable() ? NavigationTarget::TopLevel : NavigationTarget::IFrame;
-    active_browsing_context()->page().client().request_navigation_start(*this, active_document.url(), target, url, navigation_id, move(start_request));
+    active_browsing_context()->page().client().request_navigation_start(*this, target, url, navigation_id, move(start_request));
     return;
 }
 
@@ -3111,7 +3111,7 @@ void LocalNavigable::request_population_for_reconstructed_history_entry(Navigati
     });
 
     park_navigation_for_population(navigation_id, {}, continue_steps);
-    page().client().request_navigation_population(*this, active_document()->url(), NavigationTarget::IFrame, move(request));
+    page().client().request_navigation_population(*this, NavigationTarget::IFrame, move(request));
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-fragid

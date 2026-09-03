@@ -55,8 +55,6 @@ public:
         };
 
         Optional<URL::URL> url {};
-        Optional<URL::URL> current_url {};
-        Optional<Web::NavigationTarget> target {};
         Optional<Utf16String> navigation_id {};
         Optional<Web::HTML::NavigationStartRequest> start_request {};
         u64 sequence_number { 0 };
