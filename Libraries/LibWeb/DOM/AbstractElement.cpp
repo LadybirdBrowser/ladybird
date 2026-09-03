@@ -119,29 +119,25 @@ Optional<AbstractElement> AbstractElement::element_to_inherit_style_from() const
 Optional<AbstractElement> AbstractElement::walk_layout_tree(WalkMethod walk_method)
 {
     // NB: Called during style recalculation.
-    Layout::Node* node = unsafe_layout_node();
-    if (!node)
+    Layout::Node* start_node = unsafe_layout_node();
+    if (!start_node)
         return OptionalNone {};
 
+    auto* arena_handle = start_node->arena_handle();
+    auto slot = Layout::Node::slot_id(start_node);
     while (true) {
-        switch (walk_method) {
-        case WalkMethod::Previous:
-            node = node->previous_in_pre_order();
-            break;
-        case WalkMethod::PreviousSibling:
-            node = node->previous_sibling();
-            break;
-        }
-        if (!node)
+        slot = Layout::RustFFI::layout_arena_previous_dom_backed_or_generated_node(arena_handle, slot, walk_method == WalkMethod::PreviousSibling);
+        if (slot.index == Layout::RustFFI::INVALID_NODE_SLOT_INDEX)
             return OptionalNone {};
 
-        if (auto* previous_element = as_if<Element>(node->dom_node()))
+        if (auto* previous_element = as_if<Element>(static_cast<Node*>(Layout::RustFFI::layout_arena_node_dom_node(arena_handle, slot))))
             return AbstractElement { *previous_element };
 
-        if (node->is_generated_for_pseudo_element()) {
-            auto pseudo_element = node->generated_for_pseudo_element();
+        auto* generated_node = static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_node_shell_if_live(arena_handle, slot));
+        if (generated_node && generated_node->is_generated_for_pseudo_element()) {
+            auto pseudo_element = generated_node->generated_for_pseudo_element();
             if (pseudo_element.has_value() && CSS::is_tree_abiding_pseudo_element(*pseudo_element))
-                return AbstractElement { *node->pseudo_element_generator(), pseudo_element };
+                return AbstractElement { *generated_node->pseudo_element_generator(), pseudo_element };
         }
     }
 }

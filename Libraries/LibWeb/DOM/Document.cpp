@@ -203,7 +203,7 @@
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserver.h>
 #include <LibWeb/Layout/AnonymousBoxStyle.h>
-#include <LibWeb/Layout/Box.h>
+#include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -711,6 +711,23 @@ Layout::NodeArena& Document::layout_node_arena()
             .shell_style_changed = [](void*, void* shell) { as<Layout::NodeWithStyle>(*static_cast<Layout::Node*>(shell)).refresh_style_from_arena(); },
         };
         Layout::RustFFI::layout_arena_set_style_record_host_callbacks(m_layout_node_arena->handle(), style_record_host_callbacks);
+        Layout::RustFFI::layout_arena_set_shell_factory(m_layout_node_arena->handle(), this, [](void* context, Layout::RustFFI::NodeSlotId slot, Layout::RustFFI::NodeKind kind) {
+            auto& document = *static_cast<Document*>(context);
+            switch (kind) {
+            case Layout::RustFFI::NodeKind::BlockContainer:
+            case Layout::RustFFI::NodeKind::TableWrapper:
+                Layout::allocate_layout_node<Layout::BlockContainer>(document, Layout::BindToPreparedArenaSlot::Yes, slot, kind);
+                return;
+            case Layout::RustFFI::NodeKind::Box:
+                Layout::allocate_layout_node<Layout::Box>(document, Layout::BindToPreparedArenaSlot::Yes, slot, kind);
+                return;
+            case Layout::RustFFI::NodeKind::InlineNode:
+                Layout::allocate_layout_node<Layout::NodeWithStyle>(document, Layout::BindToPreparedArenaSlot::Yes, slot, kind).attach_style_resources();
+                return;
+            default:
+                VERIFY_NOT_REACHED();
+            }
+        });
         Layout::RustFFI::layout_arena_set_chrome_state_callback(
             m_layout_node_arena->handle(), this,
             [](void* context, Layout::RustFFI::NodeSlotId slot, Layout::RustFFI::PaintableRowResetKind kind) {
@@ -743,6 +760,7 @@ void Document::finalize()
     if (m_layout_node_arena) {
         Layout::RustFFI::layout_arena_clear_chrome_state_callback(m_layout_node_arena->handle());
         Layout::RustFFI::layout_arena_clear_style_record_host_callbacks(m_layout_node_arena->handle());
+        Layout::RustFFI::layout_arena_clear_shell_factory(m_layout_node_arena->handle());
         VERIFY(Layout::RustFFI::layout_arena_live_slot_count(m_layout_node_arena->handle()) == 0);
         m_layout_node_arena->set_document({}, nullptr);
     }

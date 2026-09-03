@@ -460,6 +460,31 @@ pub struct FfiDerivedStyleRecord {
     pub payloads: *const c_void,
 }
 
+type ShellFactory = (*mut c_void, unsafe extern "C" fn(*mut c_void, NodeSlotId, NodeKind));
+
+fn style_insets_use_anchor_functions(style: ComputedValuesView<'_>) -> bool {
+    let surround = style.surround();
+    [
+        &surround.top_anchor_inset,
+        &surround.right_anchor_inset,
+        &surround.bottom_anchor_inset,
+        &surround.left_anchor_inset,
+    ]
+    .iter()
+    .any(|handle| !handle.pointer.is_null())
+        || [
+            &surround.inset.top,
+            &surround.inset.right,
+            &surround.inset.bottom,
+            &surround.inset.left,
+        ]
+        .iter()
+        .any(|side| {
+            side.length_percentage()
+                .is_some_and(|value| value.contains_anchor_function())
+        })
+}
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiStyleRecordHostCallbacks {
@@ -543,6 +568,7 @@ pub(crate) struct LayoutNodeArena {
     style_records: Vec<Cell<u64>>,
     style_records_pinned_by_arena: Vec<Cell<bool>>,
     style_record_host: Cell<Option<FfiStyleRecordHostCallbacks>>,
+    shell_factory: Cell<Option<ShellFactory>>,
     pre_order_labels: Vec<Cell<u64>>,
     pre_order_relabel_count: Cell<u64>,
     free_list: Vec<u32>,
@@ -582,6 +608,7 @@ impl LayoutNodeArena {
             style_records: Vec::new(),
             style_records_pinned_by_arena: Vec::new(),
             style_record_host: Cell::new(None),
+            shell_factory: Cell::new(None),
             pre_order_labels: Vec::new(),
             pre_order_relabel_count: Cell::new(0),
             free_list: Vec::new(),
@@ -786,7 +813,7 @@ impl LayoutNodeArena {
         let mut arena_pinned_style_records = Vec::new();
         for slot in slots_in_pre_order {
             self.mark_descendant_subtree_caches_dirty_from_layout_node(slot);
-            shells.push(self.node_shell(slot));
+            shells.push(self.data(slot).shell.get());
             if self.style_records_pinned_by_arena[slot.slot_index() as usize].get() {
                 arena_pinned_style_records.push(self.style_records[slot.slot_index() as usize].get());
             }
@@ -1057,11 +1084,13 @@ impl LayoutNodeArena {
             }
             child = self.data(child).next_sibling.get();
         }
-        let shell = self.node_shell(slot);
+        let shell = self.data(slot).shell.get();
         if !shell.is_null() {
             let host = self.style_record_host();
             // SAFETY: Registration and unregistration keep the host context live, and the shell is live.
             unsafe { (host.shell_style_changed)(host.context, shell) };
+        } else {
+            self.refresh_insets_use_anchor_functions_flag(slot);
         }
     }
 
@@ -1097,6 +1126,47 @@ impl LayoutNodeArena {
         self.style_records_pinned_by_arena[slot.slot_index() as usize].set(true);
         data.style.set(derived.payloads);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
+    }
+
+    pub(crate) fn refresh_insets_use_anchor_functions_flag(&self, slot: NodeSlotId) {
+        let insets_use_anchor_functions = self
+            .style_payloads(slot)
+            .is_some_and(|payloads| style_insets_use_anchor_functions(ComputedValuesView::new(&payloads.groups)));
+        self.set_node_flag(slot, NodeFlag::InsetsUseAnchorFunctions, insets_use_anchor_functions);
+    }
+
+    pub(crate) fn set_shell_factory(&self, factory: Option<ShellFactory>) {
+        self.shell_factory.set(factory);
+    }
+
+    fn materialize_shell(&self, id: NodeSlotId) -> *mut c_void {
+        let Some((context, factory)) = self.shell_factory.get() else {
+            return std::ptr::null_mut();
+        };
+        let data = self.data(id);
+        if data.kind.get() == NodeKind::Unset || data.flags.get() & NodeFlag::Anonymous as u32 == 0 {
+            return std::ptr::null_mut();
+        }
+        // SAFETY: Registration and unregistration keep the factory context live; the factory binds a
+        // shell to this live slot and writes nothing but the slot's shell cell.
+        unsafe { factory(context, id, data.kind.get()) };
+        data.shell.get()
+    }
+
+    pub(crate) fn shell_count(&self) -> u32 {
+        let mut count = 0;
+        for (index, metadata) in self.slot_metadata.iter().enumerate() {
+            if metadata.occupied
+                && !self
+                    .data(NodeSlotId::new(index as u32, metadata.generation))
+                    .shell
+                    .get()
+                    .is_null()
+            {
+                count += 1;
+            }
+        }
+        count
     }
 
     pub(crate) fn replace_arena_pinned_style_record(&self, slot: NodeSlotId, derived: FfiDerivedStyleRecord) {
@@ -1242,8 +1312,8 @@ impl LayoutNodeArena {
                 // SAFETY: Both slots are live; the callback only reads DOM ancestry
                 // and per-node facts through the shells and does not mutate the tree.
                 let inline_containing_block = unsafe {
-                    let node_shell = data.shell.get();
-                    let ancestor_shell = self.data(ancestor).shell.get();
+                    let node_shell = self.node_shell(node);
+                    let ancestor_shell = self.node_shell(ancestor);
                     inline_cb_lookup(node_shell, ancestor_shell)
                 };
                 data.inline_containing_block.set(inline_containing_block);
@@ -2308,6 +2378,50 @@ impl LayoutNodeArena {
         self.dom_nodes[id.slot_index() as usize].get()
     }
 
+    pub(crate) fn previous_dom_backed_or_generated_node(
+        &self,
+        start: NodeSlotId,
+        previous_sibling_only: bool,
+    ) -> NodeSlotId {
+        let mut current = start;
+        loop {
+            let data = self.data(current);
+            current = if previous_sibling_only {
+                data.previous_sibling.get()
+            } else if data.previous_sibling.get().is_invalid() {
+                data.parent.get()
+            } else {
+                let mut deepest_last_descendant = data.previous_sibling.get();
+                loop {
+                    let last_child = self.data(deepest_last_descendant).last_child.get();
+                    if last_child.is_invalid() {
+                        break;
+                    }
+                    deepest_last_descendant = last_child;
+                }
+                deepest_last_descendant
+            };
+            if current.is_invalid() {
+                return NodeSlotId::INVALID;
+            }
+            let has_dom_node = !self.dom_nodes[current.slot_index() as usize].get().is_null();
+            if has_dom_node || self.data(current).generated_for.get() != 0 {
+                return current;
+            }
+        }
+    }
+
+    pub(crate) fn enroll_text_children_for_content_sync(&self, parent: NodeSlotId) {
+        let mut child = self.data(parent).first_child.get();
+        while !child.is_invalid() {
+            let data = self.data(child);
+            if crate::layout::node_facts::kind_is_text(data.kind.get()) {
+                self.enroll_text_node_for_content_sync(child);
+            }
+            child = data.next_sibling.get();
+        }
+    }
+
     pub(crate) fn live_slot_count(&self) -> u32 {
         self.live_count
     }
@@ -2316,20 +2430,22 @@ impl LayoutNodeArena {
         if !self.slot_is_live(id) {
             return std::ptr::null_mut();
         }
-        self.data(id).shell.get()
+        self.node_shell(id)
+    }
+
+    pub(crate) fn node_link_slot(&self, id: NodeSlotId, link: FfiNodeLink) -> NodeSlotId {
+        let data = self.data(id);
+        match link {
+            FfiNodeLink::Parent => data.parent.get(),
+            FfiNodeLink::FirstChild => data.first_child.get(),
+            FfiNodeLink::LastChild => data.last_child.get(),
+            FfiNodeLink::PreviousSibling => data.previous_sibling.get(),
+            FfiNodeLink::NextSibling => data.next_sibling.get(),
+        }
     }
 
     pub(crate) fn node_link_shell(&self, id: NodeSlotId, link: FfiNodeLink) -> *mut c_void {
-        let data = self.data(id);
-        let linked = {
-            match link {
-                FfiNodeLink::Parent => data.parent.get(),
-                FfiNodeLink::FirstChild => data.first_child.get(),
-                FfiNodeLink::LastChild => data.last_child.get(),
-                FfiNodeLink::PreviousSibling => data.previous_sibling.get(),
-                FfiNodeLink::NextSibling => data.next_sibling.get(),
-            }
-        };
+        let linked = self.node_link_slot(id, link);
         if linked.is_invalid() {
             return std::ptr::null_mut();
         }
@@ -2350,7 +2466,11 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn node_shell(&self, id: NodeSlotId) -> *mut c_void {
-        self.data(id).shell.get()
+        let shell = self.data(id).shell.get();
+        if !shell.is_null() {
+            return shell;
+        }
+        self.materialize_shell(id)
     }
 
     pub(crate) fn dom_offset_for_rendered_text_offset(
@@ -2520,6 +2640,22 @@ pub unsafe extern "C" fn layout_arena_visit_dom_nodes(
     });
 }
 
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call, and `start` must name a live node
+/// in this arena.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_previous_dom_backed_or_generated_node(
+    arena: *mut c_void,
+    start: NodeSlotId,
+    previous_sibling_only: bool,
+) -> NodeSlotId {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and
+    // serializes all access on the document thread.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.previous_dom_backed_or_generated_node(start, previous_sibling_only)
+}
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_node_dom_node(arena: *mut c_void, node: NodeSlotId) -> *mut c_void {
     assert!(!arena.is_null(), "layout node arena handle is null");
@@ -2646,6 +2782,16 @@ pub unsafe extern "C" fn layout_arena_node_link_shell(
 ) -> *mut c_void {
     // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
     unsafe { LayoutNodeArena::from_handle(arena) }.node_link_shell(id, link)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_node_link_slot(
+    arena: *mut c_void,
+    id: NodeSlotId,
+    link: FfiNodeLink,
+) -> NodeSlotId {
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }.node_link_slot(id, link)
 }
 
 #[unsafe(no_mangle)]
@@ -2801,6 +2947,38 @@ pub unsafe extern "C" fn layout_arena_reinherit_anonymous_descendants(arena: *mu
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_node_style_payloads(arena: *mut c_void, id: NodeSlotId) -> *const c_void {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: As above.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.data(id).style.get()
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_shell_count(arena: *mut c_void) -> u32 {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: As above.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.shell_count()
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_shell_factory(
+    arena: *mut c_void,
+    context: *mut c_void,
+    factory: unsafe extern "C" fn(*mut c_void, NodeSlotId, NodeKind),
+) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: As above.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_shell_factory(Some((context, factory)));
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_clear_shell_factory(arena: *mut c_void) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: As above.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_shell_factory(None);
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_attach_shell(arena: *mut c_void, id: NodeSlotId, shell: *mut c_void) {
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: As above.
@@ -2822,6 +3000,18 @@ pub unsafe extern "C" fn layout_arena_clear_style_record_host_callbacks(arena: *
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: As above.
     unsafe { &*arena.cast::<LayoutNodeArena>() }.set_style_record_host(None);
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call, and `parent` must name a live node
+/// in this arena.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_enroll_text_children_for_content_sync(arena: *mut c_void, parent: NodeSlotId) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and
+    // serializes all access on the document thread.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.enroll_text_children_for_content_sync(parent);
 }
 
 #[unsafe(no_mangle)]
@@ -3035,6 +3225,34 @@ mod tests {
         let freed = arena.free_subtree(element);
         assert_eq!(freed.arena_pinned_style_record_count(), 0);
         freed.destroy_shells_and_invoke_callbacks();
+    }
+
+    #[test]
+    fn previous_dom_backed_or_generated_node_skips_anonymous_slots() {
+        let mut arena = LayoutNodeArena::new();
+        let mut root_dom_node_storage = 0u8;
+        let mut element_dom_node_storage = 0u8;
+        let root_dom_node = std::ptr::from_mut(&mut root_dom_node_storage).cast::<c_void>();
+        let element_dom_node = std::ptr::from_mut(&mut element_dom_node_storage).cast::<c_void>();
+        let root = arena.allocate(test_construction_facts(root_dom_node));
+        let anonymous_wrapper = arena.allocate(test_construction_facts(std::ptr::null_mut()));
+        let nested_anonymous = arena.allocate(test_construction_facts(std::ptr::null_mut()));
+        let element = arena.allocate(test_construction_facts(element_dom_node));
+        arena.insert_child(root, anonymous_wrapper, NodeSlotId::INVALID);
+        arena.insert_child(anonymous_wrapper, nested_anonymous, NodeSlotId::INVALID);
+        arena.insert_child(root, element, NodeSlotId::INVALID);
+
+        assert_eq!(arena.previous_dom_backed_or_generated_node(element, false), root);
+        assert!(arena.previous_dom_backed_or_generated_node(element, true).is_invalid());
+        assert!(arena.previous_dom_backed_or_generated_node(root, false).is_invalid());
+
+        arena.data(nested_anonymous).generated_for.set(1);
+        assert_eq!(
+            arena.previous_dom_backed_or_generated_node(element, false),
+            nested_anonymous
+        );
+
+        arena.free_subtree(root).destroy_shells_and_invoke_callbacks();
     }
 
     #[test]

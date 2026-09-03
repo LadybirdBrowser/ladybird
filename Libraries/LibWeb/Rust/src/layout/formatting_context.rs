@@ -987,7 +987,7 @@ impl FfiLayoutFcCallbacks {
     }
 
     pub(crate) fn shell(&self, node: Node) -> *mut c_void {
-        let shell = self.node_data(node).shell.get();
+        let shell = self.arena().node_shell(node);
         assert!(!shell.is_null());
         shell
     }

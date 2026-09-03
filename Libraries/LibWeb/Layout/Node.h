@@ -57,6 +57,8 @@ public:
     void* arena_handle() const;
     NodeArena& node_arena() const { return *m_arena; }
 
+    RustFFI::NodeSlotId linked_slot(RustFFI::FfiNodeLink link) const { return RustFFI::layout_arena_node_link_slot(m_arena->handle(), m_slot, link); }
+    bool has_parent() const { return linked_slot(RustFFI::FfiNodeLink::Parent).index != RustFFI::INVALID_NODE_SLOT_INDEX; }
     Node* parent_ptr() { return linked_node(RustFFI::FfiNodeLink::Parent); }
     Node const* parent_ptr() const { return linked_node(RustFFI::FfiNodeLink::Parent); }
     Node* first_child_ptr() { return linked_node(RustFFI::FfiNodeLink::FirstChild); }

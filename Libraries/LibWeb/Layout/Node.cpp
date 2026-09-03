@@ -77,7 +77,6 @@ Node::Node(DOM::Document& document, BindToPreparedArenaSlot, RustFFI::NodeSlotId
 {
     VERIFY(RustFFI::layout_arena_node_dom_node(m_arena->handle(), m_slot) == nullptr);
     RustFFI::layout_arena_attach_shell(m_arena->handle(), m_slot, this);
-    update_has_scroll_offset_flag();
 }
 
 Node::~Node()
@@ -348,7 +347,8 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bi
 {
     m_style_record_identity = CSS::StyleRecordID { RustFFI::layout_arena_node_style_record(arena_handle(), slot) };
     VERIFY(m_style_record_identity);
-    initialize_from_style_record();
+    m_style_payloads = RustFFI::layout_arena_node_style_payloads(arena_handle(), slot);
+    VERIFY(m_style_payloads);
 }
 
 void NodeWithStyle::initialize_from_style_record()
@@ -710,10 +710,7 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
         RustFFI::layout_arena_reset_cached_intrinsic_sizes_of_self_and_ancestors(arena_handle(), slot_id(this));
     }
 
-    for (auto* child = first_child_ptr(); child; child = child->next_sibling_ptr()) {
-        if (auto* text_child = as_if<TextNode>(*child))
-            text_child->enroll_for_arena_text_content_sync();
-    }
+    RustFFI::layout_arena_enroll_text_children_for_content_sync(arena_handle(), slot_id(this));
 }
 
 void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_identity)

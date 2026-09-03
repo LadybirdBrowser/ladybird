@@ -351,11 +351,14 @@ pub unsafe extern "C" fn rust_should_preserve_svg_resource_layout_node(
     // SAFETY: The arena and layout node remain live throughout the ancestor walk.
     let mut ancestor = unsafe { &*arena }.data(layout_node).parent.get();
     while !ancestor.is_invalid() {
-        // SAFETY: `ancestor` is a live layout node with a live shell.
+        // SAFETY: `ancestor` is a live layout node, and a non-anonymous one has a shell.
         let data = unsafe { &*arena }.data(ancestor);
-        let shell = data.shell.get();
         let parent = data.parent.get();
-        let dom_node = unsafe { (callbacks.layout_dom_node)(shell) };
+        if data.flags.get() & NodeFlag::Anonymous as u32 != 0 {
+            ancestor = parent;
+            continue;
+        }
+        let dom_node = unsafe { (callbacks.layout_dom_node)(data.shell.get()) };
         // SAFETY: Both DOM pointers remain live throughout cleanup.
         if !dom_node.is_null()
             && unsafe { (callbacks.dom_is_shadow_including_inclusive_descendant)(dom_node, cleared_subtree_root) }
@@ -427,7 +430,7 @@ pub unsafe extern "C" fn rust_detach_top_layer_element_layout_subtree(
         } else {
             topmost
         };
-        let shell = unsafe { &*arena }.data(layout_node_to_detach).shell.get();
+        let shell = unsafe { &*arena }.node_shell(layout_node_to_detach);
         // SAFETY: The C++ detach preparation walks the still-linked subtree; the shared arena
         // borrow ends before the subtree is freed.
         unsafe { (callbacks.prepare_subtree_for_detach)(shell) };
@@ -2250,7 +2253,6 @@ pub(crate) enum FfiInsertionMode {
 #[repr(C)]
 pub struct FfiTreeBuilderCallbacks {
     pub context: *mut c_void,
-    pub create_anonymous_shell: unsafe extern "C" fn(*mut c_void, NodeSlotId, NodeKind),
     pub take_fieldset_overflow_for_content_wrapper:
         unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiAnonymousStyleOverrides,
     pub prepare_subtree_for_detach: unsafe extern "C" fn(*mut c_void, *mut c_void),
@@ -2453,7 +2455,7 @@ impl TreeBuilderHost<'_> {
     }
 
     fn shell(&self, node: LayoutNode) -> *mut c_void {
-        let shell = self.data(node).shell.get();
+        let shell = self.arena().node_shell(node);
         assert!(!shell.is_null());
         shell
     }
@@ -2501,8 +2503,10 @@ impl TreeBuilderHost<'_> {
         // it across the allocation.
         let slot = unsafe { &mut *self.arena }.allocate_unbound(std::ptr::null_mut());
         self.arena().stamp_anonymous_box(slot, node_kind, derived);
-        // SAFETY: `slot` is a live anonymous box that only the builder knows.
-        unsafe { (self.callbacks.create_anonymous_shell)(self.callbacks.context, slot, node_kind) };
+        self.arena().refresh_insets_use_anchor_functions_flag(slot);
+        if node_kind == NodeKind::InlineNode {
+            assert!(!self.arena().node_shell(slot).is_null());
+        }
         UnplacedLayoutNode::new(slot)
     }
 
@@ -3222,7 +3226,7 @@ fn find_first_letter_in_block(host: &DomTreeBuilderHost<'_>, block: LayoutNode) 
         // Stop descending if this child block defines its own ::first-letter: the child will style the first letter
         // inside it, so the ancestor's ::first-letter must not also claim the same letter.
         // SAFETY: The child shell and its associated DOM node remain live throughout the walk.
-        if unsafe { (host.callbacks.layout_node_has_first_letter_style)(layout_host.shell(child)) } {
+        if !is_anonymous && unsafe { (host.callbacks.layout_node_has_first_letter_style)(layout_host.shell(child)) } {
             break;
         }
         let target = find_first_letter_in_block(host, child);
