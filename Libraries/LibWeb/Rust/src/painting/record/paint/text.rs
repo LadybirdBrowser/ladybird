@@ -9,6 +9,7 @@ use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::painting::display_list::commands::{DisplayListGlyph, FontResourceId};
 use crate::painting::display_list::recorder::GlyphRunForRecording;
 use crate::painting::force_dark::ForceDarkRole;
+use crate::painting::host::FfiCaretPaintKind;
 use crate::painting::paintable_data::{FragmentRecord, SELECTION_STATE_START_AND_END};
 use crate::painting::record::PaintRecorder;
 use crate::painting::text_fragment::{self, SelectionOffsets};
@@ -50,14 +51,13 @@ fn selection_offsets_for_fragment(
     fragment: &FragmentRecord,
 ) -> Option<SelectionOffsets> {
     let drop_degenerate = |offsets: Option<SelectionOffsets>| offsets.filter(|offsets| offsets.start != offsets.end);
-    let control = recorder.text_control_selection(fragment.layout_node);
-    if control.has_selection {
+    if let Some((start, end)) = recorder.text_control_selection(fragment.layout_node) {
         return drop_degenerate(text_fragment::compute_selection_offsets(
             recorder.layout_arena,
             fragment,
             SELECTION_STATE_START_AND_END,
-            control.start,
-            control.end,
+            start,
+            end,
         ));
     }
     let range = recorder.paint_state.selection.as_ref()?;
@@ -482,22 +482,22 @@ fn paint_text_fragment(
 // Paints the caret when it sits in a fragment owned by `owner`; the block itself
 // (owner == None) also handles blank lines and empty editable elements.
 pub(crate) fn paint_cursor(recorder: &mut PaintRecorder<'_>, block: NodeSlotId, owner: Option<NodeSlotId>) {
-    let owner_shell = owner.map_or(std::ptr::null_mut(), |owner| recorder.layout_node_shell(owner));
-    let facts = recorder
-        .paint_host
-        .cursor_facts(recorder.layout_node_shell(block), owner_shell);
-    if !facts.paints {
+    let caret = recorder.inputs.caret;
+    if caret.kind != FfiCaretPaintKind::InBlock
+        || caret.block != block
+        || caret.owner != owner.unwrap_or(NodeSlotId::INVALID)
+    {
         return;
     }
-    let color = facts.color;
+    let color = caret.color;
     if color.alpha() == 0 {
         return;
     }
     let converter = recorder.converter;
     recorder.recorder.paint_caret(
-        converter.rounded_device_rect(CssPixelRect::from(facts.rect)),
+        converter.rounded_device_rect(CssPixelRect::from(caret.rect)),
         color,
-        facts.blink_cycle_start_time_ns,
-        facts.should_blink,
+        caret.blink_cycle_start_time_ns,
+        caret.should_blink,
     );
 }

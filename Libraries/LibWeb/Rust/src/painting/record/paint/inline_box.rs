@@ -132,16 +132,13 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
             text::paint_cursor(recorder, root, Some(paintable));
         }
         if facts.is_visible {
-            let cursor = recorder.paint_host.cursor_facts(
-                recorder.layout_node_shell(paintable),
-                recorder.layout_node_shell(paintable),
-            );
-            if cursor.paints {
-                let color = cursor.color;
+            let caret = recorder.inputs.caret;
+            if caret.kind == crate::painting::host::FfiCaretPaintKind::EmptyInline && caret.block == paintable {
+                let color = caret.color;
                 if color.alpha() != 0 {
                     let rect = recorder
                         .converter
-                        .rounded_device_rect(crate::css::css_pixels::CssPixelRect::from(cursor.rect));
+                        .rounded_device_rect(crate::css::css_pixels::CssPixelRect::from(caret.rect));
                     recorder.recorder.fill_rect(rect, color, ForceDarkRole::Foreground);
                 }
             }

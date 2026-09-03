@@ -18,11 +18,6 @@
 
 namespace Web::Painting {
 
-struct CaretPaint {
-    CSSPixelRect rect;
-    Color color;
-};
-
 WEB_API void set_paint_viewport_scrollbars(bool enabled);
 bool should_paint_viewport_scrollbars();
 
@@ -100,10 +95,12 @@ WEB_API Optional<String> grid_layout_json(Layout::Node const&, UniqueNodeID);
 WEB_API Optional<String> flex_layout_json(Layout::Node const&, UniqueNodeID);
 
 WEB_API CSSPixelPoint box_type_agnostic_position(Layout::Node const&);
-WEB_API bool should_paint_cursor(Layout::Node const&);
 WEB_API CSSPixelRect caret_rect_for_child_offset(Layout::Node const&, size_t offset);
-WEB_API Optional<CaretPaint> resolve_caret_paint(Layout::Node const& block, Layout::Node const* owner_inline);
-WEB_API Optional<CaretPaint> resolve_empty_editable_caret_paint(Layout::Node const&);
+
+// Per-document paint facts the recording inputs carry, resolved once per recording.
+WEB_API Layout::RustFFI::FfiCaretPaint resolve_document_caret_paint(DOM::Document&);
+WEB_API Layout::RustFFI::FfiFocusedTextControlSelection resolve_focused_text_control_selection(DOM::Document const&);
+WEB_API Layout::RustFFI::FfiFocusedAreaOutline resolve_focused_area_outline(DOM::Document const&, Vector<u8>& path_bytes);
 WEB_API SelectionStyle selection_style(Layout::Node const&);
 WEB_API SelectionStyle selection_style_for_node(Layout::Node const&, GC::Ptr<DOM::Node const>);
 

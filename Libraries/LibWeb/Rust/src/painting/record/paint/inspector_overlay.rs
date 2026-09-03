@@ -12,7 +12,7 @@ use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::{ContextRef, DisplayListGlyph, FontResourceId};
 use crate::painting::display_list::recorder::GlyphRunForRecording;
 use crate::painting::force_dark::ForceDarkRole;
-use crate::painting::host::{FfiFlexOverlayInput, FfiGridOverlayInput};
+use crate::painting::host::{FfiFlexOverlayInput, FfiGridOverlayInput, FfiOverlayLabelFonts};
 use crate::painting::paintable_geometry;
 use crate::painting::record::PaintRecorder;
 use libgfx_rust::{Color, FloatPoint, IntPoint, IntRect, LineStyle, Orientation};
@@ -95,10 +95,11 @@ fn paint_box_model_highlight(recorder: &mut PaintRecorder<'_>, paintable: NodeSl
     paint_inspector_rect(recorder, border_rect, Color::from_rgb(0, 255, 0));
     paint_inspector_rect(recorder, content_rect, Color::from_rgb(255, 0, 255));
 
-    let text = recorder
-        .paint_host
-        .overlay_node_label_text(recorder.layout_node_shell(paintable));
-    let label = shape_overlay_label(recorder, &text, 12.0);
+    let label_input = recorder.inputs.inspector_highlight_label;
+    // SAFETY: The host keeps the label bytes live for the recording call.
+    let label_bytes = unsafe { crate::painting::ffi::ffi_slice(label_input.text, label_input.text_byte_count) };
+    let text: Vec<u16> = String::from_utf8_lossy(label_bytes).encode_utf16().collect();
+    let label = shape_overlay_label(recorder, &text, label_input.fonts);
     let mut size_text_rect = border_rect;
     size_text_rect.y = border_rect.y + border_rect.height;
     size_text_rect.width = CssPixels::nearest_value_for_f32(label.css_width) + CssPixels::from_integer(4);
@@ -274,7 +275,7 @@ fn paint_grid_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, i
             .fill_rect(converter.enclosing_device_rect(rect), rect_color, ForceDarkRole::None);
     };
     let paint_label = |recorder: &mut PaintRecorder<'_>, top_left: CssPixelPoint, text: &[u16]| {
-        let label = shape_overlay_label(recorder, text, 10.0);
+        let label = shape_overlay_label(recorder, text, recorder.inputs.grid_label_fonts);
         let label_width = label_width_for(&label);
         let label_rect = CssPixelRect {
             x: top_left.x,
@@ -293,7 +294,7 @@ fn paint_grid_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, i
         draw_label(recorder, &label, label_device_rect, input.label_foreground_color);
     };
     let paint_centered_label = |recorder: &mut PaintRecorder<'_>, rect: CssPixelRect, text: &[u16]| {
-        let label = shape_overlay_label(recorder, text, 10.0);
+        let label = shape_overlay_label(recorder, text, recorder.inputs.grid_label_fonts);
         let label_width = label_width_for(&label);
         let top_left = CssPixelPoint {
             x: rect.center().x - label_width.div_as_fraction(two),
@@ -468,17 +469,12 @@ struct OverlayLabel {
     glyphs: Vec<DisplayListGlyph>,
 }
 
-fn shape_overlay_label(recorder: &mut PaintRecorder<'_>, text: &[u16], css_font_size: f32) -> OverlayLabel {
-    let device_scale = recorder.inputs.device_pixels_per_css_pixel as f32;
-    // SAFETY: The host resolves the fonts from the platform font caches, which
-    // keep them live through this synchronous call; retaining them here keeps
-    // them alive for the rest of the recording.
-    let css_font =
-        unsafe { libgfx_rust::font::RetainedFont::retain(recorder.paint_host.overlay_label_font(css_font_size)) };
+fn shape_overlay_label(recorder: &mut PaintRecorder<'_>, text: &[u16], fonts: FfiOverlayLabelFonts) -> OverlayLabel {
+    // SAFETY: The host resolves both fonts from the platform font caches, which keep them live
+    // through the recording call; retaining them here keeps them alive for the rest of it.
+    let css_font = unsafe { libgfx_rust::font::RetainedFont::retain(fonts.css_font) };
     // SAFETY: See above.
-    let device_font = unsafe {
-        libgfx_rust::font::RetainedFont::retain(recorder.paint_host.overlay_label_font(css_font_size * device_scale))
-    };
+    let device_font = unsafe { libgfx_rust::font::RetainedFont::retain(fonts.device_font) };
     // SAFETY: The RetainedFont handles keep both fonts live for these borrows.
     let css_font_ref = unsafe { libgfx_rust::font::FontRef::from_raw(css_font.as_raw()) };
     // SAFETY: See above.

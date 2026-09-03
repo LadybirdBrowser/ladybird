@@ -29,8 +29,7 @@ pub(crate) fn paint_outline_phase(recorder: &mut PaintRecorder<'_>, paintable: N
         let border_radii = recorder.border_radii(paintable);
         paint_outline(recorder, outline, outline_offset, border_box_rect, border_radii);
     }
-    let facts = recorder.paint_host.outline_facts(recorder.layout_node_shell(paintable));
-    paint_focused_area_outline(recorder, paintable, &facts);
+    paint_focused_area_outline(recorder, paintable);
 }
 
 pub(crate) fn outline_border_geometry(
@@ -119,21 +118,19 @@ pub(crate) fn paint_outline(
     );
 }
 
-fn paint_focused_area_outline(
-    recorder: &mut PaintRecorder<'_>,
-    paintable: NodeSlotId,
-    facts: &crate::painting::host::FfiOutlineFacts,
-) {
+fn paint_focused_area_outline(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
     // https://html.spec.whatwg.org/multipage/interaction.html#focusable-area
     // The shapes of area elements in an image map associated with an img element that is being rendered and is not
     // inert.
     // NB: Focused area elements have no paintable of their own, so the image whose rendering makes the area's shape a
     // focusable area paints the focus outline along that shape.
-    if !facts.paints_focused_area_outline || facts.focused_area_path.is_null() {
+    let outline = recorder.inputs.focused_area_outline;
+    // SAFETY: The host keeps the serialised path bytes live for the recording call.
+    let path_bytes = unsafe { crate::painting::ffi::ffi_slice(outline.path_bytes, outline.path_byte_count) };
+    if path_bytes.is_empty() || outline.image != paintable {
         return;
     }
-    // SAFETY: The host hands out a heap-allocated Gfx::Path the receiver owns.
-    let path = unsafe { libgfx_rust::path::OwnedPath::adopt(facts.focused_area_path) };
+    let path = libgfx_rust::path::OwnedPath::from_serialized_bytes(path_bytes);
     let converter = recorder.converter;
     let image_rect = paintable_geometry::absolute_rect(recorder.layout_arena, paintable);
     let scale = recorder.inputs.device_pixels_per_css_pixel as f32;
@@ -155,8 +152,8 @@ fn paint_focused_area_outline(
                 dash_offset: 0.0,
                 path: &transformed,
                 opacity: 1.0,
-                paint_style_or_color: PaintStyleOrColor::Color(facts.focused_area_color),
-                thickness: facts.focused_area_width.to_double() as f32 * scale,
+                paint_style_or_color: PaintStyleOrColor::Color(outline.color),
+                thickness: outline.width.to_double() as f32 * scale,
                 should_anti_alias: ShouldAntiAlias::Yes,
             });
         });
