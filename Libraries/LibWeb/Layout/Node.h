@@ -75,12 +75,12 @@ public:
     Node* previous_sibling_ptr() { return linked_node(RustFFI::FfiNodeLink::PreviousSibling); }
     bool has_children() const { return first_child_ptr() != nullptr; }
 
-    RefPtr<Node> first_child() { return first_child_ptr(); }
-    RefPtr<Node const> first_child() const { return first_child_ptr(); }
-    RefPtr<Node> next_sibling() { return next_sibling_ptr(); }
-    RefPtr<Node const> next_sibling() const { return next_sibling_ptr(); }
-    RefPtr<Node> previous_sibling() { return previous_sibling_ptr(); }
-    RefPtr<Node const> previous_sibling() const { return const_cast<Node*>(this)->previous_sibling_ptr(); }
+    Node* first_child() { return first_child_ptr(); }
+    Node const* first_child() const { return first_child_ptr(); }
+    Node* next_sibling() { return next_sibling_ptr(); }
+    Node const* next_sibling() const { return next_sibling_ptr(); }
+    Node* previous_sibling() { return previous_sibling_ptr(); }
+    Node const* previous_sibling() const { return const_cast<Node*>(this)->previous_sibling_ptr(); }
 
     template<typename Callback>
     TraversalDecision for_each_in_inclusive_subtree(Callback callback) const

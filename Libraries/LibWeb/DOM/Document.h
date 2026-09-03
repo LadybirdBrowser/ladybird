@@ -1188,7 +1188,7 @@ public:
     [[nodiscard]] bool may_have_scroll_snap_areas() const { return m_may_have_scroll_snap_areas; }
 
     void register_scroll_snap_container(Layout::Node const&);
-    [[nodiscard]] Vector<NonnullRefPtr<Layout::Node const>> collect_scroll_snap_containers();
+    [[nodiscard]] Vector<WeakPtr<Layout::Node const>> collect_scroll_snap_containers();
 
     virtual Vector<Utf16FlyString> supported_property_names() const override;
     Vector<GC::Ref<DOM::Element>> const& potentially_named_elements() const { return m_potentially_named_elements; }

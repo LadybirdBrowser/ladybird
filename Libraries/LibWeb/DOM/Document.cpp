@@ -10247,20 +10247,20 @@ void Document::register_scroll_snap_container(Layout::Node const& snap_container
     m_scroll_snap_containers.append(snap_container.make_weak_ptr());
 }
 
-Vector<NonnullRefPtr<Layout::Node const>> Document::collect_scroll_snap_containers()
+Vector<WeakPtr<Layout::Node const>> Document::collect_scroll_snap_containers()
 {
     // A registered box whose layout node a style or layout update dropped is no longer a box of this document.
     m_scroll_snap_containers.remove_all_matching([](auto const& registered) {
         return !registered;
     });
 
-    Vector<NonnullRefPtr<Layout::Node const>> snap_containers;
+    Vector<WeakPtr<Layout::Node const>> snap_containers;
     snap_containers.ensure_capacity(m_scroll_snap_containers.size());
     for (auto const& registered : m_scroll_snap_containers) {
         // The scroll snap properties of a registered box can stop making it a snap container without its layout node
         // being rebuilt, and a registered box the latest commit left out has no committed box to snap with.
         if (Painting::has_committed_box(*registered) && Painting::is_scroll_snap_container(*registered))
-            snap_containers.unchecked_append(*registered);
+            snap_containers.unchecked_append(registered);
     }
     return snap_containers;
 }

@@ -124,8 +124,8 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
         };
 
         Node const* last_layout_child = nullptr;
-        for (auto layout_child = layout_node->first_child(); layout_child; layout_child = layout_child->next_sibling())
-            last_layout_child = layout_child.ptr();
+        for (auto* layout_child = layout_node->first_child(); layout_child; layout_child = layout_child->next_sibling())
+            last_layout_child = layout_child;
         auto const* trailing_inline_wrapper = last_layout_child && last_layout_child->is_anonymous() && last_layout_child->children_are_inline()
                 && !last_layout_child->is_generated_for_pseudo_element()
             ? last_layout_child
@@ -881,7 +881,7 @@ TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_node(DOM::Node& node
     node.set_child_needs_layout_tree_update(false);
 
     // NB: Called during layout tree construction.
-    RefPtr<Layout::Node> layout_node = node.unsafe_layout_node();
+    auto* layout_node = node.unsafe_layout_node();
     // SVGPatternBox, SVGMaskBox, and SVGClipBox are created on behalf of a referencing
     // element and attached to that element's layout subtree. Skip them so they survive
     // cleanup of their DOM ancestor, unless their layout attachment is inside the
@@ -897,7 +897,7 @@ TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_node(DOM::Node& node
                 return static_cast<DOM::Node*>(node_pointer)->is_shadow_including_inclusive_descendant_of(*static_cast<DOM::Node*>(root_pointer)); },
         };
         if (RustFFI::rust_should_preserve_svg_resource_layout_node(
-                &callbacks, layout_node->arena_handle(), Node::slot_id(layout_node.ptr()), const_cast<DOM::Node*>(cleared_subtree_root)))
+                &callbacks, layout_node->arena_handle(), Node::slot_id(layout_node), const_cast<DOM::Node*>(cleared_subtree_root)))
             return TraversalDecision::SkipChildrenAndContinue;
     }
 
@@ -946,7 +946,6 @@ void LayoutTreeBuildBridge::detach_top_layer_element_layout_subtree(DOM::Element
 }
 
 struct PrincipalNodeFrame {
-    RefPtr<Layout::Node> old_layout_node;
     RefPtr<Layout::Node> layout_node;
     RefPtr<CSS::ComputedValues const> anonymous_computed_values;
     CSS::StyleRecordID style_record_identity;
@@ -1170,15 +1169,14 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 storage.frames.append(make<PrincipalNodeFrame>());
             auto& frame = *storage.frames[storage.active_frame_count++];
             auto& node = *static_cast<DOM::Node*>(node_pointer);
-            // NB: Called during layout tree construction.
-            frame.old_layout_node = node.unsafe_layout_node();
             frame.layout_node = nullptr;
             frame.anonymous_computed_values = nullptr;
             VERIFY(!frame.style_record_owner);
             frame.style_record_identity = 0;
+            // NB: Called during layout tree construction.
             return {
                 .frame = &frame,
-                .old_layout_node = Node::slot_id(frame.old_layout_node.ptr()),
+                .old_layout_node = Node::slot_id(node.unsafe_layout_node()),
             }; },
         .pop_principal_frame = [](void* builder_pointer, void* frame_pointer) {
             VERIFY(builder_pointer);
@@ -1194,7 +1192,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 frame.style_record_owner->unpin_style_record(frame.style_record_identity);
                 frame.style_record_owner = nullptr;
             }
-            frame.old_layout_node = nullptr;
             frame.layout_node = nullptr;
             frame.anonymous_computed_values = nullptr;
             frame.style_record_identity = 0;
