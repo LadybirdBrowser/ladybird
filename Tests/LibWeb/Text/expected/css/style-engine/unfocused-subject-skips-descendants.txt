@@ -1,0 +1,4 @@
+unfocused probe: rgb(0, 0, 0)
+recomputes with no focused element: 0
+focused probe: rgb(0, 128, 0)
+recomputes with one focused element: 4

@@ -1815,8 +1815,12 @@ impl StyleEngine {
     /// subject check, and the change reaches nothing at all. The feature in flux counts as carried
     /// by the node it changed on, whichever direction it moved.
     pub(super) fn feature_in_flux(input: &NormalizedInput) -> Option<(StyleNodeID, DispatchKey)> {
-        let InputKey::LocalFeature(node, feature) = input.key else {
-            return None;
+        let (node, feature) = match input.key {
+            InputKey::LocalFeature(node, feature) => (node, feature),
+            InputKey::State(node, fact) => {
+                return fact.has_selector_posting().then_some((node, DispatchKey::State(fact)));
+            }
+            _ => return None,
         };
         let key = match feature {
             LocalFeatureKey::Class(atom) => DispatchKey::Class(atom),

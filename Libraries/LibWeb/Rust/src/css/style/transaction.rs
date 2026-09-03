@@ -53,6 +53,32 @@ pub struct StyleTransactionVersion(pub u64);
 // a bitset cannot carry their argument.
 include!(concat!(env!("OUT_DIR"), "/style_state_fact_generated.rs"));
 
+impl StateFact {
+    /// Whether the elements in this state are enumerated by a feature posting.
+    ///
+    /// A state a user interaction puts an element in holds on a handful of elements at a time: the
+    /// focused element and the ancestors focus is within, the hovered chain, the activated chain,
+    /// the top layer. A subject compound carrying nothing but such a state names its subjects as
+    /// well as an ID does, so a change elsewhere in the selector reaches those subjects rather than
+    /// every element its combinators could lead to. A state an element's nature decides, such as
+    /// being a link or enabled, holds on most of a document and is left to the compound's names.
+    #[must_use]
+    pub fn has_selector_posting(self) -> bool {
+        matches!(
+            self,
+            Self::Active
+                | Self::Focus
+                | Self::FocusVisible
+                | Self::FocusWithin
+                | Self::Fullscreen
+                | Self::Hover
+                | Self::Modal
+                | Self::PopoverOpen
+                | Self::Target
+        )
+    }
+}
+
 /// Declarations sourced from one style node rather than a stylesheet rule. Each kind keeps its
 /// language-defined cascade placement: presentational hints do not masquerade as inline style, and
 /// none of them enter the selector program merely because their source syntax is an attribute.

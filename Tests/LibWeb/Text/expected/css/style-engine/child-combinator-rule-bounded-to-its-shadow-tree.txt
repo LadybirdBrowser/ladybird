@@ -1,5 +1,5 @@
-li > div > :focus: 1
+li > div > :focus: 0
 li > div > *: 1
-li :focus: 2
+li :focus: 0
 before focus: rgb(0, 0, 0)
 after focus: rgb(1, 2, 3)

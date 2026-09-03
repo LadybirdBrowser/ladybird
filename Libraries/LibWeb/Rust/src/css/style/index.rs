@@ -1614,17 +1614,18 @@ pub enum FeatureKey {
 impl FeatureKey {
     #[must_use]
     pub fn has_selector_posting(self) -> bool {
-        matches!(
-            self,
+        match self {
             Self::Part(_)
-                | Self::CustomState(_)
-                | Self::TagName(_)
-                | Self::Id(_)
-                | Self::Class(_)
-                | Self::AttributeName(_)
-                | Self::AttributeValue(_)
-                | Self::Directionality(_)
-        )
+            | Self::CustomState(_)
+            | Self::TagName(_)
+            | Self::Id(_)
+            | Self::Class(_)
+            | Self::AttributeName(_)
+            | Self::AttributeValue(_)
+            | Self::Directionality(_) => true,
+            Self::State(fact) => fact.has_selector_posting(),
+            _ => false,
+        }
     }
 
     fn atom(self) -> Option<StyleAtomID> {
@@ -4121,6 +4122,17 @@ impl ElementFactStore {
                     return None;
                 }
             }
+            for state in self
+                .rows
+                .states_of(row)
+                .facts()
+                .filter(|state| state.has_selector_posting())
+            {
+                let key = SelectorPostingKey::State(state);
+                if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
+                    return None;
+                }
+            }
             for &class in self.rows.classes_of(row) {
                 let key = SelectorPostingKey::Class(class);
                 if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
@@ -4993,14 +5005,25 @@ impl ElementFactStore {
             .is_some_and(Option::is_some)
     }
 
-    pub fn set_state(&mut self, node: StyleNodeID, fact: StateFact, value: bool) {
-        self.edit_staged_row(node, |facts| {
+    pub fn set_state(&mut self, node: StyleNodeID, fact: StateFact, value: bool, memory: &mut MemoryController) {
+        let changed = self.edit_staged_row(node, |facts| {
+            if facts.states.contains(fact) == value {
+                return false;
+            }
             if value {
                 facts.states.insert(fact);
             } else {
                 facts.states.remove(fact);
             }
+            true
         });
+        if changed && fact.has_selector_posting() {
+            if value {
+                self.postings.insert(SelectorPostingKey::State(fact), node, memory);
+            } else {
+                self.postings.remove(SelectorPostingKey::State(fact), node);
+            }
+        }
     }
 
     pub fn set_parts(&mut self, node: StyleNodeID, parts: &[StyleAtomID], memory: &mut MemoryController) {
@@ -5071,6 +5094,14 @@ impl ElementFactStore {
         }
         for &state in self.rows.custom_states_of(row) {
             self.postings.remove(SelectorPostingKey::CustomState(state), node);
+        }
+        for state in self
+            .rows
+            .states_of(row)
+            .facts()
+            .filter(|state| state.has_selector_posting())
+        {
+            self.postings.remove(SelectorPostingKey::State(state), node);
         }
         for &AttributeFact { name, value, .. } in self.rows.attributes_of(row) {
             for key in self.attribute_name_keys(name) {
@@ -5470,6 +5501,35 @@ mod tests {
     }
 
     #[test]
+    fn interaction_states_keep_a_posting() {
+        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut facts = ElementFactStore::new();
+        let node = StyleNodeID::element(1);
+        facts.set_state(node, StateFact::Focus, true, &mut memory);
+        facts.set_state(node, StateFact::Enabled, true, &mut memory);
+        facts.apply_staged(&mut memory);
+        assert!(known_posting(facts.postings(), SelectorPostingKey::State(StateFact::Focus)).contains(node));
+        assert!(matches!(
+            facts.postings().lookup(SelectorPostingKey::State(StateFact::Enabled)),
+            Lookup::KnownAbsent
+        ));
+
+        facts.set_state(node, StateFact::Focus, false, &mut memory);
+        assert!(matches!(
+            facts.postings().lookup(SelectorPostingKey::State(StateFact::Focus)),
+            Lookup::KnownAbsent
+        ));
+
+        facts.set_state(node, StateFact::Focus, true, &mut memory);
+        facts.apply_staged(&mut memory);
+        facts.forget(node);
+        assert!(matches!(
+            facts.postings().lookup(SelectorPostingKey::State(StateFact::Focus)),
+            Lookup::KnownAbsent
+        ));
+    }
+
+    #[test]
     fn a_posting_stays_sorted_across_chunk_splits() {
         let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
         let mut postings = FeaturePostings::new();
@@ -5666,7 +5726,7 @@ mod tests {
         assert_eq!(facts.primary().stale_rows(), 0);
 
         facts.set_class(node, second_class, true, &mut memory);
-        facts.set_state(node, StateFact::Hover, true);
+        facts.set_state(node, StateFact::Hover, true, &mut memory);
         facts.set_parts(node, &[part], &mut memory);
         facts.set_custom_states(node, &[custom_state], &mut memory);
         facts.apply_staged(&mut memory);
@@ -5697,7 +5757,7 @@ mod tests {
         facts.apply_staged(&mut memory);
         let payload_lengths = (facts.rows.classes.len(), facts.rows.attributes.len());
 
-        facts.set_state(node, StateFact::Hover, true);
+        facts.set_state(node, StateFact::Hover, true, &mut memory);
         facts.apply_staged(&mut memory);
 
         assert_eq!((facts.rows.classes.len(), facts.rows.attributes.len()), payload_lengths);
