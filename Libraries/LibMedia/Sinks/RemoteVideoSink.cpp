@@ -40,7 +40,7 @@ public:
 
 private:
     struct LentPool {
-        NonnullRefPtr<VideoFramePool> pool;
+        NonnullRefPtr<VideoFrameEntryLedger> ledger;
         HashMap<u32, u32> lend_counts_by_slot_index;
         HashMap<u32, u64> announced_allocated_buffer_ids_by_slot_index;
         u64 outstanding_lend_count { 0 };
@@ -286,18 +286,18 @@ void RemoteVideoSink::ThreadData::enqueue_frame(VideoFrame const& frame, u32 see
 
 void RemoteVideoSink::ThreadData::lend_slot(PooledVideoFrameSlot const& pool_slot)
 {
-    auto& pool = pool_slot.pool();
+    auto& ledger = pool_slot.ledger();
     auto slot_index = pool_slot.slot_index();
-    pool.add_hold(slot_index);
+    ledger.add_hold(slot_index);
     Sync::MutexLocker locker { m_lent_pools_mutex };
-    auto& lent_pool = m_lent_pools.ensure(pool.id(), [&] {
-        return LentPool { .pool = pool, .lend_counts_by_slot_index = {}, .announced_allocated_buffer_ids_by_slot_index = {}, .outstanding_lend_count = 0 };
+    auto& lent_pool = m_lent_pools.ensure(ledger.id(), [&] {
+        return LentPool { .ledger = ledger, .lend_counts_by_slot_index = {}, .announced_allocated_buffer_ids_by_slot_index = {}, .outstanding_lend_count = 0 };
     });
 
     // Each new buffer backing the slot is announced exactly once, before the first handle that refers to it.
     auto announced_buffer_id = lent_pool.announced_allocated_buffer_ids_by_slot_index.get(slot_index);
     if (!announced_buffer_id.has_value() || *announced_buffer_id != pool_slot.allocated_buffer_id()) {
-        m_delegates.announce_slot(pool.id(), slot_index, pool.slot_buffer(slot_index));
+        m_delegates.announce_slot(ledger.id(), slot_index, ledger.slot_buffer(slot_index));
         lent_pool.announced_allocated_buffer_ids_by_slot_index.set(slot_index, pool_slot.allocated_buffer_id());
     }
 
@@ -307,7 +307,7 @@ void RemoteVideoSink::ThreadData::lend_slot(PooledVideoFrameSlot const& pool_slo
 
 void RemoteVideoSink::ThreadData::release_slot(VideoFramePoolID pool_id, u32 slot_index)
 {
-    RefPtr<VideoFramePool> pool;
+    RefPtr<VideoFrameEntryLedger> ledger;
     {
         Sync::MutexLocker locker { m_lent_pools_mutex };
         auto lent_pool = m_lent_pools.get(pool_id);
@@ -316,7 +316,7 @@ void RemoteVideoSink::ThreadData::release_slot(VideoFramePoolID pool_id, u32 slo
         auto count = lent_pool->lend_counts_by_slot_index.get(slot_index);
         if (!count.has_value() || *count == 0)
             return;
-        pool = lent_pool->pool;
+        ledger = lent_pool->ledger;
         if (--*count == 0)
             lent_pool->lend_counts_by_slot_index.remove(slot_index);
         if (--lent_pool->outstanding_lend_count == 0) {
@@ -324,7 +324,7 @@ void RemoteVideoSink::ThreadData::release_slot(VideoFramePoolID pool_id, u32 slo
             m_delegates.retire_pool(pool_id);
         }
     }
-    pool->release_hold(slot_index);
+    ledger->release_hold(slot_index);
 }
 
 void RemoteVideoSink::ThreadData::release_all_lends()
@@ -337,7 +337,7 @@ void RemoteVideoSink::ThreadData::release_all_lends()
     for (auto& entry : lent_pools) {
         for (auto& [slot_index, lend_count] : entry.value.lend_counts_by_slot_index) {
             for (u32 release = 0; release < lend_count; release++)
-                entry.value.pool->release_hold(slot_index);
+                entry.value.ledger->release_hold(slot_index);
         }
     }
 }
@@ -350,16 +350,16 @@ RefPtr<VideoFrame> RemoteVideoSink::ThreadData::current_frame()
             Sync::MutexLocker locker { m_lent_pools_mutex };
             auto lent_pool = m_lent_pools.get(handle->pool_id);
             if (lent_pool.has_value() && lent_pool->lend_counts_by_slot_index.contains(handle->slot_index)) {
-                auto pool = lent_pool->pool;
+                auto ledger = lent_pool->ledger;
 
                 // Hold the slot across the synchronous read so it cannot be recycled mid-use; the resolved frame's
                 // release callback drops the hold.
-                pool->add_hold(handle->slot_index);
-                auto frame_or_error = resolve_frame_from_slot_buffer(pool->slot_buffer(handle->slot_index), *handle, [pool, slot_index = handle->slot_index] {
-                    pool->release_hold(slot_index);
+                ledger->add_hold(handle->slot_index);
+                auto frame_or_error = resolve_frame_from_slot_buffer(ledger->slot_buffer(handle->slot_index), *handle, [ledger, slot_index = handle->slot_index] {
+                    ledger->release_hold(slot_index);
                 });
                 if (frame_or_error.is_error()) {
-                    pool->release_hold(handle->slot_index);
+                    ledger->release_hold(handle->slot_index);
                     return nullptr;
                 }
                 return frame_or_error.release_value();
