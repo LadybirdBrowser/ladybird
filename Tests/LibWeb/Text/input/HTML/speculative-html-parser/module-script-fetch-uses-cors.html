@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // The speculative HTML parser fetches a module script's src ahead of the parser. That fetch has to be the CORS-mode
+    // request "fetch a single module script" makes — since its response is what the real fetch later finds in the HTTP
+    // cache. And a server that only sends Access-Control-Allow-Origin in reply to an Origin header answers a no-cors
+    // request without it — so the real fetch would fail its CORS check on the cached response.
+    asyncTest(async done => {
+        internals.setTestTimeout(15000);
+
+        const server = httpTestServer();
+        const run = crypto.randomUUID();
+        const parserGate = `${run}-parser`;
+        const path = name => `/speculative-module-script-${run}-${name}`;
+
+        const parserBlockerURL = await server.createEcho("GET", path("parser-blocker.js"), {
+            status: 200,
+            headers: { "Content-Type": "text/javascript" },
+            body: "",
+            wait_for_unblock: parserGate,
+        });
+        const moduleURL = new URL(await server.createEcho("GET", path("module.js"), {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "text/javascript",
+            },
+            body: `parent.postMessage({ type: "module-ran" }, "*");`,
+        }));
+        // Served from a different host, so the module is cross-origin to the page that embeds it.
+        moduleURL.hostname = uniqueLocalhostHostname("speculative-module-script");
+
+        const scriptStartTag = "<scr" + "ipt";
+        const scriptEndTag = "</scr" + "ipt>";
+        const pageURL = await server.createEcho("GET", path("page.html"), {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html>
+                ${scriptStartTag} src="${parserBlockerURL}">${scriptEndTag}
+                ${scriptStartTag} type="module" src="${moduleURL}">${scriptEndTag}`,
+        });
+
+        const recordedHeaders = async url => {
+            // Until the path has been requested, the endpoint answers 404 without CORS headers, so the fetch rejects.
+            let response;
+            try {
+                response = await fetch(`${server.baseURL}/recorded-request-headers${new URL(url).pathname}`);
+            } catch {
+                return null;
+            }
+            if (!response.ok)
+                return null;
+            const headers = await response.json();
+            return Object.fromEntries(Object.entries(headers).map(([name, value]) => [name.toLowerCase(), value]));
+        };
+        const waitForRequest = async url => {
+            while (!await recordedHeaders(url)) { }
+        };
+        const moduleRan = new Promise(resolve => {
+            window.addEventListener("message", event => {
+                if (event.data.type === "module-ran")
+                    resolve();
+            });
+        });
+
+        const frame = document.createElement("iframe");
+        frame.src = pageURL;
+        document.body.appendChild(frame);
+
+        // The parser is stuck on the blocking script, so the only request the module can have received is speculative.
+        await waitForRequest(moduleURL);
+        const headers = await recordedHeaders(moduleURL);
+        println(`${headers.origin?.length > 0 ? "PASS" : "FAIL"}: the speculative fetch of a module script sends an Origin header`);
+        println(`${headers["sec-fetch-mode"]?.[0] === "cors" ? "PASS" : "FAIL"}: the speculative fetch of a module script is a CORS-mode request`);
+
+        await fetch(`${server.baseURL}/unblock/${parserGate}`);
+        await moduleRan;
+        println("PASS: the module script runs once the parser reaches it");
+        done();
+    });
+</script>
