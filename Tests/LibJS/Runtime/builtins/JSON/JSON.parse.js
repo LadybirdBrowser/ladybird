@@ -144,6 +144,24 @@ test("unicode and surrogate pairs", () => {
     expect(JSON.parse('{"\uD800":"\uDC00"}')["\uD800"].charCodeAt(0)).toBe(0xdc00);
 });
 
+test("lone surrogates among non-ASCII text", () => {
+    const mixed = JSON.parse('"日\uD800本\uDC00語"');
+    expect(mixed).toHaveLength(5);
+    expect(mixed.charCodeAt(1)).toBe(0xd800);
+    expect(mixed.charCodeAt(3)).toBe(0xdc00);
+    expect(mixed[4]).toBe("語");
+
+    const consecutive = JSON.parse('["\uD800\uD800", "\uDC00\uDC00", "é\uDC00"]');
+    expect(consecutive[0]).toHaveLength(2);
+    expect(consecutive[0].charCodeAt(1)).toBe(0xd800);
+    expect(consecutive[1]).toHaveLength(2);
+    expect(consecutive[1].charCodeAt(0)).toBe(0xdc00);
+    expect(consecutive[2]).toBe("é\uDC00");
+
+    expect(JSON.parse('{"日\uD800":"\uD83D\uDE00"}')["日\uD800"]).toBe("😀");
+    expect(() => JSON.parse("\uD800")).toThrow(SyntaxError);
+});
+
 test("whitespace handling", () => {
     expect(JSON.parse(" null")).toBe(null);
     expect(JSON.parse("null ")).toBe(null);
