@@ -108,6 +108,11 @@ void SiteIsolationManager::remove_page(WebContentClient& client, u64 page_id)
     // frames belong to their subtrees and follow them out.
     while (!host->children().is_empty())
         remove_child_frame_subtree(*host->children().last());
+
+    // If the page hosted a child frame's content, the frame node itself belongs to its container's process and stays
+    // in the tree, but its content is gone with this client. Collapse it back to local and let the container know.
+    if (host->has_remote_host() && &host->remote_host_client() == &client)
+        transition_child_frame_to_local(*host);
 }
 
 void SiteIsolationManager::remove_all_pages_for_client(WebContentClient& client)

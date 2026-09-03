@@ -1196,6 +1196,11 @@ Utf16String Internals::dump_site_isolation_process_tree()
     return dump_string_to_utf16(window().associated_document().page().client().dump_site_isolation_process_tree_for_testing());
 }
 
+void Internals::crash_remote_frame_processes()
+{
+    window().associated_document().page().client().crash_remote_frame_processes_for_testing();
+}
+
 GC::Ref<WebIDL::Promise> Internals::flush_session_history_traversal_queue()
 {
     auto& realm = window().principal_realm();

@@ -138,6 +138,12 @@ Optional<WebContentClient&> WebContentClient::client_for_compositor_context_id(W
 void WebContentClient::die()
 {
     m_process_lost = true;
+
+    // The transport's peer-EOF and the process-exit notification race, and an embedded-only client can be destroyed
+    // by this path before the process monitor looks it up. The removal is map-driven, so whichever path runs second
+    // finds nothing left to do.
+    SiteIsolationManager::the().remove_all_pages_for_client(*this);
+
     cancel_navigation_transactions();
     fail_renderer_owned_downloads();
 }
@@ -2306,6 +2312,19 @@ Messages::WebContentClient::DidRequestUiProcessSessionHistoryForTestingResponse 
 Messages::WebContentClient::DidRequestSiteIsolationProcessTreeForTestingResponse WebContentClient::did_request_site_isolation_process_tree_for_testing(u64 page_id)
 {
     return { SiteIsolationManager::the().dump_process_tree(*this, page_id) };
+}
+
+void WebContentClient::did_request_crash_of_remote_frame_processes_for_testing(u64 page_id)
+{
+    auto* host = navigable_for_page(page_id);
+    if (!host)
+        return;
+
+    host->for_each_in_subtree([](CanonicalNavigable& child_frame) {
+        if (child_frame.has_remote_host())
+            child_frame.remote_host_client().async_debug_request(child_frame.remote_host_page_id(), "crash-current-page"sv, ""sv);
+        return IterationDecision::Continue;
+    });
 }
 
 void WebContentClient::did_reset_session_history_for_testing(u64 page_id, Web::HTML::SessionHistoryEntryDescriptor active_entry)
