@@ -939,7 +939,17 @@ static Utf16String json_token_source(JSONTextBytes const& json_text, std::string
 template<typename T>
 static ThrowCompletionOr<Value> parse_simdjson_number(VM& vm, T& value, StringView raw_sv)
 {
-    // Validate JSON number format (simdjson is more lenient than spec)
+    double double_value;
+    auto error = value.get_double().get(double_value);
+    if (!error) {
+        TRY(ensure_simdjson_fully_parsed(vm, value));
+        return Value(double_value);
+    }
+
+    if (error != simdjson::NUMBER_ERROR)
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+
+    // Validate JSON number format (parse_first_number is more lenient than spec)
     // - No leading zeros (except "0" or "0.xxx")
     // - No trailing decimal point (e.g., "1." is invalid)
     size_t i = 0;
@@ -955,21 +965,12 @@ static ThrowCompletionOr<Value> parse_simdjson_number(VM& vm, T& value, StringVi
             return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed); // Trailing decimal
     }
 
-    double double_value;
-    auto error = value.get_double().get(double_value);
-    if (!error) {
-        TRY(ensure_simdjson_fully_parsed(vm, value));
-        return Value(double_value);
-    }
-
     // Handle overflow to infinity (e.g., 1e309)
     // simdjson returns NUMBER_ERROR for numbers that overflow double
     // Use parse_first_number as fallback - it handles overflow correctly
-    if (error == simdjson::NUMBER_ERROR) {
-        auto result = parse_first_number<double>(raw_sv, TrimWhitespace::No);
-        if (result.has_value() && result->characters_parsed == raw_sv.length())
-            return Value(result->value);
-    }
+    auto result = parse_first_number<double>(raw_sv, TrimWhitespace::No);
+    if (result.has_value() && result->characters_parsed == raw_sv.length())
+        return Value(result->value);
 
     return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
 }
