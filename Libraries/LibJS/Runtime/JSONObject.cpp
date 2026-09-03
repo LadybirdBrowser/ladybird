@@ -952,7 +952,7 @@ static ThrowCompletionOr<Value> parse_simdjson_number(VM& vm, T& value, StringVi
 }
 
 template<typename T>
-static ThrowCompletionOr<Value> parse_simdjson_string(VM& vm, T& value)
+static ThrowCompletionOr<Value> parse_simdjson_string(VM& vm, JSONTextBytes const& json_text, T& value)
 {
     // Use get_raw_json_string() to get the raw JSON string content (without quotes, with escapes),
     // then unescape ourselves to properly handle lone surrogates like \uD800 which simdjson rejects.
@@ -960,8 +960,22 @@ static ThrowCompletionOr<Value> parse_simdjson_string(VM& vm, T& value)
     if (value.get_raw_json_string().get(raw_string))
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
     char const* raw = raw_string.raw();
+    auto bytes = json_text.bytes();
+    StringView remaining { raw, static_cast<size_t>(bytes.characters_without_null_termination() + bytes.length() - raw) };
+
     // Find the length by looking for the closing quote (simdjson validated the structure)
-    size_t length = 0;
+    auto quote_offset = remaining.find('"');
+    VERIFY(quote_offset.has_value());
+    auto candidate = remaining.substring_view(0, *quote_offset);
+
+    auto backslash_offset = candidate.find('\\');
+    if (!backslash_offset.has_value()) {
+        if (json_text.text.has_ascii_storage())
+            return PrimitiveString::create(vm, Utf16String::from_ascii_without_validation(candidate.bytes()));
+        return PrimitiveString::create(vm, Utf16String::from_utf8_without_validation(candidate));
+    }
+
+    size_t length = *backslash_offset;
     while (raw[length] != '"') {
         if (raw[length] == '\\')
             ++length; // Skip escaped character
@@ -1081,7 +1095,7 @@ static ThrowCompletionOr<Value> parse_simdjson_value(VM& vm, JSONTextBytes const
     }
     case simdjson::ondemand::json_type::string: {
         auto token = value.raw_json_token();
-        auto parsed = TRY(parse_simdjson_string(vm, value));
+        auto parsed = TRY(parse_simdjson_string(vm, json_text, value));
         if (record) {
             record->value = parsed;
             record->source = json_token_source(json_text, token);
@@ -1152,7 +1166,7 @@ static ThrowCompletionOr<Value> parse_simdjson_document(VM& vm, JSONTextBytes co
         std::string_view string_token;
         if (record && document.raw_json_token().get(string_token))
             return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
-        auto parsed = TRY(parse_simdjson_string(vm, document));
+        auto parsed = TRY(parse_simdjson_string(vm, json_text, document));
         if (record) {
             record->value = parsed;
             record->source = json_token_source(json_text, string_token);
