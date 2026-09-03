@@ -140,6 +140,8 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
 
         // 4. Set worker global scope's credentials to options["credentials"].
         shared_global_scope.set_credentials(static_cast<Web::Fetch::Infrastructure::Request::CredentialsMode>(credentials));
+
+        // FIXME: 5. Set worker global scope's extended lifetime to options["extendedLifetime"].
     }
 
     // 11. Let destination be "sharedworker" if is shared is true, and "worker" otherwise.
