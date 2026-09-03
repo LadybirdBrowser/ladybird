@@ -362,6 +362,26 @@ TEST_CASE(visual_animations_advance_without_a_web_content_update)
 
     context.update_visual_context_tree(visual_context_tree, {});
     EXPECT(!context.has_sampled_visual_animation_values_for_testing());
+    auto const& updated_tree = context.sampled_visual_context_tree_for_testing();
+    auto updated_translation = updated_tree.accumulated_matrix(spatial, {}, Web::Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::Yes)[0, 3];
+    EXPECT_EQ(updated_translation, 4.0f);
+    EXPECT_EQ(updated_tree.effects_opacity(frame), Optional<float> { 0.5f });
+    EXPECT(context.has_sampled_visual_animation_values_for_testing());
+
+    context.install_display_list_update(
+        make_display_list(visual_context_tree, Gfx::Color::Red, Gfx::Color::Transparent, { spatial, frame }),
+        visual_context_tree,
+        {});
+    EXPECT(!context.has_sampled_visual_animation_values_for_testing());
+    auto const& replaced_tree = context.sampled_visual_context_tree_for_testing();
+    auto replaced_translation = replaced_tree.accumulated_matrix(spatial, {}, Web::Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::Yes)[0, 3];
+    EXPECT_EQ(replaced_translation, 4.0f);
+    EXPECT_EQ(replaced_tree.effects_opacity(frame), Optional<float> { 0.5f });
+    EXPECT(context.has_sampled_visual_animation_values_for_testing());
+
+    visual_context_tree.set_visual_animations(Vector<Web::Compositor::VisualAnimation> {});
+    context.update_visual_context_tree(visual_context_tree, {});
+    EXPECT(!context.has_sampled_visual_animation_values_for_testing());
     auto const& restored_tree = context.visual_context_tree_for_testing();
     auto restored_translation = restored_tree.accumulated_matrix(spatial, {}, Web::Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::Yes)[0, 3];
     EXPECT_EQ(restored_translation, 0.0f);
