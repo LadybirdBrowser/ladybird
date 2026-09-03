@@ -1,52 +1,65 @@
 <!doctype html>
 <style>
-    @keyframes delayed-css-start {
-        from { color: rgb(10, 0, 0); }
-        to { color: rgb(20, 0, 0); }
+    #target {
+        width: 20px;
+        height: 20px;
+        transform: translateX(0);
+        transition: transform 100s linear 500ms;
+    }
+
+    #target.changed {
+        transform: translateX(100px);
     }
 </style>
+<div id="target"></div>
 <script src="../include.js"></script>
 <script>
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
+    async function renderAt(frameTime) {
+        internals.injectRenderingOpportunity(frameTime);
+        await nextTask();
+    }
+
     asyncTest(async done => {
-        const target = document.createElement("div");
-        document.body.append(target);
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        const firstFrameTime = performance.now();
+        await renderAt(firstFrameTime);
 
-        const cssTarget = document.createElement("div");
-        let cssAnimationStartTime;
-        cssTarget.addEventListener("animationstart", () => {
-            cssAnimationStartTime = performance.now();
-        });
-        cssTarget.style.animation = "delayed-css-start 100s 500ms";
-        document.body.append(cssTarget);
+        let receivedTransitionStart = false;
+        target.addEventListener("transitionstart", () => receivedTransitionStart = true);
+        target.classList.add("changed");
 
-        const animation = target.animate([
-            { color: "rgb(10, 0, 0)" },
-            { color: "rgb(20, 0, 0)" },
-        ], { delay: 500, duration: 100000, fill: "backwards" });
-        await animation.ready;
+        for (const offset of [16, 32, 48, 64])
+            await renderAt(firstFrameTime + offset);
 
-        const rewoundTarget = document.createElement("div");
-        rewoundTarget.style.visibility = "hidden";
-        document.body.append(rewoundTarget);
-        const rewoundAnimation = rewoundTarget.animate([
-            { transform: "translateX(0px)" },
-            { transform: "translateX(100px)" },
-        ], { duration: 100000, fill: "backwards", iterations: Infinity });
-        await rewoundAnimation.ready;
-        rewoundAnimation.currentTime = -100;
+        const transition = target.getAnimations()[0];
+        await transition.ready;
+        println(`delayed transition uses the compositor before start: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 1}`);
 
-        const readyTime = performance.now();
+        const activeStartTime = transition.startTime + 501;
         internals.resetStyleInvalidationCounters();
-        await new Promise(resolve => setTimeout(resolve, 625));
+        internals.fireCompositorAnimationWakeupForTesting(activeStartTime);
         const counters = internals.getStyleInvalidationCounters();
 
-        println(`delayed script animation receives its start wake-up: ${animation.currentTime >= 500 && counters.animationFramePumpRequests >= 1}`);
-        println(`zero-delay animation wakes after rewind: ${rewoundAnimation.currentTime >= 0 && counters.animationFramePumpRequests >= 2}`);
-        println(`animationstart fires near the active boundary: ${cssAnimationStartTime !== undefined && cssAnimationStartTime - readyTime <= 625}`);
-        println(`delayed script animation uses a bounded frame pump: ${counters.animationFramePumpRequests >= 2 && counters.animationFramePumpRequests <= 16}`);
+        transition.currentTime = 501;
+        await renderAt(performance.now());
 
-        animation.cancel();
-        rewoundAnimation.cancel();
+        println(`delayed compositor effect requests one start frame: ${counters.animationFramePumpRequests === 1}`);
+        println(`delayed compositor effect republishes at active start: ${counters.compositorVisualAnimationUpdates === 1}`);
+        println(`seeking reaches the delayed transition's active phase: ${transition.currentTime >= 500}`);
+        println(`transitionstart fires after seeking and rendering: ${receivedTransitionStart}`);
+        println(`active compositor effect retains an end wake-up: ${internals.getStyleInvalidationCounters().compositorAnimationWakeupTimerActive}`);
+
+        transition.cancel();
+        internals.setManualRenderingOpportunities(false);
         done();
     });
 </script>

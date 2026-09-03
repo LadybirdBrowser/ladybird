@@ -89,6 +89,7 @@ public:
     // https://www.w3.org/TR/web-animations-1/#dom-animation-pending
     bool pending_for_bindings() const;
     bool pending() const { return m_pending_play_task == TaskState::Scheduled || m_pending_pause_task == TaskState::Scheduled; }
+    bool has_pending_play_task() const { return m_pending_play_task == TaskState::Scheduled; }
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-ready
     GC::Ref<WebIDL::Promise> ready_for_bindings() const;

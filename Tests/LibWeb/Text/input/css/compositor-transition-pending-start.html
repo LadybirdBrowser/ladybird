@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .target {
+        width: 20px;
+        height: 20px;
+        opacity: 0.25;
+        transition: opacity 400ms linear;
+    }
+
+    body.changed #target {
+        opacity: 0.75;
+    }
+
+    #current-time.changed,
+    #start-time.changed,
+    #retarget.first {
+        opacity: 0.5;
+    }
+
+    #retarget.second {
+        opacity: 0.9;
+    }
+</style>
+<div class="target" id="target"></div>
+<div class="target" id="current-time"></div>
+<div class="target" id="start-time"></div>
+<div class="target" id="retarget"></div>
+<script>
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
+    asyncTest(async done => {
+        const currentTimeTarget = document.getElementById("current-time");
+        const startTimeTarget = document.getElementById("start-time");
+        const retargetTarget = document.getElementById("retarget");
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+
+        const firstFrameTime = performance.now();
+        internals.injectRenderingOpportunity(firstFrameTime);
+        await nextTask();
+
+        const events = [];
+        target.addEventListener("transitionrun", () => events.push("transitionrun"));
+        target.addEventListener("transitionstart", () => events.push("transitionstart"));
+        document.body.classList.add("changed");
+        internals.resetStyleInvalidationCounters();
+        internals.injectRenderingOpportunity(firstFrameTime + 60);
+        await nextTask();
+
+        const animation = target.getAnimations()[0];
+        internals.updateCompositorAnimations();
+        let readyResolved = false;
+        animation.ready.then(() => readyResolved = true);
+        await Promise.resolve();
+        const firstUpdateCounters = internals.getStyleInvalidationCounters();
+
+        println(`new transition remains pending: ${animation.pending}`);
+        println(`new transition start time remains unresolved: ${animation.startTime === null}`);
+        println(`new transition ready promise remains pending: ${!readyResolved}`);
+        println(`new transition start event remains pending: ${events.length === 0}`);
+        println(`new transition starts on compositor: ${firstUpdateCounters.compositorVisualAnimations === 1}`);
+
+        internals.resetStyleInvalidationCounters();
+        internals.injectRenderingOpportunity(firstFrameTime + 120);
+        await nextTask();
+        await Promise.resolve();
+        internals.updateCompositorAnimations();
+        const secondUpdateCounters = internals.getStyleInvalidationCounters();
+
+        println(`next update resolves pending play: ${!animation.pending}`);
+        println(`next update resolves start time: ${animation.startTime !== null}`);
+        println(`next update resolves ready promise: ${readyResolved}`);
+        println(`next update dispatches transition events: ${events.join(",") === "transitionrun,transitionstart"}`);
+        println(`transition remains on compositor: ${secondUpdateCounters.compositorVisualAnimations === 1}`);
+        println(`resolved start retains compositor anchor: ${secondUpdateCounters.compositorVisualAnimationTimingAnchorUpdates === 0}`);
+
+        animation.cancel();
+        internals.updateCompositorAnimations();
+
+        currentTimeTarget.classList.add("changed");
+        getComputedStyle(currentTimeTarget).opacity;
+        const currentTimeAnimation = currentTimeTarget.getAnimations()[0];
+        internals.updateCompositorAnimations();
+        internals.resetStyleInvalidationCounters();
+        currentTimeAnimation.currentTime = 300;
+        internals.updateCompositorAnimations();
+        const currentTimeCounters = internals.getStyleInvalidationCounters();
+        println(`pending current-time seek re-anchors compositor: ${currentTimeAnimation.pending && currentTimeCounters.compositorVisualAnimationTimingAnchorUpdates === 1 && currentTimeCounters.compositorVisualAnimationLocalTimeAtAnchor === 300}`);
+        currentTimeAnimation.cancel();
+        internals.updateCompositorAnimations();
+
+        startTimeTarget.classList.add("changed");
+        getComputedStyle(startTimeTarget).opacity;
+        const startTimeAnimation = startTimeTarget.getAnimations()[0];
+        internals.updateCompositorAnimations();
+        internals.resetStyleInvalidationCounters();
+        const documentTimelineCurrentTime = internals.getStyleInvalidationCounters().documentTimelineCurrentTime;
+        startTimeAnimation.startTime = documentTimelineCurrentTime - 200;
+        internals.updateCompositorAnimations();
+        const startTimeCounters = internals.getStyleInvalidationCounters();
+        println(`pending start-time change re-anchors compositor: ${!startTimeAnimation.pending && startTimeCounters.compositorVisualAnimationTimingAnchorUpdates === 1 && startTimeCounters.compositorVisualAnimationLocalTimeAtAnchor === 200}`);
+        startTimeAnimation.cancel();
+        internals.updateCompositorAnimations();
+
+        retargetTarget.classList.add("first");
+        getComputedStyle(retargetTarget).opacity;
+        const originalRetargetAnimation = retargetTarget.getAnimations()[0];
+        internals.updateCompositorAnimations();
+        internals.resetStyleInvalidationCounters();
+        retargetTarget.classList.add("second");
+        getComputedStyle(retargetTarget).opacity;
+        const retargetAnimations = retargetTarget.getAnimations();
+        internals.updateCompositorAnimations();
+        const retargetCounters = internals.getStyleInvalidationCounters();
+        println(`pending transition retarget replaces descriptor: ${originalRetargetAnimation.playState === "idle" && retargetAnimations.length === 1 && retargetAnimations[0] !== originalRetargetAnimation && retargetCounters.compositorVisualAnimations === 1 && retargetCounters.compositorVisualAnimationUpdates === 1}`);
+
+        internals.setManualRenderingOpportunities(false);
+        done();
+    });
+</script>

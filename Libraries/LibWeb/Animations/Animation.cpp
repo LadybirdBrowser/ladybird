@@ -1608,7 +1608,12 @@ void Animation::run_pending_play_task()
 
     // 5. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
     //    and the synchronously notify flag set to false.
-    update_finished_state(DidSeek::No, SynchronouslyNotify::No);
+    // OPTIMIZATION: A new CSS transition can already have a provisional compositor descriptor anchored to its style
+    //               change event time. Keep that descriptor so resolving this task does not restart its visual time.
+    auto should_invalidate = is_css_transition() && m_effect && is<KeyframeEffect>(*m_effect) && static_cast<KeyframeEffect&>(*m_effect).is_compositor_driven()
+        ? ShouldInvalidate::No
+        : ShouldInvalidate::Yes;
+    update_finished_state(DidSeek::No, SynchronouslyNotify::No, should_invalidate);
 }
 
 bool Animation::is_ready_to_run_pending_pause_task() const

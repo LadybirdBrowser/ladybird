@@ -1,4 +1,6 @@
-delayed script animation receives its start wake-up: true
-zero-delay animation wakes after rewind: true
-animationstart fires near the active boundary: true
-delayed script animation uses a bounded frame pump: true
+delayed transition uses the compositor before start: true
+delayed compositor effect requests one start frame: true
+delayed compositor effect republishes at active start: true
+seeking reaches the delayed transition's active phase: true
+transitionstart fires after seeking and rendering: true
+active compositor effect retains an end wake-up: true

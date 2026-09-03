@@ -573,6 +573,48 @@ TEST_CASE(finite_visual_animations_stop_after_their_terminal_sample)
     EXPECT_EQ(bitmap->get_pixel(8, 0), Gfx::Color::Red);
 }
 
+TEST_CASE(delayed_visual_animations_remain_dormant_until_active_start)
+{
+    TestWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { 0, client, canvas_surface_registry, false };
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    auto spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
+    auto visual_context_tree = builder.finish();
+    auto anchor = MonotonicTime::now();
+    Web::Compositor::VisualAnimation animation {
+        .target_kind = Web::Compositor::VisualAnimation::TargetKind::Transform,
+        .visual_context_node_indices = { spatial.value() },
+        .monotonic_time_at_anchor_ns = anchor.nanoseconds(),
+        .start_delay_ms = 1000,
+        .iteration_duration_ms = 1000000,
+        .fill_mode = Web::Compositor::VisualAnimationFillMode::Backwards,
+        .easing = {},
+        .keyframes = {
+            { 0, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::TranslateX, { 0 } } } },
+            { 1, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::TranslateX, { 20 } } } },
+        },
+    };
+    visual_context_tree.set_visual_animations({ animation });
+
+    context.install_display_list_update(
+        make_display_list(visual_context_tree, Gfx::Color::Red, {}, { spatial, Web::Painting::NO_FRAME_NODE }),
+        visual_context_tree,
+        {});
+
+    EXPECT(!context.has_active_visual_animations());
+    EXPECT(!context.advance_visual_animations(anchor + AK::Duration::from_milliseconds(500)));
+    EXPECT(!context.has_sampled_visual_animation_values_for_testing());
+
+    animation.local_time_at_anchor_ms = 1000;
+    visual_context_tree.set_visual_animations({ animation });
+    context.update_visual_context_tree(visual_context_tree, {});
+
+    EXPECT(context.has_active_visual_animations());
+    EXPECT(context.advance_visual_animations(anchor));
+    EXPECT(context.has_sampled_visual_animation_values_for_testing());
+}
+
 TEST_CASE(oversized_backing_stores_are_rejected)
 {
     Compositor::BackingStoreManager manager;

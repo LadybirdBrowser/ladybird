@@ -73,6 +73,35 @@ static bool visual_viewport_transforms_match(Web::Painting::TransformWithOrigin 
         && AK::fabs(a.origin.y() - b.origin.y()) <= translation_epsilon;
 }
 
+static double visual_animation_local_time_at(Web::Compositor::VisualAnimation const& animation, MonotonicTime now)
+{
+    auto elapsed_nanoseconds = now.nanoseconds() > animation.monotonic_time_at_anchor_ns
+        ? now.nanoseconds() - animation.monotonic_time_at_anchor_ns
+        : 0;
+    return animation.local_time_at_anchor_ms
+        + AK::Duration::from_nanoseconds(elapsed_nanoseconds).to_seconds_f64() * 1000.0 * animation.playback_rate;
+}
+
+static bool visual_animation_is_active_at(Web::Compositor::VisualAnimation const& animation, MonotonicTime now)
+{
+    auto local_time = visual_animation_local_time_at(animation, now);
+    if (!isfinite(local_time))
+        return true;
+    if (local_time < animation.start_delay_ms)
+        return false;
+    if (!isfinite(animation.iteration_count))
+        return true;
+    auto active_end = animation.start_delay_ms + animation.iteration_duration_ms * animation.iteration_count;
+    return local_time < active_end;
+}
+
+static bool visual_context_tree_has_active_animation_at(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, MonotonicTime now)
+{
+    return any_of(visual_context_tree.visual_animations(), [&](auto const& animation) {
+        return visual_animation_is_active_at(animation, now);
+    });
+}
+
 static Web::Compositor::AsyncScrollNodeStableID viewport_stable_id_from(Web::Compositor::AsyncScrollNodeID node_id)
 {
     return {
@@ -172,7 +201,7 @@ void ContextState::install_display_list_update(
     m_display_list = move(display_list);
     m_visual_context_tree = move(visual_context_tree);
     m_visual_animation_sample_time_ns.clear();
-    m_has_active_visual_animations = !m_visual_context_tree->visual_animations().is_empty();
+    m_has_active_visual_animations = visual_context_tree_has_active_animation_at(*m_visual_context_tree, MonotonicTime::now());
     m_scroll_state_snapshot = move(scroll_state_snapshot);
     m_scroll_state_snapshot.set_node_count(m_visual_context_tree->spatial_node_count());
     update_caret_blink_timer();
@@ -289,7 +318,7 @@ void ContextState::update_visual_context_tree(Web::Painting::AccumulatedVisualCo
     apply_display_list_resource_transaction(move(resource_transaction));
     m_visual_context_tree = move(visual_context_tree);
     m_visual_animation_sample_time_ns.clear();
-    m_has_active_visual_animations = !m_visual_context_tree->visual_animations().is_empty();
+    m_has_active_visual_animations = visual_context_tree_has_active_animation_at(*m_visual_context_tree, MonotonicTime::now());
     // A constraints refresh changes sticky payloads without a new snapshot, and the snapshot that
     // pairs with this tree arrives in a separate message.
     Web::Painting::resolve_sticky_offsets(*m_visual_context_tree, m_scroll_state_snapshot);
@@ -1286,16 +1315,15 @@ bool ContextState::advance_visual_animations(MonotonicTime now)
 
     m_has_active_visual_animations = false;
     for (auto const& animation : m_visual_context_tree->visual_animations()) {
-        if (!isfinite(animation.iteration_count)) {
+        auto local_time = visual_animation_local_time_at(animation, now);
+        if (local_time < animation.start_delay_ms)
+            continue;
+        if (!isfinite(local_time) || !isfinite(animation.iteration_count)) {
             m_has_active_visual_animations = true;
             break;
         }
-        auto elapsed_nanoseconds = now.nanoseconds() > animation.monotonic_time_at_anchor_ns
-            ? now.nanoseconds() - animation.monotonic_time_at_anchor_ns
-            : 0;
-        auto local_time = animation.local_time_at_anchor_ms + AK::Duration::from_nanoseconds(elapsed_nanoseconds).to_seconds_f64() * 1000.0 * animation.playback_rate;
         auto active_end = animation.start_delay_ms + animation.iteration_duration_ms * animation.iteration_count;
-        if (!isfinite(local_time) || local_time < active_end) {
+        if (local_time < active_end) {
             m_has_active_visual_animations = true;
             break;
         }

@@ -1,0 +1,5 @@
+delayed effects use the compositor before starting: true
+fill modes apply before the active phase: true
+sought negative delay stays off the compositor before zero: true
+delayed effects remain on the compositor while active: true
+effects are withdrawn after their active interval: true

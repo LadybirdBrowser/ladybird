@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="no-fill" style="opacity: 0.75"></div>
+<div id="forwards-fill" style="opacity: 0.75"></div>
+<div id="backwards-fill" style="opacity: 0.75"></div>
+<div id="both-fill" style="opacity: 0.75"></div>
+<div id="sought-negative-delay" style="opacity: 0.75"></div>
+<script>
+    asyncTest(async done => {
+        const noFill = document.getElementById("no-fill");
+        const forwardsFill = document.getElementById("forwards-fill");
+        const backwardsFill = document.getElementById("backwards-fill");
+        const bothFill = document.getElementById("both-fill");
+        const soughtNegativeDelay = document.getElementById("sought-negative-delay");
+        const timeline = internals.createInternalAnimationTimeline();
+        const makeAnimation = (target, fill) => new Animation(new KeyframeEffect(target, [
+            { opacity: 0.25 },
+            { opacity: 0.5 },
+        ], { delay: 100, duration: 100, fill }), timeline);
+        const animations = [
+            makeAnimation(noFill, "none"),
+            makeAnimation(forwardsFill, "forwards"),
+            makeAnimation(backwardsFill, "backwards"),
+            makeAnimation(bothFill, "both"),
+        ];
+        const soughtNegativeDelayAnimation = new Animation(new KeyframeEffect(soughtNegativeDelay, [
+            { opacity: 0.25 },
+            { opacity: 0.5 },
+        ], { delay: -100, duration: 100, fill: "none" }), timeline);
+
+        for (const animation of animations)
+            animation.play();
+        soughtNegativeDelayAnimation.play();
+        timeline.setTime(0);
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+
+        println(`delayed effects use the compositor before starting: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 4}`);
+        timeline.setTimeForObservation(0);
+        const noBackwardsFillUsesUnderlyingValue = getComputedStyle(noFill).opacity === "0.75"
+            && getComputedStyle(forwardsFill).opacity === "0.75";
+        const backwardsFillUsesFirstKeyframe = getComputedStyle(backwardsFill).opacity === "0.25"
+            && getComputedStyle(bothFill).opacity === "0.25";
+        println(`fill modes apply before the active phase: ${noBackwardsFillUsesUnderlyingValue && backwardsFillUsesFirstKeyframe}`);
+
+        soughtNegativeDelayAnimation.currentTime = -50;
+        internals.updateCompositorAnimations();
+        println(`sought negative delay stays off the compositor before zero: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 4}`);
+
+        timeline.setTime(150);
+        internals.updateCompositorAnimations();
+        println(`delayed effects remain on the compositor while active: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 4}`);
+
+        timeline.setTime(250);
+        internals.updateCompositorAnimations();
+        println(`effects are withdrawn after their active interval: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 0}`);
+        done();
+    });
+</script>

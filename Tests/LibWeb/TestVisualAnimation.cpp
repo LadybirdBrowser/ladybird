@@ -159,6 +159,56 @@ TEST_CASE(rejects_invalid_timing)
     EXPECT(!animation.sample(AK::Duration::zero()).has_value());
 }
 
+TEST_CASE(applies_backwards_fill_during_start_delay)
+{
+    VisualAnimation animation {
+        .target_kind = VisualAnimation::TargetKind::Opacity,
+        .visual_context_node_indices = { 0 },
+        .local_time_at_anchor_ms = 50,
+        .start_delay_ms = 100,
+        .iteration_duration_ms = 1000,
+        .easing = linear_easing(),
+        .keyframes = {
+            { 0, linear_easing(), 0.25f },
+            { 1, linear_easing(), 0.75f },
+        },
+    };
+
+    EXPECT(!animation.sample(AK::Duration::zero()).has_value());
+    animation.fill_mode = VisualAnimationFillMode::Backwards;
+    EXPECT_APPROXIMATE(animation.sample(AK::Duration::zero())->opacity, 0.25f);
+    EXPECT_APPROXIMATE(animation.sample(AK::Duration::from_milliseconds(550))->opacity, 0.5f);
+}
+
+TEST_CASE(applies_before_flag_only_to_effect_easing_during_start_delay)
+{
+    VisualAnimationEasing jump_start {
+        .kind = VisualAnimationEasing::Kind::Steps,
+        .linear_points = {},
+        .interval_count = 4,
+        .step_position = 0,
+    };
+    VisualAnimation animation {
+        .target_kind = VisualAnimation::TargetKind::Opacity,
+        .visual_context_node_indices = { 0 },
+        .local_time_at_anchor_ms = 50,
+        .start_delay_ms = 100,
+        .iteration_duration_ms = 1000,
+        .fill_mode = VisualAnimationFillMode::Backwards,
+        .easing = jump_start,
+        .keyframes = {
+            { 0, linear_easing(), 0.0f },
+            { 1, linear_easing(), 1.0f },
+        },
+    };
+
+    EXPECT_EQ(animation.sample(AK::Duration::zero())->opacity, 0.0f);
+
+    animation.easing = linear_easing();
+    animation.keyframes[0].easing = jump_start;
+    EXPECT_EQ(animation.sample(AK::Duration::zero())->opacity, 0.25f);
+}
+
 TEST_CASE(compares_animation_parameters_independently_of_visual_nodes_and_anchor)
 {
     VisualAnimation animation {
