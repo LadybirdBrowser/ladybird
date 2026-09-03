@@ -10,15 +10,15 @@
 
 namespace Web {
 
-enum class IncludeRefCountedTreeRoot {
+enum class IncludeTraversalRoot {
     No,
     Yes,
 };
 
 template<typename T, typename Callback>
-TraversalDecision traverse_ref_counted_preorder(T& root, IncludeRefCountedTreeRoot include_root, Callback callback)
+TraversalDecision traverse_preorder(T& root, IncludeTraversalRoot include_root, Callback callback)
 {
-    auto* current = include_root == IncludeRefCountedTreeRoot::Yes ? &root : root.first_child_ptr();
+    auto* current = include_root == IncludeTraversalRoot::Yes ? &root : root.first_child_ptr();
     while (current) {
         TraversalDecision decision = callback(*current);
         if (decision == TraversalDecision::Break)

@@ -40,12 +40,6 @@
 
 namespace Web::Layout {
 
-NodeArenaAllocation::NodeArenaAllocation(DOM::Document& document, RustFFI::FfiNodeConstructionFacts const& construction_facts)
-    : m_arena(document.layout_node_arena())
-{
-    m_slot = m_arena->allocate(construction_facts);
-}
-
 static RustFFI::FfiNodeConstructionFacts build_node_construction_facts(DOM::Document& document, GC::Ptr<DOM::Node> node, RustFFI::NodeKind kind, void* shell)
 {
     return {
@@ -63,7 +57,8 @@ static RustFFI::FfiNodeConstructionFacts build_node_construction_facts(DOM::Docu
 }
 
 Node::Node(DOM::Document& document, GC::Ptr<DOM::Node> node, RustFFI::NodeKind kind, AttachToDOMNode attach_to_dom_node)
-    : NodeArenaAllocation(document, build_node_construction_facts(document, node, kind, this))
+    : m_arena(document.layout_node_arena())
+    , m_slot(m_arena->allocate(build_node_construction_facts(document, node, kind, this)))
     , m_dom_node(node ? *node : document)
     , m_kind(kind)
 {
