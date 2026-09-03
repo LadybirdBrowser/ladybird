@@ -716,7 +716,7 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
         return;
     }
 
-    bool should_repin_style_record = m_style_record_owner;
+    bool should_repin_style_record = m_style_record_pinned;
     auto new_record_view = document().style_computer().computed_style_record_view(style_record_identity);
     VERIFY(new_record_view);
     auto old_record_view = computed_style_record_view();
@@ -748,21 +748,20 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
 
 void NodeWithStyle::pin_style_record_for_cxx_consumers()
 {
-    if (m_style_record_owner)
+    if (m_style_record_pinned)
         return;
 
     VERIFY(m_style_record_identity);
-    auto& owner = document();
-    owner.style_computer().pin_style_record(m_style_record_identity);
-    m_style_record_owner = owner;
+    document().style_computer().pin_style_record(m_style_record_identity);
+    m_style_record_pinned = true;
 }
 
 void NodeWithStyle::release_pinned_style_record()
 {
-    if (!m_style_record_owner)
+    if (!m_style_record_pinned)
         return;
-    m_style_record_owner->style_computer().unpin_style_record(m_style_record_identity);
-    m_style_record_owner = {};
+    document().style_computer().unpin_style_record(m_style_record_identity);
+    m_style_record_pinned = false;
 }
 
 void NodeWithStyle::bind_generated_style_record(CSS::StyleRecordID target_style_record_identity)

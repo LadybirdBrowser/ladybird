@@ -672,11 +672,10 @@ private:
     void const* m_style_payloads { nullptr };
     RefPtr<CSS::ComputedValues const> m_owned_computed_values;
     CSS::StyleRecordID m_style_record_identity;
-    // Layout nodes are not GC cells, so this owner cannot be a traced GC::Ptr.
-    // Document::tear_down_layout_tree() must free the layout root, which destroys these nodes and
-    // unpins their records before this root is cleared. Every document destruction path goes
-    // through that teardown.
-    GC::Root<DOM::Document> m_style_record_owner;
+    // The pin is released through the arena's document, so Document::tear_down_layout_tree()
+    // must free the layout root before the document's style computer goes away. Every document
+    // destruction path goes through that teardown.
+    bool m_style_record_pinned { false };
     struct ImageObserverSlots {
         Vector<OwnPtr<ImageObserver>> background_layers;
         Vector<OwnPtr<ImageObserver>> mask_layers;
