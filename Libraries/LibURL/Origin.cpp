@@ -145,15 +145,13 @@ unsigned Traits<URL::Origin>::hash(URL::Origin const& origin)
             | (static_cast<u32>(nonce[3]));
     }
 
+    // NB: Origin equality uses same-origin semantics, which ignore the domain override.
     unsigned hash = origin.scheme().value_or(String {}).hash();
 
     if (origin.port().has_value())
         hash = pair_int_hash(hash, *origin.port());
 
     hash = pair_int_hash(hash, origin.host().serialize().hash());
-
-    if (origin.domain().has_value())
-        hash = pair_int_hash(hash, origin.domain()->serialize().hash());
 
     return hash;
 }
