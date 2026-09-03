@@ -157,6 +157,7 @@ interface Internals {
     boolean registerSessionStoreTab();
     DOMString dumpSessionStoreTabState();
     DOMString dumpSiteIsolationProcessTree();
+    undefined crashRemoteFrameProcesses();
     Promise<undefined> flushSessionHistoryTraversalQueue();
 
     boolean hasHTMLParserEndState(Document document);

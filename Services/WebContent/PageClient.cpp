@@ -1459,6 +1459,11 @@ String PageClient::dump_site_isolation_process_tree_for_testing()
     return client().did_request_site_isolation_process_tree_for_testing(m_id);
 }
 
+void PageClient::crash_remote_frame_processes_for_testing()
+{
+    client().async_did_request_crash_of_remote_frame_processes_for_testing(m_id);
+}
+
 bool PageClient::page_did_request_capture_session_history_snapshot_for_testing()
 {
     return client().did_request_capture_session_history_snapshot_for_testing(m_id);

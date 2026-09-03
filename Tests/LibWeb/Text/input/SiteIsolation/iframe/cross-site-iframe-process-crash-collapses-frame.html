@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-iframe-crash-child-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>child",
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("oop-iframe-crash");
+
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+
+        if (!(await waitForCondition(() => remoteFrameCount() === 1))) {
+            println("iframe did not become remote");
+            return;
+        }
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+
+        internals.crashRemoteFrameProcesses();
+
+        if (!(await waitForCondition(() => remoteFrameCount() === 0))) {
+            println("iframe did not collapse to local after its process crashed");
+            return;
+        }
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>
