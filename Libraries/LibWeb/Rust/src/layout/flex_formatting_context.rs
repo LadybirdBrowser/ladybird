@@ -193,7 +193,7 @@ pub(super) struct FlexFormattingContext<'pass> {
 
 impl<'pass> FlexFormattingContext<'pass> {
     pub(super) fn new(run: &FormattingContextRun) -> Self {
-        let flex_direction = StyleValues::for_node(&run.callbacks, run.box_).flex_direction();
+        let flex_direction = StyleValues::for_node(&run.callbacks, run.box_).effective_flex_direction();
         Self {
             purpose: run.purpose,
             records: run.records.clone(),
@@ -2597,7 +2597,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         let data = formatting_context::FlexLayoutData {
             align_content: style.align_content(),
             align_items: style.align_items(),
-            flex_direction: style.flex_direction(),
+            flex_direction: style.effective_flex_direction(),
             flex_wrap: style.flex_wrap(),
             justify_content: style.justify_content(),
             main_axis_direction: Self::axis_direction(self.main_axis_is_horizontal(), self.is_direction_reverse())

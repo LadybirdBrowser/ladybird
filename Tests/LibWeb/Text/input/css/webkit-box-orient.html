@@ -4,20 +4,33 @@
     #box {
         display: -webkit-box;
         -webkit-box-orient: vertical;
+        flex-direction: row;
         width: 100px;
     }
 
     #horizontal {
         -webkit-box-orient: horizontal;
     }
+
+    #standard-direction-only {
+        display: -webkit-box;
+        flex-direction: column;
+        -webkit-line-clamp: 1;
+        font: 16px/20px monospace;
+    }
 </style>
 <div id="box"><div id="item">This text is wider than the container</div></div>
 <div id="horizontal"></div>
+<div id="standard-direction-only">Line 1<br>Line 2<br>Line 3</div>
 <script>
     test(() => {
         println(`flex direction: ${getComputedStyle(box).flexDirection}`);
+        println(`box orientation: ${getComputedStyle(box).webkitBoxOrient}`);
         println(`container width: ${box.getBoundingClientRect().width}`);
         println(`item width: ${item.getBoundingClientRect().width}`);
-        println(`horizontal flex direction: ${getComputedStyle(horizontal).flexDirection}`);
+        println(`horizontal box orientation: ${getComputedStyle(horizontal).webkitBoxOrient}`);
+        const standardDirectionOnly = document.getElementById("standard-direction-only");
+        println(`standard direction display: ${getComputedStyle(standardDirectionOnly).display}`);
+        println(`standard direction height: ${standardDirectionOnly.getBoundingClientRect().height}`);
     });
 </script>

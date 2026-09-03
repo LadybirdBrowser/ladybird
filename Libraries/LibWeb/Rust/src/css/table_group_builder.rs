@@ -319,6 +319,7 @@ unsafe fn build_alignment_group(values: &EffectiveValues, parent_payload: *const
     unsafe {
         rust_build_alignment_group(
             group_index::ALIGNMENT,
+            values.pointer(property_id::_WEBKIT_BOX_ORIENT),
             values.pointer(property_id::FLEX_DIRECTION),
             values.pointer(property_id::FLEX_WRAP),
             values.pointer(property_id::FLEX_BASIS),
@@ -2896,9 +2897,9 @@ unsafe fn build_box_group(
         BoxValues, ComputedAspectRatio, ComputedContainIntrinsicSize, ComputedVerticalAlign,
     };
     use crate::css::css_enums::{
-        keyword_to_box_sizing, keyword_to_clear, keyword_to_float, keyword_to_overflow, keyword_to_positioning,
-        keyword_to_resize, keyword_to_table_layout, keyword_to_text_overflow, keyword_to_unicode_bidi,
-        keyword_to_vertical_align,
+        keyword_to_box_sizing, keyword_to_clear, keyword_to_continue_value, keyword_to_float, keyword_to_overflow,
+        keyword_to_positioning, keyword_to_resize, keyword_to_table_layout, keyword_to_text_overflow,
+        keyword_to_unicode_bidi, keyword_to_vertical_align,
     };
 
     let display = match values.value(property_id::DISPLAY) {
@@ -3129,6 +3130,12 @@ unsafe fn build_box_group(
         column_width: ComputedSize::from_data(values.pointer(property_id::COLUMN_WIDTH)),
         column_count_has_value: column_count.is_some(),
         column_count: column_count.unwrap_or(0),
+        continue_: required_keyword_code(values, property_id::CONTINUE, keyword_to_continue_value),
+        max_lines: match values.value(property_id::MAX_LINES) {
+            Some(StyleValueData::Keyword { keyword: code }) if *code == keyword::NONE => 0,
+            Some(data) => required_integer(data),
+            None => unreachable!("the table holds max-lines"),
+        },
         has_z_index: z_index.is_some(),
         z_index: z_index.unwrap_or(0),
         vertical_align,

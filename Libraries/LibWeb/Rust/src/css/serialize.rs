@@ -3279,6 +3279,60 @@ fn serialize_shorthand(
         //       CSS-wide keyword, which was handled above; serialize the empty string.
         return true;
     }
+    if matches!(
+        shorthand_property,
+        property_id::_WEBKIT_LINE_CLAMP | property_id::LINE_CLAMP
+    ) {
+        let (Some(max_lines), Some(block_ellipsis), Some(continue_value)) = (
+            longhand(property_id::MAX_LINES),
+            longhand(property_id::BLOCK_ELLIPSIS),
+            longhand(property_id::CONTINUE),
+        ) else {
+            return false;
+        };
+        let is_keyword = |value: &StyleValueData, expected| matches!(value, StyleValueData::Keyword { keyword: code } if *code == expected);
+        let max_lines_is_none = is_keyword(max_lines, keyword::NONE);
+        let block_ellipsis_is_auto = is_keyword(block_ellipsis, keyword::AUTO);
+        let block_ellipsis_is_none = is_keyword(block_ellipsis, keyword::NO_ELLIPSIS);
+        let continue_is_auto = is_keyword(continue_value, keyword::AUTO);
+        let continue_is_legacy = is_keyword(continue_value, keyword::_WEBKIT_LEGACY);
+
+        if shorthand_property == property_id::_WEBKIT_LINE_CLAMP {
+            if max_lines_is_none && block_ellipsis_is_none && continue_is_auto {
+                sink.push_ascii("none");
+            } else if !max_lines_is_none && block_ellipsis_is_auto && continue_is_legacy {
+                return serialize_style_value(sink, max_lines, mode);
+            }
+            return true;
+        }
+
+        if max_lines_is_none && is_keyword(block_ellipsis, keyword::NO_ELLIPSIS) && continue_is_auto {
+            sink.push_ascii("none");
+            return true;
+        }
+        if !continue_is_legacy && !is_keyword(continue_value, keyword::COLLAPSE) {
+            return true;
+        }
+
+        if !max_lines_is_none && !serialize_style_value(sink, max_lines, mode) {
+            return false;
+        }
+        if !block_ellipsis_is_auto || max_lines_is_none {
+            if sink.len() != 0 {
+                sink.push_ascii(" ");
+            }
+            if !serialize_style_value(sink, block_ellipsis, mode) {
+                return false;
+            }
+        }
+        if continue_is_legacy {
+            if sink.len() != 0 {
+                sink.push_ascii(" ");
+            }
+            sink.push_ascii("-webkit-legacy");
+        }
+        return true;
+    }
     if shorthand_property == property_id::BORDER_IMAGE {
         for (index, (id, separator)) in [
             (property_id::BORDER_IMAGE_SOURCE, ""),

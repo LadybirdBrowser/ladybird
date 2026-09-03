@@ -53,6 +53,9 @@ pub(crate) struct LineBoxFragmentData {
     pub(crate) insert_position: f32,
     pub(crate) current_insert_direction: u8,
     pub(crate) has_trailing_whitespace: bool,
+    pub(crate) has_text_overflow_ellipsis: bool,
+    pub(crate) has_soft_wrap_opportunity_after: bool,
+    pub(crate) is_block_ellipsis: bool,
     pub(crate) is_fully_truncated: bool,
     pub(crate) is_atomic_inline: bool,
     pub(crate) white_space_collapse: u8,
@@ -106,6 +109,9 @@ impl LineBoxFragmentData {
             insert_position: 0.0,
             current_insert_direction: direction::LTR,
             has_trailing_whitespace: false,
+            has_text_overflow_ellipsis: false,
+            has_soft_wrap_opportunity_after: false,
+            is_block_ellipsis: false,
             is_fully_truncated: false,
             is_atomic_inline: facts.is_atomic_inline,
             white_space_collapse: facts.white_space_collapse,
@@ -140,7 +146,7 @@ impl LineBoxFragmentData {
     }
 
     pub(crate) fn text(&self) -> &[u16] {
-        if self.length_in_code_units == 0 {
+        if self.length_in_code_units == 0 || self.is_block_ellipsis {
             return &[];
         }
         assert!(!self.text_utf16.is_null());

@@ -338,7 +338,7 @@ mod tests {
         );
         assert_eq!(
             property_id_from_name(&utf16("-WeBkIt-BoX-OrIeNt")),
-            Some(property_id::FLEX_DIRECTION)
+            Some(property_id::_WEBKIT_BOX_ORIENT)
         );
         assert_eq!(property_id_from_name(&utf16("--")), None);
         assert_eq!(property_id_from_name(&utf16("--x")), Some(property_id::CUSTOM));

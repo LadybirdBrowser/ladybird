@@ -3919,6 +3919,116 @@ fn parse_unordered_shorthand(context: &ParseContext, property: u16, values: &[Co
     }))
 }
 
+// https://drafts.csswg.org/css-overflow-4/#line-clamp
+// Value: none | [<integer [1,∞]> || <'block-ellipsis'>] -webkit-legacy?
+// https://drafts.csswg.org/css-overflow-4/#webkit-line-clamp
+// Value: none | <integer [1,∞]>
+fn parse_line_clamp_shorthand(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    if !matches!(property, property_id::_WEBKIT_LINE_CLAMP | property_id::LINE_CLAMP) {
+        return ParseOutcome::NotHandled;
+    }
+
+    let mut values = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
+    if values.is_empty() {
+        return ParseOutcome::Invalid;
+    }
+
+    let is_keyword = |value: &ComponentValue, expected| {
+        value
+            .ident()
+            .and_then(keyword_from_ascii_case_insensitive)
+            .is_some_and(|keyword| keyword == expected)
+    };
+    let initial = |longhand| parse_initial_longhand(context, longhand);
+
+    if values.len() == 1 && is_keyword(values[0], keyword::NONE) {
+        // INTEROP: Chromium and Web Platform Tests map the legacy `none` value to the same
+        //          longhands as `line-clamp: none`, despite CSS Overflow 4 currently saying
+        //          that `-webkit-line-clamp` unconditionally sets `block-ellipsis` to `auto`.
+        return ParseOutcome::Parsed(shared_style_value(shorthand_value(
+            property,
+            longhands_for_shorthand(property).to_vec(),
+            vec![
+                initial(property_id::MAX_LINES).unwrap(),
+                initial(property_id::BLOCK_ELLIPSIS).unwrap(),
+                initial(property_id::CONTINUE).unwrap(),
+            ],
+        )));
+    }
+
+    if property == property_id::_WEBKIT_LINE_CLAMP {
+        if values.len() != 1 {
+            return ParseOutcome::Invalid;
+        }
+        let ParseOutcome::Parsed(max_lines) =
+            parse_css_value(context, property_id::MAX_LINES, std::slice::from_ref(values[0]))
+        else {
+            return ParseOutcome::Invalid;
+        };
+        if matches!(&*max_lines, StyleValueData::Keyword { keyword: code } if *code == keyword::NONE) {
+            return ParseOutcome::Invalid;
+        }
+        return ParseOutcome::Parsed(shared_style_value(shorthand_value(
+            property,
+            longhands_for_shorthand(property).to_vec(),
+            vec![
+                (*max_lines).clone(),
+                StyleValueData::Keyword { keyword: keyword::AUTO },
+                StyleValueData::Keyword {
+                    keyword: keyword::_WEBKIT_LEGACY,
+                },
+            ],
+        )));
+    }
+
+    let use_webkit_legacy = values
+        .last()
+        .is_some_and(|value| is_keyword(value, keyword::_WEBKIT_LEGACY));
+    if use_webkit_legacy {
+        values.pop();
+    }
+    if values.is_empty() {
+        return ParseOutcome::Invalid;
+    }
+
+    let mut max_lines = None;
+    let mut block_ellipsis = None;
+    for value in values {
+        if max_lines.is_none()
+            && let ParseOutcome::Parsed(parsed) =
+                parse_css_value(context, property_id::MAX_LINES, std::slice::from_ref(value))
+            && !matches!(&*parsed, StyleValueData::Keyword { keyword: code } if *code == keyword::NONE)
+        {
+            max_lines = Some((*parsed).clone());
+            continue;
+        }
+        if block_ellipsis.is_none()
+            && let ParseOutcome::Parsed(parsed) =
+                parse_css_value(context, property_id::BLOCK_ELLIPSIS, std::slice::from_ref(value))
+        {
+            block_ellipsis = Some((*parsed).clone());
+            continue;
+        }
+        return ParseOutcome::Invalid;
+    }
+
+    ParseOutcome::Parsed(shared_style_value(shorthand_value(
+        property,
+        longhands_for_shorthand(property).to_vec(),
+        vec![
+            max_lines.unwrap_or_else(|| initial(property_id::MAX_LINES).unwrap()),
+            block_ellipsis.unwrap_or(StyleValueData::Keyword { keyword: keyword::AUTO }),
+            StyleValueData::Keyword {
+                keyword: if use_webkit_legacy {
+                    keyword::_WEBKIT_LEGACY
+                } else {
+                    keyword::COLLAPSE
+                },
+            },
+        ],
+    )))
+}
+
 fn parse_border_shorthand(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
     let (width_property, style_property, color_property) = match property {
         property_id::BORDER => (
@@ -5400,6 +5510,10 @@ fn parse_css_value_after_substitution_scan(
         if !matches!(outcome, ParseOutcome::NotHandled) {
             return outcome;
         }
+        let outcome = parse_line_clamp_shorthand(context, property_id, values);
+        if !matches!(outcome, ParseOutcome::NotHandled) {
+            return outcome;
+        }
         let outcome = parse_unordered_shorthand(context, property_id, values);
         if !matches!(outcome, ParseOutcome::NotHandled) {
             return outcome;
@@ -6209,6 +6323,51 @@ mod tests {
             (property_id::COLUMN_RULE, "inherit solid"),
         ] {
             assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");
+        }
+    }
+
+    #[test]
+    fn parses_line_clamp_shorthands() {
+        for source in [
+            "none",
+            "1",
+            "auto",
+            "\"continued\"",
+            "2 no-ellipsis",
+            "auto 3",
+            "4 -webkit-legacy",
+            "\"continued\" 5 -webkit-legacy",
+        ] {
+            assert!(
+                matches!(parse(property_id::LINE_CLAMP, source), ParseOutcome::Parsed(_)),
+                "{source}"
+            );
+        }
+        for source in [
+            "",
+            "0",
+            "-1",
+            "none 1",
+            "1 none",
+            "1 auto no-ellipsis",
+            "-webkit-legacy",
+        ] {
+            assert!(
+                matches!(parse(property_id::LINE_CLAMP, source), ParseOutcome::Invalid),
+                "{source}"
+            );
+        }
+        for source in ["none", "1", "6"] {
+            assert!(
+                matches!(parse(property_id::_WEBKIT_LINE_CLAMP, source), ParseOutcome::Parsed(_)),
+                "{source}"
+            );
+        }
+        for source in ["auto", "0", "-1", "1 no-ellipsis", "1 -webkit-legacy"] {
+            assert!(
+                matches!(parse(property_id::_WEBKIT_LINE_CLAMP, source), ParseOutcome::Invalid),
+                "{source}"
+            );
         }
     }
 

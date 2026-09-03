@@ -1,5 +1,6 @@
 -webkit-text-fill-color: rgb(0, 0, 0)
 accent-color: auto
+block-ellipsis: no-ellipsis
 border-collapse: separate
 border-spacing: 0px
 caption-side: top
@@ -76,6 +77,7 @@ widows: 2
 word-break: normal
 word-spacing: 0px
 writing-mode: horizontal-tb
+-webkit-box-orient: horizontal
 align-content: normal
 align-items: normal
 align-self: auto
@@ -105,7 +107,7 @@ background-position-x: 0%
 background-position-y: 0%
 background-repeat: repeat
 background-size: auto
-block-size: 1391px
+block-size: 1417px
 border-block-end-color: rgb(0, 0, 0)
 border-block-end-style: none
 border-block-end-width: 0px
@@ -171,6 +173,7 @@ container-name: none
 container-type: normal
 content: normal
 content-visibility: visible
+continue: auto
 corner-bottom-left-shape: round
 corner-bottom-right-shape: round
 corner-end-end-shape: round
@@ -205,7 +208,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: none
 grid-template-rows: none
-height: 2691px
+height: 2730px
 inline-size: 784px
 inset-block-end: auto
 inset-block-start: auto
@@ -236,6 +239,7 @@ mask-type: luminance
 max-block-size: none
 max-height: none
 max-inline-size: none
+max-lines: none
 max-width: none
 min-block-size: auto
 min-height: auto
@@ -326,7 +330,7 @@ top: auto
 touch-action: auto
 transform: none
 transform-box: view-box
-transform-origin: 392px 2132px
+transform-origin: 392px 2158px
 transform-style: flat
 transition-behavior: normal
 transition-delay: 0s

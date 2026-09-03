@@ -1,0 +1,38 @@
+<!doctype html>
+<link rel="match" href="../expected/line-clamp-properties-ref.html">
+<style>
+    body {
+        margin: 0;
+        font: 20px/24px monospace;
+    }
+
+    .case {
+        width: 12ch;
+        margin-bottom: 8px;
+    }
+
+    .standard {
+        line-clamp: 2;
+    }
+
+    .without-ellipsis {
+        line-clamp: 2 no-ellipsis;
+    }
+
+    .custom {
+        line-clamp: 2 "++";
+    }
+
+    .inherited {
+        block-ellipsis: "!";
+    }
+
+    .inherited > div {
+        max-lines: 2;
+        continue: collapse;
+    }
+</style>
+<div class="case standard">first<br>second<br>hidden</div>
+<div class="case without-ellipsis">first<br>second<br>hidden</div>
+<div class="case custom">first<br>second<br>hidden</div>
+<div class="case inherited"><div>first<br>second<br>hidden</div></div>

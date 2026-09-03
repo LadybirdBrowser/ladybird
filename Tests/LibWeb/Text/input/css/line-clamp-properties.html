@@ -1,0 +1,84 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #clamped {
+        line-clamp: 2;
+    }
+
+    #standard-wins {
+        -webkit-line-clamp: 4;
+        line-clamp: 2;
+    }
+
+    #legacy-wins {
+        line-clamp: 2;
+        -webkit-line-clamp: 4;
+    }
+
+    #clamped,
+    #standard-wins,
+    #legacy-wins {
+        width: 100px;
+        font: 16px/20px monospace;
+    }
+</style>
+<div id="clamped">line one<br>line two<br>line three<br>line four</div>
+<div id="standard-wins">line one<br>line two<br>line three<br>line four</div>
+<div id="legacy-wins">line one<br>line two<br>line three<br>line four</div>
+<script>
+    test(() => {
+        const style = document.createElement("div").style;
+
+        for (const value of ["none", "1", "6", "auto", '"more"', "7 no-ellipsis", "8 auto", '9 "more"', "no-ellipsis 10", "auto 11", '"more" 12', "1 -webkit-legacy", "auto -webkit-legacy", "3 auto -webkit-legacy"] ) {
+            style.lineClamp = value;
+            println(`${JSON.stringify(value)} -> ${JSON.stringify(style.lineClamp)}`);
+        }
+
+        for (const value of ["0", "-5", "none 2", "none no-ellipsis", "3 none", "3 auto no-ellipsis", "-webkit-legacy", "0 -webkit-legacy"]) {
+            style.lineClamp = "";
+            style.lineClamp = value;
+            println(`${JSON.stringify(value)} -> ${JSON.stringify(style.lineClamp)}`);
+        }
+
+        style.webkitLineClamp = "4";
+        println(`legacy: ${style.webkitLineClamp}`);
+        println(`legacy max-lines: ${style.maxLines}`);
+        println(`legacy block-ellipsis: ${style.blockEllipsis}`);
+        println(`legacy continue: ${style.continue}`);
+
+        style.webkitLineClamp = "none";
+        println(`legacy none: ${style.webkitLineClamp}`);
+        println(`legacy none max-lines: ${style.maxLines}`);
+        println(`legacy none block-ellipsis: ${style.blockEllipsis}`);
+        println(`legacy none continue: ${style.continue}`);
+        println(`legacy none css text: ${style.cssText}`);
+
+        for (const [property, values] of [
+            ["max-lines", ["none", "1", "0"]],
+            ["block-ellipsis", ["no-ellipsis", "auto", '"continued"', "invalid"]],
+            ["continue", ["auto", "collapse", "discard", "-webkit-legacy", "invalid"]],
+        ]) {
+            for (const value of values) {
+                style.setProperty(property, "");
+                style.setProperty(property, value);
+                println(`${property}: ${JSON.stringify(value)} -> ${JSON.stringify(style.getPropertyValue(property))}`);
+            }
+        }
+
+        const parent = document.createElement("div");
+        const child = parent.appendChild(document.createElement("div"));
+        parent.style.blockEllipsis = '"continued"';
+        document.body.appendChild(parent);
+        println(`inherited block-ellipsis: ${getComputedStyle(child).blockEllipsis}`);
+
+        const computedStyle = getComputedStyle(clamped);
+        println(`computed line-clamp: ${computedStyle.lineClamp}`);
+        println(`computed max-lines: ${computedStyle.maxLines}`);
+        println(`computed block-ellipsis: ${computedStyle.blockEllipsis}`);
+        println(`computed continue: ${computedStyle.continue}`);
+        println(`height: ${clamped.getBoundingClientRect().height}`);
+        println(`scroll height: ${clamped.scrollHeight}`);
+        println(`height when line-clamp wins: ${document.getElementById("standard-wins").getBoundingClientRect().height}`);
+        println(`height when inactive legacy mode wins: ${document.getElementById("legacy-wins").getBoundingClientRect().height}`);
+    });
+</script>

@@ -195,6 +195,9 @@ impl Item {
         let mut split: Option<(usize, usize)> = None;
         let mut code_units = glyph_data.glyphs[0].length_in_code_units;
         for (glyph_index, glyph) in glyph_data.glyphs.iter().enumerate().skip(1) {
+            if glyph.length_in_code_units == 0 {
+                continue;
+            }
             let offset = self.offset_in_node + code_units;
             if segmenter.next_boundary(offset, true) == Some(offset) {
                 let prefix_inline_size = CssPixels::nearest_value_for_f32(glyph.x);
@@ -836,10 +839,10 @@ impl InlineLevelIterator {
         self.next_item_index += count;
     }
 
-    pub(crate) fn next_non_whitespace_sequence_inline_size(
+    pub(crate) fn next_inline_run_size(
         &self,
         context: &inline_formatting_context::InlineFormattingContext<'_>,
-    ) -> CssPixels {
+    ) -> Option<CssPixels> {
         self.next_sequence_inline_size(context, false)
     }
 
@@ -847,18 +850,20 @@ impl InlineLevelIterator {
         &self,
         context: &inline_formatting_context::InlineFormattingContext<'_>,
     ) -> CssPixels {
-        self.next_sequence_inline_size(context, true)
+        self.next_sequence_inline_size(context, true).unwrap_or_default()
     }
 
     fn next_sequence_inline_size(
         &self,
         context: &inline_formatting_context::InlineFormattingContext<'_>,
         stop_at_overflow_breakable_text: bool,
-    ) -> CssPixels {
+    ) -> Option<CssPixels> {
         let mut size = CssPixels::default();
         for item in &self.items[self.next_item_index..] {
-            if matches!(item.type_, ItemType::ForcedBreak | ItemType::BlockLevelBox) {
-                break;
+            match item.type_ {
+                ItemType::ForcedBreak => return Some(CssPixels::default()),
+                ItemType::BlockLevelBox => break,
+                _ => {}
             }
             let style = context.style(context.style_source(item.node));
             if style.text_wrap_mode() == text_wrap_mode::WRAP {
@@ -874,7 +879,7 @@ impl InlineLevelIterator {
             }
             size += item.border_box_inline_size();
         }
-        size
+        (size > CssPixels::default()).then_some(size)
     }
 
     pub(crate) fn next_non_whitespace_text_allows_overflow_break(

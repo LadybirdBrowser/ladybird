@@ -250,6 +250,12 @@
     "contextual",
     "no-contextual"
   ],
+  "continue-value": [
+    "auto",
+    "discard",
+    "collapse",
+    "-webkit-legacy"
+  ],
   "coord-box": [
     "content-box",
     "padding-box",
@@ -1230,6 +1236,10 @@
     "collapse",
     "hidden",
     "visible"
+  ],
+  "webkit-box-orient": [
+    "horizontal",
+    "vertical"
   ],
   "white-space": [
     "normal",

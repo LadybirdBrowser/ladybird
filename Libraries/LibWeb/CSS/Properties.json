@@ -75,7 +75,15 @@
     "legacy-alias-for": "order"
   },
   "-webkit-box-orient": {
-    "legacy-alias-for": "flex-direction"
+    "style-group": "AlignmentValues",
+    "affects-layout": true,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "horizontal",
+    "requires-computation": "never",
+    "valid-types": [
+      "webkit-box-orient"
+    ]
   },
   "-webkit-box-pack": {
     "legacy-alias-for": "justify-content"
@@ -112,6 +120,15 @@
   },
   "-webkit-justify-content": {
     "legacy-alias-for": "justify-content"
+  },
+  "-webkit-line-clamp": {
+    "affects-layout": true,
+    "initial": "none",
+    "longhands": [
+      "max-lines",
+      "block-ellipsis",
+      "continue"
+    ]
   },
   "-webkit-mask": {
     "legacy-alias-for": "mask"
@@ -665,6 +682,21 @@
       "contain"
     ],
     "percentages-resolve-to": "length"
+  },
+  "block-ellipsis": {
+    "style-group": "InheritedTextValues",
+    "affects-layout": true,
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "no-ellipsis",
+    "requires-computation": "never",
+    "valid-types": [
+      "string"
+    ],
+    "valid-identifiers": [
+      "no-ellipsis",
+      "auto"
+    ]
   },
   "block-size": {
     "logical-alias-for": {
@@ -1809,6 +1841,17 @@
     "requires-computation": "never",
     "valid-types": [
       "content-visibility"
+    ]
+  },
+  "continue": {
+    "style-group": "BoxValues",
+    "affects-layout": true,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "auto",
+    "requires-computation": "never",
+    "valid-types": [
+      "continue-value"
     ]
   },
   "corner-block-end-shape": {
@@ -2973,6 +3016,15 @@
       "unitless-length"
     ]
   },
+  "line-clamp": {
+    "affects-layout": true,
+    "initial": "none",
+    "longhands": [
+      "max-lines",
+      "block-ellipsis",
+      "continue"
+    ]
+  },
   "line-height": {
     "style-group": "FontValues",
     "animation-type": "by-computed-value",
@@ -3410,6 +3462,20 @@
       "mapping": "inline-size"
     },
     "initial": "none"
+  },
+  "max-lines": {
+    "style-group": "BoxValues",
+    "affects-layout": true,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "none",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "integer [1,∞]"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
   },
   "max-width": {
     "style-group": "SizingValues",

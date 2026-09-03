@@ -259,11 +259,7 @@ impl<'a> PaintableCommit<'a> {
         let mut lines = Vec::with_capacity(data.line_boxes.len());
         let mut fragments = Vec::new();
         for line in &data.line_boxes {
-            let committed_fragment_count = line
-                .fragments
-                .iter()
-                .filter(|fragment| !fragment.is_fully_truncated)
-                .count() as u32;
+            let committed_fragment_count = line.visible_fragments().count() as u32;
             lines.push(LineRecord {
                 rect: inline_formatting_context::line_rect(line, content_inline_size),
                 baseline: line.block_start + line.baseline,
@@ -296,6 +292,7 @@ impl<'a> PaintableCommit<'a> {
                 );
                 fragments.push(FragmentRecord {
                     layout_node: fragment.layout_node,
+                    style_source: fragment.style_source,
                     offset: used_values::FfiCssPixelPoint { x, y },
                     size: used_values::FfiCssPixelSize { width, height },
                     line_index,
@@ -308,6 +305,7 @@ impl<'a> PaintableCommit<'a> {
                     baseline: fragment.baseline,
                     accumulated_vertical_shift: fragment.accumulated_vertical_shift,
                     writing_mode: fragment.writing_mode,
+                    is_block_ellipsis: fragment.is_block_ellipsis,
                     selection_state: 0,
                     glyph_run,
                 });

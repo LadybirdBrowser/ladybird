@@ -156,6 +156,7 @@ impl GlyphRunRecord {
 
 pub struct FragmentRecord {
     pub layout_node: NodeSlotId,
+    pub style_source: NodeSlotId,
     pub offset: used_values::FfiCssPixelPoint,
     pub size: used_values::FfiCssPixelSize,
     pub line_index: u32,
@@ -168,6 +169,7 @@ pub struct FragmentRecord {
     pub baseline: CssPixels,
     pub accumulated_vertical_shift: CssPixels,
     pub writing_mode: u8,
+    pub is_block_ellipsis: bool,
     pub selection_state: u8,
     pub glyph_run: Option<GlyphRunRecord>,
 }

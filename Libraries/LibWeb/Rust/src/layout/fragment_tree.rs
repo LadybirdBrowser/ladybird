@@ -34,6 +34,8 @@ pub(crate) struct Fragment {
     pub(crate) svg_view_box: Option<svg_formatting_context::FfiSvgViewBox>,
     pub(crate) svg_viewport_percentage_basis: CssPixels,
     pub(crate) computed_svg_path: Option<std::rc::Rc<libgfx_rust::path::OwnedPath>>,
+    pub(crate) has_line_clamp_point: bool,
+    pub(crate) is_invisible_for_line_clamp: bool,
     pub(crate) children: Vec<FragmentLink>,
 }
 
@@ -88,6 +90,8 @@ impl Fragment {
             && self.svg_view_box == previous.svg_view_box
             && self.svg_viewport_percentage_basis == previous.svg_viewport_percentage_basis
             && same_allocation(self.computed_svg_path.as_ref(), previous.computed_svg_path.as_ref())
+            && self.has_line_clamp_point == previous.has_line_clamp_point
+            && self.is_invisible_for_line_clamp == previous.is_invisible_for_line_clamp
             && self.children.len() == previous.children.len()
             && self
                 .children
@@ -295,6 +299,8 @@ fn snapshot_fragment(
         svg_view_box,
         svg_viewport_percentage_basis,
         computed_svg_path,
+        has_line_clamp_point: used.has_line_clamp_point.get(),
+        is_invisible_for_line_clamp: used.is_invisible_for_line_clamp.get(),
         children,
     };
     if let Some(previous) = previously_committed_fragment_matching(callbacks, &fragment) {
@@ -713,6 +719,18 @@ impl RunFragmentBuilder {
 
     pub(crate) fn clear_reused_subtree_root(&self, node: crate::layout::node_data::NodeSlotId) {
         self.inner.borrow_mut().reused_subtree_roots.remove(&node.slot_index());
+    }
+
+    pub(crate) fn discard_unplaced_subtree(&self, node: crate::layout::node_data::NodeSlotId) {
+        let mut inner = self.inner.borrow_mut();
+        let slot = node.slot_index();
+        if let Some(root) = inner.child_roots_awaiting_placement.remove(&slot) {
+            for reused_subtree_root in root.reused_subtree_roots {
+                inner.reused_subtree_roots.remove(&reused_subtree_root);
+            }
+        }
+        inner.reused_subtree_roots.remove(&slot);
+        inner.pending_fragments.remove(&slot);
     }
 
     pub(crate) fn normalize_arrivals_for_placement(&self, node: crate::layout::node_data::NodeSlotId) {

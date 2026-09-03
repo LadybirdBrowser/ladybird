@@ -6,7 +6,6 @@
 
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
-use crate::layout::node_facts;
 use crate::painting::display_list::commands::{DisplayListGlyph, FontResourceId};
 use crate::painting::display_list::recorder::GlyphRunForRecording;
 use crate::painting::force_dark::ForceDarkRole;
@@ -84,23 +83,14 @@ fn compute_render_spans(
     let mut spans: Vec<RenderSpan> = Vec::new();
     for &fragment_index in owned_fragment_indices {
         let fragment = &layout_arena.paintable_side_data(block).fragments[fragment_index as usize];
-        if text_fragment::is_block_level_box(arena, fragment) {
+        if fragment.glyph_run.is_none() {
             continue;
         }
-        if !arena
-            .node_kind_if_live(fragment.layout_node)
-            .is_some_and(node_facts::kind_is_text)
-        {
-            continue;
-        }
-        let Some(parent) = arena.node_parent_if_live(fragment.layout_node) else {
-            continue;
-        };
-        let Some(parent_style) = arena.node_style_if_live(parent) else {
+        let Some(parent_style) = arena.node_style_if_live(fragment.style_source) else {
             continue;
         };
         let parent_retains_animated_content =
-            arena.node_flags_if_live(parent) & NodeFlag::HasAnimatedOpacityOrTransform as u32 != 0;
+            arena.node_flags_if_live(fragment.style_source) & NodeFlag::HasAnimatedOpacityOrTransform as u32 != 0;
         if parent_style.visibility() != crate::css::css_enums::visibility::VISIBLE
             || (parent_style.effects().opacity == 0.0 && !parent_retains_animated_content)
         {
@@ -278,7 +268,6 @@ pub(crate) fn paint_fragments_foreground(
     for span in &spans {
         paint_text_shadow(recorder, block, span);
     }
-
     for span in &spans {
         let sets = crate::painting::record::paint::text_decoration::decoration_sets_for_span(recorder, block, span);
         paint_text_fragment(recorder, block, span, &sets);

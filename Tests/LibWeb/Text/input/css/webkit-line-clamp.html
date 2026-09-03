@@ -1,0 +1,43 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #clamped,
+    #display-mutation {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+        width: 100px;
+        overflow: hidden;
+        font: 16px/20px monospace;
+    }
+</style>
+<div id="clamped">line one<br>line two<br>line three<br>line four<br>line five</div>
+<div id="display-mutation">line one<br>line two<br>line three<br>line four<br>line five</div>
+<script>
+    asyncTest(async done => {
+        const computedStyle = getComputedStyle(clamped);
+        println(`display: ${computedStyle.display}`);
+        println(`line clamp: ${JSON.stringify(computedStyle.getPropertyValue("-webkit-line-clamp"))}`);
+        println(`height: ${clamped.getBoundingClientRect().height}`);
+        println(`scroll height: ${clamped.scrollHeight}`);
+
+        await animationFrame();
+        await animationFrame();
+        const displayMutation = document.getElementById("display-mutation");
+        displayMutation.style.display = getComputedStyle(displayMutation).display;
+        println(`height after copying computed display: ${displayMutation.getBoundingClientRect().height}`);
+
+        const animation = clamped.animate({ opacity: [0, 1] }, { duration: 1000, fill: "both" });
+        animation.currentTime = 500;
+        println(`opacity while animating: ${getComputedStyle(clamped).opacity}`);
+        animation.cancel();
+
+        clamped.style.setProperty("-webkit-line-clamp", "4");
+        println(`height after changing to four lines: ${clamped.getBoundingClientRect().height}`);
+
+        clamped.style.setProperty("-webkit-line-clamp", "none");
+        println(`display after disabling: ${computedStyle.display}`);
+        println(`height after disabling: ${clamped.getBoundingClientRect().height}`);
+        done();
+    });
+</script>

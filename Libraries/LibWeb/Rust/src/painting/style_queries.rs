@@ -10,13 +10,14 @@ use crate::css::css_enums::{
     backface_visibility, content_visibility, isolation, line_style, mix_blend_mode, outline_style, overflow,
     positioning, transform_style,
 };
-use crate::css::css_pixels::CssPixels;
+use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::serialize::{StringUnits, with_fly_string_units};
 use crate::css::style_value::StyleValueData;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts;
+use crate::painting::paintable_rows::PaintableRowsRead;
 
 const SEPARATOR_COMMA: u8 = 1;
 
@@ -578,6 +579,38 @@ pub(crate) fn is_floating(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
     arena
         .node_data_if_live(node)
         .is_some_and(|data| node_facts::node_is_floating(data, arena.node_style_if_live(node)))
+}
+
+pub(crate) fn is_invisible_for_line_clamp(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+    arena.with_committed_fragment_link(node, |link| {
+        link.is_some_and(|link| link.fragment.is_invisible_for_line_clamp)
+    })
+}
+pub(crate) fn line_clamp_clip_rect(arena: &impl PaintableRowsRead, container: NodeSlotId) -> CssPixelRect {
+    let style = arena
+        .node_style_if_live(container)
+        .expect("line clamp container must be live");
+    let content_rect = crate::painting::paintable_geometry::absolute_rect(arena, container);
+    let extent = CssPixels::from_integer((crate::css::css_pixels::MAX_INTEGER_VALUE / 4) as i64);
+    if style.writing_mode() == crate::css::css_enums::writing_mode::HORIZONTAL_TB {
+        CssPixelRect::new(-extent, -extent, extent * 2, content_rect.bottom() + extent)
+    } else if style.block_axis_is_reverse() {
+        CssPixelRect::new(content_rect.x, -extent, extent - content_rect.x, extent * 2)
+    } else {
+        CssPixelRect::new(-extent, -extent, content_rect.right() + extent, extent * 2)
+    }
+}
+
+pub(crate) fn line_clamp_float_clip_rect(arena: &impl PaintableRowsRead, node: NodeSlotId) -> Option<CssPixelRect> {
+    if is_invisible_for_line_clamp(arena, node) {
+        return Some(CssPixelRect::default());
+    }
+    let container = std::iter::successors(Some(node), |node| arena.node_parent_if_live(*node)).find(|node| {
+        arena.with_committed_fragment_link(*node, |link| {
+            link.is_some_and(|link| link.fragment.has_line_clamp_point)
+        })
+    })?;
+    Some(line_clamp_clip_rect(arena, container))
 }
 
 pub(crate) fn is_inline(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {

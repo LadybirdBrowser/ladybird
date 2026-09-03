@@ -5,6 +5,7 @@
  */
 
 use super::*;
+use line_box_fragment::{GLYPH_TEXT_TYPE_LTR, GLYPH_TEXT_TYPE_RTL};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ForcedBreak {
@@ -234,7 +235,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         self.current_line_committed_pending_margin = false;
     }
 
-    pub(crate) fn break_line(&mut self, forced: ForcedBreak, next_item_inline_size: Option<CssPixels>) {
+    pub(crate) fn break_line(&mut self, forced: ForcedBreak, next_size: Option<CssPixels>) {
         // FIXME: Respect inline direction.
 
         let line_index = self.ensure_last_line_index();
@@ -244,7 +245,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             line.has_forced_break = forced == ForcedBreak::Yes;
         }
         self.last_line_needs_update = true;
-        self.update_last_line();
+        self.update_last_line(forced == ForcedBreak::No || next_size.is_some());
 
         let mut break_count = 0usize;
         loop {
@@ -260,9 +261,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 self.current_block_offset,
                 self.current_block_offset + current_line_block_size,
             );
-            let next_too_wide = self
-                .available_inline_size_for_current_line
-                .pixels_greater_than(next_item_inline_size.unwrap_or_default());
+            let available = self.available_inline_size_for_current_line;
+            let next_too_wide = available.pixels_greater_than(next_size.unwrap_or_default());
             if !floats_intrude
                 || (self
                     .context()
@@ -313,6 +313,18 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         true
     }
 
+    pub(crate) fn note_soft_wrap_opportunity(&mut self) {
+        let line_index = self.ensure_last_line_index();
+        let mut line = self.line_mut(line_index);
+        if self.context().parent.has_line_clamp()
+            && let Some(fragment) = line
+                .fragments
+                .iter_mut()
+                .rfind(|fragment| !fragment.is_justifiable_whitespace())
+        {
+            fragment.has_soft_wrap_opportunity_after = true;
+        }
+    }
     pub(crate) fn current_line_has_no_space_left_by_floats(&mut self) -> bool {
         let Some(remaining) = self.remaining_inline_size_on_current_line() else {
             return false;
@@ -400,6 +412,22 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     ) {
         self.prepare_to_append_inline_content();
         let line_index = self.ensure_last_line_index();
+        let has_strong_direction = |text_type| matches!(text_type, GLYPH_TEXT_TYPE_LTR | GLYPH_TEXT_TYPE_RTL);
+        if self.containing_style().unicode_bidi() == unicode_bidi::PLAINTEXT
+            && !self.line(line_index).fragments.iter().any(|fragment| {
+                fragment
+                    .glyphs
+                    .as_ref()
+                    .is_some_and(|glyphs| has_strong_direction(glyphs.text_type))
+            })
+            && has_strong_direction(glyphs.text_type)
+        {
+            self.line_mut(line_index).direction = if glyphs.text_type == GLYPH_TEXT_TYPE_RTL {
+                direction::RTL
+            } else {
+                direction::LTR
+            };
+        }
         let facts = self.fragment_facts(node);
         let text_align_is_justify = self.style(facts.style_source).text_align() == text_align::JUSTIFY;
         self.line_mut(line_index).add_fragment(
@@ -460,7 +488,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         self.line_mut(line_index).has_break = true;
         self.line_mut(line_index).has_forced_break = true;
         self.last_line_needs_update = true;
-        self.update_last_line();
+        self.update_last_line(false);
         self.context()
             .line_data_mut()
             .line_boxes
@@ -713,7 +741,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     }
 
     // https://drafts.csswg.org/css2/#line-height
-    pub(crate) fn update_last_line(&mut self) {
+    pub(crate) fn update_last_line(&mut self, has_immediate_continuation: bool) {
         if !self.last_line_needs_update {
             return;
         }
@@ -730,51 +758,86 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         if has_fragments {
             self.prepare_to_append_inline_content();
         }
-
         let containing_style = self.containing_style();
-        let current_line_block_size = self.max_block_size_on_current_line.max(containing_style.line_height());
+        let unclamped_line_block_size = self.max_block_size_on_current_line.max(containing_style.line_height());
+        if has_fragments || self.line(line_index).has_forced_break {
+            self.context().prepare_line_for_line_clamp(
+                line_index,
+                has_immediate_continuation,
+                self.current_block_offset + unclamped_line_block_size,
+            );
+        }
+
+        let current_line_block_size = if self.line(line_index).inline_length_before_block_ellipsis.is_some() {
+            self.line(line_index)
+                .visible_fragments()
+                .map(|fragment| {
+                    if fragment.is_atomic_inline {
+                        self.context().used(fragment.layout_node).margin_box_block_size(false)
+                    } else {
+                        fragment.block_length
+                    }
+                })
+                .max()
+                .unwrap_or_default()
+                .max(containing_style.line_height())
+        } else {
+            unclamped_line_block_size
+        };
         let start_inline_offset = self
             .context()
             .leftmost_inline_offset_at(self.current_block_offset, current_line_block_size);
-        let mut inline_offset = start_inline_offset;
+        let aligned_inline_offset = |inline_length| {
+            let excess = self.available_inline_size_for_current_line.to_px_or_zero() - inline_length;
+            if excess < CssPixels::default() {
+                return if containing_style.direction() == direction::RTL {
+                    start_inline_offset + excess
+                } else {
+                    start_inline_offset
+                };
+            }
+            start_inline_offset
+                + match containing_style.text_align() {
+                    text_align::CENTER | text_align::_LIBWEB_CENTER | text_align::_LIBWEB_INHERIT_OR_CENTER => {
+                        excess / 2
+                    }
+                    text_align::START if containing_style.direction() == direction::RTL => excess,
+                    text_align::END if containing_style.direction() == direction::LTR => excess,
+                    text_align::RIGHT | text_align::_LIBWEB_RIGHT => excess,
+                    text_align::MATCH_PARENT => unreachable!("match-parent must be resolved"),
+                    _ => CssPixels::default(),
+                }
+        };
+        let inline_offset = aligned_inline_offset(self.line(line_index).inline_length);
         let mut block_offset = CssPixels::default();
-        let excess = self.available_inline_size_for_current_line.to_px_or_zero() - self.line(line_index).inline_length;
         if self.writing_mode != writing_mode::HORIZONTAL_TB {
             block_offset =
                 self.available_inline_size_for_current_line.to_px_or_zero() - self.line(line_index).block_length;
-        }
-        if excess > CssPixels::default() {
-            match containing_style.text_align() {
-                text_align::CENTER | text_align::_LIBWEB_CENTER | text_align::_LIBWEB_INHERIT_OR_CENTER => {
-                    inline_offset += excess / 2;
-                }
-                text_align::START if containing_style.direction() == direction::RTL => inline_offset += excess,
-                text_align::END if containing_style.direction() == direction::LTR => inline_offset += excess,
-                text_align::RIGHT | text_align::_LIBWEB_RIGHT => inline_offset += excess,
-                text_align::MATCH_PARENT => unreachable!("match-parent must be resolved"),
-                _ => {}
-            }
-        } else if excess < CssPixels::default() && containing_style.direction() == direction::RTL {
-            // An overflowing line ignores text-align and is aligned to the inline start edge.
-            // In a right-to-left container the overflow therefore extends past the line-left edge.
-            inline_offset += excess;
         }
 
         let strut_baseline = Self::baseline_for_style(containing_style, containing_style.line_height());
         let mut should_align_strut_to_line_box_baseline = false;
         let mut line_box_baseline = strut_baseline;
         let fragment_count = self.line(line_index).fragments.len();
-        let has_line_relative_aligned_subtree = (0..fragment_count).any(|fragment_index| {
-            let style_source = self.line(line_index).fragments[fragment_index].style_source;
-            self.line_relative_aligned_subtree_root(style_source).is_some()
-        });
+        let has_line_relative_aligned_subtree = self
+            .line(line_index)
+            .visible_fragments()
+            .any(|fragment| self.line_relative_aligned_subtree_root(fragment.style_source).is_some());
         for fragment_index in 0..fragment_count {
-            let (node, style_source, content_baselines) = {
+            if self.line(line_index).fragments[fragment_index].is_fully_truncated {
+                continue;
+            }
+            let (node, style_source, content_baselines, is_block_ellipsis) = {
                 let fragment = &self.line(line_index).fragments[fragment_index];
-                (fragment.layout_node, fragment.style_source, fragment.content_baselines)
+                (
+                    fragment.layout_node,
+                    fragment.style_source,
+                    fragment.content_baselines,
+                    fragment.is_block_ellipsis,
+                )
             };
             let style = self.style(style_source);
-            let fragment_baseline = if self.facts(node).is_text_node() {
+            let fragment_baseline = if is_block_ellipsis || self.facts(node).is_text_node() {
                 Self::baseline_for_style(style, style.line_height())
             } else if let Some(content_baselines) = content_baselines {
                 formatting_context::box_baseline_with_content_baselines(
@@ -830,6 +893,9 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         let mut inline_box_alignments: Vec<InlineBoxAlignment> = Vec::new();
 
         for fragment_index in 0..fragment_count {
+            if self.line(line_index).fragments[fragment_index].is_fully_truncated {
+                continue;
+            }
             inline_box_alignments.clear();
             let mut snapshot = {
                 let fragment = &self.line(line_index).fragments[fragment_index];
@@ -988,7 +1054,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 latest = latest.max(inline_box_end);
             }
 
-            let is_text_node = self.facts(snapshot.layout_node).is_text_node();
+            let is_text_node = self.line(line_index).fragments[fragment_index].is_block_ellipsis
+                || self.facts(snapshot.layout_node).is_text_node();
             if is_text_node && self.writing_mode == writing_mode::HORIZONTAL_TB {
                 let font_box_size = normal_line_height(style);
                 let font_baseline = Self::baseline_for_style(style, font_box_size);
@@ -1086,6 +1153,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         }
 
         let marker_count = self.line(line_index).static_position_markers.len();
+        let marker_inline_offset = self
+            .line(line_index)
+            .inline_length_before_block_ellipsis
+            .map_or(inline_offset, aligned_inline_offset);
         for marker_index in 0..marker_count {
             // Static position markers are resolved against the inline box that contains them, so they move with that
             // box's aligned subtree.
@@ -1097,10 +1168,9 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             );
             let mut line = self.line_mut(line_index);
             let marker = &mut line.static_position_markers[marker_index];
-            marker.inline_offset += inline_offset;
+            marker.inline_offset += marker_inline_offset;
             marker.block_offset += block_offset + current_block_offset + shift;
         }
-
         {
             let mut line = self.line_mut(line_index);
             line.block_length = latest - earliest;
@@ -1115,8 +1185,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     }
 
     pub(crate) fn remove_last_line_if_empty(&mut self) {
-        let last_line_is_empty = self.line_count() != 0 && self.line(self.line_count() - 1).is_empty();
-        if last_line_is_empty {
+        while self.line_count() != 0 && self.line(self.line_count() - 1).is_empty() {
             self.context().line_data_mut().line_boxes.pop();
             self.last_line_needs_update = false;
         }

@@ -4436,6 +4436,9 @@ unsafe fn drive_property_computation(
         let float_before = computed_float.expect("float must be computed by the longhand driver");
         box_type_input.float_value = float_before;
         box_type_input.position = computed_position.expect("position must be computed by the longhand driver");
+        let overlay = unsafe { animated_overlay.as_ref() };
+        box_type_input.webkit_box_layout_transformation_applies =
+            webkit_box_layout_transformation_applies(longhand_table, overlay);
         let text_align = computed_text_align.expect("text-align must be computed by the longhand driver");
         let adjustments = compute_element_style_adjustments(&box_type_input, text_align);
         let transformation = adjustments.box_type;
@@ -4892,6 +4895,10 @@ fn effective_longhand_data<'a>(
 fn effective_keyword(table: &ComputedLonghandTable, overlay: Option<&AnimatedOverlay>, property_id: u16) -> u16 {
     keyword_from_style_value(effective_longhand_data(table, overlay, property_id))
 }
+fn webkit_box_layout_transformation_applies(table: &ComputedLonghandTable, overlay: Option<&AnimatedOverlay>) -> bool {
+    effective_keyword(table, overlay, property_id::_WEBKIT_BOX_ORIENT) == keyword::VERTICAL
+        && effective_keyword(table, overlay, property_id::CONTINUE) != keyword::AUTO
+}
 
 fn keyword_from_style_value(value: &StyleValueData) -> u16 {
     let StyleValueData::Keyword { keyword } = value else {
@@ -5104,6 +5111,7 @@ pub unsafe extern "C" fn rust_create_document_longhand_table(
             is_table_element: false,
             force_position_static: false,
             force_symbol_display_inline: false,
+            webkit_box_layout_transformation_applies: false,
         },
         color_scheme_input: input.color_scheme_input,
         is_th_element: false,
@@ -5276,10 +5284,14 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
         // seeded below. Starting from the underlying table would retain and release every
         // unrelated longhand for every keyframe on every animation sample.
         let mut table = ComputedLonghandTable::new();
-        // Background lists coordinate against the underlying background-image layer count
-        // when background-image is not selected by this keyframe.
-        if let Some(value) = underlying_longhand_table.get(property_id::BACKGROUND_IMAGE) {
-            table.set(property_id::BACKGROUND_IMAGE, value.clone_retained(), -1);
+        for property_id in [
+            property_id::_WEBKIT_BOX_ORIENT,
+            property_id::CONTINUE,
+            property_id::BACKGROUND_IMAGE,
+        ] {
+            if let Some(value) = underlying_longhand_table.get(property_id) {
+                table.set(property_id, value.clone_retained(), -1);
+            }
         }
         let mut store = CascadedPropertyStore::new();
         for property_id in FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID {
@@ -5725,6 +5737,7 @@ pub struct FfiBoxTypeTransformationInput {
     pub is_table_element: bool,
     pub force_position_static: bool,
     pub force_symbol_display_inline: bool,
+    pub webkit_box_layout_transformation_applies: bool,
 }
 
 /// Result of the box type transformation: whether float must be reset to none,
@@ -5928,10 +5941,22 @@ fn required_box_type_transformation(input: &FfiBoxTypeTransformationInput) -> Bo
 /// https://drafts.csswg.org/css-display/#transformations
 /// 2.7. Automatic Box Type Transformations
 fn transform_box_type(input: &FfiBoxTypeTransformationInput) -> FfiBoxTypeTransformation {
-    let display = input.display;
+    let display_before_transformation = input.display;
+    let mut display = display_before_transformation;
+
+    // https://drafts.csswg.org/css-overflow-4/#webkit-line-clamp
+    // If the specified value of the 'display' property is '-webkit-box', the computed value becomes 'flow-root'
+    // and the box establishes a BFC.
+    if input.webkit_box_layout_transformation_applies && display.is_webkit_box_inside() {
+        display = if display.is_inline_outside() {
+            FfiDisplay::inline_block()
+        } else {
+            FfiDisplay::flow_root()
+        };
+    }
     let unchanged = |set_float_none: bool| FfiBoxTypeTransformation {
         set_float_none,
-        changed_display: false,
+        changed_display: display != display_before_transformation,
         display,
     };
 
@@ -6006,7 +6031,7 @@ fn transform_box_type(input: &FfiBoxTypeTransformationInput) -> FfiBoxTypeTransf
 
     FfiBoxTypeTransformation {
         set_float_none,
-        changed_display: new_display != display,
+        changed_display: new_display != display_before_transformation,
         display: new_display,
     }
 }
@@ -6227,6 +6252,8 @@ fn finalize_computed_style(
         };
         box_type.position = effective_keyword(longhand_table, overlay, prop::POSITION);
         box_type.float_value = effective_keyword(longhand_table, overlay, prop::FLOAT);
+        box_type.webkit_box_layout_transformation_applies =
+            webkit_box_layout_transformation_applies(longhand_table, overlay);
         if mode != FfiStyleFinalizationMode::AnimatedBoxType {
             longhand_table.set_display_before_box_type_transformation(box_type.display.encoded());
         }
@@ -6721,6 +6748,7 @@ mod tests {
             is_table_element: false,
             force_position_static: false,
             force_symbol_display_inline: false,
+            webkit_box_layout_transformation_applies: false,
         }
     }
 

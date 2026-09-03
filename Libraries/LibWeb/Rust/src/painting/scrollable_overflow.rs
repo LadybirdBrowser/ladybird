@@ -96,7 +96,7 @@ pub(crate) fn physical_overflow_directions(
 
     let display = style.display();
     if display.is_flex_inside() {
-        let container_flex_direction = style.flex_direction();
+        let container_flex_direction = style.effective_flex_direction();
         let is_row_layout = matches!(
             container_flex_direction,
             flex_direction::ROW | flex_direction::ROW_REVERSE
@@ -375,6 +375,11 @@ fn measure_scrollable_overflow_impl(
     let box_node = box_paintable;
     let paintable_absolute_padding_box = paintable_geometry::absolute_padding_box_rect(layout_arena, box_paintable);
     let paintable_absolute_content_box = paintable_geometry::absolute_rect(layout_arena, box_paintable);
+    let has_line_clamp_point = layout_arena.with_committed_fragment_link(box_node, |link| {
+        link.is_some_and(|link| link.fragment.has_line_clamp_point)
+    });
+    let line_clamp_clip = has_line_clamp_point.then(|| style_queries::line_clamp_clip_rect(layout_arena, box_node));
+    let clip_in_flow = |rect: CssPixelRect| line_clamp_clip.map_or(rect, |clip| rect.intersected(clip));
 
     if let Some(still_valid_overflow) = still_valid_overflow {
         let scrollable_overflow_rect =
@@ -408,7 +413,14 @@ fn measure_scrollable_overflow_impl(
 
     // - All line boxes it directly contains.
     if crate::painting::node_painting::has_lines(layout_arena, box_paintable) {
-        for fragment in &layout_arena.paintable_side_data(box_paintable).fragments {
+        let side_data = layout_arena.paintable_side_data(box_paintable);
+        let absolute_position = paintable_geometry::absolute_position(layout_arena, box_paintable);
+        for line in &side_data.lines {
+            let line_rect = CssPixelRect::from(line.rect).translated_by(absolute_position);
+            scrollable_overflow_rect.unite(line_rect);
+            in_flow_and_floated_content_bounds.unite(line_rect);
+        }
+        for fragment in &side_data.fragments {
             let mut fragment_rect = text_fragment::absolute_rect(layout_arena, fragment);
             if fragment_node_is_in_focused_text_control(layout_arena, overflow_callbacks, fragment.layout_node)
                 && let Some(style_source_style) =
@@ -430,6 +442,7 @@ fn measure_scrollable_overflow_impl(
                     fragment_rect.set_bottom(fragment_rect.bottom() + one);
                 }
             }
+            fragment_rect = clip_in_flow(fragment_rect);
             scrollable_overflow_rect.unite(fragment_rect);
             in_flow_and_floated_content_bounds.unite(fragment_rect);
         }
@@ -449,6 +462,7 @@ fn measure_scrollable_overflow_impl(
 
             let child_style = layout_arena.node_style_if_live(child_node);
             let child_position = child_style.map_or(positioning::STATIC, |style| style.position());
+            let child_is_absolutely_positioned = matches!(child_position, positioning::ABSOLUTE | positioning::FIXED);
 
             // https://drafts.csswg.org/css-position/#fixed-positioning-containing-block
             // [..] As a result, parts of fixed-positioned boxes that extend outside the layout viewport/page area
@@ -464,6 +478,9 @@ fn measure_scrollable_overflow_impl(
             let child_is_flex_or_grid_item =
                 child_flags & (NodeFlag::IsFlexItem as u32 | NodeFlag::IsGridItem as u32) != 0;
             let child_is_floating = !child_is_flex_or_grid_item && child_style.is_some_and(|style| style.is_floating());
+            if style_queries::is_invisible_for_line_clamp(layout_arena, child_node) {
+                continue;
+            }
             let child_display = child_style.map_or_else(FfiDisplay::block, |style| style.display());
 
             {
@@ -496,14 +513,16 @@ fn measure_scrollable_overflow_impl(
             }
 
             let untransformed_child_border_box = paintable_geometry::absolute_border_box_rect(layout_arena, child_node);
-            let child_border_box = apply_css_transform_to_scrollable_overflow_rect(
+            let mut child_border_box = apply_css_transform_to_scrollable_overflow_rect(
                 layout_arena,
                 visual_context_callbacks,
                 child_node,
                 untransformed_child_border_box,
                 child_has_css_transform,
             );
-
+            if !child_is_absolutely_positioned {
+                child_border_box = clip_in_flow(child_border_box);
+            }
             // NOTE: Only boxes that are not wholly in the unreachable scrollable overflow region contribute.
             let wholly_in_unreachable_horizontal_axis = if overflow_directions.horizontal_axis_is_positive {
                 child_border_box.right() < paintable_absolute_padding_box.x
@@ -536,8 +555,6 @@ fn measure_scrollable_overflow_impl(
                     None
                 };
 
-                let child_is_absolutely_positioned =
-                    matches!(child_position, positioning::ABSOLUTE | positioning::FIXED);
                 let child_is_in_flow = !(child_is_floating || child_is_absolutely_positioned);
                 if child_is_in_flow || child_is_floating {
                     if let Some(child_margin_box) = untransformed_child_margin_box {
@@ -574,13 +591,16 @@ fn measure_scrollable_overflow_impl(
                     child_node,
                     assignments,
                 );
-                let child_scrollable_overflow = apply_css_transform_to_scrollable_overflow_rect(
+                let mut child_scrollable_overflow = apply_css_transform_to_scrollable_overflow_rect(
                     layout_arena,
                     visual_context_callbacks,
                     child_node,
                     untransformed_child_scrollable_overflow,
                     child_has_css_transform,
                 );
+                if !child_is_absolutely_positioned {
+                    child_scrollable_overflow = clip_in_flow(child_scrollable_overflow);
+                }
                 if !child_scrollable_overflow.is_empty() {
                     if child_overflow_x == overflow::VISIBLE {
                         scrollable_overflow_rect.unite_horizontally(child_scrollable_overflow);
@@ -605,6 +625,7 @@ fn measure_scrollable_overflow_impl(
     //       descendent, has already increased the size of the scrollable overflow rectangle outside the conceptual
     //       “content edge” of the scroll container’s content.
     let box_is_scroll_container = style_queries::is_scroll_container(layout_arena, box_node);
+    in_flow_and_floated_content_bounds = clip_in_flow(in_flow_and_floated_content_bounds);
     if box_is_scroll_container {
         scrollable_overflow_rect.unite(padding_inflated_scrollable_overflow(
             layout_arena,

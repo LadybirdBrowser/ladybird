@@ -1,4 +1,7 @@
-flex direction: column
+flex direction: row
+box orientation: vertical
 container width: 100
 item width: 100
-horizontal flex direction: row
+horizontal box orientation: horizontal
+standard direction display: -webkit-box
+standard direction height: 60

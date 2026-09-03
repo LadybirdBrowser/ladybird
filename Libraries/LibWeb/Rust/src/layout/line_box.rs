@@ -34,6 +34,7 @@ pub(crate) struct LineBoxData {
     pub(crate) static_position_markers: Vec<StaticPositionMarker>,
     pub(crate) inline_box_baselines: Vec<InlineBoxBaseline>,
     pub(crate) inline_length: CssPixels,
+    pub(crate) inline_length_before_block_ellipsis: Option<CssPixels>,
     pub(crate) block_length: CssPixels,
     pub(crate) block_start: CssPixels,
     pub(crate) block_end: CssPixels,
@@ -54,6 +55,7 @@ impl LineBoxData {
             static_position_markers: Vec::new(),
             inline_box_baselines: Vec::new(),
             inline_length: CssPixels::default(),
+            inline_length_before_block_ellipsis: None,
             block_length: CssPixels::default(),
             block_start: CssPixels::default(),
             block_end: CssPixels::default(),
@@ -102,7 +104,8 @@ impl LineBoxData {
         let can_merge = glyphs.as_ref().is_some_and(|glyphs| {
             !text_align_is_justify
                 && self.fragments.last().is_some_and(|last| {
-                    last.layout_node == layout_node
+                    !last.has_soft_wrap_opportunity_after
+                        && last.layout_node == layout_node
                         && last
                             .glyphs
                             .as_ref()
@@ -256,10 +259,32 @@ impl LineBoxData {
         self.calculate_or_trim_trailing_whitespace(true);
     }
 
+    pub(crate) fn trim_trailing_whitespace_before_block_ellipsis(&mut self) {
+        while let Some(fragment) = self.fragments.last_mut() {
+            let whitespace = std::mem::take(&mut fragment.trailing_whitespace);
+            if whitespace.length_in_code_units == 0 {
+                break;
+            }
+            self.inline_length -= whitespace.inline_size;
+            if whitespace.length_in_code_units == fragment.length_in_code_units {
+                self.fragments.pop();
+                continue;
+            }
+            fragment.length_in_code_units -= whitespace.length_in_code_units;
+            fragment.inline_length -= whitespace.inline_size;
+            fragment.has_trailing_whitespace = true;
+            break;
+        }
+        self.clamp_static_position_markers_to_inline_length();
+    }
     pub(crate) fn is_empty_or_ends_in_whitespace(&self) -> bool {
         self.fragments
             .last()
             .is_none_or(line_box_fragment::LineBoxFragmentData::ends_in_whitespace)
+    }
+
+    pub(crate) fn visible_fragments(&self) -> impl DoubleEndedIterator<Item = &line_box_fragment::LineBoxFragmentData> {
+        self.fragments.iter().filter(|fragment| !fragment.is_fully_truncated)
     }
 
     pub(crate) fn is_empty(&self) -> bool {

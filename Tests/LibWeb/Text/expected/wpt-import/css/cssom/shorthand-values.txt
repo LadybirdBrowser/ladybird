@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 20 tests
+Found 21 tests
 
-17 Pass
+18 Pass
 3 Fail
 Pass	The serialization of border: 1px; border-top: 1px; should be canonical.
 Pass	The serialization of border: 1px solid red; should be canonical.
@@ -24,3 +24,4 @@ Pass	The serialization of list-style-type: circle; list-style-position: inside; 
 Pass	The serialization of list-style-type: lower-alpha; should be canonical.
 Pass	The serialization of font-family: sans-serif; line-height: 2em; font-size: 3em; font-style: italic; font-weight: bold; should be canonical.
 Pass	The serialization of padding-top: 1px; padding-right: 2px; padding-bottom: 3px; padding-left: 4px; should be canonical.
+Pass	The serialization of -webkit-line-clamp: none; should be canonical.
