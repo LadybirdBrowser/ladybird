@@ -310,3 +310,73 @@ TEST_CASE(aac_configuration_record_rejects_a_truncated_config)
     Array<u8, 1> escaped_without_extension { 0xf8 };
     EXPECT(!Media::Codecs::AAC::parse_configuration_record(escaped_without_extension, 0x40).has_value());
 }
+
+TEST_CASE(vp9_frame_header_reads_a_keyframe_format)
+{
+    // The head of vp9_in_webm.webm's keyframe, whose color space field is unknown.
+    Array<u8, 16> keyframe {
+        0x82, 0x49, 0x83, 0x42, 0x00, 0x35, 0x50, 0x1d, 0xf6, 0x12, 0x38, 0x24, 0x1c, 0x18, 0xb8, 0x10
+    };
+
+    auto header = Media::Codecs::VP9::parse_frame_header(keyframe);
+    EXPECT(header.has_value());
+    EXPECT_EQ(header->size, Gfx::IntSize(854, 480));
+    EXPECT_EQ(header->profile, 0);
+    EXPECT_EQ(header->bit_depth, 8);
+    EXPECT(header->color_parameters.subsampling.x());
+    EXPECT(header->color_parameters.subsampling.y());
+    EXPECT_EQ(to_underlying(header->color_parameters.cicp.matrix_coefficients()), to_underlying(Media::MatrixCoefficients::Unspecified));
+
+    // VP9 can express neither primaries nor transfer characteristics, so the container supplies them.
+    EXPECT_EQ(to_underlying(header->color_parameters.cicp.color_primaries()), to_underlying(Media::ColorPrimaries::Unspecified));
+    EXPECT_EQ(to_underlying(header->color_parameters.cicp.transfer_characteristics()), to_underlying(Media::TransferCharacteristics::Unspecified));
+}
+
+TEST_CASE(vp9_frame_header_reads_a_stated_matrix)
+{
+    // The head of big_buck_bunny_5s.webm's keyframe, which states BT.709.
+    Array<u8, 16> keyframe {
+        0x82, 0x49, 0x83, 0x42, 0x40, 0x27, 0xf0, 0x16, 0x76, 0x00, 0x38, 0x24, 0x1c, 0x19, 0x72, 0x10
+    };
+
+    auto header = Media::Codecs::VP9::parse_frame_header(keyframe);
+    EXPECT(header.has_value());
+    EXPECT_EQ(header->size, Gfx::IntSize(640, 360));
+    EXPECT_EQ(to_underlying(header->color_parameters.cicp.matrix_coefficients()), to_underlying(Media::MatrixCoefficients::BT709));
+}
+
+TEST_CASE(vp9_frame_header_reads_the_last_frame_of_a_superframe)
+{
+    static constexpr Array<u8, 16> first { 0x82, 0x49, 0x83, 0x42, 0x00, 0x35, 0x50, 0x1d, 0xf6, 0x12, 0x38, 0x24, 0x1c, 0x18, 0xb8, 0x10 };
+    static constexpr Array<u8, 16> second { 0x82, 0x49, 0x83, 0x42, 0x40, 0x27, 0xf0, 0x16, 0x76, 0x00, 0x38, 0x24, 0x1c, 0x19, 0x72, 0x10 };
+
+    // Two frames behind an index of one size byte each, so the format is the second frame's.
+    Vector<u8> superframe;
+    superframe.append(first.data(), first.size());
+    superframe.append(second.data(), second.size());
+    u8 marker = 0xc0 | 0x1;
+    superframe.append(marker);
+    superframe.append(static_cast<u8>(first.size()));
+    superframe.append(static_cast<u8>(second.size()));
+    superframe.append(marker);
+
+    auto header = Media::Codecs::VP9::parse_frame_header(superframe);
+    EXPECT(header.has_value());
+    EXPECT_EQ(header->size, Gfx::IntSize(640, 360));
+}
+
+TEST_CASE(vp9_frame_header_rejects_frames_that_describe_no_format)
+{
+    // An inter frame takes its size from a reference rather than coding one.
+    Array<u8, 4> inter_frame { 0x86, 0x00, 0x00, 0x00 };
+    EXPECT(!Media::Codecs::VP9::parse_frame_header(inter_frame).has_value());
+
+    // A frame that only redisplays a reference. The sync code and trailing bytes are valid so that only the
+    // show_existing_frame flag can reject it.
+    Array<u8, 12> show_existing { 0x88, 0x49, 0x83, 0x42, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    EXPECT(!Media::Codecs::VP9::parse_frame_header(show_existing).has_value());
+
+    // Anything whose frame marker is not 2 is not a VP9 frame at all.
+    Array<u8, 4> not_vp9 { 0x42, 0x49, 0x83, 0x42 };
+    EXPECT(!Media::Codecs::VP9::parse_frame_header(not_vp9).has_value());
+}
