@@ -329,8 +329,12 @@ sk_sp<SkImage> DisplayListResourceStorage::skia_image_for_video_sink(VideoSinkRe
     if (cached_image_matches)
         return cached_image_storage.image;
 
+    auto yuv_data = frame->yuv_data();
+    if (!yuv_data.has_value())
+        return nullptr;
+
     auto color_space = Gfx::ColorSpace {};
-    if (auto color_space_result = Gfx::ColorSpace::from_cicp(frame->yuv_data().cicp()); !color_space_result.is_error())
+    if (auto color_space_result = Gfx::ColorSpace::from_cicp(frame->cicp()); !color_space_result.is_error())
         color_space = color_space_result.release_value();
 
     sk_sp<SkImage> image;
@@ -338,14 +342,14 @@ sk_sp<SkImage> DisplayListResourceStorage::skia_image_for_video_sink(VideoSinkRe
     if (gr_context) {
         image = SkImages::TextureFromYUVAPixmaps(
             gr_context,
-            frame->yuv_data().make_pixmaps(),
+            yuv_data->make_pixmaps(),
             skgpu::Mipmapped::kNo,
             false,
             color_space.color_space<sk_sp<SkColorSpace>>());
     }
 
     if (!image) {
-        auto bitmap_or_error = frame->yuv_data().to_bitmap();
+        auto bitmap_or_error = yuv_data->to_bitmap();
         if (bitmap_or_error.is_error()) {
             dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
             return nullptr;

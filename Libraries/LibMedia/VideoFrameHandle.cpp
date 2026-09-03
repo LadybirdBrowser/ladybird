@@ -56,17 +56,16 @@ VideoFrameHandle VideoFrameHandle::for_frame(VideoFrame const& frame)
         slot_acquisition_id = resolved_slot->slot_acquisition_id();
     }
 
-    auto const& yuv_data = frame.yuv_data();
     return VideoFrameHandle {
         .pool_id = pool_id,
         .slot_index = slot_index,
         .slot_acquisition_id = slot_acquisition_id,
         .timestamp = frame.timestamp(),
         .duration = frame.duration(),
-        .size = yuv_data.size(),
-        .bit_depth = yuv_data.bit_depth(),
-        .subsampling = yuv_data.subsampling(),
-        .cicp = yuv_data.cicp(),
+        .size = frame.size().to_type<int>(),
+        .bit_depth = frame.bit_depth(),
+        .subsampling = frame.subsampling(),
+        .cicp = frame.cicp(),
     };
 }
 

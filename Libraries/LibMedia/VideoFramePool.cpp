@@ -241,27 +241,29 @@ bool ResolvedVideoFrameSlot::revalidate() const
     return slot_header(m_slot_buffer).slot_acquisition_id.load() == m_slot_acquisition_id;
 }
 
-ErrorOr<NonnullRefPtr<VideoFrame>> resolve_frame_from_slot_buffer(Core::AnonymousBuffer const& slot_buffer, VideoFrameHandle const& handle, Function<void()> on_release)
+ErrorOr<Gfx::YUVData> yuv_data_in_slot_buffer(Core::AnonymousBuffer const& slot_buffer, Gfx::IntSize size, u8 bit_depth, Subsampling subsampling, CodingIndependentCodePoints const& cicp)
 {
     if (!slot_buffer.is_valid() || slot_buffer.size() <= slot_data_offset())
         return Error::from_string_literal("Invalid video frame slot buffer");
 
-    auto layout = TRY(frame_plane_layout(handle.size, handle.bit_depth, handle.subsampling));
+    auto layout = TRY(frame_plane_layout(size, bit_depth, subsampling));
     auto capacity = slot_buffer.size() - slot_data_offset();
     if (layout.total_byte_count > capacity)
-        return Error::from_string_literal("VideoFrameHandle format does not fit its slot");
+        return Error::from_string_literal("Video frame format does not fit its slot");
+
+    auto bytes = Bytes { const_cast<u8*>(slot_buffer.data<u8 const>()) + slot_data_offset(), capacity };
+    return Gfx::YUVData::create(size, bit_depth, subsampling, cicp, bytes.slice(0, layout.y_size), bytes.slice(layout.u_offset, layout.u_size), bytes.slice(layout.v_offset, layout.v_size));
+}
+
+ErrorOr<NonnullRefPtr<VideoFrame>> resolve_frame_from_slot_buffer(Core::AnonymousBuffer const& slot_buffer, VideoFrameHandle const& handle, Function<void()> on_release)
+{
+    TRY(yuv_data_in_slot_buffer(slot_buffer, handle.size, handle.bit_depth, handle.subsampling, handle.cicp));
 
     if (slot_header(slot_buffer).slot_acquisition_id.load(AK::MemoryOrder::memory_order_acquire) != handle.slot_acquisition_id)
         return Error::from_string_literal("VideoFrameHandle refers to a recycled slot");
 
-    auto bytes = Bytes { const_cast<u8*>(slot_buffer.data<u8 const>()) + slot_data_offset(), capacity };
-    auto y_data = bytes.slice(0, layout.y_size);
-    auto u_data = bytes.slice(layout.u_offset, layout.u_size);
-    auto v_data = bytes.slice(layout.v_offset, layout.v_size);
-    auto yuv_data = TRY(Gfx::YUVData::create(handle.size, handle.bit_depth, handle.subsampling, handle.cicp, y_data, u_data, v_data));
-
     auto resolved_slot = TRY(try_make_ref_counted<ResolvedVideoFrameSlot>(slot_buffer, handle.pool_id, handle.slot_index, handle.slot_acquisition_id, move(on_release)));
-    return try_make_ref_counted<VideoFrame>(handle.timestamp, handle.duration, handle.size.to_type<u32>(), handle.bit_depth, yuv_data, move(resolved_slot));
+    return try_make_ref_counted<VideoFrame>(handle.timestamp, handle.duration, handle.size.to_type<u32>(), handle.bit_depth, handle.subsampling, handle.cicp, move(resolved_slot));
 }
 
 NonnullRefPtr<VideoFrameSlotDirectory> VideoFrameSlotDirectory::create()

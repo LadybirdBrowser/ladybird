@@ -319,14 +319,17 @@ Optional<Gfx::DecodedImageFrame> HTMLVideoElement::current_decoded_image_frame()
     auto current_frame = current_presented_frame();
     if (!current_frame)
         return {};
-    auto bitmap_or_error = current_frame->yuv_data().to_bitmap();
+    auto yuv_data = current_frame->yuv_data();
+    if (!yuv_data.has_value())
+        return {};
+    auto bitmap_or_error = yuv_data->to_bitmap();
     if (bitmap_or_error.is_error()) {
         dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
         return {};
     }
     auto bitmap = bitmap_or_error.release_value();
     auto color_space = Gfx::ColorSpace {};
-    if (auto color_space_result = Gfx::ColorSpace::from_cicp(current_frame->yuv_data().cicp()); !color_space_result.is_error())
+    if (auto color_space_result = Gfx::ColorSpace::from_cicp(current_frame->cicp()); !color_space_result.is_error())
         color_space = color_space_result.release_value();
     return Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { *bitmap }, move(color_space) };
 }
