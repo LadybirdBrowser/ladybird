@@ -31,6 +31,11 @@ Box::Box(DOM::Document& document, GC::Ptr<DOM::Node> node, CSS::LayoutStyle styl
 {
 }
 
+Box::Box(DOM::Document& document, BindToPreparedArenaSlot bind, RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
+    : NodeWithStyle(document, bind, slot, kind)
+{
+}
+
 Box::~Box()
 {
 }

@@ -2157,22 +2157,13 @@ public:
     {
     }
 
-    static LayoutStyle adopting_pinned_style_record(StyleRecordID style_record_identity)
-    {
-        LayoutStyle style { style_record_identity };
-        style.m_adopts_style_record_pin = true;
-        return style;
-    }
-
     explicit operator bool() const { return !!m_style_record_identity || m_values; }
     [[nodiscard]] StyleRecordID style_record_identity() const { return m_style_record_identity; }
-    [[nodiscard]] bool adopts_style_record_pin() const { return m_adopts_style_record_pin; }
     [[nodiscard]] RefPtr<ComputedValues const> const& values() const { return m_values; }
 
 private:
     RefPtr<ComputedValues const> m_values;
     StyleRecordID m_style_record_identity;
-    bool m_adopts_style_record_pin { false };
 };
 
 class ComputedValues::Mutator final {

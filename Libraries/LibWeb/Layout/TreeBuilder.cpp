@@ -34,7 +34,6 @@
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
-#include <LibWeb/Layout/AnonymousBoxStyle.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
@@ -73,6 +72,7 @@ private:
     static BlockContainer& create_list_item_marker(BlockContainer& list_box, CSS::LayoutStyle marker_style);
     static RustFFI::FfiFirstLetterNodes create_first_letter_nodes(DOM::Element&, RustFFI::FfiFirstLetterTarget);
 
+    GC::Ptr<DOM::Document> m_document;
     Layout::Viewport* m_layout_root { nullptr };
     OwnPtr<PrincipalNodeFrameStorage> m_principal_frames;
     OwnPtr<PseudoElementFrameStorage> m_pseudo_element_frames;
@@ -1351,25 +1351,9 @@ static RustFFI::FfiPrincipalTextLayoutNodes create_layout_node_for_text(Principa
     };
 }
 
-static CSS::LayoutStyle derived_anonymous_box_style(NodeWithStyle const& parent, AnonymousBoxStyleKind kind, AnonymousBoxStyleOverrides const& overrides = {})
-{
-    return CSS::LayoutStyle::adopting_pinned_style_record(derive_pinned_anonymous_box_style_record(parent.document().style_computer(), parent.style_record_identity(), kind, overrides));
-}
-
-static AnonymousBoxStyleOverrides anonymous_wrapper_overrides_for(NodeWithStyle const& parent)
-{
-    // CSS 2.2 9.2.1.1 creates anonymous block boxes, but 9.4.1 states inline-block creates a BFC.
-    // Set wrapper to inline-block to participate correctly in the IFC within the parent inline-block.
-    return { .inline_block_wrapper = parent.display().is_inline_block() && !parent.has_children() };
-}
-
-static BlockContainer& create_anonymous_block_container(NodeWithStyle& parent, AnonymousBoxStyleKind kind, AnonymousBoxStyleOverrides const& overrides = {}, RustFFI::NodeKind node_kind = RustFFI::NodeKind::BlockContainer)
-{
-    return allocate_layout_node<BlockContainer>(parent.document(), nullptr, derived_anonymous_box_style(parent, kind, overrides), node_kind);
-}
-
 LayoutTreeBuildResult LayoutTreeBuildBridge::build(DOM::Node& dom_node)
 {
+    m_document = &dom_node.document();
     auto callbacks = make_ffi_dom_tree_builder_callbacks();
     RustFFI::rust_build_layout_tree(&callbacks, dom_node.document().layout_node_arena().handle(), &dom_node);
     return {
@@ -1428,86 +1412,44 @@ static RustFFI::FfiFirstLetterCodePointFacts ffi_first_letter_code_point_facts(v
     };
 }
 
-static RustFFI::NodeSlotId ffi_create_anonymous_table_box(void*, void* parent_pointer, RustFFI::FfiAnonymousTableBoxKind kind)
-{
-    VERIFY(parent_pointer);
-    auto& parent = as<NodeWithStyle>(*static_cast<Node*>(parent_pointer));
-    switch (kind) {
-    case RustFFI::FfiAnonymousTableBoxKind::TableRow:
-        return Node::slot_id(&allocate_layout_node<Box>(parent.document(), nullptr, derived_anonymous_box_style(parent, AnonymousBoxStyleKind::TableRow)));
-    case RustFFI::FfiAnonymousTableBoxKind::TableCell:
-        return Node::slot_id(&create_anonymous_block_container(parent, AnonymousBoxStyleKind::TableCell));
-    case RustFFI::FfiAnonymousTableBoxKind::Table:
-        return Node::slot_id(&allocate_layout_node<Box>(parent.document(), nullptr, derived_anonymous_box_style(parent, AnonymousBoxStyleKind::Table)));
-    case RustFFI::FfiAnonymousTableBoxKind::InlineTable:
-        return Node::slot_id(&allocate_layout_node<Box>(parent.document(), nullptr, derived_anonymous_box_style(parent, AnonymousBoxStyleKind::InlineTable)));
-    }
-    VERIFY_NOT_REACHED();
-}
-
-static RustFFI::NodeSlotId ffi_create_table_wrapper(void*, void* table_root_pointer)
-{
-    VERIFY(table_root_pointer);
-    auto& table_box = as<Box>(*static_cast<Node*>(table_root_pointer));
-    auto& wrapper = create_anonymous_block_container(table_box, AnonymousBoxStyleKind::TableWrapper, {}, RustFFI::NodeKind::TableWrapper);
-    table_box.reset_table_box_computed_values_used_by_wrapper_to_init_values();
-    return Node::slot_id(&wrapper);
-}
-
-static RustFFI::NodeSlotId ffi_create_missing_table_cell(void*, void* row_pointer)
-{
-    VERIFY(row_pointer);
-    auto& row_box = as<Box>(*static_cast<Node*>(row_pointer));
-    return Node::slot_id(&create_anonymous_block_container(row_box, AnonymousBoxStyleKind::MissingTableCell));
-}
-
-static RustFFI::NodeSlotId ffi_create_anonymous_wrapper(void*, void* parent_pointer)
-{
-    VERIFY(parent_pointer);
-    auto& parent = as<NodeWithStyle>(*static_cast<Node*>(parent_pointer));
-    return Node::slot_id(&create_anonymous_block_container(parent, AnonymousBoxStyleKind::Wrapper, anonymous_wrapper_overrides_for(parent)));
-}
-
-static RustFFI::FfiButtonContentWrappers ffi_create_button_content_wrappers(void*, void* layout_node_pointer)
-{
-    VERIFY(layout_node_pointer);
-    auto& parent = as<NodeWithStyle>(*static_cast<Node*>(layout_node_pointer));
-
-    // If the box does not overflow in the vertical axis, then it is centered vertically.
-    // FIXME: Only apply alignment when box overflows
-    auto& flex_wrapper = create_anonymous_block_container(parent, AnonymousBoxStyleKind::ButtonFlexWrapper);
-    auto& content_box_wrapper = create_anonymous_block_container(parent, AnonymousBoxStyleKind::ButtonContentBox, anonymous_wrapper_overrides_for(parent));
-    return {
-        .flex_wrapper = Node::slot_id(&flex_wrapper),
-        .content_box = Node::slot_id(&content_box_wrapper),
-    };
-}
-
-static RustFFI::NodeSlotId ffi_create_fieldset_content_wrapper(void*, void* layout_node_pointer)
-{
-    VERIFY(layout_node_pointer);
-    auto& fieldset_box = as<BlockContainer>(*static_cast<Node*>(layout_node_pointer));
-
-    // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
-    // The following properties are expected to inherit from the fieldset element:
-    //     align-content, align-items, border-radius, column-count, column-fill, column-gap, column-rule,
-    //     column-width, flex-direction, flex-wrap, grid (grid-auto-columns, grid-auto-flow, grid-auto-rows,
-    //     grid-column-gap, grid-row-gap, grid-template-areas, grid-template-columns, grid-template-rows),
-    //     justify-content, justify-items, overflow, padding, text-overflow, unicode-bidi
-    // FIXME: Transfer all of these properties, not just overflow.
-    auto& wrapper = create_anonymous_block_container(fieldset_box, AnonymousBoxStyleKind::FieldsetContentWrapper, { .overflow_x = fieldset_box.overflow_x(), .overflow_y = fieldset_box.overflow_y() });
-    fieldset_box.set_overflow(CSS::InitialValues::overflow(), CSS::InitialValues::overflow());
-    return Node::slot_id(&wrapper);
-}
-
 RustFFI::FfiTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_tree_builder_callbacks()
 {
     return {
         .context = this,
-        .create_anonymous_wrapper = ffi_create_anonymous_wrapper,
-        .create_anonymous_table_box = ffi_create_anonymous_table_box,
-        .create_table_wrapper = ffi_create_table_wrapper,
-        .create_missing_table_cell = ffi_create_missing_table_cell,
+        .create_anonymous_shell = [](void* context, RustFFI::NodeSlotId slot, RustFFI::NodeKind kind) {
+            VERIFY(context);
+            auto& document = *static_cast<LayoutTreeBuildBridge*>(context)->m_document;
+            switch (kind) {
+            case RustFFI::NodeKind::BlockContainer:
+            case RustFFI::NodeKind::TableWrapper:
+                allocate_layout_node<BlockContainer>(document, BindToPreparedArenaSlot::Yes, slot, kind);
+                return;
+            case RustFFI::NodeKind::Box:
+                allocate_layout_node<Box>(document, BindToPreparedArenaSlot::Yes, slot, kind);
+                return;
+            default:
+                VERIFY_NOT_REACHED();
+            } },
+        .reset_table_box_style_used_by_wrapper = [](void*, void* table_box_pointer) {
+            VERIFY(table_box_pointer);
+            as<Box>(*static_cast<Node*>(table_box_pointer)).reset_table_box_computed_values_used_by_wrapper_to_init_values(); },
+        .take_fieldset_overflow_for_content_wrapper = [](void*, void* fieldset_box_pointer) -> RustFFI::FfiAnonymousStyleOverrides {
+            VERIFY(fieldset_box_pointer);
+            auto& fieldset_box = as<BlockContainer>(*static_cast<Node*>(fieldset_box_pointer));
+            // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
+            // The following properties are expected to inherit from the fieldset element:
+            //     align-content, align-items, border-radius, column-count, column-fill, column-gap, column-rule,
+            //     column-width, flex-direction, flex-wrap, grid (grid-auto-columns, grid-auto-flow, grid-auto-rows,
+            //     grid-column-gap, grid-row-gap, grid-template-areas, grid-template-columns, grid-template-rows),
+            //     justify-content, justify-items, overflow, padding, text-overflow, unicode-bidi
+            // FIXME: Transfer all of these properties, not just overflow.
+            RustFFI::FfiAnonymousStyleOverrides overrides {
+                .inline_block_wrapper = false,
+                .overflow_x = to_underlying(fieldset_box.overflow_x()),
+                .overflow_y = to_underlying(fieldset_box.overflow_y()),
+            };
+            fieldset_box.set_overflow(CSS::InitialValues::overflow(), CSS::InitialValues::overflow());
+            return overrides; },
         .prepare_subtree_for_detach = [](void*, void* layout_node_pointer) {
             VERIFY(layout_node_pointer);
             static_cast<Node*>(layout_node_pointer)->prepare_subtree_for_detach_from_layout_tree(); },
@@ -1535,8 +1477,6 @@ RustFFI::FfiTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_tree_builder_ca
             auto const white_space_collapse = text_node.parent()->white_space_collapse();
             return first_is_one_of(white_space_collapse,
                 CSS::WhiteSpaceCollapse::Preserve, CSS::WhiteSpaceCollapse::PreserveBreaks, CSS::WhiteSpaceCollapse::BreakSpaces); },
-        .create_button_content_wrappers = ffi_create_button_content_wrappers,
-        .create_fieldset_content_wrapper = ffi_create_fieldset_content_wrapper,
     };
 }
 

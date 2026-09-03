@@ -57,6 +57,7 @@ public:
     bool compensates_for_vertical_scroll() const { return has_flag(RustFFI::NodeFlag::CompensatesForVerticalScroll); }
 
     Box(DOM::Document&, GC::Ptr<DOM::Node>, CSS::LayoutStyle, RustFFI::NodeKind = RustFFI::NodeKind::Box);
+    Box(DOM::Document&, BindToPreparedArenaSlot, RustFFI::NodeSlotId, RustFFI::NodeKind);
 
 private:
     CSS::SizeWithAspectRatio compute_auto_content_box_size() const;
