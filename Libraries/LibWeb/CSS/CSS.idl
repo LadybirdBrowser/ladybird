@@ -93,6 +93,13 @@ dictionary CaretPositionFromPointOptions {
     sequence<ShadowRoot> shadowRoots = [];
 };
 
+// https://drafts.csswg.org/cssom/#extensions-to-the-document-or-shadow-root-interface
+partial interface mixin DocumentOrShadowRoot {
+    [SameObject, ImplementedInBindings] readonly attribute StyleSheetList styleSheets;
+    // FIXME: adoptedStyleSheets should be ObservableArray<CSSStyleSheet>.
+    [ImplementedInBindings] attribute any adoptedStyleSheets;
+};
+
 // https://drafts.csswg.org/cssom-view/#extension-to-the-element-interface
 enum ScrollLogicalPosition { "start", "center", "end", "nearest" };
 dictionary ScrollIntoViewOptions : ScrollOptions {

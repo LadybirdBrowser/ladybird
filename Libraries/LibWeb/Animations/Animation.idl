@@ -40,3 +40,8 @@ enum AnimationReplaceState { "active", "removed", "persisted" };
 partial interface Document {
     readonly attribute DocumentTimeline timeline;
 };
+
+// https://drafts.csswg.org/web-animations-1/#extensions-to-the-documentorshadowroot-interface-mixin
+partial interface mixin DocumentOrShadowRoot {
+    sequence<Animation> getAnimations();
+};
