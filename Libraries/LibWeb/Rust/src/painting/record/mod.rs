@@ -191,6 +191,21 @@ impl<O: Observer> PaintRecorder<'_, O> {
         font.id().0
     }
 
+    pub(crate) fn own_scroll_container_offset(&self, paintable: NodeSlotId) -> crate::css::css_pixels::CssPixelPoint {
+        use crate::painting::display_list::commands::VISUAL_VIEWPORT_NODE_INDEX;
+        let own_scroll_node = self.data(paintable).own_scroll_node_index;
+        if own_scroll_node == VISUAL_VIEWPORT_NODE_INDEX {
+            return crate::css::css_pixels::CssPixelPoint::default();
+        }
+        let visual_context = &self.paint_state.visual_context;
+        let Some(tree) = visual_context.tree.as_ref() else {
+            return crate::css::css_pixels::CssPixelPoint::default();
+        };
+        let slot = tree.scroll_state_slot_for_node(own_scroll_node);
+        let own_offset = visual_context.scroll_state.state_at_slot(slot).own_offset;
+        crate::css::css_pixels::CssPixelPoint::new(-own_offset.x, -own_offset.y)
+    }
+
     /// The focused text control's selection as `(start, end)` when `node` is one of its text
     /// node's committed rows.
     pub(crate) fn text_control_selection(&self, node: NodeSlotId) -> Option<(usize, usize)> {
