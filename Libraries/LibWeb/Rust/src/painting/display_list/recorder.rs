@@ -368,6 +368,7 @@ impl DisplayListRecorder {
                 rect,
                 color,
                 compositing_and_blending_operator,
+                background_color_animation_frame: FrameNodeIndex::NONE,
             },
             &[],
         );
@@ -397,6 +398,7 @@ impl DisplayListRecorder {
                 rect,
                 color: Color::TRANSPARENT,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                background_color_animation_frame: FrameNodeIndex::NONE,
             },
             &[],
         );
@@ -866,6 +868,41 @@ impl DisplayListRecorder {
                 rect,
                 color,
                 corner_radii,
+                background_color_animation_frame: FrameNodeIndex::NONE,
+            },
+            &[],
+        );
+    }
+
+    pub fn fill_animated_background_color(
+        &mut self,
+        rect: IntRect,
+        color: Color,
+        corner_radii: CornerRadii,
+        animation_frame: Option<FrameNodeIndex>,
+    ) {
+        if rect.is_empty() || (color.alpha() == 0 && animation_frame.is_none()) {
+            return;
+        }
+        let animation_frame = animation_frame.unwrap_or(FrameNodeIndex::NONE);
+        if !corner_radii.has_any_radius() {
+            self.append_command(
+                &FillRect {
+                    rect,
+                    color,
+                    compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                    background_color_animation_frame: animation_frame,
+                },
+                &[],
+            );
+            return;
+        }
+        self.append_command(
+            &FillRectWithRoundedCorners {
+                rect,
+                color,
+                corner_radii,
+                background_color_animation_frame: animation_frame,
             },
             &[],
         );

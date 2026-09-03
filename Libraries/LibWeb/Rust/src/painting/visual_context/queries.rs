@@ -277,6 +277,7 @@ impl VisualContextTree {
             return true;
         }
         match &frame.data {
+            FrameData::BackgroundColorAnimation => true,
             FrameData::Clip(clip) => {
                 // NOTE: The clip rect is in absolute device-pixel coordinates. After inverse-transforming, `point`
                 //       is also in device-pixel coordinates, so we compare them directly.
@@ -637,6 +638,7 @@ impl VisualContextTree {
     pub fn with_sampled_visual_animation_values(
         &self,
         frame_opacities: &[(FrameNodeIndex, f32)],
+        frame_background_colors: &[(FrameNodeIndex, libgfx_rust::Color)],
         spatial_matrices: &[(SpatialNodeIndex, FloatMatrix4x4)],
     ) -> VisualContextTree {
         let mut sampled = self.clone();
@@ -656,27 +658,47 @@ impl VisualContextTree {
                 transform.matrix = *matrix;
             }
         }
+        sampled.sampled_background_colors.clear();
+        for (frame, color) in frame_background_colors {
+            sampled.sampled_background_colors.insert(frame.0, *color);
+        }
         sampled
     }
 
-    pub fn visual_animation_target_is_valid(&self, target_is_frame: bool, target: u32) -> bool {
-        if target_is_frame {
-            matches!(
+    pub fn visual_animation_target_is_valid(
+        &self,
+        target_kind: crate::painting::host::FfiVisualAnimationTargetKind,
+        target: u32,
+    ) -> bool {
+        use crate::painting::host::FfiVisualAnimationTargetKind;
+        match target_kind {
+            FfiVisualAnimationTargetKind::Opacity => matches!(
                 self.frame_nodes.get(target as usize).map(|node| &node.data),
                 Some(FrameData::Effects(_))
-            )
-        } else {
-            matches!(
+            ),
+            FfiVisualAnimationTargetKind::BackgroundColor => matches!(
+                self.frame_nodes.get(target as usize).map(|node| &node.data),
+                Some(FrameData::BackgroundColorAnimation)
+            ),
+            FfiVisualAnimationTargetKind::Transform => matches!(
                 self.spatial_nodes.get(target as usize).map(|node| &node.data),
                 Some(SpatialData::Transform(transform)) if transform.role == TransformDataRole::CssTransform && !transform.synthetic_plane
-            )
+            ),
         }
     }
 
-    pub fn visual_animation_targets_are_valid(&self, targets_are_frames: bool, targets: &[u32]) -> bool {
+    pub fn sampled_background_color(&self, frame: FrameNodeIndex) -> Option<libgfx_rust::Color> {
+        self.sampled_background_colors.get(&frame.0).copied()
+    }
+
+    pub fn visual_animation_targets_are_valid(
+        &self,
+        target_kind: crate::painting::host::FfiVisualAnimationTargetKind,
+        targets: &[u32],
+    ) -> bool {
         targets
             .iter()
-            .all(|&target| self.visual_animation_target_is_valid(targets_are_frames, target))
+            .all(|&target| self.visual_animation_target_is_valid(target_kind, target))
     }
 
     pub fn effects_opacity(&self, frame: FrameNodeIndex) -> Option<f32> {

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes legacy-color {
+        from { background-color: rgba(255, 0, 0, 0); }
+        to { background-color: blue; }
+    }
+
+    @keyframes modern-color {
+        from { background-color: oklab(40% 0.1 0.1); }
+        to { background-color: oklab(80% -0.1 -0.1); }
+    }
+
+    @keyframes delayed-color {
+        from { background-color: rgba(1, 2, 3, 0); }
+        to { background-color: rgb(4, 5, 6); }
+    }
+
+    @keyframes root-color {
+        from { background-color: red; }
+        to { background-color: transparent; }
+    }
+
+    @keyframes currentcolor-background {
+        from { background-color: currentcolor; }
+        to { background-color: blue; }
+    }
+
+    html {
+        animation: root-color 1s steps(1, start) 100ms infinite both;
+    }
+
+    .target {
+        width: 20px;
+        height: 20px;
+    }
+
+    #legacy {
+        animation: legacy-color 1s linear infinite;
+    }
+
+    #modern {
+        animation: modern-color 1s linear infinite;
+    }
+
+    #unsupported-timing {
+        animation: legacy-color 1s linear 2;
+    }
+
+    #transparent-delay {
+        animation: delayed-color 1s linear 1s 1 both;
+        border-radius: 7px;
+    }
+
+    #currentcolor {
+        color: red;
+        animation: currentcolor-background 1s linear infinite;
+    }
+
+    body,
+    #text-clip,
+    #blended {
+        animation: legacy-color 1s linear infinite;
+    }
+
+    #text-clip {
+        background-clip: text;
+    }
+
+    #blended {
+        background-image: linear-gradient(white, white);
+        background-blend-mode: multiply;
+    }
+</style>
+<div id="legacy" class="target"></div>
+<div id="modern" class="target"></div>
+<div id="unsupported-timing" class="target"></div>
+<div id="transparent-delay" class="target"></div>
+<div id="currentcolor" class="target"></div>
+<div id="text-clip" class="target">text</div>
+<div id="blended" class="target"></div>
+<script>
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
+    asyncTest(async done => {
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        let frameTime = performance.now();
+        async function renderNextFrame() {
+            frameTime += 16;
+            internals.injectRenderingOpportunity(frameTime);
+            await nextTask();
+        }
+        for (let i = 0; i < 4; ++i)
+            await renderNextFrame();
+
+        const initialCounters = internals.getStyleInvalidationCounters();
+        const legacyContext = internals.visualContextNodeIndices(document.querySelector("#legacy"));
+        const displayList = internals.dumpDisplayList();
+        const transparentFillIsRetained = displayList.split("\n").some(line =>
+            line.startsWith("FillRectWithRoundedCorners") && line.includes("color=rgba(0, 0, 0, 0)"));
+        const rootContext = internals.visualContextNodeIndices(document.documentElement);
+        const unsupportedTargets = [document.body, document.querySelector("#text-clip"), document.querySelector("#blended")];
+        const unsupportedTargetsHaveNoMarker = unsupportedTargets.every(target =>
+            !internals.visualContextNodeIndices(target).needsCompositorBackgroundColorFrame);
+        const modernTarget = document.querySelector("#modern");
+        const currentcolorTarget = document.querySelector("#currentcolor");
+        const transparentTarget = document.querySelector("#transparent-delay");
+        const unsupportedTimingTarget = document.querySelector("#unsupported-timing");
+        let modernTargetNeverGetsMarker = true;
+        let currentcolorTargetNeverGetsMarker = true;
+        let unsupportedTimingTargetNeverGetsMarker = true;
+        for (let i = 0; i < 4; ++i) {
+            internals.updateCompositorAnimations();
+            modernTargetNeverGetsMarker &&= !internals.visualContextNodeIndices(modernTarget).needsCompositorBackgroundColorFrame;
+            currentcolorTargetNeverGetsMarker &&= !internals.visualContextNodeIndices(currentcolorTarget).needsCompositorBackgroundColorFrame;
+            unsupportedTimingTargetNeverGetsMarker &&= !internals.visualContextNodeIndices(unsupportedTimingTarget).needsCompositorBackgroundColorFrame;
+        }
+
+        document.documentElement.getAnimations()[0].cancel();
+        modernTarget.getAnimations()[0].cancel();
+        currentcolorTarget.getAnimations()[0].cancel();
+        unsupportedTimingTarget.getAnimations()[0].cancel();
+        for (const target of unsupportedTargets)
+            target.getAnimations()[0].cancel();
+        for (let i = 0; i < 2; ++i)
+            await renderNextFrame();
+
+        internals.resetStyleInvalidationCounters();
+        for (let i = 0; i < 4; ++i)
+            internals.updateCompositorAnimations();
+        const stableCounters = internals.getStyleInvalidationCounters();
+
+        document.querySelector("#legacy").getAnimations()[0].cancel();
+        transparentTarget.getAnimations()[0].cancel();
+        internals.updateCompositorAnimations();
+        const cancellationCounters = internals.getStyleInvalidationCounters();
+
+        println(`background color animations use compositor: ${initialCounters.compositorVisualAnimations === 2}`);
+        println(`background color marker does not create effects layer: ${legacyContext.needsCompositorBackgroundColorFrame && !legacyContext.needsCompositorEffectsLayer}`);
+        println(`transparent background color retains animated fill: ${transparentFillIsRetained}`);
+        println(`root background color stays on main thread: ${!rootContext.needsCompositorBackgroundColorFrame}`);
+        println(`complex and propagated backgrounds stay on main thread: ${unsupportedTargetsHaveNoMarker}`);
+        println(`modern color interpolation stays on main thread: ${initialCounters.animatedStyleOverlayBuilds > 0}`);
+        println(`modern color creates no compositor marker: ${modernTargetNeverGetsMarker}`);
+        println(`currentcolor creates no compositor marker: ${currentcolorTargetNeverGetsMarker}`);
+        println(`unsupported timing creates no compositor marker: ${unsupportedTimingTargetNeverGetsMarker}`);
+        println(`stable background color builds no overlays: ${stableCounters.animatedStyleOverlayBuilds === 0}`);
+        println(`stable background color requests no animation frames: ${stableCounters.animationFramePumpRequests === 0}`);
+        println(`cancel removes background color animation: ${cancellationCounters.compositorVisualAnimations === 0}`);
+        internals.setManualRenderingOpportunities(false);
+        done();
+    });
+</script>

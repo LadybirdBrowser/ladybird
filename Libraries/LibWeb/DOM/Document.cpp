@@ -76,6 +76,7 @@
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
@@ -7664,6 +7665,20 @@ static Optional<float> compositor_opacity_animation_value(CSS::StyleValue const&
     return opacity;
 }
 
+static Optional<Gfx::Color> compositor_background_color_animation_value(CSS::StyleValue const& style_value, DOM::AbstractElement target)
+{
+    // Legacy sRGB colors interpolate in gamma-encoded sRGB, which Gfx::Color::mixed_with() matches. Keep modern
+    // color syntaxes on the main thread until compositor values can retain their interpolation color space.
+    if (style_value.to_keyword() == CSS::Keyword::Currentcolor)
+        return {};
+    if (style_value.is_color() && style_value.as_color().color_syntax() != CSS::ColorSyntax::Legacy)
+        return {};
+    auto color = style_value.to_color(CSS::ColorResolutionContext::for_element(target));
+    if (!color.has_value())
+        return {};
+    return color.release_value();
+}
+
 static bool transform_keyframes_only_translate_horizontally(ReadonlySpan<Compositor::VisualAnimationKeyframe> keyframes)
 {
     Vector<float> translate_y_values;
@@ -7725,8 +7740,11 @@ static bool keyframe_effect_only_translates_horizontally(Animations::KeyframeEff
     return transform_keyframes_only_translate_horizontally(keyframes);
 }
 
-static Optional<Compositor::VisualAnimation> build_compositor_animation(Animations::KeyframeEffect& effect, Painting::AccumulatedVisualContextTree const& visual_context_tree, Compositor::VisualAnimation::TargetKind target_kind, Optional<bool>& only_translates_horizontally)
+static Optional<Compositor::VisualAnimation> build_compositor_animation(Animations::KeyframeEffect& effect, Painting::AccumulatedVisualContextTree const& visual_context_tree, Compositor::VisualAnimation::TargetKind target_kind, Optional<bool>& only_translates_horizontally, bool* missing_visual_context_node = nullptr)
 {
+    if (missing_visual_context_node)
+        *missing_visual_context_node = false;
+
     auto animation = effect.associated_animation();
     if (!animation || animation->play_state() != Bindings::AnimationPlayState::Running)
         return {};
@@ -7757,10 +7775,11 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
         return {};
 
     bool targets_opacity = target_kind == Compositor::VisualAnimation::TargetKind::Opacity && effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Opacity));
+    bool targets_background_color = target_kind == Compositor::VisualAnimation::TargetKind::BackgroundColor && effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::BackgroundColor));
     bool targets_transform = target_kind == Compositor::VisualAnimation::TargetKind::Transform && any_of(effect.target_properties(), [](auto const& property) { return is_transform_family_property(property.id()); });
-    if (!targets_opacity && !targets_transform)
+    if (!targets_opacity && !targets_background_color && !targets_transform)
         return {};
-    if (any_of(effect.target_properties(), [&](auto const& property) { return property.id() != CSS::PropertyID::Opacity && !is_transform_family_property(property.id()); }))
+    if (any_of(effect.target_properties(), [&](auto const& property) { return !first_is_one_of(property.id(), CSS::PropertyID::Opacity, CSS::PropertyID::BackgroundColor) && !is_transform_family_property(property.id()); }))
         return {};
     auto target = effect.target_abstract_element();
     if (!target.has_value() || target->element().namespace_uri() == Namespace::SVG)
@@ -7870,6 +7889,18 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
                     if (opacity.has_value())
                         value = Compositor::VisualAnimationValue { opacity.release_value() };
                 }
+            } else if (target_kind == Compositor::VisualAnimation::TargetKind::BackgroundColor) {
+                auto property = entry.properties.get(CSS::PropertyNameAndID::from_id(CSS::PropertyID::BackgroundColor));
+                if (!property.has_value() || !property->has<CSS::RustStyleValueHandle>()) {
+                    new_cache.values.append({});
+                    continue;
+                }
+                auto style_value = resolved_compositor_animation_style_value(CSS::PropertyID::BackgroundColor, property->get<CSS::RustStyleValueHandle>(), *target);
+                if (style_value) {
+                    auto color = compositor_background_color_animation_value(*style_value, *target);
+                    if (color.has_value())
+                        value = Compositor::VisualAnimationValue { color.release_value() };
+                }
             } else {
                 Compositor::VisualAnimationTransformList operations;
                 bool skip_keyframe = false;
@@ -7918,10 +7949,6 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
         return *cached_values;
     };
     auto build_animation_for_target = [&](Compositor::VisualAnimation::TargetKind target_kind) -> Optional<Compositor::VisualAnimation> {
-        auto visual_context_node_indices = Painting::rust_visual_animation_target_node_indices(*layout_node, visual_context_tree, target_kind == Compositor::VisualAnimation::TargetKind::Opacity);
-        if (visual_context_node_indices.is_empty())
-            return {};
-
         Vector<Compositor::VisualAnimationEasing> keyframe_easings;
         keyframe_easings.ensure_capacity(key_frame_set->keyframes_by_key.size());
         for (auto it = key_frame_set->keyframes_by_key.begin(); it != key_frame_set->keyframes_by_key.end(); ++it) {
@@ -7971,6 +7998,23 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
                 && transform_keyframes_only_translate_horizontally(keyframes);
         }
 
+        auto ffi_target_kind = [&] {
+            switch (target_kind) {
+            case Compositor::VisualAnimation::TargetKind::Opacity:
+                return Layout::RustFFI::FfiVisualAnimationTargetKind::Opacity;
+            case Compositor::VisualAnimation::TargetKind::BackgroundColor:
+                return Layout::RustFFI::FfiVisualAnimationTargetKind::BackgroundColor;
+            case Compositor::VisualAnimation::TargetKind::Transform:
+                return Layout::RustFFI::FfiVisualAnimationTargetKind::Transform;
+            }
+            VERIFY_NOT_REACHED();
+        }();
+        auto visual_context_node_indices = Painting::rust_visual_animation_target_node_indices(*layout_node, visual_context_tree, ffi_target_kind);
+        if (visual_context_node_indices.is_empty()) {
+            if (missing_visual_context_node)
+                *missing_visual_context_node = true;
+            return {};
+        }
         Compositor::VisualAnimation visual_animation {
             .target_kind = target_kind,
             .visual_context_node_indices = move(visual_context_node_indices),
@@ -8087,6 +8131,7 @@ void Document::update_compositor_animations()
     };
     struct CompetingEffects {
         CompetingPropertyEffects opacity;
+        CompetingPropertyEffects background_color;
         CompetingPropertyEffects transform;
     };
 
@@ -8103,6 +8148,8 @@ void Document::update_compositor_animations()
     HashMap<GC::Ptr<Element>, CSSPixelRect> observation_target_rect_cache;
     GC::RootHashTable<GC::Ref<Element>> elements_with_intersection_observation_descendants;
     GC::RootHashTable<GC::Ref<Element>> elements_with_visibility_observation_descendants;
+    auto layout_nodes_with_stale_forced_effects_layer = move(m_layout_nodes_with_forced_compositor_effects_layer);
+    auto layout_nodes_with_stale_forced_background_color_frame = move(m_layout_nodes_with_forced_compositor_background_color_frame);
     Optional<double> compositor_animation_wakeup_delay_ms;
 
     auto index_shadow_including_element_ancestors = [](Node& node, GC::RootHashTable<GC::Ref<Element>>& index) {
@@ -8332,6 +8379,8 @@ void Document::update_compositor_animations()
         };
         if (effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Opacity)))
             add_competing_effect(effects.opacity);
+        if (effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::BackgroundColor)))
+            add_competing_effect(effects.background_color);
         if (any_of(effect.target_properties(), [](auto const& property) { return is_transform_family_property(property.id()); })) {
             add_competing_effect(effects.transform);
             in_effect_transform_effects_by_target.ensure(&target->element()).append(effect);
@@ -8356,6 +8405,7 @@ void Document::update_compositor_animations()
                 property_effects.winner = nullptr;
         };
         validate_winner(effects.opacity);
+        validate_winner(effects.background_color);
         validate_winner(effects.transform);
     }
 
@@ -8404,19 +8454,50 @@ void Document::update_compositor_animations()
         auto& target = abstract_target->element();
 
         bool targets_opacity = effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Opacity));
+        bool targets_background_color = effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::BackgroundColor));
         bool targets_transform = any_of(effect.target_properties(), [](auto const& property) { return is_transform_family_property(property.id()); });
-        bool targets_unsupported_property = any_of(effect.target_properties(), [&](auto const& property) { return property.id() != CSS::PropertyID::Opacity && !is_transform_family_property(property.id()); });
+        bool targets_unsupported_property = any_of(effect.target_properties(), [&](auto const& property) { return !first_is_one_of(property.id(), CSS::PropertyID::Opacity, CSS::PropertyID::BackgroundColor) && !is_transform_family_property(property.id()); });
         if (targets_unsupported_property)
             continue;
         auto target_effects = competing_effects.get(*abstract_target);
         VERIFY(target_effects.has_value());
         bool opacity_has_replace_winner = !targets_opacity || target_effects->opacity.winner;
+        bool background_color_has_replace_winner = !targets_background_color || target_effects->background_color.winner;
         bool transform_has_replace_winner = !targets_transform || target_effects->transform.winner;
         bool selected_for_opacity = targets_opacity && target_effects->opacity.winner.ptr() == &effect;
+        bool selected_for_background_color = targets_background_color && target_effects->background_color.winner.ptr() == &effect;
         bool selected_for_transform = targets_transform && target_effects->transform.winner.ptr() == &effect;
-        bool all_targeted_properties_have_replace_winners = opacity_has_replace_winner && transform_has_replace_winner;
+        bool all_targeted_properties_have_replace_winners = opacity_has_replace_winner && background_color_has_replace_winner && transform_has_replace_winner;
 
-        if (!selected_for_opacity && !selected_for_transform) {
+        Optional<bool> only_translates_horizontally;
+
+        // Background colors are display-list content, so associate their fill commands with a dedicated metadata
+        // frame. Validate the descriptor before forcing that frame, which requires one repaint before the animation
+        // can move to the compositor.
+        Layout::Node* background_color_layout_node = nullptr;
+        Optional<Compositor::VisualAnimation> background_color_visual_animation;
+        bool background_color_animation_is_valid = false;
+        if (selected_for_background_color) {
+            if (auto* layout_node = abstract_target->unsafe_layout_node()) {
+                if (Painting::rust_background_color_can_be_compositor_animated(*layout_node)) {
+                    background_color_layout_node = layout_node;
+                    bool missing_visual_context_node = false;
+                    background_color_visual_animation = build_compositor_animation(effect, visual_context_tree, Compositor::VisualAnimation::TargetKind::BackgroundColor, only_translates_horizontally, &missing_visual_context_node);
+                    background_color_animation_is_valid = background_color_visual_animation.has_value() || missing_visual_context_node;
+                    if (!background_color_animation_is_valid) {
+                        background_color_layout_node = nullptr;
+                    } else if (missing_visual_context_node && !layout_node->needs_compositor_background_color_frame()) {
+                        layout_node->set_needs_compositor_background_color_frame(true);
+                        schedule_accumulated_visual_context_update(*layout_node, AccumulatedVisualContextUpdateScope::Structure);
+                        CSS::RequiredInvalidationAfterStyleChange invalidation;
+                        invalidation.ensure_at_least(CSS::InvalidationLevel::Repaint);
+                        Painting::repaint_after_style_change(*layout_node, invalidation);
+                    }
+                }
+            }
+        }
+
+        if (!selected_for_opacity && !selected_for_background_color && !selected_for_transform) {
             bool can_throttle_replaced_effect = animation.play_state() == Bindings::AnimationPlayState::Running
                 && !animation.pending()
                 && animation.playback_rate() > 0
@@ -8432,7 +8513,6 @@ void Document::update_compositor_animations()
             continue;
         }
 
-        Optional<bool> only_translates_horizontally;
         Vector<Compositor::VisualAnimation> effect_visual_animations;
         bool opacity_was_handed_off = !selected_for_opacity;
         if (selected_for_opacity) {
@@ -8441,6 +8521,18 @@ void Document::update_compositor_animations()
                 effect_visual_animations.append(visual_animation.release_value());
                 opacity_was_handed_off = true;
             }
+        }
+        bool background_color_was_handed_off = !selected_for_background_color;
+        if (background_color_visual_animation.has_value()) {
+            effect_visual_animations.append(background_color_visual_animation.release_value());
+            background_color_was_handed_off = true;
+        }
+        if (background_color_layout_node && background_color_animation_is_valid) {
+            if (!any_of(m_layout_nodes_with_forced_compositor_background_color_frame, [&](auto const& forced_layout_node) { return forced_layout_node.ptr() == background_color_layout_node; }))
+                m_layout_nodes_with_forced_compositor_background_color_frame.append(*background_color_layout_node);
+            layout_nodes_with_stale_forced_background_color_frame.remove_first_matching([&](auto const& stale_layout_node) {
+                return stale_layout_node.ptr() == background_color_layout_node;
+            });
         }
         bool transform_was_handed_off = !selected_for_transform;
         if (selected_for_transform) {
@@ -8497,7 +8589,7 @@ void Document::update_compositor_animations()
                 }
             }
         }
-        if (all_targeted_properties_have_replace_winners && opacity_was_handed_off && transform_was_handed_off)
+        if (all_targeted_properties_have_replace_winners && opacity_was_handed_off && background_color_was_handed_off && transform_was_handed_off)
             effect.set_is_compositor_driven(true);
         effect.set_is_observation_relevant_compositor_animation(transform_affects_observation);
         schedule_next_phase_wakeup(effect, animation);
@@ -8507,6 +8599,25 @@ void Document::update_compositor_animations()
         if (auto* layout_node = abstract_target->unsafe_layout_node())
             layout_node->set_retains_compositor_animated_content(true);
         published_compositor_animation = true;
+    }
+
+    for (auto& layout_node : layout_nodes_with_stale_forced_effects_layer) {
+        if (!layout_node)
+            continue;
+        layout_node->set_needs_compositor_effects_layer(false);
+        schedule_accumulated_visual_context_update(*layout_node, AccumulatedVisualContextUpdateScope::Structure);
+        CSS::RequiredInvalidationAfterStyleChange invalidation;
+        invalidation.ensure_at_least(CSS::InvalidationLevel::Repaint);
+        Painting::repaint_after_style_change(*layout_node, invalidation);
+    }
+    for (auto& layout_node : layout_nodes_with_stale_forced_background_color_frame) {
+        if (!layout_node)
+            continue;
+        layout_node->set_needs_compositor_background_color_frame(false);
+        schedule_accumulated_visual_context_update(*layout_node, AccumulatedVisualContextUpdateScope::Structure);
+        CSS::RequiredInvalidationAfterStyleChange invalidation;
+        invalidation.ensure_at_least(CSS::InvalidationLevel::Repaint);
+        Painting::repaint_after_style_change(*layout_node, invalidation);
     }
 
     paint_state().set_visual_animations(*this, move(visual_animations));

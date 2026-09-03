@@ -208,9 +208,15 @@ public:
     };
     Optional<CompositorKeyframeValueCache>& compositor_keyframe_value_cache(Compositor::VisualAnimation::TargetKind target_kind)
     {
-        return target_kind == Compositor::VisualAnimation::TargetKind::Opacity
-            ? m_compositor_opacity_keyframe_value_cache
-            : m_compositor_transform_keyframe_value_cache;
+        switch (target_kind) {
+        case Compositor::VisualAnimation::TargetKind::Opacity:
+            return m_compositor_opacity_keyframe_value_cache;
+        case Compositor::VisualAnimation::TargetKind::BackgroundColor:
+            return m_compositor_background_color_keyframe_value_cache;
+        case Compositor::VisualAnimation::TargetKind::Transform:
+            return m_compositor_transform_keyframe_value_cache;
+        }
+        VERIFY_NOT_REACHED();
     }
     virtual void update_computed_properties(AnimationUpdateContext&) override;
     void update_computed_properties_for_style(AnimationUpdateContext&, DOM::AbstractElement);
@@ -244,6 +250,7 @@ private:
     u64 m_animation_preparation_identity { 0 };
     u64 m_animation_preparation_generation { 0 };
     Optional<CompositorKeyframeValueCache> m_compositor_opacity_keyframe_value_cache;
+    Optional<CompositorKeyframeValueCache> m_compositor_background_color_keyframe_value_cache;
     Optional<CompositorKeyframeValueCache> m_compositor_transform_keyframe_value_cache;
     Vector<Compositor::VisualAnimation> m_retained_compositor_animations;
     bool m_is_compositor_driven { false };

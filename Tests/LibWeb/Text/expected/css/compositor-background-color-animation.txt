@@ -1,0 +1,12 @@
+background color animations use compositor: true
+background color marker does not create effects layer: true
+transparent background color retains animated fill: true
+root background color stays on main thread: true
+complex and propagated backgrounds stay on main thread: true
+modern color interpolation stays on main thread: true
+modern color creates no compositor marker: true
+currentcolor creates no compositor marker: true
+unsupported timing creates no compositor marker: true
+stable background color builds no overlays: true
+stable background color requests no animation frames: true
+cancel removes background color animation: true

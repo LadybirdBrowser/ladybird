@@ -1220,25 +1220,46 @@ pub unsafe extern "C" fn layout_arena_paintable_visual_animation_target_indices(
     arena: *mut c_void,
     slot: NodeSlotId,
     tree: *const c_void,
-    targets_are_frames: bool,
+    target_kind: crate::painting::host::FfiVisualAnimationTargetKind,
     context: *mut c_void,
     append: unsafe extern "C" fn(*mut c_void, u32),
 ) {
     let arena = unsafe { arena_from_handle(arena) };
     let tree = unsafe { tree_from_handle(tree) };
     arena.with_paintable_visual_context_node_handles(slot, |handles| {
-        let owned_indices: Vec<u32> = if targets_are_frames {
-            handles.frame_handles().map(|index| index.0).collect()
-        } else {
-            handles.spatial.iter().map(|index| index.0).collect()
+        let owned_indices: Vec<u32> = match target_kind {
+            crate::painting::host::FfiVisualAnimationTargetKind::Opacity
+            | crate::painting::host::FfiVisualAnimationTargetKind::BackgroundColor => {
+                handles.frame_handles().map(|index| index.0).collect()
+            }
+            crate::painting::host::FfiVisualAnimationTargetKind::Transform => {
+                handles.spatial.iter().map(|index| index.0).collect()
+            }
         };
         for index in owned_indices {
-            if tree.visual_animation_target_is_valid(targets_are_frames, index) {
+            if tree.visual_animation_target_is_valid(target_kind, index) {
                 // SAFETY: the host appends into its own storage synchronously.
                 unsafe { append(context, index) };
             }
         }
     });
+}
+
+/// # Safety
+///
+/// `arena` must be a live layout arena handle used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_background_color_can_be_compositor_animated(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+    root_background_source: crate::painting::host::FfiRootBackgroundSource,
+) -> bool {
+    let arena = unsafe { arena_from_handle(arena) };
+    crate::painting::record::paint::background_resolution::background_color_can_be_compositor_animated(
+        &arena.paintable_rows(),
+        slot,
+        root_background_source,
+    )
 }
 
 /// # Safety
@@ -3006,14 +3027,17 @@ pub unsafe extern "C" fn visual_context_tree_with_sampled_values(
     tree: *const c_void,
     frame_opacities: *const crate::painting::host::FfiFrameOpacitySample,
     frame_opacity_count: usize,
+    frame_background_colors: *const crate::painting::host::FfiFrameBackgroundColorSample,
+    frame_background_color_count: usize,
     spatial_matrices: *const crate::painting::host::FfiSpatialTransformSample,
     spatial_matrix_count: usize,
 ) -> *const c_void {
     let tree = unsafe { tree_from_handle(tree) };
     // SAFETY: The caller guarantees the sample arrays address the stated counts.
-    let (frame_opacities, spatial_matrices) = unsafe {
+    let (frame_opacities, frame_background_colors, spatial_matrices) = unsafe {
         (
             ffi_slice(frame_opacities, frame_opacity_count),
+            ffi_slice(frame_background_colors, frame_background_color_count),
             ffi_slice(spatial_matrices, spatial_matrix_count),
         )
     };
@@ -3021,12 +3045,35 @@ pub unsafe extern "C" fn visual_context_tree_with_sampled_values(
         .iter()
         .map(|sample| (FrameNodeIndex(sample.frame), sample.opacity))
         .collect();
+    let frame_background_colors: Vec<(FrameNodeIndex, libgfx_rust::Color)> = frame_background_colors
+        .iter()
+        .map(|sample| (FrameNodeIndex(sample.frame), sample.color))
+        .collect();
     let spatial_matrices: Vec<(SpatialNodeIndex, libgfx_rust::FloatMatrix4x4)> = spatial_matrices
         .iter()
         .map(|sample| (SpatialNodeIndex(sample.spatial), sample.matrix))
         .collect();
-    let sampled = tree.with_sampled_visual_animation_values(&frame_opacities, &spatial_matrices);
+    let sampled =
+        tree.with_sampled_visual_animation_values(&frame_opacities, &frame_background_colors, &spatial_matrices);
     Rc::into_raw(Rc::new(sampled)).cast()
+}
+
+/// # Safety
+///
+/// `tree` must be a live retained tree handle and `color` must point to writable storage.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn visual_context_tree_sampled_background_color(
+    tree: *const c_void,
+    frame: FrameNodeIndex,
+    color: *mut libgfx_rust::Color,
+) -> bool {
+    let tree = unsafe { tree_from_handle(tree) };
+    let Some(sampled_color) = tree.sampled_background_color(frame) else {
+        return false;
+    };
+    // SAFETY: The caller guarantees that `color` points to writable storage.
+    unsafe { *color = sampled_color };
+    true
 }
 
 /// # Safety
@@ -3035,14 +3082,14 @@ pub unsafe extern "C" fn visual_context_tree_with_sampled_values(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn visual_context_tree_visual_animation_targets_are_valid(
     tree: *const c_void,
-    targets_are_frames: bool,
+    target_kind: crate::painting::host::FfiVisualAnimationTargetKind,
     targets: *const u32,
     target_count: usize,
 ) -> bool {
     let tree = unsafe { tree_from_handle(tree) };
     // SAFETY: The caller guarantees the targets address `target_count` indices.
     let targets = unsafe { ffi_slice(targets, target_count) };
-    tree.visual_animation_targets_are_valid(targets_are_frames, targets)
+    tree.visual_animation_targets_are_valid(target_kind, targets)
 }
 
 /// # Safety
@@ -3255,6 +3302,24 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_clip_frame(
             corner_radii,
             mode,
         }),
+        FrameNodeIndex(parent_frame),
+        SpatialNodeIndex(spatial),
+    )
+    .0
+}
+
+/// # Safety
+///
+/// `builder` must be a live handle from `visual_context_tree_test_builder_create`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn visual_context_tree_test_builder_append_background_color_animation_frame(
+    builder: *mut c_void,
+    parent_frame: u32,
+    spatial: u32,
+) -> u32 {
+    let tree = unsafe { test_builder_tree(builder) };
+    tree.append_frame(
+        crate::painting::visual_context::FrameData::BackgroundColorAnimation,
         FrameNodeIndex(parent_frame),
         SpatialNodeIndex(spatial),
     )

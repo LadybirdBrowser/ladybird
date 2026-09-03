@@ -131,6 +131,7 @@ impl VisualContextTree {
     pub fn dump_frame_node(&self, index: FrameNodeIndex) -> String {
         let mut text = String::new();
         match &self.frame_nodes[index.0 as usize].data {
+            FrameData::BackgroundColorAnimation => text.push_str("background-color-animation"),
             FrameData::Clip(clip) => {
                 let _ = write!(text, "clip={}", format_rect(clip.rect));
                 if clip.corner_radii.has_any_radius() {

@@ -55,6 +55,7 @@ pub(crate) fn svg_viewport_transform_of(
 }
 
 pub(crate) struct BoxFacts {
+    pub needs_compositor_background_color_frame: bool,
     pub transform: Option<TransformData>,
     pub transform_is_invertible: bool,
     pub perspective: Option<PerspectiveData>,
@@ -88,6 +89,10 @@ impl BoxFacts {
         consults_default_scroll_shift_anchors: bool,
     ) -> Self {
         let mut facts = Self {
+            needs_compositor_background_color_frame: layout_arena.node_has_compositor_animation_frame(
+                slot,
+                crate::layout::node_data::CompositorAnimationFrameKind::BackgroundColor,
+            ),
             transform: None,
             transform_is_invertible: false,
             perspective: None,

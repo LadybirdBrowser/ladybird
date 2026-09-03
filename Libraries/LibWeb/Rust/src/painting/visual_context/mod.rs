@@ -246,6 +246,7 @@ pub enum SpatialData {
 
 #[derive(Clone)]
 pub enum FrameData {
+    BackgroundColorAnimation,
     Clip(ClipData),
     ClipPath(ClipPathData),
     Effects(EffectsData),
@@ -271,7 +272,7 @@ impl FrameData {
                 let [_, _, width, height] = clip_path.path.bounding_box();
                 width <= 0.0 || height <= 0.0
             }
-            Self::Effects(_) | Self::Dead => false,
+            Self::BackgroundColorAnimation | Self::Effects(_) | Self::Dead => false,
             Self::Mask(mask) => mask.rect.is_empty(),
         }
     }
@@ -494,6 +495,7 @@ pub struct VisualContextTree {
     free_frame_slots: Vec<FrameNodeIndex>,
     quarantined_spatial_slots: Vec<SpatialNodeIndex>,
     quarantined_frame_slots: Vec<FrameNodeIndex>,
+    sampled_background_colors: HashMap<u32, libgfx_rust::Color>,
 }
 
 const COMPACTION_DEAD_NODE_THRESHOLD: usize = 512;
@@ -633,6 +635,7 @@ impl VisualContextTree {
             free_frame_slots: Vec::new(),
             quarantined_spatial_slots: Vec::new(),
             quarantined_frame_slots: Vec::new(),
+            sampled_background_colors: HashMap::new(),
         }
     }
 

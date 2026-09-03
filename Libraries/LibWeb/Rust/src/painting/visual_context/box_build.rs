@@ -466,6 +466,10 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
         append_frame_to_own_and_positioned_descendant_contexts!(FrameData::Mask(*mask_layer));
     }
 
+    if facts.needs_compositor_background_color_frame {
+        append_frame_to_own_and_positioned_descendant_contexts!(FrameData::BackgroundColorAnimation);
+    }
+
     assignment.has_accumulated_visual_context = true;
     assignment.accumulated_visual_context = own_state;
     let chain_frames_end = sink.next_frame_node_index().0;

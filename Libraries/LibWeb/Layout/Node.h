@@ -194,6 +194,10 @@ public:
 
     bool needs_layout_update() const { return has_flag(RustFFI::NodeFlag::NeedsLayoutUpdate); }
     void set_retains_compositor_animated_content(bool value) { set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, value); }
+    bool needs_compositor_effects_layer() const { return has_compositor_animation_frame(RustFFI::CompositorAnimationFrameKind::Opacity); }
+    void set_needs_compositor_effects_layer(bool value) { set_needs_compositor_animation_frame(RustFFI::CompositorAnimationFrameKind::Opacity, value); }
+    bool needs_compositor_background_color_frame() const { return has_compositor_animation_frame(RustFFI::CompositorAnimationFrameKind::BackgroundColor); }
+    void set_needs_compositor_background_color_frame(bool value) { set_needs_compositor_animation_frame(RustFFI::CompositorAnimationFrameKind::BackgroundColor, value); }
 
     // The arena measures a box that holds a scroll offset eagerly after a full commit, so the box carries that fact
     // as a flag: it is set when a box becomes an element's or a pseudo-element's box, and again whenever the stored
@@ -324,6 +328,16 @@ protected:
     }
 
     bool dom_target_stores_scroll_offset() const;
+
+    bool has_compositor_animation_frame(RustFFI::CompositorAnimationFrameKind kind) const
+    {
+        return RustFFI::layout_arena_node_has_compositor_animation_frame(m_arena->handle(), m_slot, kind);
+    }
+
+    void set_needs_compositor_animation_frame(RustFFI::CompositorAnimationFrameKind kind, bool value)
+    {
+        RustFFI::layout_arena_set_node_needs_compositor_animation_frame(m_arena->handle(), m_slot, kind, value);
+    }
 
     void set_flag(RustFFI::NodeFlag flag, bool value)
     {

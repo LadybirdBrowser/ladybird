@@ -44,6 +44,7 @@ pub(crate) enum SpatialNodeShape {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum FrameShapeKind {
+    BackgroundColorAnimation,
     Clip { mode: ClipMode },
     ClipPath,
     Effects,
@@ -98,6 +99,7 @@ pub(crate) fn spatial_node_shape(node: &SpatialNode) -> SpatialNodeShape {
 
 pub(crate) fn frame_node_shape(node: &FrameNode) -> FrameNodeShape {
     let kind = match &node.data {
+        FrameData::BackgroundColorAnimation => FrameShapeKind::BackgroundColorAnimation,
         FrameData::Clip(clip) => FrameShapeKind::Clip { mode: clip.mode },
         FrameData::ClipPath(_) => FrameShapeKind::ClipPath,
         FrameData::Effects(_) => FrameShapeKind::Effects,
@@ -134,6 +136,7 @@ pub(crate) fn spatial_payloads_are_equal(a: &SpatialData, b: &SpatialData) -> bo
 
 pub(crate) fn frame_payloads_are_equal(a: &FrameData, b: &FrameData) -> bool {
     match (a, b) {
+        (FrameData::BackgroundColorAnimation, FrameData::BackgroundColorAnimation) => true,
         (FrameData::Clip(a), FrameData::Clip(b)) => a == b,
         (FrameData::ClipPath(a), FrameData::ClipPath(b)) => {
             std::rc::Rc::ptr_eq(&a.path, &b.path) && a.bounding_rect == b.bounding_rect && a.fill_rule == b.fill_rule

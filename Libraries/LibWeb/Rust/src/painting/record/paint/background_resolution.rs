@@ -292,6 +292,30 @@ fn computed_background_layers(style: ComputedValuesView<'_>, image_list: FfiLaye
     layers
 }
 
+pub(crate) fn background_color_can_be_compositor_animated(
+    layout_arena: &impl PaintableRowsRead,
+    slot: NodeSlotId,
+    root_background_source: FfiRootBackgroundSource,
+) -> bool {
+    if style_queries::node_is_root_element(layout_arena, slot)
+        || body_background_is_propagated_to_root(layout_arena, slot, root_background_source)
+    {
+        return false;
+    }
+    let Some(source) = background_paint_source_from_style_and_geometry(layout_arena, slot, root_background_source)
+    else {
+        return false;
+    };
+    if source.background_color_clip == css_enums::background_box::TEXT {
+        return false;
+    }
+    !source.layers_style_if_live.is_some_and(|style| {
+        computed_background_layers(style, source.image_list)
+            .iter()
+            .any(|layer| layer.image.is_some() && layer.blend_mode != css_enums::mix_blend_mode::NORMAL)
+    })
+}
+
 fn computed_mask_layers(style: ComputedValuesView<'_>) -> Vec<ComputedLayer<'_>> {
     use css_enums::mix_blend_mode;
     let mask = style.mask();
@@ -680,6 +704,10 @@ pub(crate) fn resolve_background_for_paint<'a>(
     )?;
     if !source.is_root_element
         && source.background_color.alpha() == 0
+        && !recorder.layout_arena.node_has_compositor_animation_frame(
+            paintable,
+            crate::layout::node_data::CompositorAnimationFrameKind::BackgroundColor,
+        )
         && !source
             .layers_style_if_live
             .is_some_and(style_queries::background_layers_have_image)
