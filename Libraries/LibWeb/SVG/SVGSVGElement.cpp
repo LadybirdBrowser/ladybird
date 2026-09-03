@@ -45,9 +45,9 @@ void SVGSVGElement::visit_edges(Visitor& visitor)
     visitor.visit(m_active_view_element);
 }
 
-RefPtr<Layout::Node> SVGSVGElement::create_layout_node(CSS::LayoutStyle style)
+Layout::Node* SVGSVGElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGSVGBox);
+    return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGSVGBox);
 }
 
 Optional<CSS::Length> SVGSVGElement::width_attribute_length() const

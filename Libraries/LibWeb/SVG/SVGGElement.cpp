@@ -19,9 +19,9 @@ SVGGElement::SVGGElement(DOM::Document& document, DOM::QualifiedName qualified_n
 {
 }
 
-RefPtr<Layout::Node> SVGGElement::create_layout_node(CSS::LayoutStyle style)
+Layout::Node* SVGGElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGGraphicsBox);
+    return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGGraphicsBox);
 }
 
 }

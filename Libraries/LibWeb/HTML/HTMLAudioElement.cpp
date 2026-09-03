@@ -22,11 +22,11 @@ HTMLAudioElement::HTMLAudioElement(DOM::Document& document, DOM::QualifiedName q
 
 HTMLAudioElement::~HTMLAudioElement() = default;
 
-RefPtr<Layout::Node> HTMLAudioElement::create_layout_node(CSS::LayoutStyle style)
+Layout::Node* HTMLAudioElement::create_layout_node(CSS::LayoutStyle style)
 {
-    auto audio_box = make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::AudioBox);
-    audio_box->set_replaced_box_can_have_children(shadow_root() != nullptr);
-    return audio_box;
+    auto& audio_box = Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::AudioBox);
+    audio_box.set_replaced_box_can_have_children(shadow_root() != nullptr);
+    return &audio_box;
 }
 
 bool HTMLAudioElement::should_paint() const

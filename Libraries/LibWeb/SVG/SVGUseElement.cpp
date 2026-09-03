@@ -395,9 +395,9 @@ GC::Ptr<SVGElement> SVGUseElement::instance_root() const
     return const_cast<DOM::ShadowRoot&>(*shadow_root()).first_child_of_type<SVGElement>();
 }
 
-RefPtr<Layout::Node> SVGUseElement::create_layout_node(CSS::LayoutStyle style)
+Layout::Node* SVGUseElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGGraphicsBox);
+    return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGGraphicsBox);
 }
 
 }

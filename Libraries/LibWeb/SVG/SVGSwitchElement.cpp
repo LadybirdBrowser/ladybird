@@ -20,9 +20,9 @@ SVGSwitchElement::SVGSwitchElement(DOM::Document& document, DOM::QualifiedName q
 
 SVGSwitchElement::~SVGSwitchElement() = default;
 
-RefPtr<Layout::Node> SVGSwitchElement::create_layout_node(CSS::LayoutStyle style)
+Layout::Node* SVGSwitchElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGGraphicsBox);
+    return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGGraphicsBox);
 }
 
 }

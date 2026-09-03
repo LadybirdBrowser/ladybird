@@ -25,7 +25,7 @@ class WEB_API HTMLIFrameElement final
 public:
     virtual ~HTMLIFrameElement() override;
 
-    virtual RefPtr<Layout::Node> create_layout_node(CSS::LayoutStyle) override;
+    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
 
     // ^EventTarget
     virtual bool is_focusable() const override

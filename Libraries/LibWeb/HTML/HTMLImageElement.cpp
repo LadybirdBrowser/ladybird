@@ -307,14 +307,14 @@ void HTMLImageElement::form_associated_element_attribute_changed(Utf16FlyString 
     }
 }
 
-RefPtr<Layout::Node> HTMLImageElement::create_layout_node(CSS::LayoutStyle style)
+Layout::Node* HTMLImageElement::create_layout_node(CSS::LayoutStyle style)
 {
     if (renders_as_alt_text() && !alt().is_empty()) {
         auto computed_style = this->computed_style();
         VERIFY(computed_style);
         return Element::create_layout_node_for_display_type(document(), computed_style->display(), style, this);
     }
-    return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::ImageBox);
+    return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::ImageBox);
 }
 
 void HTMLImageElement::create_alt_text_shadow_tree()

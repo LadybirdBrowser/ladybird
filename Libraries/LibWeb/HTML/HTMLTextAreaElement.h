@@ -150,7 +150,7 @@ private:
 
     virtual bool is_html_textarea_element() const final { return true; }
     virtual void visit_edges(Cell::Visitor&) override;
-    virtual RefPtr<Layout::Node> create_layout_node(CSS::LayoutStyle) override;
+    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
 
     void set_raw_value(Utf16String);
 

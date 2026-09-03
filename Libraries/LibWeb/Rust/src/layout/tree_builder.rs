@@ -9,7 +9,7 @@ use super::*;
 use crate::abort_on_panic;
 use crate::layout::layout_node_arena::LayoutNodeArena;
 use crate::layout::node_data::{GENERATED_FOR_AFTER, GENERATED_FOR_MARKER, NodeData, NodeFlag, NodeKind, NodeSlotId};
-use crate::layout::tree_mutation::OwnedLayoutNode;
+use crate::layout::tree_mutation::{UnplacedLayoutNode, free_subtree_and_destroy_shells};
 use crate::layout::{ComputedValuesView, FfiDisplay};
 use std::ffi::c_void;
 
@@ -434,12 +434,11 @@ pub unsafe extern "C" fn rust_detach_top_layer_element_layout_subtree(
             topmost
         };
         let shell = unsafe { &*arena }.data(layout_node_to_detach).shell.get();
-        // SAFETY: The C++ detach preparation walks the still-linked subtree; the arena borrow
-        // ends before the release below re-enters it.
+        // SAFETY: The C++ detach preparation walks the still-linked subtree; the shared arena
+        // borrow ends before the subtree is freed.
         unsafe { (callbacks.prepare_subtree_for_detach)(shell) };
-        let detached = unsafe { &*arena }.detach_from_parent(layout_node_to_detach);
-        if let Some(detached) = detached {
-            detached.release();
+        if unsafe { &*arena }.detach_from_parent(layout_node_to_detach) {
+            free_subtree_and_destroy_shells(arena, layout_node_to_detach);
         }
     }
 
@@ -1317,7 +1316,7 @@ struct PrincipalNodeUpdate<'host, 'callbacks, 'state, 'context> {
 
 struct PrincipalBoxConstruction {
     layout_node: LayoutNode,
-    created_box: Option<OwnedLayoutNode>,
+    created_box: Option<UnplacedLayoutNode>,
     handled_display_contents: bool,
 }
 
@@ -1356,10 +1355,8 @@ fn construct_principal_layout_node(
                 let layout_host = host.layout();
                 let backdrop_parent = layout_host.parent(old_backdrop);
                 assert!(!backdrop_parent.is_invalid());
-                layout_host
-                    .arena()
-                    .detach_child(backdrop_parent, old_backdrop)
-                    .release();
+                layout_host.arena().detach_child(backdrop_parent, old_backdrop);
+                layout_host.free_subtree(old_backdrop);
             }
         }
         // SAFETY: The frame, builder, and DOM element remain live throughout the call.
@@ -1657,18 +1654,18 @@ fn update_principal_node_after_entry(
                 }
                 let old_parent = layout_host.parent(old_layout_node);
                 assert!(!old_parent.is_invalid());
-                let detached_old_box = arena.replace_child(
+                let replaced_old_box = arena.replace_child(
                     old_parent,
                     old_layout_node,
                     created_box.take().expect("a principal box to place"),
                 );
-                detached_old_box.release();
+                layout_host.free_subtree(replaced_old_box);
             }
             FfiPrincipalBoxPlacement::DocumentRoot => {
                 // SAFETY: The builder and frame remain live; the frame retains the viewport.
                 unsafe { (host.callbacks.set_layout_root)(host.callbacks.builder, frame) };
                 if let Some(viewport) = created_box.take() {
-                    host.layout().release_owned(viewport);
+                    viewport.placed_as_layout_root();
                 }
             }
             FfiPrincipalBoxPlacement::None => assert!(created_box.is_none()),
@@ -2007,7 +2004,7 @@ fn create_pseudo_element(
     element: *mut c_void,
     pseudo_element: FfiPseudoElement,
     insertion_mode: Option<FfiInsertionMode>,
-) -> Option<OwnedLayoutNode> {
+) -> Option<UnplacedLayoutNode> {
     assert!(!element.is_null());
     let callbacks = &host.callbacks.pseudo;
     // SAFETY: The builder owns frame storage that remains live throughout the build.
@@ -2026,7 +2023,7 @@ fn create_pseudo_element_with_frame(
     element: *mut c_void,
     pseudo_element: FfiPseudoElement,
     insertion_mode: Option<FfiInsertionMode>,
-) -> Option<OwnedLayoutNode> {
+) -> Option<UnplacedLayoutNode> {
     let callbacks = &host.callbacks.pseudo;
     // SAFETY: The frame and element remain live throughout initialization.
     let facts = unsafe { (callbacks.initialize)(frame, element, pseudo_element) };
@@ -2487,12 +2484,11 @@ impl TreeBuilderHost<'_> {
         unsafe { &*self.arena }
     }
 
-    fn created(&self, slot: NodeSlotId) -> OwnedLayoutNode {
-        // SAFETY: Create callbacks return a live node carrying one reference for the caller.
-        unsafe { OwnedLayoutNode::adopt_created(slot) }
+    fn created(&self, slot: NodeSlotId) -> UnplacedLayoutNode {
+        UnplacedLayoutNode::new(slot)
     }
 
-    fn attach_child(&self, parent: LayoutNode, child: OwnedLayoutNode, before: LayoutNode) {
+    fn attach_child(&self, parent: LayoutNode, child: UnplacedLayoutNode, before: LayoutNode) {
         self.arena().attach_child(parent, child, before);
     }
 
@@ -2500,8 +2496,12 @@ impl TreeBuilderHost<'_> {
         self.arena().move_child(child, new_parent, before);
     }
 
-    fn release_owned(&self, node: OwnedLayoutNode) {
-        node.into_detached_shell(self.arena()).release();
+    fn free_unplaced(&self, node: UnplacedLayoutNode) {
+        self.free_subtree(node.into_slot());
+    }
+
+    fn free_subtree(&self, node: LayoutNode) {
+        free_subtree_and_destroy_shells(self.arena, node);
     }
 
     fn parent(&self, node: LayoutNode) -> LayoutNode {
@@ -2565,14 +2565,13 @@ impl TreeBuilderHost<'_> {
     }
 
     fn remove_nodes(&self, nodes: &[LayoutNode]) {
-        let mut detached_shells = Vec::with_capacity(nodes.len());
         for &node in nodes {
             let parent = self.parent(node);
             assert!(!parent.is_invalid());
-            detached_shells.push(self.arena().detach_child(parent, node));
+            self.arena().detach_child(parent, node);
         }
-        for detached_shell in detached_shells {
-            detached_shell.release();
+        for &node in nodes {
+            self.free_subtree(node);
         }
     }
 
@@ -2853,7 +2852,7 @@ fn insertion_parent_for_block_node(
 fn insert_child_in_dom_order(
     host: &DomTreeBuilderHost<'_>,
     parent: LayoutNode,
-    child: OwnedLayoutNode,
+    child: UnplacedLayoutNode,
     dom_node: *mut c_void,
 ) {
     assert!(!dom_node.is_null());
@@ -2926,7 +2925,7 @@ fn insert_node_into_inline_or_block_ancestor(
     host: &DomTreeBuilderHost<'_>,
     state: &mut TreeBuilderState,
     nearest_insertion_ancestor: LayoutNode,
-    node: OwnedLayoutNode,
+    node: UnplacedLayoutNode,
     is_inline_outside: bool,
     mode: FfiInsertionMode,
     dom_node: *mut c_void,
@@ -3121,8 +3120,8 @@ fn create_first_letter_boxes(host: &DomTreeBuilderHost<'_>, element: *mut c_void
     let first_letter_slice = layout_host.created(nodes.first_letter_slice);
     let remainder_slice = layout_host.created(nodes.remainder_slice);
     if nodes.wrapper.is_invalid() {
-        layout_host.release_owned(first_letter_slice);
-        layout_host.release_owned(remainder_slice);
+        layout_host.free_unplaced(first_letter_slice);
+        layout_host.free_unplaced(remainder_slice);
         return;
     }
     let wrapper = layout_host.created(nodes.wrapper);
@@ -3134,7 +3133,8 @@ fn create_first_letter_boxes(host: &DomTreeBuilderHost<'_>, element: *mut c_void
     layout_host.attach_child(wrapper_slot, first_letter_slice, NodeSlotId::INVALID);
     layout_host.attach_child(parent, wrapper, text_node);
     layout_host.attach_child(parent, remainder_slice, text_node);
-    layout_host.arena().detach_child(parent, text_node).release();
+    layout_host.arena().detach_child(parent, text_node);
+    layout_host.free_subtree(text_node);
 }
 
 fn is_marker_content(data: &NodeData) -> bool {

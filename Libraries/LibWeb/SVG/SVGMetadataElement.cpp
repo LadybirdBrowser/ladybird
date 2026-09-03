@@ -18,7 +18,7 @@ SVGMetadataElement::SVGMetadataElement(DOM::Document& document, DOM::QualifiedNa
 {
 }
 
-RefPtr<Layout::Node> SVGMetadataElement::create_layout_node(CSS::LayoutStyle)
+Layout::Node* SVGMetadataElement::create_layout_node(CSS::LayoutStyle)
 {
     return nullptr;
 }

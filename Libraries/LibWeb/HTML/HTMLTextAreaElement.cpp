@@ -533,9 +533,9 @@ Optional<Utf16String> HTMLTextAreaElement::placeholder_value() const
     return get_attribute_value(HTML::AttributeNames::placeholder);
 }
 
-RefPtr<Layout::Node> HTMLTextAreaElement::create_layout_node(CSS::LayoutStyle style)
+Layout::Node* HTMLTextAreaElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return make_ref_counted<Layout::BlockContainer>(document(), *this, style, Layout::RustFFI::NodeKind::TextAreaBox);
+    return &Layout::allocate_layout_node<Layout::BlockContainer>(document(), *this, style, Layout::RustFFI::NodeKind::TextAreaBox);
 }
 
 }

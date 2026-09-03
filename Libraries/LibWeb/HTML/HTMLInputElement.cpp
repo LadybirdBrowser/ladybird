@@ -154,7 +154,7 @@ void HTMLInputElement::set_being_activated(bool activated)
         set_needs_repaint();
 }
 
-RefPtr<Layout::Node> HTMLInputElement::create_layout_node(CSS::LayoutStyle style)
+Layout::Node* HTMLInputElement::create_layout_node(CSS::LayoutStyle style)
 {
     if (type_state() == TypeAttributeState::Hidden)
         return nullptr;
@@ -167,7 +167,7 @@ RefPtr<Layout::Node> HTMLInputElement::create_layout_node(CSS::LayoutStyle style
             VERIFY(computed_style);
             return Element::create_layout_node_for_display_type(document(), computed_style->display(), style, this);
         }
-        return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::ImageBox);
+        return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::ImageBox);
     }
 
     // https://drafts.csswg.org/css-ui/#appearance-switching
@@ -185,18 +185,18 @@ RefPtr<Layout::Node> HTMLInputElement::create_layout_node(CSS::LayoutStyle style
     case TypeAttributeState::SubmitButton:
     case TypeAttributeState::Button:
     case TypeAttributeState::ResetButton:
-        return make_ref_counted<Layout::BlockContainer>(document(), this, style);
+        return &Layout::allocate_layout_node<Layout::BlockContainer>(document(), this, style);
     case TypeAttributeState::Checkbox:
-        return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::CheckBox);
+        return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::CheckBox);
     case TypeAttributeState::RadioButton:
-        return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::RadioButton);
+        return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::RadioButton);
     case TypeAttributeState::Range:
-        return make_ref_counted<Layout::BlockContainer>(document(), *this, style, Layout::RustFFI::NodeKind::RangeInputBox);
+        return &Layout::allocate_layout_node<Layout::BlockContainer>(document(), *this, style, Layout::RustFFI::NodeKind::RangeInputBox);
     case TypeAttributeState::Color:
     case TypeAttributeState::FileUpload:
         return Element::create_layout_node_for_display_type(document(), computed_style->display(), style, this);
     default:
-        return make_ref_counted<Layout::BlockContainer>(document(), *this, style, Layout::RustFFI::NodeKind::TextInputBox);
+        return &Layout::allocate_layout_node<Layout::BlockContainer>(document(), *this, style, Layout::RustFFI::NodeKind::TextInputBox);
     }
 }
 

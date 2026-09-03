@@ -42,21 +42,20 @@ enum class LayoutUpdatePropagation : u8 {
 class NodeArenaAllocation {
 protected:
     NodeArenaAllocation(DOM::Document&, RustFFI::FfiNodeConstructionFacts const&);
-    ~NodeArenaAllocation();
 
     NonnullRefPtr<NodeArena> m_arena;
     RustFFI::NodeSlotId m_slot {};
 };
 
 class WEB_API Node
-    : public RefCounted<Node>
-    , public Weakable<Node>
+    : public Weakable<Node>
     , private NodeArenaAllocation {
 
 public:
     AK_ALLOC_WITH_KMALLOC_PARTITION(HeapPartition::Layout);
 
     virtual ~Node();
+    static void delete_arena_owned_shell(Node&);
     StringView class_name() const;
 
     static RustFFI::NodeSlotId slot_id(Node const*);
@@ -364,7 +363,14 @@ private:
     GC::Root<DOM::Node> m_dom_node;
     GC::Weak<DOM::Element> m_pseudo_element_generator;
     RustFFI::NodeKind m_kind { RustFFI::NodeKind::Unset };
+    bool m_arena_is_destroying_shell { false };
 };
+
+template<typename T, typename... Args>
+T& allocate_layout_node(Args&&... args)
+{
+    return *new T(forward<Args>(args)...);
+}
 
 class WEB_API NodeWithStyle : public Node {
 public:
@@ -646,7 +652,7 @@ public:
     Gfx::Font const& first_available_font() const;
     CSS::StyleScope const& style_scope() const;
 
-    NonnullRefPtr<NodeWithStyle> create_anonymous_wrapper() const;
+    NodeWithStyle& create_anonymous_wrapper() const;
 
     void transfer_table_box_computed_values_to_wrapper_computed_values(CSS::ComputedValues::Builder& wrapper_computed_values);
 
@@ -677,8 +683,8 @@ private:
     void const* m_style_payloads { nullptr };
     RefPtr<CSS::ComputedValues const> m_owned_computed_values;
     CSS::StyleRecordID m_style_record_identity;
-    // Layout nodes are ref-counted rather than GC cells, so this owner cannot be a traced GC::Ptr.
-    // Document::tear_down_layout_tree() must drop the layout root, which destroys these nodes and
+    // Layout nodes are not GC cells, so this owner cannot be a traced GC::Ptr.
+    // Document::tear_down_layout_tree() must free the layout root, which destroys these nodes and
     // unpins their records before this root is cleared. Every document destruction path goes
     // through that teardown.
     GC::Root<DOM::Document> m_style_record_owner;

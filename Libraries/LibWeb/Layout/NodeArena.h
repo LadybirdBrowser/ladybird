@@ -28,7 +28,7 @@ public:
     ~NodeArena();
 
     RustFFI::NodeSlotId allocate(RustFFI::FfiNodeConstructionFacts const&);
-    void free(RustFFI::NodeSlotId);
+    void free_subtree(RustFFI::NodeSlotId);
     void* handle() const { return m_handle; }
     u64 formatting_context_run_cache_hit_count() const;
     u64 table_cell_measurement_cache_miss_count() const;
@@ -40,6 +40,6 @@ private:
     void* m_handle { nullptr };
 };
 
-WEB_API bool detach_layout_node_for_destruction(Node&);
+WEB_API bool destroy_layout_subtree(Node&);
 
 }

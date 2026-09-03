@@ -46,11 +46,6 @@ NodeArenaAllocation::NodeArenaAllocation(DOM::Document& document, RustFFI::FfiNo
     m_slot = m_arena->allocate(construction_facts);
 }
 
-NodeArenaAllocation::~NodeArenaAllocation()
-{
-    m_arena->free(m_slot);
-}
-
 static RustFFI::FfiNodeConstructionFacts build_node_construction_facts(DOM::Document& document, GC::Ptr<DOM::Node> node, RustFFI::NodeKind kind, void* shell)
 {
     return {
@@ -80,7 +75,13 @@ Node::Node(DOM::Document& document, GC::Ptr<DOM::Node> node, RustFFI::NodeKind k
 
 Node::~Node()
 {
-    VERIFY(!parent_ptr());
+    VERIFY(m_arena_is_destroying_shell);
+}
+
+void Node::delete_arena_owned_shell(Node& node)
+{
+    node.m_arena_is_destroying_shell = true;
+    delete &node;
 }
 
 RustFFI::NodeSlotId Node::slot_id(Node const* node)
@@ -630,7 +631,7 @@ Gfx::AffineTransform NodeWithStyle::used_svg_element_transform() const
     return transform;
 }
 
-NonnullRefPtr<NodeWithStyle> NodeWithStyle::create_anonymous_wrapper() const
+NodeWithStyle& NodeWithStyle::create_anonymous_wrapper() const
 {
     auto values = copy_computed_values();
     auto builder = CSS::ComputedValues::Builder::create_inheriting_from(*values);
@@ -639,8 +640,7 @@ NonnullRefPtr<NodeWithStyle> NodeWithStyle::create_anonymous_wrapper() const
     // Set wrapper to inline-block to participate correctly in the IFC within the parent inline-block.
     if (display().is_inline_block() && !has_children())
         builder->set_display(CSS::Display::from_short(CSS::Display::Short::InlineBlock));
-    auto wrapper = adopt_ref(*new BlockContainer(const_cast<DOM::Document&>(document()), nullptr, move(builder).build()));
-    return *wrapper;
+    return allocate_layout_node<BlockContainer>(const_cast<DOM::Document&>(document()), nullptr, move(builder).build());
 }
 
 void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const> computed_values)

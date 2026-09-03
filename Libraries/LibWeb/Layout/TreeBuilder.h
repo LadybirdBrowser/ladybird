@@ -13,7 +13,7 @@
 namespace Web::Layout {
 
 struct LayoutTreeBuildResult {
-    RefPtr<Layout::Node> root;
+    Layout::Viewport* root { nullptr };
     Vector<Layout::Node*> rebuilt_subtree_roots;
     bool layout_tree_update_escaped_rebuild_roots { false };
     bool needs_another_build_pass { false };

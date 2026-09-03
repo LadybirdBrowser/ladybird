@@ -21,7 +21,7 @@ class SVGTextPathElement
     GC_DECLARE_ALLOCATOR(SVGTextPathElement);
 
 public:
-    virtual RefPtr<Layout::Node> create_layout_node(CSS::LayoutStyle) override;
+    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
 
     GC::Ptr<SVGGeometryElement const> path_or_shape() const;
 

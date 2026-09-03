@@ -17,7 +17,7 @@ class SVGMetadataElement final : public SVGElement {
 
 private:
     SVGMetadataElement(DOM::Document&, DOM::QualifiedName);
-    virtual RefPtr<Layout::Node> create_layout_node(CSS::LayoutStyle) override;
+    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
 };
 
 }
