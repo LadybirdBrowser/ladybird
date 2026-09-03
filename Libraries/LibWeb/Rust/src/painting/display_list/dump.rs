@@ -671,6 +671,7 @@ mod tests {
                 rect: IntRect::new(1, 2, 30, 40),
                 color: Color::from_rgba(101, 2, 0, 204),
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Multiply,
+                background_color_animation_frame: FrameNodeIndex::NONE,
             },
             &[],
             ContextRef {

@@ -54,6 +54,11 @@ FrameNodeIndex VisualContextTreeTestBuilder::append_clip_frame(FrameNodeIndex pa
     return FrameNodeIndex { Layout::RustFFI::visual_context_tree_test_builder_append_clip_frame(m_builder, parent.value(), spatial.value(), rect, corner_radii, mode) };
 }
 
+FrameNodeIndex VisualContextTreeTestBuilder::append_background_color_animation_frame(FrameNodeIndex parent, SpatialNodeIndex spatial)
+{
+    return FrameNodeIndex { Layout::RustFFI::visual_context_tree_test_builder_append_background_color_animation_frame(m_builder, parent.value(), spatial.value()) };
+}
+
 FrameNodeIndex VisualContextTreeTestBuilder::append_clip_path_frame(FrameNodeIndex parent, SpatialNodeIndex spatial, Gfx::Path const& path, Gfx::IntRect bounding_rect, Gfx::WindingRule fill_rule)
 {
     auto path_bytes = path.serialize_to_bytes();

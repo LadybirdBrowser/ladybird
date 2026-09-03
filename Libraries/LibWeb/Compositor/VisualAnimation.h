@@ -9,6 +9,7 @@
 #include <AK/Time.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibGfx/Color.h>
 #include <LibGfx/Matrix4x4.h>
 #include <LibIPC/Forward.h>
 #include <LibWeb/Export.h>
@@ -96,7 +97,7 @@ struct VisualAnimationTransformOperation {
 };
 
 using VisualAnimationTransformList = Vector<VisualAnimationTransformOperation>;
-using VisualAnimationValue = Variant<float, VisualAnimationTransformList>;
+using VisualAnimationValue = Variant<float, Gfx::Color, VisualAnimationTransformList>;
 
 struct VisualAnimationKeyframe {
     double offset { 0 };
@@ -109,11 +110,13 @@ struct VisualAnimationKeyframe {
 struct VisualAnimation {
     struct Sample {
         float opacity { 1 };
+        Optional<Gfx::Color> background_color;
         Gfx::FloatMatrix4x4 transform { Gfx::FloatMatrix4x4::identity() };
     };
 
     enum class TargetKind : u8 {
         Opacity,
+        BackgroundColor,
         Transform,
     };
 

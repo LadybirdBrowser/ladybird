@@ -112,7 +112,6 @@ pub(crate) fn paint_resolved_background(
     let background_rect = resolved.background_rect;
     let color_box = resolved.color_box;
     let layers = &resolved.layers;
-
     // https://drafts.fxtf.org/compositing/#background-blend-mode
     // Background layers must not blend with the content that is behind the element, instead they
     // must act as if they are rendered into an isolated group.
@@ -218,6 +217,14 @@ fn paint_background_layers(
     let background_rect = resolved.background_rect;
     let color_box = resolved.color_box;
     let layers = &resolved.layers;
+    let background_color_animation_frame = recorder
+        .layout_arena
+        .node_has_compositor_animation_frame(
+            paintable,
+            crate::layout::node_data::CompositorAnimationFrameKind::BackgroundColor,
+        )
+        .then_some(recorder.recorder.accumulated_visual_context().frame)
+        .filter(|frame| !frame.is_none());
 
     let border_box = BackgroundBox {
         rect: background_rect,
@@ -227,14 +234,18 @@ fn paint_background_layers(
     let border = crate::painting::paintable_geometry::committed_border(recorder.layout_arena, paintable);
 
     if is_root_element {
-        recorder
-            .recorder
-            .fill_rect(converter.enclosing_device_rect(color_box.rect), color);
+        recorder.recorder.fill_animated_background_color(
+            converter.enclosing_device_rect(color_box.rect),
+            color,
+            libgfx_rust::CornerRadii::default(),
+            background_color_animation_frame,
+        );
     } else {
-        recorder.recorder.fill_rect_with_rounded_corners(
+        recorder.recorder.fill_animated_background_color(
             converter.rounded_device_rect(color_box.rect),
             color,
             color_box.radii.as_corners(&converter),
+            background_color_animation_frame,
         );
     }
 

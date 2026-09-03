@@ -1213,6 +1213,31 @@ impl LayoutNodeArena {
         data.flags.set(updated);
     }
 
+    pub(crate) fn node_has_compositor_animation_frame(
+        &self,
+        id: NodeSlotId,
+        kind: super::node_data::CompositorAnimationFrameKind,
+    ) -> bool {
+        self.data(id).compositor_animation_frame_kinds.get() & kind as u8 != 0
+    }
+
+    pub(crate) fn set_node_needs_compositor_animation_frame(
+        &self,
+        id: NodeSlotId,
+        kind: super::node_data::CompositorAnimationFrameKind,
+        value: bool,
+    ) {
+        self.assert_owner_thread();
+        let frame_kinds = &self.data(id).compositor_animation_frame_kinds;
+        let mut updated = frame_kinds.get();
+        if value {
+            updated |= kind as u8;
+        } else {
+            updated &= !(kind as u8);
+        }
+        frame_kinds.set(updated);
+    }
+
     pub(crate) fn for_each_node_in_layout_subtree_in_pre_order(
         &self,
         root: NodeSlotId,
@@ -2810,6 +2835,16 @@ pub unsafe extern "C" fn layout_arena_node_flags(arena: *mut c_void, id: NodeSlo
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_node_has_compositor_animation_frame(
+    arena: *mut c_void,
+    id: NodeSlotId,
+    kind: super::node_data::CompositorAnimationFrameKind,
+) -> bool {
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }.node_has_compositor_animation_frame(id, kind)
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_node_generated_for(arena: *mut c_void, id: NodeSlotId) -> u8 {
     // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
     unsafe { LayoutNodeArena::from_handle(arena) }.node_generated_for(id)
@@ -2886,6 +2921,18 @@ pub unsafe extern "C" fn layout_arena_set_node_flag(arena: *mut c_void, id: Node
     // SAFETY: The C++ wrapper keeps the arena alive for this call and
     // serializes all access on the document thread.
     unsafe { &*arena.cast::<LayoutNodeArena>() }.set_node_flag(id, flag, value);
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_node_needs_compositor_animation_frame(
+    arena: *mut c_void,
+    id: NodeSlotId,
+    kind: super::node_data::CompositorAnimationFrameKind,
+    value: bool,
+) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and serializes all access on the document thread.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_node_needs_compositor_animation_frame(id, kind, value);
 }
 
 #[unsafe(no_mangle)]

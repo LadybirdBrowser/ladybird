@@ -174,6 +174,13 @@ pub enum NodeFlag {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
+pub enum CompositorAnimationFrameKind {
+    Opacity = 1 << 0,
+    BackgroundColor = 1 << 1,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u8)]
 pub enum FfiNodeLink {
     Parent,
     FirstChild,
@@ -219,6 +226,7 @@ pub(crate) struct NodeData {
     /// is unreachable.
     pub fragment_cache_epoch: Cell<u32>,
     pub slot_generation: Cell<u8>,
+    pub compositor_animation_frame_kinds: Cell<u8>,
     pub table_column_span: Cell<u16>,
     pub table_row_span: Cell<u16>,
     pub style: Cell<*const c_void>,
@@ -240,6 +248,7 @@ impl Default for NodeData {
             intrinsic_cache_epoch: Cell::new(0),
             flags: Cell::new(0),
             slot_generation: Cell::new(0),
+            compositor_animation_frame_kinds: Cell::new(0),
             table_column_span: Cell::new(1),
             table_row_span: Cell::new(1),
             fragment_cache_epoch: Cell::new(0),
@@ -266,6 +275,7 @@ mod tests {
         assert_eq!(std::mem::offset_of!(NodeData, flags), 32);
         assert_eq!(std::mem::offset_of!(NodeData, fragment_cache_epoch), 36);
         assert_eq!(std::mem::offset_of!(NodeData, slot_generation), 40);
+        assert_eq!(std::mem::offset_of!(NodeData, compositor_animation_frame_kinds), 41);
         assert_eq!(std::mem::offset_of!(NodeData, table_column_span), 42);
         assert_eq!(std::mem::offset_of!(NodeData, table_row_span), 44);
         assert_eq!(std::mem::offset_of!(NodeData, style), 48);

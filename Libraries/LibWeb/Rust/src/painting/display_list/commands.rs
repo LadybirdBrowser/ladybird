@@ -703,11 +703,13 @@ pub struct FillRect {
     pub rect: IntRect,
     pub color: Color,
     pub compositing_and_blending_operator: CompositingAndBlendingOperator,
+    pub background_color_animation_frame: FrameNodeIndex,
 }
 ffi_bytes_fields!(FillRect {
     rect,
     color,
-    compositing_and_blending_operator
+    compositing_and_blending_operator,
+    background_color_animation_frame
 });
 
 impl DisplayListCommand for FillRect {
@@ -1041,11 +1043,13 @@ pub struct FillRectWithRoundedCorners {
     pub rect: IntRect,
     pub color: Color,
     pub corner_radii: CornerRadii,
+    pub background_color_animation_frame: FrameNodeIndex,
 }
 ffi_bytes_fields!(FillRectWithRoundedCorners {
     rect,
     color,
-    corner_radii
+    corner_radii,
+    background_color_animation_frame
 });
 
 impl DisplayListCommand for FillRectWithRoundedCorners {

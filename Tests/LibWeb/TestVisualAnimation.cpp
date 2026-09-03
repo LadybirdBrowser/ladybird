@@ -153,6 +153,53 @@ TEST_CASE(interpolates_transform_operations_before_composing)
     }
 }
 
+TEST_CASE(interpolates_background_color_in_premultiplied_srgb)
+{
+    VisualAnimation animation {
+        .target_kind = VisualAnimation::TargetKind::BackgroundColor,
+        .visual_context_node_indices = { 0 },
+        .local_time_at_anchor_ms = 500,
+        .iteration_duration_ms = 1000,
+        .easing = linear_easing(),
+        .keyframes = {
+            { 0, linear_easing(), Gfx::Color(255, 0, 0, 0) },
+            { 1, linear_easing(), Gfx::Color(0, 0, 255, 255) },
+        },
+    };
+
+    auto sampled = animation.sample(AK::Duration::zero())->background_color;
+    EXPECT(sampled.has_value());
+    EXPECT_EQ(sampled->red(), 0);
+    EXPECT_EQ(sampled->green(), 0);
+    EXPECT_EQ(sampled->blue(), 255);
+    EXPECT_EQ(sampled->alpha(), 128);
+}
+
+TEST_CASE(extrapolates_overshooting_background_color_easing)
+{
+    VisualAnimation animation {
+        .target_kind = VisualAnimation::TargetKind::BackgroundColor,
+        .visual_context_node_indices = { 0 },
+        .local_time_at_anchor_ms = 750,
+        .iteration_duration_ms = 1000,
+        .easing = {
+            .kind = VisualAnimationEasing::Kind::Linear,
+            .linear_points = { { 0, 0 }, { 1, 2 } },
+        },
+        .keyframes = {
+            { 0, linear_easing(), Gfx::Color(100, 20, 30) },
+            { 1, linear_easing(), Gfx::Color(140, 40, 50) },
+        },
+    };
+
+    auto sampled = animation.sample(AK::Duration::zero())->background_color;
+    EXPECT(sampled.has_value());
+    EXPECT_EQ(sampled->red(), 160);
+    EXPECT_EQ(sampled->green(), 50);
+    EXPECT_EQ(sampled->blue(), 60);
+    EXPECT_EQ(sampled->alpha(), 255);
+}
+
 TEST_CASE(rejects_invalid_timing)
 {
     VisualAnimation animation;

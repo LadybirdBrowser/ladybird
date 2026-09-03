@@ -306,12 +306,39 @@ impl DisplayListBuilder {
                     let field_offset = offset + std::mem::offset_of!(DisplayListCommandHeader, context);
                     context.write_ffi_bytes(&mut bytes[field_offset..field_offset + std::mem::size_of::<ContextRef>()]);
                 }
+                rewrite_background_color_animation_frame(bytes, offset, &header, rewrite);
             }
             let record_size = HEADER_SIZE + header.payload_size as usize;
             note_command(runs, &header, offset, record_size);
             offset += record_size;
         }
         assert_eq!(offset, bytes.len());
+    }
+}
+
+fn rewrite_background_color_animation_frame(
+    bytes: &mut [u8],
+    record_offset: usize,
+    header: &DisplayListCommandHeader,
+    rewrite: ContextRewrite,
+) {
+    let payload_field_offset = match header.command_type {
+        DisplayListCommandType::FillRect => std::mem::offset_of!(FillRect, background_color_animation_frame),
+        DisplayListCommandType::FillRectWithRoundedCorners => {
+            std::mem::offset_of!(FillRectWithRoundedCorners, background_color_animation_frame)
+        }
+        _ => return,
+    };
+    let field_offset = record_offset + HEADER_SIZE + payload_field_offset;
+    let field_size = std::mem::size_of::<FrameNodeIndex>();
+    let frame = FrameNodeIndex(u32::from_ne_bytes(
+        bytes[field_offset..field_offset + field_size].try_into().unwrap(),
+    ));
+    if !frame.is_none() && frame == rewrite.recorded_context.frame {
+        rewrite
+            .current_context
+            .frame
+            .write_ffi_bytes(&mut bytes[field_offset..field_offset + field_size]);
     }
 }
 
@@ -438,6 +465,7 @@ mod tests {
             rect: IntRect::new(x, y, width, height),
             color: Color::default(),
             compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            background_color_animation_frame: FrameNodeIndex::NONE,
         }
     }
 
@@ -466,6 +494,23 @@ mod tests {
         let mut contexts = Vec::new();
         for_each_command(builder.bytes(), |header, _, _| contexts.push(header.context));
         contexts
+    }
+
+    fn background_color_animation_frames(builder: &DisplayListBuilder) -> Vec<FrameNodeIndex> {
+        let mut frames = Vec::new();
+        for_each_command(builder.bytes(), |header, _, payload| {
+            let field_offset = match header.command_type {
+                DisplayListCommandType::FillRect => {
+                    std::mem::offset_of!(FillRect, background_color_animation_frame)
+                }
+                DisplayListCommandType::FillRectWithRoundedCorners => {
+                    std::mem::offset_of!(FillRectWithRoundedCorners, background_color_animation_frame)
+                }
+                _ => return,
+            };
+            frames.push(FrameNodeIndex(HeaderReader { bytes: payload }.u32_at(field_offset)));
+        });
+        frames
     }
 
     fn assert_runs_cover_tape(builder: &DisplayListBuilder) {
@@ -700,6 +745,54 @@ mod tests {
         );
         assert_runs_cover_tape(&builder);
         assert_eq!(builder.command_runs().len(), 4);
+    }
+
+    #[test]
+    fn a_spliced_capture_rewrites_background_color_animation_frames() {
+        let recorded = context(2, Some(1));
+        let current = context(3, Some(7));
+        let mut source = DisplayListBuilder::new();
+        source.append(
+            &FillRect {
+                background_color_animation_frame: recorded.frame,
+                ..fill_rect(0, 0, 10, 10)
+            },
+            &[],
+            recorded,
+        );
+        source.append(
+            &FillRectWithRoundedCorners {
+                rect: IntRect::new(20, 20, 10, 10),
+                color: Color::default(),
+                corner_radii: CornerRadii::default(),
+                background_color_animation_frame: recorded.frame,
+            },
+            &[],
+            recorded,
+        );
+        source.append(&fill_rect(40, 40, 10, 10), &[], recorded);
+        source.append(
+            &FillRectWithRoundedCorners {
+                rect: IntRect::new(60, 60, 10, 10),
+                color: Color::default(),
+                corner_radii: CornerRadii::default(),
+                background_color_animation_frame: FrameNodeIndex(5),
+            },
+            &[],
+            recorded,
+        );
+
+        let mut builder = DisplayListBuilder::new();
+        builder.append_command_range(
+            &finished(&source),
+            whole_tape(&source),
+            Some(rewrite(recorded, current)),
+        );
+
+        assert_eq!(
+            background_color_animation_frames(&builder),
+            vec![current.frame, current.frame, FrameNodeIndex::NONE, FrameNodeIndex(5)]
+        );
     }
 
     #[test]

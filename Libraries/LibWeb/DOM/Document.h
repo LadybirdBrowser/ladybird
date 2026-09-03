@@ -1843,6 +1843,8 @@ private:
     RefPtr<Core::Timer> m_compositor_animation_wakeup_timer;
     Optional<MonotonicTime> m_compositor_animation_wakeup_deadline;
     RefPtr<Core::Timer> m_compositor_animation_observation_timer;
+    Vector<WeakPtr<Layout::Node>> m_layout_nodes_with_forced_compositor_effects_layer;
+    Vector<WeakPtr<Layout::Node>> m_layout_nodes_with_forced_compositor_background_color_frame;
 
     bool m_temporary_document_for_fragment_parsing { false };
 

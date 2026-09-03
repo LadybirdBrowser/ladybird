@@ -236,11 +236,34 @@ bool VisualAnimation::has_same_animation_parameters(VisualAnimation const& other
 
 static VisualAnimationValue interpolate_value(VisualAnimationValue const& from, VisualAnimationValue const& to, double progress)
 {
+    auto interpolate_legacy_srgb_color = [](Gfx::Color from, Gfx::Color to, double progress) -> Gfx::Color {
+        auto from_alpha = static_cast<double>(from.alpha()) / 255.0;
+        auto to_alpha = static_cast<double>(to.alpha()) / 255.0;
+        auto alpha = clamp(from_alpha + (to_alpha - from_alpha) * progress, 0.0, 1.0);
+        if (alpha == 0)
+            return Gfx::Color::Transparent;
+        auto interpolate_channel = [&](u8 from_channel, u8 to_channel) {
+            auto from_premultiplied = static_cast<double>(from_channel) * from_alpha;
+            auto to_premultiplied = static_cast<double>(to_channel) * to_alpha;
+            auto channel = (from_premultiplied + (to_premultiplied - from_premultiplied) * progress) / alpha;
+            return round_to<u8>(clamp(channel, 0.0, 255.0));
+        };
+        return Gfx::Color {
+            interpolate_channel(from.red(), to.red()),
+            interpolate_channel(from.green(), to.green()),
+            interpolate_channel(from.blue(), to.blue()),
+            round_to<u8>(alpha * 255.0),
+        };
+    };
+
     VERIFY(from.index() == to.index());
     return from.visit(
         [&](float from_opacity) -> VisualAnimationValue {
             auto to_opacity = to.get<float>();
             return static_cast<float>(from_opacity + (to_opacity - from_opacity) * progress);
+        },
+        [&](Gfx::Color from_color) -> VisualAnimationValue {
+            return interpolate_legacy_srgb_color(from_color, to.get<Gfx::Color>(), progress);
         },
         [&](VisualAnimationTransformList const& from_transforms) -> VisualAnimationValue {
             auto const& to_transforms = to.get<VisualAnimationTransformList>();
@@ -338,6 +361,7 @@ Optional<VisualAnimation::Sample> VisualAnimation::sample(AK::Duration elapsed_s
     Sample sample;
     value.visit(
         [&](float opacity) { sample.opacity = opacity; },
+        [&](Gfx::Color background_color) { sample.background_color = background_color; },
         [&](VisualAnimationTransformList const& transforms) {
             for (auto const& transform : transforms)
                 sample.transform = sample.transform * transform.to_matrix();
@@ -346,6 +370,11 @@ Optional<VisualAnimation::Sample> VisualAnimation::sample(AK::Duration elapsed_s
         if (!isfinite(sample.opacity))
             return {};
         sample.opacity = clamp(sample.opacity, 0.0f, 1.0f);
+        return sample;
+    }
+    if (target_kind == TargetKind::BackgroundColor) {
+        if (!sample.background_color.has_value())
+            return {};
         return sample;
     }
     for (size_t row = 0; row < 4; ++row) {
@@ -359,7 +388,7 @@ Optional<VisualAnimation::Sample> VisualAnimation::sample(AK::Duration elapsed_s
 
 bool VisualAnimation::is_valid() const
 {
-    if (!first_is_one_of(target_kind, TargetKind::Opacity, TargetKind::Transform))
+    if (!first_is_one_of(target_kind, TargetKind::Opacity, TargetKind::BackgroundColor, TargetKind::Transform))
         return false;
     if (visual_context_node_indices.is_empty())
         return false;
@@ -390,6 +419,12 @@ bool VisualAnimation::is_valid() const
         if (target_kind == TargetKind::Opacity) {
             if (!keyframe.value.has<float>() || !isfinite(keyframe.value.get<float>())
                 || keyframe.value.get<float>() < 0 || keyframe.value.get<float>() > 1)
+                return false;
+            continue;
+        }
+
+        if (target_kind == TargetKind::BackgroundColor) {
+            if (!keyframe.value.has<Gfx::Color>())
                 return false;
             continue;
         }

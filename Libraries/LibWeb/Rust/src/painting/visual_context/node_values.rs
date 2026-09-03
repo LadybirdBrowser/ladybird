@@ -549,7 +549,13 @@ pub(crate) fn compute_effects_data(
         crate::painting::filter_bytes::serialize_non_url_filter(&effects_values.filter, device_pixels_per_css_pixel)
             .map(std::rc::Rc::new)
     };
-    if filter.is_none() && effects_values.opacity == 1.0 && effects_values.mix_blend_mode == mix_blend_mode::NORMAL {
+    let needs_compositor_effects_layer = layout_arena
+        .node_has_compositor_animation_frame(slot, crate::layout::node_data::CompositorAnimationFrameKind::Opacity);
+    if filter.is_none()
+        && effects_values.opacity == 1.0
+        && effects_values.mix_blend_mode == mix_blend_mode::NORMAL
+        && !needs_compositor_effects_layer
+    {
         return None;
     }
     let effects = EffectsData {
@@ -559,7 +565,8 @@ pub(crate) fn compute_effects_data(
     };
     let needs_layer = effects.opacity < 1.0
         || effects.blend_mode != CompositingAndBlendingOperator::Normal
-        || effects.filter.is_some();
+        || effects.filter.is_some()
+        || needs_compositor_effects_layer;
     needs_layer.then_some(effects)
 }
 

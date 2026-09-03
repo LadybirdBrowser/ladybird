@@ -243,6 +243,7 @@ pub(crate) fn box_owns_geometry_dependent_nodes(
     let frames_are_geometry_dependent = handles.frame_handles().any(|index| {
         let node = &tree.frame_nodes[index.0 as usize];
         match &node.data {
+            FrameData::BackgroundColorAnimation => false,
             FrameData::Clip(_) | FrameData::ClipPath(_) | FrameData::Mask(_) => true,
             FrameData::Effects(effects) => {
                 effects.filter.is_some() && effects_filter_is_resolved_by_the_host_against_geometry

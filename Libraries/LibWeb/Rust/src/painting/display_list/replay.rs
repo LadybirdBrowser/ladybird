@@ -103,8 +103,8 @@ struct ReplayDriver<'a, Painter: ReplayPainter> {
     // matrix to its save point, so unwinding applied frames invalidates it. Recorded streams
     // contain no matrix-mutating commands, so playing commands never invalidates the cache.
     current_ctm_space: Option<SpatialNodeIndex>,
-    // Each applied/target frame pushes and pops the canvas state according to its node kind;
-    // a context without a frame targets an empty frame list and takes its coordinates from the palette.
+    // Applied and target frames track the visual-context chain. Semantic frames push and pop canvas state;
+    // metadata-only frames do not. A context without a frame takes its coordinates from the palette.
     applied_frames: Vec<FrameNodeIndex>,
     target_frames: Vec<FrameNodeIndex>,
     applied_context: Option<ContextRef>,
@@ -287,7 +287,7 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
                 self.applied_mask_frame_count -= 1;
                 self.ensure_ctm_space(frame_node.spatial);
                 self.painter.pop_mask(&replay_mask_of(mask), frame_index);
-            } else {
+            } else if !matches!(frame_node.data, FrameData::BackgroundColorAnimation) {
                 self.painter.pop();
             }
             self.current_ctm_space = None;
@@ -335,6 +335,7 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
             }
             self.ensure_ctm_space(frame_node.spatial);
             match &frame_node.data {
+                FrameData::BackgroundColorAnimation => {}
                 FrameData::Clip(clip) => self.painter.push_clip(&replay_clip_of(clip)),
                 FrameData::ClipPath(clip_path) => self.painter.push_clip_path(&clip_path.path, clip_path.fill_rule),
                 FrameData::Effects(effects) => self.painter.push_layer(&replay_layer_of(effects, frame_index)),

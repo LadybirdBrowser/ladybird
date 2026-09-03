@@ -27,7 +27,8 @@ WEB_API void dump_stacking_context_tree(StringBuilder&, DOM::Document const&);
 
 WEB_API Layout::RustFFI::FfiVisualContextUpdateOutcome rust_update_accumulated_visual_contexts(DOM::Document&);
 WEB_API Vector<u32> rust_owned_visual_context_node_indices(Layout::Node const&, Layout::RustFFI::FfiVisualContextBoxNodeList);
-WEB_API Vector<u32> rust_visual_animation_target_node_indices(Layout::Node const&, AccumulatedVisualContextTree const&, bool targets_are_frames);
+WEB_API Vector<u32> rust_visual_animation_target_node_indices(Layout::Node const&, AccumulatedVisualContextTree const&, Layout::RustFFI::FfiVisualAnimationTargetKind);
+WEB_API bool rust_background_color_can_be_compositor_animated(Layout::Node const&);
 WEB_API void const* retain_rust_main_visual_context_tree(DOM::Document const&);
 WEB_API CSSPixelRect rust_apply_css_transform_to_rect(Layout::Node const&, CSSPixelRect const&);
 WEB_API Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Layout::Node const&);

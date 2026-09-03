@@ -18,7 +18,7 @@ static ContextRef context(u32 spatial, Optional<u32> frame = {})
 
 static void append_fill_rect(ByteBuffer& bytes, ContextRef context, Gfx::IntRect rect)
 {
-    append_display_list_command(bytes, FillRect { rect, Gfx::Color::Red, Gfx::CompositingAndBlendingOperator::Normal }, rect, context);
+    append_display_list_command(bytes, FillRect { rect, Gfx::Color::Red, Gfx::CompositingAndBlendingOperator::Normal, NO_FRAME_NODE }, rect, context);
 }
 
 TEST_CASE(runs_split_on_context_changes_and_cover_the_tape)
@@ -63,7 +63,7 @@ TEST_CASE(a_draw_confined_to_its_bounds_contributes_the_confined_bounds)
 {
     ByteBuffer bytes;
     auto root = context(0);
-    append_display_list_command(bytes, FillRect { { 0, 0, 100, 100 }, Gfx::Color::Red, Gfx::CompositingAndBlendingOperator::Normal }, Gfx::IntRect { 10, 10, 20, 20 }, root);
+    append_display_list_command(bytes, FillRect { { 0, 0, 100, 100 }, Gfx::Color::Red, Gfx::CompositingAndBlendingOperator::Normal, NO_FRAME_NODE }, Gfx::IntRect { 10, 10, 20, 20 }, root);
     append_fill_rect(bytes, root, { 50, 50, 10, 10 });
 
     auto runs = compute_display_list_command_runs(bytes);
@@ -74,7 +74,7 @@ TEST_CASE(a_draw_confined_to_its_bounds_contributes_the_confined_bounds)
 TEST_CASE(a_draw_without_bounds_marks_the_run_unbounded)
 {
     ByteBuffer bytes;
-    append_display_list_command(bytes, FillRect { { 0, 0, 10, 10 }, Gfx::Color::Red, Gfx::CompositingAndBlendingOperator::Normal }, {}, context(0));
+    append_display_list_command(bytes, FillRect { { 0, 0, 10, 10 }, Gfx::Color::Red, Gfx::CompositingAndBlendingOperator::Normal, NO_FRAME_NODE }, {}, context(0));
 
     auto runs = compute_display_list_command_runs(bytes);
     EXPECT(runs[0].has_unbounded_draw);

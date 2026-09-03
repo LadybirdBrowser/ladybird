@@ -229,7 +229,10 @@ void DisplayListPlayerSkia::play_command(FillRect const& command)
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setAntiAlias(true);
-    paint.setColor(to_skia_color(command.color));
+    auto color = command.background_color_animation_frame == NO_FRAME_NODE
+        ? command.color
+        : active_visual_context_tree().sampled_background_color(command.background_color_animation_frame).value_or(command.color);
+    paint.setColor(to_skia_color(color));
     apply_compositing_and_blending_operator(paint, command.compositing_and_blending_operator);
     canvas.drawRect(to_skia_rect(rect), paint);
 }
@@ -676,7 +679,10 @@ void DisplayListPlayerSkia::play_command(FillRectWithRoundedCorners const& comma
 
     auto& canvas = surface().canvas();
     SkPaint paint;
-    paint.setColor(to_skia_color(command.color));
+    auto color = command.background_color_animation_frame == NO_FRAME_NODE
+        ? command.color
+        : active_visual_context_tree().sampled_background_color(command.background_color_animation_frame).value_or(command.color);
+    paint.setColor(to_skia_color(color));
     paint.setAntiAlias(true);
 
     auto rounded_rect = to_skia_rrect(rect, command.corner_radii);

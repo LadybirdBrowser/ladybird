@@ -34,6 +34,7 @@ const FRAME_KIND_CLIP_PATH: u8 = 1;
 const FRAME_KIND_EFFECTS: u8 = 2;
 const FRAME_KIND_MASK: u8 = 3;
 const FRAME_KIND_DEAD: u8 = 4;
+const FRAME_KIND_BACKGROUND_COLOR_ANIMATION: u8 = 5;
 
 const MINIMUM_SERIALIZED_SPATIAL_NODE_SIZE: usize = 5;
 const MINIMUM_SERIALIZED_FRAME_NODE_SIZE: usize = 9;
@@ -371,6 +372,7 @@ fn read_spatial_data(reader: &mut TreeByteReader<'_>) -> Option<SpatialData> {
 
 fn write_frame_data(writer: &mut TreeByteWriter, data: &FrameData) {
     match data {
+        FrameData::BackgroundColorAnimation => writer.u8(FRAME_KIND_BACKGROUND_COLOR_ANIMATION),
         FrameData::Clip(clip) => {
             writer.u8(FRAME_KIND_CLIP);
             writer.float_rect(clip.rect);
@@ -402,6 +404,7 @@ fn write_frame_data(writer: &mut TreeByteWriter, data: &FrameData) {
 
 fn read_frame_data(reader: &mut TreeByteReader<'_>) -> Option<FrameData> {
     Some(match reader.u8()? {
+        FRAME_KIND_BACKGROUND_COLOR_ANIMATION => FrameData::BackgroundColorAnimation,
         FRAME_KIND_CLIP => FrameData::Clip(ClipData {
             rect: reader.float_rect()?,
             corner_radii: reader.corner_radii()?,
@@ -576,6 +579,7 @@ impl VisualContextTree {
             free_frame_slots: Vec::new(),
             quarantined_spatial_slots: Vec::new(),
             quarantined_frame_slots: Vec::new(),
+            sampled_background_colors: std::collections::HashMap::new(),
         };
         tree.decoded_references_are_consistent().then_some(tree)
     }
@@ -782,6 +786,7 @@ mod tests {
 
     fn frame_data_matches(a: &FrameData, b: &FrameData) -> bool {
         match (a, b) {
+            (FrameData::BackgroundColorAnimation, FrameData::BackgroundColorAnimation) => true,
             (FrameData::Clip(a), FrameData::Clip(b)) => a == b,
             (FrameData::ClipPath(a), FrameData::ClipPath(b)) => {
                 a.bounding_rect == b.bounding_rect && a.fill_rule == b.fill_rule

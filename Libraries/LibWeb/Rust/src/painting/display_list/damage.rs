@@ -216,6 +216,7 @@ fn spatial_data_is_equal(
 
 fn frame_data_is_equal(a: &FrameData, b: &FrameData) -> bool {
     match (a, b) {
+        (FrameData::BackgroundColorAnimation, FrameData::BackgroundColorAnimation) => true,
         (FrameData::Clip(data), FrameData::Clip(other)) => data == other,
         (FrameData::ClipPath(data), FrameData::ClipPath(other)) => {
             data.bounding_rect == other.bounding_rect
@@ -676,6 +677,7 @@ mod tests {
                 rect,
                 color,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                background_color_animation_frame: FrameNodeIndex::NONE,
             },
             Some(rect),
             ContextRef::default(),
@@ -825,6 +827,7 @@ mod tests {
                 rect,
                 color: RED,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                background_color_animation_frame: FrameNodeIndex::NONE,
             },
             Some(rect),
             context_in(in_order_transform, FrameNodeIndex::NONE),
@@ -834,6 +837,7 @@ mod tests {
                 rect,
                 color: RED,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                background_color_animation_frame: FrameNodeIndex::NONE,
             },
             Some(rect),
             context_in(permuted_transform, FrameNodeIndex::NONE),
@@ -910,6 +914,7 @@ mod tests {
                 rect,
                 color: RED,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                background_color_animation_frame: FrameNodeIndex::NONE,
             },
             &[],
             Some(rect),
@@ -967,6 +972,7 @@ mod tests {
                 rect: IntRect::new(0, 0, 10, 10),
                 color: RED,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                background_color_animation_frame: FrameNodeIndex::NONE,
             },
             None,
             ContextRef::default(),
@@ -976,6 +982,7 @@ mod tests {
                 rect: IntRect::new(0, 0, 10, 10),
                 color: BLUE,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                background_color_animation_frame: FrameNodeIndex::NONE,
             },
             None,
             ContextRef::default(),
@@ -1036,6 +1043,7 @@ mod tests {
                 rect: IntRect::new(10, 10, 20, 20),
                 color: RED,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                background_color_animation_frame: FrameNodeIndex::NONE,
             },
             Some(IntRect::new(10, 10, 20, 20)),
             context_in(VISUAL_VIEWPORT_NODE_INDEX, old_mask_frame),
@@ -1065,6 +1073,7 @@ mod tests {
                 rect: IntRect::new(10, 10, 20, 20),
                 color: RED,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                background_color_animation_frame: FrameNodeIndex::NONE,
             },
             Some(IntRect::new(10, 10, 20, 20)),
             context_in(VISUAL_VIEWPORT_NODE_INDEX, old_frame),
@@ -1074,6 +1083,7 @@ mod tests {
                 rect: IntRect::new(30, 30, 20, 20),
                 color: BLUE,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                background_color_animation_frame: FrameNodeIndex::NONE,
             },
             Some(IntRect::new(30, 30, 20, 20)),
             context_in(VISUAL_VIEWPORT_NODE_INDEX, new_frame),
@@ -1102,6 +1112,7 @@ mod tests {
             rect: IntRect::new(10, 10, 20, 20),
             color: RED,
             compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            background_color_animation_frame: FrameNodeIndex::NONE,
         };
         let old_display_list = command_bytes(
             &fill,
@@ -1144,6 +1155,7 @@ mod tests {
             rect: IntRect::new(10, 10, 20, 20),
             color: RED,
             compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            background_color_animation_frame: FrameNodeIndex::NONE,
         };
         let old_display_list = command_bytes(
             &fill,
