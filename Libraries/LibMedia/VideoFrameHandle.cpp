@@ -45,7 +45,7 @@ VideoFrameHandle VideoFrameHandle::for_frame(VideoFrame const& frame)
     u32 slot_index = 0;
     u64 slot_acquisition_id = 0;
     if (auto const* pool_slot = frame.pool_slot()) {
-        pool_id = pool_slot->pool().id();
+        pool_id = pool_slot->ledger().id();
         slot_index = pool_slot->slot_index();
         slot_acquisition_id = pool_slot->slot_acquisition_id();
     } else {
