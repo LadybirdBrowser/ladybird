@@ -1,0 +1,129 @@
+<!doctype html>
+<style>
+    body {
+        margin: 0;
+        font: 20px/24px monospace;
+    }
+
+    .case {
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+
+    .two-lines {
+        width: 12ch;
+    }
+
+    .one-line {
+        width: 10ch;
+    }
+
+    .narrow-one-line {
+        width: 100px;
+        font: 16px/20px monospace;
+    }
+
+    .atom {
+        display: inline-block;
+        width: 2ch;
+        height: 16px;
+        background: green;
+    }
+
+    .nested {
+        color: maroon;
+    }
+
+    .text-overflow {
+        width: 10.1ch;
+        padding: 4px;
+        font: 16px/32px monospace;
+    }
+
+    .effects {
+        text-shadow: 2px 2px blue;
+        text-decoration: green solid underline overline 1px;
+    }
+
+    .propagated-decoration {
+        text-decoration: line-through 2px purple;
+    }
+
+    .rtl-text {
+        direction: rtl;
+        unicode-bidi: isolate;
+        background: lightblue;
+    }
+
+    .rtl-paragraph {
+        direction: rtl;
+    }
+
+    .blank-line {
+        position: relative;
+        left: 10px;
+        width: 12ch;
+        padding: 0 12px;
+        white-space: pre;
+    }
+
+    .following-abspos {
+        position: relative;
+    }
+
+    .preserved {
+        white-space: pre;
+    }
+
+    .overlay {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 20px;
+        height: 20px;
+        background: green;
+    }
+
+    .fragmented-text-overflow {
+        width: 9ch;
+        white-space: nowrap;
+    }
+
+    .trailing-inline-padding span {
+        background: lightblue;
+    }
+</style>
+<div class="case two-lines">first<br>one…</div>
+<div class="case one-line">A<span class="atom"></span>…</div>
+<div class="case one-line"><span class="atom"></span>…</div>
+<div class="case one-line">word…</div>
+<div class="case one-line narrow-one-line">…</div>
+<div class="case one-line narrow-one-line" style="height: 20px; text-align: justify"><span style="background: orange; border: 1px solid maroon">XX XX</span>…<span style="visibility: hidden"> XXXX</span></div>
+<div class="case two-lines">first<br>second</div>
+<div class="case two-lines nested"><div>first<br>one…</div></div>
+<div class="case one-line">A<span class="atom"></span>…</div>
+<div class="case one-line">first<br>second</div>
+<div class="case text-overflow">
+    supercalifr…
+    …
+</div>
+<div class="case one-line effects">visible…</div>
+<div class="propagated-decoration"><div class="case one-line">visible…</div></div>
+<div class="case one-line"><span class="rtl-text">חטיכלמנסעפצקרשת</span>…</div>
+<div class="case one-line rtl-paragraph">…<span class="rtl-text">אבגדהוזחטיכלמנס</span></div>
+<div class="case one-line">A<span class="rtl-text">כלמנסעפצקרשת</span>…</div>
+<div class="case blank-line">Line 1
+Line 2
+Line 3
+…</div>
+<div class="case one-line following-abspos">visible…<div class="overlay"></div></div>
+<div class="case one-line">trailing</div>
+<div class="case one-line"><span>nested</span></div>
+<div class="case one-line">spaces</div>
+<div class="case one-line preserved">newline</div>
+<div class="case one-line preserved">visible…</div>
+<div class="case one-line preserved">blank…</div>
+<div class="case one-line preserved">terminal…</div>
+<div class="case two-lines preserved">first&#10;second…</div>
+<div class="case fragmented-text-overflow">ABCDEF…</div>
+<div class="case one-line trailing-inline-padding"><span>fit</span><span style="padding-right: 7ch"></span></div>

@@ -1,0 +1,158 @@
+<!doctype html>
+<link rel="match" href="../expected/webkit-line-clamp-ellipsis-ref.html">
+<style>
+    body {
+        margin: 0;
+        font: 20px/24px monospace;
+    }
+
+    .case {
+        display: -webkit-box;
+        overflow: hidden;
+        margin-bottom: 8px;
+        -webkit-box-orient: vertical;
+    }
+
+    .two-lines {
+        width: 12ch;
+        -webkit-line-clamp: 2;
+    }
+
+    .one-line {
+        width: 10ch;
+        -webkit-line-clamp: 1;
+    }
+
+    .narrow-one-line {
+        width: 100px;
+        font: 16px/20px monospace;
+    }
+
+    .atom {
+        display: inline-block;
+        width: 2ch;
+        height: 16px;
+        background: green;
+    }
+
+    .wide-atom {
+        width: 6ch;
+    }
+
+    .nested {
+        color: maroon;
+    }
+
+    .text-overflow {
+        width: 10.1ch;
+        padding: 4px;
+        font: 16px/32px monospace;
+        text-overflow: ellipsis;
+        -webkit-line-clamp: 2;
+    }
+
+    .effects {
+        text-shadow: 2px 2px blue;
+        text-decoration: green solid underline overline 1px;
+    }
+
+    .propagated-decoration {
+        text-decoration: line-through 2px purple;
+    }
+
+    .rtl-text {
+        direction: rtl;
+        unicode-bidi: isolate;
+        background: lightblue;
+    }
+
+    .rtl-paragraph {
+        direction: rtl;
+    }
+
+    .blank-line {
+        position: relative;
+        left: 10px;
+        width: 12ch;
+        padding: 0 12px;
+        white-space: pre;
+        -webkit-line-clamp: 4;
+    }
+
+    .following-abspos {
+        position: relative;
+    }
+
+    .preserved {
+        white-space: pre;
+    }
+
+    .overlay {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 20px;
+        height: 20px;
+        background: green;
+    }
+
+    .fragmented-text-overflow {
+        width: 9ch;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        -webkit-line-clamp: 1;
+    }
+
+    .trailing-inline-padding {
+        color: transparent;
+        white-space: nowrap;
+    }
+
+    .trailing-inline-padding span {
+        color: black;
+        background: lightblue;
+    }
+</style>
+<div class="case two-lines">first<br>one twowords<br>hidden</div>
+<div class="case one-line">A<span class="atom"></span><br>hidden</div>
+<div class="case one-line"><span class="atom"></span><br>hidden</div>
+<div class="case one-line">word<span class="atom wide-atom"></span><br>hidden</div>
+<div class="case one-line narrow-one-line"><span class="atom" style="width: 95px; height: 80px"></span><br>hidden</div>
+<div class="case one-line narrow-one-line" style="text-align: justify"><span style="background: orange; border: 1px solid maroon">XX XX</span> XXXX XXXX</div>
+<div class="case two-lines">first<br>second</div>
+<div class="case two-lines nested"><div>first<br>one twowords<br>hidden</div></div>
+<div id="reapplied" class="case one-line">A<span class="atom"></span><br>hidden</div>
+<div id="disabled" class="case one-line">first<br>second</div>
+<div class="case text-overflow">
+    supercalifragilisticexpialidocious
+    supercalifragilisticexpialidocious
+    supercalifragilisticexpialidocious
+</div>
+<div class="case one-line effects">visible<br>hidden</div>
+<div class="propagated-decoration"><div class="case one-line">visible<br>hidden</div></div>
+<div class="case one-line"><span class="rtl-text">אבגדהוזחטיכלמנסעפצקרשת</span><br>hidden</div>
+<div class="case one-line rtl-paragraph"><span class="rtl-text">אבגדהוזחטיכלמנסעפצקרשת</span><br>hidden</div>
+<div class="case one-line">A<span class="rtl-text">אבגדהוזחטיכלמנסעפצקרשת</span><br>hidden</div>
+<div class="case blank-line">Line 1
+Line 2
+Line 3
+
+Line 5</div>
+<div class="case one-line following-abspos"><div>visible<br>hidden</div><div class="overlay"></div></div>
+<div class="case one-line">trailing<br></div>
+<div class="case one-line"><span>nested<br></span></div>
+<div class="case one-line">spaces<br>   </div>
+<div class="case one-line preserved">newline&#10;</div>
+<div class="case one-line preserved">visible&#10;hidden</div>
+<div class="case one-line preserved">blank&#10;&#10;hidden</div>
+<div class="case one-line preserved">terminal&#10;&#10;</div>
+<div class="case two-lines preserved">first&#10;second&#10;&#10;hidden</div>
+<div class="case fragmented-text-overflow">A<span>BCDEFGHIJKLMNO</span><br>hidden</div>
+<div class="case one-line trailing-inline-padding"><span>fit</span><span style="padding-right: 7ch"></span><br>hidden</div>
+<script>
+    document.body.offsetHeight;
+    reapplied.style.webkitLineClamp = "none";
+    disabled.style.webkitLineClamp = "none";
+    document.body.offsetHeight;
+    reapplied.style.webkitLineClamp = "1";
+</script>
