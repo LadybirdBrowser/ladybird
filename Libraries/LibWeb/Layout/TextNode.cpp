@@ -423,9 +423,18 @@ TextNode::TextForRendering TextNode::apply_text_transform(Utf16String const& str
     VERIFY_NOT_REACHED();
 }
 
+static CSS::ComputedValues::InheritedTextValues const& inherited_text_values_of_parent(TextNode const& text_node)
+{
+    auto parent_slot = text_node.linked_slot(RustFFI::FfiNodeLink::Parent);
+    auto const* payloads = static_cast<void const* const*>(RustFFI::layout_arena_node_style_payloads(text_node.arena_handle(), parent_slot));
+    VERIFY(payloads);
+    return *static_cast<CSS::ComputedValues::InheritedTextValues const*>(payloads[CSS::ComputedValues::InheritedTextValues::style_group_index]);
+}
+
 TextNode::TextForRenderingCacheKey TextNode::create_text_for_rendering_cache_key() const
 {
-    auto text_transform = parent()->text_transform();
+    auto const& parent_inherited_text_values = inherited_text_values_of_parent(*this);
+    auto text_transform = parent_inherited_text_values.text_transform_value();
     Optional<Utf16String> lang;
     if (first_is_one_of(text_transform, CSS::TextTransform::Uppercase, CSS::TextTransform::Lowercase, CSS::TextTransform::Capitalize)) {
         if (auto parent_element = parent_element_for_text_transform())
@@ -434,7 +443,7 @@ TextNode::TextForRenderingCacheKey TextNode::create_text_for_rendering_cache_key
 
     return {
         .text_transform = text_transform,
-        .white_space_collapse = parent()->white_space_collapse(),
+        .white_space_collapse = parent_inherited_text_values.white_space_collapse_value(),
         .lang = move(lang),
         .is_password_input = is_password_input(),
         .dom_start_offset = dom_start_offset(),

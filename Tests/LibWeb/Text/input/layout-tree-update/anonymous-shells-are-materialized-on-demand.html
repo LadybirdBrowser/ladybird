@@ -1,0 +1,16 @@
+<!doctype html>
+<script src="../include.js"></script>
+<table id="table"><td id="cell">a</td><td>b</td></table>
+<button id="button">x</button>
+<script>
+    test(() => {
+        const liveSlots = internals.layoutArenaLiveSlotCount();
+        const shellsBeforeAccess = internals.layoutArenaShellCount();
+        println(`anonymous boxes exist without shells: ${liveSlots > shellsBeforeAccess}`);
+
+        internals.dumpLayoutTree(document);
+        const shellsAfterAccess = internals.layoutArenaShellCount();
+        println(`walking the layout tree materializes shells: ${shellsAfterAccess > shellsBeforeAccess}`);
+        println(`shells never exceed live slots: ${shellsAfterAccess <= internals.layoutArenaLiveSlotCount()}`);
+    });
+</script>

@@ -210,6 +210,8 @@ interface Internals {
     // Stable for the lifetime of a layout node, and zero when the DOM node has no principal
     // layout node. Useful for asserting that incremental tree builds preserve unaffected nodes.
     unsigned long long layoutNodeIdentity(Node node);
+    unsigned long long layoutArenaLiveSlotCount();
+    unsigned long long layoutArenaShellCount();
     double styleEngineMatchDocument();
     // Reports a snapshot of StyleEngine's matched rules for the whole document.
     DOMString styleEngineMatchedRules();

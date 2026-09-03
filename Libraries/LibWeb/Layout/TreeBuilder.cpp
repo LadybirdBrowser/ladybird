@@ -1127,7 +1127,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 .is_element = element != nullptr,
                 .is_text = is<DOM::Text>(node),
                 .rendered_in_top_layer = element && element->rendered_in_top_layer(),
-                .layout_node_is_attached = existing_layout_node && existing_layout_node->parent(),
+                .layout_node_is_attached = existing_layout_node && existing_layout_node->has_parent(),
                 .is_svg_container = node.is_svg_container(),
                 .requires_svg_container = node.requires_svg_container(),
                 .is_svg_foreign_object = node.is_svg_foreign_object_element(),
@@ -1405,23 +1405,6 @@ RustFFI::FfiTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_tree_builder_ca
 {
     return {
         .context = this,
-        .create_anonymous_shell = [](void* context, RustFFI::NodeSlotId slot, RustFFI::NodeKind kind) {
-            VERIFY(context);
-            auto& document = *static_cast<LayoutTreeBuildBridge*>(context)->m_document;
-            switch (kind) {
-            case RustFFI::NodeKind::BlockContainer:
-            case RustFFI::NodeKind::TableWrapper:
-                allocate_layout_node<BlockContainer>(document, BindToPreparedArenaSlot::Yes, slot, kind);
-                return;
-            case RustFFI::NodeKind::Box:
-                allocate_layout_node<Box>(document, BindToPreparedArenaSlot::Yes, slot, kind);
-                return;
-            case RustFFI::NodeKind::InlineNode:
-                allocate_layout_node<NodeWithStyle>(document, BindToPreparedArenaSlot::Yes, slot, kind).attach_style_resources();
-                return;
-            default:
-                VERIFY_NOT_REACHED();
-            } },
         .take_fieldset_overflow_for_content_wrapper = [](void*, void* fieldset_box_pointer) -> RustFFI::FfiAnonymousStyleOverrides {
             VERIFY(fieldset_box_pointer);
             auto& fieldset_box = as<BlockContainer>(*static_cast<Node*>(fieldset_box_pointer));

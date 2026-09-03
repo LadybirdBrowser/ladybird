@@ -1485,6 +1485,20 @@ u64 Internals::layout_node_identity(DOM::Node& node)
     return layout_node ? static_cast<u64>(layout_node->arena_slot_index()) + 1 : 0;
 }
 
+u64 Internals::layout_arena_live_slot_count()
+{
+    auto& document = window().associated_document();
+    document.update_layout(DOM::UpdateLayoutReason::Debugging);
+    return Layout::RustFFI::layout_arena_live_slot_count(document.layout_node_arena().handle());
+}
+
+u64 Internals::layout_arena_shell_count()
+{
+    auto& document = window().associated_document();
+    document.update_layout(DOM::UpdateLayoutReason::Debugging);
+    return Layout::RustFFI::layout_arena_shell_count(document.layout_node_arena().handle());
+}
+
 GC::Ref<JS::Object> Internals::style_engine_transaction_reactions()
 {
     auto& realm = HTML::relevant_realm(window());
