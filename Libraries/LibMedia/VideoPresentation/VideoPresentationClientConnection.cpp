@@ -117,10 +117,10 @@ void VideoPresentationClientConnection::update_edge_time_reader(u64 edge_id, Med
         edge_state->sink->set_time_reader(move(time_reader));
 }
 
-void VideoPresentationClientConnection::announce_video_frame_slot(u64 edge_id, VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer)
+void VideoPresentationClientConnection::announce_video_frame_slot(u64 edge_id, VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer, RefPtr<VideoSurface> surface)
 {
     if (auto edge_state = m_edge_states.get(edge_id); edge_state.has_value())
-        edge_state->slot_directory->notify_slot_announced(pool_id, slot_index, move(slot_buffer));
+        edge_state->slot_directory->notify_slot_announced(pool_id, slot_index, move(slot_buffer), move(surface));
 }
 
 void VideoPresentationClientConnection::retire_video_frame_pool(u64 edge_id, VideoFramePoolID pool_id)

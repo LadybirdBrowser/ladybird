@@ -68,9 +68,9 @@ void VideoPresentationServerConnection::create_video_edge(VideoSinkHandle video_
             connection.async_update_edge_time_reader(edge_id, time_reader);
         });
     };
-    delegates.announce_slot = [weak_connection, edge_id](VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer) {
+    delegates.announce_slot = [weak_connection, edge_id](VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer, RefPtr<VideoSurface> surface) {
         weak_connection.with_target([&](auto& connection) {
-            connection.async_announce_video_frame_slot(edge_id, pool_id, slot_index, move(slot_buffer));
+            connection.async_announce_video_frame_slot(edge_id, pool_id, slot_index, move(slot_buffer), move(surface));
         });
     };
     delegates.retire_pool = [weak_connection, edge_id](VideoFramePoolID pool_id) {

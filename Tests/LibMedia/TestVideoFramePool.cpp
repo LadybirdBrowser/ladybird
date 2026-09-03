@@ -202,7 +202,7 @@ TEST_CASE(shed_buffers_frees_all_but_held_slots)
     auto held = pool->try_acquire(resolved_frame_byte_count()).release_value();
     held.bytes.fill(0x42);
     auto directory = Media::VideoFrameSlotDirectory::create();
-    directory->notify_slot_announced(pool->id(), held.index, pool->slot_buffer(held.index));
+    directory->notify_slot_announced(pool->id(), held.index, pool->slot_buffer(held.index), nullptr);
 
     auto released = pool->try_acquire(FRAME_BYTE_COUNT).release_value();
     pool->release_hold(released.index);
@@ -329,7 +329,7 @@ TEST_CASE(directory_resolves_the_current_slot_acquisition_only)
     slot.bytes.fill(0x42);
 
     auto directory = Media::VideoFrameSlotDirectory::create();
-    directory->notify_slot_announced(pool->id(), slot.index, pool->slot_buffer(slot.index));
+    directory->notify_slot_announced(pool->id(), slot.index, pool->slot_buffer(slot.index), nullptr);
 
     auto frame = directory->resolve_frame(make_handle(pool, slot), [] { });
     EXPECT(frame != nullptr);
@@ -362,7 +362,7 @@ TEST_CASE(replaced_buffers_stay_resolvable_through_old_mappings)
     auto slot = slots.first();
     slot.bytes.fill(0x17);
     auto directory = Media::VideoFrameSlotDirectory::create();
-    directory->notify_slot_announced(pool->id(), slot.index, pool->slot_buffer(slot.index));
+    directory->notify_slot_announced(pool->id(), slot.index, pool->slot_buffer(slot.index), nullptr);
     for (auto const& acquired : slots)
         pool->release_hold(acquired.index);
 
@@ -377,7 +377,7 @@ TEST_CASE(replaced_buffers_stay_resolvable_through_old_mappings)
 
     // The new acquisition resolves only once its buffer is announced.
     EXPECT(directory->resolve_frame(make_handle(pool, replaced), [] { }) == nullptr);
-    directory->notify_slot_announced(pool->id(), replaced.index, pool->slot_buffer(replaced.index));
+    directory->notify_slot_announced(pool->id(), replaced.index, pool->slot_buffer(replaced.index), nullptr);
     EXPECT(directory->resolve_frame(make_handle(pool, replaced), [] { }) != nullptr);
     EXPECT(directory->resolve_frame(make_handle(pool, slot), [] { }) == nullptr);
 }
@@ -392,7 +392,7 @@ TEST_CASE(directory_resolves_through_a_second_mapping)
     auto transferred_fd = MUST(Core::System::dup(slot_buffer.fd()));
     auto transferred_buffer = MUST(Core::AnonymousBuffer::create_from_anon_fd(transferred_fd, slot_buffer.size()));
     auto directory = Media::VideoFrameSlotDirectory::create();
-    directory->notify_slot_announced(pool->id(), slot.index, transferred_buffer);
+    directory->notify_slot_announced(pool->id(), slot.index, transferred_buffer, nullptr);
 
     auto frame = directory->resolve_frame(make_handle(pool, slot), [] { });
     EXPECT(frame != nullptr);
@@ -409,9 +409,9 @@ TEST_CASE(directory_ignores_invalid_slot_buffers)
     size_t slots_changed_count = 0;
     directory->set_on_slots_changed([&] { slots_changed_count++; });
 
-    directory->notify_slot_announced(pool->id(), slot.index, {});
+    directory->notify_slot_announced(pool->id(), slot.index, {}, nullptr);
     auto too_small = MUST(Core::AnonymousBuffer::create_with_size(16));
-    directory->notify_slot_announced(pool->id(), slot.index, too_small);
+    directory->notify_slot_announced(pool->id(), slot.index, too_small, nullptr);
 
     EXPECT_EQ(slots_changed_count, 0u);
     EXPECT(directory->resolve_frame(make_handle(pool, slot), [] { }) == nullptr);
@@ -428,7 +428,7 @@ TEST_CASE(resolved_frames_read_slots_and_release_on_destruction)
     auto slot = pool->try_acquire(resolved_frame_byte_count()).release_value();
     slot.bytes.fill(0x33);
     auto directory = Media::VideoFrameSlotDirectory::create();
-    directory->notify_slot_announced(pool->id(), slot.index, pool->slot_buffer(slot.index));
+    directory->notify_slot_announced(pool->id(), slot.index, pool->slot_buffer(slot.index), nullptr);
 
     bool released = false;
     {
@@ -448,7 +448,7 @@ TEST_CASE(resolve_frame_rejects_stale_and_oversized_handles)
     auto pool = make_pool();
     auto slot = pool->try_acquire(resolved_frame_byte_count()).release_value();
     auto directory = Media::VideoFrameSlotDirectory::create();
-    directory->notify_slot_announced(pool->id(), slot.index, pool->slot_buffer(slot.index));
+    directory->notify_slot_announced(pool->id(), slot.index, pool->slot_buffer(slot.index), nullptr);
 
     // A format too large for the slot's buffer must not resolve.
     auto oversized = make_handle(pool, slot);
@@ -486,7 +486,7 @@ TEST_CASE(directory_resolves_announced_slots)
     auto handle = make_handle(pool, slot);
     EXPECT(directory->resolve_frame(handle, [] { }) == nullptr);
 
-    directory->notify_slot_announced(pool->id(), slot.index, pool->slot_buffer(slot.index));
+    directory->notify_slot_announced(pool->id(), slot.index, pool->slot_buffer(slot.index), nullptr);
     EXPECT_EQ(slots_changed_count, 1u);
 
     bool released = false;
@@ -514,7 +514,7 @@ TEST_CASE(recycle_versus_hold_stress)
         slots.append(pool->try_acquire(resolved_frame_byte_count()).release_value());
     IGNORE_USE_IN_ESCAPING_LAMBDA auto directory = Media::VideoFrameSlotDirectory::create();
     for (u32 i = 0; i < Media::VideoFramePool::MAX_SLOT_COUNT; i++)
-        directory->notify_slot_announced(pool->id(), i, pool->slot_buffer(i));
+        directory->notify_slot_announced(pool->id(), i, pool->slot_buffer(i), nullptr);
     for (auto const& slot : slots)
         pool->release_hold(slot.index);
 
@@ -663,6 +663,36 @@ TEST_CASE(surface_slots_survive_a_mach_port_round_trip)
     EXPECT_EQ(reimported.id(), surface->id());
     EXPECT_EQ(reimported.width(), 16u);
     EXPECT_EQ(reimported.height(), 16u);
+}
+
+TEST_CASE(directory_resolves_an_announced_surface_slot)
+{
+    auto pool = MUST(Media::VideoFrameSurfacePool::create());
+    auto surface = make_surface();
+    auto acquired = pool->try_acquire(surface).value();
+
+    auto directory = Media::VideoFrameSlotDirectory::create();
+    directory->notify_slot_announced(pool->id(), acquired.index, pool->slot_buffer(acquired.index), pool->slot_surface(acquired.index));
+
+    Media::VideoFrameHandle handle {
+        .pool_id = pool->id(),
+        .slot_index = acquired.index,
+        .slot_acquisition_id = acquired.slot_acquisition_id,
+        .timestamp = {},
+        .duration = {},
+        .size = { 16, 16 },
+        .bit_depth = 8,
+        .subsampling = Media::Subsampling(true, true),
+        .cicp = {},
+    };
+
+    auto frame = directory->resolve_frame(handle, [] { });
+    EXPECT_NE(frame, nullptr);
+    EXPECT_NE(frame->surface(), nullptr);
+    EXPECT_EQ(frame->surface()->id(), surface->id());
+
+    // The planes of a surface-backed frame live on the GPU, so no view into its slot buffer is offered.
+    EXPECT(!frame->yuv_data().has_value());
 }
 
 TEST_CASE(surface_slots_hold_and_free_through_the_shared_ledger)

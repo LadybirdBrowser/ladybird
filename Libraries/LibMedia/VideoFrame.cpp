@@ -5,6 +5,7 @@
  */
 
 #include <LibMedia/VideoFramePool.h>
+#include <LibMedia/VideoSurface.h>
 
 #include "VideoFrame.h"
 
@@ -26,6 +27,13 @@ VideoFrame::VideoFrame(
     , m_cicp(cicp)
     , m_backing_storage(move(backing_storage))
 {
+}
+
+RefPtr<VideoSurface> VideoFrame::surface() const
+{
+    return m_backing_storage.visit(
+        [](NonnullRefPtr<PooledVideoFrameSlot> const& slot) -> RefPtr<VideoSurface> { return slot->ledger().slot_surface(slot->slot_index()); },
+        [](NonnullRefPtr<ResolvedVideoFrameSlot> const& slot) -> RefPtr<VideoSurface> { return slot->surface(); });
 }
 
 Optional<Gfx::YUVData> VideoFrame::yuv_data() const

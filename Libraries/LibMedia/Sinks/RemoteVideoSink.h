@@ -37,7 +37,7 @@ public:
         // Relays a replacement time reader (e.g. after audio is disabled) to the consumer; the initial one rides video_edge_ready.
         Function<void(MediaTimeReader const&)> transmit_time_reader;
         // Called to lend each new buffer backing a slot to the other side, before the first handle that refers to it.
-        Function<void(VideoFramePoolID, u32 slot_index, Core::AnonymousBuffer)> announce_slot;
+        Function<void(VideoFramePoolID, u32 slot_index, Core::AnonymousBuffer, RefPtr<VideoSurface>)> announce_slot;
         // Called when a pool's last lent slot is released, so the other side can drop its slot buffers.
         Function<void(VideoFramePoolID)> retire_pool;
     };

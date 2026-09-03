@@ -22,6 +22,7 @@ namespace Media {
 
 class PooledVideoFrameSlot;
 class ResolvedVideoFrameSlot;
+class VideoSurface;
 
 class MEDIA_API VideoFrame final : public AtomicRefCounted<VideoFrame> {
 
@@ -50,7 +51,11 @@ public:
     Subsampling subsampling() const { return m_subsampling; }
     CodingIndependentCodePoints const& cicp() const { return m_cicp; }
 
+    // A view of the planes in the backing slot's buffer, absent when a platform surface holds them instead.
     Optional<Gfx::YUVData> yuv_data() const;
+
+    // The platform surface holding the frame's pixels, null when they live in the backing slot's buffer.
+    RefPtr<VideoSurface> surface() const;
 
     PooledVideoFrameSlot const* pool_slot() const;
     ResolvedVideoFrameSlot const* resolved_slot() const;
