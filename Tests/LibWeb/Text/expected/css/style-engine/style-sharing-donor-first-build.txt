@@ -1,0 +1,4 @@
+differing sibling: 12 longhand evaluations
+differing sibling: x 20px, fill rgb(0, 0, 255), width 10px
+identical sibling: 10 longhand evaluations
+identical sibling: x 1px, fill rgb(255, 0, 0), width 10px

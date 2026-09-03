@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="container">
+    <svg width="100" height="100">
+        <rect id="first" x="1" y="1" width="10" height="10" fill="red"></rect>
+        <rect id="second" x="20" y="1" width="10" height="10" fill="blue"></rect>
+    </svg>
+</div>
+<script>
+    test(() => {
+        internals.updateStyle();
+
+        // Hiding the subtree discards the descendants' style records. Changing the root font size
+        // drops the style sharing cache, so on reappearance the second rect misses its own earlier
+        // entry and is built over its sibling's style.
+        container.style.display = "none";
+        internals.updateStyle();
+        document.documentElement.style.fontSize = "17px";
+        internals.updateStyle();
+
+        const before = internals.getStyleInvalidationCounters();
+        container.style.display = "block";
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`partial builds: ${after.baseStylePartialBuilds - before.baseStylePartialBuilds}`);
+
+        for (const rect of [first, second]) {
+            const style = getComputedStyle(rect);
+            println(`${rect.id}: x ${style.x}, fill ${style.fill}`);
+        }
+    });
+</script>

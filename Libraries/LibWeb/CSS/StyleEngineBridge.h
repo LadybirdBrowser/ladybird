@@ -97,7 +97,7 @@ public:
     // explicit discard. Consume them synchronously before asking the engine anything else.
     [[nodiscard]] ReadonlySpan<ComputedValuesFFI::FfiSourceSlotAssignment> materialize_retained_cascade_state(StyleNodeID node, u8 pseudo_kind, ComputedValuesFFI::CascadedPropertyStore*, ReadonlySpan<ComputedValuesFFI::FfiCascadeBlock>);
     void discard_retained_cascade_assignments();
-    [[nodiscard]] ExactCascadePublication publish_exact_cascade_state(StyleNodeID node, u8 pseudo_kind, ComputedValuesFFI::CascadedPropertyStore const*, u8 inherited_style_groups = 0);
+    [[nodiscard]] ExactCascadePublication publish_exact_cascade_state(StyleNodeID node, u8 pseudo_kind, ComputedValuesFFI::CascadedPropertyStore const*, u8 inherited_style_groups = 0, StyleNodeID donor_node = {}, StyleRecordID donor_style_record = {});
     // Publish the immutable input identities of an element or pseudo-element's base style and
     // return its previous and current StyleRecordID assignments. A zero node interns an unassigned
     // record for a style target which is not registered in the engine.

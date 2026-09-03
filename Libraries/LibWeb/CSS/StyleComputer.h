@@ -44,6 +44,26 @@ struct StyleEngineMatchResult {
     Optional<u32> signature;
 };
 
+struct StyleSharingKey {
+    // The inherited groups of the parent style by address, then everything else the computation
+    // reads: the element's shape and every declaration that applies to it, in order, named by
+    // property and origin but not by value. Two keys that agree here differ in declaration values
+    // alone.
+    Vector<u64> computation_inputs;
+    // Every value the key names by its address rather than by its owner. A presentational hint
+    // is mapped afresh for each element and dies with the cascade that read it, so without this
+    // the next element's hint is free to land on the same address and read as the same value.
+    Vector<NonnullRefPtr<StyleValue const>> pinned_values;
+
+    [[nodiscard]] u64 hash() const;
+    [[nodiscard]] u64 hash_without_values() const;
+    [[nodiscard]] bool equals(StyleSharingKey const&) const;
+    [[nodiscard]] bool equals_without_values(StyleSharingKey const&) const;
+    [[nodiscard]] bool inputs_after_parent_groups_equal(StyleSharingKey const&) const;
+    [[nodiscard]] bool values_equal(StyleSharingKey const&) const;
+    [[nodiscard]] bool parent_groups_equal(StyleSharingKey const&) const;
+};
+
 class WEB_API StyleComputer final : public GC::Cell {
     GC_CELL(StyleComputer, GC::Cell);
     GC_DECLARE_ALLOCATOR(StyleComputer);
@@ -240,11 +260,7 @@ public:
     // fixed size and the escape hatches stay honest.
     struct StyleSharingCandidate {
         // Empty until the cascade has run; unusable when the element is not a sharing candidate.
-        Vector<u64> key;
-        // Every value the key names by its address rather than by its owner. A presentational hint
-        // is mapped afresh for each element and dies with the cascade that read it, so without this
-        // the next element's hint is free to land on the same address and read as the same value.
-        Vector<NonnullRefPtr<StyleValue const>> pinned_key_values;
+        StyleSharingKey key;
         StyleGroupPayloadPins pinned_parent_groups;
         // The style the key names the inherited groups of, for the same reason.
         StyleRecordID parent_style_record_identity;
@@ -270,6 +286,9 @@ public:
         // The exact cascade winner delta's conservative computed dependency closure. Present only
         // when a preceding base style is available to supply every group outside the closure.
         Optional<u32> computed_groups_to_rebuild;
+        // The base style supplying those groups when it is another element's rather than this
+        // element's previous one.
+        RefPtr<ComputedValues const> donor_values;
         u8 inherited_style_groups { 0 };
     };
 
@@ -359,9 +378,9 @@ private:
     // effects an element carries away from its own computation are here; everything else the
     // computation did was to values that are in the shared style.
     struct StyleSharingEntry {
-        Vector<u64> key;
+        StyleSharingKey key;
         StyleGroupPayloadPins pinned_parent_groups;
-        Vector<NonnullRefPtr<StyleValue const>> pinned_key_values;
+        StyleNodeID style_node_id;
         StyleRecordID parent_style_record_identity;
         // The style groups whose values the computation read from the inherited style's
         // non-inherited half, which the key does not name. An entry with any such group answers
@@ -385,6 +404,8 @@ private:
     static constexpr size_t maximum_persistent_style_sharing_entries = 8192;
     mutable HashMap<u64, Vector<StyleSharingEntry>> m_style_sharing_cache;
     mutable size_t m_style_sharing_cache_entry_count { 0 };
+    static constexpr size_t maximum_style_sharing_donors_per_key = 4;
+    mutable HashMap<u64, Vector<u64, maximum_style_sharing_donors_per_key>> m_style_sharing_donor_index;
     mutable u64 m_style_sharing_transaction_generation { 0 };
     mutable bool m_materializing_for_targeted_style_update { false };
     // The word buffer one element's record gives up, reused by the next element's.
