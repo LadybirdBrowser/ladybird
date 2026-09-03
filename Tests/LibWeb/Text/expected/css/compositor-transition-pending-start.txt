@@ -12,3 +12,13 @@ resolved start retains compositor anchor: true
 pending current-time seek re-anchors compositor: true
 pending start-time change re-anchors compositor: true
 pending transition retarget replaces descriptor: true
+static opacity transition declarations do not create effects frames: true
+paired opacity and translate transitions start on compositor: true
+paired transitions share their provisional timing anchor: true
+pending fade-out creates an effects frame: true
+withdrawn fade-out removes its forced effects frame: true
+adding an opacity animation creates an effects frame: true
+adding a filter withdraws compositor opacity: true
+adding a filter removes the forced effects frame: true
+retargeted opacity starts with paired translate on compositor: true
+retargeted paired transitions share their provisional timing anchor: true

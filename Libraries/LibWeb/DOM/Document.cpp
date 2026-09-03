@@ -7992,6 +7992,7 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
                 *missing_visual_context_node = true;
             return {};
         }
+
         Compositor::VisualAnimation visual_animation {
             .target_kind = target_kind,
             .visual_context_node_indices = move(visual_context_node_indices),
@@ -8385,6 +8386,49 @@ void Document::update_compositor_animations()
         validate_winner(effects.background_color);
         validate_winner(effects.transform);
     }
+
+    // An opacity of 1 does not otherwise create an effects frame. Give an otherwise publishable opacity
+    // animation a target before the normal handoff loop, and retain that target while the effect remains live.
+    auto can_force_opacity_effects_layer = [](Animations::KeyframeEffect const& effect) {
+        return all_of(effect.target_properties(), [](auto const& property) {
+            return first_is_one_of(property.id(), CSS::PropertyID::Opacity, CSS::PropertyID::BackgroundColor)
+                || is_transform_family_property(property.id());
+        });
+    };
+    bool forced_opacity_effects_layer = false;
+    for (auto& [target, effects] : competing_effects) {
+        auto effect = effects.opacity.winner;
+        if (!effect || opacity_affects_visibility_observation(target.element()) || !can_force_opacity_effects_layer(*effect))
+            continue;
+
+        Optional<bool> only_translates_horizontally;
+        bool missing_visual_context_node = false;
+        (void)build_compositor_animation(*effect, visual_context_tree, Compositor::VisualAnimation::TargetKind::Opacity, only_translates_horizontally, &missing_visual_context_node);
+        auto* layout_node = target.unsafe_layout_node();
+        if (!layout_node)
+            continue;
+        bool already_forced_effects_layer = any_of(layout_nodes_with_stale_forced_effects_layer, [&](auto const& stale_layout_node) {
+            return stale_layout_node.ptr() == layout_node;
+        });
+        if (!missing_visual_context_node && !already_forced_effects_layer)
+            continue;
+
+        if (missing_visual_context_node && !layout_node->needs_compositor_effects_layer()) {
+            layout_node->set_needs_compositor_effects_layer(true);
+            schedule_accumulated_visual_context_update(*layout_node, AccumulatedVisualContextUpdateScope::Structure);
+            CSS::RequiredInvalidationAfterStyleChange invalidation;
+            invalidation.ensure_at_least(CSS::InvalidationLevel::Repaint);
+            Painting::repaint_after_style_change(*layout_node, invalidation);
+            forced_opacity_effects_layer = true;
+        }
+        if (!any_of(m_layout_nodes_with_forced_compositor_effects_layer, [&](auto const& forced_layout_node) { return forced_layout_node.ptr() == layout_node; }))
+            m_layout_nodes_with_forced_compositor_effects_layer.append(*layout_node);
+        layout_nodes_with_stale_forced_effects_layer.remove_first_matching([&](auto const& stale_layout_node) {
+            return stale_layout_node.ptr() == layout_node;
+        });
+    }
+    if (forced_opacity_effects_layer)
+        visual_context_tree = paint_state().visual_context_tree(*this);
 
     bool has_observation_relevant_compositor_animation = false;
     bool requested_withdrawn_effect_sample = false;

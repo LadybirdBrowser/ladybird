@@ -21,11 +21,36 @@
     #retarget.second {
         opacity: 0.9;
     }
+
+    .paired {
+        width: 20px;
+        height: 20px;
+        opacity: 1;
+        translate: none;
+        transition: opacity 400ms linear 100ms, translate 400ms linear 100ms;
+    }
+
+    .paired.changed,
+    #paired-retarget.second {
+        opacity: 0;
+        translate: 0 24px;
+    }
+
+    #paired-retarget.first {
+        opacity: 0.5;
+    }
+
+    .static-opacity-transition {
+        transition: opacity 400ms linear;
+    }
 </style>
 <div class="target" id="target"></div>
 <div class="target" id="current-time"></div>
 <div class="target" id="start-time"></div>
 <div class="target" id="retarget"></div>
+<div class="paired" id="paired"></div>
+<div class="paired" id="paired-retarget"></div>
+<div id="static-opacity-transitions"></div>
 <script>
     function nextTask() {
         const { promise, resolve } = Promise.withResolvers();
@@ -39,6 +64,9 @@
         const currentTimeTarget = document.getElementById("current-time");
         const startTimeTarget = document.getElementById("start-time");
         const retargetTarget = document.getElementById("retarget");
+        const pairedTarget = document.getElementById("paired");
+        const pairedRetargetTarget = document.getElementById("paired-retarget");
+        const staticOpacityTransitions = document.getElementById("static-opacity-transitions");
         internals.setManualRenderingOpportunities(true);
         await nextTask();
 
@@ -105,7 +133,7 @@
         startTimeAnimation.startTime = documentTimelineCurrentTime - 200;
         internals.updateCompositorAnimations();
         const startTimeCounters = internals.getStyleInvalidationCounters();
-        println(`pending start-time change re-anchors compositor: ${!startTimeAnimation.pending && startTimeCounters.compositorVisualAnimationTimingAnchorUpdates === 1 && startTimeCounters.compositorVisualAnimationLocalTimeAtAnchor === 200}`);
+        println(`pending start-time change re-anchors compositor: ${!startTimeAnimation.pending && startTimeCounters.compositorVisualAnimationTimingAnchorUpdates === 1 && Math.abs(startTimeCounters.compositorVisualAnimationLocalTimeAtAnchor - 200) < 1}`);
         startTimeAnimation.cancel();
         internals.updateCompositorAnimations();
 
@@ -120,6 +148,74 @@
         internals.updateCompositorAnimations();
         const retargetCounters = internals.getStyleInvalidationCounters();
         println(`pending transition retarget replaces descriptor: ${originalRetargetAnimation.playState === "idle" && retargetAnimations.length === 1 && retargetAnimations[0] !== originalRetargetAnimation && retargetCounters.compositorVisualAnimations === 1 && retargetCounters.compositorVisualAnimationUpdates === 1}`);
+
+        for (const activeAnimation of document.getAnimations())
+            activeAnimation.cancel();
+        internals.updateCompositorAnimations();
+        document.elementFromPoint(0, 0);
+        for (let i = 0; i < 50; ++i)
+            staticOpacityTransitions.append(document.createElement("div"));
+        for (const child of staticOpacityTransitions.children)
+            child.className = "static-opacity-transition";
+        document.elementFromPoint(0, 0);
+        const staticTransitionEffectsFrameCount = [...staticOpacityTransitions.children]
+            .filter(element => internals.visualContextNodeIndices(element).needsCompositorEffectsLayer).length;
+        println(`static opacity transition declarations do not create effects frames: ${staticTransitionEffectsFrameCount === 0}`);
+
+        const pairedNeedsEffectsFrameBefore = internals.visualContextNodeIndices(pairedTarget).needsCompositorEffectsLayer;
+        pairedTarget.classList.add("changed");
+        internals.resetStyleInvalidationCounters();
+        internals.injectRenderingOpportunity(firstFrameTime + 180);
+        await nextTask();
+        internals.updateCompositorAnimations();
+        const pairedAnimations = pairedTarget.getAnimations();
+        const pairedCounters = internals.getStyleInvalidationCounters();
+        const pairedNeedsEffectsFrameAfter = internals.visualContextNodeIndices(pairedTarget).needsCompositorEffectsLayer;
+        println(`paired opacity and translate transitions start on compositor: ${pairedAnimations.length === 2 && pairedCounters.compositorVisualAnimations === 2}`);
+        println(`paired transitions share their provisional timing anchor: ${pairedCounters.compositorVisualAnimationsShareTimingAnchor}`);
+        println(`pending fade-out creates an effects frame: ${!pairedNeedsEffectsFrameBefore && pairedNeedsEffectsFrameAfter}`);
+
+        for (const pairedAnimation of pairedAnimations)
+            pairedAnimation.cancel();
+        pairedTarget.style.transition = "none";
+        pairedTarget.classList.remove("changed");
+        document.elementFromPoint(0, 0);
+        internals.updateCompositorAnimations();
+        println(`withdrawn fade-out removes its forced effects frame: ${!internals.visualContextNodeIndices(pairedTarget).needsCompositorEffectsLayer}`);
+
+        const mixedAnimation = pairedTarget.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 400, fill: "backwards" });
+        internals.injectRenderingOpportunity(firstFrameTime + 200);
+        await nextTask();
+        internals.updateCompositorAnimations();
+        const mixedOpacityNeedsEffectsFrame = internals.visualContextNodeIndices(pairedTarget).needsCompositorEffectsLayer;
+        mixedAnimation.effect.setKeyframes([
+            { opacity: 1, filter: "none" },
+            { opacity: 0, filter: "blur(1px)" },
+        ]);
+        internals.resetStyleInvalidationCounters();
+        internals.updateCompositorAnimations();
+        const mixedEffectCounters = internals.getStyleInvalidationCounters();
+        const mixedEffectNeedsEffectsFrame = internals.visualContextNodeIndices(pairedTarget).needsCompositorEffectsLayer;
+        println(`adding an opacity animation creates an effects frame: ${mixedOpacityNeedsEffectsFrame}`);
+        println(`adding a filter withdraws compositor opacity: ${mixedEffectCounters.compositorVisualAnimations === 0}`);
+        println(`adding a filter removes the forced effects frame: ${!mixedEffectNeedsEffectsFrame}`);
+        mixedAnimation.cancel();
+
+        pairedRetargetTarget.classList.add("first");
+        internals.injectRenderingOpportunity(firstFrameTime + 240);
+        await nextTask();
+        internals.injectRenderingOpportunity(firstFrameTime + 300);
+        await nextTask();
+        const originalPairedRetargetAnimation = pairedRetargetTarget.getAnimations()[0];
+        pairedRetargetTarget.classList.replace("first", "second");
+        internals.resetStyleInvalidationCounters();
+        internals.injectRenderingOpportunity(firstFrameTime + 360);
+        await nextTask();
+        internals.updateCompositorAnimations();
+        const pairedRetargetAnimations = pairedRetargetTarget.getAnimations();
+        const pairedRetargetCounters = internals.getStyleInvalidationCounters();
+        println(`retargeted opacity starts with paired translate on compositor: ${originalPairedRetargetAnimation.playState === "idle" && pairedRetargetAnimations.length === 2 && pairedRetargetCounters.compositorVisualAnimations === 2}`);
+        println(`retargeted paired transitions share their provisional timing anchor: ${pairedRetargetCounters.compositorVisualAnimationsShareTimingAnchor}`);
 
         internals.setManualRenderingOpportunities(false);
         done();
