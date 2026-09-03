@@ -35,6 +35,26 @@ class TestXctraceTimeProfile(unittest.TestCase):
         self.assertEqual(sample_count, 3)
         self.assertEqual(weights, {"leaf": 4_000_000, "caller": 2_000_000, "outer": 2_000_000})
 
+    def test_resolves_frames_placed_directly_under_tagged_backtrace(self):
+        exported_table = """<?xml version="1.0"?>
+<trace-query-result><node>
+<row><weight id="1">1000000</weight><tagged-backtrace id="2">
+<frame id="3" name="leaf"/><frame id="4" name="caller"/>
+</tagged-backtrace></row>
+<row><weight ref="1"/><tagged-backtrace ref="2"/></row>
+<row><weight id="5">2000000</weight><tagged-backtrace id="6">
+<frame ref="3"/><frame id="7" name="outer"/>
+</tagged-backtrace></row>
+</node></trace-query-result>
+"""
+        with tempfile.NamedTemporaryFile("w", suffix=".xml") as export:
+            export.write(exported_table)
+            export.flush()
+            sample_count, weights = MODULE["inclusive_weights"](export.name)
+
+        self.assertEqual(sample_count, 3)
+        self.assertEqual(weights, {"leaf": 4_000_000, "caller": 2_000_000, "outer": 2_000_000})
+
 
 if __name__ == "__main__":
     unittest.main()
