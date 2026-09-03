@@ -1,0 +1,3 @@
+PASS: the speculative fetch of a module script sends an Origin header
+PASS: the speculative fetch of a module script is a CORS-mode request
+PASS: the module script runs once the parser reaches it

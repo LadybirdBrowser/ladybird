@@ -12,6 +12,7 @@ use crate::token::Token;
 use crate::token::TokenPayload;
 use crate::token::TokenType;
 use crate::tokenizer::HtmlTokenizer;
+use std::borrow::Cow;
 use std::ffi::c_void;
 
 #[repr(C)]
@@ -20,6 +21,7 @@ pub enum RustFfiPreloadScannerAction {
     Base = 0,
     Fetch = 1,
     ModulePreload = 2,
+    ModuleScript = 3,
 }
 
 #[repr(C)]
@@ -214,15 +216,106 @@ fn process_script(attributes: &[Attribute], callback: &mut impl FnMut(&RustFfiPr
     if src.is_empty() {
         return true;
     }
-
+    let action = match script_type_from_attributes(attributes) {
+        // 'If el has a nomodule content attribute and its type is "classic", then return.' — so the script never runs,
+        // and preparing it doesn't fetch src.
+        Some(ScriptType::Classic) if attribute_value(attributes, attribute_name!("nomodule")).is_some() => return true,
+        Some(ScriptType::Classic) => RustFfiPreloadScannerAction::Fetch,
+        Some(ScriptType::Module) => RustFfiPreloadScannerAction::ModuleScript,
+        // An import map or speculation-rules script with a src attribute only fires an error event, and a script whose
+        // type is null never runs — none of them fetch src.
+        Some(ScriptType::ImportMap) | Some(ScriptType::SpeculationRules) | None => return true,
+    };
     emit_entry(
         callback,
-        RustFfiPreloadScannerAction::Fetch,
+        action,
         src,
         RustFfiPreloadScannerDestination::Script,
         cors_setting_from_attribute(attributes),
         Some(attributes),
     )
+}
+
+/// The type "prepare the script element" gives a script element from its type and language attributes.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ScriptType {
+    Classic,
+    Module,
+    ImportMap,
+    SpeculationRules,
+}
+
+// https://mimesniff.spec.whatwg.org/#javascript-mime-type
+// A JavaScript MIME type is any MIME type whose essence is one of the following:
+const JAVASCRIPT_MIME_TYPE_ESSENCES: [&[u8]; 16] = [
+    b"application/ecmascript",
+    b"application/javascript",
+    b"application/x-ecmascript",
+    b"application/x-javascript",
+    b"text/ecmascript",
+    b"text/javascript",
+    b"text/javascript1.0",
+    b"text/javascript1.1",
+    b"text/javascript1.2",
+    b"text/javascript1.3",
+    b"text/javascript1.4",
+    b"text/javascript1.5",
+    b"text/jscript",
+    b"text/livescript",
+    b"text/x-ecmascript",
+    b"text/x-javascript",
+];
+
+// https://html.spec.whatwg.org/multipage/scripting.html#prepare-the-script-element
+// Steps 8 to 13 of "prepare the script element": the type the element gets from its type and language attributes, or
+// None when "no script is executed, and el's type is left as null".
+fn script_type_from_attributes(attributes: &[Attribute]) -> Option<ScriptType> {
+    let type_attribute = attribute_value(attributes, attribute_name!("type"));
+    let language_attribute = attribute_value(attributes, attribute_name!("language"));
+
+    // 8. If any of the following are true:
+    //    - el has a type attribute whose value is the empty string;
+    //    - el has no type attribute but it has a language attribute and that attribute's value is the empty string; or
+    //    - el has neither a type attribute nor a language attribute,
+    //    then let the script block's type string for this script element be "text/javascript".
+    //    Otherwise, if el has a type attribute, then let the script block's type string be the value of that attribute
+    //    with leading and trailing ASCII whitespace stripped.
+    //    Otherwise, el has a non-empty language attribute; let the script block's type string be the concatenation of
+    //    "text/" and the value of el's language attribute.
+    let type_string: Cow<'_, [u8]> = match (type_attribute, language_attribute) {
+        (Some(""), _) | (None, Some("")) | (None, None) => Cow::Borrowed(b"text/javascript"),
+        (Some(type_attribute), _) => Cow::Borrowed(type_attribute.as_bytes().trim_ascii()),
+        (None, Some(language)) => Cow::Owned([b"text/".as_slice(), language.as_bytes()].concat()),
+    };
+
+    // 9. If the script block's type string is a JavaScript MIME type essence match, then set el's type to "classic".
+    if JAVASCRIPT_MIME_TYPE_ESSENCES
+        .iter()
+        .any(|essence| type_string.eq_ignore_ascii_case(essence))
+    {
+        return Some(ScriptType::Classic);
+    }
+
+    // 10. Otherwise, if the script block's type string is an ASCII case-insensitive match for the string "module", then
+    //     set el's type to "module".
+    if type_string.eq_ignore_ascii_case(b"module") {
+        return Some(ScriptType::Module);
+    }
+
+    // 11. Otherwise, if the script block's type string is an ASCII case-insensitive match for the string "importmap",
+    //     then set el's type to "importmap".
+    if type_string.eq_ignore_ascii_case(b"importmap") {
+        return Some(ScriptType::ImportMap);
+    }
+
+    // 12. Otherwise, if the script block's type string is an ASCII case-insensitive match for the string
+    //     "speculationrules", then set el's type to "speculationrules".
+    if type_string.eq_ignore_ascii_case(b"speculationrules") {
+        return Some(ScriptType::SpeculationRules);
+    }
+
+    // 13. Otherwise, return. (No script is executed, and el's type is left as null.)
+    None
 }
 
 fn process_link(attributes: &[Attribute], callback: &mut impl FnMut(&RustFfiPreloadScannerEntry) -> bool) -> bool {
@@ -650,6 +743,84 @@ mod tests {
                 "high".to_string(),
                 "screen".to_string(),
             ))
+        );
+    }
+
+    #[test]
+    fn classifies_script_elements_by_type() {
+        let entries = collect(
+            r#"
+                <script src="./classic.js"></script>
+                <script type="" src="./empty-type.js"></script>
+                <script type=" Text/JavaScript " src="./javascript-mime-type.js"></script>
+                <script language="javascript1.5" src="./language.js"></script>
+                <script type="module" src="./module.js"></script>
+                <script type=" MODULE " src="./module-uppercase.js"></script>
+                <script type="module" crossorigin src="./module-anonymous.js"></script>
+                <script type="module" crossorigin="use-credentials" src="./module-credentialed.js"></script>
+                <script type="module" nomodule src="./module-nomodule.js"></script>
+                <script nomodule src="./classic-nomodule.js"></script>
+                <script type="importmap" src="./import-map.json"></script>
+                <script type="speculationrules" src="./speculation-rules.json"></script>
+                <script type="text/template" src="./template.html"></script>
+                <script language="" type="text/template" src="./template-language.html"></script>
+            "#,
+        );
+        let script = |action, url: &str, cors_setting| ScannedEntry {
+            action,
+            url: url.to_string(),
+            destination: RustFfiPreloadScannerDestination::Script,
+            cors_setting,
+        };
+        assert_eq!(
+            entries,
+            vec![
+                script(
+                    RustFfiPreloadScannerAction::Fetch,
+                    "./classic.js",
+                    RustFfiPreloadScannerCorsSetting::NoCors
+                ),
+                script(
+                    RustFfiPreloadScannerAction::Fetch,
+                    "./empty-type.js",
+                    RustFfiPreloadScannerCorsSetting::NoCors
+                ),
+                script(
+                    RustFfiPreloadScannerAction::Fetch,
+                    "./javascript-mime-type.js",
+                    RustFfiPreloadScannerCorsSetting::NoCors
+                ),
+                script(
+                    RustFfiPreloadScannerAction::Fetch,
+                    "./language.js",
+                    RustFfiPreloadScannerCorsSetting::NoCors
+                ),
+                script(
+                    RustFfiPreloadScannerAction::ModuleScript,
+                    "./module.js",
+                    RustFfiPreloadScannerCorsSetting::NoCors
+                ),
+                script(
+                    RustFfiPreloadScannerAction::ModuleScript,
+                    "./module-uppercase.js",
+                    RustFfiPreloadScannerCorsSetting::NoCors
+                ),
+                script(
+                    RustFfiPreloadScannerAction::ModuleScript,
+                    "./module-anonymous.js",
+                    RustFfiPreloadScannerCorsSetting::Anonymous
+                ),
+                script(
+                    RustFfiPreloadScannerAction::ModuleScript,
+                    "./module-credentialed.js",
+                    RustFfiPreloadScannerCorsSetting::UseCredentials
+                ),
+                script(
+                    RustFfiPreloadScannerAction::ModuleScript,
+                    "./module-nomodule.js",
+                    RustFfiPreloadScannerCorsSetting::NoCors
+                ),
+            ]
         );
     }
 }
