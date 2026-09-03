@@ -1184,8 +1184,8 @@ static bool can_detach_layout_subtree_for_removal(Node const& node, Node const& 
         // content directly in the parent instead.
         bool an_anonymous_inline_wrapper_remains = false;
         bool an_in_flow_block_level_sibling_remains = false;
-        for (auto sibling = parent_layout_node->first_child(); sibling; sibling = sibling->next_sibling()) {
-            if (sibling.ptr() == layout_node)
+        for (auto const* sibling = parent_layout_node->first_child(); sibling; sibling = sibling->next_sibling()) {
+            if (sibling == layout_node)
                 continue;
             if (auto const* sibling_with_style = as_if<Layout::NodeWithStyle>(*sibling); sibling_with_style && sibling_with_style->is_out_of_flow())
                 continue;
@@ -1350,7 +1350,7 @@ void Node::remove(bool suppress_observers)
             if (auto* first_letter_owner = first_letter_owner_for_layout_subtree_from(*parent)) {
                 first_letter_owner->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
             } else if (can_detach_layout_subtree_for_removal(*this, *parent)) {
-                RefPtr<Layout::Node> layout_node = unsafe_layout_node();
+                auto* layout_node = unsafe_layout_node();
                 layout_node->for_each_in_inclusive_subtree([](Layout::Node& node) {
                     node.clear_committed_box();
                     return TraversalDecision::Continue;

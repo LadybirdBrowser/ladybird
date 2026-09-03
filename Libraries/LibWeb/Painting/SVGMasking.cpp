@@ -20,9 +20,9 @@ static Layout::Box const* first_child_layout_box_of_kind(SVG::SVGGraphicsElement
     // NB: Called during painting.
     if (!graphics_element.unsafe_layout_node())
         return nullptr;
-    for (auto child = graphics_element.unsafe_layout_node()->first_child(); child; child = child->next_sibling()) {
+    for (auto const* child = graphics_element.unsafe_layout_node()->first_child(); child; child = child->next_sibling()) {
         if (child->kind() == kind)
-            return static_cast<Layout::Box const*>(child.ptr());
+            return static_cast<Layout::Box const*>(child);
     }
     return nullptr;
 }
