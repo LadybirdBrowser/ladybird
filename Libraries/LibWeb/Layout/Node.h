@@ -347,9 +347,9 @@ private:
 
     NonnullRefPtr<NodeArena> m_arena;
     RustFFI::NodeSlotId m_slot;
-    // A DOM mutation can disconnect a node before the next layout-tree update. Keep the DOM node alive until this
-    // layout node is destroyed so detach hooks never observe a collected image provider or other element state.
-    GC::Root<DOM::Node> m_dom_node;
+    // A DOM mutation can disconnect a node before the next layout-tree update. The arena roots the DOM node
+    // through Document::visit_edges while this slot is live, so detach hooks never observe a collected element.
+    GC::RawPtr<DOM::Node> m_dom_node;
     GC::Weak<DOM::Element> m_pseudo_element_generator;
     RustFFI::NodeKind m_kind { RustFFI::NodeKind::Unset };
     bool m_arena_is_destroying_shell { false };
