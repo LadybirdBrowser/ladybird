@@ -148,7 +148,6 @@ pub struct PaintRecorder<'a> {
     pub(crate) all_descendant_subtree_caches_dirty: bool,
     text_node_facts_cache: HashMap<u32, FfiHitTestTextNodeFacts>,
     font_resource_id_cache: HashMap<usize, u64>,
-    text_control_selection_cache: HashMap<u32, crate::painting::host::FfiTextControlSelection>,
     selection_style_cache: HashMap<u32, Rc<paint::text::SelectionStyleAnswer>>,
     pub(crate) wheel_hit_test_target_cache: HashMap<NodeSlotId, SpatialNodeIndex>,
 }
@@ -203,19 +202,18 @@ impl<'a> PaintRecorder<'a> {
         font_id
     }
 
-    pub(crate) fn text_control_selection(
-        &mut self,
-        node: crate::layout::node_data::NodeSlotId,
-    ) -> crate::painting::host::FfiTextControlSelection {
-        let key = node.index;
-        if let Some(facts) = self.text_control_selection_cache.get(&key) {
-            return *facts;
+    /// The focused text control's selection as `(start, end)` when `node` is one of its text
+    /// node's committed rows.
+    pub(crate) fn text_control_selection(&self, node: NodeSlotId) -> Option<(usize, usize)> {
+        let control = &self.inputs.focused_text_control;
+        if control.start == control.end {
+            return None;
         }
-        let facts = self
-            .paint_host
-            .text_control_selection(self.layout_arena.shell_if_live(node));
-        self.text_control_selection_cache.insert(key, facts);
-        facts
+        self.layout_arena
+            .text_fragments(control.text_node)
+            .as_slice()
+            .contains(&node)
+            .then_some((control.start, control.end))
     }
 
     pub(crate) fn selection_style(
@@ -272,7 +270,6 @@ impl<'a> PaintRecorder<'a> {
             all_descendant_subtree_caches_dirty: self.all_descendant_subtree_caches_dirty,
             text_node_facts_cache: HashMap::new(),
             font_resource_id_cache: HashMap::new(),
-            text_control_selection_cache: HashMap::new(),
             selection_style_cache: HashMap::new(),
             wheel_hit_test_target_cache: HashMap::new(),
         }

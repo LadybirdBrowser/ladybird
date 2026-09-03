@@ -50,6 +50,77 @@ pub struct FfiRecordingInputs {
     pub flex_overlays: *const FfiFlexOverlayInput,
     pub flex_overlay_count: usize,
     pub caret_debug_rect: used_values::OptionalCssPixelRect,
+    // Per-document facts the host resolves once per recording.
+    pub caret: FfiCaretPaint,
+    pub focused_text_control: FfiFocusedTextControlSelection,
+    pub focused_area_outline: FfiFocusedAreaOutline,
+    pub inspector_highlight_label: FfiInspectorHighlightLabel,
+    pub grid_label_fonts: FfiOverlayLabelFonts,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiCaretPaintKind {
+    None,
+    /// `block` paints the caret, in the fragment run owned by the self-painting inline `owner`
+    /// (`INVALID` when the block itself owns it).
+    InBlock,
+    /// The empty editable inline `block` paints the caret at its own position.
+    EmptyInline,
+}
+
+/// Where the document's caret paints, resolved once per recording by the host.
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiCaretPaint {
+    pub kind: FfiCaretPaintKind,
+    pub block: crate::layout::node_data::NodeSlotId,
+    pub owner: crate::layout::node_data::NodeSlotId,
+    pub rect: used_values::FfiCssPixelRect,
+    pub color: Color,
+    pub blink_cycle_start_time_ns: i64,
+    pub should_blink: bool,
+}
+
+/// The focused text control's selection, keyed by its primary layout text node. Equal start
+/// and end offsets mean no selection.
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiFocusedTextControlSelection {
+    pub text_node: crate::layout::node_data::NodeSlotId,
+    pub start: usize,
+    pub end: usize,
+}
+
+/// The focus ring of a focused image-map area, painted by the image whose rendering makes the
+/// area's shape focusable. No path bytes means no focus ring.
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiFocusedAreaOutline {
+    pub image: crate::layout::node_data::NodeSlotId,
+    /// A serialised `Gfx::Path` in the image's own coordinate space, live for the recording call.
+    pub path_bytes: *const u8,
+    pub path_byte_count: usize,
+    pub color: Color,
+    pub width: crate::css::css_pixels::CssPixels,
+}
+
+/// The platform default font at an overlay label's CSS size and at that size in device pixels.
+/// Both are null unless the recording paints the overlay they belong to.
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiOverlayLabelFonts {
+    pub css_font: *const c_void,
+    pub device_font: *const c_void,
+}
+
+/// The inspector's box-model label for the highlighted node: UTF-8 text live for the recording call.
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiInspectorHighlightLabel {
+    pub fonts: FfiOverlayLabelFonts,
+    pub text: *const u8,
+    pub text_byte_count: usize,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -243,23 +314,6 @@ pub struct FfiAsyncScrollFacts {
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct FfiOutlineFacts {
-    pub paints_focused_area_outline: bool,
-    pub focused_area_path: *mut c_void,
-    pub focused_area_color: Color,
-    pub focused_area_width: crate::css::css_pixels::CssPixels,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiTextControlSelection {
-    pub has_selection: bool,
-    pub start: usize,
-    pub end: usize,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
 pub struct FfiSelectionStyleFacts {
     pub background_color: Color,
     pub text_color: OptionalColor,
@@ -269,16 +323,6 @@ pub struct FfiSelectionStyleFacts {
     pub text_decoration_line_count: u32,
     pub text_decoration_style: u8,
     pub text_decoration_color: Color,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiCursorFacts {
-    pub paints: bool,
-    pub rect: used_values::FfiCssPixelRect,
-    pub color: Color,
-    pub blink_cycle_start_time_ns: i64,
-    pub should_blink: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -405,13 +449,10 @@ impl From<&RecordedDisplayList> for FfiRecordedDisplayList {
 pub struct FfiPaintHostCallbacks {
     pub context: *mut c_void,
     pub async_scroll_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiAsyncScrollFacts,
-    pub outline_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiOutlineFacts,
     pub image_intrinsic_facts:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiLayerImageList, u32) -> FfiImageIntrinsicFacts,
-    pub text_control_selection: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiTextControlSelection,
     pub selection_style_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiSelectionStyleFacts,
     pub register_font: unsafe extern "C" fn(*mut c_void, *const c_void) -> u64,
-    pub cursor_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiCursorFacts,
     pub layer_image_prepare:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiLayerImageList, u32) -> FfiLayerImagePrepareFacts,
     pub layer_image_nested_display_list: unsafe extern "C" fn(
@@ -446,8 +487,6 @@ pub struct FfiPaintHostCallbacks {
         *mut c_void,
     ) -> FfiSvgPaintStyle,
     pub nested_display_list_from_tree: unsafe extern "C" fn(*mut c_void, FfiRecordedDisplayList, *const c_void) -> u64,
-    pub overlay_label_font: unsafe extern "C" fn(*mut c_void, f32) -> *const c_void,
-    pub overlay_node_label_text: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
 }
 
 #[derive(Default)]
@@ -457,33 +496,11 @@ pub struct ColorStopSink {
 }
 
 impl FfiPaintHostCallbacks {
-    pub(crate) fn outline_facts(&self, layout_node_shell: *mut c_void) -> FfiOutlineFacts {
-        // SAFETY: The C++ host answers synchronously from a live layout node shell.
-        unsafe { (self.outline_facts)(self.context, layout_node_shell) }
-    }
     pub(crate) fn async_scroll_facts(&self, layout_node_shell: *mut c_void) -> FfiAsyncScrollFacts {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
         unsafe { (self.async_scroll_facts)(self.context, layout_node_shell) }
     }
-    /// Resolves the platform default UI font at `point_size`. The returned
-    /// `Gfx::Font` pointer is borrowed; the platform font caches keep it live
-    /// for the synchronous window in which the caller retains it.
-    pub(crate) fn overlay_label_font(&self, point_size: f32) -> *const c_void {
-        // SAFETY: The C++ host answers synchronously.
-        unsafe { (self.overlay_label_font)(self.context, point_size) }
-    }
 
-    pub(crate) fn overlay_node_label_text(&self, layout_node_shell: *mut c_void) -> Vec<u16> {
-        let mut label = Vec::new();
-        // SAFETY: The C++ host fills the label sink synchronously through the exported push
-        // function.
-        unsafe { (self.overlay_node_label_text)(self.context, layout_node_shell, (&raw mut label).cast()) };
-        String::from_utf8_lossy(&label).encode_utf16().collect()
-    }
-    pub(crate) fn text_control_selection(&self, layout_node_shell: *mut c_void) -> FfiTextControlSelection {
-        // SAFETY: The C++ host answers synchronously from a live layout node shell.
-        unsafe { (self.text_control_selection)(self.context, layout_node_shell) }
-    }
     pub(crate) fn selection_style_facts(
         &self,
         layout_node_shell: *mut c_void,
@@ -501,14 +518,6 @@ impl FfiPaintHostCallbacks {
         // SAFETY: The C++ host registers the live font in the recording's
         // resource table synchronously.
         unsafe { (self.register_font)(self.context, font) }
-    }
-    pub(crate) fn cursor_facts(
-        &self,
-        layout_node_shell: *mut c_void,
-        owner_layout_node_shell: *mut c_void,
-    ) -> FfiCursorFacts {
-        // SAFETY: The C++ host answers synchronously from live layout node shells.
-        unsafe { (self.cursor_facts)(self.context, layout_node_shell, owner_layout_node_shell) }
     }
     pub(crate) fn layer_image_prepare(
         &self,

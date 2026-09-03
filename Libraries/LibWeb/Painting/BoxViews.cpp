@@ -13,9 +13,13 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
+#include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
+#include <LibWeb/HTML/HTMLImageElement.h>
+#include <LibWeb/HTML/HTMLMapElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
@@ -431,30 +435,6 @@ SelectionStyle selection_style(Layout::Node const& node)
     return selection_style_for_node(node, node.dom_node());
 }
 
-bool should_paint_cursor(Layout::Node const& node)
-{
-    if (!has_committed_box(node))
-        return false;
-
-    auto const& document = node.document();
-    if (!document.navigable()->is_focused())
-        return false;
-
-    auto cursor_position = document.cursor_position();
-    if (!cursor_position)
-        return false;
-
-    if (auto const* text_control = as_if<HTML::FormAssociatedTextControlElement>(document.focused_area().ptr());
-        text_control && text_control->text_control_to_html_element().is_mutable()) {
-        return true;
-    }
-
-    // The editable element may sit anywhere between the cursor and this box (e.g. a
-    // contenteditable inline box), so editability is the cursor node's, not this box's.
-    auto const* editable_node = cursor_position->node().ptr();
-    return editable_node && editable_node->is_editable_or_editing_host();
-}
-
 static bool has_content(Layout::Node const& node)
 {
     // Interrupting block-in-inline children produce only placeholder pieces, so any child
@@ -534,86 +514,151 @@ CSSPixelRect caret_rect_for_child_offset(Layout::Node const& block, size_t offse
     return rect;
 }
 
-Optional<CaretPaint> resolve_caret_paint(Layout::Node const& block, Layout::Node const* owner_inline)
+Layout::RustFFI::FfiCaretPaint resolve_document_caret_paint(DOM::Document& document)
 {
-    if (!should_paint_cursor(block))
-        return {};
-    auto const& styled_block = as<Layout::NodeWithStyle>(block);
+    Layout::RustFFI::FfiCaretPaint caret {};
+    Layout::RustFFI::NodeSlotId const no_slot { Layout::RustFFI::INVALID_NODE_SLOT_INDEX };
+    caret.kind = Layout::RustFFI::FfiCaretPaintKind::None;
+    caret.block = no_slot;
+    caret.owner = no_slot;
 
-    auto cursor_position = block.document().cursor_position();
-    VERIFY(cursor_position);
+    auto cursor_position = document.cursor_position();
+    if (!cursor_position)
+        return caret;
+    // The caret paints only while the window has focus and the cursor node is editable (or a mutable text
+    // control has focus); every candidate box below has a committed box.
+    auto navigable = document.navigable();
+    if (!navigable || !navigable->is_focused())
+        return caret;
+    auto const* cursor_node = cursor_position->node().ptr();
+    if (!cursor_node)
+        return caret;
+    bool cursor_is_editable = false;
+    if (auto const* text_control = as_if<HTML::FormAssociatedTextControlElement>(document.focused_area().ptr()); text_control && text_control->text_control_to_html_element().is_mutable())
+        cursor_is_editable = true;
+    else
+        cursor_is_editable = cursor_node->is_editable_or_editing_host();
+    if (!cursor_is_editable)
+        return caret;
 
-    auto const* dom_node = block.dom_node();
+    auto fill = [&](Layout::RustFFI::FfiCaretPaintKind kind, Layout::RustFFI::NodeSlotId block, Layout::RustFFI::NodeSlotId owner, CSSPixelRect rect, Color color) {
+        caret.kind = kind;
+        caret.block = block;
+        caret.owner = owner;
+        caret.rect = rect;
+        caret.color = color;
+        caret.blink_cycle_start_time_ns = document.cursor_blink_cycle_start_time_ns();
+        caret.should_blink = !HTML::Window::in_test_mode();
+    };
 
-    Layout::Node const* text_layout_node = nullptr;
-    if (auto const* text = as_if<DOM::Text>(cursor_position->node().ptr()))
-        text_layout_node = text->unsafe_layout_node();
-
-    if (text_layout_node) {
+    if (auto const* text = as_if<DOM::Text>(cursor_node)) {
+        auto const* text_layout_node = text->unsafe_layout_node();
+        if (!text_layout_node)
+            return caret;
+        auto* arena = text_layout_node->arena_handle();
         auto result = Layout::RustFFI::layout_arena_text_caret_rect_for_position(
-            block.arena_handle(), Layout::Node::slot_id(text_layout_node), cursor_position->offset(),
+            arena, Layout::Node::slot_id(text_layout_node), cursor_position->offset(),
             cursor_position->affinity() == TextAffinity::Downstream);
-        if (result.found && result.owner_paintable.index == committed_row_slot(block).index) {
-            auto owner_slot = owner_inline ? committed_row_slot(*owner_inline)
-                                           : Layout::RustFFI::NodeSlotId { Layout::RustFFI::INVALID_NODE_SLOT_INDEX };
-            if (result.nearest_self_painting_inline.index != owner_slot.index)
-                return {};
-            auto const* style_source = static_cast<Layout::NodeWithStyle const*>(result.style_source);
-            if (!style_source || !layout_node_is_visible(*style_source))
-                return {};
-            return CaretPaint { result.rect, style_source->caret_color() };
-        }
         if (result.found) {
-            return {};
+            auto const* style_source = static_cast<Layout::NodeWithStyle const*>(result.style_source);
+            if (style_source && layout_node_is_visible(*style_source))
+                fill(Layout::RustFFI::FfiCaretPaintKind::InBlock, result.owner_paintable, result.nearest_self_painting_inline, result.rect, style_source->caret_color());
+            return caret;
         }
-    }
-
-    if (owner_inline) {
-        // Blank lines and empty editable elements are handled by the block / the box itself.
-        return {};
-    }
-    if (!is_visible(block)) {
-        // Blank-line and empty-element carets belong to this block itself.
-        return {};
-    }
-
-    if (text_layout_node) {
-        auto empty_line = Layout::RustFFI::layout_arena_paintable_empty_line_caret_rect(
-            block.arena_handle(), committed_row_slot(block), Layout::Node::slot_id(text_layout_node), cursor_position->offset());
-        if (empty_line.has_value) {
+        // No fragment holds the position: the caret sits on an empty line of the block that lays the text out.
+        for (auto const* block = text_layout_node->parent(); block; block = block->parent()) {
+            if (!has_committed_box(*block) || !is_visible(*block))
+                continue;
+            auto empty_line = Layout::RustFFI::layout_arena_paintable_empty_line_caret_rect(
+                arena, committed_row_slot(*block), Layout::Node::slot_id(text_layout_node), cursor_position->offset());
+            if (!empty_line.has_value)
+                continue;
             auto const* style_source = static_cast<Layout::NodeWithStyle const*>(empty_line.style_source);
             if (!style_source)
-                return {};
+                return caret;
             auto empty_line_rect = empty_line.rect;
-            CSSPixelRect cursor_rect { empty_line_rect.x(), empty_line_rect.y(), 1, empty_line_rect.height() };
-            return CaretPaint { cursor_rect, style_source->caret_color() };
+            fill(Layout::RustFFI::FfiCaretPaintKind::InBlock, committed_row_slot(*block), no_slot, CSSPixelRect { empty_line_rect.x(), empty_line_rect.y(), 1, empty_line_rect.height() }, style_source->caret_color());
+            return caret;
         }
+        return caret;
     }
 
-    if (cursor_position->node() != GC::Ptr { dom_node })
-        return {};
-
-    return CaretPaint { caret_rect_for_child_offset(block, cursor_position->offset()), styled_block.caret_color() };
+    // The cursor is parked on an element: its own box paints the caret at the child offset, or, for an
+    // empty editable inline, at the box's position.
+    auto const* layout_node = cursor_node->layout_node();
+    if (!layout_node || !has_committed_box(*layout_node))
+        return caret;
+    auto const& styled_node = as<Layout::NodeWithStyle>(*layout_node);
+    if (is_inline_paintable(*layout_node)) {
+        if (has_content(*layout_node))
+            return caret;
+        auto position = box_type_agnostic_position(*layout_node);
+        fill(Layout::RustFFI::FfiCaretPaintKind::EmptyInline, committed_row_slot(*layout_node), no_slot, CSSPixelRect { position.x(), position.y(), 1, styled_node.line_height() }, styled_node.caret_color());
+        return caret;
+    }
+    if (!is_visible(*layout_node))
+        return caret;
+    fill(Layout::RustFFI::FfiCaretPaintKind::InBlock, committed_row_slot(*layout_node), no_slot, caret_rect_for_child_offset(*layout_node, cursor_position->offset()), styled_node.caret_color());
+    return caret;
 }
 
-Optional<CaretPaint> resolve_empty_editable_caret_paint(Layout::Node const& node)
+Layout::RustFFI::FfiFocusedTextControlSelection resolve_focused_text_control_selection(DOM::Document const& document)
 {
-    if (!should_paint_cursor(node) || has_content(node))
-        return {};
-    auto const& styled_node = as<Layout::NodeWithStyle>(node);
+    Layout::RustFFI::FfiFocusedTextControlSelection selection {};
+    auto const* text_control = as_if<HTML::FormAssociatedTextControlElement>(document.focused_area().ptr());
+    if (!text_control)
+        return selection;
+    auto text_node = text_control->form_associated_element_to_text_node();
+    if (!text_node)
+        return selection;
+    auto selection_start = text_control->selection_start();
+    auto selection_end = text_control->selection_end();
+    if (selection_start == selection_end)
+        return selection;
+    auto const* text_layout_node = text_node->unsafe_layout_node();
+    if (!text_layout_node)
+        return selection;
+    selection.text_node = Layout::Node::slot_id(text_layout_node);
+    selection.start = selection_start;
+    selection.end = selection_end;
+    return selection;
+}
 
-    auto cursor_position = node.document().cursor_position();
-    VERIFY(cursor_position);
-
-    auto const* dom_node = node.dom_node();
-    if (!dom_node || cursor_position->node() != GC::Ptr { dom_node })
-        return {};
-
-    auto position = box_type_agnostic_position(node);
-    return CaretPaint {
-        .rect = { position.x(), position.y(), 1, styled_node.line_height() },
-        .color = styled_node.caret_color(),
-    };
+Layout::RustFFI::FfiFocusedAreaOutline resolve_focused_area_outline(DOM::Document const& document, Vector<u8>& path_bytes)
+{
+    // https://html.spec.whatwg.org/multipage/interaction.html#focusable-area
+    // The shapes of area elements in an image map associated with an img element that is being rendered and is not
+    // inert. Focused area elements have no box of their own, so the image whose rendering makes the area's shape a
+    // focusable area paints the focus outline along that shape.
+    Layout::RustFFI::FfiFocusedAreaOutline outline {};
+    auto const* area_element = as_if<HTML::HTMLAreaElement>(document.focused_area().ptr());
+    if (!area_element)
+        return outline;
+    auto const* map_element = area_element->first_ancestor_of_type<HTML::HTMLMapElement>();
+    if (!map_element)
+        return outline;
+    auto image_element = map_element->first_painted_image_with_focusable_shapes();
+    if (!image_element)
+        return outline;
+    auto const* layout_node = image_element->layout_node();
+    if (!layout_node || !has_committed_box(*layout_node))
+        return outline;
+    auto area_computed_values = area_element->computed_style();
+    if (!area_computed_values || area_computed_values->outline_style() != CSS::OutlineStyle::Auto)
+        return outline;
+    auto outline_data = Painting::outline_data(*layout_node, *area_computed_values);
+    if (!outline_data.has_value())
+        return outline;
+    auto path = area_element->shape_path(absolute_rect(*layout_node).size());
+    if (!path.has_value())
+        return outline;
+    path_bytes = path->serialize_to_bytes();
+    outline.image = committed_row_slot(*layout_node);
+    outline.path_bytes = path_bytes.data();
+    outline.path_byte_count = path_bytes.size();
+    outline.color = outline_data->color;
+    outline.width = outline_data->width;
+    return outline;
 }
 
 static Optional<CSS::BorderData> border_data_for_outline(Layout::Node const& layout_node, Color outline_color, CSS::OutlineStyle outline_style, CSSPixels outline_width)

@@ -24,17 +24,13 @@
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
-#include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
-#include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
-#include <LibWeb/HTML/HTMLMapElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
-#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
@@ -866,27 +862,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             }
             return facts;
         },
-        .outline_facts = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiOutlineFacts {
-            auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
-            Layout::RustFFI::FfiOutlineFacts facts {};
-            if (auto const* area_element = as_if<HTML::HTMLAreaElement>(layout_node.document().focused_area().ptr())) {
-                auto const* map_element = area_element->first_ancestor_of_type<HTML::HTMLMapElement>();
-                auto const* image_element = as_if<HTML::HTMLImageElement>(layout_node.dom_node());
-                if (map_element && image_element && map_element->first_painted_image_with_focusable_shapes().ptr() == image_element) {
-                    if (auto area_computed_values = area_element->computed_style(); area_computed_values && area_computed_values->outline_style() == CSS::OutlineStyle::Auto) {
-                        if (auto outline_data = Painting::outline_data(layout_node, *area_computed_values); outline_data.has_value()) {
-                            if (auto path = area_element->shape_path(absolute_rect(layout_node).size()); path.has_value()) {
-                                facts.paints_focused_area_outline = true;
-                                facts.focused_area_path = new Gfx::Path(path.release_value());
-                                facts.focused_area_color = outline_data->color;
-                                facts.focused_area_width = outline_data->width;
-                            }
-                        }
-                    }
-                }
-            }
-            return facts;
-        },
         .image_intrinsic_facts = [](void*, void* layout_node_shell, Layout::RustFFI::FfiLayerImageList list, u32 computed_index) -> Layout::RustFFI::FfiImageIntrinsicFacts {
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
             Layout::RustFFI::FfiImageIntrinsicFacts facts {};
@@ -911,25 +886,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 }
             }
             return facts;
-        },
-        .text_control_selection = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiTextControlSelection {
-            Layout::RustFFI::FfiTextControlSelection result {};
-            auto const* layout_node = static_cast<Layout::Node const*>(layout_node_shell);
-            if (!layout_node)
-                return result;
-            auto const* text_control = as_if<HTML::FormAssociatedTextControlElement>(layout_node->document().focused_area().ptr());
-            if (!text_control)
-                return result;
-            if (GC::Ptr { layout_node->dom_node() } != text_control->form_associated_element_to_text_node())
-                return result;
-            auto selection_start = text_control->selection_start();
-            auto selection_end = text_control->selection_end();
-            if (selection_start == selection_end)
-                return result;
-            result.has_selection = true;
-            result.start = selection_start;
-            result.end = selection_end;
-            return result;
         },
         .selection_style_facts = [](void*, void* layout_node_shell, void* shadow_sink) -> Layout::RustFFI::FfiSelectionStyleFacts {
             Layout::RustFFI::FfiSelectionStyleFacts facts {};
@@ -957,27 +913,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
         .register_font = [](void* context_pointer, void const* font) -> u64 {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             return context.resource_storage.add_font(*static_cast<Gfx::Font const*>(font)).value();
-        },
-        .cursor_facts = [](void*, void* layout_node_shell, void* owner_layout_node_shell) -> Layout::RustFFI::FfiCursorFacts {
-            auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
-            Layout::RustFFI::FfiCursorFacts facts {};
-            if (!layout_node.document().cursor_position())
-                return facts;
-            auto const* owner_layout_node = static_cast<Layout::Node const*>(owner_layout_node_shell);
-            Optional<CaretPaint> caret;
-            if (is_inline_paintable(layout_node)) {
-                caret = resolve_empty_editable_caret_paint(layout_node);
-            } else {
-                caret = resolve_caret_paint(layout_node, owner_layout_node);
-            }
-            if (!caret.has_value())
-                return facts;
-            facts.paints = true;
-            facts.rect = caret->rect;
-            facts.color = caret->color;
-            facts.blink_cycle_start_time_ns = layout_node.document().cursor_blink_cycle_start_time_ns();
-            facts.should_blink = !HTML::Window::in_test_mode();
-            return facts;
         },
         .layer_image_prepare = [](void*, void* layout_node_shell, Layout::RustFFI::FfiLayerImageList list, u32 computed_index) -> Layout::RustFFI::FfiLayerImagePrepareFacts {
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
@@ -1225,22 +1160,26 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             auto visual_context_tree = AccumulatedVisualContextTree::adopt_rust_handle(retained_tree);
             return context.resource_storage.add_display_list(display_list_from_rust_recording(visual_context_tree, recorded), visual_context_tree).value();
         },
-        .overlay_label_font = [](void*, float point_size) -> void const* {
-            auto font = Platform::FontPlugin::the().default_font(point_size);
-            VERIFY(font);
-            // The platform font caches keep the font alive; the caller retains
-            // it within the synchronous call.
-            return font.ptr();
-        },
-        .overlay_node_label_text = [](void*, void* layout_node_shell, void* label_sink) {
-            auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
-            auto border_rect = absolute_border_box_rect(layout_node);
-            StringBuilder builder;
-            builder.appendff("{}", layout_node.debug_description());
-            builder.appendff(" {}x{} @ {},{}", border_rect.width(), border_rect.height(), border_rect.x(), border_rect.y());
-            auto bytes = builder.string_view().bytes();
-            Layout::RustFFI::layout_arena_paint_push_bytes(label_sink, bytes.data(), bytes.size()); },
     };
+}
+
+// The platform default font at an overlay label's CSS size and at that size in device pixels, kept alive for the
+// recording call.
+struct OverlayLabelFonts {
+    RefPtr<Gfx::Font> css_font;
+    RefPtr<Gfx::Font> device_font;
+
+    Layout::RustFFI::FfiOverlayLabelFonts ffi() const { return { .css_font = css_font.ptr(), .device_font = device_font.ptr() }; }
+};
+
+static OverlayLabelFonts overlay_label_fonts(float css_size, double device_pixels_per_css_pixel)
+{
+    OverlayLabelFonts fonts {
+        .css_font = Platform::FontPlugin::the().default_font(css_size),
+        .device_font = Platform::FontPlugin::the().default_font(css_size * static_cast<float>(device_pixels_per_css_pixel)),
+    };
+    VERIFY(fonts.css_font && fonts.device_font);
+    return fonts;
 }
 
 }
@@ -1262,15 +1201,17 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     inputs.tooltip_text_color = overlay_inputs.tooltip_text_color;
     inputs.tooltip_border_color = overlay_inputs.tooltip_border_color;
     Vector<Layout::RustFFI::FfiGridOverlayInput> ffi_grid_overlays;
-    auto grid_label_css_pixel_size = overlay_inputs.grid_highlights.is_empty()
-        ? 0.0f
-        : Platform::FontPlugin::the().default_font(10)->pixel_size();
+    OverlayLabelFonts grid_label_fonts;
+    if (!overlay_inputs.grid_highlights.is_empty()) {
+        grid_label_fonts = overlay_label_fonts(10.0f, device_pixels_per_css_pixel);
+        inputs.grid_label_fonts = grid_label_fonts.ffi();
+    }
     for (auto const& highlight : overlay_inputs.grid_highlights) {
         ffi_grid_overlays.append({
             .paintable = committed_row_slot(*highlight.layout_node),
             .color = highlight.options.color,
             .label_foreground_color = highlight.options.color.with_alpha(235).suggested_foreground_color(),
-            .label_css_pixel_size = grid_label_css_pixel_size,
+            .label_css_pixel_size = grid_label_fonts.css_font->pixel_size(),
             .show_area_names = highlight.options.show_area_names,
             .show_line_numbers = highlight.options.show_line_numbers,
             .show_track_sizes = highlight.options.show_track_sizes,
@@ -1289,6 +1230,19 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     inputs.flex_overlays = ffi_flex_overlays.data();
     inputs.flex_overlay_count = ffi_flex_overlays.size();
     inputs.caret_debug_rect = overlay_inputs.caret_debug_rect;
+    ByteString inspector_highlight_label_text;
+    OverlayLabelFonts inspector_label_fonts;
+    if (overlay_inputs.highlighted_layout_node) {
+        auto const& layout_node = *overlay_inputs.highlighted_layout_node;
+        auto border_rect = absolute_border_box_rect(layout_node);
+        inspector_highlight_label_text = ByteString::formatted("{} {}x{} @ {},{}", layout_node.debug_description(), border_rect.width(), border_rect.height(), border_rect.x(), border_rect.y());
+        inspector_label_fonts = overlay_label_fonts(12.0f, device_pixels_per_css_pixel);
+        inputs.inspector_highlight_label = {
+            .fonts = inspector_label_fonts.ffi(),
+            .text = inspector_highlight_label_text.bytes().data(),
+            .text_byte_count = inspector_highlight_label_text.length(),
+        };
+    }
     inputs.device_viewport_rect = device_viewport_rect.to_type<int>();
     if (auto navigable = document.navigable())
         inputs.css_viewport_rect = navigable->viewport_rect();
@@ -1316,6 +1270,10 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
         inputs.window_is_focused = navigable && navigable->is_focused();
         inputs.outline_auto_color = CSS::SystemColor::accent_color(CSS::PreferredColorScheme::Auto);
     }
+    inputs.caret = resolve_document_caret_paint(document);
+    inputs.focused_text_control = resolve_focused_text_control_selection(document);
+    Vector<u8> focused_area_path_bytes;
+    inputs.focused_area_outline = resolve_focused_area_outline(document, focused_area_path_bytes);
     {
         auto color_scheme = document.canvas_color_scheme();
         bool opaque_canvas = false;
