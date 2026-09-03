@@ -16,6 +16,8 @@
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibMain/Main.h>
+#include <LibRequests/Request.h>
+#include <LibRequests/RequestClient.h>
 #include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 #include <LibURL/Parser.h>
@@ -389,6 +391,42 @@ void expect_file_matches(StringView path, ReadonlyBytes expected)
     VERIFY(contents.bytes() == expected);
 }
 
+void expect_request_can_be_released_from_finish_callback(TestHttpServer& server, size_t expected_body_size)
+{
+    auto url = URL::Parser::basic_parse(ByteString::formatted("http://127.0.0.1:{}/file", server.port()));
+    VERIFY(url.has_value());
+
+    auto request = WebView::Application::request_server_client().start_request("GET"sv, *url);
+    VERIFY(request);
+
+    size_t delivered_size = 0;
+    bool finished = false;
+
+    request->set_body_delivery_paused(true);
+    request->set_unbuffered_request_callbacks(
+        [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CameFromCache) {
+        },
+        [&](Requests::ResponseData data) {
+            delivered_size += data.bytes().size();
+        },
+        [](Core::ImmutableBytes) {
+        },
+        [&](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError>) {
+            request = nullptr;
+            finished = true;
+        });
+
+    // Wait for RequestServer completion to release its reference while the response body remains paused. This makes
+    // the finish callback release the final external reference to the request when body delivery resumes.
+    Core::EventLoop::current().spin_until([&] { return request->ref_count() == 1; });
+
+    request->resume_body_delivery();
+    Core::EventLoop::current().spin_until([&] { return finished; });
+
+    VERIFY(!request);
+    VERIFY(delivered_size == expected_body_size);
+}
+
 }
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
@@ -408,6 +446,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #else
     auto app = TRY(TestApplication::create(arguments, OptionalNone {}));
 #endif
+
+    {
+        auto response_body = make_body(4 * KiB);
+        TestHttpServer server { response_body, RangeSupport::No };
+
+        expect_request_can_be_released_from_finish_callback(server, response_body.size());
+        outln("release request from finish callback");
+    }
 
     auto body = make_body(12 * MiB);
 
