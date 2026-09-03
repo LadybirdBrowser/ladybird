@@ -54,7 +54,7 @@ enum class MediaSeekMode : u8 {
 
 class SourceElementSelector;
 
-using OptionalMediaProvider = Variant<Empty, GC::Ref<MediaSourceExtensions::MediaSource>, GC::Ref<FileAPI::Blob>>;
+using MediaProvider = Variant<Empty, GC::Ref<MediaCapture::MediaStream>, GC::Ref<MediaSourceExtensions::MediaSource>, GC::Ref<FileAPI::Blob>>;
 
 class HTMLMediaElement : public HTMLElement {
     WEB_WRAPPABLE(HTMLMediaElement, HTMLElement);
@@ -85,8 +85,8 @@ public:
     Utf16String const& current_src() const { return m_current_src; }
     void select_resource();
 
-    OptionalMediaProvider src_object() const;
-    WebIDL::ExceptionOr<void> set_src_object(OptionalMediaProvider);
+    MediaProvider src_object() const;
+    WebIDL::ExceptionOr<void> set_src_object(MediaProvider);
 
     enum class NetworkState : u8 {
         Empty,
@@ -218,18 +218,13 @@ private:
 
     Task::Source media_element_event_task_source() const { return m_media_element_event_task_source.source; }
 
-    using MediaProviderObject = Variant<Empty, GC::Ref<MediaSourceExtensions::MediaSource>, GC::Ref<FileAPI::Blob>>;
-    MediaProviderObject const& assigned_media_provider_object() const;
-    MediaProviderObject& assigned_media_provider_object();
-    void set_assigned_media_provider_object(MediaProviderObject const&);
-
     WebIDL::ExceptionOr<void> load_element();
     void select_resource_for_current_load();
     void promote_current_resource_selection_to_explicit();
 
     void load_url_resource(URL::URL const&, ESCAPING Function<void(Utf16String)> failure_callback);
     void load_remote_resource(ByteRange const&);
-    void load_local_resource(MediaProviderObject const&, ESCAPING Function<void(Utf16String)> failure_callback);
+    void load_local_resource(MediaProvider const&, ESCAPING Function<void(Utf16String)> failure_callback);
     bool preload_attribute_is_in_none_state() const;
     bool should_wait_for_an_implementation_defined_event_before_fetching_the_resource() const;
     void wait_for_an_implementation_defined_event_before_fetching_the_resource(u32 fetch_generation);
@@ -330,7 +325,7 @@ private:
     CORSSettingAttribute m_crossorigin { CORSSettingAttribute::NoCORS };
 
     // https://html.spec.whatwg.org/multipage/media.html#assigned-media-provider-object
-    MediaProviderObject m_assigned_media_provider_object;
+    MediaProvider m_assigned_media_provider_object;
 
     // https://w3c.github.io/media-source/#mediasource-attach
     // NB: Unlike the assigned media provider object, this is also set when a MediaSource is attached through a blob

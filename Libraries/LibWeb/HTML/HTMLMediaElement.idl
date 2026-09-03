@@ -13,7 +13,7 @@ enum CanPlayTypeResult {
     "probably"
 };
 
-typedef (MediaSource or Blob) MediaProvider;
+typedef (MediaStream or MediaSource or Blob) MediaProvider;
 
 // https://html.spec.whatwg.org/multipage/media.html#htmlmediaelement
 [Exposed=Window]
@@ -23,19 +23,20 @@ interface HTMLMediaElement : HTMLElement {
     [DirectGetter] readonly attribute MediaError? error;
 
     // network state
-    [Reflect, CEReactions, URL] attribute USVString src;
+    // FIXME: "Reflect, URL" should be "ReflectURL".
+    [CEReactions, Reflect, URL] attribute USVString src;
     attribute MediaProvider? srcObject;
     readonly attribute USVString currentSrc;
-    [Reflect=crossorigin, CEReactions, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
+    [CEReactions, Reflect=crossorigin, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
     const unsigned short NETWORK_EMPTY = 0;
     const unsigned short NETWORK_IDLE = 1;
     const unsigned short NETWORK_LOADING = 2;
     const unsigned short NETWORK_NO_SOURCE = 3;
     readonly attribute unsigned short networkState;
-    [Reflect, CEReactions, Enumerated=Preload] attribute DOMString preload;
+    [CEReactions, Reflect, Enumerated=Preload] attribute DOMString preload;
     readonly attribute TimeRanges buffered;
     undefined load();
-    [ImplementedAs=can_play_type] CanPlayTypeResult canPlayType(DOMString type);
+    CanPlayTypeResult canPlayType(DOMString type);
 
     // ready state
     const unsigned short HAVE_NOTHING = 0;
@@ -58,21 +59,21 @@ interface HTMLMediaElement : HTMLElement {
     readonly attribute TimeRanges played;
     readonly attribute TimeRanges seekable;
     readonly attribute boolean ended;
-    [Reflect, CEReactions] attribute boolean autoplay;
-    [Reflect, CEReactions] attribute boolean loop;
+    [CEReactions, Reflect] attribute boolean autoplay;
+    [CEReactions, Reflect] attribute boolean loop;
     [CreatesPromise] Promise<undefined> play();
     undefined pause();
 
     // controls
-    [Reflect, CEReactions] attribute boolean controls;
+    [CEReactions, Reflect] attribute boolean controls;
     attribute double volume;
     attribute boolean muted;
-    [Reflect=muted, CEReactions] attribute boolean defaultMuted;
+    [CEReactions, Reflect="muted"] attribute boolean defaultMuted;
+    // FIXME: [CEReactions] attribute DOMString loading;
 
     // tracks
-    [DirectGetter, SameObject] readonly attribute AudioTrackList audioTracks;
-    [DirectGetter, SameObject] readonly attribute VideoTrackList videoTracks;
-    [DirectGetter, SameObject] readonly attribute TextTrackList textTracks;
-    [ImplementedAs=add_text_track] TextTrack addTextTrack(TextTrackKind kind, optional DOMString label = "", optional DOMString language = "");
-
+    [SameObject, DirectGetter] readonly attribute AudioTrackList audioTracks;
+    [SameObject, DirectGetter] readonly attribute VideoTrackList videoTracks;
+    [SameObject, DirectGetter] readonly attribute TextTrackList textTracks;
+    TextTrack addTextTrack(TextTrackKind kind, optional DOMString label = "", optional DOMString language = "");
 };
