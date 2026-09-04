@@ -200,6 +200,61 @@ TEST_CASE(extrapolates_overshooting_background_color_easing)
     EXPECT_EQ(sampled->alpha(), 255);
 }
 
+TEST_CASE(interpolates_filter_operation_initial_values)
+{
+    VisualAnimationFilterOperation drop_shadow {
+        .kind = VisualAnimationFilterOperationKind::DropShadow,
+        .amount = 10,
+        .offset_x = 20,
+        .offset_y = -10,
+        .color = Gfx::Color::Blue,
+    };
+    auto interpolated_drop_shadow = drop_shadow.initial_value().interpolated_with(drop_shadow, 0.5);
+    EXPECT_EQ(interpolated_drop_shadow.amount, 5);
+    EXPECT_EQ(interpolated_drop_shadow.offset_x, 10);
+    EXPECT_EQ(interpolated_drop_shadow.offset_y, -5);
+    EXPECT_EQ(interpolated_drop_shadow.color.blue(), 255);
+    EXPECT_EQ(interpolated_drop_shadow.color.alpha(), 128);
+
+    VisualAnimationFilterOperation grayscale {
+        .kind = VisualAnimationFilterOperationKind::Color,
+        .amount = 0.75,
+        .color_operation = Gfx::ColorFilterType::Grayscale,
+    };
+    EXPECT_EQ(grayscale.initial_value().amount, 0);
+    EXPECT_EQ(grayscale.initial_value().interpolated_with(grayscale, 2).amount, 1);
+}
+
+TEST_CASE(rejects_non_finite_interpolated_filter_values)
+{
+    Vector<VisualAnimationFilterOperation> operations {
+        { .kind = VisualAnimationFilterOperationKind::Blur, .amount = NumericLimits<float>::max() },
+        { .kind = VisualAnimationFilterOperationKind::DropShadow, .amount = NumericLimits<float>::max(), .offset_x = NumericLimits<float>::max(), .offset_y = NumericLimits<float>::max() },
+        { .kind = VisualAnimationFilterOperationKind::Color, .amount = NumericLimits<float>::max(), .color_operation = Gfx::ColorFilterType::Brightness },
+        { .kind = VisualAnimationFilterOperationKind::HueRotate, .amount = NumericLimits<float>::max() },
+    };
+    for (auto const& operation : operations) {
+        auto initial = operation;
+        initial.amount = 0;
+        initial.offset_x = 0;
+        initial.offset_y = 0;
+        VisualAnimation animation {
+            .target_kind = VisualAnimation::TargetKind::Filter,
+            .visual_context_node_indices = { 0 },
+            .local_time_at_anchor_ms = 750,
+            .iteration_duration_ms = 1000,
+            .easing = linear_easing(),
+            .keyframes = {
+                { 0, { .kind = VisualAnimationEasing::Kind::Linear, .linear_points = { { 0, 0 }, { 1, 2 } } }, VisualAnimationFilterList { initial } },
+                { 1, linear_easing(), VisualAnimationFilterList { operation } },
+            },
+        };
+
+        EXPECT(animation.is_valid());
+        EXPECT(!animation.sample(AK::Duration::zero()).has_value());
+    }
+}
+
 TEST_CASE(rejects_invalid_timing)
 {
     VisualAnimation animation;

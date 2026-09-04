@@ -1046,6 +1046,7 @@ void KeyframeEffect::invalidate_effect()
 {
     m_compositor_opacity_keyframe_value_cache.clear();
     m_compositor_background_color_keyframe_value_cache.clear();
+    m_compositor_filter_keyframe_value_cache.clear();
     m_compositor_transform_keyframe_value_cache.clear();
     m_is_compositor_driven = false;
     m_is_compositor_replaced = false;

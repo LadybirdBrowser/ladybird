@@ -598,6 +598,68 @@ TEST_CASE(background_color_animation_replaces_the_recorded_fill_color)
     EXPECT_EQ(bitmap->get_pixel(0, 0), (Gfx::Color { 128, 0, 128 }));
 }
 
+TEST_CASE(filter_animations_replace_their_effects_frame_filters)
+{
+    TestWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { 0, client, canvas_surface_registry, false };
+    Web::Painting::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    auto spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
+    Vector<Web::Painting::FrameNodeIndex> frames;
+    Vector<Web::Compositor::VisualAnimation> animations;
+    for (u32 i = 0; i < 8; ++i) {
+        auto frame = builder.append_effects_frame(Web::Painting::NO_FRAME_NODE, spatial);
+        frames.append(frame);
+        animations.append({
+            .target_kind = Web::Compositor::VisualAnimation::TargetKind::Filter,
+            .visual_context_node_indices = { frame.value() },
+            .iteration_duration_ms = 1000,
+            .iteration_count = 1,
+            .easing = {},
+            .keyframes = {
+                { 0, {}, Web::Compositor::VisualAnimationFilterList { { .kind = Web::Compositor::VisualAnimationFilterOperationKind::Color, .amount = 1, .color_operation = Gfx::ColorFilterType::Opacity } } },
+                { 1, {}, Web::Compositor::VisualAnimationFilterList { { .kind = Web::Compositor::VisualAnimationFilterOperationKind::Color, .amount = 0, .color_operation = Gfx::ColorFilterType::Opacity } } },
+            },
+        });
+    }
+    auto visual_context_tree = builder.finish();
+    auto anchor = MonotonicTime::now();
+    for (auto& animation : animations)
+        animation.monotonic_time_at_anchor_ns = anchor.nanoseconds();
+    visual_context_tree.set_visual_animations(move(animations));
+
+    ByteBuffer command_bytes;
+    for (u32 i = 0; i < frames.size(); ++i) {
+        auto command = Web::Painting::FillRect {
+            { static_cast<i32>(i), 0, 1, 1 },
+            Gfx::Color::Red,
+            Gfx::CompositingAndBlendingOperator::Normal,
+            Web::Painting::NO_FRAME_NODE,
+        };
+        append_display_list_command(command_bytes, command, command.rect, { spatial, frames[i] });
+    }
+
+    Gfx::IntRect viewport_rect { 0, 0, static_cast<i32>(frames.size()), 1 };
+    context.viewport_size_updated(viewport_rect.size(), Web::Compositor::WindowResizingInProgress::No);
+    VERIFY(context.resize_backing_stores_if_needed({}, Compositor::BackingStoreManager::GpuSharing::Disallowed).has_value());
+    context.install_display_list_update(
+        decode_display_list(visual_context_tree, move(command_bytes), Gfx::Color::Transparent),
+        visual_context_tree,
+        {});
+
+    EXPECT(context.advance_visual_animations(anchor + AK::Duration::from_milliseconds(500)));
+    context.queue_present_frame({ viewport_rect, viewport_rect });
+    EXPECT(context.present_synchronously(display_list_player, nullptr));
+
+    auto bitmap = context.latest_rendered_surface()->snapshot_bitmap();
+    for (u32 i = 0; i < frames.size(); ++i) {
+        auto pixel = bitmap->get_pixel(i, 0);
+        EXPECT_EQ(pixel.red(), 128);
+        EXPECT_EQ(pixel.alpha(), 128);
+    }
+}
+
 TEST_CASE(finite_visual_animations_stop_after_their_terminal_sample)
 {
     TestWebContentClient client;

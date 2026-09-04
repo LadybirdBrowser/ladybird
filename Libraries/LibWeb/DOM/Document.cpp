@@ -80,10 +80,12 @@
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
+#include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/CSS/TransitionEvent.h>
@@ -7644,7 +7646,7 @@ static Optional<float> compositor_opacity_animation_value(CSS::StyleValue const&
 
 static Optional<Gfx::Color> compositor_background_color_animation_value(CSS::StyleValue const& style_value, DOM::AbstractElement target)
 {
-    // Legacy sRGB colors interpolate in gamma-encoded sRGB, which Gfx::Color::mixed_with() matches. Keep modern
+    // Legacy sRGB colors interpolate in gamma-encoded sRGB, which the compositor sampler matches. Keep modern
     // color syntaxes on the main thread until compositor values can retain their interpolation color space.
     if (style_value.to_keyword() == CSS::Keyword::Currentcolor)
         return {};
@@ -7654,6 +7656,73 @@ static Optional<Gfx::Color> compositor_background_color_animation_value(CSS::Sty
     if (!color.has_value())
         return {};
     return color.release_value();
+}
+
+static Optional<Compositor::VisualAnimationFilterList> compositor_filter_animation_value(CSS::StyleValue const& style_value, DOM::AbstractElement target, float device_pixels_per_css_pixel)
+{
+    if (style_value.to_keyword() == CSS::Keyword::None)
+        return Compositor::VisualAnimationFilterList {};
+    if (!style_value.is_value_list())
+        return {};
+
+    Compositor::VisualAnimationFilterList operations;
+    operations.ensure_capacity(style_value.as_value_list().size());
+    for (auto const& value : style_value.as_value_list().values()) {
+        if (!value->is_filter())
+            return {};
+        auto const& filter = value->as_filter();
+        switch (filter.kind()) {
+        case CSS::FilterStyleValue::Kind::Blur: {
+            auto const& blur = static_cast<CSS::BlurFilterStyleValue const&>(filter);
+            operations.append({
+                .kind = Compositor::VisualAnimationFilterOperationKind::Blur,
+                .amount = CSSPixels::nearest_value_for(blur.resolved_radius()).to_float() * device_pixels_per_css_pixel,
+            });
+            break;
+        }
+        case CSS::FilterStyleValue::Kind::DropShadow: {
+            auto const& drop_shadow = static_cast<CSS::DropShadowFilterStyleValue const&>(filter);
+            auto color_value = drop_shadow.color();
+            // Gfx filters hold 8-bit sRGB colors. Keep modern color interpolation and currentcolor on the main thread
+            // until compositor filter values can retain the interpolation color space and source color syntax.
+            if (!color_value || !color_value->is_color() || color_value->as_color().color_syntax() != CSS::ColorSyntax::Legacy)
+                return {};
+            auto color = color_value->to_color(CSS::ColorResolutionContext::for_element(target));
+            if (!color.has_value())
+                return {};
+            auto resolve_length = [&](CSS::StyleValue const& length) {
+                auto css_pixels = CSSPixels::nearest_value_for(CSS::Length::from_style_value(length, {}).absolute_length_to_px_without_rounding());
+                return css_pixels.to_float() * device_pixels_per_css_pixel;
+            };
+            operations.append({
+                .kind = Compositor::VisualAnimationFilterOperationKind::DropShadow,
+                .amount = drop_shadow.radius() ? resolve_length(*drop_shadow.radius()) : 0,
+                .offset_x = resolve_length(*drop_shadow.offset_x()),
+                .offset_y = resolve_length(*drop_shadow.offset_y()),
+                .color = color.release_value(),
+            });
+            break;
+        }
+        case CSS::FilterStyleValue::Kind::Color: {
+            auto const& color = static_cast<CSS::ColorFilterStyleValue const&>(filter);
+            operations.append({
+                .kind = Compositor::VisualAnimationFilterOperationKind::Color,
+                .amount = color.resolved_amount(),
+                .color_operation = color.operation(),
+            });
+            break;
+        }
+        case CSS::FilterStyleValue::Kind::HueRotate: {
+            auto const& hue_rotate = static_cast<CSS::HueRotateFilterStyleValue const&>(filter);
+            operations.append({
+                .kind = Compositor::VisualAnimationFilterOperationKind::HueRotate,
+                .amount = hue_rotate.angle_degrees(),
+            });
+            break;
+        }
+        }
+    }
+    return operations;
 }
 
 static bool transform_keyframes_only_translate_horizontally(ReadonlySpan<Compositor::VisualAnimationKeyframe> keyframes)
@@ -7753,10 +7822,11 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
 
     bool targets_opacity = target_kind == Compositor::VisualAnimation::TargetKind::Opacity && effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Opacity));
     bool targets_background_color = target_kind == Compositor::VisualAnimation::TargetKind::BackgroundColor && effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::BackgroundColor));
+    bool targets_filter = target_kind == Compositor::VisualAnimation::TargetKind::Filter && effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Filter));
     bool targets_transform = target_kind == Compositor::VisualAnimation::TargetKind::Transform && any_of(effect.target_properties(), [](auto const& property) { return is_transform_family_property(property.id()); });
-    if (!targets_opacity && !targets_background_color && !targets_transform)
+    if (!targets_opacity && !targets_background_color && !targets_filter && !targets_transform)
         return {};
-    if (any_of(effect.target_properties(), [&](auto const& property) { return !first_is_one_of(property.id(), CSS::PropertyID::Opacity, CSS::PropertyID::BackgroundColor) && !is_transform_family_property(property.id()); }))
+    if (any_of(effect.target_properties(), [&](auto const& property) { return !first_is_one_of(property.id(), CSS::PropertyID::Opacity, CSS::PropertyID::BackgroundColor, CSS::PropertyID::Filter) && !is_transform_family_property(property.id()); }))
         return {};
     auto target = effect.target_abstract_element();
     if (!target.has_value() || target->element().namespace_uri() == Namespace::SVG)
@@ -7878,6 +7948,18 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
                     if (color.has_value())
                         value = Compositor::VisualAnimationValue { color.release_value() };
                 }
+            } else if (target_kind == Compositor::VisualAnimation::TargetKind::Filter) {
+                auto property = entry.properties.get(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Filter));
+                if (!property.has_value() || !property->has<CSS::RustStyleValueHandle>()) {
+                    new_cache.values.append({});
+                    continue;
+                }
+                auto style_value = resolved_compositor_animation_style_value(CSS::PropertyID::Filter, property->get<CSS::RustStyleValueHandle>(), *target);
+                if (style_value) {
+                    auto filter = compositor_filter_animation_value(*style_value, *target, device_pixels_per_css_pixel);
+                    if (filter.has_value())
+                        value = Compositor::VisualAnimationValue { filter.release_value() };
+                }
             } else {
                 Compositor::VisualAnimationTransformList operations;
                 bool skip_keyframe = false;
@@ -7981,6 +8063,8 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
                 return Layout::RustFFI::FfiVisualAnimationTargetKind::Opacity;
             case Compositor::VisualAnimation::TargetKind::BackgroundColor:
                 return Layout::RustFFI::FfiVisualAnimationTargetKind::BackgroundColor;
+            case Compositor::VisualAnimation::TargetKind::Filter:
+                return Layout::RustFFI::FfiVisualAnimationTargetKind::Filter;
             case Compositor::VisualAnimation::TargetKind::Transform:
                 return Layout::RustFFI::FfiVisualAnimationTargetKind::Transform;
             }
@@ -8110,6 +8194,7 @@ void Document::update_compositor_animations()
     struct CompetingEffects {
         CompetingPropertyEffects opacity;
         CompetingPropertyEffects background_color;
+        CompetingPropertyEffects filter;
         CompetingPropertyEffects transform;
     };
 
@@ -8359,6 +8444,8 @@ void Document::update_compositor_animations()
             add_competing_effect(effects.opacity);
         if (effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::BackgroundColor)))
             add_competing_effect(effects.background_color);
+        if (effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Filter)))
+            add_competing_effect(effects.filter);
         if (any_of(effect.target_properties(), [](auto const& property) { return is_transform_family_property(property.id()); })) {
             add_competing_effect(effects.transform);
             in_effect_transform_effects_by_target.ensure(&target->element()).append(effect);
@@ -8384,6 +8471,7 @@ void Document::update_compositor_animations()
         };
         validate_winner(effects.opacity);
         validate_winner(effects.background_color);
+        validate_winner(effects.filter);
         validate_winner(effects.transform);
     }
 
@@ -8476,19 +8564,22 @@ void Document::update_compositor_animations()
 
         bool targets_opacity = effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Opacity));
         bool targets_background_color = effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::BackgroundColor));
+        bool targets_filter = effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Filter));
         bool targets_transform = any_of(effect.target_properties(), [](auto const& property) { return is_transform_family_property(property.id()); });
-        bool targets_unsupported_property = any_of(effect.target_properties(), [&](auto const& property) { return !first_is_one_of(property.id(), CSS::PropertyID::Opacity, CSS::PropertyID::BackgroundColor) && !is_transform_family_property(property.id()); });
+        bool targets_unsupported_property = any_of(effect.target_properties(), [&](auto const& property) { return !first_is_one_of(property.id(), CSS::PropertyID::Opacity, CSS::PropertyID::BackgroundColor, CSS::PropertyID::Filter) && !is_transform_family_property(property.id()); });
         if (targets_unsupported_property)
             continue;
         auto target_effects = competing_effects.get(*abstract_target);
         VERIFY(target_effects.has_value());
         bool opacity_has_replace_winner = !targets_opacity || target_effects->opacity.winner;
         bool background_color_has_replace_winner = !targets_background_color || target_effects->background_color.winner;
+        bool filter_has_replace_winner = !targets_filter || target_effects->filter.winner;
         bool transform_has_replace_winner = !targets_transform || target_effects->transform.winner;
         bool selected_for_opacity = targets_opacity && target_effects->opacity.winner.ptr() == &effect;
         bool selected_for_background_color = targets_background_color && target_effects->background_color.winner.ptr() == &effect;
+        bool selected_for_filter = targets_filter && target_effects->filter.winner.ptr() == &effect;
         bool selected_for_transform = targets_transform && target_effects->transform.winner.ptr() == &effect;
-        bool all_targeted_properties_have_replace_winners = opacity_has_replace_winner && background_color_has_replace_winner && transform_has_replace_winner;
+        bool all_targeted_properties_have_replace_winners = opacity_has_replace_winner && background_color_has_replace_winner && filter_has_replace_winner && transform_has_replace_winner;
 
         Optional<bool> only_translates_horizontally;
 
@@ -8518,7 +8609,30 @@ void Document::update_compositor_animations()
             }
         }
 
-        if (!selected_for_opacity && !selected_for_background_color && !selected_for_transform) {
+        // Filters need an effects frame whose filter payload can be replaced. Validate the descriptor before forcing
+        // that frame, which requires one repaint before the animation can move to the compositor.
+        Layout::Node* filter_layout_node = nullptr;
+        Optional<Compositor::VisualAnimation> filter_visual_animation;
+        bool filter_animation_is_valid = false;
+        if (selected_for_filter) {
+            if (auto* layout_node = abstract_target->unsafe_layout_node()) {
+                filter_layout_node = layout_node;
+                bool missing_visual_context_node = false;
+                filter_visual_animation = build_compositor_animation(effect, visual_context_tree, Compositor::VisualAnimation::TargetKind::Filter, only_translates_horizontally, &missing_visual_context_node);
+                filter_animation_is_valid = filter_visual_animation.has_value() || missing_visual_context_node;
+                if (!filter_animation_is_valid) {
+                    filter_layout_node = nullptr;
+                } else if (missing_visual_context_node && !layout_node->needs_compositor_effects_layer()) {
+                    layout_node->set_needs_compositor_effects_layer(true);
+                    schedule_accumulated_visual_context_update(*layout_node, AccumulatedVisualContextUpdateScope::Structure);
+                    CSS::RequiredInvalidationAfterStyleChange invalidation;
+                    invalidation.ensure_at_least(CSS::InvalidationLevel::Repaint);
+                    Painting::repaint_after_style_change(*layout_node, invalidation);
+                }
+            }
+        }
+
+        if (!selected_for_opacity && !selected_for_background_color && !selected_for_filter && !selected_for_transform) {
             bool can_throttle_replaced_effect = animation.play_state() == Bindings::AnimationPlayState::Running
                 && !animation.pending()
                 && animation.playback_rate() > 0
@@ -8553,6 +8667,18 @@ void Document::update_compositor_animations()
                 m_layout_nodes_with_forced_compositor_background_color_frame.append(*background_color_layout_node);
             layout_nodes_with_stale_forced_background_color_frame.remove_first_matching([&](auto const& stale_layout_node) {
                 return stale_layout_node.ptr() == background_color_layout_node;
+            });
+        }
+        bool filter_was_handed_off = !selected_for_filter;
+        if (filter_visual_animation.has_value()) {
+            effect_visual_animations.append(filter_visual_animation.release_value());
+            filter_was_handed_off = true;
+        }
+        if (filter_layout_node && filter_animation_is_valid) {
+            if (!any_of(m_layout_nodes_with_forced_compositor_effects_layer, [&](auto const& forced_layout_node) { return forced_layout_node.ptr() == filter_layout_node; }))
+                m_layout_nodes_with_forced_compositor_effects_layer.append(*filter_layout_node);
+            layout_nodes_with_stale_forced_effects_layer.remove_first_matching([&](auto const& stale_layout_node) {
+                return stale_layout_node.ptr() == filter_layout_node;
             });
         }
         bool transform_was_handed_off = !selected_for_transform;
@@ -8610,7 +8736,7 @@ void Document::update_compositor_animations()
                 }
             }
         }
-        if (all_targeted_properties_have_replace_winners && opacity_was_handed_off && background_color_was_handed_off && transform_was_handed_off)
+        if (all_targeted_properties_have_replace_winners && opacity_was_handed_off && background_color_was_handed_off && filter_was_handed_off && transform_was_handed_off)
             effect.set_is_compositor_driven(true);
         effect.set_is_observation_relevant_compositor_animation(transform_affects_observation);
         schedule_next_phase_wakeup(effect, animation);

@@ -22,6 +22,47 @@ pub(crate) fn contains_url(filter: &ComputedFilter) -> bool {
         .any(|operation| operation.kind == FILTER_KIND_URL)
 }
 
+pub(crate) fn may_affect_output_bounds(bytes: &[u8]) -> bool {
+    fn skip(bytes: &[u8], offset: &mut usize, count: usize) -> Option<()> {
+        *offset = offset.checked_add(count)?;
+        (*offset <= bytes.len()).then_some(())
+    }
+
+    fn parse_optional_filter(bytes: &[u8], offset: &mut usize) -> Option<bool> {
+        let has_filter = *bytes.get(*offset)? != 0;
+        *offset += 1;
+        if has_filter {
+            parse_filter(bytes, offset)
+        } else {
+            Some(false)
+        }
+    }
+
+    fn parse_filter(bytes: &[u8], offset: &mut usize) -> Option<bool> {
+        let operation = *bytes.get(*offset)?;
+        *offset += 1;
+        if operation == FilterOperationType::Compose as u8 {
+            let outer_affects_bounds = parse_filter(bytes, offset)?;
+            if outer_affects_bounds {
+                return Some(true);
+            }
+            return parse_filter(bytes, offset);
+        }
+        if operation == FilterOperationType::ColorFilter as u8 {
+            skip(bytes, offset, size_of::<i32>() + size_of::<f32>())?;
+            return parse_optional_filter(bytes, offset);
+        }
+        if operation == FilterOperationType::HueRotate as u8 {
+            skip(bytes, offset, size_of::<f32>())?;
+            return parse_optional_filter(bytes, offset);
+        }
+        Some(true)
+    }
+
+    let mut offset = 0;
+    parse_filter(bytes, &mut offset).is_none_or(|affects_bounds| affects_bounds || offset != bytes.len())
+}
+
 pub(crate) fn serialize_non_url_filter(filter: &ComputedFilter, device_pixels_per_css_pixel: f64) -> Option<Vec<u8>> {
     let operations = filter.operations.as_slice();
     if operations.is_empty() || operations.iter().any(|operation| operation.kind == FILTER_KIND_URL) {

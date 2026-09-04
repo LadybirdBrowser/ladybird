@@ -330,6 +330,28 @@ impl TreeChainComparison<'_> {
         }
         true
     }
+
+    fn changing_filter_may_affect_output_bounds(&self, old_context: ContextRef, new_context: ContextRef) -> bool {
+        let mut old_frame = old_context.frame;
+        let mut new_frame = new_context.frame;
+        while !old_frame.is_none() {
+            let old_node = &self.old_tree.frame_nodes[old_frame.0 as usize];
+            let new_node = &self.new_tree.frame_nodes[new_frame.0 as usize];
+            if let (FrameData::Effects(old_effects), FrameData::Effects(new_effects)) = (&old_node.data, &new_node.data)
+                && old_effects.filter != new_effects.filter
+                && old_effects
+                    .filter
+                    .iter()
+                    .chain(new_effects.filter.iter())
+                    .any(|filter| crate::painting::filter_bytes::may_affect_output_bounds(filter))
+            {
+                return true;
+            }
+            old_frame = old_node.parent;
+            new_frame = new_node.parent;
+        }
+        false
+    }
 }
 
 fn intersect_like_gfx_rect(rect: FloatRect, other: FloatRect) -> FloatRect {
@@ -490,6 +512,10 @@ pub fn compute_display_list_damage(
     let add_visual_context_damage =
         |damage: &mut DamageAccumulator, old_command: &CommandReference<'_>, new_command: &CommandReference<'_>| {
             if chains.chains_are_equal(old_command.header.context, new_command.header.context) {
+                return;
+            }
+            if chains.changing_filter_may_affect_output_bounds(old_command.header.context, new_command.header.context) {
+                damage.changed_unbounded_command = true;
                 return;
             }
             if !old_command.header.has_bounding_rect || !new_command.header.has_bounding_rect {
@@ -769,6 +795,57 @@ mod tests {
         })
     }
 
+    fn effects(filter: Vec<u8>) -> FrameData {
+        FrameData::Effects(EffectsData {
+            opacity: 1.0,
+            blend_mode: CompositingAndBlendingOperator::Normal,
+            filter: Some(Rc::new(filter)),
+        })
+    }
+
+    fn blur_filter(radius: f32) -> Vec<u8> {
+        let mut bytes = vec![crate::painting::ffi::FilterOperationType::Blur as u8];
+        bytes.extend_from_slice(&radius.to_ne_bytes());
+        bytes.extend_from_slice(&radius.to_ne_bytes());
+        bytes.push(0);
+        bytes
+    }
+
+    fn color_filter(amount: f32) -> Vec<u8> {
+        let mut bytes = vec![crate::painting::ffi::FilterOperationType::ColorFilter as u8];
+        bytes.extend_from_slice(&0i32.to_ne_bytes());
+        bytes.extend_from_slice(&amount.to_ne_bytes());
+        bytes.push(0);
+        bytes
+    }
+
+    fn drop_shadow_filter(offset: f32, radius: f32) -> Vec<u8> {
+        let mut bytes = vec![crate::painting::ffi::FilterOperationType::DropShadow as u8];
+        bytes.extend_from_slice(&offset.to_ne_bytes());
+        bytes.extend_from_slice(&offset.to_ne_bytes());
+        bytes.extend_from_slice(&radius.to_ne_bytes());
+        bytes.extend_from_slice(&RED.0.to_ne_bytes());
+        bytes.push(0);
+        bytes
+    }
+
+    fn damage_for_filter_change(old_filter: Vec<u8>, new_filter: Vec<u8>) -> Option<IntRect> {
+        let mut old_tree = identity_tree();
+        let old_frame = old_tree.append_frame(effects(old_filter), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        let mut new_tree = identity_tree();
+        let new_frame = new_tree.append_frame(effects(new_filter), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        let rect = IntRect::new(10, 10, 20, 20);
+        let fill = FillRect {
+            rect,
+            color: RED,
+            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            background_color_animation_frame: FrameNodeIndex::NONE,
+        };
+        let old_display_list = command_bytes(&fill, Some(rect), context_in(VISUAL_VIEWPORT_NODE_INDEX, old_frame));
+        let new_display_list = command_bytes(&fill, Some(rect), context_in(VISUAL_VIEWPORT_NODE_INDEX, new_frame));
+        damage(&old_display_list, &old_tree, &new_display_list, &new_tree)
+    }
+
     fn damage(
         old_bytes: &[u8],
         old_tree: &VisualContextTree,
@@ -1021,6 +1098,23 @@ mod tests {
         assert_eq!(
             damage(&display_list, &old_tree, &display_list, &new_tree),
             Some(IntRect::new(9, 9, 32, 22))
+        );
+    }
+
+    #[test]
+    fn changed_extent_affecting_filter_has_unbounded_damage() {
+        assert_eq!(damage_for_filter_change(blur_filter(1.0), blur_filter(10.0)), None);
+        assert_eq!(
+            damage_for_filter_change(drop_shadow_filter(1.0, 1.0), drop_shadow_filter(10.0, 10.0)),
+            None
+        );
+    }
+
+    #[test]
+    fn changed_color_filter_has_bounded_damage() {
+        assert_eq!(
+            damage_for_filter_change(color_filter(0.5), color_filter(1.0)),
+            Some(IntRect::new(9, 9, 22, 22))
         );
     }
 

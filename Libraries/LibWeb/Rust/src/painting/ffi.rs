@@ -1229,7 +1229,8 @@ pub unsafe extern "C" fn layout_arena_paintable_visual_animation_target_indices(
     arena.with_paintable_visual_context_node_handles(slot, |handles| {
         let owned_indices: Vec<u32> = match target_kind {
             crate::painting::host::FfiVisualAnimationTargetKind::Opacity
-            | crate::painting::host::FfiVisualAnimationTargetKind::BackgroundColor => {
+            | crate::painting::host::FfiVisualAnimationTargetKind::BackgroundColor
+            | crate::painting::host::FfiVisualAnimationTargetKind::Filter => {
                 handles.frame_handles().map(|index| index.0).collect()
             }
             crate::painting::host::FfiVisualAnimationTargetKind::Transform => {
@@ -3019,9 +3020,9 @@ pub unsafe extern "C" fn visual_context_tree_with_visual_viewport_transform(
 
 /// # Safety
 ///
-/// `tree` must be a live retained tree handle; `frame_opacities` must address `frame_opacity_count`
-/// samples and `spatial_matrices` `spatial_matrix_count` samples. Returns a retained handle to a copy
-/// of the tree carrying the sampled values; the copy keeps the structural epoch.
+/// `tree` must be a live retained tree handle; each sample array must address its stated count, and
+/// each non-empty filter sample must address its stated byte count. Returns a retained handle to a
+/// copy of the tree carrying the sampled values; the copy keeps the structural epoch.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn visual_context_tree_with_sampled_values(
     tree: *const c_void,
@@ -3029,15 +3030,18 @@ pub unsafe extern "C" fn visual_context_tree_with_sampled_values(
     frame_opacity_count: usize,
     frame_background_colors: *const crate::painting::host::FfiFrameBackgroundColorSample,
     frame_background_color_count: usize,
+    frame_filters: *const crate::painting::host::FfiFrameFilterSample,
+    frame_filter_count: usize,
     spatial_matrices: *const crate::painting::host::FfiSpatialTransformSample,
     spatial_matrix_count: usize,
 ) -> *const c_void {
     let tree = unsafe { tree_from_handle(tree) };
     // SAFETY: The caller guarantees the sample arrays address the stated counts.
-    let (frame_opacities, frame_background_colors, spatial_matrices) = unsafe {
+    let (frame_opacities, frame_background_colors, frame_filters, spatial_matrices) = unsafe {
         (
             ffi_slice(frame_opacities, frame_opacity_count),
             ffi_slice(frame_background_colors, frame_background_color_count),
+            ffi_slice(frame_filters, frame_filter_count),
             ffi_slice(spatial_matrices, spatial_matrix_count),
         )
     };
@@ -3049,12 +3053,30 @@ pub unsafe extern "C" fn visual_context_tree_with_sampled_values(
         .iter()
         .map(|sample| (FrameNodeIndex(sample.frame), sample.color))
         .collect();
+    let frame_filters: Vec<(FrameNodeIndex, Option<Rc<Vec<u8>>>)> = frame_filters
+        .iter()
+        .map(|sample| {
+            let filter = if sample.filter_size == 0 {
+                None
+            } else {
+                // SAFETY: The caller guarantees each filter byte range addresses the stated size.
+                Some(Rc::new(
+                    unsafe { ffi_slice(sample.filter_bytes, sample.filter_size) }.to_vec(),
+                ))
+            };
+            (FrameNodeIndex(sample.frame), filter)
+        })
+        .collect();
     let spatial_matrices: Vec<(SpatialNodeIndex, libgfx_rust::FloatMatrix4x4)> = spatial_matrices
         .iter()
         .map(|sample| (SpatialNodeIndex(sample.spatial), sample.matrix))
         .collect();
-    let sampled =
-        tree.with_sampled_visual_animation_values(&frame_opacities, &frame_background_colors, &spatial_matrices);
+    let sampled = tree.with_sampled_visual_animation_values(
+        &frame_opacities,
+        &frame_background_colors,
+        &frame_filters,
+        &spatial_matrices,
+    );
     Rc::into_raw(Rc::new(sampled)).cast()
 }
 

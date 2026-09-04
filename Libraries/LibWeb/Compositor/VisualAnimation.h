@@ -6,10 +6,12 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
 #include <AK/Time.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/Filter.h>
 #include <LibGfx/Matrix4x4.h>
 #include <LibIPC/Forward.h>
 #include <LibWeb/Export.h>
@@ -85,6 +87,29 @@ enum class VisualAnimationTransformOperationKind : u8 {
     SkewY,
 };
 
+enum class VisualAnimationFilterOperationKind : u8 {
+    Blur,
+    DropShadow,
+    Color,
+    HueRotate,
+};
+
+struct VisualAnimationFilterOperation {
+    WEB_API bool matches(VisualAnimationFilterOperation const&) const;
+    WEB_API VisualAnimationFilterOperation initial_value() const;
+    WEB_API VisualAnimationFilterOperation interpolated_with(VisualAnimationFilterOperation const&, double progress) const;
+    WEB_API bool is_valid() const;
+
+    VisualAnimationFilterOperationKind kind { VisualAnimationFilterOperationKind::Blur };
+    float amount { 0 };
+    float offset_x { 0 };
+    float offset_y { 0 };
+    Gfx::Color color { Gfx::Color::Transparent };
+    Gfx::ColorFilterType color_operation { Gfx::ColorFilterType::Brightness };
+
+    bool operator==(VisualAnimationFilterOperation const&) const = default;
+};
+
 struct VisualAnimationTransformOperation {
     WEB_API Gfx::FloatMatrix4x4 to_matrix() const;
     WEB_API bool is_valid() const;
@@ -97,7 +122,8 @@ struct VisualAnimationTransformOperation {
 };
 
 using VisualAnimationTransformList = Vector<VisualAnimationTransformOperation>;
-using VisualAnimationValue = Variant<float, Gfx::Color, VisualAnimationTransformList>;
+using VisualAnimationFilterList = Vector<VisualAnimationFilterOperation>;
+using VisualAnimationValue = Variant<float, Gfx::Color, VisualAnimationFilterList, VisualAnimationTransformList>;
 
 struct VisualAnimationKeyframe {
     double offset { 0 };
@@ -111,12 +137,15 @@ struct VisualAnimation {
     struct Sample {
         float opacity { 1 };
         Optional<Gfx::Color> background_color;
+        bool samples_filter { false };
+        ByteBuffer filter_bytes;
         Gfx::FloatMatrix4x4 transform { Gfx::FloatMatrix4x4::identity() };
     };
 
     enum class TargetKind : u8 {
         Opacity,
         BackgroundColor,
+        Filter,
         Transform,
     };
 
@@ -160,6 +189,11 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::Compositor::VisualAnimationTransformOperation const&);
 template<>
 WEB_API ErrorOr<Web::Compositor::VisualAnimationTransformOperation> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Compositor::VisualAnimationFilterOperation const&);
+template<>
+WEB_API ErrorOr<Web::Compositor::VisualAnimationFilterOperation> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::Compositor::VisualAnimationKeyframe const&);
