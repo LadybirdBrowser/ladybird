@@ -1,6 +1,10 @@
 [Exposed=Nobody]
 interface Internals {
 
+    // These members deliberately remain unimplemented to test [FIXME] binding generation.
+    [FIXME] undefined unimplementedOperationForTesting();
+    [FIXME] readonly attribute boolean unimplementedAttributeForTesting;
+
     undefined signalTestIsDone(DOMString text);
     undefined setTestTimeout(double milliseconds);
     undefined forceIncompatibleVisualContextTreeRebuild();

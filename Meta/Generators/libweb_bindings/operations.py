@@ -181,19 +181,24 @@ def define_the_regular_operations(
             )
         )
 
-    if unforgeable:
-        return
-
     implemented_operation_names = overload_resolution.operation_overload_sets(interface).keys()
+    defined_unimplemented_operation_names = set()
     for operation in interface.regular_operations:
         if "FIXME" not in operation.extended_attributes:
             continue
+        if ("LegacyUnforgeable" in operation.extended_attributes) != unforgeable:
+            continue
         if operation.name in implemented_operation_names:
             continue
+        if operation.name in defined_unimplemented_operation_names:
+            continue
+        defined_unimplemented_operation_names.add(operation.name)
         out.write(
-            f"""    object.define_direct_property("{operation.name}"_utf16_fly_string, JS::js_undefined(), default_attributes | JS::Attribute::Unimplemented);
-
-"""
+            wrap_with_extended_attribute_exposure_checks(
+                includes,
+                operation.extended_attributes,
+                f'    object.define_unimplemented_property("{operation.name}"_utf16_fly_string);\n',
+            )
         )
 
 
@@ -207,6 +212,24 @@ def define_the_static_operations(out: TextIO, includes: GeneratedIncludes, inter
                 f"""    object.define_native_function(realm, "{name}"_utf16_fly_string, {idl_identifier_cpp_name(operation)}, {overload_resolution.operation_overload_set_length(operations)}, JS::Attribute::Enumerable | JS::Attribute::Configurable | JS::Attribute::Writable);
 
 """,
+            )
+        )
+
+    implemented_operation_names = overload_resolution.operation_overload_sets(interface, static=True).keys()
+    defined_unimplemented_operation_names = set()
+    for operation in interface.static_operations:
+        if "FIXME" not in operation.extended_attributes:
+            continue
+        if operation.name in implemented_operation_names:
+            continue
+        if operation.name in defined_unimplemented_operation_names:
+            continue
+        defined_unimplemented_operation_names.add(operation.name)
+        out.write(
+            wrap_with_extended_attribute_exposure_checks(
+                includes,
+                operation.extended_attributes,
+                f'    object.define_unimplemented_property("{operation.name}"_utf16_fly_string);\n',
             )
         )
 

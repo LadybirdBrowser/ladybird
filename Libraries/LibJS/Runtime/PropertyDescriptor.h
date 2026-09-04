@@ -33,7 +33,7 @@ public:
     // Not a standard abstract operation, but "If every field in Desc is absent".
     [[nodiscard]] bool is_empty() const
     {
-        return !value.has_value() && !get.has_value() && !set.has_value() && !writable.has_value() && !enumerable.has_value() && !configurable.has_value() && !unimplemented.has_value();
+        return !value.has_value() && !get.has_value() && !set.has_value() && !writable.has_value() && !enumerable.has_value() && !configurable.has_value();
     }
 
     void visit_edges(GC::Cell::Visitor&);
@@ -44,8 +44,6 @@ public:
     Optional<bool> writable {};
     Optional<bool> enumerable {};
     Optional<bool> configurable {};
-    Optional<bool> unimplemented {};
-
     Optional<u32> property_offset {};
 };
 
@@ -70,8 +68,6 @@ struct Formatter<JS::PropertyDescriptor> : Formatter<FormatString> {
             TRY(parts.try_append(Utf16String::formatted("[[Enumerable]]: {}", *property_descriptor.enumerable)));
         if (property_descriptor.configurable.has_value())
             TRY(parts.try_append(Utf16String::formatted("[[Configurable]]: {}", *property_descriptor.configurable)));
-        if (property_descriptor.unimplemented.has_value())
-            TRY(parts.try_append(Utf16String::formatted("[[Unimplemented]]: {}", *property_descriptor.unimplemented)));
         return Formatter<Utf16String> {}.format(builder, Utf16String::formatted("PropertyDescriptor {{ {} }}", Utf16String::join(", "sv, parts)));
     }
 };
