@@ -558,14 +558,7 @@ Utf16String HTMLElement::outer_text()
 
 static bool any_ancestor_establishes_a_fixed_position_containing_block(Layout::NodeWithStyle const& node)
 {
-    // https://www.w3.org/TR/css-position-3/#fixed-positioning-containing-block
-    // The containing block is established by the nearest ancestor box that establishes an fixed positioning containing
-    // block, with the bounds of the containing block determined identically to the absolute positioning containing block.
-    for (auto ancestor = node.containing_block(); ancestor; ancestor = ancestor->containing_block()) {
-        if (ancestor->establishes_a_fixed_positioning_containing_block())
-            return true;
-    }
-    return false;
+    return Layout::RustFFI::layout_arena_any_ancestor_establishes_a_fixed_position_containing_block(node.arena_handle(), Layout::Node::slot_id(&node));
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-htmlelement-scrollparent
