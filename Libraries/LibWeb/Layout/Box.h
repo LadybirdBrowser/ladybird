@@ -53,9 +53,6 @@ public:
     // Re-derived whenever containing block pointers are recomputed.
     bool abspos_descendant_escapes() const { return has_flag(RustFFI::NodeFlag::AbsposDescendantEscapes); }
 
-    bool compensates_for_horizontal_scroll() const { return has_flag(RustFFI::NodeFlag::CompensatesForHorizontalScroll); }
-    bool compensates_for_vertical_scroll() const { return has_flag(RustFFI::NodeFlag::CompensatesForVerticalScroll); }
-
     Box(DOM::Document&, GC::Ptr<DOM::Node>, CSS::LayoutStyle, RustFFI::NodeKind = RustFFI::NodeKind::Box);
     Box(DOM::Document&, BindToPreparedArenaSlot, RustFFI::NodeSlotId, RustFFI::NodeKind);
 

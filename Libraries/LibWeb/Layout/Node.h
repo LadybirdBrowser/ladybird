@@ -272,9 +272,7 @@ public:
     bool is_svg_clip_box() const { return kind() == RustFFI::NodeKind::SVGClipBox; }
     bool is_svg_mask_box() const { return kind() == RustFFI::NodeKind::SVGMaskBox; }
     bool is_svg_pattern_box() const { return kind() == RustFFI::NodeKind::SVGPatternBox; }
-    bool is_svg_svg_box() const { return kind() == RustFFI::NodeKind::SVGSVGBox; }
     bool is_svg_graphics_box() const { return RustFFI::layout_node_kind_is_svg_graphics_box(kind()); }
-    bool is_svg_foreign_object_box() const { return kind() == RustFFI::NodeKind::SVGForeignObjectBox; }
     bool is_replaced_box() const { return RustFFI::layout_node_kind_is_replaced_box(kind()); }
     bool is_list_item_box() const { return kind() == RustFFI::NodeKind::ListItemBox; }
     bool is_list_item_marker_box() const { return kind() == RustFFI::NodeKind::ListItemMarkerBox; }

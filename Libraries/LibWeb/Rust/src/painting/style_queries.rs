@@ -553,6 +553,10 @@ pub(crate) fn is_fixed_position(arena: &LayoutNodeArena, node: NodeSlotId) -> bo
     position(arena, node) == positioning::FIXED
 }
 
+pub(crate) fn is_sticky_position(style: ComputedValuesView<'_>) -> bool {
+    style.box_values().position == positioning::STICKY
+}
+
 pub(crate) fn is_floating(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
     arena
         .node_data_if_live(node)
