@@ -26,7 +26,6 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/DirectiveOperations.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/ContentSecurityPolicy/Violation.h>
-#include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/DocumentLoading.h>
@@ -2610,63 +2609,20 @@ void LocalNavigable::create_navigation_params_for_navigation(NavigationPopulatio
         received_navigation_params);
 }
 
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
-WebIDL::ExceptionOr<void> LocalNavigable::navigate(NavigateParams params)
+WebIDL::ExceptionOr<void> LocalNavigable::continue_navigation_in_active_document_agent(
+    NavigateParams params,
+    ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type,
+    GC::Ref<SourceSnapshotParams> source_snapshot_params,
+    URL::Origin initiator_origin_snapshot,
+    URL::URL initiator_base_url_snapshot)
 {
+    // NB: A WebContent process has one main-thread similar-origin window agent, so a local navigable's active
+    //     document always shares the surrounding agent and step 8 continues here. A navigation the UI process
+    //     requested was delivered by IPC to this agent.
+
     // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
     if (!active_window())
         return {};
-
-    auto source_document = params.source_document;
-    auto exceptions_enabled = params.exceptions_enabled;
-    auto user_involvement = params.user_involvement;
-    auto url = params.url;
-
-    auto& active_document = *this->active_document();
-    auto& realm = HTML::relevant_realm(active_document);
-
-    // 1. Let cspNavigationType be "form-submission" if formDataEntryList is non-null; otherwise "other".
-    auto csp_navigation_type = params.form_data_entry_list.has_value() ? ContentSecurityPolicy::Directives::Directive::NavigationType::FormSubmission : ContentSecurityPolicy::Directives::Directive::NavigationType::Other;
-
-    // 2. Let sourceSnapshotParams be the result of snapshotting source snapshot params given sourceDocument.
-    auto source_snapshot_params = snapshot_source_snapshot_params(source_document);
-
-    // 3. Let initiatorOriginSnapshot be a new opaque origin.
-    auto initiator_origin_snapshot = URL::Origin::create_opaque();
-
-    // 4. Let initiatorBaseURLSnapshot be about:blank.
-    auto initiator_base_url_snapshot = URL::about_blank();
-
-    // 5. If sourceDocument is null:
-    if (!source_document) {
-        // 1. Assert: userInvolvement is "browser UI".
-        VERIFY(user_involvement == UserNavigationInvolvement::BrowserUI);
-
-        // 2. If url's scheme is "javascript", then set initiatorOriginSnapshot to navigable's active document's origin.
-        if (url.scheme() == "javascript"sv)
-            initiator_origin_snapshot = active_document.origin();
-    }
-    // 6. Otherwise:
-    else {
-        // 1. Assert: userInvolvement is not "browser UI".
-        VERIFY(user_involvement != UserNavigationInvolvement::BrowserUI);
-
-        // 2. If sourceDocument's node navigable is not allowed by sandboxing to navigate navigable given sourceSnapshotParams:
-        if (!source_document->navigable()->allowed_by_sandboxing_to_navigate(*this, source_snapshot_params)) {
-            // 1. If exceptionsEnabled is true, then throw a "SecurityError" DOMException.
-            if (exceptions_enabled)
-                return WebIDL::SecurityError::create(realm, "Source document's node navigable is not allowed to navigate"_utf16);
-
-            // 2 Return.
-            return {};
-        }
-
-        // 3. Set initiatorOriginSnapshot to sourceDocument's origin.
-        initiator_origin_snapshot = source_document->origin();
-
-        // 4. Set initiatorBaseURLSnapshot to sourceDocument's document base URL.
-        initiator_base_url_snapshot = source_document->base_url();
-    }
 
     PreparedNavigation navigation {
         .params = move(params),
@@ -2679,7 +2635,7 @@ WebIDL::ExceptionOr<void> LocalNavigable::navigate(NavigateParams params)
     // AD-HOC: A child navigable's session history entry exists canonically only once the UI process has admitted
     //         the creation operation, so navigations that arrive before that acknowledgment queue until it lands.
     //         Top-level traversables are marked ready at creation and never queue here. Keep the values snapshotted
-    //         by steps 1-6 so the eventual continuation starts at step 7.
+    //         by steps 1-7 so the eventual continuation starts at step 8.
     if (!m_has_session_history_entry_and_ready_for_navigation) {
         queue_pending_navigation(move(navigation), PendingNavigationBehavior::Append);
         return {};
@@ -2816,7 +2772,7 @@ void LocalNavigable::continue_navigation_after_population_dispatch(PreparedNavig
     create_navigation_params_for_navigation(move(population_request), source_snapshot_params, move(navigation_params), Bindings::NavigationTimingType::Navigate);
 }
 
-// Continue the navigate algorithm at step 7 with the values snapshotted by steps 1-6 in navigate().
+// Continue the navigate algorithm at step 9 with the values prepared by steps 1-7 in navigate().
 void LocalNavigable::begin_navigation(PreparedNavigation navigation)
 {
     // AD-HOC: Not in the spec but we should not navigate a navigable that has been destroyed.
@@ -2850,18 +2806,9 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
     auto initiator_origin_snapshot = navigation.initiator_origin_snapshot;
     auto initiator_base_url_snapshot = navigation.initiator_base_url_snapshot;
 
-    // 7. Let navigationId be the result of generating a random UUID.
-    // NB: Generating the ID is the responsibility of whichever process requested the navigation. A load
-    //     requested by the UI process carries the ID the UI generated when it recorded the navigation.
-    auto navigation_id = params.navigation_id.value_or_lazy_evaluated([] {
-        auto uuid = Crypto::generate_random_uuid();
-        return Utf16String::from_ascii_without_validation(uuid.bytes());
-    });
-
-    // 8. If the surrounding agent is equal to navigable's active document's relevant agent, then continue these steps.
-    //    Otherwise, queue a global task on the navigation and traversal task source given navigable's active window to continue these steps.
-    // NB: A navigation requested by the UI process was queued by the IPC message that delivered it here,
-    //     while a navigation begun within this process continues in its own agent.
+    VERIFY(params.navigation_id.has_value());
+    // Keep the ID in the prepared navigation in case step 18 queues it behind an ongoing traversal.
+    auto navigation_id = *params.navigation_id;
 
     // 9. If navigable's active document's unload counter is greater than 0,
     //    then invoke WebDriver BiDi navigation failed with navigable and a WebDriver BiDi navigation status whose id
