@@ -191,12 +191,17 @@ struct ShapeForParams {
     shape: CachedShape,
 }
 
+struct ShapesForText {
+    last_used_tick: u64,
+    shapes: Vec<ShapeForParams>,
+}
+
 type FastMap<K, V> = std::collections::HashMap<K, V, foldhash::fast::RandomState>;
 
 struct FontShapeCache {
     last_used_tick: u64,
     single_ascii_common_shapes: [Option<Box<CachedShape>>; SINGLE_ASCII_SHAPE_CACHE_SIZE],
-    shapes_by_text: FastMap<Box<[u16]>, Vec<ShapeForParams>>,
+    shapes_by_text: FastMap<Box<[u16]>, ShapesForText>,
 }
 
 impl Default for FontShapeCache {
@@ -212,6 +217,7 @@ impl Default for FontShapeCache {
 impl FontShapeCache {
     fn shape_for(
         &mut self,
+        tick: u64,
         text: &[u16],
         params: ShapeParams,
         shape_uncached: impl FnOnce() -> CachedShape,
@@ -228,14 +234,22 @@ impl FontShapeCache {
 
         if !self.shapes_by_text.contains_key(text) {
             if self.shapes_by_text.len() >= MAX_SHAPE_CACHE_TEXTS_PER_FONT {
-                self.shapes_by_text.clear();
+                self.evict_least_recently_used_texts();
             }
-            self.shapes_by_text.insert(Box::from(text), Vec::new());
+            self.shapes_by_text.insert(
+                Box::from(text),
+                ShapesForText {
+                    last_used_tick: tick,
+                    shapes: Vec::new(),
+                },
+            );
         }
-        let shapes = self
+        let entry = self
             .shapes_by_text
             .get_mut(text)
             .expect("the entry was inserted just above");
+        entry.last_used_tick = tick;
+        let shapes = &mut entry.shapes;
         let index = shapes
             .iter()
             .position(|entry| entry.params.matches(&params))
@@ -247,6 +261,14 @@ impl FontShapeCache {
                 shapes.len() - 1
             });
         &shapes[index].shape
+    }
+
+    fn evict_least_recently_used_texts(&mut self) {
+        let mut ticks: Vec<u64> = self.shapes_by_text.values().map(|entry| entry.last_used_tick).collect();
+        let median_index = ticks.len() / 2;
+        let (_, median_tick, _) = ticks.select_nth_unstable(median_index);
+        let threshold = *median_tick;
+        self.shapes_by_text.retain(|_, entry| entry.last_used_tick > threshold);
     }
 }
 
@@ -270,7 +292,7 @@ impl ShapingCache {
         }
         let font_cache = self.caches_by_font_id.entry(font_id).or_default();
         font_cache.last_used_tick = self.tick;
-        font_cache.shape_for(text, params, shape_uncached)
+        font_cache.shape_for(self.tick, text, params, shape_uncached)
     }
 
     fn evict_least_recently_used_font(&mut self) {
@@ -463,12 +485,15 @@ mod shaping_cache_tests {
     }
 
     #[test]
-    fn overflowing_the_per_font_text_capacity_clears_that_font_only() {
+    fn overflowing_the_per_font_text_capacity_evicts_the_least_recently_used_half_of_that_font() {
         let mut cache = ShapingCache::default();
-        for text_index in 0..MAX_SHAPE_CACHE_TEXTS_PER_FONT as u32 {
-            let text: Vec<u16> = format!("text-{text_index}").encode_utf16().collect();
-            cache.shape_for(1, &text, params_with_letter_spacing(0.0), || shape_with_glyph_count(1));
+        let texts: Vec<Vec<u16>> = (0..MAX_SHAPE_CACHE_TEXTS_PER_FONT)
+            .map(|text_index| format!("text-{text_index}").encode_utf16().collect())
+            .collect();
+        for text in &texts {
+            cache.shape_for(1, text, params_with_letter_spacing(0.0), || shape_with_glyph_count(1));
         }
+        cache.shape_for(1, &texts[0], params_with_letter_spacing(0.0), || unreachable!());
         let other_font_text: Vec<u16> = "other".encode_utf16().collect();
         cache.shape_for(2, &other_font_text, params_with_letter_spacing(0.0), || {
             shape_with_glyph_count(1)
@@ -478,7 +503,19 @@ mod shaping_cache_tests {
         cache.shape_for(1, &overflowing_text, params_with_letter_spacing(0.0), || {
             shape_with_glyph_count(1)
         });
-        assert_eq!(cache.caches_by_font_id[&1].shapes_by_text.len(), 1);
+        let font_cache = &cache.caches_by_font_id[&1];
+        assert_eq!(font_cache.shapes_by_text.len(), MAX_SHAPE_CACHE_TEXTS_PER_FONT / 2);
+        assert!(font_cache.shapes_by_text.contains_key(texts[0].as_slice()));
+        assert!(!font_cache.shapes_by_text.contains_key(texts[1].as_slice()));
+        assert!(
+            font_cache
+                .shapes_by_text
+                .contains_key(texts[texts.len() - 1].as_slice())
+        );
+        assert!(font_cache.shapes_by_text.contains_key(overflowing_text.as_slice()));
         assert_eq!(cache.caches_by_font_id[&2].shapes_by_text.len(), 1);
+
+        cache.shape_for(1, &texts[0], params_with_letter_spacing(0.0), || unreachable!());
+        cache.shape_for(1, &overflowing_text, params_with_letter_spacing(0.0), || unreachable!());
     }
 }
