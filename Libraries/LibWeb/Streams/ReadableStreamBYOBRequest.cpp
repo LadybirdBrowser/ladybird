@@ -16,24 +16,11 @@ namespace Web::Streams {
 
 GC_DEFINE_ALLOCATOR(ReadableStreamBYOBRequest);
 
-// https://streams.spec.whatwg.org/#rs-byob-request-view
-WebIDL::NullableArrayBufferViewVariant ReadableStreamBYOBRequest::view()
-{
-    // 1. Return this.[[view]].
-    if (!m_view.has_value())
-        return Empty {};
-    return m_view->array_buffer_view();
-}
-
 void ReadableStreamBYOBRequest::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_controller);
-    if (m_view.has_value()) {
-        m_view->array_buffer_view().visit([&](auto const& view) {
-            visitor.visit(view);
-        });
-    }
+    visitor.visit(m_view);
 }
 
 // https://streams.spec.whatwg.org/#rs-byob-request-respond
@@ -44,7 +31,7 @@ WebIDL::ExceptionOr<void> ReadableStreamBYOBRequest::respond(JS::Realm& realm, W
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Controller is undefined"_utf16 };
 
     // 2. If ! IsDetachedBuffer(this.[[view]].[[ArrayBuffer]]) is true, throw a TypeError exception.
-    VERIFY(m_view.has_value());
+    VERIFY(m_view);
     if (m_view->viewed_array_buffer()->is_detached())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Unable to respond to detached ArrayBuffer"_utf16 };
 

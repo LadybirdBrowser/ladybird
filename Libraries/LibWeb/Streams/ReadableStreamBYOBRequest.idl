@@ -1,7 +1,7 @@
 // https://streams.spec.whatwg.org/#readablestreambyobrequest
 [Exposed=*]
 interface ReadableStreamBYOBRequest {
-    readonly attribute ArrayBufferView? view;
+    readonly attribute Uint8Array? view;
 
     undefined respond([EnforceRange] unsigned long long bytesWritten);
     [NeedsCallerRealm] undefined respondWithNewView(ArrayBufferView view);

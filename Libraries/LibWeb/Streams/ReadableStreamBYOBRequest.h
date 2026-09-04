@@ -24,11 +24,10 @@ class ReadableStreamBYOBRequest : public Bindings::GCAllocatedWrappable {
 public:
     virtual ~ReadableStreamBYOBRequest() override = default;
 
-    WebIDL::NullableArrayBufferViewVariant view();
+    GC::Ptr<JS::Uint8Array> view() const { return m_view; }
+    void set_view(GC::Ptr<JS::Uint8Array> value) { m_view = value; }
 
     void set_controller(GC::Ptr<ReadableByteStreamController> value) { m_controller = value; }
-
-    void set_view(Optional<WebIDL::ArrayBufferView> value) { m_view = move(value); }
 
     WebIDL::ExceptionOr<void> respond(JS::Realm&, WebIDL::UnsignedLongLong bytes_written);
     WebIDL::ExceptionOr<void> respond_with_new_view(JS::Realm&, WebIDL::ArrayBufferViewVariant const& view);
@@ -44,7 +43,7 @@ private:
 
     // https://streams.spec.whatwg.org/#readablestreambyobrequest-view
     // A typed array representing the destination region to which the controller can write generated data, or null after the BYOB request has been invalidated.
-    Optional<WebIDL::ArrayBufferView> m_view;
+    GC::Ptr<JS::Uint8Array> m_view;
 };
 
 }

@@ -387,8 +387,8 @@ Optional<WebIDL::ArrayBufferView> ReadableStream::current_byob_request_view()
 
     // 4. Return byobRequest.[[view]].
     auto view = byob_request->view();
-    VERIFY(!view.has<Empty>());
-    return WebIDL::ArrayBufferView { view.downcast<WebIDL::ArrayBufferViewVariant>() };
+    VERIFY(view);
+    return WebIDL::ArrayBufferViewVariant { *view };
 }
 
 // https://streams.spec.whatwg.org/#readablestream-enqueue
