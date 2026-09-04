@@ -2,6 +2,7 @@ set(TEST_SOURCES
     TestApplyHistoryStep.cpp
     TestAutocompleteMuxer.cpp
     TestAutocompleteRanker.cpp
+    TestCanonicalBrowsingContextGroup.cpp
     TestCookieJar.cpp
     TestDownloadSegmentation.cpp
     TestDownloadStore.cpp
