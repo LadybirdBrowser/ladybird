@@ -28,6 +28,7 @@ dictionary ReadableStreamIteratorOptions {
 interface ReadableStream {
     constructor(optional object underlyingSource, optional QueuingStrategy strategy = {});
 
+    // FIXME: asyncIterable should be a async_sequence<any>.
     [NeedsCallerRealm] static ReadableStream from(any asyncIterable);
 
     readonly attribute boolean locked;
