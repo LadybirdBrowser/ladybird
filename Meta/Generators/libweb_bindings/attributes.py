@@ -80,7 +80,10 @@ def validate_direct_getter(context: GenerationContext, interface: Interface, att
 
 
 def reflected_attribute_name(attribute: Attribute) -> str:
-    return attribute.extended_attributes.get("Reflect") or attribute.name.lower()
+    reflected = attribute.extended_attributes.get("Reflect")
+    if reflected:
+        return reflected.strip('"')
+    return attribute.name.lower()
 
 
 def is_dom_string_type(attribute: Attribute) -> bool:
