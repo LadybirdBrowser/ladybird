@@ -2011,9 +2011,9 @@ void ViewImplementation::did_change_screen_wake_lock_state(Badge<WebContentClien
         on_screen_wake_lock_state_changed(m_screen_wake_lock_state);
 }
 
-void ViewImplementation::did_create_top_level_traversable(Badge<WebContentClient>, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry)
+void ViewImplementation::did_create_top_level_traversable(Badge<WebContentClient>, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Optional<CanonicalNavigable&> opener, WebContentClient& process)
 {
-    m_top_level_traversable.did_create_top_level_traversable(move(initial_history_entry));
+    m_top_level_traversable.did_create_top_level_traversable(move(initial_history_entry), opener, process);
     update_navigation_action_state();
     dump_session_history("created-top-level-traversable"sv);
 }

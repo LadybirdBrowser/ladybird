@@ -142,8 +142,12 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
     initial_history_entry->set_step(0);
 
     // 9. Append initialHistoryEntry to traversable's session history entries.
-    // NB: The UI process performs this step in canonical session history.
+    // NB: The UI process keeps the canonical session history, so report the traversable's creation to it.
     traversable->set_has_session_history_entry_and_ready_for_navigation();
+    Optional<CrossProcessId> opener_navigable_id;
+    if (opener)
+        opener_navigable_id = opener->active_document()->navigable()->id();
+    page->client().page_did_create_top_level_traversable(traversable->id(), create_session_history_entry_descriptor(*initial_history_entry), opener_navigable_id);
 
     // 10. If opener is non-null, then legacy-clone a traversable storage shed given opener's top-level traversable and traversable. [STORAGE]
     if (opener) {

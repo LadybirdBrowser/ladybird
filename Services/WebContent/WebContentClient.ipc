@@ -172,7 +172,7 @@ endpoint WebContentClient
     did_post_broadcast_channel_message(u64 page_id, Web::HTML::BroadcastChannelMessage message) =|
 
     did_update_resource_count(u64 page_id, i32 count_waiting) =|
-    did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, bool clone_session_storage) => (Optional<u64> new_page_id, Optional<Web::HTML::CrossProcessId> root_navigable_id, Web::HTML::VisibilityState system_visibility_state, String handle)
+    did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints) => (Optional<u64> new_page_id, Optional<Web::HTML::CrossProcessId> root_navigable_id, Web::HTML::VisibilityState system_visibility_state, String handle)
     did_request_activate_tab(u64 page_id) =|
     did_close_browsing_context(u64 page_id) =|
     did_change_needs_beforeunload_check(u64 page_id, bool needs_beforeunload_check) =|
@@ -203,7 +203,7 @@ endpoint WebContentClient
     did_request_primary_paste(u64 page_id) =|
     did_update_primary_selection(u64 page_id, String text) =|
 
-    did_create_top_level_traversable(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry) =|
+    did_create_top_level_traversable(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Optional<Web::HTML::CrossProcessId> opener_navigable_id) =|
     did_update_session_history_entry_navigation_api_state(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Web::HTML::StorageSerializationRecord navigation_api_state) =|
     did_update_session_history_entry_scroll_restoration_mode(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Web::HTML::ScrollRestorationMode scroll_restoration_mode) =|
     did_update_session_history_entry_document_state_navigable_target_name(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Utf16String navigable_target_name) =|

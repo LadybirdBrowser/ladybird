@@ -214,7 +214,7 @@ void WebContentClient::assign_view(Badge<Application>, ViewImplementation& view)
     m_views.set(m_initial_page_id, view);
 
     if (m_initial_top_level_history_entry_awaiting_view.has_value())
-        view.did_create_top_level_traversable({}, m_initial_top_level_history_entry_awaiting_view.release_value());
+        view.did_create_top_level_traversable({}, m_initial_top_level_history_entry_awaiting_view.release_value(), {}, *this);
 }
 
 void WebContentClient::set_compositor_connection_id(Badge<Application>, i32 compositor_connection_id)
@@ -330,6 +330,19 @@ CanonicalNavigable* WebContentClient::navigable_for_page(u64 page_id)
         return &view->traversable();
 
     return nullptr;
+}
+
+Optional<CanonicalNavigable&> WebContentClient::hosted_navigable(Web::HTML::CrossProcessId navigable_id)
+{
+    for (auto const& view : m_views) {
+        if (auto navigable = hosted_navigable_for_page(view.key, navigable_id); navigable.has_value())
+            return navigable;
+    }
+    for (auto const& embedded_page : m_embedded_pages) {
+        if (auto navigable = hosted_navigable_for_page(embedded_page.key, navigable_id); navigable.has_value())
+            return navigable;
+    }
+    return {};
 }
 
 Optional<CanonicalNavigable&> WebContentClient::hosted_navigable_for_page(u64 page_id, Web::HTML::CrossProcessId navigable_id)
@@ -1967,7 +1980,7 @@ void WebContentClient::did_post_broadcast_channel_message(u64, Web::HTML::Broadc
     WorkerProcessManager::the().broadcast_channel_message_from_web_content(message, m_is_private);
 }
 
-Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, bool clone_session_storage)
+Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints)
 {
     auto new_page_id = Application::the().allocate_page_id();
     String handle;
@@ -1980,11 +1993,6 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_r
     auto view = view_for_page_id(new_page_id);
     if (!view.has_value())
         return { {}, {}, Web::HTML::VisibilityState::Hidden, move(handle) };
-
-    // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable
-    // 10. If opener is non-null, then legacy-clone a traversable storage shed given opener's top-level traversable and traversable. [STORAGE]
-    if (clone_session_storage && opener_view.has_value())
-        view->traversable().clone_session_storage_from(opener_view->traversable());
 
     auto root_navigable_id = Application::the().allocate_ui_process_cross_process_id();
     view->traversable().set_id(root_navigable_id);
@@ -2240,7 +2248,7 @@ void WebContentClient::did_change_screen_wake_lock_state(u64 page_id, Web::Scree
         view->did_change_screen_wake_lock_state({}, wake_lock_state);
 }
 
-void WebContentClient::did_create_top_level_traversable(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry)
+void WebContentClient::did_create_top_level_traversable(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Optional<Web::HTML::CrossProcessId> opener_navigable_id)
 {
     if (page_id == m_initial_page_id && navigable_id == m_root_navigable_id) {
         if (m_did_create_initial_top_level_traversable)
@@ -2260,7 +2268,11 @@ void WebContentClient::did_create_top_level_traversable(u64 page_id, Web::HTML::
     auto view = ViewImplementation::find_view_for_traversable(navigable->top_level_traversable());
     if (!view.has_value())
         return;
-    view->did_create_top_level_traversable({}, move(initial_history_entry));
+
+    Optional<CanonicalNavigable&> opener;
+    if (opener_navigable_id.has_value())
+        opener = hosted_navigable(*opener_navigable_id);
+    view->did_create_top_level_traversable({}, move(initial_history_entry), opener, *this);
 }
 
 void WebContentClient::did_update_session_history_entry_navigation_api_state(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Web::HTML::StorageSerializationRecord navigation_api_state)

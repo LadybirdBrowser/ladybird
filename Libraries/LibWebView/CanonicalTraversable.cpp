@@ -10,6 +10,7 @@
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/SiteIsolationManager.h>
 #include <LibWebView/StorageJar.h>
@@ -165,14 +166,53 @@ void CanonicalTraversable::prepare_for_reload()
     session_history_changed();
 }
 
-void CanonicalTraversable::did_create_top_level_traversable(Web::HTML::SessionHistoryEntryDescriptor initial_history_entry)
+// https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable
+void CanonicalTraversable::did_create_top_level_traversable(Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Optional<CanonicalNavigable&> opener, WebContentClient& process)
 {
+    // NB: A replacement process creates a traversable of its own for this canonical one, which stays as it is.
     if (!m_session_history.entries().is_empty())
         return;
+
+    // 1. Let document be null.
+    // NB: The reporting process created document, which initialHistoryEntry's document state describes.
+    auto document_origin = initial_history_entry.document_state.origin.value_or(URL::Origin::create_opaque());
+
+    // 2. If opener is null, then set document to the second return value of creating a new top-level browsing context and document.
+    if (!opener.has_value())
+        set_active_browsing_context(CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(document_origin, process));
+
+    // 3. Otherwise, set document to the second return value of creating a new auxiliary browsing context and document given opener.
+    else
+        set_active_browsing_context(CanonicalBrowsingContext::create_a_new_auxiliary_browsing_context_and_document(*opener, document_origin, process));
+
+    // 4. Let documentState be a new document state, with [...]
+    // 5. Let traversable be a new traversable navigable.
+    // 6. Initialize the navigable traversable given documentState.
+    // NB: The initial document is active from the traversable's creation, so replicate its state from initialHistoryEntry.
+    set_replicated_state({
+        .target_name = initial_history_entry.document_state.navigable_target_name,
+        .active_document_url = initial_history_entry.url,
+        .active_document_origin = document_origin,
+        .active_document_is_fully_active = true,
+        .active_session_history_entry_identity = Web::HTML::session_history_entry_identity(initial_history_entry),
+    });
+
+    // 7. Let initialHistoryEntry be traversable's active session history entry.
+    // 8. Set initialHistoryEntry's step to 0.
+    // 9. Append initialHistoryEntry to traversable's session history entries.
     set_current_session_history_entry(initial_history_entry);
     set_active_session_history_entry(initial_history_entry);
     m_session_history.initialize_with_initial_history_entry(move(initial_history_entry));
     session_history_changed();
+
+    // 10. If opener is non-null, then legacy-clone a traversable storage shed given opener's top-level traversable and traversable. [STORAGE]
+    if (opener.has_value())
+        clone_session_storage_from(opener->top_level_traversable());
+
+    // 11. Append traversable to the user agent's top-level traversable set.
+    // NB: The views hold the traversables.
+    // FIXME: 12. Invoke WebDriver BiDi navigable created with traversable and openerNavigableForWebDriver.
+    // 13. Return traversable.
 }
 
 Optional<Web::HTML::CrossProcessId> CanonicalTraversable::nested_history_id_for(CanonicalNavigable const& navigable) const
