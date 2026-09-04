@@ -584,13 +584,13 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_request_header(String const& name,
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-open
-WebIDL::ExceptionOr<void> XMLHttpRequest::open(Utf16String const& method, Utf16String const& url)
+WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, Utf16String const& url)
 {
     // 7. If the async argument is omitted, set async to true, and set username and password to null.
     return open(method, url, true, {}, {});
 }
 
-WebIDL::ExceptionOr<void> XMLHttpRequest::open(Utf16String const& method, Utf16String const& url, bool async, Optional<Utf16String> const& username, Optional<Utf16String> const& password)
+WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, Utf16String const& url, bool async, Optional<Utf16String> const& username, Optional<Utf16String> const& password)
 {
     // 1. If this’s relevant global object is a Window object and its associated Document is not fully active, then throw an "InvalidStateError" DOMException.
     if (auto const* window = HTML::window_from_global_object(relevant_global_object()); window) {
