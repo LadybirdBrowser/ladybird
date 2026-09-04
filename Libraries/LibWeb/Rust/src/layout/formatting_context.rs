@@ -151,11 +151,12 @@ pub(crate) enum TableWrapperInlineSizeMode {
 pub(crate) enum LayoutPurpose {
     Commit,
     Measurement,
+    IntrinsicInlineMeasurement,
 }
 
 impl LayoutPurpose {
     pub(crate) fn is_measurement(self) -> bool {
-        self == LayoutPurpose::Measurement
+        self != LayoutPurpose::Commit
     }
 }
 
@@ -179,9 +180,35 @@ impl<'pass> MeasurementState<'pass> {
         layout_mode: LayoutMode,
         input: LayoutInput,
     ) -> ChildLayoutResult {
+        self.run_with_purpose(LayoutPurpose::Measurement, node, node_used, layout_mode, input)
+    }
+
+    pub(crate) fn measure_intrinsic_inline_size(
+        &self,
+        node: Node,
+        node_used: &UsedValues,
+        input: LayoutInput,
+    ) -> ChildLayoutResult {
+        self.run_with_purpose(
+            LayoutPurpose::IntrinsicInlineMeasurement,
+            node,
+            node_used,
+            LayoutMode::IntrinsicSizing,
+            input,
+        )
+    }
+
+    fn run_with_purpose(
+        &self,
+        purpose: LayoutPurpose,
+        node: Node,
+        node_used: &UsedValues,
+        layout_mode: LayoutMode,
+        input: LayoutInput,
+    ) -> ChildLayoutResult {
         let fc_type = independent_formatting_context_type(node, &self.callbacks);
         run_formatting_context(
-            LayoutPurpose::Measurement,
+            purpose,
             None,
             node_used,
             node,
@@ -752,6 +779,7 @@ pub struct BorderData {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ChildLayoutResult {
+    pub omitted_line_layout: bool,
     pub automatic_content_inline_size: CssPixels,
     pub min_content_inline_size_from_max_content_layout: Option<CssPixels>,
     pub automatic_content_block_size: CssPixels,
@@ -1432,6 +1460,15 @@ pub(super) fn run_formatting_context(
     parent_block: Option<&block_formatting_context::BlockFormattingContext>,
     table_inline_layout: Option<table_formatting_context::TableInlineLayout>,
 ) -> ChildLayoutResult {
+    // Independent children supply block sizes and baselines to their parent. Only paragraphs
+    // sharing the width query's block flow may substitute estimates for their line geometry.
+    let purpose = if purpose == LayoutPurpose::IntrinsicInlineMeasurement
+        && input.participation != ParticipationInParentFormattingContext::Root
+    {
+        LayoutPurpose::Measurement
+    } else {
+        purpose
+    };
     let root_cells = used_values::UsedValuesCellState::capture(parent_used);
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
         purpose,
@@ -1574,6 +1611,7 @@ fn execute_formatting_context_run(
                         table_box_in_wrapper_border_box_block_size: context
                             .table_box_in_wrapper_border_box_block_size(),
                         depends_on_percentage_block_size: false,
+                        omitted_line_layout: false,
                     }
                 }
                 FormattingContextImplementation::Flex(context) => {
@@ -1685,6 +1723,7 @@ fn execute_formatting_context_run(
             }
             ParticipationInParentFormattingContext::Root => {}
         }
+        result.omitted_line_layout = run.records.omitted_line_layout.get();
         result.depends_on_percentage_block_size = run.sizing().resolve_percentage_block_size_dependency(run.box_);
 
         let take_run_fragments = || {

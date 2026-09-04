@@ -121,6 +121,7 @@ interface Internals {
     unsigned long long layoutRunCacheHitCount();
     unsigned long long tableCellMeasurementCacheMissCount();
     unsigned long long intrinsicMeasurementCount();
+    unsigned long long intrinsicInlineMeasurementCount();
     unsigned long long accumulatedVisualContextTreeBuildCount();
     unsigned long long paintCacheSplicedCaptureCount();
     unsigned long long paintCacheCaptureSiteVisitCount();

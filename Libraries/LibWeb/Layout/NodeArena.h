@@ -37,6 +37,7 @@ public:
     u64 formatting_context_run_cache_hit_count() const;
     u64 table_cell_measurement_cache_miss_count() const;
     u64 intrinsic_measurement_count() const;
+    u64 intrinsic_inline_measurement_count() const;
 
     void sync_enrolled_content_for_layout();
     void visit_dom_nodes(GC::Cell::Visitor&) const;

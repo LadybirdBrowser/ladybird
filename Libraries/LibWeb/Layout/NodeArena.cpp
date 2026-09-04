@@ -51,6 +51,11 @@ u64 NodeArena::intrinsic_measurement_count() const
     return RustFFI::layout_arena_intrinsic_measurement_count(m_handle);
 }
 
+u64 NodeArena::intrinsic_inline_measurement_count() const
+{
+    return RustFFI::layout_arena_intrinsic_inline_measurement_count(m_handle);
+}
+
 void NodeArena::visit_dom_nodes(GC::Cell::Visitor& visitor) const
 {
     RustFFI::layout_arena_visit_dom_nodes(m_handle, &visitor, [](void* visitor_pointer, void* dom_node_pointer) {
