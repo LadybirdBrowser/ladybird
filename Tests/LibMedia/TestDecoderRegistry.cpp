@@ -5,10 +5,18 @@
  */
 
 #include <LibMedia/DecoderRegistry.h>
+#include <LibMedia/FFmpeg/FFmpegAudioDecoder.h>
+#include <LibMedia/FFmpeg/FFmpegVideoDecoder.h>
 #include <LibTest/TestCase.h>
 
 TEST_CASE(ffmpeg_decoder_capabilities)
 {
+    auto ffmpeg_capabilities = [](Media::ParsedCodec const& codec) {
+        if (Media::track_type_from_codec_id(codec.codec_id()) == Media::TrackType::Audio)
+            return Media::FFmpeg::FFmpegAudioDecoder::capabilities(codec);
+        return Media::FFmpeg::FFmpegVideoDecoder::capabilities(codec);
+    };
+
     for (auto codec_id : {
              Media::CodecID::VP8,
              Media::CodecID::VP9,
@@ -29,16 +37,19 @@ TEST_CASE(ffmpeg_decoder_capabilities)
              Media::CodecID::ALaw,
              Media::CodecID::MuLaw,
          }) {
-        auto capabilities = Media::decoder_capabilities(Media::ParsedCodec { codec_id });
+        auto capabilities = ffmpeg_capabilities(Media::ParsedCodec { codec_id });
         EXPECT(capabilities.has_value());
         EXPECT(capabilities->smooth);
         EXPECT(!capabilities->power_efficient);
     }
+}
 
+TEST_CASE(an_unknown_codec_has_no_capabilities)
+{
     EXPECT(!Media::decoder_capabilities(Media::ParsedCodec { Media::CodecID::Unknown }).has_value());
 }
 
-TEST_CASE(ffmpeg_decoder_creation)
+TEST_CASE(decoder_creation)
 {
     auto audio_selection = Media::select_audio_decoder(Media::ParsedCodec { Media::CodecID::S16LE });
     EXPECT(audio_selection.has_value());
