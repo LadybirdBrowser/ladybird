@@ -1,0 +1,29 @@
+<!doctype html>
+<style>
+    @function --outer() {
+        --value: --inner();
+        result: --inherit-value();
+    }
+
+    @function --inherit-value() {
+        --value: inherit(--value);
+        result: var(--value);
+    }
+
+    @function --inner() {
+        --value: var(--pass);
+        result: var(--value);
+    }
+
+    #target {
+        --pass: PASS;
+        --actual: --outer();
+    }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(getComputedStyle(document.getElementById("target")).getPropertyValue("--actual").trim());
+    });
+</script>

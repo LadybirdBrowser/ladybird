@@ -78,22 +78,6 @@ impl Utf16SliceExt for [u16] {
     }
 }
 
-fn scoped_name(scope: usize, name: &[u16]) -> Vec<u16> {
-    let mut digits = Vec::new();
-    let mut value = scope;
-    loop {
-        digits.push(u16::from(b'0') + (value % 10) as u16);
-        value /= 10;
-        if value == 0 {
-            break;
-        }
-    }
-    digits.reverse();
-    digits.push(u16::from(b':'));
-    digits.extend_from_slice(name);
-    digits
-}
-
 #[repr(C)]
 pub struct FfiCustomPropertyStoreEntry {
     pub name_raw: usize,
@@ -138,9 +122,11 @@ struct RegisteredCustomProperty {
     initial_source: Option<Vec<u16>>,
 }
 
+type CustomFunctionIdentity = u64;
+
 #[derive(Clone)]
 struct CustomFunctionDefinition {
-    identity: u64,
+    identity: CustomFunctionIdentity,
     scope_identity: usize,
     signature: Arc<FunctionSignature>,
     parameter_defaults: Vec<Option<Vec<OwnedToken>>>,
@@ -166,6 +152,7 @@ struct FunctionLocalValue {
 }
 
 struct FunctionLocalScope {
+    function_identity: CustomFunctionIdentity,
     values: HashMap<Vec<u16>, FunctionLocalValue>,
     registrations: HashMap<Vec<u16>, FunctionLocalRegistration>,
 }
@@ -407,16 +394,16 @@ enum TokenResolution {
 // https://drafts.csswg.org/css-values-5/#substitution-context
 #[derive(PartialEq, Eq)]
 enum SubstitutionContextDependency {
-    Property(Vec<u16>),
+    Property(Vec<u16>, Option<CustomFunctionIdentity>),
     // FIXME: Attribute substitution context equality should compare names ASCII-case-insensitively, as attribute lookup
     // does.
     Attribute(Vec<u16>),
-    Function(u64),
+    Function(CustomFunctionIdentity),
 }
 
 impl SubstitutionContextDependency {
-    fn is_property(&self, name: &[u16]) -> bool {
-        matches!(self, Self::Property(property_name) if property_name == name)
+    fn is_property(&self, name: &[u16], custom_function: Option<CustomFunctionIdentity>) -> bool {
+        matches!(self, Self::Property(property_name, property_custom_function) if property_name == name && *property_custom_function == custom_function)
     }
 }
 
@@ -469,14 +456,14 @@ impl GuardedSubstitutionContexts {
         true
     }
 
-    fn contains_property(&self, name: &[u16]) -> bool {
+    fn contains_property(&self, name: &[u16], custom_function: Option<CustomFunctionIdentity>) -> bool {
         self.contexts
             .borrow()
             .iter()
-            .any(|context| context.dependency.is_property(name))
+            .any(|context| context.dependency.is_property(name, custom_function))
     }
 
-    fn innermost_function(&self) -> Option<u64> {
+    fn innermost_function(&self) -> Option<CustomFunctionIdentity> {
         self.contexts
             .borrow()
             .iter()
@@ -497,7 +484,7 @@ struct ASFResolutionContext<'a> {
     attribute_names_are_ascii_case_insensitive: bool,
     contains_attr_tainted_values: bool,
     custom_functions: Option<&'a CustomFunctionRegistry>,
-    resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> u64>,
+    resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> CustomFunctionIdentity>,
     parse_context: Option<&'a ParseContext>,
     media_environment: Option<&'a FfiMediaEnvironment>,
     load_media_environment: Option<unsafe extern "C" fn(*mut c_void) -> *const c_void>,
@@ -964,10 +951,12 @@ fn normalize_function_tokens(
     TokenResolution::Resolved(tokenize_owned(&source))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn resolve_function_local_property(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
     name: &[u16],
+    function_identity: CustomFunctionIdentity,
     value: Option<FunctionLocalValue>,
     registration: FunctionLocalRegistration,
     context: &mut ASFResolutionContext,
@@ -978,9 +967,6 @@ fn resolve_function_local_property(
             .initial_tokens
             .map_or(TokenResolution::Invalid, TokenResolution::Resolved);
     };
-    // FIXME: Include the custom function identity in the substitution context rather than the scope depth - as required
-    //        by the spec.
-    let active_name = scoped_name(context.function_local_scopes.len(), name);
     let mut result = if value.includes_substitution {
         substitute_arbitrary_substitution_functions(
             store,
@@ -988,7 +974,10 @@ fn resolve_function_local_property(
             &value.tokens,
             context,
             recursion_depth + 1,
-            Some(SubstitutionContextDependency::Property(active_name)),
+            Some(SubstitutionContextDependency::Property(
+                name.to_owned(),
+                Some(function_identity),
+            )),
         )
     } else {
         TokenResolution::Resolved(value.tokens)
@@ -1057,6 +1046,7 @@ fn resolve_custom_property_with_lookup(
         .iter()
         .rposition(|local_scope| local_scope.values.contains_key(name) || local_scope.registrations.contains_key(name));
     if let Some(local_scope_index) = local_scope_index {
+        let function_identity = context.function_local_scopes[local_scope_index].function_identity;
         let value = context.function_local_scopes[local_scope_index]
             .values
             .get(name)
@@ -1070,6 +1060,7 @@ fn resolve_custom_property_with_lookup(
             store,
             registry,
             name,
+            function_identity,
             value,
             registration.unwrap_or(FunctionLocalRegistration {
                 syntax: SyntaxNode::Universal,
@@ -1082,7 +1073,7 @@ fn resolve_custom_property_with_lookup(
         context.function_local_scopes.extend(child_scopes);
         return result;
     }
-    let substitution_context = SubstitutionContextDependency::Property(name.to_owned());
+    let substitution_context = SubstitutionContextDependency::Property(name.to_owned(), None);
     // AD-HOC: The root custom property's unresolved value is passed directly to `resolve_vars()` rather than read
     //         through this lookup. If it contains a `var()` that refers back to itself, this function is entered while
     //         the caller's root context is already guarded, so mark that context cyclic before consulting stored or
@@ -1266,7 +1257,7 @@ fn replace_inherit_function(
             let mut guarded_contexts = context.guarded_contexts.contexts.borrow_mut();
             guarded_contexts
                 .iter()
-                .rposition(|context| context.dependency.is_property(name))
+                .rposition(|context| context.dependency.is_property(name, None))
                 .map(|index| (index, guarded_contexts.remove(index)))
         };
         let inherited_store_override = context.inheritance_store_overrides.last().cloned().flatten();
@@ -1634,7 +1625,9 @@ fn evaluate_style_feature(
         TokenResolution::NotHandled => return ConditionEvaluation::NotHandled,
     };
     if registration.is_some()
-        && !context.guarded_contexts.contains_property(name)
+        // NB: `registration` is only populated when there is no function-local scope, so this property context has no
+        //     custom function identity.
+        && !context.guarded_contexts.contains_property(name, None)
         && let Some(evaluate) = context.evaluate_style_query
     {
         let source = serialize_tokens(tokens);
@@ -1962,6 +1955,7 @@ fn replace_custom_function(
         return TokenResolution::Cyclic;
     };
     context.function_local_scopes.push(FunctionLocalScope {
+        function_identity: definition.identity,
         values: argument_values,
         registrations: argument_registrations,
     });
@@ -2014,9 +2008,11 @@ fn replace_custom_function(
             },
         );
     }
-    context
-        .function_local_scopes
-        .push(FunctionLocalScope { values, registrations });
+    context.function_local_scopes.push(FunctionLocalScope {
+        function_identity: definition.identity,
+        values,
+        registrations,
+    });
     let result_name: Vec<u16> = b"result".iter().copied().map(u16::from).collect();
     for (name, _, _) in &definition.declarations {
         if name != &result_name {
@@ -2492,7 +2488,7 @@ pub(crate) unsafe fn resolve_vars(
             .encode_utf16()
             .collect()
     });
-    let substitution_context = Some(SubstitutionContextDependency::Property(root_property_name));
+    let substitution_context = Some(SubstitutionContextDependency::Property(root_property_name, None));
     let VarResolutionEnvironment {
         attributes,
         custom_functions,
@@ -2626,7 +2622,7 @@ mod tests {
                 &tokenize_owned(b"var(--root, fallback)"),
                 &mut context,
                 0,
-                Some(SubstitutionContextDependency::Property(utf16("--root"))),
+                Some(SubstitutionContextDependency::Property(utf16("--root"), None)),
             ),
             TokenResolution::Cyclic
         ));
@@ -2640,7 +2636,7 @@ mod tests {
             let guard = guarded_contexts.guard(&context).unwrap();
             (context, guard)
         };
-        let (root_context, _root_guard) = guard(SubstitutionContextDependency::Property(utf16("--root")));
+        let (root_context, _root_guard) = guard(SubstitutionContextDependency::Property(utf16("--root"), None));
         let (attribute_context, _attribute_guard) =
             guard(SubstitutionContextDependency::Attribute(utf16("data-value")));
         let (function_context, _function_guard) = guard(SubstitutionContextDependency::Function(1));
