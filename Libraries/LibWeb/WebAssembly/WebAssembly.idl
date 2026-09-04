@@ -9,10 +9,13 @@ dictionary WebAssemblyInstantiatedSource {
 namespace WebAssembly {
     // FIXME: Streaming APIs are supposed to be only exposed to Window, Worker
 
+    // FIXME: Bytes should be an AllowSharedBufferSource;
     [NeedsCallerRealm] boolean validate(BufferSource bytes);
+    // FIXME: Bytes should be an AllowSharedBufferSource;
     [NeedsCallerRealm] Promise<Module> compile(BufferSource bytes);
     [NeedsCallerRealm] Promise<Module> compileStreaming(Promise<Response> source);
 
+    // FIXME: Bytes should be an AllowSharedBufferSource;
     [NeedsCallerRealm] Promise<WebAssemblyInstantiatedSource> instantiate(BufferSource bytes, optional object importObject);
     [NeedsCallerRealm] Promise<WebAssemblyInstantiatedSource> instantiateStreaming(Promise<Response> source, optional object importObject);
     [NeedsCallerRealm] Promise<Instance> instantiate(Module moduleObject, optional object importObject);

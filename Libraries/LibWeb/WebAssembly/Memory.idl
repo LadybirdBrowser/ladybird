@@ -1,4 +1,5 @@
 dictionary MemoryDescriptor {
+    // NB: We use unsigned long rather than any to let the IDL layer validate the types.
     required [EnforceRange] unsigned long initial;
     [EnforceRange] unsigned long maximum;
     // https://webassembly.github.io/threads/js-api/index.html#dictdef-memorydescriptor
