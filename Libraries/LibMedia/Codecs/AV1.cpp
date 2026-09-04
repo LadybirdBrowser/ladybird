@@ -166,18 +166,27 @@ Optional<AV1::Parameters> AV1::parse_codec_parameters(GenericLexer& lexer)
 static constexpr u8 OBU_SEQUENCE_HEADER = 1;
 static constexpr u8 SELECT_SCREEN_CONTENT_TOOLS = 2;
 
-// https://aomediacodec.github.io/av1-spec/#color-config-syntax
-// Reads the sequence header up to and including color_config()'s color description, which is the only part of it
-// that the configuration record does not already carry.
-static Optional<CodingIndependentCodePoints> parse_sequence_header_color_description(ReadonlyBytes sequence_header)
+static u8 bit_depth_from_configuration_record(u8 profile, bool high_bitdepth, bool twelve_bit)
 {
-    BitReader reader { sequence_header };
-    auto seq_profile = reader.read_bits<u8>(3);
+    if (profile == 2 && high_bitdepth)
+        return twelve_bit ? 12 : 10;
+    return high_bitdepth ? 10 : 8;
+}
+
+// https://aomediacodec.github.io/av1-spec/#sequence-header-obu-syntax
+static Optional<AV1::SequenceHeader> parse_sequence_header_obu(ReadonlyBytes obu)
+{
+    BitReader reader { obu };
+    AV1::SequenceHeader sequence_header {};
+    auto& parameters = sequence_header.parameters;
+    auto& optional_fields = parameters.optional_fields;
+
+    parameters.profile = reader.read_bits<u8>(3);
     reader.skip_bits(1); // still_picture
     auto reduced_still_picture_header = reader.read_bit();
 
     if (reduced_still_picture_header) {
-        reader.skip_bits(5); // seq_level_idx[0]
+        parameters.level = reader.read_bits<u8>(5);
     } else {
         auto decoder_model_info_present = false;
         u8 buffer_delay_length = 0;
@@ -199,9 +208,16 @@ static Optional<CodingIndependentCodePoints> parse_sequence_header_color_descrip
         auto initial_display_delay_present = reader.read_bit();
         auto operating_point_count = reader.read_bits<u8>(5) + 1;
         for (int index = 0; index < operating_point_count; index++) {
-            reader.skip_bits(12);            // operating_point_idc
-            if (reader.read_bits<u8>(5) > 7) // seq_level_idx
-                reader.skip_bits(1);         // seq_tier
+            reader.skip_bits(12); // operating_point_idc
+            auto level = reader.read_bits<u8>(5);
+            auto tier = AV1::Tier::Main;
+            if (level > 7 && reader.read_bit()) // seq_tier
+                tier = AV1::Tier::High;
+
+            if (index == 0) {
+                parameters.level = level;
+                parameters.tier = tier;
+            }
 
             if (decoder_model_info_present && reader.read_bit()) { // decoder_model_present_for_this_op
                 reader.skip_bits(buffer_delay_length);             // decoder_buffer_delay
@@ -218,8 +234,9 @@ static Optional<CodingIndependentCodePoints> parse_sequence_header_color_descrip
 
     auto frame_width_bits = reader.read_bits<u8>(4) + 1;
     auto frame_height_bits = reader.read_bits<u8>(4) + 1;
-    reader.skip_bits(frame_width_bits);  // max_frame_width_minus_1
-    reader.skip_bits(frame_height_bits); // max_frame_height_minus_1
+    auto max_frame_width = reader.read_bits<u32>(frame_width_bits) + 1;
+    auto max_frame_height = reader.read_bits<u32>(frame_height_bits) + 1;
+    sequence_header.max_frame_size = { static_cast<int>(max_frame_width), static_cast<int>(max_frame_height) };
 
     if (!reduced_still_picture_header && reader.read_bit()) // frame_id_numbers_present_flag
         reader.skip_bits(4 + 3);                            // delta_frame_id_length_minus_2, additional_frame_id_length_minus_1
@@ -244,13 +261,15 @@ static Optional<CodingIndependentCodePoints> parse_sequence_header_color_descrip
 
     reader.skip_bits(3); // enable_superres, enable_cdef, enable_restoration
 
+    // https://aomediacodec.github.io/av1-spec/#color-config-syntax
     auto high_bitdepth = reader.read_bit();
-    if (seq_profile == 2 && high_bitdepth)
-        reader.skip_bits(1); // twelve_bit
+    auto twelve_bit = false;
+    if (parameters.profile == 2 && high_bitdepth)
+        twelve_bit = reader.read_bit();
+    parameters.bit_depth = bit_depth_from_configuration_record(parameters.profile, high_bitdepth, twelve_bit);
 
-    auto mono_chrome = false;
-    if (seq_profile != 1)
-        mono_chrome = reader.read_bit();
+    if (parameters.profile != 1)
+        optional_fields.monochrome = reader.read_bit();
 
     auto color_primaries = ColorPrimaries::Unspecified;
     auto transfer_characteristics = TransferCharacteristics::Unspecified;
@@ -266,19 +285,38 @@ static Optional<CodingIndependentCodePoints> parse_sequence_header_color_descrip
         && matrix_coefficients == MatrixCoefficients::Identity;
 
     auto video_full_range_flag = VideoFullRangeFlag::Full;
-    if (!is_srgb || mono_chrome)
+    if (!is_srgb || optional_fields.monochrome)
         video_full_range_flag = reader.read_bit() ? VideoFullRangeFlag::Full : VideoFullRangeFlag::Studio;
+    optional_fields.cicp = { color_primaries, transfer_characteristics, matrix_coefficients, video_full_range_flag };
+
+    // Only 4:2:0 at twelve bits states its subsampling; every other combination is implied by the profile.
+    optional_fields.subsampling = Subsampling::yuv420();
+    if (!optional_fields.monochrome) {
+        if (is_srgb || parameters.profile == 1) {
+            optional_fields.subsampling = Subsampling { false, false };
+        } else if (parameters.profile == 2 && parameters.bit_depth == 12) {
+            auto subsampling_x = reader.read_bit();
+            auto subsampling_y = subsampling_x && reader.read_bit();
+            optional_fields.subsampling = Subsampling { subsampling_x, subsampling_y };
+        } else if (parameters.profile == 2) {
+            optional_fields.subsampling = Subsampling { true, false };
+        }
+
+        if (optional_fields.subsampling.x() && optional_fields.subsampling.y())
+            optional_fields.chroma_sample_position = reader.read_bits<u8>(2);
+    }
 
     if (reader.has_overrun())
         return {};
-
-    return CodingIndependentCodePoints { color_primaries, transfer_characteristics, matrix_coefficients, video_full_range_flag };
+    if (!parameters_are_valid(parameters))
+        return {};
+    return sequence_header;
 }
 
-// https://aomediacodec.github.io/av1-isobmff/#av1codecconfigurationbox-syntax
-static Optional<CodingIndependentCodePoints> parse_color_description_from_configuration_obus(ReadonlyBytes configuration_obus)
+// https://aomediacodec.github.io/av1-spec/#obu-syntax
+Optional<AV1::SequenceHeader> AV1::parse_sequence_header(ReadonlyBytes obus)
 {
-    auto remaining = configuration_obus;
+    auto remaining = obus;
     while (!remaining.is_empty()) {
         BitReader reader { remaining };
         if (reader.read_bit()) // obu_forbidden_bit
@@ -303,18 +341,11 @@ static Optional<CodingIndependentCodePoints> parse_color_description_from_config
         }
 
         if (obu_type == OBU_SEQUENCE_HEADER)
-            return parse_sequence_header_color_description(payload);
+            return parse_sequence_header_obu(payload);
 
         remaining = remaining.slice(header_size + payload.size());
     }
     return {};
-}
-
-static u8 bit_depth_from_configuration_record(u8 profile, bool high_bitdepth, bool twelve_bit)
-{
-    if (profile == 2 && high_bitdepth)
-        return twelve_bit ? 12 : 10;
-    return high_bitdepth ? 10 : 8;
 }
 
 // https://aomediacodec.github.io/av1-isobmff/#av1codecconfigurationbox-syntax
@@ -346,8 +377,10 @@ Optional<AV1::Parameters> AV1::parse_configuration_record(ReadonlyBytes record)
 
     parameters.bit_depth = bit_depth_from_configuration_record(parameters.profile, high_bitdepth, twelve_bit);
 
-    auto configuration_obus = record.slice(reader.bit_position() / 8);
-    optional_fields.cicp = parse_color_description_from_configuration_obus(configuration_obus).value_or({});
+    // The colour description is the only part of the sequence header that the record does not already carry.
+    optional_fields.cicp = {};
+    if (auto sequence_header = parse_sequence_header(record.slice(reader.bit_position() / 8)); sequence_header.has_value())
+        optional_fields.cicp = sequence_header->parameters.optional_fields.cicp;
 
     if (!parameters_are_valid(parameters))
         return {};

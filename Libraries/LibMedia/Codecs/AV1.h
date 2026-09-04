@@ -9,6 +9,7 @@
 #include <AK/GenericLexer.h>
 #include <AK/Optional.h>
 #include <AK/Span.h>
+#include <LibGfx/Size.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Subsampling.h>
@@ -47,8 +48,19 @@ public:
         bool operator==(Parameters const&) const = default;
     };
 
+    struct SequenceHeader {
+        Parameters parameters;
+        Gfx::IntSize max_frame_size;
+
+        bool operator==(SequenceHeader const&) const = default;
+    };
+
     static Optional<Parameters> parse_codec_parameters(GenericLexer&);
     static MEDIA_API Optional<Parameters> parse_configuration_record(ReadonlyBytes);
+
+    // Reads the sequence header out of a series of OBUs, whether they are a coded frame or a configuration record's
+    // own OBUs. Only the coded frames that begin a coded video sequence carry one.
+    static MEDIA_API Optional<SequenceHeader> parse_sequence_header(ReadonlyBytes obus);
 };
 
 }

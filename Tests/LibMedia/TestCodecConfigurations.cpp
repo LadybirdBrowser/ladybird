@@ -380,3 +380,29 @@ TEST_CASE(vp9_frame_header_rejects_frames_that_describe_no_format)
     Array<u8, 4> not_vp9 { 0x42, 0x49, 0x83, 0x42 };
     EXPECT(!Media::Codecs::VP9::parse_frame_header(not_vp9).has_value());
 }
+
+TEST_CASE(av1_sequence_header_reads_a_keyframe_format)
+{
+    // The head of av1_in_webm.webm's keyframe: a temporal delimiter, then the sequence header OBU.
+    Array<u8, 17> keyframe {
+        0x12, 0x00, 0x0a, 0x0c, 0x02, 0x00, 0x00, 0x25, 0x66, 0x35, 0x5e, 0xf8, 0xd5, 0xf3, 0x00, 0x80, 0x32
+    };
+
+    auto sequence_header = Media::Codecs::AV1::parse_sequence_header(keyframe);
+    EXPECT(sequence_header.has_value());
+    EXPECT_EQ(sequence_header->max_frame_size, Gfx::IntSize(854, 480));
+    EXPECT_EQ(sequence_header->parameters.profile, 0);
+    EXPECT_EQ(sequence_header->parameters.level, 4);
+    EXPECT_EQ(to_underlying(sequence_header->parameters.tier), to_underlying(Media::Codecs::AV1::Tier::Main));
+    EXPECT_EQ(sequence_header->parameters.bit_depth, 8);
+    EXPECT(sequence_header->parameters.optional_fields.subsampling.x());
+    EXPECT(sequence_header->parameters.optional_fields.subsampling.y());
+    EXPECT(!sequence_header->parameters.optional_fields.monochrome);
+}
+
+TEST_CASE(av1_sequence_header_is_absent_from_frames_that_carry_none)
+{
+    // A temporal delimiter followed by a frame OBU, which is every coded frame but the first of a sequence.
+    Array<u8, 6> inter_frame { 0x12, 0x00, 0x32, 0x02, 0x10, 0x00 };
+    EXPECT(!Media::Codecs::AV1::parse_sequence_header(inter_frame).has_value());
+}
