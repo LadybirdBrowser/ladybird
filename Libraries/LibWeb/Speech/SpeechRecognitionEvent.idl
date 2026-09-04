@@ -8,5 +8,5 @@ interface SpeechRecognitionEvent : Event {
 
 dictionary SpeechRecognitionEventInit : EventInit {
     unsigned long resultIndex = 0;
-    SpeechRecognitionResultList? results = null;
+    required SpeechRecognitionResultList results;
 };
