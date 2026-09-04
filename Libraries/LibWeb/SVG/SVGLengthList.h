@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibGC/HeapVector.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/SVG/SVGLength.h>
 #include <LibWeb/SVG/SVGList.h>
@@ -20,12 +21,14 @@ class SVGLengthList final
     GC_DECLARE_ALLOCATOR(SVGLengthList);
 
 public:
-    [[nodiscard]] static GC::Ref<SVGLengthList> create(Vector<GC::Ref<SVGLength>>, ReadOnlyList);
+    using List = GC::HeapVector<GC::Ref<SVGLength>>;
+
+    [[nodiscard]] static GC::Ref<SVGLengthList> create(GC::Ref<List>, ReadOnlyList);
     [[nodiscard]] static GC::Ref<SVGLengthList> create(ReadOnlyList);
     virtual ~SVGLengthList() override = default;
 
 private:
-    SVGLengthList(Vector<GC::Ref<SVGLength>>, ReadOnlyList);
+    SVGLengthList(GC::Ref<List>, ReadOnlyList);
     explicit SVGLengthList(ReadOnlyList);
 
     virtual void visit_edges(Visitor&) override;
