@@ -29,5 +29,6 @@ JS::ThrowCompletionOr<JS::Value> cross_origin_get(JS::VM&, JS::Object const&, JS
 JS::ThrowCompletionOr<bool> cross_origin_set(JS::VM&, JS::Object&, JS::PropertyKey const&, JS::Value, JS::Value receiver);
 GC::RootVector<JS::Value> cross_origin_own_property_keys(HTML::Location const&);
 GC::RootVector<JS::Value> cross_origin_own_property_keys(HTML::Window const&);
+GC::RootVector<JS::Value> cross_origin_window_own_property_keys();
 
 }
