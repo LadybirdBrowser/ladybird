@@ -1,0 +1,59 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .container { width: 200px; height: 100px; font: 16px/20px monospace; }
+    .target { display: inline-block; background: green; }
+    .child { width: 0; height: 0; }
+</style>
+<script>
+    test(() => {
+        const cases = [
+            ["automatic", ""],
+            ["fixed box", "width: 40px; height: 12px; padding: 3px; border: 2px solid; margin: 5px"],
+            ["border box", "box-sizing: border-box; width: 40px; height: 20px; padding: 3px; border: 2px solid"],
+            ["min and max", "min-width: 20px; max-width: 50px; min-height: 15px; max-height: 30px"],
+            ["percentages", "width: 30%; height: 20%; padding: 5%; margin: 2%"],
+            ["aspect ratio", "width: 40px; aspect-ratio: 2"],
+            ["hidden overflow", "width: 40px; height: 12px; overflow: hidden"],
+            ["scrollable overflow", "width: 40px; height: 12px; overflow: scroll"],
+            ["size containment", "contain: size; contain-intrinsic-size: 25px 30px"],
+        ];
+        for (const [name, declarations] of cases) {
+            const make = () => {
+                const container = document.createElement("div");
+                container.className = "container";
+                const target = document.createElement("span");
+                target.className = "target";
+                target.style.cssText = declarations;
+                container.append(target, "X");
+                document.body.append(container);
+                return { container, target };
+            };
+            const actual = make();
+            const control = make();
+            const child = document.createElement("div");
+            child.className = "child";
+            control.target.append(child);
+            const dimensions = ({ container, target }) => {
+                const rect = target.getBoundingClientRect();
+                const outer = container.getBoundingClientRect();
+                return [rect.x - outer.x, rect.y - outer.y, rect.width, rect.height].join(",");
+            };
+            for (const phase of ["empty", "populated", "empty again"]) {
+                if (phase === "populated") {
+                    child.style.height = "7px";
+                    actual.target.append(child.cloneNode());
+                } else if (phase === "empty again") {
+                    actual.target.replaceChildren();
+                    child.style.height = "0px";
+                }
+                const observed = dimensions(actual);
+                const expected = dimensions(control);
+                println(`${name}, ${phase}: ${observed === expected ? "PASS" : `${observed} != ${expected}`}`);
+            }
+            actual.container.remove();
+            control.container.remove();
+        }
+    });
+</script>

@@ -1,0 +1,27 @@
+automatic, empty: PASS
+automatic, populated: PASS
+automatic, empty again: PASS
+fixed box, empty: PASS
+fixed box, populated: PASS
+fixed box, empty again: PASS
+border box, empty: PASS
+border box, populated: PASS
+border box, empty again: PASS
+min and max, empty: PASS
+min and max, populated: PASS
+min and max, empty again: PASS
+percentages, empty: PASS
+percentages, populated: PASS
+percentages, empty again: PASS
+aspect ratio, empty: PASS
+aspect ratio, populated: PASS
+aspect ratio, empty again: PASS
+hidden overflow, empty: PASS
+hidden overflow, populated: PASS
+hidden overflow, empty again: PASS
+scrollable overflow, empty: PASS
+scrollable overflow, populated: PASS
+scrollable overflow, empty again: PASS
+size containment, empty: PASS
+size containment, populated: PASS
+size containment, empty again: PASS
