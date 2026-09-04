@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::css_pixels::CssPixels;
+use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::used_values::FfiCssPixelPoint;
@@ -2279,6 +2279,41 @@ pub unsafe extern "C" fn layout_arena_bounding_client_rect(
 
 /// # Safety
 ///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
+/// `rect_to_viewport_transform` must satisfy `rect_to_viewport_transform_from_ffi`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_intersection_observer_intersection_rect(
+    arena: *mut c_void,
+    target: NodeSlotId,
+    target_rect: FfiCssPixelRect,
+    intersection_root: NodeSlotId,
+    root_bounds: FfiCssPixelRect,
+    rect_to_viewport_transform: FfiRectToViewportTransform,
+    context: *mut c_void,
+    inflate_scroll_container_clip_rect_by_scroll_margin: unsafe extern "C" fn(
+        *mut c_void,
+        FfiCssPixelRect,
+    ) -> FfiCssPixelRect,
+) -> FfiCssPixelRect {
+    let arena = unsafe { arena_from_handle(arena) };
+    let rect_to_viewport_transform = unsafe { rect_to_viewport_transform_from_ffi(&rect_to_viewport_transform) };
+    crate::painting::intersection_observer::intersection_rect(
+        &arena.paintable_rows(),
+        target,
+        target_rect.into(),
+        intersection_root,
+        root_bounds.into(),
+        rect_to_viewport_transform.as_ref(),
+        |clip_rect: CssPixelRect| -> CssPixelRect {
+            // SAFETY: The callback copies the plain-data rect synchronously.
+            unsafe { inflate_scroll_container_clip_rect_by_scroll_margin(context, clip_rect.into()) }.into()
+        },
+    )
+    .into()
+}
+
+/// # Safety
+///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_can_compute_client_rects_without_visual_context_update(
@@ -2343,7 +2378,7 @@ pub unsafe extern "C" fn layout_arena_inline_paintable_first_piece_position(
     let border_widths = crate::painting::paintable_geometry::committed_border(arena, inline_paintable);
     let padding_widths = crate::painting::paintable_geometry::committed_padding(arena, inline_paintable);
     with_inline_pieces(&paintable_rows, inline_paintable, |piece, _data| {
-        let border_rect = crate::css::css_pixels::CssPixelRect::from(piece.border_box_rect);
+        let border_rect = CssPixelRect::from(piece.border_box_rect);
         let rect = if piece.is_geometry_only_placeholder {
             border_rect
         } else {

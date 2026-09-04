@@ -17,6 +17,7 @@ pub mod force_dark;
 pub mod fragment_ownership;
 pub mod hit_test;
 pub mod host;
+pub(crate) mod intersection_observer;
 pub(crate) mod node_painting;
 pub(crate) mod paint_order;
 pub mod paint_state;

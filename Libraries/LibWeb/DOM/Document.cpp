@@ -6595,63 +6595,24 @@ void Document::queue_an_intersection_observer_entry(IntersectionObserver::Inters
 // https://www.w3.org/TR/intersection-observer/#compute-the-intersection
 static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect target_rect, IntersectionObserver::IntersectionObserver const& observer, Layout::Box const* root_layout_box, CSSPixelRect const& root_bounds, Painting::AccumulatedVisualContextTree const& visual_context_tree)
 {
-    // 1. Let intersectionRect be the result of getting the bounding box for target.
-    auto intersection_rect = target_rect;
-
-    // 2. Let container be the containing block of target.
-    // 3. While container is not root:
-    auto const* target_layout_node = target->layout_node();
-    if (target_layout_node && Painting::has_committed_box(*target_layout_node)) {
-        for (auto const* container_box = target_layout_node->containing_block(); container_box; container_box = container_box->containing_block()) {
-            // Stop when we reach the intersection root.
-            if (container_box == root_layout_box)
-                break;
-            if (!Painting::has_committed_box(*container_box))
-                break;
-
-            // FIXME: 3.1. If container is the document of a nested browsing context, update
-            //             intersectionRect by clipping to the viewport of the document, and update
-            //             container to be the browsing context container of container.
-
-            // NOTE: Steps 3.2 (map to container coordinate space) and 3.5 (update container) are
-            //       unnecessary here because get_bounding_client_rect() and transform_rect_to_viewport()
-            //       already produce viewport-relative coordinates.
-
-            // 3.3. If container is a scroll container, apply the observer’s [[scrollMargin]]
-            //      to the container’s clip rect.
-            // 3.4. If container has a content clip or a css clip-path property, update intersectionRect
-            //      by applying container’s clip.
-            // FIXME: Handle clip-path.
-            auto overflow_x = container_box->overflow_x();
-            auto overflow_y = container_box->overflow_y();
-            bool has_content_clip = overflow_x != CSS::Overflow::Visible || overflow_y != CSS::Overflow::Visible;
-            if (has_content_clip) {
-                auto clip_rect = Painting::transform_rect_to_viewport(*container_box, Painting::absolute_padding_box_rect(*container_box), visual_context_tree, Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
-
-                // Apply scroll margin to expand the scrollport for scroll containers.
-                auto& scroll_margin = observer.scroll_margin_values();
-                if (container_box->is_scroll_container() && !scroll_margin.is_empty()) {
-                    clip_rect.inflate(
-                        scroll_margin[0].to_px(clip_rect.height()),
-                        scroll_margin[1].to_px(clip_rect.width()),
-                        scroll_margin[2].to_px(clip_rect.height()),
-                        scroll_margin[3].to_px(clip_rect.width()));
-                }
-
-                intersection_rect.intersect(clip_rect);
-            }
-        }
-    }
-
-    // FIXME: 4. Map intersectionRect to the coordinate space of root.
-
-    // 5. Update intersectionRect by intersecting it with the root intersection rectangle.
-    intersection_rect.intersect(root_bounds);
-
-    // FIXME: 6. Map intersectionRect to the coordinate space of the viewport of the document containing target.
-
-    // 7. Return intersectionRect.
-    return intersection_rect;
+    auto& document = target->document();
+    auto const& scroll_margin = observer.scroll_margin_values();
+    auto inflate_scroll_container_clip_rect_by_scroll_margin = [](void* context, CSSPixelRect clip_rect) -> CSSPixelRect {
+        auto const& scroll_margin = *static_cast<Vector<CSS::LengthPercentage> const*>(context);
+        if (scroll_margin.is_empty())
+            return clip_rect;
+        clip_rect.inflate(
+            scroll_margin[0].to_px(clip_rect.height()),
+            scroll_margin[1].to_px(clip_rect.width()),
+            scroll_margin[2].to_px(clip_rect.height()),
+            scroll_margin[3].to_px(clip_rect.width()));
+        return clip_rect;
+    };
+    return Layout::RustFFI::layout_arena_intersection_observer_intersection_rect(
+        document.layout_node_arena().handle(), Layout::Node::slot_id(target->layout_node()), target_rect,
+        Layout::Node::slot_id(root_layout_box), root_bounds,
+        Painting::rect_to_viewport_transform(document, visual_context_tree),
+        const_cast<Vector<CSS::LengthPercentage>*>(&scroll_margin), inflate_scroll_container_clip_rect_by_scroll_margin);
 }
 
 // https://www.w3.org/TR/intersection-observer/#run-the-update-intersection-observations-steps
