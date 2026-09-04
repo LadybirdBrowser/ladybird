@@ -12,9 +12,9 @@ namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGNumberList);
 
-GC::Ref<SVGNumberList> SVGNumberList::create(Vector<GC::Ref<SVGNumber>> items, ReadOnlyList read_only)
+GC::Ref<SVGNumberList> SVGNumberList::create(GC::Ref<List> items, ReadOnlyList read_only)
 {
-    return GC::Heap::the().allocate<SVGNumberList>(move(items), read_only);
+    return GC::Heap::the().allocate<SVGNumberList>(items, read_only);
 }
 
 GC::Ref<SVGNumberList> SVGNumberList::create(ReadOnlyList read_only)
@@ -22,8 +22,8 @@ GC::Ref<SVGNumberList> SVGNumberList::create(ReadOnlyList read_only)
     return GC::Heap::the().allocate<SVGNumberList>(read_only);
 }
 
-SVGNumberList::SVGNumberList(Vector<GC::Ref<SVGNumber>> items, ReadOnlyList read_only)
-    : SVGList(move(items), read_only)
+SVGNumberList::SVGNumberList(GC::Ref<List> items, ReadOnlyList read_only)
+    : SVGList(move(items->elements()), read_only)
 {
 }
 

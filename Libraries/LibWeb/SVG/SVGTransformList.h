@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibGC/HeapVector.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/SVG/SVGList.h>
 #include <LibWeb/SVG/SVGTransform.h>
@@ -21,12 +22,14 @@ class SVGTransformList final
     GC_DECLARE_ALLOCATOR(SVGTransformList);
 
 public:
-    [[nodiscard]] static GC::Ref<SVGTransformList> create(Vector<GC::Ref<SVGTransform>>, ReadOnlyList);
+    using List = GC::HeapVector<GC::Ref<SVGTransform>>;
+
+    [[nodiscard]] static GC::Ref<SVGTransformList> create(GC::Ref<List>, ReadOnlyList);
     [[nodiscard]] static GC::Ref<SVGTransformList> create(ReadOnlyList);
     virtual ~SVGTransformList() override = default;
 
 private:
-    SVGTransformList(Vector<GC::Ref<SVGTransform>>, ReadOnlyList);
+    SVGTransformList(GC::Ref<List>, ReadOnlyList);
     explicit SVGTransformList(ReadOnlyList);
 
     virtual void visit_edges(Visitor&) override;

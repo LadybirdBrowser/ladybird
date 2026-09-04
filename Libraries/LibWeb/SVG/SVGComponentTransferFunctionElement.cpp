@@ -79,12 +79,12 @@ GC::Ref<SVGAnimatedNumberList> SVGComponentTransferFunctionElement::table_values
     if (!m_table_values) {
         auto numbers = parse_table_values(get_attribute_value(AttributeNames::tableValues));
 
-        Vector<GC::Ref<SVGNumber>> items;
-        items.ensure_capacity(numbers.size());
+        auto items = GC::Heap::the().allocate<SVGNumberList::List>();
+        items->elements().ensure_capacity(numbers.size());
         for (auto number : numbers)
-            items.unchecked_append(SVGNumber::create(number, SVGNumber::ReadOnly::Yes));
+            items->elements().unchecked_append(SVGNumber::create(number, SVGNumber::ReadOnly::Yes));
 
-        auto number_list = SVGNumberList::create(move(items), ReadOnlyList::Yes);
+        auto number_list = SVGNumberList::create(items, ReadOnlyList::Yes);
         m_table_values = SVGAnimatedNumberList::create(number_list);
     }
     return *m_table_values;
