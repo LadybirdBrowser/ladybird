@@ -19,6 +19,8 @@ dictionary ModuleImportDescriptor {
 // https://webassembly.github.io/spec/js-api/#modules
 [LegacyNamespace=WebAssembly, Exposed=*, Serializable]
 interface Module {
+    // FIXME: Bytes should be an AllowSharedBufferSource;
+    // FIXME: Constructor is missing the WebAssemblyCompileOptions parameter.
     constructor(BufferSource bytes);
 
     static sequence<ModuleExportDescriptor> exports(Module moduleObject);
