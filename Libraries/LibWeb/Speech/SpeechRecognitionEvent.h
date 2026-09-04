@@ -40,7 +40,7 @@ public:
     WebIDL::UnsignedLong result_index() const { return m_result_index; }
 
     // https://wicg.github.io/speech-api/#dom-speechrecognitionevent-results
-    GC::Ptr<SpeechRecognitionResultList> results() const { return m_results; }
+    GC::Ref<SpeechRecognitionResultList> results() const { return m_results; }
 
 private:
     SpeechRecognitionEvent(FlyString const& event_name, SpeechRecognitionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
@@ -49,7 +49,7 @@ private:
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     WebIDL::UnsignedLong m_result_index { 0 };
-    GC::Ptr<SpeechRecognitionResultList> m_results;
+    GC::Ref<SpeechRecognitionResultList> m_results;
 };
 
 }
