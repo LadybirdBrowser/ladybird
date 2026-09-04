@@ -88,13 +88,14 @@ public:
     ErrorOr<void> transfer_to_client(ConnectionFromClient&, u64 request_id, Optional<Requests::RequestTransferLeaseKey>);
     void release_transfer_lease() { m_transfer_lease.clear(); }
 
-    // The disk cache defers a request while another request holds its cache entry open. These bound how long a
-    // deferred request waits before it goes to the network without the cache, and how long a background revalidation
-    // may go without receiving any data before it's abandoned. Tests shorten both.
+    // The disk cache defers a request while another request holds its cache entry open. These bound how long that other
+    // request may go without making progress before the deferred one goes to the network without the cache — and how
+    // long a background revalidation may go without receiving any data before it's abandoned. Tests shorten both.
     static void set_wait_for_cache_timeout(AK::Duration);
     static void set_revalidation_stall_timeout(AK::Duration);
 
     virtual void notify_request_unblocked(Badge<HTTP::DiskCache>) override;
+    virtual Optional<MonotonicTime> last_activity_time() const override { return m_last_activity_time; }
     bool notify_retrieved_http_cookie(Badge<ConnectionFromClient>, u64 cookie_request_id, StringView cookie);
     void notify_fetch_complete(Badge<ConnectionFromClient>, int result_code);
     void retry_after_aia(Badge<ConnectionFromClient>);
@@ -201,6 +202,10 @@ private:
     static size_t on_header_received(void* buffer, size_t size, size_t nmemb, void* user_data);
     static size_t on_data_received(void* buffer, size_t size, size_t nmemb, void* user_data);
 
+    // A state change, response bytes from curl, or bytes written to the cache entry count as progress — and a
+    // request waiting on the cache entry this request holds open judges by it whether this request has stalled.
+    void mark_activity() { m_last_activity_time = MonotonicTime::now(); }
+
     ErrorOr<void> detach_curl_handle_from_multi();
     ErrorOr<void> free_curl_structs();
     ErrorOr<void> inform_client_request_started();
@@ -247,6 +252,7 @@ private:
     ByteString m_method;
 
     UnixDateTime m_request_start_time { UnixDateTime::now() };
+    MonotonicTime m_last_activity_time { MonotonicTime::now() };
     NonnullRefPtr<HTTP::HeaderList> m_request_headers;
     ByteBuffer m_request_body;
 
