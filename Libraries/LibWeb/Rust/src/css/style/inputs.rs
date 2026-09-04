@@ -1205,6 +1205,12 @@ impl StyleEngine {
             .tree_staging
             .current_row(node, Some(self.settled_tree_relations(node)));
         let mut new = old.expect("a pending neighbour must remain connected");
+        // A subtree can preallocate sibling identities before publishing their insertions. Such
+        // a neighbour has no parent yet; its own insertion will supply its links. Synthesizing a
+        // connected before-row here would hide that arrival from transaction normalization.
+        if new.parent.is_none() {
+            return;
+        }
         update(&mut new);
         self.stage_tree_row(node, old, Some(new));
     }
