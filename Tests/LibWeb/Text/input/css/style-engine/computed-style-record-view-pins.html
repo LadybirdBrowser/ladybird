@@ -10,9 +10,17 @@
     test(() => {
         document.body.offsetWidth;
         let before = internals.styleEngineCounters().computedStyleRecordViewPins;
+        const subtree = document.createElement("div");
+        subtree.innerHTML = "<div><span>text</span></div>".repeat(100);
+        document.body.appendChild(subtree);
+        subtree.offsetWidth;
+        let after = internals.styleEngineCounters().computedStyleRecordViewPins;
+        println(`initial layout record view pins unchanged: ${after === before}`);
+
+        before = after;
         target.classList.add("changed");
         target.offsetWidth;
-        let after = internals.styleEngineCounters().computedStyleRecordViewPins;
+        after = internals.styleEngineCounters().computedStyleRecordViewPins;
         println(`style update record view pins unchanged: ${after === before}`);
 
         before = after;
