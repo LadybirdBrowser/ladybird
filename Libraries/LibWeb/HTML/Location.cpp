@@ -103,7 +103,7 @@ void LocationWrapper::initialize_location_object(JS::Realm& realm)
 JS::ThrowCompletionOr<JS::Object*> LocationWrapper::internal_get_prototype_of() const
 {
     // 1. If IsPlatformObjectSameOrigin(this) is true, then return ! OrdinaryGetPrototypeOf(this).
-    if (HTML::is_platform_object_same_origin(*this))
+    if (HTML::is_platform_object_same_origin(impl()))
         return MUST(JS::Object::internal_get_prototype_of());
 
     // 2. Return null.
@@ -137,7 +137,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> LocationWrapper::interna
     auto& vm = this->vm();
 
     // 1. If IsPlatformObjectSameOrigin(this) is true, then:
-    if (HTML::is_platform_object_same_origin(*this)) {
+    if (HTML::is_platform_object_same_origin(impl())) {
         // 1. Let desc be OrdinaryGetOwnProperty(this, P).
         auto descriptor = MUST(JS::Object::internal_get_own_property(property_key));
 
@@ -172,7 +172,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> LocationWrapper::interna
 JS::ThrowCompletionOr<bool> LocationWrapper::internal_define_own_property(JS::PropertyKey const& property_key, JS::PropertyDescriptor& descriptor, Optional<JS::PropertyDescriptor>* precomputed_get_own_property)
 {
     // 1. If IsPlatformObjectSameOrigin(this) is true, then:
-    if (HTML::is_platform_object_same_origin(*this)) {
+    if (HTML::is_platform_object_same_origin(impl())) {
         // 1. If the value of the [[DefaultProperties]] internal slot of this contains P, then return false.
         // 2. Return ? OrdinaryDefineOwnProperty(this, P, Desc).
         return Bindings::ordinary_define_own_property_and_preserve_wrapper_if_needed(*this, property_key, descriptor, precomputed_get_own_property);
@@ -188,7 +188,7 @@ JS::ThrowCompletionOr<JS::Value> LocationWrapper::internal_get(JS::PropertyKey c
     auto& vm = this->vm();
 
     // 1. If IsPlatformObjectSameOrigin(this) is true, then return ? OrdinaryGet(this, P, Receiver).
-    if (HTML::is_platform_object_same_origin(*this))
+    if (HTML::is_platform_object_same_origin(impl()))
         return JS::Object::internal_get(property_key, receiver, cacheable_metadata, phase);
 
     // 2. Return ? CrossOriginGet(this, P, Receiver).
@@ -201,7 +201,7 @@ JS::ThrowCompletionOr<bool> LocationWrapper::internal_set(JS::PropertyKey const&
     auto& vm = this->vm();
 
     // 1. If IsPlatformObjectSameOrigin(this) is true, then return ? OrdinarySet(this, P, V, Receiver).
-    if (HTML::is_platform_object_same_origin(*this))
+    if (HTML::is_platform_object_same_origin(impl()))
         return JS::Object::internal_set(property_key, value, receiver, cacheable_metadata, phase);
 
     // 2. Return ? CrossOriginSet(this, P, V, Receiver).
@@ -212,7 +212,7 @@ JS::ThrowCompletionOr<bool> LocationWrapper::internal_set(JS::PropertyKey const&
 JS::ThrowCompletionOr<bool> LocationWrapper::internal_delete(JS::PropertyKey const& property_key)
 {
     // 1. If IsPlatformObjectSameOrigin(this) is true, then return ? OrdinaryDelete(this, P).
-    if (HTML::is_platform_object_same_origin(*this))
+    if (HTML::is_platform_object_same_origin(impl()))
         return JS::Object::internal_delete(property_key);
 
     // 2. Throw a "SecurityError" DOMException.
@@ -223,7 +223,7 @@ JS::ThrowCompletionOr<bool> LocationWrapper::internal_delete(JS::PropertyKey con
 JS::ThrowCompletionOr<GC::RootVector<JS::Value>> LocationWrapper::internal_own_property_keys() const
 {
     // 1. If IsPlatformObjectSameOrigin(this) is true, then return OrdinaryOwnPropertyKeys(this).
-    if (HTML::is_platform_object_same_origin(*this))
+    if (HTML::is_platform_object_same_origin(impl()))
         return JS::Object::internal_own_property_keys();
 
     // 2. Return CrossOriginOwnPropertyKeys(this).
