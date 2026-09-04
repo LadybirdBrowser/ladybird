@@ -4,9 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGAnimatedEnumeration.h>
+#include <LibWeb/SVG/SVGAnimatedNumberList.h>
 #include <LibWeb/SVG/SVGAnimatedString.h>
 #include <LibWeb/SVG/SVGFEColorMatrixElement.h>
+#include <LibWeb/SVG/SVGNumber.h>
 
 namespace Web::SVG {
 
@@ -23,6 +26,15 @@ void SVGFEColorMatrixElement::visit_edges(Cell::Visitor& visitor)
     SVGFilterPrimitiveStandardAttributes::visit_edges(visitor);
     visitor.visit(m_in1);
     visitor.visit(m_values);
+}
+
+void SVGFEColorMatrixElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
+{
+    Base::attribute_changed(name, old_value, value, namespace_);
+
+    // FIXME: Support reflection instead of invalidating the list.
+    if (name == AttributeNames::values)
+        m_values = {};
 }
 
 GC::Ref<SVGAnimatedString> SVGFEColorMatrixElement::in1()
@@ -52,10 +64,20 @@ GC::Ref<SVGAnimatedEnumeration> SVGFEColorMatrixElement::type() const
     return SVGAnimatedEnumeration::create(enum_value);
 }
 
-GC::Ref<SVGAnimatedString> SVGFEColorMatrixElement::values()
+GC::Ref<SVGAnimatedNumberList> SVGFEColorMatrixElement::values()
 {
-    if (!m_values)
-        m_values = SVGAnimatedString::create(*this, DOM::QualifiedName { AttributeNames::values, OptionalNone {}, OptionalNone {} });
+    if (!m_values) {
+        auto numbers = parse_table_values(get_attribute_value(AttributeNames::values));
+
+        auto items = GC::Heap::the().allocate<SVGNumberList::List>();
+        items->elements().ensure_capacity(numbers.size());
+        for (auto number : numbers)
+            items->elements().unchecked_append(SVGNumber::create(number, SVGNumber::ReadOnly::Yes));
+
+        auto number_list = SVGNumberList::create(items, ReadOnlyList::Yes);
+        m_values = SVGAnimatedNumberList::create(number_list);
+    }
+
     return *m_values;
 }
 

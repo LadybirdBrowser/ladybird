@@ -6,13 +6,11 @@
 
 #pragma once
 
+#include <LibWeb/Forward.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGFilterPrimitiveStandardAttributes.h>
 
 namespace Web::SVG {
-
-class SVGAnimatedEnumeration;
-class SVGAnimatedString;
 
 // https://www.w3.org/TR/filter-effects-1/#InterfaceSVGFEColorMatrixElement
 class SVGFEColorMatrixElement final
@@ -33,13 +31,17 @@ public:
     // IDL attributes
     GC::Ref<SVGAnimatedString> in1();
     GC::Ref<SVGAnimatedEnumeration> type() const;
-    GC::Ref<SVGAnimatedString> values();
+    GC::Ref<SVGAnimatedNumberList> values();
 
 private:
     SVGFEColorMatrixElement(DOM::Document&, DOM::QualifiedName);
+
     virtual void visit_edges(Cell::Visitor&) override;
+
+    virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
+
     GC::Ptr<SVGAnimatedString> m_in1;
-    GC::Ptr<SVGAnimatedString> m_values;
+    GC::Ptr<SVGAnimatedNumberList> m_values;
 };
 
 }
