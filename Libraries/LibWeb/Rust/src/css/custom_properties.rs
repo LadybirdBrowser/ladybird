@@ -401,7 +401,7 @@ enum TokenResolution {
 }
 
 #[derive(Default)]
-struct VarResolutionContext<'a> {
+struct ASFResolutionContext<'a> {
     active_names: Vec<Vec<u16>>,
     cyclic_names: HashSet<Vec<u16>>,
     active_attributes: Vec<Vec<u16>>,
@@ -426,7 +426,7 @@ struct VarResolutionContext<'a> {
     resolution_stats: Option<&'a VarResolutionStats>,
 }
 
-impl VarResolutionContext<'_> {
+impl ASFResolutionContext<'_> {
     fn media_environment(&mut self) -> Option<&FfiMediaEnvironment> {
         if self.media_environment.is_none()
             && let Some(load_media_environment) = self.load_media_environment
@@ -615,7 +615,7 @@ fn tokens_for_custom_property_value(data: &StyleValueData) -> Option<(Vec<OwnedT
 
 fn cached_tokens_for_custom_property_value(
     data: &StyleValueData,
-    context: &mut VarResolutionContext<'_>,
+    context: &mut ASFResolutionContext<'_>,
 ) -> Option<(Arc<[OwnedToken]>, bool, bool)> {
     let key = std::ptr::from_ref(data);
     if let Some(cached) = context.token_cache.as_deref().and_then(|cache| cache.get(&key)) {
@@ -778,7 +778,7 @@ fn registered_property_fallback(
             Some(parent),
             Some(registry),
             name,
-            &mut VarResolutionContext::default(),
+            &mut ASFResolutionContext::default(),
             recursion_depth + 1,
             CustomPropertyLookup::ExplicitInheritance,
         );
@@ -796,7 +796,7 @@ fn resolve_css_wide_keyword(
     registry: Option<&CustomPropertyRegistry>,
     name: &[u16],
     keyword: &[u16],
-    context: &mut VarResolutionContext,
+    context: &mut ASFResolutionContext,
     recursion_depth: u32,
     lookup: CustomPropertyLookup,
 ) -> TokenResolution {
@@ -887,7 +887,7 @@ fn resolve_function_local_property(
     name: &[u16],
     value: Option<FunctionLocalValue>,
     registration: FunctionLocalRegistration,
-    context: &mut VarResolutionContext,
+    context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
     let Some(value) = value else {
@@ -954,7 +954,7 @@ fn resolve_custom_property(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
     name: &[u16],
-    context: &mut VarResolutionContext,
+    context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
     resolve_custom_property_with_lookup(
@@ -971,7 +971,7 @@ fn resolve_custom_property_with_lookup(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
     name: &[u16],
-    context: &mut VarResolutionContext,
+    context: &mut ASFResolutionContext,
     recursion_depth: u32,
     lookup: CustomPropertyLookup,
 ) -> TokenResolution {
@@ -1124,7 +1124,7 @@ fn replace_var_function(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
     arguments: &[OwnedToken],
-    context: &mut VarResolutionContext,
+    context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
     // https://drafts.csswg.org/css-variables-1/#replace-a-var-function
@@ -1178,7 +1178,7 @@ fn replace_inherit_function(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
     arguments: &[OwnedToken],
-    context: &mut VarResolutionContext,
+    context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
     // https://drafts.csswg.org/css-values-5/#replace-an-inherit-function
@@ -1244,7 +1244,7 @@ fn replace_env_function(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
     arguments: &[OwnedToken],
-    context: &mut VarResolutionContext,
+    context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
     // https://drafts.csswg.org/css-env/#substitute-an-env
@@ -1501,7 +1501,7 @@ fn evaluate_style_feature(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
     tokens: &[OwnedToken],
-    context: &mut VarResolutionContext,
+    context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> ConditionEvaluation {
     let tokens = trim_whitespace(tokens);
@@ -1666,7 +1666,7 @@ fn evaluate_style_query(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
     tokens: &[OwnedToken],
-    context: &mut VarResolutionContext,
+    context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> ConditionEvaluation {
     let expression = match parse_boolean_expression(tokens, &mut validate_style_feature) {
@@ -1706,7 +1706,7 @@ fn evaluate_if_condition(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
     tokens: &[OwnedToken],
-    context: &mut VarResolutionContext,
+    context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> ConditionEvaluation {
     if matches!(
@@ -1784,7 +1784,7 @@ fn replace_custom_function(
     registry: Option<&CustomPropertyRegistry>,
     name: &[u16],
     arguments: &[OwnedToken],
-    context: &mut VarResolutionContext,
+    context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
     let Some(functions) = context.custom_functions else {
@@ -1982,7 +1982,7 @@ fn replace_if_function(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
     arguments: &[OwnedToken],
-    context: &mut VarResolutionContext,
+    context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
     // https://drafts.csswg.org/css-values-5/#replace-an-if-function
@@ -2100,7 +2100,7 @@ fn attr_fallback(
     arguments: &[OwnedToken],
     comma: Option<usize>,
     syntax_was_omitted: bool,
-    context: &mut VarResolutionContext,
+    context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
     let Some(comma) = comma else {
@@ -2116,7 +2116,7 @@ fn replace_attr_function(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
     arguments: &[OwnedToken],
-    context: &mut VarResolutionContext,
+    context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
     // https://drafts.csswg.org/css-values-5/#replace-an-attr-function
@@ -2252,7 +2252,7 @@ fn substitute_tokens(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
     tokens: &[OwnedToken],
-    context: &mut VarResolutionContext,
+    context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
     if recursion_depth > MAX_SUBSTITUTION_RECURSION_DEPTH {
@@ -2430,7 +2430,7 @@ pub(crate) unsafe fn resolve_vars(
         token_cache,
         resolution_stats,
     } = environment;
-    let mut context = VarResolutionContext {
+    let mut context = ASFResolutionContext {
         active_names,
         attributes: Some(attributes),
         inheritance_store,
@@ -2511,7 +2511,7 @@ mod tests {
             None,
             None,
             &tokenize_owned(source.as_bytes()),
-            &mut VarResolutionContext::default(),
+            &mut ASFResolutionContext::default(),
             0,
         )
     }
@@ -2521,7 +2521,7 @@ mod tests {
             .iter()
             .map(|(name, value)| (utf16(name), utf16(value)))
             .collect();
-        let mut context = VarResolutionContext {
+        let mut context = ASFResolutionContext {
             attributes: Some(&attributes),
             ..Default::default()
         };
@@ -2556,7 +2556,7 @@ mod tests {
 
     #[test]
     fn root_custom_property_cycles_do_not_take_var_fallbacks() {
-        let mut context = VarResolutionContext {
+        let mut context = ASFResolutionContext {
             active_names: vec![utf16("--root")],
             ..Default::default()
         };
@@ -2619,7 +2619,7 @@ mod tests {
                 declarations: vec![(utf16("result"), tokenize_owned(b"var(--value)"), true)],
             }],
         };
-        let mut context = VarResolutionContext {
+        let mut context = ASFResolutionContext {
             custom_functions: Some(&functions),
             ..Default::default()
         };
@@ -2679,7 +2679,7 @@ mod tests {
     #[test]
     fn html_attribute_names_are_ascii_case_insensitive() {
         let attributes = HashMap::from([(utf16("data-value"), utf16("hello"))]);
-        let mut context = VarResolutionContext {
+        let mut context = ASFResolutionContext {
             attributes: Some(&attributes),
             attribute_names_are_ascii_case_insensitive: true,
             ..Default::default()
