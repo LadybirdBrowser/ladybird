@@ -358,11 +358,17 @@ void ViewImplementation::release_backing_store(i32 bitmap_id)
 
 void ViewImplementation::set_window_position(Gfx::IntPoint position)
 {
+    if (!m_client_state.client)
+        return;
+
     client().async_set_window_position(m_client_state.page_index, position.to_type<Web::DevicePixels>());
 }
 
 void ViewImplementation::set_window_size(Gfx::IntSize size)
 {
+    if (!m_client_state.client)
+        return;
+
     client().async_set_window_size(m_client_state.page_index, size.to_type<Web::DevicePixels>());
 }
 
@@ -2101,6 +2107,9 @@ void ViewImplementation::apply_zoom_for_current_host()
 
 void ViewImplementation::handle_resize()
 {
+    if (!m_client_state.client)
+        return;
+
     client().async_set_viewport(page_id(), viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
     Application::the().update_compositor_viewport(client().compositor_context_id_for_page(page_id()), viewport_size().to_type<int>(), Web::Compositor::WindowResizingInProgress::Yes);
     if (m_debugger_paused) {

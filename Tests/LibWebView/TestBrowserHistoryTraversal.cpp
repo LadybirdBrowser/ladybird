@@ -200,13 +200,15 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Core::EventLoop::current().spin_until([&] { return history_boundary_traversal_ready; });
     VERIFY(browser_history_traversals_completed == completed_traversals_before_history_boundary + 1);
 
-    // Closing a view may synchronously cause the UI to generate input and visibility events while removing the view
-    // from its container. Events received after the browsing context closes must be discarded.
+    // Closing a view may synchronously cause the UI to generate input, geometry, and visibility events while removing
+    // the view from its container. Events received after the browsing context closes must be discarded.
     bool did_close = false;
     view->on_close = [&] {
         Web::MouseEvent event {};
         event.type = Web::MouseEvent::Type::MouseLeave;
         view->enqueue_input_event(move(event));
+        view->set_window_position({ 0, 0 });
+        view->set_window_size({ 800, 600 });
         view->set_system_visibility_state(Web::HTML::VisibilityState::Hidden);
         did_close = true;
     };
