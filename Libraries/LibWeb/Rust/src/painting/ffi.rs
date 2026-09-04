@@ -2328,6 +2328,27 @@ pub unsafe extern "C" fn layout_arena_intersection_observer_intersection_rect(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_collect_boxes_with_auto_content_visibility(
+    arena: *mut c_void,
+    root: NodeSlotId,
+    context: *mut c_void,
+    push_box: unsafe extern "C" fn(*mut c_void, NodeSlotId),
+) {
+    let arena = unsafe { arena_from_handle(arena) };
+    crate::painting::content_visibility::for_each_box_with_auto_content_visibility(
+        &arena.paintable_rows(),
+        root,
+        |slot| {
+            // SAFETY: The C++ callback appends the slot id to a caller-owned collection.
+            unsafe { push_box(context, slot) };
+        },
+    );
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_can_compute_client_rects_without_visual_context_update(
     arena: *mut c_void,
     layout_node: NodeSlotId,
