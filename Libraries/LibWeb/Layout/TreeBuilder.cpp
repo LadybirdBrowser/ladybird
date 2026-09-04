@@ -24,6 +24,7 @@
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
+#include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -445,15 +446,14 @@ static Box& create_content_image_box(DOM::Document& document, GC::Ptr<DOM::Eleme
     return image_box;
 }
 
-static CSS::AbstractImageStyleValue const* content_replacement_image(CSS::ComputedContentData const& content)
+static CSS::AbstractImageStyleValue const* content_replacement_image(CSS::StyleValue const& content)
 {
-    if (content.type != CSS::ComputedContentData::Type::List
-        || content.items.size() != 1
-        || !content.items.first().has<NonnullRefPtr<CSS::AbstractImageStyleValue const>>()) {
+    if (!content.is_content())
         return nullptr;
-    }
-
-    return content.items.first().get<NonnullRefPtr<CSS::AbstractImageStyleValue const>>().ptr();
+    auto const& items = content.as_content().content().values();
+    if (items.size() != 1 || !items.first()->is_abstract_image())
+        return nullptr;
+    return &items.first()->as_abstract_image();
 }
 
 struct FirstLetterTextSlices {
@@ -580,17 +580,12 @@ static CSS::PseudoElement css_pseudo_element(RustFFI::FfiPseudoElement pseudo_el
     VERIFY_NOT_REACHED();
 }
 
-static RustFFI::FfiComputedContentType ffi_computed_content_type(CSS::ComputedContentData::Type content_type)
+static RustFFI::FfiComputedContentType ffi_computed_content_type(CSS::StyleValue const& content)
 {
-    switch (content_type) {
-    case CSS::ComputedContentData::Type::Normal:
-        return RustFFI::FfiComputedContentType::Normal;
-    case CSS::ComputedContentData::Type::None:
-        return RustFFI::FfiComputedContentType::None;
-    case CSS::ComputedContentData::Type::List:
-        return RustFFI::FfiComputedContentType::List;
-    }
-    VERIFY_NOT_REACHED();
+    if (content.is_keyword())
+        return content.to_keyword() == CSS::Keyword::None ? RustFFI::FfiComputedContentType::None : RustFFI::FfiComputedContentType::Normal;
+    VERIFY(content.is_content());
+    return RustFFI::FfiComputedContentType::List;
 }
 
 struct PseudoElementFrame {
@@ -682,8 +677,9 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
                 };
             }
             frame.display = computed_values->display();
-            auto const computed_content_type = computed_values->computed_content().type;
-            frame.replacement_image = content_replacement_image(computed_values->computed_content());
+            auto const computed_content = computed_values->computed_content();
+            auto const computed_content_type = ffi_computed_content_type(computed_content);
+            frame.replacement_image = content_replacement_image(computed_content);
             if (pseudo_element == CSS::PseudoElement::Marker)
                 frame.originating_list_box = element.unsafe_layout_node()->is_list_item_box() ? static_cast<BlockContainer*>(element.unsafe_layout_node()) : nullptr;
             auto const normal_marker_has_content = frame.originating_list_box
@@ -691,7 +687,7 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             return {
                 .has_style = true,
                 .pseudo_element = ffi_pseudo,
-                .content_type = ffi_computed_content_type(computed_content_type),
+                .content_type = computed_content_type,
                 .display_is_none = frame.display.is_none(),
                 .display_is_contents = frame.display.is_contents(),
                 .display_is_list_item = frame.display.is_list_item(),
@@ -800,7 +796,7 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             auto computed_values = element_reference.computed_style();
             VERIFY(computed_values);
             if (auto* marker = frame.layout_node->is_list_item_marker_box() ? static_cast<BlockContainer*>(frame.layout_node) : nullptr;
-                marker && computed_values->computed_content().type == CSS::ComputedContentData::Type::Normal) {
+                marker && computed_values->content_is_normal()) {
                 VERIFY(frame.originating_list_box);
                 frame.resolved_content = resolve_normal_marker_content(element_reference, *frame.originating_list_box, *marker);
                 frame.layout_node->set_content(frame.resolved_content);

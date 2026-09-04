@@ -846,43 +846,6 @@ enum class NotifyListItemCounterRendered : u8 {
     Yes,
 };
 
-struct ComputedContentCounter {
-    enum class Function : u8 {
-        Counter,
-        Counters,
-    };
-
-    struct SymbolsFunction {
-        SymbolsType type;
-        Vector<Utf16FlyString> symbols;
-
-        bool operator==(SymbolsFunction const&) const = default;
-    };
-
-    Function function;
-    Utf16FlyString name;
-    Utf16FlyString join_string;
-    Variant<Utf16FlyString, SymbolsFunction> style;
-
-    bool operator==(ComputedContentCounter const&) const = default;
-};
-
-using ComputedContentItem = Variant<Utf16String, Keyword, ComputedContentCounter, NonnullRefPtr<AbstractImageStyleValue const>>;
-
-struct ComputedContentData {
-    enum class Type : u8 {
-        Normal,
-        None,
-        List,
-    };
-
-    Type type { Type::Normal };
-    Vector<ComputedContentItem> items;
-    Vector<ComputedContentItem> alt_text;
-
-    bool operator==(ComputedContentData const&) const = default;
-};
-
 struct CounterData {
     Utf16FlyString name;
     bool is_reversed;
@@ -1277,7 +1240,7 @@ public:
     PreferredColorScheme color_scheme() const { return m_inherited.ui->color_scheme_value(); }
     ContentVisibility content_visibility() const { return static_cast<ContentVisibility>(m_inherited.box->content_visibility); }
     ReadonlySpan<ComputedValuesFFI::ComputedCursor> cursor() const { return m_inherited.ui->cursor_span(); }
-    ComputedContentData computed_content() const { return m_noninherited.content_data->computed_content_value(); }
+    NonnullRefPtr<StyleValue const> computed_content() const { return m_noninherited.content_data->computed_content_value(); }
     bool content_is_normal() const { return m_noninherited.content_data->content_is_normal(); }
     bool content_uses_list_item_counter() const { return m_noninherited.content_data->content_uses_list_item_counter(); }
     ContentDataAndQuoteNestingLevel resolved_content(DOM::AbstractElement&, u32 initial_quote_nesting_level, NotifyListItemCounterRendered) const;
@@ -1844,7 +1807,7 @@ public:
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::ContentValues);
         static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Content;
 
-        ComputedContentData computed_content_value() const;
+        NonnullRefPtr<StyleValue const> computed_content_value() const;
         bool content_is_normal() const;
         bool content_uses_list_item_counter() const;
         Vector<CounterData, 0> counter_increment_value() const;

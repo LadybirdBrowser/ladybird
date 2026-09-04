@@ -6,6 +6,7 @@
 
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/GeneratedContent.h>
+#include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
 
@@ -15,8 +16,9 @@ static bool style_affects_generated_content_state(ComputedValues const& style)
 {
     if (!style.counter_increment().is_empty() || !style.counter_reset().is_empty() || !style.counter_set().is_empty())
         return true;
-    return any_of(style.computed_content().items, [](ComputedContentItem const& item) {
-        return item.has<Keyword>() && first_is_one_of(item.get<Keyword>(), Keyword::OpenQuote, Keyword::CloseQuote, Keyword::NoOpenQuote, Keyword::NoCloseQuote);
+    auto content = style.computed_content();
+    return content->is_content() && any_of(content->as_content().content().values(), [](auto const& item) {
+        return item->is_keyword() && first_is_one_of(item->to_keyword(), Keyword::OpenQuote, Keyword::CloseQuote, Keyword::NoOpenQuote, Keyword::NoCloseQuote);
     });
 }
 
