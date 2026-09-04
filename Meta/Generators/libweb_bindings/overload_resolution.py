@@ -318,12 +318,14 @@ def resolve_distinguishing_argument_index(
 
 def constructor_for_idl_type(idl_type: IDLType, context: GenerationContext) -> str:
     nullable = "true" if idl_type.nullable else "false"
+
     if isinstance(idl_type, IDLParameterizedType):
         parameters = ", ".join(constructor_for_idl_type(parameter, context) for parameter in idl_type.parameters)
         return (
             f'make_ref_counted<WebIDL::ParameterizedType>("{idl_type.name}", {nullable}, '
             f"Vector<NonnullRefPtr<WebIDL::Type const>> {{ {parameters} }})"
         )
+
     if isinstance(idl_type, IDLUnionType):
         member_types = ", ".join(
             constructor_for_idl_type(member_type, context) for member_type in idl_type.member_types
@@ -332,6 +334,10 @@ def constructor_for_idl_type(idl_type: IDLType, context: GenerationContext) -> s
             f'make_ref_counted<WebIDL::UnionType>("{idl_type.name}", {nullable}, '
             f"Vector<NonnullRefPtr<WebIDL::Type const>> {{ {member_types} }})"
         )
+
+    if context.enumeration(idl_type) is not None:
+        return f'make_ref_counted<WebIDL::Type>(WebIDL::Type::Kind::Enumeration, "{idl_type.name}", {nullable})'
+
     return f'make_ref_counted<WebIDL::Type>("{idl_type.name}", {nullable})'
 
 
@@ -517,7 +523,7 @@ def distinguishability_category(idl_type: IDLType, context: GenerationContext) -
         return "Numeric"
     if idl_type.name == "bigint":
         return "BigInt"
-    if is_string_type(idl_type.name):
+    if is_string_type(idl_type.name) or context.enumeration(idl_type) is not None:
         return "String"
     if idl_type.name == "object":
         return "Object"
