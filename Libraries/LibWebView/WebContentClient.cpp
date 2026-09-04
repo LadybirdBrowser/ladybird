@@ -928,41 +928,27 @@ bool WebContentClient::continue_navigation_population_in_selected_process(u64 pa
         return view->create_new_process_for_cross_site_navigation(navigation_id);
     }
 
-    auto const& current_url = *ongoing_navigation->current_url;
-    auto const& target_url = *ongoing_navigation->url;
-    if (!SiteIsolationManager::the().child_frame_navigation_requires_process_swap(*navigable, current_url, target_url))
+    // A child navigable's document is created in the process hosting the agent cluster of the document's origin
+    // within the browsing context group. Without iframe isolation, every agent cluster of a child's document is
+    // hosted by its container document's process.
+    auto browsing_context_group = navigable->top_level_traversable().active_browsing_context().group();
+    VERIFY(browsing_context_group);
+    if (site_isolation_mode() != SiteIsolationMode::IFrame)
         return populate_in(*this, page_id);
 
-    auto current_step = navigable->top_level_traversable().session_history().current_step();
-    VERIFY(current_step.has_value());
-    auto const* current_entry = navigable->top_level_traversable().session_history().get_the_target_history_entry(*navigable, *current_step);
-    VERIFY(current_entry);
+    // FIXME: Pass the document's requestsOAC value once Origin-Agent-Cluster is implemented.
+    auto agent = browsing_context_group->obtain_similar_origin_window_agent(document->origin, false);
 
-    auto remote_process_or_error = Application::the().launch_child_frame_web_content_process(m_is_private, navigable_id, current_entry->document_state.id);
-    if (remote_process_or_error.is_error()) {
-        warnln("Unable to create WebContent process for child frame navigation: {}", remote_process_or_error.error());
+    auto host_or_error = SiteIsolationManager::the().obtain_child_document_host(*navigable, *agent);
+    if (host_or_error.is_error()) {
+        warnln("Unable to create WebContent page for child frame navigation: {}", host_or_error.error());
         navigable->clear_ongoing_navigation();
         return false;
     }
-
-    auto remote_process = remote_process_or_error.release_value();
-    auto remote_page_id = remote_process.page_id;
-    auto remote_client = move(remote_process.client);
-    navigable->set_navigation_host(*remote_client, remote_page_id);
-    remote_client->register_embedded_page(remote_page_id, *navigable);
-    remote_client->async_set_page_parent_context(remote_page_id, Web::Compositor::compositor_context_id_for_page(navigable->reporting_page_id()));
-    if (navigable->viewport_rect().has_value()) {
-        remote_client->async_set_viewport(
-            remote_page_id,
-            navigable->viewport_rect()->size(),
-            navigable->device_pixel_ratio(),
-            Web::ViewportIsFullscreen::No);
-    }
-    remote_client->async_update_visibility_state(remote_page_id, navigable->id(), navigable->top_level_traversable().system_visibility_state());
-    remote_client->async_populate_navigation(remote_page_id, loader.request(), loader.take_result());
-
-    SiteIsolationManager::the().transition_child_frame_to_remote(navigable->reporting_client(), navigable->reporting_page_id(), navigable_id, move(remote_client), remote_page_id);
-    return true;
+    auto host = host_or_error.release_value();
+    navigable->set_navigation_host(*host.client, host.page_id);
+    SiteIsolationManager::the().set_child_document_host(*navigable, host);
+    return populate_in(*host.client, host.page_id);
 }
 
 void WebContentClient::did_create_child_frame(u64 page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state)

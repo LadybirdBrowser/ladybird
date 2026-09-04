@@ -199,6 +199,12 @@ void ConnectionFromClient::initialize(u64 initial_page_id, Web::HTML::CrossProce
     m_page_host->initialize(initial_page_id, root_navigable_id, cross_process_id_allocator, initial_document_state_id, system_visibility_state);
 }
 
+void ConnectionFromClient::create_embedded_page(u64 page_id, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessId initial_document_state_id, Web::HTML::VisibilityState system_visibility_state)
+{
+    auto& page = m_page_host->create_page(page_id, root_navigable_id);
+    Web::HTML::LocalTraversableNavigable::create_a_fresh_top_level_traversable(page.page(), URL::about_blank(), Empty {}, initial_document_state_id, system_visibility_state);
+}
+
 void ConnectionFromClient::set_page_parent_context(u64 page_id, Optional<Web::Compositor::CompositorContextId> parent_context_id)
 {
     auto page = this->page(page_id);

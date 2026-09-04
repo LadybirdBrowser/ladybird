@@ -1,0 +1,3 @@
+iframe became local: true
+WebContent#0
+  iframe#0: local
