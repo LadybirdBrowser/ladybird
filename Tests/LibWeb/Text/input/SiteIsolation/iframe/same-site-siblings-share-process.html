@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const runId = crypto.randomUUID();
+        const hostname = uniqueLocalhostHostname("oop-siblings");
+        const frames = [];
+        const loadChild = async (frame, index) => {
+            const markerPath = `/oop-sibling-marker-${runId}-${index}`;
+            const marker = new URL(await server.createEcho("GET", markerPath, {
+                status: 200,
+                body: "marker",
+            }));
+            marker.hostname = hostname;
+            const url = new URL(await server.createEcho("GET", `/oop-sibling-${runId}-${index}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!doctype html><script>fetch(${JSON.stringify(marker.href)});<\/script>`,
+            }));
+            url.hostname = hostname;
+            frame.src = url;
+            if (!frame.isConnected) document.body.appendChild(frame);
+            let documentRan = false;
+            for (let attempt = 0; attempt < 600 && !documentRan; ++attempt) {
+                try {
+                    documentRan = (await fetch(`${server.baseURL}/recorded-request-headers/echo${markerPath}`)).ok;
+                } catch {}
+                if (!documentRan) await timeout(25);
+            }
+            println(`child ${index} ran: ${documentRan}`);
+        };
+        for (let index = 0; index < 2; ++index) {
+            const frame = document.createElement("iframe");
+            frames.push(frame);
+            await loadChild(frame, index);
+        }
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+
+        // Closing one embedded page must leave the other page in the shared process alive.
+        frames[0].remove();
+        await waitForCondition(() => !internals.dumpSiteIsolationProcessTree().includes("iframe#1"));
+        println("after removing first child:");
+        await loadChild(frames[1], 2);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

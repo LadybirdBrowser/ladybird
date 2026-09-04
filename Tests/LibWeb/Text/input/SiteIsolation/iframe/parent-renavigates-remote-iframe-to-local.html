@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const remoteUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-iframe-return-local-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>remote",
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("oop-iframe-return-local");
+
+        const iframe = document.createElement("iframe");
+        iframe.src = remoteUrl;
+        document.body.appendChild(iframe);
+
+        if (!(await waitForCondition(() => internals.dumpSiteIsolationProcessTree().includes("remote")))) {
+            println("iframe did not become remote");
+            return;
+        }
+
+        iframe.src = "about:blank";
+        const becameLocal = await waitForCondition(() => internals.dumpSiteIsolationProcessTree().includes("local"));
+        println(`iframe became local: ${becameLocal}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

@@ -9,6 +9,7 @@
 #include <AK/StringBuilder.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalTraversable.h>
@@ -26,23 +27,15 @@ SiteIsolationManager& SiteIsolationManager::the()
 
 bool SiteIsolationManager::top_level_navigation_requires_process_swap(CanonicalBrowsingContext const& browsing_context, URL::URL const& current_url, URL::URL const& target_url) const
 {
+    if (site_isolation_mode() == SiteIsolationMode::Disabled)
+        return false;
+
     // Obtaining a browsing context to use for a navigation response only lets an implementation-defined browsing
     // context group switch happen when the group holds a single browsing context (step 8). Ladybird cannot retain
     // WindowProxy relationships across a process swap either, so related top-level browsing contexts share a process.
     auto group = browsing_context.group();
     VERIFY(group);
     if (group->browsing_context_set().size() > 1)
-        return false;
-
-    return navigation_requires_process_swap(current_url, target_url, Web::NavigationTarget::TopLevel);
-}
-
-bool SiteIsolationManager::navigation_requires_process_swap(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget target) const
-{
-    if (site_isolation_mode() == SiteIsolationMode::Disabled)
-        return false;
-
-    if (target == Web::NavigationTarget::IFrame && site_isolation_mode() != SiteIsolationMode::IFrame)
         return false;
 
     // Allow navigating from about:blank to any site.
@@ -53,36 +46,13 @@ bool SiteIsolationManager::navigation_requires_process_swap(URL::URL const& curr
     if (target_url.scheme() == "javascript"sv)
         return false;
 
-    // Allow cross-scheme non-HTTP(S) navigation. Disallow cross-scheme HTTP(s) navigation.
+    // Allow cross-scheme non-HTTP(S) navigation. Disallow cross-scheme HTTP(S) navigation.
     auto current_url_is_http = Web::Fetch::Infrastructure::is_http_or_https_scheme(current_url.scheme());
     auto target_url_is_http = Web::Fetch::Infrastructure::is_http_or_https_scheme(target_url.scheme());
-
     if (!current_url_is_http || !target_url_is_http)
         return current_url_is_http || target_url_is_http;
 
-    // Disallow cross-site HTTP(S) navigation.
     return !current_url.origin().is_same_site(target_url.origin());
-}
-
-bool SiteIsolationManager::child_frame_navigation_requires_process_swap(CanonicalNavigable const& child_frame, URL::URL const& current_url, URL::URL const& target_url) const
-{
-    if (site_isolation_mode() != SiteIsolationMode::IFrame)
-        return false;
-
-    // A remote child can keep its current process when navigating within the same site.
-    if (child_frame.has_remote_host()
-        && !navigation_requires_process_swap(current_url, target_url, Web::NavigationTarget::IFrame)) {
-        return false;
-    }
-
-    // Use origin-based same-site checks for HTTP(S). about:blank, srcdoc, and data: need the initiator origin, so fall
-    // back to using a URL decision for now.
-    if (Web::Fetch::Infrastructure::is_http_or_https_scheme(target_url.scheme())) {
-        if (auto const* parent_frame = child_frame.parent(); parent_frame && parent_frame->replicated_state().has_value())
-            return !parent_frame->replicated_state()->active_document_origin.is_same_site(target_url.origin());
-    }
-
-    return navigation_requires_process_swap(current_url, target_url, Web::NavigationTarget::IFrame);
 }
 
 Optional<SiteIsolationManager::RemoteChildFrameInputTarget> SiteIsolationManager::remote_child_frame_input_target_at(WebContentClient& client, u64 page_id, Web::DevicePixelPoint position) const
@@ -195,6 +165,49 @@ HashMap<pid_t, pid_t> SiteIsolationManager::remote_frame_process_embedders() con
     });
 
     return embedders;
+}
+
+ErrorOr<SiteIsolationManager::DocumentHost> SiteIsolationManager::obtain_child_document_host(CanonicalNavigable& navigable, CanonicalSimilarOriginWindowAgent& agent)
+{
+    auto host = agent.hosting_process();
+    if (host && host.ptr() == navigable.reporting_client_if_any())
+        return DocumentHost { *host, navigable.reporting_page_id() };
+    if (host && navigable.has_remote_host() && host.ptr() == &navigable.remote_host_client())
+        return DocumentHost { *host, navigable.remote_host_page_id() };
+
+    auto& traversable = navigable.top_level_traversable();
+    auto current_step = traversable.session_history().current_step();
+    VERIFY(current_step.has_value());
+    auto const* current_entry = traversable.session_history().get_the_target_history_entry(navigable, *current_step);
+    VERIFY(current_entry);
+
+    u64 page_id;
+    if (host) {
+        page_id = Application::the().allocate_page_id();
+        host->async_create_embedded_page(page_id, navigable.id(), current_entry->document_state.id, traversable.system_visibility_state());
+    } else {
+        auto process = TRY(Application::the().launch_child_frame_web_content_process(navigable.reporting_client().is_private(), navigable.id(), current_entry->document_state.id));
+        host = move(process.client);
+        page_id = process.page_id;
+        agent.set_hosting_process_if_unset(*host);
+    }
+
+    host->register_embedded_page(page_id, navigable);
+    host->async_set_page_parent_context(page_id, Web::Compositor::compositor_context_id_for_page(navigable.reporting_page_id()));
+    if (navigable.viewport_rect().has_value())
+        host->async_set_viewport(page_id, navigable.viewport_rect()->size(), navigable.device_pixel_ratio(), Web::ViewportIsFullscreen::No);
+    host->async_update_visibility_state(page_id, navigable.id(), traversable.system_visibility_state());
+    return DocumentHost { host.release_nonnull(), page_id };
+}
+
+void SiteIsolationManager::set_child_document_host(CanonicalNavigable& navigable, DocumentHost const& host)
+{
+    if (host.client.ptr() == navigable.reporting_client_if_any() && host.page_id == navigable.reporting_page_id()) {
+        if (navigable.has_remote_host())
+            transition_child_frame_to_local(navigable);
+    } else if (!navigable.has_remote_host() || &navigable.remote_host_client() != host.client.ptr() || navigable.remote_host_page_id() != host.page_id) {
+        transition_child_frame_to_remote(navigable.reporting_client(), navigable.reporting_page_id(), navigable.id(), host.client, host.page_id);
+    }
 }
 
 void SiteIsolationManager::transition_child_frame_to_remote(WebContentClient& parent_client, u64 page_id, Web::HTML::CrossProcessId frame_id, NonnullRefPtr<WebContentClient> remote_client, u64 remote_page_id)

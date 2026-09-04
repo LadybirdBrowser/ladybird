@@ -12,6 +12,7 @@
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalTraversable.h>
+#include <LibWebView/SiteIsolation.h>
 #include <LibWebView/SiteIsolationManager.h>
 #include <LibWebView/StorageJar.h>
 #include <LibWebView/ViewImplementation.h>
@@ -1265,6 +1266,24 @@ void CanonicalTraversable::continue_history_navigation_population(Web::HTML::Cro
                 endpoint = history_job_endpoint_for(*navigable);
                 operation->changing_job_endpoints.set(navigable_id, *endpoint);
             }
+        } else if (site_isolation_mode() == SiteIsolationMode::IFrame) {
+            auto group = active_browsing_context().group();
+            VERIFY(group);
+            auto agent = group->obtain_similar_origin_window_agent(document->origin, false);
+            auto host = SiteIsolationManager::the().obtain_child_document_host(*navigable, *agent);
+            if (host.is_error()) {
+                did_receive_changing_navigable_history_job_ready(*endpoint->client, endpoint->page_id, operation_id, navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition::Skipped, Web::HTML::UnloadDisplayedDocument::No);
+                return;
+            }
+            endpoint = HistoryJobEndpoint { host.value().client, host.value().page_id };
+            operation->changing_job_endpoints.set(navigable_id, *endpoint);
+            SiteIsolationManager::the().set_child_document_host(*navigable, host.value());
+            operation = find_history_operation(operation_id);
+            if (!operation)
+                return;
+            pending_job = operation->pending_changing_jobs.get(navigable_id);
+            if (!pending_job.has_value())
+                return;
         }
     }
     add_history_operation_completion_endpoint(*operation, *endpoint);

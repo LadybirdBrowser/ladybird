@@ -12,7 +12,6 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Page/Page.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWebView/CanonicalNavigable.h>
 #include <LibWebView/Forward.h>
@@ -30,8 +29,13 @@ public:
     };
 
     [[nodiscard]] bool top_level_navigation_requires_process_swap(CanonicalBrowsingContext const&, URL::URL const& current_url, URL::URL const& target_url) const;
-    [[nodiscard]] bool navigation_requires_process_swap(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget = Web::NavigationTarget::TopLevel) const;
-    [[nodiscard]] bool child_frame_navigation_requires_process_swap(CanonicalNavigable const& child_frame, URL::URL const& current_url, URL::URL const& target_url) const;
+
+    struct DocumentHost {
+        NonnullRefPtr<WebContentClient> client;
+        u64 page_id;
+    };
+    ErrorOr<DocumentHost> obtain_child_document_host(CanonicalNavigable&, CanonicalSimilarOriginWindowAgent&);
+    void set_child_document_host(CanonicalNavigable&, DocumentHost const&);
 
     void transition_child_frame_to_remote(WebContentClient& parent_client, u64 page_id, Web::HTML::CrossProcessId frame_id, NonnullRefPtr<WebContentClient>, u64 remote_page_id);
     void transition_child_frame_to_local(CanonicalNavigable&);

@@ -1,0 +1,9 @@
+child 0 ran: true
+child 1 ran: true
+WebContent#0
+  iframe#0: remote WebContent#1
+  iframe#1: remote WebContent#1
+after removing first child:
+child 2 ran: true
+WebContent#0
+  iframe#0: remote WebContent#1
