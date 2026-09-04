@@ -311,6 +311,18 @@ pub unsafe extern "C" fn layout_arena_node_establishes_a_fixed_positioning_conta
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_any_ancestor_establishes_a_fixed_position_containing_block(
+    arena: *mut c_void,
+    node: NodeSlotId,
+) -> bool {
+    let arena = unsafe { arena_from_handle(arena) };
+    crate::painting::style_queries::any_ancestor_establishes_a_fixed_position_containing_block(arena, node)
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_node_has_css_transform(arena: *mut c_void, node: NodeSlotId) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
     let Some(style) = arena.node_style_if_live(node) else {

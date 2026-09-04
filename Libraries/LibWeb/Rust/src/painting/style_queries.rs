@@ -311,6 +311,23 @@ pub(crate) fn establishes_positioning_containing_blocks(arena: &LayoutNodeArena,
     (false, false)
 }
 
+pub(crate) fn any_ancestor_establishes_a_fixed_position_containing_block(
+    arena: &LayoutNodeArena,
+    node: NodeSlotId,
+) -> bool {
+    // https://www.w3.org/TR/css-position-3/#fixed-positioning-containing-block
+    // The containing block is established by the nearest ancestor box that establishes an fixed positioning containing
+    // block, with the bounds of the containing block determined identically to the absolute positioning containing block.
+    let mut ancestor = arena.node_containing_block_if_live(node);
+    while let Some(ancestor_slot) = ancestor {
+        if establishes_positioning_containing_blocks(arena, ancestor_slot).1 {
+            return true;
+        }
+        ancestor = arena.node_containing_block_if_live(ancestor_slot);
+    }
+    false
+}
+
 pub(crate) fn has_css_transform(arena: &LayoutNodeArena, node: NodeSlotId, style: ComputedValuesView<'_>) -> bool {
     let transform = style.transform();
     let has_transform = !transform.transformations.pointer.is_null()
