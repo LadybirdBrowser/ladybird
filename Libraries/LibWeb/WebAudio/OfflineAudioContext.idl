@@ -1,6 +1,7 @@
 // https://webaudio.github.io/web-audio-api/#OfflineAudioContextOptions
 dictionary OfflineAudioContextOptions {
     unsigned long numberOfChannels = 1;
+    // FIXME: length should be nullable.
     required unsigned long length;
     required float sampleRate;
     // FIXME: (AudioContextRenderSizeCategory or unsigned long) renderSizeHint = "default";
@@ -11,9 +12,12 @@ dictionary OfflineAudioContextOptions {
 interface OfflineAudioContext : BaseAudioContext {
     constructor(OfflineAudioContextOptions contextOptions);
     constructor(unsigned long numberOfChannels, unsigned long length, float sampleRate);
+    // FIXME: startRendering is missing the chunkSize parameter.
     [CreatesPromise] Promise<AudioBuffer> startRendering();
     [CreatesPromise] Promise<undefined> resume();
     [CreatesPromise] Promise<undefined> suspend(double suspendTime);
+    // FIXME: Promise<undefined> close();
+    // FIXME: length should be nullable.
     readonly attribute unsigned long length;
     attribute EventHandler oncomplete;
 };
