@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        --outer: var(--inner, blue);
+        --inner: var(--loop, var(--outer));
+        --loop: var(--inner);
+        color: var(--outer, red);
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        println(getComputedStyle(document.getElementById("target")).color);
+    });
+</script>

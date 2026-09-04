@@ -614,6 +614,7 @@ impl StyleEngine {
                 Some(&parse_context),
                 None,
                 None,
+                property,
                 FfiUtf16View {
                     ascii: std::ptr::null(),
                     utf16: std::ptr::null(),
