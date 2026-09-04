@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="registrations">
+    #rule-query-dependent, #api-query-dependent, #api-range-dependent { color: red; }
+    @container style(--rule-query: 10px) {
+        #rule-query-dependent { color: green; }
+    }
+    @container style(--api-query: 10px) {
+        #api-query-dependent { color: green; }
+    }
+    @container style(--api-range > 5px) {
+        #api-range-dependent { color: green; }
+    }
+
+    #animation-query-dependent { color: black; background-color: red; }
+    #animation-query-dependent::before { content: ""; background-color: red; }
+    @container style(--animation-origin-query: 10px) {
+        #animation-query-dependent { background-color: green; }
+    }
+    @container style(--animation-pseudo-query: 10px) {
+        #animation-query-dependent::before { background-color: green; }
+    }
+
+    #rule-pseudo::before {
+        content: "";
+        --rule-pseudo: red;
+    }
+    #api-pseudo::before {
+        content: "";
+        --api-pseudo: red;
+    }
+</style>
+<div id="rule-query-container"><span id="rule-query-dependent"></span></div>
+<div id="api-query-container"><span id="api-query-dependent"></span></div>
+<div><span id="api-range-dependent"></span></div>
+<div><span id="animation-query-dependent"></span></div>
+<div id="rule-pseudo"></div>
+<div id="api-pseudo"></div>
+<script>
+    promiseTest(async () => {
+        const ruleQueryDependent = document.getElementById("rule-query-dependent");
+        const apiQueryDependent = document.getElementById("api-query-dependent");
+        const apiRangeDependent = document.getElementById("api-range-dependent");
+        const animationQueryDependent = document.getElementById("animation-query-dependent");
+        const rulePseudo = document.getElementById("rule-pseudo");
+        const apiPseudo = document.getElementById("api-pseudo");
+        internals.updateStyle();
+
+        const animation = animationQueryDependent.animate([{ color: "red" }, { color: "blue" }], { duration: 1000 });
+        animation.pause();
+        await animation.ready;
+        for (const currentTime of [250, 500, 750]) {
+            animation.currentTime = currentTime;
+            getComputedStyle(animationQueryDependent).color;
+        }
+
+        registrations.sheet.insertRule(
+            "@property --rule-query { syntax: '<length>'; inherits: false; initial-value: 10px; }"
+        );
+        registrations.sheet.insertRule(
+            "@property --rule-pseudo { syntax: '<length>'; inherits: false; initial-value: 10px; }"
+        );
+        registrations.sheet.insertRule(
+            "@property --animation-origin-query { syntax: '<length>'; inherits: false; initial-value: 10px; }"
+        );
+        registrations.sheet.insertRule(
+            "@property --animation-pseudo-query { syntax: '<length>'; inherits: false; initial-value: 10px; }"
+        );
+        internals.updateStyle();
+
+        println(`@property style query: ${getComputedStyle(ruleQueryDependent).color}`);
+        println(`@property pseudo declaration: ${getComputedStyle(rulePseudo, "::before").getPropertyValue("--rule-pseudo")}`);
+        println(`style query after inherited animation update: ${getComputedStyle(animationQueryDependent).backgroundColor}`);
+        println(`pseudo style query after inherited animation update: ${getComputedStyle(animationQueryDependent, "::before").backgroundColor}`);
+
+        CSS.registerProperty({
+            name: "--api-query",
+            syntax: "<length>",
+            inherits: false,
+            initialValue: "10px",
+        });
+        CSS.registerProperty({
+            name: "--api-pseudo",
+            syntax: "<length>",
+            inherits: false,
+            initialValue: "10px",
+        });
+        CSS.registerProperty({
+            name: "--api-range",
+            syntax: "<length>",
+            inherits: false,
+            initialValue: "10px",
+        });
+        internals.updateStyle();
+
+        println(`CSS.registerProperty() style query: ${getComputedStyle(apiQueryDependent).color}`);
+        println(`CSS.registerProperty() range style query: ${getComputedStyle(apiRangeDependent).color}`);
+        println(`CSS.registerProperty() pseudo declaration: ${getComputedStyle(apiPseudo, "::before").getPropertyValue("--api-pseudo")}`);
+    });
+</script>

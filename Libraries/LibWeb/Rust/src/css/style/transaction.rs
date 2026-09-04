@@ -14,6 +14,7 @@ use super::fast_hash::FastMap as HashMap;
 use super::capacity::capacity_bytes;
 use super::index::FeatureValue;
 use super::index::LocalFeatureKey;
+use super::index::StyleAtomID;
 use super::index::StyleNodeFacts;
 use super::instrumentation::Counter;
 use super::instrumentation::Counters;
@@ -192,6 +193,8 @@ pub enum InputKey {
     /// Whether a sheet's rules are active at all.
     SheetActivation(SheetID),
     RuleField(RuleID, RuleField),
+    /// A registration made through `CSS.registerProperty()`, which has no stylesheet rule identity.
+    CustomPropertyRegistration(StyleAtomID),
     CascadeTopology(TopologyAxis),
 }
 
@@ -209,7 +212,10 @@ impl InputKey {
             Self::State(..) => InputKind::State,
             Self::ElementDeclaration(..) => InputKind::ElementDeclaration,
             Self::ElementStyleInput(..) => InputKind::ElementStyleInput,
-            Self::SheetAttachment(..) | Self::SheetActivation(..) | Self::RuleField(..) => InputKind::Program,
+            Self::SheetAttachment(..)
+            | Self::SheetActivation(..)
+            | Self::RuleField(..)
+            | Self::CustomPropertyRegistration(..) => InputKind::Program,
             Self::CascadeTopology(..) => InputKind::CascadeTopology,
         }
     }
@@ -223,9 +229,11 @@ impl InputKey {
             | Self::State(node, _)
             | Self::ElementDeclaration(node, _)
             | Self::ElementStyleInput(node) => Some(node),
-            Self::SheetAttachment(..) | Self::SheetActivation(..) | Self::RuleField(..) | Self::CascadeTopology(..) => {
-                None
-            }
+            Self::SheetAttachment(..)
+            | Self::SheetActivation(..)
+            | Self::RuleField(..)
+            | Self::CustomPropertyRegistration(..)
+            | Self::CascadeTopology(..) => None,
         }
     }
 }

@@ -20,8 +20,9 @@
         internals.updateStyle();
         println(`incremental: ${getComputedStyle(target).display}, ${getComputedStyle(target).color}`);
 
-        CSS.registerProperty({ name: "--force-cold-style", syntax: "*", inherits: false, initialValue: "1px" });
+        internals.setUserStyle("/* force complete style */");
         internals.updateStyle();
         println(`cold: ${getComputedStyle(target).display}, ${getComputedStyle(target).color}`);
+        internals.setUserStyle("");
     });
 </script>

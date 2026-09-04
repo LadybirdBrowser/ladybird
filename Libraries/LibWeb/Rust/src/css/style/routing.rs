@@ -3895,6 +3895,46 @@ impl StyleEngine {
         }));
     }
 
+    /// Route a custom-property registration to the elements whose cascade declares its name and
+    /// those whose substitution dependencies could not be named precisely.
+    fn route_custom_property_registration(
+        &mut self,
+        name: StyleAtomID,
+        scopes: Option<&[TreeScopeID]>,
+        regions: &mut ImpactRegions,
+    ) {
+        let consumers = self.facts.custom_property_candidates(name).and_then(|mut nodes| {
+            match self.facts.postings().lookup(DependencyPostingKey::AnyCustomProperty) {
+                Lookup::Known(posting) => nodes.extend(posting.candidates()),
+                Lookup::KnownAbsent => {}
+                Lookup::Missing(gap) => return Err(gap),
+            }
+            Ok(nodes)
+        });
+        let Ok(mut consumers) = consumers else {
+            if let Some(scopes) = scopes
+                && let Some(reachable) = self.regions_reachable_for_named_consumers(scopes)
+            {
+                for region in reachable {
+                    regions.add_if_not_covered(region, &self.tree, &mut self.counters);
+                }
+                return;
+            }
+            regions.widen_to_document(&mut self.counters);
+            return;
+        };
+        consumers.sort_unstable();
+        consumers.dedup();
+        if let Some(scopes) = scopes
+            && let Some(reachable) = self.regions_reachable_for_named_consumers(scopes)
+        {
+            consumers.retain(|&node| reachable.iter().any(|region| region.contains_node(node, &self.tree)));
+        }
+        for node in consumers {
+            regions.add_if_not_covered(ImpactRegion::Node(node), &self.tree, &mut self.counters);
+        }
+    }
+
     /// Route a program change to the elements the affected rules could match.
     ///
     /// Inserting a sheet invalidates no existing selector truth, so the region is not the document:
@@ -3919,6 +3959,10 @@ impl StyleEngine {
             removed_rules_requiring_refresh,
         } = context;
         let key = input.key;
+        if let InputKey::CustomPropertyRegistration(name) = key {
+            self.route_custom_property_registration(name, None, regions);
+            return;
+        }
         if program_joins.is_empty() {
             return;
         }
@@ -3986,14 +4030,11 @@ impl StyleEngine {
             // A rule that reaches its consumers by name matches nothing, so what finds them is the
             // index of who uses that name: the elements running an animation for `@keyframes`, the
             // elements declaring or referencing a custom property for `@property`.
-            // A registration carrying an initial value gives the property a value on every element,
-            // whether or not the element mentions it. There is no index of elements that never named
-            // it, so the answer is every element the sheet decides for.
-            if version.kind == RuleKind::Property && version.registration_has_initial_value {
-                regions.widen_to_document(&mut self.counters);
-                return;
-            }
             if let Some(name) = version.declared_name {
+                if version.kind == RuleKind::Property {
+                    self.route_custom_property_registration(name, Some(&scopes), regions);
+                    continue;
+                }
                 let consumers = match version.kind {
                     RuleKind::Keyframes => {
                         match self.facts.postings().lookup(DependencyPostingKey::AnimationName(name)) {
@@ -4002,17 +4043,6 @@ impl StyleEngine {
                             Lookup::Missing(gap) => Err(gap),
                         }
                     }
-                    // A registration reaches every element whose own cascade declares the name, and
-                    // also the elements whose custom-property use could not be named, because one of
-                    // them may be using this very property.
-                    RuleKind::Property => self.facts.custom_property_candidates(name).and_then(|mut nodes| {
-                        match self.facts.postings().lookup(DependencyPostingKey::AnyCustomProperty) {
-                            Lookup::Known(posting) => nodes.extend(posting.candidates()),
-                            Lookup::KnownAbsent => {}
-                            Lookup::Missing(gap) => return Err(gap),
-                        }
-                        Ok(nodes)
-                    }),
                     _ => continue,
                 };
                 let Ok(mut consumers) = consumers else {
@@ -4044,14 +4074,9 @@ impl StyleEngine {
                 }
                 continue;
             }
-            // Registering a custom property changes how every element that declares or references it
-            // computes, and changes what it inherits. Which elements those are is not something
-            // selector matching can say, and a registration only moves when a sheet holding an
-            // `@property` rule is attached or `CSS.registerProperty()` is called - so the document is
-            // the answer, the same one the old invalidation reached for the same reason.
+            // A property rule without a declared name registers nothing.
             if version.kind == RuleKind::Property {
-                regions.widen_to_document(&mut self.counters);
-                return;
+                continue;
             }
             // A custom function reaches the elements that called one. Which function they called is
             // not reported by the substitution machinery, so it is all of them - bounded by having

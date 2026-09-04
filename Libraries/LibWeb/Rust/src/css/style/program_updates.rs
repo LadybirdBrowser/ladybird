@@ -978,6 +978,7 @@ impl StyleEngine {
                         | InputKey::RuleField(_, RuleField::Activation | RuleField::Declarations | RuleField::Layer)
                         | InputKey::SheetAttachment(..)
                         | InputKey::SheetActivation(_)
+                        | InputKey::CustomPropertyRegistration(_)
                         | InputKey::CascadeTopology(_)
                         | InputKey::ElementDeclaration(..)
                         | InputKey::ElementStyleInput(..)

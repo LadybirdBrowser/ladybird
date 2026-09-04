@@ -58,5 +58,5 @@ register a custom property nobody uses: [consumer]
 unregister it: [consumer]
 register one that is declared and referenced: [consumer, declarer]
 unregister that one: [consumer, declarer]
-register one with an initial value: WHOLE DOCUMENT
-unregister the initialized one: WHOLE DOCUMENT
+register one with an initial value: [consumer]
+unregister the initialized one: [consumer]

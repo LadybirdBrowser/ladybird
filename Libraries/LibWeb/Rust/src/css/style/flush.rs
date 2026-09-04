@@ -62,6 +62,7 @@ impl StyleEngine {
                     input.key,
                     InputKey::RuleField(_, RuleField::Activation | RuleField::Declarations | RuleField::Layer)
                         | InputKey::SheetActivation(_)
+                        | InputKey::CustomPropertyRegistration(_)
                         | InputKey::CascadeTopology(_)
                         | InputKey::ElementDeclaration(..)
                         | InputKey::ElementStyleInput(_)
@@ -98,6 +99,7 @@ impl StyleEngine {
                     InputKey::ElementDeclaration(..)
                         | InputKey::ElementStyleInput(..)
                         | InputKey::RuleField(_, RuleField::Declarations)
+                        | InputKey::CustomPropertyRegistration(_)
                 )
             });
         let match_identity_is_complete_output = !transaction.has_coarsened_markers()

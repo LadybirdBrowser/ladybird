@@ -54,12 +54,12 @@
         await resizeIframe(iframe, child, 500);
         let counters = child.internals.getStyleInvalidationCounters();
         println(`resized shadow host color: ${child.getComputedStyle(host).color}`);
-        println(`resized recomputed host side: ${counters.elementStyleRecomputations > 1}`);
+        println(`resized skipped unrelated host side: ${counters.elementStyleRecomputations <= 1}`);
 
         child.internals.resetStyleInvalidationCounters();
         await resizeIframe(iframe, child, 300);
         counters = child.internals.getStyleInvalidationCounters();
         println(`resized back shadow host color: ${child.getComputedStyle(host).color}`);
-        println(`resized back recomputed host side: ${counters.elementStyleRecomputations > 1}`);
+        println(`resized back skipped unrelated host side: ${counters.elementStyleRecomputations <= 1}`);
     });
 </script>

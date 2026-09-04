@@ -559,14 +559,14 @@ static void update_style(DOM::Document& document)
         prefers_broad_matching_batch = feedback_transaction.prefers_broad_matching_batch;
     }
 
+    document.build_registered_properties_cache_for_style_update();
+
     // This pass belongs to the current style change event. The outer stabilization epoch advanced
     // the transition generation once, before any style, animation, or layout feedback ran.
     document.record_style_stabilization_pass();
 
     if (style_engine_reactions.is_empty())
         return;
-
-    document.build_registered_properties_cache_for_style_update();
 
     bool has_cold_matching_traversal = false;
     if (auto* root = document.document_element(); root && root->style_node_id() != 0) {
