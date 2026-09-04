@@ -21,6 +21,8 @@
 
 namespace Media {
 
+class CodedFrame;
+
 class ParsedCodec {
 public:
     constexpr explicit ParsedCodec(CodecID codec_id)
@@ -218,6 +220,8 @@ private:
 static_assert(IsTriviallyCopyable<ParsedCodec>);
 
 MEDIA_API Optional<ParsedCodec> parse_codec_parameters_string(StringView);
+
+MEDIA_API ParsedCodec parsed_codec_for_coded_frame(CodedFrame const&, ParsedCodec const& container_codec);
 
 }
 

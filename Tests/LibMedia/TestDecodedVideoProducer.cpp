@@ -221,3 +221,22 @@ TEST_CASE(a_codec_change_drains_the_previous_decoder)
     EXPECT(switching_demuxer->second_frame_count() > 0);
     EXPECT_EQ(decoded_frame_count, switching_demuxer->first_frame_count() + switching_demuxer->second_frame_count());
 }
+
+// A stream can move to a format the decoder in use has no support for, and only the first frame after a seek carries
+// a codec configuration, so replacing that decoder means asking the demuxer for one again.
+TEST_CASE(a_decoder_that_cannot_decode_a_later_format_is_replaced)
+{
+    auto& loop = never_destroyed_event_loop();
+    auto producer = create_started_producer(loop, "./vp9_profile_change.webm"sv);
+
+    auto time_limit = AK::Duration::from_seconds(5);
+    size_t frame_count = 0;
+    while (frame_count < 10) {
+        auto frame = take_frame_within_time_limit(*producer, loop, time_limit);
+        if (frame == nullptr) {
+            FAIL(ByteString::formatted("Timed out waiting for frame {}", frame_count));
+            return;
+        }
+        frame_count++;
+    }
+}

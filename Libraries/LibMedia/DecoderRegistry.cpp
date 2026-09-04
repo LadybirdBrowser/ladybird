@@ -66,40 +66,44 @@ Optional<DecoderCapabilities> decoder_capabilities(ParsedCodec const& codec)
     VERIFY_NOT_REACHED();
 }
 
-DecoderErrorOr<NonnullOwnPtr<AudioDecoder>> create_audio_decoder(CodecID codec_id, Audio::SampleSpecification const& sample_specification, ReadonlyBytes codec_initialization_data)
+AudioDecoderSelection select_audio_decoder(ParsedCodec const& codec, AudioDecoderSelection after)
 {
-    if (track_type_from_codec_id(codec_id) != TrackType::Audio)
-        return DecoderError::format(DecoderErrorCategory::NotImplemented, "{} is not an audio codec", codec_id);
+    if (track_type_from_codec_id(codec.codec_id()) != TrackType::Audio)
+        return {};
 
-    for (auto const& registration : audio_decoders_in_priority_order) {
-        auto decoder = registration.create(codec_id, sample_specification, codec_initialization_data);
-        if (!decoder.is_error())
-            return decoder.release_value();
-
-        auto error = decoder.release_error();
-        if (error.category() != DecoderErrorCategory::NotImplemented)
-            return error;
+    auto registration_count = static_cast<i32>(audio_decoders_in_priority_order.size());
+    for (auto index = after.registration_index() + 1; index < registration_count; index++) {
+        if (audio_decoders_in_priority_order[index].capabilities(codec).has_value())
+            return AudioDecoderSelection { index };
     }
-
-    return DecoderError::format(DecoderErrorCategory::NotImplemented, "Could not find an audio decoder for codec {}", codec_id);
+    return {};
 }
 
-DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_video_decoder(CodecID codec_id, ReadonlyBytes codec_initialization_data)
+DecoderErrorOr<NonnullOwnPtr<AudioDecoder>> create_audio_decoder(AudioDecoderSelection selection, CodecID codec_id, Audio::SampleSpecification const& sample_specification, ReadonlyBytes codec_initialization_data)
 {
-    if (track_type_from_codec_id(codec_id) != TrackType::Video)
-        return DecoderError::format(DecoderErrorCategory::NotImplemented, "{} is not a video codec", codec_id);
+    VERIFY(selection.has_value());
+    VERIFY(selection.registration_index() < static_cast<i32>(audio_decoders_in_priority_order.size()));
+    return audio_decoders_in_priority_order[selection.registration_index()].create(codec_id, sample_specification, codec_initialization_data);
+}
 
-    for (auto const& registration : video_decoders_in_priority_order) {
-        auto decoder = registration.create(codec_id, codec_initialization_data);
-        if (!decoder.is_error())
-            return decoder.release_value();
+VideoDecoderSelection select_video_decoder(ParsedCodec const& codec, VideoDecoderSelection after)
+{
+    if (track_type_from_codec_id(codec.codec_id()) != TrackType::Video)
+        return {};
 
-        auto error = decoder.release_error();
-        if (error.category() != DecoderErrorCategory::NotImplemented)
-            return error;
+    auto registration_count = static_cast<i32>(video_decoders_in_priority_order.size());
+    for (auto index = after.registration_index() + 1; index < registration_count; index++) {
+        if (video_decoders_in_priority_order[index].capabilities(codec).has_value())
+            return VideoDecoderSelection { index };
     }
+    return {};
+}
 
-    return DecoderError::format(DecoderErrorCategory::NotImplemented, "Could not find a video decoder for codec {}", codec_id);
+DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_video_decoder(VideoDecoderSelection selection, CodecID codec_id, ReadonlyBytes codec_initialization_data)
+{
+    VERIFY(selection.has_value());
+    VERIFY(selection.registration_index() < static_cast<i32>(video_decoders_in_priority_order.size()));
+    return video_decoders_in_priority_order[selection.registration_index()].create(codec_id, codec_initialization_data);
 }
 
 }

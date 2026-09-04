@@ -169,12 +169,44 @@ DecodedVideoProducer::ThreadData::ThreadData(Core::EventLoop& main_thread_event_
     });
 }
 
+VideoDecoderSelection DecodedVideoProducer::ThreadData::select_decoder_for_frame(CodedFrame const& frame, VideoDecoderSelection after) const
+{
+    return select_video_decoder(parsed_codec_for_coded_frame(frame, m_track.parsed_codec()), after);
+}
+
+void DecodedVideoProducer::ThreadData::replace_decoder_once_drained(CodedFrame const& frame, DecodeIntent intent)
+{
+    m_frame_awaiting_decoder_replacement = frame;
+    m_intent_awaiting_decoder_replacement = intent;
+    m_decoder->signal_end_of_stream();
+}
+
+DecoderErrorOr<void> DecodedVideoProducer::ThreadData::receive_into_decoder(CodedFrame const& frame, DecodeIntent intent)
+{
+    auto receive_result = m_decoder->receive_coded_data(frame, intent);
+
+    if (receive_result.is_error() && receive_result.error().category() == DecoderErrorCategory::NotImplemented) {
+        m_decoder_that_failed_due_to_missing_features = m_decoder_selection;
+        replace_decoder_once_drained(frame, intent);
+        return {};
+    }
+
+    return receive_result;
+}
+
 DecoderErrorOr<void> DecodedVideoProducer::ThreadData::create_decoder_for_frame(CodedFrame const& frame)
 {
     auto codec_initialization_data = frame.new_codec_configuration();
     if (!codec_initialization_data.has_value())
         return DecoderError::with_description(DecoderErrorCategory::Corrupted, "Coded frame starting a decode sequence carries no codec configuration"sv);
-    m_decoder = TRY(create_video_decoder(frame.codec_id(), *codec_initialization_data));
+
+    auto selection = select_decoder_for_frame(frame, m_decoder_that_failed_due_to_missing_features);
+    m_decoder_that_failed_due_to_missing_features = {};
+    if (!selection.has_value())
+        return DecoderError::format(DecoderErrorCategory::NotImplemented, "Could not find a video decoder for codec {}", frame.codec_id());
+
+    m_decoder = TRY(create_video_decoder(selection, frame.codec_id(), *codec_initialization_data));
+    m_decoder_selection = selection;
     // Only the decode thread waits for storage, so a release on the decode thread itself never needs a wake:
     // its next attempt to take output comes after this release in program order.
     m_decoder->set_storage_freed_callback([wait_state = m_wait_state, decode_thread_id = m_decode_thread_id] {
@@ -193,13 +225,19 @@ DecoderErrorOr<void> DecodedVideoProducer::ThreadData::receive_coded_frame(Coded
     VERIFY(!m_frame_awaiting_decoder_replacement.has_value());
     if (m_decoder == nullptr) [[unlikely]] {
         TRY(create_decoder_for_frame(frame));
-    } else if (m_decoder_codec_id != frame.codec_id()) [[unlikely]] {
-        m_frame_awaiting_decoder_replacement = frame;
-        m_intent_awaiting_decoder_replacement = intent;
-        m_decoder->signal_end_of_stream();
-        return {};
+    } else {
+        auto frame_carries_new_config = frame.new_codec_configuration().has_value();
+        auto decoder_needs_replacement = m_decoder_codec_id != frame.codec_id();
+        if (!decoder_needs_replacement && frame_carries_new_config) {
+            auto selection = select_decoder_for_frame(frame);
+            decoder_needs_replacement = selection != m_decoder_selection;
+        }
+        if (decoder_needs_replacement) [[unlikely]] {
+            replace_decoder_once_drained(frame, intent);
+            return {};
+        }
     }
-    return m_decoder->receive_coded_data(frame, intent);
+    return receive_into_decoder(frame, intent);
 }
 
 DecoderErrorOr<bool> DecodedVideoProducer::ThreadData::replace_drained_decoder()
@@ -207,8 +245,13 @@ DecoderErrorOr<bool> DecodedVideoProducer::ThreadData::replace_drained_decoder()
     if (!m_frame_awaiting_decoder_replacement.has_value())
         return false;
     auto frame = m_frame_awaiting_decoder_replacement.release_value();
+    auto intent = m_intent_awaiting_decoder_replacement;
+    if (!frame.new_codec_configuration().has_value()) {
+        TRY(m_demuxer->seek_to_most_recent_keyframe(m_track, frame.presentation_timestamp(), DemuxerSeekOptions::Force | DemuxerSeekOptions::NeedCodecConfiguration));
+        frame = TRY(m_demuxer->get_next_sample_for_track(m_track));
+    }
     TRY(create_decoder_for_frame(frame));
-    TRY(m_decoder->receive_coded_data(frame, m_intent_awaiting_decoder_replacement));
+    TRY(receive_into_decoder(frame, intent));
     return true;
 }
 
@@ -434,6 +477,7 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
             m_demuxer->reset_blocking_reads_aborted_for_track(m_track);
             m_queue.clear();
             m_frame_awaiting_decoder_replacement.clear();
+            m_decoder_that_failed_due_to_missing_features = {};
         }
 
         auto seek_options = DemuxerSeekOptions::None;

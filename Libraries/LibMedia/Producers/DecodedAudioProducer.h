@@ -18,6 +18,7 @@
 #include <LibMedia/CodecID.h>
 #include <LibMedia/CodedFrame.h>
 #include <LibMedia/DecoderError.h>
+#include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
@@ -74,6 +75,9 @@ private:
 
         void start();
         DecoderErrorOr<void> create_decoder_for_frame(CodedFrame const&);
+        AudioDecoderSelection select_decoder_for_frame(CodedFrame const&, AudioDecoderSelection after = {}) const;
+        void replace_decoder_once_drained(CodedFrame const&);
+        DecoderErrorOr<void> receive_into_decoder(CodedFrame const&);
         DecoderErrorOr<void> receive_coded_frame(CodedFrame const&);
         DecoderErrorOr<bool> replace_drained_decoder();
         void release_decoder();
@@ -130,6 +134,8 @@ private:
         NonnullRefPtr<Demuxer> m_demuxer;
         Track m_track;
         CodecID m_decoder_codec_id { CodecID::Unknown };
+        AudioDecoderSelection m_decoder_selection;
+        AudioDecoderSelection m_decoder_that_failed_due_to_missing_features;
         Optional<CodedFrame> m_frame_awaiting_decoder_replacement;
         OwnPtr<AudioDecoder> m_decoder;
         bool m_decoder_needs_keyframe_next_seek { false };

@@ -8,6 +8,7 @@
 #include <AK/GenericShorthands.h>
 #include <LibMedia/CodecParameters.h>
 #include <LibMedia/Codecs/MPEG4Audio.h>
+#include <LibMedia/CodedFrame.h>
 
 namespace Media {
 
@@ -86,6 +87,71 @@ Optional<ParsedCodec> parse_codec_parameters_string(StringView string)
     }
 
     return {};
+}
+static Optional<ParsedCodec> parse_configuration_record(CodecID codec_id, ReadonlyBytes configuration_record)
+{
+    if (configuration_record.is_empty())
+        return {};
+
+    switch (codec_id) {
+    case CodecID::AV1:
+        if (auto parameters = Codecs::AV1::parse_configuration_record(configuration_record); parameters.has_value())
+            return ParsedCodec { *parameters };
+        return {};
+    case CodecID::H264:
+        if (auto parameters = Codecs::H264::parse_configuration_record(configuration_record); parameters.has_value())
+            return ParsedCodec { *parameters };
+        return {};
+    case CodecID::H265:
+        if (auto parameters = Codecs::H265::parse_configuration_record(configuration_record); parameters.has_value())
+            return ParsedCodec { *parameters };
+        return {};
+    case CodecID::VP9:
+        if (auto parameters = Codecs::VP9::parse_configuration_record(configuration_record); parameters.has_value())
+            return ParsedCodec { *parameters };
+        return {};
+    default:
+        return {};
+    }
+}
+
+static Optional<ParsedCodec> parse_codec_config_from_frame_data(CodecID codec_id, ReadonlyBytes coded_data)
+{
+    switch (codec_id) {
+    case CodecID::VP9: {
+        auto header = Codecs::VP9::parse_frame_header(coded_data);
+        if (!header.has_value())
+            return {};
+        // A frame header says nothing about the level, which bounds only what a decoder must keep up with rather than
+        // what it must understand, and so is not what a decoder is chosen on.
+        return ParsedCodec { Codecs::VP9::Parameters {
+            .profile = header->profile,
+            .level = 0,
+            .bit_depth = header->bit_depth,
+            .color_parameters = header->color_parameters,
+        } };
+    }
+    default:
+        return {};
+    }
+}
+
+ParsedCodec parsed_codec_for_coded_frame(CodedFrame const& coded_frame, ParsedCodec const& container_codec)
+{
+    auto codec_id = coded_frame.codec_id();
+
+    if (auto frame_config = coded_frame.new_codec_configuration(); frame_config.has_value()) {
+        if (auto parsed_frame_config = parse_configuration_record(codec_id, *frame_config); parsed_frame_config.has_value())
+            return parsed_frame_config.release_value();
+    }
+
+    if (container_codec.codec_id() == codec_id && container_codec.has_parameters())
+        return container_codec;
+
+    if (auto parsed_bitstream_config = parse_codec_config_from_frame_data(codec_id, coded_frame.data()); parsed_bitstream_config.has_value())
+        return parsed_bitstream_config.release_value();
+
+    return ParsedCodec { codec_id };
 }
 
 }

@@ -118,7 +118,10 @@ DecoderErrorOr<DecodedAudioData> decode_entire_audio_stream(NonnullRefPtr<MediaS
                 auto codec_initialization_data = sample.new_codec_configuration();
                 if (!codec_initialization_data.has_value())
                     return DecoderError::with_description(DecoderErrorCategory::Corrupted, "Coded frame starting a decode sequence carries no codec configuration"sv);
-                decoder = TRY(create_audio_decoder(sample.codec_id(), track->audio_data().sample_specification, *codec_initialization_data));
+                auto selection = select_audio_decoder(parsed_codec_for_coded_frame(sample, track->parsed_codec()));
+                if (!selection.has_value())
+                    return DecoderError::format(DecoderErrorCategory::NotImplemented, "Could not find an audio decoder for codec {}", sample.codec_id());
+                decoder = TRY(create_audio_decoder(selection, sample.codec_id(), track->audio_data().sample_specification, *codec_initialization_data));
             }
             TRY(decoder->receive_coded_data(sample));
         }
