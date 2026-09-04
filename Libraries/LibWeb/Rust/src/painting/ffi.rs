@@ -16,7 +16,8 @@ use crate::painting::display_list::commands::SpatialNodeIndex;
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::host::FfiRecordedDisplayList;
 use crate::painting::paintable_data::*;
-use crate::painting::paintable_rows::PaintableRowsRead;
+use crate::painting::paintable_rows::{PaintableRowsRead, with_inline_pieces};
+use crate::painting::rect_to_viewport_transform::RectToViewportTransform;
 use std::ffi::c_void;
 use std::rc::Rc;
 
@@ -2208,49 +2209,72 @@ pub unsafe extern "C" fn layout_arena_paintable_empty_line_caret_rect(
     result
 }
 
-fn with_inline_pieces(
-    arena: &impl PaintableRowsRead,
-    inline_paintable: NodeSlotId,
-    mut callback: impl FnMut(&InlineBoxPieceRecord, &PaintableData) -> bool,
-) {
-    let Some(root) = arena.inline_pieces_root(inline_paintable) else {
-        return;
-    };
-    let data = arena.paintable_data(inline_paintable);
-    let root_side = arena.paintable_side_data(root);
-    for piece_index in &arena.paintable_side_data(inline_paintable).piece_indices {
-        let piece = &root_side.inline_box_pieces[*piece_index as usize];
-        if !callback(piece, data) {
-            return;
-        }
+#[repr(C)]
+pub struct FfiRectToViewportTransform {
+    pub visual_context_tree: *const c_void,
+    pub scroll_offsets: *const libgfx_rust::FloatPoint,
+    pub scroll_offsets_len: usize,
+    pub device_pixels_per_css_pixel: f32,
+}
+
+/// SAFETY: A non-null `visual_context_tree` must be a live retained tree handle and `scroll_offsets`
+/// must address `scroll_offsets_len` points for as long as the returned borrow lives.
+unsafe fn rect_to_viewport_transform_from_ffi(
+    transform: &FfiRectToViewportTransform,
+) -> Option<RectToViewportTransform<'_>> {
+    if transform.visual_context_tree.is_null() {
+        return None;
     }
+    Some(RectToViewportTransform {
+        visual_context_tree: unsafe { tree_from_handle(transform.visual_context_tree) },
+        scroll_offsets: unsafe { ffi_slice(transform.scroll_offsets, transform.scroll_offsets_len) },
+        device_pixels_per_css_pixel: transform.device_pixels_per_css_pixel,
+    })
 }
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
+/// `rect_to_viewport_transform` must satisfy `rect_to_viewport_transform_from_ffi`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_inline_paintable_piece_border_box_rects(
+pub unsafe extern "C" fn layout_arena_client_rects(
     arena: *mut c_void,
-    inline_paintable: NodeSlotId,
+    layout_node: NodeSlotId,
+    rect_to_viewport_transform: FfiRectToViewportTransform,
     context: *mut c_void,
     push_rect: unsafe extern "C" fn(*mut c_void, FfiCssPixelRect),
 ) {
     let arena = unsafe { arena_from_handle(arena) };
-    let paintable_rows = arena.paintable_rows();
-    let Some(root) = paintable_rows.inline_pieces_root(inline_paintable) else {
-        return;
-    };
-    let root_position = crate::painting::paintable_geometry::absolute_position(&paintable_rows, root);
-    with_inline_pieces(&paintable_rows, inline_paintable, |piece, _| {
-        if piece.is_geometry_only_placeholder {
-            return true;
-        }
-        let rect = crate::css::css_pixels::CssPixelRect::from(piece.border_box_rect).translated_by(root_position);
-        // SAFETY: The consumer copies the plain-data rect synchronously.
-        unsafe { push_rect(context, rect.into()) };
-        true
-    });
+    let rect_to_viewport_transform = unsafe { rect_to_viewport_transform_from_ffi(&rect_to_viewport_transform) };
+    crate::painting::client_rects::for_each_client_rect(
+        &arena.paintable_rows(),
+        layout_node,
+        rect_to_viewport_transform.as_ref(),
+        |rect| {
+            // SAFETY: The consumer copies the plain-data rect synchronously.
+            unsafe { push_rect(context, rect.into()) };
+        },
+    );
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
+/// `rect_to_viewport_transform` must satisfy `rect_to_viewport_transform_from_ffi`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_bounding_client_rect(
+    arena: *mut c_void,
+    layout_node: NodeSlotId,
+    rect_to_viewport_transform: FfiRectToViewportTransform,
+) -> FfiCssPixelRect {
+    let arena = unsafe { arena_from_handle(arena) };
+    let rect_to_viewport_transform = unsafe { rect_to_viewport_transform_from_ffi(&rect_to_viewport_transform) };
+    crate::painting::client_rects::bounding_client_rect(
+        &arena.paintable_rows(),
+        layout_node,
+        rect_to_viewport_transform.as_ref(),
+    )
+    .into()
 }
 
 /// # Safety

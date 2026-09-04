@@ -950,13 +950,38 @@ void clear_cached_overflow_data(Layout::Node const& node)
     Layout::RustFFI::layout_arena_paintable_clear_cached_overflow_data(node.arena_handle(), committed_row_slot(node));
 }
 
-void inline_piece_border_box_rects(Layout::Node const& node, Vector<CSSPixelRect>& rects)
+Layout::RustFFI::FfiRectToViewportTransform identity_rect_to_viewport_transform()
 {
-    Layout::RustFFI::layout_arena_inline_paintable_piece_border_box_rects(
-        node.arena_handle(), committed_row_slot(node), &rects,
+    return {};
+}
+
+Layout::RustFFI::FfiRectToViewportTransform rect_to_viewport_transform(DOM::Document const& document, AccumulatedVisualContextTree const& visual_context_tree)
+{
+    if (!document.has_committed_viewport_box())
+        return identity_rect_to_viewport_transform();
+    auto scroll_offsets = document.scroll_state_snapshot().device_offsets();
+    return {
+        .visual_context_tree = visual_context_tree.rust_handle(),
+        .scroll_offsets = scroll_offsets.data(),
+        .scroll_offsets_len = scroll_offsets.size(),
+        .device_pixels_per_css_pixel = static_cast<float>(document.page().client().device_pixels_per_css_pixel()),
+    };
+}
+
+Vector<CSSPixelRect> client_rects(Layout::Node const& node, Layout::RustFFI::FfiRectToViewportTransform const& rect_to_viewport_transform)
+{
+    Vector<CSSPixelRect> rects;
+    Layout::RustFFI::layout_arena_client_rects(
+        node.arena_handle(), committed_row_slot(node), rect_to_viewport_transform, &rects,
         [](void* context, CSSPixelRect rect) {
             static_cast<Vector<CSSPixelRect>*>(context)->append(rect);
         });
+    return rects;
+}
+
+CSSPixelRect bounding_client_rect(Layout::Node const& node, Layout::RustFFI::FfiRectToViewportTransform const& rect_to_viewport_transform)
+{
+    return Layout::RustFFI::layout_arena_bounding_client_rect(node.arena_handle(), committed_row_slot(node), rect_to_viewport_transform);
 }
 
 CSSPixelPoint cumulative_scroll_compensation(Layout::Node const& node)

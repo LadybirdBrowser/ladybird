@@ -574,7 +574,6 @@ public:
 
     [[nodiscard]] Vector<CSSPixelRect> get_client_rects() const;
 
-    [[nodiscard]] Vector<CSSPixelRect> client_rects_assuming_layout_clean() const;
     [[nodiscard]] CSSPixelRect bounding_client_rect_assuming_layout_clean() const;
     [[nodiscard]] CSSPixelRect bounding_client_rect_assuming_layout_clean(Painting::AccumulatedVisualContextTree const&) const;
 

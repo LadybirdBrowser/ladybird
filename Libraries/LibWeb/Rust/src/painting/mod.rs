@@ -25,6 +25,7 @@ pub mod paintable_data;
 pub mod paintable_geometry;
 pub(crate) mod paintable_rows;
 pub mod record;
+pub(crate) mod rect_to_viewport_transform;
 pub mod scrollable_overflow;
 pub mod selection;
 pub mod stacking_context;

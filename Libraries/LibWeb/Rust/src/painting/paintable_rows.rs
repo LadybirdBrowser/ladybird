@@ -927,3 +927,21 @@ impl LayoutNodeArena {
         })
     }
 }
+
+pub(crate) fn with_inline_pieces(
+    arena: &impl PaintableRowsRead,
+    inline_paintable: NodeSlotId,
+    mut callback: impl FnMut(&InlineBoxPieceRecord, &PaintableData) -> bool,
+) {
+    let Some(root) = arena.inline_pieces_root(inline_paintable) else {
+        return;
+    };
+    let data = arena.paintable_data(inline_paintable);
+    let root_side = arena.paintable_side_data(root);
+    for piece_index in &arena.paintable_side_data(inline_paintable).piece_indices {
+        let piece = &root_side.inline_box_pieces[*piece_index as usize];
+        if !callback(piece, data) {
+            return;
+        }
+    }
+}
