@@ -159,7 +159,7 @@ impl ShapedText {
 
 const SINGLE_ASCII_SHAPE_CACHE_SIZE: usize = 128;
 const MAX_SHAPE_CACHE_FONTS: usize = 64;
-const MAX_SHAPE_CACHE_TEXTS_PER_FONT: usize = 4096;
+const MAX_SHAPE_CACHE_TEXTS_PER_FONT: usize = 16384;
 
 #[derive(Clone, Copy)]
 struct ShapeParams {
