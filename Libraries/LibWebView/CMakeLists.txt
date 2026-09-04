@@ -7,6 +7,8 @@ set(SOURCES
     AutocompleteRanker.cpp
     AutocompleteService.cpp
     BookmarkStore.cpp
+    CanonicalBrowsingContext.cpp
+    CanonicalBrowsingContextGroup.cpp
     CanonicalNavigable.cpp
     CanonicalTraversable.cpp
     BrowserProcess.cpp

@@ -17,6 +17,8 @@ class Application;
 class Autocomplete;
 class AutocompleteService;
 class BookmarkStore;
+class CanonicalBrowsingContext;
+class CanonicalBrowsingContextGroup;
 class CanonicalNavigable;
 class CanonicalTraversable;
 class CompositorClient;

@@ -8,6 +8,7 @@
 
 #include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
+#include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/WebContentClient.h>
 
@@ -19,6 +20,19 @@ CanonicalNavigable::CanonicalNavigable(Web::HTML::CrossProcessId id, Optional<We
     , m_reporting_client(move(reporting_client))
     , m_reporting_page_id(reporting_page_id)
 {
+}
+
+CanonicalBrowsingContext& CanonicalNavigable::active_browsing_context() const
+{
+    // A navigable's active browsing context is its active document's browsing context.
+    // NB: Only a top-level browsing context group switch changes it, so it is kept with the navigable.
+    VERIFY(m_active_browsing_context);
+    return *m_active_browsing_context;
+}
+
+void CanonicalNavigable::set_active_browsing_context(NonnullRefPtr<CanonicalBrowsingContext> browsing_context)
+{
+    m_active_browsing_context = move(browsing_context);
 }
 
 CanonicalNavigable::~CanonicalNavigable()

@@ -99,6 +99,10 @@ public:
     CanonicalTraversable& top_level_traversable();
     CanonicalTraversable const& top_level_traversable() const;
 
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-bc
+    CanonicalBrowsingContext& active_browsing_context() const;
+    void set_active_browsing_context(NonnullRefPtr<CanonicalBrowsingContext>);
+
     CanonicalNavigable& append_child(NonnullOwnPtr<CanonicalNavigable>);
     NonnullOwnPtr<CanonicalNavigable> remove_child(CanonicalNavigable&);
     bool is_ancestor_of(CanonicalNavigable const&) const;
@@ -183,6 +187,7 @@ private:
     Vector<NonnullOwnPtr<CanonicalNavigable>> m_children;
 
     Optional<Web::HTML::ReplicatedNavigableState> m_replicated_state;
+    RefPtr<CanonicalBrowsingContext> m_active_browsing_context;
     Optional<Web::HTML::SessionHistoryEntryIdentity> m_current_session_history_entry_identity;
     Optional<Web::HTML::SessionHistoryEntryIdentity> m_active_session_history_entry_identity;
     Vector<PendingSameDocumentSessionHistoryEntry> m_pending_same_document_session_history_entries;
