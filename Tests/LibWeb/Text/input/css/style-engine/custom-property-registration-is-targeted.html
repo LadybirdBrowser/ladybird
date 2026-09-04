@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="registrations">
+    .declarer { --registered: 12px; }
+    .reference { width: var(--registered); }
+</style>
+<div id="unrelated"></div>
+<div class="unrelated"></div>
+<div class="unrelated"></div>
+<div class="unrelated"></div>
+<div class="declarer"></div>
+<div class="reference"></div>
+<script>
+    function printRegistrationCounters(label, environmentVersion, graphCounters) {
+        const counters = internals.getStyleInvalidationCounters();
+        const currentGraphCounters = internals.styleEngineCounters();
+        println(`${label} recomputations: ${counters.elementStyleRecomputations}`);
+        println(`${label} environment deltas: ${currentGraphCounters.environmentDeltas - graphCounters.environmentDeltas}`);
+        println(`${label} environment version unchanged: ${counters.styleEnvironmentVersion === environmentVersion}`);
+    }
+
+    test(() => {
+        internals.updateStyle();
+        let environmentVersion = internals.getStyleInvalidationCounters().styleEnvironmentVersion;
+        let graphCounters = internals.styleEngineCounters();
+        internals.resetStyleInvalidationCounters();
+
+        document.getElementById("registrations").sheet.insertRule(
+            "@property --registered { syntax: '<length>'; inherits: false; initial-value: 0px; }"
+        );
+        internals.updateStyle();
+
+        printRegistrationCounters("@property", environmentVersion, graphCounters);
+        println(`unrelated registered initial value: ${getComputedStyle(unrelated).getPropertyValue("--registered")}`);
+
+        document.querySelector(".reference").remove();
+        const apiDeclarer = document.createElement("div");
+        apiDeclarer.style.setProperty("--api-registered", "14px");
+        document.body.appendChild(apiDeclarer);
+        const apiReference = document.createElement("div");
+        apiReference.style.width = "var(--api-registered)";
+        document.body.appendChild(apiReference);
+        internals.updateStyle();
+        environmentVersion = internals.getStyleInvalidationCounters().styleEnvironmentVersion;
+        graphCounters = internals.styleEngineCounters();
+        internals.resetStyleInvalidationCounters();
+
+        CSS.registerProperty({
+            name: "--api-registered",
+            syntax: "<length>",
+            inherits: false,
+            initialValue: "0px",
+        });
+        internals.updateStyle();
+
+        printRegistrationCounters("CSS.registerProperty()", environmentVersion, graphCounters);
+        println(`unrelated API initial value: ${getComputedStyle(unrelated).getPropertyValue("--api-registered")}`);
+    });
+</script>

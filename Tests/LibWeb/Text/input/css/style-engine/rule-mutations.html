@@ -194,9 +194,9 @@
         });
         plan("unregister that one", () => sheet.deleteRule(1));
 
-        // A registration carrying an initial value is not like that: it gives the property a value on
-        // every element, whether or not the element mentions it. There is no index of the elements
-        // that never named it, so the answer is every element the sheet decides for.
+        // A registered initial value is read from the registration by elements that never mention
+        // it, so installing or removing one still reaches only actual declaration and substitution
+        // consumers.
         plan("register one with an initial value", () => {
             sheet.insertRule("@property --initialized { syntax: '<color>'; inherits: false; initial-value: red }", 1);
         });

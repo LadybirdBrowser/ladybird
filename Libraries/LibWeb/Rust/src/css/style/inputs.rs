@@ -435,20 +435,8 @@ impl StyleEngine {
     /// Add an `@property` rule, which registers the custom property it names. Registering one changes
     /// how every element that declares or references it computes, which the custom-property index
     /// knows and selector matching cannot say.
-    pub fn add_property_rule(
-        &mut self,
-        sheet: SheetID,
-        before: Option<RuleID>,
-        name: StyleAtomID,
-        has_initial_value: bool,
-    ) -> RuleID {
-        let rule = self.add_named_rule(sheet, before, RuleKind::Property, name);
-        if has_initial_value {
-            let mut version = self.current_rule_version(rule);
-            version.registration_has_initial_value = true;
-            self.replace_rule_version(rule, version);
-        }
-        rule
+    pub fn add_property_rule(&mut self, sheet: SheetID, before: Option<RuleID>, name: StyleAtomID) -> RuleID {
+        self.add_named_rule(sheet, before, RuleKind::Property, name)
     }
 
     pub(super) fn add_named_rule(
@@ -661,6 +649,16 @@ impl StyleEngine {
         self.discard_prepared_batch_matching_traversal();
         self.journal
             .record_complete_scope_action(InputKind::Environment, &mut self.memory, &mut self.counters);
+    }
+
+    /// Record a registration made through `CSS.registerProperty()`. Stylesheet registrations are
+    /// already represented by their `@property` rule's program input.
+    pub fn record_custom_property_registration_change(&mut self, name: StyleAtomID) {
+        self.record_input(
+            InputKey::CustomPropertyRegistration(name),
+            InputValue::Flag(false),
+            InputValue::Flag(true),
+        );
     }
 
     /// Whether the first tree batch can be installed directly.

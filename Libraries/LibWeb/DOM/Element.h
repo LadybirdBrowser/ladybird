@@ -513,12 +513,17 @@ public:
         bool uses_custom_function { false };
         bool operator==(PublishedCustomPropertyNames const&) const = default;
     };
+    struct PseudoElementStyleQueryCustomPropertyReferences {
+        CSS::PseudoElement pseudo_element;
+        Vector<Utf16FlyString> references;
+    };
     [[nodiscard]] CSS::StyleInputRecord const* style_input_record() const { return m_style_input_record.ptr(); }
     [[nodiscard]] CSS::StyleInputRecord* style_input_record() { return m_style_input_record.ptr(); }
     void set_style_input_record(OwnPtr<CSS::StyleInputRecord>);
     void retire_style_input_record();
     [[nodiscard]] OwnPtr<CSS::StyleInputRecord> take_style_input_record();
     void record_style_custom_property_reference(Utf16FlyString const&);
+    void record_style_query_custom_property_reference(Optional<CSS::PseudoElement>, Utf16FlyString const&);
     void finish_recording_style_custom_property_references();
 
     bool style_uses_attr_css_function() const { return m_style_uses_attr_css_function; }
@@ -883,6 +888,7 @@ private:
     CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, CSS::StyleEngineMatchResult* = nullptr, PreservedPseudoElementStyles* = nullptr);
     void apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalidationAfterStyleChange const&);
     void apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(CSS::RequiredInvalidationAfterStyleChange const&);
+    void publish_custom_property_names();
     void replace_style_record(CSS::StyleRecordID);
     void clear_computed_styles_from_display_none_descendants();
 

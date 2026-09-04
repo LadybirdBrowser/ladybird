@@ -1,3 +1,0 @@
-anonymous boxes exist without shells: true
-walking the layout tree materializes shells: true
-shells never exceed live slots: true

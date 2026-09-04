@@ -1,0 +1,8 @@
+@property recomputations: 2
+@property environment deltas: 0
+@property environment version unchanged: true
+unrelated registered initial value: 0px
+CSS.registerProperty() recomputations: 2
+CSS.registerProperty() environment deltas: 0
+CSS.registerProperty() environment version unchanged: true
+unrelated API initial value: 0px

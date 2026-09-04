@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/QuickSort.h>
 #include <LibWeb/CSS/CSSConditionRule.h>
 #include <LibWeb/CSS/CSSContainerRule.h>
 #include <LibWeb/CSS/CSSCounterStyleRule.h>
@@ -692,15 +693,31 @@ void record_element_animation_names(DOM::Element& element, ReadonlySpan<Utf16Fly
 // Also an index rather than an input, and for the same reason as the animation names: what it answers
 // is which elements an `@property` registration reaches, and nothing about selector matching or the
 // element's own recomputation can say that.
-void record_element_custom_property_names(DOM::Element& element, CustomPropertyData const* data, bool uses_unnamed, bool uses_custom_functions)
+void record_element_custom_property_names(DOM::Element& element, CustomPropertyData const* data, ReadonlySpan<RefPtr<CustomPropertyData const>> pseudo_element_data, ReadonlySpan<Utf16FlyString> references, bool uses_unnamed, bool uses_custom_functions)
 {
     auto* style_engine = style_engine_for(element);
     if (!style_engine || element.style_node_id() == no_style_node)
         return;
 
-    auto atoms = data
-        ? data->declared_name_atoms(bit_cast<FlatPtr>(&element.document()), style_engine->atom_generation(), [&](Utf16FlyString const& name) { return style_engine->intern_atom(name); })
-        : ReadonlySpan<StyleAtomID> {};
+    Vector<StyleAtomID> atoms;
+    auto append_declared_names = [&](CustomPropertyData const* custom_property_data) {
+        if (!custom_property_data)
+            return;
+        auto names = custom_property_data->declared_name_atoms(bit_cast<FlatPtr>(&element.document()), style_engine->atom_generation(), [&](Utf16FlyString const& name) { return style_engine->intern_atom(name); });
+        atoms.append(names.data(), names.size());
+    };
+    append_declared_names(data);
+    for (auto const& pseudo_data : pseudo_element_data)
+        append_declared_names(pseudo_data.ptr());
+    for (auto const& name : references)
+        atoms.append(style_engine->intern_atom(name));
+    quick_sort(atoms);
+    size_t unique_count = 0;
+    for (size_t index = 0; index < atoms.size(); ++index) {
+        if (index == 0 || atoms[index] != atoms[unique_count - 1])
+            atoms[unique_count++] = atoms[index];
+    }
+    atoms.shrink(unique_count);
     style_engine->set_element_custom_property_names(element.style_node_id(), atoms, uses_unnamed, uses_custom_functions);
 }
 
@@ -1450,15 +1467,13 @@ static void compile_rules_into(RuleCompilationContext const& context, CSSRule& r
     if (is<CSSLayerStatementRule>(rule))
         return;
 
-    // An `@property` rule matches nothing either, and unlike keyframes it has no name to be found
-    // by: registering a property changes how every element that declares or references it computes.
-    // It is in the program so that a change to it is an input at all.
+    // An `@property` rule matches nothing either. Its name finds every element that declares or
+    // references the custom property, so it is in the program for changes to reach those consumers.
     if (auto* property_rule = as_if<CSSPropertyRule>(rule)) {
         auto rule_id = style_engine.add_property_rule(
             sheet_handle,
             before_rule,
-            style_engine.intern_atom(property_rule->name()),
-            property_rule->initial_value().has_value());
+            style_engine.intern_atom(property_rule->name()));
         set_compiled_rule_id(
             rule,
             rule_id,
@@ -1719,7 +1734,8 @@ static void record_style_rule_inserted_in(CSSRule& rule, CSSStyleSheet& sheet, D
     if (sheet_id == 0)
         return;
 
-    document.bump_style_environment_version();
+    if (!is<CSSPropertyRule>(rule))
+        document.bump_style_environment_version();
 
     Vector<void const*> scope_roots;
     Vector<void const*> scope_limits;
@@ -1781,7 +1797,8 @@ void record_style_rule_removed(CSSStyleSheet& sheet_it_left, CSSRule& rule)
     for_each_document_with_engine_copy(sheet_it_left, [&](DOM::Document& document) {
         any_engine_heard = true;
         document.flush_deferred_style_change_event();
-        document.bump_style_environment_version();
+        if (removed.size() != 1 || !is<CSSPropertyRule>(*removed.first()))
+            document.bump_style_environment_version();
 
         auto& style_computer = document.style_computer();
         auto& style_engine = style_computer.style_engine();

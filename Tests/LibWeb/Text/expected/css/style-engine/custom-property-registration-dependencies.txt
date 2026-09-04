@@ -1,0 +1,7 @@
+@property style query: rgb(0, 128, 0)
+@property pseudo declaration: 10px
+style query after inherited animation update: rgb(0, 128, 0)
+pseudo style query after inherited animation update: rgb(0, 128, 0)
+CSS.registerProperty() style query: rgb(0, 128, 0)
+CSS.registerProperty() range style query: rgb(0, 128, 0)
+CSS.registerProperty() pseudo declaration: 10px

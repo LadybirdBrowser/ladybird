@@ -522,6 +522,7 @@ static bool container_satisfies_requirements(DOM::Element const& element, Contai
 struct ContainerStyleEvaluationContext {
     GC::Ref<DOM::Document const> document;
     AbstractOrHypotheticalElement element;
+    DOM::AbstractElement dependent_element;
     bool depends_on_viewport_metrics { false };
 };
 
@@ -628,12 +629,30 @@ static u8 evaluate_container_style_feature(void* context, Parser::ValueParserFFI
     auto& evaluation_context = *static_cast<ContainerStyleEvaluationContext*>(context);
     if (!style_feature.has_value())
         return to_underlying(MatchResult::Unknown);
+    auto record_property_dependency = [&](PropertyNameAndID const& property) {
+        if (property.is_custom_property())
+            evaluation_context.dependent_element.element().record_style_query_custom_property_reference(evaluation_context.dependent_element.pseudo_element(), property.name());
+    };
+    auto record_range_value_dependency = [&](StyleRangeValue const& value) {
+        if (auto const* property = value.get_pointer<PropertyNameAndID>())
+            record_property_dependency(*property);
+    };
+    style_feature->visit(
+        [&](StyleFeaturePlain const& feature) {
+            record_property_dependency(feature.property);
+        },
+        [&](StyleRange const& range) {
+            record_range_value_dependency(range.left);
+            record_range_value_dependency(range.middle);
+            if (range.right.has_value())
+                record_range_value_dependency(*range.right);
+        });
     return to_underlying(evaluate_style_feature(*style_feature, *evaluation_context.document, evaluation_context.element, evaluation_context.depends_on_viewport_metrics));
 }
 
 MatchResult evaluate_style_query(RustQueryHandle const& handle, AbstractOrHypotheticalElement element)
 {
-    ContainerStyleEvaluationContext style_context { element.document(), element };
+    ContainerStyleEvaluationContext style_context { element.document(), element, element.abstract_element() };
     Parser::ValueParserFFI::FfiContainerFacts facts {
         .container_available = true,
         .size_available = false,
@@ -715,7 +734,7 @@ MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Option
             const_cast<DOM::Document&>(container->document()).set_needs_container_query_evaluation_after_layout(*container);
         }
 
-        ContainerStyleEvaluationContext style_context { element.document(), DOM::AbstractElement { *container } };
+        ContainerStyleEvaluationContext style_context { element.document(), DOM::AbstractElement { *container }, element };
         facts.style_context = &style_context;
         auto result = Parser::ValueParserFFI::css_query_evaluate_container(m_rust_query_handle.data(), facts);
         if ((computation_context.has_value() && computation_context->depends_on_viewport_metrics()) || style_context.depends_on_viewport_metrics)

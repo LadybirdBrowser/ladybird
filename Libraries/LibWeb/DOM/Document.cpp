@@ -11189,15 +11189,17 @@ Optional<CSS::CustomPropertyRegistration const&> Document::get_registered_custom
     return {};
 }
 
-void Document::did_change_custom_property_registrations()
+void Document::did_change_custom_property_registrations(Optional<Utf16FlyString> registered_property_set_change)
 {
     ++m_custom_property_registration_generation;
     sync_custom_property_registrations_to_rust();
 
-    // Custom property registration changes can alter inheritance and initial values even when no selector matching
-    // changes. Registrations only move when a stylesheet containing an @property rule is added/removed or when
-    // CSS.registerProperty() is called, so a full document restyle is cheap enough in practice.
-    record_style_environment_change();
+    // An @property rule's program input already reaches the elements declaring or referencing its
+    // name. CSS.registerProperty() has no rule, so publish the equivalent named input explicitly.
+    if (registered_property_set_change.has_value()) {
+        auto& style_engine = style_computer().style_engine();
+        style_engine.record_custom_property_registration_change(style_engine.intern_atom(*registered_property_set_change));
+    }
 }
 
 void Document::sync_custom_property_registrations_to_rust()

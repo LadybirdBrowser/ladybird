@@ -2201,6 +2201,10 @@ impl StyleEngine {
                     always_emit = true;
                     continue;
                 }
+                InputKey::CustomPropertyRegistration(..) => {
+                    always_emit = true;
+                    continue;
+                }
                 _ => return None,
             };
             affected_routing_keys.extend(keys);

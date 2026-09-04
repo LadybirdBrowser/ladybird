@@ -1538,6 +1538,9 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
+    if (auto* rare_data = element_rare_data(); rare_data && rare_data->custom_property_consumer_data)
+        rare_data->custom_property_consumer_data->pseudo_element_style_query_references.clear_with_capacity();
+
     auto& style_computer = document().style_computer();
     auto originating_style = computed_style();
     CSS::StyleEngineMatchResult local_matches;
@@ -1674,6 +1677,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
 
     bool did_change_custom_properties = false;
     auto invalidation = recompute_pseudo_element_styles(did_change_custom_properties, computed_values->display().is_list_item(), nullptr);
+    publish_custom_property_names();
     if (!invalidation.is_none())
         document().style_invalidation_counters().committed_style_observer_consequences++;
     apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(invalidation);
@@ -1957,6 +1961,30 @@ void Element::record_style_custom_property_reference(Utf16FlyString const& name)
     document().style_computer().record_style_custom_property_reference(*this, name);
 }
 
+void Element::record_style_query_custom_property_reference(Optional<CSS::PseudoElement> pseudo_element, Utf16FlyString const& name)
+{
+    auto& rare_data = ensure_element_rare_data();
+    if (!rare_data.custom_property_consumer_data)
+        rare_data.custom_property_consumer_data = make<RareData::CustomPropertyConsumerData>();
+    auto& consumer_data = *rare_data.custom_property_consumer_data;
+
+    if (pseudo_element.has_value()) {
+        for (auto& entry : consumer_data.pseudo_element_style_query_references) {
+            if (entry.pseudo_element == *pseudo_element) {
+                entry.references.append(name);
+                return;
+            }
+        }
+        consumer_data.pseudo_element_style_query_references.append({
+            .pseudo_element = *pseudo_element,
+            .references = {},
+        });
+        consumer_data.pseudo_element_style_query_references.last().references.append(name);
+        return;
+    }
+    consumer_data.style_query_references.append(name);
+}
+
 void Element::finish_recording_style_custom_property_references()
 {
     if (!m_style_input_record)
@@ -1977,6 +2005,56 @@ void Element::finish_recording_style_custom_property_references()
         references.remove_all_matching([&](auto const& name) {
             return seen.set(name) != HashSetResult::InsertedNewEntry;
         });
+    }
+}
+
+void Element::publish_custom_property_names()
+{
+    PublishedCustomPropertyNames published_names {
+        .data = custom_property_data({}),
+        .uses_var_css_function = m_style_uses_var_css_function,
+        .uses_custom_function = m_style_uses_custom_function,
+    };
+    Vector<RefPtr<CSS::CustomPropertyData const>> published_pseudo_element_data;
+    for (auto i = 0; i < to_underlying(CSS::PseudoElement::KnownPseudoElementCount); ++i) {
+        if (auto data = custom_property_data(static_cast<CSS::PseudoElement>(i)))
+            published_pseudo_element_data.append(move(data));
+    }
+    Vector<Utf16FlyString> published_references;
+    RareData::CustomPropertyConsumerData* consumer_data = nullptr;
+    if (auto* rare_data = element_rare_data())
+        consumer_data = rare_data->custom_property_consumer_data.ptr();
+    if (consumer_data) {
+        published_references = consumer_data->style_query_references;
+        for (auto const& entry : consumer_data->pseudo_element_style_query_references)
+            published_references.append(entry.references.data(), entry.references.size());
+    }
+    if (published_references.size() > 1) {
+        quick_sort(published_references);
+        size_t unique_count = 0;
+        for (size_t index = 0; index < published_references.size(); ++index) {
+            if (index == 0 || published_references[index] != published_references[unique_count - 1])
+                published_references[unique_count++] = published_references[index];
+        }
+        published_references.shrink(unique_count);
+    }
+    auto published_extra_names_match = consumer_data
+        ? published_pseudo_element_data == consumer_data->published_pseudo_element_data
+            && published_references == consumer_data->published_references
+        : published_pseudo_element_data.is_empty() && published_references.is_empty();
+    if (published_names == m_published_custom_property_names && published_extra_names_match)
+        return;
+    CSS::record_element_custom_property_names(*this, published_names.data.ptr(), published_pseudo_element_data, published_references, m_style_uses_var_css_function, m_style_uses_custom_function);
+    m_published_custom_property_names = move(published_names);
+    if (!published_pseudo_element_data.is_empty() || !published_references.is_empty()) {
+        auto& rare_data = ensure_element_rare_data();
+        if (!rare_data.custom_property_consumer_data)
+            rare_data.custom_property_consumer_data = make<RareData::CustomPropertyConsumerData>();
+        rare_data.custom_property_consumer_data->published_pseudo_element_data = move(published_pseudo_element_data);
+        rare_data.custom_property_consumer_data->published_references = move(published_references);
+    } else if (consumer_data) {
+        consumer_data->published_pseudo_element_data.clear();
+        consumer_data->published_references.clear();
     }
 }
 
@@ -2040,6 +2118,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     m_style_depends_on_viewport_metrics = false;
     m_style_depends_on_size_container_query = false;
     m_style_depends_on_style_container_query = false;
+    if (auto* rare_data = element_rare_data(); rare_data && rare_data->custom_property_consumer_data)
+        rare_data->custom_property_consumer_data->style_query_references.clear_with_capacity();
     reusable_style_engine_matches = &style_engine_matches;
     new_style = style_computer.materialize_style_record({ *this }, did_change_custom_properties, reusable_style_engine_matches, style_record_delta, inherited_style_groups);
     style_record_delta.old_style_record = old_style_record;
@@ -2066,6 +2146,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
             old_computed_values->display().is_list_item(),
             &*old_computed_values,
             reusable_style_engine_matches);
+        publish_custom_property_names();
         if (invalidation.is_none()) {
             counters.element_style_noop_recomputations++;
             return invalidation;
@@ -2141,23 +2222,6 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     auto animation_names = indexable_animation_names(*new_style);
     if (old_computed_values ? indexable_animation_names(*old_computed_values) != animation_names : !animation_names.is_empty())
         CSS::record_element_animation_names(*this, animation_names);
-    // Which custom properties this element declares or references decides which `@property`
-    // registrations reach it. Declaring one matters because registration changes how it computes;
-    // referencing one matters because registration gives it a value where it had none.
-    //
-    // The names follow from the environment the element resolved to, so a recomputation that landed
-    // on the environment it landed on last time has nothing new to say. Saying it anyway is one
-    // interned atom per name and a crossing into the engine, per element, per pass.
-    PublishedCustomPropertyNames published_names {
-        .data = custom_property_data({}),
-        .uses_var_css_function = m_style_uses_var_css_function,
-        .uses_custom_function = m_style_uses_custom_function,
-    };
-    if (published_names != m_published_custom_property_names) {
-        CSS::record_element_custom_property_names(*this, published_names.data.ptr(), m_style_uses_var_css_function, m_style_uses_custom_function);
-        m_published_custom_property_names = move(published_names);
-    }
-
     auto old_non_animated_display_is_none = old_computed_values ? old_computed_values->base_values().display().is_none() : true;
     auto new_non_animated_display_is_none = new_style->base_values().display().is_none();
 
@@ -2217,6 +2281,11 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
         || !style_computer.style_engine().pseudo_cascade_states_are_unchanged(style_engine_matches.node)) {
         invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, had_list_marker, old_computed_values ? &*old_computed_values : nullptr, reusable_style_engine_matches, &preserved_pseudo_element_styles);
     }
+
+    // Which custom properties this element or one of its pseudo-elements declares or references
+    // decides which `@property` registrations reach it. Pseudo-elements share the originating
+    // element's style node, so their names are published on that node as well.
+    publish_custom_property_names();
 
     if (old_computed_values && (element_style_changed || element_custom_properties_changed))
         invalidate_descendant_styles_depending_on_style_container_query();

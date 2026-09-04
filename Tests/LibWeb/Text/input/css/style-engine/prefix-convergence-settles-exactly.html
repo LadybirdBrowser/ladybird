@@ -52,9 +52,10 @@
         passes += after.prefixConvergencePasses - before.prefixConvergencePasses;
         stops += after.prefixConvergenceStops - before.prefixConvergenceStops;
         const incremental = snapshot();
-        CSS.registerProperty({ name: `--force-${forced++}`, syntax: "*", inherits: false, initialValue: "1px" });
+        internals.setUserStyle(`/* force complete style ${forced++} */`);
         internals.updateStyle();
         const complete = snapshot();
+        internals.setUserStyle("");
         if (incremental === complete) {
             println(`${name}: settles exactly`);
             return;

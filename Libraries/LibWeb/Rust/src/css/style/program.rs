@@ -144,10 +144,6 @@ pub struct RuleVersion {
     /// matching anything: the animation a `@keyframes` describes, the custom property an `@property`
     /// registers. Which index the name is looked up in is decided by the rule's kind.
     pub declared_name: Option<StyleAtomID>,
-    /// Whether an `@property` registration carries an initial value. One that does gives the property
-    /// a value on every element, whether or not the element mentions it, so what it reaches cannot be
-    /// found by asking who uses the name.
-    pub registration_has_initial_value: bool,
     pub selector_program: Option<SelectorProgramID>,
     pub declaration_block: Option<DeclarationBlockID>,
     pub activation_predicate: Option<ActivationPredicateID>,
@@ -162,7 +158,6 @@ impl RuleVersion {
             rule,
             kind,
             declared_name: None,
-            registration_has_initial_value: false,
             selector_program: None,
             declaration_block: None,
             activation_predicate: None,
