@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .hidden { visibility: hidden; }
+    .changed { color: green; }
+    ytd-player {
+        transition: border-radius 0.3s cubic-bezier(0.05, 0, 0, 1);
+    }
+    ytd-player.alternate { transition-duration: 0.4s; }
+</style>
+<div id="outer">
+    <div>
+        <div>
+            <ytd-player id="player"><span id="descendant"></span></ytd-player>
+        </div>
+    </div>
+</div>
+<script>
+    test(() => {
+        const outer = document.getElementById("outer");
+        const player = document.getElementById("player");
+        const descendant = document.getElementById("descendant");
+        internals.updateStyle();
+
+        // Force a full recompute while hiding the player, then settle the transition definition.
+        outer.classList.add("hidden");
+        player.classList.add("alternate");
+        internals.updateStyle();
+        println(`hidden player: ${getComputedStyle(player).visibility}`);
+
+        player.classList.remove("alternate");
+        internals.updateStyle();
+
+        // The descendant mutation puts the player in the inheritance closure before its inherited
+        // visibility reaction is derived.
+        outer.classList.remove("hidden");
+        descendant.classList.add("changed");
+        internals.updateStyle();
+        println(`revealed player: ${getComputedStyle(player).visibility}`);
+    });
+</script>
