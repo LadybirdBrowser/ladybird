@@ -626,7 +626,10 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
     });
 
     // 16. Let pullWithBYOBReader be the following steps, given view and forBranch2:
-    auto pull_with_byob_reader = GC::create_function(GC::Heap::the(), [&realm, &stream, params, cancel_promise, forward_reader_error](WebIDL::ArrayBufferView view, bool for_branch2) mutable {
+    auto pull_with_byob_reader = GC::create_function(GC::Heap::the(), [&realm, &stream, params, cancel_promise, forward_reader_error](GC::Ptr<JS::Uint8Array> view, bool for_branch2) mutable {
+        VERIFY(view);
+        WebIDL::ArrayBufferView array_buffer_view { WebIDL::ArrayBufferViewVariant { *view } };
+
         // 1. If reader implements ReadableStreamDefaultReader,
         if (auto const* default_reader = params->reader.get_pointer<GC::Ref<ReadableStreamDefaultReader>>()) {
             // 2. Assert: reader.[[readRequests]] is empty.
@@ -652,7 +655,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
         auto read_into_request = GC::Heap::the().allocate<Detail::ReadableByteStreamTeeBYOBReadRequest>(stream, params, cancel_promise, *byob_branch, *other_branch, for_branch2);
 
         // 5. Perform ! ReadableStreamBYOBReaderRead(reader, view, 1, readIntoRequest).
-        readable_stream_byob_reader_read(params->reader.get<GC::Ref<ReadableStreamBYOBReader>>(), view, 1, read_into_request);
+        readable_stream_byob_reader_read(params->reader.get<GC::Ref<ReadableStreamBYOBReader>>(), array_buffer_view, 1, read_into_request);
     });
 
     // 17. Let pull1Algorithm be the following steps:
@@ -675,15 +678,11 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
         auto byob_request = readable_byte_stream_controller_get_byob_request(realm, controller1);
 
         // 4. If byobRequest is null, perform pullWithDefaultReader.
-        if (!byob_request) {
+        if (!byob_request)
             pull_with_default_reader->function()();
-        }
         // 5. Otherwise, perform pullWithBYOBReader, given byobRequest.[[view]] and false.
-        else {
-            auto view = byob_request->view();
-            VERIFY(!view.has<Empty>());
-            pull_with_byob_reader->function()(view.downcast<WebIDL::ArrayBufferViewVariant>(), false);
-        }
+        else
+            pull_with_byob_reader->function()(byob_request->view(), false);
 
         // 6. Return a promise resolved with undefined.
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
@@ -709,15 +708,11 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
         auto byob_request = readable_byte_stream_controller_get_byob_request(realm, controller2);
 
         // 4. If byobRequest is null, perform pullWithDefaultReader.
-        if (!byob_request) {
+        if (!byob_request)
             pull_with_default_reader->function()();
-        }
         // 5. Otherwise, perform pullWithBYOBReader, given byobRequest.[[view]] and true.
-        else {
-            auto view = byob_request->view();
-            VERIFY(!view.has<Empty>());
-            pull_with_byob_reader->function()(view.downcast<WebIDL::ArrayBufferViewVariant>(), true);
-        }
+        else
+            pull_with_byob_reader->function()(byob_request->view(), true);
 
         // 6. Return a promise resolved with undefined.
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
@@ -2205,7 +2200,8 @@ GC::Ptr<ReadableStreamBYOBRequest> readable_byte_stream_controller_get_byob_requ
         auto first_descriptor = controller.pending_pull_intos().first();
 
         // 2. Let view be ! Construct(%Uint8Array%, « firstDescriptor’s buffer, firstDescriptor’s byte offset + firstDescriptor’s bytes filled, firstDescriptor’s byte length − firstDescriptor’s bytes filled »).
-        auto view = MUST(JS::construct(vm, *realm.intrinsics().uint8_array_constructor(), first_descriptor->buffer, JS::Value(first_descriptor->byte_offset + first_descriptor->bytes_filled), JS::Value(first_descriptor->byte_length - first_descriptor->bytes_filled)));
+        auto view_object = MUST(JS::construct(vm, *realm.intrinsics().uint8_array_constructor(), first_descriptor->buffer, JS::Value(first_descriptor->byte_offset + first_descriptor->bytes_filled), JS::Value(first_descriptor->byte_length - first_descriptor->bytes_filled)));
+        auto& view = static_cast<JS::Uint8Array&>(*view_object);
 
         // 3. Let byobRequest be a new ReadableStreamBYOBRequest.
         auto byob_request = GC::Heap::the().allocate<ReadableStreamBYOBRequest>();
@@ -2214,7 +2210,7 @@ GC::Ptr<ReadableStreamBYOBRequest> readable_byte_stream_controller_get_byob_requ
         byob_request->set_controller(controller);
 
         // 5. Set byobRequest.[[view]] to view.
-        byob_request->set_view(WebIDL::ArrayBufferView { WebIDL::ArrayBufferView::from_object(view) });
+        byob_request->set_view(view);
 
         // 6. Set controller.[[byobRequest]] to byobRequest.
         controller.set_byob_request(byob_request);
