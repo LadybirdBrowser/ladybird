@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use yuv::YuvBiPlanarImage;
+use yuv::YuvConversionMode;
 use yuv::YuvPlanarImage;
 use yuv::YuvRange;
 use yuv::YuvStandardMatrix;
@@ -177,4 +179,89 @@ pub unsafe extern "C" fn yuv_u16_to_rgba(
     };
 
     result.is_ok()
+}
+
+/// # Safety
+/// All plane pointers must be valid for the specified dimensions and strides.
+/// `dst` must point to a buffer of at least `dst_stride * height` bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn yuv_nv12_to_rgba(
+    y_plane: *const u8,
+    y_stride: u32,
+    uv_plane: *const u8,
+    uv_stride: u32,
+    width: u32,
+    height: u32,
+    dst: *mut u8,
+    dst_stride: u32,
+    range: YUVRange,
+    matrix: YUVMatrix,
+) -> bool {
+    let y_len = y_stride as usize * height as usize;
+    let uv_len = uv_stride as usize * height.div_ceil(2) as usize;
+
+    let bi_planar_image = YuvBiPlanarImage {
+        y_plane: unsafe { core::slice::from_raw_parts(y_plane, y_len) },
+        y_stride,
+        uv_plane: unsafe { core::slice::from_raw_parts(uv_plane, uv_len) },
+        uv_stride,
+        width,
+        height,
+    };
+
+    let dst_len = dst_stride as usize * height as usize;
+    let dst_slice = unsafe { core::slice::from_raw_parts_mut(dst, dst_len) };
+
+    yuv::yuv_nv12_to_rgba(
+        &bi_planar_image,
+        dst_slice,
+        dst_stride,
+        range.into(),
+        matrix.into(),
+        YuvConversionMode::default(),
+    )
+    .is_ok()
+}
+
+/// # Safety
+/// All plane pointers must be valid for the specified dimensions and strides.
+/// Strides are in components per row, not bytes.
+/// `dst` must point to a buffer of at least `dst_stride * height` bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn yuv_p010_to_rgba(
+    y_plane: *const u16,
+    y_stride: u32,
+    uv_plane: *const u16,
+    uv_stride: u32,
+    width: u32,
+    height: u32,
+    dst: *mut u8,
+    dst_stride: u32,
+    range: YUVRange,
+    matrix: YUVMatrix,
+) -> bool {
+    let y_len = y_stride as usize * height as usize;
+    let uv_len = uv_stride as usize * height.div_ceil(2) as usize;
+
+    let bi_planar_image = YuvBiPlanarImage {
+        y_plane: unsafe { core::slice::from_raw_parts(y_plane, y_len) },
+        y_stride,
+        uv_plane: unsafe { core::slice::from_raw_parts(uv_plane, uv_len) },
+        uv_stride,
+        width,
+        height,
+    };
+
+    let dst_len = dst_stride as usize * height as usize;
+    let dst_slice = unsafe { core::slice::from_raw_parts_mut(dst, dst_len) };
+
+    yuv::p010_to_rgba(
+        &bi_planar_image,
+        dst_slice,
+        dst_stride,
+        range.into(),
+        matrix.into(),
+        YuvConversionMode::default(),
+    )
+    .is_ok()
 }

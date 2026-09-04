@@ -195,7 +195,46 @@ ErrorOr<NonnullRefPtr<Bitmap>> YUVData::to_bitmap() const
     return bitmap;
 }
 
-static SkYUVColorSpace skia_yuv_color_space(Media::CodingIndependentCodePoints cicp)
+ErrorOr<NonnullRefPtr<Bitmap>> biplanar_yuv_to_bitmap(IntSize size, u8 bit_depth, Media::CodingIndependentCodePoints cicp, BiplanarYUVPlane luma, BiplanarYUVPlane chroma)
+{
+    if (cicp.matrix_coefficients() == Media::MatrixCoefficients::Identity)
+        return Error::from_string_literal("Subsampled RGB is unsupported");
+
+    auto bitmap = TRY(Bitmap::create(BitmapFormat::RGBA8888, AlphaType::Premultiplied, size));
+    auto* destination = reinterpret_cast<u8*>(bitmap->scanline(0));
+    auto destination_stride = static_cast<u32>(bitmap->pitch());
+
+    auto width = static_cast<u32>(size.width());
+    auto height = static_cast<u32>(size.height());
+
+    bool full_range = cicp.video_full_range_flag() == Media::VideoFullRangeFlag::Full;
+    auto range = full_range ? FFI::YUVRange::Full : FFI::YUVRange::Limited;
+    auto matrix = yuv_matrix_for_cicp(cicp);
+
+    bool success;
+    if (bit_depth <= 8) {
+        success = FFI::yuv_nv12_to_rgba(
+            luma.data.data(), static_cast<u32>(luma.stride),
+            chroma.data.data(), static_cast<u32>(chroma.stride),
+            width, height,
+            destination, destination_stride,
+            range, matrix);
+    } else {
+        success = FFI::yuv_p010_to_rgba(
+            reinterpret_cast<u16 const*>(luma.data.data()), static_cast<u32>(luma.stride / sizeof(u16)),
+            reinterpret_cast<u16 const*>(chroma.data.data()), static_cast<u32>(chroma.stride / sizeof(u16)),
+            width, height,
+            destination, destination_stride,
+            range, matrix);
+    }
+
+    if (!success)
+        return Error::from_string_literal("YUV-to-RGB conversion failed");
+
+    return bitmap;
+}
+
+SkYUVColorSpace skia_yuv_color_space(Media::CodingIndependentCodePoints cicp)
 {
     bool full_range = cicp.video_full_range_flag() == Media::VideoFullRangeFlag::Full;
 

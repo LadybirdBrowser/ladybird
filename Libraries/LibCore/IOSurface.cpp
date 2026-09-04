@@ -129,6 +129,26 @@ size_t IOSurfaceHandle::height() const
     return IOSurfaceGetHeight(m_ref_wrapper->ref);
 }
 
+u32 IOSurfaceHandle::pixel_format() const
+{
+    return IOSurfaceGetPixelFormat(m_ref_wrapper->ref);
+}
+
+size_t IOSurfaceHandle::plane_count() const
+{
+    return IOSurfaceGetPlaneCount(m_ref_wrapper->ref);
+}
+
+size_t IOSurfaceHandle::plane_width(size_t plane) const
+{
+    return IOSurfaceGetWidthOfPlane(m_ref_wrapper->ref, plane);
+}
+
+size_t IOSurfaceHandle::plane_height(size_t plane) const
+{
+    return IOSurfaceGetHeightOfPlane(m_ref_wrapper->ref, plane);
+}
+
 size_t IOSurfaceHandle::bytes_per_element() const
 {
     return IOSurfaceGetBytesPerElement(m_ref_wrapper->ref);
@@ -142,6 +162,26 @@ size_t IOSurfaceHandle::bytes_per_row() const
 void* IOSurfaceHandle::data() const
 {
     return IOSurfaceGetBaseAddress(m_ref_wrapper->ref);
+}
+
+size_t IOSurfaceHandle::bytes_per_row_of_plane(size_t plane) const
+{
+    return IOSurfaceGetBytesPerRowOfPlane(m_ref_wrapper->ref, plane);
+}
+
+void* IOSurfaceHandle::data_of_plane(size_t plane) const
+{
+    return IOSurfaceGetBaseAddressOfPlane(m_ref_wrapper->ref, plane);
+}
+
+bool IOSurfaceHandle::lock_read_only() const
+{
+    return IOSurfaceLock(m_ref_wrapper->ref, kIOSurfaceLockReadOnly, nullptr) == kIOReturnSuccess;
+}
+
+void IOSurfaceHandle::unlock_read_only() const
+{
+    IOSurfaceUnlock(m_ref_wrapper->ref, kIOSurfaceLockReadOnly, nullptr);
 }
 
 void* IOSurfaceHandle::core_foundation_pointer() const

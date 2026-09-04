@@ -26,12 +26,21 @@ public:
     virtual ~MetalTexture() { }
 };
 
+// The component layout a texture reads a surface's plane through, which for a planar surface differs per plane.
+enum class MetalTextureFormat : u8 {
+    BGRA8,
+    R8,
+    RG8,
+    R16,
+    RG16,
+};
+
 class MetalContext : public RefCounted<MetalContext> {
 public:
     virtual void const* device() const = 0;
     virtual void const* queue() const = 0;
 
-    virtual OwnPtr<MetalTexture> create_texture_from_iosurface(Core::IOSurfaceHandle const&) = 0;
+    virtual OwnPtr<MetalTexture> create_texture_from_iosurface(Core::IOSurfaceHandle const&, MetalTextureFormat, size_t plane) = 0;
 
     virtual ~MetalContext() { }
 };

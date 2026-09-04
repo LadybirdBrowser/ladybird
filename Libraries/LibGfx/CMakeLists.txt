@@ -58,7 +58,7 @@ set(SOURCES
 )
 
 if (APPLE)
-    list(APPEND SOURCES MetalContext.mm)
+    list(APPEND SOURCES MetalContext.mm VideoSurfaceImage.mm)
 endif()
 
 if (HAS_DIRECTX)

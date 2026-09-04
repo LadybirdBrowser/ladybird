@@ -31,6 +31,7 @@ public:
     static ErrorOr<NonnullRefPtr<VideoSurface>> create(Core::IOSurfaceHandle);
     static ErrorOr<NonnullRefPtr<VideoSurface>> create_from_mach_port(Core::MachPort const&);
     Core::MachPort create_mach_port() const { return m_io_surface.create_mach_port(); }
+    Core::IOSurfaceHandle const& io_surface() const { return m_io_surface; }
 #endif
 
 private:

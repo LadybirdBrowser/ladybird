@@ -160,7 +160,7 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_bitmap(Bitmap& bitmap)
 NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_shared_image_buffer(SharedImageBuffer& shared_image_buffer, NonnullRefPtr<SkiaBackendContext> context, Origin origin)
 {
     auto const& iosurface_handle = shared_image_buffer.iosurface_handle();
-    auto metal_texture = context->metal_context().create_texture_from_iosurface(iosurface_handle);
+    auto metal_texture = context->metal_context().create_texture_from_iosurface(iosurface_handle, MetalTextureFormat::BGRA8, 0);
     IntSize const size { metal_texture->width(), metal_texture->height() };
     auto image_info = SkImageInfo::Make(size.width(), size.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType, SkColorSpace::MakeSRGB());
     GrMtlTextureInfo mtl_info;

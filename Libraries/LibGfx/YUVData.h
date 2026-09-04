@@ -15,8 +15,11 @@
 #include <LibMedia/Subsampling.h>
 
 class SkYUVAPixmaps;
+enum SkYUVColorSpace : int;
 
 namespace Gfx {
+
+SkYUVColorSpace skia_yuv_color_space(Media::CodingIndependentCodePoints);
 
 // A non-owning view of planar YUV data with the metadata needed for conversion to RGB.
 // The plane memory's lifetime is guaranteed by the object handing out the view
@@ -62,5 +65,13 @@ private:
     Bytes m_u_data;
     Bytes m_v_data;
 };
+
+struct BiplanarYUVPlane {
+    ReadonlyBytes data;
+    size_t stride;
+};
+
+// Converts NV12 pixels, or P010 for bit depths above 8, the 4:2:0 layouts hardware decoders hand back.
+ErrorOr<NonnullRefPtr<Bitmap>> biplanar_yuv_to_bitmap(IntSize, u8 bit_depth, Media::CodingIndependentCodePoints, BiplanarYUVPlane luma, BiplanarYUVPlane chroma);
 
 }
