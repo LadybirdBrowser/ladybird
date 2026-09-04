@@ -58,7 +58,7 @@ dictionary ShadowRootInit {
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsing-and-serialization
 partial interface Element {
-    // FIXME: [CEReactions] undefined setHTML(DOMString html, optional SetHTMLOptions options = {});
+    [FIXME, CEReactions] undefined setHTML(DOMString html, optional SetHTMLOptions options = {});
     // FIXME: setHTMLUnsafe is missing the SetHTMLUnsafeOptions parameter.
     [CEReactions, ImplementedInBindings] undefined setHTMLUnsafe((TrustedHTML or DOMString) html);
     DOMString getHTML(optional GetHTMLOptions options = {});

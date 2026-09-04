@@ -58,7 +58,7 @@ dictionary ImportNodeOptions {
 partial interface Document {
     // FIXME: parseHTMLUnsafe is missing the ParseHTMLUnsafeOptions parameter.
     [NeedsCallerRealm, ImplementedInBindings] static Document parseHTMLUnsafe((TrustedHTML or DOMString) html);
-    // FIXME: static Document parseHTML(DOMString html, optional SetHTMLOptions options = {});
+    [FIXME] static Document parseHTML(DOMString html, optional SetHTMLOptions options = {});
 
     // resource metadata management
     [PutForwards=href, LegacyUnforgeable] readonly attribute Location? location;
@@ -136,8 +136,8 @@ partial interface Document {
 // https://w3c.github.io/pointerlock/#extensions-to-the-document-interface
 // FIXME: Move this to a proper home when we have a pointerlock spec folder.
 partial interface Document {
-    // FIXME: attribute EventHandler onpointerlockchange;
-    // FIXME: attribute EventHandler onpointerlockerror;
+    [FIXME] attribute EventHandler onpointerlockchange;
+    [FIXME] attribute EventHandler onpointerlockerror;
     undefined exitPointerLock();
 };
 
