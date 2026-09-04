@@ -40,14 +40,14 @@ interface Window : EventTarget {
     // the user agent
     readonly attribute Navigator navigator;
     [Replaceable, ImplementedAs=navigator] readonly attribute Navigator clientInformation; // legacy alias of .navigator
-    // FIXME: readonly attribute boolean originAgentCluster;
+    [FIXME] readonly attribute boolean originAgentCluster;
 
     // user prompts
     undefined alert();
     undefined alert(DOMString message);
     boolean confirm(optional DOMString message = "");
     DOMString? prompt(optional DOMString message = "", optional DOMString default = "");
-    // FIXME: undefined print();
+    [FIXME] undefined print();
 
     [NeedsCallerRealm] undefined postMessage(any message, USVString targetOrigin, optional sequence<object> transfer = []);
     [NeedsCallerRealm, ImplementedInBindings] undefined postMessage(any message, optional WindowPostMessageOptions options = {});

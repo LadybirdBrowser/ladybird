@@ -16,7 +16,7 @@ interface OfflineAudioContext : BaseAudioContext {
     [CreatesPromise] Promise<AudioBuffer> startRendering();
     [CreatesPromise] Promise<undefined> resume();
     [CreatesPromise] Promise<undefined> suspend(double suspendTime);
-    // FIXME: Promise<undefined> close();
+    [FIXME] Promise<undefined> close();
     // FIXME: length should be nullable.
     readonly attribute unsigned long length;
     attribute EventHandler oncomplete;

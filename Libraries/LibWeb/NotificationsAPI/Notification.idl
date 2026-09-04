@@ -3,8 +3,8 @@
 interface Notification : EventTarget {
     constructor(DOMString title, optional NotificationOptions options = {});
 
-    // FIXME: static readonly attribute NotificationPermission permission;
-    // FIXME: [Exposed=Window] static Promise<NotificationPermission> requestPermission(optional NotificationPermissionCallback deprecatedCallback);
+    [FIXME] static readonly attribute NotificationPermission permission;
+    [FIXME, Exposed=Window] static Promise<NotificationPermission> requestPermission(optional NotificationPermissionCallback deprecatedCallback);
 
     static readonly attribute unsigned long maxActions;
 
@@ -22,7 +22,7 @@ interface Notification : EventTarget {
     readonly attribute USVString image;
     readonly attribute USVString icon;
     readonly attribute USVString badge;
-    // FIXME: [SameObject] readonly attribute FrozenArray<unsigned long> vibrate;
+    [FIXME, SameObject] readonly attribute FrozenArray<unsigned long> vibrate;
     readonly attribute EpochTimeStamp timestamp;
     readonly attribute boolean renotify;
     readonly attribute boolean? silent;

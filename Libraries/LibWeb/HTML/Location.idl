@@ -18,5 +18,5 @@ interface Location { // but see also additional creation steps and overridden in
     // Intentionally not implemented at this stage due to https://github.com/whatwg/html/issues/1918
     // This is not currently implemented by Firefox due to the above, and only seems to be used by
     // ad tech on real sites.
-    // [LegacyUnforgeable, SameObject] readonly attribute DOMStringList ancestorOrigins;
+    [FIXME, LegacyUnforgeable, SameObject] readonly attribute DOMStringList ancestorOrigins;
 };

@@ -17,6 +17,6 @@ interface ImageData {
     readonly attribute unsigned long width;
     readonly attribute unsigned long height;
     readonly attribute ImageDataArray data;
-    // FIXME: readonly attribute ImageDataPixelFormat pixelFormat;
+    [FIXME] readonly attribute ImageDataPixelFormat pixelFormat;
     readonly attribute PredefinedColorSpace colorSpace;
 };
