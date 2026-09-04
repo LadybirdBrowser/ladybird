@@ -1226,7 +1226,8 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
     document.update_layout(DOM::UpdateLayoutReason::RangeGetClientRects);
 
     Vector<GC::Root<Geometry::DOMRect>> rects;
-    bool did_update_paint_and_hit_testing_properties = false;
+    Optional<Painting::AccumulatedVisualContextTree> visual_context_tree;
+    auto rect_to_viewport_transform = Painting::identity_rect_to_viewport_transform();
 
     // FIXME: take Range collapsed into consideration
     // 2. Iterate the node included in Range
@@ -1296,11 +1297,10 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
                 continue;
             }
 
-            auto apply_visual_context_transform = did_update_paint_and_hit_testing_properties;
-            if (!apply_visual_context_transform && !document.can_compute_client_rects_without_accumulated_visual_contexts_update(*mapping.primary())) {
+            if (!visual_context_tree.has_value() && !document.can_compute_client_rects_without_accumulated_visual_contexts_update(*mapping.primary())) {
                 document.update_paint_and_hit_testing_properties_if_needed();
-                did_update_paint_and_hit_testing_properties = true;
-                apply_visual_context_transform = true;
+                visual_context_tree = document.visual_context_tree();
+                rect_to_viewport_transform = Painting::rect_to_viewport_transform(document, *visual_context_tree);
             }
 
             size_t filter_dom_start = 0;
@@ -1324,24 +1324,11 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
 
             auto text_slots = mapping.slot_ids();
 
-            struct RangeRectContext {
-                Vector<GC::Root<Geometry::DOMRect>>& rects;
-                bool apply_visual_context_transform { false };
-            } context { rects, apply_visual_context_transform };
-
             Layout::RustFFI::layout_arena_text_range_rects(
                 mapping.primary()->arena_handle(), text_slots.data(), text_slots.size(),
                 to_underlying(selection_state), start_offset(), end_offset(), filter_dom_start, filter_dom_end,
-                &context, [](void* context_pointer, void* containing_block_shell, CSSPixelRect rect) {
-                    auto& context = *static_cast<RangeRectContext*>(context_pointer);
-                    auto transformed_rect = rect;
-
-                    if (context.apply_visual_context_transform) {
-                        if (auto const* containing_block = static_cast<Layout::Node const*>(containing_block_shell))
-                            transformed_rect = Painting::transform_rect_to_viewport(*containing_block, rect, Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
-                    }
-
-                    context.rects.append(Geometry::DOMRect::create(transformed_rect.to_type<float>()));
+                rect_to_viewport_transform, &rects, [](void* context, CSSPixelRect rect) {
+                    static_cast<Vector<GC::Root<Geometry::DOMRect>>*>(context)->append(Geometry::DOMRect::create(rect.to_type<float>()));
                 });
         }
     }

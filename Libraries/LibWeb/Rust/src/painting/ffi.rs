@@ -2561,7 +2561,8 @@ pub unsafe extern "C" fn layout_arena_visual_line_offset_closest_to_inline_coord
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document
-/// thread. `node_slots` must point at `node_slot_count` valid slots.
+/// thread. `node_slots` must point at `node_slot_count` valid slots, and
+/// `rect_to_viewport_transform` must satisfy `rect_to_viewport_transform_from_ffi`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_text_range_rects(
     arena: *mut c_void,
@@ -2572,11 +2573,13 @@ pub unsafe extern "C" fn layout_arena_text_range_rects(
     range_end_offset: usize,
     filter_dom_start: usize,
     filter_dom_end: usize,
+    rect_to_viewport_transform: FfiRectToViewportTransform,
     context: *mut c_void,
-    push_rect: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiCssPixelRect),
+    push_rect: unsafe extern "C" fn(*mut c_void, FfiCssPixelRect),
 ) {
     let arena = unsafe { arena_from_handle(arena) };
     let paintable_rows = arena.paintable_rows();
+    let rect_to_viewport_transform = unsafe { rect_to_viewport_transform_from_ffi(&rect_to_viewport_transform) };
 
     // SAFETY: The caller guarantees the slot span is valid for this synchronous call.
     let node_slots = unsafe { ffi_slice(node_slots, node_slot_count) };
@@ -2595,8 +2598,19 @@ pub unsafe extern "C" fn layout_arena_text_range_rects(
             range_end_offset,
         );
 
-        // SAFETY: The consumer handles a null shell and copies the rect synchronously.
-        unsafe { push_rect(context, arena.shell_if_live(block), rect.into()) };
+        let rect_in_viewport_space = if arena.slot_is_live(block) {
+            crate::painting::rect_to_viewport_transform::transform_rect_to_viewport_or_identity(
+                rect_to_viewport_transform.as_ref(),
+                &paintable_rows,
+                block,
+                rect,
+            )
+        } else {
+            rect
+        };
+
+        // SAFETY: The consumer copies the plain-data rect synchronously.
+        unsafe { push_rect(context, rect_in_viewport_space.into()) };
         true
     });
 }
