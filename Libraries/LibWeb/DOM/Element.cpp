@@ -52,6 +52,7 @@
 #include <LibWeb/CSS/StylePropertyMap.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -1726,10 +1727,10 @@ void Element::set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason reaso
         set_needs_layout_tree_update(true, reason);
 }
 
-static bool content_displays_a_counter(CSS::ComputedContentData const& content)
+static bool content_displays_a_counter(CSS::StyleValue const& content)
 {
-    return any_of(content.items, [](CSS::ComputedContentItem const& item) {
-        return item.has<CSS::ComputedContentCounter>();
+    return content.is_content() && any_of(content.as_content().content().values(), [](auto const& item) {
+        return item->is_counter();
     });
 }
 

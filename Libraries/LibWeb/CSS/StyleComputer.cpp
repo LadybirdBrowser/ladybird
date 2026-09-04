@@ -66,6 +66,9 @@
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
@@ -3750,13 +3753,16 @@ static void report_shared_custom_property_environment_change(DOM::AbstractElemen
         *did_change_custom_properties = true;
 }
 
-static bool computed_content_depends_on_counter_style_environment(ComputedContentData const& content)
+static bool computed_content_depends_on_counter_style_environment(StyleValue const& content)
 {
-    auto item_depends_on_counter_style_environment = [](ComputedContentItem const& item) {
-        return item.has<ComputedContentCounter>() && item.get<ComputedContentCounter>().style.has<Utf16FlyString>();
+    if (!content.is_content())
+        return false;
+    auto item_depends_on_counter_style_environment = [](auto const& item) {
+        return item->is_counter() && item->as_counter().counter_style()->as_counter_style().value().template has<Utf16FlyString>();
     };
-    return any_of(content.items, item_depends_on_counter_style_environment)
-        || any_of(content.alt_text, item_depends_on_counter_style_environment);
+    auto const& content_value = content.as_content();
+    return any_of(content_value.content().values(), item_depends_on_counter_style_environment)
+        || (content_value.alt_text() && any_of(content_value.alt_text()->values(), item_depends_on_counter_style_environment));
 }
 
 StyleEngine::StyleRecordDelta StyleComputer::publish_computed_style_inputs(DOM::AbstractElement abstract_element, ComputedValues const& values) const
