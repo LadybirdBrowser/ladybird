@@ -23,6 +23,7 @@ enum class DecoderErrorCategory : u8 {
     Unknown,
     IO,
     NeedsMoreInput,
+    TryAgain,
     EndOfStream,
     Memory,
     // The input is corrupted.
@@ -94,6 +95,8 @@ constexpr StringView decoder_error_category_to_string(DecoderErrorCategory categ
         return "IO"sv;
     case DecoderErrorCategory::NeedsMoreInput:
         return "NeedsMoreInput"sv;
+    case DecoderErrorCategory::TryAgain:
+        return "TryAgain"sv;
     case DecoderErrorCategory::EndOfStream:
         return "EndOfStream"sv;
     case DecoderErrorCategory::Memory:

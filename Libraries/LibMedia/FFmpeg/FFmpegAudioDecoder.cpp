@@ -131,7 +131,7 @@ DecoderErrorOr<void> FFmpegAudioDecoder::receive_coded_data(CodedFrame const& co
     case 0:
         return {};
     case AVERROR(EAGAIN):
-        return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "FFmpeg decoder cannot decode any more data until frames have been retrieved"sv);
+        return DecoderError::with_description(DecoderErrorCategory::TryAgain, "FFmpeg decoder cannot decode any more data until frames have been retrieved"sv);
     case AVERROR_EOF:
         return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "FFmpeg decoder has been flushed"sv);
     case AVERROR(EINVAL):
