@@ -2171,7 +2171,7 @@ pub unsafe extern "C" fn rust_layout_run_root_layout(
     // SAFETY: The host and shells remain live, and commit's mutable borrow has ended.
     unsafe { notifications.notify_host(sink) };
     // SAFETY: Host callbacks have returned; borrow the arena again for cache maintenance.
-    unsafe { LayoutNodeArena::from_handle(host.arena) }.sweep_stale_fc_run_cache_entries();
+    unsafe { LayoutNodeArena::from_handle(host.arena) }.end_layout_pass();
 }
 
 fn finish_entry_pass(
@@ -2298,7 +2298,7 @@ pub unsafe extern "C" fn rust_layout_compute_subtree_layout(
     // SAFETY: The host and shells remain live, and commit's mutable borrow has ended.
     unsafe { notifications.notify_host(sink) };
     // SAFETY: Host callbacks have returned; borrow the arena again for cache maintenance.
-    unsafe { LayoutNodeArena::from_handle(host.arena) }.sweep_stale_fc_run_cache_entries();
+    unsafe { LayoutNodeArena::from_handle(host.arena) }.end_layout_pass();
 }
 
 /// # Safety
@@ -2351,5 +2351,5 @@ pub unsafe extern "C" fn rust_layout_replay_saved_abspos_layout(
     // SAFETY: The host and shells remain live, and commit's mutable borrow has ended.
     unsafe { notifications.notify_host(sink) };
     // SAFETY: Host callbacks have returned; borrow the arena again for cache maintenance.
-    unsafe { LayoutNodeArena::from_handle(host.arena) }.sweep_stale_fc_run_cache_entries();
+    unsafe { LayoutNodeArena::from_handle(host.arena) }.end_layout_pass();
 }

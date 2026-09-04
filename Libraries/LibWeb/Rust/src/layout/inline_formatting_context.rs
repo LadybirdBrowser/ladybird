@@ -2033,6 +2033,9 @@ impl<'context> InlineFormattingContext<'context> {
             self.automatic_content_block_size = measurement.block_size;
             self.run.records.omitted_line_layout.set(true);
             self.callbacks.arena().note_intrinsic_inline_measurement();
+            if let Some(stash) = iterator.into_stash(self) {
+                self.callbacks.arena().stash_inline_items(self.containing_block, stash);
+            }
         } else {
             self.generate_line_boxes(iterator);
             if self.layout_mode == LayoutMode::Normal && !self.run.purpose.is_measurement() {

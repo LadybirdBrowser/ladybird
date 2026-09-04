@@ -64,6 +64,9 @@ pub(super) fn compute_inline_sizes(
         let iterator = inline_level_iterator::InlineLevelIterator::for_intrinsic_inline_size(&mut context)?;
         let maximum = context.max_content_inline_size_from_items(iterator.items())?;
         let minimum = context.min_content_inline_size_from_max_content_items(iterator.items());
+        if let Some(stash) = iterator.into_stash(&context) {
+            callbacks.arena().stash_inline_items(node, stash);
+        }
         Some(IntrinsicInlineSizeMeasurement {
             automatic_content_inline_size: clamp_to_max_dimension_value(maximum),
             min_content_inline_size_from_max_content_layout: minimum.map(clamp_to_max_dimension_value),
