@@ -1465,12 +1465,8 @@ Optional<Utf16String> Window::prompt(Optional<Utf16String> const& message, Optio
     return result;
 }
 
-// https://html.spec.whatwg.org/multipage/web-messaging.html#window-post-message-steps
-WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Realm& realm, JS::Value message, PostMessageOptions const& options)
+WebIDL::ExceptionOr<Window::PreparedPostMessage> Window::prepare_post_message(JS::Realm& realm, JS::Value message, PostMessageOptions const& options)
 {
-    // 1. Let targetRealm be targetWindow's realm.
-    auto& target_realm = this->principal_realm();
-
     // 2. Let incumbentSettings be the incumbent settings object.
     auto& incumbent_settings = incumbent_settings_object();
 
@@ -1502,58 +1498,89 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Realm& realm, JS
     // 7. Let serializeWithTransferResult be StructuredSerializeWithTransfer(message, transfer). Rethrow any exceptions.
     auto serialize_with_transfer_result = TRY(structured_serialize_with_transfer(realm, message, transfer));
 
+    // NB: The task queued by step 8 reads incumbentSettings in its steps 2 and 3. Snapshot those values here.
+    // 8.2. Let origin be the incumbentSettings's origin.
+    auto source_origin = incumbent_settings.origin();
+
+    // 8.3. Let source be the WindowProxy object corresponding to incumbentSettings's global object (a Window object).
+    auto source = GC::Ref { as<WindowProxy>(incumbent_settings.realm().global_environment().global_this_value()) };
+
+    return PreparedPostMessage {
+        .serialize_with_transfer_result = move(serialize_with_transfer_result),
+        .target_origin = move(target_origin),
+        .source_origin = move(source_origin),
+        .source = source,
+    };
+}
+
+// https://html.spec.whatwg.org/multipage/web-messaging.html#window-post-message-steps
+WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Realm& realm, JS::Value message, PostMessageOptions const& options)
+{
+    // 1. Let targetRealm be targetWindow's realm.
+    // NB: Taken from targetWindow when the queued task delivers the message.
+
+    // 2-7.
+    auto prepared = TRY(prepare_post_message(realm, message, options));
+
     // 8. Queue a global task on the posted message task source given targetWindow to run the following steps:
-    queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(GC::Heap::the(), [this, serialize_with_transfer_result = move(serialize_with_transfer_result), target_origin = move(target_origin), &incumbent_settings, &target_realm]() mutable {
-        // 1. If the targetOrigin argument is not a single literal U+002A ASTERISK character (*) and targetWindow's
-        //    associated Document's origin is not same origin with targetOrigin, then return.
-        // NOTE: Due to step 4 and 5 above, the only time it's not '*' is if target_origin contains an Origin.
-        if (!target_origin.has<Utf16String>()) {
-            auto const& actual_target_origin = target_origin.get<URL::Origin>();
-            if (!document()->origin().is_same_origin(actual_target_origin))
-                return;
-        }
-
-        // 2. Let origin be the incumbentSettings's origin.
-        auto const& origin = incumbent_settings.origin();
-
-        // 3. Let source be the WindowProxy object corresponding to incumbentSettings's global object (a Window object).
-        auto& source = as<WindowProxy>(incumbent_settings.realm().global_environment().global_this_value());
-
-        TemporaryExecutionContext temporary_execution_context { target_realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
-
-        // 4. Let deserializeRecord be StructuredDeserializeWithTransfer(serializeWithTransferResult, targetRealm).
-        auto deserialize_record_or_error = structured_deserialize_with_transfer(serialize_with_transfer_result, target_realm);
-
-        // If this throws an exception, catch it, fire an event named messageerror at targetWindow, using MessageEvent,
-        // with its origin initialized to origin and the source attribute initialized to source, and then return.
-        if (deserialize_record_or_error.is_exception()) {
-            MessageEventInit message_event_init { {}, JS::js_null(), Utf16String {}, Utf16String {}, {}, GC::Ref { source } };
-
-            auto message_error_event = MessageEvent::create(target_realm.global_object(), EventNames::messageerror, message_event_init, origin);
-            dispatch_event(message_error_event);
-            return;
-        }
-
-        // 5. Let messageClone be deserializeRecord.[[Deserialized]].
-        auto deserialize_record = deserialize_record_or_error.release_value();
-        auto message_clone = deserialize_record.deserialized;
-
-        // 6. Let newPorts be a new frozen array consisting of all MessagePort objects in deserializeRecord.[[TransferredValues]],
-        //    if any, maintaining their relative order.
-        // FIXME: Use a FrozenArray
-        auto new_ports = Bindings::message_ports_from_transferred_values(deserialize_record.transferred_values);
-
-        // 7. Fire an event named message at targetWindow, using MessageEvent, with its origin initialized to origin,
-        //    the source attribute initialized to source, the data attribute initialized to messageClone, and the ports
-        //    attribute initialized to newPorts.
-        MessageEventInit message_event_init { {}, message_clone, Utf16String {}, Utf16String {}, move(new_ports), GC::Ref { source } };
-
-        auto message_event = MessageEvent::create(target_realm.global_object(), EventNames::message, message_event_init, origin);
-        message_event->set_is_trusted(true);
-        dispatch_event(message_event);
+    queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(GC::Heap::the(), [this, prepared = move(prepared)]() mutable {
+        deliver_posted_message(move(prepared.serialize_with_transfer_result), prepared.target_origin, prepared.source_origin, prepared.source);
     }));
 
     return {};
+}
+
+void Window::deliver_posted_message(SerializedTransferRecord serialize_with_transfer_result, Variant<Utf16String, URL::Origin> const& target_origin, URL::Origin const& origin, GC::Ref<WindowProxy> source)
+{
+    // 1. Let targetRealm be targetWindow's realm.
+    auto& target_realm = principal_realm();
+
+    // 1. If the targetOrigin argument is not a single literal U+002A ASTERISK character (*) and targetWindow's
+    //    associated Document's origin is not same origin with targetOrigin, then return.
+    // NOTE: Due to step 4 and 5 above, the only time it's not '*' is if target_origin contains an Origin.
+    if (!target_origin.has<Utf16String>()) {
+        auto const& actual_target_origin = target_origin.get<URL::Origin>();
+        if (!document()->origin().is_same_origin(actual_target_origin))
+            return;
+    }
+
+    // 2. Let origin be the incumbentSettings's origin.
+    // 3. Let source be the WindowProxy object corresponding to incumbentSettings's global object (a Window object).
+    // NB: Both were snapshotted by prepare_post_message().
+    NullableMessageEventSource source_for_event { source };
+
+    TemporaryExecutionContext temporary_execution_context { target_realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+    // 4. Let deserializeRecord be StructuredDeserializeWithTransfer(serializeWithTransferResult, targetRealm).
+    auto deserialize_record_or_error = structured_deserialize_with_transfer(serialize_with_transfer_result, target_realm);
+
+    // If this throws an exception, catch it, fire an event named messageerror at targetWindow, using MessageEvent,
+    // with its origin initialized to origin and the source attribute initialized to source, and then return.
+    if (deserialize_record_or_error.is_exception()) {
+        MessageEventInit message_event_init { {}, JS::js_null(), Utf16String {}, Utf16String {}, {}, source_for_event };
+
+        auto message_error_event = MessageEvent::create(target_realm.global_object(), EventNames::messageerror, message_event_init, origin);
+        dispatch_event(message_error_event);
+        return;
+    }
+
+    // 5. Let messageClone be deserializeRecord.[[Deserialized]].
+    auto deserialize_record = deserialize_record_or_error.release_value();
+    auto message_clone = deserialize_record.deserialized;
+
+    // 6. Let newPorts be a new frozen array consisting of all MessagePort objects in deserializeRecord.[[TransferredValues]],
+    //    if any, maintaining their relative order.
+    // FIXME: Use a FrozenArray
+    auto new_ports = Bindings::message_ports_from_transferred_values(deserialize_record.transferred_values);
+
+    // 7. Fire an event named message at targetWindow, using MessageEvent, with its origin initialized to origin,
+    //    the source attribute initialized to source, the data attribute initialized to messageClone, and the ports
+    //    attribute initialized to newPorts.
+    MessageEventInit message_event_init { {}, message_clone, Utf16String {}, Utf16String {}, move(new_ports), source_for_event };
+
+    auto message_event = MessageEvent::create(target_realm.global_object(), EventNames::message, message_event_init, origin);
+    message_event->set_is_trusted(true);
+    dispatch_event(message_event);
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-window-postmessage-options

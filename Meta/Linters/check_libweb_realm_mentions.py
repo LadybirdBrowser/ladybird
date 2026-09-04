@@ -54,8 +54,8 @@ ALLOWED_REALM_MENTIONS = {
     "Geometry": (8, 8, "geometry constructors and structured clone still materialize JS-facing geometry objects"),
     "HTML": (
         64,
-        208,
-        "HTML algorithms still contain structured serialization, canvas, navigation transfer/reconstruction, worker, and event realm use",
+        210,
+        "HTML algorithms still contain structured serialization, including posted-message preparation, canvas, navigation transfer/reconstruction, worker, and event realm use",
     ),
     "IndexedDB": (
         14,

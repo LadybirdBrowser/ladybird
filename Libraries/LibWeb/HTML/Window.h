@@ -221,6 +221,14 @@ public:
         Utf16String target_origin;
     };
     WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, PostMessageOptions const&);
+    struct PreparedPostMessage {
+        SerializedTransferRecord serialize_with_transfer_result;
+        Variant<Utf16String, URL::Origin> target_origin;
+        URL::Origin source_origin;
+        GC::Ref<WindowProxy> source;
+    };
+    static WebIDL::ExceptionOr<PreparedPostMessage> prepare_post_message(JS::Realm&, JS::Value message, PostMessageOptions const&);
+    void deliver_posted_message(SerializedTransferRecord, Variant<Utf16String, URL::Origin> const& target_origin, URL::Origin const& source_origin, GC::Ref<WindowProxy> source);
 
     Variant<GC::Ref<DOM::Event>, Empty> event() const;
 
