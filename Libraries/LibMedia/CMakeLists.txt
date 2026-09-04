@@ -72,11 +72,19 @@ set(GENERATED_SOURCES
     VideoPresentation/VideoPresentationServerEndpoint.h
 )
 
+if (APPLE)
+    list(APPEND SOURCES VideoToolbox/VideoToolboxVideoDecoder.mm)
+endif()
+
 compile_ipc(VideoPresentation/VideoPresentationClient.ipc VideoPresentation/VideoPresentationClientEndpoint.h)
 compile_ipc(VideoPresentation/VideoPresentationServer.ipc VideoPresentation/VideoPresentationServerEndpoint.h)
 
 ladybird_lib(LibMedia media EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibIPC LibGfx LibSync LibThreading LibUnicode)
+
+if (APPLE)
+    target_link_libraries(LibMedia PRIVATE "-framework VideoToolbox" "-framework CoreMedia" "-framework CoreVideo")
+endif()
 
 target_sources(LibMedia PRIVATE
         FFmpeg/FFmpegAudioConverter.cpp

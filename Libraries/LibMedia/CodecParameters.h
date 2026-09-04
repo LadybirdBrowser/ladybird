@@ -6,9 +6,11 @@
 
 #pragma once
 
+#include <AK/HashFunctions.h>
 #include <AK/Optional.h>
 #include <AK/StdLibExtras.h>
 #include <AK/StringView.h>
+#include <AK/Traits.h>
 #include <LibMedia/CodecID.h>
 #include <LibMedia/Codecs/AAC.h>
 #include <LibMedia/Codecs/AV1.h>
@@ -58,6 +60,49 @@ public:
 
     constexpr CodecID codec_id() const { return m_codec_id; }
     constexpr bool has_parameters() const { return m_parameters.has_value(); }
+
+    constexpr unsigned hash() const
+    {
+        auto codec_hash = u32_hash(to_underlying(m_codec_id));
+        if (!m_parameters.has_value())
+            return codec_hash;
+
+        switch (m_codec_id) {
+        case CodecID::AV1:
+            return pair_int_hash(codec_hash, pair_int_hash(m_parameters->av1.profile, m_parameters->av1.bit_depth));
+        case CodecID::H264:
+            return pair_int_hash(codec_hash, pair_int_hash(m_parameters->h264.profile_idc, m_parameters->h264.level_idc));
+        case CodecID::H265:
+            return pair_int_hash(codec_hash, pair_int_hash(m_parameters->h265.profile_idc, m_parameters->h265.level_idc));
+        case CodecID::VP9:
+            return pair_int_hash(codec_hash, pair_int_hash(m_parameters->vp9.profile, m_parameters->vp9.bit_depth));
+        default:
+            return codec_hash;
+        }
+    }
+
+    constexpr bool operator==(ParsedCodec const& other) const
+    {
+        if (m_codec_id != other.m_codec_id || m_parameters.has_value() != other.m_parameters.has_value())
+            return false;
+        if (!m_parameters.has_value())
+            return true;
+
+        switch (m_codec_id) {
+        case CodecID::AAC:
+            return m_parameters->aac == other.m_parameters->aac;
+        case CodecID::AV1:
+            return m_parameters->av1 == other.m_parameters->av1;
+        case CodecID::H264:
+            return m_parameters->h264 == other.m_parameters->h264;
+        case CodecID::H265:
+            return m_parameters->h265 == other.m_parameters->h265;
+        case CodecID::VP9:
+            return m_parameters->vp9 == other.m_parameters->vp9;
+        default:
+            return true;
+        }
+    }
 
     constexpr bool is_fully_specified() const
     {
@@ -173,5 +218,14 @@ private:
 static_assert(IsTriviallyCopyable<ParsedCodec>);
 
 MEDIA_API Optional<ParsedCodec> parse_codec_parameters_string(StringView);
+
+}
+
+namespace AK {
+
+template<>
+struct Traits<Media::ParsedCodec> : public DefaultTraits<Media::ParsedCodec> {
+    static unsigned hash(Media::ParsedCodec const& codec) { return codec.hash(); }
+};
 
 }

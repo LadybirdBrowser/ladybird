@@ -34,6 +34,10 @@ set(TEST_SOURCES
     TestWav.cpp
 )
 
+if (APPLE)
+    list(APPEND TEST_SOURCES TestVideoToolboxDecode.cpp)
+endif()
+
 foreach(source IN LISTS TEST_SOURCES)
     ladybird_test("${source}" LibMedia LIBS LibMedia LibFileSystem LibSync)
 endforeach()
