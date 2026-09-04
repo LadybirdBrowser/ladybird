@@ -106,7 +106,11 @@ WEB_API void repaint_after_style_change(Layout::Node const&, CSS::RequiredInvali
 WEB_API void clear_overflow_data(Layout::Node const&);
 WEB_API void clear_cached_overflow_data(Layout::Node const&);
 
-WEB_API void inline_piece_border_box_rects(Layout::Node const&, Vector<CSSPixelRect>&);
+WEB_API Layout::RustFFI::FfiRectToViewportTransform identity_rect_to_viewport_transform();
+WEB_API Layout::RustFFI::FfiRectToViewportTransform rect_to_viewport_transform(DOM::Document const&, AccumulatedVisualContextTree const&);
+WEB_API Vector<CSSPixelRect> client_rects(Layout::Node const&, Layout::RustFFI::FfiRectToViewportTransform const&);
+WEB_API CSSPixelRect bounding_client_rect(Layout::Node const&, Layout::RustFFI::FfiRectToViewportTransform const&);
+
 WEB_API CSSPixelPoint cumulative_scroll_compensation(Layout::Node const&);
 
 }

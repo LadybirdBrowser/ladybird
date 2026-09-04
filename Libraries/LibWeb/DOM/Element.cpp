@@ -2714,141 +2714,62 @@ bool Element::serializes_as_void() const
     return is_void_element() || local_name().is_one_of(HTML::TagNames::basefont, HTML::TagNames::bgsound, HTML::TagNames::frame, HTML::TagNames::keygen);
 }
 
-static CSSPixelRect bounding_rect_from_client_rects(Vector<CSSPixelRect> const& list)
+template<typename QueryResult>
+static QueryResult query_client_rects_after_layout_update(Element const& element, auto&& query)
 {
-    // 2. If the list is empty return a DOMRect object whose x, y, width and height members are zero.
-    if (list.size() == 0)
-        return { 0, 0, 0, 0 };
+    auto& document = element.document();
+    if (!document.navigable())
+        return QueryResult {};
 
-    // 3. If all rectangles in list have zero width or height, return the first rectangle in list.
-    auto all_rectangle_has_zero_width_or_height = true;
-    for (auto i = 0u; i < list.size(); ++i) {
-        auto const& rect = list.at(i);
-        if (rect.width() != 0 && rect.height() != 0) {
-            all_rectangle_has_zero_width_or_height = false;
-            break;
-        }
-    }
-    if (all_rectangle_has_zero_width_or_height)
-        return list.at(0);
+    // NOTE: Ensure that layout is up-to-date before looking at metrics.
+    const_cast<Document&>(document).update_layout_if_needed_for_node(element, UpdateLayoutReason::ElementGetClientRects);
 
-    // 4. Otherwise, return a DOMRect object describing the smallest rectangle that includes all of the rectangles in
-    //    list of which the height or width is not zero.
-    auto bounding_rect = list.at(0);
-    for (auto i = 1u; i < list.size(); ++i) {
-        auto const& rect = list.at(i);
-        if (rect.width() == 0 || rect.height() == 0)
-            continue;
-        bounding_rect.unite(rect);
-    }
-    return bounding_rect;
+    // 1. If the element on which it was invoked does not have an associated layout box return an empty DOMRectList
+    //    object and stop this algorithm.
+    auto const* layout_node = element.layout_node();
+    if (!layout_node)
+        return QueryResult {};
+
+    if (document.can_compute_client_rects_without_accumulated_visual_contexts_update(*layout_node))
+        return query(*layout_node, Painting::identity_rect_to_viewport_transform());
+
+    // NOTE: Make sure CSS transforms are resolved before they are used to calculate the rect position.
+    const_cast<Document&>(document).update_paint_and_hit_testing_properties_if_needed();
+
+    auto visual_context_tree = document.visual_context_tree();
+    return query(*layout_node, Painting::rect_to_viewport_transform(document, visual_context_tree));
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-getboundingclientrect
 CSSPixelRect Element::get_bounding_client_rect() const
 {
     // 1. Let list be the result of invoking getClientRects() on element.
-    return bounding_rect_from_client_rects(get_client_rects());
-}
-
-enum class VisualContextTransform {
-    Apply,
-    Identity,
-};
-
-static void append_border_box_rect(Vector<CSSPixelRect>& rects, Layout::Node const& layout_node, VisualContextTransform visual_context_transform, Painting::AccumulatedVisualContextTree const* visual_context_tree = nullptr)
-{
-    auto absolute_rect = Painting::absolute_border_box_rect(layout_node);
-    if (visual_context_transform == VisualContextTransform::Identity)
-        rects.append(absolute_rect);
-    else if (visual_context_tree)
-        rects.append(Painting::transform_rect_to_viewport(layout_node, absolute_rect, *visual_context_tree, Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No));
-    else
-        rects.append(Painting::transform_rect_to_viewport(layout_node, absolute_rect, Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No));
-}
-
-static Vector<CSSPixelRect> compute_client_rects_assuming_layout_clean(Element const& element, VisualContextTransform visual_context_transform = VisualContextTransform::Apply, Painting::AccumulatedVisualContextTree const* visual_context_tree = nullptr)
-{
-    // 1. If the element on which it was invoked does not have an associated layout box return an empty DOMRectList
-    //    object and stop this algorithm.
-    auto const* layout_node = element.layout_node();
-    if (!layout_node)
-        return {};
-
-    // FIXME: 2. If the element has an associated SVG layout box return a DOMRectList object containing a single
-    //          DOMRect object that describes the bounding box of the element as defined by the SVG specification,
-    //          applying the transforms that apply to the element and its ancestors.
-
-    // 3. Return a DOMRectList object containing DOMRect objects in content order, one for each box fragment,
-    // describing its border area (including those with a height or width of zero) with the following constraints:
-    // - Apply the transforms that apply to the element and its ancestors.
-    // FIXME: - If the element on which the method was invoked has a computed value for the display property of table
-    //          or inline-table include both the table box and the caption box, if any, but not the anonymous container box.
-    // FIXME: - Replace each anonymous block box with its child box(es) and repeat this until no anonymous block boxes
-    //          are left in the final list.
-
-    Vector<CSSPixelRect> rects;
-    if (Painting::is_inline_paintable(*layout_node)) {
-        Vector<CSSPixelRect> piece_border_box_rects;
-        Painting::inline_piece_border_box_rects(*layout_node, piece_border_box_rects);
-        for (auto const& absolute_rect : piece_border_box_rects) {
-            if (visual_context_transform == VisualContextTransform::Identity)
-                rects.append(absolute_rect);
-            else if (visual_context_tree)
-                rects.append(Painting::transform_rect_to_viewport(*layout_node, absolute_rect, *visual_context_tree, Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No));
-            else
-                rects.append(Painting::transform_rect_to_viewport(*layout_node, absolute_rect, Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No));
-        }
-        // An inline element whose content is only interrupting blocks generates no line fragments, but per CSSOM
-        // we still report its (zero-sized) border area instead of an empty list.
-        if (rects.is_empty())
-            append_border_box_rect(rects, *layout_node, visual_context_transform, visual_context_tree);
-        return rects;
-    }
-
-    if (Painting::has_committed_box(*layout_node))
-        append_border_box_rect(rects, *layout_node, visual_context_transform, visual_context_tree);
-
-    return rects;
+    return query_client_rects_after_layout_update<CSSPixelRect>(*this, [](Layout::Node const& layout_node, auto const& rect_to_viewport_transform) {
+        return Painting::bounding_client_rect(layout_node, rect_to_viewport_transform);
+    });
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-getclientrects
 Vector<CSSPixelRect> Element::get_client_rects() const
 {
-    auto navigable = document().navigable();
-    if (!navigable)
-        return {};
-
-    // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document()).update_layout_if_needed_for_node(*this, UpdateLayoutReason::ElementGetClientRects);
-
-    if (!layout_node())
-        return {};
-
-    if (document().can_compute_client_rects_without_accumulated_visual_contexts_update(*layout_node()))
-        return compute_client_rects_assuming_layout_clean(*this, VisualContextTransform::Identity);
-
-    // NOTE: Make sure CSS transforms are resolved before they are used to calculate the rect position.
-    const_cast<Document&>(document()).update_paint_and_hit_testing_properties_if_needed();
-
-    return compute_client_rects_assuming_layout_clean(*this);
-}
-
-Vector<CSSPixelRect> Element::client_rects_assuming_layout_clean() const
-{
-    if (!document().navigable())
-        return {};
-    return compute_client_rects_assuming_layout_clean(*this);
+    return query_client_rects_after_layout_update<Vector<CSSPixelRect>>(*this, [](Layout::Node const& layout_node, auto const& rect_to_viewport_transform) {
+        return Painting::client_rects(layout_node, rect_to_viewport_transform);
+    });
 }
 
 CSSPixelRect Element::bounding_client_rect_assuming_layout_clean() const
 {
-    return bounding_rect_from_client_rects(client_rects_assuming_layout_clean());
+    if (!document().navigable())
+        return {};
+    return bounding_client_rect_assuming_layout_clean(document().visual_context_tree());
 }
 
 CSSPixelRect Element::bounding_client_rect_assuming_layout_clean(Painting::AccumulatedVisualContextTree const& visual_context_tree) const
 {
-    return bounding_rect_from_client_rects(compute_client_rects_assuming_layout_clean(*this, VisualContextTransform::Apply, &visual_context_tree));
+    auto const* layout_node = this->layout_node();
+    if (!layout_node)
+        return {};
+    return Painting::bounding_client_rect(*layout_node, Painting::rect_to_viewport_transform(document(), visual_context_tree));
 }
 
 int Element::client_top() const
