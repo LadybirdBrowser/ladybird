@@ -243,7 +243,11 @@ void record_element_connected(DOM::Element& element)
 
 void publish_pending_element_features(StyleEngine& style_engine, StyleComputer& style_computer)
 {
-    for (auto node : style_engine.take_deferred_element_initial_features()) {
+    auto nodes = style_engine.take_deferred_element_initial_features().values();
+    // Feature postings are ordered by node identity. Publish arrivals in that order so growing
+    // their indexes appends members instead of repeatedly searching and splitting posting chunks.
+    quick_sort(nodes);
+    for (auto node : nodes) {
         if (auto element = style_computer.element_for_style_node(node))
             record_element_initial_features(*element);
     }
@@ -303,7 +307,7 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
     auto is_slot = is<HTML::HTMLSlotElement>(element);
     StyleAtomID namespace_atom;
     if (auto const& namespace_uri = element.namespace_uri(); namespace_uri.has_value() && !namespace_uri->is_empty())
-        namespace_atom = style_engine.intern_case_sensitive_text_atom(namespace_uri->view());
+        namespace_atom = style_engine.intern_atom(*namespace_uri);
 
     publish_feature(StyleEngineFFI::FfiFeatureKind::TagName, StyleAtomID {}, StyleEngineFFI::FfiFeatureValueKind::Atom, style_engine.intern_atom(element.local_name()));
     if (auto folded_name = element.local_name().to_ascii_lowercase(); folded_name != element.local_name())
@@ -329,15 +333,17 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
     auto states = SelectorMatching::element_states(element);
     for (size_t index = 0; index < to_underlying(PseudoClass::__Count); ++index) {
         auto pseudo_class = static_cast<PseudoClass>(index);
+        if (!states.get(pseudo_class))
+            continue;
         auto fact = state_fact_for(pseudo_class);
-        if (fact.has_value() && states.get(pseudo_class))
+        if (fact.has_value())
             style_engine.record_state_delta({ .node = node.value(), .fact = *fact, .new_value = true });
     }
 
     auto const language = element.lang_view();
     auto language_atom = language.has_value() ? style_engine.intern_language_atom(*language) : StyleAtomID {};
-    auto const directionality = element.directionality() == DOM::Element::Directionality::Rtl ? "rtl"sv : "ltr"sv;
-    auto directionality_atom = style_engine.intern_text_atom(Utf16View { directionality });
+    auto const directionality = element.directionality() == DOM::Element::Directionality::Rtl ? "rtl"_utf16_fly_string : "ltr"_utf16_fly_string;
+    auto directionality_atom = style_engine.intern_atom(directionality);
     if (invalidate_language_cache == InvalidateLanguageCache::Yes)
         element.invalidate_lang_value();
 
