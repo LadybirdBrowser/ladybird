@@ -12,6 +12,7 @@
 #include <LibMedia/DecoderCapabilities.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/VideoDecoder.h>
+#include <LibMedia/VideoFramePool.h>
 
 #include "FFmpegForward.h"
 
@@ -21,20 +22,24 @@ class MEDIA_API FFmpegVideoDecoder final : public VideoDecoder {
 public:
     static Optional<DecoderCapabilities> capabilities(ParsedCodec const&);
     static DecoderErrorOr<NonnullOwnPtr<FFmpegVideoDecoder>> try_create(CodecID, ReadonlyBytes codec_initialization_data);
-    FFmpegVideoDecoder(AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame);
+    FFmpegVideoDecoder(AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame, NonnullRefPtr<VideoFramePool> frame_pool);
     virtual ~FFmpegVideoDecoder() override;
+
+    virtual void set_storage_freed_callback(Function<void()> callback) override { m_frame_pool->set_slot_freed_callback(move(callback)); }
 
     virtual DecoderErrorOr<void> receive_coded_data(CodedFrame const&, DecodeIntent) override;
     virtual void signal_end_of_stream() override;
-    virtual DecoderErrorOr<VideoFrameMetadata> peek_next_output(CodingIndependentCodePoints const& container_cicp) override;
-    virtual DecoderErrorOr<void> take_next_output_into(Gfx::YUVData&) override;
+    virtual DecoderErrorOr<NonnullRefPtr<VideoFrame>> take_next_output(CodingIndependentCodePoints const& container_cicp) override;
 
     virtual void flush() override;
 
 private:
+    DecoderErrorOr<void> copy_pending_frame_into(Gfx::YUVData&);
+
     AVCodecContext* m_codec_context;
     AVPacket* m_packet;
     AVFrame* m_frame;
+    NonnullRefPtr<VideoFramePool> m_frame_pool;
     bool m_has_pending_frame { false };
 
     HashTable<i64> m_reference_only_presentation_timestamps;

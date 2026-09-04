@@ -6,13 +6,11 @@
 
 #pragma once
 
-#include <AK/FixedArray.h>
 #include <AK/Function.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Optional.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
-#include <LibGfx/YUVData.h>
 #include <LibMedia/Audio/ChannelMap.h>
 #include <LibMedia/CodedFrame.h>
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
@@ -70,24 +68,16 @@ static inline void decode_video(StringView path, size_t expected_frame_count, T 
                 move(frame) };
             MUST(decoder->receive_coded_data(coded_frame, Media::DecodeIntent::Output));
             while (true) {
-                auto metadata_result = decoder->peek_next_output({});
-                if (metadata_result.is_error()) {
-                    if (metadata_result.error().category() == Media::DecoderErrorCategory::NeedsMoreInput)
+                auto decoded_frame_result = decoder->take_next_output({});
+                if (decoded_frame_result.is_error()) {
+                    if (decoded_frame_result.error().category() == Media::DecoderErrorCategory::NeedsMoreInput)
                         break;
                     VERIFY_NOT_REACHED();
                 }
-                auto metadata = metadata_result.release_value();
+                auto decoded_frame = decoded_frame_result.release_value();
 
-                auto plane_sizes = MUST(Gfx::YUVData::plane_sizes(metadata.size, metadata.bit_depth, metadata.subsampling));
-                auto storage = MUST(FixedArray<u8>::create(plane_sizes.total));
-                auto yuv_data = MUST(Gfx::YUVData::create(metadata.size, metadata.bit_depth, metadata.subsampling, metadata.cicp,
-                    storage.span().slice(0, plane_sizes.y),
-                    storage.span().slice(plane_sizes.y, plane_sizes.u),
-                    storage.span().slice(plane_sizes.y + plane_sizes.u, plane_sizes.v)));
-                MUST(decoder->take_next_output_into(yuv_data));
-
-                EXPECT(last_timestamp <= metadata.timestamp);
-                last_timestamp = metadata.timestamp;
+                EXPECT(last_timestamp <= decoded_frame->timestamp());
+                last_timestamp = decoded_frame->timestamp();
             }
             frame_count++;
         }

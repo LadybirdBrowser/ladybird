@@ -63,7 +63,8 @@ TEST_CASE(suspension_wake_releases_the_prefetched_frame)
     never_destroyed_event_loop();
 
     size_t freed_slots = 0;
-    auto pool = MUST(Media::VideoFramePool::create([&freed_slots] { freed_slots++; }));
+    auto pool = MUST(Media::VideoFramePool::create());
+    pool->set_slot_freed_callback([&freed_slots] { freed_slots++; });
     auto clock = MUST(Media::MonotonicMediaClock::try_create());
     clock->seek(AK::Duration::from_milliseconds(1000));
 

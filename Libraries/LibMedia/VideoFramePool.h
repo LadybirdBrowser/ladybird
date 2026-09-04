@@ -32,6 +32,10 @@ public:
 
     VideoFramePoolID id() const { return m_id; }
 
+    // The callback runs on whichever thread frees a slot, without the ledger's lock held, and may run concurrently
+    // with itself when separate slots are freed at once.
+    void set_slot_freed_callback(Function<void()>);
+
     void add_hold(u32 slot_index);
     void release_hold(u32 slot_index);
 
@@ -42,9 +46,7 @@ public:
     RefPtr<VideoSurface> slot_surface(u32 slot_index) const;
 
 protected:
-    // The slot-freed callback runs on whichever thread frees a slot, without the ledger's lock held, and may run
-    // concurrently with itself when separate slots are freed at once.
-    explicit VideoFrameEntryLedger(Function<void()> slot_freed_callback);
+    VideoFrameEntryLedger();
 
     ErrorOr<NonnullRefPtr<PooledVideoFrameSlot>> try_adopt_slot(u32 slot_index, u64 slot_acquisition_id, u64 allocated_buffer_id);
 
@@ -69,7 +71,7 @@ protected:
 
 private:
     VideoFramePoolID const m_id;
-    Function<void()> const m_slot_freed_callback;
+    Function<void()> m_slot_freed_callback;
 };
 
 // A pool of shared-memory framebuffers that are allocated on demand up to a limited budget. Each slot's buffer fd must
@@ -81,7 +83,7 @@ public:
     static constexpr u32 MAX_SLOT_COUNT = 8;
     static constexpr size_t DEFAULT_BYTE_BUDGET = 256 * MiB;
 
-    static ErrorOr<NonnullRefPtr<VideoFramePool>> create(Function<void()> slot_freed_callback = nullptr, size_t byte_budget = DEFAULT_BYTE_BUDGET);
+    static ErrorOr<NonnullRefPtr<VideoFramePool>> create(size_t byte_budget = DEFAULT_BYTE_BUDGET);
 
     struct AcquiredSlot {
         u32 index { 0 };
@@ -99,7 +101,7 @@ public:
     size_t allocated_byte_count() const;
 
 private:
-    VideoFramePool(Function<void()> slot_freed_callback, size_t byte_budget);
+    explicit VideoFramePool(size_t byte_budget);
 
     void slot_freed_while_locked(Slot&) override;
 
@@ -118,7 +120,7 @@ class MEDIA_API VideoFrameSurfacePool final : public VideoFrameEntryLedger {
 public:
     static constexpr u32 MAX_SLOT_COUNT = 8;
 
-    static ErrorOr<NonnullRefPtr<VideoFrameSurfacePool>> create(Function<void()> slot_freed_callback = nullptr);
+    static ErrorOr<NonnullRefPtr<VideoFrameSurfacePool>> create();
 
     struct AcquiredSlot {
         u32 index { 0 };
@@ -130,7 +132,7 @@ public:
     ErrorOr<NonnullRefPtr<PooledVideoFrameSlot>> try_adopt_acquired_slot(AcquiredSlot const&);
 
 private:
-    explicit VideoFrameSurfacePool(Function<void()> slot_freed_callback);
+    VideoFrameSurfacePool() = default;
 
     HashMap<u32, u32> m_slot_indices_by_surface_id;
 };
