@@ -6,6 +6,10 @@
 
 //! Rust views of shared AK data structures.
 
+mod scope_guard;
+
+pub use scope_guard::ScopeGuard;
+
 use std::sync::atomic::{AtomicU32, Ordering};
 
 const SHORT_STRING_FLAG: usize = 1;
