@@ -8,6 +8,7 @@ pub mod border_radii;
 mod caret;
 pub(crate) mod chrome_geometry;
 pub(crate) mod client_rects;
+pub(crate) mod content_visibility;
 mod devtools_layout;
 pub mod display_list;
 mod dump;

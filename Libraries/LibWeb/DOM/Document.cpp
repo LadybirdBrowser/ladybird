@@ -2551,21 +2551,11 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
 void Document::collect_boxes_with_auto_content_visibility()
 {
     Vector<Layout::RustFFI::NodeSlotId> boxes_with_auto_content_visibility;
-    unsafe_layout_node()->for_each_in_inclusive_subtree([&](Layout::Node& node) {
-        switch (node.kind()) {
-        case Layout::RustFFI::NodeKind::SVGMaskBox:
-        case Layout::RustFFI::NodeKind::SVGClipBox:
-        case Layout::RustFFI::NodeKind::SVGPatternBox:
-            return TraversalDecision::SkipChildrenAndContinue;
-        default:
-            break;
-        }
-        auto const* node_with_style = as_if<Layout::NodeWithStyle>(node);
-        if (Painting::has_committed_box(node) && node.dom_node() && node.dom_node()->is_element()
-            && node_with_style && node_with_style->content_visibility() == CSS::ContentVisibility::Auto)
-            boxes_with_auto_content_visibility.append(Painting::committed_row_slot(node));
-        return TraversalDecision::Continue;
-    });
+    Layout::RustFFI::layout_arena_collect_boxes_with_auto_content_visibility(
+        layout_node_arena().handle(), Layout::Node::slot_id(unsafe_layout_node()), &boxes_with_auto_content_visibility,
+        [](void* context, Layout::RustFFI::NodeSlotId slot) {
+            static_cast<Vector<Layout::RustFFI::NodeSlotId>*>(context)->append(slot);
+        });
     paint_state().set_boxes_with_auto_content_visibility(move(boxes_with_auto_content_visibility));
 }
 

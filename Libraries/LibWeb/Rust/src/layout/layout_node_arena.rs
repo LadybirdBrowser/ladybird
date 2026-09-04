@@ -1243,14 +1243,25 @@ impl LayoutNodeArena {
         root: NodeSlotId,
         mut callback: impl FnMut(NodeSlotId),
     ) {
+        self.for_each_node_in_layout_subtree_in_pre_order_with_pruning(root, |node| {
+            callback(node);
+            true
+        });
+    }
+
+    pub(crate) fn for_each_node_in_layout_subtree_in_pre_order_with_pruning(
+        &self,
+        root: NodeSlotId,
+        mut visit_node_and_report_whether_to_descend: impl FnMut(NodeSlotId) -> bool,
+    ) {
         let mut current = root;
         loop {
-            callback(current);
+            let descend_into_children = visit_node_and_report_whether_to_descend(current);
             let data = self.data(current);
             let (parent, first_child, next_sibling) =
                 { (data.parent.get(), data.first_child.get(), data.next_sibling.get()) };
 
-            if !first_child.is_invalid() {
+            if descend_into_children && !first_child.is_invalid() {
                 current = first_child;
                 continue;
             }
@@ -2401,6 +2412,14 @@ impl LayoutNodeArena {
             return std::ptr::null_mut();
         }
         self.dom_nodes[id.slot_index() as usize].get()
+    }
+
+    pub(crate) fn node_dom_node_is_element(&self, id: NodeSlotId) -> bool {
+        if self.node_dom_node(id).is_null() {
+            return false;
+        }
+        let kind = self.data(id).kind.get();
+        kind != NodeKind::Viewport && !crate::layout::node_facts::kind_is_text(kind)
     }
 
     pub(crate) fn previous_dom_backed_or_generated_node(
