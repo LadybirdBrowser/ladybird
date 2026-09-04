@@ -502,7 +502,7 @@ JS::ThrowCompletionOr<bool> cross_origin_set(JS::VM& vm, JS::Object& object, JS:
 }
 
 // 7.2.3.7 CrossOriginOwnPropertyKeys ( O ), https://html.spec.whatwg.org/multipage/browsers.html#crossoriginownpropertykeys-(-o-)
-static GC::RootVector<JS::Value> cross_origin_own_property_keys_impl(Variant<HTML::Location const*, HTML::Window const*> const& object)
+static GC::RootVector<JS::Value> cross_origin_own_property_keys_impl(Vector<CrossOriginProperty> const& properties)
 {
     auto& event_loop = HTML::main_thread_event_loop();
     auto& vm = event_loop.vm();
@@ -511,7 +511,7 @@ static GC::RootVector<JS::Value> cross_origin_own_property_keys_impl(Variant<HTM
     GC::RootVector<JS::Value> keys;
 
     // 2. For each e of CrossOriginProperties(O), append e.[[Property]] to keys.
-    for (auto& entry : cross_origin_properties(object))
+    for (auto const& entry : properties)
         keys.append(JS::PrimitiveString::create(vm, entry.property));
 
     // 3. Return the concatenation of keys and « "then", @@toStringTag, @@hasInstance, @@isConcatSpreadable ».
@@ -524,12 +524,17 @@ static GC::RootVector<JS::Value> cross_origin_own_property_keys_impl(Variant<HTM
 
 GC::RootVector<JS::Value> cross_origin_own_property_keys(HTML::Location const& location)
 {
-    return cross_origin_own_property_keys_impl(Variant<HTML::Location const*, HTML::Window const*> { &location });
+    return cross_origin_own_property_keys_impl(cross_origin_properties(Variant<HTML::Location const*, HTML::Window const*> { &location }));
 }
 
-GC::RootVector<JS::Value> cross_origin_own_property_keys(HTML::Window const& window)
+GC::RootVector<JS::Value> cross_origin_own_property_keys(HTML::Window const&)
 {
-    return cross_origin_own_property_keys_impl(Variant<HTML::Location const*, HTML::Window const*> { &window });
+    return cross_origin_window_own_property_keys();
+}
+
+GC::RootVector<JS::Value> cross_origin_window_own_property_keys()
+{
+    return cross_origin_own_property_keys_impl(cross_origin_window_properties());
 }
 
 }
