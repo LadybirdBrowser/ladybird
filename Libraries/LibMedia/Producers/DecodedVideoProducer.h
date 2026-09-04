@@ -16,6 +16,7 @@
 #include <LibCore/Forward.h>
 #include <LibMedia/CodedFrame.h>
 #include <LibMedia/DecoderError.h>
+#include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
@@ -72,6 +73,9 @@ private:
         void set_wake_handler(PipelineWakeHandler);
 
         void start();
+        VideoDecoderSelection select_decoder_for_frame(CodedFrame const&, VideoDecoderSelection after = {}) const;
+        void replace_decoder_once_drained(CodedFrame const&, DecodeIntent);
+        DecoderErrorOr<void> receive_into_decoder(CodedFrame const&, DecodeIntent);
         DecoderErrorOr<void> create_decoder_for_frame(CodedFrame const&);
         DecoderErrorOr<void> receive_coded_frame(CodedFrame const&, DecodeIntent);
         DecoderErrorOr<bool> replace_drained_decoder();
@@ -135,6 +139,8 @@ private:
         NonnullRefPtr<Demuxer> m_demuxer;
         Track m_track;
         CodecID m_decoder_codec_id { CodecID::Unknown };
+        VideoDecoderSelection m_decoder_selection;
+        VideoDecoderSelection m_decoder_that_failed_due_to_missing_features;
         Optional<CodedFrame> m_frame_awaiting_decoder_replacement;
         DecodeIntent m_intent_awaiting_decoder_replacement { DecodeIntent::Output };
         OwnPtr<VideoDecoder> m_decoder;

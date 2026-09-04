@@ -4,8 +4,31 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/FixedArray.h>
+#include <LibCore/File.h>
 #include <LibMedia/CodecParameters.h>
+#include <LibMedia/CodedFrame.h>
+#include <LibMedia/Demuxer.h>
+#include <LibMedia/DemuxerRegistry.h>
+#include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibTest/TestCase.h>
+
+namespace {
+
+Media::CodedFrame vp9_coded_frame(ReadonlyBytes data, Optional<ReadonlyBytes> configuration_record = {})
+{
+    auto copy_of = [](ReadonlyBytes bytes) {
+        auto storage = MUST(FixedArray<u8>::create(bytes.size()));
+        bytes.copy_to(storage.span());
+        return storage;
+    };
+    Optional<FixedArray<u8>> configuration;
+    if (configuration_record.has_value())
+        configuration = copy_of(*configuration_record);
+    return Media::CodedFrame { Media::CodecID::VP9, {}, {}, {}, Media::FrameFlags::Keyframe, copy_of(data), move(configuration) };
+}
+
+}
 
 TEST_CASE(simple_codec_strings)
 {
@@ -293,4 +316,44 @@ TEST_CASE(fully_specified_codec_parameters)
         EXPECT(codec.has_value());
         EXPECT(codec->is_fully_specified());
     }
+}
+
+TEST_CASE(a_configuration_record_on_a_frame_describes_its_stream)
+{
+    // A vpcC payload for profile 2, 10-bit 4:2:0, which begins after the box's version and flags.
+    Array<u8, 8> configuration_record { 2, 31, (10 << 4) | (1 << 1), 1, 1, 1, 0, 0 };
+    auto frame = vp9_coded_frame({}, configuration_record.span());
+
+    auto parsed = Media::parsed_codec_for_coded_frame(frame, Media::ParsedCodec { Media::CodecID::VP9 });
+    EXPECT_EQ(parsed.codec_id(), Media::CodecID::VP9);
+    VERIFY(parsed.vp9_parameters().has_value());
+    EXPECT_EQ(parsed.vp9_parameters()->profile, 2);
+    EXPECT_EQ(parsed.vp9_parameters()->bit_depth, 10);
+}
+
+TEST_CASE(the_container_describes_a_stream_that_carries_no_record)
+{
+    auto frame = vp9_coded_frame({});
+    auto container_codec = Media::ParsedCodec { Media::Codecs::VP9::Parameters { .profile = 1, .level = 10, .bit_depth = 8, .color_parameters = {} } };
+
+    auto parsed = Media::parsed_codec_for_coded_frame(frame, container_codec);
+    VERIFY(parsed.vp9_parameters().has_value());
+    EXPECT_EQ(parsed.vp9_parameters()->profile, 1);
+}
+
+TEST_CASE(a_stream_neither_the_frame_nor_the_container_describes_is_read_from_its_bitstream)
+{
+    auto file = MUST(Core::File::open("./vp9_in_webm.webm"sv, Core::File::OpenMode::Read));
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
+    auto demuxer = MUST(Media::create_demuxer(stream));
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video));
+    VERIFY(track.has_value());
+    MUST(demuxer->create_context_for_track(*track));
+    auto coded_frame = MUST(demuxer->get_next_sample_for_track(*track));
+
+    // Nothing but the bitstream is offered, so the profile can only have come from the frame header.
+    auto parsed = Media::parsed_codec_for_coded_frame(coded_frame, Media::ParsedCodec { Media::CodecID::VP9 });
+    VERIFY(parsed.vp9_parameters().has_value());
+    EXPECT_EQ(parsed.vp9_parameters()->profile, 0);
+    EXPECT_EQ(parsed.vp9_parameters()->bit_depth, 8);
 }
