@@ -847,6 +847,9 @@ AnimationUpdateContext::~AnimationUpdateContext()
         // animation style into.
         if (target->style_node_id() == 0)
             continue;
+        // An earlier entry already republished this style with the current animation values.
+        if (element.style_record_identity() != it.value.style_record_before_update)
+            continue;
         // Provisionally started transitions are not associated with the element yet, so they are
         // never among the collected effects, but their values are already part of the published
         // style. Collect them first, in composite order below every associated effect, or this
