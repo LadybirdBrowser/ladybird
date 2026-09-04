@@ -32,6 +32,7 @@ interface MouseEvent : UIEvent {
     boolean getModifierState([FlyString] DOMString keyArg);
 
     // https://w3c.github.io/uievents/#dom-mouseevent-initmouseevent
+    // FIXME: Spec issue: We use a WindowProxy instead of a Window: https://github.com/w3c/uievents/issues/388
     undefined initMouseEvent([FlyString] DOMString typeArg, optional boolean bubblesArg = false, optional boolean cancelableArg = false, optional WindowProxy? viewArg = null, optional long detailArg = 0, optional long screenXArg = 0, optional long screenYArg = 0, optional long clientXArg = 0, optional long clientYArg = 0, optional boolean ctrlKeyArg = false, optional boolean altKeyArg = false, optional boolean shiftKeyArg = false, optional boolean metaKeyArg = false, optional short buttonArg = 0, optional EventTarget? relatedTargetArg = null);
 };
 
