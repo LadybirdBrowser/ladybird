@@ -7,10 +7,14 @@
 //! Rust-owned custom-property data with the same structurally shared parent shape as the C++
 //! `CustomPropertyData` shell.
 
+use std::cell::Cell;
+use std::cell::RefCell;
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::ffi::c_void;
+use std::rc::Rc;
 use std::sync::Arc;
+
+use ak::ScopeGuard;
 
 use crate::css::css_tokenizer::OwnedToken;
 use crate::css::css_tokenizer::OwnedTokenKind;
@@ -400,12 +404,93 @@ enum TokenResolution {
     NotHandled,
 }
 
+// https://drafts.csswg.org/css-values-5/#substitution-context
+#[derive(PartialEq, Eq)]
+enum SubstitutionContextDependency {
+    Property(Vec<u16>),
+    // FIXME: Attribute substitution context equality should compare names ASCII-case-insensitively, as attribute lookup
+    // does.
+    Attribute(Vec<u16>),
+    Function(u64),
+}
+
+impl SubstitutionContextDependency {
+    fn is_property(&self, name: &[u16]) -> bool {
+        matches!(self, Self::Property(property_name) if property_name == name)
+    }
+}
+
+struct SubstitutionContext {
+    dependency: SubstitutionContextDependency,
+    is_cyclic: Cell<bool>,
+}
+
+impl SubstitutionContext {
+    fn new(dependency: SubstitutionContextDependency) -> Rc<Self> {
+        Rc::new(Self {
+            dependency,
+            is_cyclic: Cell::new(false),
+        })
+    }
+}
+
+#[derive(Default)]
+struct GuardedSubstitutionContexts {
+    contexts: Rc<RefCell<Vec<Rc<SubstitutionContext>>>>,
+}
+
+impl GuardedSubstitutionContexts {
+    // https://drafts.csswg.org/css-values-5/#guarded
+    fn guard(&self, context: &Rc<SubstitutionContext>) -> Option<ScopeGuard<impl FnMut() + use<>>> {
+        if self.mark_cycle_if_guarded(&context.dependency) {
+            context.is_cyclic.set(true);
+            return None;
+        }
+
+        self.contexts.borrow_mut().push(Rc::clone(context));
+
+        let contexts = Rc::clone(&self.contexts);
+        let context = Rc::clone(context);
+        Some(ScopeGuard::new(move || {
+            let popped = contexts.borrow_mut().pop().expect("guarded substitution context");
+
+            assert!(Rc::ptr_eq(&popped, &context));
+        }))
+    }
+
+    fn mark_cycle_if_guarded(&self, dependency: &SubstitutionContextDependency) -> bool {
+        let contexts = self.contexts.borrow();
+        let Some(cycle_start) = contexts.iter().position(|context| &context.dependency == dependency) else {
+            return false;
+        };
+        for context in &contexts[cycle_start..] {
+            context.is_cyclic.set(true);
+        }
+        true
+    }
+
+    fn contains_property(&self, name: &[u16]) -> bool {
+        self.contexts
+            .borrow()
+            .iter()
+            .any(|context| context.dependency.is_property(name))
+    }
+
+    fn innermost_function(&self) -> Option<u64> {
+        self.contexts
+            .borrow()
+            .iter()
+            .rev()
+            .find_map(|context| match &context.dependency {
+                SubstitutionContextDependency::Function(identity) => Some(*identity),
+                _ => None,
+            })
+    }
+}
+
 #[derive(Default)]
 struct ASFResolutionContext<'a> {
-    active_names: Vec<Vec<u16>>,
-    cyclic_names: HashSet<Vec<u16>>,
-    active_attributes: Vec<Vec<u16>>,
-    cyclic_attributes: HashSet<Vec<u16>>,
+    guarded_contexts: GuardedSubstitutionContexts,
     attributes: Option<&'a HashMap<Vec<u16>, Vec<u16>>>,
     inheritance_store: Option<&'a CustomPropertyStore>,
     inheritance_store_overrides: Vec<Option<Arc<CustomPropertyStore>>>,
@@ -419,8 +504,6 @@ struct ASFResolutionContext<'a> {
     callback_context: *mut c_void,
     evaluate_style_query: Option<unsafe extern "C" fn(*mut c_void, FfiUtf16View) -> u8>,
     final_custom_properties: Option<&'a HashMap<Vec<u16>, *const c_void>>,
-    active_functions: Vec<u64>,
-    cyclic_functions: HashSet<u64>,
     function_local_scopes: Vec<FunctionLocalScope>,
     token_cache: Option<&'a mut CustomPropertyTokenCache>,
     resolution_stats: Option<&'a VarResolutionStats>,
@@ -895,27 +978,21 @@ fn resolve_function_local_property(
             .initial_tokens
             .map_or(TokenResolution::Invalid, TokenResolution::Resolved);
     };
+    // FIXME: Include the custom function identity in the substitution context rather than the scope depth - as required
+    //        by the spec.
     let active_name = scoped_name(context.function_local_scopes.len(), name);
-    if context.cyclic_names.contains(&active_name) {
-        return TokenResolution::Invalid;
-    }
-    if let Some(cycle_start) = context.active_names.iter().position(|name| name == &active_name) {
-        context
-            .cyclic_names
-            .extend(context.active_names[cycle_start..].iter().cloned());
-        return TokenResolution::Cyclic;
-    }
-    context.active_names.push(active_name.clone());
     let mut result = if value.includes_substitution {
-        substitute_tokens(store, registry, &value.tokens, context, recursion_depth + 1)
+        substitute_arbitrary_substitution_functions(
+            store,
+            registry,
+            &value.tokens,
+            context,
+            recursion_depth + 1,
+            Some(SubstitutionContextDependency::Property(active_name)),
+        )
     } else {
         TokenResolution::Resolved(value.tokens)
     };
-    let popped = context.active_names.pop().expect("active function-local property");
-    debug_assert_eq!(popped, active_name);
-    if context.cyclic_names.contains(&active_name) {
-        return TokenResolution::Cyclic;
-    }
     if let TokenResolution::Resolved(tokens) = &result
         && let Some(keyword) = single_css_wide_keyword(tokens)
     {
@@ -1005,19 +1082,13 @@ fn resolve_custom_property_with_lookup(
         context.function_local_scopes.extend(child_scopes);
         return result;
     }
-    if lookup == CustomPropertyLookup::Normal {
-        if context.cyclic_names.contains(name) {
-            return TokenResolution::Cyclic;
-        }
-        if let Some(cycle_start) = context.active_names.iter().position(|active_name| active_name == name) {
-            // https://drafts.csswg.org/css-variables-1/#cycles
-            // If there is a cycle in the dependency graph, all the custom properties in the cycle
-            // are invalid at computed-value time.
-            context
-                .cyclic_names
-                .extend(context.active_names[cycle_start..].iter().cloned());
-            return TokenResolution::Cyclic;
-        }
+    let substitution_context = SubstitutionContextDependency::Property(name.to_owned());
+    // AD-HOC: The root custom property's unresolved value is passed directly to `resolve_vars()` rather than read
+    //         through this lookup. If it contains a `var()` that refers back to itself, this function is entered while
+    //         the caller's root context is already guarded, so mark that context cyclic before consulting stored or
+    //         cached values.
+    if lookup == CustomPropertyLookup::Normal && context.guarded_contexts.mark_cycle_if_guarded(&substitution_context) {
+        return TokenResolution::Cyclic;
     }
     if lookup == CustomPropertyLookup::Normal
         && let Some(final_values) = context.final_custom_properties
@@ -1072,24 +1143,25 @@ fn resolve_custom_property_with_lookup(
         return TokenResolution::NotHandled;
     };
     context.contains_attr_tainted_values |= contains_attr_tainted_values;
-    context.active_names.push(name.to_owned());
     if lookup == CustomPropertyLookup::ExplicitInheritance {
         context
             .inheritance_store_overrides
             .push(owner.inheritance_parent.clone());
     }
     let result = if includes_var {
-        substitute_tokens(store, registry, &source, context, recursion_depth + 1)
+        substitute_arbitrary_substitution_functions(
+            store,
+            registry,
+            &source,
+            context,
+            recursion_depth + 1,
+            Some(substitution_context),
+        )
     } else {
         TokenResolution::Resolved(source.to_vec())
     };
     if lookup == CustomPropertyLookup::ExplicitInheritance {
         context.inheritance_store_overrides.pop();
-    }
-    let active_name = context.active_names.pop().expect("active custom property");
-    debug_assert_eq!(active_name, name);
-    if registration.is_none() && context.cyclic_names.contains(name) {
-        return TokenResolution::Cyclic;
     }
     if let TokenResolution::Resolved(tokens) = &result
         && let Some(keyword) = single_css_wide_keyword(tokens)
@@ -1101,12 +1173,6 @@ fn resolve_custom_property_with_lookup(
             CustomPropertyLookup::Normal => context.inheritance_store,
             CustomPropertyLookup::ExplicitInheritance => owner.inheritance_parent.as_deref(),
         };
-        if context.cyclic_names.contains(name) {
-            if !context.active_names.is_empty() {
-                return TokenResolution::Cyclic;
-            }
-            return registered_property_fallback(inheritance_store, registry, registration, name, recursion_depth);
-        }
         return match result {
             TokenResolution::Resolved(tokens) if registration_accepts_tokens(registry, registration, &tokens) => {
                 TokenResolution::Resolved(tokens)
@@ -1153,16 +1219,8 @@ fn replace_var_function(
     };
     if let Some(name) = name {
         match resolve_custom_property(store, registry, name, context, recursion_depth) {
-            TokenResolution::Invalid => {}
-            TokenResolution::Cyclic
-                if context
-                    .active_names
-                    .last()
-                    .is_some_and(|active_name| context.cyclic_names.contains(active_name)) =>
-            {
-                return TokenResolution::Cyclic;
-            }
-            TokenResolution::Cyclic => {}
+            TokenResolution::Cyclic if comma.is_none() => return TokenResolution::Cyclic,
+            TokenResolution::Invalid | TokenResolution::Cyclic => {}
             result => return result,
         }
     }
@@ -1200,11 +1258,17 @@ fn replace_inherit_function(
     };
     if let Some(name) = name {
         let local_scope = context.function_local_scopes.pop();
-        let inherited_same_name = context
-            .active_names
-            .iter()
-            .rposition(|active_name| active_name == name)
-            .map(|index| (index, context.active_names.remove(index)));
+        // FIXME: Inherited values should already be computed. This is not guaranteed during custom-function evaluation:
+        //        the function's hypothetical element inherits from the calling element while that element's
+        //        custom-property resolution batch can still be in progress. Until inherited lookup supplies a computed
+        //        value, temporarily unguard the same property while resolving it from the selected store.
+        let inherited_same_name = {
+            let mut guarded_contexts = context.guarded_contexts.contexts.borrow_mut();
+            guarded_contexts
+                .iter()
+                .rposition(|context| context.dependency.is_property(name))
+                .map(|index| (index, guarded_contexts.remove(index)))
+        };
         let inherited_store_override = context.inheritance_store_overrides.last().cloned().flatten();
         let inherited_store = if local_scope.is_some() {
             store
@@ -1227,7 +1291,11 @@ fn replace_inherit_function(
             context.function_local_scopes.push(local_scope);
         }
         if let Some((index, inherited_same_name)) = inherited_same_name {
-            context.active_names.insert(index, inherited_same_name);
+            context
+                .guarded_contexts
+                .contexts
+                .borrow_mut()
+                .insert(index, inherited_same_name);
         }
         match result {
             TokenResolution::Invalid | TokenResolution::Cyclic => {}
@@ -1508,6 +1576,10 @@ fn evaluate_style_feature(
     if tokens.iter().any(|token| {
         token.source.equals_ascii(b"<") || token.source.equals_ascii(b">") || token.source.equals_ascii(b"=")
     }) {
+        // FIXME: Range style queries are evaluated in C++ without access to the Rust guarded-context stack. The cyclic
+        //        result does not identify the context that began the cycle, so marking the innermost context could mark
+        //        a caller outside the cycle and cannot mark the complete cycle suffix. Share the guarded contexts across
+        //        the callback instead.
         let Some(evaluate) = context.evaluate_style_query else {
             return ConditionEvaluation::NotHandled;
         };
@@ -1558,20 +1630,11 @@ fn evaluate_style_feature(
     let computed = resolve_custom_property(store, registry, name, context, recursion_depth + 1);
     let computed = match computed {
         TokenResolution::Resolved(tokens) => Some(tokens),
-        TokenResolution::Invalid => None,
-        TokenResolution::Cyclic
-            if context
-                .active_names
-                .first()
-                .is_some_and(|root_name| context.cyclic_names.contains(root_name)) =>
-        {
-            return ConditionEvaluation::Cyclic;
-        }
-        TokenResolution::Cyclic => None,
+        TokenResolution::Invalid | TokenResolution::Cyclic => None,
         TokenResolution::NotHandled => return ConditionEvaluation::NotHandled,
     };
     if registration.is_some()
-        && !context.active_names.iter().any(|active_name| active_name == name)
+        && !context.guarded_contexts.contains_property(name)
         && let Some(evaluate) = context.evaluate_style_query
     {
         let source = serialize_tokens(tokens);
@@ -1791,13 +1854,13 @@ fn replace_custom_function(
         return TokenResolution::NotHandled;
     };
     let caller_scope_identity = context
-        .active_functions
-        .last()
+        .guarded_contexts
+        .innermost_function()
         .and_then(|identity| {
             functions
                 .definitions
                 .iter()
-                .find(|definition| definition.identity == *identity)
+                .find(|definition| definition.identity == identity)
                 .map(|definition| definition.scope_identity)
         })
         .unwrap_or(functions.caller_scope_identity);
@@ -1829,16 +1892,6 @@ fn replace_custom_function(
     let Some(definition) = definition else {
         return TokenResolution::Invalid;
     };
-    if let Some(cycle_start) = context
-        .active_functions
-        .iter()
-        .position(|identity| *identity == definition.identity)
-    {
-        context
-            .cyclic_functions
-            .extend(context.active_functions[cycle_start..].iter().copied());
-        return TokenResolution::Cyclic;
-    }
     let Some(argument_slices) = split_function_arguments(arguments) else {
         return TokenResolution::Invalid;
     };
@@ -1904,7 +1957,10 @@ fn replace_custom_function(
         );
     }
 
-    context.active_functions.push(definition.identity);
+    let substitution_context = SubstitutionContext::new(SubstitutionContextDependency::Function(definition.identity));
+    let Some(_guard) = context.guarded_contexts.guard(&substitution_context) else {
+        return TokenResolution::Cyclic;
+    };
     context.function_local_scopes.push(FunctionLocalScope {
         values: argument_values,
         registrations: argument_registrations,
@@ -1969,9 +2025,7 @@ fn replace_custom_function(
     }
     let result = resolve_custom_property(store, registry, &result_name, context, recursion_depth + 1);
     context.function_local_scopes.pop();
-    let active_function = context.active_functions.pop().expect("active custom function");
-    debug_assert_eq!(active_function, definition.identity);
-    if context.cyclic_functions.contains(&definition.identity) {
+    if substitution_context.is_cyclic.get() {
         TokenResolution::Cyclic
     } else {
         result
@@ -1997,16 +2051,7 @@ fn replace_if_function(
         };
         let condition = match substitute_tokens(store, registry, &branch[..colon], context, recursion_depth + 1) {
             TokenResolution::Resolved(tokens) => tokens,
-            TokenResolution::Invalid => branch[..colon].to_vec(),
-            TokenResolution::Cyclic
-                if context
-                    .active_names
-                    .first()
-                    .is_some_and(|root_name| context.cyclic_names.contains(root_name)) =>
-            {
-                return TokenResolution::Cyclic;
-            }
-            TokenResolution::Cyclic => branch[..colon].to_vec(),
+            TokenResolution::Invalid | TokenResolution::Cyclic => branch[..colon].to_vec(),
             TokenResolution::NotHandled => return TokenResolution::NotHandled,
         };
         match evaluate_if_condition(store, registry, &condition, context, recursion_depth + 1) {
@@ -2205,37 +2250,19 @@ fn replace_attr_function(
             tokenize_owned(crate::css::css_tokenizer::TokenizerInput::Utf16(&source))
         }
         AttrSyntax::Syntax(syntax) => {
-            if context.cyclic_attributes.contains(&attribute_name) {
-                return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
-            }
-            if let Some(cycle_start) = context
-                .active_attributes
-                .iter()
-                .position(|active_name| active_name == &attribute_name)
-            {
-                context
-                    .cyclic_attributes
-                    .extend(context.active_attributes[cycle_start..].iter().cloned());
-                return TokenResolution::Cyclic;
-            }
-            context.active_attributes.push(attribute_name.clone());
-            let substituted = match substitute_tokens(
+            let substituted = match substitute_arbitrary_substitution_functions(
                 store,
                 registry,
                 &tokenize_owned(attribute_value),
                 context,
                 recursion_depth + 1,
+                Some(SubstitutionContextDependency::Attribute(attribute_name.clone())),
             ) {
                 TokenResolution::Resolved(tokens) => Some(serialize_tokens(&tokens)),
                 TokenResolution::Invalid | TokenResolution::Cyclic => None,
-                TokenResolution::NotHandled => {
-                    context.active_attributes.pop();
-                    return TokenResolution::NotHandled;
-                }
+                TokenResolution::NotHandled => return TokenResolution::NotHandled,
             };
-            let active_attribute = context.active_attributes.pop().expect("active attribute");
-            debug_assert_eq!(active_attribute, attribute_name);
-            let Some(substituted) = substituted.filter(|_| !context.cyclic_attributes.contains(&attribute_name)) else {
+            let Some(substituted) = substituted else {
                 return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
             };
             let Some(tokens) = parse_attr_value_with_syntax(registry, &substituted, &syntax) else {
@@ -2248,6 +2275,7 @@ fn replace_attr_function(
     TokenResolution::Resolved(resolved)
 }
 
+// Step 2 of https://drafts.csswg.org/css-values-5/#substitute-arbitrary-substitution-function
 fn substitute_tokens(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
@@ -2332,6 +2360,38 @@ fn substitute_tokens(
     }
 }
 
+// https://drafts.csswg.org/css-values-5/#substitute-arbitrary-substitution-function
+fn substitute_arbitrary_substitution_functions(
+    store: Option<&CustomPropertyStore>,
+    registry: Option<&CustomPropertyRegistry>,
+    tokens: &[OwnedToken],
+    context: &mut ASFResolutionContext,
+    recursion_depth: u32,
+    substitution_context: Option<SubstitutionContextDependency>,
+) -> TokenResolution {
+    let Some(dependency) = substitution_context else {
+        return substitute_tokens(store, registry, tokens, context, recursion_depth);
+    };
+
+    // 1. Guard context for the remainder of this algorithm. If context is marked as a cyclic substitution context,
+    //    return the guaranteed-invalid value.
+    let substitution_context = SubstitutionContext::new(dependency);
+    let Some(_guard) = context.guarded_contexts.guard(&substitution_context) else {
+        return TokenResolution::Cyclic;
+    };
+
+    // 2. Substitute each arbitrary substitution function in values.
+    let result = substitute_tokens(store, registry, tokens, context, recursion_depth);
+
+    // 3. If context is marked as a cyclic substitution context, return the guaranteed-invalid value.
+    // NOTE: Nested arbitrary substitution functions may have marked context as cyclic in step 2.
+    if substitution_context.is_cyclic.get() {
+        TokenResolution::Cyclic
+    } else {
+        result
+    }
+}
+
 // https://drafts.csswg.org/css-syntax/#serialization
 fn needs_comment_between(first: &OwnedTokenKind, second: &OwnedTokenKind) -> bool {
     let second_is_common = matches!(
@@ -2395,6 +2455,7 @@ pub(crate) unsafe fn resolve_vars(
     parse_context: Option<&ParseContext>,
     media_environment: Option<&FfiMediaEnvironment>,
     load_media_environment: Option<unsafe extern "C" fn(*mut c_void) -> *const c_void>,
+    property_id: u16,
     root_custom_property_name: FfiUtf16View,
     value_data: *const c_void,
     environment: &mut VarResolutionEnvironment,
@@ -2420,10 +2481,18 @@ pub(crate) unsafe fn resolve_vars(
         Some(unsafe { &*inheritance_store.cast::<CustomPropertyStore>() })
     };
     let value_data = unsafe { &*value_data.cast::<StyleValueData>() };
-    let active_names = unsafe { root_custom_property_name.to_utf16() }
-        .filter(|name| !name.is_empty())
-        .into_iter()
-        .collect();
+    let root_custom_property_name = unsafe { root_custom_property_name.to_utf16() }.filter(|name| !name.is_empty());
+    assert_eq!(
+        root_custom_property_name.is_some(),
+        property_id == crate::css::property_metadata::property_id::CUSTOM,
+        "substitution root must be either a named custom property or a non-custom property",
+    );
+    let root_property_name = root_custom_property_name.unwrap_or_else(|| {
+        crate::css::property_metadata::property_name(property_id)
+            .encode_utf16()
+            .collect()
+    });
+    let substitution_context = Some(SubstitutionContextDependency::Property(root_property_name));
     let VarResolutionEnvironment {
         attributes,
         custom_functions,
@@ -2431,7 +2500,6 @@ pub(crate) unsafe fn resolve_vars(
         resolution_stats,
     } = environment;
     let mut context = ASFResolutionContext {
-        active_names,
         attributes: Some(attributes),
         inheritance_store,
         attribute_names_are_ascii_case_insensitive,
@@ -2457,14 +2525,8 @@ pub(crate) unsafe fn resolve_vars(
         return NativeVarResolution::NotHandled;
     }
     context.contains_attr_tainted_values = contains_attr_tainted_values;
-    let result = substitute_tokens(store, registry, &source, &mut context, 0);
-    if context
-        .active_names
-        .first()
-        .is_some_and(|root_name| context.cyclic_names.contains(root_name))
-    {
-        return NativeVarResolution::Invalid;
-    }
+    let result =
+        substitute_arbitrary_substitution_functions(store, registry, &source, &mut context, 0, substitution_context);
     match result {
         TokenResolution::Resolved(tokens) => NativeVarResolution::Resolved {
             source: serialize_tokens(&tokens),
@@ -2556,14 +2618,39 @@ mod tests {
 
     #[test]
     fn root_custom_property_cycles_do_not_take_var_fallbacks() {
-        let mut context = ASFResolutionContext {
-            active_names: vec![utf16("--root")],
-            ..Default::default()
-        };
+        let mut context = ASFResolutionContext::default();
         assert!(matches!(
-            substitute_tokens(None, None, &tokenize_owned(b"var(--root, fallback)"), &mut context, 0),
+            substitute_arbitrary_substitution_functions(
+                None,
+                None,
+                &tokenize_owned(b"var(--root, fallback)"),
+                &mut context,
+                0,
+                Some(SubstitutionContextDependency::Property(utf16("--root"))),
+            ),
             TokenResolution::Cyclic
         ));
+    }
+
+    #[test]
+    fn substitution_context_cycle_marks_the_entire_mixed_context_suffix() {
+        let guarded_contexts = GuardedSubstitutionContexts::default();
+        let guard = |dependency| {
+            let context = SubstitutionContext::new(dependency);
+            let guard = guarded_contexts.guard(&context).unwrap();
+            (context, guard)
+        };
+        let (root_context, _root_guard) = guard(SubstitutionContextDependency::Property(utf16("--root")));
+        let (attribute_context, _attribute_guard) =
+            guard(SubstitutionContextDependency::Attribute(utf16("data-value")));
+        let (function_context, _function_guard) = guard(SubstitutionContextDependency::Function(1));
+
+        let duplicate = SubstitutionContext::new(SubstitutionContextDependency::Attribute(utf16("data-value")));
+        assert!(guarded_contexts.guard(&duplicate).is_none());
+        assert!(!root_context.is_cyclic.get());
+        assert!(attribute_context.is_cyclic.get());
+        assert!(function_context.is_cyclic.get());
+        assert!(duplicate.is_cyclic.get());
     }
 
     #[test]

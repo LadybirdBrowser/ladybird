@@ -1632,6 +1632,7 @@ pub(crate) fn resolve_cascade_value(
                 parse_context,
                 media_environment,
                 resolution_context.load_media_environment,
+                property_id,
                 resolution_context.root_custom_property_name,
                 unresolved_data,
                 resolution_environment,
