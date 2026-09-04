@@ -1,0 +1,27 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const prototype = Object.getPrototypeOf(internals);
+
+        println(`operation is absent from the instance: ${!("unimplementedOperationForTesting" in internals)}`);
+        println(`operation is absent from the prototype: ${!Object.hasOwn(prototype, "unimplementedOperationForTesting")}`);
+        println(`operation has no descriptor: ${Object.getOwnPropertyDescriptor(prototype, "unimplementedOperationForTesting") === undefined}`);
+        println(`operation is absent from own keys: ${!Reflect.ownKeys(prototype).includes("unimplementedOperationForTesting")}`);
+        println(`reading operation produces undefined: ${internals.unimplementedOperationForTesting === undefined}`);
+
+        try {
+            internals.unimplementedOperationForTesting();
+        } catch (error) {
+            println(`calling operation throws TypeError: ${error instanceof TypeError}`);
+        }
+
+        prototype.unimplementedOperationForTesting = () => "overridden";
+        println(`operation can be overridden: ${internals.unimplementedOperationForTesting()}`);
+        delete prototype.unimplementedOperationForTesting;
+        println(`operation is absent after deleting the override: ${!("unimplementedOperationForTesting" in internals)}`);
+
+        println(`attribute is absent: ${!("unimplementedAttributeForTesting" in internals)}`);
+        println(`reading attribute produces undefined: ${internals.unimplementedAttributeForTesting === undefined}`);
+    });
+</script>

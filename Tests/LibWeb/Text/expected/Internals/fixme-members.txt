@@ -1,0 +1,10 @@
+operation is absent from the instance: true
+operation is absent from the prototype: true
+operation has no descriptor: true
+operation is absent from own keys: true
+reading operation produces undefined: true
+calling operation throws TypeError: true
+operation can be overridden: overridden
+operation is absent after deleting the override: true
+attribute is absent: true
+reading attribute produces undefined: true

@@ -166,9 +166,7 @@ def define_the_regular_attributes(
     interface: Interface,
 ) -> None:
     # 1. Let attributes be the list of regular attributes that are members of definition.
-    attributes = [
-        attribute for attribute in interface.regular_attributes if "FIXME" not in attribute.extended_attributes
-    ]
+    attributes = interface.regular_attributes
 
     # 2. Remove from attributes all the attributes that are unforgeable.
     attributes = [attribute for attribute in attributes if "LegacyUnforgeable" not in attribute.extended_attributes]
@@ -183,9 +181,7 @@ def define_the_unforgeable_attributes(
     interface: Interface,
 ) -> None:
     attributes = [
-        attribute
-        for attribute in interface.regular_attributes
-        if "FIXME" not in attribute.extended_attributes and "LegacyUnforgeable" in attribute.extended_attributes
+        attribute for attribute in interface.regular_attributes if "LegacyUnforgeable" in attribute.extended_attributes
     ]
     define_the_attributes(out, includes, attributes, interface)
 
@@ -203,6 +199,17 @@ def define_the_attributes(
 
     # 1. For each attribute attr of attributes:
     for attribute in attributes:
+        if "FIXME" in attribute.extended_attributes:
+            definition = f'    object.define_unimplemented_property("{attribute.name}"_utf16_fly_string);\n'
+            out.write(
+                wrap_with_extended_attribute_exposure_checks(
+                    includes,
+                    attribute.extended_attributes,
+                    definition,
+                )
+            )
+            continue
+
         getter_name = attribute_getter_callback_name(attribute)
         setter_name = attribute_setter_callback_name(attribute)
         cpp_name = attribute_callback_cpp_name(attribute)
@@ -294,6 +301,8 @@ def define_the_attributes(
 def define_the_static_attributes(out: TextIO, includes: GeneratedIncludes, interface: Interface) -> None:
     for attribute in interface.static_attributes:
         if "FIXME" in attribute.extended_attributes:
+            definition = f'    object.define_unimplemented_property("{attribute.name}"_utf16_fly_string);\n'
+            out.write(wrap_with_extended_attribute_exposure_checks(includes, attribute.extended_attributes, definition))
             continue
         definition = f'    object.define_native_accessor(realm, "{attribute.name}"_utf16_fly_string, {attribute_getter_callback_name(attribute)}, nullptr, default_attributes);\n'
         out.write(wrap_with_extended_attribute_exposure_checks(includes, attribute.extended_attributes, definition))

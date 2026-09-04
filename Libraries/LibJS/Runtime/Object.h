@@ -239,6 +239,7 @@ public:
     Value get_without_side_effects(PropertyKey const&) const;
 
     void define_direct_property(PropertyKey const& property_key, Value value, PropertyAttributes attributes) { (void)storage_set(property_key, { value, attributes }); }
+    void define_unimplemented_property(Utf16FlyString const& property_name);
     Optional<ValueAndAttributes> get_engine_private_property(GC::Ref<Symbol>) const;
     void set_engine_private_property(GC::Ref<Symbol>, Value);
     void delete_engine_private_property(GC::Ref<Symbol>);
@@ -450,6 +451,7 @@ private:
         static constexpr u16 IsPlatformObject = 1 << 9;
         static constexpr u16 IsDirectGetterFunction = 1 << 10;
         static constexpr u16 IsGlobalObject = 1 << 11;
+        static constexpr u16 HasUnimplementedProperties = 1 << 12;
     };
 
     u16 m_flags { Flag::IsExtensible };
@@ -472,6 +474,9 @@ private:
     bool named_storage_is_inline() const { return m_named_properties == m_inline_named_storage; }
     size_t named_storage_external_memory_size() const;
     size_t indexed_storage_external_memory_size() const;
+
+    [[nodiscard]] bool has_unimplemented_properties() const { return m_flags & Flag::HasUnimplementedProperties; }
+    [[nodiscard]] bool is_unimplemented_property(PropertyKey const&) const;
 
 public:
     static constexpr u32 INLINE_NAMED_PROPERTY_CAPACITY = 2;

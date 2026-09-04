@@ -40,6 +40,12 @@ static auto& intrinsic_accessor_map()
     return *intrinsics;
 }
 
+static auto& unimplemented_property_map()
+{
+    static NeverDestroyed<GC::WeakHashMap<GC::Ptr<Object const>, HashTable<Utf16FlyString>>> unimplemented_properties;
+    return *unimplemented_properties;
+}
+
 // Heap-allocated property storage layout:
 //   [u32 capacity] [u32 padding] [Value 0] [Value 1] ...
 // The accessors below are the only code that depends on this allocation layout.
@@ -191,6 +197,8 @@ Object::~Object()
     free_indexed_elements();
     if (has_intrinsic_accessors())
         intrinsic_accessor_map().remove(this);
+    if (has_unimplemented_properties())
+        unimplemented_property_map().remove(this);
     if (!named_storage_is_inline())
         HeapValueStorage::deallocate(m_named_properties.data());
 }
@@ -1002,21 +1010,18 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> Object::internal_get_own_propert
 {
     // 1. If O does not have an own property with key P, return undefined.
     auto maybe_storage_entry = storage_get(property_key);
-    if (!maybe_storage_entry.has_value())
+    if (!maybe_storage_entry.has_value()) {
+        // AD-HOC: Report accesses to unimplemented IDL properties without making them observable to JavaScript.
+        if (is_unimplemented_property(property_key) && vm().on_unimplemented_property_access)
+            vm().on_unimplemented_property_access(*this, property_key);
         return Optional<PropertyDescriptor> {};
+    }
 
     // 2. Let D be a newly created Property Descriptor with no fields.
     PropertyDescriptor descriptor;
 
     // 3. Let X be O's own property whose key is P.
     auto [value, attributes, property_offset] = *maybe_storage_entry;
-
-    // AD-HOC: Properties with the [[Unimplemented]] attribute are used for reporting unimplemented IDL interfaces.
-    if (attributes.is_unimplemented()) {
-        if (vm().on_unimplemented_property_access)
-            vm().on_unimplemented_property_access(*this, property_key);
-        descriptor.unimplemented = true;
-    }
 
     // 4. If X is a data property, then
     if (!value.is_accessor()) {
@@ -1586,6 +1591,21 @@ void Object::define_direct_accessor(PropertyKey const& property_key, GC::Ptr<Fun
         if (setter)
             accessor->set_setter(setter);
     }
+}
+
+void Object::define_unimplemented_property(Utf16FlyString const& property_name)
+{
+    m_flags |= Flag::HasUnimplementedProperties;
+    unimplemented_property_map().ensure(this).set(property_name);
+}
+
+bool Object::is_unimplemented_property(PropertyKey const& property_key) const
+{
+    if (!has_unimplemented_properties() || !property_key.is_string())
+        return false;
+
+    auto properties = unimplemented_property_map().get(this);
+    return properties.has_value() && properties->contains(property_key.as_string());
 }
 
 Optional<ValueAndAttributes> Object::get_engine_private_property(GC::Ref<Symbol> key) const

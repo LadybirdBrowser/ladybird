@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 230 tests
 
-163 Pass
-67 Fail
+162 Pass
+68 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -66,7 +66,7 @@ Pass	Stringification of document.timeline
 Fail	AnimationTimeline interface: document.timeline must inherit property "currentTime" with the proper type
 Pass	AnimationTimeline interface: document.timeline must inherit property "duration" with the proper type
 Fail	AnimationTimeline interface: document.timeline must inherit property "play(optional AnimationEffect?)" with the proper type
-Pass	AnimationTimeline interface: calling play(optional AnimationEffect?) on document.timeline with too few arguments must throw TypeError
+Fail	AnimationTimeline interface: calling play(optional AnimationEffect?) on document.timeline with too few arguments must throw TypeError
 Pass	Animation interface: existence and properties of interface object
 Pass	Animation interface object length
 Pass	Animation interface object name
