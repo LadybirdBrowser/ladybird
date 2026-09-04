@@ -1,0 +1,26 @@
+<!doctype html>
+<svg xmlns="http://www.w3.org/2000/svg">
+    <feColorMatrix
+        id="matrix"
+        type="matrix"
+        values="1 0 0 0 0
+                0 1 0 0 0
+                0 0 1 0 0
+                0 0 0 1 0"
+    />
+</svg>
+<svg xmlns="http://www.w3.org/2000/svg">
+    <feColorMatrix id="saturate" type="saturate" values="0.5" />
+</svg>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function printNumberList(list) {
+            const array = Array.from(list, item => item.value);
+            println(JSON.stringify(array));
+        }
+
+        printNumberList(matrix.values.baseVal);
+        printNumberList(saturate.values.baseVal);
+    });
+</script>
