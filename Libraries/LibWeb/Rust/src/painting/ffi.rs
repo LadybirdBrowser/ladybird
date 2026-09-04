@@ -2257,6 +2257,23 @@ pub unsafe extern "C" fn layout_arena_inline_paintable_piece_border_box_rects(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_can_compute_client_rects_without_visual_context_update(
+    arena: *mut c_void,
+    layout_node: NodeSlotId,
+    viewport_scroll_offset_is_zero: bool,
+) -> bool {
+    let arena = unsafe { arena_from_handle(arena) };
+    crate::painting::client_rects::can_compute_client_rects_without_visual_context_update(
+        &arena.paintable_rows(),
+        layout_node,
+        viewport_scroll_offset_is_zero,
+    )
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_inline_paintable_has_content_pieces(
     arena: *mut c_void,
     inline_paintable: NodeSlotId,

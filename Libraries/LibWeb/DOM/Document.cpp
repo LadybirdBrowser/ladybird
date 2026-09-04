@@ -2939,25 +2939,10 @@ bool Document::can_compute_client_rects_without_accumulated_visual_contexts_upda
     if (!m_needs_accumulated_visual_contexts_update || !m_layout_root)
         return false;
 
-    for (auto const* node = &layout_node; node; node = node->parent()) {
-        if (node->is_svg_box() || node->is_svg_svg_box() || node->is_svg_foreign_object_box())
-            return false;
-
-        auto const* node_with_style = as_if<Layout::NodeWithStyle>(*node);
-        if (!node_with_style)
-            continue;
-        if (node_with_style->has_css_transform() || node_with_style->perspective().has_value() || node_with_style->is_sticky_position())
-            return false;
-        if (auto const* box = as_if<Layout::Box>(*node);
-            box && (box->compensates_for_horizontal_scroll() || box->compensates_for_vertical_scroll()))
-            return false;
-        // A scroll container's contents move, but its own border box does not.
-        if (node != &layout_node) {
-            if (!Painting::scroll_offset(*node).is_zero())
-                return false;
-        }
-    }
-    return true;
+    auto navigable = this->navigable();
+    bool viewport_scroll_offset_is_zero = !navigable || navigable->viewport_scroll_offset().is_zero();
+    return Layout::RustFFI::layout_arena_can_compute_client_rects_without_visual_context_update(
+        layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), viewport_scroll_offset_is_zero);
 }
 
 void Document::set_normal_link_color(Optional<Color> color)
