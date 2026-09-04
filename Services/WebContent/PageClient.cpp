@@ -1359,16 +1359,13 @@ void PageClient::page_did_update_resource_count(i32 count_waiting)
     client().async_did_update_resource_count(m_id, count_waiting);
 }
 
-PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Web::HTML::TokenizedFeature::NoOpener no_opener)
+PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints)
 {
-    if (no_opener == Web::HTML::TokenizedFeature::NoOpener::Yes) {
-        // FIXME: Create an abstraction to let this WebContent process know about a new process we create?
-        // FIXME: For now, just create a new page in the same process anyway
-        // FIXME: Proper agent-cluster separation must also cover same-process
-        // COOP/noopener popups before they receive distinct main-world cells.
-    }
-
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestNewWebView>(m_id, activate_tab, hints, no_opener == Web::HTML::TokenizedFeature::NoOpener::No);
+    // FIXME: Create an abstraction to let this WebContent process know about a new process we create?
+    // FIXME: For now, just create a new page in the same process anyway
+    // FIXME: Proper agent-cluster separation must also cover same-process
+    // COOP/noopener popups before they receive distinct main-world cells.
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestNewWebView>(m_id, activate_tab, hints);
     if (!response) {
         dbgln("WebContent client disconnected during DidRequestNewWebView. Exiting peacefully.");
         Core::Process::terminate_immediately(0);
@@ -1399,9 +1396,9 @@ void PageClient::page_did_close_top_level_traversable()
     m_owner.remove_page({}, m_id);
 }
 
-void PageClient::page_did_create_top_level_traversable(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor const& initial_history_entry)
+void PageClient::page_did_create_top_level_traversable(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor const& initial_history_entry, Optional<Web::HTML::CrossProcessId> opener_navigable_id)
 {
-    client().async_did_create_top_level_traversable(m_id, navigable_id, initial_history_entry);
+    client().async_did_create_top_level_traversable(m_id, navigable_id, initial_history_entry, opener_navigable_id);
 }
 
 void PageClient::page_did_change_needs_beforeunload_check(bool needs_beforeunload_check)

@@ -1286,7 +1286,7 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
         auto request_new_web_view = [&] {
             TokenizedFeature::Map empty_window_features;
             auto hints = WebViewHints::from_tokenised_features(window_features.has_value() ? *window_features : empty_window_features, traversable_navigable()->page());
-            return traversable_navigable()->page().client().page_did_request_new_web_view(activate_tab, hints, no_opener);
+            return traversable_navigable()->page().client().page_did_request_new_web_view(activate_tab, hints);
         };
 
         // --> If currentNavigable's active window does not have transient activation and the user agent has been configured to
@@ -1337,30 +1337,23 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
             if (!name.equals_ignoring_ascii_case(u"_blank"sv))
                 target_name = Utf16String::from_utf16(name);
 
-            auto create_new_traversable_closure = [page = new_web_view.page, system_visibility_state = new_web_view.system_visibility_state, window_handle = move(new_web_view.window_handle), target_name](GC::Ptr<BrowsingContext> opener) -> GC::Ref<LocalTraversableNavigable> {
-                auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*page, opener, target_name, {}, system_visibility_state);
-                page->set_top_level_traversable(traversable);
-                traversable->set_window_handle(Utf16String::from_ascii_without_validation(window_handle.bytes()));
-
-                auto initial_history_entry = traversable->active_session_history_entry();
-                VERIFY(initial_history_entry);
-                page->client().page_did_create_top_level_traversable(
-                    traversable->id(),
-                    create_session_history_entry_descriptor(*initial_history_entry));
+            auto create_new_traversable = [&](GC::Ptr<BrowsingContext> opener) -> GC::Ref<LocalTraversableNavigable> {
+                auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*new_web_view.page, opener, target_name, {}, new_web_view.system_visibility_state);
+                new_web_view.page->set_top_level_traversable(traversable);
+                traversable->set_window_handle(Utf16String::from_ascii_without_validation(new_web_view.window_handle.bytes()));
                 return traversable;
             };
-            auto create_new_traversable = GC::create_function(heap(), move(create_new_traversable_closure));
 
             // 7. If noopener is true, then set chosen to the result of creating a new top-level traversable given null and targetName.
             if (no_opener == TokenizedFeature::NoOpener::Yes) {
-                chosen = create_new_traversable->function()(nullptr);
+                chosen = create_new_traversable(nullptr);
             }
 
             // 8. Otherwise:
             else {
                 // 1. Set chosen to the result of creating a new top-level traversable given currentNavigable's active browsing context, targetName, and currentNavigable.
                 // FIXME: "and currentNavigable", which is the openerNavigableForWebDriver parameter.
-                chosen = create_new_traversable->function()(active_browsing_context());
+                chosen = create_new_traversable(active_browsing_context());
 
                 // 2. If sandboxingFlagSet's sandboxed navigation browsing context flag is set,
                 //    then set chosen's active browsing context's one permitted sandboxed navigator to currentNavigable's active browsing context.
