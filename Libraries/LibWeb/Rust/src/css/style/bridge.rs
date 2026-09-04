@@ -3092,6 +3092,74 @@ mod tests {
     }
 
     #[test]
+    fn preallocated_siblings_keep_their_disconnected_before_rows() {
+        for split_batches in [false, true] {
+            let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+            let mut nodes = [0_u32; 4];
+            engine.allocate_style_nodes(&mut nodes);
+            let root = StyleNodeID::from_raw(nodes[0]).unwrap();
+            engine.apply_transaction_batch(
+                &[FfiTreeDelta {
+                    node: nodes[0],
+                    old_connected: false,
+                    new_connected: true,
+                    old_relations: no_relations(),
+                    new_relations: no_relations(),
+                }],
+                (&[], &[]),
+                &[],
+                &[],
+                &[],
+                &[],
+            );
+            let transaction = engine.take_transaction();
+            engine.release_transaction(transaction);
+
+            let arrivals: Vec<_> = (1..nodes.len())
+                .map(|index| FfiTreeDelta {
+                    node: nodes[index],
+                    old_connected: false,
+                    new_connected: true,
+                    old_relations: no_relations(),
+                    new_relations: FfiTreeRelations {
+                        parent: nodes[0],
+                        previous_element_sibling: if index == 1 { 0 } else { nodes[index - 1] },
+                        next_element_sibling: nodes.get(index + 1).copied().unwrap_or(0),
+                        ..no_relations()
+                    },
+                })
+                .collect();
+            let chunk_size = if split_batches { 1 } else { arrivals.len() };
+            for chunk in arrivals.chunks(chunk_size) {
+                engine.apply_transaction_batch(chunk, (&[], &[]), &[], &[], &[], &[]);
+                // Selector queries may install the current rows before style is observed.
+                engine.prepare_selector_query();
+            }
+            let transaction = engine.take_transaction();
+            for raw in &nodes[1..] {
+                let node = StyleNodeID::from_raw(*raw).unwrap();
+                let input = transaction
+                    .inputs
+                    .iter()
+                    .find(|input| input.key == InputKey::TreeRelations(node))
+                    .unwrap();
+                assert_eq!(input.old, InputValue::TreeRelations(None));
+                assert!(
+                    transaction
+                        .inputs
+                        .iter()
+                        .any(|input| input.key == InputKey::LocalFeature(node, LocalFeatureKey::ArrivingFacts))
+                );
+            }
+            assert_eq!(
+                engine.tree().preorder(root).collect::<Vec<_>>(),
+                nodes.map(|raw| StyleNodeID::from_raw(raw).unwrap())
+            );
+            engine.release_transaction(transaction);
+        }
+    }
+
+    #[test]
     fn element_arrival_rows_install_intrinsic_facts() {
         assert_eq!(size_of::<FfiElementArrival>(), 28);
         let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
