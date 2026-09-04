@@ -724,34 +724,14 @@ static VisualViewportPanAxes visual_viewport_pan_axes_for_scroll_step(DOM::Docum
 
 static Layout::Node* scrolling_box_for_scroll_step(Layout::Node& target, CSSPixelPoint delta)
 {
-    auto scrolling_box_moved_by = [](Layout::Node const& node, CSSPixelPoint delta) {
-        return Painting::clamp_scroll_offset(node, Painting::scroll_offset(node) + delta) != Painting::scroll_offset(node);
-    };
-
-    auto deltas_the_scrolling_box_accepts = [](Layout::Node const& node, CSSPixelPoint delta) {
-        if (!Painting::could_be_scrolled_by_wheel_event(node, Painting::ScrollDirection::Horizontal))
-            delta.set_x(0);
-        if (!Painting::could_be_scrolled_by_wheel_event(node, Painting::ScrollDirection::Vertical))
-            delta.set_y(0);
-        return delta;
-    };
-
-    for (Layout::Node* node = &target; node && !node->is_viewport(); node = node->containing_block()) {
-        auto accepted_delta = deltas_the_scrolling_box_accepts(*node, delta);
-        if (!accepted_delta.is_zero() && scrolling_box_moved_by(*node, accepted_delta))
-            return node;
-    }
+    auto* scrolling_box = Painting::scrolling_box_for_scroll_step_in_containing_block_chain(target, delta);
+    if (!scrolling_box)
+        return nullptr;
 
     // The viewport is scrolled by the default action itself rather than by the chain above, so it comes last.
-    auto* viewport_layout_node = target.document().layout_node();
-    if (!viewport_layout_node)
+    if (scrolling_box->is_viewport() && !visual_viewport_pan_axes_for_scroll_step(target.document(), delta.x().to_double(), delta.y().to_double()).is_empty())
         return nullptr;
-    auto accepted_delta = deltas_the_scrolling_box_accepts(*viewport_layout_node, delta);
-    if (accepted_delta.is_zero() || !scrolling_box_moved_by(*viewport_layout_node, accepted_delta))
-        return nullptr;
-    if (!visual_viewport_pan_axes_for_scroll_step(target.document(), delta.x().to_double(), delta.y().to_double()).is_empty())
-        return nullptr;
-    return viewport_layout_node;
+    return scrolling_box;
 }
 
 EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, WheelDeltaPrecision wheel_delta_precision, ScrollGesturePhase scroll_gesture_phase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation)

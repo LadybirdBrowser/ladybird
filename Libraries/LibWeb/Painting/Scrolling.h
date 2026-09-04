@@ -47,8 +47,10 @@ WEB_API Optional<Compositor::AsyncScrollNodeStableID> async_scroll_node_stable_i
 ScrollHandled set_scroll_offset(Layout::Node&, CSSPixelPoint);
 ScrollHandled set_scroll_offset_from_user_input(Layout::Node&, CSSPixelPoint);
 ScrollHandled scroll_by(Layout::Node&, double delta_x, double delta_y);
-ScrollHandled wheel_scroll(Layout::Node&, double wheel_delta_x, double wheel_delta_y);
 ScrollHandled wheel_scroll_along_containing_block_chain(Layout::Node&, double wheel_delta_x, double wheel_delta_y);
+
+WEB_API Layout::Node* scrolling_box_for_scroll_step_in_containing_block_chain(Layout::Node&, CSSPixelPoint delta);
+WEB_API Layout::Node* first_wheel_scrollable_box_in_containing_block_chain(Layout::Node const&);
 void scroll_text_offset_into_view(DOM::Text const&, size_t offset, TextAffinity = TextAffinity::Downstream, ScrollBlockDirection = ScrollBlockDirection::Yes);
 
 }
