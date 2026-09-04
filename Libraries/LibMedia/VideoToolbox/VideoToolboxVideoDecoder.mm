@@ -6,6 +6,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
+#include <LibMedia/Codecs/AV1.h>
 #include <LibMedia/Codecs/VP9.h>
 #include <LibMedia/CodedFrame.h>
 #include <LibMedia/VideoFrame.h>
@@ -93,6 +94,8 @@ CMVideoCodecType codec_type_from_codec_id(CodecID codec_id)
     switch (codec_id) {
     case CodecID::VP9:
         return kCMVideoCodecType_VP9;
+    case CodecID::AV1:
+        return kCMVideoCodecType_AV1;
     default:
         return 0;
     }
@@ -116,6 +119,25 @@ Array<u8, 12> vp9_configuration_record(u8 profile, u8 bit_depth, Codecs::VP9::Co
         static_cast<u8>(to_underlying(cicp.transfer_characteristics())),
         static_cast<u8>(to_underlying(cicp.matrix_coefficients())),
         0, 0
+    };
+}
+
+// AV1's configuration record is the sequence header's own fields, minus the config OBUs that are optional in it and
+// that the stream carries in band anyway.
+// https://aomediacodec.github.io/av1-isobmff/#av1codecconfigurationbox-syntax
+Array<u8, 4> av1_configuration_record(Codecs::AV1::Parameters const& parameters)
+{
+    auto const& optional_fields = parameters.optional_fields;
+    u8 tier = parameters.tier == Codecs::AV1::Tier::High ? 1 : 0;
+    u8 high_bitdepth = parameters.bit_depth > 8 ? 1 : 0;
+    u8 twelve_bit = parameters.bit_depth == 12 ? 1 : 0;
+
+    return Array<u8, 4> {
+        0x81, // marker and version
+        static_cast<u8>((parameters.profile << 5) | parameters.level),
+        static_cast<u8>((tier << 7) | (high_bitdepth << 6) | (twelve_bit << 5) | (optional_fields.monochrome << 4)
+            | (optional_fields.subsampling.x() << 3) | (optional_fields.subsampling.y() << 2) | optional_fields.chroma_sample_position),
+        0,
     };
 }
 
@@ -169,6 +191,26 @@ Optional<DecoderFormat> vp9_decoder_format(CMVideoCodecType codec_type, u8 profi
     return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, move(specification), destination_attributes_for_bit_depth(bit_depth), color_parameters.cicp };
 }
 
+Optional<DecoderFormat> av1_decoder_format(CMVideoCodecType codec_type, Codecs::AV1::Parameters const& parameters, Gfx::IntSize size)
+{
+    auto configuration_record = av1_configuration_record(parameters);
+    RetainedRef<CFDataRef> configuration_data { CFDataCreate(kCFAllocatorDefault, configuration_record.data(), configuration_record.size()) };
+    RetainedRef<CFMutableDictionaryRef> atoms { CFDictionaryCreateMutable(kCFAllocatorDefault, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks) };
+    CFDictionarySetValue(atoms.ref(), CFSTR("av1C"), configuration_data.ref());
+
+    RetainedRef<CFMutableDictionaryRef> extensions { CFDictionaryCreateMutable(kCFAllocatorDefault, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks) };
+    CFDictionarySetValue(extensions.ref(), kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms, atoms.ref());
+
+    CMVideoFormatDescriptionRef description = nullptr;
+    if (CMVideoFormatDescriptionCreate(kCFAllocatorDefault, codec_type, size.width(), size.height(), extensions.ref(), &description) != noErr)
+        return {};
+
+    RetainedRef<CFMutableDictionaryRef> specification { CFDictionaryCreateMutable(kCFAllocatorDefault, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks) };
+    CFDictionarySetValue(specification.ref(), kVTVideoDecoderSpecification_RequireHardwareAcceleratedVideoDecoder, kCFBooleanTrue);
+
+    return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, move(specification), destination_attributes_for_bit_depth(parameters.bit_depth), parameters.optional_fields.cicp };
+}
+
 Optional<DecoderFormat> decoder_format_for_frame(CodecID codec_id, CodedFrame const& coded_frame)
 {
     auto codec_type = codec_type_from_codec_id(codec_id);
@@ -182,6 +224,12 @@ Optional<DecoderFormat> decoder_format_for_frame(CodecID codec_id, CodedFrame co
             return {};
         return vp9_decoder_format(codec_type, header->profile, header->bit_depth, header->color_parameters, header->size);
     }
+    case CodecID::AV1: {
+        auto sequence_header = Codecs::AV1::parse_sequence_header(coded_frame.data());
+        if (!sequence_header.has_value())
+            return {};
+        return av1_decoder_format(codec_type, sequence_header->parameters, sequence_header->max_frame_size);
+    }
     default:
         return {};
     }
@@ -194,6 +242,13 @@ ParsedCodec normalize_parsed_codec_for_support_keying(ParsedCodec const& codec)
         auto parameters = codec.vp9_parameters().value_or({ .profile = 0, .level = 0, .bit_depth = 8, .color_parameters = {} });
         parameters.level = 0;
         parameters.color_parameters.cicp = {};
+        return ParsedCodec { parameters };
+    }
+    case CodecID::AV1: {
+        auto parameters = codec.av1_parameters().value_or({ .profile = 0, .level = 0, .tier = Codecs::AV1::Tier::Main, .bit_depth = 8, .optional_fields = {} });
+        parameters.level = 0;
+        parameters.tier = Codecs::AV1::Tier::Main;
+        parameters.optional_fields.cicp = {};
         return ParsedCodec { parameters };
     }
     default:
@@ -215,6 +270,12 @@ Optional<DecoderFormat> decoder_format_for_parsed_codec(ParsedCodec const& codec
         if (!parameters.has_value())
             return {};
         return vp9_decoder_format(codec_type, parameters->profile, parameters->bit_depth, parameters->color_parameters, GENERALLY_SUPPORTED_SIZE);
+    }
+    case CodecID::AV1: {
+        auto parameters = codec.av1_parameters();
+        if (!parameters.has_value())
+            return {};
+        return av1_decoder_format(codec_type, *parameters, GENERALLY_SUPPORTED_SIZE);
     }
     default:
         return {};

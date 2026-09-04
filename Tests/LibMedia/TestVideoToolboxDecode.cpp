@@ -6,6 +6,7 @@
 
 #include <AK/HashTable.h>
 #include <LibMedia/CodecParameters.h>
+#include <LibMedia/Codecs/AV1.h>
 #include <LibMedia/DemuxerRegistry.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibMedia/VideoFramePool.h>
@@ -195,4 +196,56 @@ TEST_CASE(what_the_hardware_decodes_is_claimed_power_efficient)
 
     // Hardware is the only thing this decoder is ever chosen for, so anything it claims it claims as power efficient.
     EXPECT(capabilities->power_efficient);
+}
+
+TEST_CASE(decodes_av1_onto_surfaces)
+{
+    auto decoding = open_decoding("./av1_in_webm.webm"sv, Media::CodecID::AV1);
+
+    auto last_timestamp = AK::Duration::min();
+    size_t frame_count = 0;
+
+    while (true) {
+        auto frame_result = decoding.next_frame();
+        if (frame_result.is_error()) {
+            if (hardware_decoding_is_unavailable(frame_result.error()))
+                return;
+            EXPECT_EQ(frame_result.error().category(), Media::DecoderErrorCategory::EndOfStream);
+            break;
+        }
+        auto frame = frame_result.release_value();
+
+        EXPECT_NE(frame->surface(), nullptr);
+        EXPECT_EQ(frame->size(), Gfx::Size<u32>(854, 480));
+        EXPECT(last_timestamp <= frame->timestamp());
+        last_timestamp = frame->timestamp();
+        frame_count++;
+    }
+
+    EXPECT_EQ(frame_count, 25u);
+}
+
+TEST_CASE(only_the_av1_profiles_the_hardware_covers_are_claimed)
+{
+    auto av1_codec = [](u8 profile, u8 bit_depth, Media::Subsampling subsampling) {
+        return Media::ParsedCodec { Media::Codecs::AV1::Parameters {
+            .profile = profile,
+            .level = 8,
+            .tier = Media::Codecs::AV1::Tier::Main,
+            .bit_depth = bit_depth,
+            .optional_fields = { .monochrome = false, .subsampling = subsampling, .chroma_sample_position = 0, .cicp = {} },
+        } };
+    };
+
+    using Decoder = Media::VideoToolbox::VideoToolboxVideoDecoder;
+
+    if (!Decoder::capabilities(av1_codec(0, 8, Media::Subsampling::yuv420())).has_value()) {
+        warnln("No hardware AV1 decoder available, skipping");
+        return;
+    }
+
+    EXPECT(Decoder::capabilities(av1_codec(2, 10, Media::Subsampling::yuv420())).has_value());
+
+    // Only the profile that subsamples both axes has hardware behind it.
+    EXPECT(!Decoder::capabilities(av1_codec(1, 8, Media::Subsampling { false, false })).has_value());
 }
