@@ -1,0 +1,2 @@
+player top: 30
+below top: 0

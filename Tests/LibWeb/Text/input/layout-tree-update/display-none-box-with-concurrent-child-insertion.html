@@ -1,0 +1,33 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #player { height: 20px; }
+    #below { height: 30px; }
+    .hidden { display: none; }
+</style>
+<div id="theater"></div>
+<div id="primary">
+    <div id="player"><div id="player-container"></div></div>
+    <div id="below"></div>
+</div>
+<script>
+    test(() => {
+        const theater = document.getElementById("theater");
+        const player = document.getElementById("player");
+        const playerContainer = document.getElementById("player-container");
+        const below = document.getElementById("below");
+        document.body.offsetHeight;
+
+        player.classList.add("hidden");
+        theater.append(playerContainer);
+        document.body.offsetHeight;
+
+        player.append(playerContainer);
+        player.classList.remove("hidden");
+        document.body.offsetHeight;
+
+        println(`player top: ${player.offsetTop}`);
+        println(`below top: ${below.offsetTop}`);
+    });
+</script>
