@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+@keyframes fade {
+    from { color: red; }
+    to { color: blue; }
+}
+@keyframes grow {
+    from { background-color: red; }
+    to { background-color: blue; }
+}
+div {
+    animation: fade 1s infinite;
+}
+div::before {
+    content: "x";
+    animation: grow 1s infinite;
+}
+</style>
+<div>Hello world</div>
