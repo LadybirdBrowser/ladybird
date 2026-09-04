@@ -21,6 +21,8 @@
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/WebDriver/Error.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/CanonicalBrowsingContext.h>
+#include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/FontService.h>
@@ -28,6 +30,7 @@
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/NavigationLoader.h>
+#include <LibWebView/SiteIsolation.h>
 #include <LibWebView/SiteIsolationManager.h>
 #include <LibWebView/SourceHighlighter.h>
 #include <LibWebView/ViewImplementation.h>
@@ -831,6 +834,16 @@ void WebContentClient::did_finish_navigation_params_creation(u64 page_id, Web::H
     });
 }
 
+void WebContentClient::did_finish_history_navigation_params_creation(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryNavigationPopulation population)
+{
+    auto* host = navigable_for_page(page_id);
+    if (!host) {
+        NavigationLoader::discard(m_is_private, population.result);
+        return;
+    }
+    host->top_level_traversable().did_finish_history_navigation_params_creation(*this, page_id, operation_id, move(population));
+}
+
 void WebContentClient::did_fail_navigation_population(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id)
 {
     auto navigable = population_worker_navigable_for_page(page_id, navigable_id);
@@ -862,7 +875,8 @@ void WebContentClient::did_fail_navigation_population(u64 page_id, Web::HTML::Cr
 
 bool WebContentClient::continue_navigation_population_in_selected_process(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id)
 {
-    auto navigable = hosted_navigable_for_page(page_id, navigable_id);
+    // The population steps up to the response ran in the population worker, which delivered the result here.
+    auto navigable = population_worker_navigable_for_page(page_id, navigable_id);
     if (!navigable.has_value())
         return false;
 
@@ -874,43 +888,50 @@ bool WebContentClient::continue_navigation_population_in_selected_process(u64 pa
         return false;
     }
 
-    auto const& result = ongoing_navigation->loader->result();
-    auto const& current_url = *ongoing_navigation->current_url;
-    auto const& target_url = *ongoing_navigation->url;
-
-    // Step 6 of https://html.spec.whatwg.org/multipage/browsing-the-web.html#process-a-navigate-response
-    // A 204 or 205 response does not load a document, so keep the active document's process as the host.
-    auto creates_a_document = true;
-    if (result.navigation_params.has<Web::HTML::NavigationParamsDescriptor>()) {
-        auto status = result.navigation_params.get<Web::HTML::NavigationParamsDescriptor>().response.status;
-        creates_a_document = status != 204 && status != 205;
-    }
-
-    auto requires_process_swap = false;
-    if (creates_a_document) {
-        if (navigable->is_top_level_traversable()) {
-            requires_process_swap = SiteIsolationManager::the().navigation_requires_process_swap(current_url, target_url, ongoing_navigation->target.value_or(Web::NavigationTarget::TopLevel));
-        } else {
-            requires_process_swap = SiteIsolationManager::the().child_frame_navigation_requires_process_swap(*navigable, current_url, target_url);
-        }
-    }
-
+    auto& loader = *ongoing_navigation->loader;
     ongoing_navigation->phase = CanonicalNavigable::OngoingNavigation::Phase::Populating;
 
-    if (!requires_process_swap) {
-        navigable->set_navigation_host(*this, page_id);
-        async_populate_navigation(page_id, ongoing_navigation->loader->request(), ongoing_navigation->loader->take_result());
+    auto populate_in = [&](WebContentClient& host, u64 host_page_id) {
+        navigable->set_navigation_host(host, host_page_id);
+        host.async_populate_navigation(host_page_id, loader.request(), loader.take_result());
         return true;
-    }
+    };
+
+    // The task queued by step 5 of attempting to populate the history entry's document runs in the process hosting
+    // the browsing context that the document it creates belongs to. A response that creates no document is finished
+    // by the process that fetched it.
+    auto document = loader.response_document();
+    if (!document.has_value())
+        return populate_in(*this, page_id);
+
+    // https://html.spec.whatwg.org/multipage/document-lifecycle.html#initialise-the-document-object
+    // 1. Let browsingContext be the result of obtaining a browsing context to use for a navigation response given navigationParams.
+    auto browsing_context = navigable->obtain_a_browsing_context_to_use_for_a_navigation_response(document->coop_enforcement_result);
+    auto browsing_context_group_switch = browsing_context.ptr() != &navigable->active_browsing_context();
 
     if (navigable->is_top_level_traversable()) {
-        if (auto view = view_for_page_id(page_id); view.has_value()) {
-            return view->create_new_process_for_cross_site_navigation(navigation_id);
-        } else {
+        auto& traversable = navigable->top_level_traversable();
+        auto site_isolation_process_swap = SiteIsolationManager::the().top_level_navigation_requires_process_swap(
+            traversable.active_browsing_context(),
+            traversable.replicated_state()->active_document_url,
+            document->url);
+        if (!browsing_context_group_switch && !site_isolation_process_swap)
+            return populate_in(*this, page_id);
+
+        auto view = view_for_page_id(page_id);
+        if (!view.has_value()) {
             navigable->clear_ongoing_navigation();
             return false;
         }
+        if (browsing_context_group_switch)
+            ongoing_navigation->destination_browsing_context = move(browsing_context);
+        return view->create_new_process_for_cross_site_navigation(navigation_id);
     }
+
+    auto const& current_url = *ongoing_navigation->current_url;
+    auto const& target_url = *ongoing_navigation->url;
+    if (!SiteIsolationManager::the().child_frame_navigation_requires_process_swap(*navigable, current_url, target_url))
+        return populate_in(*this, page_id);
 
     auto current_step = navigable->top_level_traversable().session_history().current_step();
     VERIFY(current_step.has_value());
@@ -938,7 +959,7 @@ bool WebContentClient::continue_navigation_population_in_selected_process(u64 pa
             Web::ViewportIsFullscreen::No);
     }
     remote_client->async_update_visibility_state(remote_page_id, navigable->id(), navigable->top_level_traversable().system_visibility_state());
-    remote_client->async_populate_navigation(remote_page_id, ongoing_navigation->loader->request(), ongoing_navigation->loader->take_result());
+    remote_client->async_populate_navigation(remote_page_id, loader.request(), loader.take_result());
 
     SiteIsolationManager::the().transition_child_frame_to_remote(navigable->reporting_client(), navigable->reporting_page_id(), navigable_id, move(remote_client), remote_page_id);
     return true;
@@ -949,8 +970,27 @@ void WebContentClient::did_create_child_frame(u64 page_id, Web::HTML::CrossProce
     auto* host = navigable_for_page(page_id);
     if (!host)
         return;
+    auto& traversable = host->top_level_traversable();
 
-    host->top_level_traversable().insert(*this, page_id, move(parent_frame_id), move(frame_id), move(replicated_state), *host);
+    // A process materializing a frame that exists re-hosts its document. The canonical navigable's browsing context
+    // stays as it is.
+    if (auto existing_navigable = traversable.find(frame_id); existing_navigable.has_value()) {
+        traversable.insert(*this, page_id, move(parent_frame_id), move(frame_id), move(replicated_state), existing_navigable->active_browsing_context(), *host);
+        return;
+    }
+
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
+    // 2. Let group be element's node document's browsing context's top-level browsing context's group.
+    auto group = traversable.browsing_context_for_document_creation(*this, page_id).group();
+    VERIFY(group);
+
+    // 3. Let browsingContext and document be the result of creating a new browsing context and document given element's node document, element, and group.
+    auto browsing_context = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(*group, replicated_state.active_document_origin, *this);
+
+    // 6. Let documentState be a new document state, with [...]
+    // 7. Let navigable be a new navigable.
+    // 8. Initialize the navigable navigable given documentState and parentNavigable.
+    traversable.insert(*this, page_id, move(parent_frame_id), move(frame_id), move(replicated_state), move(browsing_context), *host);
 }
 
 void WebContentClient::did_update_child_frame_viewport(u64 page_id, Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio)

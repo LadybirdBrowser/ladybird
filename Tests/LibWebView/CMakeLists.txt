@@ -10,6 +10,7 @@ set(TEST_SOURCES
     TestFaviconStore.cpp
     TestHistoryStore.cpp
     TestHSTSStore.cpp
+    TestNavigationLoader.cpp
     TestOmnibox.cpp
     TestPausedDebuggerOverlay.cpp
     TestProfile.cpp
@@ -29,6 +30,9 @@ foreach(source IN LISTS TEST_SOURCES)
     endif()
     ladybird_test("${source}" LibWebView LIBS ${test_libraries})
 endforeach()
+
+target_sources(TestNavigationLoader PRIVATE ${LADYBIRD_SOURCE_DIR}/Libraries/LibWebView/NavigationLoader.cpp)
+target_link_libraries(TestNavigationLoader PRIVATE LibRequests LibWeb)
 
 if (NOT WIN32)
     add_executable(TestAutocomplete TestAutocomplete.cpp)

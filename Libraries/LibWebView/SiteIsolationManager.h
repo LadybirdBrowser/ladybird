@@ -29,6 +29,7 @@ public:
         Web::DevicePixelRect viewport_rect;
     };
 
+    [[nodiscard]] bool top_level_navigation_requires_process_swap(CanonicalBrowsingContext const&, URL::URL const& current_url, URL::URL const& target_url) const;
     [[nodiscard]] bool navigation_requires_process_swap(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget = Web::NavigationTarget::TopLevel) const;
     [[nodiscard]] bool child_frame_navigation_requires_process_swap(CanonicalNavigable const& child_frame, URL::URL const& current_url, URL::URL const& target_url) const;
 

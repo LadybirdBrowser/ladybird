@@ -9,6 +9,7 @@
 #include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
+#include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/WebContentClient.h>
 
@@ -33,6 +34,50 @@ CanonicalBrowsingContext& CanonicalNavigable::active_browsing_context() const
 void CanonicalNavigable::set_active_browsing_context(NonnullRefPtr<CanonicalBrowsingContext> browsing_context)
 {
     m_active_browsing_context = move(browsing_context);
+}
+
+// https://html.spec.whatwg.org/multipage/browsers.html#obtain-browsing-context-navigation
+NonnullRefPtr<CanonicalBrowsingContext> CanonicalNavigable::obtain_a_browsing_context_to_use_for_a_navigation_response(Web::HTML::OpenerPolicyEnforcementResult const& coop_enforcement_result)
+{
+    // 1. Let browsingContext be navigationParams's navigable's active browsing context.
+    NonnullRefPtr browsing_context = active_browsing_context();
+
+    // 2. If browsingContext is not a top-level browsing context, then return browsingContext.
+    if (!is_top_level_traversable())
+        return browsing_context;
+
+    // 3. Let coopEnforcementResult be navigationParams's COOP enforcement result.
+    // 4. Let swapGroup be coopEnforcementResult's needs a browsing context group switch.
+    auto swap_group = coop_enforcement_result.needs_a_browsing_context_group_switch;
+
+    // NB: Steps 5-8 only affect swapGroup through optional choices. This implementation does not take them.
+
+    // 9. If swapGroup is false, then:
+    if (!swap_group) {
+        // FIXME: 1. If coopEnforcementResult's would need a browsing context group switch due to report-only is true,
+        //           set browsingContext's virtual browsing context group ID to a new unique identifier.
+
+        // 2. Return browsingContext.
+        return browsing_context;
+    }
+
+    // 10. Let newBrowsingContext be the first return value of creating a new top-level browsing context and document.
+    // NB: The navigation response's document replaces that document before any process creates it.
+    auto new_browsing_context = CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(URL::Origin::create_opaque(), {});
+
+    // 11. Let navigationCOOP be navigationParams's cross-origin opener policy.
+    // FIXME: 12. If navigationCOOP's value is "same-origin-plus-COEP", then set newBrowsingContext's group's
+    //            cross-origin isolation mode to either "logical" or "concrete". The choice of which is
+    //            implementation-defined.
+
+    // 13. Let sandboxFlags be a clone of navigationParams's final sandboxing flag set.
+    // FIXME: 14. If sandboxFlags is not empty, then:
+    //            1. Assert: navigationCOOP's value is "unsafe-none".
+    //            2. Assert: newBrowsingContext's popup sandboxing flag set is empty.
+    //            3. Set newBrowsingContext's popup sandboxing flag set to sandboxFlags.
+
+    // 15. Return newBrowsingContext.
+    return new_browsing_context;
 }
 
 CanonicalNavigable::~CanonicalNavigable()
@@ -325,7 +370,7 @@ bool CanonicalNavigable::active_document_is(Web::HTML::SessionHistoryEntryDescri
         && m_active_session_history_entry_identity->document_state_id == entry.document_state.id;
 }
 
-void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableState replicated_state, Optional<Utf16String> const& navigation_id)
+void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableState replicated_state, Optional<Utf16String> const& navigation_id, RefPtr<CanonicalBrowsingContext> destination_browsing_context)
 {
     auto commits_ongoing_navigation = !m_ongoing_navigation.has_value()
         || !navigation_id.has_value()
@@ -335,7 +380,21 @@ void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableSta
         ? Optional<Web::HTML::CrossProcessId> { m_active_session_history_entry_identity->document_state_id }
         : Optional<Web::HTML::CrossProcessId> {};
 
+    if (!destination_browsing_context && navigation_id.has_value() && commits_ongoing_navigation && m_ongoing_navigation.has_value())
+        destination_browsing_context = m_ongoing_navigation->destination_browsing_context;
+    if (destination_browsing_context)
+        set_active_browsing_context(destination_browsing_context.release_nonnull());
     set_replicated_state(move(replicated_state));
+
+    auto& traversable = top_level_traversable();
+    auto endpoint = traversable.history_job_endpoint_for(*this);
+    if (endpoint.client) {
+        // FIXME: Pass the document's requestsOAC value once Origin-Agent-Cluster is implemented.
+        auto browsing_context_group = traversable.active_browsing_context().group();
+        VERIFY(browsing_context_group);
+        auto agent = browsing_context_group->obtain_similar_origin_window_agent(m_replicated_state->active_document_origin, false);
+        agent->set_hosting_process_if_unset(*endpoint.client);
+    }
 
     // A navigation can commit while a newer navigation is already in flight. In that case update the replicated
     // state for the committed document without changing the newer navigation's transaction.

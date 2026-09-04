@@ -12,6 +12,57 @@
 
 namespace WebView {
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#attempt-to-populate-the-history-entry's-document
+// The document that the task queued by step 5 creates, if it creates one.
+Optional<NavigationLoader::ResponseDocument> NavigationLoader::response_document() const
+{
+    auto const& navigation_params = result().navigation_params;
+
+    // 3. If navigationParams is a non-fetch scheme navigation params:
+    //    1. Set entry's document state's document to the result of running attempt to create a non-fetch scheme
+    //       document given navigationParams.
+    // NB: That hands the URL off to external software, which creates no document.
+    if (navigation_params.has<Web::HTML::NonFetchSchemeNavigationParamsDescriptor>())
+        return {};
+
+    // 4. Otherwise, if any of the following are true:
+    //    - navigationParams is null;
+    //    [...]
+    //    then:
+    //    1. Set entry's document state's document to the result of creating a document for inline content that
+    //       doesn't have a DOM, given navigable, null, navTimingType, and userInvolvement. The inline content
+    //       should indicate to the user the sort of error that occurred.
+    // NB: That document is created with a new opaque origin, a new opener policy enforcement result, and
+    //     about:error as its URL.
+    if (navigation_params.has<Web::HTML::NavigationParamsNullOrError>()) {
+        auto origin = URL::Origin::create_opaque();
+        return ResponseDocument {
+            .coop_enforcement_result = { .url = URL::about_error(), .origin = origin, .opener_policy = {} },
+            .url = URL::about_error(),
+            .origin = origin,
+        };
+    }
+
+    auto const& fetched_navigation_params = navigation_params.get<Web::HTML::NavigationParamsDescriptor>();
+
+    // FIXME: 5. Otherwise, if navigationParams's response has a `Content-Disposition` header specifying the
+    //           attachment disposition type: [...]
+    //        A download creates no document.
+
+    // 6. Otherwise, if navigationParams's response's status is not 204 and is not 205, then set entry's
+    //    document state's document to the result of loading a document given navigationParams,
+    //    sourceSnapshotParams, and entry's document state's initiator origin.
+    if (fetched_navigation_params.response.status == 204 || fetched_navigation_params.response.status == 205)
+        return {};
+    return ResponseDocument {
+        .coop_enforcement_result = fetched_navigation_params.coop_enforcement_result,
+        // The COOP enforcement result still describes the source document until an opener policy is enforced.
+        // Placement uses the response's final URL, including any redirects.
+        .url = fetched_navigation_params.response.url_list.is_empty() ? m_request.history_entry.url : fetched_navigation_params.response.url_list.last(),
+        .origin = fetched_navigation_params.origin,
+    };
+}
+
 static Web::HTML::NavigationResponseBodyHandle* response_body_handle(Web::HTML::NavigationPopulationResult& result)
 {
     if (!result.navigation_params.has<Web::HTML::NavigationParamsDescriptor>())

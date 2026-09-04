@@ -2311,19 +2311,53 @@ void LocalNavigable::populate_session_history_entry_document(
     NavigationParamsVariant navigation_params,
     ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type,
     bool allow_POST,
-    GC::Ptr<GC::Function<void(GC::Ptr<PopulateSessionHistoryEntryDocumentOutput>)>> completion_steps)
+    GC::Ptr<GC::Function<void(GC::Ptr<PopulateSessionHistoryEntryDocumentOutput>)>> completion_steps,
+    GC::Ptr<GC::Function<void(NavigationPopulationResult)>> response_steps)
 {
     // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
     if (!active_window()) {
         stop_or_resume_response_body_delivery(navigation_params);
+        if (response_steps) {
+            response_steps->function()({
+                .navigation_params = NavigationParamsNullOrError { "Navigable has no active window"_utf16 },
+                .redirected_url = {},
+                .classic_history_api_state = {},
+                .replacement_document_state = {},
+            });
+        }
         return;
     }
 
     auto navigation_timing_type = reload_pending ? Bindings::NavigationTimingType::Reload : Bindings::NavigationTimingType::BackForward;
-    auto received_navigation_params = GC::create_function(heap(), [this, url, navigation_id, navigation_timing_type, user_involvement, completion_steps, csp_navigation_type, source_snapshot_params](GC::Ref<InternalNavigationResult> result) {
+    auto received_navigation_params = GC::create_function(heap(), [this, url, navigation_id, navigation_timing_type, user_involvement, completion_steps, csp_navigation_type, source_snapshot_params, response_steps](GC::Ref<InternalNavigationResult> result) {
         // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
         if (!active_window()) {
             stop_or_resume_response_body_delivery(result->navigation_params);
+            if (response_steps) {
+                response_steps->function()({
+                    .navigation_params = NavigationParamsNullOrError { "Navigable has no active window"_utf16 },
+                    .redirected_url = {},
+                    .classic_history_api_state = {},
+                    .replacement_document_state = {},
+                });
+            }
+            return;
+        }
+
+        if (response_steps) {
+            auto& realm = active_window()->principal_realm();
+            create_navigation_params_descriptor(realm, result->navigation_params, GC::create_function(heap(), [result, response_steps](NavigationParamsVariantDescriptor params) {
+                Optional<SessionHistoryDocumentStateDescriptor> replacement_document_state;
+                if (result->replacement_document_state)
+                    replacement_document_state = create_session_history_document_state_descriptor(*result->replacement_document_state);
+                response_steps->function()({
+                    .navigation_params = move(params),
+                    .redirected_url = move(result->redirected_url),
+                    .classic_history_api_state = move(result->classic_history_api_state),
+                    .replacement_document_state = move(replacement_document_state),
+                    .resource_cleared = result->resource_cleared,
+                });
+            }));
             return;
         }
 

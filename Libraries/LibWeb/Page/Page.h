@@ -488,6 +488,7 @@ public:
     virtual void request_navigation_start(HTML::LocalNavigable&, URL::URL const& current_url, NavigationTarget, URL::URL const& url, Utf16String navigation_id, Optional<HTML::NavigationStartRequest>);
     virtual void request_navigation_population(HTML::LocalNavigable&, URL::URL const& current_url, NavigationTarget, HTML::NavigationPopulationRequest);
     virtual void navigation_params_creation_finished(HTML::LocalNavigable&, HTML::NavigationPopulationRequest, HTML::NavigationPopulationResult);
+    virtual void history_navigation_params_creation_finished(HTML::CrossProcessId operation_id, HTML::HistoryNavigationPopulation);
     virtual void navigation_population_failed(HTML::CrossProcessId, Utf16String const&) { }
     virtual void page_did_create_child_frame(HTML::CrossProcessId, HTML::CrossProcessId, HTML::ReplicatedNavigableState const&) { }
     virtual void page_did_update_child_frame_viewport(HTML::CrossProcessId, CSSPixelRect) { }

@@ -251,7 +251,6 @@ bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16Strin
     if (auto const* current_entry = m_top_level_traversable.session_history().current_entry())
         initial_document_state_id = current_entry->document_state.id;
     initialize_client(CreateNewClient::Yes, initial_document_state_id);
-    m_client_state.site_url = url;
     VERIFY(m_client_state.client);
 
     if (on_web_content_process_change_for_cross_site_navigation)
@@ -291,7 +290,7 @@ bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16Strin
     return true;
 }
 
-void ViewImplementation::replace_web_content_process_for_history_traversal(Web::HTML::CrossProcessId target_document_state_id, URL::URL const& target_url)
+void ViewImplementation::replace_web_content_process_for_history_traversal(Web::HTML::CrossProcessId target_document_state_id)
 {
     auto pending_webdriver_command_ids = move(m_pending_webdriver_command_ids);
     auto pending_webdriver_crash_command_ids = move(m_pending_webdriver_crash_command_ids);
@@ -310,7 +309,6 @@ void ViewImplementation::replace_web_content_process_for_history_traversal(Web::
     // NB: Preserve the in-flight traversal operations so crash recovery can redispatch them to the
     //     replacement process.
     initialize_client(CreateNewClient::Yes, target_document_state_id);
-    m_client_state.site_url = target_url;
     VERIFY(m_client_state.client);
 
     if (on_web_content_process_change_for_cross_site_navigation)
@@ -3065,19 +3063,13 @@ void ViewImplementation::respawn_web_content_process_after_crash()
 {
     // NB: In-flight operations are preserved: crash recovery redispatches them onto the replacement process.
     Optional<Web::HTML::CrossProcessId> initial_document_state_id;
-    Optional<URL::URL> process_site_url;
-    if (auto const* target_entry = m_top_level_traversable.ongoing_browser_history_traversal_target_entry()) {
+    if (auto const* target_entry = m_top_level_traversable.ongoing_browser_history_traversal_target_entry())
         initial_document_state_id = target_entry->document_state.id;
-        process_site_url = target_entry->url;
-    }
     if (!initial_document_state_id.has_value()) {
-        if (auto const* current_entry = m_top_level_traversable.session_history().current_entry()) {
+        if (auto const* current_entry = m_top_level_traversable.session_history().current_entry())
             initial_document_state_id = current_entry->document_state.id;
-            process_site_url = current_entry->url;
-        }
     }
     initialize_client(CreateNewClient::Yes, initial_document_state_id);
-    m_client_state.site_url = move(process_site_url);
     VERIFY(m_client_state.client);
 
     // Don't keep a stale backup bitmap around.

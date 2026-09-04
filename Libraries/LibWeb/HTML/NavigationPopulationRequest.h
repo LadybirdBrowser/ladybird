@@ -66,6 +66,11 @@ struct NavigationPopulationResult {
     bool resource_cleared { false };
 };
 
+struct HistoryNavigationPopulation {
+    NavigationPopulationRequest request;
+    NavigationPopulationResult result;
+};
+
 WEB_API NavigationPopulationRequest create_navigation_population_request(NavigationStartRequest, CrossProcessId document_state_id);
 WEB_API void apply_navigation_population_result(NavigationPopulationRequest&, NavigationPopulationResult const&);
 
@@ -90,5 +95,11 @@ WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::NavigationPopulationResult con
 
 template<>
 WEB_API ErrorOr<Web::HTML::NavigationPopulationResult> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::HistoryNavigationPopulation const&);
+
+template<>
+WEB_API ErrorOr<Web::HTML::HistoryNavigationPopulation> decode(Decoder&);
 
 }

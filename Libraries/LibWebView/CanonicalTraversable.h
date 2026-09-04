@@ -44,6 +44,7 @@ public:
     virtual ~CanonicalTraversable() override;
 
     virtual bool is_top_level_traversable() const override { return true; }
+    CanonicalBrowsingContext& browsing_context_for_document_creation(WebContentClient const&, u64 page_id) const;
 
     // Apply-the-history-step coordination. Operations serialize on the traversable's session history traversal
     // queue; the algorithm runs here and dispatches its per-navigable jobs to the processes hosting the documents.
@@ -80,13 +81,14 @@ public:
     void did_receive_history_step_unload_cancelation_result(WebContentClient&, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult, Web::HTML::UnloadPromptShown);
     void did_receive_history_step_beforeunload_check_result(WebContentClient&, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult, Web::HTML::UnloadPromptShown);
     void did_receive_changing_navigable_history_job_ready(WebContentClient&, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition, Web::HTML::UnloadDisplayedDocument);
+    void did_finish_history_navigation_params_creation(WebContentClient&, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryNavigationPopulation);
     void did_receive_changing_navigable_unload_preparation_complete(WebContentClient&, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id);
     void did_receive_descendant_unload_task_complete(WebContentClient&, u64 source_page_id, Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id);
     void did_receive_child_navigable_unload_request(WebContentClient&, u64 source_page_id, Web::HTML::CrossProcessId navigable_id);
     void did_receive_changing_navigable_continuation_applied(WebContentClient&, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state);
     void did_receive_nonchanging_navigable_history_state_updated(WebContentClient&, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id);
 
-    CanonicalNavigable& insert(WebContentClient& reporting_client, u64 page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState, CanonicalNavigable& fallback_parent);
+    CanonicalNavigable& insert(WebContentClient& reporting_client, u64 page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState, NonnullRefPtr<CanonicalBrowsingContext>, CanonicalNavigable& fallback_parent);
     Optional<CanonicalNavigable&> find(Web::HTML::CrossProcessId navigable_id);
     Optional<CanonicalNavigable const&> find(Web::HTML::CrossProcessId navigable_id) const;
     void remove(CanonicalNavigable&);
@@ -137,6 +139,7 @@ private:
     void add_history_operation_completion_endpoint(HistoryOperation&, HistoryJobEndpoint);
     bool select_changing_navigable_history_step_job_endpoint(HistoryOperation&, ApplyHistoryStepJobs::ChangingNavigableHistoryStepJob&);
     void dispatch_changing_navigable_history_step_job(HistoryOperation&, Web::HTML::CrossProcessId navigable_id);
+    void continue_history_navigation_population(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id);
     void dispatch_changing_navigable_history_step_continuation(HistoryOperation&, Web::HTML::CrossProcessId navigable_id);
     void send_changing_navigable_continuation_task(HistoryOperation&, Web::HTML::CrossProcessId navigable_id, Web::HTML::UnloadDisplayedDocument);
     void deactivate_a_document_for_cross_document_navigation(HistoryOperation&, Web::HTML::CrossProcessId navigable_id);

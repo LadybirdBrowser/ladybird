@@ -74,6 +74,9 @@ class TestPageServer(http.server.ThreadingHTTPServer):
         self.same_site_post_result_document_ran = threading.Event()
         self.same_url_post_result_document_ran = threading.Event()
         self.reload_blocked_document_ran = threading.Event()
+        self.history_response_redirect = None
+        self.history_response_request_count = 0
+        self.history_response_destination_count = 0
 
     def handle_error(self, request, client_address):
         if isinstance(sys.exc_info()[1], BrokenPipeError):
@@ -85,6 +88,25 @@ class TestPageHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         server = cast(TestPageServer, self.server)
         server_port = server.server_port
+
+        if self.path == "/history-response":
+            server.history_response_request_count += 1
+            self.send_response(302 if server.history_response_redirect else 200)
+            self.send_header("Content-Type", "text/html")
+            self.send_header("Cache-Control", "no-store")
+            if server.history_response_redirect:
+                self.send_header("Location", server.history_response_redirect)
+            self.end_headers()
+            self.wfile.write(b"<!doctype html><title>History response source</title>")
+            return
+
+        if self.path == "/history-response-destination":
+            server.history_response_destination_count += 1
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(b"<!doctype html><title>History response destination</title>")
+            return
 
         if self.path == "/a":
             with server.a_request_lock:
@@ -2459,6 +2481,89 @@ def expect_post_crash_recovery_waits_for_load(webdriver_port, session_id, page_s
     expect_current_entry_resource(webdriver_port, session_id, "after POST crash recovery", "post", log)
 
 
+def run_navigation_response_process_selection_test(webdriver_port, url_a, url_b, url_d, url_redirect_to_b):
+    for label, target_url, expected_url, should_swap in [
+        ("same-site navigation", url_d, url_d, False),
+        ("cross-site navigation", url_b, url_b, True),
+        ("same-site URL redirecting cross-site", url_redirect_to_b, url_b, True),
+    ]:
+        session_id = create_session(webdriver_port)
+        log = []
+        try:
+            load_url_from_ui(webdriver_port, session_id, url_a)
+            expect_url(webdriver_port, session_id, "process selection source", url_a, log)
+            source_process_id = session_history(webdriver_port, session_id)["ui"]["webContentProcessID"]
+
+            execute_script(webdriver_port, session_id, f"location.href = {json.dumps(target_url)}; return null;")
+            wait_for_script_result(
+                webdriver_port,
+                session_id,
+                label,
+                "return location.href;",
+                lambda url, expected_url=expected_url: url == expected_url,
+                log,
+            )
+            destination_process_id = session_history(webdriver_port, session_id)["ui"]["webContentProcessID"]
+            did_swap = source_process_id != destination_process_id
+            if did_swap != should_swap:
+                raise AssertionError(
+                    f"Expected process swap={should_swap} for {label}, "
+                    f"got WebContent PID {source_process_id} -> {destination_process_id}"
+                )
+        finally:
+            request(webdriver_port, "DELETE", f"/session/{session_id}")
+
+
+def run_history_response_process_selection_tests(webdriver_port, page_server):
+    local_base = f"http://localhost:{page_server.server_port}"
+    remote_base = f"http://127.0.0.1:{page_server.server_port}"
+    for operation, stored_base, destination_base, should_swap in [
+        ("back", local_base, remote_base, True),
+        ("back", remote_base, local_base, False),
+        ("forward", local_base, remote_base, True),
+        ("reload", local_base, remote_base, True),
+        ("reload", local_base, local_base, False),
+    ]:
+        session_id = create_session(webdriver_port)
+        log = []
+        page_server.history_response_redirect = None
+        try:
+            if operation == "forward":
+                load_url_from_ui(webdriver_port, session_id, local_base + "/a")
+            load_url_from_ui(webdriver_port, session_id, stored_base + "/history-response")
+            if operation == "back":
+                load_url_from_ui(webdriver_port, session_id, local_base + "/d")
+            elif operation == "forward":
+                traverse_history_from_ui(webdriver_port, session_id, -1)
+
+            before = session_history(webdriver_port, session_id)["ui"]
+            requests_before = page_server.history_response_request_count
+            destinations_before = page_server.history_response_destination_count
+            destination = destination_base + "/history-response-destination"
+            page_server.history_response_redirect = destination
+            if operation == "reload":
+                refresh(webdriver_port, session_id)
+            else:
+                traverse_history_from_ui(webdriver_port, session_id, -1 if operation == "back" else 1)
+            label = f"{operation} redirect from {stored_base} to {destination_base}"
+            expect_url(webdriver_port, session_id, label, destination, log)
+            after = session_history(webdriver_port, session_id)["ui"]
+            did_swap = before["webContentProcessID"] != after["webContentProcessID"]
+            if did_swap != should_swap:
+                raise AssertionError(f"Expected process swap={should_swap} for {label}: {before} -> {after}")
+            if page_server.history_response_request_count != requests_before + 1:
+                raise AssertionError(f"Refetched the history entry during {label}")
+            if page_server.history_response_destination_count != destinations_before + 1:
+                raise AssertionError(f"Refetched the redirect destination during {label}")
+            expected_index = before["currentUsedStepIndex"] + {"back": -1, "forward": 1, "reload": 0}[operation]
+            if after["currentUsedStepIndex"] != expected_index or len(after["entries"]) != len(before["entries"]):
+                raise AssertionError(f"Changed the history operation during {label}: {before} -> {after}")
+            expect_session_history_idle(webdriver_port, session_id, label, log)
+        finally:
+            page_server.history_response_redirect = None
+            request(webdriver_port, "DELETE", f"/session/{session_id}")
+
+
 def run_test(webdriver_binary):
     page_server = TestPageServer(("0.0.0.0", 0), TestPageHandler)
     page_server_thread = threading.Thread(target=page_server.serve_forever, daemon=True)
@@ -2532,6 +2637,9 @@ def run_test(webdriver_binary):
             url_iframe_deferred_fragment_first,
             url_iframe_deferred_fragment_second,
         )
+
+        run_navigation_response_process_selection_test(webdriver_port, url_a, url_b, url_d, url_redirect_to_b)
+        run_history_response_process_selection_tests(webdriver_port, page_server)
 
         run_uncommitted_navigation_browser_ui_back_tests(
             webdriver_port,

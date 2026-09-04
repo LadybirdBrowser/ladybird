@@ -177,7 +177,8 @@ public:
         NavigationParamsVariant navigation_params,
         ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type,
         bool allow_POST,
-        GC::Ptr<GC::Function<void(GC::Ptr<PopulateSessionHistoryEntryDocumentOutput>)>> completion_steps);
+        GC::Ptr<GC::Function<void(GC::Ptr<PopulateSessionHistoryEntryDocumentOutput>)>> completion_steps,
+        GC::Ptr<GC::Function<void(NavigationPopulationResult)>> response_steps = {});
 
     void queue_navigation_and_traversal_task_for_session_history_entry_population(
         URL::URL url,
