@@ -67,6 +67,10 @@ public:
 
     void cache_entry_closed(Badge<CacheEntry>, CacheEntry const&);
 
+    // The time when any request holding open a cache entry for this URL and method last made progress — or nothing, if
+    // no such request reports any. A request waiting on that entry reads it to judge whether the holder has stalled.
+    Optional<MonotonicTime> last_activity_time_of_open_entries(URL::URL const&, StringView method) const;
+
 private:
     DiskCache(Mode, NonnullRefPtr<Database::Database>, LexicalPath cache_directory, CacheIndex);
 

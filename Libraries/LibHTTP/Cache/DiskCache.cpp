@@ -373,6 +373,31 @@ bool DiskCache::check_if_cache_has_open_entry(CacheRequest& request, u64 cache_k
     return false;
 }
 
+Optional<MonotonicTime> DiskCache::last_activity_time_of_open_entries(URL::URL const& url, StringView method) const
+{
+    auto cache_key = create_cache_key(serialize_url_for_cache_storage(url), method);
+
+    auto open_entries = m_open_cache_entries.get(cache_key);
+    if (!open_entries.has_value())
+        return {};
+
+    Optional<MonotonicTime> last_activity_time;
+
+    for (auto const& open_entry : *open_entries) {
+        if (!open_entry.request)
+            continue;
+
+        auto activity_time = open_entry.request->last_activity_time();
+        if (!activity_time.has_value())
+            continue;
+
+        if (!last_activity_time.has_value() || *activity_time > *last_activity_time)
+            last_activity_time = activity_time;
+    }
+
+    return last_activity_time;
+}
+
 void DiskCache::remove_entries_exceeding_cache_limit()
 {
     m_index.remove_entries_exceeding_cache_limit([&](auto cache_key, auto vary_key) {

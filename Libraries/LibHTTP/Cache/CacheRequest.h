@@ -8,6 +8,7 @@
 
 #include <AK/Badge.h>
 #include <AK/Optional.h>
+#include <AK/Time.h>
 #include <AK/Weakable.h>
 #include <LibHTTP/Forward.h>
 
@@ -20,6 +21,10 @@ public:
     virtual bool is_revalidation_request() const = 0;
 
     virtual void notify_request_unblocked(Badge<DiskCache>) = 0;
+
+    // The time when this request last made progress. The disk cache reads this to distinguish a request that's still
+    // filling or revalidating an entry — however slowly — from one that's stalled and will never release the entry.
+    virtual Optional<MonotonicTime> last_activity_time() const { return {}; }
 
 protected:
     enum class CacheStatus : u8 {

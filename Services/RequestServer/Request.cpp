@@ -724,6 +724,7 @@ void Request::transition_to_state(State state)
 {
     dbgln_if(REQUESTSERVER_DEBUG, "Request::Transition[{}]: {} -> {} ({} {})", m_request_id, state_name(m_state), state_name(state), m_method, m_url);
     m_state = state;
+    mark_activity();
     process();
 }
 
@@ -844,7 +845,8 @@ void Request::handle_wait_for_cache_state()
 {
     // The disk cache notifies us once the request holding our cache entry open completes. If that request has stalled,
     // it never will: a connection that silently died keeps a transfer alive indefinitely, and the entry it holds would
-    // otherwise block every later request for the same URL for the lifetime of this process.
+    // otherwise block every later request for the same URL for the lifetime of this process. So, check on it once a
+    // wait limit has passed.
     if (m_wait_for_cache_timer)
         return;
 
@@ -859,7 +861,19 @@ void Request::wait_for_cache_timed_out()
     if (m_state != State::WaitForCache)
         return;
 
-    dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Request {} waited {}ms for the cache entry of {} to be released; continuing without the disk cache", m_request_id, s_wait_for_cache_timeout.to_milliseconds(), m_url);
+    // A request that's still filling or revalidating the entry — however slowly — releases it when it's done. So,
+    // only a holder that's shown no sign of life for a whole wait limit counts as stalled. Otherwise, keep waiting —
+    // and look again once the holder has had a full limit's worth of time to go quiet.
+    if (auto last_activity_time = m_disk_cache->last_activity_time_of_open_entries(m_url, m_method); last_activity_time.has_value()) {
+        auto idle_time = MonotonicTime::now() - *last_activity_time;
+        if (idle_time < s_wait_for_cache_timeout) {
+            auto time_until_stalled = s_wait_for_cache_timeout - idle_time;
+            m_wait_for_cache_timer->start(max(static_cast<int>(time_until_stalled.to_milliseconds()), 1));
+            return;
+        }
+    }
+
+    dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Request {} gave up waiting for the cache entry of {}: the request holding it has made no progress for {}ms; continuing without the disk cache", m_request_id, m_url, s_wait_for_cache_timeout.to_milliseconds());
 
     // A background revalidation exists only to refresh the entry it could not open, so there's nothing left for it
     // to do.
@@ -1340,6 +1354,7 @@ void Request::handle_error_state()
 size_t Request::on_header_received(void* buffer, size_t size, size_t nmemb, void* user_data)
 {
     auto& request = *static_cast<Request*>(user_data);
+    request.mark_activity();
 
     auto total_size = size * nmemb;
     auto header_line = StringView { static_cast<char const*>(buffer), total_size };
@@ -1374,6 +1389,7 @@ size_t Request::on_header_received(void* buffer, size_t size, size_t nmemb, void
 size_t Request::on_data_received(void* buffer, size_t size, size_t nmemb, void* user_data)
 {
     auto& request = *static_cast<Request*>(user_data);
+    request.mark_activity();
 
     if (request.m_type == RequestType::Fetch || request.m_type == RequestType::BackgroundRevalidation)
         record_chunk(&request, size * nmemb);
@@ -1612,8 +1628,14 @@ ErrorOr<void> Request::write_queued_bytes_without_blocking()
         if (!m_cache_entry_writer.has_value())
             return;
 
-        if (m_cache_entry_writer->write_data(bytes).is_error())
+        if (m_cache_entry_writer->write_data(bytes).is_error()) {
             m_cache_entry_writer.clear();
+            return;
+        }
+
+        // The entry is still filling, even once curl has nothing left to deliver: A client that reads its response
+        // slowly keeps these writes coming long after the transfer is over — so they count as progress too.
+        mark_activity();
     };
 
     if (m_type == RequestType::BackgroundRevalidation) {
