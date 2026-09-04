@@ -175,12 +175,23 @@ impl StyleRecordView<'_> {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct StyleRecord {
     groups: ComputedGroupSetID,
+    inherited_groups: InheritedGroupSetID,
     custom_properties: CustomPropertyEnvironmentID,
     fixed_metadata: ComputedFixedMetadataID,
     longhand_table: Option<ComputedLonghandTableID>,
+}
+
+impl Hash for StyleRecord {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // The inherited subset is derived from the groups, so it contributes no useful entropy.
+        self.groups.hash(state);
+        self.custom_properties.hash(state);
+        self.fixed_metadata.hash(state);
+        self.longhand_table.hash(state);
+    }
 }
 
 pub struct ComputedMetadataInput<'a> {
@@ -1085,6 +1096,7 @@ impl ComputedGroupSets {
         });
         let new_record = StyleRecord {
             groups: group_set,
+            inherited_groups: parent_inherited,
             custom_properties: old_record.custom_properties,
             fixed_metadata: old_record.fixed_metadata,
             longhand_table,
@@ -1518,6 +1530,7 @@ impl ComputedGroupSets {
 
         let style_record = StyleRecord {
             groups: identity,
+            inherited_groups: inherited_identity,
             custom_properties: custom_property_environment_identity,
             fixed_metadata: computed_fixed_metadata_identity,
             longhand_table: longhand_table_identity,
@@ -1677,9 +1690,10 @@ impl ComputedGroupSets {
             .filter(|&previous| self.style_records_equal_by_value(previous, requested_style_record_identity))
             .unwrap_or(requested_style_record_identity);
         let record = *self.style_records.get_index(style_record_identity.index())?;
-        let group_identities = self.group_identities(record.groups);
-        let inherited_groups = &group_identities[..inherited_group_count];
-        let (inherited_identity, new_inherited_group_set) = self.intern_inherited_group_set(inherited_groups);
+        // The inherited subset is immutable along with the complete style record. Sharing a
+        // record must not reconstruct its group identities and intern the same subset again.
+        let inherited_identity = record.inherited_groups;
+        assert_eq!(self.inherited_sets[inherited_identity].len(), inherited_group_count);
 
         let is_pseudo = target.is_pseudo();
         let (
@@ -1770,7 +1784,7 @@ impl ComputedGroupSets {
             new_groups: 0,
             canonical_output_groups_reused: 0,
             new_group_set: false,
-            new_inherited_group_set,
+            new_inherited_group_set: false,
             new_custom_property_environment: false,
             new_computed_fixed_metadata: false,
             new_style_record: false,
@@ -1798,7 +1812,10 @@ impl ComputedGroupSets {
         let Some(second) = self.style_records.get_index(second.index()) else {
             return false;
         };
-        if first.custom_properties != second.custom_properties || first.fixed_metadata != second.fixed_metadata {
+        if first.custom_properties != second.custom_properties
+            || first.fixed_metadata != second.fixed_metadata
+            || self.inherited_sets[first.inherited_groups].len() != self.inherited_sets[second.inherited_groups].len()
+        {
             return false;
         }
         let first_groups = &self.sets[first.groups].payloads;
@@ -2172,6 +2189,7 @@ impl ComputedGroupSets {
                 ComputedReachability::mark(&mut reachable.style_records, identity);
                 let record = self.style_records.get(identity);
                 ComputedReachability::mark(&mut reachable.sets, record.groups);
+                ComputedReachability::mark(&mut reachable.inherited_sets, record.inherited_groups);
                 ComputedReachability::mark(&mut reachable.custom_property_environments, record.custom_properties);
                 ComputedReachability::mark(&mut reachable.fixed_metadata, record.fixed_metadata);
                 if let Some(longhand_table) = record.longhand_table {
@@ -2966,6 +2984,33 @@ mod tests {
         assert_eq!(sets.base_style_record_pins[&base_style_record], 1);
         sets.unpin_style_record(style_record.raw());
         assert!(sets.base_style_record_pins.is_empty());
+    }
+
+    #[test]
+    fn pinned_style_record_retains_its_inherited_group_set_for_sharing() {
+        let mut sets = ComputedGroupSets::default();
+        let donor = sets.publish(None, &[], 0, 1, metadata(0, 0, 0));
+        let record = donor.style_record_identity.raw();
+        sets.pin_style_record(record);
+        sets.reclaim_unreachable();
+        assert_eq!(sets.inherited_sets.live_len(), 1);
+
+        let node = StyleNodeID::element(1);
+        for kind in [u8::MAX, 1, 2] {
+            let target = ComputedStyleTarget::new(node, kind);
+            let shared = sets.assign_shared_style_record(target, record, 0, false).unwrap();
+            assert_eq!(shared.style_record_identity, donor.style_record_identity);
+            assert!(!shared.new_inherited_group_set);
+            assert!(shared.inherited_node_handle_changed);
+            let unchanged = sets.assign_shared_style_record(target, record, 0, false).unwrap();
+            assert!(!unchanged.inherited_node_handle_changed);
+        }
+        sets.unpin_style_record(record);
+        sets.reclaim_unreachable();
+        assert_eq!(sets.inherited_sets.live_len(), 1);
+        sets.remove(node);
+        sets.reclaim_unreachable();
+        assert_eq!(sets.inherited_sets.live_len(), 0);
     }
 
     #[test]
