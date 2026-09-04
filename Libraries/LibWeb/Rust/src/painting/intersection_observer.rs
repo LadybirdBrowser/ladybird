@@ -5,13 +5,14 @@
  */
 
 use crate::css::computed_value_views::ComputedValuesView;
-use crate::css::css_enums::overflow;
+use crate::css::css_enums::{overflow, positioning};
 use crate::css::css_pixels::CssPixelRect;
-use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::rect_to_viewport_transform::{RectToViewportTransform, transform_rect_to_viewport_or_identity};
+use crate::painting::style_queries;
 
 fn content_clip_rect_in_viewport_space(
     arena: &impl PaintableRowsRead,
@@ -95,4 +96,58 @@ pub(crate) fn intersection_rect(
 
     // 7. Return intersectionRect.
     intersection_rect
+}
+
+pub(crate) fn transform_subtree_is_clipped_outside(
+    arena: &impl PaintableRowsRead,
+    target: NodeSlotId,
+    root_bounds: CssPixelRect,
+    rect_to_viewport_transform: Option<&RectToViewportTransform<'_>>,
+) -> bool {
+    if !arena.paintable_row_is_populated(target) || root_bounds.is_empty() {
+        return false;
+    }
+    let target_data = arena.data(target);
+    if node_facts::kind_is_box(target_data.kind.get())
+        && (style_queries::is_fixed_position(arena, target)
+            || node_facts::has_flag(target_data, NodeFlag::AbsposDescendantEscapes))
+    {
+        return false;
+    }
+
+    let mut has_disjoint_clip = false;
+    let mut ancestor = target_data.parent.get();
+    while let Some(ancestor_data) = arena.node_data_if_live(ancestor) {
+        let parent = ancestor_data.parent.get();
+        if node_facts::kind_is_box(ancestor_data.kind.get()) {
+            if !arena.paintable_row_is_populated(ancestor) {
+                return false;
+            }
+            let Some(style) = arena.node_style_if_live(ancestor) else {
+                ancestor = parent;
+                continue;
+            };
+            if style.box_values().position == positioning::FIXED {
+                return false;
+            }
+
+            if let Some(clip_rect) =
+                content_clip_rect_in_viewport_space(arena, ancestor, style, rect_to_viewport_transform)
+                && !clip_rect.edge_adjacent_intersects(root_bounds)
+            {
+                has_disjoint_clip = true;
+            }
+
+            // A transform outside the disjoint clip could move the clip into the observation root without updating
+            // its main-thread geometry. Transforms inside the clip can only move content within the clipped region.
+            if has_disjoint_clip
+                && (style_queries::has_css_transform(arena, ancestor, style)
+                    || style_queries::is_sticky_position(style))
+            {
+                return false;
+            }
+        }
+        ancestor = parent;
+    }
+    has_disjoint_clip
 }
