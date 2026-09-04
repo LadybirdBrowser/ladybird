@@ -115,8 +115,6 @@
         observationRoot.append(leavingTarget);
         document.body.append(observationRoot);
         observationRoot.scrollIntoView();
-        const leavingAnimation = leavingTarget.getAnimations()[0];
-        leavingAnimation.startTime = document.timeline.currentTime;
         leavingTarget.getBoundingClientRect();
 
         let resolveInitialLeavingObservation;
