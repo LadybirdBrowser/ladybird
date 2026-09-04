@@ -2825,13 +2825,9 @@ impl SelectorPrograms {
                 self.program_index,
             ];
             cached [self.program_memory.bytes()];
-            nested [self
-                .entry_ids_by_program
-                .iter()
-                .flatten()
-                .map(|entries| size_of_val(entries.as_ref()))
-                .sum::<usize>()
-                ];
+            // Each live entry identity occupies exactly one slot in a boxed program entry list.
+            // Settling after each rule must not walk every program already compiled.
+            nested [(self.entry_locations.len() - self.vacant_entries.len()) * size_of::<EntryID>()];
             skip [self.memory];
         }
     }
@@ -7846,6 +7842,52 @@ mod tests {
         }));
         assert_ne!(first, different);
         assert_eq!(programs.len(), 2);
+    }
+
+    #[test]
+    fn live_entry_identities_account_for_program_entry_storage() {
+        let make_program = |first: u32, count: u32| {
+            let mut builder = SelectorProgramBuilder::new();
+            for index in first..first + count {
+                let root = builder.push_feature(FeatureTest::Class(StyleAtomID(index)));
+                builder.push_entry(root);
+            }
+            builder.finish()
+        };
+        let check = |programs: &SelectorPrograms| {
+            let allocated_entries: usize = programs
+                .entry_ids_by_program
+                .iter()
+                .flatten()
+                .map(|entries| entries.len())
+                .sum();
+            assert_eq!(
+                programs.entry_locations.len() - programs.vacant_entries.len(),
+                allocated_entries
+            );
+            assert_eq!(programs.entry_locations.iter().flatten().count(), allocated_entries);
+        };
+        for mut programs in [SelectorPrograms::new(), SelectorPrograms::for_replay()] {
+            check(&programs);
+            let first = programs.add(make_program(1, 5));
+            let retained = programs.add(make_program(10, 2));
+            assert_eq!(first, programs.add(make_program(1, 5)));
+            check(&programs);
+
+            let mut referenced = vec![false; programs.len()];
+            referenced[retained.0 as usize] = true;
+            programs.sweep_unreferenced(&referenced);
+            check(&programs);
+            // Reuse only part of the vacant entry space, then exhaust it and grow again.
+            programs.add(make_program(20, 3));
+            check(&programs);
+            programs.add(make_program(30, 7));
+            check(&programs);
+            programs.sweep_unreferenced(&[]);
+            check(&programs);
+            programs.add(make_program(40, 1));
+            check(&programs);
+        }
     }
 
     #[test]
