@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<!-- A document still runs script while it is being unloaded for a cross-document navigation (pagehide, unload). A
+     pushState() from there queues a same-document finalization that reaches the session history traversal queue only
+     after the new document has been activated. That finalization targets an entry of a document that is no longer
+     active, so it has to be dropped. It used to be applied as a cross-document traversal instead, which fetched the
+     unloaded document again and replaced the document that had just finished loading. -->
+<script>
+    asyncTest(async done => {
+        if (location.hash === "#pushed-while-unloading") {
+            // Only the stale pushState() can load this URL; the "?loaded" document reports that as its failure.
+            return;
+        }
+        if (location.search.includes("loaded")) {
+            let reported = false;
+            const report = message => {
+                if (reported) return;
+                reported = true;
+                println(message);
+                done();
+            };
+            window.addEventListener("pagehide", () => report("FAIL: the stale pushState() unloaded the new document"));
+            // The stale finalization sits in the traversal queue ahead of this barrier.
+            await internals.flushSessionHistoryTraversalQueue();
+            report("PASS (stale pushState was dropped)");
+            return;
+        }
+        window.addEventListener("pagehide", () => history.pushState({}, "", "#pushed-while-unloading"));
+        const next = new URL(location.href);
+        next.search = "?loaded";
+        internals.loadURL(next.href);
+    });
+</script>

@@ -1928,6 +1928,18 @@ void CanonicalTraversable::finalize_a_same_document_navigation(HistoryOperation&
     // AD-HOC: WebContent performs this object-identity check synchronously before enqueueing. Repeating
     // it against the later canonical active entry would incorrectly discard back-to-back synchronous pushState()
     // calls; Firefox and Chromium preserve both entries.
+    //
+    // AD-HOC: The document that made the navigation can still have been replaced by the time this queue position
+    //         is reached: a cross-document navigation that committed ahead of it unloads that document, and that
+    //         document can push entries until it is destroyed (e.g. from pagehide, or from a timer that fires
+    //         during the commit). Such a stale finalization must not be applied. Its target entry belongs to a
+    //         document that is no longer active, so applying it would traverse across documents and populate the
+    //         unloaded document again, replacing the one that just committed.
+    if (auto const& active_entry_identity = target_navigable->active_session_history_entry_identity();
+        active_entry_identity.has_value() && active_entry_identity->document_state_id != request.target_entry.document_state_id) {
+        finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
+        return;
+    }
 
     // AD-HOC: Admission staged targetEntry so entry-addressed updates made before this queue position are retained.
     auto target_entry = target_navigable->take_pending_same_document_session_history_entry(
