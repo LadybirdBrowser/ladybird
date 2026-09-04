@@ -1,3 +1,0 @@
-document collected: true
-window collected: true
-PASS (didn't crash)
