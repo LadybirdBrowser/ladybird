@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::css_pixels::{CssPixelRect, CssPixels};
+use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::used_values::FfiCssPixelPoint;
@@ -18,6 +18,7 @@ use crate::painting::host::FfiRecordedDisplayList;
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_rows::{PaintableRowsRead, with_inline_pieces};
 use crate::painting::rect_to_viewport_transform::RectToViewportTransform;
+use crate::painting::scroll_chain::ViewportWheelOverflow;
 use std::ffi::c_void;
 use std::rc::Rc;
 
@@ -236,6 +237,101 @@ pub unsafe extern "C" fn layout_arena_paintable_maximum_scroll_offset(
 ) -> FfiCssPixelPoint {
     let arena = unsafe { arena_from_handle(arena) };
     crate::painting::chrome_geometry::maximum_scroll_offset(&arena.paintable_rows(), slot).into()
+}
+
+fn scroll_offset_reader(
+    arena: &LayoutNodeArena,
+    scroll_offset_of_layout_node: unsafe extern "C" fn(*mut c_void) -> FfiCssPixelPoint,
+) -> impl Fn(NodeSlotId) -> CssPixelPoint {
+    move |node| {
+        // SAFETY: The C++ host reads the offset of a live layout node shell synchronously.
+        unsafe { scroll_offset_of_layout_node(arena.node_shell(node)) }.into()
+    }
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread. The
+/// host callback receives live layout node shells.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_scrolling_box_for_scroll_step(
+    arena: *mut c_void,
+    target: NodeSlotId,
+    viewport: NodeSlotId,
+    delta: FfiCssPixelPoint,
+    viewport_wheel_overflow_x: u8,
+    viewport_wheel_overflow_y: u8,
+    scroll_offset_of_layout_node: unsafe extern "C" fn(*mut c_void) -> FfiCssPixelPoint,
+) -> *mut c_void {
+    let arena = unsafe { arena_from_handle(arena) };
+    let scrolling_box = crate::painting::scroll_chain::scrolling_box_for_scroll_step(
+        &arena.paintable_rows(),
+        target,
+        viewport,
+        delta.into(),
+        ViewportWheelOverflow {
+            x: viewport_wheel_overflow_x,
+            y: viewport_wheel_overflow_y,
+        },
+        &scroll_offset_reader(arena, scroll_offset_of_layout_node),
+    );
+    arena.shell_if_live(scrolling_box)
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread. The
+/// host callback receives live layout node shells.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_for_each_wheel_scrollable_box_in_containing_block_chain(
+    arena: *mut c_void,
+    start: NodeSlotId,
+    wheel_delta_x: f64,
+    wheel_delta_y: f64,
+    viewport_wheel_overflow_x: u8,
+    viewport_wheel_overflow_y: u8,
+    scroll_offset_of_layout_node: unsafe extern "C" fn(*mut c_void) -> FfiCssPixelPoint,
+    context: *mut c_void,
+    push_scrollable_box: unsafe extern "C" fn(*mut c_void, *mut c_void, f64, f64),
+) {
+    let arena = unsafe { arena_from_handle(arena) };
+    crate::painting::scroll_chain::for_each_wheel_scrollable_box_in_containing_block_chain(
+        &arena.paintable_rows(),
+        start,
+        wheel_delta_x,
+        wheel_delta_y,
+        ViewportWheelOverflow {
+            x: viewport_wheel_overflow_x,
+            y: viewport_wheel_overflow_y,
+        },
+        &scroll_offset_reader(arena, scroll_offset_of_layout_node),
+        |node, accepted_delta_x, accepted_delta_y| {
+            // SAFETY: The C++ callback appends the shell and deltas to a caller-owned collection.
+            unsafe { push_scrollable_box(context, arena.node_shell(node), accepted_delta_x, accepted_delta_y) };
+        },
+    );
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_first_wheel_scrollable_box_in_containing_block_chain(
+    arena: *mut c_void,
+    start: NodeSlotId,
+    viewport_wheel_overflow_x: u8,
+    viewport_wheel_overflow_y: u8,
+) -> *mut c_void {
+    let arena = unsafe { arena_from_handle(arena) };
+    let scrollable_box = crate::painting::scroll_chain::first_wheel_scrollable_box_in_containing_block_chain(
+        &arena.paintable_rows(),
+        start,
+        ViewportWheelOverflow {
+            x: viewport_wheel_overflow_x,
+            y: viewport_wheel_overflow_y,
+        },
+    );
+    arena.shell_if_live(scrollable_box)
 }
 
 /// # Safety

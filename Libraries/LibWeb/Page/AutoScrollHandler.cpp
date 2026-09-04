@@ -112,22 +112,16 @@ CSSPixelPoint AutoScrollHandler::process(CSSPixelPoint mouse_position)
 
 GC::Ptr<DOM::Element> AutoScrollHandler::find_scrollable_ancestor(Layout::Node const& layout_node)
 {
-    for (auto const* current = &layout_node; current; current = current->containing_block()) {
-        if (!Painting::has_committed_box(*current))
-            continue;
-        if (Painting::could_be_scrolled_by_wheel_event(*current)) {
-            if (auto* element = as_if<DOM::Element>(current->dom_node()))
-                return const_cast<DOM::Element*>(element);
-        }
+    auto const* scrollable_box = Painting::first_wheel_scrollable_box_in_containing_block_chain(layout_node);
+    if (!scrollable_box)
+        return {};
 
-        // The viewport is always a potential scroll container, but may not report has_scrollable_overflow() and its DOM
-        // node is Document (not Element).
-        if (Painting::is_viewport_paintable(*current) && Painting::could_be_scrolled_by_wheel_event(*current)) {
-            if (auto scrolling_element = current->document().scrolling_element())
-                return const_cast<DOM::Element*>(scrolling_element.ptr());
-        }
-    }
-    return {};
+    // The viewport is always a potential scroll container, but may not report has_scrollable_overflow() and its DOM
+    // node is Document (not Element).
+    if (scrollable_box->is_viewport())
+        return const_cast<DOM::Element*>(scrollable_box->document().scrolling_element().ptr());
+
+    return const_cast<DOM::Element*>(as_if<DOM::Element>(scrollable_box->dom_node()));
 }
 
 // Returns the layout node that manages the scrollport for an auto-scroll container element. When the element is the

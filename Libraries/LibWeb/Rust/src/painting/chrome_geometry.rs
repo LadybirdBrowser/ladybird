@@ -168,28 +168,30 @@ pub(crate) fn wheel_scrollable_axes(
     axes
 }
 
-pub(crate) fn minimum_scroll_offset(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixelPoint {
-    let Some(overflow) = paintable_geometry::scrollable_overflow_rect(arena, slot) else {
-        return CssPixelPoint::default();
-    };
+pub(crate) fn scroll_offset_bounds(
+    arena: &impl PaintableRowsRead,
+    slot: NodeSlotId,
+) -> Option<(CssPixelPoint, CssPixelPoint)> {
+    let overflow = paintable_geometry::scrollable_overflow_rect(arena, slot)?;
     let scrollport = paintable_geometry::absolute_padding_box_rect(arena, slot);
     let zero = CssPixels::from_raw(0);
-    CssPixelPoint::new(
+    let minimum = CssPixelPoint::new(
         (overflow.left() - scrollport.left()).min(zero),
         (overflow.top() - scrollport.top()).min(zero),
-    )
+    );
+    let maximum = CssPixelPoint::new(
+        (overflow.right() - scrollport.right()).max(zero),
+        (overflow.bottom() - scrollport.bottom()).max(zero),
+    );
+    Some((minimum, maximum))
+}
+
+pub(crate) fn minimum_scroll_offset(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixelPoint {
+    scroll_offset_bounds(arena, slot).map_or(CssPixelPoint::default(), |(minimum, _)| minimum)
 }
 
 pub(crate) fn maximum_scroll_offset(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixelPoint {
-    let Some(overflow) = paintable_geometry::scrollable_overflow_rect(arena, slot) else {
-        return CssPixelPoint::default();
-    };
-    let scrollport = paintable_geometry::absolute_padding_box_rect(arena, slot);
-    let zero = CssPixels::from_raw(0);
-    CssPixelPoint::new(
-        (overflow.right() - scrollport.right()).max(zero),
-        (overflow.bottom() - scrollport.bottom()).max(zero),
-    )
+    scroll_offset_bounds(arena, slot).map_or(CssPixelPoint::default(), |(_, maximum)| maximum)
 }
 
 pub(crate) fn scrollbar_is_enlarged(
