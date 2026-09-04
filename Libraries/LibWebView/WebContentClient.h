@@ -152,6 +152,7 @@ private:
     virtual void did_complete_navigation_unload_check(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) override;
     virtual void did_request_navigation_population(u64 page_id, Web::HTML::CrossProcessId navigable_id, URL::URL current_url, Web::NavigationTarget target, Web::HTML::NavigationPopulationRequest) override;
     virtual void did_finish_navigation_params_creation(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, Optional<Web::HTML::NavigationPopulationResult>) override;
+    virtual void did_finish_history_navigation_params_creation(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryNavigationPopulation) override;
     virtual void did_fail_navigation_population(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) override;
     virtual void did_create_child_frame(u64 page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state) override;
     virtual void did_update_child_frame_viewport(u64 page_id, Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio) override;

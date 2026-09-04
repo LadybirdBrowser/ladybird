@@ -198,4 +198,21 @@ ErrorOr<Web::HTML::NavigationPopulationResult> decode(Decoder& decoder)
     };
 }
 
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::HTML::HistoryNavigationPopulation const& population)
+{
+    TRY(encoder.encode(population.request));
+    TRY(encoder.encode(population.result));
+    return {};
+}
+
+template<>
+ErrorOr<Web::HTML::HistoryNavigationPopulation> decode(Decoder& decoder)
+{
+    return Web::HTML::HistoryNavigationPopulation {
+        .request = TRY(decoder.decode<Web::HTML::NavigationPopulationRequest>()),
+        .result = TRY(decoder.decode<Web::HTML::NavigationPopulationResult>()),
+    };
+}
+
 }

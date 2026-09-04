@@ -253,6 +253,11 @@ void PageClient::navigation_params_creation_finished(Web::HTML::LocalNavigable& 
     client().async_did_finish_navigation_params_creation(m_id, navigable.id(), request.navigation_id, move(result));
 }
 
+void PageClient::history_navigation_params_creation_finished(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryNavigationPopulation population)
+{
+    client().async_did_finish_history_navigation_params_creation(m_id, operation_id, move(population));
+}
+
 void PageClient::navigation_population_failed(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id)
 {
     client().async_did_fail_navigation_population(m_id, navigable_id, navigation_id);

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A popup with an opener stays in its opener's browsing context group when it navigates cross-site: the group
+    // has two browsing contexts, so obtaining a browsing context to use for the navigation response makes no browsing
+    // context group switch, and the opener keeps its handle on the popup.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const crossSiteUrl = new URL(
+            await httpServer.createEcho("GET", `/popup-cross-site-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>opener.postMessage("hello from " + location.hostname, "*");<\/script>`,
+            })
+        );
+        crossSiteUrl.hostname = uniqueLocalhostHostname("popup-cross-site");
+
+        const popupUrl = await httpServer.createEcho("GET", `/popup-same-site-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>location.href = ${JSON.stringify(crossSiteUrl.href)};<\/script>`,
+        });
+
+        const messageReceived = new Promise(resolve => {
+            addEventListener("message", event => resolve(event.data), { once: true });
+        });
+        const popup = window.open(popupUrl);
+        const message = await messageReceived;
+        println(`message: ${message.replace(crossSiteUrl.hostname, "<cross-site host>")}`);
+        println(`popup.closed: ${popup.closed}`);
+        popup.close();
+    });
+</script>

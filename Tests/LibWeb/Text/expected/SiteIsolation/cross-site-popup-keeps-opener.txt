@@ -1,0 +1,2 @@
+message: hello from <cross-site host>
+popup.closed: false

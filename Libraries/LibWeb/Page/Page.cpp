@@ -1388,6 +1388,11 @@ void Page::set_viewport_is_fullscreen(ViewportIsFullscreen is_fullscreen)
     process_pending_fullscreen_operations();
 }
 
+void PageClient::history_navigation_params_creation_finished(HTML::CrossProcessId operation_id, HTML::HistoryNavigationPopulation population)
+{
+    page().top_level_traversable()->resume_history_navigation_population(operation_id, move(population));
+}
+
 void PageClient::request_navigation_start(HTML::LocalNavigable& navigable, URL::URL const& current_url, NavigationTarget target, URL::URL const&, Utf16String navigation_id, Optional<HTML::NavigationStartRequest> start_request)
 {
     // A javascript: navigation runs synchronously in this process and never populates an entry; there is nothing

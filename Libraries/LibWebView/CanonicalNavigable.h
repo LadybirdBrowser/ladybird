@@ -21,12 +21,14 @@
 #include <LibRequests/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/CrossOrigin/OpenerPolicyEnforcementResult.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/NavigationPopulationRequest.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/PixelUnits.h>
+#include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/NavigationLoader.h>
@@ -65,6 +67,7 @@ public:
         u64 population_worker_page_id { 0 };
         WeakPtr<WebContentClient> host_client {};
         u64 host_page_id { 0 };
+        RefPtr<CanonicalBrowsingContext> destination_browsing_context {};
     };
 
     // The active document's load, tracked from the document's activation until WebContent reports that
@@ -102,6 +105,8 @@ public:
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-bc
     CanonicalBrowsingContext& active_browsing_context() const;
     void set_active_browsing_context(NonnullRefPtr<CanonicalBrowsingContext>);
+
+    NonnullRefPtr<CanonicalBrowsingContext> obtain_a_browsing_context_to_use_for_a_navigation_response(Web::HTML::OpenerPolicyEnforcementResult const&);
 
     CanonicalNavigable& append_child(NonnullOwnPtr<CanonicalNavigable>);
     NonnullOwnPtr<CanonicalNavigable> remove_child(CanonicalNavigable&);
@@ -153,7 +158,7 @@ public:
     void append_pending_same_document_session_history_entries(Vector<PendingSameDocumentSessionHistoryEntry>);
     Vector<PendingSameDocumentSessionHistoryEntry> const& pending_same_document_session_history_entries() const { return m_pending_same_document_session_history_entries; }
 
-    void did_commit_navigation(Web::HTML::ReplicatedNavigableState, Optional<Utf16String> const& navigation_id);
+    void did_commit_navigation(Web::HTML::ReplicatedNavigableState, Optional<Utf16String> const& navigation_id, RefPtr<CanonicalBrowsingContext> destination_browsing_context = {});
 
     Optional<OngoingNavigation>& ongoing_navigation() { return m_ongoing_navigation; }
     Optional<OngoingNavigation> const& ongoing_navigation() const { return m_ongoing_navigation; }

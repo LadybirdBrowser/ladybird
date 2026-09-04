@@ -28,6 +28,13 @@ public:
 
     ~NavigationLoader();
 
+    struct ResponseDocument {
+        Web::HTML::OpenerPolicyEnforcementResult coop_enforcement_result;
+        URL::URL url;
+        URL::Origin origin;
+    };
+    Optional<ResponseDocument> response_document() const;
+
     void did_finish_navigation_params_creation(Web::HTML::NavigationPopulationResult);
     void acquire_response_body(Function<void(bool)> completion_steps);
     bool response_body_matches(int request_server_client_id, u64 request_server_request_id) const;

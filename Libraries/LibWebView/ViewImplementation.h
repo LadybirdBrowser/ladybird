@@ -104,10 +104,9 @@ public:
     Optional<String> const& favicon_hash() const { return m_favicon_hash; }
 
     String const& handle() const { return m_client_state.client_handle; }
-    Optional<URL::URL> const& top_level_process_site_url() const { return m_client_state.site_url; }
 
     bool create_new_process_for_cross_site_navigation(Utf16String const& navigation_id);
-    void replace_web_content_process_for_history_traversal(Web::HTML::CrossProcessId target_document_state_id, URL::URL const& target_url);
+    void replace_web_content_process_for_history_traversal(Web::HTML::CrossProcessId target_document_state_id);
 
     void server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size, Gfx::IntRect damage_rect);
 
@@ -619,7 +618,6 @@ protected:
         String client_handle;
         SharedBitmap front_bitmap;
         Vector<SharedBitmap> other_bitmaps;
-        Optional<URL::URL> site_url;
         u64 page_index { 0 };
         bool has_usable_bitmap { false };
         // Whether this process hosts the document of the canonical current session history entry. A

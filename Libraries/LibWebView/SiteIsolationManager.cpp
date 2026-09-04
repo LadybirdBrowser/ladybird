@@ -9,6 +9,8 @@
 #include <AK/StringBuilder.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWebView/CanonicalBrowsingContext.h>
+#include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/SiteIsolation.h>
 #include <LibWebView/ViewImplementation.h>
@@ -20,6 +22,19 @@ SiteIsolationManager& SiteIsolationManager::the()
 {
     static auto& manager = *new SiteIsolationManager;
     return manager;
+}
+
+bool SiteIsolationManager::top_level_navigation_requires_process_swap(CanonicalBrowsingContext const& browsing_context, URL::URL const& current_url, URL::URL const& target_url) const
+{
+    // Obtaining a browsing context to use for a navigation response only lets an implementation-defined browsing
+    // context group switch happen when the group holds a single browsing context (step 8). Ladybird cannot retain
+    // WindowProxy relationships across a process swap either, so related top-level browsing contexts share a process.
+    auto group = browsing_context.group();
+    VERIFY(group);
+    if (group->browsing_context_set().size() > 1)
+        return false;
+
+    return navigation_requires_process_swap(current_url, target_url, Web::NavigationTarget::TopLevel);
 }
 
 bool SiteIsolationManager::navigation_requires_process_swap(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget target) const

@@ -940,6 +940,7 @@ struct DeserializedTransferRecord;
 struct EmbedderPolicy;
 struct Environment;
 struct EnvironmentSettingsObject;
+struct HistoryNavigationPopulation;
 struct NavigationPopulationRequest;
 struct NavigationPopulationResult;
 struct NavigationStartRequest;

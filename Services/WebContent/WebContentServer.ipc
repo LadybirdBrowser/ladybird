@@ -87,6 +87,7 @@ endpoint WebContentServer
     run_history_step_beforeunload_check(u64 page_id, Web::HTML::CrossProcessId operation_id, Vector<Web::HTML::CrossProcessId> navigable_ids, Web::HTML::UnloadPromptShown unload_prompt_shown) =|
     discard_embedded_page(u64 page_id) =|
     queue_navigation_api_state_clear_task(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) =|
+    continue_history_navigation_population(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Optional<Web::Bindings::NavigationType> navigation_type, Web::HTML::HistoryNavigationPopulation population) =|
     run_changing_navigable_history_job(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, bool superseded_by_newer_navigation) =|
     prepare_changing_navigable_for_unload(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) =|
     apply_changing_navigable_continuation(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api, Web::HTML::VisibilityState system_visibility_state, Web::HTML::UnloadDisplayedDocument unload_displayed_document) =|

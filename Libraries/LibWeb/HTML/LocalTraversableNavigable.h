@@ -59,6 +59,7 @@ public:
         GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable {};
         Optional<Utf16String> expected_ongoing_navigation_id {};
         GC::Ptr<SourceSnapshotParams> source_snapshot_params {};
+        Optional<NavigationSourceSnapshot> serialized_source_snapshot_params {};
         Optional<CrossProcessId> local_target_navigable_id {};
         RefPtr<SessionHistoryEntry> local_target_entry {};
         GC::Ptr<OnHistoryOperationPreSteps> pre_steps {};
@@ -68,6 +69,7 @@ public:
         // State retained between a changing job and its continuation.
         HashTable<CrossProcessId> claimed_navigables_awaiting_continuation {};
         HashMap<CrossProcessId, GC::Ref<ChangingNavigableContinuationState>> changing_navigable_continuations {};
+        HashMap<CrossProcessId, GC::Ref<GC::Function<void(HistoryNavigationPopulation)>>> pending_populations {};
     };
     void request_history_operation(HistoryOperationParameters);
     void request_history_operation(HistoryOperationParameters, HistoryOperationState);
@@ -75,7 +77,8 @@ public:
     void run_ui_history_step_unload_cancelation_job(CrossProcessId operation_id, SessionHistoryEntryDescriptor target_entry, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult, UnloadPromptShown)>>);
     void run_ui_history_step_beforeunload_check(Vector<CrossProcessId> navigable_ids, UnloadPromptShown, GC::Ref<GC::Function<void(HistoryStepResult, UnloadPromptShown)>>);
     void queue_navigation_api_state_clear_task(CrossProcessId navigable_id);
-    void run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, bool superseded_by_newer_navigation, GC::Ref<OnChangingNavigableHistoryStepJobComplete>);
+    void run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, bool superseded_by_newer_navigation, GC::Ref<OnChangingNavigableHistoryStepJobComplete>, Optional<HistoryNavigationPopulation> = {});
+    bool resume_history_navigation_population(CrossProcessId operation_id, HistoryNavigationPopulation&&);
     void prepare_ui_changing_navigable_for_unload(CrossProcessId operation_id, CrossProcessId navigable_id, GC::Ref<GC::Function<void()>> on_complete);
     void apply_ui_changing_navigable_continuation(CrossProcessId operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, VisibilityState, UnloadDisplayedDocument, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>>);
     void run_ui_descendant_unload_task(CrossProcessId navigable_id, GC::Ref<GC::Function<void()>> on_complete);
@@ -140,11 +143,14 @@ private:
 
     // One iteration of "12. For each navigable of changingNavigables, queue a global task ...".
     struct ChangingNavigableHistoryStepJob {
+        CrossProcessId operation_id;
         CrossProcessId navigable_id;
         NonnullRefPtr<SessionHistoryEntry> target_entry;
         UserNavigationInvolvement user_involvement;
         Optional<Bindings::NavigationType> navigation_type;
         bool superseded_by_newer_navigation { false };
+        Optional<NavigationSourceSnapshot> source_snapshot;
+        Optional<HistoryNavigationPopulation> population;
     };
     struct LocalChangingNavigableHistoryStepJobResult {
         ChangingNavigableHistoryStepJobDisposition disposition;

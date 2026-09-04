@@ -328,85 +328,13 @@ static size_t retain_registered_property_utf16_fly_string(u16 const* code_units,
 
 GC_DEFINE_ALLOCATOR(Document);
 
-// https://html.spec.whatwg.org/multipage/origin.html#obtain-browsing-context-navigation
-static GC::Ref<HTML::BrowsingContext> obtain_a_browsing_context_to_use_for_a_navigation_response(HTML::NavigationParams const& navigation_params)
-{
-    // 1. Let browsingContext be navigationParams's navigable's active browsing context.
-    auto& browsing_context = *navigation_params.navigable->active_browsing_context();
-
-    // 2. If browsingContext is not a top-level browsing context, return browsingContext.
-    if (!browsing_context.is_top_level())
-        return browsing_context;
-
-    // 3. Let coopEnforcementResult be navigationParams's COOP enforcement result.
-    auto& coop_enforcement_result = navigation_params.coop_enforcement_result;
-
-    // 4. Let swapGroup be coopEnforcementResult's needs a browsing context group switch.
-    auto swap_group = coop_enforcement_result.needs_a_browsing_context_group_switch;
-
-    // 5. Let sourceOrigin be browsingContext's active document's origin.
-    auto& source_origin = browsing_context.active_document()->origin();
-
-    // 6. Let destinationOrigin be navigationParams's origin.
-    auto& destination_origin = navigation_params.origin;
-
-    // 7. If sourceOrigin is not same site with destinationOrigin:
-    if (!source_origin.is_same_site(destination_origin)) {
-        // FIXME: 1. If either of sourceOrigin or destinationOrigin have a scheme that is not an HTTP(S) scheme
-        //    and the user agent considers it necessary for sourceOrigin and destinationOrigin to be
-        //    isolated from each other (for implementation-defined reasons), optionally set swapGroup to true.
-
-        // FIXME: 2. If navigationParams's user involvement is "browser UI", optionally set swapGroup to true.
-    }
-
-    // FIXME: 8. If browsingContext's group's browsing context set's size is 1, optionally set swapGroup to true.
-
-    // 9. If swapGroup is false, then:
-    if (!swap_group) {
-        // 1. If coopEnforcementResult's would need a browsing context group switch due to report-only is true,
-        //    set browsingContext's virtual browsing context group ID to a new unique identifier.
-        if (coop_enforcement_result.would_need_a_browsing_context_group_switch_due_to_report_only) {
-            // FIXME: set browsingContext's virtual browsing context group ID to a new unique identifier.
-        }
-
-        // 2. Return browsingContext.
-        return browsing_context;
-    }
-
-    // 10. Let newBrowsingContext be the first return value of creating a new top-level browsing context and document.
-    auto browsing_context_and_document = HTML::create_a_new_top_level_browsing_context_and_document(browsing_context.page());
-    auto new_browsing_context = browsing_context_and_document.browsing_context;
-
-    // 11. Let navigationCOOP be navigationParams's cross-origin opener policy.
-    auto navigation_coop = navigation_params.opener_policy;
-
-    // FIXME: 12. If navigationCOOP's value is "same-origin-plus-COEP", then set newBrowsingContext's group's cross-origin
-    //     isolation mode to either "logical" or "concrete". The choice of which is implementation-defined.
-
-    // 13. Let sandboxFlags be a clone of navigationParams's final sandboxing flag set.
-    auto sandbox_flags = navigation_params.final_sandboxing_flag_set;
-
-    // 14. If sandboxFlags is not empty, then:
-    if (!is_empty(sandbox_flags)) {
-        // 1. Assert: navigationCOOP's value is "unsafe-none".
-        VERIFY(navigation_coop.value == HTML::OpenerPolicyValue::UnsafeNone);
-
-        // 2. Assert: newBrowsingContext's popup sandboxing flag set is empty.
-        VERIFY(is_empty(new_browsing_context->popup_sandboxing_flag_set()));
-
-        // 3. Set newBrowsingContext's popup sandboxing flag set to sandboxFlags.
-        new_browsing_context->set_popup_sandboxing_flag_set(sandbox_flags);
-    }
-
-    // 15. Return newBrowsingContext.
-    return new_browsing_context;
-}
-
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#initialise-the-document-object
 WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type, Utf16FlyString content_type, HTML::NavigationParams const& navigation_params)
 {
     // 1. Let browsingContext be the result of obtaining a browsing context to use for a navigation response given navigationParams.
-    auto browsing_context = obtain_a_browsing_context_to_use_for_a_navigation_response(navigation_params);
+    // NB: The UI process has already performed this algorithm and selected this WebContent process.
+    auto browsing_context = navigation_params.navigable->active_browsing_context();
+    VERIFY(browsing_context);
 
     // FIXME: 2. Let permissionsPolicy be the result of creating a permissions policy from a response given navigationParams's navigable's container, navigationParams's origin, and navigationParams's response.
 

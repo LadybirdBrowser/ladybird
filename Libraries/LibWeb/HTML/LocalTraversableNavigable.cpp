@@ -67,6 +67,8 @@ void LocalTraversableNavigable::visit_edges(Cell::Visitor& visitor)
         visitor.visit(operation.value.pre_steps);
         visitor.visit(operation.value.on_apply_complete);
         visitor.visit(operation.value.on_complete);
+        for (auto& population : operation.value.pending_populations)
+            visitor.visit(population.value);
         for (auto& continuation : operation.value.changing_navigable_continuations)
             visitor.visit(continuation.value);
     }
@@ -637,7 +639,7 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
     if (!preserve_ongoing_navigation)
         navigable->set_ongoing_navigation_without_informing_navigation_api(HTML::LocalNavigable::Traversal::Tag);
 
-    queue_apply_history_step_task(*navigable, navigable->active_document(), GC::create_function(heap(), [this, job = move(job), source_snapshot_params, pending_document, claimed_target_entry = move(claimed_target_entry), navigable, on_complete] {
+    queue_apply_history_step_task(*navigable, navigable->active_document(), GC::create_function(heap(), [this, job = move(job), source_snapshot_params, pending_document, claimed_target_entry = move(claimed_target_entry), navigable, on_complete]() mutable {
         // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
         if (navigable->has_been_destroyed() || !navigable->active_window() || !navigable->active_document()) {
             on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Skipped, nullptr });
@@ -803,6 +805,50 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
                 || target_entry->document_state()->document_id() != navigable->active_document_id()
                 || target_entry->document_state()->reload_pending());
         if (needs_population) {
+            auto continue_population = GC::create_function(heap(), [this, navigable, after_document_populated](HistoryNavigationPopulation population) {
+                if (navigable->has_been_destroyed() || !navigable->active_window()) {
+                    after_document_populated->function()(nullptr);
+                    return;
+                }
+                auto& request = population.request;
+                auto& result = population.result;
+                auto& realm = navigable->active_window()->principal_realm();
+                TemporaryExecutionContext execution_context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+                auto params = create_navigation_params_from_descriptor(realm, *navigable, move(result.navigation_params));
+                if (params.is_error()) {
+                    after_document_populated->function()(nullptr);
+                    return;
+                }
+                auto output = heap().allocate<PopulateSessionHistoryEntryDocumentOutput>();
+                output->redirected_url = move(result.redirected_url);
+                output->classic_history_api_state = move(result.classic_history_api_state);
+                output->resource_cleared = result.resource_cleared;
+                if (result.replacement_document_state.has_value()) {
+                    output->replacement_document_state = DocumentState::create(result.replacement_document_state->id);
+                    apply_session_history_document_state_descriptor_from_ui_process(*output->replacement_document_state, *result.replacement_document_state);
+                }
+                auto fetch_client_origin = request.source_snapshot_params.fetch_client.has_value()
+                    ? Optional<URL::Origin> { request.source_snapshot_params.fetch_client->origin }
+                    : Optional<URL::Origin> {};
+                navigable->queue_navigation_and_traversal_task_for_session_history_entry_population(
+                    request.history_entry.url, request.source_snapshot_params.allows_downloading, move(fetch_client_origin),
+                    request.user_involvement, {}, params.release_value(), request.csp_navigation_type,
+                    request.history_entry.document_state.reload_pending ? Bindings::NavigationTimingType::Reload : Bindings::NavigationTimingType::BackForward,
+                    output, GC::create_function(heap(), [navigable, after_document_populated](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
+                        queue_apply_history_step_task(*navigable, navigable->active_document(), GC::create_function(navigable->heap(), [after_document_populated, output] {
+                            after_document_populated->function()(output);
+                        }));
+                    }));
+            });
+            if (job.population.has_value()) {
+                continue_population->function()(job.population.release_value());
+                return;
+            }
+            auto operation = m_history_operations.find(job.operation_id);
+            if (operation == m_history_operations.end())
+                return;
+            operation->value.pending_populations.set(navigable->id(), continue_population);
+
             // FIXME: 1. Let navTimingType be "back_forward" if targetEntry's document is null; otherwise "reload".
 
             // 2. Let targetSnapshotParams be the result of snapshotting target snapshot params given navigable.
@@ -840,11 +886,23 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
             auto input_navigable_target_name = target_entry->document_state()->navigable_target_name();
             auto input_ever_populated = target_entry->document_state()->ever_populated();
 
+            auto request = NavigationPopulationRequest {
+                .navigable_id = navigable->id(),
+                .history_entry = create_pending_session_history_entry_descriptor(create_session_history_entry_descriptor(*target_entry)),
+                .source_snapshot_params = job.source_snapshot.has_value() ? job.source_snapshot.release_value() : create_navigation_source_snapshot(*potentially_target_specific_source_snapshot_params),
+                .target_snapshot_params = target_snapshot_params,
+                .csp_navigation_type = ContentSecurityPolicy::Directives::Directive::NavigationType::Other,
+                .history_handling = Bindings::NavigationHistoryBehavior::Replace,
+                .user_involvement = job.user_involvement,
+                .navigation_id = {},
+            };
+            request.history_entry.document_state.reload_pending = input_reload_pending;
+
             // 7. In parallel, attempt to populate the history entry's document for targetEntry, given navigable, potentiallyTargetSpecificSourceSnapshotParams,
             //    targetSnapshotParams, userInvolvement, with allowPOST set to allowPOST and completionSteps set to
             //    queue a global task on the navigation and traversal task source given navigable's active window to
             //    run afterDocumentPopulated.
-            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [input_url = move(input_url), input_document_resource = move(input_document_resource), input_request_referrer = move(input_request_referrer), input_request_referrer_policy, input_initiator_origin = move(input_initiator_origin), input_origin = move(input_origin), input_history_policy_container = move(input_history_policy_container), input_about_base_url = move(input_about_base_url), input_navigable_target_name = move(input_navigable_target_name), input_reload_pending, input_ever_populated, potentially_target_specific_source_snapshot_params, target_snapshot_params, this, allow_POST, navigable, after_document_populated, user_involvement = job.user_involvement] {
+            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [operation_id = job.operation_id, request = move(request), input_url = move(input_url), input_document_resource = move(input_document_resource), input_request_referrer = move(input_request_referrer), input_request_referrer_policy, input_initiator_origin = move(input_initiator_origin), input_origin = move(input_origin), input_history_policy_container = move(input_history_policy_container), input_about_base_url = move(input_about_base_url), input_navigable_target_name = move(input_navigable_target_name), input_reload_pending, input_ever_populated, potentially_target_specific_source_snapshot_params, target_snapshot_params, this, allow_POST, navigable, user_involvement = job.user_involvement] {
                 navigable->populate_session_history_entry_document(
                     move(input_url), move(input_document_resource), move(input_request_referrer),
                     input_request_referrer_policy, move(input_initiator_origin), move(input_origin),
@@ -853,13 +911,8 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
                     *potentially_target_specific_source_snapshot_params, target_snapshot_params,
                     user_involvement, {}, LocalNavigable::NullOrError {},
                     ContentSecurityPolicy::Directives::Directive::NavigationType::Other, allow_POST,
-                    GC::create_function(this->heap(), [this, after_document_populated, navigable](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
-                        VERIFY(active_window());
-                        // AD-HOC: Queue through the apply-history helper so child completion tasks survive frame
-                        //         removal/deactivation. The continuation revalidates the navigable before applying.
-                        queue_apply_history_step_task(*navigable, navigable->active_document(), GC::create_function(heap(), [after_document_populated, output]() {
-                            after_document_populated->function()(output);
-                        }));
+                    {}, GC::create_function(heap(), [this, operation_id, request](NavigationPopulationResult result) mutable {
+                        page().client().history_navigation_params_creation_finished(operation_id, { move(request), move(result) });
                     }));
             }));
         }
@@ -1389,6 +1442,7 @@ void LocalTraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr
         },
         {
             .source_snapshot_params = source_snapshot_params,
+            .serialized_source_snapshot_params = source_snapshot_params ? Optional<NavigationSourceSnapshot> { create_navigation_source_snapshot(*source_snapshot_params) } : Optional<NavigationSourceSnapshot> {},
         });
 }
 
@@ -1535,7 +1589,19 @@ void LocalTraversableNavigable::queue_navigation_api_state_clear_task(CrossProce
     }));
 }
 
-void LocalTraversableNavigable::run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, bool superseded_by_newer_navigation, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete)
+bool LocalTraversableNavigable::resume_history_navigation_population(CrossProcessId operation_id, HistoryNavigationPopulation&& population)
+{
+    auto operation = m_history_operations.find(operation_id);
+    if (operation == m_history_operations.end())
+        return false;
+    auto continuation = operation->value.pending_populations.take(population.request.navigable_id);
+    if (!continuation.has_value())
+        return false;
+    continuation.value()->function()(move(population));
+    return true;
+}
+
+void LocalTraversableNavigable::run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, bool superseded_by_newer_navigation, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete, Optional<HistoryNavigationPopulation> population)
 {
     auto& operation = m_history_operations.ensure(operation_id);
     auto source_snapshot_params = operation.source_snapshot_params;
@@ -1579,11 +1645,14 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(CrossProce
     }
     auto did_claim_navigable = run_changing_navigable_history_step_job_impl(
         {
+            .operation_id = operation_id,
             .navigable_id = navigable_id,
             .target_entry = local_target_entry.release_nonnull(),
             .user_involvement = user_involvement,
             .navigation_type = navigation_type,
             .superseded_by_newer_navigation = superseded_by_newer_navigation,
+            .source_snapshot = operation.serialized_source_snapshot_params,
+            .population = move(population),
         },
         source_snapshot_params, pending_document,
         GC::create_function(heap(), [this, operation_id, navigable_id, on_complete](LocalChangingNavigableHistoryStepJobResult result) {
