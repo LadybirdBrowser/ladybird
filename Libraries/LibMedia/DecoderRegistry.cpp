@@ -8,6 +8,9 @@
 #include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/FFmpeg/FFmpegAudioDecoder.h>
 #include <LibMedia/FFmpeg/FFmpegVideoDecoder.h>
+#ifdef AK_OS_MACOS
+#    include <LibMedia/VideoToolbox/VideoToolboxVideoDecoder.h>
+#endif
 
 namespace Media {
 
@@ -39,7 +42,17 @@ static constexpr Array audio_decoders_in_priority_order {
     AudioDecoderRegistration { FFmpeg::FFmpegAudioDecoder::capabilities, create_ffmpeg_audio_decoder },
 };
 
+#ifdef AK_OS_MACOS
+static DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_videotoolbox_video_decoder(CodecID codec_id, ReadonlyBytes codec_initialization_data)
+{
+    return NonnullOwnPtr<VideoDecoder> { TRY(VideoToolbox::VideoToolboxVideoDecoder::try_create(codec_id, codec_initialization_data)) };
+}
+#endif
+
 static constexpr Array video_decoders_in_priority_order {
+#ifdef AK_OS_MACOS
+    VideoDecoderRegistration { VideoToolbox::VideoToolboxVideoDecoder::capabilities, create_videotoolbox_video_decoder },
+#endif
     VideoDecoderRegistration { FFmpeg::FFmpegVideoDecoder::capabilities, create_ffmpeg_video_decoder },
 };
 
