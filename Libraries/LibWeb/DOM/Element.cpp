@@ -1702,7 +1702,10 @@ void Element::set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason reaso
     // A newly inserted element already has its entire subtree scheduled for construction. Its
     // initial style computation cannot require rebuilding an existing principal box, so keep
     // the insertion-specific invalidation on its parent instead of widening it to StyleChange.
-    if (!layout_node && may_reuse_layout_node_for_child_list_insertion())
+    // An existing display:none element can have the same marker after a child insertion; its box
+    // presence change must still schedule the new box for insertion into the retained parent.
+    if (!layout_node && may_reuse_layout_node_for_child_list_insertion()
+        && rebuild_root != CSS::LayoutTreeRebuildRoot::BoxPresenceChange)
         return;
     if (rebuild_root == CSS::LayoutTreeRebuildRoot::BoxPresenceChange && apply_box_presence_change_in_place(reason))
         return;
