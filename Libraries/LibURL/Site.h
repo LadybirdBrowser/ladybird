@@ -25,6 +25,7 @@ class Site {
 public:
     static Site obtain(Origin const&);
 
+    bool operator==(Site const& other) const { return is_same_site(other); }
     bool is_same_site(Site const& other) const;
 
     String serialize() const;
