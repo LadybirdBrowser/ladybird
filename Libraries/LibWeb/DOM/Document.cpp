@@ -2410,6 +2410,13 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
         end_style_stabilization_epoch();
     };
 
+    // Keep shared style records alive across both style and layout, so temporary views
+    // during layout tree construction and layout do not need individual record pins.
+    style_computer().begin_style_record_view_epoch();
+    ScopeGuard end_style_record_view_epoch = [&] {
+        style_computer().end_style_record_view_epoch();
+    };
+
     constexpr u64 ordinary_stabilization_round_limit = 8;
     // Size-query dependencies point from a descendant to an ancestor query container. They are
     // therefore acyclic, and a coherent style/layout pass can settle at least one more level of
