@@ -25,8 +25,8 @@ interface XMLHttpRequest : XMLHttpRequestEventTarget {
     readonly attribute unsigned short readyState;
 
     // request
-    undefined open(DOMString method, DOMString url);
-    undefined open(DOMString method, USVString url, boolean async, optional USVString? username = null, optional USVString? password = null);
+    undefined open(ByteString method, USVString url);
+    undefined open(ByteString method, USVString url, boolean async, optional USVString? username = null, optional USVString? password = null);
     undefined setRequestHeader(ByteString name, ByteString value);
     attribute unsigned long timeout;
     attribute boolean withCredentials;

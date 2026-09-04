@@ -76,8 +76,8 @@ public:
     ResponseType response_type() const { return m_response_type; }
     Utf16String response_url();
 
-    WebIDL::ExceptionOr<void> open(Utf16String const& method, Utf16String const& url);
-    WebIDL::ExceptionOr<void> open(Utf16String const& method, Utf16String const& url, bool async, Optional<Utf16String> const& username = Optional<Utf16String> {}, Optional<Utf16String> const& password = Optional<Utf16String> {});
+    WebIDL::ExceptionOr<void> open(String const& method, Utf16String const& url);
+    WebIDL::ExceptionOr<void> open(String const& method, Utf16String const& url, bool async, Optional<Utf16String> const& username = Optional<Utf16String> {}, Optional<Utf16String> const& password = Optional<Utf16String> {});
     WebIDL::ExceptionOr<void> send(NullableDocumentOrXMLHttpRequestBodyInit body);
 
     WebIDL::ExceptionOr<void> set_request_header(String const& name, String const& value);
