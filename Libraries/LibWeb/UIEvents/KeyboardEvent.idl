@@ -28,6 +28,7 @@ interface KeyboardEvent : UIEvent {
     boolean getModifierState([FlyString] DOMString keyArg);
 
     // https://w3c.github.io/uievents/#dom-keyboardevent-initkeyboardevent
+    // FIXME: Spec issue: We use a WindowProxy instead of a Window: https://github.com/w3c/uievents/issues/388
     undefined initKeyboardEvent([FlyString] DOMString typeArg, optional boolean bubblesArg = false, optional boolean cancelableArg = false, optional WindowProxy? viewArg = null, optional DOMString keyArg = "", optional unsigned long locationArg = 0, optional boolean ctrlKey = false, optional boolean altKey = false, optional boolean shiftKey = false, optional boolean metaKey = false);
 
 };

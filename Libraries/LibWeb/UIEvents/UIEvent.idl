@@ -2,16 +2,19 @@
 [Exposed=Window]
 interface UIEvent : Event {
     constructor(DOMString type, optional UIEventInit eventInitDict = {});
+    // FIXME: Spec issue: We use a WindowProxy instead of a Window: https://github.com/w3c/uievents/issues/388
     readonly attribute WindowProxy? view;
     readonly attribute long detail;
 
     // Obsolete
+    // FIXME: Spec issue: We use a WindowProxy instead of a Window: https://github.com/w3c/uievents/issues/388
     [ImplementedAs=init_ui_event] undefined initUIEvent([FlyString] DOMString typeArg, optional boolean bubblesArg = false, optional boolean cancelableArg = false, optional WindowProxy? viewArg = null, optional long detailArg = 0);
     readonly attribute unsigned long which;
 };
 
 // https://w3c.github.io/uievents/#idl-uieventinit
 dictionary UIEventInit : EventInit {
+    // FIXME: Spec issue: We use a WindowProxy instead of a Window: https://github.com/w3c/uievents/issues/388
     WindowProxy? view = null;
     long detail = 0;
 };
