@@ -59,12 +59,12 @@ interface mixin WebGLRenderingContextBase {
     undefined copyTexImage2D(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border);
     undefined copyTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height);
 
-    WebGLBuffer? createBuffer();
-    WebGLFramebuffer? createFramebuffer();
-    WebGLProgram? createProgram();
-    WebGLRenderbuffer? createRenderbuffer();
+    WebGLBuffer createBuffer();
+    WebGLFramebuffer createFramebuffer();
+    WebGLProgram createProgram();
+    WebGLRenderbuffer createRenderbuffer();
     WebGLShader? createShader(GLenum type);
-    WebGLTexture? createTexture();
+    WebGLTexture createTexture();
 
     undefined cullFace(GLenum mode);
 

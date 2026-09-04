@@ -436,7 +436,7 @@ void WebGLRenderingContextImpl::copy_tex_sub_image2d(WebIDL::UnsignedLong target
     m_context->copy_tex_sub_image2d(target, level, xoffset, yoffset, x, y, width, height);
 }
 
-GC::Ptr<WebGLBuffer> WebGLRenderingContextImpl::create_buffer()
+GC::Ref<WebGLBuffer> WebGLRenderingContextImpl::create_buffer()
 {
     m_context->make_current();
 
@@ -445,7 +445,7 @@ GC::Ptr<WebGLBuffer> WebGLRenderingContextImpl::create_buffer()
     return WebGLBuffer::create(*this, handle);
 }
 
-GC::Ptr<WebGLFramebuffer> WebGLRenderingContextImpl::create_framebuffer()
+GC::Ref<WebGLFramebuffer> WebGLRenderingContextImpl::create_framebuffer()
 {
     m_context->make_current();
 
@@ -454,13 +454,13 @@ GC::Ptr<WebGLFramebuffer> WebGLRenderingContextImpl::create_framebuffer()
     return WebGLFramebuffer::create(*this, handle);
 }
 
-GC::Ptr<WebGLProgram> WebGLRenderingContextImpl::create_program()
+GC::Ref<WebGLProgram> WebGLRenderingContextImpl::create_program()
 {
     m_context->make_current();
     return WebGLProgram::create(*this, m_context->create_program());
 }
 
-GC::Ptr<WebGLRenderbuffer> WebGLRenderingContextImpl::create_renderbuffer()
+GC::Ref<WebGLRenderbuffer> WebGLRenderingContextImpl::create_renderbuffer()
 {
     m_context->make_current();
 
@@ -483,7 +483,7 @@ GC::Ptr<WebGLShader> WebGLRenderingContextImpl::create_shader(WebIDL::UnsignedLo
     return WebGLShader::create(*this, handle, type);
 }
 
-GC::Ptr<WebGLTexture> WebGLRenderingContextImpl::create_texture()
+GC::Ref<WebGLTexture> WebGLRenderingContextImpl::create_texture()
 {
     m_context->make_current();
 
