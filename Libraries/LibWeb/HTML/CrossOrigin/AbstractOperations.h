@@ -19,6 +19,7 @@ Vector<CrossOriginProperty> cross_origin_window_properties();
 bool is_cross_origin_accessible_window_property_name(JS::PropertyKey const&);
 JS::ThrowCompletionOr<JS::PropertyDescriptor> cross_origin_property_fallback(JS::VM&, JS::PropertyKey const&);
 bool is_platform_object_same_origin(JS::Object const&);
+bool is_platform_object_same_origin(Location const&);
 bool is_platform_object_same_origin(Window const&);
 Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(JS::Object&, HTML::Location const&, CrossOriginPropertyDescriptorMap&,
     JS::PropertyKey const&);
