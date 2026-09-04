@@ -193,8 +193,6 @@ public:
 
     void create_navigation_params_for_navigation(NavigationPopulationRequest, GC::Ref<SourceSnapshotParams>, NavigationParamsVariant, Bindings::NavigationTimingType);
 
-    virtual WebIDL::ExceptionOr<void> navigate(NavigateParams) override;
-
     GC::Ptr<DOM::Document> evaluate_javascript_url(URL::URL const&, URL::Origin const& new_document_origin, UserNavigationInvolvement, Utf16String navigation_id);
 
     void reload(Optional<StorageSerializationRecord> navigation_api_state = {}, UserNavigationInvolvement = UserNavigationInvolvement::None);
@@ -362,8 +360,8 @@ private:
         Replace
     };
 
-    // Values produced by steps 1-6 of the navigate algorithm. Keep these when navigation is parked so resumption
-    // continues at step 7 instead of snapshotting a different document state.
+    // Values produced by steps 1-7 of the navigate algorithm. Keep these when navigation is parked so resumption
+    // continues at step 8 instead of snapshotting a different document state.
     struct PreparedNavigation {
         NavigateParams params;
         ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type;
@@ -385,6 +383,12 @@ private:
     };
 
     void begin_navigation(PreparedNavigation);
+    virtual WebIDL::ExceptionOr<void> continue_navigation_in_active_document_agent(
+        NavigateParams,
+        ContentSecurityPolicy::Directives::Directive::NavigationType,
+        GC::Ref<SourceSnapshotParams>,
+        URL::Origin initiator_origin_snapshot,
+        URL::URL initiator_base_url_snapshot) override;
     void continue_navigation_after_population_dispatch(PreparedNavigation, NavigationPopulationRequest);
     void queue_pending_navigation(PreparedNavigation, PendingNavigationBehavior);
     void park_navigation_for_population(Utf16String navigation_id, Optional<PreparedNavigation>, GC::Ref<GC::Function<void(Optional<PreparedNavigation>, Optional<NavigationPopulationRequest>)>> continue_steps);
