@@ -2294,6 +2294,27 @@ pub unsafe extern "C" fn layout_arena_bounding_client_rect(
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
 /// `rect_to_viewport_transform` must satisfy `rect_to_viewport_transform_from_ffi`.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_transform_subtree_is_clipped_outside(
+    arena: *mut c_void,
+    target: NodeSlotId,
+    root_bounds: FfiCssPixelRect,
+    rect_to_viewport_transform: FfiRectToViewportTransform,
+) -> bool {
+    let arena = unsafe { arena_from_handle(arena) };
+    let rect_to_viewport_transform = unsafe { rect_to_viewport_transform_from_ffi(&rect_to_viewport_transform) };
+    crate::painting::intersection_observer::transform_subtree_is_clipped_outside(
+        &arena.paintable_rows(),
+        target,
+        root_bounds.into(),
+        rect_to_viewport_transform.as_ref(),
+    )
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
+/// `rect_to_viewport_transform` must satisfy `rect_to_viewport_transform_from_ffi`.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_intersection_observer_intersection_rect(
     arena: *mut c_void,
     target: NodeSlotId,

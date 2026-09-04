@@ -8256,37 +8256,13 @@ void Document::update_compositor_animations()
         return false;
     };
 
-    auto transform_subtree_is_clipped_outside = [](Element const& animated_target, CSSPixelRect const& root_bounds) {
+    auto transform_subtree_is_clipped_outside = [this, &visual_context_tree](Element const& animated_target, CSSPixelRect const& root_bounds) {
         auto const* layout_node = animated_target.unsafe_layout_node();
-        if (!layout_node || !Painting::has_committed_box(*layout_node) || root_bounds.is_empty())
+        if (!layout_node)
             return false;
-        if (auto const* target_box = as_if<Layout::Box>(*layout_node)) {
-            if (Painting::is_fixed_position(*target_box) || target_box->abspos_descendant_escapes())
-                return false;
-        }
-
-        bool has_disjoint_clip = false;
-        for (auto const* ancestor = layout_node->parent(); ancestor; ancestor = ancestor->parent()) {
-            auto const* ancestor_box = as_if<Layout::Box>(*ancestor);
-            if (!ancestor_box)
-                continue;
-            if (!Painting::has_committed_box(*ancestor_box) || Painting::is_fixed_position(*ancestor_box))
-                return false;
-
-            bool has_content_clip = ancestor_box->overflow_x() != CSS::Overflow::Visible
-                || ancestor_box->overflow_y() != CSS::Overflow::Visible;
-            if (has_content_clip) {
-                auto clip_rect = Painting::transform_rect_to_viewport(*ancestor_box, Painting::absolute_padding_box_rect(*ancestor_box), Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
-                if (!clip_rect.edge_adjacent_intersects(root_bounds))
-                    has_disjoint_clip = true;
-            }
-
-            // A transform outside the disjoint clip could move the clip into the observation root without updating
-            // its main-thread geometry. Transforms inside the clip can only move content within the clipped region.
-            if (has_disjoint_clip && (ancestor_box->has_css_transform() || ancestor_box->is_sticky_position()))
-                return false;
-        }
-        return has_disjoint_clip;
+        return Layout::RustFFI::layout_arena_transform_subtree_is_clipped_outside(
+            layout_node->arena_handle(), Layout::Node::slot_id(layout_node), root_bounds,
+            Painting::rect_to_viewport_transform(*this, visual_context_tree));
     };
 
     auto observation_has_another_transform_animation = [&](Element const& animated_target, Element const& observation_target, Animations::KeyframeEffect const& current_effect) {

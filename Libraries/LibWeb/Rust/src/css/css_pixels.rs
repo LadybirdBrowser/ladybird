@@ -429,6 +429,10 @@ impl CssPixelRect {
         self.set_top(new_top);
         self.set_bottom(new_bottom);
     }
+    pub fn edge_adjacent_intersects(self, other: Self) -> bool {
+        self.left().max(other.left()) <= self.right().min(other.right())
+            && self.top().max(other.top()) <= self.bottom().min(other.bottom())
+    }
     pub fn intersected(self, other: Self) -> Self {
         let left = self.left().max(other.left());
         let right = self.right().min(other.right());
