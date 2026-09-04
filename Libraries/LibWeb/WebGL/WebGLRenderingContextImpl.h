@@ -53,12 +53,12 @@ public:
     void compile_shader(GC::Ref<WebGLShader> shader);
     void copy_tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::UnsignedLong internalformat, WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height, WebIDL::Long border);
     void copy_tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height);
-    GC::Ptr<WebGLBuffer> create_buffer();
-    GC::Ptr<WebGLFramebuffer> create_framebuffer();
-    GC::Ptr<WebGLProgram> create_program();
-    GC::Ptr<WebGLRenderbuffer> create_renderbuffer();
+    GC::Ref<WebGLBuffer> create_buffer();
+    GC::Ref<WebGLFramebuffer> create_framebuffer();
+    GC::Ref<WebGLProgram> create_program();
+    GC::Ref<WebGLRenderbuffer> create_renderbuffer();
     GC::Ptr<WebGLShader> create_shader(WebIDL::UnsignedLong type);
-    GC::Ptr<WebGLTexture> create_texture();
+    GC::Ref<WebGLTexture> create_texture();
     void cull_face(WebIDL::UnsignedLong mode);
     void delete_buffer(GC::Ptr<WebGLBuffer> buffer);
     void delete_framebuffer(GC::Ptr<WebGLFramebuffer> framebuffer);
