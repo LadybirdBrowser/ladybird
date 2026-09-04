@@ -1,2 +1,2 @@
 hidden player: hidden
-revealed player: hidden
+revealed player: visible

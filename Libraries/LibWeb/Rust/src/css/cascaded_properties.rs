@@ -746,8 +746,12 @@ unsafe fn plan_style_computation(
                 !longhand_is_selected(&computed_property_words, property_id)
                     || property_has_independent_computed_closure(property_id)
             });
-        has_computed_property_selection =
-            retained_selection.computed_property_closure_is_exact || only_independent_properties_changed;
+        // A full initial mask can mean the retained selection could not represent an inherited
+        // change. Independent transition properties do not make that missing input safe to skip.
+        // An empty initial mask means neither cascade winners nor inherited groups changed and is
+        // normalized above only because the driver cannot process an empty group selection.
+        has_computed_property_selection = retained_selection.computed_property_closure_is_exact
+            || (input.initial_computed_group_mask != input.all_computed_groups && only_independent_properties_changed);
     }
     (
         has_monospace_font_family,
