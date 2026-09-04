@@ -14,9 +14,11 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/SkiaUtils.h>
+#include <LibGfx/VideoSurfaceImage.h>
 #include <LibGfx/YUVData.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibMedia/VideoFrameHandle.h>
+#include <LibMedia/VideoSurface.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Painting/DisplayList.h>
@@ -113,6 +115,9 @@ struct DisplayListCachedVideoSinkImageResource {
     Media::VideoFramePoolID pool_id { 0 };
     u32 slot_index { 0 };
     u64 slot_acquisition_id { 0 };
+    // A surface-backed image samples the surface where it lies, so it stays valid for every frame decoded into
+    // that surface rather than only for the one acquisition.
+    u32 surface_id { 0 };
     RefPtr<Gfx::SkiaBackendContext> skia_backend_context;
     sk_sp<SkImage> image;
 };
@@ -312,34 +317,44 @@ sk_sp<SkImage> DisplayListResourceStorage::skia_image_for_video_sink(VideoSinkRe
         return nullptr;
 
     auto handle = Media::VideoFrameHandle::for_frame(*frame);
+    auto surface = frame->surface();
+    auto surface_id = surface ? surface->id() : 0;
     auto& cached_image_storage = resolved.cached_image;
     auto cached_image_matches = [&] {
         if (!cached_image_storage.image)
             return false;
+        if (cached_image_storage.skia_backend_context != skia_backend_context)
+            return false;
+        if (surface_id != 0)
+            return cached_image_storage.surface_id == surface_id;
         if (cached_image_storage.pool_id != handle.pool_id)
             return false;
         if (cached_image_storage.slot_index != handle.slot_index)
             return false;
         if (cached_image_storage.slot_acquisition_id != handle.slot_acquisition_id)
             return false;
-        if (cached_image_storage.skia_backend_context != skia_backend_context)
-            return false;
         return true;
     }();
     if (cached_image_matches)
         return cached_image_storage.image;
 
-    auto yuv_data = frame->yuv_data();
-    if (!yuv_data.has_value())
+    sk_sp<SkImage> image;
+    auto* gr_context = skia_backend_context ? skia_backend_context->sk_context() : nullptr;
+
+#ifdef AK_OS_MACOS
+    if (surface != nullptr && skia_backend_context)
+        image = Gfx::sk_image_from_video_surface(surface->io_surface(), frame->cicp(), *skia_backend_context);
+#endif
+
+    auto yuv_data = image ? Optional<Gfx::YUVData> {} : frame->yuv_data();
+    if (!image && !yuv_data.has_value() && surface == nullptr)
         return nullptr;
 
     auto color_space = Gfx::ColorSpace {};
     if (auto color_space_result = Gfx::ColorSpace::from_cicp(frame->cicp()); !color_space_result.is_error())
         color_space = color_space_result.release_value();
 
-    sk_sp<SkImage> image;
-    auto* gr_context = skia_backend_context ? skia_backend_context->sk_context() : nullptr;
-    if (gr_context) {
+    if (!image && gr_context && yuv_data.has_value()) {
         image = SkImages::TextureFromYUVAPixmaps(
             gr_context,
             yuv_data->make_pixmaps(),
@@ -349,7 +364,14 @@ sk_sp<SkImage> DisplayListResourceStorage::skia_image_for_video_sink(VideoSinkRe
     }
 
     if (!image) {
-        auto bitmap_or_error = yuv_data->to_bitmap();
+        auto bitmap_or_error = [&] -> ErrorOr<NonnullRefPtr<Gfx::Bitmap>> {
+#ifdef AK_OS_MACOS
+            // Without a GPU to sample the surface on, its pixels have to be read back into memory to be drawn.
+            if (surface != nullptr)
+                return Gfx::bitmap_from_video_surface(surface->io_surface(), frame->cicp());
+#endif
+            return yuv_data->to_bitmap();
+        }();
         if (bitmap_or_error.is_error()) {
             dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
             return nullptr;
@@ -364,9 +386,13 @@ sk_sp<SkImage> DisplayListResourceStorage::skia_image_for_video_sink(VideoSinkRe
     if (!frame->revalidate_backing())
         return nullptr;
 
+    if (!image)
+        return nullptr;
+
     cached_image_storage.pool_id = handle.pool_id;
     cached_image_storage.slot_index = handle.slot_index;
     cached_image_storage.slot_acquisition_id = handle.slot_acquisition_id;
+    cached_image_storage.surface_id = surface_id;
     cached_image_storage.skia_backend_context = skia_backend_context;
     cached_image_storage.image = image;
     return image;

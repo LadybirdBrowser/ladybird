@@ -28,3 +28,8 @@ ladybird_test(TestBitmapSequence.cpp LibGfx LIBS LibGfx LibIPC)
 ladybird_test(TestShareableBitmap.cpp LibGfx LIBS LibGfx LibIPC)
 ladybird_test(TestFilter.cpp LibGfx LIBS LibGfx skia)
 ladybird_test(TestYUVData.cpp LibGfx LIBS LibGfx skia)
+
+if (APPLE)
+    ladybird_test(TestVideoSurfaceImage.mm LibGfx LIBS LibGfx skia)
+    target_link_libraries(TestVideoSurfaceImage PRIVATE "-framework CoreVideo")
+endif()
