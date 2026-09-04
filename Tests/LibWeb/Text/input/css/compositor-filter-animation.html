@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes functions {
+        from { filter: none; }
+        to { filter: blur(4px) brightness(0.5) hue-rotate(90deg); }
+    }
+
+    @keyframes shadow {
+        from { filter: drop-shadow(0 0 0 rgba(0, 0, 255, 0)); }
+        to { filter: drop-shadow(8px 4px 2px blue); }
+    }
+
+    @keyframes referenced {
+        from { filter: url(#blur); }
+        to { filter: url(#blur-more); }
+    }
+
+    .target {
+        width: 20px;
+        height: 20px;
+        background: red;
+    }
+
+    #functions {
+        animation: functions 1s linear infinite;
+    }
+
+    #shadow {
+        animation: shadow 1s linear infinite;
+    }
+
+    #referenced {
+        animation: referenced 1s linear infinite;
+    }
+</style>
+<svg width="0" height="0">
+    <filter id="blur"><feGaussianBlur stdDeviation="2" /></filter>
+    <filter id="blur-more"><feGaussianBlur stdDeviation="4" /></filter>
+</svg>
+<div id="functions" class="target"></div>
+<div id="shadow" class="target"></div>
+<div id="referenced" class="target"></div>
+<script>
+    asyncTest(async done => {
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+
+        const initialCounters = internals.getStyleInvalidationCounters();
+        const initialAnimationCount = document.getAnimations().length;
+        document.querySelector("#referenced").getAnimations()[0].cancel();
+        for (let i = 0; i < 2; ++i)
+            await new Promise(requestAnimationFrame);
+
+        internals.resetStyleInvalidationCounters();
+        for (let i = 0; i < 4; ++i)
+            internals.updateCompositorAnimations();
+        const stableCounters = internals.getStyleInvalidationCounters();
+
+        for (const animation of document.getAnimations())
+            animation.cancel();
+        internals.updateCompositorAnimations();
+        const cancellationCounters = internals.getStyleInvalidationCounters();
+
+        println(`CSS filter functions use compositor: ${initialCounters.compositorVisualAnimations >= 2}`);
+        println(`URL filter stays on main thread: ${initialAnimationCount === 3 && initialCounters.compositorVisualAnimations === 2}`);
+        println(`stable CSS filters build no overlays: ${stableCounters.animatedStyleOverlayBuilds === 0}`);
+        println(`stable CSS filters request no animation frames: ${stableCounters.animationFramePumpRequests === 0}`);
+        println(`cancel removes CSS filter animations: ${cancellationCounters.compositorVisualAnimations === 0}`);
+        done();
+    });
+</script>

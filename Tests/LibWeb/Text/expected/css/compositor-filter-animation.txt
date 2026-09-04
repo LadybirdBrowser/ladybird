@@ -1,0 +1,5 @@
+CSS filter functions use compositor: true
+URL filter stays on main thread: true
+stable CSS filters build no overlays: true
+stable CSS filters request no animation frames: true
+cancel removes CSS filter animations: true

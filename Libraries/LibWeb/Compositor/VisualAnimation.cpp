@@ -213,6 +213,98 @@ bool VisualAnimationTransformOperation::is_valid() const
     return all_of(values, [](float value) { return isfinite(value); });
 }
 
+static Gfx::Color interpolate_legacy_srgb_color(Gfx::Color from, Gfx::Color to, double progress)
+{
+    auto from_alpha = static_cast<double>(from.alpha()) / 255.0;
+    auto to_alpha = static_cast<double>(to.alpha()) / 255.0;
+    auto alpha = clamp(from_alpha + (to_alpha - from_alpha) * progress, 0.0, 1.0);
+    if (alpha == 0)
+        return Gfx::Color::Transparent;
+    auto interpolate_channel = [&](u8 from_channel, u8 to_channel) {
+        auto from_premultiplied = static_cast<double>(from_channel) * from_alpha;
+        auto to_premultiplied = static_cast<double>(to_channel) * to_alpha;
+        auto channel = (from_premultiplied + (to_premultiplied - from_premultiplied) * progress) / alpha;
+        return round_to<u8>(clamp(channel, 0.0, 255.0));
+    };
+    return Gfx::Color {
+        interpolate_channel(from.red(), to.red()),
+        interpolate_channel(from.green(), to.green()),
+        interpolate_channel(from.blue(), to.blue()),
+        round_to<u8>(alpha * 255.0),
+    };
+}
+
+bool VisualAnimationFilterOperation::matches(VisualAnimationFilterOperation const& other) const
+{
+    return kind == other.kind
+        && (kind != VisualAnimationFilterOperationKind::Color || color_operation == other.color_operation);
+}
+
+VisualAnimationFilterOperation VisualAnimationFilterOperation::initial_value() const
+{
+    auto initial = *this;
+    initial.amount = 0;
+    initial.offset_x = 0;
+    initial.offset_y = 0;
+    initial.color = Gfx::Color::Transparent;
+    if (kind == VisualAnimationFilterOperationKind::Color
+        && !first_is_one_of(color_operation, Gfx::ColorFilterType::Grayscale, Gfx::ColorFilterType::Invert, Gfx::ColorFilterType::Sepia))
+        initial.amount = 1;
+    return initial;
+}
+
+VisualAnimationFilterOperation VisualAnimationFilterOperation::interpolated_with(VisualAnimationFilterOperation const& other, double progress) const
+{
+    VERIFY(matches(other));
+    auto interpolate = [&](float from, float to) {
+        return static_cast<float>(from + (to - from) * progress);
+    };
+    auto result = *this;
+    result.amount = interpolate(amount, other.amount);
+    result.offset_x = interpolate(offset_x, other.offset_x);
+    result.offset_y = interpolate(offset_y, other.offset_y);
+    if (kind == VisualAnimationFilterOperationKind::DropShadow)
+        result.color = interpolate_legacy_srgb_color(color, other.color, progress);
+
+    if (first_is_one_of(kind, VisualAnimationFilterOperationKind::Blur, VisualAnimationFilterOperationKind::DropShadow))
+        result.amount = max(result.amount, 0.0f);
+    if (kind == VisualAnimationFilterOperationKind::Color) {
+        result.amount = max(result.amount, 0.0f);
+        if (first_is_one_of(color_operation, Gfx::ColorFilterType::Grayscale, Gfx::ColorFilterType::Invert, Gfx::ColorFilterType::Opacity, Gfx::ColorFilterType::Sepia))
+            result.amount = min(result.amount, 1.0f);
+    }
+    return result;
+}
+
+bool VisualAnimationFilterOperation::is_valid() const
+{
+    if (!first_is_one_of(kind,
+            VisualAnimationFilterOperationKind::Blur,
+            VisualAnimationFilterOperationKind::DropShadow,
+            VisualAnimationFilterOperationKind::Color,
+            VisualAnimationFilterOperationKind::HueRotate))
+        return false;
+    if (!isfinite(amount) || !isfinite(offset_x) || !isfinite(offset_y))
+        return false;
+    if (first_is_one_of(kind, VisualAnimationFilterOperationKind::Blur, VisualAnimationFilterOperationKind::DropShadow) && amount < 0)
+        return false;
+    if (kind != VisualAnimationFilterOperationKind::Color)
+        return true;
+    if (!first_is_one_of(color_operation,
+            Gfx::ColorFilterType::Brightness,
+            Gfx::ColorFilterType::Contrast,
+            Gfx::ColorFilterType::Grayscale,
+            Gfx::ColorFilterType::Invert,
+            Gfx::ColorFilterType::Opacity,
+            Gfx::ColorFilterType::Saturate,
+            Gfx::ColorFilterType::Sepia))
+        return false;
+    if (amount < 0)
+        return false;
+    return !first_is_one_of(color_operation, Gfx::ColorFilterType::Grayscale, Gfx::ColorFilterType::Invert, Gfx::ColorFilterType::Opacity, Gfx::ColorFilterType::Sepia)
+        || amount <= 1;
+}
+
 bool VisualAnimation::has_same_parameters_except_anchor(VisualAnimation const& other) const
 {
     return target_kind == other.target_kind
@@ -236,26 +328,6 @@ bool VisualAnimation::has_same_animation_parameters(VisualAnimation const& other
 
 static VisualAnimationValue interpolate_value(VisualAnimationValue const& from, VisualAnimationValue const& to, double progress)
 {
-    auto interpolate_legacy_srgb_color = [](Gfx::Color from, Gfx::Color to, double progress) -> Gfx::Color {
-        auto from_alpha = static_cast<double>(from.alpha()) / 255.0;
-        auto to_alpha = static_cast<double>(to.alpha()) / 255.0;
-        auto alpha = clamp(from_alpha + (to_alpha - from_alpha) * progress, 0.0, 1.0);
-        if (alpha == 0)
-            return Gfx::Color::Transparent;
-        auto interpolate_channel = [&](u8 from_channel, u8 to_channel) {
-            auto from_premultiplied = static_cast<double>(from_channel) * from_alpha;
-            auto to_premultiplied = static_cast<double>(to_channel) * to_alpha;
-            auto channel = (from_premultiplied + (to_premultiplied - from_premultiplied) * progress) / alpha;
-            return round_to<u8>(clamp(channel, 0.0, 255.0));
-        };
-        return Gfx::Color {
-            interpolate_channel(from.red(), to.red()),
-            interpolate_channel(from.green(), to.green()),
-            interpolate_channel(from.blue(), to.blue()),
-            round_to<u8>(alpha * 255.0),
-        };
-    };
-
     VERIFY(from.index() == to.index());
     return from.visit(
         [&](float from_opacity) -> VisualAnimationValue {
@@ -264,6 +336,23 @@ static VisualAnimationValue interpolate_value(VisualAnimationValue const& from, 
         },
         [&](Gfx::Color from_color) -> VisualAnimationValue {
             return interpolate_legacy_srgb_color(from_color, to.get<Gfx::Color>(), progress);
+        },
+        [&](VisualAnimationFilterList const& from_filters) -> VisualAnimationValue {
+            auto padded_from_filters = from_filters;
+            auto padded_to_filters = to.get<VisualAnimationFilterList>();
+            while (padded_from_filters.size() < padded_to_filters.size())
+                padded_from_filters.append(padded_to_filters[padded_from_filters.size()].initial_value());
+            while (padded_to_filters.size() < padded_from_filters.size())
+                padded_to_filters.append(padded_from_filters[padded_to_filters.size()].initial_value());
+            for (size_t index = 0; index < padded_from_filters.size(); ++index) {
+                if (!padded_from_filters[index].matches(padded_to_filters[index]))
+                    return progress < 0.5 ? from_filters : to.get<VisualAnimationFilterList>();
+            }
+            VisualAnimationFilterList filters;
+            filters.ensure_capacity(padded_from_filters.size());
+            for (size_t index = 0; index < padded_from_filters.size(); ++index)
+                filters.unchecked_append(padded_from_filters[index].interpolated_with(padded_to_filters[index], progress));
+            return filters;
         },
         [&](VisualAnimationTransformList const& from_transforms) -> VisualAnimationValue {
             auto const& to_transforms = to.get<VisualAnimationTransformList>();
@@ -357,11 +446,39 @@ Optional<VisualAnimation::Sample> VisualAnimation::sample(AK::Duration elapsed_s
     if (!isfinite(eased_interval_progress))
         return {};
     auto value = interpolate_value(from_keyframe->value, to_keyframe->value, eased_interval_progress);
+    if (value.has<VisualAnimationFilterList>()
+        && any_of(value.get<VisualAnimationFilterList>(), [](auto const& operation) { return !operation.is_valid(); }))
+        return {};
 
     Sample sample;
     value.visit(
         [&](float opacity) { sample.opacity = opacity; },
         [&](Gfx::Color background_color) { sample.background_color = background_color; },
+        [&](VisualAnimationFilterList const& filters) {
+            sample.samples_filter = true;
+            Optional<Gfx::Filter> composed_filter;
+            for (auto const& operation : filters) {
+                Gfx::Filter filter = [&, operation] {
+                    switch (operation.kind) {
+                    case VisualAnimationFilterOperationKind::Blur:
+                        return Gfx::Filter::blur(operation.amount, operation.amount);
+                    case VisualAnimationFilterOperationKind::DropShadow:
+                        return Gfx::Filter::drop_shadow(operation.offset_x, operation.offset_y, operation.amount, operation.color);
+                    case VisualAnimationFilterOperationKind::Color:
+                        return Gfx::Filter::color(operation.color_operation, operation.amount);
+                    case VisualAnimationFilterOperationKind::HueRotate:
+                        return Gfx::Filter::hue_rotate(operation.amount);
+                    }
+                    VERIFY_NOT_REACHED();
+                }();
+                composed_filter = composed_filter.has_value() ? Gfx::Filter::compose(filter, *composed_filter) : move(filter);
+            }
+            if (composed_filter.has_value()) {
+                sample.filter_bytes = Gfx::serialize_filter(*composed_filter, [](Gfx::DecodedImageFrame const&) -> u64 {
+                    VERIFY_NOT_REACHED();
+                });
+            }
+        },
         [&](VisualAnimationTransformList const& transforms) {
             for (auto const& transform : transforms)
                 sample.transform = sample.transform * transform.to_matrix();
@@ -377,6 +494,11 @@ Optional<VisualAnimation::Sample> VisualAnimation::sample(AK::Duration elapsed_s
             return {};
         return sample;
     }
+    if (target_kind == TargetKind::Filter) {
+        if (!sample.samples_filter)
+            return {};
+        return sample;
+    }
     for (size_t row = 0; row < 4; ++row) {
         for (size_t column = 0; column < 4; ++column) {
             if (!isfinite(sample.transform[row, column]))
@@ -388,7 +510,7 @@ Optional<VisualAnimation::Sample> VisualAnimation::sample(AK::Duration elapsed_s
 
 bool VisualAnimation::is_valid() const
 {
-    if (!first_is_one_of(target_kind, TargetKind::Opacity, TargetKind::BackgroundColor, TargetKind::Transform))
+    if (!first_is_one_of(target_kind, TargetKind::Opacity, TargetKind::BackgroundColor, TargetKind::Filter, TargetKind::Transform))
         return false;
     if (visual_context_node_indices.is_empty())
         return false;
@@ -425,6 +547,14 @@ bool VisualAnimation::is_valid() const
 
         if (target_kind == TargetKind::BackgroundColor) {
             if (!keyframe.value.has<Gfx::Color>())
+                return false;
+            continue;
+        }
+
+        if (target_kind == TargetKind::Filter) {
+            if (!keyframe.value.has<VisualAnimationFilterList>())
+                return false;
+            if (any_of(keyframe.value.get<VisualAnimationFilterList>(), [](auto const& operation) { return !operation.is_valid(); }))
                 return false;
             continue;
         }
@@ -516,6 +646,31 @@ ErrorOr<Web::Compositor::VisualAnimationTransformOperation> decode(Decoder& deco
     return Web::Compositor::VisualAnimationTransformOperation {
         .kind = TRY(decoder.decode<Web::Compositor::VisualAnimationTransformOperationKind>()),
         .values = TRY(decoder.decode<Vector<float>>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Compositor::VisualAnimationFilterOperation const& operation)
+{
+    TRY(encoder.encode(operation.kind));
+    TRY(encoder.encode(operation.amount));
+    TRY(encoder.encode(operation.offset_x));
+    TRY(encoder.encode(operation.offset_y));
+    TRY(encoder.encode(operation.color));
+    TRY(encoder.encode(operation.color_operation));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Compositor::VisualAnimationFilterOperation> decode(Decoder& decoder)
+{
+    return Web::Compositor::VisualAnimationFilterOperation {
+        .kind = TRY(decoder.decode<Web::Compositor::VisualAnimationFilterOperationKind>()),
+        .amount = TRY(decoder.decode<float>()),
+        .offset_x = TRY(decoder.decode<float>()),
+        .offset_y = TRY(decoder.decode<float>()),
+        .color = TRY(decoder.decode<Gfx::Color>()),
+        .color_operation = TRY(decoder.decode<Gfx::ColorFilterType>()),
     };
 }
 

@@ -213,6 +213,8 @@ public:
             return m_compositor_opacity_keyframe_value_cache;
         case Compositor::VisualAnimation::TargetKind::BackgroundColor:
             return m_compositor_background_color_keyframe_value_cache;
+        case Compositor::VisualAnimation::TargetKind::Filter:
+            return m_compositor_filter_keyframe_value_cache;
         case Compositor::VisualAnimation::TargetKind::Transform:
             return m_compositor_transform_keyframe_value_cache;
         }
@@ -251,6 +253,7 @@ private:
     u64 m_animation_preparation_generation { 0 };
     Optional<CompositorKeyframeValueCache> m_compositor_opacity_keyframe_value_cache;
     Optional<CompositorKeyframeValueCache> m_compositor_background_color_keyframe_value_cache;
+    Optional<CompositorKeyframeValueCache> m_compositor_filter_keyframe_value_cache;
     Optional<CompositorKeyframeValueCache> m_compositor_transform_keyframe_value_cache;
     Vector<Compositor::VisualAnimation> m_retained_compositor_animations;
     bool m_is_compositor_driven { false };

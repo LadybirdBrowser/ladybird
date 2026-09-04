@@ -156,7 +156,16 @@ pub struct FfiFrameBackgroundColorSample {
 pub enum FfiVisualAnimationTargetKind {
     Opacity,
     BackgroundColor,
+    Filter,
     Transform,
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiFrameFilterSample {
+    pub frame: u32,
+    pub filter_bytes: *const u8,
+    pub filter_size: usize,
 }
 
 #[derive(Clone, Copy, Debug)]

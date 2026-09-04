@@ -639,6 +639,7 @@ impl VisualContextTree {
         &self,
         frame_opacities: &[(FrameNodeIndex, f32)],
         frame_background_colors: &[(FrameNodeIndex, libgfx_rust::Color)],
+        frame_filters: &[(FrameNodeIndex, Option<std::rc::Rc<Vec<u8>>>)],
         spatial_matrices: &[(SpatialNodeIndex, FloatMatrix4x4)],
     ) -> VisualContextTree {
         let mut sampled = self.clone();
@@ -647,6 +648,13 @@ impl VisualContextTree {
                 sampled.frame_nodes.get_mut(frame.0 as usize).map(|node| &mut node.data)
             {
                 effects.opacity = *opacity;
+            }
+        }
+        for (frame, filter) in frame_filters {
+            if let Some(FrameData::Effects(effects)) =
+                sampled.frame_nodes.get_mut(frame.0 as usize).map(|node| &mut node.data)
+            {
+                effects.filter = filter.clone();
             }
         }
         for (spatial, matrix) in spatial_matrices {
@@ -672,7 +680,7 @@ impl VisualContextTree {
     ) -> bool {
         use crate::painting::host::FfiVisualAnimationTargetKind;
         match target_kind {
-            FfiVisualAnimationTargetKind::Opacity => matches!(
+            FfiVisualAnimationTargetKind::Opacity | FfiVisualAnimationTargetKind::Filter => matches!(
                 self.frame_nodes.get(target as usize).map(|node| &node.data),
                 Some(FrameData::Effects(_))
             ),

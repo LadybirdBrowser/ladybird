@@ -197,8 +197,8 @@
         const mixedEffectCounters = internals.getStyleInvalidationCounters();
         const mixedEffectNeedsEffectsFrame = internals.visualContextNodeIndices(pairedTarget).needsCompositorEffectsLayer;
         println(`adding an opacity animation creates an effects frame: ${mixedOpacityNeedsEffectsFrame}`);
-        println(`adding a filter withdraws compositor opacity: ${mixedEffectCounters.compositorVisualAnimations === 0}`);
-        println(`adding a filter removes the forced effects frame: ${!mixedEffectNeedsEffectsFrame}`);
+        println(`adding a filter keeps mixed effect on compositor: ${mixedEffectCounters.compositorVisualAnimations === 2}`);
+        println(`adding a filter retains the forced effects frame: ${mixedEffectNeedsEffectsFrame}`);
         mixedAnimation.cancel();
 
         pairedRetargetTarget.classList.add("first");

@@ -137,7 +137,10 @@ AccumulatedVisualContextTree AccumulatedVisualContextTree::with_visual_animation
 {
     Vector<Layout::RustFFI::FfiFrameOpacitySample> opacity_samples;
     Vector<Layout::RustFFI::FfiFrameBackgroundColorSample> background_color_samples;
+    Vector<ByteBuffer> filter_sample_storage;
+    Vector<Layout::RustFFI::FfiFrameFilterSample> filter_samples;
     Vector<Layout::RustFFI::FfiSpatialTransformSample> transform_samples;
+    filter_sample_storage.ensure_capacity(visual_animations().size());
     for (auto const& animation : visual_animations()) {
         auto elapsed_nanoseconds = monotonic_time_ns > animation.monotonic_time_at_anchor_ns
             ? monotonic_time_ns - animation.monotonic_time_at_anchor_ns
@@ -145,11 +148,22 @@ AccumulatedVisualContextTree AccumulatedVisualContextTree::with_visual_animation
         auto sample = animation.sample(AK::Duration::from_nanoseconds(elapsed_nanoseconds));
         if (!sample.has_value())
             continue;
+        Optional<ReadonlyBytes> filter_bytes;
+        if (animation.target_kind == Compositor::VisualAnimation::TargetKind::Filter && !sample->filter_bytes.is_empty()) {
+            filter_sample_storage.append(move(sample->filter_bytes));
+            filter_bytes = filter_sample_storage.last().bytes();
+        }
         for (auto node_index : animation.visual_context_node_indices) {
             if (animation.target_kind == Compositor::VisualAnimation::TargetKind::Opacity)
                 opacity_samples.append({ .frame = node_index, .opacity = sample->opacity });
             else if (animation.target_kind == Compositor::VisualAnimation::TargetKind::BackgroundColor)
                 background_color_samples.append({ .frame = node_index, .color = *sample->background_color });
+            else if (animation.target_kind == Compositor::VisualAnimation::TargetKind::Filter)
+                filter_samples.append({
+                    .frame = node_index,
+                    .filter_bytes = filter_bytes.has_value() ? filter_bytes->data() : nullptr,
+                    .filter_size = filter_bytes.has_value() ? filter_bytes->size() : 0,
+                });
             else
                 transform_samples.append({ .spatial = node_index, .matrix = sample->transform });
         }
@@ -157,6 +171,7 @@ AccumulatedVisualContextTree AccumulatedVisualContextTree::with_visual_animation
     auto tree = adopt_rust_handle(Layout::RustFFI::visual_context_tree_with_sampled_values(m_rust_tree,
         opacity_samples.data(), opacity_samples.size(),
         background_color_samples.data(), background_color_samples.size(),
+        filter_samples.data(), filter_samples.size(),
         transform_samples.data(), transform_samples.size()));
     tree.m_visual_animations = m_visual_animations;
     return tree;
@@ -171,6 +186,8 @@ bool AccumulatedVisualContextTree::visual_animation_targets_are_valid(Compositor
             return Layout::RustFFI::FfiVisualAnimationTargetKind::Opacity;
         case Compositor::VisualAnimation::TargetKind::BackgroundColor:
             return Layout::RustFFI::FfiVisualAnimationTargetKind::BackgroundColor;
+        case Compositor::VisualAnimation::TargetKind::Filter:
+            return Layout::RustFFI::FfiVisualAnimationTargetKind::Filter;
         case Compositor::VisualAnimation::TargetKind::Transform:
             return Layout::RustFFI::FfiVisualAnimationTargetKind::Transform;
         }
