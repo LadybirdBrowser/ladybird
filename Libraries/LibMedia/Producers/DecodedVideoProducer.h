@@ -25,7 +25,6 @@
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
 #include <LibMedia/VideoDecoder.h>
-#include <LibMedia/VideoFramePool.h>
 #include <LibSync/ConditionVariable.h>
 #include <LibSync/Mutex.h>
 
@@ -99,8 +98,6 @@ private:
         void dispatch_error(DecoderError&&);
         bool handle_seek();
         void resolve_seek(u32 seek_id, bool moved_position);
-        DecoderErrorOr<void> ensure_frame_pool();
-        DecoderErrorOr<NonnullRefPtr<VideoFrame>> take_frame_into_acquired_slot(VideoFrameMetadata const&, VideoFramePool::AcquiredSlot const&);
         void push_data_and_decode_some_frames();
 
         void enter_halting_state(PipelineStatus, Optional<DecoderError>);
@@ -123,11 +120,13 @@ private:
 
         Core::EventLoop& m_main_thread_event_loop;
 
-        // Shared with the frame pools' slot-freed callbacks, which can outlive this ThreadData
-        // through frames still held downstream.
+        // Shared with the decoder's storage-freed callback, which can outlive this ThreadData through frames still
+        // held downstream. The flag records a wake that arrived while the decode thread was outside the mutex,
+        // between an unsuccessful attempt to take output and the wait that follows it.
         struct WaitState : public AtomicRefCounted<WaitState> {
             Sync::Mutex mutex;
             Sync::ConditionVariable condition { mutex };
+            bool frame_storage_was_freed { false };
         };
         NonnullRefPtr<WaitState> m_wait_state { make_ref_counted<WaitState>() };
         RequestedState m_requested_state { RequestedState::None };
@@ -139,7 +138,6 @@ private:
         Optional<CodedFrame> m_frame_awaiting_decoder_replacement;
         DecodeIntent m_intent_awaiting_decoder_replacement { DecodeIntent::Output };
         OwnPtr<VideoDecoder> m_decoder;
-        RefPtr<VideoFramePool> m_frame_pool;
         bool m_decoder_needs_keyframe_next_seek { false };
         bool m_decoder_needs_codec_configuration_next_seek { true };
 

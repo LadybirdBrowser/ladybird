@@ -7,6 +7,7 @@
 #include <LibCore/System.h>
 #include <LibGfx/YUVData.h>
 #include <LibMedia/CodedFrame.h>
+#include <LibMedia/VideoFrame.h>
 
 #include "FFmpegHelpers.h"
 #include "FFmpegVideoDecoder.h"
@@ -98,19 +99,25 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegVideoDecoder>> FFmpegVideoDecoder::try_create
     if (!frame)
         return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg frame"sv);
 
+    auto frame_pool_result = VideoFramePool::create();
+    if (frame_pool_result.is_error())
+        return DecoderError::format(DecoderErrorCategory::Memory, "Failed to create a video frame pool: {}", frame_pool_result.release_error());
+
     memory_guard.disarm();
-    return DECODER_TRY_ALLOC(try_make<FFmpegVideoDecoder>(codec_context, packet, frame));
+    return DECODER_TRY_ALLOC(try_make<FFmpegVideoDecoder>(codec_context, packet, frame, frame_pool_result.release_value()));
 }
 
-FFmpegVideoDecoder::FFmpegVideoDecoder(AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame)
+FFmpegVideoDecoder::FFmpegVideoDecoder(AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame, NonnullRefPtr<VideoFramePool> frame_pool)
     : m_codec_context(codec_context)
     , m_packet(packet)
     , m_frame(frame)
+    , m_frame_pool(move(frame_pool))
 {
 }
 
 FFmpegVideoDecoder::~FFmpegVideoDecoder()
 {
+    m_frame_pool->shed_buffers();
     av_packet_free(&m_packet);
     av_frame_free(&m_frame);
     avcodec_free_context(&m_codec_context);
@@ -169,7 +176,7 @@ void FFmpegVideoDecoder::signal_end_of_stream()
     VERIFY(result == 0 || result == AVERROR_EOF);
 }
 
-DecoderErrorOr<VideoFrameMetadata> FFmpegVideoDecoder::peek_next_output(CodingIndependentCodePoints const& container_cicp)
+DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVideoDecoder::take_next_output(CodingIndependentCodePoints const& container_cicp)
 {
     while (!m_has_pending_frame) {
         auto result = avcodec_receive_frame(m_codec_context, m_frame);
@@ -207,7 +214,7 @@ DecoderErrorOr<VideoFrameMetadata> FFmpegVideoDecoder::peek_next_output(CodingIn
     auto cicp = container_cicp;
     cicp.adopt_specified_values({ color_primaries, transfer_characteristics, matrix_coefficients, color_range });
 
-    auto bit_depth = [&] {
+    auto bit_depth = [&]() -> u8 {
         switch (m_frame->format) {
         case AV_PIX_FMT_YUV420P:
         case AV_PIX_FMT_YUV422P:
@@ -251,21 +258,37 @@ DecoderErrorOr<VideoFrameMetadata> FFmpegVideoDecoder::peek_next_output(CodingIn
         }
     }();
 
-    return VideoFrameMetadata {
-        .timestamp = AK::Duration::from_microseconds(m_frame->pts),
-        .duration = AK::Duration::from_microseconds(m_frame->duration),
-        .size = { m_frame->width, m_frame->height },
-        .bit_depth = static_cast<u8>(bit_depth),
-        .subsampling = subsampling,
-        .cicp = cicp,
-    };
+    Gfx::IntSize size { m_frame->width, m_frame->height };
+    auto layout_result = frame_plane_layout(size, bit_depth, subsampling);
+    if (layout_result.is_error())
+        return DecoderError::format(DecoderErrorCategory::Invalid, "Failed to compute video frame plane layout: {}", layout_result.release_error());
+    auto layout = layout_result.release_value();
+
+    auto acquired_slot = m_frame_pool->try_acquire(layout.total_byte_count);
+    if (!acquired_slot.has_value())
+        return DecoderError::with_description(DecoderErrorCategory::TryAgain, "Every video frame slot is held elsewhere"sv);
+
+    auto pool_slot_result = m_frame_pool->try_adopt_acquired_slot(*acquired_slot);
+    if (pool_slot_result.is_error())
+        return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate a pooled frame slot reference"sv);
+    auto pool_slot = pool_slot_result.release_value();
+
+    auto yuv_data = DECODER_TRY_ALLOC(Gfx::YUVData::create(size, bit_depth, subsampling, cicp,
+        acquired_slot->bytes.slice(0, layout.y_size),
+        acquired_slot->bytes.slice(layout.u_offset, layout.u_size),
+        acquired_slot->bytes.slice(layout.v_offset, layout.v_size)));
+    TRY(copy_pending_frame_into(yuv_data));
+
+    auto frame = DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(
+        AK::Duration::from_microseconds(m_frame->pts),
+        AK::Duration::from_microseconds(m_frame->duration),
+        size.to_type<u32>(), bit_depth, subsampling, cicp, move(pool_slot)));
+    m_has_pending_frame = false;
+    return frame;
 }
 
-DecoderErrorOr<void> FFmpegVideoDecoder::take_next_output_into(Gfx::YUVData& yuv_data)
+DecoderErrorOr<void> FFmpegVideoDecoder::copy_pending_frame_into(Gfx::YUVData& yuv_data)
 {
-    VERIFY(m_has_pending_frame);
-    m_has_pending_frame = false;
-
     auto size = Gfx::Size<u32> { m_frame->width, m_frame->height };
     auto y_plane_size = size.to_type<size_t>();
     auto uv_plane_size = yuv_data.subsampling().subsampled_size(size).to_type<size_t>();

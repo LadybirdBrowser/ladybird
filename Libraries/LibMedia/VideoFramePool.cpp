@@ -46,22 +46,27 @@ SlotHeader const& slot_header(Core::AnonymousBuffer const& buffer)
 
 }
 
-ErrorOr<NonnullRefPtr<VideoFramePool>> VideoFramePool::create(Function<void()> slot_freed_callback, size_t byte_budget)
+ErrorOr<NonnullRefPtr<VideoFramePool>> VideoFramePool::create(size_t byte_budget)
 {
-    return adopt_nonnull_ref_or_enomem(new (nothrow) VideoFramePool(move(slot_freed_callback), byte_budget));
+    return adopt_nonnull_ref_or_enomem(new (nothrow) VideoFramePool(byte_budget));
 }
 
-VideoFrameEntryLedger::VideoFrameEntryLedger(Function<void()> slot_freed_callback)
+VideoFrameEntryLedger::VideoFrameEntryLedger()
     : m_id(allocate_pool_id())
-    , m_slot_freed_callback(move(slot_freed_callback))
 {
 }
 
 VideoFrameEntryLedger::~VideoFrameEntryLedger() = default;
 
-VideoFramePool::VideoFramePool(Function<void()> slot_freed_callback, size_t byte_budget)
-    : VideoFrameEntryLedger(move(slot_freed_callback))
-    , m_byte_budget(byte_budget)
+void VideoFrameEntryLedger::set_slot_freed_callback(Function<void()> slot_freed_callback)
+{
+    Sync::MutexLocker locker { m_mutex };
+    VERIFY(m_slots.is_empty());
+    m_slot_freed_callback = move(slot_freed_callback);
+}
+
+VideoFramePool::VideoFramePool(size_t byte_budget)
+    : m_byte_budget(byte_budget)
 {
 }
 
@@ -257,14 +262,9 @@ size_t VideoFramePool::allocated_byte_count() const
     return m_allocated_bytes;
 }
 
-ErrorOr<NonnullRefPtr<VideoFrameSurfacePool>> VideoFrameSurfacePool::create(Function<void()> slot_freed_callback)
+ErrorOr<NonnullRefPtr<VideoFrameSurfacePool>> VideoFrameSurfacePool::create()
 {
-    return adopt_nonnull_ref_or_enomem(new (nothrow) VideoFrameSurfacePool(move(slot_freed_callback)));
-}
-
-VideoFrameSurfacePool::VideoFrameSurfacePool(Function<void()> slot_freed_callback)
-    : VideoFrameEntryLedger(move(slot_freed_callback))
-{
+    return adopt_nonnull_ref_or_enomem(new (nothrow) VideoFrameSurfacePool());
 }
 
 Optional<VideoFrameSurfacePool::AcquiredSlot> VideoFrameSurfacePool::try_acquire(NonnullRefPtr<VideoSurface> const& surface)

@@ -6,25 +6,13 @@
 
 #pragma once
 
-#include <AK/NonnullOwnPtr.h>
-#include <AK/Time.h>
-#include <LibGfx/Forward.h>
-#include <LibGfx/Size.h>
+#include <AK/Function.h>
+#include <AK/NonnullRefPtr.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
-#include <LibMedia/Subsampling.h>
 
 #include "DecoderError.h"
 
 namespace Media {
-
-struct VideoFrameMetadata {
-    AK::Duration timestamp;
-    AK::Duration duration;
-    Gfx::IntSize size;
-    u8 bit_depth { 0 };
-    Subsampling subsampling;
-    CodingIndependentCodePoints cicp;
-};
 
 enum class DecodeIntent : u8 {
     Reference,
@@ -35,11 +23,12 @@ class VideoDecoder {
 public:
     virtual ~VideoDecoder() { }
 
+    virtual void set_storage_freed_callback(Function<void()>) = 0;
+
     virtual DecoderErrorOr<void> receive_coded_data(CodedFrame const&, DecodeIntent) = 0;
     virtual void signal_end_of_stream() = 0;
 
-    virtual DecoderErrorOr<VideoFrameMetadata> peek_next_output(CodingIndependentCodePoints const& container_cicp) = 0;
-    virtual DecoderErrorOr<void> take_next_output_into(Gfx::YUVData&) = 0;
+    virtual DecoderErrorOr<NonnullRefPtr<VideoFrame>> take_next_output(CodingIndependentCodePoints const& container_cicp) = 0;
 
     virtual void flush() = 0;
 };

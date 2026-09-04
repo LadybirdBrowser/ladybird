@@ -19,7 +19,9 @@ static constexpr size_t FRAME_BYTE_COUNT = 4096;
 
 static NonnullRefPtr<Media::VideoFramePool> make_pool(Function<void()> slot_freed_callback = nullptr, size_t byte_budget = Media::VideoFramePool::DEFAULT_BYTE_BUDGET)
 {
-    return MUST(Media::VideoFramePool::create(move(slot_freed_callback), byte_budget));
+    auto pool = MUST(Media::VideoFramePool::create(byte_budget));
+    pool->set_slot_freed_callback(move(slot_freed_callback));
+    return pool;
 }
 
 // The size of one allocated slot buffer, including its header, as observed through the pool's
@@ -698,7 +700,8 @@ TEST_CASE(directory_resolves_an_announced_surface_slot)
 TEST_CASE(surface_slots_hold_and_free_through_the_shared_ledger)
 {
     auto freed_count = 0u;
-    auto pool = MUST(Media::VideoFrameSurfacePool::create([&] { freed_count++; }));
+    auto pool = MUST(Media::VideoFrameSurfacePool::create());
+    pool->set_slot_freed_callback([&] { freed_count++; });
     auto acquired = pool->try_acquire(make_surface()).value();
 
     pool->add_hold(acquired.index);
