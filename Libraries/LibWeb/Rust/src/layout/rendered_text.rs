@@ -56,6 +56,46 @@ pub(super) struct TextRenderingKey {
     locale: Option<Vec<u16>>,
 }
 
+fn transform_uses_locale(transform: u8) -> bool {
+    matches!(
+        transform,
+        text_transform::LOWERCASE | text_transform::UPPERCASE | text_transform::CAPITALIZE
+    )
+}
+
+/// # Safety
+///
+/// The arena and root must be live on the document thread. This only enrolls
+/// text; source views are requested after DOM language invalidation completes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_enroll_text_after_language_change(arena: *mut c_void, root: NodeSlotId) -> bool {
+    // SAFETY: The DOM invalidator lends the live arena for this traversal.
+    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
+    let mut changed = false;
+    let mut enroll = |node| {
+        if !super::node_facts::kind_is_text(arena.data(node).kind.get()) {
+            return;
+        }
+        let parent = arena.data(node).parent.get();
+        if !parent.is_invalid()
+            && arena.style_payloads(parent).is_some_and(|style| {
+                transform_uses_locale(ComputedValuesView::new(&style.groups).inherited_text().text_transform)
+            })
+        {
+            arena.enroll_text_node_for_content_sync(node);
+            changed = true;
+        }
+    };
+    if super::node_facts::kind_is_text(arena.data(root).kind.get()) {
+        for &node in arena.text_fragments(root).as_slice() {
+            enroll(node);
+        }
+    } else {
+        arena.for_each_node_in_layout_subtree_in_pre_order(root, enroll);
+    }
+    changed
+}
+
 #[derive(Clone, Copy, PartialEq)]
 pub(crate) struct TextChunkCacheKey {
     pub(crate) should_wrap_lines: bool,
@@ -266,16 +306,37 @@ pub struct FfiRenderedTextView {
     pub length_in_code_units: usize,
 }
 
-/// # Safety
-///
-/// The arena must be exclusively available and `id` must name a live node.
-/// Source and optional locale views must remain readable throughout this call.
-/// The node's source range must be contained in the source text.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_sync_text_content(arena: *mut c_void, id: NodeSlotId, input: FfiTextSource) {
-    // SAFETY: The host lends the arena exclusively; Unicode callbacks only
-    // access their input views and output buffers, never the arena.
-    let arena = unsafe { LayoutNodeArena::from_handle_mut(arena) };
+// Source and locale views remain readable until the next host callback or DOM mutation.
+unsafe fn source_for_text_sync(arena: *mut LayoutNodeArena, id: NodeSlotId) -> Option<FfiTextSource> {
+    let (callback, shell) = {
+        // SAFETY: The caller owns the live arena on the document thread.
+        let arena = unsafe { &*arena };
+        if !arena.text_content_needs_sync(id) {
+            return None;
+        }
+        (
+            arena
+                .text_source_callback
+                .expect("text source callback must be registered"),
+            arena.node_shell(id),
+        )
+    };
+    // SAFETY: The source callback only reads DOM facts. No arena borrow crosses it.
+    Some(unsafe { callback(shell) })
+}
+
+/// The arena must be live on the document thread with no outstanding borrows.
+/// `id` must name a live text node with a styled parent.
+pub(super) unsafe fn ensure_text_content(arena: *mut LayoutNodeArena, id: NodeSlotId) {
+    // SAFETY: The caller lends the arena for the source read and subsequent publication.
+    if let Some(source) = unsafe { source_for_text_sync(arena, id) } {
+        // SAFETY: The source callback has returned. Unicode services only access
+        // their input and output buffers, so publication holds the arena exclusively.
+        unsafe { sync_text_content(&mut *arena, id, source) };
+    }
+}
+
+unsafe fn sync_text_content(arena: &mut LayoutNodeArena, id: NodeSlotId, input: FfiTextSource) {
     let parent = arena.data(id).parent.get();
     let inherited = ComputedValuesView::new(
         &arena
@@ -292,10 +353,7 @@ pub unsafe extern "C" fn layout_arena_sync_text_content(arena: *mut c_void, id: 
         dom_start_offset: source_range.start,
         dom_length_in_code_units: source_range.length,
     };
-    let uses_locale = matches!(
-        options.text_transform,
-        text_transform::LOWERCASE | text_transform::UPPERCASE | text_transform::CAPITALIZE
-    );
+    let uses_locale = transform_uses_locale(options.text_transform);
     // SAFETY: The host lends the locale view for this call.
     let locale = (uses_locale && input.has_locale)
         .then(|| unsafe { input.locale.to_utf16() }.expect("text locale carries no storage"));
@@ -339,10 +397,13 @@ pub unsafe extern "C" fn layout_arena_invalidate_text_content(arena: *mut c_void
 
 /// # Safety
 ///
-/// `id` must name a live node with published text. The returned view is borrowed
-/// until that node's text is republished or the node is freed.
+/// The arena must be exclusively available on the document thread, and `id`
+/// must name a live text node with a styled parent. Refresh may request source
+/// facts from the host. The returned view lasts until republication or freeing.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_text_for_rendering(arena: *mut c_void, id: NodeSlotId) -> FfiRenderedTextView {
+    // SAFETY: The caller lends the arena for refresh before borrowing its text.
+    unsafe { ensure_text_content(arena.cast(), id) };
     // SAFETY: The host keeps the arena and its published text live during the read.
     let content = unsafe { LayoutNodeArena::from_handle(arena) }
         .text_content(id)
@@ -548,7 +609,7 @@ mod tests {
         assert_eq!(arena.text_content(node).unwrap().rendering_key.as_ref(), Some(&new_key));
         assert_eq!(arena.text_content(node).unwrap().text.as_ptr(), storage);
         assert_eq!(arena.data(node).fragment_cache_epoch.get(), epoch);
-        assert!(arena.take_text_nodes_for_content_sync().is_empty());
+        assert!(arena.pending_text_nodes_for_content_sync().is_empty());
     }
 
     #[test]
@@ -559,13 +620,75 @@ mod tests {
         arena.enroll_text_node_for_content_sync(node);
         arena.invalidate_text_content(node);
         arena.enroll_text_node_for_content_sync(node);
-        let pending = arena.take_text_nodes_for_content_sync();
+        let pending = arena.pending_text_nodes_for_content_sync();
         assert_eq!(pending.len(), 1);
         assert!(pending.contains(&node));
 
         arena.enroll_text_node_for_content_sync(node);
         arena.finish_text_content_sync(node);
-        assert!(arena.take_text_nodes_for_content_sync().is_empty());
+        assert!(arena.pending_text_nodes_for_content_sync().is_empty());
+    }
+
+    #[test]
+    fn clean_reads_skip_source_callbacks_and_pending_style_reads_do_not() {
+        use std::cell::Cell;
+
+        unsafe extern "C" fn source(shell: *mut c_void) -> FfiTextSource {
+            // SAFETY: This test keeps the counter alive as the node's shell.
+            let calls = unsafe { &*shell.cast::<Cell<usize>>() };
+            calls.set(calls.get() + 1);
+            FfiTextSource {
+                text: FfiUtf16View {
+                    ascii: b"hello".as_ptr(),
+                    utf16: std::ptr::null(),
+                    length: 5,
+                },
+                locale: FfiUtf16View {
+                    ascii: std::ptr::null(),
+                    utf16: std::ptr::null(),
+                    length: 0,
+                },
+                has_locale: false,
+                is_password_input: false,
+            }
+        }
+
+        let calls = Cell::new(0usize);
+        let mut arena = LayoutNodeArena::new();
+        arena.text_source_callback = Some(source);
+        let parent = arena.allocate_for_test().slot;
+        let node = arena.allocate_for_test().slot;
+        arena.data(node).kind.set(NodeKind::TextNode);
+        arena.data(node).parent.set(parent);
+        arena.data(parent).first_child.set(node);
+        arena.data(node).shell.set(std::ptr::from_ref(&calls).cast_mut().cast());
+        let mut text = content("hello", 0, 5, Vec::new());
+        text.rendering_key = Some(TextRenderingKey {
+            options: TextRenderingOptions {
+                text_transform: text_transform::NONE,
+                white_space_collapse: crate::css::css_enums::white_space_collapse::COLLAPSE,
+                is_password_input: false,
+                dom_start_offset: 0,
+                dom_length_in_code_units: 5,
+            },
+            source_length: 5,
+            locale: None,
+        });
+        arena.set_text_content(node, text);
+        assert!(unsafe { source_for_text_sync(&raw mut arena, node) }.is_none());
+        assert_eq!(calls.get(), 0);
+
+        arena.set_node_style(parent, 1, std::ptr::null());
+        let pending = arena.pending_text_nodes_for_content_sync();
+        assert_eq!(pending, [node]);
+        assert!(unsafe { source_for_text_sync(&raw mut arena, node) }.is_some());
+        assert_eq!(calls.get(), 1);
+        arena.finish_text_content_sync(node);
+        assert!(unsafe { source_for_text_sync(&raw mut arena, node) }.is_none());
+
+        arena.invalidate_text_content(node);
+        assert!(unsafe { source_for_text_sync(&raw mut arena, node) }.is_some());
+        assert_eq!(calls.get(), 2);
     }
 
     fn first_letter_slices(arena: &mut LayoutNodeArena, end: usize, length: usize) -> (NodeSlotId, NodeSlotId) {

@@ -9,12 +9,19 @@
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/PseudoElement.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/TraversalDecision.h>
 
 namespace Web::CSS::Invalidation {
+
+static void enroll_language_dependent_text(Layout::Node& root)
+{
+    if (Layout::RustFFI::layout_arena_enroll_text_after_language_change(root.arena_handle(), Layout::Node::slot_id(&root)))
+        root.set_needs_layout_update(DOM::SetNeedsLayoutReason::LanguageChangeUnderCasingTextTransform);
+}
 
 // `lang` and `dir` both inherit, so a change on one element changes what every element under it
 // resolves to. Each of them publishes the value it now has, and the rules that name a language or a
@@ -28,29 +35,21 @@ static void publish_language_and_directionality(DOM::Element& element, bool is_d
             } else {
                 descendant->invalidate_lang_value();
                 record_element_language_and_directionality(*descendant);
+                descendant->for_each_synthetic_pseudo_element([](CSS::PseudoElement, DOM::SyntheticPseudoElement const& pseudo) {
+                    if (auto* layout_node = pseudo.unsafe_layout_node())
+                        enroll_language_dependent_text(*layout_node);
+                });
             }
             return TraversalDecision::Continue;
         }
         if (is_directionality_change)
             return TraversalDecision::Continue;
-        // Rendered text under a casing text-transform is keyed on the language
-        // (locale-sensitive casing), which no computed style group reflects, so a style
-        // recomputation alone never re-renders it.
+        // Language is a DOM input outside the computed style groups. Rust checks
+        // the styles of every slice and refreshes their text without rebuilding
+        // the source ranges, which depend on the untransformed text.
         auto* text_layout_node = as_if<Layout::TextNode>(node.unsafe_layout_node());
-        if (!text_layout_node || !text_layout_node->parent())
-            return TraversalDecision::Continue;
-        auto text_transform = text_layout_node->parent()->text_transform();
-        if (!first_is_one_of(text_transform, TextTransform::Uppercase, TextTransform::Lowercase, TextTransform::Capitalize))
-            return TraversalDecision::Continue;
-        if (is<Layout::TextSliceNode>(*text_layout_node)) {
-            // NB: Slice nodes cache data that is calculated at layout tree construction time,
-            //     and locale-sensitive casing can move the first-letter boundary.
-            if (node.parent())
-                node.parent()->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::LanguageChangeUnderCasingTextTransform);
-        } else {
-            text_layout_node->invalidate_text_for_rendering();
-            text_layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::LanguageChangeUnderCasingTextTransform);
-        }
+        if (text_layout_node)
+            enroll_language_dependent_text(*text_layout_node);
         return TraversalDecision::Continue;
     });
 }

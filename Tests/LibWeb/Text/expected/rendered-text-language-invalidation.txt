@@ -1,0 +1,15 @@
+en first: Ii
+en remainder: iI
+en both: II
+en generated: II
+en generated-first: Ii
+tr first: İi
+tr remainder: iİ
+tr both: İİ
+tr generated: İİ
+tr generated-first: iİ
+en first: Ii
+en remainder: iI
+en both: II
+en generated: II
+en generated-first: Ii

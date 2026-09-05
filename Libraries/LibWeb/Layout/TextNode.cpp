@@ -113,16 +113,15 @@ void TextNode::invalidate_text_for_rendering()
 
 Utf16View TextNode::text_for_rendering() const
 {
-    sync_text_content_to_arena();
     auto view = RustFFI::layout_arena_text_for_rendering(arena_handle(), slot_id(this));
     return Utf16View { reinterpret_cast<char16_t const*>(view.text), view.length_in_code_units };
 }
 
-void TextNode::sync_text_content_to_arena() const
+RustFFI::FfiTextSource TextNode::text_source() const
 {
-    Optional<Utf16String> lang;
+    Optional<Utf16View> lang;
     if (auto element = parent_element_for_text_transform())
-        lang = element->lang();
+        lang = element->lang_view();
     auto view_for = [](Utf16View view) -> RustFFI::FfiUtf16View {
         return {
             .ascii = view.has_ascii_storage() ? reinterpret_cast<u8 const*>(view.ascii_span().data()) : nullptr,
@@ -130,13 +129,12 @@ void TextNode::sync_text_content_to_arena() const
             .length = view.length_in_code_units(),
         };
     };
-    RustFFI::FfiTextSource source {
+    return {
         .text = view_for(text()),
         .locale = lang.has_value() ? view_for(*lang) : RustFFI::FfiUtf16View {},
         .has_locale = lang.has_value(),
         .is_password_input = is_password_input(),
     };
-    RustFFI::layout_arena_sync_text_content(arena_handle(), slot_id(this), source);
 }
 
 Gfx::GlyphRun::TextType text_type_for_code_point(u32 code_point)

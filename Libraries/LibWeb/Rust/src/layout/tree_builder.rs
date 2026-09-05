@@ -2258,7 +2258,6 @@ pub struct FfiTreeBuilderCallbacks {
     pub take_fieldset_overflow_for_content_wrapper:
         unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiAnonymousStyleOverrides,
     pub prepare_subtree_for_detach: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub text_is_ascii_whitespace: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub prepare_first_letter_text:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut FfiFirstLetterTextCallbacks) -> bool,
 }
@@ -3407,14 +3406,23 @@ fn is_tabular_container(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
         || display.is_table_footer_group()
 }
 
+fn text_is_ascii_whitespace(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
+    // SAFETY: Tree building owns the arena; no borrowed node data crosses the refresh.
+    unsafe { super::rendered_text::ensure_text_content(host.arena, node) };
+    host.arena()
+        .text_content(node)
+        .expect("text was just refreshed")
+        .text
+        .iter()
+        .all(|unit| matches!(unit, 0x09..=0x0d | 0x20))
+}
+
 fn is_ignorable_whitespace(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
-    if node_kind_is_text(host.data(node).kind.get())
-        && unsafe { (host.callbacks.text_is_ascii_whitespace)(host.callbacks.context, host.shell(node)) }
-    {
+    if node_kind_is_text(host.data(node).kind.get()) && text_is_ascii_whitespace(host, node) {
         return true;
     }
 
-    // The text callback can publish a new rendered snapshot. Borrow node data
+    // Text refresh can publish a new rendered snapshot. Borrow node data
     // again after it returns instead of retaining a reader across publication.
     let data = host.data(node);
     if node_has_flag(data, NodeFlag::Anonymous)
@@ -3425,8 +3433,7 @@ fn is_ignorable_whitespace(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool
         host.for_each_in_inclusive_subtree(node, |descendant| {
             let descendant_data = host.data(descendant);
             if node_kind_is_text(descendant_data.kind.get()) {
-                if !unsafe { (host.callbacks.text_is_ascii_whitespace)(host.callbacks.context, host.shell(descendant)) }
-                {
+                if !text_is_ascii_whitespace(host, descendant) {
                     contains_only_whitespace = false;
                     return TraversalDecision::Break;
                 }
