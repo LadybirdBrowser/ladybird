@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NumericLimits.h>
+#include <AK/Random.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -22,9 +24,22 @@ static GC::Ref<Object> prototype_for_shared_state(Realm& realm, DataBlock::Share
         : realm.intrinsics().shared_array_buffer_prototype();
 }
 
+// A large allocation that fails may succeed once dead buffers pinning address space are collected — so retry, once
+// after a sync GC, before giving up (WebKit does the same).
+template<typename AllocFunction>
+static auto allocate_or_retry_after_gc(GC::Heap& heap, AllocFunction allocate)
+{
+    auto result = allocate();
+    if (result.is_error()) {
+        heap.collect_garbage();
+        result = allocate();
+    }
+    return result;
+}
+
 ThrowCompletionOr<GC::Ref<ArrayBuffer>> ArrayBuffer::create(Realm& realm, size_t byte_length, DataBlock::Shared is_shared)
 {
-    auto buffer = DataBlock::OwnedBackingStore::create_zeroed(byte_length);
+    auto buffer = allocate_or_retry_after_gc(realm.heap(), [&] { return DataBlock::OwnedBackingStore::create_zeroed(byte_length); });
     if (buffer.is_error())
         return realm.vm().throw_completion<RangeError>(ErrorType::NotEnoughMemoryToAllocate, byte_length);
 
@@ -53,6 +68,15 @@ GC::Ref<ArrayBuffer> ArrayBuffer::create(Realm& realm, DataBlock block)
     auto array_buffer = realm.create<ArrayBuffer>(static_cast<ByteBuffer*>(nullptr), is_shared, prototype_for_shared_state(realm, is_shared));
     array_buffer->set_data_block(move(block));
     return array_buffer;
+}
+
+GC::Ref<ArrayBuffer> ArrayBuffer::create(Realm& realm, Core::AnonymousBuffer anonymous_buffer, u64 shared_object_id)
+{
+    // AD-HOC: Reconstruct a shared, fixed-length SharedArrayBuffer over already-mapped cross-process shared memory
+    //         (used when deserializing a SharedArrayBuffer whose backing was transferred by file descriptor).
+    // NB: create(realm, DataBlock) already accounts for the external memory via set_data_block() — so, unlike the
+    //     ByteBuffer overload above (which sets m_data_block through the constructor), we must not did_allocate again.
+    return create(realm, DataBlock { DataBlock::SharedBackingStore { move(anonymous_buffer), shared_object_id }, DataBlock::Shared::Yes });
 }
 
 ArrayBuffer::ArrayBuffer(DataBlock::OwnedBackingStore buffer, DataBlock::Shared is_shared, Object& prototype)
@@ -145,14 +169,27 @@ ThrowCompletionOr<DataBlock> create_byte_data_block(VM& vm, size_t size, Optiona
 
     // 2. Let db be a new Data Block value consisting of size bytes. If it is impossible to create such a Data Block, throw a RangeError exception.
     // 3. Set all of the bytes of db to 0.
-    auto data_block = capacity.has_value()
-        ? DataBlock::OwnedBackingStore::create_zeroed_with_capacity(size, *capacity)
-        : DataBlock::OwnedBackingStore::create_zeroed(size);
+    auto data_block = allocate_or_retry_after_gc(vm.heap(), [&] {
+        return capacity.has_value()
+            ? DataBlock::OwnedBackingStore::create_zeroed_with_capacity(size, *capacity)
+            : DataBlock::OwnedBackingStore::create_zeroed(size);
+    });
     if (data_block.is_error())
         return vm.throw_completion<RangeError>(ErrorType::NotEnoughMemoryToAllocate, capacity.value_or(size));
 
     // 4. Return db.
     return DataBlock { data_block.release_value(), DataBlock::Shared::No };
+}
+
+// A shared object's id must be unique across agents in different processes — which never coordinate to hand them out.
+// So, draw it at random. Zero is reserved to mean "unidentified", so never return it.
+static u64 mint_shared_object_id()
+{
+    for (;;) {
+        auto id = AK::get_random<u64>();
+        if (id != 0)
+            return id;
+    }
 }
 
 // FIXME: The returned DataBlock is not shared in the sense that the standard specifies it.
@@ -162,8 +199,29 @@ static ThrowCompletionOr<DataBlock> create_shared_byte_data_block(VM& vm, size_t
     if (!capacity.has_value())
         capacity = size;
 
+    // AD-HOC: A fixed-length shared Data Block is backed by cross-process shared memory (Core::AnonymousBuffer) — so
+    //         that the SharedArrayBuffer is genuinely shared across agents in different processes, rather than copied.
+    //         Fresh anonymous shared memory is zero-filled by the OS. Growable shared Data Blocks (capacity > size)
+    //         still use process-local storage (for now).
+    if (*capacity == size && size > 0) {
+        // AD-HOC: Cap the shared allocation — so one SharedArrayBuffer can't reserve an absurd amount of address space
+        //         in every agent that maps it. Chromium caps its shared-memory regions at INT_MAX; match that (the fd
+        //         transport also carries the size as a u32).
+        if (size > static_cast<size_t>(NumericLimits<i32>::max()))
+            return vm.throw_completion<RangeError>(ErrorType::InvalidLength, "shared array buffer");
+
+        // Seal the fixed-length shared memfd against resizing: A compromised agent holding the transferred fd must not
+        // be able to shrink it, and SIGBUS its same-origin siblings.
+        auto anonymous_buffer = allocate_or_retry_after_gc(vm.heap(), [&] { return Core::AnonymousBuffer::create_with_size(size, Core::AnonymousBuffer::Sealability::Sealable); });
+        if (anonymous_buffer.is_error())
+            return vm.throw_completion<RangeError>(ErrorType::NotEnoughMemoryToAllocate, size);
+        // Mint the id that will name this object for as long as it exists — in this agent and every agent it reaches.
+        // It's random rather than a counter because it has to stay unique across processes that never coordinate.
+        return DataBlock { DataBlock::SharedBackingStore { anonymous_buffer.release_value(), mint_shared_object_id() }, DataBlock::Shared::Yes };
+    }
+
     // 1. Let db be a new Shared Data Block value consisting of size bytes. If it is impossible to create such a Shared Data Block, throw a RangeError exception.
-    auto data_block = DataBlock::OwnedBackingStore::create_zeroed_with_capacity(size, *capacity);
+    auto data_block = allocate_or_retry_after_gc(vm.heap(), [&] { return DataBlock::OwnedBackingStore::create_zeroed_with_capacity(size, *capacity); });
     if (data_block.is_error())
         return vm.throw_completion<RangeError>(ErrorType::NotEnoughMemoryToAllocate, *capacity);
 

@@ -80,8 +80,14 @@ void ReadLoopReadRequest::on_chunk(JS::Value chunk)
     // 2. Append the bytes represented by chunk to bytes.
     auto record = JS::make_typed_array_with_buffer_witness_record(array, JS::ArrayBuffer::Order::Unordered);
     auto byte_length = JS::typed_array_byte_length(record);
-    if (byte_length > 0)
-        m_bytes.append(ReadonlyBytes { array.viewed_array_buffer()->data_at(array.byte_offset()), byte_length });
+    if (byte_length > 0) {
+        // NB: Since a chunk is whatever the stream enqueued, and enqueue() takes an 'any', this Uint8Array may well be
+        //     a view onto an SAB with no conversion having had the chance to reject one. So, use with_readonly_bytes()
+        //     to read it through — rather than handing over a pointer into memory that another agent can be writing.
+        array.viewed_array_buffer()->with_readonly_bytes(array.byte_offset(), byte_length, [&](ReadonlyBytes bytes) {
+            m_bytes.append(bytes);
+        });
+    }
 
     // FIXME: As the spec suggests, implement this non-recursively - instead of directly. It is not too big of a deal currently
     //        as we enqueue the entire blob buffer in one go, meaning that we only recurse a single time. Once we begin queuing

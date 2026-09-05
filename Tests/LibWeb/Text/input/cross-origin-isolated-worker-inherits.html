@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script type="worker">
+    globalThis.onmessage = (e) => {
+        postMessage({
+            isolated: self.crossOriginIsolated,
+            receivedSharedArrayBuffer: e.data instanceof SharedArrayBuffer,
+        });
+    };
+</script>
+<script src="include.js"></script>
+<script>
+    asyncTest((done) => {
+        println("window crossOriginIsolated: " + self.crossOriginIsolated);
+        const workerSource = document.querySelector('[type=worker]').innerText;
+        const workerBlobURL = URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" }));
+        const worker = new Worker(workerBlobURL);
+        worker.onmessage = (e) => {
+            println("worker crossOriginIsolated: " + e.data.isolated);
+            println("worker received SharedArrayBuffer: " + e.data.receivedSharedArrayBuffer);
+            done();
+        };
+        const sab = new SharedArrayBuffer(8);
+        worker.postMessage(sab);
+    });
+</script>

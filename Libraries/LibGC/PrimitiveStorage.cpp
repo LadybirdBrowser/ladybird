@@ -198,6 +198,31 @@ ErrorOr<PrimitiveStorage::Allocator::Allocation> PrimitiveStorage::Allocator::al
     };
 }
 
+ErrorOr<PrimitiveStorage::Allocator::Allocation> PrimitiveStorage::Allocator::adopt_shared_fd(int fd, size_t size)
+{
+    VERIFY(size > 0);
+    TRY(ensure_cage());
+
+    auto reservation_size = round_up_to_page(size);
+    auto offset = TRY(allocate_cage_range(reservation_size));
+
+    // Replace the reserved PROT_NONE pages at this offset with a shared mapping of fd. On teardown, deallocate() runs
+    // the same decommit path as any large allocation — which re-establishes the PROT_NONE reservation and drops this.
+    auto map_result = Core::System::map_shared_memory_fixed(m_cage_base + offset, reservation_size, fd);
+    if (map_result.is_error()) {
+        release_cage_range(offset, reservation_size);
+        return map_result.release_error();
+    }
+
+    return Allocation {
+        .offset = offset,
+        .capacity = size,
+        .reservation_size = reservation_size,
+        .committed_size = reservation_size,
+        .small_allocation = {},
+    };
+}
+
 ErrorOr<size_t> PrimitiveStorage::Allocator::allocate_cage_range(size_t reservation_size)
 {
     VERIFY(m_cage_base);
@@ -405,6 +430,15 @@ ErrorOr<PrimitiveStorageHandle> PrimitiveStorage::try_reserve(size_t size, size_
         return Error::from_errno(ENOMEM);
 
     auto allocation = TRY(m_allocator.allocate(size, capacity, zero_fill_new_bytes, guard_size, true));
+    return install_allocation(move(allocation), size);
+}
+
+ErrorOr<PrimitiveStorageHandle> PrimitiveStorage::try_adopt_shared_fd(int fd, size_t size)
+{
+    if (size == 0)
+        return Error::from_errno(EINVAL);
+
+    auto allocation = TRY(m_allocator.adopt_shared_fd(fd, size));
     return install_allocation(move(allocation), size);
 }
 

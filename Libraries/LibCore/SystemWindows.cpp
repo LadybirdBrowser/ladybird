@@ -117,6 +117,12 @@ ErrorOr<void> release_address_space(void* address, size_t size)
     return {};
 }
 
+ErrorOr<void> map_shared_memory_fixed(void*, size_t, int)
+{
+    // FIXME: Placing a file-mapping view at a fixed address inside a reservation needs the Windows 10+ placeholder APIs.
+    return Error::from_errno(ENOTSUP);
+}
+
 int getpid()
 {
     return GetCurrentProcessId();

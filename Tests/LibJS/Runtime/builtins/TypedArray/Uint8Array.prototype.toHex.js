@@ -57,3 +57,29 @@ describe("correct behavior", () => {
         encodeEqual("🤓foo🖖", "f09fa493666f6ff09f9696");
     });
 });
+
+describe("SharedArrayBuffer", () => {
+    // Reading a view onto shared memory snapshots the bytes — rather than encoding them through a pointer into the live
+    // buffer that another agent could be writing to. The result must be identical either way.
+    const fill = view => {
+        for (let i = 0; i < view.length; ++i) view[i] = i * 0x11;
+        return view;
+    };
+
+    test("matches an equivalent unshared buffer", () => {
+        const shared = fill(new Uint8Array(new SharedArrayBuffer(8)));
+        const unshared = fill(new Uint8Array(new ArrayBuffer(8)));
+
+        expect(shared.toHex()).toBe("0011223344556677");
+        expect(shared.toHex()).toBe(unshared.toHex());
+    });
+
+    test("snapshot starts at the view's byteOffset", () => {
+        const buffer = new SharedArrayBuffer(8);
+        fill(new Uint8Array(buffer));
+
+        // Encoding the wrong window of the buffer would go unnoticed without this — the whole-buffer case above reads
+        // from offset 0, where an offset bug in the snapshot is invisible.
+        expect(new Uint8Array(buffer, 3, 4).toHex()).toBe("33445566");
+    });
+});

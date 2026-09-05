@@ -7,6 +7,7 @@ set(SOURCES
     DirectoryEntry.cpp
     ElapsedTimer.cpp
     Environment.cpp
+    Futex.cpp
     EventLoop.cpp
     EventLoopImplementation.cpp
     EventReceiver.cpp

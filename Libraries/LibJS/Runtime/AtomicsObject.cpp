@@ -15,13 +15,25 @@
 #include <AK/Atomic.h>
 #include <AK/ByteBuffer.h>
 #include <AK/Endian.h>
+#include <AK/NumericLimits.h>
 #include <AK/TypeCasts.h>
+#include <LibCore/Futex.h>
 #include <LibJS/Runtime/Agent.h>
 #include <LibJS/Runtime/AtomicsObject.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
+
+// Cross-process SharedArrayBuffer atomicity relies on the hardware atomics used here (in AtomicsObject and in
+// ArrayBuffer's get/set/get-modify-set paths) being lock-free. A non-lock-free atomic falls back to a process-local
+// lock table — which can't synchronize the separate processes that host different agents. So, shared updates would be
+// silently lost. Every platform for which we currently build provides lock-free, naturally-aligned 1/2/4/8-byte
+// atomics; assert that — so any future port to a platform for which that isn't true won't end up quietly break SAB.
+static_assert(__atomic_always_lock_free(sizeof(u8), static_cast<u8 const*>(nullptr)));
+static_assert(__atomic_always_lock_free(sizeof(u16), static_cast<u16 const*>(nullptr)));
+static_assert(__atomic_always_lock_free(sizeof(u32), static_cast<u32 const*>(nullptr)));
+static_assert(__atomic_always_lock_free(sizeof(u64), static_cast<u64 const*>(nullptr)));
 
 namespace JS {
 
@@ -171,12 +183,37 @@ static ThrowCompletionOr<Value> do_wait(VM& vm, WaitMode mode, TypedArrayBase& t
     if (mode == WaitMode::Sync && !agent_can_suspend(vm))
         return vm.throw_completion<TypeError>(ErrorType::AgentCannotSuspend);
 
-    // FIXME: Implement the remaining steps when we support SharedArrayBuffer.
-    (void)byte_index_in_buffer;
-    (void)value;
-    (void)timeout;
+    // 11. Let block be buffer.[[ArrayBufferData]].
+    // 12-24. AD-HOC: Rather than maintaining the spec's WaiterList, we wait on the shared-memory word using an OS
+    //        futex. The word lives in memory mapped into every agent's process — so wait and notify coordinate across
+    //        processes. We don't yet implement Atomics.waitAsync (async mode).
+    if (mode == WaitMode::Async)
+        return vm.throw_completion<InternalError>(ErrorType::NotImplemented, "Atomics.waitAsync"sv);
 
-    return vm.throw_completion<InternalError>(ErrorType::NotImplemented, "SharedArrayBuffer"sv);
+    auto* address = buffer->data_at(byte_index_in_buffer);
+
+    // t is in milliseconds. Convert to nanoseconds in floating point — so sub-millisecond timeouts survive, and guard
+    // the cast: A value too large for i64 nanoseconds (or a non-finite t) means an infinite wait — rather than the UB
+    // of an out-of-range double-to-integer conversion.
+    Optional<AK::Duration> wait_timeout;
+    if (__builtin_isfinite(timeout)) {
+        auto timeout_ns = timeout * 1'000'000.0;
+        if (timeout_ns < static_cast<double>(NumericLimits<i64>::max()))
+            wait_timeout = AK::Duration::from_nanoseconds(static_cast<i64>(timeout_ns));
+    }
+
+    switch (Core::atomic_wait(address, static_cast<u64>(value), typed_array.element_size(), wait_timeout)) {
+    // 25. If waiterRecord.[[Result]] is "not-equal", return the String "not-equal".
+    case Core::AtomicWaitResult::NotEqual:
+        return PrimitiveString::create(vm, "not-equal"_utf16_fly_string);
+    // 26. If waiterRecord.[[Result]] is "timed-out", return the String "timed-out".
+    case Core::AtomicWaitResult::TimedOut:
+        return PrimitiveString::create(vm, "timed-out"_utf16_fly_string);
+    // 27. Return the String "ok".
+    case Core::AtomicWaitResult::Woken:
+        return PrimitiveString::create(vm, "ok"_utf16_fly_string);
+    }
+    VERIFY_NOT_REACHED();
 }
 
 // 25.4.3.17 AtomicReadModifyWrite ( typedArray, index, value, op ), https://tc39.es/ecma262/#sec-atomicreadmodifywrite
@@ -209,18 +246,23 @@ static ThrowCompletionOr<Value> perform_atomic_operation(VM& vm, TypedArrayBase&
     auto index = vm.argument(1);
     auto value = vm.argument(2);
 
-    auto operation_wrapper = [&, operation = forward<AtomicFunction>(operation)](ByteBuffer x_bytes, ByteBuffer y_bytes) -> ByteBuffer {
+    auto operation_wrapper = [&, operation = forward<AtomicFunction>(operation)](Bytes x_bytes, ReadonlyBytes y_bytes) -> ByteBuffer {
         if constexpr (IsFloatingPoint<T>) {
             (void)operation;
             VERIFY_NOT_REACHED();
         } else {
             using U = Conditional<IsSame<ClampedU8, T>, u8, T>;
 
-            auto* x = reinterpret_cast<U*>(x_bytes.data());
-            auto* y = reinterpret_cast<U*>(y_bytes.data());
-            operation(x, *y);
+            // x_bytes aliases the live (possibly shared cross-agent) buffer bytes. Perform the atomic read-modify-write
+            // directly on them, and return the value that was read.
+            auto* x = reinterpret_cast<U volatile*>(x_bytes.data());
+            U y;
+            __builtin_memcpy(&y, y_bytes.data(), sizeof(U));
+            U read_value = operation(x, y);
 
-            return x_bytes;
+            auto result_bytes = MUST(ByteBuffer::create_uninitialized(sizeof(U)));
+            __builtin_memcpy(result_bytes.data(), &read_value, sizeof(U));
+            return result_bytes;
         }
     };
 
@@ -339,30 +381,31 @@ static ThrowCompletionOr<Value> atomic_compare_exchange_impl(VM& vm, TypedArrayB
     auto replacement_bytes = MUST(ByteBuffer::create_uninitialized(sizeof(T)));
     numeric_to_raw_bytes<T>(vm, replacement, is_little_endian, replacement_bytes);
 
-    // FIXME: Implement SharedArrayBuffer case.
     // 12. If IsSharedArrayBuffer(buffer) is true, then
     //     a. Let rawBytesRead be AtomicCompareExchangeInSharedBlock(block, byteIndexInBuffer, elementSize, expectedBytes, replacementBytes).
     // 13. Else,
-
-    // a. Let rawBytesRead be a List of length elementSize whose elements are the sequence of elementSize bytes starting with block[byteIndexInBuffer].
-    auto raw_bytes_read = MUST(ByteBuffer::create_uninitialized(sizeof(T)));
-    buffer->copy_to(byte_index_in_buffer, raw_bytes_read);
-
-    // b. If ByteListEqual(rawBytesRead, expectedBytes) is true, then
-    //    i. Store the individual bytes of replacementBytes into block, starting at block[byteIndexInBuffer].
+    //     a. Let rawBytesRead be a List of length elementSize whose elements are the sequence of elementSize bytes starting with block[byteIndexInBuffer].
+    //     b. If ByteListEqual(rawBytesRead, expectedBytes) is true, then
+    //        i. Store the individual bytes of replacementBytes into block, starting at block[byteIndexInBuffer].
+    // AD-HOC: A single sequentially-consistent compare-exchange on the live block implements both branches: for a
+    //         shared block, it's the required atomic operation (step 12.a); for a non-shared block, there's no
+    //         concurrency — so it's equivalent to the plain read-compare-store (steps 13.a-b).
     if constexpr (IsFloatingPoint<T>) {
         VERIFY_NOT_REACHED();
     } else {
         using U = Conditional<IsSame<ClampedU8, T>, u8, T>;
 
-        auto* v = reinterpret_cast<U*>(buffer->data_at(byte_index_in_buffer));
+        // Compare-and-exchange directly on the live (possibly shared cross-agent) block. On a mismatch,
+        // atomic_compare_exchange_strong writes the observed value back into expected — so expected_bytes ends up
+        // holding rawBytesRead: the value actually seen by the atomic operation.
+        auto* v = reinterpret_cast<U volatile*>(buffer->data_at(byte_index_in_buffer));
         auto* e = reinterpret_cast<U*>(expected_bytes.data());
         auto* r = reinterpret_cast<U*>(replacement_bytes.data());
         (void)AK::atomic_compare_exchange_strong(v, *e, *r);
     }
 
     // 14. Return RawBytesToNumeric(elementType, rawBytesRead, isLittleEndian).
-    return raw_bytes_to_numeric<T>(vm, raw_bytes_read, is_little_endian);
+    return raw_bytes_to_numeric<T>(vm, expected_bytes, is_little_endian);
 }
 
 // 25.4.6 Atomics.compareExchange ( typedArray, index, expectedValue, replacementValue ), https://tc39.es/ecma262/#sec-atomics.compareexchange
@@ -463,11 +506,17 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::notify)
     if (!buffer->is_shared_array_buffer())
         return Value { 0 };
 
-    // FIXME: Implement the remaining steps when we support SharedArrayBuffer.
-    (void)byte_index_in_buffer;
-    (void)count;
+    // 7-15. AD-HOC: Wake up to 'count' agents waiting on the shared-memory word via the OS futex (see do_wait).
+    auto* address = buffer->data_at(byte_index_in_buffer);
+    // count is >= 0 (step 3b). But a huge finite value would overflow size_t (UB on the cast). So, treat anything at or
+    // beyond size_t's range (and non-finite counts) as "wake every waiter".
+    auto max_count = (__builtin_isfinite(count) && count < static_cast<double>(NumericLimits<size_t>::max()))
+        ? static_cast<size_t>(count)
+        : NumericLimits<size_t>::max();
+    auto woken = Core::atomic_notify(address, typed_array->element_size(), max_count);
 
-    return vm.throw_completion<InternalError>(ErrorType::NotImplemented, "SharedArrayBuffer"sv);
+    // 16. Return 𝔽(n).
+    return Value { static_cast<double>(woken) };
 }
 
 // 25.4.11 Atomics.or ( typedArray, index, value ), https://tc39.es/ecma262/#sec-atomics.or

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>SharedArrayBuffers cannot be transferred</title>
+<link rel="help" href="https://html.spec.whatwg.org/#structuredclone">
+<link rel="author" title="Domenic Denicola" href="mailto:d@domenic.me">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<script>
+"use strict";
+
+test(() => {
+  const sab = new SharedArrayBuffer();
+  assert_throws_dom("DataCloneError", () => window.postMessage(sab, "*", [sab]));
+  assert_throws_dom("DataCloneError", () => window.postMessage("test", "*", [sab]));
+}, "Trying to transfer a SharedArrayBuffer to this window throws");
+
+test(() => {
+  const sab = new SharedArrayBuffer();
+  const worker = new Worker("../resources/echo-worker.js");
+  assert_throws_dom("DataCloneError", () => worker.postMessage(sab, [sab]));
+  assert_throws_dom("DataCloneError", () => worker.postMessage("test", [sab]));
+}, "Trying to transfer a SharedArrayBuffer to a worker throws");
+
+test(() => {
+  const sab = new SharedArrayBuffer();
+  const channel = new MessageChannel();
+  assert_throws_dom("DataCloneError", () => channel.port1.postMessage(sab, [sab]));
+  assert_throws_dom("DataCloneError", () => channel.port1.postMessage("test", [sab]));
+}, "Trying to transfer a SharedArrayBuffer through a MessagePort throws");
+</script>

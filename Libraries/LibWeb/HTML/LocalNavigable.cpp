@@ -1494,9 +1494,8 @@ static GC::Ref<PolicyContainer> determine_navigation_params_policy_container(URL
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#obtain-coop
-static OpenerPolicy obtain_an_opener_policy(GC::Ref<Fetch::Infrastructure::Response>, Fetch::Infrastructure::Request::ReservedClientType const& reserved_client)
+static OpenerPolicy obtain_an_opener_policy(GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::Request::ReservedClientType const& reserved_client)
 {
-
     // 1. Let policy be a new opener policy.
     OpenerPolicy policy = {};
 
@@ -1510,13 +1509,66 @@ static OpenerPolicy obtain_an_opener_policy(GC::Ref<Fetch::Infrastructure::Respo
     if (is_non_secure_context(reserved_environment))
         return policy;
 
-    // FIXME: We don't yet have the technology to extract structured data from Fetch headers
-    // FIXME: 3. Let parsedItem be the result of getting a structured field value given `Cross-Origin-Opener-Policy` and "item" from response's header list.
-    // FIXME: 4. If parsedItem is not null, then:
-    //     FIXME: nested steps...
-    // FIXME: 5. Set parsedItem to the result of getting a structured field value given `Cross-Origin-Opener-Policy-Report-Only` and "item" from response's header list.
-    // FIXME: 6. If parsedItem is not null, then:
-    //     FIXME: nested steps...
+    // AD-HOC: The spec gets these headers as structured field values (with "item"). We instead do a minimal token
+    //         parse: the header value up to any parameters (';'), trimmed. That recognizes the bare values which
+    //         determine cross-origin isolation — but doesn't parse structured-field parameters (so the "report-to"
+    //         parameter in step 4.4 isn't extracted).
+    auto header_token = [](Optional<ByteString> const& header) -> StringView {
+        if (!header.has_value())
+            return {};
+        auto value = header->view();
+        auto semicolon = value.find(';');
+        return (semicolon.has_value() ? value.substring_view(0, *semicolon) : value).trim_whitespace();
+    };
+
+    // 3. Let parsedItem be the result of getting a structured field value given `Cross-Origin-Opener-Policy` and "item" from response's header list.
+    auto parsed_item_header = response->header_list()->get("Cross-Origin-Opener-Policy"sv);
+    auto parsed_item = header_token(parsed_item_header);
+
+    // 4. If parsedItem is not null:
+    if (parsed_item_header.has_value()) {
+        // 1. If parsedItem[0] is "same-origin":
+        if (parsed_item == "same-origin"sv) {
+            // 1. Let coep be the result of obtaining a cross-origin embedder policy from response and reservedEnvironment.
+            // AD-HOC: Rather than running the full "obtain an embedder policy" algorithm, we read the
+            //         Cross-Origin-Embedder-Policy header directly — with the same minimal token parse as above.
+            auto coep_header = response->header_list()->get("Cross-Origin-Embedder-Policy"sv);
+            auto coep = header_token(coep_header);
+
+            // 2. If coep's value is compatible with cross-origin isolation, then set policy's value to "same-origin-plus-COEP".
+            // NB: An embedder policy value is compatible with cross-origin isolation when it's "require-corp" or "credentialless".
+            if (coep == "require-corp"sv || coep == "credentialless"sv) {
+                policy.value = OpenerPolicyValue::SameOriginPlusCOEP;
+            }
+            // 3. Otherwise, set policy's value to "same-origin".
+            else {
+                policy.value = OpenerPolicyValue::SameOrigin;
+            }
+        }
+        // 2. If parsedItem[0] is "same-origin-allow-popups", then set policy's value to "same-origin-allow-popups".
+        else if (parsed_item == "same-origin-allow-popups"sv) {
+            policy.value = OpenerPolicyValue::SameOriginAllowPopups;
+        }
+        // 3. If parsedItem[0] is "noopener-allow-popups", then set policy's value to "noopener-allow-popups".
+        else if (parsed_item == "noopener-allow-popups"sv) {
+            policy.value = OpenerPolicyValue::NoopenerAllowPopups;
+        }
+
+        // 4. If parsedItem[1]["report-to"] exists and it is a string, then set policy's reporting endpoint to
+        //            parsedItem[1]["report-to"].
+        //    FIXME: Not implemented: We don't yet parse structured-field parameters.
+    }
+
+    // FIXME: Steps 5-6 obtain the report-only opener policy from Cross-Origin-Opener-Policy-Report-Only. We don't
+    //        yet implement report-only.
+    // 5. Set parsedItem to the result of getting a structured field value given `Cross-Origin-Opener-Policy-Report-Only` and "item" from response's header list.
+    // 6. If parsedItem is not null:
+    //     1. If parsedItem[0] is "same-origin":
+    //         1. Let coep be the result of obtaining a cross-origin embedder policy from response and reservedEnvironment.
+    //         2. If coep's value is compatible with cross-origin isolation or coep's report-only value is compatible with cross-origin isolation, then set policy's report-only value to "same-origin-plus-COEP".
+    //         3. Otherwise, set policy's report-only value to "same-origin".
+    //     2. If parsedItem[0] is "same-origin-allow-popups", then set policy's report-only value to "same-origin-allow-popups".
+    //     3. If parsedItem[1]["report-to"] exists and it is a string, then set policy's report-only reporting endpoint to parsedItem[1]["report-to"].
 
     // 7. Return policy.
     return policy;

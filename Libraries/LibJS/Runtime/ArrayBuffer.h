@@ -6,10 +6,12 @@
 
 #pragma once
 
+#include <AK/Atomic.h>
 #include <AK/ByteBuffer.h>
 #include <AK/Function.h>
 #include <AK/IntrusiveList.h>
 #include <AK/Variant.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibGC/PrimitiveStorage.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/BigInt.h>
@@ -39,7 +41,7 @@ struct ClampedU8 {
 };
 
 // 25.1.1 Notation (read-modify-write modification function), https://tc39.es/ecma262/#sec-arraybuffer-notation
-using ReadWriteModifyFunction = Function<ByteBuffer(ByteBuffer, ByteBuffer)>;
+using ReadWriteModifyFunction = Function<ByteBuffer(Bytes, ReadonlyBytes)>;
 
 enum class PreserveResizability {
     FixedLength,
@@ -207,6 +209,77 @@ struct DataBlock {
         GC::Ref<GC::Cell> owner;
     };
 
+    // AD-HOC: Backs a shared, fixed-length Data Block with cross-process shared memory — so a SharedArrayBuffer can be
+    //         genuinely shared (not copied) across agents in different processes. The shared memory is mapped inside
+    //         the primitive storage cage (like every other backing store). So, an out-of-bounds access through the
+    //         buffer is masked back into the cage — instead of reaching memory outside it. The Core::AnonymousBuffer is
+    //         retained only to own the fd and carry it across IPC. On a platform that can't host a mapped view inside
+    //         the cage, the handle stays invalid and access falls back to the buffer's own (uncaged) mapping.
+    struct SharedBackingStore {
+        // object_id names the shared object this maps, and travels with it from agent to agent. Mapping addresses
+        // can't do that job: One object mapped twice (which is what decoding it from two separate messages does) has
+        // two of them — and the OS offers no identity to compare either (POSIX shared memory reports no inode on macOS,
+        // and a Windows section has none at all). So, the id is minted with the object — and carried alongside.
+        explicit SharedBackingStore(Core::AnonymousBuffer buffer, u64 object_id = 0)
+            : buffer(move(buffer))
+            , object_id(object_id)
+        {
+            if (this->buffer.is_valid() && this->buffer.size() > 0) {
+                if (auto handle_or_error = GC::PrimitiveStorage::the().try_adopt_shared_fd(this->buffer.fd(), this->buffer.size()); !handle_or_error.is_error())
+                    m_handle = handle_or_error.release_value();
+            }
+        }
+
+        ~SharedBackingStore()
+        {
+            if (m_handle.is_valid())
+                GC::PrimitiveStorage::the().free(m_handle);
+        }
+
+        SharedBackingStore(SharedBackingStore&& other)
+            : buffer(move(other.buffer))
+            , object_id(exchange(other.object_id, 0))
+            , m_handle(exchange(other.m_handle, {}))
+        {
+        }
+
+        SharedBackingStore& operator=(SharedBackingStore&& other)
+        {
+            if (this != &other) {
+                if (m_handle.is_valid())
+                    GC::PrimitiveStorage::the().free(m_handle);
+                buffer = move(other.buffer);
+                object_id = exchange(other.object_id, 0);
+                m_handle = exchange(other.m_handle, {});
+            }
+            return *this;
+        }
+
+        SharedBackingStore(SharedBackingStore const&) = delete;
+        SharedBackingStore& operator=(SharedBackingStore const&) = delete;
+
+        bool is_caged() const { return m_handle.is_valid(); }
+
+        u8* data() { return m_handle.is_valid() ? GC::PrimitiveStorage::the().data(m_handle) : buffer.data<u8>(); }
+        u8 const* data() const { return const_cast<SharedBackingStore*>(this)->data(); }
+
+        u8* data_at(size_t byte_offset)
+        {
+            if (m_handle.is_valid())
+                return GC::PrimitiveStorage::the().data(m_handle, byte_offset);
+            return buffer.data<u8>() + byte_offset;
+        }
+
+        size_t size() const { return buffer.size(); }
+        size_t offset() const { return m_handle.is_valid() ? GC::PrimitiveStorage::the().offset(m_handle) : GC::PrimitiveStorage::invalid_offset; }
+
+        Core::AnonymousBuffer buffer;
+        u64 object_id { 0 };
+
+    private:
+        GC::PrimitiveStorageHandle m_handle;
+    };
+
 private:
     u8* data()
     {
@@ -214,7 +287,8 @@ private:
             [](Empty) -> u8* { VERIFY_NOT_REACHED(); },
             [](OwnedBackingStore& value) -> u8* { return value.data(); },
             [](UnownedFixedLengthByteBuffer& value) -> u8* { return value.buffer->data(); },
-            [](ExternalPrimitiveStorage& value) -> u8* { return value.data(); });
+            [](ExternalPrimitiveStorage& value) -> u8* { return value.data(); },
+            [](SharedBackingStore& value) -> u8* { return value.data(); });
     }
     u8 const* data() const { return const_cast<DataBlock*>(this)->data(); }
 
@@ -231,7 +305,8 @@ public:
                 return GC::PrimitiveStorage::the().data(value.handle(), byte_offset);
             },
             [byte_offset](UnownedFixedLengthByteBuffer& value) -> u8* { return value.buffer->data() + byte_offset; },
-            [byte_offset](ExternalPrimitiveStorage& value) -> u8* { return GC::PrimitiveStorage::the().data(value.handle, byte_offset); });
+            [byte_offset](ExternalPrimitiveStorage& value) -> u8* { return GC::PrimitiveStorage::the().data(value.handle, byte_offset); },
+            [byte_offset](SharedBackingStore& value) -> u8* { return value.data_at(byte_offset); });
     }
     u8 const* data_at(size_t byte_offset) const { return const_cast<DataBlock*>(this)->data_at(byte_offset); }
 
@@ -316,7 +391,14 @@ public:
         if (count == 0)
             return callback({});
 
-        if (contiguous_bytes_from(offset, count) == count)
+        // AD-HOC: Never hand out a pointer into a Shared Data Block. Another agent may write to those bytes at any
+        //         time — and a consumer is free to keep reading through the pointer after this call returns. Snapshot
+        //         the bytes instead — so the consumer sees one well-defined set of them. That's also what the specs ask
+        //         for: operations that read a possibly-shared buffer in bulk (WebIDL "get a copy of the buffer source",
+        //         the uint8array-base64 proposal's GetUint8ArrayBytes) are all defined as copying it out byte-by-byte.
+        auto must_snapshot_shared_bytes = is_shared == Shared::Yes;
+
+        if (!must_snapshot_shared_bytes && contiguous_bytes_from(offset, count) == count)
             return callback({ data_at(offset), count });
 
         auto storage = MUST(copy_to_byte_buffer(offset, count));
@@ -382,7 +464,8 @@ public:
             [&](Empty) { VERIFY_NOT_REACHED(); },
             [&](OwnedBackingStore& value) { value.set_size(new_size, zero_fill_new_bytes); },
             [&](UnownedFixedLengthByteBuffer& value) { value.buffer->set_size(new_size, byte_buffer_zero_fill); },
-            [&](ExternalPrimitiveStorage&) { VERIFY_NOT_REACHED(); });
+            [&](ExternalPrimitiveStorage&) { VERIFY_NOT_REACHED(); },
+            [&](SharedBackingStore&) { VERIFY_NOT_REACHED(); });
     }
 
     ErrorOr<void> try_resize(size_t new_size, ZeroFillNewBytes zero_fill_new_bytes = ZeroFillNewBytes::No)
@@ -394,7 +477,8 @@ public:
             [&](Empty) -> ErrorOr<void> { VERIFY_NOT_REACHED(); },
             [&](OwnedBackingStore& value) { return value.try_resize(new_size, zero_fill_new_bytes); },
             [&](UnownedFixedLengthByteBuffer& value) { return value.buffer->try_resize(new_size, byte_buffer_zero_fill); },
-            [&](ExternalPrimitiveStorage&) -> ErrorOr<void> { VERIFY_NOT_REACHED(); });
+            [&](ExternalPrimitiveStorage&) -> ErrorOr<void> { VERIFY_NOT_REACHED(); },
+            [&](SharedBackingStore&) -> ErrorOr<void> { VERIFY_NOT_REACHED(); });
     }
 
     ErrorOr<void> try_ensure_capacity(size_t new_capacity)
@@ -403,7 +487,8 @@ public:
             [&](Empty) -> ErrorOr<void> { VERIFY_NOT_REACHED(); },
             [&](OwnedBackingStore& value) { return value.try_ensure_capacity(new_capacity); },
             [&](UnownedFixedLengthByteBuffer& value) { return value.buffer->try_ensure_capacity(new_capacity); },
-            [&](ExternalPrimitiveStorage&) -> ErrorOr<void> { VERIFY_NOT_REACHED(); });
+            [&](ExternalPrimitiveStorage&) -> ErrorOr<void> { VERIFY_NOT_REACHED(); },
+            [&](SharedBackingStore&) -> ErrorOr<void> { VERIFY_NOT_REACHED(); });
     }
 
     size_t size() const
@@ -412,7 +497,8 @@ public:
             [](Empty) -> size_t { return 0u; },
             [](OwnedBackingStore const& buffer) { return buffer.size(); },
             [](UnownedFixedLengthByteBuffer const& value) { return value.size; },
-            [](ExternalPrimitiveStorage const& value) { return value.byte_length(); });
+            [](ExternalPrimitiveStorage const& value) { return value.byte_length(); },
+            [](SharedBackingStore const& value) { return value.size(); });
     }
 
     size_t capacity() const
@@ -421,7 +507,8 @@ public:
             [](Empty) -> size_t { return 0; },
             [](OwnedBackingStore const& buffer) { return buffer.capacity(); },
             [](UnownedFixedLengthByteBuffer const& value) { return value.size; },
-            [](ExternalPrimitiveStorage const& value) { return value.capacity(); });
+            [](ExternalPrimitiveStorage const& value) { return value.capacity(); },
+            [](SharedBackingStore const& value) { return value.size(); });
     }
 
     size_t offset() const
@@ -430,7 +517,8 @@ public:
             [](Empty) -> size_t { return GC::PrimitiveStorage::invalid_offset; },
             [](OwnedBackingStore const& buffer) { return buffer.offset(); },
             [](UnownedFixedLengthByteBuffer const&) { return GC::PrimitiveStorage::invalid_offset; },
-            [](ExternalPrimitiveStorage const& value) { return value.offset(); });
+            [](ExternalPrimitiveStorage const& value) { return value.offset(); },
+            [](SharedBackingStore const& value) { return value.offset(); });
     }
 
     bool is_caged() const
@@ -439,7 +527,8 @@ public:
             [](Empty) { return false; },
             [](OwnedBackingStore const& buffer) { return buffer.handle().is_valid() || buffer.size() == 0; },
             [](UnownedFixedLengthByteBuffer const&) { return false; },
-            [](ExternalPrimitiveStorage const& value) { return value.handle.is_valid(); });
+            [](ExternalPrimitiveStorage const& value) { return value.handle.is_valid(); },
+            [](SharedBackingStore const& value) { return value.is_caged(); });
     }
 
     size_t external_memory_size() const
@@ -448,19 +537,51 @@ public:
             [](Empty) -> size_t { return 0; },
             [](OwnedBackingStore const& buffer) { return buffer.capacity(); },
             [](UnownedFixedLengthByteBuffer const&) -> size_t { return 0; },
-            [](ExternalPrimitiveStorage const&) -> size_t { return 0; });
+            [](ExternalPrimitiveStorage const&) -> size_t { return 0; },
+            [](SharedBackingStore const& value) -> size_t { return value.size(); });
     }
 
     bool is_external() const { return byte_buffer.has<ExternalPrimitiveStorage>(); }
+
+    // True only for a SharedArrayBuffer backed by cross-process shared memory. Such a buffer is caged, but its bytes
+    // may be written concurrently by an agent in another process. So, its typed-array element access must stay on the
+    // atomic slow path — rather than the cached plain-load fast path.
+    bool is_cross_process_shared() const { return byte_buffer.has<SharedBackingStore>(); }
+
+    Optional<Core::AnonymousBuffer> shared_anonymous_buffer() const
+    {
+        if (auto const* shared = byte_buffer.get_pointer<SharedBackingStore>())
+            return shared->buffer;
+        return {};
+    }
+
+    // Zero for anything not backed by cross-process shared memory — and for a shared backing that arrived without an
+    // id. (Nothing mints one outside the paths below — so treat it as unidentified, rather than as matching.)
+    u64 shared_object_id() const
+    {
+        if (auto const* shared = byte_buffer.get_pointer<SharedBackingStore>())
+            return shared->object_id;
+        return 0;
+    }
 
     bool shares_storage_with(DataBlock const& other) const
     {
         if (byte_buffer.has<Empty>() || other.byte_buffer.has<Empty>())
             return false;
+        // One shared object can be mapped at two different addresses: at different offsets inside the cage, and at
+        // different mapping addresses too — since decoding it from two separate messages maps it twice. So, compare the
+        // id the object carries — not any address. An unidentified store (id 0) matches nothing — including another
+        // unidentified one. So, a caller relying on this never elides work on a guess.
+        if (auto const* shared = byte_buffer.get_pointer<SharedBackingStore>()) {
+            auto const* other_shared = other.byte_buffer.get_pointer<SharedBackingStore>();
+            return other_shared && shared->object_id != 0 && shared->object_id == other_shared->object_id;
+        }
+        if (other.byte_buffer.has<SharedBackingStore>())
+            return false;
         return data() == other.data();
     }
 
-    Variant<Empty, OwnedBackingStore, UnownedFixedLengthByteBuffer, ExternalPrimitiveStorage> byte_buffer;
+    Variant<Empty, OwnedBackingStore, UnownedFixedLengthByteBuffer, ExternalPrimitiveStorage, SharedBackingStore> byte_buffer;
     Shared is_shared = { Shared::No };
 };
 
@@ -473,6 +594,7 @@ public:
     static GC::Ref<ArrayBuffer> create(Realm&, ByteBuffer, DataBlock::Shared = DataBlock::Shared::No);
     static GC::Ref<ArrayBuffer> create(Realm&, ByteBuffer*, DataBlock::Shared = DataBlock::Shared::No);
     static GC::Ref<ArrayBuffer> create(Realm&, DataBlock);
+    static GC::Ref<ArrayBuffer> create(Realm&, Core::AnonymousBuffer, u64 shared_object_id);
 
     virtual ~ArrayBuffer() override = default;
 
@@ -485,6 +607,8 @@ public:
     void copy_to(size_t offset, Bytes destination) const { m_data_block.copy_to(offset, destination); }
     ErrorOr<ByteBuffer> copy_to_byte_buffer(size_t offset, size_t count) const { return m_data_block.copy_to_byte_buffer(offset, count); }
     ErrorOr<ByteBuffer> copy_to_byte_buffer() const { return m_data_block.copy_to_byte_buffer(); }
+    Optional<Core::AnonymousBuffer> shared_buffer() const { return m_data_block.shared_anonymous_buffer(); }
+    u64 shared_object_id() const { return m_data_block.shared_object_id(); }
     template<typename Callback>
     decltype(auto) with_readonly_bytes(size_t offset, size_t count, Callback callback) const { return m_data_block.with_readonly_bytes(offset, count, move(callback)); }
     void copy_data_to(ArrayBuffer& destination, size_t source_offset, size_t destination_offset, size_t count) const { m_data_block.copy_to(destination.m_data_block, source_offset, destination_offset, count); }
@@ -539,7 +663,7 @@ public:
 
     bool can_cache_typed_array_view_data_offset() const
     {
-        return !is_detached() && is_fixed_length() && m_data_block.is_caged();
+        return !is_detached() && is_fixed_length() && m_data_block.is_caged() && !m_data_block.is_cross_process_shared();
     }
 
     // 25.2.2.2 IsSharedArrayBuffer ( obj ), https://tc39.es/ecma262/#sec-issharedarraybuffer
@@ -706,7 +830,7 @@ static Value raw_bytes_to_numeric(VM& vm, Bytes raw_value, bool is_little_endian
 
 // 25.1.3.16 GetValueFromBuffer ( arrayBuffer, byteIndex, type, isTypedArray, order [ , isLittleEndian ] ), https://tc39.es/ecma262/#sec-getvaluefrombuffer
 template<typename T>
-Value ArrayBuffer::get_value(size_t byte_index, [[maybe_unused]] bool is_typed_array, Order, bool is_little_endian)
+Value ArrayBuffer::get_value(size_t byte_index, bool is_typed_array, Order order, bool is_little_endian)
 {
     auto& vm = this->vm();
     // 1. Assert: IsDetachedBuffer(arrayBuffer) is false.
@@ -722,16 +846,30 @@ Value ArrayBuffer::get_value(size_t byte_index, [[maybe_unused]] bool is_typed_a
 
     AK::Array<u8, sizeof(T)> raw_value {};
 
-    // FIXME: 5. If IsSharedArrayBuffer(arrayBuffer) is true, then
-    if (false) {
-        // FIXME: a. Let execution be the [[CandidateExecution]] field of the surrounding agent's Agent Record.
-        // FIXME: b. Let eventsRecord be the Agent Events Record of execution.[[EventsRecords]] whose [[AgentSignifier]] is AgentSignifier().
-        // FIXME: c. If isTypedArray is true and IsNoTearConfiguration(type, order) is true, let noTear be true; otherwise let noTear be false.
-        // FIXME: d. Let rawValue be a List of length elementSize whose elements are nondeterministically chosen byte values.
-        // FIXME: e. NOTE: In implementations, rawValue is the result of a non-atomic or atomic read instruction on the underlying hardware. The nondeterminism is a semantic prescription of the memory model to describe observable behaviour of hardware with weak consistency.
-        // FIXME: f. Let readEvent be ReadSharedMemory { [[Order]]: order, [[NoTear]]: noTear, [[Block]]: block, [[ByteIndex]]: byteIndex, [[ElementSize]]: elementSize }.
-        // FIXME: g. Append readEvent to eventsRecord.[[EventList]].
-        // FIXME: h. Append Chosen Value Record { [[Event]]: readEvent, [[ChosenValue]]: rawValue } to execution.[[ChosenValues]].
+    // 5. If IsSharedArrayBuffer(arrayBuffer) is true, then
+    if (is_shared_array_buffer()) {
+        // a. Let execution be the [[CandidateExecution]] field of the surrounding agent's Agent Record.
+        // b. Let eventsRecord be the Agent Events Record of execution.[[EventsRecords]] whose [[AgentSignifier]] is AgentSignifier().
+        // c. If isTypedArray is true and IsNoTearConfiguration(type, order) is true, let noTear be true; otherwise let noTear be false.
+        // d. Let rawValue be a List of length elementSize whose elements are nondeterministically chosen byte values.
+        // e. NOTE: In implementations, rawValue is the result of a non-atomic or atomic read instruction on the underlying hardware. The nondeterminism is a semantic prescription of the memory model to describe observable behaviour of hardware with weak consistency.
+        // f. Let readEvent be ReadSharedMemory { [[Order]]: order, [[NoTear]]: noTear, [[Block]]: block, [[ByteIndex]]: byteIndex, [[ElementSize]]: elementSize }.
+        // g. Append readEvent to eventsRecord.[[EventList]].
+        // h. Append Chosen Value Record { [[Event]]: readEvent, [[ChosenValue]]: rawValue } to execution.[[ChosenValues]].
+        // AD-HOC: We don't model the abstract memory model (candidate execution, event list, chosen values). Instead,
+        //         we realize the read directly on the shared block with an atomic load: sequentially consistent for
+        //         SeqCst order (Atomics.load), and relaxed for a typed-array element read — which the memory model
+        //         requires to be tear-free (NoTear) for integer element types, and which a relaxed atomic provides
+        //         without the UB of a non-atomic read racing another agent's write. A DataView read may be unaligned,
+        //         and the model permits it to tear — so it takes the plain read of the non-shared case.
+        if (order == Order::SeqCst || is_typed_array) {
+            using AtomicType = Conditional<sizeof(T) == 1, u8, Conditional<sizeof(T) == 2, u16, Conditional<sizeof(T) == 4, u32, u64>>>;
+            auto memory_order = order == Order::SeqCst ? AK::memory_order_seq_cst : AK::memory_order_relaxed;
+            auto atomic_value = AK::atomic_load(reinterpret_cast<AtomicType volatile*>(data_at(byte_index)), memory_order);
+            __builtin_memcpy(raw_value.data(), &atomic_value, sizeof(T));
+        } else {
+            m_data_block.copy_to(byte_index, raw_value.span());
+        }
     }
     // 6. Else,
     else {
@@ -822,7 +960,7 @@ static void numeric_to_raw_bytes(VM& vm, Value value, bool is_little_endian, Byt
 
 // 25.1.3.18 SetValueInBuffer ( arrayBuffer, byteIndex, type, value, isTypedArray, order [ , isLittleEndian ] ), https://tc39.es/ecma262/#sec-setvalueinbuffer
 template<typename T>
-void ArrayBuffer::set_value(size_t byte_index, Value value, [[maybe_unused]] bool is_typed_array, Order, bool is_little_endian)
+void ArrayBuffer::set_value(size_t byte_index, Value value, bool is_typed_array, Order order, bool is_little_endian)
 {
     auto& vm = this->vm();
 
@@ -848,12 +986,27 @@ void ArrayBuffer::set_value(size_t byte_index, Value value, [[maybe_unused]] boo
     AK::Array<u8, sizeof(T)> raw_bytes;
     numeric_to_raw_bytes<T>(vm, value, is_little_endian, raw_bytes);
 
-    // FIXME: 8. If IsSharedArrayBuffer(arrayBuffer) is true, then
-    if (false) {
-        // FIXME: a. Let execution be the [[CandidateExecution]] field of the surrounding agent's Agent Record.
-        // FIXME: b. Let eventsRecord be the Agent Events Record of execution.[[EventsRecords]] whose [[AgentSignifier]] is AgentSignifier().
-        // FIXME: c. If isTypedArray is true and IsNoTearConfiguration(type, order) is true, let noTear be true; otherwise let noTear be false.
-        // FIXME: d. Append WriteSharedMemory { [[Order]]: order, [[NoTear]]: noTear, [[Block]]: block, [[ByteIndex]]: byteIndex, [[ElementSize]]: elementSize, [[Payload]]: rawBytes } to eventsRecord.[[EventList]].
+    // 8. If IsSharedArrayBuffer(arrayBuffer) is true, then
+    if (is_shared_array_buffer()) {
+        // a. Let execution be the [[CandidateExecution]] field of the surrounding agent's Agent Record.
+        // b. Let eventsRecord be the Agent Events Record of execution.[[EventsRecords]] whose [[AgentSignifier]] is AgentSignifier().
+        // c. If isTypedArray is true and IsNoTearConfiguration(type, order) is true, let noTear be true; otherwise let noTear be false.
+        // d. Append WriteSharedMemory { [[Order]]: order, [[NoTear]]: noTear, [[Block]]: block, [[ByteIndex]]: byteIndex, [[ElementSize]]: elementSize, [[Payload]]: rawBytes } to eventsRecord.[[EventList]].
+        // AD-HOC: We don't model the abstract memory model (candidate execution, event list). Instead, we realize the
+        //         write directly on the shared block with an atomic store: sequentially consistent for SeqCst order
+        //         (Atomics.store), and relaxed for a typed-array element write — which the memory model requires to be
+        //         tear-free (NoTear) for integer element types, and which a relaxed atomic provides without the UB of a
+        //         non-atomic write racing another agent. A DataView write may be unaligned, and the model permits it to
+        //         tear — so it takes the plain write of the non-shared case.
+        if (order == Order::SeqCst || is_typed_array) {
+            using AtomicType = Conditional<sizeof(T) == 1, u8, Conditional<sizeof(T) == 2, u16, Conditional<sizeof(T) == 4, u32, u64>>>;
+            auto memory_order = order == Order::SeqCst ? AK::memory_order_seq_cst : AK::memory_order_relaxed;
+            AtomicType atomic_value;
+            __builtin_memcpy(&atomic_value, raw_bytes.data(), sizeof(T));
+            AK::atomic_store(reinterpret_cast<AtomicType volatile*>(data_at(byte_index)), atomic_value, memory_order);
+        } else {
+            m_data_block.overwrite(byte_index, raw_bytes.data(), raw_bytes.size());
+        }
     }
     // 9. Else,
     else {
@@ -873,12 +1026,9 @@ Value ArrayBuffer::get_modify_set_value(size_t byte_index, Value value, ReadWrit
     auto raw_bytes = MUST(ByteBuffer::create_uninitialized(sizeof(T)));
     numeric_to_raw_bytes<T>(vm, value, is_little_endian, raw_bytes);
 
-    // FIXME: Check for shared buffer
-
-    auto raw_bytes_read = MUST(ByteBuffer::create_uninitialized(sizeof(T)));
-    m_data_block.copy_to(byte_index, raw_bytes_read);
-    auto raw_bytes_modified = operation(raw_bytes_read, raw_bytes);
-    m_data_block.overwrite(byte_index, raw_bytes_modified.data(), raw_bytes_modified.size());
+    // The operation performs the read-modify-write atomically on the live buffer bytes (which may be shared cross-agent
+    // memory), and returns the bytes that were read.
+    auto raw_bytes_read = operation({ data_at(byte_index), sizeof(T) }, raw_bytes);
 
     return raw_bytes_to_numeric<T>(vm, raw_bytes_read, is_little_endian);
 }
