@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    // A leading comment forces the general parser without changing the following fragment.
+    const samples = [
+        '', 'plain text\n\t',
+        '<li class="" data-id="item" data-priority="1"><div class="view"><input class="toggle" type="checkbox" checked><label>Todo 1</label><button class="destroy"></button></div><input class="edit" value="Todo 1"></li>',
+        '<span id="count"><strong>42</strong> items left</span><ul><li><a class="selected"href="#/all">All</a></li></ul>',
+        '<input value="initial" type="text"><input checked type="checkbox" value="yes">',
+        '<input type="checkbox" checked=""><br/><div title="a>b<c">text</div>',
+        '<b><div>bold<i>italic</i></div></b><button><span>button</span></button>',
+        '<DIV CLASS="upper">UPPER</DIV>',
+        '<div title="first" title="second">duplicates</div>',
+        '<div title=unquoted>value</div>',
+        '<div title="a&amp;b">&lt; &gt; &#x1f600; café</div>',
+        '<div>line\r\nbreak\rhere\u0000</div>',
+        '<div\vtitle="vertical tab">text</div>',
+        '<div/>text', '<div>unclosed', '<div><span>mismatch</div></span>',
+        '<b>one<i>two</b>three</i>', '<a>one<a>two</a>three</a>',
+        '<button>one<button>two</button></button>', '<li>one<li>two</li></li>',
+        '<ul><li>outer<ul><li>inner</li></ul></li></ul>',
+        '<p>paragraph<div>block</div></p>',
+        '<table>before<tr><td>cell</td></tr>after</table>',
+        '<svg><a xlink:href="#target"><text>foreign</text></a></svg>',
+        '<template><input checked type="checkbox"></template>',
+        '<textarea>\ninitial&amp;value</textarea>',
+        '<input type="radio" checked name="group"><input type="radio" checked name="group">',
+        '<div onclick="return false" style="color:red">attributes</div>',
+        '<label for="todo" style="color:red" role="checkbox" tabindex="0" hidden>label</label><input id="todo" placeholder="New todo" autofocus>',
+        '<div contenteditable="true" dir="rtl" lang="en" inert><span draggable="true">editable</span></div>',
+        '<li><ol><li><ul><li>deep list</li></ul></li></ol></li>',
+        '<li><ul><div><li>nested list</li></div></ul></li>',
+        '<li><div><li>implicitly closed</li></div></li>',
+        '<li><ul><li>implicitly closed<li>again</li></ul></li>',
+        '<span>'.repeat(130) + 'deep' + '</span>'.repeat(130),
+    ];
+    const pairedTags = ['a', 'b', 'button', 'div', 'footer', 'i', 'label', 'li', 'ol', 'span', 'strong', 'ul', 'article', 'aside', 'header', 'main', 'nav', 'section', 'big', 'code', 'em', 's', 'small', 'strike', 'tt', 'u'];
+    for (const outer of pairedTags) {
+        for (const inner of pairedTags)
+            samples.push(`<${outer}><${inner}>inside</${inner}>after</${outer}>tail`);
+    }
+    let comparisons = 0;
+    for (const context of ['div', 'ul', 'p', 'button', 'footer', 'table', 'select', 'textarea', 'template']) {
+        for (const markup of samples) {
+            const actual = document.createElement(context);
+            const reference = document.createElement(context);
+            actual.innerHTML = markup;
+            // RAWTEXT/RCDATA contexts do not tokenize comments, so use identical input there.
+            const forceGeneral = context !== 'textarea';
+            reference.innerHTML = (forceGeneral ? '<!--force general parser-->' : '') + markup;
+            const root = context === 'template' ? reference.content : reference;
+            if (forceGeneral && root.firstChild?.nodeType === Node.COMMENT_NODE)
+                root.firstChild.remove();
+            if (actual.innerHTML !== reference.innerHTML)
+                throw new Error(`${context}: ${JSON.stringify(markup)}: ${actual.innerHTML} != ${reference.innerHTML}`);
+            const actualInputs = actual.querySelectorAll('input');
+            const referenceInputs = reference.querySelectorAll('input');
+            for (let i = 0; i < actualInputs.length; ++i) {
+                for (const property of ['type', 'value', 'defaultValue', 'checked', 'defaultChecked']) {
+                    if (actualInputs[i][property] !== referenceInputs[i][property])
+                        throw new Error(`Input ${property}: ${markup}`);
+                }
+            }
+            ++comparisons;
+        }
+    }
+    println(`Compared ${comparisons} fragments`);
+
+    const host = document.createElement('div');
+    document.body.append(host);
+    const observer = new MutationObserver(() => {});
+    observer.observe(host, { subtree: true, childList: true, attributes: true });
+    host.innerHTML = '<div class="view"><input type="checkbox" checked><input value="initial"></div>';
+    const records = observer.takeRecords();
+    println(`Replacement: ${records.length} record, ${records[0].type}, ${records[0].addedNodes.length} added`);
+    const inputs = host.querySelectorAll('input');
+    inputs[0].checked = false;
+    inputs[1].value = 'changed';
+    const form = document.createElement('form');
+    form.append(host);
+    document.body.append(form);
+    form.reset();
+    println(`Reset: ${inputs[0].checked}, ${inputs[1].value}, ${inputs[0].form === form}`);
+    observer.disconnect();
+
+    host.innerHTML = '<div><input type="checkbox" checked><input value="inside form"></div>';
+    const formInputs = host.querySelectorAll('input');
+    formInputs[0].checked = false;
+    formInputs[1].value = 'changed';
+    form.reset();
+    println(`Form context: ${[...formInputs].every(input => input.form === form)}, ${formInputs[0].checked}, ${formInputs[1].value}`);
+
+    for (const registry of [new CustomElementRegistry(), null]) {
+        const scopedHost = document.createElement('div', { customElementRegistry: registry });
+        scopedHost.innerHTML = '<div><span>scoped</span><input type="checkbox" checked></div><label>label</label>';
+        println(`Registry ${registry === null ? 'null' : 'scoped'}: ${[...scopedHost.querySelectorAll('*')].every(element => element.customElementRegistry === registry)}`);
+    }
+
+    document.body.append(host);
+    const reactions = [];
+    customElements.define('fragment-parser-custom', class extends HTMLElement {
+        static observedAttributes = ['data-value'];
+        constructor() { super(); reactions.push('constructor'); }
+        attributeChangedCallback(name, oldValue, newValue) { reactions.push(`${name}:${newValue}`); }
+        connectedCallback() { reactions.push('connected'); }
+    });
+    host.innerHTML = '<div>before</div><fragment-parser-custom data-value="test"></fragment-parser-custom>';
+    println(`Custom: ${reactions.join(', ')}`);
+
+    class CustomInput extends HTMLInputElement {}
+    customElements.define('fragment-parser-input', CustomInput, { extends: 'input' });
+    host.innerHTML = '<input is="fragment-parser-input" value="custom">';
+    println(`Customized input: ${host.firstChild instanceof CustomInput}, ${host.firstChild.value}`);
+});
+</script>
