@@ -197,6 +197,7 @@ Application::~Application()
         }
 #endif
         m_cpu_profiler_process.clear();
+        m_cpu_profiler_control_socket.clear();
     }
 
     m_spare_web_content_process = nullptr;
@@ -214,10 +215,11 @@ bool Application::claim_cpu_profiler(ProcessType process_type)
     return true;
 }
 
-void Application::set_cpu_profiler_process(Core::Process process)
+void Application::set_cpu_profiler_process(Core::Process process, OwnPtr<Core::File> control_socket)
 {
     VERIFY(!m_cpu_profiler_process.has_value());
     m_cpu_profiler_process = move(process);
+    m_cpu_profiler_control_socket = move(control_socket);
 #if !defined(AK_OS_WINDOWS)
     m_cpu_profiler_signal_handlers.append(Core::EventLoop::register_signal(SIGINT, [this](int) { m_event_loop->quit(0); }));
     m_cpu_profiler_signal_handlers.append(Core::EventLoop::register_signal(SIGTERM, [this](int) { m_event_loop->quit(0); }));

@@ -93,7 +93,7 @@ public:
     ErrorOr<void> reload_site_compatibility_data();
 
     bool claim_cpu_profiler(ProcessType);
-    void set_cpu_profiler_process(Core::Process);
+    void set_cpu_profiler_process(Core::Process, OwnPtr<Core::File> control_socket);
 
     virtual Optional<String> system_font_family() const { return {}; }
     virtual Optional<String> ui_font_family() const { return {}; }
@@ -480,6 +480,7 @@ private:
     Main::Arguments m_arguments;
     BrowserOptions m_browser_options;
     Optional<Core::Process> m_cpu_profiler_process;
+    OwnPtr<Core::File> m_cpu_profiler_control_socket;
     bool m_cpu_profiler_claimed { false };
     Vector<int> m_cpu_profiler_signal_handlers;
     RequestServerOptions m_request_server_options;
