@@ -7,6 +7,7 @@
 #include <AK/Enumerate.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/ElapsedTimer.h>
+#include <LibCore/File.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
 #include <LibWebView/Application.h>
@@ -27,7 +28,12 @@
 
 namespace WebView {
 
-static ErrorOr<Core::Process> launch_cpu_profiler(StringView server_name, pid_t pid, Optional<ByteString> const& configured_output)
+struct CPUProfiler {
+    Core::Process process;
+    OwnPtr<Core::File> control_socket;
+};
+
+static ErrorOr<CPUProfiler> launch_cpu_profiler(StringView server_name, pid_t pid, Optional<ByteString> const& configured_output)
 {
 #if defined(AK_OS_MACOS)
     auto output = configured_output.value_or(ByteString::formatted("Ladybird-{}-{}.trace", server_name, pid));
@@ -78,7 +84,7 @@ static ErrorOr<Core::Process> launch_cpu_profiler(StringView server_name, pid_t 
 
     dbgln("Launched {} process under Time Profiler; writing {}", server_name, output);
     stop_profiler.disarm();
-    return profiler;
+    return CPUProfiler { move(profiler), nullptr };
 #elif defined(AK_OS_LINUX)
     auto output = configured_output.value_or(ByteString::formatted("perf.data.{}", pid));
 
@@ -135,9 +141,13 @@ static ErrorOr<Core::Process> launch_cpu_profiler(StringView server_name, pid_t 
     if (acknowledgement != Array<u8, 4> { 'a', 'c', 'k', '\n' })
         return Error::from_string_literal("perf returned an invalid startup acknowledgement");
 
+    // Keep the control socket open until perf exits. Some perf versions incorrectly abort the recording on POLLHUP.
+    auto controller = TRY(Core::File::adopt_fd(control_socket[0], Core::File::OpenMode::Write));
+    control_socket[0] = -1;
+
     dbgln("Launched {} process under perf; writing {}", server_name, output);
     stop_profiler.disarm();
-    return profiler;
+    return CPUProfiler { move(profiler), move(controller) };
 #else
     (void)server_name;
     (void)pid;
@@ -209,7 +219,7 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
 
             if (WebView::Application::the().claim_cpu_profiler(process_type)) {
                 auto profiler = TRY(launch_cpu_profiler(server_name, process.pid(), browser_options.profile_output));
-                WebView::Application::the().set_cpu_profiler_process(move(profiler));
+                WebView::Application::the().set_cpu_profiler_process(move(profiler.process), move(profiler.control_socket));
             }
 
             if constexpr (requires { client->set_pid(pid_t {}); })
