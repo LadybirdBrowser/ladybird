@@ -3208,19 +3208,12 @@ impl StyleEngine {
         node: StyleNodeID,
         source: StyleNodeID,
         cascade_input: MatchAnswerID,
-        dispatch: &RuleDispatch,
         cascade_winners_are_complete: bool,
     ) -> Option<PublishedMatchAnswer> {
-        let compact = Rc::clone(self.match_answers.answer(cascade_input)?);
-        let mut matches = compact
-            .iter()
-            .copied()
-            .map(|entry| {
-                let cascade_order = dispatch.cascade_order_for_entry(entry.rule, entry.program, entry.entry)?;
-                entry.materialize(node, &self.programs, cascade_order)
-            })
-            .collect::<Option<Vec<_>>>()?;
-        self.order_matches_in_cascade(&mut matches, false);
+        // Both nodes use this completion batch's document dispatch. The source already proved
+        // this answer, and the catalog can materialize it if a consumer needs individual matches.
+        // Most consumers use the cascade identity directly, so keep it shared until then.
+        self.match_answers.answer(cascade_input)?;
         let published_rows =
             self.winner_groups
                 .copy_node_rows(source, node, self.program.version(), &mut self.memory)?;
@@ -3231,7 +3224,7 @@ impl StyleEngine {
         Some(PublishedMatchAnswer {
             node,
             cascade_input: Some(cascade_input),
-            matches: Some(matches.into_boxed_slice()),
+            matches: None,
             cascade_winners_are_complete,
             observed: false,
         })
@@ -3245,7 +3238,7 @@ impl StyleEngine {
     }
 
     /// Whether sharing this compaction avoids enough declaration candidates to cover its fixed
-    /// identity lookup, compact payload materialization, and winner-row copy costs.
+    /// identity lookup and winner-row copy costs.
     pub(super) fn shared_cascade_completion_is_profitable(
         &self,
         answer: MatchAnswerID,

@@ -5131,13 +5131,19 @@ fn shared_retained_answer_completion_reuses_compact_cascade_state() {
             nodes[3],
             nodes[2],
             cascade_input,
-            &dispatch,
             first.cascade_winners_are_complete,
         )
         .unwrap();
 
     assert_eq!(second.cascade_input, Some(cascade_input));
-    assert_eq!(second.matches.as_ref().unwrap().len(), 1);
+    assert!(second.matches.is_none());
+    engine
+        .published_match_answers
+        .push(second, &mut engine.memory, &mut engine.counters);
+    engine.published_match_answers.sort();
+    let materialized = engine.consume_published_match_answer(nodes[3]).unwrap();
+    assert_eq!(materialized.len(), 1);
+    assert_eq!(materialized[0].node, nodes[3]);
     assert_eq!(
         engine.counters().get(Counter::CascadeMatchesBeforeCompaction),
         compaction_rows
