@@ -7,7 +7,7 @@
 use super::*;
 
 pub(super) fn compute_inline_sizes(
-    callbacks: FfiLayoutFcCallbacks,
+    callbacks: LayoutPass<'_>,
     node: Node,
     root: std::rc::Rc<UsedValues>,
     constraints: ContainingBlockConstraints,
@@ -29,44 +29,46 @@ pub(super) fn compute_inline_sizes(
     {
         return None;
     }
-    let run = FormattingContextRun {
-        purpose: formatting_context::LayoutPurpose::Measurement,
-        records: std::rc::Rc::new(RunRecords::new(callbacks.arena, node, root)),
-        box_: node,
-        layout_mode: LayoutMode::IntrinsicSizing,
-        callbacks,
-        should_collect_devtools_layout_data: false,
-        treat_block_axis_percentage_insets_as_auto_beyond_root: false,
-        fragments: None,
-        previous_line_data: None,
-    };
-    let sizing = run.sizing();
-    let input = LayoutInput::new(
-        AvailableSpace {
-            inline_size: AvailableSize::MaxContent,
-            block_size,
-        },
-        sizing.constraints_for_child_context(node, constraints),
-        ParticipationInParentFormattingContext::BlockLevel,
-    );
-    let parent = block_formatting_context::BlockFormattingContext::new(&run);
-    let mut context = inline_formatting_context::InlineFormattingContext::new_with_rust_parent(
-        &run,
-        node,
-        LayoutMode::IntrinsicSizing,
-        input,
-        callbacks,
-        &parent,
-    );
-    let iterator = inline_level_iterator::InlineLevelIterator::for_intrinsic_inline_size(&mut context)?;
-    let maximum = max_content_inline_size(&context, iterator.items())?;
-    let minimum = context.min_content_inline_size_from_max_content_items(iterator.items());
-    Some(IntrinsicInlineSizeMeasurement {
-        automatic_content_inline_size: clamp_to_max_dimension_value(maximum),
-        min_content_inline_size_from_max_content_layout: minimum.map(clamp_to_max_dimension_value),
-        layout: None,
-        depends_on_percentage_block_size: sizing.resolve_percentage_block_size_dependency(node),
-        depends_on_percentage_inline_basis: sizing.measurement_root_observes_percentage_inline_basis(node),
+    RunRecords::with_root(callbacks.arena(), node, root, |records| {
+        let run = FormattingContextRun {
+            purpose: formatting_context::LayoutPurpose::Measurement,
+            records,
+            box_: node,
+            layout_mode: LayoutMode::IntrinsicSizing,
+            callbacks,
+            should_collect_devtools_layout_data: false,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: false,
+            fragments: None,
+            previous_line_data: None,
+        };
+        let sizing = run.sizing();
+        let input = LayoutInput::new(
+            AvailableSpace {
+                inline_size: AvailableSize::MaxContent,
+                block_size,
+            },
+            sizing.constraints_for_child_context(node, constraints),
+            ParticipationInParentFormattingContext::BlockLevel,
+        );
+        let parent = block_formatting_context::BlockFormattingContext::new(&run);
+        let mut context = inline_formatting_context::InlineFormattingContext::new_with_rust_parent(
+            &run,
+            node,
+            LayoutMode::IntrinsicSizing,
+            input,
+            callbacks,
+            &parent,
+        );
+        let iterator = inline_level_iterator::InlineLevelIterator::for_intrinsic_inline_size(&mut context)?;
+        let maximum = max_content_inline_size(&context, iterator.items())?;
+        let minimum = context.min_content_inline_size_from_max_content_items(iterator.items());
+        Some(IntrinsicInlineSizeMeasurement {
+            automatic_content_inline_size: clamp_to_max_dimension_value(maximum),
+            min_content_inline_size_from_max_content_layout: minimum.map(clamp_to_max_dimension_value),
+            layout: None,
+            depends_on_percentage_block_size: sizing.resolve_percentage_block_size_dependency(node),
+            depends_on_percentage_inline_basis: sizing.measurement_root_observes_percentage_inline_basis(node),
+        })
     })
 }
 

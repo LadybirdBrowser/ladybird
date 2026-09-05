@@ -49,7 +49,6 @@ pub struct PaintableData {
 
     pub overflow_relative_to_padding_box: FfiOverflowData,
     pub overflow_measured_this_commit: bool,
-    pub overflow_valid_across_recommits: bool,
 
     pub establishes_stacking_context: bool,
 
@@ -76,7 +75,6 @@ impl Default for PaintableData {
             local_border_box_union: used_values::FfiCssPixelRect::default(),
             overflow_relative_to_padding_box: FfiOverflowData::default(),
             overflow_measured_this_commit: false,
-            overflow_valid_across_recommits: false,
             establishes_stacking_context: false,
             enclosing_scroll_node_index: SpatialNodeIndex::default(),
             own_scroll_node_index: SpatialNodeIndex::default(),
@@ -168,6 +166,9 @@ impl InlineBoxPieceRecord {
 
 #[derive(Default)]
 pub struct PaintableSideData {
+    // Invalidation also runs while paint geometry is borrowed. Keep this
+    // mutable cache state out of the plain-data row shared with C++.
+    pub(crate) overflow_valid_across_recommits: Cell<bool>,
     pub(crate) inline_content: Option<std::rc::Rc<crate::layout::inline_content::InlineContent>>,
     pub(crate) piece_indices: Vec<u32>,
     pub(crate) svg_filter_bounds: Cell<Option<used_values::FfiCssPixelRect>>,

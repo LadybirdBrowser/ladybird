@@ -26,6 +26,7 @@ pub(crate) mod inline_formatting_context;
 pub mod inline_level_iterator;
 mod intrinsic_sizing;
 mod layout_node_arena;
+mod layout_pass;
 pub(crate) mod line_box;
 pub(crate) mod line_box_fragment;
 pub(crate) mod line_builder;
@@ -69,6 +70,7 @@ pub(crate) use geometry::{
     AvailableSize, AvailableSpace, ContainingBlockConstraints, LayoutInput, ParticipationInParentFormattingContext,
     RootSizingDirectives,
 };
+pub(crate) use layout_pass::LayoutPass;
 pub(crate) use node_facts::NodeFacts;
 pub(crate) use run_records::RunRecords;
 use std::cell::Cell;

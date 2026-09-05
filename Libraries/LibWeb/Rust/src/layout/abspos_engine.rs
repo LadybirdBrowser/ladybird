@@ -99,18 +99,18 @@ impl ContainingBlockGeometry {
     }
 }
 
-pub(crate) struct AbsposEngine {
+pub(crate) struct AbsposEngine<'pass> {
     purpose: formatting_context::LayoutPurpose,
-    records: std::rc::Rc<RunRecords>,
-    callbacks: FfiLayoutFcCallbacks,
+    records: &'pass RunRecords<'pass>,
+    callbacks: LayoutPass<'pass>,
     fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
 }
 
-impl AbsposEngine {
-    pub(crate) fn for_run(run: &FormattingContextRun) -> Self {
+impl<'pass> AbsposEngine<'pass> {
+    pub(crate) fn for_run(run: &FormattingContextRun<'pass>) -> Self {
         Self {
             purpose: run.purpose,
-            records: run.records.clone(),
+            records: run.records,
             callbacks: run.callbacks,
             fragments: run.fragments.clone(),
         }
@@ -214,11 +214,11 @@ impl AbsposEngine {
         )
     }
 
-    fn sizing(&self) -> sizing_context::SizingContext {
-        sizing_context::SizingContext::new(self.purpose, self.records.clone(), self.callbacks)
+    fn sizing(&self) -> sizing_context::SizingContext<'pass> {
+        sizing_context::SizingContext::new(self.purpose, self.records, self.callbacks)
     }
 
-    fn style(&self, node: Node) -> StyleValues<'static> {
+    fn style(&self, node: Node) -> StyleValues<'pass> {
         StyleValues::for_node(&self.callbacks, node)
     }
 
@@ -346,8 +346,8 @@ struct AnchorValueAxis {
 }
 
 #[derive(Clone, Copy)]
-struct AnchorCalcCallbackContext {
-    engine: *const AbsposEngine,
+struct AnchorCalcCallbackContext<'pass> {
+    engine: *const AbsposEngine<'pass>,
     positioned_box: Node,
     containing_block: Node,
     containing_block_geometry: Option<ContainingBlockGeometry>,
@@ -358,7 +358,7 @@ struct AnchorCalcCallbackContext {
     resolution_state: *mut AnchorResolutionState,
 }
 
-impl AbsposEngine {
+impl AbsposEngine<'_> {
     fn anchor_lookup(&self, positioned_box: Node, anchor_name: usize) -> Option<Node> {
         let eligible_anchor_shells = self
             .fragments
@@ -367,8 +367,8 @@ impl AbsposEngine {
             .unwrap_or_default();
         // SAFETY: The name handle is retained by either the style snapshot or
         let anchor_box = unsafe {
-            (self.callbacks.anchor_lookup)(
-                self.callbacks.context,
+            (self.callbacks.host.anchor_lookup)(
+                self.callbacks.host.context,
                 self.callbacks.shell(positioned_box),
                 anchor_name,
                 eligible_anchor_shells.as_ptr(),
@@ -1056,7 +1056,7 @@ pub(crate) fn solve_replaced_axis(
     }
 }
 
-impl AbsposEngine {
+impl AbsposEngine<'_> {
     fn static_offset(&self, node: Node, rect: abspos_inputs::StaticPositionRect) -> geometry::LogicalOffset {
         let used = self.used(node);
         let collapsed = used.uses_collapsing_borders_model.get();
@@ -1358,7 +1358,7 @@ enum BlockSizePass {
     },
 }
 
-impl AbsposEngine {
+impl AbsposEngine<'_> {
     fn apply_min_max_block_size_constraints(
         &self,
         node: Node,
@@ -1687,7 +1687,7 @@ impl AbsposEngine {
     }
 }
 
-impl AbsposEngine {
+impl<'pass> AbsposEngine<'pass> {
     // Run-prelude sizing for an absolutely positioned root: box-model
     // metrics, the inset-aware inline solve, the pre-inside-layout block
     // pass, and the definiteness overrides insets and aspect ratios provide.
@@ -1849,7 +1849,7 @@ impl AbsposEngine {
         }
     }
 
-    fn layout_element(&self, run: &FormattingContextRun, node: Node, inputs: abspos_inputs::AbsposLayoutInputs) {
+    fn layout_element(&self, run: &FormattingContextRun<'pass>, node: Node, inputs: abspos_inputs::AbsposLayoutInputs) {
         assert!(!self.facts(node).is_svg_box());
         let (available_space, constraints) = out_of_flow_root_space(inputs);
 
@@ -1910,7 +1910,7 @@ impl AbsposEngine {
 
     pub(crate) fn layout_pending_child(
         &self,
-        run: &FormattingContextRun,
+        run: &FormattingContextRun<'pass>,
         mut child: abspos_inputs::PendingAbsposChild,
     ) {
         debug_assert!(!self.purpose.is_measurement());
@@ -2007,7 +2007,7 @@ impl AbsposEngine {
         })
     }
 
-    pub(super) fn replay(&self, run: &FormattingContextRun, node: Node) {
+    pub(super) fn replay(&self, run: &FormattingContextRun<'pass>, node: Node) {
         let saved_inputs = self.callbacks.saved_abspos_layout_inputs(node);
         let found = saved_inputs.is_some();
         assert!(found);
@@ -2077,7 +2077,7 @@ impl AbsposEngine {
         let treat_block_axis_percentage_insets_as_auto = (style.inset_top().contains_percentage()
             || style.inset_bottom().contains_percentage())
             && !formatting_context::resolve_block_axis_percentage_inset_basis_is_definite(
-                &self.records,
+                self.records,
                 &self.callbacks,
                 self.callbacks.containing_block(node),
                 formatting_context_root,
@@ -2107,15 +2107,15 @@ impl AbsposEngine {
 }
 
 pub(crate) fn drain_abspos_with_placed_containing_blocks(
-    records: &std::rc::Rc<RunRecords>,
-    callbacks: FfiLayoutFcCallbacks,
+    records: &RunRecords<'_>,
+    callbacks: LayoutPass<'_>,
     should_collect_devtools_layout_data: bool,
     entry_fragments: &std::rc::Rc<fragment_tree::RunFragmentBuilder>,
 ) {
     let accumulator_root = entry_fragments.root_node();
     let run = FormattingContextRun {
         purpose: formatting_context::LayoutPurpose::Commit,
-        records: records.clone(),
+        records,
         box_: accumulator_root,
         layout_mode: LayoutMode::Normal,
         callbacks,
@@ -2137,7 +2137,7 @@ pub(crate) fn drain_abspos_with_placed_containing_blocks(
 }
 
 pub(crate) fn compute_inset_native(
-    run: &FormattingContextRun,
+    run: &FormattingContextRun<'_>,
     node: Node,
     inline_size: CssPixels,
     block_size: CssPixels,

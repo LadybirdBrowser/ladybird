@@ -12,17 +12,17 @@ pub(crate) struct AtomicRootInlineSizeResolution {
     pub(crate) max_content_size_that_fit_the_definite_available_inner_space: Option<CssPixels>,
 }
 
-pub(crate) struct SizingContext {
+pub(crate) struct SizingContext<'pass> {
     purpose: formatting_context::LayoutPurpose,
-    records: std::rc::Rc<RunRecords>,
-    callbacks: FfiLayoutFcCallbacks,
+    records: &'pass RunRecords<'pass>,
+    callbacks: LayoutPass<'pass>,
 }
 
-impl SizingContext {
+impl<'pass> SizingContext<'pass> {
     pub(crate) fn new(
         purpose: formatting_context::LayoutPurpose,
-        records: std::rc::Rc<RunRecords>,
-        callbacks: FfiLayoutFcCallbacks,
+        records: &'pass RunRecords<'pass>,
+        callbacks: LayoutPass<'pass>,
     ) -> Self {
         Self {
             purpose,
@@ -35,7 +35,7 @@ impl SizingContext {
         NodeFacts::new(&self.callbacks, node)
     }
 
-    pub(super) fn style(&self, node: Node) -> StyleValues<'static> {
+    pub(super) fn style(&self, node: Node) -> StyleValues<'pass> {
         StyleValues::for_node(&self.callbacks, node)
     }
 
@@ -554,7 +554,7 @@ impl SizingContext {
         node: Node,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
-    ) -> (&'static ComputedSize, &'static ComputedSize) {
+    ) -> (&'pass ComputedSize, &'pass ComputedSize) {
         let style = self.style(node);
         let inline = if self.should_treat_inline_size_as_auto(node, available_space) {
             auto_computed_size()
@@ -916,7 +916,7 @@ impl SizingContext {
             record.depends_on_percentage_block_size.set(true);
         }
         formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
-            &self.records,
+            self.records,
             &self.callbacks,
             node,
             true,
@@ -2317,46 +2317,50 @@ impl SizingContext {
             .padding_right
             .set(table_style.padding_right().to_px(containing_block_inline_size));
 
-        let table_run = FormattingContextRun {
-            purpose: formatting_context::LayoutPurpose::Measurement,
-            records: std::rc::Rc::new(RunRecords::new(
-                measurement.callbacks().arena,
-                table_box,
-                table_used.clone(),
-            )),
-            box_: table_box,
-            layout_mode: LayoutMode::IntrinsicSizing,
-            callbacks: *measurement.callbacks(),
-            should_collect_devtools_layout_data: false,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: false,
-            fragments: None,
-            previous_line_data: None,
-        };
-        let mut table = table_formatting_context::TableFormattingContext::new(&table_run);
-        let table_available = table_used.available_inner_space_or_constraints_from(available_space);
-        table.run_until_inline_size_calculation(
-            LayoutInput::new(
-                table_available,
-                table_constraints,
-                ParticipationInParentFormattingContext::Root,
-            ),
-            true,
-        );
+        RunRecords::with_root(
+            measurement.callbacks().arena(),
+            table_box,
+            table_used.clone(),
+            |records| {
+                let table_run = FormattingContextRun {
+                    purpose: formatting_context::LayoutPurpose::Measurement,
+                    records,
+                    box_: table_box,
+                    layout_mode: LayoutMode::IntrinsicSizing,
+                    callbacks: *measurement.callbacks(),
+                    should_collect_devtools_layout_data: false,
+                    treat_block_axis_percentage_insets_as_auto_beyond_root: false,
+                    fragments: None,
+                    previous_line_data: None,
+                };
+                let mut table = table_formatting_context::TableFormattingContext::new(&table_run);
+                let table_available = table_used.available_inner_space_or_constraints_from(available_space);
+                table.run_until_inline_size_calculation(
+                    LayoutInput::new(
+                        table_available,
+                        table_constraints,
+                        ParticipationInParentFormattingContext::Root,
+                    ),
+                    true,
+                );
 
-        let table_used_inline_size = table_used.border_box_inline_size(table_used.uses_collapsing_borders_model.get());
-        self.records
-            .store_table_inline_layout(wrapper, table.take_inline_layout());
-        if table_wrapper_inline_size_mode
-            == formatting_context::TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto
-            && !table_style.width().is_auto()
-        {
-            return table_used_inline_size;
-        }
-        if matches!(available_space.inline_size, AvailableSize::Definite(_)) {
-            table_used_inline_size.min(available_inline_size)
-        } else {
-            table_used_inline_size
-        }
+                let table_used_inline_size =
+                    table_used.border_box_inline_size(table_used.uses_collapsing_borders_model.get());
+                self.records
+                    .store_table_inline_layout(wrapper, table.take_inline_layout());
+                if table_wrapper_inline_size_mode
+                    == formatting_context::TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto
+                    && !table_style.width().is_auto()
+                {
+                    return table_used_inline_size;
+                }
+                if matches!(available_space.inline_size, AvailableSize::Definite(_)) {
+                    table_used_inline_size.min(available_inline_size)
+                } else {
+                    table_used_inline_size
+                }
+            },
+        )
     }
 
     // 17.5.3 Table height algorithms

@@ -65,9 +65,9 @@ pub(crate) struct LineBuilder<'builder, 'context> {
     should_advance_to_last_line_box_block_end: bool,
     current_line_committed_pending_margin: bool,
     pending_margin_follows_block_level_box: bool,
-    containing_style: StyleValues<'static>,
+    containing_style: StyleValues<'context>,
     fragment_facts_cache: Option<(Node, line_box_fragment::FragmentBuildFacts)>,
-    style_cache: Cell<Option<(Node, StyleValues<'static>)>>,
+    style_cache: Cell<Option<(Node, StyleValues<'context>)>>,
     facts_cache: Cell<Option<(Node, NodeFacts<'builder>)>>,
 }
 
@@ -151,7 +151,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         self.containing_style
     }
 
-    fn style(&self, node: Node) -> StyleValues<'static> {
+    fn style(&self, node: Node) -> StyleValues<'context> {
         if let Some((cached_node, style)) = self.style_cache.get()
             && cached_node == node
         {

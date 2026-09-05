@@ -262,7 +262,7 @@ pub(crate) fn absolute_border_box_rect(arena: &impl PaintableRowsRead, slot: Nod
 
 pub(crate) fn scrollable_overflow_rect(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> Option<CssPixelRect> {
     let data = arena.paintable_data(slot);
-    if !data.overflow_measured_this_commit && !data.overflow_valid_across_recommits {
+    if !data.overflow_measured_this_commit && !arena.paintable_side_data(slot).overflow_valid_across_recommits.get() {
         return None;
     }
     Some(
@@ -271,7 +271,8 @@ pub(crate) fn scrollable_overflow_rect(arena: &impl PaintableRowsRead, slot: Nod
     )
 }
 
-pub fn has_scrollable_overflow(data: &PaintableData) -> bool {
-    (data.overflow_measured_this_commit || data.overflow_valid_across_recommits)
+pub(crate) fn has_scrollable_overflow(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> bool {
+    let data = arena.paintable_data(slot);
+    (data.overflow_measured_this_commit || arena.paintable_side_data(slot).overflow_valid_across_recommits.get())
         && data.overflow_relative_to_padding_box.has_scrollable_overflow
 }

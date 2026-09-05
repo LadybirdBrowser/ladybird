@@ -218,16 +218,16 @@ pub(crate) fn align_item(
 /// borrow the computed size from the style group payload, which outlives the
 /// pass.
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum GridTrackBreadth {
+pub(crate) enum GridTrackBreadth<'pass> {
     Auto,
-    LengthPercentage(&'static ComputedSize),
+    LengthPercentage(&'pass ComputedSize),
     Flex(f64),
     MinContent,
     MaxContent,
-    FitContent(&'static ComputedSize),
+    FitContent(&'pass ComputedSize),
 }
 
-fn grid_track_breadth_view(breadth: &'static ComputedGridTrackBreadth) -> GridTrackBreadth {
+fn grid_track_breadth_view(breadth: &ComputedGridTrackBreadth) -> GridTrackBreadth<'_> {
     if breadth.is_flex {
         return GridTrackBreadth::Flex(breadth.flex_factor);
     }
@@ -928,14 +928,14 @@ impl GridItem {
     }
 }
 
-pub(crate) struct GridFormattingContext {
+pub(crate) struct GridFormattingContext<'pass> {
     purpose: formatting_context::LayoutPurpose,
-    records: std::rc::Rc<RunRecords>,
+    records: &'pass RunRecords<'pass>,
     grid_container: Node,
     derived_baselines_of_root_box: DerivedBaselines,
-    parent_grid: Option<ParentGridData>,
+    parent_grid: Option<ParentGridData<'pass>>,
     layout_mode: LayoutMode,
-    callbacks: FfiLayoutFcCallbacks,
+    callbacks: LayoutPass<'pass>,
     should_collect_devtools_layout_data: bool,
     treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
     fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
@@ -943,10 +943,10 @@ pub(crate) struct GridFormattingContext {
     layout_input: Option<LayoutInput>,
     column_lines: Vec<Vec<LineName>>,
     row_lines: Vec<Vec<LineName>>,
-    columns: Vec<Track>,
-    rows: Vec<Track>,
-    column_gaps: Vec<Track>,
-    row_gaps: Vec<Track>,
+    columns: Vec<Track<'pass>>,
+    rows: Vec<Track<'pass>>,
+    column_gaps: Vec<Track<'pass>>,
+    row_gaps: Vec<Track<'pass>>,
     items: Vec<GridItem>,
     explicit_column_line_count: usize,
     explicit_row_line_count: usize,
@@ -982,18 +982,18 @@ impl GridItemPlacement {
 }
 
 #[derive(Clone)]
-struct ParentGridData {
+struct ParentGridData<'pass> {
     placement_of_this_container: Option<GridItemPlacement>,
     column_lines: Vec<Vec<LineName>>,
     row_lines: Vec<Vec<LineName>>,
-    columns: Vec<Track>,
-    rows: Vec<Track>,
-    column_gaps: Vec<Track>,
-    row_gaps: Vec<Track>,
+    columns: Vec<Track<'pass>>,
+    rows: Vec<Track<'pass>>,
+    column_gaps: Vec<Track<'pass>>,
+    row_gaps: Vec<Track<'pass>>,
 }
 
-impl ParentGridData {
-    fn for_child_container(parent: &GridFormattingContext, child_container: Node) -> Self {
+impl<'pass> ParentGridData<'pass> {
+    fn for_child_container(parent: &GridFormattingContext<'pass>, child_container: Node) -> Self {
         Self {
             placement_of_this_container: parent
                 .items
@@ -1013,17 +1013,17 @@ impl ParentGridData {
 /// Conservative superset of is_subgridded() for callers outside a live grid run
 /// (the fc-run-cache probe): a declared subgrid axis counts regardless of the
 /// parent-grid placement check only a run in progress can make.
-pub(super) fn grid_template_declares_a_subgrid_axis(callbacks: &FfiLayoutFcCallbacks, box_: Node) -> bool {
+pub(super) fn grid_template_declares_a_subgrid_axis(callbacks: &LayoutPass<'_>, box_: Node) -> bool {
     let grid_style = ComputedValuesView::new(&callbacks.style_payloads(box_).groups).grid_values();
     grid_style.template_columns.is_subgrid || grid_style.template_rows.is_subgrid
 }
 
-impl GridFormattingContext {
-    pub(crate) fn new(run: &FormattingContextRun, parent_grid: Option<&GridFormattingContext>) -> Self {
+impl<'pass> GridFormattingContext<'pass> {
+    pub(crate) fn new(run: &FormattingContextRun<'pass>, parent_grid: Option<&GridFormattingContext<'pass>>) -> Self {
         let grid_container = run.box_;
         Self {
             purpose: run.purpose,
-            records: run.records.clone(),
+            records: run.records,
             grid_container,
             derived_baselines_of_root_box: DerivedBaselines::default(),
             parent_grid: parent_grid.map(|parent| ParentGridData::for_child_container(parent, grid_container)),
@@ -1054,10 +1054,10 @@ impl GridFormattingContext {
         }
     }
 
-    fn formatting_context_run(&self) -> FormattingContextRun {
+    fn formatting_context_run(&self) -> FormattingContextRun<'pass> {
         FormattingContextRun {
             purpose: self.purpose,
-            records: self.records.clone(),
+            records: self.records,
             box_: self.grid_container,
             layout_mode: self.layout_mode,
             callbacks: self.callbacks,
@@ -1097,7 +1097,7 @@ impl GridFormattingContext {
     fn used(&self, item: GridItem) -> std::rc::Rc<UsedValues> {
         self.records.used_values(item.box_)
     }
-    fn style(&self, node: Node) -> StyleValues<'static> {
+    fn style(&self, node: Node) -> StyleValues<'pass> {
         StyleValues::for_node(&self.callbacks, node)
     }
 
@@ -1108,15 +1108,15 @@ impl GridFormattingContext {
     /// The node's computed grid style group, read in place. The payload
     /// outlives the pass because the node's ComputedValues keep it alive and
     /// style containers are only replaced between passes.
-    fn grid_style(&self, node: Node) -> &'static GridValues {
+    fn grid_style(&self, node: Node) -> &'pass GridValues {
         ComputedValuesView::new(&self.callbacks.style_payloads(node).groups).grid_values()
     }
 
-    fn sizing(&self) -> sizing_context::SizingContext {
-        sizing_context::SizingContext::new(self.purpose, self.records.clone(), self.callbacks)
+    fn sizing(&self) -> sizing_context::SizingContext<'pass> {
+        sizing_context::SizingContext::new(self.purpose, self.records, self.callbacks)
     }
 
-    fn parent_grid(&self) -> Option<&ParentGridData> {
+    fn parent_grid(&self) -> Option<&ParentGridData<'pass>> {
         self.parent_grid.as_ref()
     }
 
@@ -1150,7 +1150,7 @@ impl GridFormattingContext {
         axis.select(space.inline_size, space.block_size)
     }
 
-    fn axis_gap_value(&self, axis: Axis) -> &'static ComputedGap {
+    fn axis_gap_value(&self, axis: Axis) -> &'pass ComputedGap {
         let style = self.style(self.grid_container);
         axis.select(style.column_gap(), style.row_gap())
     }
@@ -1334,7 +1334,7 @@ impl GridFormattingContext {
 
     fn automatic_repeat_count(
         &self,
-        source: TrackListSource,
+        source: TrackListSource<'pass>,
         entry: &crate::layout::ComputedGridTrackEntry,
         axis: Axis,
     ) -> usize {
@@ -1393,7 +1393,7 @@ impl GridFormattingContext {
         1
     }
 
-    fn expand_axis(&self, axis: Axis, grid_style: &'static GridValues) -> ExpandedTrackList {
+    fn expand_axis(&self, axis: Axis, grid_style: &'pass GridValues) -> ExpandedTrackList<'pass> {
         let list = axis.select(grid_style.template_columns, grid_style.template_rows);
         let source = TrackListSource::from_grid_style(grid_style);
         if self.is_subgridded(axis, grid_style) {
@@ -1419,7 +1419,10 @@ impl GridFormattingContext {
         })
     }
 
-    fn initialize_lines(&mut self, grid_style: &'static GridValues) -> (ExpandedTrackList, ExpandedTrackList) {
+    fn initialize_lines(
+        &mut self,
+        grid_style: &'pass GridValues,
+    ) -> (ExpandedTrackList<'pass>, ExpandedTrackList<'pass>) {
         let mut columns = self.expand_axis(Axis::Column, grid_style);
         let mut rows = self.expand_axis(Axis::Row, grid_style);
         self.project_parent_grid_areas(
@@ -1611,7 +1614,7 @@ impl GridFormattingContext {
         }
     }
 
-    fn expanded_auto_tracks(&self, grid_style: &'static GridValues, axis: Axis) -> Vec<TrackDefinition> {
+    fn expanded_auto_tracks(&self, grid_style: &'pass GridValues, axis: Axis) -> Vec<TrackDefinition<'pass>> {
         let list = axis.select(grid_style.auto_columns, grid_style.auto_rows);
         expand_standalone(TrackListSource::from_grid_style(grid_style), list, |_index, _entry| 1).tracks
     }
@@ -1619,11 +1622,11 @@ impl GridFormattingContext {
     fn initialize_tracks_for_axis(
         &self,
         axis: Axis,
-        grid_style: &'static GridValues,
-        explicit: &ExpandedTrackList,
+        grid_style: &'pass GridValues,
+        explicit: &ExpandedTrackList<'pass>,
         total_count: usize,
         explicit_start: usize,
-    ) -> Vec<Track> {
+    ) -> Vec<Track<'pass>> {
         if self.is_subgridded(axis, grid_style) {
             // https://drafts.csswg.org/css-grid-2/#subgrid-tracks
             // Placing the subgrid creates a correspondence between its subgridded tracks and those that it
@@ -1743,9 +1746,9 @@ impl GridFormattingContext {
 
     fn initialize_tracks(
         &mut self,
-        grid_style: &'static GridValues,
-        columns: &ExpandedTrackList,
-        rows: &ExpandedTrackList,
+        grid_style: &'pass GridValues,
+        columns: &ExpandedTrackList<'pass>,
+        rows: &ExpandedTrackList<'pass>,
     ) {
         self.columns = self.initialize_tracks_for_axis(
             Axis::Column,
@@ -1768,11 +1771,11 @@ impl GridFormattingContext {
         self.initialize_gaps_for_axis(Axis::Row, available.block_size);
     }
 
-    fn axis_tracks(&self, axis: Axis) -> &[Track] {
+    fn axis_tracks(&self, axis: Axis) -> &[Track<'pass>] {
         axis.select(&self.columns, &self.rows)
     }
 
-    fn axis_gaps(&self, axis: Axis) -> &[Track] {
+    fn axis_gaps(&self, axis: Axis) -> &[Track<'pass>] {
         axis.select(&self.column_gaps, &self.row_gaps)
     }
 
@@ -1802,7 +1805,7 @@ impl GridFormattingContext {
         axis.select(used.padding_right.get(), used.padding_bottom.get())
     }
 
-    fn interleaved_tracks(&self, axis: Axis) -> Vec<Track> {
+    fn interleaved_tracks(&self, axis: Axis) -> Vec<Track<'pass>> {
         let tracks = self.axis_tracks(axis);
         let gaps = self.axis_gaps(axis);
         let mut result = Vec::with_capacity(tracks.len().saturating_mul(2).saturating_sub(1));
@@ -1815,7 +1818,7 @@ impl GridFormattingContext {
         result
     }
 
-    fn interleaved_track_iter(&self, axis: Axis) -> impl Iterator<Item = &Track> {
+    fn interleaved_track_iter(&self, axis: Axis) -> impl Iterator<Item = &Track<'pass>> {
         let tracks = self.axis_tracks(axis);
         let gaps = self.axis_gaps(axis);
         tracks
@@ -1832,7 +1835,7 @@ impl GridFormattingContext {
         track_index * 2 + 1
     }
 
-    fn store_interleaved_tracks(&mut self, axis: Axis, interleaved: &[Track]) {
+    fn store_interleaved_tracks(&mut self, axis: Axis, interleaved: &[Track<'pass>]) {
         let (tracks, gaps) = axis.select(
             (&mut self.columns, &mut self.column_gaps),
             (&mut self.rows, &mut self.row_gaps),
@@ -1928,17 +1931,17 @@ impl GridFormattingContext {
         size + self.outer_edges(item, axis)
     }
 
-    fn preferred_size(&self, item: GridItem, axis: Axis) -> &'static ComputedSize {
+    fn preferred_size(&self, item: GridItem, axis: Axis) -> &'pass ComputedSize {
         let style = self.style(item.box_);
         axis.select(style.width(), style.height())
     }
 
-    fn minimum_size(&self, item: GridItem, axis: Axis) -> &'static ComputedSize {
+    fn minimum_size(&self, item: GridItem, axis: Axis) -> &'pass ComputedSize {
         let style = self.style(item.box_);
         axis.select(style.min_width(), style.min_height())
     }
 
-    fn maximum_size(&self, item: GridItem, axis: Axis) -> &'static ComputedSize {
+    fn maximum_size(&self, item: GridItem, axis: Axis) -> &'pass ComputedSize {
         let style = self.style(item.box_);
         axis.select(style.max_width(), style.max_height())
     }
@@ -2425,56 +2428,58 @@ impl GridFormattingContext {
         scratch_root
             .has_definite_block_size
             .set(live.has_definite_block_size.get());
-        let scratch_run = FormattingContextRun {
-            purpose: formatting_context::LayoutPurpose::Measurement,
-            records: std::rc::Rc::new(RunRecords::new(self.callbacks.arena, subgrid.box_, scratch_root)),
-            box_: subgrid.box_,
-            layout_mode: LayoutMode::IntrinsicSizing,
-            callbacks: self.callbacks,
-            should_collect_devtools_layout_data: false,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: false,
-            fragments: None,
-            previous_line_data: None,
-        };
-        let mut context = GridFormattingContext::new(&scratch_run, Some(self));
-        let mut available = self.available_space.unwrap();
-        if !axis.is_column() && live.has_definite_inline_size() {
-            available.inline_size = AvailableSize::definite(live.content_inline_size.get());
-        }
-        let input = LayoutInput::new(
-            available,
-            self.track_sizing_constraints(),
-            ParticipationInParentFormattingContext::Item,
-        );
-        context.reset_for_run(input);
-        let grid_style = context.grid_style(context.grid_container);
-        context.cache_subgrid_axes(grid_style);
-        let (columns, rows) = context.initialize_lines(grid_style);
-        context.place_items();
-        context.initialize_tracks(grid_style, &columns, &rows);
-        if !axis.is_column() {
-            context.resolve_item_metrics(Axis::Column);
-            context.run_track_sizing(Axis::Column);
-            context.resolve_item_metrics(Axis::Column);
-            context.resolve_item_sizes(Axis::Column);
-        }
-        context.resolve_item_metrics(axis);
-
-        let mut items = std::mem::take(&mut context.items);
-        for item in &mut items {
-            context.apply_subgrid_edge_extra_margins(item, axis);
-        }
-        context.items = items;
-
-        let mut contributions = context.item_contributions_to_track_sizing(axis);
-        let interleaved_index_offset_in_parent =
-            Self::interleaved_index_of_track(subgrid.position(axis).max(0) as usize);
-        for contribution in &mut contributions {
-            for index in &mut contribution.spanned_tracks {
-                *index += interleaved_index_offset_in_parent;
+        RunRecords::with_root(self.callbacks.arena(), subgrid.box_, scratch_root, |records| {
+            let scratch_run = FormattingContextRun {
+                purpose: formatting_context::LayoutPurpose::Measurement,
+                records,
+                box_: subgrid.box_,
+                layout_mode: LayoutMode::IntrinsicSizing,
+                callbacks: self.callbacks,
+                should_collect_devtools_layout_data: false,
+                treat_block_axis_percentage_insets_as_auto_beyond_root: false,
+                fragments: None,
+                previous_line_data: None,
+            };
+            let mut context = GridFormattingContext::new(&scratch_run, Some(self));
+            let mut available = self.available_space.unwrap();
+            if !axis.is_column() && live.has_definite_inline_size() {
+                available.inline_size = AvailableSize::definite(live.content_inline_size.get());
             }
-        }
-        contributions
+            let input = LayoutInput::new(
+                available,
+                self.track_sizing_constraints(),
+                ParticipationInParentFormattingContext::Item,
+            );
+            context.reset_for_run(input);
+            let grid_style = context.grid_style(context.grid_container);
+            context.cache_subgrid_axes(grid_style);
+            let (columns, rows) = context.initialize_lines(grid_style);
+            context.place_items();
+            context.initialize_tracks(grid_style, &columns, &rows);
+            if !axis.is_column() {
+                context.resolve_item_metrics(Axis::Column);
+                context.run_track_sizing(Axis::Column);
+                context.resolve_item_metrics(Axis::Column);
+                context.resolve_item_sizes(Axis::Column);
+            }
+            context.resolve_item_metrics(axis);
+
+            let mut items = std::mem::take(&mut context.items);
+            for item in &mut items {
+                context.apply_subgrid_edge_extra_margins(item, axis);
+            }
+            context.items = items;
+
+            let mut contributions = context.item_contributions_to_track_sizing(axis);
+            let interleaved_index_offset_in_parent =
+                Self::interleaved_index_of_track(subgrid.position(axis).max(0) as usize);
+            for contribution in &mut contributions {
+                for index in &mut contribution.spanned_tracks {
+                    *index += interleaved_index_offset_in_parent;
+                }
+            }
+            contributions
+        })
     }
 
     fn item_contributions_to_track_sizing(&self, axis: Axis) -> Vec<ItemContribution> {
@@ -3140,7 +3145,7 @@ impl GridFormattingContext {
         rect
     }
 
-    fn layout_items(&mut self, run: &FormattingContextRun) {
+    fn layout_items(&mut self, run: &FormattingContextRun<'pass>) {
         for item_index in 0..self.items.len() {
             let item = self.items[item_index];
             let area = self.grid_area(item);
@@ -3204,7 +3209,7 @@ impl GridFormattingContext {
             formatting_context::place_child(&self.formatting_context_run(), item.box_, offset, None);
         }
         self.derived_baselines_of_root_box =
-            formatting_context::derive_baselines(&self.records, &self.callbacks, self.grid_container, false);
+            formatting_context::derive_baselines(self.records, &self.callbacks, self.grid_container, false);
     }
 
     fn used_track_list_data(&self, axis: Axis, subgrid: bool) -> OwnedUsedGridTrackList {
@@ -3350,7 +3355,7 @@ impl GridFormattingContext {
         self.container_used().rare_data_mut().grid_layout_data = Some(std::rc::Rc::new(data));
     }
 
-    pub(crate) fn run(&mut self, run: &FormattingContextRun, input: LayoutInput) {
+    pub(crate) fn run(&mut self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
         let available = input.available_space;
         // OPTIMIZATION: If we're in intrinsic sizing layout, but the grid container is not the
         //               box being measured, we can skip everything here.
@@ -3551,7 +3556,7 @@ pub(crate) enum SpaceDistributionPhase {
 }
 
 fn distribute_spanning_base_size_for_indices(
-    tracks: &mut [Track],
+    tracks: &mut [Track<'_>],
     spanned: &[usize],
     item_size_contribution: CssPixels,
     phase: SpaceDistributionPhase,
@@ -3654,7 +3659,7 @@ pub(crate) struct ItemContribution {
     pub(crate) is_scroll_container: bool,
 }
 
-fn distribute_growth_limit(tracks: &mut [Track], spanned: &[usize], affected: &[usize], contribution: CssPixels) {
+fn distribute_growth_limit(tracks: &mut [Track<'_>], spanned: &[usize], affected: &[usize], contribution: CssPixels) {
     if affected.is_empty() {
         return;
     }
@@ -3706,7 +3711,7 @@ fn distribute_growth_limit(tracks: &mut [Track], spanned: &[usize], affected: &[
 }
 
 fn distribute_base_for_item(
-    tracks: &mut [Track],
+    tracks: &mut [Track<'_>],
     spanned: &[usize],
     contribution: CssPixels,
     phase: SpaceDistributionPhase,
@@ -3722,14 +3727,14 @@ fn distribute_base_for_item(
     }
 }
 
-fn apply_planned_base_increases(tracks: &mut [Track], spanned: &[usize]) {
+fn apply_planned_base_increases(tracks: &mut [Track<'_>], spanned: &[usize]) {
     for &index in spanned {
         tracks[index].base_size += tracks[index].planned_increase;
         tracks[index].planned_increase = CssPixels::default();
     }
 }
 
-fn grow_content_sized_tracks_for_item(tracks: &mut [Track], item: &ItemContribution, available: AvailableSize) {
+fn grow_content_sized_tracks_for_item(tracks: &mut [Track<'_>], item: &ItemContribution, available: AvailableSize) {
     let spanned = &item.spanned_tracks;
     let has_flexible = spanned
         .iter()
@@ -3843,7 +3848,7 @@ fn grow_content_sized_tracks_for_item(tracks: &mut [Track], item: &ItemContribut
 }
 
 pub(crate) fn resolve_intrinsic_track_sizes(
-    tracks: &mut [Track],
+    tracks: &mut [Track<'_>],
     items: &[ItemContribution],
     available: AvailableSize,
     row_axis: bool,
@@ -3959,7 +3964,7 @@ pub(crate) fn resolve_intrinsic_track_sizes(
     }
 }
 
-pub(crate) fn maximize_tracks(tracks: &mut [Track], gap_size: CssPixels, available: AvailableSize) {
+pub(crate) fn maximize_tracks(tracks: &mut [Track<'_>], gap_size: CssPixels, available: AvailableSize) {
     // https://www.w3.org/TR/css-grid-2/#algo-grow-tracks
     // 12.6. Maximize Tracks
     // https://www.w3.org/TR/css-grid-2/#algo-terms
@@ -4014,7 +4019,7 @@ pub(crate) fn maximize_tracks(tracks: &mut [Track], gap_size: CssPixels, availab
     }
 }
 
-pub(crate) fn expand_flexible_tracks_indefinite(tracks: &mut [Track], items: &[ItemContribution]) {
+pub(crate) fn expand_flexible_tracks_indefinite(tracks: &mut [Track<'_>], items: &[ItemContribution]) {
     // First, find the grid’s used flex fraction:
     // Otherwise, if the free space is an indefinite length:
     // The used flex fraction is the maximum of:
@@ -4054,7 +4059,7 @@ pub(crate) fn expand_flexible_tracks_indefinite(tracks: &mut [Track], items: &[I
 }
 
 pub(crate) fn stretch_auto_tracks(
-    tracks: &mut [Track],
+    tracks: &mut [Track<'_>],
     gap_size: CssPixels,
     available: AvailableSize,
     content_distribution_is_normal_or_stretch: bool,
@@ -4089,7 +4094,7 @@ pub(crate) fn stretch_auto_tracks(
 }
 
 pub(crate) fn run_track_sizing<MaximumSize>(
-    tracks: &mut [Track],
+    tracks: &mut [Track<'_>],
     gap_size: CssPixels,
     items: &[ItemContribution],
     available: AvailableSize,
@@ -4194,28 +4199,28 @@ impl LineName {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct TrackDefinition {
-    pub(crate) min: GridTrackBreadth,
-    pub(crate) max: GridTrackBreadth,
+pub(crate) struct TrackDefinition<'pass> {
+    pub(crate) min: GridTrackBreadth<'pass>,
+    pub(crate) max: GridTrackBreadth<'pass>,
     pub(crate) is_auto_fit: bool,
     pub(crate) is_auto_repeat: bool,
 }
 
 #[derive(Clone, Debug, Default)]
-pub(crate) struct ExpandedTrackList {
+pub(crate) struct ExpandedTrackList<'pass> {
     pub(crate) lines: Vec<Vec<LineName>>,
-    pub(crate) tracks: Vec<TrackDefinition>,
+    pub(crate) tracks: Vec<TrackDefinition<'pass>>,
 }
 
 #[derive(Clone, Copy)]
-pub(crate) struct TrackListSource {
-    pub(crate) names: &'static [usize],
-    pub(crate) entries: &'static [ComputedGridTrackEntry],
-    pub(crate) name_indices: &'static [u32],
+pub(crate) struct TrackListSource<'pass> {
+    pub(crate) names: &'pass [usize],
+    pub(crate) entries: &'pass [ComputedGridTrackEntry],
+    pub(crate) name_indices: &'pass [u32],
 }
 
-impl TrackListSource {
-    fn from_grid_style(grid_style: &'static GridValues) -> Self {
+impl<'pass> TrackListSource<'pass> {
+    fn from_grid_style(grid_style: &'pass GridValues) -> Self {
         Self {
             names: grid_style.names.raws(),
             entries: grid_style.entries.as_slice(),
@@ -4223,12 +4228,12 @@ impl TrackListSource {
         }
     }
 
-    fn entry(&self, index: u32) -> &'static ComputedGridTrackEntry {
+    fn entry(&self, index: u32) -> &'pass ComputedGridTrackEntry {
         assert_ne!(index, GRID_NO_INDEX);
         &self.entries[index as usize]
     }
 
-    fn names(&self, entry: &ComputedGridTrackEntry) -> impl Iterator<Item = LineName> + 'static {
+    fn names(&self, entry: &ComputedGridTrackEntry) -> impl Iterator<Item = LineName> + 'pass {
         let end = entry
             .name_index_start
             .checked_add(entry.name_index_count)
@@ -4243,7 +4248,7 @@ impl TrackListSource {
     fn for_each_entry(
         &self,
         list: ComputedGridTrackList,
-        mut callback: impl FnMut(u32, &'static ComputedGridTrackEntry),
+        mut callback: impl FnMut(u32, &'pass ComputedGridTrackEntry),
     ) {
         let mut index = list.first_entry;
         let mut visited = 0usize;
@@ -4257,7 +4262,7 @@ impl TrackListSource {
     }
 }
 
-fn definition_for(entry: &'static ComputedGridTrackEntry, auto_fit: bool, auto_repeat: bool) -> TrackDefinition {
+fn definition_for(entry: &ComputedGridTrackEntry, auto_fit: bool, auto_repeat: bool) -> TrackDefinition<'_> {
     match entry.kind {
         kind if kind == ComputedGridTrackEntryKind::TrackSize as u8 => {
             let size = grid_track_breadth_view(&entry.size);
@@ -4288,11 +4293,11 @@ fn definition_for(entry: &'static ComputedGridTrackEntry, auto_fit: bool, auto_r
 }
 
 #[allow(clippy::too_many_arguments)]
-fn expand_standalone_list(
-    source: TrackListSource,
+fn expand_standalone_list<'pass>(
+    source: TrackListSource<'pass>,
     list: ComputedGridTrackList,
     lines: &mut Vec<Vec<LineName>>,
-    tracks: &mut Vec<TrackDefinition>,
+    tracks: &mut Vec<TrackDefinition<'pass>>,
     pending_names: &mut Vec<LineName>,
     auto_repeat_count: &mut impl FnMut(u32, &ComputedGridTrackEntry) -> usize,
     inherited_auto_fit: bool,
@@ -4337,10 +4342,10 @@ fn expand_standalone_list(
 /// by placement. `auto_repeat_count` performs the container-size-dependent
 /// auto-fill/auto-fit calculation.
 pub(crate) fn expand_standalone(
-    source: TrackListSource,
+    source: TrackListSource<'_>,
     list: ComputedGridTrackList,
     mut auto_repeat_count: impl FnMut(u32, &ComputedGridTrackEntry) -> usize,
-) -> ExpandedTrackList {
+) -> ExpandedTrackList<'_> {
     if list.is_subgrid {
         // https://drafts.csswg.org/css-grid-2/#subgrid-listing
         // If there is no parent grid, or if the grid container is otherwise
@@ -4369,7 +4374,7 @@ pub(crate) fn expand_standalone(
     result
 }
 
-pub(crate) fn count_subgrid_line_name_lists(source: TrackListSource, list: ComputedGridTrackList) -> usize {
+pub(crate) fn count_subgrid_line_name_lists(source: TrackListSource<'_>, list: ComputedGridTrackList) -> usize {
     let mut count = 0usize;
     source.for_each_entry(list, |_index, entry| match entry.kind {
         kind if kind == ComputedGridTrackEntryKind::LineNames as u8 => count += 1,
@@ -4386,12 +4391,12 @@ pub(crate) fn count_subgrid_line_name_lists(source: TrackListSource, list: Compu
     count
 }
 
-pub(crate) fn automatic_subgrid_span(source: TrackListSource, list: ComputedGridTrackList) -> usize {
+pub(crate) fn automatic_subgrid_span(source: TrackListSource<'_>, list: ComputedGridTrackList) -> usize {
     count_subgrid_line_name_lists(source, list).saturating_sub(1).max(1)
 }
 
 fn expand_subgrid_names(
-    source: TrackListSource,
+    source: TrackListSource<'_>,
     list: ComputedGridTrackList,
     lines: &mut [Vec<LineName>],
     line_index: &mut usize,
@@ -4453,12 +4458,12 @@ fn expand_subgrid_names(
     }
 }
 
-pub(crate) fn expand_subgrid(
-    source: TrackListSource,
+pub(crate) fn expand_subgrid<'pass>(
+    source: TrackListSource<'pass>,
     list: ComputedGridTrackList,
     track_count: usize,
     inherited_lines: &[Vec<LineName>],
-) -> ExpandedTrackList {
+) -> ExpandedTrackList<'pass> {
     // https://drafts.csswg.org/css-grid-2/#subgrid-span
     // The number of explicit tracks in the subgrid in a subgridded dimension always corresponds
     // to the number of grid tracks that it spans in its parent grid.
@@ -4557,20 +4562,20 @@ pub(crate) fn nth_named_line(lines: &[Vec<LineName>], name_raw: usize, nth_line:
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum TrackSizingFunction {
+pub(crate) enum TrackSizingFunction<'pass> {
     Auto,
-    Fixed(&'static ComputedSize),
+    Fixed(&'pass ComputedSize),
     /// A synthesized fixed track with no backing style value: collapsed
     /// tracks, gap tracks, and fixed subgrid tracks carry a resolved px size.
     FixedPx(CssPixels),
     Flex(f64),
     MinContent,
     MaxContent,
-    FitContent(&'static ComputedSize),
+    FitContent(&'pass ComputedSize),
 }
 
-impl TrackSizingFunction {
-    pub(crate) fn from_breadth(value: GridTrackBreadth) -> Self {
+impl<'pass> TrackSizingFunction<'pass> {
+    pub(crate) fn from_breadth(value: GridTrackBreadth<'pass>) -> Self {
         match value {
             GridTrackBreadth::Auto => Self::Auto,
             GridTrackBreadth::LengthPercentage(size) => Self::Fixed(size),
@@ -4630,9 +4635,9 @@ impl TrackSizingFunction {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Track {
-    pub(crate) min_sizing: TrackSizingFunction,
-    pub(crate) max_sizing: TrackSizingFunction,
+pub(crate) struct Track<'pass> {
+    pub(crate) min_sizing: TrackSizingFunction<'pass>,
+    pub(crate) max_sizing: TrackSizingFunction<'pass>,
     pub(crate) base_size: CssPixels,
     pub(crate) growth_limit: Option<CssPixels>,
     pub(crate) flex_factor: Option<f64>,
@@ -4649,7 +4654,7 @@ pub(crate) struct Track {
     pub(crate) is_collapsed: bool,
 }
 
-impl Track {
+impl<'pass> Track<'pass> {
     pub(crate) fn fixed(base_size: CssPixels) -> Self {
         Self {
             min_sizing: TrackSizingFunction::FixedPx(base_size),
@@ -4692,7 +4697,7 @@ impl Track {
         }
     }
 
-    pub(crate) fn from_definition(definition: TrackDefinition) -> Self {
+    pub(crate) fn from_definition(definition: TrackDefinition<'pass>) -> Self {
         // NOTE: repeat() is expected to be expanded beforehand.
         let min_sizing = TrackSizingFunction::from_breadth(definition.min);
         let max_sizing = TrackSizingFunction::from_breadth(definition.max);
@@ -4731,7 +4736,7 @@ impl Track {
     }
 }
 
-pub(crate) fn initialize_track_sizes(tracks: &mut [Track], available: AvailableSize) -> bool {
+pub(crate) fn initialize_track_sizes(tracks: &mut [Track<'_>], available: AvailableSize) -> bool {
     // https://www.w3.org/TR/css-grid-2/#algo-init
     // 12.4. Initialize Track Sizes
     // Initialize each track’s base size and growth limit.
@@ -4784,7 +4789,7 @@ pub(crate) fn initialize_track_sizes(tracks: &mut [Track], available: AvailableS
     has_flexible_tracks
 }
 
-pub(crate) fn find_fr_size(tracks: &[Track], space_to_fill: CssPixels) -> formatting_context::PixelFraction {
+pub(crate) fn find_fr_size(tracks: &[Track<'_>], space_to_fill: CssPixels) -> formatting_context::PixelFraction {
     // https://www.w3.org/TR/css-grid-2/#algo-find-fr-size
     let mut inflexible = vec![false; tracks.len()];
     loop {
@@ -4836,7 +4841,7 @@ pub(crate) fn find_fr_size(tracks: &[Track], space_to_fill: CssPixels) -> format
     }
 }
 
-pub(crate) fn expand_flexible_tracks(tracks: &mut [Track], space_to_fill: CssPixels) {
+pub(crate) fn expand_flexible_tracks(tracks: &mut [Track<'_>], space_to_fill: CssPixels) {
     let flex_fraction = find_fr_size(tracks, space_to_fill);
     // For each flexible track, if the product of the used flex fraction and the track’s flex factor is greater than
     // the track’s base size, set its base size to that product.

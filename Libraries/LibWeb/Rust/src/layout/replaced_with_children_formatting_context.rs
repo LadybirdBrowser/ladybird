@@ -73,7 +73,7 @@ pub(super) fn layout_replaced_with_children(
         None,
     );
     formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
-        &run.records,
+        run.records,
         &run.callbacks,
         wrapper,
         wrapper_result.depends_on_percentage_block_size,

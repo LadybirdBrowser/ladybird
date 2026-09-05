@@ -521,7 +521,7 @@ impl UsedValues {
 
     pub(crate) fn finish_line_data(
         &self,
-        callbacks: &FfiLayoutFcCallbacks,
+        callbacks: &LayoutPass<'_>,
     ) -> Option<std::rc::Rc<inline_content::InlineContent>> {
         let mut state = self.line_data.get()?.borrow_mut();
         let content = match &mut *state {
@@ -844,7 +844,7 @@ impl UsedValues {
 }
 
 pub(crate) fn create_used_values(
-    callbacks: &FfiLayoutFcCallbacks,
+    callbacks: &LayoutPass<'_>,
     node: Node,
     constraints: ContainingBlockConstraints,
 ) -> std::rc::Rc<UsedValues> {
@@ -990,7 +990,7 @@ pub(crate) fn create_used_values(
 }
 
 pub(crate) fn used_values_from_committed_fragment_link(
-    callbacks: &FfiLayoutFcCallbacks,
+    callbacks: &LayoutPass<'_>,
     node: Node,
 ) -> Option<std::rc::Rc<UsedValues>> {
     let link = callbacks.committed_fragment_link(node)?;

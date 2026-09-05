@@ -937,7 +937,7 @@ pub(crate) struct InlineAncestorChainRelativeOffset {
 /// the first ancestor that is not inline-flow.
 pub(crate) fn accumulated_relative_insets_from_inline_ancestor_chain(
     records: &RunRecords,
-    callbacks: &FfiLayoutFcCallbacks,
+    callbacks: &LayoutPass<'_>,
     first_ancestor: Node,
     stop_at: Node,
 ) -> InlineAncestorChainRelativeOffset {
@@ -968,12 +968,12 @@ pub(crate) fn accumulated_relative_insets_from_inline_ancestor_chain(
 }
 
 pub(crate) struct InlineFormattingContext<'context> {
-    pub(crate) run: &'context FormattingContextRun,
+    pub(crate) run: &'context FormattingContextRun<'context>,
     pub(crate) containing_block: Node,
     pub(crate) layout_mode: LayoutMode,
     pub(crate) input: LayoutInput,
-    pub(crate) callbacks: FfiLayoutFcCallbacks,
-    pub(crate) parent: &'context block_formatting_context::BlockFormattingContext,
+    pub(crate) callbacks: LayoutPass<'context>,
+    pub(crate) parent: &'context block_formatting_context::BlockFormattingContext<'context>,
     pub(crate) containing_used_values: std::rc::Rc<UsedValues>,
     pub(crate) fragmented_inlines_in_pre_order: Vec<Node>,
     pub(crate) automatic_content_inline_size: CssPixels,
@@ -984,12 +984,12 @@ pub(crate) struct InlineFormattingContext<'context> {
 
 impl<'context> InlineFormattingContext<'context> {
     pub(crate) fn new_with_rust_parent(
-        run: &'context FormattingContextRun,
+        run: &'context FormattingContextRun<'context>,
         containing_block: Node,
         layout_mode: LayoutMode,
         input: LayoutInput,
-        callbacks: FfiLayoutFcCallbacks,
-        parent: &'context block_formatting_context::BlockFormattingContext,
+        callbacks: LayoutPass<'context>,
+        parent: &'context block_formatting_context::BlockFormattingContext<'context>,
     ) -> Self {
         let containing_used_values = run.records.used_values(containing_block);
         containing_used_values.line_data_cell();
@@ -1073,7 +1073,7 @@ impl<'context> InlineFormattingContext<'context> {
         }
     }
 
-    pub(crate) fn style(&self, node: Node) -> StyleValues<'static> {
+    pub(crate) fn style(&self, node: Node) -> StyleValues<'context> {
         StyleValues::for_node(&self.callbacks, node)
     }
 
@@ -1272,8 +1272,8 @@ impl<'context> InlineFormattingContext<'context> {
             // SAFETY: The callback table and layout node remain live for this
             // synchronous formatting-context run.
             unsafe {
-                (self.callbacks.report_unexpected_fragmented_inline)(
-                    self.callbacks.context,
+                (self.callbacks.host.report_unexpected_fragmented_inline)(
+                    self.callbacks.host.context,
                     self.callbacks.shell(node),
                 );
             }
@@ -1289,7 +1289,7 @@ impl<'context> InlineFormattingContext<'context> {
         content_baselines
     }
 
-    pub(crate) fn sizing(&self) -> sizing_context::SizingContext {
+    pub(crate) fn sizing(&self) -> sizing_context::SizingContext<'context> {
         self.parent.sizing()
     }
 
@@ -1913,7 +1913,7 @@ impl<'context> InlineFormattingContext<'context> {
             .parent
             .greatest_child_inline_size_including_floats(self.containing_block);
         let baselines =
-            formatting_context::derive_baselines(&self.run.records, &self.callbacks, self.containing_block, false);
+            formatting_context::derive_baselines(self.run.records, &self.callbacks, self.containing_block, false);
         if self.containing_block == self.parent.root_box() {
             self.parent.record_derived_baselines_of_root_box(baselines);
         } else {
@@ -1926,7 +1926,7 @@ impl<'context> InlineFormattingContext<'context> {
         self.line_data_mut().inline_box_pieces = pieces;
         for candidate in inline_containing_block_rect_candidates {
             let relative_inset_chain = accumulated_relative_insets_from_inline_ancestor_chain(
-                &self.run.records,
+                self.run.records,
                 &self.callbacks,
                 candidate.inline_containing_block,
                 self.containing_block,
@@ -1959,7 +1959,7 @@ impl<'context> InlineFormattingContext<'context> {
                 .entry(first_ancestor)
                 .or_insert_with(|| {
                     let chain = accumulated_relative_insets_from_inline_ancestor_chain(
-                        &self.run.records,
+                        self.run.records,
                         &self.callbacks,
                         first_ancestor,
                         self.containing_block,

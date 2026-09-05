@@ -296,11 +296,16 @@ impl OverflowAssignment {
             });
             if let Some(overflow) = self.overflow_relative_to_padding_box {
                 data.overflow_relative_to_padding_box = overflow;
-                data.overflow_valid_across_recommits = true;
             }
             data.overflow_measured_this_commit = true;
             (scroll_metadata_changed, scrollability_flipped)
         };
+        if self.overflow_relative_to_padding_box.is_some() {
+            layout_arena
+                .paintable_side_data(self.box_paintable)
+                .overflow_valid_across_recommits
+                .set(true);
+        }
         if scroll_metadata_changed {
             layout_arena.mark_paint_cache_self_dirty(self.box_paintable);
         }
@@ -368,7 +373,10 @@ fn measure_scrollable_overflow_impl(
             return CssPixelRect::from(data.overflow_relative_to_padding_box.rect)
                 .translated_by(paintable_geometry::absolute_padding_box_rect(layout_arena, box_paintable).location());
         }
-        data.overflow_valid_across_recommits
+        layout_arena
+            .paintable_side_data(box_paintable)
+            .overflow_valid_across_recommits
+            .get()
             .then_some(data.overflow_relative_to_padding_box)
     };
 
@@ -489,7 +497,10 @@ fn measure_scrollable_overflow_impl(
                     && child_display.is_inline_outside()
                     && !child_is_floating
                     && !child_has_css_transform
-                    && child_data.overflow_valid_across_recommits
+                    && layout_arena
+                        .paintable_side_data(child_node)
+                        .overflow_valid_across_recommits
+                        .get()
                 {
                     let border = crate::painting::paintable_geometry::committed_border(layout_arena, child_node);
                     let zero = CssPixels::from_raw(0);

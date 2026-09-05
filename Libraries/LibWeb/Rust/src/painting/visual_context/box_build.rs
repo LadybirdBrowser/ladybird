@@ -527,7 +527,7 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
         state_for_descendants = sink.append_frame_node_under(state_for_descendants, FrameData::Clip(overflow_clip));
     }
 
-    if paintable_geometry::has_scrollable_overflow(layout_arena.paintable_data(slot)) {
+    if paintable_geometry::has_scrollable_overflow(layout_arena, slot) {
         let parent_index = if creates_sticky_scroll_node {
             sticky_scroll_node_index
         } else {
