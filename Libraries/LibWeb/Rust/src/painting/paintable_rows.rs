@@ -884,12 +884,18 @@ impl LayoutNodeArena {
             return;
         }
         let mut side = self.paintable_side_data_mut(containing_block);
-        for fragment in &mut side.fragments {
+        let Some(content) = side.inline_content.as_mut() else {
+            return;
+        };
+        // Replacement preserves current paint geometry until the next layout commit. Give that
+        // version new node identities without modifying retained run outputs or copying glyphs.
+        let content = std::rc::Rc::make_mut(content);
+        for fragment in &mut content.fragments {
             if fragment.layout_node == old_node {
                 fragment.layout_node = new_node;
             }
         }
-        for piece in &mut side.inline_box_pieces {
+        for piece in &mut content.inline_box_pieces {
             if piece.node == old_node {
                 piece.node = new_node;
             }
@@ -939,7 +945,7 @@ pub(crate) fn with_inline_pieces(
     let data = arena.paintable_data(inline_paintable);
     let root_side = arena.paintable_side_data(root);
     for piece_index in &arena.paintable_side_data(inline_paintable).piece_indices {
-        let piece = &root_side.inline_box_pieces[*piece_index as usize];
+        let piece = &root_side.inline_box_pieces()[*piece_index as usize];
         if !callback(piece, data) {
             return;
         }

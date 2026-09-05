@@ -55,7 +55,8 @@ pub(crate) fn caret_rect_for_position(
         }
     });
     let (block, index) = direct.or(fallback)?;
-    let fragment = &layout_arena.paintable_side_data(block).fragments[index as usize];
+    let side = layout_arena.paintable_side_data(block);
+    let fragment = &side.fragments()[index as usize];
     Some(caret_rect_in_fragment(layout_arena, block, fragment, offset))
 }
 

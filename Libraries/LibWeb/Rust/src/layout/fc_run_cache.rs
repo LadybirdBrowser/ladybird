@@ -214,17 +214,6 @@ pub(super) struct FcRunCacheEntry {
     key: FcRunCacheKey,
     validity: FcRunCacheValidity,
     pub(super) outputs: formatting_context::RunOutputs,
-    /// Keeps every font referenced by cached line data alive: glyph runs
-    /// borrow raw font pointers, and a paint-only style change can drop
-    /// the owning computed values without touching any layout epoch.
-    ///
-    /// Cached line data also holds raw text_utf16 pointers into arena text
-    /// slots, deliberately unretained: replay never re-runs line building,
-    /// commit emits offsets rather than the pointers, and every text change
-    /// bumps epochs before the next probe, so nothing on the replay path
-    /// dereferences them. Any future consumer of cached fragment text must
-    /// snapshot the text alongside the fonts first.
-    retained_fonts: Vec<libgfx_rust::font::RetainedFont>,
 }
 
 impl FcRunCacheEntry {
@@ -414,27 +403,6 @@ impl FcRunCacheArenaStore {
     }
 }
 
-fn collect_line_data_fonts(line_data: &used_values::LineData, fonts: &mut Vec<*const c_void>) {
-    for line in &line_data.line_boxes {
-        for fragment in &line.fragments {
-            if let Some(glyphs) = &fragment.glyphs
-                && !glyphs.font.is_null()
-            {
-                fonts.push(glyphs.font);
-            }
-        }
-    }
-}
-
-fn collect_fragment_tree_fonts(links: &[FragmentLink], fonts: &mut Vec<*const c_void>) {
-    for link in links {
-        if let Some(line_data) = &link.fragment.line_data {
-            collect_line_data_fonts(line_data, fonts);
-        }
-        collect_fragment_tree_fonts(&link.fragment.children, fonts);
-    }
-}
-
 fn run_root_validity(callbacks: &FfiLayoutFcCallbacks, box_: Node) -> FcRunCacheValidity {
     let data = NodeFacts::new(callbacks, box_).data();
     FcRunCacheValidity {
@@ -567,7 +535,7 @@ impl FcRunCacheAttempt {
         }
     }
 
-    pub(super) fn previous_line_data(&self) -> Option<std::rc::Rc<used_values::LineData>> {
+    pub(super) fn previous_line_data(&self) -> Option<std::rc::Rc<inline_content::InlineContent>> {
         let Self::Store {
             structurally_damaged_entry: Some(entry),
             ..
@@ -607,23 +575,10 @@ impl FcRunCacheAttempt {
             store.remove_entry(box_.slot_index());
             return;
         }
-        let mut fonts = Vec::new();
-        if let Some(line_data) = &outputs.root_outcome.line_data {
-            collect_line_data_fonts(line_data, &mut fonts);
-        }
-        collect_fragment_tree_fonts(&root.scoped_descendants, &mut fonts);
-        fonts.sort_unstable();
-        fonts.dedup();
         let entry = FcRunCacheEntry {
             key: *key,
             validity,
             outputs: outputs.clone(),
-            retained_fonts: fonts
-                .into_iter()
-                // SAFETY: every collected font pointer is live during the
-                // pass that produced the line data now being cached.
-                .map(|font| unsafe { libgfx_rust::font::RetainedFont::retain(font) })
-                .collect(),
         };
         if let Some(cached) = shadow_entry {
             verify_cached_entry_against_fresh_run(box_.slot_index(), &cached, &entry);
@@ -651,16 +606,9 @@ fn verify_cached_entry_against_fresh_run(root_slot: u32, cached: &FcRunCacheEntr
         cached.outputs.root_outcome.own_metrics_sealed == fresh.outputs.root_outcome.own_metrics_sealed,
         "run cache shadow: root seal state diverged for slot {root_slot}"
     );
-    let cached_fonts: Vec<_> = cached.retained_fonts.iter().map(|font| font.as_raw()).collect();
-    let fresh_fonts: Vec<_> = fresh.retained_fonts.iter().map(|font| font.as_raw()).collect();
     assert!(
-        cached_fonts == fresh_fonts,
-        "run cache shadow: referenced fonts diverged for slot {root_slot}"
-    );
-    assert_line_data_matches(
-        root_slot,
-        cached.outputs.root_outcome.line_data.as_deref(),
-        fresh.outputs.root_outcome.line_data.as_deref(),
+        cached.outputs.root_outcome.line_data == fresh.outputs.root_outcome.line_data,
+        "run cache shadow: root line data diverged for slot {root_slot}"
     );
     assert_rare_data_matches(
         root_slot,
@@ -706,21 +654,6 @@ macro_rules! shadow_comparable_rare_payloads {
             &$carrier.collapsed_table_borders,
         )
     };
-}
-
-fn line_data_matches(cached: Option<&used_values::LineData>, fresh: Option<&used_values::LineData>) -> bool {
-    cached == fresh
-}
-
-fn assert_line_data_matches(
-    root_slot: u32,
-    cached: Option<&used_values::LineData>,
-    fresh: Option<&used_values::LineData>,
-) {
-    assert!(
-        line_data_matches(cached, fresh),
-        "run cache shadow: root line data diverged for slot {root_slot}"
-    );
 }
 
 fn assert_rare_data_matches(
@@ -901,7 +834,7 @@ fn collect_diverged_fragment_fields(
     if shadow_comparable_rare_payloads!(cached) != shadow_comparable_rare_payloads!(fresh) {
         diverged.push("rare payloads");
     }
-    if !line_data_matches(cached.line_data.as_deref(), fresh.line_data.as_deref()) {
+    if cached.line_data != fresh.line_data {
         diverged.push("line_data");
     }
 }

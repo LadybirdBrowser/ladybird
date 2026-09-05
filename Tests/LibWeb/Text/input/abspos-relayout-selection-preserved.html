@@ -31,9 +31,9 @@
         window.getSelection().addRange(range);
         document.body.offsetHeight;
 
-        // Mutate a sibling inside the boundary to trigger a partial relayout. The
-        // partial commit rebuilds paintable fragments for the whole subtree, which
-        // resets fragment-level selection state.
+        // Mutate a sibling inside the boundary to trigger a partial relayout.
+        // Selection must survive the changed fragment output and any replaced
+        // layout nodes in that subtree.
         const partialBefore = internals.partialLayoutCount();
         document.getElementById("child").style.height = "40px";
         document.body.offsetHeight;

@@ -432,7 +432,7 @@ fn resolve_containing_line_box_index(
     assert!(!containing_block.is_invalid());
     let containing_block_used = records.used_values(containing_block);
     let data = containing_block_used.line_data_ref()?;
-    let line = data.line_boxes.get(coordinate.line_box_index)?;
+    let line = data.building().line_boxes.get(coordinate.line_box_index)?;
     if let Some(fragment) = line.fragments.get(coordinate.fragment_index) {
         let (x, y) = fragment.offset();
         debug_assert_eq!(
@@ -643,56 +643,28 @@ pub(crate) fn derive_baselines(
     let facts = NodeFacts::new(callbacks, box_);
     let own_used = records.used_values(box_);
     let own_line_data = own_used.line_data_ref();
-    let line_count = own_line_data.as_ref().map_or(0, |data| data.line_boxes.len());
-    if line_count > 0 {
-        let baseline_for_line_box = |line_index: usize, baseline_set: BaselineSet| -> CssPixels {
-            let (has_block_level_box, block_start, baseline, fragment_count, fragment_node) = {
-                let line = &own_line_data.as_ref().unwrap().line_boxes[line_index];
-                (
-                    line.has_block_level_box,
-                    line.physical_vertical_end() - line.block_length,
-                    line.baseline,
-                    line.fragments.len(),
-                    line.fragments.first().map(|fragment| fragment.layout_node),
-                )
-            };
-            if !has_block_level_box {
-                return block_start + baseline;
+    let mut lines = own_line_data.iter().flat_map(|data| data.lines());
+    let first = lines
+        .find(|line| !line.is_empty)
+        .or_else(|| own_line_data.as_ref()?.lines().next());
+    if let Some(first) = first {
+        let last = lines.rfind(|line| !line.is_empty).unwrap_or(first);
+        let baseline_for_line_box = |line: inline_content::LineRecord, baseline_set: BaselineSet| -> CssPixels {
+            if !line.has_block_level_box {
+                return line.physical_vertical_end() - line.block_length + line.baseline;
             }
-
-            assert_eq!(fragment_count, 1);
-            let fragment_node = fragment_node.expect("block-level line must have one fragment");
+            assert_eq!(line.layout_fragment_count, 1);
+            let fragment_node = line
+                .first_fragment_node
+                .expect("block-level line must have one fragment");
             let block_child_state = records.used_values(fragment_node);
             let child_offset_from_margin_edge = block_child_state.content_offset.get().y
                 - block_child_state.margin_box_top(block_child_state.uses_collapsing_borders_model.get());
             child_offset_from_margin_edge + box_baseline(callbacks, fragment_node, &block_child_state, baseline_set)
         };
-
-        let mut first_line_index = 0;
-        while first_line_index < line_count {
-            let is_empty = own_line_data.as_ref().unwrap().line_boxes[first_line_index].is_empty();
-            if !is_empty {
-                break;
-            }
-            first_line_index += 1;
-        }
-        if first_line_index == line_count {
-            first_line_index = 0;
-        }
-        let first_baseline = baseline_for_line_box(first_line_index, BaselineSet::First);
-
-        let mut last_line_index = line_count - 1;
-        while last_line_index > 0 {
-            let is_empty = own_line_data.as_ref().unwrap().line_boxes[last_line_index].is_empty();
-            if !is_empty {
-                break;
-            }
-            last_line_index -= 1;
-        }
-        let last_baseline = baseline_for_line_box(last_line_index, BaselineSet::Last);
         return DerivedBaselines {
-            first: Some(first_baseline),
-            last: Some(last_baseline),
+            first: Some(baseline_for_line_box(first, BaselineSet::First)),
+            last: Some(baseline_for_line_box(last, BaselineSet::Last)),
         };
     }
 
@@ -793,7 +765,7 @@ pub(crate) struct ChildLayoutResult {
 pub(crate) struct RunRootOutcome {
     pub(super) cells: used_values::UsedValuesCellState,
     pub(super) own_metrics_sealed: bool,
-    pub(super) line_data: Option<std::rc::Rc<used_values::LineData>>,
+    pub(super) line_data: Option<std::rc::Rc<inline_content::InlineContent>>,
     pub(super) rare: Option<used_values::UsedValuesRareData>,
 }
 
@@ -801,7 +773,7 @@ impl RunRootOutcome {
     fn apply_to_record(self, record: &UsedValues) {
         self.cells.apply_to_record(record);
         if let Some(line_data) = self.line_data {
-            *record.line_data_cell().borrow_mut() = line_data;
+            *record.line_data_cell().borrow_mut() = used_values::LineDataState::Finished(line_data);
         }
         if let Some(rare) = self.rare {
             rare.install_present_payloads_into(record);
@@ -1087,7 +1059,7 @@ pub(crate) struct FormattingContextRun {
     pub(crate) should_collect_devtools_layout_data: bool,
     pub(crate) treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
     pub(crate) fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
-    pub(crate) previous_line_data: Option<std::rc::Rc<used_values::LineData>>,
+    pub(crate) previous_line_data: Option<std::rc::Rc<inline_content::InlineContent>>,
 }
 
 impl FormattingContextRun {
@@ -1105,7 +1077,7 @@ impl FormattingContextRun {
         let root_outcome = RunRootOutcome {
             cells: used_values::UsedValuesCellState::capture(&record),
             own_metrics_sealed: record.own_metrics_are_sealed(),
-            line_data: record.line_data.get().map(std::cell::RefCell::take),
+            line_data: record.finish_line_data(&self.callbacks),
             rare: record.rare_data.get().map(std::cell::RefCell::take),
         };
         RunOutputs {
@@ -1670,7 +1642,7 @@ fn execute_formatting_context_run(
     callbacks: FfiLayoutFcCallbacks,
     input: LayoutInput,
     parent_block: Option<&block_formatting_context::BlockFormattingContext>,
-    previous_line_data: Option<std::rc::Rc<used_values::LineData>>,
+    previous_line_data: Option<std::rc::Rc<inline_content::InlineContent>>,
     table_inline_layout: Option<table_formatting_context::TableInlineLayout>,
 ) -> RunOutputs {
     assert!(!box_.is_invalid());

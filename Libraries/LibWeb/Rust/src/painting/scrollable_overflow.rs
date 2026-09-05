@@ -415,12 +415,12 @@ fn measure_scrollable_overflow_impl(
     if crate::painting::node_painting::has_lines(layout_arena, box_paintable) {
         let side_data = layout_arena.paintable_side_data(box_paintable);
         let absolute_position = paintable_geometry::absolute_position(layout_arena, box_paintable);
-        for line in &side_data.lines {
+        for line in side_data.lines() {
             let line_rect = CssPixelRect::from(line.rect).translated_by(absolute_position);
             scrollable_overflow_rect.unite(line_rect);
             in_flow_and_floated_content_bounds.unite(line_rect);
         }
-        for fragment in &side_data.fragments {
+        for fragment in side_data.fragments() {
             let mut fragment_rect = text_fragment::absolute_rect(layout_arena, fragment);
             if fragment_node_is_in_focused_text_control(layout_arena, overflow_callbacks, fragment.layout_node)
                 && let Some(style_source_style) =

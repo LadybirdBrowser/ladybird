@@ -686,10 +686,11 @@ pub unsafe extern "C" fn layout_arena_selection_apply(
     }
     // SAFETY: The caller guarantees the entry span is valid for this synchronous call.
     let entries = unsafe { ffi_slice(entries, entry_count) };
-    crate::painting::selection::apply(&mut arena.paintable_rows_mut(), viewport, entries);
+    let text_states = crate::painting::selection::apply(&mut arena.paintable_rows_mut(), viewport, entries);
     arena.paint_state().borrow_mut().selection = Some(crate::painting::selection::SelectionRange {
         start_offset: range_start_offset,
         end_offset: range_end_offset,
+        text_states,
     });
 }
 
@@ -703,7 +704,6 @@ pub unsafe extern "C" fn layout_arena_selection_clear(arena: *mut c_void, viewpo
         return;
     }
     crate::painting::selection::clear(&mut arena.paintable_rows_mut(), viewport);
-    arena.paint_state().borrow_mut().selection = None;
 }
 
 /// # Safety
@@ -2297,7 +2297,7 @@ pub unsafe extern "C" fn layout_arena_paintable_empty_line_caret_rect(
     // SAFETY: The caller guarantees the slot span is valid for this synchronous call.
     let node_slots = unsafe { ffi_slice(node_slots, node_slot_count) };
     let side = arena.paintable_side_data(block);
-    let Some(first_fragment) = side.fragments.first() else {
+    let Some(first_fragment) = side.fragments().first() else {
         return result;
     };
     if !node_slots.contains(&first_fragment.layout_node) {
@@ -2789,7 +2789,7 @@ pub unsafe extern "C" fn layout_arena_paintable_first_fragment_rect_for_node(
     if !paintable_rows.paintable_row_is_populated(block) {
         return result;
     }
-    for fragment in &arena.paintable_side_data(block).fragments {
+    for fragment in arena.paintable_side_data(block).fragments() {
         if fragment.layout_node != node {
             continue;
         }
@@ -2816,7 +2816,7 @@ pub unsafe extern "C" fn layout_arena_for_each_subtree_fragment_rect(
         return;
     }
     crate::painting::paint_order::for_each_in_paint_subtree(&paintable_rows, root, |current| {
-        for fragment in &arena.paintable_side_data(current).fragments {
+        for fragment in arena.paintable_side_data(current).fragments() {
             let shell = arena.shell_if_live(fragment.layout_node);
             let rect = crate::painting::text_fragment::absolute_rect(&paintable_rows, fragment).into();
             // SAFETY: The consumer copies its plain-data arguments synchronously.

@@ -74,7 +74,7 @@ fn commit_subtree(
         }
 
         if !reuses_committed_subtree && let Some(line_data) = &fragment.line_data {
-            has_pending_inline_box_geometry = paintables.set_line_data(node, line_data, fragment.content_inline_size);
+            has_pending_inline_box_geometry = paintables.set_line_data(node, line_data);
         }
     }
 
