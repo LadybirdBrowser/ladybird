@@ -1,0 +1,53 @@
+<!doctype html>
+<style>
+    @function --universal-inherit() {
+        result: inherit;
+    }
+
+    @function --universal-substituted-inherit() {
+        result: var(--missing, inherit);
+    }
+
+    @function --typed-inherit() returns <number> {
+        result: inherit;
+    }
+
+    @function --typed-substituted-inherit() returns <number> {
+        result: var(--missing, inherit);
+    }
+
+    /* A typed inherit result must not look up the outer result and create a cycle. */
+    @function --nested-inherit() {
+        --value: --typed-inherit();
+        result: var(--value, 0.7);
+    }
+
+    @function --nested-substituted-inherit() {
+        --value: --typed-substituted-inherit();
+        result: var(--value, 0.7);
+    }
+
+    #parent { opacity: 0.4; }
+    #universal { opacity: --universal-inherit(); }
+    #universal-substitution { opacity: --universal-substituted-inherit(); }
+    #typed { opacity: --typed-inherit(); }
+    #typed-substitution { opacity: --typed-substituted-inherit(); }
+    #nested { opacity: --nested-inherit(); }
+    #nested-substitution { opacity: --nested-substituted-inherit(); }
+</style>
+<div id="parent">
+    <div id="universal"></div>
+    <div id="universal-substitution"></div>
+    <div id="typed"></div>
+    <div id="typed-substitution"></div>
+    <div id="nested"></div>
+    <div id="nested-substitution"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const target of document.getElementById("parent").children) {
+            println(`${target.id}: ${getComputedStyle(target).opacity}`);
+        }
+    });
+</script>

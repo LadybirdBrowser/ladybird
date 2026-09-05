@@ -1,0 +1,6 @@
+missing-argument: ""
+excess-arguments: ""
+excess-argument-substitution: ""
+noncyclic-missing: "fallback"
+noncyclic-excess: "fallback"
+argument-default-result-keyword: "green"

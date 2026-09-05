@@ -154,7 +154,7 @@ struct FunctionLocalValue {
 struct FunctionLocalScope {
     function_identity: CustomFunctionIdentity,
     values: HashMap<Vec<u16>, FunctionLocalValue>,
-    registrations: HashMap<Vec<u16>, FunctionLocalRegistration>,
+    registrations: Rc<HashMap<Vec<u16>, FunctionLocalRegistration>>,
 }
 
 #[repr(C)]
@@ -982,12 +982,12 @@ fn resolve_function_local_property(
     } else {
         TokenResolution::Resolved(value.tokens)
     };
-    if let TokenResolution::Resolved(tokens) = &result
+    // https://drafts.csswg.org/css-mixins/#resolve-function-styles
+    // On result, all CSS-wide keywords are left unresolved.
+    if !registration.is_result
+        && let TokenResolution::Resolved(tokens) = &result
         && let Some(keyword) = single_css_wide_keyword(tokens)
     {
-        if registration.is_result && matches!(registration.syntax, SyntaxNode::Universal) {
-            return result;
-        }
         if keyword.eq_ignore_ascii_case("initial") {
             return registration
                 .initial_tokens
@@ -1835,7 +1835,277 @@ fn split_function_arguments(tokens: &[OwnedToken]) -> Option<Vec<&[OwnedToken]>>
     Some(arguments)
 }
 
-fn replace_custom_function(
+// https://drafts.csswg.org/css-mixins/#resolve-function-styles
+fn resolve_function_styles<'a>(
+    store: Option<&CustomPropertyStore>,
+    registry: Option<&CustomPropertyRegistry>,
+    local_scope: FunctionLocalScope,
+    property_names: impl IntoIterator<Item = &'a [u16]>,
+    context: &mut ASFResolutionContext,
+    recursion_depth: u32,
+) -> HashMap<Vec<u16>, TokenResolution> {
+    // 1. Create a "hypothetical element" el that acts as a child of calling context's element. el is featureless, and
+    //    only custom properties and the result descriptor apply to it.
+
+    // NB: FunctionLocalScope represents the custom properties and registrations of the hypothetical element. The rest
+    //     of the calling context is represented by the stores and ASFResolutionContext.
+    context.function_local_scopes.push(local_scope);
+
+    // 2. Apply rule to el to the specified value stage, with the following changes:
+    //
+    // - Only the custom property registrations in registrations are visible; all other custom properties are treated as
+    //   unregistered.
+    //
+    // FIXME: A registration miss in the current function can fall through to outer-function or document registrations.
+    //        The specification says those registrations are treated as unregistered here.
+    //
+    // - The inherited value of calling context's property is the guaranteed-invalid value.
+    //
+    // FIXME: We do not represent the calling property's inherited value explicitly. Looking it up through normal
+    //        context guarding can mark a cycle instead of producing the guaranteed-invalid value, which makes fallbacks
+    //        behave differently from the specification.
+    //
+    // - On custom properties, initial resolves to the registration's initial value, inherit resolves like an inherit()
+    //   function for that property, and any other CSS-wide keyword resolves to the guaranteed-invalid value. On result,
+    //   CSS-wide keywords are left unresolved.
+    //
+    //   NB: resolve_function_local_property() implements the registration and CSS-wide keyword behavior.
+    //
+    // - During replacement of a custom property prop, the substitution context also includes custom function.
+    //
+    //   NB: resolve_function_local_property() includes the function identity in the property substitution context.
+
+    // 3. Determine the computed value of all custom properties and the result "property" on el. Aside from custom
+    //    property references and numbers/percentages, values that would normally refer to the element being styled refer
+    //    to calling context's root element instead.
+    let mut computed_values = HashMap::new();
+
+    for name in property_names {
+        let value = resolve_custom_property(store, registry, name, context, recursion_depth + 1);
+        // FIXME: Duplicate parameter names make an @function rule invalid, but the parser currently accepts them. Keep
+        //        the pre-refactor behavior where a later failed resolution does not replace an earlier successful one.
+        //        See https://drafts.csswg.org/css-mixins/#function-prelude
+        if matches!(&value, TokenResolution::Resolved(_))
+            || !computed_values
+                .get(name)
+                .is_some_and(|value| matches!(value, TokenResolution::Resolved(_)))
+        {
+            computed_values.insert(name.to_vec(), value);
+        }
+    }
+
+    context.function_local_scopes.pop().expect("function-local style scope");
+
+    // 4. Return el's styles.
+    computed_values
+}
+
+// https://drafts.csswg.org/css-mixins/#evaluate-a-custom-function
+fn evaluate_a_custom_function(
+    store: Option<&CustomPropertyStore>,
+    registry: Option<&CustomPropertyRegistry>,
+    custom_function: &CustomFunctionDefinition,
+    arguments: Vec<TokenResolution>,
+    context: &mut ASFResolutionContext,
+    recursion_depth: u32,
+) -> TokenResolution {
+    // 1. Let substitution context be a substitution context containing «"function", custom function».
+    // Note: Due to tree-scoping, the same function name may appear multiple times on the stack while referring to
+    //       different custom functions. For this reason, the custom function itself is included in the substitution
+    //       context, not just its name.
+    let substitution_context =
+        SubstitutionContext::new(SubstitutionContextDependency::Function(custom_function.identity));
+
+    // 2. Guard substitution context for the remainder of this algorithm. If substitution context is marked as cyclic,
+    //    return the guaranteed-invalid value.
+    let Some(_guard) = context.guarded_contexts.guard(&substitution_context) else {
+        return TokenResolution::Cyclic;
+    };
+
+    // 3. If the number of items in arguments is greater than the number of function parameters in custom function,
+    //    return the guaranteed-invalid value.
+    if arguments.len() > custom_function.signature.parameters.len() {
+        return TokenResolution::Invalid;
+    }
+
+    // 4. Let registrations be an initially empty set of custom property registrations.
+    let mut registrations = Rc::new(HashMap::new());
+
+    // 5. For each function parameter of custom function, create a custom property registration with the parameter's
+    //    name, a syntax of the parameter type, an inherit flag of "true", and no initial value. Add the registration to
+    //    registrations.
+    for parameter in &custom_function.signature.parameters {
+        Rc::get_mut(&mut registrations)
+            .expect("Failed to get mutable reference to registrations")
+            .insert(
+                parameter.name.units().to_vec(),
+                FunctionLocalRegistration {
+                    syntax: (*parameter.syntax).clone(),
+                    initial_tokens: None,
+                    is_result: false,
+                },
+            );
+    }
+
+    // 6. If custom function has a return type, create a custom property registration with the name "result", a syntax
+    //    of the return type, an inherit flag of "false", and no initial value. Add the registration to registrations.
+    // NB: Custom functions always have a return type, defaulting to the universal syntax.
+    let result_name: Vec<u16> = b"result".iter().copied().map(u16::from).collect();
+    Rc::get_mut(&mut registrations)
+        .expect("Failed to get mutable reference to registrations")
+        .insert(
+            result_name.clone(),
+            FunctionLocalRegistration {
+                syntax: (*custom_function.signature.return_type).clone(),
+                initial_tokens: None,
+                is_result: true,
+            },
+        );
+
+    // NB: FunctionLocalRegistration does not store an inherit flag; resolve_function_local_property() encodes the
+    //     parameter and result inheritance behavior.
+
+    // 7. Let argument rule be an initially empty style rule.
+    let mut argument_rule = HashMap::new();
+
+    // 8. For each function parameter of custom function:
+    for (index, parameter) in custom_function.signature.parameters.iter().enumerate() {
+        // AD-HOC: Chrome (the only other implementer at time of writing) resolves the entire function to the
+        //         guaranteed-invalid value if a parameter without a default value is omitted.
+        //         See https://github.com/w3c/csswg-drafts/issues/14165
+        if index >= arguments.len() && parameter.default_value.is_none() {
+            return TokenResolution::Invalid;
+        }
+
+        // 1. Let arg value be the value of the corresponding argument in arguments, or the guaranteed-invalid value if
+        //    there is no corresponding argument.
+        let arg_value = arguments.get(index).unwrap_or(&TokenResolution::Invalid);
+
+        // 2. Let default value be the parameter's default value.
+        let default_value = custom_function.parameter_defaults[index].as_ref();
+
+        // 3. Add a custom property to argument rule with a name of the parameter's name, and a value of
+        //    'first-valid(arg value, default value)'.
+        // FIXME: We haven't implemented first-valid() yet, so do the equivalent inline.
+        let normalized_argument = match arg_value {
+            TokenResolution::Resolved(tokens) => normalize_function_tokens(registry, &parameter.syntax, tokens),
+            TokenResolution::NotHandled => return TokenResolution::NotHandled,
+            TokenResolution::Invalid | TokenResolution::Cyclic => TokenResolution::Invalid,
+        };
+
+        let value = match normalized_argument {
+            TokenResolution::Resolved(tokens) => Some(FunctionLocalValue {
+                tokens,
+                includes_substitution: false,
+            }),
+            TokenResolution::NotHandled => return TokenResolution::NotHandled,
+            TokenResolution::Invalid | TokenResolution::Cyclic => default_value.map(|tokens| FunctionLocalValue {
+                tokens: trim_whitespace(tokens).to_vec(),
+                includes_substitution: true,
+            }),
+        };
+        // NB: If neither value is valid, the missing declaration represents the guaranteed-invalid value: the
+        //     parameter's registration has no initial value, so resolve_function_local_property() returns Invalid.
+        if let Some(value) = value {
+            argument_rule.insert(parameter.name.units().to_vec(), value);
+        }
+    }
+
+    // 9. Resolve function styles using custom function, argument rule, registrations, and calling context. Let argument
+    //    styles be the result.
+    let mut argument_styles = resolve_function_styles(
+        store,
+        registry,
+        FunctionLocalScope {
+            function_identity: custom_function.identity,
+            values: argument_rule,
+            registrations: Rc::clone(&registrations),
+        },
+        custom_function
+            .signature
+            .parameters
+            .iter()
+            .map(|parameter| parameter.name.units()),
+        context,
+        recursion_depth,
+    );
+
+    // 10. Let body rule be the function body of custom function, as a style rule.
+    let mut body_rule = HashMap::new();
+
+    // 11. For each custom property registration of registrations except the registration with the name "result",
+    //     set its initial value to the corresponding value in argument styles, and prepend a custom property to
+    //     body rule with the property name and value in argument styles.
+    let mutable_registrations = Rc::get_mut(&mut registrations)
+        .expect("function-local registrations are uniquely owned after argument resolution clone is dropped");
+
+    for (name, registration) in mutable_registrations.iter_mut() {
+        if registration.is_result {
+            continue;
+        }
+
+        let Some(TokenResolution::Resolved(tokens)) = argument_styles.remove(name) else {
+            // NB: An absent value and no initial tokens represent the guaranteed-invalid value. Keeping the
+            //     registration ensures the parameter still shadows values from the calling context.
+            continue;
+        };
+
+        body_rule.insert(
+            name.clone(),
+            FunctionLocalValue {
+                tokens: tokens.clone(),
+                includes_substitution: false,
+            },
+        );
+
+        registration.initial_tokens = Some(tokens);
+    }
+
+    // NB: Function declarations are inserted after the parameter values to emulate prepending those parameter values
+    //     to the body rule.
+    for (name, tokens, includes_substitution) in &custom_function.declarations {
+        body_rule.insert(
+            name.clone(),
+            FunctionLocalValue {
+                tokens: tokens.clone(),
+                includes_substitution: *includes_substitution,
+            },
+        );
+    }
+
+    // 12. Resolve function styles using custom function, body rule, registrations, and calling context. Let body styles
+    //     be the result.
+    let mut body_styles = resolve_function_styles(
+        store,
+        registry,
+        FunctionLocalScope {
+            function_identity: custom_function.identity,
+            values: body_rule,
+            registrations,
+        },
+        custom_function
+            .declarations
+            .iter()
+            .map(|(name, _, _)| name.as_slice())
+            .filter(|name| *name != result_name.as_slice())
+            .chain(std::iter::once(result_name.as_slice())),
+        context,
+        recursion_depth,
+    );
+
+    // 13. If substitution context is marked as a cyclic substitution context, return the guaranteed-invalid value.
+    // Note: Nested arbitrary substitution functions may have marked substitution context as cyclic at some point after
+    //       step 2, for example when resolving result.
+    if substitution_context.is_cyclic.get() {
+        return TokenResolution::Cyclic;
+    }
+
+    // 14. Return the value of the result property in body styles.
+    body_styles.remove(&result_name).unwrap_or(TokenResolution::Invalid)
+}
+
+// https://drafts.csswg.org/css-mixins/#replace-a-dashed-function
+fn replace_a_dashed_function(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
     name: &[u16],
@@ -1843,9 +2113,15 @@ fn replace_custom_function(
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
+    // 1. Let function be the result of dereferencing the dashed function's name as a tree-scoped reference. If no such
+    //    name exists, return the guaranteed-invalid value.
     let Some(functions) = context.custom_functions else {
         return TokenResolution::NotHandled;
     };
+
+    // NB: Nested calls are resolved from the scope where the calling function was defined.
+    // FIXME: Top-level calls use the element's style scope, but should use the relevant CSS rule's style scope. See the
+    //        failing tests in function-shadow.html.
     let caller_scope_identity = context
         .guarded_contexts
         .innermost_function()
@@ -1882,18 +2158,23 @@ fn replace_custom_function(
             })?
         })
         .cloned();
-    let Some(definition) = definition else {
+    let Some(function) = definition else {
         return TokenResolution::Invalid;
     };
+
+    // FIXME: The generic arbitrary-substitution algorithm should parse the argument grammar before invoking this
+    //        replacement algorithm. The existing Rust path receives raw contents and parses them here instead.
     let Some(argument_slices) = split_function_arguments(arguments) else {
         return TokenResolution::Invalid;
     };
-    if argument_slices.len() > definition.signature.parameters.len() {
-        return TokenResolution::Invalid;
-    }
+
+    // 2. For each arg in arguments, substitute arbitrary substitution functions in arg, and replace arg with the
+    //    result.
+    // Note: This may leave some (or all) arguments as the guaranteed-invalid value, triggering default values (if any).
     let mut substituted_arguments = Vec::with_capacity(argument_slices.len());
-    for argument in argument_slices {
-        let mut argument = trim_whitespace(argument);
+    for arg in argument_slices {
+        let mut argument = trim_whitespace(arg);
+        // NB: Braces disambiguate an argument that contains a top-level comma; they are not part of the argument value.
         if matches!(
             argument.first().map(|token| &token.kind),
             Some(OwnedTokenKind::OpenCurly)
@@ -1901,6 +2182,7 @@ fn replace_custom_function(
         {
             argument = &argument[1..argument.len() - 1];
         }
+
         substituted_arguments.push(substitute_tokens(
             store,
             registry,
@@ -1910,122 +2192,22 @@ fn replace_custom_function(
         ));
     }
 
-    let mut argument_values = HashMap::new();
-    let mut argument_registrations = HashMap::new();
-    for (index, parameter) in definition.signature.parameters.iter().enumerate() {
-        let default_tokens = &definition.parameter_defaults[index];
-        if index >= substituted_arguments.len() && default_tokens.is_none() {
-            return TokenResolution::Invalid;
-        }
-        let argument = substituted_arguments.get(index);
-        let normalized_argument = match argument {
-            Some(TokenResolution::Resolved(tokens)) => normalize_function_tokens(registry, &parameter.syntax, tokens),
-            Some(TokenResolution::NotHandled) => return TokenResolution::NotHandled,
-            Some(TokenResolution::Cyclic) => TokenResolution::Invalid,
-            Some(TokenResolution::Invalid) | None => TokenResolution::Invalid,
-        };
-        let value = match normalized_argument {
-            TokenResolution::Resolved(tokens) => Some(FunctionLocalValue {
-                tokens,
-                includes_substitution: false,
-            }),
-            TokenResolution::NotHandled => return TokenResolution::NotHandled,
-            TokenResolution::Invalid | TokenResolution::Cyclic => {
-                default_tokens.as_ref().map(|tokens| FunctionLocalValue {
-                    tokens: trim_whitespace(tokens).to_vec(),
-                    includes_substitution: true,
-                })
-            }
-        };
-        if let Some(value) = value {
-            argument_values.insert(parameter.name.units().to_vec(), value);
-        }
-        argument_registrations.insert(
-            parameter.name.units().to_vec(),
-            FunctionLocalRegistration {
-                syntax: (*parameter.syntax).clone(),
-                initial_tokens: None,
-                is_result: false,
-            },
-        );
-    }
+    // 3. If dashed function is being substituted into a property on an element, let calling context be a calling
+    //    context with that element and that property. Otherwise, let calling context contain the hypothetical element
+    //    and descriptor into which the function is being substituted.
 
-    let substitution_context = SubstitutionContext::new(SubstitutionContextDependency::Function(definition.identity));
-    let Some(_guard) = context.guarded_contexts.guard(&substitution_context) else {
-        return TokenResolution::Cyclic;
-    };
-    context.function_local_scopes.push(FunctionLocalScope {
-        function_identity: definition.identity,
-        values: argument_values,
-        registrations: argument_registrations,
-    });
-    let mut resolved_arguments = HashMap::new();
-    for parameter in &definition.signature.parameters {
-        if let TokenResolution::Resolved(tokens) =
-            resolve_custom_property(store, registry, parameter.name.units(), context, recursion_depth + 1)
-        {
-            resolved_arguments.insert(parameter.name.units().to_vec(), tokens);
-        }
-    }
-    context.function_local_scopes.pop();
+    // NB: The calling context is represented by store, registry, and ASFResolutionContext, passed below.
 
-    let mut values = HashMap::new();
-    let mut registrations = HashMap::new();
-    for parameter in &definition.signature.parameters {
-        let initial_tokens = resolved_arguments.get(parameter.name.units()).cloned();
-        if let Some(tokens) = &initial_tokens {
-            values.insert(
-                parameter.name.units().to_vec(),
-                FunctionLocalValue {
-                    tokens: tokens.clone(),
-                    includes_substitution: false,
-                },
-            );
-        }
-        registrations.insert(
-            parameter.name.units().to_vec(),
-            FunctionLocalRegistration {
-                syntax: (*parameter.syntax).clone(),
-                initial_tokens,
-                is_result: false,
-            },
-        );
-    }
-    registrations.insert(
-        b"result".iter().copied().map(u16::from).collect(),
-        FunctionLocalRegistration {
-            syntax: (*definition.signature.return_type).clone(),
-            initial_tokens: None,
-            is_result: true,
-        },
-    );
-    for (name, tokens, includes_substitution) in &definition.declarations {
-        values.insert(
-            name.clone(),
-            FunctionLocalValue {
-                tokens: tokens.clone(),
-                includes_substitution: *includes_substitution,
-            },
-        );
-    }
-    context.function_local_scopes.push(FunctionLocalScope {
-        function_identity: definition.identity,
-        values,
-        registrations,
-    });
-    let result_name: Vec<u16> = b"result".iter().copied().map(u16::from).collect();
-    for (name, _, _) in &definition.declarations {
-        if name != &result_name {
-            let _ = resolve_custom_property(store, registry, name, context, recursion_depth + 1);
-        }
-    }
-    let result = resolve_custom_property(store, registry, &result_name, context, recursion_depth + 1);
-    context.function_local_scopes.pop();
-    if substitution_context.is_cyclic.get() {
-        TokenResolution::Cyclic
-    } else {
-        result
-    }
+    // 4. Evaluate a custom function, using function, arguments, and calling context, and return the equivalent token
+    //    sequence of the value resulting from the evaluation.
+    evaluate_a_custom_function(
+        store,
+        registry,
+        &function,
+        substituted_arguments,
+        context,
+        recursion_depth,
+    )
 }
 
 fn replace_if_function(
@@ -2312,7 +2494,7 @@ fn substitute_tokens(
                 replace_if_function(store, registry, contents, context, recursion_depth)
             }
             OwnedTokenKind::Function(name) if name.starts_with_ascii("--") => {
-                replace_custom_function(store, registry, name, contents, context, recursion_depth)
+                replace_a_dashed_function(store, registry, name, contents, context, recursion_depth)
             }
             _ => substitute_tokens(store, registry, contents, context, recursion_depth + 1),
         };
