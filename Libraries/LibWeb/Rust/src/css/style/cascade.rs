@@ -96,7 +96,6 @@ pub struct PriorityInputs {
     /// Encapsulation depth: 0 for the document tree, increasing inwards.
     pub context_depth: u32,
     pub element_attachment: ElementAttachment,
-    pub layer: CascadeLayerID,
     /// The layer's current rank, read from the layer order rather than copied into the rule.
     pub layer_rank: u64,
     pub specificity: Specificity,
@@ -155,7 +154,6 @@ impl CascadePriority {
             important: false,
             context_depth: 0,
             element_attachment: ElementAttachment::Rule,
-            layer: CascadeLayerID::UNLAYERED,
             layer_rank: 0,
             specificity: Specificity::default(),
             scope_proximity: 0,
@@ -2004,7 +2002,6 @@ mod tests {
             important,
             context_depth: 0,
             element_attachment: ElementAttachment::Rule,
-            layer: CascadeLayerID::UNLAYERED,
             layer_rank: 100,
             specificity: Specificity::default(),
             scope_proximity: 0,
@@ -2163,7 +2160,6 @@ mod tests {
         layer_rank: u64,
     ) -> CascadeCandidate {
         let mut priority_inputs = inputs(origin, important);
-        priority_inputs.layer = layer;
         priority_inputs.layer_rank = layer_rank;
         priority_inputs.rule_rank = u64::from(rule);
         let mut winner = winner(1, value, rule);
