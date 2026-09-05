@@ -4,34 +4,24 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibUnicode/CaseMapping.h>
 #include <LibUnicode/ICU.h>
+#include <LibUnicode/TextMapping.h>
 #include <unicode/casemap.h>
 #include <unicode/edits.h>
 #include <unicode/stringoptions.h>
 
 namespace Unicode {
 
-CaseMappingResult apply_case_mapping(Utf16String const& string, CaseMapping mapping, Optional<Utf16View> const& locale, TrailingCodePointTransformation trailing_code_point_transformation)
+static void apply_case_mapping_to(Utf16View const& string, CaseMapping mapping, Optional<Utf16View> const& locale, bool preserve_existing, UnicodeTextMappingOutput output)
 {
-    if (string.has_ascii_storage() && !locale.has_value()) {
-        switch (mapping) {
-        case CaseMapping::Lowercase:
-            return { string.to_ascii_lowercase(), {} };
-        case CaseMapping::Uppercase:
-            return { string.to_ascii_uppercase(), {} };
-        case CaseMapping::Titlecase:
-            break;
-        }
-    }
-
     auto icu_source = icu_string(string);
     auto const* source = reinterpret_cast<char16_t const*>(icu_source.getBuffer());
     auto const source_length = icu_source.length();
 
     char const* locale_name = nullptr;
     if (locale.has_value()) {
-        if (auto locale_data = LocaleData::for_locale(locale->bytes()); locale_data.has_value())
+        auto locale_string = MUST(locale->to_utf8(AllowLonelySurrogates::Yes));
+        if (auto locale_data = LocaleData::for_locale(locale_string.bytes_as_string_view()); locale_data.has_value())
             locale_name = locale_data->locale().getName();
     }
 
@@ -43,7 +33,7 @@ CaseMappingResult apply_case_mapping(Utf16String const& string, CaseMapping mapp
             return icu::CaseMap::toUpper(locale_name, 0, source, source_length, destination, destination_capacity, edits, status);
         case CaseMapping::Titlecase: {
             u32 options = 0;
-            if (trailing_code_point_transformation == TrailingCodePointTransformation::PreserveExisting)
+            if (preserve_existing)
                 options |= U_TITLECASE_NO_LOWERCASE;
             return icu::CaseMap::toTitle(locale_name, options, nullptr, source, source_length, destination, destination_capacity, edits, status);
         }
@@ -57,30 +47,30 @@ CaseMappingResult apply_case_mapping(Utf16String const& string, CaseMapping mapp
         verify_icu_success(status);
 
     status = U_ZERO_ERROR;
-    Vector<char16_t> destination;
-    destination.resize(destination_length);
+    auto* destination = reinterpret_cast<char16_t*>(output.allocate_text(output.context, destination_length));
     icu::Edits icu_edits;
-    VERIFY(map(destination.data(), destination_length, &icu_edits, status) == destination_length);
+    VERIFY(map(destination, destination_length, &icu_edits, status) == destination_length);
     verify_icu_success(status);
 
-    Vector<CaseMappingEdit> edits;
     auto iterator = icu_edits.getFineChangesIterator();
     while (iterator.next(status)) {
         if (iterator.oldLength() == iterator.newLength())
             continue;
-        edits.append({
+        output.append_edit(output.context,
             static_cast<size_t>(iterator.sourceIndex()),
             static_cast<size_t>(iterator.oldLength()),
             static_cast<size_t>(iterator.destinationIndex()),
-            static_cast<size_t>(iterator.newLength()),
-        });
+            static_cast<size_t>(iterator.newLength()));
     }
     verify_icu_success(status);
-
-    auto text = destination.is_empty()
-        ? Utf16String {}
-        : Utf16String::from_utf16({ destination.data(), destination.size() });
-    return { move(text), move(edits) };
 }
 
+}
+
+extern "C" void unicode_apply_case_mapping(u16 const* text, size_t length, u8 mapping, u16 const* locale, size_t locale_length, bool preserve_existing, UnicodeTextMappingOutput output)
+{
+    VERIFY(mapping <= to_underlying(Unicode::CaseMapping::Titlecase));
+    auto locale_view = locale ? Optional<Utf16View> { Utf16View { reinterpret_cast<char16_t const*>(locale), locale_length } } : Optional<Utf16View> {};
+    Unicode::apply_case_mapping_to({ reinterpret_cast<char16_t const*>(text), length }, static_cast<Unicode::CaseMapping>(mapping), locale_view,
+        preserve_existing, output);
 }
