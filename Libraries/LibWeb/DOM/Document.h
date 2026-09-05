@@ -921,7 +921,7 @@ public:
     void unload(GC::Ptr<Document> new_document = nullptr);
 
     // https://html.spec.whatwg.org/multipage/dom.html#active-parser
-    GC::Ptr<HTML::HTMLParser> active_parser();
+    GC::Ptr<HTML::HTMLParser> active_parser() const;
 
     // https://html.spec.whatwg.org/multipage/dom.html#load-timing-info
     DocumentLoadTimingInfo& load_timing_info() { return m_load_timing_info; }

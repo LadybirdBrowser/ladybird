@@ -6115,7 +6115,7 @@ void Document::abort_a_document_and_its_descendants()
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#active-parser
-GC::Ptr<HTML::HTMLParser> Document::active_parser()
+GC::Ptr<HTML::HTMLParser> Document::active_parser() const
 {
     if (!m_parser)
         return nullptr;
@@ -9881,7 +9881,12 @@ bool Document::is_render_blocked() const
     if (!m_pending_css_import_rules.is_empty())
         return true;
 
-    return !m_render_blocking_elements.is_empty() || allows_adding_render_blocking_elements();
+    if (!m_render_blocking_elements.is_empty())
+        return true;
+
+    // AD-HOC: A document can only be render blocked before the body element is inserted. We check that the parser is
+    //         still active so that the document doesn't become render blocked if the body element is later removed.
+    return allows_adding_render_blocking_elements() && active_parser();
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#allows-adding-render-blocking-elements
