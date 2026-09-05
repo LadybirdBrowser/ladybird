@@ -806,13 +806,6 @@ impl StyleEngine {
                 }
             }
         }
-        if plan_is_broad
-            && retained_answer_patch_selection
-                .as_ref()
-                .is_some_and(|selection| selection.orders_shifted)
-        {
-            self.retained_match_answers.evict(&mut self.match_answers);
-        }
         #[cfg(test)]
         if plan_is_broad && let Some(capture) = &mut self.diagnostic_plan_capture {
             capture.scoped = false;

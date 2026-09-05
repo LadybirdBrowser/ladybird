@@ -9686,6 +9686,58 @@ fn sheet_attachment_commits_at_the_transaction_barrier() {
 }
 
 #[test]
+fn sheet_order_inputs_only_name_sheets_whose_position_changed() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let user_agent = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::UserAgent);
+    let first = engine.add_sheet(StyleSheetObjectID(2), CascadeOrigin::Author);
+    let second = engine.add_sheet(StyleSheetObjectID(3), CascadeOrigin::Author);
+    for sheet in [user_agent, first, second] {
+        engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    }
+    engine.append_rule(user_agent, None, RuleKind::Style);
+    let first_rule = engine.append_rule(first, None, RuleKind::Style);
+    let second_rule = engine.append_rule(second, None, RuleKind::Style);
+    discard_transaction(&mut engine);
+
+    engine.attach_sheet(first, TreeScopeID::DOCUMENT);
+    let transaction = engine.take_transaction();
+    let mut rules: Vec<_> = transaction.program_joins.iter().map(|delta| delta.rule).collect();
+    rules.sort_unstable();
+    assert_eq!(rules, vec![first_rule, second_rule]);
+    engine.release_transaction(transaction);
+
+    engine.attach_sheet(user_agent, TreeScopeID::DOCUMENT);
+    let transaction = engine.take_transaction();
+    assert!(transaction.program_joins.is_empty());
+    engine.release_transaction(transaction);
+
+    engine.detach_sheet(first, TreeScopeID::DOCUMENT);
+    engine.attach_sheet(first, TreeScopeID::DOCUMENT);
+    let transaction = engine.take_transaction();
+    assert!(transaction.program_joins.is_empty());
+    engine.release_transaction(transaction);
+}
+
+#[test]
+fn edits_to_a_temporarily_detached_sheet_keep_their_rule_inputs() {
+    let (mut engine, sheet, rule) = authoring_engine();
+    engine.detach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let mut contents = engine.program.rule_version(rule);
+    contents.selector_program = Some(SelectorProgramID(2));
+    engine.replace_rule_version(rule, contents);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+
+    let transaction = engine.take_transaction();
+    assert!(transaction.program_joins.iter().any(|delta| {
+        delta.rule == rule
+            && delta.kind == ProgramJoinDeltaKind::ActiveRuleMatch
+            && delta.before_program == Some(SelectorProgramID(1))
+            && delta.after_program == Some(SelectorProgramID(2))
+    }));
+    engine.release_transaction(transaction);
+}
+
+#[test]
 fn rule_changes_share_one_sheet_attachment_decision_per_transaction() {
     let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
     let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);

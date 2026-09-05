@@ -4074,14 +4074,51 @@ impl StyleEngine {
                 self.program.rules_in_sheet(sheet),
                 ProgramJoinDeltaKind::ActiveRuleMatch,
             ),
-            InputKey::CascadeTopology(TopologyAxis::SheetOrder(tree_scope)) => (
-                self.program
-                    .sheets_in_scope(tree_scope)
-                    .iter()
-                    .flat_map(|&sheet| self.program.rules_in_sheet(sheet))
-                    .collect(),
-                ProgramJoinDeltaKind::Priority,
-            ),
+            InputKey::CascadeTopology(TopologyAxis::SheetOrder(tree_scope)) => {
+                let sheets = self
+                    .program_staging
+                    .sheets_in_scope
+                    .pairs()
+                    .find(|(scope, _, _)| *scope == tree_scope)
+                    .map_or_else(
+                        || self.program.sheets_in_scope(tree_scope).to_vec(),
+                        |(_, before, after)| {
+                            let mut positions_by_origin = HashMap::default();
+                            let before_positions: HashMap<_, _> = before
+                                .iter()
+                                .map(|&sheet| {
+                                    let position = positions_by_origin
+                                        .entry(self.program.sheet_origin(sheet) as u8)
+                                        .or_insert(0u64);
+                                    let entry = (sheet, *position);
+                                    *position += 1;
+                                    entry
+                                })
+                                .collect();
+                            positions_by_origin.clear();
+                            after
+                                .iter()
+                                .filter_map(|&sheet| {
+                                    let position = positions_by_origin
+                                        .entry(self.program.sheet_origin(sheet) as u8)
+                                        .or_insert(0u64);
+                                    let changed = before_positions
+                                        .get(&sheet)
+                                        .is_some_and(|previous| previous != position);
+                                    *position += 1;
+                                    changed.then_some(sheet)
+                                })
+                                .collect()
+                        },
+                    );
+                (
+                    sheets
+                        .into_iter()
+                        .flat_map(|sheet| self.program.rules_in_sheet(sheet))
+                        .collect(),
+                    ProgramJoinDeltaKind::Priority,
+                )
+            }
             InputKey::CascadeTopology(TopologyAxis::LayerOrder(tree_scope)) => (
                 self.program.rules_in_a_layer_in_scope(tree_scope),
                 ProgramJoinDeltaKind::Priority,

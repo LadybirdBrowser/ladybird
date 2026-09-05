@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="container"></div>
+<script>
+    test(() => {
+        const first = new CSSStyleSheet();
+        first.replaceSync(`
+            .target { color: red; background-color: red; --tone: red; }
+            .target::before { content: "first"; color: red; }
+            .unmatched * { color: red; }
+            :not(*) { color: red; }
+        `);
+        const second = new CSSStyleSheet();
+        second.replaceSync(`
+            .target { color: blue; --tone: blue; }
+            .target::before { content: "second"; }
+            .unmatched * { color: blue; }
+            :not(*) { color: blue; }
+        `);
+        document.adoptedStyleSheets = [first, second];
+        for (let index = 0; index < 64; ++index)
+            container.appendChild(document.createElement("div"));
+        const target = container.firstElementChild;
+        target.className = "target";
+        const child = target.appendChild(document.createElement("span"));
+        child.style.color = "var(--tone)";
+        internals.updateStyle();
+
+        function reorder(label, sheets, opacity) {
+            const before = internals.getStyleInvalidationCounters();
+            document.adoptedStyleSheets = sheets;
+            target.style.opacity = opacity;
+            internals.updateStyle();
+            const after = internals.getStyleInvalidationCounters();
+            println(`${label} stays selective: ${after.elementStyleRecomputations - before.elementStyleRecomputations < 16}`);
+            println(`${label} color: ${getComputedStyle(target).color}`);
+            println(`${label} background: ${getComputedStyle(target).backgroundColor}`);
+            println(`${label} child color: ${getComputedStyle(child).color}`);
+            println(`${label} pseudo content: ${getComputedStyle(target, "::before").content}`);
+            println(`${label} pseudo color: ${getComputedStyle(target, "::before").color}`);
+            println(`${label} opacity: ${getComputedStyle(target).opacity}`);
+        }
+
+        reorder("reverse", [second, first], "0.5");
+        reorder("restore", [first, second], "0.75");
+    });
+</script>

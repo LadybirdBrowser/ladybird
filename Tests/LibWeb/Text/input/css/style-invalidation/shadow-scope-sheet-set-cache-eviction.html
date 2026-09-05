@@ -24,9 +24,13 @@
         {
             // attr() keeps computed-style sharing from answering the .card on behalf of another
             // scope, so this test continues to observe the scope rule-cache builds themselves.
-            const base = makeSheet(`.card { color: attr(data-color type(<color>), rgb(1, 2, 3)); }`);
-            const alternate = makeSheet(`.title { color: rgb(4, 5, 6); }`);
-            const extra = makeSheet(`.badge { color: rgb(7, 8, 9); }`);
+            const base = makeSheet(`
+                .card { color: attr(data-color type(<color>), rgb(1, 2, 3)); }
+                @keyframes alternate { from { opacity: 0.5; } }
+                @keyframes extra { from { opacity: 0.75; } }
+            `);
+            const alternate = makeSheet(`.card { animation: alternate 1s paused; }`);
+            const extra = makeSheet(`.card { animation: extra 1s paused; }`);
             const keeper = makeHost();
             const cycler = makeHost();
             resetStyleCounters();
@@ -49,9 +53,13 @@
         // lifetime of the document: inserting a new set evicts abandoned entries, so coming back to an abandoned
         // set rebuilds its cache.
         {
-            const base = makeSheet(`.card { color: attr(data-color type(<color>), rgb(10, 20, 30)); }`);
-            const alternate = makeSheet(`.title { color: rgb(40, 50, 60); }`);
-            const extra = makeSheet(`.badge { color: rgb(70, 80, 90); }`);
+            const base = makeSheet(`
+                .card { color: attr(data-color type(<color>), rgb(10, 20, 30)); }
+                @keyframes alternate { from { opacity: 0.5; } }
+                @keyframes extra { from { opacity: 0.75; } }
+            `);
+            const alternate = makeSheet(`.card { animation: alternate 1s paused; }`);
+            const extra = makeSheet(`.card { animation: extra 1s paused; }`);
             const solo = makeHost();
             resetStyleCounters();
             solo.shadowRoot.adoptedStyleSheets = [base, alternate];

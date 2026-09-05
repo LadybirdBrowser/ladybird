@@ -1,0 +1,14 @@
+reverse stays selective: true
+reverse color: rgb(255, 0, 0)
+reverse background: rgb(255, 0, 0)
+reverse child color: rgb(255, 0, 0)
+reverse pseudo content: "first"
+reverse pseudo color: rgb(255, 0, 0)
+reverse opacity: 0.5
+restore stays selective: true
+restore color: rgb(0, 0, 255)
+restore background: rgb(255, 0, 0)
+restore child color: rgb(0, 0, 255)
+restore pseudo content: "second"
+restore pseudo color: rgb(255, 0, 0)
+restore opacity: 0.75

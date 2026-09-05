@@ -935,22 +935,24 @@ impl StyleEngine {
         if let Some(&carried) = self.program_staging.rule_change_is_carried_by_sheet.get(&sheet) {
             return carried;
         }
-        let committed_scopes = self.program.sheet_attachments(sheet).iter().filter_map(|attachment| {
-            let scope = attachment.tree_scope;
+        let mut scopes = self.program.sheet_scopes(sheet);
+        scopes.extend(
             self.program_staging
                 .sheets_in_scope
-                .after(scope)
-                .is_none_or(|sheets| sheets.contains(&sheet))
-                .then_some(scope)
-        });
-        let staged_scopes = self
-            .program_staging
-            .sheets_in_scope
-            .iter()
-            .filter_map(|(&scope, sheets)| sheets.contains(&sheet).then_some(scope));
+                .pairs()
+                .filter_map(|(scope, before, after)| {
+                    (before.contains(&sheet) || after.contains(&sheet)).then_some(scope)
+                }),
+        );
+        scopes.sort_unstable();
+        scopes.dedup();
+        if scopes.is_empty() {
+            self.program_staging.rule_change_is_carried_by_sheet.insert(sheet, true);
+            return true;
+        }
         // Every scope it decides in has to be arriving. A sheet adopted somewhere long ago and
         // attached somewhere new this transaction still has to answer for the old scope.
-        let carried = committed_scopes.chain(staged_scopes).all(|tree_scope| {
+        let carried = scopes.iter().all(|&tree_scope| {
             self.journal.pending_old(InputKey::SheetAttachment(sheet, tree_scope)) == Some(InputValue::Flag(false))
         });
         self.program_staging

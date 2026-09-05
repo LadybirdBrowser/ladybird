@@ -2705,6 +2705,11 @@ impl StyleEngine {
         old_cascade_input: MatchAnswerID,
         deltas: &[SelectorTruthDelta],
     ) -> Option<RetainedAnswerPatchOutcome> {
+        let orders_shifted = patch.orders_shifted_for(retained)
+            || (patch.orders_shifted
+                && deltas
+                    .iter()
+                    .any(|delta| patch.cascade_update_rules.binary_search(&delta.rule).is_ok()));
         if !patch.cascade_update_properties.is_empty() {
             if !deltas.is_empty() {
                 return None;
@@ -2715,7 +2720,7 @@ impl StyleEngine {
         }
         // Empty signed truth preserves the exact answer. Unless cascade order itself moved, its
         // compact identity is also unchanged, so stop without rebuilding either representation.
-        if deltas.is_empty() && !patch.orders_shifted {
+        if deltas.is_empty() && !orders_shifted {
             self.publish_cascade_input(node, old_cascade_input);
             self.counters.bump(Counter::RetainedMatchAnswerDeltaPatches);
             let emit = patch.always_emit_for(node);
@@ -2735,7 +2740,7 @@ impl StyleEngine {
         // answers under one patch's fixed cascade orders. A stopping transition therefore runs
         // once per cohort; every further member is one column store.
         let memo_key =
-            (!patch.always_emit_for(node) && !patch.orders_shifted && !self.node_has_element_declaration_input(node))
+            (!patch.always_emit_for(node) && !orders_shifted && !self.node_has_element_declaration_input(node))
                 .then(|| Self::retained_answer_delta_memo_key(old_identity, old_cascade_input, deltas));
         if let Some(key) = &memo_key
             && let Some(entry) = patch.delta_memo.get(key)
@@ -2782,7 +2787,7 @@ impl StyleEngine {
 
         let (answer, applied) = self.retained_answer_after_deltas(node, patch, retained, deltas)?;
 
-        if !patch.orders_shifted && self.retained_match_deltas_cannot_change_cascade(node, retained, deltas) {
+        if !orders_shifted && self.retained_match_deltas_cannot_change_cascade(node, retained, deltas) {
             self.remember_prepared_retained_match_answer(node, answer);
             self.publish_cascade_input(node, old_cascade_input);
             self.counters.bump(Counter::RetainedMatchAnswerDeltaPatches);
@@ -2850,7 +2855,7 @@ impl StyleEngine {
         self.publish_cascade_input(node, new_cascade_input);
         self.counters.bump(Counter::RetainedMatchAnswerDeltaPatches);
         self.counters.add(Counter::RetainedMatchAnswerDeltaEntries, applied);
-        let emit = patch.always_emit_for(node) || changed;
+        let emit = patch.always_emit_for(node) || changed || orders_shifted;
         if !emit {
             self.counters.bump(Counter::RetainedMatchAnswerPatchStops);
         }
@@ -3056,7 +3061,7 @@ impl StyleEngine {
         });
         if let Some(keys) = narrowed_keys.as_deref() {
             self.counters.bump(Counter::RetainedMatchAnswerFilteredPatches);
-            if keys.is_empty() {
+            if keys.is_empty() && patch.cascade_update_properties.is_empty() && !patch.orders_shifted_for(&retained) {
                 if let Some(deltas) = mixed_deltas
                     && delta_base.is_some()
                 {
@@ -3156,7 +3161,12 @@ impl StyleEngine {
                     .binary_search(&RetainedRuleMatch::from_rule_match(*entry))
                     .is_ok()
             });
-        if matches_retained_answer && !patch.orders_shifted {
+        let orders_shifted = patch.orders_shifted_for(&retained)
+            || (patch.orders_shifted
+                && patched_answer
+                    .iter()
+                    .any(|entry| patch.cascade_update_rules.binary_search(&entry.rule).is_ok()));
+        if matches_retained_answer && !orders_shifted {
             self.publish_cascade_input(node, old_cascade_input);
             self.counters.bump(Counter::RetainedMatchAnswerPatches);
             let emit = patch.always_emit_for(node);
@@ -3180,12 +3190,12 @@ impl StyleEngine {
         }
         self.publish_cascade_input(node, new_cascade_input);
         self.counters.bump(Counter::RetainedMatchAnswerPatches);
-        let emit = patch.always_emit_for(node) || changed;
+        let emit = patch.always_emit_for(node) || changed || orders_shifted;
         if !emit {
             self.counters.bump(Counter::RetainedMatchAnswerPatchStops);
         }
         Some(RetainedAnswerPatchOutcome {
-            identity_preserved: !changed,
+            identity_preserved: !changed && !orders_shifted,
             emit,
             incremental_cascade_answer: None,
         })

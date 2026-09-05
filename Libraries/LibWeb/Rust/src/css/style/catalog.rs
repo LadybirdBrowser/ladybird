@@ -983,6 +983,13 @@ pub(super) struct IncrementalCascadeAnswer {
 }
 
 impl RetainedAnswerPatch {
+    pub(super) fn orders_shifted_for(&self, retained: &[RetainedRuleMatch]) -> bool {
+        self.orders_shifted
+            && retained
+                .iter()
+                .any(|entry| self.cascade_update_rules.binary_search(&entry.rule).is_ok())
+    }
+
     pub(super) fn always_emit_for(&self, node: StyleNodeID) -> bool {
         self.always_emit || self.always_emit_nodes.binary_search(&node).is_ok()
     }

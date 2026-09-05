@@ -25,18 +25,12 @@
 
         // Moving a sheet changes its order token, and with it the winner among the rules that
         // overlap. Only the elements those rules match can change.
-        // FIXME: A sheet reordering widens to the document one way round and names the overlapping
-        //        element the other, which is the same input answered two ways. Narrowing it properly
-        //        needs the cascade stage to say which declarations changed hands.
         plan("move a sheet after the one it overlaps", () => head.appendChild(first));
         plan("move it back in front", () => head.insertBefore(first, second));
 
         // Reordering `adoptedStyleSheets` is the same input by another route: assigning the array
         // detaches every sheet and attaches it again, so what says a reorder happened is that each
         // sheet's attachment cancels while it was attached at both ends.
-        // FIXME: It reaches the whole document, because the scope it happened in is the document's
-        //        own and that scope holds the user-agent sheet, whose rules dispatch on everything.
-        //        Narrowing it needs the cascade stage to say which declarations changed hands.
         const a = new CSSStyleSheet();
         a.replaceSync(".item { font-weight: bold }");
         const b = new CSSStyleSheet();

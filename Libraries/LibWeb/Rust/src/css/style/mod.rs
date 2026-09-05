@@ -624,10 +624,6 @@ impl<K: Copy + Eq + Hash + Ord, V: Clone> StagedField<K, V> {
         self.dirty_count = 0;
     }
 
-    fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
-        self.touched.iter().map(|key| (key, &self.rows.get(key).unwrap().after))
-    }
-
     fn pairs(&self) -> impl Iterator<Item = (K, &V, &V)> {
         self.touched.iter().map(|&key| {
             let row = self.rows.get(&key).unwrap();
