@@ -39,6 +39,7 @@
 #include <LibWeb/HTML/EventSource.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
@@ -643,7 +644,6 @@ void WindowOrWorkerGlobalScopeMixin::clear_timeout(i32 id)
     if (auto timer = m_timers.get(id); timer.has_value())
         timer.value()->stop();
     m_timers.remove(id);
-    m_timer_nesting_levels.remove(id);
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-clearinterval
@@ -652,7 +652,6 @@ void WindowOrWorkerGlobalScopeMixin::clear_interval(i32 id)
     if (auto timer = m_timers.get(id); timer.has_value())
         timer.value()->stop();
     m_timers.remove(id);
-    m_timer_nesting_levels.remove(id);
 }
 
 void WindowOrWorkerGlobalScopeMixin::clear_map_of_active_timers()
@@ -660,7 +659,6 @@ void WindowOrWorkerGlobalScopeMixin::clear_map_of_active_timers()
     for (auto& it : m_timers)
         it.value->stop();
     m_timers.clear();
-    m_timer_nesting_levels.clear();
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#timer-initialisation-steps
@@ -674,9 +672,12 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
 
     // 3. If the surrounding agent's event loop's currently running task is a task that was created by this algorithm,
     //    then let nesting level be the task's timer nesting level. Otherwise, let nesting level be 0.
+    // NB: Only a task created by this algorithm carries a nonzero timer nesting level — so reading the level of
+    //     whatever task is running covers both cases. A microtask counts as its own task here — so a timer scheduled
+    //     from one starts over at 0 even when the checkpoint follows a deeply-nested timer callback.
     u32 nesting_level = 0;
-    if (previous_id.has_value())
-        nesting_level = m_timer_nesting_levels.get(previous_id.value()).value_or(0);
+    if (auto currently_running_task = relevant_agent(relevant_global_object(*this)).event_loop->currently_running_task())
+        nesting_level = currently_running_task->timer_nesting_level();
 
     // 4. If timeout is less than 0, then set timeout to 0.
     if (timeout < 0)
@@ -793,7 +794,6 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
         // 10. Otherwise, remove global's map of active timers[id].
         case Repeat::No:
             m_timers.remove(id);
-            m_timer_nesting_levels.remove(id);
             break;
         }
     }));
@@ -802,14 +802,21 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
     nesting_level++;
 
     // 11. Set task's timer nesting level to nesting level.
-    m_timer_nesting_levels.set(id, nesting_level);
-
     // 12. Let completionStep be an algorithm step which queues a global task on the timer task source given global to run task.
-    Function<void()> completion_step = [this, task = move(task)]() mutable {
-        queue_global_task(Task::Source::TimerTask, relevant_global_object(*this), GC::create_function(GC::Heap::the(), [this, task] {
+    // NB: The task the event loop runs is the one completionStep queues — so that's what carries step 11's nesting
+    //     level. queue_global_task() creates its task internally; so, this queues one by hand to get at it — and a
+    //     fresh one per firing, since a repeating timer's next firing can queue before the previous task has run.
+    Function<void()> completion_step = [this, task = move(task), nesting_level]() mutable {
+        auto& global = relevant_global_object(*this);
+        GC::Ptr<DOM::Document const> document;
+        if (auto* window = window_from_global_object(global))
+            document = &window->associated_document();
+        auto queued_task = Task::create(Task::Source::TimerTask, document, GC::create_function(GC::Heap::the(), [this, task] {
             HTML::TemporaryExecutionContext execution_context { relevant_settings_object(*this), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
             task->function()();
         }));
+        queued_task->set_timer_nesting_level(nesting_level);
+        relevant_agent(global).event_loop->task_queue().add(queued_task);
     };
 
     // 13. Set uniqueHandle to the result of running steps after a timeout given global, "setTimeout/setInterval",
