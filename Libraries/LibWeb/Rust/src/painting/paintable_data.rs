@@ -106,6 +106,7 @@ impl PaintableData {
 #[repr(C)]
 pub struct FfiSelectionEntry {
     pub is_text_node_entry: bool,
+    // Text entries name the DOM text's primary layout node; Rust expands its slices.
     pub layout_node: NodeSlotId,
     pub state: u8,
 }

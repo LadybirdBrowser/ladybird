@@ -1,0 +1,8 @@
+initial slices: "SSA", character widths: [40, 20]
+first-letter style change: "ßA", character widths: [20, 20]
+unsplit text: "SSA", character widths: [40, 20]
+new slice boundary: "ASS", character widths: [20, 40]
+empty remainder: "SS", character widths: [40]
+empty source: "", character widths: []
+restored slices: "SSA", character widths: [40, 20]
+reparented slices: "ASS", character widths: [20, 40]

@@ -28,7 +28,6 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/TextNode.h>
-#include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -1291,13 +1290,13 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
             if (selection_state == Painting::SelectionState::None)
                 continue;
 
-            Layout::TextOffsetMapping mapping { text };
-            if (!mapping.primary()) {
+            auto const* layout_node = text.unsafe_layout_node();
+            if (!layout_node) {
                 dbgln("FIXME: Failed to get client rects for node {}", node->debug_description());
                 continue;
             }
 
-            if (!visual_context_tree.has_value() && !document.can_compute_client_rects_without_accumulated_visual_contexts_update(*mapping.primary())) {
+            if (!visual_context_tree.has_value() && !document.can_compute_client_rects_without_accumulated_visual_contexts_update(*layout_node)) {
                 document.update_paint_and_hit_testing_properties_if_needed();
                 visual_context_tree = document.visual_context_tree();
                 rect_to_viewport_transform = Painting::rect_to_viewport_transform(document, *visual_context_tree);
@@ -1322,10 +1321,8 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
                 VERIFY_NOT_REACHED();
             }
 
-            auto text_slots = mapping.slot_ids();
-
             Layout::RustFFI::layout_arena_text_range_rects(
-                mapping.primary()->arena_handle(), text_slots.data(), text_slots.size(),
+                layout_node->arena_handle(), Layout::Node::slot_id(layout_node),
                 to_underlying(selection_state), start_offset(), end_offset(), filter_dom_start, filter_dom_end,
                 rect_to_viewport_transform, &rects, [](void* context, CSSPixelRect rect) {
                     static_cast<Vector<GC::Root<Geometry::DOMRect>>*>(context)->append(Geometry::DOMRect::create(rect.to_type<float>()));

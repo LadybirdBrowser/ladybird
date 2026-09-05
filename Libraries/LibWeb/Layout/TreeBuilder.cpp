@@ -469,9 +469,8 @@ static FirstLetterTextSlices create_first_letter_text_slices(DOM::Document& docu
     // (from a content property) has no DOM node and gets plain generated slices of its text instead.
     if (auto* dom_text = text_node.dom_text()) {
         auto& mutable_dom_text = const_cast<DOM::Text&>(*dom_text);
-        auto& remainder_slice = allocate_layout_node<TextSliceNode>(document, mutable_dom_text, Node::AttachToDOMNode::Yes, letter_end, full_length - letter_end);
-        auto& first_letter_slice = allocate_layout_node<TextSliceNode>(document, mutable_dom_text, Node::AttachToDOMNode::No, 0, letter_end);
-        remainder_slice.set_first_letter_slice(first_letter_slice);
+        auto& remainder_slice = allocate_layout_node<TextSliceNode>(document, mutable_dom_text, Node::AttachToDOMNode::Yes);
+        auto& first_letter_slice = allocate_layout_node<TextSliceNode>(document, mutable_dom_text, Node::AttachToDOMNode::No);
         return { &first_letter_slice, &remainder_slice };
     }
 

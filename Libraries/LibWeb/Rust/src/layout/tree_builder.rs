@@ -2190,6 +2190,7 @@ pub struct FfiFirstLetterTarget {
     pub text_layout_node: NodeSlotId,
     pub letter_start: usize,
     pub letter_end: usize,
+    pub source_length: usize,
     pub found: bool,
 }
 
@@ -2200,6 +2201,7 @@ impl FfiFirstLetterTarget {
             text_layout_node: NodeSlotId::INVALID,
             letter_start: 0,
             letter_end: 0,
+            source_length: 0,
             found: false,
         }
     }
@@ -3088,6 +3090,7 @@ pub(crate) fn find_first_letter_in_text(
                 text_layout_node: NodeSlotId::INVALID,
                 letter_start: match_start,
                 letter_end: cursor,
+                source_length: code_units,
                 found: true,
             };
         }
@@ -3125,6 +3128,7 @@ pub(crate) fn find_first_letter_in_text(
             text_layout_node: NodeSlotId::INVALID,
             letter_start: match_start,
             letter_end,
+            source_length: code_units,
             found: true,
         };
     }
@@ -3159,6 +3163,16 @@ fn create_first_letter_boxes(host: &DomTreeBuilderHost<'_>, element: *mut c_void
         layout_host.free_unplaced(first_letter_slice);
         layout_host.free_unplaced(remainder_slice);
         return;
+    }
+    if layout_host.data(nodes.remainder_slice).kind.get() == NodeKind::TextSliceNode {
+        // SAFETY: The host callback has returned and no arena borrow survives it.
+        // Initialize the source ranges before attaching or rendering either slice.
+        unsafe { &mut *layout_host.arena }.set_first_letter_slices(
+            nodes.first_letter_slice,
+            nodes.remainder_slice,
+            target.letter_end,
+            target.source_length,
+        );
     }
     let wrapper = layout_host.created(nodes.wrapper);
     let wrapper_slot = wrapper.slot();

@@ -15,7 +15,6 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
@@ -371,13 +370,11 @@ static void scroll_into_view(Layout::Node& node, CSSPixelRect rect)
 
 void scroll_text_offset_into_view(DOM::Text const& text, size_t offset, TextAffinity affinity, ScrollBlockDirection scroll_block_direction)
 {
-    auto text_slots = Layout::TextOffsetMapping { text }.slot_ids();
-    if (text_slots.is_empty())
-        return;
-
     auto const* layout_node = text.unsafe_layout_node();
+    if (!layout_node)
+        return;
     auto result = Layout::RustFFI::layout_arena_text_caret_rect_for_position(
-        layout_node->arena_handle(), text_slots.data(), text_slots.size(), offset,
+        layout_node->arena_handle(), Layout::Node::slot_id(layout_node), offset,
         affinity == TextAffinity::Downstream);
     if (!result.found)
         return;
