@@ -8,9 +8,11 @@
  */
 
 #include <AK/AnyOf.h>
+#include <AK/CharacterTypes.h>
 #include <AK/Debug.h>
 #include <AK/FFIHelpers.h>
 #include <LibGC/Heap.h>
+#include <LibGC/RootVector.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -1161,6 +1163,251 @@ DOM::Document& HTMLParser::document()
     return *m_document;
 }
 
+namespace {
+
+struct FragmentAttribute {
+    StringView name;
+    StringView value;
+};
+
+Utf16FlyString const* supported_fragment_tag(StringView name)
+{
+    // Keep this subset deliberately small. Adding a tag requires checking its in-body tree-builder rules,
+    // its insertion steps, and interactions with every other supported tag.
+    if (name == "a"sv)
+        return &TagNames::a;
+    if (name == "b"sv)
+        return &TagNames::b;
+    if (name == "br"sv)
+        return &TagNames::br;
+    if (name == "button"sv)
+        return &TagNames::button;
+    if (name == "div"sv)
+        return &TagNames::div;
+    if (name == "footer"sv)
+        return &TagNames::footer;
+    if (name == "i"sv)
+        return &TagNames::i;
+    if (name == "input"sv)
+        return &TagNames::input;
+    if (name == "label"sv)
+        return &TagNames::label;
+    if (name == "li"sv)
+        return &TagNames::li;
+    if (name == "ol"sv)
+        return &TagNames::ol;
+    if (name == "span"sv)
+        return &TagNames::span;
+    if (name == "strong"sv)
+        return &TagNames::strong;
+    if (name == "ul"sv)
+        return &TagNames::ul;
+    if (name == "article"sv)
+        return &TagNames::article;
+    if (name == "aside"sv)
+        return &TagNames::aside;
+    if (name == "header"sv)
+        return &TagNames::header;
+    if (name == "main"sv)
+        return &TagNames::main;
+    if (name == "nav"sv)
+        return &TagNames::nav;
+    if (name == "section"sv)
+        return &TagNames::section;
+    if (name == "big"sv)
+        return &TagNames::big;
+    if (name == "code"sv)
+        return &TagNames::code;
+    if (name == "em"sv)
+        return &TagNames::em;
+    if (name == "s"sv)
+        return &TagNames::s;
+    if (name == "small"sv)
+        return &TagNames::small;
+    if (name == "strike"sv)
+        return &TagNames::strike;
+    if (name == "tt"sv)
+        return &TagNames::tt;
+    if (name == "u"sv)
+        return &TagNames::u;
+    return nullptr;
+}
+
+class FragmentScanner {
+public:
+    explicit FragmentScanner(StringView input)
+        : m_input(input)
+    {
+    }
+
+    template<typename Open, typename Close, typename Text>
+    bool parse(Open&& open, Close&& close, Text&& text)
+    {
+        Vector<Utf16FlyString const*, 32> stack;
+        Vector<FragmentAttribute, 16> attributes;
+        while (m_offset < m_input.length()) {
+            if (peek() != '<') {
+                auto start = m_offset;
+                while (m_offset < m_input.length() && peek() != '<') {
+                    if (peek() == '&' || peek() == '\r' || peek() == '\0')
+                        return false;
+                    ++m_offset;
+                }
+                text(m_input.substring_view(start, m_offset - start));
+                continue;
+            }
+            ++m_offset;
+            bool is_end_tag = consume('/');
+            auto name = scan_name();
+            auto* tag = supported_fragment_tag(name);
+            if (!tag)
+                return false;
+            if (is_end_tag) {
+                skip_whitespace();
+                if (!consume('>') || stack.is_empty() || stack.take_last() != tag)
+                    return false;
+                close();
+                continue;
+            }
+
+            // Leave implicit closing of anchors, buttons, and list items to the general parser.
+            if ((tag == &TagNames::a || tag == &TagNames::button) && stack.contains_slow(tag))
+                return false;
+            if (tag == &TagNames::li) {
+                for (size_t i = stack.size(); i > 0; --i) {
+                    auto* ancestor = stack[i - 1];
+                    if (ancestor == &TagNames::li)
+                        return false;
+                    // A nested list stops the in-body rule from closing an outer list item.
+                    if (ancestor == &TagNames::ul || ancestor == &TagNames::ol)
+                        break;
+                }
+            }
+            if (stack.size() >= 128)
+                return false;
+
+            attributes.clear_with_capacity();
+            while (true) {
+                skip_whitespace();
+                if (peek() == '>' || peek() == '/')
+                    break;
+                auto attribute_name = scan_name();
+                if (attribute_name.is_empty() || attribute_name == "is"sv || attributes.size() >= 64)
+                    return false;
+                for (auto const& attribute : attributes) {
+                    if (attribute.name == attribute_name)
+                        return false;
+                }
+                skip_whitespace();
+                StringView value = ""sv;
+                if (consume('=')) {
+                    skip_whitespace();
+                    char quote = peek();
+                    if (quote != '\'' && quote != '"')
+                        return false;
+                    ++m_offset;
+                    auto start = m_offset;
+                    while (m_offset < m_input.length() && peek() != quote) {
+                        if (peek() == '&' || peek() == '\r' || peek() == '\0')
+                            return false;
+                        ++m_offset;
+                    }
+                    value = m_input.substring_view(start, m_offset - start);
+                    if (!consume(quote))
+                        return false;
+                }
+                if (tag == &TagNames::input && attribute_name == "type"sv && !value.is_one_of("text"sv, "checkbox"sv))
+                    return false;
+                attributes.append({ attribute_name, value });
+            }
+            bool is_void = tag == &TagNames::br || tag == &TagNames::input;
+            if (consume('/') && !is_void)
+                return false;
+            if (!consume('>'))
+                return false;
+            open(*tag, attributes.span(), is_void);
+            if (!is_void)
+                stack.append(tag);
+        }
+        return stack.is_empty();
+    }
+
+private:
+    char peek() const { return m_offset < m_input.length() ? m_input[m_offset] : '\0'; }
+
+    bool consume(char ch)
+    {
+        if (m_offset == m_input.length() || peek() != ch)
+            return false;
+        ++m_offset;
+        return true;
+    }
+
+    void skip_whitespace()
+    {
+        while (peek() == ' ' || peek() == '\t' || peek() == '\n' || peek() == '\f')
+            ++m_offset;
+    }
+
+    StringView scan_name()
+    {
+        auto start = m_offset;
+        while (is_ascii_lower_alpha(peek()) || is_ascii_digit(peek()) || peek() == '-')
+            ++m_offset;
+        return m_input.substring_view(start, m_offset - start);
+    }
+
+    StringView m_input;
+    size_t m_offset { 0 };
+};
+
+}
+
+GC::Ptr<DOM::DocumentFragment> HTMLParser::try_parse_html_fragment_fast(DOM::Element& context, Utf16View input)
+{
+    // OPTIMIZATION: Validate a restricted in-body grammar before allocating or exposing any DOM nodes. The second
+    //               pass borrows input spans and constructs elements directly, bypassing tokenization and tree building.
+    //               All unsupported syntax falls back without side effects, including custom elements and foreign content.
+    if (context.namespace_uri() != Namespace::HTML || !input.has_ascii_storage())
+        return nullptr;
+    if (!context.local_name().is_one_of(TagNames::body, TagNames::div, TagNames::span, TagNames::ul, TagNames::ol,
+            TagNames::li, TagNames::footer, TagNames::button, TagNames::label, TagNames::p))
+        return nullptr;
+    if (context.first_ancestor_of_type<HTMLFormElement>())
+        return nullptr;
+
+    StringView source { input.ascii_span().data(), input.length_in_code_units() };
+    // Character references and input preprocessing use the general parser.
+    if (!FragmentScanner { source }.parse([](auto const&, auto, bool) { }, [] { }, [](auto) { }))
+        return nullptr;
+
+    auto fragment = DOM::DocumentFragment::create(context.document());
+    auto registry = look_up_a_custom_element_registry(context);
+    GC::RootVector<GC::Ref<DOM::Node>, 32> parents;
+    parents.append(fragment);
+    auto success = FragmentScanner { source }.parse(
+        [&](Utf16FlyString const& tag, ReadonlySpan<FragmentAttribute> attributes, bool is_void) {
+            auto& parent = *parents.last();
+            auto element = MUST(DOM::create_element(context.document(), tag, Namespace::HTML, {}, {}, false, registry));
+            for (auto const& attribute : attributes) {
+                DOM::QualifiedName name { Utf16FlyString::from_utf8_without_validation(attribute.name), {}, {} };
+                element->append_attribute(move(name), Utf16String::from_utf8_without_validation(attribute.value));
+            }
+            auto& html_element = as<HTMLElement>(*element);
+            if (html_element.is_form_associated_element() && html_element.is_resettable())
+                html_element.reset_algorithm();
+            MUST(parent.append_child(element));
+            if (!is_void)
+                parents.append(element);
+        },
+        [&] { parents.take_last(); },
+        [&](StringView text) {
+            MUST(parents.last()->append_child(DOM::Text::create(context.document(), Utf16String::from_utf8_without_validation(text))));
+        });
+    VERIFY(success);
+    return fragment;
+}
+
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-html-fragments
 WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragment(Variant<GC::Ref<DOM::Element>, GC::Ref<DOM::DocumentFragment>> target, Utf16View input, AllowDeclarativeShadowRoots allow_declarative_shadow_roots, ParserScriptingMode scripting_mode)
 {
@@ -1174,6 +1421,12 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragm
 
     // 3. Assert: context is non-null.
     VERIFY(context);
+
+    // OPTIMIZATION: A validated subset of in-body fragments can be constructed directly from input spans.
+    if (target.has<GC::Ref<DOM::Element>>()) {
+        if (auto fragment = try_parse_html_fragment_fast(*context, input))
+            return GC::Ref { *fragment };
+    }
 
     // 4. Let document be a Document node whose type is "html".
 
