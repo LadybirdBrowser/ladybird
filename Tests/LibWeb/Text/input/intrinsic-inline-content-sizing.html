@@ -1,0 +1,80 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+    body { margin: 0; }
+    .container { width: 240px; height: 100px; font: 10px/20px Ahem; }
+    .target { display: inline-block; }
+    .atomic { display: inline-block; }
+</style>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("10px Ahem");
+        const cases = [
+            ["words", "", "alpha beta gamma"],
+            ["collapsed whitespace", "", "  alpha <span> </span> beta  "],
+            ["inline edges", "", ' <span style="padding: 3px; border: 2px solid; margin: 4px">alpha <b>beta</b> </span> gamma '],
+            ["adjacent inline edges", "", '<span style="padding: 3px"> </span><span style="margin: 4px">alpha </span><span> beta </span>'],
+            ["inline edges before break", "", '<span style="padding: 3px"> </span><br>alpha'],
+            ["inline edges before absolute", "position: relative", '<span style="padding: 3px"> </span><span style="position: absolute">beta</span>alpha'],
+            ["nowrap", "white-space: nowrap", " alpha beta gamma "],
+            ["pre", "white-space: pre", " alpha\t beta \n gamma "],
+            ["pre-wrap", "white-space: pre-wrap", " alpha\t beta \n gamma "],
+            ["pre-line", "white-space: pre-line", " alpha  beta \n gamma "],
+            ["break-spaces", "white-space: break-spaces", " alpha  beta \n gamma "],
+            ["mixed whitespace", "", 'alpha<span style="white-space: pre">  </span> beta <span style="white-space: nowrap">gamma delta </span>'],
+            ["forced breaks", "", "alpha<br><br>beta gamma<br>"],
+            ["indent", "text-indent: 13px", "alpha beta gamma"],
+            ["negative indent", "text-indent: -13px", "alpha beta gamma"],
+            ["rtl", "direction: rtl", "alpha <span dir=ltr>beta gamma</span>"],
+            ["break-all", "word-break: break-all", "alphabetagamma"],
+            ["anywhere", "overflow-wrap: anywhere", "alphabetagamma"],
+            ["nested atomic", "", '<span class=atomic>alpha <span class=atomic>beta gamma</span></span> delta'],
+            ["nested blocks", "", '<span class=atomic><div>alpha beta</div><div>gamma</div></span> delta'],
+            ["block interruption", "", "alpha<span>beta<div>gamma delta</div>epsilon</span>zeta"],
+            ["atomic constraints", "", '<span class=atomic style="width: 80px; min-width: 90px; max-width: 100px; box-sizing: border-box; padding: 4px; border: 2px solid; margin: 3px">alpha beta gamma</span> delta'],
+            ["atomic percentages", "", '<span class=atomic style="width: 50%; min-width: 20%; max-width: 80%; padding: 5%; margin: 2%">alpha beta</span> gamma'],
+            ["negative margins", "", '<span class=atomic style="margin: 0 -15px">alpha beta</span><span style="margin-left: -8px">gamma</span>'],
+            ["saturated advances", "", '<span class=atomic style="width: 33554430px; margin-left: -33554420px; padding-right: 20px"></span>alpha'],
+            ["floats", "", '<span style="float: left">alpha</span><span style="float: right">beta</span>gamma delta'],
+            ["float clearance", "", '<span style="float: left">alpha</span>beta<br style="clear: both">gamma'],
+            ["absolute", "position: relative", 'alpha<span style="position: absolute">long positioned text</span> beta'],
+            ["vertical", "writing-mode: vertical-rl", 'alpha <span class=atomic>beta gamma</span>'],
+            ["orthogonal atomic", "", '<span class=atomic style="writing-mode: vertical-rl; height: 60px">alpha beta gamma</span> delta'],
+            ["replaced", "", '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="20"></svg> alpha'],
+            ["aspect ratio", "", '<span class=atomic style="height: 40px; aspect-ratio: 2">alpha</span> beta'],
+            ["percentage aspect ratio", "height: 50%", '<span class=atomic style="height: 50%; aspect-ratio: 2">alpha</span> beta'],
+            ["inline flex", "", '<span style="display: inline-flex"><span>alpha beta</span><span>gamma</span></span> delta'],
+            ["inline grid", "", '<span style="display: inline-grid; grid-template-columns: auto auto"><span>alpha beta</span><span>gamma</span></span> delta'],
+            ["inline table", "", '<span style="display: inline-table"><span style="display: table-cell">alpha beta</span><span style="display: table-cell">gamma</span></span> delta'],
+            ["containment", "contain: size; contain-intrinsic-size: 35px 25px", "alpha beta gamma"],
+            ["scroll container", "overflow: scroll", "alpha beta gamma"],
+        ];
+        for (const [name, declarations, content] of cases) {
+            const container = document.createElement("div");
+            container.className = "container";
+            const target = document.createElement("span");
+            target.className = "target";
+            target.style.cssText = declarations;
+            target.innerHTML = content;
+            container.append(target);
+            document.body.append(container);
+            const dimensions = [];
+            for (const width of ["max-content", "min-content", "auto"]) {
+                target.style.width = width;
+                const rect = target.getBoundingClientRect();
+                dimensions.push(`${rect.width}x${rect.height}`);
+            }
+            container.style.width = "120px";
+            container.style.height = "200px";
+            const rect = target.getBoundingClientRect();
+            dimensions.push(`${rect.width}x${rect.height}`);
+            println(`${name}: ${dimensions.join(", ")}`);
+            container.remove();
+        }
+        done();
+    });
+</script>

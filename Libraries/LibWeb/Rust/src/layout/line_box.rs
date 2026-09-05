@@ -6,6 +6,17 @@
 
 use super::*;
 
+// NB: Keep the addition order shared with intrinsic sizing: CssPixels arithmetic saturates.
+pub(crate) fn inline_advance(
+    leading_margin: CssPixels,
+    leading_size: CssPixels,
+    content_inline_size: CssPixels,
+    trailing_size: CssPixels,
+    trailing_margin: CssPixels,
+) -> CssPixels {
+    leading_margin + leading_size + content_inline_size + trailing_size + trailing_margin
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct StaticPositionMarker {
     pub(crate) box_: Node,
@@ -142,7 +153,13 @@ impl LineBoxData {
             fragment.trailing_whitespace = trailing_whitespace;
             self.fragments.push(fragment);
         }
-        self.inline_length += leading_margin + leading_size + content_inline_size + trailing_size + trailing_margin;
+        self.inline_length += inline_advance(
+            leading_margin,
+            leading_size,
+            content_inline_size,
+            trailing_size,
+            trailing_margin,
+        );
         self.block_length = self
             .block_length
             .max(content_block_size + border_box_block_start + border_box_block_end);

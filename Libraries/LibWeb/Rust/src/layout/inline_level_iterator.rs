@@ -311,8 +311,15 @@ struct TextNodeContext {
     last_known_direction: Option<u8>,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum AtomicInlineSizing {
+    Layout,
+    InlineSize,
+}
+
 struct InlineLevelIteratorGenerator<'iterator, 'context> {
     context: &'iterator mut inline_formatting_context::InlineFormattingContext<'context>,
+    atomic_sizing: AtomicInlineSizing,
     current_node: Node,
     next_node: Node,
     text_node_context: Option<TextNodeContext>,
@@ -330,11 +337,13 @@ struct InlineLevelIteratorGenerator<'iterator, 'context> {
 impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
     fn generate(
         context: &'iterator mut inline_formatting_context::InlineFormattingContext<'context>,
-    ) -> InlineLevelIterator {
+        atomic_sizing: AtomicInlineSizing,
+    ) -> Option<InlineLevelIterator> {
         let containing_block = context.containing_block;
         let next_node = context.first_child(containing_block);
         let mut iterator = Self {
             context,
+            atomic_sizing,
             next_node,
             current_node: NodeSlotId::INVALID,
             text_node_context: None,
@@ -348,14 +357,14 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             accumulated_inline_size_for_tabs: CssPixels::default(),
             previous_chunk_can_break_after: false,
         };
-        iterator.is_unidirectional_left_to_right = iterator.compute_is_unidirectional_left_to_right();
+        iterator.is_unidirectional_left_to_right = iterator.compute_is_unidirectional_left_to_right()?;
         iterator.skip_to_next();
         iterator.generate_all_items();
-        InlineLevelIterator {
+        Some(InlineLevelIterator {
             visited_fragmented_inlines: iterator.visited_fragmented_inlines,
             items: iterator.items,
             next_item_index: iterator.next_item_index,
-        }
+        })
     }
 
     fn context(&self) -> &inline_formatting_context::InlineFormattingContext<'context> {
@@ -370,24 +379,34 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         self.context().facts(node).is_floating_or_absolutely_positioned()
     }
 
-    fn compute_is_unidirectional_left_to_right(&mut self) -> bool {
+    fn compute_is_unidirectional_left_to_right(&mut self) -> Option<bool> {
         let containing_block = self.context().containing_block;
-        if self.context().style(containing_block).direction() == direction::RTL {
-            return false;
+        let intrinsic_inline_sizing = self.atomic_sizing == AtomicInlineSizing::InlineSize;
+        let mut is_unidirectional_left_to_right = self.context().style(containing_block).direction() != direction::RTL;
+        if !intrinsic_inline_sizing && !is_unidirectional_left_to_right {
+            return Some(false);
         }
 
         let mut node = self.context().first_child(containing_block);
         while !node.is_invalid() {
             let facts = self.context().facts(node);
+            // NB: The width query cannot derive float interactions or block interruptions from inline items.
+            //     Reject them during this existing traversal, before shaping text or sizing atomic children.
+            if intrinsic_inline_sizing && (facts.is_floating() || facts.is_inline_flow_interrupting_block()) {
+                return None;
+            }
             if !facts.is_text_node() {
                 let style = self.context().style(node);
                 if style.direction() == direction::RTL || style.unicode_bidi() != unicode_bidi::NORMAL {
-                    return false;
+                    is_unidirectional_left_to_right = false;
                 }
             } else if self.context().text_may_require_bidi_processing(node) {
-                return false;
+                is_unidirectional_left_to_right = false;
             }
 
+            if !intrinsic_inline_sizing && !is_unidirectional_left_to_right {
+                return Some(false);
+            }
             loop {
                 node = self.next_inline_node_in_pre_order(node, containing_block);
                 if !node.is_invalid() && self.context().facts(node).is_svg_mask_box() {
@@ -402,7 +421,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
                 }
             }
         }
-        true
+        Some(is_unidirectional_left_to_right)
     }
 
     fn generate_all_items(&mut self) {
@@ -783,24 +802,56 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             return Some(Item::new(ItemType::BlockLevelBox, node));
         }
 
-        let used = if self.box_model_node_stack.last().copied() == Some(node) {
-            self.context().used(node)
-        } else {
-            self.context()
-                .create_used_values(node, self.context().input.containing_block_constraints)
-        };
-        let content_baselines = self.context_mut().dimension_box_on_line(node);
-        let min_content_inline_size = self.context().paired_min_content_inline_size_for_atomic_root(node);
         let mut item = Item::new(ItemType::Element, node);
-        item.content_baselines = content_baselines;
-        item.inline_size = used.content_inline_size.get();
-        item.min_content_inline_size = min_content_inline_size;
-        item.padding_start = used.padding_left.get();
-        item.padding_end = used.padding_right.get();
-        item.border_start = used.border_left.get();
-        item.border_end = used.border_right.get();
-        item.margin_start = used.margin_left.get();
-        item.margin_end = used.margin_right.get();
+        let style = self.context().style(node);
+        if self.atomic_sizing == AtomicInlineSizing::InlineSize
+            && formatting_context::independent_formatting_context_type(node, &self.context().callbacks)
+                == formatting_context::FfiFormattingContextType::Block
+            && style.writing_mode() == writing_mode::HORIZONTAL_TB
+            && !facts.has_preferred_aspect_ratio()
+            && !facts.has_auto_content_box_size()
+            && !facts.uses_button_layout()
+            && !facts.is_table_wrapper()
+            && !facts.is_fieldset_box()
+        {
+            let context = self.context();
+            let sizing = context.sizing();
+            let available_space = context.input.available_space;
+            let constraints = context.input.containing_block_constraints;
+            let basis = available_space.inline_size.to_px_or_zero();
+            // NB: Content-box inline sizing does not read used geometry. Border-box sizing still needs
+            //     a record for the shared resolver's padding adjustment.
+            if style.box_sizing() == box_sizing::BORDER_BOX {
+                context.create_used_values(node, constraints);
+                sizing.resolve_box_model_metrics_against_inline_basis(node, basis);
+            }
+            item.inline_size = sizing
+                .calculate_atomic_root_content_inline_size(node, available_space, constraints, None)
+                .content_inline_size;
+            item.min_content_inline_size = context.paired_min_content_inline_size_for_atomic_root(node);
+            item.padding_start = style.padding_left().to_px(basis);
+            item.padding_end = style.padding_right().to_px(basis);
+            item.border_start = style.border_left_width();
+            item.border_end = style.border_right_width();
+            item.margin_start = style.margin_left().to_px(basis);
+            item.margin_end = style.margin_right().to_px(basis);
+        } else {
+            let used = if self.box_model_node_stack.last().copied() == Some(node) {
+                self.context().used(node)
+            } else {
+                self.context()
+                    .create_used_values(node, self.context().input.containing_block_constraints)
+            };
+            item.content_baselines = self.context_mut().dimension_box_on_line(node);
+            item.min_content_inline_size = self.context().paired_min_content_inline_size_for_atomic_root(node);
+            item.inline_size = used.content_inline_size.get();
+            item.padding_start = used.padding_left.get();
+            item.padding_end = used.padding_right.get();
+            item.border_start = used.border_left.get();
+            item.border_end = used.border_right.get();
+            item.margin_start = used.margin_left.get();
+            item.margin_end = used.margin_right.get();
+        }
         self.add_extra_box_model_metrics_to_item(&mut item, true, true);
         self.skip_to_next();
         Some(item)
@@ -815,7 +866,14 @@ pub(crate) struct InlineLevelIterator {
 
 impl InlineLevelIterator {
     pub(crate) fn new(context: &mut inline_formatting_context::InlineFormattingContext<'_>) -> Self {
-        InlineLevelIteratorGenerator::generate(context)
+        InlineLevelIteratorGenerator::generate(context, AtomicInlineSizing::Layout)
+            .expect("normal inline item generation always succeeds")
+    }
+
+    pub(crate) fn for_intrinsic_inline_size(
+        context: &mut inline_formatting_context::InlineFormattingContext<'_>,
+    ) -> Option<Self> {
+        InlineLevelIteratorGenerator::generate(context, AtomicInlineSizing::InlineSize)
     }
 
     pub(crate) fn next(&mut self) -> Option<Item> {
