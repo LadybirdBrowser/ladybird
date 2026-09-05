@@ -243,30 +243,23 @@ impl Drop for PinnedAtoms {
 
 impl DocumentAtoms {
     pub(super) fn for_live_engine() -> Self {
-        Self {
-            raw: HashMap::new(),
-            cpp_memoized_raws: HashSet::new(),
-            qualified: HashMap::new(),
-            #[cfg(test)]
-            scope: AtomScope::Document,
-            #[cfg(not(test))]
-            scope: AtomScope::Process(RawAtomLifetime::RetainedFlyString),
-            pins: Rc::new(AtomPins::default()),
-            #[cfg(test)]
-            available: BTreeSet::new(),
-            #[cfg(test)]
-            next: 0,
-            sweep_at: 256,
-            reported_pin_releases: Cell::new(0),
-        }
+        #[cfg(test)]
+        let scope = AtomScope::Document;
+        #[cfg(not(test))]
+        let scope = AtomScope::Process(RawAtomLifetime::RetainedFlyString);
+        Self::new(scope)
     }
 
     pub(super) fn for_replay() -> Self {
+        Self::new(AtomScope::Process(RawAtomLifetime::OpaqueReplayToken))
+    }
+
+    fn new(scope: AtomScope) -> Self {
         Self {
             raw: HashMap::new(),
             cpp_memoized_raws: HashSet::new(),
             qualified: HashMap::new(),
-            scope: AtomScope::Process(RawAtomLifetime::OpaqueReplayToken),
+            scope,
             pins: Rc::new(AtomPins::default()),
             #[cfg(test)]
             available: BTreeSet::new(),
