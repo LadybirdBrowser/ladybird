@@ -659,28 +659,6 @@ extern "C" WEB_API bool ladybird_layout_code_point_has_emoji_property(u32 code_p
     return Unicode::code_point_has_emoji_property(code_point);
 }
 
-extern "C" WEB_API size_t ladybird_layout_text_node_dom_offset_for_rendered_text_offset(void* node, size_t offset, bool use_end_boundary)
-{
-    auto const& layout_node = *static_cast<Web::Layout::Node*>(node);
-    VERIFY(is<Web::Layout::TextNode>(layout_node));
-    auto const& text_node = static_cast<Web::Layout::TextNode const&>(layout_node);
-    auto boundary = use_end_boundary
-        ? Web::Layout::TextNode::RenderedTextBoundary::End
-        : Web::Layout::TextNode::RenderedTextBoundary::Start;
-    return text_node.dom_offset_for_rendered_text_offset(offset, boundary);
-}
-
-extern "C" WEB_API size_t ladybird_layout_text_node_rendered_text_offset_for_dom_offset(void* node, size_t offset, bool use_end_boundary)
-{
-    auto const& layout_node = *static_cast<Web::Layout::Node*>(node);
-    VERIFY(is<Web::Layout::TextNode>(layout_node));
-    auto const& text_node = static_cast<Web::Layout::TextNode const&>(layout_node);
-    auto boundary = use_end_boundary
-        ? Web::Layout::TextNode::RenderedTextBoundary::End
-        : Web::Layout::TextNode::RenderedTextBoundary::Start;
-    return text_node.rendered_text_offset_for_dom_offset(offset, boundary);
-}
-
 extern "C" WEB_API void ladybird_layout_node_shell_destroy(void* shell)
 {
     Web::Layout::Node::delete_arena_owned_shell(*static_cast<Web::Layout::Node*>(shell));

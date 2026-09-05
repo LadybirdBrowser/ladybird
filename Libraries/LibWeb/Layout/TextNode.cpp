@@ -453,95 +453,38 @@ TextNode::TextForRenderingCacheKey TextNode::create_text_for_rendering_cache_key
 
 void TextNode::invalidate_text_for_rendering()
 {
-    m_text_dependent_cache = {};
-    m_arena_text_content_in_sync = false;
+    m_text_for_rendering_cache_key = {};
     enroll_for_arena_text_content_sync();
 }
 
-Utf16String const& TextNode::text_for_rendering() const
+Utf16View TextNode::text_for_rendering() const
 {
-    return ensure_text_dependent_cache().text_for_rendering;
+    ensure_text_content();
+    auto view = RustFFI::layout_arena_text_for_rendering(arena_handle(), slot_id(this));
+    return Utf16View { reinterpret_cast<char16_t const*>(view.text), view.length_in_code_units };
 }
 
-size_t TextNode::rendered_text_offset_for_dom_offset(ReadonlySpan<RenderedTextEdit> edits, size_t dom_base_offset, size_t dom_offset, RenderedTextBoundary boundary)
-{
-    size_t previous_dom_end = dom_base_offset;
-    size_t previous_rendered_end = 0;
-    for (auto const& edit : edits) {
-        if (dom_offset < edit.dom_start_offset)
-            return previous_rendered_end + dom_offset - previous_dom_end;
-
-        auto const dom_end = edit.dom_start_offset + edit.dom_length_in_code_units;
-        auto const rendered_end = edit.rendered_start_offset + edit.rendered_length_in_code_units;
-        if (dom_offset <= dom_end) {
-            if (dom_offset == edit.dom_start_offset)
-                return edit.rendered_start_offset;
-            if (dom_offset == dom_end)
-                return rendered_end;
-            return boundary == RenderedTextBoundary::Start ? edit.rendered_start_offset : rendered_end;
-        }
-
-        previous_dom_end = dom_end;
-        previous_rendered_end = rendered_end;
-    }
-
-    return previous_rendered_end + dom_offset - previous_dom_end;
-}
-
-size_t TextNode::dom_offset_for_rendered_text_offset(size_t rendered_text_offset, RenderedTextBoundary boundary) const
-{
-    auto const& cache = ensure_text_dependent_cache();
-    rendered_text_offset = min(rendered_text_offset, cache.text_for_rendering.length_in_code_units());
-
-    size_t previous_dom_end = dom_start_offset();
-    size_t previous_rendered_end = 0;
-    for (auto const& edit : cache.text_for_rendering_edits) {
-        if (rendered_text_offset < edit.rendered_start_offset)
-            return previous_dom_end + rendered_text_offset - previous_rendered_end;
-
-        auto const dom_end = edit.dom_start_offset + edit.dom_length_in_code_units;
-        auto const rendered_end = edit.rendered_start_offset + edit.rendered_length_in_code_units;
-        if (rendered_text_offset == edit.rendered_start_offset) {
-            if (edit.rendered_length_in_code_units > 0)
-                return edit.dom_start_offset;
-            if (boundary == RenderedTextBoundary::End)
-                return edit.dom_start_offset;
-        } else if (rendered_text_offset < rendered_end) {
-            return boundary == RenderedTextBoundary::Start ? edit.dom_start_offset : dom_end;
-        } else if (rendered_text_offset == rendered_end && boundary == RenderedTextBoundary::End) {
-            return dom_end;
-        }
-
-        previous_dom_end = dom_end;
-        previous_rendered_end = rendered_end;
-    }
-
-    return previous_dom_end + rendered_text_offset - previous_rendered_end;
-}
-
-size_t TextNode::rendered_text_offset_for_dom_offset(size_t dom_offset, RenderedTextBoundary boundary) const
-{
-    auto const& cache = ensure_text_dependent_cache();
-    dom_offset = clamp(dom_offset, dom_start_offset(), dom_start_offset() + dom_length());
-    auto const rendered_offset = rendered_text_offset_for_dom_offset(cache.text_for_rendering_edits, dom_start_offset(), dom_offset, boundary);
-    return min(rendered_offset, cache.text_for_rendering.length_in_code_units());
-}
-
-TextNode::TextDependentCache const& TextNode::ensure_text_dependent_cache() const
+void TextNode::ensure_text_content() const
 {
     auto key = create_text_for_rendering_cache_key();
-    if (!m_text_dependent_cache.has_value() || m_text_dependent_cache->key != key) {
-        auto text_for_rendering = compute_text_for_rendering(key);
-        m_text_dependent_cache = TextDependentCache {
-            .key = move(key),
-            .text_for_rendering = move(text_for_rendering.text),
-            .text_for_rendering_edits = move(text_for_rendering.edits),
-            .grapheme_segmenter = {},
-        };
-        m_arena_text_content_in_sync = false;
-        enroll_for_arena_text_content_sync();
-    }
-    return *m_text_dependent_cache;
+    if (m_text_for_rendering_cache_key.has_value() && *m_text_for_rendering_cache_key == key)
+        return;
+
+    auto rendered = compute_text_for_rendering(key);
+    auto view = rendered.text.utf16_view();
+    RustFFI::FfiTextContent content {
+        .ascii_text = view.has_ascii_storage() ? reinterpret_cast<u8 const*>(view.ascii_span().data()) : nullptr,
+        .utf16_text = view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(view.utf16_span().data()),
+        .length_in_code_units = view.length_in_code_units(),
+        .untransformed_text_is_ascii_whitespace = text().is_ascii_whitespace(),
+        .may_require_bidi_processing = Unicode::may_require_bidi_processing(view),
+        .dom_start_offset = key.dom_start_offset,
+        .dom_length_in_code_units = key.dom_length,
+        .edits = rendered.edits.data(),
+        .edit_count = rendered.edits.size(),
+    };
+    RustFFI::layout_arena_set_text_content(arena_handle(), slot_id(this), content);
+    m_text_for_rendering_cache_key = move(key);
 }
 
 void TextNode::enroll_for_arena_text_content_sync() const
@@ -552,25 +495,10 @@ void TextNode::enroll_for_arena_text_content_sync() const
     RustFFI::layout_arena_enroll_text_node_for_content_sync(arena_handle(), slot_id(this));
 }
 
-bool TextNode::sync_text_content_to_arena() const
+void TextNode::sync_text_content_to_arena() const
 {
-    ensure_text_dependent_cache();
     m_enrolled_for_arena_text_content_sync = false;
-    if (m_arena_text_content_in_sync)
-        return false;
-    auto view = m_text_dependent_cache->text_for_rendering.utf16_view();
-    bool arena_text_content_changed = RustFFI::layout_arena_set_text_content(
-        arena_handle(),
-        slot_id(this),
-        view.has_ascii_storage() ? reinterpret_cast<u8 const*>(view.ascii_span().data()) : nullptr,
-        view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(view.utf16_span().data()),
-        view.length_in_code_units(),
-        text().is_ascii_whitespace(),
-        Unicode::may_require_bidi_processing(view),
-        dom_start_offset(),
-        !m_text_dependent_cache->text_for_rendering_edits.is_empty());
-    m_arena_text_content_in_sync = true;
-    return arena_text_content_changed;
+    ensure_text_content();
 }
 
 TextNode::TextForRendering TextNode::compute_text_for_rendering(TextForRenderingCacheKey const& cache_key) const
@@ -606,8 +534,8 @@ TextNode::TextForRendering TextNode::compute_text_for_rendering(TextForRendering
     // capitalize, see the same surrounding text for both slices.
     if (cache_key.dom_start_offset > 0 || cache_key.dom_length < source_text.length_in_code_units()) {
         auto const dom_end_offset = cache_key.dom_start_offset + cache_key.dom_length;
-        auto const rendered_start_offset = rendered_text_offset_for_dom_offset(edits, 0, cache_key.dom_start_offset, RenderedTextBoundary::Start);
-        auto const rendered_end_offset = rendered_text_offset_for_dom_offset(edits, 0, dom_end_offset, RenderedTextBoundary::End);
+        auto const rendered_start_offset = RustFFI::rust_rendered_text_offset_for_dom_offset(edits.data(), edits.size(), 0, cache_key.dom_start_offset, RustFFI::RenderedTextBoundary::Start);
+        auto const rendered_end_offset = RustFFI::rust_rendered_text_offset_for_dom_offset(edits.data(), edits.size(), 0, dom_end_offset, RustFFI::RenderedTextBoundary::End);
         text = Utf16String::from_utf16(text.utf16_view().substring_view(rendered_start_offset, rendered_end_offset - rendered_start_offset));
 
         Vector<RenderedTextEdit> sliced_edits;
@@ -710,24 +638,6 @@ TextNode::TextForRendering TextNode::compute_text_for_rendering(TextForRendering
     }
 
     return { move(text), move(edits) };
-}
-
-Unicode::Segmenter& TextNode::grapheme_segmenter() const
-{
-    auto const& cache = ensure_text_dependent_cache();
-    auto const& text = cache.text_for_rendering;
-    if (!cache.grapheme_segmenter) {
-        // Fast path: For ASCII text, every character is its own grapheme.
-        // We can use a trivial segmenter that avoids all ICU overhead.
-        if (text.is_ascii()) {
-            cache.grapheme_segmenter = Unicode::Segmenter::create_for_ascii_grapheme(text.length_in_code_units());
-        } else {
-            cache.grapheme_segmenter = document().grapheme_segmenter().clone();
-            cache.grapheme_segmenter->set_segmented_text(text);
-        }
-    }
-
-    return *cache.grapheme_segmenter;
 }
 
 Gfx::GlyphRun::TextType text_type_for_code_point(u32 code_point)

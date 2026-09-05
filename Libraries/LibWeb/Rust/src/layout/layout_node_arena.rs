@@ -9,6 +9,7 @@ use super::formatting_context::DerivedBaselines;
 use super::formatting_context::LayoutMode;
 use super::geometry::AvailableSize;
 use super::geometry::AvailableSpace;
+use super::rendered_text::{RenderedTextBoundary, TextContent};
 use super::used_values::SizeConstraint;
 use super::used_values::UsedValues;
 use crate::css::style::fast_hash::FastMap as HashMap;
@@ -22,25 +23,6 @@ use crate::layout::node_data::{
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::ffi::c_void;
-
-unsafe extern "C" {
-    fn ladybird_layout_text_node_dom_offset_for_rendered_text_offset(
-        node: *mut c_void,
-        offset: usize,
-        use_end_boundary: bool,
-    ) -> usize;
-    fn ladybird_layout_text_node_rendered_text_offset_for_dom_offset(
-        node: *mut c_void,
-        offset: usize,
-        use_end_boundary: bool,
-    ) -> usize;
-}
-
-#[derive(Clone, Copy)]
-pub(crate) enum RenderedTextBoundary {
-    Start,
-    End,
-}
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::thread;
@@ -335,25 +317,6 @@ struct SavedAbsposLayoutInputsSlot {
 struct DefaultScrollShiftAnchorSlot {
     generation: u8,
     anchor: NodeSlotId,
-}
-
-#[derive(Default)]
-pub(crate) struct TextContent {
-    pub(crate) text: Vec<u16>,
-    pub(crate) untransformed_text_is_ascii_whitespace: bool,
-    pub(crate) may_require_bidi_processing: bool,
-    pub(crate) dom_start_offset: usize,
-    /// Whether rendering changed the length of any part of the DOM text. Otherwise a rendered
-    /// offset converts to a DOM offset by adding the DOM start offset alone.
-    pub(crate) rendered_text_has_edits: bool,
-    grapheme_segmenter: std::cell::OnceCell<super::text_chunker::GraphemeSegmenter>,
-}
-
-impl TextContent {
-    pub(crate) fn grapheme_segmenter(&self) -> &super::text_chunker::GraphemeSegmenter {
-        self.grapheme_segmenter
-            .get_or_init(|| super::text_chunker::GraphemeSegmenter::new(&self.text))
-    }
 }
 
 #[derive(Default)]
@@ -1959,15 +1922,7 @@ impl LayoutNodeArena {
         drop(self.take_committed_fragment_link(self.data(id)));
     }
 
-    pub(crate) fn set_text_content(
-        &mut self,
-        id: NodeSlotId,
-        text: Vec<u16>,
-        untransformed_text_is_ascii_whitespace: bool,
-        may_require_bidi_processing: bool,
-        dom_start_offset: usize,
-        rendered_text_has_edits: bool,
-    ) -> bool {
+    pub(crate) fn set_text_content(&mut self, id: NodeSlotId, content: TextContent) {
         self.assert_owner_thread();
         self.data(id);
         let index = id.slot_index() as usize;
@@ -1975,35 +1930,25 @@ impl LayoutNodeArena {
             self.text_contents.resize_with(index + 1, TextContentSlot::default);
         }
         let previous = &self.text_contents[index];
-        let changed = previous.generation != id.generation()
-            || match &previous.content {
-                Some(content) => {
-                    content.text != text
-                        || content.untransformed_text_is_ascii_whitespace != untransformed_text_is_ascii_whitespace
-                        || content.may_require_bidi_processing != may_require_bidi_processing
-                        || content.dom_start_offset != dom_start_offset
-                        || content.rendered_text_has_edits != rendered_text_has_edits
-                }
-                None => true,
-            };
-        if !changed {
-            return false;
+        if previous.generation == id.generation()
+            && previous
+                .content
+                .as_ref()
+                .is_some_and(|previous| previous.has_same_content_as(&content))
+        {
+            return;
         }
         self.text_contents[index] = TextContentSlot {
             generation: id.generation(),
-            content: Some(Box::new(TextContent {
-                text,
-                untransformed_text_is_ascii_whitespace,
-                may_require_bidi_processing,
-                dom_start_offset,
-                rendered_text_has_edits,
-                grapheme_segmenter: std::cell::OnceCell::new(),
-            })),
+            content: Some(Box::new(content)),
         };
         if let Some(slot) = self.text_chunk_caches.get_mut().get_mut(index) {
             *slot = TextChunkCacheSlot::default();
         }
-        true
+        // Publication can happen through a C++ text read before the enrolled
+        // sync runs. Invalidate here so every publication invalidates layout,
+        // including mapping-only changes with identical rendered code units.
+        self.bump_fragment_cache_epoch_of_self_and_ancestors(id);
     }
 
     pub(crate) fn set_replaced_content_facts(&mut self, id: NodeSlotId, facts: FfiReplacedContentFacts) -> bool {
@@ -2532,23 +2477,12 @@ impl LayoutNodeArena {
         offset: usize,
         boundary: RenderedTextBoundary,
     ) -> usize {
-        let shell = self.shell_if_live(id);
-        if shell.is_null() || !self.node_kind_if_live(id).is_some_and(super::node_facts::kind_is_text) {
+        if !self.node_kind_if_live(id).is_some_and(super::node_facts::kind_is_text) {
             return offset;
         }
-        if let Some(content) = self.text_content(id)
-            && !content.rendered_text_has_edits
-        {
-            return content.dom_start_offset + offset.min(content.text.len());
-        }
-        // SAFETY: shell_if_live() returned the live C++ TextNode corresponding to this text layout node.
-        unsafe {
-            ladybird_layout_text_node_dom_offset_for_rendered_text_offset(
-                shell,
-                offset,
-                matches!(boundary, RenderedTextBoundary::End),
-            )
-        }
+        self.text_content(id)
+            .expect("text must be published before mapping rendered offsets")
+            .dom_offset_for_rendered_text_offset(offset, boundary)
     }
 
     pub(crate) fn rendered_text_offset_for_dom_offset(
@@ -2557,24 +2491,12 @@ impl LayoutNodeArena {
         offset: usize,
         boundary: RenderedTextBoundary,
     ) -> usize {
-        let shell = self.shell_if_live(id);
-        if shell.is_null() || !self.node_kind_if_live(id).is_some_and(super::node_facts::kind_is_text) {
+        if !self.node_kind_if_live(id).is_some_and(super::node_facts::kind_is_text) {
             return offset;
         }
-        if let Some(content) = self.text_content(id)
-            && !content.rendered_text_has_edits
-        {
-            let dom_end_offset = content.dom_start_offset + content.text.len();
-            return offset.clamp(content.dom_start_offset, dom_end_offset) - content.dom_start_offset;
-        }
-        // SAFETY: shell_if_live() returned the live C++ TextNode corresponding to this text layout node.
-        unsafe {
-            ladybird_layout_text_node_rendered_text_offset_for_dom_offset(
-                shell,
-                offset,
-                matches!(boundary, RenderedTextBoundary::End),
-            )
-        }
+        self.text_content(id)
+            .expect("text must be published before mapping DOM offsets")
+            .rendered_text_offset_for_dom_offset(offset, boundary)
     }
 
     pub(crate) unsafe fn from_handle<'a>(arena: *mut c_void) -> &'a Self {
@@ -2892,46 +2814,6 @@ pub unsafe extern "C" fn layout_arena_bump_fragment_cache_epoch_of_self_and_ance
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_text_content(
-    arena: *mut c_void,
-    id: NodeSlotId,
-    ascii_text: *const u8,
-    utf16_text: *const u16,
-    length_in_code_units: usize,
-    untransformed_text_is_ascii_whitespace: bool,
-    may_require_bidi_processing: bool,
-    dom_start_offset: usize,
-    rendered_text_has_edits: bool,
-) -> bool {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    let text = if length_in_code_units == 0 {
-        Vec::new()
-    } else if !ascii_text.is_null() {
-        // SAFETY: The C++ caller passes the live ASCII storage of the
-        // node's rendered text for the duration of this synchronous call.
-        unsafe { std::slice::from_raw_parts(ascii_text, length_in_code_units) }
-            .iter()
-            .map(|unit| u16::from(*unit))
-            .collect()
-    } else {
-        assert!(!utf16_text.is_null(), "text content push carries no storage");
-        // SAFETY: The C++ caller passes the live UTF-16 storage of the
-        // node's rendered text for the duration of this synchronous call.
-        unsafe { std::slice::from_raw_parts(utf16_text, length_in_code_units) }.to_vec()
-    };
-    // SAFETY: The C++ wrapper keeps the arena alive for this call and
-    // serializes all access on the document thread.
-    unsafe { &mut *arena.cast::<LayoutNodeArena>() }.set_text_content(
-        id,
-        text,
-        untransformed_text_is_ascii_whitespace,
-        may_require_bidi_processing,
-        dom_start_offset,
-        rendered_text_has_edits,
-    )
-}
-
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_replaced_content_facts(
     arena: *mut c_void,
     id: NodeSlotId,
@@ -3117,12 +2999,12 @@ pub unsafe extern "C" fn layout_arena_enroll_node_for_replaced_content_facts_syn
 /// # Safety
 ///
 /// The arena must remain valid for the duration of the call. The callbacks receive live layout
-/// node shells; the text callback may re-enter the enroll entry points but nothing else.
+/// node shells; the text callback may publish text and re-enter the enroll entry points.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_sync_enrolled_content_for_layout(
     arena: *mut c_void,
     context: *mut c_void,
-    sync_text_content: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
+    sync_text_content: unsafe extern "C" fn(*mut c_void, *mut c_void),
     build_replaced_content_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut FfiReplacedContentFacts),
 ) {
     assert!(!arena.is_null(), "layout node arena handle is null");
@@ -3148,13 +3030,9 @@ pub unsafe extern "C" fn layout_arena_sync_enrolled_content_for_layout(
             still_detached_text_nodes.push(node);
             continue;
         }
-        // Changed rendered text invalidates cached formatting-context runs regardless of
-        // which channel produced the change, including sources with no invalidation of
-        // their own (e.g. lang-keyed locale-sensitive casing).
-        // SAFETY: The callback receives a live shell.
-        if unsafe { sync_text_content(context, shell) } {
-            unsafe { &*arena.cast::<LayoutNodeArena>() }.bump_fragment_cache_epoch_of_self_and_ancestors(node);
-        }
+        // SAFETY: The callback receives a live shell. Publishing its text also
+        // invalidates affected layout caches before any pass can read it.
+        unsafe { sync_text_content(context, shell) };
     }
     unsafe { &*arena.cast::<LayoutNodeArena>() }
         .text_nodes_enrolled_for_content_sync

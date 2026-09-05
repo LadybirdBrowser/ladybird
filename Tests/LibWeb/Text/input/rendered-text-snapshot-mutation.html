@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    .target {
+        font: 20px Ahem;
+        text-transform: uppercase;
+        white-space: pre;
+    }
+    #first-letter::first-letter {
+        color: blue;
+    }
+</style>
+<div id="plain" class="target">ßs</div>
+<div id="first-letter" class="target">ßello</div>
+<script>
+    function rangeWidth(node, start, end) {
+        const range = document.createRange();
+        range.setStart(node, start);
+        range.setEnd(node, end);
+        return range.getBoundingClientRect().width;
+    }
+
+    promiseTest(async () => {
+        await document.fonts.load("20px Ahem");
+
+        const plain = document.getElementById("plain");
+        println(`before: ${plain.innerText}, first DOM character: ${rangeWidth(plain.firstChild, 0, 1)}`);
+        plain.firstChild.data = "sß";
+        println(`same rendered text: ${plain.innerText}, first DOM character: ${rangeWidth(plain.firstChild, 0, 1)}`);
+        println(`expanded second character: ${rangeWidth(plain.firstChild, 1, 2)}`);
+
+        const firstLetter = document.getElementById("first-letter");
+        println(`first-letter: ${firstLetter.innerText}, first DOM character: ${rangeWidth(firstLetter.firstChild, 0, 1)}`);
+        firstLetter.firstChild.data = "sßello";
+        println(`new first-letter: ${firstLetter.innerText}, first DOM character: ${rangeWidth(firstLetter.firstChild, 0, 1)}`);
+        println(`expanded remainder character: ${rangeWidth(firstLetter.firstChild, 1, 2)}`);
+    });
+</script>

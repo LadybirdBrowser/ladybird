@@ -67,8 +67,8 @@ void NodeArena::sync_enrolled_content_for_layout()
         return;
     RustFFI::layout_arena_sync_enrolled_content_for_layout(
         m_handle, nullptr,
-        [](void*, void* text_node_shell) -> bool {
-            return static_cast<TextNode const&>(*static_cast<Node const*>(text_node_shell)).sync_text_content_to_arena();
+        [](void*, void* text_node_shell) {
+            static_cast<TextNode const&>(*static_cast<Node const*>(text_node_shell)).sync_text_content_to_arena();
         },
         [](void*, void* node_shell, RustFFI::FfiReplacedContentFacts* facts) {
             auto const& node = *static_cast<Node const*>(node_shell);

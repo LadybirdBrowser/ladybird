@@ -426,18 +426,18 @@ static Vector<Variant<Utf16String, RequiredLineBreakCount>> rendered_text_collec
             // Collapse whitespace like the text chunker feeding inline layout
             // does: within each run of collapsible whitespace, every code
             // point after the first is removed.
-            auto const& text = slice.text_for_rendering();
+            auto text = slice.text_for_rendering();
             auto should_collapse_whitespace = first_is_one_of(
                 slice.parent()->white_space_collapse(),
                 CSS::WhiteSpaceCollapse::Collapse, CSS::WhiteSpaceCollapse::PreserveBreaks);
             if (!should_collapse_whitespace) {
-                items.append(text);
+                items.append(Utf16String::from_utf16(text));
                 return;
             }
             Utf16StringBuilder builder { text.length_in_code_units() };
             bool previous_code_unit_is_collapsible = false;
             for (size_t index = 0; index < text.length_in_code_units(); ++index) {
-                auto code_unit = text.utf16_view().code_unit_at(index);
+                auto code_unit = text.code_unit_at(index);
                 auto is_collapsible = code_unit < 0x80 && is_ascii_space(code_unit);
                 if (!is_collapsible || !previous_code_unit_is_collapsible)
                     builder.append_code_unit(code_unit);
