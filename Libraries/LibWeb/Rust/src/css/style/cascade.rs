@@ -1504,8 +1504,7 @@ impl WinnerGroups {
             return false;
         }
         self.column.ensure(index);
-        self.stamps.ensure(index);
-        self.stamps[index] = self.stamp;
+        self.stamps.insert(index, self.stamp);
         if self.column[index] == Some((state, program_version)) {
             self.set_priority_current(index, true);
             return true;

@@ -486,9 +486,7 @@ impl PrefixAnswerCache {
         matches: PrefixMatchSetID,
         identity: MatchAnswerID,
     ) {
-        let program_index = program.0 as usize;
-        lane.ensure(program_index);
-        let by_match_set = &mut lane[program_index];
+        let by_match_set = lane.entry(program.0 as usize);
         let match_set_index = matches.index();
         nested_footprint.grow_committed(by_match_set.ensure(match_set_index));
         let previous = by_match_set[match_set_index];
