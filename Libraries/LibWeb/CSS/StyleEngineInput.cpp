@@ -1925,9 +1925,23 @@ static void collect_enclosing_group_context(GC::RootVector<GC::Ref<CSSRule>> con
 
 static bool rule_change_needs_style_environment_bump(CSSRule const& rule)
 {
-    if (auto const* style_rule = as_if<CSSStyleRule>(rule))
-        return style_rule->css_rules().length() != 0;
-    return !is<CSSNestedDeclarations>(rule) && !is<CSSPropertyRule>(rule);
+    switch (rule.type()) {
+    case CSSRule::Type::Style:
+    case CSSRule::Type::Media:
+    case CSSRule::Type::Supports:
+    case CSSRule::Type::Container:
+    case CSSRule::Type::Scope:
+    case CSSRule::Type::LayerBlock:
+        return any_of(as<CSSGroupingRule>(rule).css_rules(), [](auto& child) {
+            return rule_change_needs_style_environment_bump(child);
+        });
+    case CSSRule::Type::NestedDeclarations:
+    case CSSRule::Type::Property:
+    case CSSRule::Type::LayerStatement:
+        return false;
+    default:
+        return true;
+    }
 }
 
 // A rule arrived in one document's engine. Compile it, and everything it brings with it, into the
@@ -2003,7 +2017,7 @@ void record_style_rule_removed(CSSStyleSheet& sheet_it_left, CSSRule& rule)
     for_each_document_with_engine_copy(sheet_it_left, [&](DOM::Document& document) {
         any_engine_heard = true;
         document.flush_deferred_style_change_event();
-        if (any_of(removed, [](auto& entry) { return rule_change_needs_style_environment_bump(entry); }))
+        if (rule_change_needs_style_environment_bump(rule))
             document.bump_style_environment_version();
 
         auto& style_computer = document.style_computer();

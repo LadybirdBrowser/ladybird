@@ -34,5 +34,9 @@
         mutate("replace declarations", () => sheet.cssRules[sheet.cssRules.length - 1].style.cssText = "--color: olive; color: var(--color)");
         mutate("edit custom property", () => sheet.cssRules[sheet.cssRules.length - 1].style.setProperty("--color", "green"));
         mutate("delete style rule", () => sheet.deleteRule(sheet.cssRules.length - 1));
+        mutate("insert grouped rules", () => sheet.insertRule("@media all { #target { color: orange; } }", sheet.cssRules.length));
+        mutate("delete grouped rules", () => sheet.deleteRule(sheet.cssRules.length - 1));
+        mutate("insert nested rules", () => sheet.insertRule("#target { @media all { color: brown; } }", sheet.cssRules.length));
+        mutate("delete nested rules", () => sheet.deleteRule(sheet.cssRules.length - 1));
     });
 </script>

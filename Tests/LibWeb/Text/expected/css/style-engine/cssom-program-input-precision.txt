@@ -1,13 +1,13 @@
-repeat layers environment changed: true
+repeat layers environment changed: false
 repeat layers topology changed: false
 repeat layers colors: rgb(0, 0, 255), rgb(0, 0, 255)
-remove repeated layers environment changed: true
+remove repeated layers environment changed: false
 remove repeated layers topology changed: false
 remove repeated layers colors: rgb(0, 0, 255), rgb(0, 0, 255)
-reorder layers environment changed: true
+reorder layers environment changed: false
 reorder layers topology changed: true
 reorder layers colors: rgb(255, 0, 0), rgb(255, 0, 0)
-restore layers environment changed: true
+restore layers environment changed: false
 restore layers topology changed: true
 restore layers colors: rgb(0, 0, 255), rgb(0, 0, 255)
 insert style rule environment changed: false
@@ -25,3 +25,15 @@ edit custom property colors: rgb(0, 128, 0), rgb(0, 128, 0)
 delete style rule environment changed: false
 delete style rule topology changed: false
 delete style rule colors: rgb(0, 0, 255), rgb(0, 0, 255)
+insert grouped rules environment changed: false
+insert grouped rules topology changed: false
+insert grouped rules colors: rgb(255, 165, 0), rgb(255, 165, 0)
+delete grouped rules environment changed: false
+delete grouped rules topology changed: false
+delete grouped rules colors: rgb(0, 0, 255), rgb(0, 0, 255)
+insert nested rules environment changed: false
+insert nested rules topology changed: false
+insert nested rules colors: rgb(165, 42, 42), rgb(165, 42, 42)
+delete nested rules environment changed: false
+delete nested rules topology changed: false
+delete nested rules colors: rgb(0, 0, 255), rgb(0, 0, 255)
