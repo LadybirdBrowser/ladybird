@@ -659,6 +659,21 @@ extern "C" WEB_API bool ladybird_layout_code_point_has_emoji_property(u32 code_p
     return Unicode::code_point_has_emoji_property(code_point);
 }
 
+extern "C" WEB_API Web::Layout::RustFFI::FfiCodePointCategoryFacts ladybird_layout_code_point_category_facts(u32 code_point)
+{
+    static auto const ps = Unicode::general_category_from_string("Ps"sv).value();
+    static auto const pd = Unicode::general_category_from_string("Pd"sv).value();
+    return {
+        .is_space_separator = Unicode::code_point_has_space_separator_general_category(code_point),
+        .is_punctuation = Unicode::code_point_has_punctuation_general_category(code_point),
+        .is_letter = Unicode::code_point_has_letter_general_category(code_point),
+        .is_number = Unicode::code_point_has_number_general_category(code_point),
+        .is_symbol = Unicode::code_point_has_symbol_general_category(code_point),
+        .is_open_punctuation = Unicode::code_point_has_general_category(code_point, ps),
+        .is_dash_punctuation = Unicode::code_point_has_general_category(code_point, pd),
+    };
+}
+
 extern "C" WEB_API void ladybird_layout_node_shell_destroy(void* shell)
 {
     Web::Layout::Node::delete_arena_owned_shell(*static_cast<Web::Layout::Node*>(shell));

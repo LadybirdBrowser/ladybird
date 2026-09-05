@@ -473,8 +473,6 @@ mod tests {
         let mut arena = LayoutNodeArena::new();
         let first = node(&mut arena, "SS", 0, 1, vec![edit(0, 1, 0, 2)]);
         let remainder = node(&mut arena, "a bc", 1, 4, Vec::new());
-        arena.data(first).kind.set(NodeKind::TextSliceNode);
-        arena.data(remainder).kind.set(NodeKind::TextSliceNode);
         arena.set_first_letter_slices(first, remainder, 1, 5);
 
         let select_word = |text: &[u16], offset| {

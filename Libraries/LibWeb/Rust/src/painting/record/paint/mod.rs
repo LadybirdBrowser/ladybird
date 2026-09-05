@@ -153,8 +153,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
         | NodeKind::GeneratedTextNode
         | NodeKind::Node
         | NodeKind::NodeWithStyle
-        | NodeKind::TextNode
-        | NodeKind::TextSliceNode => {}
+        | NodeKind::TextNode => {}
         NodeKind::Viewport
         | NodeKind::BlockContainer
         | NodeKind::LegendBox

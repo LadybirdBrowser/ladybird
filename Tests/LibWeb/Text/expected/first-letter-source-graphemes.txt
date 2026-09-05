@@ -1,0 +1,6 @@
+expanding source character: "SSabc"
+combining sequence: "iabc"
+supplementary letter: "𐐀abc"
+surrounding punctuation: "«SS!»abc"
+preserved initial newline: "\nßabc"
+restored first letter: "SSabc"

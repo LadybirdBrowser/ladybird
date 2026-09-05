@@ -183,12 +183,12 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
                 first_letter_owner->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData);
         }
         auto whitespace_only_changed = old_data.is_ascii_whitespace() != m_data.is_ascii_whitespace();
-        if (is<Layout::TextSliceNode>(unsafe_layout_node())) {
-            // NB: Slice nodes cache data that is calculated at layout tree construction time.
-            // So for them, we need to invalidate the layout tree, not just layout.
+        auto* text_layout_node = as_if<Layout::TextNode>(unsafe_layout_node());
+        if (text_layout_node && Layout::RustFFI::layout_arena_text_has_source_range(text_layout_node->arena_handle(), Layout::Node::slot_id(text_layout_node))) {
+            // First-letter source ranges are determined while building the layout tree.
             if (parent())
                 parent()->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData);
-        } else if (auto* text_layout_node = as_if<Layout::TextNode>(unsafe_layout_node())) {
+        } else if (text_layout_node) {
             // NB: Since the text node's data has changed, we need to invalidate the text for rendering.
             //     This ensures that the new text is reflected in layout, even if we don't end up doing a full layout
             //     tree rebuild.

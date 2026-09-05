@@ -216,10 +216,7 @@ pub(crate) fn has_flag(data: &NodeData, flag: NodeFlag) -> bool {
 }
 
 pub(crate) fn kind_is_text(kind: NodeKind) -> bool {
-    matches!(
-        kind,
-        NodeKind::GeneratedTextNode | NodeKind::TextNode | NodeKind::TextSliceNode
-    )
+    matches!(kind, NodeKind::GeneratedTextNode | NodeKind::TextNode)
 }
 
 pub(crate) fn kind_and_style_make_scroll_container(kind: NodeKind, style: Option<ComputedValuesView<'_>>) -> bool {
@@ -245,7 +242,6 @@ pub(crate) fn kind_is_box(kind: NodeKind) -> bool {
             | NodeKind::NodeWithStyle
             | NodeKind::GeneratedTextNode
             | NodeKind::TextNode
-            | NodeKind::TextSliceNode
     )
 }
 
@@ -443,7 +439,6 @@ impl<'pass> NodeFacts<'pass> {
                 | NodeKind::NodeWithStyle
                 | NodeKind::GeneratedTextNode
                 | NodeKind::TextNode
-                | NodeKind::TextSliceNode
         )
     }
 

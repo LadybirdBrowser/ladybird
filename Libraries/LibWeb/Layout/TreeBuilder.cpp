@@ -14,8 +14,6 @@
 #include <AK/OwnPtr.h>
 #include <AK/Utf16String.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibUnicode/CharacterTypes.h>
-#include <LibUnicode/Segmenter.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CounterStyle.h>
 #include <LibWeb/CSS/CountersSet.h>
@@ -58,8 +56,6 @@ public:
 
     static void detach_top_layer_element_layout_subtree(DOM::Element&);
 
-    struct FirstLetterTextContext;
-
 private:
     struct PrincipalNodeFrameStorage;
     struct PseudoElementFrameStorage;
@@ -77,7 +73,6 @@ private:
     Layout::Viewport* m_layout_root { nullptr };
     OwnPtr<PrincipalNodeFrameStorage> m_principal_frames;
     OwnPtr<PseudoElementFrameStorage> m_pseudo_element_frames;
-    OwnPtr<FirstLetterTextContext> m_first_letter_text_context;
 
     Vector<Layout::Node*> m_rebuilt_subtree_roots;
     bool m_layout_tree_update_escaped_rebuild_roots { false };
@@ -469,8 +464,8 @@ static FirstLetterTextSlices create_first_letter_text_slices(DOM::Document& docu
     // (from a content property) has no DOM node and gets plain generated slices of its text instead.
     if (auto* dom_text = text_node.dom_text()) {
         auto& mutable_dom_text = const_cast<DOM::Text&>(*dom_text);
-        auto& remainder_slice = allocate_layout_node<TextSliceNode>(document, mutable_dom_text, Node::AttachToDOMNode::Yes);
-        auto& first_letter_slice = allocate_layout_node<TextSliceNode>(document, mutable_dom_text, Node::AttachToDOMNode::No);
+        auto& remainder_slice = allocate_layout_node<TextNode>(document, mutable_dom_text, Node::AttachToDOMNode::Yes);
+        auto& first_letter_slice = allocate_layout_node<TextNode>(document, mutable_dom_text, Node::AttachToDOMNode::No);
         return { &first_letter_slice, &remainder_slice };
     }
 
@@ -601,17 +596,6 @@ struct PseudoElementFrame {
 struct LayoutTreeBuildBridge::PseudoElementFrameStorage {
     Vector<NonnullOwnPtr<PseudoElementFrame>> frames;
     size_t active_frame_count { 0 };
-};
-
-struct LayoutTreeBuildBridge::FirstLetterTextContext {
-    FirstLetterTextContext(Utf16View text, NonnullOwnPtr<Unicode::Segmenter> grapheme_segmenter)
-        : text(text)
-        , grapheme_segmenter(move(grapheme_segmenter))
-    {
-    }
-
-    Utf16View text;
-    NonnullOwnPtr<Unicode::Segmenter> grapheme_segmenter;
 };
 
 RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tree_builder_callbacks()
@@ -1359,43 +1343,6 @@ void detach_top_layer_element_layout_subtree(DOM::Element& element)
     LayoutTreeBuildBridge::detach_top_layer_element_layout_subtree(element);
 }
 
-static size_t ffi_first_letter_code_unit_length(void* context_pointer)
-{
-    VERIFY(context_pointer);
-    return static_cast<LayoutTreeBuildBridge::FirstLetterTextContext*>(context_pointer)->text.length_in_code_units();
-}
-
-static u32 ffi_first_letter_code_point_at(void* context_pointer, size_t index)
-{
-    VERIFY(context_pointer);
-    auto& context = *static_cast<LayoutTreeBuildBridge::FirstLetterTextContext*>(context_pointer);
-    VERIFY(index < context.text.length_in_code_units());
-    return context.text.code_point_at(index);
-}
-
-static size_t ffi_first_letter_next_grapheme_boundary(void* context_pointer, size_t index)
-{
-    VERIFY(context_pointer);
-    auto& context = *static_cast<LayoutTreeBuildBridge::FirstLetterTextContext*>(context_pointer);
-    VERIFY(index <= context.text.length_in_code_units());
-    return context.grapheme_segmenter->next_boundary(index).value_or(context.text.length_in_code_units());
-}
-
-static RustFFI::FfiFirstLetterCodePointFacts ffi_first_letter_code_point_facts(void*, u32 code_point)
-{
-    static auto const ps = Unicode::general_category_from_string("Ps"sv).value();
-    static auto const pd = Unicode::general_category_from_string("Pd"sv).value();
-    return {
-        .is_space_separator = Unicode::code_point_has_space_separator_general_category(code_point),
-        .is_punctuation = Unicode::code_point_has_punctuation_general_category(code_point),
-        .is_letter = Unicode::code_point_has_letter_general_category(code_point),
-        .is_number = Unicode::code_point_has_number_general_category(code_point),
-        .is_symbol = Unicode::code_point_has_symbol_general_category(code_point),
-        .is_open_punctuation = Unicode::code_point_has_general_category(code_point, ps),
-        .is_dash_punctuation = Unicode::code_point_has_general_category(code_point, pd),
-    };
-}
-
 RustFFI::FfiTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_tree_builder_callbacks()
 {
     return {
@@ -1420,27 +1367,6 @@ RustFFI::FfiTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_tree_builder_ca
         .prepare_subtree_for_detach = [](void*, void* layout_node_pointer) {
             VERIFY(layout_node_pointer);
             static_cast<Node*>(layout_node_pointer)->prepare_subtree_for_detach_from_layout_tree(); },
-        .prepare_first_letter_text = [](void* builder_pointer, void* node_pointer, RustFFI::FfiFirstLetterTextCallbacks* callbacks) {
-            VERIFY(builder_pointer);
-            VERIFY(node_pointer);
-            VERIFY(callbacks);
-            auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
-            auto& text_node = as<TextNode>(*static_cast<Node*>(node_pointer));
-            auto text = text_node.text().utf16_view();
-            auto grapheme_segmenter = text_node.document().grapheme_segmenter().clone();
-            grapheme_segmenter->set_segmented_text(text);
-            builder.m_first_letter_text_context = make<FirstLetterTextContext>(text, move(grapheme_segmenter));
-            *callbacks = {
-                .context = builder.m_first_letter_text_context.ptr(),
-                .code_unit_length = ffi_first_letter_code_unit_length,
-                .code_point_at = ffi_first_letter_code_point_at,
-                .next_grapheme_boundary = ffi_first_letter_next_grapheme_boundary,
-                .code_point_facts = ffi_first_letter_code_point_facts,
-            };
-
-            auto const white_space_collapse = text_node.parent()->white_space_collapse();
-            return first_is_one_of(white_space_collapse,
-                CSS::WhiteSpaceCollapse::Preserve, CSS::WhiteSpaceCollapse::PreserveBreaks, CSS::WhiteSpaceCollapse::BreakSpaces); },
     };
 }
 

@@ -9,6 +9,7 @@ use super::*;
 use crate::abort_on_panic;
 use crate::layout::layout_node_arena::{FfiAnonymousStyleKind, FfiAnonymousStyleOverrides, LayoutNodeArena};
 use crate::layout::node_data::{GENERATED_FOR_AFTER, GENERATED_FOR_MARKER, NodeData, NodeFlag, NodeKind, NodeSlotId};
+use crate::layout::text_chunker::{GraphemeSegmenter, code_point_at, code_unit_length_for_code_point};
 use crate::layout::tree_mutation::{UnplacedLayoutNode, free_subtree_and_destroy_shells};
 use crate::layout::{ComputedValuesView, FfiDisplay};
 use std::ffi::c_void;
@@ -2217,7 +2218,7 @@ pub struct FfiFirstLetterNodes {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
-pub struct FfiFirstLetterCodePointFacts {
+pub struct FfiCodePointCategoryFacts {
     pub is_space_separator: bool,
     pub is_punctuation: bool,
     pub is_letter: bool,
@@ -2227,13 +2228,8 @@ pub struct FfiFirstLetterCodePointFacts {
     pub is_dash_punctuation: bool,
 }
 
-#[repr(C)]
-pub struct FfiFirstLetterTextCallbacks {
-    pub context: *mut c_void,
-    pub code_unit_length: unsafe extern "C" fn(*mut c_void) -> usize,
-    pub code_point_at: unsafe extern "C" fn(*mut c_void, usize) -> u32,
-    pub next_grapheme_boundary: unsafe extern "C" fn(*mut c_void, usize) -> usize,
-    pub code_point_facts: unsafe extern "C" fn(*mut c_void, u32) -> FfiFirstLetterCodePointFacts,
+unsafe extern "C" {
+    fn ladybird_layout_code_point_category_facts(code_point: u32) -> FfiCodePointCategoryFacts;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2258,8 +2254,6 @@ pub struct FfiTreeBuilderCallbacks {
     pub take_fieldset_overflow_for_content_wrapper:
         unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiAnonymousStyleOverrides,
     pub prepare_subtree_for_detach: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub prepare_first_letter_text:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, *mut FfiFirstLetterTextCallbacks) -> bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2322,7 +2316,7 @@ fn kind_facts(kind: NodeKind) -> FfiNodeKindFacts {
         NodeKind::Unset | NodeKind::BreakNode | NodeKind::InlineNode | NodeKind::Node | NodeKind::NodeWithStyle => {
             NON_BOX
         }
-        NodeKind::GeneratedTextNode | NodeKind::TextNode | NodeKind::TextSliceNode => TEXT,
+        NodeKind::GeneratedTextNode | NodeKind::TextNode => TEXT,
         NodeKind::Box | NodeKind::ListItemMarkerBox => BOX,
         NodeKind::AudioBox
         | NodeKind::CanvasBox
@@ -3008,48 +3002,20 @@ fn insert_node_into_inline_or_block_ancestor(
     }
 }
 
-pub(crate) struct FirstLetterTextHost<'a> {
-    pub(crate) callbacks: &'a FfiFirstLetterTextCallbacks,
-}
-
-impl FirstLetterTextHost<'_> {
-    fn code_unit_length(&self) -> usize {
-        // SAFETY: The entry point's callback contract guarantees that the text context is live.
-        unsafe { (self.callbacks.code_unit_length)(self.callbacks.context) }
-    }
-
-    fn code_point_at(&self, index: usize) -> u32 {
-        // SAFETY: Callers only pass indices below `code_unit_length`.
-        unsafe { (self.callbacks.code_point_at)(self.callbacks.context, index) }
-    }
-
-    fn next_grapheme_boundary(&self, index: usize) -> usize {
-        // SAFETY: Callers only pass indices at or below `code_unit_length`.
-        unsafe { (self.callbacks.next_grapheme_boundary)(self.callbacks.context, index) }
-    }
-
-    fn code_point_facts(&self, code_point: u32) -> FfiFirstLetterCodePointFacts {
-        // SAFETY: The callback accepts every Unicode scalar value and lone surrogate value supplied by the text view.
-        unsafe { (self.callbacks.code_point_facts)(self.callbacks.context, code_point) }
-    }
-}
-
-fn code_unit_length_for_code_point(code_point: u32) -> usize {
-    if code_point > 0xffff { 2 } else { 1 }
-}
-
 // https://drafts.csswg.org/css-pseudo-4/#first-letter-pattern
 pub(crate) fn find_first_letter_in_text(
-    host: &FirstLetterTextHost<'_>,
+    text: &[u16],
     preserves_segment_breaks: bool,
+    next_grapheme_boundary: impl Fn(usize) -> usize,
+    code_point_facts: impl Fn(u32) -> FfiCodePointCategoryFacts,
 ) -> FfiFirstLetterTarget {
     // NB: Matches the first-letter text pattern: (P (Zs|P)*)? (L|N|S) ((Zs|P-(Ps|Pd))* (P-(Ps|Pd))?)?
 
-    let code_units = host.code_unit_length();
+    let code_units = text.len();
     let mut match_start = 0;
     while match_start < code_units {
         let mut cursor = match_start;
-        let starting_code_point = host.code_point_at(cursor);
+        let starting_code_point = code_point_at(text, cursor);
 
         // When white-space preserves segment breaks, a newline before any letter puts the letter on a later line, so
         // the first formatted line is empty and ::first-letter must not match.
@@ -3057,7 +3023,7 @@ pub(crate) fn find_first_letter_in_text(
             return FfiFirstLetterTarget::not_found();
         }
 
-        let starting_facts = host.code_point_facts(starting_code_point);
+        let starting_facts = code_point_facts(starting_code_point);
 
         // A valid match starts with either a P, or the letter itself.
         let has_preceding = starting_facts.is_punctuation;
@@ -3068,16 +3034,16 @@ pub(crate) fn find_first_letter_in_text(
 
         if has_preceding {
             // Preceding group: P followed by (Zs|P)*.
-            cursor = host.next_grapheme_boundary(cursor);
+            cursor = next_grapheme_boundary(cursor);
             while cursor < code_units {
-                let code_point = host.code_point_at(cursor);
-                let facts = host.code_point_facts(code_point);
+                let code_point = code_point_at(text, cursor);
+                let facts = code_point_facts(code_point);
                 // For the preceding run: Zs excluding U+3000 IDEOGRAPHIC SPACE.
                 let is_preceding_intervening_space = code_point != 0x3000 && facts.is_space_separator;
                 if !facts.is_punctuation && !is_preceding_intervening_space {
                     break;
                 }
-                cursor = host.next_grapheme_boundary(cursor);
+                cursor = next_grapheme_boundary(cursor);
             }
         }
 
@@ -3093,18 +3059,18 @@ pub(crate) fn find_first_letter_in_text(
                 found: true,
             };
         }
-        let letter_facts = host.code_point_facts(host.code_point_at(cursor));
+        let letter_facts = code_point_facts(code_point_at(text, cursor));
         if !(letter_facts.is_letter || letter_facts.is_number || letter_facts.is_symbol) {
             match_start += code_unit_length_for_code_point(starting_code_point);
             continue;
         }
 
-        let mut letter_end = host.next_grapheme_boundary(cursor);
+        let mut letter_end = next_grapheme_boundary(cursor);
 
         // Trailing group: greedy match of (Zs|P-(Ps|Pd))*.
         while letter_end < code_units {
-            let code_point = host.code_point_at(letter_end);
-            let facts = host.code_point_facts(code_point);
+            let code_point = code_point_at(text, letter_end);
+            let facts = code_point_facts(code_point);
             // For the trailing run: Zs excluding U+3000 IDEOGRAPHIC SPACE and word separators.
             // NB: css-text-4 defines word separators as a non-exhaustive list, but of the seven code
             //     points it names only U+0020 SPACE and U+00A0 NO-BREAK SPACE are in the Zs category;
@@ -3112,14 +3078,14 @@ pub(crate) fn find_first_letter_in_text(
             //     not word separators per the spec's note, so they remain valid intervening Zs here.
             let is_trailing_intervening_space =
                 !matches!(code_point, 0x0020 | 0x00a0 | 0x3000) && facts.is_space_separator;
-            // NB: The css-pseudo specification excludes Ps and Pd classes (closing punctuation and dashes) from the
+            // NB: The css-pseudo specification excludes Ps and Pd classes (opening punctuation and dashes) from the
             //     trailing run, whereas CSS 2.1 allowed all classes in both the preceding and trailing runs.
             let is_trailing_punctuation =
                 facts.is_punctuation && !facts.is_open_punctuation && !facts.is_dash_punctuation;
             if !is_trailing_intervening_space && !is_trailing_punctuation {
                 break;
             }
-            letter_end = host.next_grapheme_boundary(letter_end);
+            letter_end = next_grapheme_boundary(letter_end);
         }
 
         return FfiFirstLetterTarget {
@@ -3135,16 +3101,28 @@ pub(crate) fn find_first_letter_in_text(
 }
 
 fn find_first_letter_in_layout_text(host: &TreeBuilderHost<'_>, node: LayoutNode) -> FfiFirstLetterTarget {
-    let mut callbacks = std::mem::MaybeUninit::<FfiFirstLetterTextCallbacks>::uninit();
-    // SAFETY: `node` is a live TextNode and the callback initializes the output table with a context that remains live
-    // until the next call.
-    let preserves_segment_breaks = unsafe {
-        (host.callbacks.prepare_first_letter_text)(host.callbacks.context, host.shell(node), callbacks.as_mut_ptr())
-    };
-    // SAFETY: The callback contract guarantees that the output table was initialized.
-    let callbacks = unsafe { callbacks.assume_init() };
-    let text_host = FirstLetterTextHost { callbacks: &callbacks };
-    let mut target = find_first_letter_in_text(&text_host, preserves_segment_breaks);
+    // SAFETY: Tree building owns the arena, and no borrow crosses the source callback.
+    let source = unsafe { super::rendered_text::text_source_for_node(host.arena, node) };
+    // SAFETY: Copy the raw source before any further host call. First-letter
+    // matching determines source ranges before text transforms are applied.
+    let text = unsafe { source.text.to_utf16() }.expect("first-letter source carries no storage");
+    let segmenter = GraphemeSegmenter::new(&text);
+    let preserves_segment_breaks = matches!(
+        host.style(host.parent(node))
+            .expect("text parent has style")
+            .inherited_text()
+            .white_space_collapse,
+        white_space_collapse::PRESERVE | white_space_collapse::PRESERVE_BREAKS | white_space_collapse::BREAK_SPACES
+    );
+    let mut target = find_first_letter_in_text(
+        &text,
+        preserves_segment_breaks,
+        |index| segmenter.next_boundary(index, false).unwrap_or(text.len()),
+        |code_point| {
+            // SAFETY: This service classifies a scalar value without accessing layout.
+            unsafe { ladybird_layout_code_point_category_facts(code_point) }
+        },
+    );
     if target.found {
         target.text_node = host.shell(node);
         target.text_layout_node = node;
@@ -3163,7 +3141,7 @@ fn create_first_letter_boxes(host: &DomTreeBuilderHost<'_>, element: *mut c_void
         layout_host.free_unplaced(remainder_slice);
         return;
     }
-    if layout_host.data(nodes.remainder_slice).kind.get() == NodeKind::TextSliceNode {
+    if layout_host.data(nodes.remainder_slice).kind.get() == NodeKind::TextNode {
         // SAFETY: The host callback has returned and no arena borrow survives it.
         // Initialize the source ranges before attaching or rendering either slice.
         unsafe { &mut *layout_host.arena }.set_first_letter_slices(
@@ -3921,32 +3899,18 @@ fn fixup_tables(host: &TreeBuilderHost<'_>, root: LayoutNode) {
 mod tests {
     use crate::layout::node_data::NodeSlotId;
     use crate::layout::tree_builder::{
-        FfiComputedContentType, FfiElementLayoutFacts, FfiElementLayoutKind, FfiFirstLetterCodePointFacts,
-        FfiFirstLetterTextCallbacks, FfiPrincipalBoxPlacement, FfiPrincipalNodeEntryFacts, FfiPseudoElement,
-        FfiPseudoElementDecision, FfiPseudoElementFacts, FfiReplacedElementDisplayAdjustment, FirstLetterTextHost,
-        PrincipalBoxGenerationDecision, PrincipalBoxPlacementFacts, SvgEntryDecision, TopLayerEntryDecision,
-        TreeBuilderContext, adjusted_table_display_for_replaced_element, display_contents_text_needs_style_wrapper,
-        element_layout_kind, find_first_letter_in_text, principal_box_generation_decision,
-        principal_box_placement_decision, principal_node_entry_decision, pseudo_element_decision,
+        FfiCodePointCategoryFacts, FfiComputedContentType, FfiElementLayoutFacts, FfiElementLayoutKind,
+        FfiPrincipalBoxPlacement, FfiPrincipalNodeEntryFacts, FfiPseudoElement, FfiPseudoElementDecision,
+        FfiPseudoElementFacts, FfiReplacedElementDisplayAdjustment, PrincipalBoxGenerationDecision,
+        PrincipalBoxPlacementFacts, SvgEntryDecision, TopLayerEntryDecision, TreeBuilderContext,
+        adjusted_table_display_for_replaced_element, display_contents_text_needs_style_wrapper, element_layout_kind,
+        find_first_letter_in_text, principal_box_generation_decision, principal_box_placement_decision,
+        principal_node_entry_decision, pseudo_element_decision,
     };
     use std::ffi::c_void;
 
-    unsafe extern "C" fn text_length(context: *mut c_void) -> usize {
-        // SAFETY: Test callers pass a valid `Vec<u16>` as the callback context.
-        unsafe { (&*context.cast::<Vec<u16>>()).len() }
-    }
-
-    unsafe extern "C" fn code_point_at(context: *mut c_void, index: usize) -> u32 {
-        // SAFETY: Test callers pass a valid `Vec<u16>` and an in-bounds index.
-        unsafe { (&*context.cast::<Vec<u16>>())[index] as u32 }
-    }
-
-    unsafe extern "C" fn next_grapheme_boundary(_: *mut c_void, index: usize) -> usize {
-        index + 1
-    }
-
-    unsafe extern "C" fn code_point_facts(_: *mut c_void, code_point: u32) -> FfiFirstLetterCodePointFacts {
-        FfiFirstLetterCodePointFacts {
+    fn code_point_facts(code_point: u32) -> FfiCodePointCategoryFacts {
+        FfiCodePointCategoryFacts {
             is_space_separator: code_point == b' ' as u32,
             is_punctuation: matches!(code_point, 0x21 | 0x22 | 0x27..=0x2f | 0x3a | 0x3b | 0x3f | 0x40),
             is_letter: matches!(code_point, 0x41..=0x5a | 0x61..=0x7a),
@@ -3961,15 +3925,8 @@ mod tests {
         text: &str,
         preserves_segment_breaks: bool,
     ) -> crate::layout::tree_builder::FfiFirstLetterTarget {
-        let mut text = text.encode_utf16().collect::<Vec<_>>();
-        let callbacks = FfiFirstLetterTextCallbacks {
-            context: (&raw mut text).cast(),
-            code_unit_length: text_length,
-            code_point_at,
-            next_grapheme_boundary,
-            code_point_facts,
-        };
-        find_first_letter_in_text(&FirstLetterTextHost { callbacks: &callbacks }, preserves_segment_breaks)
+        let text = text.encode_utf16().collect::<Vec<_>>();
+        find_first_letter_in_text(&text, preserves_segment_breaks, |index| index + 1, code_point_facts)
     }
 
     #[test]
@@ -4015,6 +3972,36 @@ mod tests {
         assert_eq!((target.letter_start, target.letter_end), (0, 1));
 
         assert!(!first_letter_target("\nHello", true).found);
+    }
+
+    #[test]
+    fn first_letter_source_matching_decodes_surrogates_and_respects_grapheme_boundaries() {
+        let text: Vec<u16> = "  😀abc".encode_utf16().collect();
+        let target = find_first_letter_in_text(
+            &text,
+            false,
+            |index| if index == 2 { 4 } else { index + 1 },
+            |code_point| {
+                let mut facts = code_point_facts(code_point);
+                facts.is_symbol |= code_point == 0x1f600;
+                facts
+            },
+        );
+        assert!(target.found);
+        assert_eq!(
+            (target.letter_start, target.letter_end, target.source_length),
+            (2, 4, 7)
+        );
+
+        let text: Vec<u16> = "I\u{0307}abc".encode_utf16().collect();
+        let target = find_first_letter_in_text(
+            &text,
+            false,
+            |index| if index == 0 { 2 } else { index + 1 },
+            code_point_facts,
+        );
+        assert!(target.found);
+        assert_eq!((target.letter_start, target.letter_end), (0, 2));
     }
 
     #[test]

@@ -3030,6 +3030,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut tree_builder_config = base_config.clone();
     tree_builder_config.namespaces = Some(vec!["Web".to_string(), "Layout".to_string(), "RustFFI".to_string()]);
     tree_builder_config.export.include = vec![
+        "FfiCodePointCategoryFacts".to_string(),
         "FfiNodeKindFacts".to_string(),
         "FfiReplacedContentFacts".to_string(),
         "FfiStylePayloads".to_string(),
@@ -3038,6 +3039,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "NodeSlotId".to_string(),
     ];
     tree_builder_config.export.exclude = vec![
+        "ladybird_layout_code_point_category_facts".to_string(),
         "ladybird_layout_node_shell_destroy".to_string(),
         "rust_calc_node_create_numeric_dimension".to_string(),
         "rust_calc_resolve".to_string(),

@@ -129,7 +129,6 @@ pub enum NodeKind {
     TextAreaBox = 33,
     TextInputBox = 34,
     TextNode = 35,
-    TextSliceNode = 36,
     VideoBox = 37,
     Viewport = 38,
 }

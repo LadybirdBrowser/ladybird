@@ -290,14 +290,12 @@ pub struct FfiRenderedTextView {
     pub length_in_code_units: usize,
 }
 
-// Source and locale views remain readable until the next host callback or DOM mutation.
-unsafe fn source_for_text_sync(arena: *mut LayoutNodeArena, id: NodeSlotId) -> Option<FfiTextSource> {
+/// The arena and text node must be live. No arena borrow may cross the source
+/// callback. Returned views last until the next host callback or DOM mutation.
+pub(super) unsafe fn text_source_for_node(arena: *mut LayoutNodeArena, id: NodeSlotId) -> FfiTextSource {
     let (callback, shell) = {
         // SAFETY: The caller owns the live arena on the document thread.
         let arena = unsafe { &*arena };
-        if !arena.text_content_needs_sync(id) {
-            return None;
-        }
         (
             arena
                 .text_source_callback
@@ -306,7 +304,25 @@ unsafe fn source_for_text_sync(arena: *mut LayoutNodeArena, id: NodeSlotId) -> O
         )
     };
     // SAFETY: The source callback only reads DOM facts. No arena borrow crosses it.
-    Some(unsafe { callback(shell) })
+    unsafe { callback(shell) }
+}
+
+unsafe fn source_for_text_sync(arena: *mut LayoutNodeArena, id: NodeSlotId) -> Option<FfiTextSource> {
+    // SAFETY: The caller lends the live arena for this invalidation check.
+    if !unsafe { &*arena }.text_content_needs_sync(id) {
+        return None;
+    }
+    // SAFETY: The invalidation check's borrow ended before requesting source facts.
+    Some(unsafe { text_source_for_node(arena, id) })
+}
+
+/// # Safety
+///
+/// The arena must be live on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_text_has_source_range(arena: *mut c_void, id: NodeSlotId) -> bool {
+    // SAFETY: The caller lends the arena for this synchronous metadata query.
+    unsafe { LayoutNodeArena::from_handle(arena) }.text_has_source_range(id)
 }
 
 /// The arena must be live on the document thread with no outstanding borrows.
@@ -672,8 +688,8 @@ mod tests {
     fn first_letter_slices(arena: &mut LayoutNodeArena, end: usize, length: usize) -> (NodeSlotId, NodeSlotId) {
         let first = arena.allocate_for_test().slot;
         let remainder = arena.allocate_for_test().slot;
-        arena.data(first).kind.set(NodeKind::TextSliceNode);
-        arena.data(remainder).kind.set(NodeKind::TextSliceNode);
+        arena.data(first).kind.set(NodeKind::TextNode);
+        arena.data(remainder).kind.set(NodeKind::TextNode);
         arena.set_first_letter_slices(first, remainder, end, length);
         (first, remainder)
     }
@@ -682,6 +698,8 @@ mod tests {
     fn slice_ranges_and_relationships_survive_content_publication() {
         let mut arena = LayoutNodeArena::new();
         let (first, remainder) = first_letter_slices(&mut arena, 2, 5);
+        assert!(arena.text_has_source_range(first));
+        assert!(arena.text_has_source_range(remainder));
         assert_eq!(arena.text_fragments(remainder).as_slice(), &[first, remainder]);
 
         arena.set_text_content(first, content("«SS", 0, 2, vec![edit(1, 1, 1, 2)]));
@@ -713,6 +731,8 @@ mod tests {
         arena.data(replacement).kind.set(NodeKind::TextNode);
         assert_eq!(replacement.slot_index(), first.slot_index());
         assert_ne!(replacement, first);
+        assert!(!arena.text_has_source_range(first));
+        assert!(!arena.text_has_source_range(replacement));
         assert_eq!(arena.text_fragments(remainder).as_slice(), &[remainder]);
         assert_eq!(
             arena.text_source_range(replacement, 4),

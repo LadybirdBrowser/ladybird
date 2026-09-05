@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #target::first-letter { text-transform: uppercase; }
+    #target.lower::first-letter { text-transform: lowercase; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const source = document.createTextNode("");
+        target.append(source);
+        function check(label, text, lower = false, language = "en", whitespace = "normal") {
+            target.className = lower ? "lower" : "";
+            target.lang = language;
+            target.style.whiteSpace = whitespace;
+            source.data = text;
+            println(`${label}: ${JSON.stringify(target.innerText)}`);
+        }
+        check("expanding source character", "ßabc");
+        check("combining sequence", "I\u0307abc", true, "tr");
+        check("supplementary letter", "𐐨abc");
+        check("surrounding punctuation", "«ß!»abc");
+        check("preserved initial newline", "\nßabc", false, "en", "pre");
+        check("restored first letter", "ßabc");
+    });
+</script>
