@@ -1,0 +1,6 @@
+unrelated longhands skipped: true
+opacity: 0.5
+margin: 20px
+color: rgb(0, 128, 0)
+changed own variable: 40px
+changed inherited variable: rgb(255, 0, 0)

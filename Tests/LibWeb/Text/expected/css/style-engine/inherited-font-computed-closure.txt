@@ -1,0 +1,5 @@
+inherited font updates computed by engine: true
+child font: 20px
+child margin: 40px
+grandchild font: 20px
+grandchild padding: 60px

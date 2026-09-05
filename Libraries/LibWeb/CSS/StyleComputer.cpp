@@ -4829,7 +4829,10 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             && only_declarations_changed
             && previous_computation.has_value()
             && !previous_computation->read_beyond_the_record
-            && !previous_computation->style_uses_var_css_function
+            && (!previous_computation->style_uses_var_css_function
+                || (only_declarations_changed
+                    && abstract_element.custom_property_data().ptr() == old_custom_property_data.ptr()
+                    && (publication.computed_group_mask & ((1u << ComputedValues::inherited_style_group_count) - 1)) == 0))
             && !previous_computation->style_uses_inherit_css_function
             && previous_computation->explicitly_inherited_non_inherited_style_groups == 0) {
             sharing->computed_groups_to_rebuild = publication.computed_group_mask & ComputedValues::all_style_groups;

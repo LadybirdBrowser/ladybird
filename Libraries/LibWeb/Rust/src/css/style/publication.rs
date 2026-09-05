@@ -2859,22 +2859,25 @@ impl StyleEngine {
                 *word |= dependencies;
             }
         }
+        const INHERITED_FONT_GROUP: u8 = 1 << 6;
         let font_group_mask = computed_group_output_mask(crate::css::property_metadata::property_id::FONT_SIZE);
         let font_dependency_mask = font_group_mask.and_then(|font_group_mask| {
-            delta
-                .properties()
-                .iter()
-                .copied()
-                .any(|property| computed_group_output_mask(property) == Some(font_group_mask))
-                .then(|| self.computed_group_sets.font_dependency_mask(dependency_target))
+            (inherited_style_groups & INHERITED_FONT_GROUP != 0
+                || delta
+                    .properties()
+                    .iter()
+                    .copied()
+                    .any(|property| computed_group_output_mask(property) == Some(font_group_mask)))
+            .then(|| self.computed_group_sets.font_dependency_mask(dependency_target))
         });
         let font_dependency_properties = font_group_mask.and_then(|font_group_mask| {
-            delta
-                .properties()
-                .iter()
-                .copied()
-                .any(|property| computed_group_output_mask(property) == Some(font_group_mask))
-                .then(|| self.computed_group_sets.font_dependency_properties(dependency_target))
+            (inherited_style_groups & INHERITED_FONT_GROUP != 0
+                || delta
+                    .properties()
+                    .iter()
+                    .copied()
+                    .any(|property| computed_group_output_mask(property) == Some(font_group_mask)))
+            .then(|| self.computed_group_sets.font_dependency_properties(dependency_target))
         });
         if delta.properties().len() == 1 {
             computed_property_closure_is_exact |=
@@ -2889,7 +2892,7 @@ impl StyleEngine {
         const INHERITED_UI_GROUP: u8 = 1 << 2;
         const INHERITED_TEXT_GROUP: u8 = 1 << 4;
         const INHERITED_GROUPS_WITH_COMPUTED_CLOSURE: u8 =
-            INHERITED_STATIC_GROUPS | INHERITED_UI_GROUP | INHERITED_TEXT_GROUP;
+            INHERITED_STATIC_GROUPS | INHERITED_UI_GROUP | INHERITED_TEXT_GROUP | INHERITED_FONT_GROUP;
         let inherited_property_closure_requested = delta.is_empty()
             && inherited_style_groups != 0
             && inherited_style_groups & !INHERITED_GROUPS_WITH_COMPUTED_CLOSURE == 0;
@@ -2915,7 +2918,9 @@ impl StyleEngine {
             && (inherited_style_groups & INHERITED_TEXT_GROUP == 0
                 || inherited_current_color_dependency_properties.is_some_and(|properties| properties.is_some()))
             && (inherited_style_groups & INHERITED_UI_GROUP == 0
-                || inherited_color_scheme_dependency_properties.is_some_and(|properties| properties.is_some()));
+                || inherited_color_scheme_dependency_properties.is_some_and(|properties| properties.is_some()))
+            && (inherited_style_groups & INHERITED_FONT_GROUP == 0
+                || font_dependency_properties.is_some_and(|properties| properties.is_some()));
         if inherited_property_closure_is_exact {
             for property in crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
                 ..=crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID
@@ -2930,6 +2935,7 @@ impl StyleEngine {
             for dependencies in [
                 inherited_current_color_dependency_properties,
                 inherited_color_scheme_dependency_properties,
+                font_dependency_properties,
             ]
             .into_iter()
             .flatten()
@@ -2945,6 +2951,7 @@ impl StyleEngine {
             [
                 inherited_current_color_dependency_mask,
                 inherited_color_scheme_dependency_mask,
+                font_dependency_mask,
             ]
             .into_iter()
             .flatten()

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #parent { font-size: 16px; }
+    #child { margin-left: 2em; }
+    #grandchild { padding-left: 3em; }
+</style>
+<div id="parent"><div id="child"><div id="grandchild"></div></div></div>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        const child = document.getElementById("child");
+        const grandchild = document.getElementById("grandchild");
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+        parent.style.fontSize = "20px";
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`inherited font updates computed by engine: ${after.elementStyleRecomputations - before.elementStyleRecomputations === 1 && after.engineComputedStyleRecords - before.engineComputedStyleRecords >= 2}`);
+        println(`child font: ${getComputedStyle(child).fontSize}`);
+        println(`child margin: ${getComputedStyle(child).marginLeft}`);
+        println(`grandchild font: ${getComputedStyle(grandchild).fontSize}`);
+        println(`grandchild padding: ${getComputedStyle(grandchild).paddingLeft}`);
+    });
+</script>
