@@ -1377,7 +1377,7 @@ fn container_relative_length_unit_bit(unit: u8) -> u8 {
     }
 }
 
-pub(crate) fn external_value_dependencies(value: &StyleValueData) -> ExternalValueDependencies {
+fn collect_external_value_dependencies(value: &StyleValueData) -> ExternalValueDependencies {
     fn collect_optional(value: &RetainedStyleValueData, dependencies: &mut ExternalValueDependencies) {
         if let Some(value) = value.optional_data() {
             collect(value, dependencies);
@@ -1656,6 +1656,15 @@ pub(crate) fn external_value_dependencies(value: &StyleValueData) -> ExternalVal
 
     let mut dependencies = ExternalValueDependencies::default();
     collect(value, &mut dependencies);
+    dependencies
+}
+
+pub(crate) fn value_may_need_style_sheet_resource_context(value: &StyleValueData) -> bool {
+    collect_external_value_dependencies(value).may_need_style_sheet_resource_context
+}
+
+pub(crate) fn external_value_dependencies(value: &StyleValueData) -> ExternalValueDependencies {
+    let mut dependencies = collect_external_value_dependencies(value);
     dependencies.inheritance_dependent = crate::css::style_value::value_depends_on_current_color(value)
         || !value_is_computationally_independent(value)
             .expect("computational independence requested for an unsupported value");
