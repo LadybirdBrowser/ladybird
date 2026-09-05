@@ -79,7 +79,11 @@ public:
         m_frame_count = frame_count;
         m_timing.set_frame_count(sample_rate(), AK::clamp_to<i64>(frame_count));
     }
-    size_t copy_to_interleaved(Span<float> destination, size_t source_frame_offset = 0) const
+    struct InterleavedCopy {
+        size_t sample_count { 0 };
+        bool contains_non_silent_samples { false };
+    };
+    InterleavedCopy copy_to_interleaved(Span<float> destination, size_t source_frame_offset = 0) const
     {
         VERIFY(!is_empty());
         auto channels = channel_count();
@@ -87,15 +91,22 @@ public:
 
         auto available_frames = frame_count();
         if (source_frame_offset >= available_frames)
-            return 0;
+            return {};
 
         auto frames_to_copy = min(destination.size() / channels, available_frames - source_frame_offset);
+        bool contains_non_silent_samples = false;
         for (size_t channel = 0; channel < channels; channel++) {
             auto source_channel = channel_data(channel).slice(source_frame_offset, frames_to_copy);
-            for (size_t frame = 0; frame < frames_to_copy; frame++)
-                destination[(frame * channels) + channel] = source_channel[frame];
+            for (size_t frame = 0; frame < frames_to_copy; frame++) {
+                auto sample = source_channel[frame];
+                destination[(frame * channels) + channel] = sample;
+                contains_non_silent_samples |= sample != 0.0f;
+            }
         }
-        return frames_to_copy * channels;
+        return {
+            .sample_count = frames_to_copy * channels,
+            .contains_non_silent_samples = contains_non_silent_samples,
+        };
     }
     u32 sample_rate() const
     {

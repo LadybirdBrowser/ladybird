@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2026, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -29,6 +30,8 @@ struct RenderContext {
     double sample_rate { 0 };
     size_t quantum_size { 0 };
     u64 quantum_start_frame { 0 };
+    // How far this quantum's rendering runs ahead of the frames the output device is playing.
+    u64 output_latency_in_frames { 0 };
 
     double quantum_start_time() const { return quantum_start_frame / sample_rate; }
     double sample_period() const { return 1 / sample_rate; }

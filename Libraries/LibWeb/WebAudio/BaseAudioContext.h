@@ -69,6 +69,7 @@ public:
         return *m_listener;
     }
     AudioContextState state() const { return m_control_thread_state; }
+    AudioContextState rendering_state() const { return m_rendering_thread_state; }
     HTML::EnvironmentSettingsObject& relevant_settings_object() const;
     JS::Object& relevant_global_object() const;
     GC::Ref<DOM::Event> create_associated_event(Utf16FlyString const&) const;
@@ -128,6 +129,7 @@ protected:
 
     void queue_a_media_element_task(GC::Ref<GC::Function<void()>>);
     void set_listener(GC::Ref<AudioListener> listener) { m_listener = listener; }
+    HashMap<NodeID, GC::Ref<AudioNode>> const& playing_sources() const { return m_playing_sources; }
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<AudioDestinationNode> m_destination;

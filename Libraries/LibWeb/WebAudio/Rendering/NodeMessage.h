@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2025-2026, Ben Eidson <b.e.eidson@gmail.com>
  * Copyright (c) 2026, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -58,6 +59,11 @@ struct SetBiquadFilterType {
     Bindings::BiquadFilterType type { Bindings::BiquadFilterType::Lowpass };
 };
 
+struct SetMediaElementSourceOutputSilenced {
+    NodeID node_id { 0 };
+    bool output_must_be_silenced { false };
+};
+
 struct SetPannerParameters {
     NodeID node_id { 0 };
     Bindings::PanningModelType panning_model { Bindings::PanningModelType::Equalpower };
@@ -71,7 +77,7 @@ struct SetPannerParameters {
 };
 
 // A control message that updates the state of a single render node.
-using NodeMessage = Variant<StartSource, StopSource, StartBufferSource, SetBufferSourceParameters, SetOscillatorWaveform, SetBiquadFilterType, SetPannerParameters>;
+using NodeMessage = Variant<StartSource, StopSource, StartBufferSource, SetBufferSourceParameters, SetOscillatorWaveform, SetBiquadFilterType, SetMediaElementSourceOutputSilenced, SetPannerParameters>;
 
 inline NodeID node_message_target(NodeMessage const& message)
 {

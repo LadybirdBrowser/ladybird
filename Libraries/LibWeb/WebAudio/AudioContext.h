@@ -39,6 +39,7 @@ public:
     WebIDL::ExceptionOr<void> close(GC::Ref<WebIDL::Promise>);
 
     WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> create_media_element_source(GC::Ptr<HTML::HTMLMediaElement>);
+    void page_mute_state_changed(Badge<Page>);
 
 private:
     explicit AudioContext(GC::Ref<DOM::EventTarget> relevant_global_object)
@@ -49,6 +50,8 @@ private:
     virtual void finalize() override;
     virtual void document_became_inactive() override;
 
+    void update_audio_output_state(bool is_non_silent);
+
     double m_base_latency { 0 };
     double m_output_latency { 0 };
 
@@ -57,9 +60,11 @@ private:
     bool m_suspended_by_user = false;
 
     RefPtr<Rendering::RealtimeAudioRenderer> m_renderer;
+    bool m_audio_output_is_non_silent { false };
 
     bool start_rendering_audio_graph();
     void set_renderer_callbacks();
+    void set_media_element_sources_ticking(bool);
 };
 
 }

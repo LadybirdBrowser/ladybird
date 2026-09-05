@@ -7,11 +7,17 @@
 #include <AK/Array.h>
 #include <AK/Atomic.h>
 #include <AK/Function.h>
+#include <AK/Hex.h>
+#include <AK/ScopeGuard.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
+#include <LibCore/Timer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
+
+#include "TestMediaCommon.h"
 
 TEST_CASE(accepts_adts_aac)
 {
@@ -35,6 +41,36 @@ TEST_CASE(accepts_adts_aac)
 
     auto stream = Media::IncrementallyPopulatedStream::create_from_data(raw_aac_data);
     EXPECT(!Media::FFmpeg::FFmpegDemuxer::from_stream(stream).is_error());
+}
+
+TEST_CASE(ignores_attached_pictures)
+{
+    auto& loop = never_destroyed_event_loop();
+    auto mp3_data = MUST(decode_hex(
+        "4944330400000000001c4150494300000012000000696d6167652f6a706567000300ffd8ffd9"
+        "ffe318c40000000348000000004c414d45342e305555555555555555555555555555555555555555555555555555555555555555554c414d45342e30555555555555555555555555ffe318c43b00000348000000005555555555555555555555555555555555555555555555555555555555555555555555"
+        "55555555554c414d45342e30555555555555555555555555ffe318c47600000348000000005555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555ffe318c4b100000348000000005555555555555555555555"
+        "555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555ffe318c4c400000348000000005555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555"
+        "ffe318c4c400000348000000005555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555"sv));
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(mp3_data);
+    auto demuxer = MUST(Media::FFmpeg::FFmpegDemuxer::from_stream(stream));
+
+    auto audio_tracks = MUST(demuxer->get_tracks_for_type(Media::TrackType::Audio));
+    EXPECT_EQ(audio_tracks.size(), 1u);
+    MUST(demuxer->create_context_for_track(audio_tracks[0]));
+    EXPECT(!demuxer->get_next_sample_for_track(audio_tracks[0]).is_error());
+
+    auto video_tracks = MUST(demuxer->get_tracks_for_type(Media::TrackType::Video));
+    EXPECT(video_tracks.is_empty());
+
+    // The picture must not cost the container its navigator, which is what scans the audio track.
+    demuxer->set_scan_state_change_handler([] { });
+    ScopeGuard remove_handler = [&] { demuxer->set_scan_state_change_handler(nullptr); };
+    bool deadline_expired = false;
+    auto deadline_timer = Core::Timer::create_single_shot(1'000, [&] { deadline_expired = true; });
+    deadline_timer->start();
+    loop.spin_until([&] { return demuxer->scan_state().state_for_track(audio_tracks[0]) != nullptr || deadline_expired; });
+    EXPECT(!deadline_expired);
 }
 
 TEST_CASE(rejects_formats_handled_by_other_demuxers)

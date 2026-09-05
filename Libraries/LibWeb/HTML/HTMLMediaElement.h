@@ -2,6 +2,7 @@
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2023-2026, Tim Flynn <trflynn89@ladybird.org>
  * Copyright (c) 2025-2026, Gregory Bertilson <gregory@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -178,6 +179,14 @@ public:
         return *m_playback_manager;
     }
 
+    enum class [[nodiscard]] AttachAudioPullSinkResult {
+        Attached,
+        AlreadyAttached,
+    };
+    AttachAudioPullSinkResult attach_audio_pull_sink(NonnullRefPtr<Media::AudioPullSink>, bool ticking, ESCAPING Function<void(bool output_must_be_silenced)>);
+    void set_audio_pull_sink_ticking(bool);
+    bool media_data_must_be_silenced() const { return m_media_data_must_be_silenced; }
+
     void create_controls();
     void destroy_controls();
 
@@ -206,6 +215,7 @@ private:
     friend SourceElementSelector;
     friend class Web::Internals::Internals;
 
+    class AudioPullSinkAttachment;
     class ActiveVideoSink;
     struct RemoteFetchData;
     virtual bool is_html_media_element() const final { return true; }
@@ -272,6 +282,7 @@ private:
 
     void volume_or_muted_attribute_changed();
     void update_volume();
+    void set_media_data_must_be_silenced(bool);
     void attach_selected_video_track_sink(Media::Track const&);
 
     bool video_sink_should_tick() const;
@@ -419,6 +430,8 @@ private:
     bool m_current_resource_selection_is_explicit { false };
 
     OwnPtr<Media::PlaybackManager> m_playback_manager;
+    OwnPtr<AudioPullSinkAttachment> m_audio_pull_sink_attachment;
+    bool m_media_data_must_be_silenced { false };
 
     RefPtr<Core::Timer> m_playback_position_update_timer;
     GC::Ptr<VideoTrack> m_selected_video_track;

@@ -1,0 +1,3 @@
+ended while rendering, took at least 50ms: true
+currentTime === duration: true
+ended while suspended, took at least 50ms: true

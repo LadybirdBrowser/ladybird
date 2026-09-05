@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<audio id="audio"></audio>
+<script>
+    asyncTest(done => {
+        const context = new AudioContext();
+        const audio = document.getElementById("audio");
+
+        // The element keeps feeding the node for as long as the context renders, so the node must outlive its script
+        // reference like a playing scheduled source does.
+        const source = new WeakRef((() => {
+            const node = context.createMediaElementSource(audio);
+            node.connect(context.destination);
+            return node;
+        })());
+
+        internals
+            .gcAsync()
+            .then(() => internals.gcAsync())
+            .then(() => {
+                println(`connected media element source is kept alive: ${source.deref() !== undefined}`);
+                done();
+            });
+    });
+</script>

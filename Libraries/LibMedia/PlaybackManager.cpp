@@ -15,6 +15,7 @@
 #include <LibMedia/Producers/DecodedAudioProducer.h>
 #include <LibMedia/Producers/DecodedVideoProducer.h>
 #include <LibMedia/Sinks/AudioPlaybackSink.h>
+#include <LibMedia/Sinks/AudioPullSink.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/Sinks/VideoSink.h>
 #include <LibMedia/Track.h>
@@ -131,25 +132,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
 
         self->set_up_producers();
 
-        if (!self->m_audio_output_disabled && !self->m_audio_sink && !self->m_audio_tracks.is_empty()) {
-            self->m_audio_mixer = MUST(AudioMixer::try_create());
-            self->m_audio_time_stretch_processor = MUST(AudioTimeStretchProcessor::try_create());
-            self->m_audio_sink = MUST(AudioPlaybackSink::try_create(
-                [self](PipelineStatus status) {
-                    if (!self)
-                        return;
-                    self->on_audio_sink_state_changed(status);
-                }));
-            MUST(self->m_audio_time_stretch_processor->connect_input(*self->m_audio_mixer));
-            MUST(self->m_audio_sink->connect_input(*self->m_audio_time_stretch_processor));
-            self->set_clock(*self->m_audio_sink);
-            self->m_audio_sink->on_audio_output_error = [self](Error&& error) {
-                if (!self)
-                    return;
-                dbgln("Audio output initialization failed with error: {}", error);
-                self->disable_audio();
-            };
-        }
+        self->ensure_audio_output_pipeline();
 
         if (self->on_track_added) {
             for (size_t i = first_new_audio_index; i < self->m_audio_tracks.size(); i++)
@@ -182,7 +165,17 @@ PlaybackManager::PlaybackManager()
 
 PlaybackManager::~PlaybackManager()
 {
+    if (auto* playback_sink = m_audio_output.get_pointer<NonnullRefPtr<AudioPlaybackSink>>())
+        (*playback_sink)->set_audio_output_state_change_handler(nullptr);
+    set_audio_output_is_non_silent(false);
     m_clock->pause();
+    if (auto* pull_output = m_audio_output.get_pointer<PullAudioOutput>()) {
+        if (pull_output->is_connected && m_audio_time_stretch_processor) {
+            pull_output->sink->disconnect_input(*m_audio_time_stretch_processor);
+            pull_output->is_connected = false;
+        }
+        pull_output->sink->set_state_change_handler(nullptr);
+    }
     for (auto& track_data : m_video_track_datas) {
         if (track_data.handle.has_value())
             video_sink_registrations().remove(*track_data.handle);
@@ -298,11 +291,20 @@ Optional<AK::Duration> PlaybackManager::verified_end_time_for_track(Track const&
     return {};
 }
 
+bool PlaybackManager::has_ticking_audio_sink() const
+{
+    if (m_audio_output.has<NonnullRefPtr<AudioPlaybackSink>>())
+        return true;
+    if (auto const* pull_output = m_audio_output.get_pointer<PullAudioOutput>())
+        return pull_output->ticking;
+    return false;
+}
+
 PipelineStatus PlaybackManager::combined_pipeline_status() const
 {
     auto status = PipelineStatus::EndOfStream;
 
-    if (m_audio_sink != nullptr) {
+    if (has_ticking_audio_sink()) {
         auto audio_status = m_audio_sink_status;
         if (audio_status == PipelineStatus::Suspended)
             audio_status = PipelineStatus::Pending;
@@ -360,7 +362,7 @@ void PlaybackManager::reset_pipeline_state()
             continue;
         track_data.sink_status = PipelineStatus::Pending;
     }
-    m_audio_sink_status = m_audio_sink != nullptr ? PipelineStatus::Pending : PipelineStatus::HaveData;
+    m_audio_sink_status = has_ticking_audio_sink() ? PipelineStatus::Pending : PipelineStatus::HaveData;
 }
 
 void PlaybackManager::update_duration_from_scan_states()
@@ -421,13 +423,184 @@ void PlaybackManager::set_clock(NonnullRefPtr<MediaClock> const& clock)
         clock->resume();
 }
 
+Optional<Audio::ChannelMap> PlaybackManager::audio_output_channel_map() const
+{
+    for (auto const& track_data : m_audio_track_datas) {
+        if (track_data.enabled && track_data.track.audio_data().sample_specification.channel_map().is_valid())
+            return track_data.track.audio_data().sample_specification.channel_map();
+    }
+
+    if (m_preferred_audio_track.has_value()) {
+        for (auto const& track_data : m_audio_track_datas) {
+            if (track_data.track == *m_preferred_audio_track && track_data.track.audio_data().sample_specification.channel_map().is_valid())
+                return track_data.track.audio_data().sample_specification.channel_map();
+        }
+    }
+
+    for (auto const& track_data : m_audio_track_datas) {
+        if (track_data.track.audio_data().sample_specification.channel_map().is_valid())
+            return track_data.track.audio_data().sample_specification.channel_map();
+    }
+
+    return {};
+}
+
+ErrorOr<void> PlaybackManager::update_audio_pull_sink_channel_map()
+{
+    auto* pull_output = m_audio_output.get_pointer<PullAudioOutput>();
+    if (!pull_output)
+        return {};
+    auto channel_map = audio_output_channel_map();
+    if (!channel_map.has_value())
+        return {};
+    return pull_output->sink->set_channel_map(*channel_map);
+}
+
+void PlaybackManager::ensure_audio_output_pipeline()
+{
+    if (m_audio_tracks.is_empty())
+        return;
+    auto* pull_output = m_audio_output.get_pointer<PullAudioOutput>();
+    if (!pull_output && m_audio_output_disabled)
+        return;
+
+    if (!m_audio_mixer) {
+        m_audio_mixer = MUST(AudioMixer::try_create());
+        m_audio_time_stretch_processor = MUST(AudioTimeStretchProcessor::try_create());
+        MUST(m_audio_time_stretch_processor->connect_input(*m_audio_mixer));
+
+        // Tracks enabled while there was no audio output are connected now that there is one. The mixer has no output
+        // specification yet, so connecting cannot fail.
+        for (auto const& track_data : m_audio_track_datas) {
+            if (track_data.enabled)
+                MUST(m_audio_mixer->connect_input(track_data.producer));
+        }
+    }
+
+    if (pull_output) {
+        if (auto result = update_audio_pull_sink_channel_map(); result.is_error()) {
+            disable_audio_after_error(result.error());
+            return;
+        }
+        if (!pull_output->is_connected) {
+            MUST(pull_output->sink->connect_input(*m_audio_time_stretch_processor));
+            pull_output->is_connected = true;
+        }
+        return;
+    }
+
+    if (m_audio_output.has<NonnullRefPtr<AudioPlaybackSink>>())
+        return;
+
+    auto self = weak();
+    auto audio_sink = MUST(AudioPlaybackSink::try_create(
+        [self](PipelineStatus status) {
+            if (!self)
+                return;
+            self->on_audio_sink_state_changed(status);
+        }));
+    audio_sink->set_audio_output_state_change_handler([self](bool is_non_silent) {
+        if (self)
+            self->set_audio_output_is_non_silent(is_non_silent);
+    });
+    MUST(audio_sink->connect_input(*m_audio_time_stretch_processor));
+    audio_sink->set_volume(m_volume);
+    audio_sink->set_muted(m_audio_output_muted);
+    m_audio_output = audio_sink;
+    set_clock(audio_sink);
+    audio_sink->on_audio_output_error = [self, sink = audio_sink.ptr()](Error&& error) {
+        if (!self)
+            return;
+        auto* current_sink = self->m_audio_output.get_pointer<NonnullRefPtr<AudioPlaybackSink>>();
+        if (!current_sink || current_sink->ptr() != sink)
+            return;
+        dbgln("Audio output initialization failed with error: {}", error);
+        self->disable_audio();
+    };
+}
+
+void PlaybackManager::set_audio_pull_sink(NonnullRefPtr<AudioPullSink> sink, bool ticking)
+{
+    if (auto* pull_output = m_audio_output.get_pointer<PullAudioOutput>()) {
+        if (pull_output->sink == sink) {
+            set_audio_pull_sink_ticking(ticking);
+            return;
+        }
+        if (pull_output->is_connected && m_audio_time_stretch_processor)
+            pull_output->sink->disconnect_input(*m_audio_time_stretch_processor);
+        pull_output->sink->set_state_change_handler(nullptr);
+    }
+
+    if (auto* playback_sink = m_audio_output.get_pointer<NonnullRefPtr<AudioPlaybackSink>>()) {
+        (*playback_sink)->set_audio_output_state_change_handler(nullptr);
+        if (m_audio_time_stretch_processor)
+            (*playback_sink)->disconnect_input(*m_audio_time_stretch_processor);
+    }
+    set_audio_output_is_non_silent(false);
+
+    sink->set_volume(m_volume);
+    sink->set_state_change_handler([self = weak()](PipelineStatus status) {
+        if (!self)
+            return;
+        self->on_audio_sink_state_changed(status);
+    });
+    sink->set_ticking(ticking);
+    m_audio_output = PullAudioOutput { .sink = move(sink), .ticking = ticking };
+    auto& pull_output = m_audio_output.get<PullAudioOutput>();
+    m_audio_sink_status = PipelineStatus::Pending;
+    set_clock(pull_output.sink);
+    ensure_audio_output_pipeline();
+    update_pipeline_state();
+}
+
+void PlaybackManager::set_audio_pull_sink_ticking(bool ticking)
+{
+    auto* pull_output = m_audio_output.get_pointer<PullAudioOutput>();
+    if (!pull_output || pull_output->ticking == ticking)
+        return;
+    pull_output->ticking = ticking;
+    pull_output->sink->set_ticking(ticking);
+    if (ticking)
+        m_audio_sink_status = PipelineStatus::Pending;
+    update_pipeline_state();
+}
+
 void PlaybackManager::disable_audio()
 {
+    if (auto* playback_sink = m_audio_output.get_pointer<NonnullRefPtr<AudioPlaybackSink>>())
+        (*playback_sink)->set_audio_output_state_change_handler(nullptr);
+    set_audio_output_is_non_silent(false);
+    if (m_audio_time_stretch_processor) {
+        if (auto* playback_sink = m_audio_output.get_pointer<NonnullRefPtr<AudioPlaybackSink>>())
+            (*playback_sink)->disconnect_input(*m_audio_time_stretch_processor);
+        if (auto* pull_output = m_audio_output.get_pointer<PullAudioOutput>(); pull_output && pull_output->is_connected)
+            pull_output->sink->disconnect_input(*m_audio_time_stretch_processor);
+    }
+    if (auto* pull_output = m_audio_output.get_pointer<PullAudioOutput>())
+        pull_output->sink->set_state_change_handler(nullptr);
+
+    m_audio_output = Empty {};
+    m_audio_output_disabled = true;
     m_audio_mixer = nullptr;
     m_audio_time_stretch_processor = nullptr;
-    m_audio_sink = nullptr;
     set_clock(MUST(MonotonicMediaClock::try_create()));
     on_audio_sink_state_changed(PipelineStatus::EndOfStream);
+}
+
+void PlaybackManager::set_audio_output_is_non_silent(bool is_non_silent)
+{
+    if (m_audio_output_is_non_silent == is_non_silent)
+        return;
+
+    m_audio_output_is_non_silent = is_non_silent;
+    if (on_audio_output_state_change)
+        on_audio_output_state_change(is_non_silent);
+}
+
+void PlaybackManager::disable_audio_after_error(Error const& error)
+{
+    dbgln("PlaybackManager: Disabling audio output after an error: {}", error);
+    disable_audio();
 }
 
 void PlaybackManager::attach_video_sink(VideoTrackData& track_data, NonnullRefPtr<VideoSink> video_sink)
@@ -567,9 +740,12 @@ void PlaybackManager::enable_an_audio_track(Track const& track)
     m_audio_sink_status = PipelineStatus::HaveData;
     if (m_audio_mixer) {
         m_audio_mixer->seek(current_time());
-        MUST(m_audio_mixer->connect_input(track_data.producer));
+        if (auto result = m_audio_mixer->connect_input(track_data.producer); result.is_error())
+            disable_audio_after_error(result.error());
     }
     track_data.enabled = true;
+    if (auto result = update_audio_pull_sink_channel_map(); result.is_error())
+        disable_audio_after_error(result.error());
     update_pipeline_state();
     dispatch_buffered_ranges_change();
 }
@@ -584,6 +760,8 @@ void PlaybackManager::disable_an_audio_track(Track const& track)
         m_audio_mixer->disconnect_input(track_data.producer);
     }
     track_data.enabled = false;
+    if (auto result = update_audio_pull_sink_channel_map(); result.is_error())
+        disable_audio_after_error(result.error());
     update_pipeline_state();
     dispatch_buffered_ranges_change();
 }
@@ -685,8 +863,18 @@ bool PlaybackManager::is_enabled_supported_track(Track const& track) const
 
 void PlaybackManager::set_volume(double volume)
 {
-    if (m_audio_sink)
-        m_audio_sink->set_volume(volume);
+    m_volume = volume;
+    if (auto* playback_sink = m_audio_output.get_pointer<NonnullRefPtr<AudioPlaybackSink>>())
+        (*playback_sink)->set_volume(volume);
+    if (auto* pull_output = m_audio_output.get_pointer<PullAudioOutput>())
+        pull_output->sink->set_volume(volume);
+}
+
+void PlaybackManager::set_audio_output_muted(bool muted)
+{
+    m_audio_output_muted = muted;
+    if (auto* playback_sink = m_audio_output.get_pointer<NonnullRefPtr<AudioPlaybackSink>>())
+        (*playback_sink)->set_muted(muted);
 }
 
 void PlaybackManager::set_playback_rate(float rate)

@@ -759,7 +759,8 @@ protected:
     HashTable<u64> m_pending_webdriver_crash_command_ids;
 
     Web::HTML::AudioPlayState m_audio_play_state { Web::HTML::AudioPlayState::Paused };
-    size_t m_number_of_elements_playing_audio { 0 };
+    size_t m_number_of_non_silent_audio_outputs { 0 };
+    RefPtr<Core::Timer> m_audio_indicator_clear_timer;
     Web::ScreenWakeLockState m_screen_wake_lock_state { Web::ScreenWakeLockState::Released };
 
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };

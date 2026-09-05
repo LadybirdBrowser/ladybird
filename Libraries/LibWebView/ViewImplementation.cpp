@@ -58,6 +58,7 @@ static void fail_webdriver_content_commands_after_window_close(HashTable<u64> co
 }
 
 static u64 s_view_count = 1; // This has to start at 1 for Firefox DevTools.
+static constexpr int AUDIO_INDICATOR_HOLD_TIME_MS = 3000;
 
 static Utf16String generate_navigation_id()
 {
@@ -105,6 +106,15 @@ ViewImplementation::ViewImplementation(IsPrivate is_private)
         // Reset the "crashing a lot" counter after 1 second in case we just
         // happen to be visiting crashy websites a lot.
         this->m_crash_count = 0;
+    });
+
+    m_audio_indicator_clear_timer = Core::Timer::create_single_shot(AUDIO_INDICATOR_HOLD_TIME_MS, [this] {
+        if (m_number_of_non_silent_audio_outputs != 0 || m_audio_play_state == Web::HTML::AudioPlayState::Paused)
+            return;
+
+        m_audio_play_state = Web::HTML::AudioPlayState::Paused;
+        if (on_audio_play_state_changed)
+            on_audio_play_state_changed(m_audio_play_state);
     });
 
     m_top_level_traversable.on_session_history_changed = [this] {
@@ -1959,35 +1969,35 @@ void ViewImplementation::toggle_page_mute_state()
 
 void ViewImplementation::did_change_audio_play_state(Badge<WebContentClient>, Web::HTML::AudioPlayState play_state)
 {
-    bool state_changed = false;
-
     switch (play_state) {
     case Web::HTML::AudioPlayState::Paused:
-        if (--m_number_of_elements_playing_audio == 0) {
-            m_audio_play_state = play_state;
-            state_changed = true;
-        }
+        if (m_number_of_non_silent_audio_outputs == 0)
+            break;
+        if (--m_number_of_non_silent_audio_outputs == 0)
+            m_audio_indicator_clear_timer->restart();
         break;
 
     case Web::HTML::AudioPlayState::Playing:
-        if (m_number_of_elements_playing_audio++ == 0) {
+        if (m_number_of_non_silent_audio_outputs++ == 0) {
+            m_audio_indicator_clear_timer->stop();
+            if (m_audio_play_state == Web::HTML::AudioPlayState::Playing)
+                break;
             m_audio_play_state = play_state;
-            state_changed = true;
+            if (on_audio_play_state_changed)
+                on_audio_play_state_changed(m_audio_play_state);
         }
         break;
     }
-
-    if (state_changed && on_audio_play_state_changed)
-        on_audio_play_state_changed(m_audio_play_state);
 }
 
 void ViewImplementation::reset_page_media_state()
 {
     auto const should_notify_audio_play_state_changed = m_audio_play_state != Web::HTML::AudioPlayState::Paused
-        || m_number_of_elements_playing_audio != 0;
+        || m_number_of_non_silent_audio_outputs != 0;
 
+    m_audio_indicator_clear_timer->stop();
     m_audio_play_state = Web::HTML::AudioPlayState::Paused;
-    m_number_of_elements_playing_audio = 0;
+    m_number_of_non_silent_audio_outputs = 0;
 
     if (should_notify_audio_play_state_changed && on_audio_play_state_changed)
         on_audio_play_state_changed(m_audio_play_state);

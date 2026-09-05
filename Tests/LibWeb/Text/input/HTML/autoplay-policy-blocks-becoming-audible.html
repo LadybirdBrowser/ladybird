@@ -3,7 +3,7 @@
      regardless of test order on a reused WebContent process. Served over HTTP (see the .headers file)
      so the file:// carve-out does not apply. With no user gesture, "Block Audio" must keep audible
      playback from sneaking in: a muted autoplay that is later unmuted pauses, and a scripted play() of
-     audible media is rejected. -->
+     audible media is rejected even while the page's final audio output is muted. -->
 <script>internals.setAutoplayPolicy("block-audio");</script>
 <video autoplay muted id="muted" src="../../../Assets/test-webm.webm"></video>
 <video id="scripted" src="../../../Assets/test-webm.webm"></video>
@@ -25,13 +25,15 @@
     muted.muted = false;
     println(`paused after unmuting without a gesture: ${muted.paused}`);
 
+    internals.setPageMuted(true);
     let rejection = "none";
     try {
       await scripted.play();
     } catch (error) {
       rejection = error.name;
     }
-    println(`scripted audible play() rejected with: ${rejection}`);
+    println(`scripted audible play() in a page-muted tab rejected with: ${rejection}`);
+    internals.setPageMuted(false);
 
     done();
   });

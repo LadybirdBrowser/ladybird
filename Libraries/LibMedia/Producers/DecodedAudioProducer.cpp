@@ -131,6 +131,7 @@ void DecodedAudioProducer::ThreadData::dispatch_read_blocked_change(ReadBlocked 
 
 ErrorOr<void> DecodedAudioProducer::ThreadData::set_output_sample_specification(Audio::SampleSpecification sample_specification)
 {
+    Sync::MutexLocker converter_locker { m_converter_mutex };
     TRY(m_converter->set_output_sample_specification(sample_specification));
     return {};
 }
@@ -221,7 +222,10 @@ DecoderErrorOr<bool> DecodedAudioProducer::ThreadData::replace_drained_decoder()
     if (!m_frame_awaiting_decoder_replacement.has_value())
         return false;
     auto frame = m_frame_awaiting_decoder_replacement.release_value();
-    m_converter->flush();
+    {
+        Sync::MutexLocker converter_locker { m_converter_mutex };
+        m_converter->flush();
+    }
     TRY(create_decoder_for_frame(frame));
     TRY(m_decoder->receive_coded_data(frame));
     return true;
@@ -389,13 +393,17 @@ void DecodedAudioProducer::ThreadData::flush_decoder()
 {
     if (m_decoder != nullptr)
         m_decoder->flush();
-    m_converter->flush();
+    {
+        Sync::MutexLocker converter_locker { m_converter_mutex };
+        m_converter->flush();
+    }
     m_last_output_frame = NumericLimits<i64>::min();
 }
 
 DecoderErrorOr<void> DecodedAudioProducer::ThreadData::retrieve_next_block(AudioBlock& block)
 {
     VERIFY(m_decoder);
+    Sync::MutexLocker converter_locker { m_converter_mutex };
 
     while (true) {
         auto retrieve_result = m_converter->retrieve_block(block);

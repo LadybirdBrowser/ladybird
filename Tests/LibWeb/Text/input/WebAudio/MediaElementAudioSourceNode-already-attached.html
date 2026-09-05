@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<audio id="first"></audio>
+<audio id="second"></audio>
+<script>
+    test(() => {
+        const context = new AudioContext();
+        const first = document.getElementById("first");
+        context.createMediaElementSource(first);
+
+        try {
+            context.createMediaElementSource(first);
+            println("FAIL: a second node was created for the same element");
+        } catch (e) {
+            println(`second createMediaElementSource: ${e.name}`);
+        }
+
+        try {
+            new MediaElementAudioSourceNode(new AudioContext(), { mediaElement: first });
+            println("FAIL: another context created a node for the same element");
+        } catch (e) {
+            println(`constructor from another context: ${e.name}`);
+        }
+
+        const node = context.createMediaElementSource(document.getElementById("second"));
+        println(`another element: ${node.mediaElement.id}`);
+    });
+</script>

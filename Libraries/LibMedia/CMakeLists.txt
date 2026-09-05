@@ -2,6 +2,7 @@ include(audio)
 
 set(SOURCES
     Audio/AudioDevices.cpp
+    Audio/AudioOutputMonitor.cpp
     Audio/AudioRingBuffer.cpp
     Audio/NullPlaybackStream.cpp
     Audio/PlaybackStream.cpp
@@ -50,6 +51,8 @@ set(SOURCES
     Producers/DecodedAudioProducer.cpp
     Producers/DecodedVideoProducer.cpp
     Producers/RemoteVideoProducer.cpp
+    Sinks/AudioOutputQueue.cpp
+    Sinks/AudioPullSink.cpp
     Sinks/AudioPlaybackSink.cpp
     Sinks/DisplayingVideoSink.cpp
     Sinks/RemoteVideoSink.cpp

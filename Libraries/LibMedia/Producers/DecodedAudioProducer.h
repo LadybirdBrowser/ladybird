@@ -134,6 +134,8 @@ private:
         OwnPtr<AudioDecoder> m_decoder;
         bool m_decoder_needs_keyframe_next_seek { false };
         bool m_decoder_needs_codec_configuration_next_seek { true };
+        // The converter is reconfigured by the consumer's thread while the decode thread is feeding it.
+        mutable Sync::Mutex m_converter_mutex;
         NonnullOwnPtr<Audio::AudioConverter> m_converter;
         i64 m_last_output_frame { NumericLimits<i64>::min() };
 

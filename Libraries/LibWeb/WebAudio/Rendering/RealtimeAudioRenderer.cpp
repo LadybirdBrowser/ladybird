@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2026, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -22,6 +23,7 @@ RealtimeAudioRenderer::RealtimeAudioRenderer(NonnullRefPtr<ControlMessageQueue> 
     , m_sample_rate(sample_rate)
     , m_quantum_size(quantum_size)
     , m_main_thread_event_loop(Core::EventLoop::current())
+    , m_audio_output_monitor(Audio::AudioOutputMonitor::create(m_main_thread_event_loop))
 {
 }
 
@@ -34,14 +36,20 @@ void RealtimeAudioRenderer::set_on_sources_ended(Function<void(Vector<NodeID> co
     m_on_sources_ended = move(on_sources_ended);
 }
 
+void RealtimeAudioRenderer::set_on_audio_output_state_changed(Function<void(bool)> on_audio_output_state_changed)
+{
+    m_audio_output_monitor->set_output_state_change_handler(move(on_audio_output_state_changed));
+}
+
 void RealtimeAudioRenderer::clear_callbacks()
 {
     m_on_sources_ended = nullptr;
+    m_audio_output_monitor->set_output_state_change_handler(nullptr);
 }
 
 void RealtimeAudioRenderer::start_rendering()
 {
-    prepare_to_start_rendering();
+    prepare_to_start_rendering(MonitorOutput::Yes);
 
     // The stream is created in a suspended state so the device configuration can be recorded before the first data
     // request callback runs on the audio thread.
@@ -53,13 +61,14 @@ void RealtimeAudioRenderer::start_rendering()
 
 void RealtimeAudioRenderer::start_rendering_with_null_output()
 {
-    prepare_to_start_rendering();
+    prepare_to_start_rendering(MonitorOutput::No);
     set_playback_stream(Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, TARGET_LATENCY_MS, [self = NonnullRefPtr(*this)](Span<float> buffer) { return self->fill_output_buffer(buffer); }));
 }
 
-void RealtimeAudioRenderer::prepare_to_start_rendering()
+void RealtimeAudioRenderer::prepare_to_start_rendering(MonitorOutput monitor_output)
 {
     VERIFY(!m_playback_stream);
+    m_monitor_output = monitor_output;
     m_graph.set_destination(m_destination_node_id);
 }
 
@@ -77,14 +86,18 @@ void RealtimeAudioRenderer::set_playback_stream(NonnullRefPtr<Audio::PlaybackStr
     // through the rendered frames at this rate.
     m_playhead_step = m_sample_rate / static_cast<double>(specification.sample_rate());
     m_playback_stream = stream;
+    stream->set_volume(m_muted ? 0.0 : 1.0)->when_rejected([](auto&&) { });
 
-    if (!m_suspended.load())
+    if (!m_suspended.load()) {
+        m_audio_output_monitor->set_enabled(m_monitor_output == MonitorOutput::Yes);
         stream->resume()->when_rejected([](auto&&) { });
+    }
 }
 
 void RealtimeAudioRenderer::resume()
 {
     m_suspended.store(false);
+    m_audio_output_monitor->set_enabled(m_monitor_output == MonitorOutput::Yes);
     if (m_playback_stream)
         m_playback_stream->resume()->when_rejected([](auto&&) { });
 }
@@ -92,6 +105,7 @@ void RealtimeAudioRenderer::resume()
 void RealtimeAudioRenderer::suspend()
 {
     m_suspended.store(true);
+    m_audio_output_monitor->set_enabled(false);
     if (m_playback_stream)
         m_playback_stream->drain_buffer_and_suspend()->when_rejected([](auto&&) { });
 }
@@ -99,10 +113,19 @@ void RealtimeAudioRenderer::suspend()
 void RealtimeAudioRenderer::stop()
 {
     m_shutting_down.store(true);
+    m_audio_output_monitor->set_enabled(false);
     if (m_playback_stream) {
         m_playback_stream->discard_buffer_and_suspend()->when_rejected([](auto&&) { });
         m_playback_stream = nullptr;
     }
+}
+
+void RealtimeAudioRenderer::set_muted(bool muted)
+{
+    m_muted = muted;
+    m_audio_output_monitor->set_muted(muted);
+    if (m_playback_stream)
+        m_playback_stream->set_volume(muted ? 0.0 : 1.0)->when_rejected([](auto&&) { });
 }
 
 // The amount of audio the output device has played so far, in seconds.
@@ -115,18 +138,27 @@ double RealtimeAudioRenderer::output_time_played() const
 
 ReadonlySpan<float> RealtimeAudioRenderer::fill_output_buffer(Span<float> buffer)
 {
-    if (m_shutting_down.load() || m_device_channel_count == 0)
+    if (m_shutting_down.load() || m_device_channel_count == 0) {
+        m_audio_output_monitor->update(false);
         return {};
+    }
 
     auto channel_count = m_device_channel_count;
     auto frames_requested = buffer.size() / channel_count;
+
+    // The device is playing the buffer delivered before this one, so everything older than that has been heard.
+    auto device_frames_played = m_device_frames_delivered > frames_requested ? m_device_frames_delivered - frames_requested : 0;
+    auto frames_played = static_cast<u64>(static_cast<double>(device_frames_played) * m_playhead_step);
+    m_device_frames_delivered += frames_requested;
+
+    bool contains_non_silent_samples = false;
     for (size_t frame = 0; frame < frames_requested; ++frame) {
         auto first_frame = static_cast<size_t>(m_playhead);
         auto fraction = static_cast<float>(m_playhead - first_frame);
 
         // Interpolation between adjacent rendered frames requires one frame of lookahead.
         while (m_pending_samples.size() / channel_count < first_frame + 2)
-            render_quantum_into_pending_samples();
+            render_quantum_into_pending_samples(frames_played);
 
         for (size_t channel = 0; channel < channel_count; ++channel) {
             auto sample = m_pending_samples[first_frame * channel_count + channel];
@@ -135,6 +167,7 @@ ReadonlySpan<float> RealtimeAudioRenderer::fill_output_buffer(Span<float> buffer
                 sample += fraction * (next_sample - sample);
             }
             buffer[frame * channel_count + channel] = sample;
+            contains_non_silent_samples |= sample != 0.0f;
         }
         m_playhead += m_playhead_step;
     }
@@ -147,17 +180,21 @@ ReadonlySpan<float> RealtimeAudioRenderer::fill_output_buffer(Span<float> buffer
         m_pending_samples.remove(0, consumed_frames * channel_count);
         m_playhead -= consumed_frames;
     }
+    m_audio_output_monitor->update(contains_non_silent_samples);
     return buffer;
 }
 
-void RealtimeAudioRenderer::render_quantum_into_pending_samples()
+void RealtimeAudioRenderer::render_quantum_into_pending_samples(u64 frames_played)
 {
     m_graph.apply_control_messages(m_control_message_queue->drain());
 
+    auto quantum_start_frame = m_frames_rendered.load();
+    auto frames_rendered_after_quantum = quantum_start_frame + m_quantum_size;
     RenderContext context {
         .sample_rate = m_sample_rate,
         .quantum_size = m_quantum_size,
-        .quantum_start_frame = m_frames_rendered.load(),
+        .quantum_start_frame = quantum_start_frame,
+        .output_latency_in_frames = frames_rendered_after_quantum > frames_played ? frames_rendered_after_quantum - frames_played : 0,
     };
     m_graph.render_quantum(context);
 

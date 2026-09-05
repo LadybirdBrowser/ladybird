@@ -35,6 +35,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/WebAudio/AudioContext.h>
 
 namespace Web {
 
@@ -924,6 +925,25 @@ void Page::set_page_mute_state(HTML::MuteState mute_state)
     for_each_media_element([&](auto& media_element) {
         media_element.page_mute_state_changed({});
     });
+
+    for (auto& audio_context : m_audio_contexts)
+        audio_context.page_mute_state_changed({});
+}
+
+void Page::audio_output_state_changed(bool is_non_silent)
+{
+    client().page_did_change_audio_play_state(
+        is_non_silent ? HTML::AudioPlayState::Playing : HTML::AudioPlayState::Paused);
+}
+
+void Page::register_audio_context(Badge<WebAudio::AudioContext>, WebAudio::AudioContext& audio_context)
+{
+    m_audio_contexts.set(audio_context);
+}
+
+void Page::unregister_audio_context(Badge<WebAudio::AudioContext>, WebAudio::AudioContext& audio_context)
+{
+    m_audio_contexts.remove(audio_context);
 }
 
 GC::Ptr<HTML::HTMLMediaElement> Page::media_context_menu_element()
