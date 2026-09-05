@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="rules">
+    #container { --selection-color: rgb(10, 20, 30); }
+    #target::selection { color: var(--selection-color); background-color: rgb(40, 50, 60); }
+    input::selection { color: rgb(70, 80, 90); background-color: rgb(100, 110, 120); }
+</style>
+<div id="container"><span id="target">selected text</span></div>
+<input id="control" value="selected control text">
+<div id="host"></div>
+<script>
+    test(() => {
+        const selection = document.getSelection();
+        selection.removeAllRanges();
+        const style = getComputedStyle(target, "::selection");
+        println(`unselected: ${style.color}, ${style.backgroundColor}`);
+
+        rules.sheet.cssRules[1].style.backgroundColor = "rgb(130, 140, 150)";
+        println(`unselected rule edit: ${style.backgroundColor}`);
+        container.style.setProperty("--selection-color", "rgb(160, 170, 180)");
+        println(`unselected inherited variable edit: ${style.color}`);
+
+        const range = document.createRange();
+        range.selectNodeContents(target);
+        selection.addRange(range);
+        internals.updateStyle();
+        println(`selected: ${style.color}, ${style.backgroundColor}`);
+        rules.sheet.cssRules[1].style.color = "rgb(190, 200, 210)";
+        println(`selected rule edit: ${style.color}`);
+
+        selection.removeAllRanges();
+        rules.sheet.deleteRule(1);
+        rules.sheet.insertRule("#target::selection { color: rgb(220, 230, 240); }", 1);
+        println(`rule replaced after deselection: ${style.color}`);
+        const detachedTarget = target;
+        detachedTarget.remove();
+        println(`detached query: ${style.color === ""}`);
+        container.appendChild(detachedTarget);
+        println(`reattached query: ${style.color}`);
+
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        const shadowSheet = new CSSStyleSheet();
+        shadowSheet.replaceSync("span::selection { color: rgb(15, 25, 35); }");
+        shadowRoot.adoptedStyleSheets = [shadowSheet];
+        const shadowTarget = shadowRoot.appendChild(document.createElement("span"));
+        shadowTarget.textContent = "shadow text";
+        const shadowStyle = getComputedStyle(shadowTarget, "::selection");
+        println(`unselected shadow query: ${shadowStyle.color}`);
+        shadowSheet.cssRules[0].style.color = "rgb(45, 55, 65)";
+        println(`unselected shadow rule edit: ${shadowStyle.color}`);
+
+        control.focus();
+        control.setSelectionRange(0, 8);
+        internals.updateStyle();
+        const controlStyle = getComputedStyle(control, "::selection");
+        println(`control selection: ${controlStyle.color}, ${controlStyle.backgroundColor}`);
+        println(`document selection remains collapsed: ${selection.isCollapsed}`);
+    });
+</script>

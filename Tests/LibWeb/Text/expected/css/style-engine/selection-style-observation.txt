@@ -1,0 +1,12 @@
+unselected: rgb(10, 20, 30), rgb(40, 50, 60)
+unselected rule edit: rgb(130, 140, 150)
+unselected inherited variable edit: rgb(160, 170, 180)
+selected: rgb(160, 170, 180), rgb(130, 140, 150)
+selected rule edit: rgb(190, 200, 210)
+rule replaced after deselection: rgb(220, 230, 240)
+detached query: true
+reattached query: rgb(220, 230, 240)
+unselected shadow query: rgb(15, 25, 35)
+unselected shadow rule edit: rgb(45, 55, 65)
+control selection: rgb(70, 80, 90), rgb(100, 110, 120)
+document selection remains collapsed: true
