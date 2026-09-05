@@ -2156,8 +2156,7 @@ fn replace_a_dashed_function(
                     definition.signature.name.units() == name && definition.scope_identity == caller_scope_identity
                 })
             })?
-        })
-        .cloned();
+        });
     let Some(function) = definition else {
         return TokenResolution::Invalid;
     };
@@ -2203,7 +2202,7 @@ fn replace_a_dashed_function(
     evaluate_a_custom_function(
         store,
         registry,
-        &function,
+        function,
         substituted_arguments,
         context,
         recursion_depth,
