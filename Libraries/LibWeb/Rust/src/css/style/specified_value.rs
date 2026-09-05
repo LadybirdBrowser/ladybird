@@ -32,12 +32,6 @@ impl super::intern_table::InternIdentity for SpecifiedValueEntryIndex {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum SpecifiedValueCoverage {
-    Complete,
-    Partial { eviction_generation: u64 },
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum SpecifiedValueGap {
     RetiredPayloads { eviction_generation: u64 },
 }
@@ -49,7 +43,7 @@ pub(super) struct SpecifiedValues {
     entries: super::intern_table::InternTable<SpecifiedValueEntryIndex, SpecifiedValueEntry>,
     entries_by_pointer: HashMap<usize, SpecifiedValueID>,
     entries_by_id: HashMap<SpecifiedValueID, u32>,
-    coverage: SpecifiedValueCoverage,
+    gap: Option<SpecifiedValueGap>,
     next_id: u64,
     residency: MemoryLease,
 }
@@ -60,7 +54,7 @@ impl SpecifiedValues {
             entries: super::intern_table::InternTable::default(),
             entries_by_pointer: HashMap::default(),
             entries_by_id: HashMap::default(),
-            coverage: SpecifiedValueCoverage::Complete,
+            gap: None,
             next_id: 1,
             residency: MemoryLease::new(MemoryCategory::SpecifiedValueTable),
         }
@@ -81,28 +75,13 @@ impl SpecifiedValues {
         {
             return Lookup::Known(self.entries[index].id);
         }
-        match self.coverage() {
-            SpecifiedValueCoverage::Complete => Lookup::KnownAbsent,
-            SpecifiedValueCoverage::Partial { eviction_generation } => {
-                Lookup::Missing(SpecifiedValueGap::RetiredPayloads {
-                    eviction_generation: *eviction_generation,
-                })
-            }
-        }
-    }
-
-    #[must_use]
-    fn coverage(&self) -> &SpecifiedValueCoverage {
-        &self.coverage
+        self.gap.map_or(Lookup::KnownAbsent, Lookup::Missing)
     }
 
     fn mark_partial(&mut self) -> SpecifiedValueGap {
-        let eviction_generation = match self.coverage {
-            SpecifiedValueCoverage::Complete => 1,
-            SpecifiedValueCoverage::Partial { eviction_generation } => eviction_generation,
-        };
-        self.coverage = SpecifiedValueCoverage::Partial { eviction_generation };
-        SpecifiedValueGap::RetiredPayloads { eviction_generation }
+        *self
+            .gap
+            .get_or_insert(SpecifiedValueGap::RetiredPayloads { eviction_generation: 1 })
     }
 
     /// Return the retained payload behind one maintained declaration identity.
@@ -111,14 +90,7 @@ impl SpecifiedValues {
         if let Some(index) = self.entries_by_id.get(&id) {
             return Lookup::Known(self.entries[*index as usize].value.data());
         }
-        match self.coverage() {
-            SpecifiedValueCoverage::Complete => Lookup::KnownAbsent,
-            SpecifiedValueCoverage::Partial { eviction_generation } => {
-                Lookup::Missing(SpecifiedValueGap::RetiredPayloads {
-                    eviction_generation: *eviction_generation,
-                })
-            }
-        }
+        self.gap.map_or(Lookup::KnownAbsent, Lookup::Missing)
     }
 
     /// Return an owned reference to one maintained declaration payload.
@@ -128,14 +100,7 @@ impl SpecifiedValues {
         if let Some(index) = self.entries_by_id.get(&id) {
             return Lookup::Known(self.entries[*index as usize].value.clone_retained());
         }
-        match self.coverage() {
-            SpecifiedValueCoverage::Complete => Lookup::KnownAbsent,
-            SpecifiedValueCoverage::Partial { eviction_generation } => {
-                Lookup::Missing(SpecifiedValueGap::RetiredPayloads {
-                    eviction_generation: *eviction_generation,
-                })
-            }
-        }
+        self.gap.map_or(Lookup::KnownAbsent, Lookup::Missing)
     }
 
     /// # Safety
@@ -234,7 +199,7 @@ impl SpecifiedValues {
             shallow [self.entries, self.entries_by_pointer, self.entries_by_id];
             cached [];
             nested [];
-            skip [self.coverage, self.next_id, self.residency];
+            skip [self.gap, self.next_id, self.residency];
         }
     }
 
@@ -247,13 +212,13 @@ impl SpecifiedValues {
     pub(super) fn evict(&mut self) {
         self.residency.release();
         if !self.entries.is_empty() {
-            let eviction_generation = match self.coverage {
-                SpecifiedValueCoverage::Complete => 1,
-                SpecifiedValueCoverage::Partial { eviction_generation } => eviction_generation
+            let eviction_generation = match self.gap {
+                None => 1,
+                Some(SpecifiedValueGap::RetiredPayloads { eviction_generation }) => eviction_generation
                     .checked_add(1)
                     .expect("specified value eviction generation exhausted"),
             };
-            self.coverage = SpecifiedValueCoverage::Partial { eviction_generation };
+            self.gap = Some(SpecifiedValueGap::RetiredPayloads { eviction_generation });
         }
         self.entries = super::intern_table::InternTable::default();
         self.entries_by_pointer = HashMap::default();
