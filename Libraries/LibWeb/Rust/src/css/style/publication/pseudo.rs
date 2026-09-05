@@ -19,6 +19,9 @@ impl StyleEngine {
 
         let mut available = 0_u64;
         for (pseudo, version, _, priority_current) in self.winner_groups.pseudo_states(node) {
+            if self.deferred_pseudo_element == Some(pseudo.kind) {
+                continue;
+            }
             let kind = usize::from(pseudo.kind.0);
             if kind >= pseudo_kind::SYNTHETIC_COUNT || kind == usize::from(BACKDROP) {
                 continue;
@@ -29,10 +32,13 @@ impl StyleEngine {
             }
             available |= 1 << kind;
         }
-        let Some(required) = self.pseudo_style_mask(node) else {
+        let Some(mut required) = self.pseudo_style_mask(node) else {
             self.counters.bump(Counter::EngineComputedRecordBailPseudoMask);
             return false;
         };
+        if let Some(deferred) = self.deferred_pseudo_element {
+            required &= !(1_u64 << deferred.0);
+        }
         if required & !available == 0 {
             return true;
         }
@@ -111,6 +117,9 @@ impl StyleEngine {
         let program_version = self.program.version();
         let mut states: [Option<CascadeStateID>; pseudo_kind::SYNTHETIC_COUNT] = [None; pseudo_kind::SYNTHETIC_COUNT];
         for (pseudo, version, state, priority_current) in self.winner_groups.pseudo_states(node) {
+            if self.deferred_pseudo_element == Some(pseudo.kind) {
+                continue;
+            }
             let Ok(kind) = u8::try_from(pseudo.kind.0) else {
                 continue;
             };
@@ -215,6 +224,9 @@ impl StyleEngine {
         };
         let mut pseudo_uses_substitution = false;
         for kind in [BEFORE, AFTER, FIRST_LETTER, SELECTION, MARKER] {
+            if self.deferred_pseudo_element == Some(tree::PseudoElementKind(u16::from(kind))) {
+                continue;
+            }
             let target = computed::ComputedStyleTarget::new(node, kind);
             let old = self.computed_group_sets.pseudo_style_record(node, kind);
             if let Some(old) = old {

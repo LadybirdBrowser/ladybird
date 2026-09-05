@@ -757,6 +757,7 @@ pub struct StyleEngine {
     /// The instrumentation state to restore after C++ materializes a record for verification.
     computed_record_verification_counters: Option<Box<Counters>>,
     computed_record_verification_pins: Vec<u64>,
+    deferred_pseudo_element: Option<tree::PseudoElementKind>,
     tree: StyleNodeTree,
     program: StyleSheetProgram,
     journal: NormalizationJournal,

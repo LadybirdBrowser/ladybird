@@ -77,6 +77,7 @@ StyleEngine::StyleEngine(DeviceClass device_class, StyleComputer* style_computer
 {
     StyleEngineFFI::style_engine_install_raw_atom_callbacks(ladybird_utf16_fly_string_ref_raw, ladybird_utf16_fly_string_unref_raw);
     if (m_style_computer) {
+        set_pseudo_element_style_deferred(to_underlying(PseudoElement::Selection), true);
         StyleEngineFFI::style_engine_install_font_resolver(
             m_impl,
             m_style_computer.ptr(),

@@ -44,6 +44,7 @@ impl StyleEngine {
             counters: Counters::new(),
             computed_record_verification_counters: None,
             computed_record_verification_pins: Vec::new(),
+            deferred_pseudo_element: None,
             tree,
             program: StyleSheetProgram::new(),
             journal: NormalizationJournal::new(),

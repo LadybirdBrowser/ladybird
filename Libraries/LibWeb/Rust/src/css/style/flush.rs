@@ -888,6 +888,13 @@ impl StyleEngine {
                 .sparse()
                 .ok()
                 .copied();
+            let previous_observable_answer = self.deferred_pseudo_element.and_then(|_| {
+                self.retained_match_answers
+                    .lookup(node)
+                    .sparse()
+                    .ok()
+                    .and_then(|identity| self.match_answers.answer(*identity).cloned())
+            });
             let has_signed_delta = !selector_truth_changes.deltas_for(node).is_empty();
             let mut has_output_change = false;
             let mut has_upquery = false;
@@ -987,6 +994,31 @@ impl StyleEngine {
                     can_stop_at_exact_cascade = transaction_supports_global_exact_cascade_stops;
                     match self.patch_retained_match_answer(node, patch, truth_patch) {
                         Some(outcome) => {
+                            if outcome.emit
+                                && !has_direct_action
+                                && !patch.has_non_selector_inputs
+                                && patch.always_emit_nodes.binary_search(&node).is_err()
+                                && let Some(deferred) = self.deferred_pseudo_element
+                                && let Some(previous) = previous_observable_answer.as_deref()
+                                && let Lookup::Known(current) = self.retained_match_answers.lookup(node)
+                                && let Some(current) = self.match_answers.answer(*current)
+                            {
+                                let is_observable = |entry: &&RetainedRuleMatch| {
+                                    self.programs.get(entry.program).entries()[entry.entry as usize]
+                                        .pseudo_element
+                                        .is_none_or(|target| target.kind != deferred)
+                                };
+                                let previous = previous.iter().filter(is_observable);
+                                let current = current.iter().filter(is_observable);
+                                if previous.clone().eq(current.clone())
+                                    && previous
+                                        .chain(current)
+                                        .all(|entry| patch.cascade_update_rules.binary_search(&entry.rule).is_err())
+                                {
+                                    self.counters.bump(Counter::RetainedMatchAnswerPatchStops);
+                                    return;
+                                }
+                            }
                             has_output_change = outcome.emit;
                             if outcome.emit {
                                 patch_processed_nodes.push(node);

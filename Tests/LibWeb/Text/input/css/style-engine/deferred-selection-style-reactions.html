@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="container"></div>
+<script>
+    test(() => {
+        for (let index = 0; index < 64; ++index) {
+            const child = container.appendChild(document.createElement("div"));
+            child.textContent = "selectable text";
+        }
+        const target = container.firstElementChild;
+        target.className = "target";
+        const first = new CSSStyleSheet();
+        const second = new CSSStyleSheet();
+        first.replaceSync("*::selection { color: red; } .target { color: green; }");
+        second.replaceSync("*::selection { color: blue; } .target { color: navy; }");
+        internals.updateStyle();
+
+        function change(label, callback) {
+            const before = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+            callback();
+            internals.updateStyle();
+            const after = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+            println(`${label} stays selective: ${after - before < 16}`);
+            if (label === "declaration")
+                println(`selection-only change emits no element reactions: ${after === before}`);
+            println(`${label} color: ${getComputedStyle(target).color}`);
+            println(`${label} selection: ${getComputedStyle(target, "::selection").color}`);
+        }
+
+        change("attach", () => document.adoptedStyleSheets = [first, second]);
+        change("reorder", () => document.adoptedStyleSheets = [second, first]);
+        change("declaration", () => first.cssRules[0].style.color = "purple");
+        change("mixed declaration", () => {
+            first.cssRules[0].style.color = "orange";
+            target.style.opacity = "0.5";
+        });
+        println(`inline opacity: ${getComputedStyle(target).opacity}`);
+        change("replace", () => first.replaceSync("*::selection { color: pink; } .target { color: green; }"));
+        change("detach", () => document.adoptedStyleSheets = [second]);
+
+        const range = document.createRange();
+        range.selectNodeContents(container.lastElementChild);
+        document.getSelection().addRange(range);
+        const before = internals.styleEngineCounters().computedPseudoAssignmentsPublished;
+        internals.updateStyle();
+        println(`unqueried selection activated: ${internals.styleEngineCounters().computedPseudoAssignmentsPublished - before >= 64}`);
+        println(`active selection: ${getComputedStyle(container.lastElementChild, "::selection").color}`);
+        document.getSelection().removeAllRanges();
+    });
+</script>

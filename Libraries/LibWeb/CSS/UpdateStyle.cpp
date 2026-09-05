@@ -1039,6 +1039,7 @@ void Document::update_selection_style_observability()
     if (observable == m_selection_styles_are_observable)
         return;
     m_selection_styles_are_observable = observable;
+    style_computer().style_engine().set_pseudo_element_style_deferred(to_underlying(CSS::PseudoElement::Selection), !observable);
     if (!observable)
         return;
     for_each_shadow_including_inclusive_descendant([&](Node& node) {
@@ -1046,7 +1047,7 @@ void Document::update_selection_style_observability()
         if (!element)
             return TraversalDecision::Continue;
         auto style = element->computed_style();
-        if (style && style->has_pseudo_element_style(CSS::PseudoElement::Selection)) {
+        if (style) {
             style_computer().style_engine().record_element_style_input_change(element->style_node_id(),
                 CSS::StyleEngine::PublishedStyle | CSS::StyleEngine::RecomputeStyle | CSS::StyleEngine::PseudoInputsMayHaveChanged);
         }

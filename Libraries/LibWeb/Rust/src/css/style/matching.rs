@@ -2093,6 +2093,7 @@ impl StyleEngine {
 
         let mut affected = Vec::new();
         let mut always_emit = false;
+        let mut has_non_selector_inputs = false;
         let mut always_emit_nodes = Vec::new();
         let mut orders_shifted = false;
         let mut requires_full_match = false;
@@ -2140,7 +2141,10 @@ impl StyleEngine {
                         if let Some(name) = version.declared_name {
                             match self.custom_property_registration_consumers(name) {
                                 Ok(consumers) => always_emit_nodes.extend(consumers),
-                                Err(_) => always_emit = true,
+                                Err(_) => {
+                                    always_emit = true;
+                                    has_non_selector_inputs = true;
+                                }
                             }
                         }
                         continue;
@@ -2150,7 +2154,10 @@ impl StyleEngine {
                             match self.facts.postings().lookup(DependencyPostingKey::AnimationName(name)) {
                                 Lookup::Known(posting) => always_emit_nodes.extend(posting.candidates()),
                                 Lookup::KnownAbsent => {}
-                                Lookup::Missing(_) => always_emit = true,
+                                Lookup::Missing(_) => {
+                                    always_emit = true;
+                                    has_non_selector_inputs = true;
+                                }
                             }
                         }
                         continue;
@@ -2217,6 +2224,7 @@ impl StyleEngine {
                                 && delta.after_program.is_none()
                             {
                                 always_emit = true;
+                                has_non_selector_inputs = true;
                             }
                         }
                     }
@@ -2224,6 +2232,7 @@ impl StyleEngine {
                 continue;
             }
             let keys = match input.key {
+                InputKey::CascadeTopology(TopologyAxis::SheetOrder(_) | TopologyAxis::LayerOrder(_)) => continue,
                 InputKey::LocalFeature(_, LocalFeatureKey::PartExposure) => return None,
                 InputKey::TreeRelations(_) | InputKey::LocalFeature(_, LocalFeatureKey::ArrivingFacts) => {
                     // A subtree arriving, leaving, or moving cannot change a resident answer
@@ -2270,7 +2279,10 @@ impl StyleEngine {
                 InputKey::CustomPropertyRegistration(name) => {
                     match self.custom_property_registration_consumers(name) {
                         Ok(consumers) => always_emit_nodes.extend(consumers),
-                        Err(_) => always_emit = true,
+                        Err(_) => {
+                            always_emit = true;
+                            has_non_selector_inputs = true;
+                        }
                     }
                     continue;
                 }
@@ -2346,6 +2358,7 @@ impl StyleEngine {
         Some(RetainedAnswerPatchSelection {
             affected,
             always_emit,
+            has_non_selector_inputs,
             always_emit_nodes,
             orders_shifted,
             requires_full_match,
@@ -2392,6 +2405,7 @@ impl StyleEngine {
             prefix_caches: Rc::clone(&self.prefix_caches),
             dispatch_workspace,
             always_emit: selection.always_emit,
+            has_non_selector_inputs: selection.has_non_selector_inputs,
             always_emit_nodes,
             orders_shifted: selection.orders_shifted,
             requires_full_match: selection.requires_full_match,

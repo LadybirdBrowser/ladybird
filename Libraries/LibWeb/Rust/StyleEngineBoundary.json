@@ -108,12 +108,14 @@
     [105, "NodeDeclaresCustomProperties"],
     [106, "LookupSharedStyleRecord"],
     [107, "RememberSharedStyleRecord"],
-    [108, "TakeSharedComputationContext"]
+    [108, "TakeSharedComputationContext"],
+    [109, "SetPseudoElementStyleDeferred"]
   ],
   "operations": [
     {"event": "TakeSharedComputationContext", "ffi": "style_engine_take_shared_computation_context", "cpp": "take_shared_computation_context", "return": "u64", "args": [["node", "style_node"], ["parent_record", "style_record"], ["environment", "u64"], ["shape", "u64_slice"], ["pseudo_elements", "u64"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return 0; }; let shape = shape.try_into().expect(\"a shared style shape has four words\"); let result = engine.take_shared_computation_context(node, parent_record, environment, shape, pseudo_elements).unwrap_or(0);"},
     { "event": "LookupSharedStyleRecord", "ffi": "style_engine_lookup_shared_style_record", "cpp": "lookup_shared_style_record", "return": "u64", "args": [["node", "style_node"], ["parent_record", "style_record"], ["environment", "u64"], ["shape", "u64_slice"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return 0; }; let shape = shape.try_into().expect(\"a shared style shape has four words\"); let result = engine.lookup_shared_style_record(node, parent_record, environment, shape).unwrap_or(0);" },
     { "event": "RememberSharedStyleRecord", "ffi": "style_engine_remember_shared_style_record", "cpp": "remember_shared_style_record", "return": "void", "args": [["node", "style_node"], ["parent_record", "style_record"], ["environment", "u64"], ["shape", "u64_slice"], ["record", "style_record"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; let shape = shape.try_into().expect(\"a shared style shape has four words\"); engine.remember_shared_style_record(node, parent_record, environment, shape, record);" },
+    { "event": "SetPseudoElementStyleDeferred", "ffi": "style_engine_set_pseudo_element_style_deferred", "cpp": "set_pseudo_element_style_deferred", "return": "void", "args": [["kind", "u8"], ["deferred", "bool"]], "body": "engine.deferred_pseudo_element = deferred.then_some(super::tree::PseudoElementKind(u16::from(kind)));" },
     { "event": "SetFoldIdAndClassNameCase", "ffi": "style_engine_set_fold_id_and_class_name_case", "cpp": "set_fold_id_and_class_name_case", "return": "void", "args": [["fold", "bool"]], "body": "engine.set_fold_id_and_class_name_case(fold);" },
     { "event": "SetHtmlElementNamespace", "ffi": "style_engine_set_html_element_namespace", "cpp": "set_html_element_namespace", "return": "void", "args": [["namespace_atom", "style_atom"]], "body": "engine.set_html_element_namespace(StyleAtomID(namespace_atom));" },
     { "event": "SetElementNamespace", "ffi": "style_engine_set_element_namespace", "cpp": "set_element_namespace", "return": "void", "args": [["node", "style_node"], ["namespace_atom", "style_atom"]], "body": "if let Some(style_node) = StyleNodeID::from_raw(node) { engine.set_element_namespace(style_node, StyleAtomID(namespace_atom)); }" },
