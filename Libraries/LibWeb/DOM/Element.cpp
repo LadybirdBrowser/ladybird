@@ -1535,7 +1535,7 @@ static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidati
     return result;
 }
 
-CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, CSS::StyleEngineMatchResult* reusable_matches, PreservedPseudoElementStyles* preserved_pseudo_element_styles)
+CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, CSS::StyleEngineMatchResult* reusable_matches, PreservedPseudoElementStyles* preserved_pseudo_element_styles, EnginePseudoElementRecords const* engine_pseudo_element_records)
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
@@ -1547,18 +1547,34 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     CSS::StyleEngineMatchResult local_matches;
     if (!reusable_matches)
         reusable_matches = &local_matches;
+    // A reused originating record keeps the pseudo-element inventory it was computed with; the
+    // style engine's answer says which pseudo-elements have rules now.
+    auto const engine_pseudo_element_styles = style_node_id() != 0 ? style_computer.style_engine().published_pseudo_style_mask(style_node_id()) : 0;
+    auto matches_have_pseudo_element = [&](CSS::PseudoElement pseudo_element) {
+        return CSS::is_synthetic_pseudo_element(pseudo_element) && ((engine_pseudo_element_styles >> to_underlying(pseudo_element)) & 1);
+    };
 
     // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
     auto recompute_pseudo_element_style = [&](CSS::PseudoElement pseudo_element, bool has_implicit_style = false) {
+        // A synthetic pseudo-element the style engine settled beside the element's record takes the engine's
+        // answer; one the engine left alone is unchanged.
+        Optional<CSS::StyleRecordID> engine_record;
+        if (engine_pseudo_element_records && CSS::is_synthetic_pseudo_element(pseudo_element)) {
+            engine_record = engine_pseudo_element_records->at(to_underlying(pseudo_element));
+            if (!engine_record.has_value())
+                return;
+        }
         auto old_style_record = style_record_identity(pseudo_element);
         auto preserved_style_record = preserved_pseudo_element_styles ? preserved_pseudo_element_styles->at(to_underlying(pseudo_element)) : CSS::StyleRecordID {};
         // Most elements have no style for most pseudo-elements. Decide that from the record
         // identities before materializing any record view.
-        if (!has_implicit_style
+        if (!engine_record.has_value()
+            && !has_implicit_style
             && !old_style_record
             && !preserved_style_record
             && !(old_originating_style && old_originating_style->has_pseudo_element_style(pseudo_element))
-            && !(originating_style && originating_style->has_pseudo_element_style(pseudo_element)))
+            && !(originating_style && originating_style->has_pseudo_element_style(pseudo_element))
+            && !matches_have_pseudo_element(pseudo_element))
             return;
         auto pseudo_element_style = computed_style(pseudo_element);
         if (!old_style_record)
@@ -1581,15 +1597,27 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             if (!!preserved_style_record || had_layout_node)
                 style_to_preserve_for_detachment = CSS::ComputedValues::Builder { *pseudo_element_values }.build();
         }
-        auto should_recompute = has_implicit_style
+        auto should_recompute = engine_record.has_value()
+            || has_implicit_style
             || pseudo_element_values
             || (old_originating_style && old_originating_style->has_pseudo_element_style(pseudo_element))
-            || (originating_style && originating_style->has_pseudo_element_style(pseudo_element));
+            || (originating_style && originating_style->has_pseudo_element_style(pseudo_element))
+            || matches_have_pseudo_element(pseudo_element);
         if (!should_recompute)
             return;
 
         CSS::StyleEngine::StyleRecordDelta style_record_delta {};
-        auto new_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed({ *this, pseudo_element }, did_change_custom_properties, reusable_matches, style_record_delta);
+        RefPtr<CSS::ComputedValues const> computed_pseudo_element_style;
+        if (engine_record.has_value())
+            style_record_delta.new_style_record = *engine_record;
+        else
+            computed_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed({ *this, pseudo_element }, did_change_custom_properties, reusable_matches, style_record_delta);
+        auto engine_pseudo_element_style = engine_record.has_value() && !!*engine_record
+            ? style_computer.computed_style_record_view(*engine_record)
+            : CSS::ComputedStyleRecordView {};
+        CSS::ComputedValues const* new_pseudo_element_style = computed_pseudo_element_style ? computed_pseudo_element_style.ptr()
+            : engine_pseudo_element_style                                                   ? &*engine_pseudo_element_style
+                                                                                            : nullptr;
         style_record_delta.old_style_record = old_style_record;
         if (style_record_is_unchanged(style_record_delta))
             ++document().style_invalidation_counters().unchanged_style_record_deltas;
@@ -1629,7 +1657,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             }
             if (result.invalidation.needs_layout_tree_rebuild()
                 && result.invalidation.layout_tree_rebuild_root() != CSS::LayoutTreeRebuildRoot::Parent) {
-                if (!pseudo_box_stays_inside_originating_box(new_pseudo_element_style.ptr()))
+                if (!pseudo_box_stays_inside_originating_box(new_pseudo_element_style))
                     result.invalidation.ensure_at_least(CSS::InvalidationLevel::RebuildLayoutTree);
                 else if (result.invalidation.layout_tree_rebuild_root() == CSS::LayoutTreeRebuildRoot::BoxPresenceChange)
                     result.invalidation.set_layout_tree_rebuild_root(CSS::LayoutTreeRebuildRoot::Self);
@@ -1639,7 +1667,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             invalidation |= result.invalidation;
         } else if (pseudo_element_values || new_pseudo_element_style) {
             document().style_invalidation_counters().element_computed_style_changes++;
-            auto rebuild_root = pseudo_box_stays_inside_originating_box(new_pseudo_element_style.ptr())
+            auto rebuild_root = pseudo_box_stays_inside_originating_box(new_pseudo_element_style)
                 ? CSS::LayoutTreeRebuildRoot::Self
                 : CSS::LayoutTreeRebuildRoot::Parent;
             invalidation |= CSS::RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(rebuild_root);
@@ -1660,12 +1688,17 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     recompute_pseudo_element_style(CSS::PseudoElement::Selection);
     if (m_rendered_in_top_layer)
         recompute_pseudo_element_style(CSS::PseudoElement::Backdrop);
-    if (had_list_marker || originating_style->display().is_list_item())
+    if (had_list_marker || originating_style->display().is_list_item()
+        || (engine_pseudo_element_records && engine_pseudo_element_records->at(to_underlying(CSS::PseudoElement::Marker)).has_value()))
         recompute_pseudo_element_style(CSS::PseudoElement::Marker, true);
-    for (auto i = to_underlying(CSS::first_element_reference_pseudo_element); i <= to_underlying(CSS::last_element_reference_pseudo_element); ++i) {
-        auto pseudo_element = static_cast<CSS::PseudoElement>(i);
-        if (get_pseudo_element(pseudo_element).has_value())
-            recompute_pseudo_element_style(pseudo_element);
+    // Element-backed pseudo-elements are C++'s; an engine-computed record moving an element's own
+    // properties leaves them as they were, as it did before the engine settled the synthetic ones.
+    if (!engine_pseudo_element_records || !old_originating_style) {
+        for (auto i = to_underlying(CSS::first_element_reference_pseudo_element); i <= to_underlying(CSS::last_element_reference_pseudo_element); ++i) {
+            auto pseudo_element = static_cast<CSS::PseudoElement>(i);
+            if (get_pseudo_element(pseudo_element).has_value())
+                recompute_pseudo_element_style(pseudo_element);
+        }
     }
 
     return invalidation;
@@ -2073,7 +2106,7 @@ static bool unregister_current_anchor_names(Element& element, Node& tree_root)
     return true;
 }
 
-CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_record(CSS::StyleRecordID new_style_record)
+CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const& pseudo_element_records)
 {
     VERIFY(parent());
     auto old_style_record = style_record_identity();
@@ -2109,33 +2142,40 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
         counters.element_computed_style_changes++;
         auto invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
         bool did_change_custom_properties = false;
-        invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, false, nullptr, nullptr, nullptr);
+        invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, false, nullptr, nullptr, nullptr, &pseudo_element_records);
         apply_computed_style_to_layout_node_if_needed(invalidation);
         return invalidation;
     }
-    auto new_computed_values = style_computer.computed_style_record_view(new_style_record);
-    VERIFY(new_computed_values);
     // The engine derives records this way only when the element's inherited groups, custom
-    // properties, pseudo-element styles, anchor names, animation names and display are exactly
-    // what they were; what is left to decide is what the layout tree and paint need.
-    ElementDependentInvalidationState old_state {
-        .layout_node = unsafe_layout_node(),
-        .content_counter_style_dependencies = {},
-        .list_counter_style = {},
-        .has_snapshot = false,
-    };
-    DOM::AbstractElement abstract_element { *this };
-    CSS::StyleEngine::StyleRecordDelta style_record_delta {
-        .old_style_record = old_style_record,
-        .new_style_record = new_style_record,
-    };
-    auto result = compute_required_invalidation_with_cache(style_computer, *old_computed_values, *new_computed_values, old_state, abstract_element, style_record_delta);
-    if (result.any_computed_value_changed)
-        counters.element_computed_style_changes++;
-    // The input record's declaration half described the cascade that produced the old record, so
-    // the next computation on this element derives a fresh one.
-    retire_style_input_record();
-    set_computed_style({}, new_style_record);
+    // properties, anchor names, animation names and display are exactly what they were; what is
+    // left to decide is what the layout tree and paint need. The record itself may be the one the
+    // element holds, when the reaction moved only its pseudo-elements.
+    CSS::StyleComputer::ComputedStyleInvalidation result;
+    if (new_style_record != old_style_record) {
+        auto new_computed_values = style_computer.computed_style_record_view(new_style_record);
+        VERIFY(new_computed_values);
+        ElementDependentInvalidationState old_state {
+            .layout_node = unsafe_layout_node(),
+            .content_counter_style_dependencies = {},
+            .list_counter_style = {},
+            .has_snapshot = false,
+        };
+        DOM::AbstractElement abstract_element { *this };
+        CSS::StyleEngine::StyleRecordDelta style_record_delta {
+            .old_style_record = old_style_record,
+            .new_style_record = new_style_record,
+        };
+        result = compute_required_invalidation_with_cache(style_computer, *old_computed_values, *new_computed_values, old_state, abstract_element, style_record_delta);
+        if (result.any_computed_value_changed)
+            counters.element_computed_style_changes++;
+        // The input record's declaration half described the cascade that produced the old record, so
+        // the next computation on this element derives a fresh one.
+        retire_style_input_record();
+        set_computed_style({}, new_style_record);
+    }
+    // The pseudo-element records the engine settled beside this one install with it.
+    bool did_change_custom_properties = false;
+    result.invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, old_computed_values->display().is_list_item(), &*old_computed_values, nullptr, nullptr, &pseudo_element_records);
     apply_computed_style_to_layout_node_if_needed(result.invalidation);
     return result.invalidation;
 }

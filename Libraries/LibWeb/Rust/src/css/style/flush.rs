@@ -33,9 +33,20 @@ impl StyleEngine {
         }
         self.discard_prepared_batch_matching_traversal();
         self.discard_published_match_answers();
+        // A transaction made of derived child reactions alone continues the style change whose
+        // reactions C++ applied last, one tree generation further.
+        self.last_transaction_only_derived_child_reactions = self.deferred_element_style_inputs_are_pending
+            && !self.deferred_element_style_inputs.is_empty()
+            && self.externally_recorded_style_input_nodes.is_empty()
+            && self.journal.is_empty()
+            && self.tree_staging.is_empty()
+            && !self.program_staging.is_dirty()
+            && self.sheet_rule_replacement.is_none();
         for input in std::mem::take(&mut self.deferred_element_style_inputs) {
             self.record_input(input.key, input.old, input.new);
         }
+        self.deferred_element_style_inputs_are_pending = false;
+        self.externally_recorded_style_input_nodes.clear();
         self.deferred_element_style_input_memory
             .resize_required_to(&mut self.memory, 0);
         let document_root_arrival_is_pending =
@@ -641,10 +652,17 @@ impl StyleEngine {
             .collect();
         nodes_with_declaration_changes.sort_unstable();
         nodes_with_declaration_changes.dedup();
-        let pseudo_inputs_may_have_changed = transaction
+        let environment_changed = transaction
             .markers
             .iter()
-            .any(|marker| marker.kind == transaction::InputKind::Environment)
+            .any(|marker| marker.kind == transaction::InputKind::Environment);
+        // A rule's declarations edited may be custom properties, which are no winners.
+        let rule_declarations_edited = transaction
+            .inputs
+            .iter()
+            .any(|input| matches!(input.key, InputKey::RuleField(_, RuleField::Declarations)));
+        let pseudo_inputs_may_have_changed = environment_changed
+            || rule_declarations_edited
             || transaction.inputs.iter().any(|input| {
                 matches!(
                     input.key,
@@ -1369,20 +1387,56 @@ impl StyleEngine {
                 };
                 // A refreshed answer cannot say which entries moved, so the flag stays conservative
                 // for C++; the pseudo winner states themselves are current here and settle it.
-                let engine_computed_delta = (direct_inherited_delta.is_none()
-                    && (reaction == transaction::STYLE_REACTION_PUBLISHED_STYLE
-                        || (old_style_record == 0 && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
-                    && nodes_with_declaration_changes.binary_search(&node).is_err()
-                    && (!pseudo_inputs_may_have_changed || self.pseudo_cascade_states_are_unchanged(node))
-                    && ancestors_are_confined(self, &mut confined_ancestors))
-                .then(|| {
-                    self.engine_computed_record_delta(
-                        node,
-                        answer.cascade_winners_are_complete,
-                        &mut engine_computed_record_scratch,
-                    )
-                })
-                .flatten();
+                let engine_computed_gate_passes = if direct_inherited_delta.is_some() {
+                    false
+                } else if !(reaction == transaction::STYLE_REACTION_PUBLISHED_STYLE
+                    || (old_style_record == 0 && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
+                {
+                    self.counters.bump(Counter::EngineComputedRecordGateReaction);
+                    false
+                } else if nodes_with_declaration_changes.binary_search(&node).is_ok() {
+                    self.counters.bump(Counter::EngineComputedRecordGateDeclarations);
+                    false
+                } else if !ancestors_are_confined(self, &mut confined_ancestors) {
+                    self.counters.bump(Counter::EngineComputedRecordGateAncestors);
+                    false
+                } else {
+                    true
+                };
+                let engine_computed_delta = engine_computed_gate_passes
+                    .then(|| {
+                        // Unchanged winners stand for an unchanged record only when the reaction
+                        // is rules flipping for the node, every one of them known and declaring
+                        // nothing past its winners.
+                        let flipped_rules = selector_truth_changes.deltas_for(node);
+                        let flipped: Vec<publication::FlippedRule> = flipped_rules
+                            .iter()
+                            .map(|delta| publication::FlippedRule {
+                                rule: delta.rule,
+                                added: delta.change == SetChange::Added,
+                                pseudo_kind: self
+                                    .programs
+                                    .entry(delta.entry)
+                                    .1
+                                    .pseudo_element
+                                    .map(|pseudo| pseudo.kind.0),
+                            })
+                            .collect();
+                        let winners_are_exact = !environment_changed
+                            && !rule_declarations_edited
+                            && !flipped_rules.is_empty()
+                            && selector_truth_changes.refreshes_for(node).is_empty()
+                            && flipped_rules
+                                .iter()
+                                .all(|delta| self.program.declarations_are_complete_for(delta.rule));
+                        self.engine_computed_record_delta(
+                            node,
+                            answer.cascade_winners_are_complete,
+                            winners_are_exact.then_some(flipped.as_slice()),
+                            &mut engine_computed_record_scratch,
+                        )
+                    })
+                    .flatten();
                 let (old_style_record, new_style_record, damage, gap) =
                     match (direct_inherited_delta, engine_computed_delta) {
                         (Some((old_style_record, new_style_record)), _) => (
@@ -1421,7 +1475,32 @@ impl StyleEngine {
                     gap,
                 };
                 style_deltas.push(style_delta);
+                // The pseudo-element records the engine settled beside an engine-computed record
+                // follow it, for C++ to install with it.
+                if gap == FfiStyleDeltaGap::Computed {
+                    for pseudo in engine_computed_record_scratch.pseudo_deltas.drain(..) {
+                        style_deltas.push(PublishedStyleDeltaRecord {
+                            style_node: node.raw(),
+                            match_answer: style_delta.match_answer,
+                            old_style_record: pseudo.old_style_record.raw(),
+                            new_style_record: pseudo.new_style_record.raw(),
+                            damage: FfiStyleDeltaDamage::Full,
+                            reaction: transaction::STYLE_REACTION_PUBLISHED_STYLE,
+                            inherited_style_groups: 0,
+                            pseudo_kind: pseudo.kind,
+                            gap: FfiStyleDeltaGap::Computed,
+                        });
+                    }
+                }
             }
+            let style_delta_bytes = {
+                let grown = (style_deltas.capacity() * size_of::<PublishedStyleDeltaRecord>()) as u64;
+                if grown > style_delta_bytes {
+                    self.memory
+                        .reserve_required(MemoryCategory::BridgeBuffer, grown - style_delta_bytes);
+                }
+                grown.max(style_delta_bytes)
+            };
             let cohort_bytes = engine_computed_record_scratch.capacity_bytes()
                 + (confined_ancestors.capacity() * size_of::<(StyleNodeID, bool)>()) as u64;
             self.memory.reserve_required(MemoryCategory::BatchScratch, cohort_bytes);

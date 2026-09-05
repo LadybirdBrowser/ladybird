@@ -56,6 +56,7 @@ pub mod bridge;
 mod capacity;
 pub mod cascade;
 mod catalog;
+mod child_reactions;
 mod column;
 pub mod compiler;
 mod computed;
@@ -759,6 +760,15 @@ pub struct StyleEngine {
     flushing_deferred_geometry_journal: bool,
     /// Exact element reactions retained across rootless flushes until a style root can consume them.
     deferred_element_style_inputs: Vec<NormalizedInput>,
+    /// Whether the deferred element style inputs are owed to the next transaction, as opposed to
+    /// held back by a flush without a document root.
+    deferred_element_style_inputs_are_pending: bool,
+    /// The nodes whose deferred element style input C++ recorded and the engine did not also
+    /// derive as a child reaction: what makes the next transaction a new pass of a style change
+    /// rather than one more generation of the last one.
+    externally_recorded_style_input_nodes: HashSet<StyleNodeID>,
+    /// Whether the last transaction taken planned nothing but derived child reactions.
+    last_transaction_only_derived_child_reactions: bool,
     deferred_element_style_input_memory: MemoryLease,
     /// Whether any tree input batch has crossed into the engine. A first batch consisting entirely
     /// of unique arrivals can install its final relation rows as one bulk load.
@@ -832,6 +842,9 @@ pub struct StyleEngine {
     /// the columns of the ones it never installed.
     engine_computed_records_pending: Vec<publication::PendingEngineComputedRecord>,
     /// First records derived earlier, by what they were derived from, for later elements alike.
+    /// Pseudo-element records the engine derived, by what they were derived from, for elements
+    /// alike in that to share.
+    engine_pseudo_record_cache: HashMap<publication::PseudoCohortKey, computed::FinalStyleRecordID>,
     engine_cold_record_cache: HashMap<publication::ColdRecordKey, publication::ColdRecord>,
     /// Which winner states the engine can compute records from, decided once per state.
     engine_computable_states: HashMap<(u64, CascadeStateID), bool>,

@@ -95,7 +95,13 @@
     [92, "RecordCustomPropertyRegistrationChange"],
     [93, "RetainExactCascadeState"],
     [94, "AcknowledgeEngineComputedRecord"],
-    [95, "SetElementAdjustmentFacts"]
+    [95, "SetElementAdjustmentFacts"],
+    [96, "RecordElementStyleInput"],
+    [97, "RecordFlatTreeDescendantStyleInputs"],
+    [98, "ConsumeElementStyleInput"],
+    [99, "NoteStyleReactionApplied"],
+    [100, "AbsorbElementStyleInput"],
+    [101, "PublishedPseudoStyleMask"]
   ],
   "operations": [
     { "event": "SetFoldIdAndClassNameCase", "ffi": "style_engine_set_fold_id_and_class_name_case", "cpp": "set_fold_id_and_class_name_case", "return": "void", "args": [["fold", "bool"]], "body": "engine.set_fold_id_and_class_name_case(fold);" },
@@ -138,6 +144,12 @@
     { "event": "SetLayerOrder", "ffi": "style_engine_set_layer_order", "cpp": "set_layer_order", "return": "void", "args": [["tree_scope", "tree_scope_id"], ["layers", "u32_slice"]], "body": "let layers = layers.iter().copied().map(CascadeLayerID).collect::<Vec<_>>(); engine.set_layer_order(TreeScopeID(tree_scope), &layers);" },
     { "event": "LayerIndex", "ffi": "style_engine_layer_index", "cpp": "layer_index", "return": "u32", "receiver": "const", "args": [["tree_scope", "tree_scope_id"], ["layer", "u32"]], "body": "let result = engine.layer_index(TreeScopeID(tree_scope), CascadeLayerID(layer));" },
     { "event": "SetElementIsSlot", "ffi": "style_engine_set_element_is_slot", "cpp": "set_element_is_slot", "return": "void", "args": [["node", "style_node"], ["is_slot", "bool"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.set_element_is_slot(node, is_slot);" },
+    { "event": "RecordElementStyleInput", "ffi": "style_engine_record_element_style_input", "cpp": "record_element_style_input", "return": "void", "args": [["node", "style_node"], ["reaction", "u8"], ["inherited_style_groups", "u8"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.record_element_style_input(node, reaction, inherited_style_groups);" },
+    { "event": "RecordFlatTreeDescendantStyleInputs", "ffi": "style_engine_record_flat_tree_descendant_style_inputs", "cpp": "record_flat_tree_descendant_style_inputs", "return": "void", "args": [["root", "style_node"], ["reaction", "u8"], ["inherited_style_groups", "u8"]], "body": "let Some(root) = StyleNodeID::from_raw(root) else { return; }; engine.record_flat_tree_descendant_style_inputs(root, reaction, inherited_style_groups);" },
+    { "event": "ConsumeElementStyleInput", "ffi": "style_engine_consume_element_style_input", "cpp": "consume_recorded_element_style_input_change", "return": "void", "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.consume_element_style_input(node);" },
+    { "event": "PublishedPseudoStyleMask", "ffi": "style_engine_published_pseudo_style_mask", "cpp": "published_pseudo_style_mask", "return": "u64", "receiver": "const", "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return 0; }; let result = engine.published_pseudo_style_mask(node);" },
+    { "event": "AbsorbElementStyleInput", "ffi": "style_engine_absorb_element_style_input", "cpp": "absorb_element_style_input", "return": "u32", "args": [["node", "style_node"], ["reaction", "u8"], ["inherited_style_groups", "u8"], ["absorbs_any", "bool"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return 0; }; let result = engine.absorb_element_style_input(node, reaction, inherited_style_groups, absorbs_any);" },
+    { "event": "NoteStyleReactionApplied", "ffi": "style_engine_note_style_reaction_applied", "cpp": "note_style_reaction_applied", "return": "void", "args": [["node", "style_node"], ["reaction", "u8"], ["inherited_style_groups_changed", "u8"], ["facts", "u32"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.note_style_reaction_applied(node, reaction, inherited_style_groups_changed, facts);" },
     { "event": "SetElementAdjustmentFacts", "ffi": "style_engine_set_element_adjustment_facts", "cpp": "set_element_adjustment_facts", "return": "void", "args": [["node", "style_node"], ["facts", "u32"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.set_element_adjustment_facts(node, facts);" },
     { "event": "SetElementHeadingLevel", "ffi": "style_engine_set_element_heading_level", "cpp": "set_element_heading_level", "return": "void", "args": [["node", "style_node"], ["level", "u8"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.set_element_heading_level(node, level);" },
     { "event": "PrepareSharedExactCascadeState", "ffi": "style_engine_prepare_shared_exact_cascade_state", "cpp": "prepare_shared_exact_cascade_state", "return": "void", "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.prepare_shared_exact_cascade_state(node);" },

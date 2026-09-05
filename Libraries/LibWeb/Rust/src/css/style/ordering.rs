@@ -1230,42 +1230,65 @@ impl StyleEngine {
     /// style reactions are edge-triggered, so preserve them for the first transaction with a root.
     pub(crate) fn flush_without_document_root(&mut self) {
         let transaction = self.take_transaction();
-        for input in transaction
-            .inputs
-            .iter()
-            .filter(|input| matches!(input.key, InputKey::ElementStyleInput(_)))
-            .copied()
-        {
-            match self
-                .deferred_element_style_inputs
-                .binary_search_by_key(&input.key, |pending| pending.key)
+        for input in &transaction.inputs {
+            if let (
+                InputKey::ElementStyleInput(node),
+                InputValue::ElementStyleInput {
+                    reaction,
+                    inherited_style_groups,
+                },
+            ) = (input.key, input.new)
             {
-                Ok(index) => {
-                    let InputValue::ElementStyleInput {
-                        reaction: pending_reaction,
-                        inherited_style_groups: pending_inherited_style_groups,
-                    } = &mut self.deferred_element_style_inputs[index].new
-                    else {
-                        unreachable!();
-                    };
-                    let InputValue::ElementStyleInput {
+                self.defer_element_style_input(node, reaction, inherited_style_groups);
+            }
+        }
+        // Held back rather than owed: without a root there is no transaction to take them.
+        self.deferred_element_style_inputs_are_pending = false;
+        self.externally_recorded_style_input_nodes.extend(
+            self.deferred_element_style_inputs
+                .iter()
+                .filter_map(|input| input.key.style_node()),
+        );
+        self.release_transaction(transaction);
+    }
+
+    /// Merge one element style input into the deferred inputs, which are kept sorted by key.
+    pub(crate) fn defer_element_style_input(&mut self, node: StyleNodeID, reaction: u8, inherited_style_groups: u8) {
+        let key = InputKey::ElementStyleInput(node);
+        match self
+            .deferred_element_style_inputs
+            .binary_search_by_key(&key, |pending| pending.key)
+        {
+            Ok(index) => {
+                let InputValue::ElementStyleInput {
+                    reaction: pending_reaction,
+                    inherited_style_groups: pending_inherited_style_groups,
+                } = &mut self.deferred_element_style_inputs[index].new
+                else {
+                    unreachable!();
+                };
+                *pending_reaction |= reaction;
+                *pending_inherited_style_groups |= inherited_style_groups;
+            }
+            Err(index) => self.deferred_element_style_inputs.insert(
+                index,
+                NormalizedInput {
+                    key,
+                    old: InputValue::ElementStyleInput {
+                        reaction: 0,
+                        inherited_style_groups: 0,
+                    },
+                    new: InputValue::ElementStyleInput {
                         reaction,
                         inherited_style_groups,
-                    } = input.new
-                    else {
-                        unreachable!();
-                    };
-                    *pending_reaction |= reaction;
-                    *pending_inherited_style_groups |= inherited_style_groups;
-                }
-                Err(index) => self.deferred_element_style_inputs.insert(index, input),
-            }
+                    },
+                },
+            ),
         }
         let deferred_style_input_bytes =
             (self.deferred_element_style_inputs.capacity() * size_of::<NormalizedInput>()) as u64;
         self.deferred_element_style_input_memory
             .resize_required_to(&mut self.memory, deferred_style_input_bytes);
-        self.release_transaction(transaction);
     }
 
     /// Release a drained transaction's scratch charge.

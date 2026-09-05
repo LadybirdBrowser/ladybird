@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .a::before { content: "a"; color: rgb(255, 0, 0); }
+    .b::before { content: "b"; }
+    .b::after { content: "after"; font-weight: bold; }
+    .c { display: list-item; }
+    .d::before { content: none; }
+    .e { color: rgb(0, 0, 255); }
+    .e::before { content: "e"; }
+</style>
+<div id="target"></div>
+<div id="second" class="a"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const second = document.getElementById("second");
+        const before = () => getComputedStyle(target, "::before");
+        const after = () => getComputedStyle(target, "::after");
+        const marker = () => getComputedStyle(target, "::marker");
+        internals.updateStyle();
+        const start = internals.styleEngineCounters();
+        const recomputes = () => internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        const startRecomputes = recomputes();
+
+        target.className = "a";
+        internals.updateStyle();
+        println(`a: before content ${before().content} color ${before().color}`);
+
+        target.className = "b";
+        internals.updateStyle();
+        println(`b: before content ${before().content} color ${before().color}, after content ${after().content} weight ${after().fontWeight}`);
+
+        target.className = "b c";
+        internals.updateStyle();
+        println(`b c: marker display ${marker().display}, before content ${before().content}`);
+
+        target.className = "c";
+        internals.updateStyle();
+        println(`c: before content ${before().content}, after content ${after().content}`);
+
+        target.className = "d";
+        internals.updateStyle();
+        println(`d: before content ${before().content}`);
+
+        target.className = "e";
+        internals.updateStyle();
+        println(`e: before content ${before().content} color ${before().color}`);
+
+        target.className = "";
+        internals.updateStyle();
+        println(`none: before content ${before().content}`);
+
+        second.className = "b";
+        internals.updateStyle();
+        println(`second b: before content ${getComputedStyle(second, "::before").content}`);
+
+        const end = internals.styleEngineCounters();
+        println(`engine pseudo records: ${end.engineComputedPseudoRecords - start.engineComputedPseudoRecords}`);
+        println(`C++ recomputations: ${recomputes() - startRecomputes}`);
+    });
+</script>

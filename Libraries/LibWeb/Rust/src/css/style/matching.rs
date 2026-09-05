@@ -89,6 +89,20 @@ impl StyleEngine {
             .eq(deltas.iter().map(|delta| (delta.rule, delta.entry, delta.change)))
     }
 
+    /// The pseudo-element winner states a node settled this flush for the kinds the engine
+    /// settles pseudo-elements from, to travel with the node's winner state: ::before, ::after,
+    /// ::first-letter and ::selection. The rules for the other kinds match every element, and a
+    /// row for each of them on every element would cost the memory the winner groups have.
+    fn settled_pseudo_winner_states(&self, node: StyleNodeID) -> Rc<[(tree::PseudoElementTarget, CascadeStateID)]> {
+        self.winner_groups
+            .pseudo_states(node)
+            .filter(|&(pseudo, version, _, priority_current)| {
+                matches!(pseudo.kind.0, 0 | 2 | 3 | 6) && version == self.program.version() && priority_current
+            })
+            .map(|(pseudo, _, state, _)| (pseudo, state))
+            .collect()
+    }
+
     fn remember_retained_answer_delta_transition(
         patch: &mut RetainedAnswerPatch,
         key: RetainedAnswerDeltaMemoKey,
@@ -2655,7 +2669,7 @@ impl StyleEngine {
         if let Some(key) = &memo_key
             && let Some(entry) = patch.delta_memo.get(key)
             && Self::retained_answer_delta_memo_entry_matches(entry, deltas)
-            && let transition = entry.transition
+            && let transition = entry.transition.clone()
             && self
                 .retained_match_answers
                 .set_interned_identity(node, &mut self.match_answers, transition.new_answer)
@@ -2664,6 +2678,12 @@ impl StyleEngine {
             let stopped = transition.new_cascade_input == old_cascade_input;
             if let Some((state, version)) = transition.winner_state {
                 let _ = self.winner_groups.set(node, state, version);
+            }
+            // Pseudo-element rows are independent of the element's sparse winner row.
+            for &(pseudo, state) in transition.pseudo_winner_states.iter() {
+                let _ = self
+                    .winner_groups
+                    .set_pseudo(node, pseudo, state, self.program.version());
             }
             self.publish_cascade_input(node, transition.new_cascade_input);
             self.counters.bump(Counter::RetainedMatchAnswerDeltaPatches);
@@ -2709,6 +2729,7 @@ impl StyleEngine {
                     Lookup::Known(&(state, version)) => Some((state, version)),
                     Lookup::KnownAbsent | Lookup::Missing(_) => None,
                 };
+                let pseudo_winner_states = self.settled_pseudo_winner_states(node);
                 Self::remember_retained_answer_delta_transition(
                     patch,
                     key,
@@ -2717,6 +2738,7 @@ impl StyleEngine {
                         new_answer: *new_identity,
                         new_cascade_input: old_cascade_input,
                         winner_state,
+                        pseudo_winner_states,
                         winners_updated: false,
                         cascade_winners_are_complete: false,
                     },
@@ -2775,6 +2797,7 @@ impl StyleEngine {
                 Lookup::Known(&(state, version)) => Some((state, version)),
                 Lookup::KnownAbsent | Lookup::Missing(_) => None,
             };
+            let pseudo_winner_states = self.settled_pseudo_winner_states(node);
             Self::remember_retained_answer_delta_transition(
                 patch,
                 key,
@@ -2783,6 +2806,7 @@ impl StyleEngine {
                     new_answer: new_identity,
                     new_cascade_input,
                     winner_state,
+                    pseudo_winner_states,
                     winners_updated: cascade_winners_updated,
                     cascade_winners_are_complete,
                 },
@@ -4175,6 +4199,10 @@ impl StyleEngine {
                             (
                                 answer.matches,
                                 answer.winner_group,
+                                answer
+                                    .pseudo_winner_groups
+                                    .as_ref()
+                                    .map(|(generation, states)| (*generation, Rc::clone(states))),
                                 answer.cascade_input,
                                 answer.cascade_winner_inventory_is_complete,
                             )
@@ -4183,6 +4211,7 @@ impl StyleEngine {
                             Some((
                                 answer_matches,
                                 winner_group,
+                                pseudo_winner_groups,
                                 answer_cascade_input,
                                 cascade_winner_inventory_is_complete,
                             )) => {
@@ -4211,6 +4240,7 @@ impl StyleEngine {
                                 } else {
                                     self.order_matches_in_cascade(&mut matches, false);
                                 }
+                                let mut published_winner_rows = false;
                                 if scope == TreeScopeID::DOCUMENT
                                     && let Some((generation, group)) = winner_group
                                     && self
@@ -4218,6 +4248,20 @@ impl StyleEngine {
                                         .set_from_token(node, generation, group, self.program.version())
                                         .is_ok()
                                 {
+                                    published_winner_rows = true;
+                                }
+                                if scope == TreeScopeID::DOCUMENT
+                                    && let Some((generation, pseudo_winner_groups)) = pseudo_winner_groups
+                                    && generation == self.winner_groups.generation()
+                                {
+                                    for &(pseudo, state) in pseudo_winner_groups.iter() {
+                                        let _ =
+                                            self.winner_groups
+                                                .set_pseudo(node, pseudo, state, self.program.version());
+                                    }
+                                    published_winner_rows = true;
+                                }
+                                if published_winner_rows {
                                     self.winner_groups.settle_memory(&mut self.memory);
                                     self.counters.bump(Counter::CascadeNodeHandlesPublished);
                                 }
@@ -4253,6 +4297,14 @@ impl StyleEngine {
                                     }
                                     Lookup::Missing(_) => None,
                                 };
+                                // The rows the engine settles pseudo-elements from travel with
+                                // the group: ::before, ::after, ::first-letter and ::selection.
+                                // The rules for ::marker, ::backdrop and the element-backed
+                                // pseudo-elements match every element, and a row for every
+                                // element would only cost the memory the winner groups have.
+                                let pseudo_winner_groups = self.settled_pseudo_winner_states(node);
+                                let pseudo_winner_groups = (!pseudo_winner_groups.is_empty())
+                                    .then(|| (self.winner_groups.generation(), pseudo_winner_groups));
                                 let answer_cascade_input = self.intern_cascade_input(&answer);
                                 let cascade_winner_inventory_is_complete =
                                     self.cascade_winner_inventory_is_complete(&answer, Some(node));
@@ -4261,6 +4313,7 @@ impl StyleEngine {
                                     key,
                                     &answer,
                                     winner_group,
+                                    pseudo_winner_groups,
                                     answer_cascade_input,
                                     cascade_winner_inventory_is_complete,
                                 );

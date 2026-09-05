@@ -98,6 +98,9 @@ struct StyleEngineTransaction {
     Vector<StyleEngine::PublishedStyleDelta> reactions;
     Optional<StyleEngine::PublishedTransactionVersion> published_version;
     bool prefers_broad_matching_batch { false };
+    // The transaction continues the style change whose reactions were applied last, one tree
+    // generation further, rather than answering new inputs.
+    bool only_derived_child_reactions { false };
 };
 
 static StyleEngineTransaction take_style_engine_transaction(DOM::Document& document)
@@ -134,24 +137,11 @@ static StyleEngineTransaction take_style_engine_transaction(DOM::Document& docum
     // the planned elements.
     transaction.prefers_broad_matching_batch = !published_transaction.is_scoped
         || transaction.reactions.size() * 16 > style_computer.style_engine().connected_element_count();
+    transaction.only_derived_child_reactions = published_transaction.only_derived_child_reactions;
 
     return transaction;
 }
 
-static void record_direct_child_style_engine_inputs(DOM::ParentNode& parent, Optional<StyleNodeID> excluded_style_node = {})
-{
-    parent.for_each_child([&](auto& child) {
-        auto* element = as_if<DOM::Element>(child);
-        if (element && element->style_node_id() != 0
-            && (!excluded_style_node.has_value() || element->style_node_id() != *excluded_style_node))
-            element->document().style_computer().style_engine().record_element_style_input_change(element->style_node_id());
-        return IterationDecision::Continue;
-    });
-}
-
-// Bookkeeping for one reaction pass. Applying an element can derive reactions for its (flat-tree)
-// children; those join this same pass as its next generation instead of taking a round trip through
-// the engine journal, which would cost one full style transaction per tree generation.
 static StyleEngine::PublishedStyleDelta make_materialize_gap_delta(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups = 0)
 {
     return {
@@ -165,78 +155,6 @@ static StyleEngine::PublishedStyleDelta make_materialize_gap_delta(StyleNodeID s
         .pseudo_kind = NumericLimits<u8>::max(),
         .gap = StyleEngineFFI::FfiStyleDeltaGap::Materialize,
     };
-}
-
-struct StyleEngineReactionRecording {
-    // Entries of the current generation that are not yet applied, for merging repeated reactions.
-    HashMap<u32, StyleEngine::PublishedStyleDelta*>& pending_batch;
-    // Elements already applied (or consumed) in this pass. A reaction for one of these cannot run
-    // again this pass, so it falls back to the engine journal for the next transaction. This is
-    // what bounds the pass: every element is applied at most once.
-    HashTable<u32>& consumed;
-    // Derived reactions for elements this pass has not seen: the next generation. Keyed by style
-    // node; the generation is ordered for application by a sort over the entry set, so no insertion
-    // order needs preserving here.
-    HashMap<u32, StyleEngine::PublishedStyleDelta>& next_generation;
-};
-
-static void record_style_engine_reaction(StyleEngineReactionRecording& recording, DOM::Element& element, u8 reaction, u8 inherited_style_groups = 0)
-{
-    if (reaction == 0 || element.style_node_id() == 0)
-        return;
-    if (auto pending_reaction = recording.pending_batch.find(element.style_node_id().value()); pending_reaction != recording.pending_batch.end()) {
-        auto& pending = *pending_reaction->value;
-        if (!StyleEngine::published_style_delta_can_absorb_reaction(pending, reaction, inherited_style_groups)) {
-            element.document().style_computer().style_engine().record_element_style_input_change(element.style_node_id(), reaction, inherited_style_groups);
-            return;
-        }
-        pending.reaction |= reaction;
-        pending.inherited_style_groups |= inherited_style_groups;
-        return;
-    }
-    if (auto scheduled = recording.next_generation.find(element.style_node_id().value()); scheduled != recording.next_generation.end()) {
-        // Next-generation entries are materialize-gap reactions, which can absorb any reaction.
-        scheduled->value.reaction |= reaction;
-        scheduled->value.inherited_style_groups |= inherited_style_groups;
-        return;
-    }
-    if (recording.consumed.contains(element.style_node_id().value())) {
-        element.document().style_computer().style_engine().record_element_style_input_change(element.style_node_id(), reaction, inherited_style_groups);
-        return;
-    }
-    // A reaction carrying only inherited style is the engine's to answer: it owns the dependency
-    // facts — a current-color dependence, explicit inheritance of a non-inherited property — that
-    // decide between a cheap inherited-group swap and a full recompute. A masked recompute here
-    // would miss non-inherited properties that read the changed inherited values. Reactions with
-    // any other bit recompute fully anyway, so only the pure inherited reaction takes the journal.
-    if (reaction == StyleEngine::InheritedStyle) {
-        element.document().style_computer().style_engine().record_element_style_input_change(element.style_node_id(), reaction, inherited_style_groups);
-        return;
-    }
-    recording.next_generation.set(element.style_node_id().value(), make_materialize_gap_delta(element.style_node_id(), reaction, inherited_style_groups));
-}
-
-static void record_direct_child_style_engine_reactions(DOM::ParentNode& parent, StyleEngineReactionRecording& recording, u8 reaction, u8 inherited_style_groups = 0)
-{
-    if (reaction == 0)
-        return;
-    parent.for_each_child([&](auto& child) {
-        auto* element = as_if<DOM::Element>(child);
-        if (element && !element->assigned_slot_internal())
-            record_style_engine_reaction(recording, *element, reaction, inherited_style_groups);
-        return IterationDecision::Continue;
-    });
-}
-
-static void record_assigned_slottable_style_engine_reactions(DOM::Element& element, StyleEngineReactionRecording& recording)
-{
-    auto* slot = as_if<HTML::HTMLSlotElement>(element);
-    if (!slot)
-        return;
-    for (auto const& slottable : slot->assigned_nodes_internal()) {
-        if (auto const* assigned_element = slottable.get_pointer<GC::Ref<DOM::Element>>())
-            record_style_engine_reaction(recording, **assigned_element, StyleEngine::RecomputeStyle);
-    }
 }
 
 // The static inherited-group swap answers a pure inherited-style reaction without recomputing the element. That
@@ -267,30 +185,32 @@ static bool engine_computed_record_environment_matches(DOM::Element& element, St
     return identity == element.document().style_computer().style_engine().style_record_custom_property_environment(style_record);
 }
 
-static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Document& document, Vector<StyleEngine::PublishedStyleDelta> reactions)
+static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Document& document, Vector<StyleEngine::PublishedStyleDelta> const& reactions)
 {
-    // Reactions are applied generation by generation: applying an element can derive reactions for
-    // its (flat-tree) children, which must run after it so their inheritance inputs are ready.
-    // Each wave of derived reactions becomes the next generation of this same pass rather than a
-    // journal round trip through the engine, which would cost one full transaction per generation.
-    // Every element is applied at most once per pass — a derived reaction for an already-applied
-    // element falls back to the journal — so the generational loop terminates.
+    // Reactions are applied in preorder, so every element's inheritance inputs are ready when it is
+    // applied. What an applied element's change means for its (flat-tree) children is the
+    // engine's to derive: it reads each application and plans the children as the next
+    // transaction of this style update.
     RequiredInvalidationAfterStyleChange transaction_invalidation;
-    HashTable<u32> consumed;
-    while (!reactions.is_empty()) {
-        HashMap<u32, StyleEngine::PublishedStyleDelta*> reaction_batch;
-        reaction_batch.ensure_capacity(reactions.size());
-        for (auto& reaction : reactions)
-            reaction_batch.set(reaction.style_node, &reaction);
-        HashMap<u32, StyleEngine::PublishedStyleDelta> next_generation;
-        StyleEngineReactionRecording recording { reaction_batch, consumed, next_generation };
-
-        for (auto& reaction : reactions) {
-            reaction_batch.remove(reaction.style_node);
-            consumed.set(reaction.style_node);
-            auto element = document.style_computer().element_for_style_node(reaction.style_node);
+    {
+        for (size_t reaction_index = 0; reaction_index < reactions.size(); ++reaction_index) {
+            auto const& published_reaction = reactions[reaction_index];
+            // A pseudo-element record installs with its element's, which leads it.
+            if (published_reaction.pseudo_kind != NumericLimits<u8>::max())
+                continue;
+            auto element = document.style_computer().element_for_style_node(published_reaction.style_node);
             if (!element)
                 continue;
+            // A reaction the engine derived for this element while applying an earlier one in
+            // this batch joins the element's own reaction where it covers it.
+            auto reaction = published_reaction;
+            if (auto absorbed = document.style_computer().style_engine().absorb_element_style_input(
+                    StyleNodeID { reaction.style_node }, reaction.reaction, reaction.inherited_style_groups,
+                    reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::Materialize);
+                absorbed != 0) {
+                reaction.reaction = static_cast<u8>(absorbed & 0xff);
+                reaction.inherited_style_groups = static_cast<u8>(absorbed >> 8);
+            }
 
             // An engine-computed first record installs on an element without style; other record
             // deltas assume the style they move.
@@ -338,7 +258,6 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             bool const needs_regular_style_recompute = reaction.reaction & (StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle | StyleEngine::RecomputeDescendantStyles | StyleEngine::AncestorBecameVisible);
             bool const needs_custom_property_recompute = reaction.reaction & StyleEngine::InheritedCustomProperties;
             bool const needs_inherited_style_recompute = reaction.reaction & StyleEngine::InheritedStyle;
-            bool const ancestor_became_visible = reaction.reaction & StyleEngine::AncestorBecameVisible;
             bool did_change_custom_properties = false;
             RequiredInvalidationAfterStyleChange invalidation;
 
@@ -384,6 +303,9 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 VERIFY(!needs_inherited_style_recompute);
                 VERIFY(!needs_custom_property_recompute);
                 VERIFY(reaction.pseudo_kind == NumericLimits<u8>::max());
+                DOM::Element::EnginePseudoElementRecords pseudo_element_records {};
+                for (auto next = reaction_index + 1; next < reactions.size() && reactions[next].style_node == published_reaction.style_node && reactions[next].pseudo_kind != NumericLimits<u8>::max(); ++next)
+                    pseudo_element_records[reactions[next].pseudo_kind] = StyleRecordID { reactions[next].new_style_record };
                 static bool const verify_engine_computed_records = getenv("LIBWEB_VERIFY_STYLE_RECORD_PATCH") != nullptr;
                 if (!element->has_style() && !engine_computed_record_environment_matches(*element, StyleRecordID { reaction.new_style_record })) {
                     // The engine gave the first record the parent's own custom-property environment;
@@ -398,6 +320,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                     auto& counters = document.style_invalidation_counters();
                     auto const longhand_evaluations_before = counters.computed_longhand_evaluations;
                     auto const shared_computations_before = counters.element_style_shared_computations;
+                    auto const noop_recomputations_before = counters.element_style_noop_recomputations;
                     style_engine.consume_recorded_element_style_input_change(reaction.style_node);
                     invalidation = element->apply_style_engine_reaction(
                         did_change_custom_properties,
@@ -405,12 +328,26 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                         0);
                     auto packed = style_engine.compare_style_records(StyleRecordID { reaction.new_style_record }, element->style_record_identity(), true, false);
                     VERIFY(!(packed & to_underlying(StyleEngineFFI::FfiStyleInvalidationField::AnyComputedValueChanged)));
+                    for (size_t kind = 0; kind < pseudo_element_records.size(); ++kind) {
+                        auto const& engine_record = pseudo_element_records[kind];
+                        if (!engine_record.has_value())
+                            continue;
+                        auto installed = element->style_record_identity(static_cast<PseudoElement>(kind));
+                        if (!*engine_record) {
+                            VERIFY(!installed);
+                            continue;
+                        }
+                        VERIFY(!!installed);
+                        auto pseudo_packed = style_engine.compare_style_records(*engine_record, installed, true, false);
+                        VERIFY(!(pseudo_packed & to_underlying(StyleEngineFFI::FfiStyleInvalidationField::AnyComputedValueChanged)));
+                    }
                     // The check is not the production path: report the reaction as the engine
                     // record it is, not as the recomputation that verified it, and let the engine
                     // account for it as installed.
                     --counters.element_style_recomputations;
                     counters.computed_longhand_evaluations = longhand_evaluations_before;
                     counters.element_style_shared_computations = shared_computations_before;
+                    counters.element_style_noop_recomputations = noop_recomputations_before;
                     ++counters.engine_computed_style_records;
                     style_engine.acknowledge_engine_computed_record(StyleNodeID { reaction.style_node });
                 } else {
@@ -418,7 +355,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                     // later transaction to plan.
                     if (!element->has_style())
                         document.style_computer().style_engine().consume_recorded_element_style_input_change(reaction.style_node);
-                    invalidation = element->apply_engine_computed_style_record(StyleRecordID { reaction.new_style_record });
+                    invalidation = element->apply_engine_computed_style_record(StyleRecordID { reaction.new_style_record }, pseudo_element_records);
                     document.style_computer().style_engine().acknowledge_engine_computed_record(StyleNodeID { reaction.style_node });
                 }
             } else if (needs_regular_style_recompute || needs_inherited_style_recompute || needs_full_custom_property_recompute) {
@@ -461,78 +398,44 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 document.throttled_animation_visibility_changed();
             }
 
-            if (!invalidation.is_none() || did_change_custom_properties || ancestor_became_visible)
-                record_assigned_slottable_style_engine_reactions(*element, recording);
             apply_element_style_invalidation_after_style_change(*element, invalidation);
             transaction_invalidation |= invalidation;
 
+            auto& style_engine = document.style_computer().style_engine();
             auto current_style_record = element->style_record_identity();
+            u32 facts = 0;
+            if (did_change_custom_properties)
+                facts |= StyleEngine::DidChangeCustomProperties;
+            if (invalidation.is_none())
+                facts |= StyleEngine::InvalidationIsNone;
+            if (invalidation.needs_layout_tree_rebuild())
+                facts |= StyleEngine::NeedsLayoutTreeRebuild;
+            if (invalidation.recompute_descendant_styles)
+                facts |= StyleEngine::RecomputeDescendants;
+            if (element->children_explicitly_inherited_non_inherited_style_groups() != 0)
+                facts |= StyleEngine::ChildrenExplicitlyInherit;
+            if (auto shadow_root = element->shadow_root(); shadow_root && shadow_root->children_explicitly_inherited_non_inherited_style_groups() != 0)
+                facts |= StyleEngine::ShadowChildrenExplicitlyInherit;
+            if (was_unstyled)
+                facts |= StyleEngine::WasUnstyled;
+            if (was_display_none)
+                facts |= StyleEngine::WasDisplayNone;
             // A descendant whose style was cleared on entry to display:none can receive a reaction which only
             // updates style-engine bookkeeping, such as a synthetic pseudo-element reaction. Keep the DOM style
             // unmaterialized until a CSSOM read or the ancestor becomes visible.
-            if (!current_style_record) {
+            if (!!current_style_record) {
+                facts |= StyleEngine::HasStyle;
+                auto const* current_box_values = element->style_group<ComputedValues::BoxValues>();
+                VERIFY(current_box_values);
+                if (display_from_ffi_display(current_box_values->display).is_none())
+                    facts |= StyleEngine::IsDisplayNone;
+                if (style_engine.style_record_dependency_flags(current_style_record) & to_underlying(StyleRecordDependencyFlag::InDisplayNoneSubtree))
+                    facts |= StyleEngine::InDisplayNoneSubtree;
+            } else {
                 VERIFY(was_unstyled);
-                continue;
             }
-            auto const* current_box_values = element->style_group<ComputedValues::BoxValues>();
-            VERIFY(current_box_values);
-            if (display_from_ffi_display(current_box_values->display).is_none()) {
-                if (was_unstyled) {
-                    record_direct_child_style_engine_reactions(*element, recording, StyleEngine::RecomputeStyle);
-                    if (auto shadow_root = element->shadow_root())
-                        record_direct_child_style_engine_reactions(*shadow_root, recording, StyleEngine::RecomputeStyle);
-                } else if (did_change_custom_properties || invalidation.inherited_style_changed() || invalidation.recompute_descendant_styles) {
-                    u8 child_reaction = 0;
-                    if (did_change_custom_properties)
-                        child_reaction |= StyleEngine::InheritedCustomProperties;
-                    if (invalidation.inherited_style_changed())
-                        child_reaction |= StyleEngine::InheritedStyle;
-                    if (invalidation.recompute_descendant_styles)
-                        child_reaction |= StyleEngine::RecomputeDescendantStyles;
-                    record_direct_child_style_engine_reactions(*element, recording, child_reaction, invalidation.inherited_style_groups_changed());
-                    if (auto shadow_root = element->shadow_root())
-                        record_direct_child_style_engine_reactions(*shadow_root, recording, child_reaction, invalidation.inherited_style_groups_changed());
-                }
-                continue;
-            }
-
-            u8 common_child_reaction = 0;
-            if (needs_custom_property_recompute || did_change_custom_properties)
-                common_child_reaction |= StyleEngine::InheritedCustomProperties;
-            if (invalidation.needs_layout_tree_rebuild())
-                common_child_reaction |= StyleEngine::RecomputeStyle;
-            if ((reaction.reaction & StyleEngine::RecomputeDescendantStyles) || invalidation.recompute_descendant_styles)
-                common_child_reaction |= StyleEngine::RecomputeDescendantStyles;
-            if (ancestor_became_visible
-                || (was_display_none
-                    && !(document.style_computer().style_engine().style_record_dependency_flags(current_style_record) & to_underlying(StyleRecordDependencyFlag::InDisplayNoneSubtree))))
-                common_child_reaction |= StyleEngine::AncestorBecameVisible;
-
-            auto light_tree_child_reaction = common_child_reaction;
-            u8 light_tree_inherited_style_groups = invalidation.inherited_style_groups_changed();
-            if (!invalidation.is_none() && element->children_explicitly_inherited_non_inherited_style_groups() != 0)
-                light_tree_inherited_style_groups = RequiredInvalidationAfterStyleChange::all_inherited_style_groups;
-            if (light_tree_inherited_style_groups != 0)
-                light_tree_child_reaction |= StyleEngine::InheritedStyle;
-            record_direct_child_style_engine_reactions(*element, recording, light_tree_child_reaction, light_tree_inherited_style_groups);
-
-            if (auto shadow_root = element->shadow_root()) {
-                auto shadow_tree_child_reaction = common_child_reaction;
-                u8 shadow_tree_inherited_style_groups = invalidation.inherited_style_groups_changed();
-                if (!invalidation.is_none() && shadow_root->children_explicitly_inherited_non_inherited_style_groups() != 0)
-                    shadow_tree_inherited_style_groups = RequiredInvalidationAfterStyleChange::all_inherited_style_groups;
-                if (shadow_tree_inherited_style_groups != 0)
-                    shadow_tree_child_reaction |= StyleEngine::InheritedStyle;
-                record_direct_child_style_engine_reactions(*shadow_root, recording, shadow_tree_child_reaction, shadow_tree_inherited_style_groups);
-            }
+            style_engine.note_style_reaction_applied(reaction.style_node, reaction.reaction, invalidation.inherited_style_groups_changed(), facts);
         }
-
-        reactions.clear_with_capacity();
-        reactions.ensure_capacity(next_generation.size());
-        for (auto& scheduled : next_generation)
-            reactions.unchecked_append(scheduled.value);
-        if (!reactions.is_empty())
-            document.style_computer().style_engine().sort_style_deltas_for_direct_application(reactions);
     }
 
     return transaction_invalidation;
@@ -619,11 +522,13 @@ static void update_style(DOM::Document& document)
 
     auto style_engine_reactions = move(style_engine_transaction.reactions);
     auto prefers_broad_matching_batch = style_engine_transaction.prefers_broad_matching_batch;
+    auto transaction_only_derived_child_reactions = style_engine_transaction.only_derived_child_reactions;
     if (style_engine_reactions.is_empty()
         && document.style_computer().style_engine().has_pending_transaction()) {
         auto feedback_transaction = take_style_engine_transaction(document);
         style_engine_reactions = move(feedback_transaction.reactions);
         prefers_broad_matching_batch = feedback_transaction.prefers_broad_matching_batch;
+        transaction_only_derived_child_reactions = feedback_transaction.only_derived_child_reactions;
     }
 
     document.build_registered_properties_cache_for_style_update();
@@ -654,7 +559,8 @@ static void update_style(DOM::Document& document)
     size_t style_update_pass = 0;
     size_t style_reaction_pass = 0;
     while (!style_engine_reactions.is_empty()) {
-        if (style_reaction_pass++ > 0)
+        // One more tree generation of the same style change is not a new pass of it.
+        if (style_reaction_pass++ > 0 && !transaction_only_derived_child_reactions)
             document.record_style_stabilization_pass();
 
         size_t published_reaction_count = 0;
@@ -662,7 +568,7 @@ static void update_style(DOM::Document& document)
             if (reaction.reaction & StyleEngine::PublishedStyle)
                 ++published_reaction_count;
         }
-        if (published_reaction_count > 0) {
+        if (published_reaction_count > 0 && !transaction_only_derived_child_reactions) {
             if (++style_update_pass > max_style_update_passes) {
                 ++document.style_invalidation_counters().style_update_pass_guard_hits;
                 break;
@@ -740,7 +646,7 @@ static void update_style(DOM::Document& document)
                 ++counters.style_engine_reaction_batch_runs;
                 counters.style_engine_reaction_elements += published_reaction_count;
             }
-            invalidation |= apply_style_engine_reactions(document, move(applicable_style_engine_reactions));
+            invalidation |= apply_style_engine_reactions(document, applicable_style_engine_reactions);
         }
 
         // Exact consequences produced while recomputing become the next transaction in this
@@ -749,6 +655,7 @@ static void update_style(DOM::Document& document)
         if (document.style_computer().style_engine().has_pending_transaction()) {
             auto next_transaction = take_style_engine_transaction(document);
             style_engine_reactions = move(next_transaction.reactions);
+            transaction_only_derived_child_reactions = next_transaction.only_derived_child_reactions;
         }
         if (style_engine_reactions.is_empty())
             break;
@@ -759,33 +666,52 @@ static void update_style(DOM::Document& document)
     document.sample_animation_effects_needing_style_update();
 }
 
-static void apply_targeted_style_invalidation(DOM::Element& element, RequiredInvalidationAfterStyleChange const& invalidation, bool did_change_custom_properties, bool descendant_style_recompute_needed, Optional<StyleNodeID> child_materialized_by_targeted_update)
+// What a targeted materialization of one element found, reported to the engine the way a reaction
+// pass reports it, so the element's children get the same derived reactions either way.
+static void note_targeted_style_reaction_applied(DOM::Element& element, RequiredInvalidationAfterStyleChange const& invalidation, bool did_change_custom_properties, bool descendant_style_recompute_needed, bool was_unstyled, bool was_display_none, bool display_changed)
+{
+    auto& style_engine = element.document().style_computer().style_engine();
+    u8 reaction = StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle;
+    if (descendant_style_recompute_needed)
+        reaction |= StyleEngine::RecomputeDescendantStyles;
+    u32 facts = 0;
+    if (did_change_custom_properties)
+        facts |= StyleEngine::DidChangeCustomProperties;
+    if (invalidation.is_none())
+        facts |= StyleEngine::InvalidationIsNone;
+    if (invalidation.needs_layout_tree_rebuild())
+        facts |= StyleEngine::NeedsLayoutTreeRebuild;
+    if (invalidation.recompute_descendant_styles)
+        facts |= StyleEngine::RecomputeDescendants;
+    if (element.children_explicitly_inherited_non_inherited_style_groups() != 0)
+        facts |= StyleEngine::ChildrenExplicitlyInherit;
+    if (auto shadow_root = element.shadow_root(); shadow_root && shadow_root->children_explicitly_inherited_non_inherited_style_groups() != 0)
+        facts |= StyleEngine::ShadowChildrenExplicitlyInherit;
+    if (was_unstyled)
+        facts |= StyleEngine::WasUnstyled;
+    if (was_display_none)
+        facts |= StyleEngine::WasDisplayNone;
+    if (display_changed)
+        facts |= StyleEngine::DisplayChanged;
+    auto style_record = element.style_record_identity();
+    if (!!style_record) {
+        facts |= StyleEngine::HasStyle;
+        auto const* box_values = element.style_group<ComputedValues::BoxValues>();
+        VERIFY(box_values);
+        if (display_from_ffi_display(box_values->display).is_none())
+            facts |= StyleEngine::IsDisplayNone;
+        if (style_engine.style_record_dependency_flags(style_record) & to_underlying(StyleRecordDependencyFlag::InDisplayNoneSubtree))
+            facts |= StyleEngine::InDisplayNoneSubtree;
+    }
+    style_engine.note_style_reaction_applied(element.style_node_id(), reaction, invalidation.inherited_style_groups_changed(), facts);
+}
+
+static void apply_targeted_style_invalidation(DOM::Element& element, RequiredInvalidationAfterStyleChange const& invalidation, bool did_change_custom_properties, bool descendant_style_recompute_needed, bool was_unstyled, bool was_display_none, bool display_changed)
 {
     if (!invalidation.is_none() || did_change_custom_properties)
         Invalidation::invalidate_assigned_slottables_after_slot_style_change(element);
     apply_element_style_invalidation_after_style_change(element, invalidation);
-
-    // NB: This is the inheritance reaction rule applied to one element: what a child reads of its
-    //     parent is the inherited half of its style, so a change confined to non-inherited
-    //     properties reaches no child. The exceptions are a child that explicitly inherits a
-    //     non-inherited property, which is recorded on the element it read it from, and a display
-    //     change, which can blockify the children.
-    bool const children_may_be_reached = invalidation.inherited_style_changed()
-        || invalidation.needs_layout_tree_rebuild()
-        || invalidation.recompute_descendant_styles
-        || did_change_custom_properties
-        || descendant_style_recompute_needed;
-
-    if (children_may_be_reached || (!invalidation.is_none() && element.children_explicitly_inherited_non_inherited_style_groups() != 0))
-        record_direct_child_style_engine_inputs(element, child_materialized_by_targeted_update);
-
-    // A shadow tree's children inherit from the host, so they answer the same question against the
-    // flag the shadow root carries.
-    if (auto shadow_root = element.shadow_root()) {
-        if (children_may_be_reached || (!invalidation.is_none() && shadow_root->children_explicitly_inherited_non_inherited_style_groups() != 0))
-            record_direct_child_style_engine_inputs(*shadow_root, child_materialized_by_targeted_update);
-    }
-
+    note_targeted_style_reaction_applied(element, invalidation, did_change_custom_properties, descendant_style_recompute_needed, was_unstyled, was_display_none, display_changed);
     apply_document_style_invalidation_after_style_change(element.document(), invalidation);
 }
 
@@ -984,16 +910,19 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
     for (size_t i = *topmost_element_to_recompute + 1; i > 0; --i) {
         auto& element = inheritance_chain[i - 1];
         bool did_change_custom_properties = false;
+        bool const was_unstyled = !element->has_style();
+        auto const* previous_box_values = element->style_group<ComputedValues::BoxValues>();
+        bool const was_display_none = previous_box_values && display_from_ffi_display(previous_box_values->display).is_none();
+        auto const previous_display = previous_box_values ? Optional<Display> { display_from_ffi_display(previous_box_values->display) } : Optional<Display> {};
         auto invalidation = materialize_style_for_targeted_update(element, did_change_custom_properties);
         if (document.style_computer().style_engine().has_recorded_element_style_input_change(element->style_node_id())) {
             bool changed_custom_properties_again = false;
             invalidation |= materialize_style_for_targeted_update(element, changed_custom_properties_again);
             did_change_custom_properties |= changed_custom_properties_again;
         }
-        auto child_materialized_by_targeted_update = i > 1
-            ? Optional<StyleNodeID> { inheritance_chain[i - 2]->style_node_id() }
-            : Optional<StyleNodeID> {};
-        apply_targeted_style_invalidation(element, invalidation, did_change_custom_properties, descendant_style_recompute_needed, child_materialized_by_targeted_update);
+        auto const* current_box_values = element->style_group<ComputedValues::BoxValues>();
+        bool const display_changed = previous_display.has_value() && current_box_values && *previous_display != display_from_ffi_display(current_box_values->display);
+        apply_targeted_style_invalidation(element, invalidation, did_change_custom_properties, descendant_style_recompute_needed, was_unstyled, was_display_none, display_changed);
 
         descendant_style_recompute_needed |= invalidation.recompute_descendant_styles;
 

@@ -968,6 +968,9 @@ impl ComputedGroupSets {
         } else {
             0
         };
+        if current_color_dependencies & (1 << crate::css::computed_value_types::STYLE_GROUP_INDEX_SVG_RESET) != 0 {
+            return None;
+        }
         if current_color_dependencies & !(INHERITED_GROUP_MASK | CURRENT_COLOR_REBUILDABLE_GROUPS) != 0 {
             return None;
         }
@@ -1162,6 +1165,7 @@ impl ComputedGroupSets {
     /// same eligibility the inherited-group swap needs. Its pseudo-elements' records are
     /// untouched: they inherit from the element, and the caller has proven that nothing they
     /// inherit moved.
+    #[allow(clippy::arc_with_non_send_sync, clippy::too_many_arguments)]
     pub(super) fn replace_engine_computed_table(
         &mut self,
         node: StyleNodeID,
@@ -1197,6 +1201,38 @@ impl ComputedGroupSets {
         // driven table before any group reads it.
         let current_color =
             crate::css::table_group_builder::own_color_from_table(&table, used_color_scheme, Some(length))?;
+        for property in [
+            crate::css::property_metadata::property_id::STOP_COLOR,
+            crate::css::property_metadata::property_id::FLOOD_COLOR,
+        ] {
+            let specified = table
+                .retained_inheritance_dependent_values()
+                .find(|(candidate, value)| *candidate == property && retained_value_depends_on_current_color(value))
+                .map(|(_, value)| value.clone_retained());
+            let Some(specified) = specified else {
+                continue;
+            };
+            let input = crate::css::color_resolution::ColorResolutionInput {
+                scheme: Some(used_color_scheme),
+                current_color: Some(crate::css::color_resolution::Rgba {
+                    r: (current_color >> 16) as u8,
+                    g: (current_color >> 8) as u8,
+                    b: current_color as u8,
+                    a: (current_color >> 24) as u8,
+                }),
+                current_color_value: None,
+                length: Some(length),
+                channels: None,
+            };
+            let resolved = crate::css::color_resolution::to_color(specified.data(), &input)?;
+            let resolved = unsafe {
+                RetainedStyleValueData::from_retained_pointer(std::sync::Arc::into_raw(std::sync::Arc::new(
+                    crate::css::color_resolution::resolved_srgb_style_value(resolved),
+                )))
+            };
+            let source_slot = table.source_slot(property).map_or(-1, i64::from);
+            table.set(property, resolved, source_slot);
+        }
         let (table, slot_hash_sum) = {
             let retained = &self.computed_longhand_tables[old_table];
             let source = retained.table();
@@ -2183,6 +2219,76 @@ impl ComputedGroupSets {
             .cascade_state(PseudoComputedRow::RETAINED_CASCADE)
     }
 
+    /// Whether every inherited group the node holds outside `own_groups` is the parent's very
+    /// group: the record was computed against this parent's inherited style, and nothing under
+    /// the parent's change is left to inherit.
+    #[must_use]
+    pub fn inherited_groups_follow_parent(
+        &self,
+        node: StyleNodeID,
+        parent: StyleNodeID,
+        own_groups: u32,
+    ) -> Option<bool> {
+        let node_set = self.columns.groups(node.element_index()? as usize)?;
+        let parent_set = self.columns.groups(parent.element_index()? as usize)?;
+        if node_set == parent_set {
+            return Some(true);
+        }
+        let node_groups = self.group_identities(node_set);
+        let parent_groups = self.group_identities(parent_set);
+        // C++ and Rust can intern equal payloads under different group identities. Inheritance
+        // follows the parent's value in that case just as it does after group reclamation.
+        Some((0..ENGINE_INHERITED_GROUP_COUNT).all(|group| {
+            if own_groups & (1 << group) != 0 || node_groups[group] == parent_groups[group] {
+                return true;
+            }
+            let node_payload = self.groups[node_groups[group]].payload;
+            let parent_payload = self.groups[parent_groups[group]].payload;
+            node_payload == parent_payload
+                || crate::css::computed_values::style_group_payloads_equal(group, node_payload, parent_payload)
+        }))
+    }
+
+    /// Whether a record's inherited groups, past the ones in `own_groups` that its own
+    /// declarations rebuild, are the node's own inherited groups: what a record derived under the
+    /// node as its parent must hold, whatever identities the two were keyed by when the record
+    /// was derived.
+    #[must_use]
+    pub fn style_record_inherits_from_node(&self, raw_style_record: u64, node: StyleNodeID, own_groups: u32) -> bool {
+        let Some(record) = FinalStyleRecordID(raw_style_record)
+            .base_record()
+            .and_then(|base| self.style_records.get_index(base.index()).copied())
+        else {
+            return false;
+        };
+        let Some(node_set) = node
+            .element_index()
+            .and_then(|index| self.columns.groups(index as usize))
+        else {
+            return false;
+        };
+        // Reclamation interns an equal payload under a new identity, so the groups compare by
+        // content past their identities.
+        let record_groups = self.group_identities(record.groups);
+        let node_groups = self.group_identities(node_set);
+        (0..ENGINE_INHERITED_GROUP_COUNT).all(|group| {
+            if own_groups & (1 << group) != 0 {
+                return true;
+            }
+            let record_payload = self.groups[record_groups[group]].payload;
+            let node_payload = self.groups[node_groups[group]].payload;
+            record_payload == node_payload
+                || crate::css::computed_values::style_group_payloads_equal(group, record_payload, node_payload)
+        })
+    }
+
+    /// The record a pseudo-element of the node holds, with its animation overlay if any.
+    #[must_use]
+    pub fn pseudo_style_record(&self, node: StyleNodeID, pseudo_kind: u8) -> Option<FinalStyleRecordID> {
+        let assignment = self.pseudo_row(node, pseudo_kind)?.assignment.as_ref()?;
+        Some(self.final_style_record(assignment.style_record, assignment.animation_overlay_slot))
+    }
+
     /// The pseudo-element kinds this node holds published computed styles for.
     pub fn assigned_pseudo_kinds(&self, node: StyleNodeID) -> impl Iterator<Item = u8> + '_ {
         self.pseudo_rows(node)
@@ -3055,6 +3161,7 @@ fn longhand_table_hash(table: &ComputedLonghandTable) -> u64 {
 fn longhand_table_hash_with_slot_hash_sum(table: &ComputedLonghandTable, slot_hash_sum: u64) -> u64 {
     let mut hasher = fast_hasher();
     slot_hash_sum.hash(&mut hasher);
+    table.evaluated_bits().hash(&mut hasher);
     table.importance_bits().hash(&mut hasher);
     table.inheritance_bits().hash(&mut hasher);
     table.publication_sidecars().hash(&mut hasher);

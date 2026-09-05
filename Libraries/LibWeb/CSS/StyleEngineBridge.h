@@ -196,10 +196,24 @@ public:
         AncestorBecameVisible = 1 << 5,
         PseudoInputsMayHaveChanged = 1 << 6,
     };
+    // What applying a style reaction found, reported so the engine derives the children's reactions.
+    enum StyleReactionAppliedFact : u32 {
+        DidChangeCustomProperties = 1 << 0,
+        InvalidationIsNone = 1 << 1,
+        NeedsLayoutTreeRebuild = 1 << 2,
+        RecomputeDescendants = 1 << 3,
+        ChildrenExplicitlyInherit = 1 << 4,
+        ShadowChildrenExplicitlyInherit = 1 << 5,
+        WasUnstyled = 1 << 6,
+        WasDisplayNone = 1 << 7,
+        IsDisplayNone = 1 << 8,
+        InDisplayNoneSubtree = 1 << 9,
+        HasStyle = 1 << 10,
+        DisplayChanged = 1 << 11,
+    };
     void record_element_style_input_change(StyleNodeID style_node, u8 reaction = PublishedStyle | RecomputeStyle, u8 inherited_style_groups = 0);
     void record_flat_tree_descendant_style_input_changes(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups = 0);
     [[nodiscard]] Vector<StyleNodeID> viewport_dependent_style_nodes();
-    void consume_recorded_element_style_input_change(StyleNodeID style_node);
     [[nodiscard]] bool has_recorded_element_style_input_change(StyleNodeID style_node) const;
     void record_benchmark_marker(Utf16View);
     [[nodiscard]] bool has_recorded_input() const;
@@ -221,7 +235,6 @@ public:
     void flush();
 
     using PublishedStyleDelta = StyleEngineFFI::FfiStyleDelta;
-    [[nodiscard]] static bool published_style_delta_can_absorb_reaction(PublishedStyleDelta const&, u8 reaction, u8 inherited_style_groups);
     struct PublishedTransactionVersion {
         u64 transaction;
         u64 program;
@@ -230,6 +243,7 @@ public:
         PublishedTransactionVersion version;
         ReadonlySpan<PublishedStyleDelta> reactions;
         bool is_scoped;
+        bool only_derived_child_reactions;
     };
 
     // Takes pending inputs. The diagnostic transaction reports reaction nodes and then discards
@@ -276,7 +290,6 @@ private:
     using InputTransaction = StyleEngineFFI::FfiStyleInputTransaction;
 
     bool read_matches(StyleNodeID, Vector<RuleMatch>&, Optional<MatchPurpose>);
-    void append_or_merge_element_style_input(StyleNodeID, u8 reaction, u8 inherited_style_groups);
     void apply_transaction(InputTransaction const&);
     void submit_recorded_input();
     bool refresh_attribute_value_text_requirements();
@@ -295,7 +308,6 @@ private:
     HashTable<StyleNodeID> m_nodes_with_pending_initial_features;
     HashTable<StyleNodeID> m_nodes_awaiting_first_style_computation;
     HashMap<StyleNodeID, TreeScopeID> m_preallocated_style_nodes;
-    HashMap<StyleNodeID, size_t> m_element_style_input_indices;
     size_t m_element_match_capacity { 64 };
 
     u32 m_declaration_block_version { 1 };
@@ -305,7 +317,6 @@ private:
     Vector<StyleEngineFFI::FfiLocalFeatureDelta> m_local_feature_deltas;
     Vector<StyleEngineFFI::FfiStateDelta> m_state_deltas;
     Vector<StyleEngineFFI::FfiElementDeclarationDelta> m_element_declaration_deltas;
-    Vector<StyleEngineFFI::FfiElementStyleInput> m_element_style_inputs;
     bool m_css_transitions_may_observe_style_changes { false };
 };
 

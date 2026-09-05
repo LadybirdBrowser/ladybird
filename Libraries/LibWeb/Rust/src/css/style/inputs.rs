@@ -49,6 +49,9 @@ impl StyleEngine {
             deferred_geometry_journal: NormalizationJournal::new(),
             flushing_deferred_geometry_journal: false,
             deferred_element_style_inputs: Vec::new(),
+            deferred_element_style_inputs_are_pending: false,
+            externally_recorded_style_input_nodes: HashSet::default(),
+            last_transaction_only_derived_child_reactions: false,
             deferred_element_style_input_memory: MemoryLease::new(MemoryCategory::NormalizationJournal),
             initial_tree_batch_applied: false,
             initial_tree_bulk_load_is_pending: false,
@@ -79,6 +82,7 @@ impl StyleEngine {
             pending_element_style_computation_selections: HashMap::default(),
             pending_pseudo_style_computation_selections: HashMap::default(),
             engine_computed_records_pending: Vec::new(),
+            engine_pseudo_record_cache: HashMap::default(),
             engine_cold_record_cache: HashMap::default(),
             engine_computable_states: HashMap::default(),
             computed_group_set_memory: MemoryLease::new(MemoryCategory::ComputedGroupSet),
@@ -714,7 +718,8 @@ impl StyleEngine {
 
     #[must_use]
     pub fn has_pending_transaction(&self) -> bool {
-        !self.journal.is_empty()
+        (self.deferred_element_style_inputs_are_pending && !self.deferred_element_style_inputs.is_empty())
+            || !self.journal.is_empty()
             || (!self.flushing_deferred_geometry_journal && !self.deferred_geometry_journal.is_empty())
             || !self.tree_staging.is_empty()
             || self.program_staging.is_dirty()
@@ -732,6 +737,104 @@ impl StyleEngine {
     #[must_use]
     pub fn has_deferred_element_style_inputs(&self) -> bool {
         !self.deferred_element_style_inputs.is_empty()
+    }
+
+    /// Record an exact style reaction for one element, merged with what the element already owes.
+    /// It joins the next transaction.
+    pub fn record_element_style_input(&mut self, node: StyleNodeID, reaction: u8, inherited_style_groups: u8) {
+        if reaction == 0 {
+            return;
+        }
+        let derived_already = self.has_deferred_element_style_input(node);
+        let externally_recorded_already = self.externally_recorded_style_input_nodes.contains(&node);
+        self.record_derived_element_style_input(node, reaction, inherited_style_groups);
+        if !derived_already || externally_recorded_already {
+            self.externally_recorded_style_input_nodes.insert(node);
+        }
+    }
+
+    /// Record a style reaction the engine derived itself for one element.
+    pub(crate) fn record_derived_element_style_input(
+        &mut self,
+        node: StyleNodeID,
+        reaction: u8,
+        inherited_style_groups: u8,
+    ) {
+        if reaction == 0 {
+            return;
+        }
+        self.defer_element_style_input(node, reaction, inherited_style_groups);
+        self.deferred_element_style_inputs_are_pending = true;
+        self.externally_recorded_style_input_nodes.remove(&node);
+    }
+
+    /// Whether the last transaction planned nothing but derived child reactions, read once.
+    pub fn take_only_derived_child_reactions(&mut self) -> bool {
+        std::mem::take(&mut self.last_transaction_only_derived_child_reactions)
+    }
+
+    /// Record an exact style reaction for every flat-tree descendant of a node.
+    pub fn record_flat_tree_descendant_style_inputs(
+        &mut self,
+        root: StyleNodeID,
+        reaction: u8,
+        inherited_style_groups: u8,
+    ) {
+        if reaction == 0 {
+            return;
+        }
+        let mut descendants = Vec::new();
+        self.for_each_flat_tree_descendant(root, |node| descendants.push(node));
+        for node in descendants {
+            self.record_element_style_input(node, reaction, inherited_style_groups);
+        }
+    }
+
+    /// Fold the style input an element owes into the reaction C++ is about to apply to it, when
+    /// that reaction covers it: a materialization covers anything, while a record delta covers
+    /// only what it already carries. The folded input is consumed; one not covered stays owed to
+    /// the next transaction. Returns the merged reaction in the low byte and the merged inherited
+    /// style groups in the next, or zero when nothing was folded.
+    pub fn absorb_element_style_input(
+        &mut self,
+        node: StyleNodeID,
+        reaction: u8,
+        inherited_style_groups: u8,
+        absorbs_any: bool,
+    ) -> u32 {
+        let Ok(index) = self
+            .deferred_element_style_inputs
+            .binary_search_by_key(&InputKey::ElementStyleInput(node), |pending| pending.key)
+        else {
+            return 0;
+        };
+        let InputValue::ElementStyleInput {
+            reaction: pending_reaction,
+            inherited_style_groups: pending_inherited_style_groups,
+        } = self.deferred_element_style_inputs[index].new
+        else {
+            unreachable!();
+        };
+        if !absorbs_any
+            && (pending_reaction & !reaction != 0 || pending_inherited_style_groups & !inherited_style_groups != 0)
+        {
+            return 0;
+        }
+        self.deferred_element_style_inputs.remove(index);
+        self.externally_recorded_style_input_nodes.remove(&node);
+        u32::from(reaction | pending_reaction)
+            | (u32::from(inherited_style_groups | pending_inherited_style_groups) << 8)
+    }
+
+    /// Drop the style input an element owes: C++ computed the element's style, which answers it.
+    pub fn consume_element_style_input(&mut self, node: StyleNodeID) {
+        if let Ok(index) = self
+            .deferred_element_style_inputs
+            .binary_search_by_key(&InputKey::ElementStyleInput(node), |pending| pending.key)
+        {
+            self.deferred_element_style_inputs.remove(index);
+        }
+        self.externally_recorded_style_input_nodes.remove(&node);
     }
 
     /// Whether one element still owes a deferred style input, asked per node the way the recorded
@@ -1889,6 +1992,7 @@ impl StyleEngine {
         node: StyleNodeID,
         kind: ElementDeclarationKind,
         declared: &[DeclaredProperty],
+        written_values: Vec<RetainedStyleValueData>,
         declarations_are_complete: bool,
     ) {
         if matches!(
@@ -1924,8 +2028,13 @@ impl StyleEngine {
             let (declared, complete) = self.facts.element_declared_properties(node, kind);
             complete.then(|| declared.to_vec())
         });
-        self.facts
-            .set_element_declared_properties(node, kind, declared.to_vec(), declarations_are_complete);
+        self.facts.set_element_declared_properties(
+            node,
+            kind,
+            declared.to_vec(),
+            written_values,
+            declarations_are_complete,
+        );
         let Some(((previous, retained), previous_declared)) = repair_inputs.zip(previous_declared) else {
             return;
         };

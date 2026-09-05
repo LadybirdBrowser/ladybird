@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { background-color: red; display: block; }
+    #target::before { content: "x"; background-color: inherit; }
+    #target.blue { background-color: blue; }
+    #layout::before { content: "x"; }
+    #target.flex, #layout.flex { display: flex; }
+    #target.grid, #layout.grid { display: grid; }
+</style>
+<div id="target"></div>
+<div id="layout"></div>
+<script>
+    test(() => {
+        for (const className of ["", "blue", "blue flex", "blue grid", ""]) {
+            target.className = className;
+            layout.className = className;
+            internals.updateStyle();
+            const style = getComputedStyle(target, "::before");
+            println(`${className || "initial"}: ${style.backgroundColor} / ${style.display}`);
+            println(`display only: ${getComputedStyle(layout, "::before").display}`);
+        }
+    });
+</script>

@@ -1,0 +1,10 @@
+a: before content "a" color rgb(255, 0, 0)
+b: before content "b" color rgb(0, 0, 0), after content "after" weight 700
+b c: marker display inline, before content "b"
+c: before content normal, after content normal
+d: before content none
+e: before content "e" color rgb(0, 0, 255)
+none: before content normal
+second b: before content "b"
+engine pseudo records: 9
+C++ recomputations: 8

@@ -20,8 +20,7 @@
         println(`first color: ${getComputedStyle(first).color}`);
         println(`second color: ${getComputedStyle(second).color}`);
         println(`published answers: ${after.publishedMatchAnswerRecords - before.publishedMatchAnswerRecords}`);
-        println(`identity reads: ${after.publishedMatchAnswerIdentityReads - before.publishedMatchAnswerIdentityReads}`);
-        println(`payload consumptions: ${after.publishedMatchAnswerConsumptions - before.publishedMatchAnswerConsumptions}`);
+        println(`engine records: ${after.engineComputedRecordDeltas - before.engineComputedRecordDeltas}`);
         println(`shared payloads: ${after.publishedMatchAnswerSharedPayloads - before.publishedMatchAnswerSharedPayloads}`);
     });
 </script>
