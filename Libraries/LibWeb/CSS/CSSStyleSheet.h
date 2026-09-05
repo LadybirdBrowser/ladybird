@@ -136,6 +136,8 @@ public:
     Optional<::URL::URL> base_url() const { return m_base_url; }
     void set_base_url(Optional<::URL::URL> base_url) { m_base_url = move(base_url); }
 
+    Optional<::URL::URL> style_resource_base_url() const;
+
     void register_pending_image_value(ImageStyleValue& value) { m_pending_image_values.append(value); }
     void load_pending_image_resources(DOM::Document&);
 

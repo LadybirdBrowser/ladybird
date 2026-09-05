@@ -26,7 +26,6 @@
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
@@ -380,13 +379,7 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
         // Loosely based on https://drafts.csswg.org/css-animations-2/#keyframe-processing
         sheet.for_each_effective_keyframes_at_rule([&](CSSKeyframesRule const& rule) {
             auto keyframe_set = adopt_ref(*new Animations::KeyframeEffect::KeyFrameSet);
-            auto base_url = sheet.base_url()
-                                .value_or_lazy_evaluated_optional([&]() { return sheet.location(); })
-                                .value_or_lazy_evaluated_optional([&]() -> Optional<::URL::URL> {
-                                    if (auto document = sheet.owning_document())
-                                        return HTML::relevant_settings_object(*document).api_base_url();
-                                    return {};
-                                });
+            auto base_url = sheet.style_resource_base_url();
             keyframe_set->style_sheet_resource_context = {
                 .base_url = base_url.has_value() ? base_url->to_string() : String {},
                 .origin_clean = sheet.is_origin_clean(),

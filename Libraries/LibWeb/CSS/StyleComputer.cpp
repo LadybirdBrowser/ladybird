@@ -5341,13 +5341,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                     if (!style_sheet)
                         continue;
                     computed_style.set_style_sheet_for_source_slot(static_cast<u32>(slot), style_sheet);
-                    auto base_url = style_sheet->base_url()
-                                        .value_or_lazy_evaluated_optional([&]() { return style_sheet->location(); })
-                                        .value_or_lazy_evaluated_optional([&]() -> Optional<::URL::URL> {
-                                            if (auto document = style_sheet->owning_document())
-                                                return HTML::relevant_settings_object(*document).api_base_url();
-                                            return {};
-                                        });
+                    auto base_url = style_sheet->style_resource_base_url();
                     if (base_url.has_value())
                         state.style_sheet_base_urls[slot] = base_url->to_string();
                     resource_context.has_value = true;

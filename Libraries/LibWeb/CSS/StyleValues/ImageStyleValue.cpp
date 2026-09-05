@@ -175,13 +175,7 @@ void ImageStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
 
 void ImageStyleValue::update_style_sheet_resource_context(CSSStyleSheet const& style_sheet)
 {
-    m_style_resource_base_url = style_sheet.base_url()
-                                    .value_or_lazy_evaluated_optional([&]() { return style_sheet.location(); })
-                                    .value_or_lazy_evaluated_optional([&]() -> Optional<::URL::URL> {
-                                        if (auto document = style_sheet.owning_document())
-                                            return HTML::relevant_settings_object(*document).api_base_url();
-                                        return {};
-                                    });
+    m_style_resource_base_url = style_sheet.style_resource_base_url();
     m_parent_style_sheet_origin_clean = style_sheet.is_origin_clean();
     m_should_absolutize_url_for_computed_value = true;
 }

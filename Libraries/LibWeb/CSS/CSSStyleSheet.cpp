@@ -560,6 +560,17 @@ GC::Ptr<DOM::Document> CSSStyleSheet::owning_document() const
     return nullptr;
 }
 
+Optional<::URL::URL> CSSStyleSheet::style_resource_base_url() const
+{
+    if (auto url = base_url(); url.has_value())
+        return url;
+    if (auto url = location(); url.has_value())
+        return url;
+    if (auto document = owning_document())
+        return HTML::relevant_settings_object(*document).api_base_url();
+    return {};
+}
+
 void CSSStyleSheet::load_pending_image_resources(DOM::Document& document)
 {
     if (disabled())
