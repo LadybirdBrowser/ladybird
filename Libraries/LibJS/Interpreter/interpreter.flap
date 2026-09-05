@@ -120,6 +120,19 @@ inline fn numeric_pair_to_f64(
     (lhs_result, rhs_result)
 }
 
+inline fn integer_value_to_i64(value: Value, else failure: Label) -> i64 {
+    match value {
+        Value<i32>(integer) => {
+            i64(integer)
+        },
+        Value<f64>(number) => {
+            guard let integer = double_to_int64(number) else failure;
+            integer
+        },
+        _ => failure,
+    }
+}
+
 inline fn load_property_lookup_cache(
     cache: PropertyLookupCacheIndex,
     else fail: Label
@@ -1931,16 +1944,49 @@ handler Mod(
     rhs: in Operand
 ) {
     let lhs = load(lhs);
-    let rhs = load(rhs);
 
     let slow = || @cold {
-        call_binary_slow_path(mod_values, dst, lhs, rhs);
+        let rhs_value = load(rhs);
+        call_binary_slow_path(mod_values, dst, lhs, rhs_value);
     };
 
-    guard let Value<i32>(lhs_int) = lhs else slow;
-    guard let Value<i32>(rhs_int) = rhs else slow;
+    let try_int64 = || @cold {
+        guard let lhs_integer = integer_value_to_i64(lhs) else slow;
+        guard let rhs_integer = integer_value_to_i64(load(rhs)) else slow;
+        guard rhs_integer != 0 else slow;
+
+        let zero = || @cold {
+            let negative_zero = || @cold {
+                store(dst, Value<NegativeZero>);
+                dispatch_next;
+            };
+            guard lhs_integer >= 0 else negative_zero;
+            branch_value_bits_negative(lhs, negative_zero);
+            let zero_value: Value = INT32_TAG_SHIFTED;
+            store(dst, zero_value);
+            dispatch_next;
+        };
+
+        # NB: Avoid signed division overflow for INT64_MIN % -1.
+        let zero_integer: i64 = 0;
+        let negative_one = zero_integer - 1;
+        guard rhs_integer != negative_one else zero;
+        let remainder = mod_i64(lhs_integer, rhs_integer);
+        guard remainder != 0 else zero;
+        let remainder_int32 = i32(remainder);
+        let widened_remainder = i64(remainder_int32);
+        guard widened_remainder == remainder else @cold {
+            store(dst, box_f64(i64_to_f64(remainder)));
+            dispatch_next;
+        };
+        store(dst, box_i32(remainder_int32));
+        dispatch_next;
+    };
+
+    guard let Value<i32>(lhs_int) = lhs else try_int64;
+    guard let Value<i32>(rhs_int) = load(rhs) else try_int64;
     guard rhs_int != 0 else slow;
-    guard lhs_int >= 0 else slow;
+    guard lhs_int >= 0 else try_int64;
     let [_, remainder] = divmod(lhs_int, rhs_int);
     store(dst, box_i32(remainder));
     dispatch_next;

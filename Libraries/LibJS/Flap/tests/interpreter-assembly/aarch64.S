@@ -3427,17 +3427,18 @@ asm_handler_UnsignedRightShift_hot_end:
 
 .p2align 4
 asm_handler_Mod:
-    ldp w0, w1, [x21, #8]
+    ldr w0, [x21, #8]
     ldr x0, [x27, x0, lsl #3]
-    ldr x1, [x27, x1, lsl #3]
     lsr x9, x0, #48
     cmp x9, x22
-    b.ne .Lasm_Mod.ssa_block_1
+    b.ne .Lasm_Mod.ssa_block_2
+    ldr w1, [x21, #12]
+    ldr x1, [x27, x1, lsl #3]
     lsr x9, x1, #48
     cmp x9, x22
-    b.ne .Lasm_Mod.ssa_block_1
+    b.ne .Lasm_Mod.ssa_block_2
     cbz w1, .Lasm_Mod.ssa_block_1
-    tbnz w0, #31, .Lasm_Mod.ssa_block_1
+    tbnz w0, #31, .Lasm_Mod.ssa_block_2
     sdiv w9, w0, w1
     msub w0, w9, w1, w0
     movk x0, #0x7ffa, lsl #48
@@ -5962,12 +5963,12 @@ asm_handler_UnsignedRightShiftRhsInt32_hot_end:
 asm_handler_ModRhsInt32:
     ldr w0, [x21, #8]
     ldr x0, [x27, x0, lsl #3]
-    ldr w1, [x21, #12]
     lsr x9, x0, #48
     cmp x9, x22
-    b.ne .Lasm_ModRhsInt32.ssa_block_1
+    b.ne .Lasm_ModRhsInt32.ssa_block_2
+    ldr w1, [x21, #12]
     cbz w1, .Lasm_ModRhsInt32.ssa_block_1
-    tbnz w0, #31, .Lasm_ModRhsInt32.ssa_block_1
+    tbnz w0, #31, .Lasm_ModRhsInt32.ssa_block_2
     sdiv w9, w0, w1
     msub w0, w9, w1, w0
     movk x0, #0x7ffa, lsl #48
@@ -8965,7 +8966,96 @@ asm_handler_UnsignedRightShift_cold:
 asm_handler_UnsignedRightShift_cold_end:
 asm_handler_Mod_cold:
 // Cold paths for Mod
+.Lasm_Mod.ssa_block_2:
+    lsr x1, x0, #48
+    cmp w1, w22
+    b.eq .Lasm_Mod.ssa_block_15
+    and w1, w1, #0x7ff8
+    mov w9, #32760
+    cmp w1, w9
+    b.eq .Lasm_Mod.ssa_block_1
+    fmov d0, x0
+    fcvtzs x2, d0
+    cmn x2, #1
+    b.vs .Lasm_Mod.ssa_block_1
+    scvtf d16, x2
+    fcmp d0, d16
+    b.ne .Lasm_Mod.ssa_block_1
+    b .Lasm_Mod.ssa_block_18
+.Lasm_Mod.ssa_block_15:
+    sxtw x1, w0
+    sxtw x2, w1
+.Lasm_Mod.ssa_block_18:
+    ldr w1, [x21, #12]
+    ldr x1, [x27, x1, lsl #3]
+    lsr x3, x1, #48
+    cmp w3, w22
+    b.eq .Lasm_Mod.ssa_block_20
+    and w3, w3, #0x7ff8
+    mov w9, #32760
+    cmp w3, w9
+    b.eq .Lasm_Mod.ssa_block_1
+    fmov d0, x1
+    fcvtzs x1, d0
+    cmn x1, #1
+    b.vs .Lasm_Mod.ssa_block_1
+    scvtf d16, x1
+    fcmp d0, d16
+    b.ne .Lasm_Mod.ssa_block_1
+    b .Lasm_Mod.ssa_block_23
+.Lasm_Mod.ssa_block_20:
+    sxtw x1, w1
+    sxtw x1, w1
+.Lasm_Mod.ssa_block_23:
+    cbz x1, .Lasm_Mod.ssa_block_1
+    mov x3, #0
+    subs x3, x3, #1
+    cmp x1, x3
+    b.eq .Lasm_Mod.ssa_block_3
+    sdiv x9, x2, x1
+    msub x1, x9, x1, x2
+    cbz x1, .Lasm_Mod.ssa_block_3
+    mov w0, w1
+    sxtw x2, w0
+    cmp x2, x1
+    b.ne .Lasm_Mod.ssa_block_5
+    movk x0, #0x7ffa, lsl #48
+    ldr w9, [x21, #4]
+    str x0, [x27, x9, lsl #3]
+    ldrb w9, [x21, #16]
+    add x21, x21, #16
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_Mod.ssa_block_5:
+    scvtf d0, x1
+    fmov x0, d0
+    ldr w9, [x21, #4]
+    str x0, [x27, x9, lsl #3]
+    ldrb w9, [x21, #16]
+    add x21, x21, #16
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_Mod.ssa_block_3:
+    tbnz x2, #63, .Lasm_Mod.ssa_block_4
+    tbnz x0, #63, .Lasm_Mod.ssa_block_4
+    movz x0, #0x7ffa, lsl #48
+    ldr w9, [x21, #4]
+    str x0, [x27, x9, lsl #3]
+    ldrb w9, [x21, #16]
+    add x21, x21, #16
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_Mod.ssa_block_4:
+    ldr w9, [x21, #4]
+    movz x10, #0x8000, lsl #48
+    str x10, [x27, x9, lsl #3]
+    ldrb w9, [x21, #16]
+    add x21, x21, #16
+    ldr x10, [x19, x9, lsl #3]
+    br x10
 .Lasm_Mod.ssa_block_1:
+    ldr w1, [x21, #12]
+    ldr x1, [x27, x1, lsl #3]
     ldr w2, [x21, #4]
     mov x3, x0
     mov x4, x1
@@ -11754,6 +11844,74 @@ asm_handler_UnsignedRightShiftRhsInt32_cold:
 asm_handler_UnsignedRightShiftRhsInt32_cold_end:
 asm_handler_ModRhsInt32_cold:
 // Cold paths for ModRhsInt32
+.Lasm_ModRhsInt32.ssa_block_2:
+    lsr x1, x0, #48
+    cmp w1, w22
+    b.eq .Lasm_ModRhsInt32.ssa_block_15
+    and w1, w1, #0x7ff8
+    mov w9, #32760
+    cmp w1, w9
+    b.eq .Lasm_ModRhsInt32.ssa_block_1
+    fmov d0, x0
+    fcvtzs x2, d0
+    cmn x2, #1
+    b.vs .Lasm_ModRhsInt32.ssa_block_1
+    scvtf d16, x2
+    fcmp d0, d16
+    b.ne .Lasm_ModRhsInt32.ssa_block_1
+    b .Lasm_ModRhsInt32.ssa_block_18
+.Lasm_ModRhsInt32.ssa_block_15:
+    sxtw x1, w0
+    sxtw x2, w1
+.Lasm_ModRhsInt32.ssa_block_18:
+    ldr w1, [x21, #12]
+    sxtw x1, w1
+    cbz x1, .Lasm_ModRhsInt32.ssa_block_1
+    mov x3, #0
+    subs x3, x3, #1
+    cmp x1, x3
+    b.eq .Lasm_ModRhsInt32.ssa_block_3
+    sdiv x9, x2, x1
+    msub x1, x9, x1, x2
+    cbz x1, .Lasm_ModRhsInt32.ssa_block_3
+    mov w0, w1
+    sxtw x2, w0
+    cmp x2, x1
+    b.ne .Lasm_ModRhsInt32.ssa_block_5
+    movk x0, #0x7ffa, lsl #48
+    ldr w9, [x21, #4]
+    str x0, [x27, x9, lsl #3]
+    ldrb w9, [x21, #16]
+    add x21, x21, #16
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ModRhsInt32.ssa_block_5:
+    scvtf d0, x1
+    fmov x0, d0
+    ldr w9, [x21, #4]
+    str x0, [x27, x9, lsl #3]
+    ldrb w9, [x21, #16]
+    add x21, x21, #16
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ModRhsInt32.ssa_block_3:
+    tbnz x2, #63, .Lasm_ModRhsInt32.ssa_block_4
+    tbnz x0, #63, .Lasm_ModRhsInt32.ssa_block_4
+    movz x0, #0x7ffa, lsl #48
+    ldr w9, [x21, #4]
+    str x0, [x27, x9, lsl #3]
+    ldrb w9, [x21, #16]
+    add x21, x21, #16
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ModRhsInt32.ssa_block_4:
+    ldr w9, [x21, #4]
+    movz x10, #0x8000, lsl #48
+    str x10, [x27, x9, lsl #3]
+    ldrb w9, [x21, #16]
+    add x21, x21, #16
+    ldr x10, [x19, x9, lsl #3]
+    br x10
 .Lasm_ModRhsInt32.ssa_block_1:
     ldr w1, [x21, #12]
     movk x1, #0x7ffa, lsl #48
