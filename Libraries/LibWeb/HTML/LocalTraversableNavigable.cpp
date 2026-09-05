@@ -68,8 +68,6 @@ void LocalTraversableNavigable::visit_edges(Cell::Visitor& visitor)
         for (auto& continuation : operation.value.changing_navigable_continuations)
             visitor.visit(continuation.value);
     }
-    for (auto& pending_unload : m_pending_child_navigable_unloads)
-        visitor.visit(pending_unload.value);
 }
 
 static OrderedHashTable<LocalTraversableNavigable*>& user_agent_top_level_traversable_set()
@@ -1700,25 +1698,6 @@ void LocalTraversableNavigable::apply_ui_changing_navigable_continuation(CrossPr
         on_complete);
 }
 
-// https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document-and-its-descendants
-void LocalTraversableNavigable::run_ui_descendant_unload_task(CrossProcessId navigable_id, GC::Ref<GC::Function<void()>> on_complete)
-{
-    // 2. Unload a document and its descendants given childNavigable's active document, null, and incrementUnloaded.
-    auto navigable = local_navigable_with_id(navigable_id);
-    if (!navigable || navigable->has_been_destroyed()) {
-        on_complete->function()();
-        return;
-    }
-
-    // The UI process has already unloaded this document's descendants.
-    queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr,
-        GC::create_function(heap(), [navigable = GC::Ref { *navigable }, on_complete] {
-            if (auto active_document = navigable->active_document())
-                active_document->unload();
-            on_complete->function()();
-        }));
-}
-
 void LocalTraversableNavigable::complete_ui_history_operation(CrossProcessId operation_id, HistoryStepResult result, Optional<i32> committed_step, u64 session_history_entry_count)
 {
     auto operation = m_history_operations.take(operation_id);
@@ -1839,37 +1818,6 @@ void LocalTraversableNavigable::definitely_close_top_level_traversable(PromptToU
         // 3. Append the following session history traversal steps to traversable:
         append_close_steps();
     }));
-}
-
-// AD-HOC: Child removal unloads documents before running the remaining destroy-a-child-navigable steps.
-void LocalTraversableNavigable::unload_child_navigable_before_destruction(GC::Ref<LocalNavigable> navigable, GC::Ref<GC::Function<void()>> after_all_unloads)
-{
-    m_pending_child_navigable_unloads.set(navigable->id(), after_all_unloads);
-    page().client().page_did_request_child_navigable_unload(navigable->id());
-}
-
-void LocalTraversableNavigable::continue_child_navigable_destruction(CrossProcessId navigable_id, UnloadDisplayedDocument unload_displayed_document)
-{
-    auto after_all_unloads = m_pending_child_navigable_unloads.take(navigable_id);
-    if (!after_all_unloads.has_value())
-        return;
-
-    auto navigable = local_navigable_with_id(navigable_id);
-    queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr,
-        GC::create_function(heap(), [navigable, unload_displayed_document, after_all_unloads = after_all_unloads.release_value()] {
-            if (unload_displayed_document == UnloadDisplayedDocument::Yes) {
-                // 2. Unload document, passing along newDocument if it is not null.
-                if (auto active_document = navigable ? navigable->active_document() : nullptr)
-                    active_document->unload();
-            } else if (auto active_document = navigable ? navigable->active_document() : nullptr) {
-                // AD-HOC: The displayed document was unloaded in its remote host. Destroy the process-local
-                //         placeholder without firing its lifecycle events.
-                active_document->destroy();
-            }
-
-            // 3. If afterAllUnloads was given, then run it.
-            after_all_unloads->function()();
-        }));
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#definitely-close-a-top-level-traversable

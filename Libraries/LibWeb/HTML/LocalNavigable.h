@@ -108,6 +108,7 @@ public:
     void activate_history_entry(RefPtr<SessionHistoryEntry>, GC::Ref<DOM::Document>, VisibilityState system_visibility_state);
     void update_nonchanging_navigable_history_step_state(HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
     void queue_navigation_api_state_clear_task();
+    void run_ui_descendant_unload_task(GC::Ref<GC::Function<void()>> on_complete);
     void notify_navigation_observers_navigation_complete();
 
     GC::Ptr<DOM::Document> active_document() const;
@@ -206,6 +207,8 @@ public:
     [[nodiscard]] bool has_been_destroyed() const { return m_has_been_destroyed; }
     void set_has_been_destroyed();
     void report_child_frame_destroyed();
+    void unload_child_navigable_before_destruction(GC::Ref<GC::Function<void()>> after_all_unloads);
+    void continue_child_navigable_destruction(UnloadDisplayedDocument);
     void remove_from_all_local_navigables();
 
     CSSPixelPoint to_page_position(CSSPixelPoint);
@@ -515,6 +518,9 @@ private:
 
     bool m_has_been_destroyed { false };
     bool m_child_frame_destruction_reported { false };
+
+    // The destroy-a-child-navigable continuation parked while the UI process unloads this navigable's document tree.
+    GC::Ptr<GC::Function<void()>> m_pending_child_navigable_unload;
 
     CSSPixelSize m_viewport_size;
     CSSPixelPoint m_viewport_scroll_offset;

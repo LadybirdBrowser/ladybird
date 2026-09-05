@@ -72,9 +72,6 @@ public:
     bool resume_history_navigation_population(CrossProcessId operation_id, HistoryNavigationPopulation&&);
     void prepare_ui_changing_navigable_for_unload(CrossProcessId operation_id, CrossProcessId navigable_id, GC::Ref<GC::Function<void()>> on_complete);
     void apply_ui_changing_navigable_continuation(CrossProcessId operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, VisibilityState, UnloadDisplayedDocument, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>>);
-    void run_ui_descendant_unload_task(CrossProcessId navigable_id, GC::Ref<GC::Function<void()>> on_complete);
-    void unload_child_navigable_before_destruction(GC::Ref<LocalNavigable>, GC::Ref<GC::Function<void()>> after_all_unloads);
-    void continue_child_navigable_destruction(CrossProcessId navigable_id, UnloadDisplayedDocument);
     void complete_ui_history_operation(CrossProcessId operation_id, HistoryStepResult, Optional<i32> committed_step, u64 session_history_entry_count);
 
     void finalize_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement, Optional<SessionHistoryEntryPersistedState> previous_entry_persisted_state);
@@ -163,9 +160,6 @@ private:
 
     // AD-HOC: A forced close may supersede a prompted close while its beforeunload check is still pending.
     bool m_close_steps_have_been_appended { false };
-
-    // Parked destroy-a-child-navigable continuations.
-    HashMap<CrossProcessId, GC::Ref<GC::Function<void()>>> m_pending_child_navigable_unloads;
 
     // https://storage.spec.whatwg.org/#traversable-navigable-storage-shed
     // A traversable navigable holds a storage shed, which is a storage shed. A traversable navigable’s storage shed holds all session storage data.

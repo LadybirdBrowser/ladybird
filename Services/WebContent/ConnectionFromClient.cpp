@@ -558,20 +558,25 @@ void ConnectionFromClient::apply_changing_navigable_continuation(u64 page_id, We
 void ConnectionFromClient::run_descendant_unload_task(u64 page_id, Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id)
 {
     auto page = this->page(page_id);
-    if (!page.has_value()) {
+    auto navigable = Web::HTML::local_navigable_with_id(navigable_id);
+    if (!page.has_value() || !navigable) {
         async_descendant_unload_task_complete(page_id, unload_id, navigable_id);
         return;
     }
 
-    as<Web::HTML::LocalTraversableNavigable>(*page->page().local_root_navigable()).run_ui_descendant_unload_task(navigable_id, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, unload_id, navigable_id] {
+    navigable->run_ui_descendant_unload_task(GC::create_function(navigable->heap(), [this, page_id, unload_id, navigable_id] {
         async_descendant_unload_task_complete(page_id, unload_id, navigable_id);
     }));
 }
 
 void ConnectionFromClient::continue_child_navigable_destruction(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::UnloadDisplayedDocument unload_displayed_document)
 {
-    if (auto page = this->page(page_id); page.has_value())
-        as<Web::HTML::LocalTraversableNavigable>(*page->page().local_root_navigable()).continue_child_navigable_destruction(navigable_id, unload_displayed_document);
+    auto page = this->page(page_id);
+    auto navigable = Web::HTML::local_navigable_with_id(navigable_id);
+    if (!page.has_value() || !navigable)
+        return;
+
+    navigable->continue_child_navigable_destruction(unload_displayed_document);
 }
 
 void ConnectionFromClient::run_traversable_close_unload_task(u64 page_id, Web::HTML::CrossProcessId)

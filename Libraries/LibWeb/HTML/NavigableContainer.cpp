@@ -390,7 +390,7 @@ void NavigableContainer::destroy_the_child_navigable()
     //         treat the unload step as a no-op in that case and proceed with the remaining
     //         post-destruction cleanup.
     if (local_navigable.active_document())
-        local_navigable.traversable_navigable()->unload_child_navigable_before_destruction(local_navigable, after_document_destruction);
+        local_navigable.unload_child_navigable_before_destruction(after_document_destruction);
     else
         after_document_destruction->function()();
 }
