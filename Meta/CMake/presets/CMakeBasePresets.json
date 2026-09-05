@@ -42,7 +42,7 @@
       "name": "Sanitizer_base",
       "displayName": "Sanitizer Config",
       "description": "Sanitizer build",
-      "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/sanitizers",
+      "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/sanitizer",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "LADYBIRD_VCPKG_TYPE": "sanitizer",

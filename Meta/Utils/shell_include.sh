@@ -55,7 +55,7 @@ get_build_dir() {
             BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/debug"
             ;;
         "Sanitizer")
-            BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/sanitizers"
+            BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/sanitizer"
             ;;
         "Distribution")
             BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/distribution"

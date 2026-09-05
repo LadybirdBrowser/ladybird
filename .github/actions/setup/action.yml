@@ -18,6 +18,10 @@ inputs:
     description: 'Whether the setup is for building or linting'
     required: false
     default: 'build'
+  build_preset:
+    description: 'When the setup is for building, set the build preset (e.g. Release)'
+    required: false
+    default: 'Release'
 outputs:
   ccache_path:
     description: 'Path to the ccache directory'
@@ -35,7 +39,6 @@ runs:
       run: |
         echo "LADYBIRD_SOURCE_DIR=${GITHUB_WORKSPACE}" >> "$GITHUB_ENV"
         echo "CCACHE_DIR=${GITHUB_WORKSPACE}/.ccache" >> "$GITHUB_ENV"
-        echo "VCPKG_ROOT=${GITHUB_WORKSPACE}/Build/vcpkg" >> "$GITHUB_ENV"
         echo "ccache_path=${GITHUB_WORKSPACE}/.ccache" >> "$GITHUB_OUTPUT"
         echo "vcpkg_cache_path=${GITHUB_WORKSPACE}/Build/caches/vcpkg-binary-cache" >> "$GITHUB_OUTPUT"
         echo "GIT_CONFIG_GLOBAL=${RUNNER_TEMP}/gitconfig" >> "$GITHUB_ENV"
@@ -205,4 +208,4 @@ runs:
     - name: 'Install vcpkg'
       if: ${{ inputs.type == 'build' }}
       shell: bash
-      run: ./Meta/Utils/build_vcpkg.py
+      run: ./Meta/ladybird.py vcpkg --preset "${{ inputs.build_preset }}"
