@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { all: initial; display: block }
+    #target::before { content: "x"; display: block; width: var(--pseudo-width, 10px) }
+    .outlined #target { outline: 1px solid red }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        println(`initial width: ${getComputedStyle(target, "::before").width}`);
+        document.body.classList.add("outlined");
+        internals.updateStyle();
+        CSS.registerProperty({ name: "--pseudo-width", syntax: "<length>", inherits: true, initialValue: "20px" });
+        println(`registered width: ${getComputedStyle(target, "::before").width}`);
+    });
+</script>

@@ -141,6 +141,16 @@ pub struct FfiStyleDelta {
     pub inherited_style_groups: u8,
     pub pseudo_kind: u8,
     pub gap: FfiStyleDeltaGap,
+    /// Substitution usage for an engine-computed element, including its pseudo-elements.
+    pub uses_substitution: bool,
+}
+
+/// A retried engine record and the metadata needed to install it.
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiEngineComputedRecord {
+    pub style_record: u64,
+    pub uses_substitution: bool,
 }
 
 #[derive(Default)]
@@ -335,6 +345,7 @@ fn write_style_transaction_outputs(
             payload.write_u8(answer.inherited_style_groups);
             payload.write_u8(answer.pseudo_kind);
             payload.write_u8(answer.gap as u8);
+            payload.write_bool(answer.uses_substitution);
         }
     }
     payload.write_bool(output.style_atoms_swept);
@@ -3110,15 +3121,33 @@ pub unsafe fn replay_republish_record_environment(engine: *mut c_void, node: u32
         .unwrap_or(0)
 }
 
-/// Whether the node's engine-computed record substituted a custom property into a winner, so
-/// the node reads custom properties the way a C++ computation would have noted.
+/// Retry after the ancestor's style was installed, returning installation metadata together
+/// with the record instead of requiring a later query of the node.
 ///
 /// # Safety
 /// `engine` must be live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_node_style_uses_substitution(engine: *const c_void, node: u32) -> bool {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
-    StyleNodeID::from_raw(node).is_some_and(|node| engine.nodes_with_substituted_records.contains(&node))
+pub unsafe extern "C" fn style_engine_retry_engine_record_after_ancestor(
+    engine: *mut c_void,
+    node: u32,
+) -> FfiEngineComputedRecord {
+    abort_on_panic(|| {
+        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        let Some(style_node) = StyleNodeID::from_raw(node) else {
+            return FfiEngineComputedRecord::default();
+        };
+        let style_record = engine.retry_engine_record_after_ancestor(style_node);
+        let result = FfiEngineComputedRecord {
+            style_record,
+            uses_substitution: style_record != 0 && engine.nodes_with_substituted_records.contains(&style_node),
+        };
+        engine.record_boundary_call(EventKind::RetryEngineRecordAfterAncestor, |payload| {
+            payload.write_u32(node);
+            payload.write_u64(result.style_record);
+            payload.write_bool(result.uses_substitution);
+        });
+        result
+    })
 }
 
 /// The store of an environment the engine resolved, with one strong reference transferred to the

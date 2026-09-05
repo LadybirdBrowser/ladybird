@@ -1581,6 +1581,8 @@ impl StyleEngine {
                     inherited_style_groups,
                     pseudo_kind: u8::MAX,
                     gap,
+                    uses_substitution: gap == FfiStyleDeltaGap::Computed
+                        && self.nodes_with_substituted_records.contains(&node),
                 };
                 style_deltas.push(style_delta);
                 // The pseudo-element records the engine settled beside an engine-computed record
@@ -1597,6 +1599,7 @@ impl StyleEngine {
                             inherited_style_groups: 0,
                             pseudo_kind: pseudo.kind,
                             gap: FfiStyleDeltaGap::Computed,
+                            uses_substitution: false,
                         });
                     }
                 }

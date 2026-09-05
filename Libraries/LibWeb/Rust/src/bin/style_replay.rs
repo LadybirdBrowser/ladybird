@@ -404,13 +404,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     )?;
                     let output_bytes = event.payload.read_bytes()?;
                     let expected_digest = event.payload.read_u64()?;
-                    let expected = read_style_transaction_outputs(PayloadReader::new(output_bytes))?;
+                    let expected = read_style_transaction_outputs(PayloadReader::new(output_bytes), format_version)?;
                     if !expected.filter_calls.is_empty() {
                         return Err("style transaction recording predates engine-owned liveness filtering".into());
                     }
                     let mut context = ReplayStyleTransactionContext {
                         expected_emissions: expected.emissions.into(),
                         actual_emissions: Vec::new(),
+                        verify_substitution_usage: format_version >= 16,
                         match_answer_identity_mapping: &mut match_answer_identity_mappings[engine_index],
                         error: None,
                     };
@@ -507,7 +508,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                             reclaimed_atoms: actual_reclaimed_atoms,
                         };
                         let mut actual_payload = PayloadWriter::default();
-                        write_style_transaction_outputs(&actual, &mut actual_payload);
+                        write_style_transaction_outputs(&actual, &mut actual_payload, format_version);
                         if actual_payload.stable_digest() != expected_digest {
                             return Err(format!(
                                 "style transaction digest diverged: expected {expected_digest:#018x}, got {:#018x}",
@@ -753,10 +754,17 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let node = event.payload.read_u32()?;
                     let expected = event.payload.read_u64()?;
+                    let expected_uses_substitution = if format_version >= 16 {
+                        Some(event.payload.read_bool()?)
+                    } else {
+                        None
+                    };
                     let actual = unsafe { bridge::style_engine_retry_engine_record_after_ancestor(engine, node) };
-                    if actual != expected {
+                    if actual.style_record != expected
+                        || expected_uses_substitution.is_some_and(|expected| actual.uses_substitution != expected)
+                    {
                         return Err(format!(
-                            "retried cold style record diverged for node {node}: expected {expected}, got {actual}"
+                            "retried cold style record diverged for node {node}: expected {expected} (substitution {expected_uses_substitution:?}), got {actual:?}"
                         )
                         .into());
                     }
@@ -2081,6 +2089,7 @@ struct StyleTransactionOutputs {
 struct ReplayStyleTransactionContext {
     expected_emissions: VecDeque<StyleTransactionEmission>,
     actual_emissions: Vec<StyleTransactionEmission>,
+    verify_substitution_usage: bool,
     match_answer_identity_mapping: *mut MatchAnswerIdentityMapping,
     error: Option<String>,
 }
@@ -2159,6 +2168,7 @@ fn replay_style_transaction_output(
                 || actual.damage != expected.damage
                 || actual.pseudo_kind != expected.pseudo_kind
                 || actual.gap != expected.gap
+                || (context.verify_substitution_usage && actual.uses_substitution != expected.uses_substitution)
         })
     {
         context.error.get_or_insert_with(|| {
@@ -2178,6 +2188,7 @@ fn replay_style_transaction_output(
 
 fn read_style_transaction_outputs(
     mut payload: PayloadReader,
+    format_version: u64,
 ) -> Result<StyleTransactionOutputs, Box<dyn std::error::Error>> {
     let result = payload.read_bool()?;
     let filter_count = payload.read_length()?;
@@ -2213,6 +2224,7 @@ fn read_style_transaction_outputs(
                     3 => FfiStyleDeltaGap::RetryAfterAncestor,
                     tag => return Err(format!("unknown style delta gap tag {tag}").into()),
                 },
+                uses_substitution: format_version >= 16 && payload.read_bool()?,
             });
         }
         emissions.push(StyleTransactionEmission {
@@ -2233,7 +2245,11 @@ fn read_style_transaction_outputs(
     })
 }
 
-fn write_style_transaction_outputs(outputs: &StyleTransactionOutputs, payload: &mut PayloadWriter) {
+fn write_style_transaction_outputs(
+    outputs: &StyleTransactionOutputs,
+    payload: &mut PayloadWriter,
+    format_version: u64,
+) {
     payload.write_bool(outputs.result);
     payload.write_length(outputs.filter_calls.len());
     for (before, after) in &outputs.filter_calls {
@@ -2255,6 +2271,9 @@ fn write_style_transaction_outputs(outputs: &StyleTransactionOutputs, payload: &
             payload.write_u8(answer.inherited_style_groups);
             payload.write_u8(answer.pseudo_kind);
             payload.write_u8(answer.gap as u8);
+            if format_version >= 16 {
+                payload.write_bool(answer.uses_substitution);
+            }
         }
     }
     payload.write_bool(outputs.style_atoms_swept);
@@ -2985,15 +3004,48 @@ mod tests {
             reclaimed_atoms: Vec::new(),
         };
         let mut payload = PayloadWriter::default();
-        write_style_transaction_outputs(&expected, &mut payload);
+        write_style_transaction_outputs(&expected, &mut payload, 16);
 
-        let actual = read_style_transaction_outputs(PayloadReader::new(payload.as_bytes())).unwrap();
+        let actual = read_style_transaction_outputs(PayloadReader::new(payload.as_bytes()), 16).unwrap();
 
         assert!(actual.result);
         assert!(actual.filter_calls.is_empty());
         assert!(actual.emissions.is_empty());
         assert!(actual.style_atoms_swept);
         assert_eq!(actual.reclaimed_atoms, expected.reclaimed_atoms);
+    }
+
+    #[test]
+    fn style_transaction_outputs_round_trip_substitution_usage() {
+        let expected = StyleTransactionOutputs {
+            result: true,
+            filter_calls: Vec::new(),
+            emissions: vec![StyleTransactionEmission {
+                transaction_version: 1,
+                program_version: 1,
+                answers: vec![FfiStyleDelta {
+                    style_node: 1,
+                    match_answer: 0,
+                    old_style_record: 0,
+                    new_style_record: 2,
+                    damage: FfiStyleDeltaDamage::Full,
+                    reaction: 1,
+                    inherited_style_groups: 0,
+                    pseudo_kind: u8::MAX,
+                    gap: FfiStyleDeltaGap::Computed,
+                    uses_substitution: true,
+                }],
+            }],
+            style_atoms_swept: false,
+            reclaimed_atoms: Vec::new(),
+        };
+        for version in [15, 16] {
+            let mut payload = PayloadWriter::default();
+            write_style_transaction_outputs(&expected, &mut payload, version);
+            let actual = read_style_transaction_outputs(PayloadReader::new(payload.as_bytes()), version).unwrap();
+            assert_eq!(actual.emissions[0].answers[0].uses_substitution, version >= 16);
+            assert_eq!(actual.emissions[0].answers[0].new_style_record, 2);
+        }
     }
 
     #[test]

@@ -201,7 +201,9 @@ impl StyleEngine {
     /// Whether the node's style reads custom properties: its cascade declares some, or a winner
     /// of its state was written with a substitution.
     pub(super) fn node_style_reads_custom_properties(&mut self, node: StyleNodeID) -> bool {
-        if self.node_declares_custom_properties(node) {
+        // Published substitution usage also includes the pseudo styles C++ computes, whose
+        // reads are not represented by the element's own winner state.
+        if self.facts.uses_unnamed_custom_properties(node) || self.node_declares_custom_properties(node) {
             return true;
         }
         let Lookup::Known((_, state)) = self

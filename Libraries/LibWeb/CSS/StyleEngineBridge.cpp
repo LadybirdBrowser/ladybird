@@ -346,9 +346,9 @@ StyleRecordID StyleEngine::republish_record_environment(StyleNodeID node, u64 en
     return StyleRecordID { StyleEngineFFI::style_engine_republish_record_environment(m_impl, node.value(), environment, store) };
 }
 
-bool StyleEngine::node_style_uses_substitution(StyleNodeID node) const
+StyleEngineFFI::FfiEngineComputedRecord StyleEngine::retry_engine_record_after_ancestor(StyleNodeID node)
 {
-    return StyleEngineFFI::style_engine_node_style_uses_substitution(m_impl, node.value());
+    return StyleEngineFFI::style_engine_retry_engine_record_after_ancestor(m_impl, node.value());
 }
 
 void const* StyleEngine::borrow_engine_custom_property_environment(u64 identity, u64& parent_identity) const
