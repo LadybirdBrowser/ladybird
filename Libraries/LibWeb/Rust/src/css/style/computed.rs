@@ -679,6 +679,7 @@ pub(super) struct SharedStyleRecordKey {
     pub tree_scope: u32,
     pub inherited_groups: InheritedGroupSetID,
     pub environment: u64,
+    pub font_environment_generation: u64,
     pub shape: [u64; 4],
 }
 
@@ -3866,6 +3867,7 @@ mod tests {
             tree_scope: 0,
             inherited_groups: sets.inherited_groups_for_shared_style(record).unwrap(),
             environment: 1,
+            font_environment_generation: 1,
             shape: [0; 4],
         };
         sets.remember_shared_style_record(node, key, record);

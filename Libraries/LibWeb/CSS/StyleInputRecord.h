@@ -34,6 +34,7 @@ struct StyleInputRecord {
     // A computation that produced its own property result binds the publication that follows. An
     // answer shared from another element keeps the old identity and is recomputed in full next time.
     bool bind_next_published_style { false };
+    bool font_environment_changed { false };
     // Whether the computation this record describes read something the record does not name - its
     // container, its attributes, its place among its siblings, the environment an `if()` asks about.
     // Such a computation cannot be answered from the record, because what it read can move without

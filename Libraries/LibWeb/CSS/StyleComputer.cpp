@@ -4226,11 +4226,11 @@ void StyleComputer::remember_shared_computed_style_record(DOM::Element& element,
         element.style_node_id(), context->parent_record, document().style_environment_version(), context->shape, style_record);
 }
 
-static StyleInputRecord::Difference compare_style_input_records(StyleInputRecord const& previous, StyleInputRecord const& current)
+static StyleInputRecord::Difference compare_style_input_records(StyleInputRecord const& previous, StyleInputRecord const& current, size_t first_word = 0)
 {
     auto const differing_index = [&]() -> Optional<size_t> {
         auto const common = min(previous.words.size(), current.words.size());
-        for (size_t index = 0; index < common; ++index) {
+        for (size_t index = first_word; index < common; ++index) {
             if (previous.words[index] != current.words[index])
                 return index;
         }
@@ -4387,6 +4387,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         sharing->key.computation_inputs.append(cascade_input.matching_pseudo_element_styles);
         sharing->parent_style_record_identity = inheritance_parent->style_record_identity();
         append_element_shape_key(sharing->key.computation_inputs);
+        sharing->key.computation_inputs.append(document().font_computer().environment_generation());
     }
 
     // What this computation is allowed to read, recorded so the next one on this element can ask
@@ -4397,6 +4398,9 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     StyleInputRecord* new_style_input_record = nullptr;
     bool style_input_is_unchanged = false;
     bool only_declarations_changed = false;
+    bool font_environment_changed = false;
+    bool only_font_environment_changed = false;
+    u8 font_input_style_groups = 0;
     // What the last computation decided and left behind, kept when this one differs from it in
     // nothing but which declarations it was handed.
     struct PreviousComputation {
@@ -4413,6 +4417,21 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         u32 explicitly_inherited_non_inherited_style_groups { 0 };
     };
     Optional<PreviousComputation> previous_computation;
+    auto capture_previous_computation = [](StyleInputRecord const& previous) {
+        return PreviousComputation {
+            .read_beyond_the_record = previous.read_beyond_the_record,
+            .style_uses_attr_css_function = previous.style_uses_attr_css_function,
+            .style_uses_var_css_function = previous.style_uses_var_css_function,
+            .style_uses_if_css_function = previous.style_uses_if_css_function,
+            .style_uses_custom_function = previous.style_uses_custom_function,
+            .style_uses_inherit_css_function = previous.style_uses_inherit_css_function,
+            .style_uses_tree_counting_function = previous.style_uses_tree_counting_function,
+            .style_depends_on_viewport_metrics = previous.style_depends_on_viewport_metrics,
+            .style_depends_on_size_container_query = previous.style_depends_on_size_container_query,
+            .style_depends_on_style_container_query = previous.style_depends_on_style_container_query,
+            .explicitly_inherited_non_inherited_style_groups = previous.explicitly_inherited_non_inherited_style_groups,
+        };
+    };
     auto record_style_input = [&](StyleSharingEntry const* shared_entry = nullptr) {
         if (!sharing || abstract_element.pseudo_element().has_value() || !inheritance_parent_style_record.present)
             return;
@@ -4444,6 +4463,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         record->pinned_parent_custom_property_data = nullptr;
         record->computed_style_record = {};
         record->bind_next_published_style = false;
+        record->font_environment_changed = false;
         auto const& inherited_group_identities = get_inherited_style_group_identities();
         record->pinned_parent_groups.set(inherited_group_identities.span());
         for (auto const* group : inherited_group_identities)
@@ -4452,8 +4472,8 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         record->words.append(style_scope.style_engine_tree_scope().value());
         record->words.append(cascade_input.matching_pseudo_element_styles);
         append_element_shape_key(record->words);
-        // The environment names what reaches an element by no route the blocks describe: a font
-        // arriving, the viewport moving, a registration. It sits with the element's own words rather
+        // The environment names what reaches an element by no route the blocks describe, such as
+        // the viewport moving or a counter style changing. It sits with the element's own words rather
         // than with the blocks, so that a version that moved is never reported as a change of
         // declarations - a reuse admitted on the declarations alone must not be admitted by it.
         record->words.append(document().style_environment_version());
@@ -4477,9 +4497,20 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
 
         if (auto const* previous = element.style_input_record()) {
             record->computed_style_record = previous->computed_style_record;
+            font_environment_changed = previous->font_environment_changed;
+            only_font_environment_changed = font_environment_changed
+                && compare_style_input_records(*previous, *record, ComputedValues::inherited_style_group_count) == StyleInputRecord::Difference::None;
+            if (only_font_environment_changed) {
+                font_input_style_groups |= 1u << ComputedValues::FontValues::style_group_index;
+                for (size_t index = 0; index < ComputedValues::inherited_style_group_count; ++index) {
+                    if (previous->words[index] != record->words[index])
+                        font_input_style_groups |= 1u << index;
+                }
+                previous_computation = capture_previous_computation(*previous);
+            }
             switch (compare_style_input_records(*previous, *record)) {
             case StyleInputRecord::Difference::None:
-                style_input_is_unchanged = true;
+                style_input_is_unchanged = !font_environment_changed;
                 // A computation that is skipped leaves no marks, so the record keeps the ones the
                 // computation it stands in for left.
                 record->read_beyond_the_record = previous->read_beyond_the_record;
@@ -4504,19 +4535,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                 break;
             case StyleInputRecord::Difference::Declarations:
                 only_declarations_changed = true;
-                previous_computation = PreviousComputation {
-                    .read_beyond_the_record = previous->read_beyond_the_record,
-                    .style_uses_attr_css_function = previous->style_uses_attr_css_function,
-                    .style_uses_var_css_function = previous->style_uses_var_css_function,
-                    .style_uses_if_css_function = previous->style_uses_if_css_function,
-                    .style_uses_custom_function = previous->style_uses_custom_function,
-                    .style_uses_inherit_css_function = previous->style_uses_inherit_css_function,
-                    .style_uses_tree_counting_function = previous->style_uses_tree_counting_function,
-                    .style_depends_on_viewport_metrics = previous->style_depends_on_viewport_metrics,
-                    .style_depends_on_size_container_query = previous->style_depends_on_size_container_query,
-                    .style_depends_on_style_container_query = previous->style_depends_on_style_container_query,
-                    .explicitly_inherited_non_inherited_style_groups = previous->explicitly_inherited_non_inherited_style_groups,
-                };
+                previous_computation = capture_previous_computation(*previous);
                 break;
             }
         }
@@ -4823,18 +4842,20 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             node,
             pseudo_element_to_ffi(abstract_element.pseudo_element()),
             cascaded_properties->rust_store(),
-            0,
+            font_input_style_groups,
             donor ? donor->style_node_id : StyleNodeID {},
             donor ? *donor->style_record_identity : StyleRecordID {});
         exact_cascade_is_unchanged = publication.unchanged;
         if (previous_style_record.present
-            && only_declarations_changed
+            && (only_declarations_changed || only_font_environment_changed)
+            && (!font_environment_changed || only_font_environment_changed)
             && previous_computation.has_value()
             && !previous_computation->read_beyond_the_record
             && (!previous_computation->style_uses_var_css_function
-                || (only_declarations_changed
-                    && abstract_element.custom_property_data().ptr() == old_custom_property_data.ptr()
-                    && (publication.computed_group_mask & ((1u << ComputedValues::inherited_style_group_count) - 1)) == 0))
+                || (abstract_element.custom_property_data().ptr() == old_custom_property_data.ptr()
+                    && (only_font_environment_changed
+                        || (only_declarations_changed
+                            && (publication.computed_group_mask & ((1u << ComputedValues::inherited_style_group_count) - 1)) == 0))))
             && !previous_computation->style_uses_inherit_css_function
             && previous_computation->explicitly_inherited_non_inherited_style_groups == 0) {
             sharing->computed_groups_to_rebuild = publication.computed_group_mask & ComputedValues::all_style_groups;
@@ -4849,6 +4870,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     if (previous_computation.has_value()
         && !previous_computation->read_beyond_the_record
         && exact_cascade_is_unchanged
+        && !font_environment_changed
         // A computation that read the other half of its inherited style, through `inherit` on a
         // non-inherited property, read what the record does not name, so an unchanged cascade does
         // not mean an unchanged answer.

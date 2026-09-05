@@ -1,0 +1,11 @@
+environment unchanged: true
+unrelated longhands skipped: true
+font metrics updated: true
+font-relative margin: 240px
+pseudo-element width: 160px
+registered metric before removal: true
+concurrent width: 7px
+concurrent color: rgb(255, 0, 0)
+registered metric after removal: true
+font loaded while hidden: 16px
+root-relative width in another family: 160px

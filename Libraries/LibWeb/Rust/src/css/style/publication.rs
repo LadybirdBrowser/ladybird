@@ -45,6 +45,7 @@ impl StyleEngine {
                 .computed_group_sets
                 .inherited_groups_for_shared_style(parent_record)?,
             environment,
+            font_environment_generation: self.document_style_computation_inputs?.font_environment_generation,
             shape,
         })
     }
@@ -93,6 +94,8 @@ impl StyleEngine {
     ) -> Option<u64> {
         let context = self.computed_group_sets.take_shared_computation_context(node)?;
         if context.key.environment != environment
+            || context.key.font_environment_generation
+                != self.document_style_computation_inputs?.font_environment_generation
             || context.key.tree_scope != self.tree.tree_scope(node).0
             || context.key.shape[..3] != shape[..3]
             || self.computed_group_sets.assigned_style_record(node)?.raw() != context.record

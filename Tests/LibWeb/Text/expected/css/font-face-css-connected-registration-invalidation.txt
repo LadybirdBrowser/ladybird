@@ -1,20 +1,20 @@
-append unloaded CSS-connected face: 1
+append unloaded CSS-connected face: 0
 UnloadedSheetFace count after append: 1
 public delete CSS-connected face: false
 public delete CSS-connected face delta: 0
 UnloadedSheetFace count after public delete: 1
-remove unloaded CSS-connected face: 1
+remove unloaded CSS-connected face: 0
 UnloadedSheetFace count after removal: 0
 add unloaded script-created face: 0
 ScriptFace count after add: 1
 ScriptFace status before removal: loaded
-delete loaded script-created face: 1
+delete loaded script-created face: 0
 ScriptFace count after delete: 0
 LoadedSheetFace status before removal: loaded
-remove loaded CSS-connected face: 1
+remove loaded CSS-connected face: 0
 LoadedSheetFace count after removal: 0
-adopt constructed CSS-connected face: 1
+adopt constructed CSS-connected face: 0
 ConstructedSheetFace count after adoption: 1
 ConstructedSheetFace status before removal: loaded
-unadopt constructed CSS-connected face: 1
+unadopt constructed CSS-connected face: 0
 ConstructedSheetFace count after removal: 0

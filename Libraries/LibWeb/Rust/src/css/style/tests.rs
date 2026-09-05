@@ -10417,6 +10417,7 @@ fn shared_computation_context_checks_fixed_inputs_and_record_liveness() {
     let parent_record = publish(&mut engine, nodes[0], 0);
     let record = publish(&mut engine, nodes[1], 1);
     let other_parent_record = publish(&mut engine, nodes[2], 2);
+    engine.document_style_computation_inputs = Some(bridge::FfiDocumentStyleComputationInputs::default());
     engine.begin_style_record_view_epoch();
     let context = computed::SharedComputationContext {
         parent_record,
@@ -10429,6 +10430,7 @@ fn shared_computation_context_checks_fixed_inputs_and_record_liveness() {
                 .inherited_groups_for_shared_style(parent_record)
                 .unwrap(),
             environment: 3,
+            font_environment_generation: 0,
             shape: [4, 5, 6, 7],
         },
     };
@@ -10457,6 +10459,15 @@ fn shared_computation_context_checks_fixed_inputs_and_record_liveness() {
             None
         );
     }
+    let mut different_font_environment = context;
+    different_font_environment.key.font_environment_generation += 1;
+    engine
+        .computed_group_sets
+        .remember_shared_computation_context(nodes[1], different_font_environment);
+    assert_eq!(
+        engine.take_shared_computation_context(nodes[1], parent_record, 3, [4, 5, 6, 7], 1),
+        None
+    );
     let mut different_scope = context;
     different_scope.key.tree_scope += 1;
     engine

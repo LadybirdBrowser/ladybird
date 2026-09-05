@@ -290,9 +290,8 @@ public:
     bool has_valid_html_collection_caches() const { return m_html_collection_attribute_invalidation_types != 0; }
     HTMLCollectionAttributeInvalidationTypes html_collection_attribute_invalidation_types_for_attribute(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_) const;
 
-    // Everything a style input record cannot name by an identity of its own: a stylesheet rule's
-    // declarations changing under a block that has not moved, a font finishing loading, the
-    // viewport moving, a registration or counter style arriving. A record taken under one version
+    // Everything a style input record cannot name by an identity of its own: the viewport moving,
+    // a counter style arriving, or another untracked environment input changing. A record taken under one version
     // answers for nothing once it moves.
     u64 style_environment_version() const { return m_style_environment_version; }
     void bump_style_environment_version() { ++m_style_environment_version; }

@@ -209,6 +209,7 @@ public:
         RecomputeDescendantStyles = 1 << 4,
         AncestorBecameVisible = 1 << 5,
         PseudoInputsMayHaveChanged = 1 << 6,
+        FontInputsChanged = 1 << 7,
     };
     // What applying a style reaction found, reported so the engine derives the children's reactions.
     enum StyleReactionAppliedFact : u32 {

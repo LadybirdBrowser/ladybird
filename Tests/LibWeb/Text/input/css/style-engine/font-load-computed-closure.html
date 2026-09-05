@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #container { --size: 20px; --family: FontClosure; --width: 10ch; font: var(--size) var(--family), serif; }
+    #container > div { width: var(--width); }
+    #container::before { content: ""; display: block; width: 10ch; }
+</style>
+<div id="container"></div>
+<script>
+    promiseTest(async () => {
+        const face = new FontFace("FontClosure", 'url("../../../../Assets/HashSans.woff")');
+        await face.load();
+        for (let index = 0; index < 16; ++index) {
+            const child = container.appendChild(document.createElement("div"));
+            child.style.marginLeft = `${index}ch`;
+        }
+        internals.updateStyle();
+        document.fonts.add(face);
+        internals.updateStyle();
+        document.fonts.delete(face);
+        internals.updateStyle();
+        const oldWidth = getComputedStyle(container.firstElementChild).width;
+        const before = internals.getStyleInvalidationCounters();
+        document.fonts.add(face);
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`environment unchanged: ${after.styleEnvironmentVersion === before.styleEnvironmentVersion}`);
+        println(`unrelated longhands skipped: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations < 3000}`);
+        println(`font metrics updated: ${getComputedStyle(container.firstElementChild).width !== oldWidth}`);
+        println(`font-relative margin: ${getComputedStyle(container.lastElementChild).marginLeft}`);
+        println(`pseudo-element width: ${getComputedStyle(container, "::before").width}`);
+
+        const target = container.firstElementChild;
+        CSS.registerProperty({ name: "--metric", syntax: "<length>", inherits: false, initialValue: "0px" });
+        target.style.setProperty("--metric", "2ch");
+        target.style.paddingRight = "var(--metric)";
+        const reference = container.appendChild(document.createElement("span"));
+        reference.style.cssText = "display: block; width: 2ch";
+        internals.updateStyle();
+        println(`registered metric before removal: ${getComputedStyle(target).paddingRight === getComputedStyle(reference).width}`);
+        document.fonts.delete(face);
+        target.style.width = "7px";
+        target.style.color = "red";
+        internals.updateStyle();
+        println(`concurrent width: ${getComputedStyle(target).width}`);
+        println(`concurrent color: ${getComputedStyle(target).color}`);
+        println(`registered metric after removal: ${getComputedStyle(target).paddingRight === getComputedStyle(reference).width}`);
+
+        container.style.display = "none";
+        internals.updateStyle();
+        document.fonts.add(face);
+        internals.updateStyle();
+        container.style.display = "block";
+        internals.updateStyle();
+        println(`font loaded while hidden: ${getComputedStyle(target.nextElementSibling).marginLeft}`);
+
+        const rootFace = new FontFace("RootClosure", 'url("../../../../Assets/HashSans.woff")');
+        await rootFace.load();
+        document.documentElement.style.font = "20px RootClosure, serif";
+        const rootDependent = document.body.appendChild(document.createElement("div"));
+        rootDependent.style.cssText = "font: 20px serif; width: 10rch";
+        internals.updateStyle();
+        document.fonts.add(rootFace);
+        internals.updateStyle();
+        println(`root-relative width in another family: ${getComputedStyle(rootDependent).width}`);
+    });
+</script>

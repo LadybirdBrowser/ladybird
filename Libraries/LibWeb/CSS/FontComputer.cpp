@@ -788,6 +788,15 @@ void FontComputer::clear_computed_font_cache(Utf16FlyString const& family_name)
     clear_computed_font_cache_for_families(family_names);
 }
 
+static void record_font_input_change(DOM::Element& element)
+{
+    if (auto* record = element.style_input_record())
+        record->font_environment_changed = true;
+    constexpr u8 font_group = 1u << ComputedValues::FontValues::style_group_index;
+    element.document().style_computer().style_engine().record_element_style_input_change(
+        element.style_node_id(), StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle | StyleEngine::FontInputsChanged, font_group);
+}
+
 void FontComputer::clear_computed_font_cache_for_families(Vector<Utf16FlyString> const& family_names)
 {
     VERIFY(!family_names.is_empty());
@@ -827,7 +836,7 @@ void FontComputer::clear_computed_font_cache_for_families(Vector<Utf16FlyString>
             return TraversalDecision::Continue;
 
         if (element_uses_font_family(*element)) {
-            element->document().style_computer().style_engine().record_element_style_input_change(element->style_node_id());
+            record_font_input_change(*element);
             return TraversalDecision::Continue;
         }
 
@@ -848,9 +857,6 @@ void FontComputer::did_load_font(Utf16FlyString const& family_name)
         return;
     }
 
-    // What a computation resolves a family to is not named by any word of a style input record, so
-    // the records taken before this font arrived answer for nothing.
-    m_document->bump_style_environment_version();
     clear_computed_font_cache(family_name);
 }
 
@@ -861,8 +867,6 @@ void FontComputer::did_load_font(FontFaceKey const& changed_face)
         return;
     }
 
-    m_document->bump_style_environment_version();
-    // The style engine's own resolutions are keyed on the environment generation.
     ++m_environment_generation;
     // A family can contain many faces, but one face becoming available changes only the cached
     // selections which now resolve to it. Compare those selections before discarding their cache
@@ -900,7 +904,7 @@ void FontComputer::did_load_font(FontFaceKey const& changed_face)
             return IterationDecision::Continue;
         });
         if (should_recompute)
-            element->document().style_computer().style_engine().record_element_style_input_change(element->style_node_id());
+            record_font_input_change(*element);
         return TraversalDecision::Continue;
     });
 }
@@ -918,9 +922,6 @@ void FontComputer::end_font_face_change_batch()
     if (m_font_face_change_batch_depth > 0 || m_batched_font_face_change_families.is_empty())
         return;
 
-    // What a computation resolves a family to is not named by any word of a style input record, so
-    // the records taken before these fonts arrived answer for nothing.
-    m_document->bump_style_environment_version();
     clear_computed_font_cache_for_families(m_batched_font_face_change_families);
     m_batched_font_face_change_families.clear();
 }
