@@ -1567,6 +1567,13 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
                 return;
         }
         auto old_style_record = style_record_identity(pseudo_element);
+        if (pseudo_element == CSS::PseudoElement::Selection && !document().selection_styles_are_observable()) {
+            if (!!old_style_record) {
+                auto delta = style_computer.style_engine().remove_computed_pseudo(style_node_id(), to_underlying(pseudo_element));
+                set_computed_style(pseudo_element, delta.new_style_record);
+            }
+            return;
+        }
         auto preserved_style_record = preserved_pseudo_element_styles ? preserved_pseudo_element_styles->at(to_underlying(pseudo_element)) : CSS::StyleRecordID {};
         // Most elements have no style for most pseudo-elements. Decide that from the record
         // identities before materializing any record view.

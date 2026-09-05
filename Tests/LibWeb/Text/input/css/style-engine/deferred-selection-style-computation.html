@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="rules"></style>
+<div id="container"></div>
+<script>
+    test(() => {
+        for (let index = 0; index < 64; ++index) {
+            const child = container.appendChild(document.createElement("div"));
+            child.textContent = "selectable text";
+        }
+        internals.updateStyle();
+        const before = internals.styleEngineCounters().computedPseudoAssignmentsPublished;
+        rules.sheet.insertRule("*::selection { color: rgb(10, 20, 30); background-color: rgb(40, 50, 60); }");
+        internals.updateStyle();
+        const after = internals.styleEngineCounters().computedPseudoAssignmentsPublished;
+        println(`selection styles deferred: ${after === before}`);
+        const target = container.firstElementChild;
+        println(`unselected query: ${getComputedStyle(target, "::selection").color}`);
+        const afterQuery = internals.styleEngineCounters().computedPseudoAssignmentsPublished;
+        println(`query stays local: ${afterQuery - after <= 2}`);
+
+        const range = document.createRange();
+        range.selectNodeContents(target);
+        document.getSelection().addRange(range);
+        internals.updateStyle();
+        println(`selection styles activated: ${internals.styleEngineCounters().computedPseudoAssignmentsPublished > afterQuery}`);
+        println(`selected query: ${getComputedStyle(target, "::selection").backgroundColor}`);
+
+        document.getSelection().removeAllRanges();
+        rules.sheet.cssRules[0].style.backgroundColor = "rgb(70, 80, 90)";
+        const beforeDeselectedUpdate = internals.styleEngineCounters().computedPseudoAssignmentsPublished;
+        internals.updateStyle();
+        println(`deselected styles deferred: ${internals.styleEngineCounters().computedPseudoAssignmentsPublished === beforeDeselectedUpdate}`);
+        println(`deselected query: ${getComputedStyle(target, "::selection").backgroundColor}`);
+    });
+</script>

@@ -1,0 +1,7 @@
+selection styles deferred: true
+unselected query: rgb(10, 20, 30)
+query stays local: true
+selection styles activated: true
+selected query: rgb(40, 50, 60)
+deselected styles deferred: true
+deselected query: rgb(70, 80, 90)
