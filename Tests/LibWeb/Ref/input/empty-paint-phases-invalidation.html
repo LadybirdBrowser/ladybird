@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/empty-paint-phases-invalidation-ref.html">
+<style>
+    body { margin: 24px; }
+    .row { display: flex; gap: 24px; margin-bottom: 40px; }
+    .box { width: 80px; height: 60px; box-sizing: border-box; border-radius: 8px; }
+    .paint .background { background: green; }
+    .paint .gradient { background: linear-gradient(green, blue); }
+    .paint .shadow { box-shadow: 4px 4px 4px black; }
+    .paint .border { border: 4px solid blue; }
+    .paint .outline { outline: 4px solid purple; }
+    .paint .inline { background: green; border: 2px solid blue; outline: 2px solid purple; }
+</style>
+<div id="initially-empty" class="row">
+    <div class="box background"></div><div class="box gradient"></div>
+    <div class="box shadow"></div><div class="box border"></div>
+    <div class="box outline"></div><div><span class="inline">inline</span></div>
+</div>
+<div id="initially-painted" class="row paint">
+    <div class="box background"></div><div class="box gradient"></div>
+    <div class="box shadow"></div><div class="box border"></div>
+    <div class="box outline"></div><div><span class="inline">inline</span></div>
+</div>
+<script>
+    (async () => {
+        const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+        // Let each state populate the paint caches before changing phase eligibility.
+        for (let i = 0; i < 3; ++i) {
+            await nextFrame();
+            await nextFrame();
+            document.getElementById("initially-empty").classList.toggle("paint");
+            document.getElementById("initially-painted").classList.toggle("paint");
+        }
+        await nextFrame();
+        await nextFrame();
+        document.documentElement.classList.remove("reftest-wait");
+    })();
+</script>

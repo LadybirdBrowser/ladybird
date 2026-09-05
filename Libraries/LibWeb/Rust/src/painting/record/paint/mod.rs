@@ -22,9 +22,58 @@ pub mod table_borders;
 pub mod text;
 pub mod text_decoration;
 
+use crate::css::computed_value_views::ComputedValuesView;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::node_painting;
-use crate::painting::record::{PaintPhase, PaintRecorder};
+use crate::painting::record::{BasePaintFacts, PaintPhase, PaintRecorder};
+use crate::painting::style_queries;
+
+pub(crate) fn paint_phase_mask(
+    recorder: &PaintRecorder<'_>,
+    paintable: NodeSlotId,
+    style: ComputedValuesView<'_>,
+    facts: &BasePaintFacts,
+) -> u8 {
+    let kind = recorder.layout_arena.node_kind_if_live(paintable);
+    // SVG painters also track dependencies on other elements, even in phases that
+    // produce no commands. Keep those painters on their regular path.
+    if kind.is_some_and(node_painting::is_svg) {
+        return (1 << PaintPhase::COUNT) - 1;
+    }
+
+    // Foreground painting includes visible descendants of hidden line containers.
+    let mut phases = PaintPhase::Foreground.bit() | PaintPhase::TableCollapsedBorder.bit();
+    if !facts.is_visible {
+        return phases;
+    }
+    if !facts.empty_cells_property_applies {
+        if facts.has_backdrop_filter
+            || facts.has_box_shadow
+            || background_resolution::has_background_to_paint(
+                recorder.layout_arena,
+                paintable,
+                recorder.inputs.root_background_source,
+            )
+        {
+            phases |= PaintPhase::Background.bit();
+        }
+        if facts.paints_border_image || style_queries::has_css_borders(style) {
+            phases |= PaintPhase::Border.bit();
+        }
+    }
+    // Images paint focused image-map area outlines independently of their own outline.
+    if kind == Some(NodeKind::ImageBox) || style_queries::outline_geometry(style).is_some() {
+        phases |= PaintPhase::Outline.bit();
+    }
+    if kind == Some(NodeKind::Viewport)
+        || recorder.data(paintable).own_scroll_node_index
+            != crate::painting::display_list::commands::VISUAL_VIEWPORT_NODE_INDEX
+        || crate::painting::chrome_geometry::has_resizer(recorder.layout_arena, paintable)
+    {
+        phases |= PaintPhase::Overlay.bit();
+    }
+    phases
+}
 
 pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, phase: PaintPhase) {
     let Some(kind) = recorder.layout_arena.node_kind_if_live(paintable) else {
@@ -140,12 +189,14 @@ pub(crate) fn paint_base_with(
     if phase == PaintPhase::Background && !facts.empty_cells_property_applies {
         paint_backdrop_filter(recorder, paintable, &facts);
         paint_background(recorder, paintable);
-        let border_box_rect =
-            crate::painting::paintable_geometry::absolute_border_box_rect(recorder.layout_arena, paintable);
-        let padding_box_rect =
-            crate::painting::paintable_geometry::absolute_padding_box_rect(recorder.layout_arena, paintable);
-        let border_radii = recorder.border_radii(paintable);
-        shadow::paint_box_shadow(recorder, paintable, border_box_rect, padding_box_rect, border_radii);
+        if facts.has_box_shadow {
+            let border_box_rect =
+                crate::painting::paintable_geometry::absolute_border_box_rect(recorder.layout_arena, paintable);
+            let padding_box_rect =
+                crate::painting::paintable_geometry::absolute_padding_box_rect(recorder.layout_arena, paintable);
+            let border_radii = recorder.border_radii(paintable);
+            shadow::paint_box_shadow(recorder, paintable, border_box_rect, padding_box_rect, border_radii);
+        }
     }
     if phase == PaintPhase::Border
         && !crate::painting::paintable_geometry::committed_uses_collapsing_borders_model(

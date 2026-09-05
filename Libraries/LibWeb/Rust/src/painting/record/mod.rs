@@ -102,6 +102,10 @@ pub enum PaintPhase {
 
 impl PaintPhase {
     pub const COUNT: usize = 6;
+
+    const fn bit(self) -> u8 {
+        1 << self as u8
+    }
 }
 pub(crate) struct NestedRecordingState {
     pub(crate) assignments: NestedAssignments,
@@ -154,7 +158,9 @@ pub(crate) struct BasePaintFacts {
     pub is_visible: bool,
     pub empty_cells_property_applies: bool,
     pub has_backdrop_filter: bool,
+    pub has_box_shadow: bool,
     pub paints_border_image: bool,
+    pub paint_phase_mask: u8,
 }
 
 impl<'a> PaintRecorder<'a> {
@@ -311,12 +317,15 @@ impl<'a> PaintRecorder<'a> {
         let has_backdrop_filter = effects.backdrop_filter.operations.length != 0;
         let paints_border_image = crate::painting::style_queries::handle_value(&style.border().border_image_source)
             .is_some_and(|source| matches!(source, crate::css::style_value::StyleValueData::Image { .. }));
-        let facts = BasePaintFacts {
+        let mut facts = BasePaintFacts {
             is_visible,
             empty_cells_property_applies,
             has_backdrop_filter,
+            has_box_shadow: effects.box_shadows.length != 0,
             paints_border_image,
+            paint_phase_mask: 0,
         };
+        facts.paint_phase_mask = paint::paint_phase_mask(self, paintable, style, &facts);
         self.memo_tables.borrow_mut().set_base_paint_facts(paintable, facts);
         facts
     }
