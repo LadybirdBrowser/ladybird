@@ -85,7 +85,7 @@ impl StyleEngine {
             custom_property_registrations_changed: false,
             pending_element_style_computation_selections: HashMap::default(),
             pending_pseudo_style_computation_selections: HashMap::default(),
-            engine_computed_records_pending: Vec::new(),
+            engine_computed_records_pending: HashMap::default(),
             flush_stamp: 0,
             style_input_nodes_for_cpp: HashSet::default(),
             parent_inputs_moved_nodes: HashSet::default(),

@@ -862,8 +862,9 @@ pub struct StyleEngine {
     /// Records the engine derived for published reactions that C++ has not installed yet. Their
     /// columns already moved so descendants in the same flush build on them; the cascade state
     /// and answer consumption follow C++'s acknowledgement, and a discarded transaction reverts
-    /// the columns of the ones it never installed.
-    engine_computed_records_pending: Vec<publication::PendingEngineComputedRecord>,
+    /// the columns of the ones it never installed. Group records by node so acknowledging or
+    /// abandoning one element visits only its own record and pseudo-elements.
+    engine_computed_records_pending: HashMap<StyleNodeID, Vec<publication::PendingEngineComputedRecord>>,
     /// First records derived earlier, by what they were derived from, for later elements alike.
     /// Pseudo-element records the engine derived, by what they were derived from, for elements
     /// alike in that to share.

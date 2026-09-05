@@ -444,14 +444,17 @@ impl StyleEngine {
         scratch: &mut EngineComputedRecordScratch,
     ) {
         self.counters.bump(Counter::EngineComputedPseudoRecords);
-        self.engine_computed_records_pending.push(PendingEngineComputedRecord {
-            node,
-            pseudo_kind,
-            old_style_record,
-            new_style_record,
-            cascade_state,
-            longhand_evaluations,
-        });
+        self.engine_computed_records_pending
+            .entry(node)
+            .or_default()
+            .push(PendingEngineComputedRecord {
+                node,
+                pseudo_kind,
+                old_style_record,
+                new_style_record,
+                cascade_state,
+                longhand_evaluations,
+            });
         scratch.pseudo_deltas.push(PseudoRecordDelta {
             kind: pseudo_kind,
             old_style_record,

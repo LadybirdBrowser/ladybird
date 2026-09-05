@@ -697,28 +697,26 @@ impl StyleEngine {
         self.counters
             .add(Counter::ComputedWinnerDeltaPropertiesConsumed, delta_property_count);
         self.counters.bump(Counter::EngineComputedRecordDeltas);
-        self.engine_computed_records_pending.push(PendingEngineComputedRecord {
-            node,
-            pseudo_kind: u8::MAX,
-            old_style_record: delta.0,
-            new_style_record: delta.1,
-            cascade_state: Some(cascade_state),
-            longhand_evaluations,
-        });
+        self.engine_computed_records_pending
+            .entry(node)
+            .or_default()
+            .push(PendingEngineComputedRecord {
+                node,
+                pseudo_kind: u8::MAX,
+                old_style_record: delta.0,
+                new_style_record: delta.1,
+                cascade_state: Some(cascade_state),
+                longhand_evaluations,
+            });
     }
 
     /// C++ installed the record the engine derived for `node`: the winner state it was computed
     /// from becomes the node's cascade state, and the answer counts as consumed.
     pub(crate) fn acknowledge_engine_computed_record(&mut self, node: StyleNodeID) {
-        let mut acknowledged = false;
-        let mut index = 0;
-        while index < self.engine_computed_records_pending.len() {
-            if self.engine_computed_records_pending[index].node != node {
-                index += 1;
-                continue;
-            }
-            let pending = self.engine_computed_records_pending.swap_remove(index);
-            acknowledged = true;
+        let Some(pending_records) = self.engine_computed_records_pending.remove(&node) else {
+            return;
+        };
+        for pending in pending_records {
             let target = computed::ComputedStyleTarget::new(node, pending.pseudo_kind);
             self.remove_pending_style_computation_selection(target);
             // A pseudo-element settled as gone is removed now that C++ has cleared its style.
@@ -741,15 +739,16 @@ impl StyleEngine {
                 u64::from(pending.longhand_evaluations),
             );
         }
-        if acknowledged {
-            self.published_match_answers.mark_observed(node);
-        }
+        self.published_match_answers.mark_observed(node);
     }
 
     /// The transaction's outputs are gone: every derived record C++ did not install goes back to
     /// the record the node held, unless a publication has moved the node on since.
     pub(super) fn discard_engine_computed_records(&mut self) {
-        for pending in std::mem::take(&mut self.engine_computed_records_pending) {
+        for pending in std::mem::take(&mut self.engine_computed_records_pending)
+            .into_values()
+            .flatten()
+        {
             if pending.pseudo_kind != u8::MAX {
                 self.revert_engine_computed_pseudo_record(&pending);
                 continue;
@@ -1386,13 +1385,7 @@ impl StyleEngine {
     /// A derivation that could not be completed: everything derived for `node` this flush goes
     /// back to what the node held, and nothing in the flush may share it.
     fn abandon_engine_computed_record(&mut self, node: StyleNodeID, scratch: &mut EngineComputedRecordScratch) {
-        let mut index = 0;
-        while index < self.engine_computed_records_pending.len() {
-            if self.engine_computed_records_pending[index].node != node {
-                index += 1;
-                continue;
-            }
-            let pending = self.engine_computed_records_pending.swap_remove(index);
+        for pending in self.engine_computed_records_pending.remove(&node).into_iter().flatten() {
             let derived = pending.new_style_record;
             if pending.pseudo_kind == u8::MAX {
                 let target = computed::ComputedStyleTarget::new(node, u8::MAX);
@@ -3512,4 +3505,89 @@ fn value_computes_without_document_context(value: &StyleValueData) -> bool {
         && !dependencies.uses_random_function
         && !dependencies.needs_document_base_url
         && !dependencies.may_need_style_sheet_resource_context
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pending_records_acknowledge_and_rollback_independently_by_node() {
+        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut raw_nodes = [0; 3];
+        engine.allocate_style_nodes(&mut raw_nodes);
+        let [first, second, third] = raw_nodes.map(|node| StyleNodeID::from_raw(node).unwrap());
+        let mut scratch = EngineComputedRecordScratch::default();
+        let publish = |engine: &mut StyleEngine, node, pseudo_kind| {
+            let record = engine
+                .publish_computed_groups(
+                    computed::ComputedStyleTarget::new(node, pseudo_kind),
+                    &[],
+                    0,
+                    0,
+                    computed::ComputedMetadataInput {
+                        pseudo_element_styles: 0,
+                        dependency_flags: 0,
+                        counter_style_environment_identity: 0,
+                        animation_overlay_identity: 0,
+                        animated_overlay: std::ptr::null(),
+                        animation_overlay_payloads: &[],
+                        longhand_table: std::ptr::null(),
+                    },
+                )
+                .style_record_identity;
+            engine
+                .engine_computed_records_pending
+                .entry(node)
+                .or_default()
+                .push(PendingEngineComputedRecord {
+                    node,
+                    pseudo_kind,
+                    old_style_record: computed::FinalStyleRecordID::NONE,
+                    new_style_record: record,
+                    cascade_state: None,
+                    longhand_evaluations: 1,
+                });
+            record
+        };
+        let first_record = publish(&mut engine, first, u8::MAX);
+        publish(&mut engine, third, u8::MAX);
+        let second_record = publish(&mut engine, second, u8::MAX);
+        let first_pseudo = publish(&mut engine, first, 0);
+        publish(&mut engine, third, 0);
+
+        // Acknowledge out of publication order, including a repeated acknowledgement.
+        engine.acknowledge_engine_computed_record(second);
+        engine.acknowledge_engine_computed_record(second);
+        assert_eq!(engine.counters.get(Counter::EngineComputedLonghandEvaluations), 1);
+        engine.acknowledge_engine_computed_record(first);
+        assert_eq!(engine.counters.get(Counter::EngineComputedLonghandEvaluations), 3);
+
+        engine.abandon_engine_computed_record(third, &mut scratch);
+        assert_eq!(engine.computed_group_sets.assigned_style_record(third), None);
+        assert_eq!(engine.computed_group_sets.pseudo_style_record(third, 0), None);
+        assert!(engine.engine_computed_records_pending.is_empty());
+
+        // A later batch can use the same node, and discarding it leaves installed nodes alone.
+        publish(&mut engine, third, u8::MAX);
+        publish(&mut engine, third, 0);
+        engine.discard_engine_computed_records();
+        engine.acknowledge_engine_computed_record(third);
+        assert!(engine.engine_computed_records_pending.is_empty());
+        assert_eq!(engine.counters.get(Counter::EngineComputedLonghandEvaluations), 3);
+        assert_eq!(engine.computed_group_sets.assigned_style_record(third), None);
+        assert_eq!(engine.computed_group_sets.pseudo_style_record(third, 0), None);
+        assert_eq!(
+            engine.computed_group_sets.assigned_style_record(first),
+            Some(first_record)
+        );
+        assert_eq!(
+            engine.computed_group_sets.assigned_style_record(second),
+            Some(second_record)
+        );
+        assert_eq!(
+            engine.computed_group_sets.pseudo_style_record(first, 0),
+            Some(first_pseudo)
+        );
+    }
 }
