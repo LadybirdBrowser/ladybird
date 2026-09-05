@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
@@ -199,6 +200,17 @@ WEB_API SessionHistoryEntryDescriptor create_session_history_entry_descriptor(Pe
 WEB_API Optional<SessionHistoryEntryPersistedState> create_session_history_entry_persisted_state(SessionHistoryEntry const&);
 WEB_API SessionHistoryEntryIdentity session_history_entry_identity(SessionHistoryEntry const&);
 WEB_API SessionHistoryEntryIdentity session_history_entry_identity(SessionHistoryEntryDescriptor const&);
+
+// Document states already reconstructed from the UI process's descriptors, so entries that share a document state
+// there share one here too.
+struct SessionHistoryEntryReconstructionState {
+    HashMap<CrossProcessId, RefPtr<DocumentState>> document_states;
+};
+
+WEB_API void apply_session_history_entry_descriptor_from_ui_process(SessionHistoryEntry&, SessionHistoryEntryDescriptor&);
+WEB_API void apply_session_history_document_state_descriptor_from_ui_process(DocumentState&, SessionHistoryDocumentStateDescriptor const&);
+WEB_API RefPtr<DocumentState> get_or_create_document_state_from_ui_process(SessionHistoryDocumentStateDescriptor const&, SessionHistoryEntryReconstructionState&);
+WEB_API NonnullRefPtr<SessionHistoryEntry> create_session_history_entry_from_ui_process(SessionHistoryEntryDescriptor, SessionHistoryEntryReconstructionState&);
 
 }
 

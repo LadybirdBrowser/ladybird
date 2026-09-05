@@ -190,6 +190,59 @@ SessionHistoryEntryIdentity session_history_entry_identity(SameDocumentNavigatio
     };
 }
 
+void apply_session_history_entry_descriptor_from_ui_process(SessionHistoryEntry& entry, SessionHistoryEntryDescriptor& entry_descriptor)
+{
+    entry.set_url(move(entry_descriptor.url));
+    entry.set_step(static_cast<int>(entry_descriptor.step));
+    entry.set_classic_history_api_state(move(entry_descriptor.classic_history_api_state));
+    entry.set_navigation_api_state(move(entry_descriptor.navigation_api_state));
+    entry.set_navigation_api_key(move(entry_descriptor.navigation_api_key));
+    entry.set_navigation_api_id(move(entry_descriptor.navigation_api_id));
+    entry.set_scroll_restoration_mode(entry_descriptor.scroll_restoration_mode);
+    entry.set_scroll_position_data(move(entry_descriptor.scroll_position_data));
+}
+
+void apply_session_history_document_state_descriptor_from_ui_process(DocumentState& document_state, SessionHistoryDocumentStateDescriptor const& document_state_descriptor)
+{
+    VERIFY(document_state.cross_process_id() == document_state_descriptor.id);
+    document_state.set_history_policy_container(document_state_descriptor.history_policy_container);
+    document_state.set_request_referrer(document_state_descriptor.request_referrer);
+    document_state.set_request_referrer_policy(document_state_descriptor.request_referrer_policy);
+    document_state.set_initiator_origin(document_state_descriptor.initiator_origin);
+    document_state.set_origin(document_state_descriptor.origin);
+    document_state.set_about_base_url(document_state_descriptor.about_base_url);
+    document_state.set_resource(document_state_descriptor.resource);
+    document_state.set_reload_pending(document_state_descriptor.reload_pending);
+    document_state.set_ever_populated(document_state_descriptor.ever_populated);
+    document_state.set_navigable_target_name(document_state_descriptor.navigable_target_name);
+}
+
+RefPtr<DocumentState> get_or_create_document_state_from_ui_process(SessionHistoryDocumentStateDescriptor const& document_state_descriptor, SessionHistoryEntryReconstructionState& reconstruction_state)
+{
+    RefPtr<DocumentState> document_state;
+    if (auto existing_document_state = reconstruction_state.document_states.get(document_state_descriptor.id); existing_document_state.has_value())
+        document_state = *existing_document_state;
+
+    if (!document_state) {
+        document_state = DocumentState::create(document_state_descriptor.id);
+        reconstruction_state.document_states.set(document_state_descriptor.id, document_state);
+    }
+
+    apply_session_history_document_state_descriptor_from_ui_process(*document_state, document_state_descriptor);
+    return document_state;
+}
+
+NonnullRefPtr<SessionHistoryEntry> create_session_history_entry_from_ui_process(SessionHistoryEntryDescriptor entry_descriptor, SessionHistoryEntryReconstructionState& reconstruction_state)
+{
+    auto entry = SessionHistoryEntry::create();
+    apply_session_history_entry_descriptor_from_ui_process(*entry, entry_descriptor);
+
+    auto document_state = get_or_create_document_state_from_ui_process(entry_descriptor.document_state, reconstruction_state);
+    VERIFY(document_state);
+    entry->set_document_state(move(document_state));
+    return entry;
+}
+
 }
 
 template<>

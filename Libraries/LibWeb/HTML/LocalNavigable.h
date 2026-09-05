@@ -104,6 +104,14 @@ public:
     }
     Optional<CrossProcessId> child_navigable_history_reconstruction_id(size_t index) const;
     void consume_child_navigable_history_reconstruction_id(size_t index);
+    void prepare_child_navigable_history_reconstruction(SessionHistoryDocumentStateDescriptor const&);
+
+    enum class PrepareChildHistoryReconstruction {
+        No,
+        Yes,
+    };
+    NonnullRefPtr<SessionHistoryEntry> resolve_local_session_history_entry(SessionHistoryEntryDescriptor, PrepareChildHistoryReconstruction);
+    Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_navigation_api_from_ui_process(Vector<SessionHistoryEntryDescriptor>);
 
     void activate_history_entry(RefPtr<SessionHistoryEntry>, GC::Ref<DOM::Document>, VisibilityState system_visibility_state);
     void update_nonchanging_navigable_history_step_state(HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);

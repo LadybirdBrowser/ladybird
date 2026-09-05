@@ -60,6 +60,7 @@
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Navigation.h>
+#include <LibWeb/HTML/NavigationHistoryEntry.h>
 #include <LibWeb/HTML/NavigationObserver.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/NavigationPopulationRequest.h>
@@ -834,6 +835,131 @@ void LocalNavigable::consume_child_navigable_history_reconstruction_id(size_t in
 {
     VERIFY(index < m_child_navigable_history_reconstruction_ids.size());
     m_child_navigable_history_reconstruction_ids[index].clear();
+}
+
+void LocalNavigable::prepare_child_navigable_history_reconstruction(SessionHistoryDocumentStateDescriptor const& document_state_descriptor)
+{
+    Vector<Optional<CrossProcessId>> child_navigable_ids;
+    child_navigable_ids.ensure_capacity(document_state_descriptor.nested_histories.size());
+    for (auto const& nested_history : document_state_descriptor.nested_histories)
+        child_navigable_ids.unchecked_append(nested_history.id);
+
+    auto active_entry = active_session_history_entry();
+    auto active_document = this->active_document();
+    if (active_entry && active_document
+        && active_entry->document_state()->cross_process_id() == document_state_descriptor.id) {
+        auto child_navigables = active_document->document_tree_child_navigables();
+        if (child_navigables.size() == child_navigable_ids.size()) {
+            // FIXME: This is temporary glue for the current load-then-seed ordering.
+            //        A replacement WebContent process can create live child navigables
+            //        before the UI process sends its canonical session-history tree.
+            //        Now that nested history ids are canonical CrossProcessIds, the UI id
+            //        must win; retarget the already-created child to match it. The
+            //        longer-term model should avoid creating a distinct temporary id
+            //        for a child the UI process already knows about.
+            for (size_t i = 0; i < child_navigables.size(); ++i) {
+                auto canonical_id = *child_navigable_ids[i];
+                child_navigables[i]->set_id_for_session_history_reconstruction(canonical_id);
+                child_navigable_ids[i].clear();
+            }
+        }
+    }
+
+    set_child_navigable_history_reconstruction_ids(move(child_navigable_ids));
+}
+
+// The local session history entries a navigable can still be asked to activate or update.
+static Vector<NonnullRefPtr<SessionHistoryEntry>> retained_session_history_entries(LocalNavigable& navigable)
+{
+    Vector<NonnullRefPtr<SessionHistoryEntry>> entries;
+    auto append = [&](RefPtr<SessionHistoryEntry> entry) {
+        if (!entry)
+            return;
+        if (entries.find_if([&](auto const& candidate) {
+                return candidate.ptr() == entry.ptr();
+            })
+            != entries.end()) {
+            return;
+        }
+        entries.append(entry.release_nonnull());
+    };
+
+    append(navigable.current_session_history_entry());
+    append(navigable.active_session_history_entry());
+
+    if (auto window = navigable.active_window()) {
+        for (auto const& navigation_entry : window->navigation()->entries())
+            append(navigation_entry->session_history_entry());
+    }
+
+    return entries;
+}
+
+NonnullRefPtr<SessionHistoryEntry> LocalNavigable::resolve_local_session_history_entry(SessionHistoryEntryDescriptor entry_descriptor, PrepareChildHistoryReconstruction prepare_child_history_reconstruction)
+{
+    auto retained_entries = retained_session_history_entries(*this);
+    auto target_identity = session_history_entry_identity(entry_descriptor);
+    for (auto& retained_entry : retained_entries) {
+        if (session_history_entry_identity(*retained_entry) == target_identity) {
+            apply_session_history_entry_descriptor_from_ui_process(*retained_entry, entry_descriptor);
+            apply_session_history_document_state_descriptor_from_ui_process(*retained_entry->document_state(), entry_descriptor.document_state);
+            if (prepare_child_history_reconstruction == PrepareChildHistoryReconstruction::Yes) {
+                prepare_child_navigable_history_reconstruction(entry_descriptor.document_state);
+            }
+            return retained_entry;
+        }
+    }
+
+    SessionHistoryEntryReconstructionState reconstruction_state;
+    for (auto const& retained_entry : retained_entries) {
+        auto document_state = retained_entry->document_state();
+        if (document_state)
+            reconstruction_state.document_states.set(document_state->cross_process_id(), document_state);
+    }
+
+    if (prepare_child_history_reconstruction == PrepareChildHistoryReconstruction::Yes) {
+        prepare_child_navigable_history_reconstruction(entry_descriptor.document_state);
+    }
+    return create_session_history_entry_from_ui_process(move(entry_descriptor), reconstruction_state);
+}
+
+Vector<NonnullRefPtr<SessionHistoryEntry>> LocalNavigable::session_history_entries_for_navigation_api_from_ui_process(Vector<SessionHistoryEntryDescriptor> entry_descriptors)
+{
+    auto retained_entries = retained_session_history_entries(*this);
+    SessionHistoryEntryReconstructionState reconstruction_state;
+    for (auto const& retained_entry : retained_entries) {
+        auto document_state = retained_entry->document_state();
+        if (document_state)
+            reconstruction_state.document_states.set(document_state->cross_process_id(), document_state);
+    }
+
+    Vector<NonnullRefPtr<SessionHistoryEntry>> entries;
+    entries.ensure_capacity(entry_descriptors.size());
+
+    for (auto& entry_descriptor : entry_descriptors) {
+        RefPtr<SessionHistoryEntry> local_entry;
+        auto entry_identity = session_history_entry_identity(entry_descriptor);
+        for (auto const& retained_entry : retained_entries) {
+            if (session_history_entry_identity(*retained_entry) == entry_identity) {
+                local_entry = retained_entry;
+                break;
+            }
+        }
+
+        if (local_entry) {
+            apply_session_history_entry_descriptor_from_ui_process(*local_entry, entry_descriptor);
+            apply_session_history_document_state_descriptor_from_ui_process(*local_entry->document_state(), entry_descriptor.document_state);
+            entries.append(local_entry.release_nonnull());
+            continue;
+        }
+
+        auto entry = SessionHistoryEntry::create();
+        apply_session_history_entry_descriptor_from_ui_process(*entry, entry_descriptor);
+        entry->set_document_state(get_or_create_document_state_from_ui_process(entry_descriptor.document_state, reconstruction_state));
+        entries.append(move(entry));
+    }
+
+    return entries;
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#initialize-the-navigable
