@@ -77,9 +77,14 @@ impl SpecifiedValues {
         if let Some(id) = self.entries_by_pointer.get(&(probe.pointer as usize)) {
             return Lookup::Known(*id);
         }
-        if let Some(index) = self.entries.find(probe.value.content_hash(), |_index, entry| {
-            entry.value.data() == probe.value
-        }) {
+        // Equal URL text can refer to different resources in different declarations. The native
+        // image keeps its stylesheet context outside StyleValueData, so only an existing pointer
+        // identity can prove equality for values containing resource-dependent images.
+        if !crate::css::style_compute::value_may_need_style_sheet_resource_context(probe.value)
+            && let Some(index) = self.entries.find(probe.value.content_hash(), |_index, entry| {
+                entry.value.data() == probe.value
+            })
+        {
             return Lookup::Known(self.entries[index].id);
         }
         match self.coverage() {

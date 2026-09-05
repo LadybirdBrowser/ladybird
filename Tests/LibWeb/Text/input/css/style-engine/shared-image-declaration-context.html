@@ -34,8 +34,15 @@
         for (const node of nodes) {
             node.classList.toggle("local");
             node.classList.toggle("imported");
-            node.classList.add("changed");
         }
+        checkImages("changed declaration contexts");
+        for (const node of nodes) {
+            node.classList.toggle("local");
+            node.classList.toggle("imported");
+        }
+        checkImages("restored declaration contexts");
+        for (const node of nodes)
+            node.classList.add("changed");
         checkImages("image contexts survive winner changes");
         println(`other winners update: ${nodes.every(node => getComputedStyle(node).color === "rgb(1, 2, 3)")}`);
     });
