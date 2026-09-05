@@ -9,8 +9,9 @@ use super::text_transform::{TextRenderingOptions, may_require_bidi_processing, r
 use super::{ComputedValuesView, LayoutNodeArena};
 use crate::css::css_enums::text_transform;
 use crate::css::ffi_support::FfiUtf16View;
-use std::cell::OnceCell;
+use std::cell::{OnceCell, RefCell};
 use std::ffi::c_void;
+use std::rc::Rc;
 
 /// Selects the beginning or end of a transformed span for offsets inside it.
 #[derive(Clone, Copy)]
@@ -42,6 +43,7 @@ pub(crate) struct TextContent {
     dom_length_in_code_units: usize,
     edits: Vec<RenderedTextEdit>,
     grapheme_segmenter: OnceCell<super::text_chunker::GraphemeSegmenter>,
+    chunks: RefCell<Option<Rc<CachedTextChunks>>>,
     pub(super) rendering_key: Option<TextRenderingKey>,
 }
 
@@ -54,7 +56,58 @@ pub(super) struct TextRenderingKey {
     locale: Option<Vec<u16>>,
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub(crate) struct TextChunkCacheKey {
+    pub(crate) should_wrap_lines: bool,
+    pub(crate) should_respect_linebreaks: bool,
+    pub(crate) unidirectional_ltr: bool,
+    pub(crate) white_space_collapse: u8,
+    pub(crate) word_break: u8,
+    pub(crate) font_variant_emoji: u8,
+    pub(crate) font_cascade_list: *const c_void,
+}
+
+pub(crate) struct CachedTextChunks {
+    key: TextChunkCacheKey,
+    _retained_font_cascade_list: libgfx_rust::font::RetainedFontCascadeList,
+    chunks: Vec<super::text_chunker::TextChunk>,
+}
+
+impl std::ops::Deref for CachedTextChunks {
+    type Target = [super::text_chunker::TextChunk];
+
+    fn deref(&self) -> &Self::Target {
+        &self.chunks
+    }
+}
+
 impl TextContent {
+    pub(crate) fn text_chunks(
+        &self,
+        key: TextChunkCacheKey,
+        compute: impl FnOnce() -> Vec<super::text_chunker::TextChunk>,
+    ) -> Rc<CachedTextChunks> {
+        if let Some(entry) = self.chunks.borrow().as_ref()
+            && entry.key == key
+        {
+            return entry.clone();
+        }
+
+        // A nested measurement can request a different key while an iterator
+        // still uses the previous chunks. Keep the chunks and their fonts alive
+        // until that iterator finishes, even if this snapshot is replaced.
+        let entry = Rc::new(CachedTextChunks {
+            key,
+            // SAFETY: The caller derives this pointer from a live style snapshot.
+            _retained_font_cascade_list: unsafe {
+                libgfx_rust::font::RetainedFontCascadeList::retain(key.font_cascade_list)
+            },
+            chunks: compute(),
+        });
+        *self.chunks.borrow_mut() = Some(entry.clone());
+        entry
+    }
+
     pub(crate) fn has_same_content_as(&self, other: &Self) -> bool {
         self.text == other.text
             && self.untransformed_text_is_ascii_whitespace == other.untransformed_text_is_ascii_whitespace
@@ -267,6 +320,7 @@ pub unsafe extern "C" fn layout_arena_sync_text_content(arena: *mut c_void, id: 
             dom_length_in_code_units: source_range.length,
             edits: rendered.edits,
             grapheme_segmenter: OnceCell::new(),
+            chunks: RefCell::default(),
             rendering_key: Some(key),
         };
         arena.set_text_content(id, content);
@@ -322,6 +376,69 @@ mod tests {
             rendered_start_offset: rendered_start,
             rendered_length_in_code_units: rendered_length,
         }
+    }
+
+    #[test]
+    fn text_chunk_users_survive_cache_and_snapshot_replacement() {
+        use super::TextChunkCacheKey;
+        use crate::layout::text_chunker::TextChunk;
+        use std::rc::Rc;
+
+        let mut arena = LayoutNodeArena::new();
+        let node = arena.allocate_for_test().slot;
+        arena.set_text_content(node, content("hello", 0, 5, Vec::new()));
+        let key = TextChunkCacheKey {
+            should_wrap_lines: true,
+            should_respect_linebreaks: false,
+            unidirectional_ltr: true,
+            white_space_collapse: 0,
+            word_break: 0,
+            font_variant_emoji: 0,
+            // The standalone test binary stubs the C++ retain/release callbacks.
+            font_cascade_list: std::ptr::dangling(),
+        };
+        let chunk = TextChunk {
+            start: 0,
+            length: 5,
+            font: std::ptr::dangling(),
+            has_breaking_newline: false,
+            has_breaking_tab: false,
+            is_all_whitespace: false,
+            can_break_after: true,
+            text_type: 0,
+        };
+        let original = arena.text_content(node).unwrap().text_chunks(key, || vec![chunk]);
+        let hit = arena
+            .text_content(node)
+            .unwrap()
+            .text_chunks(key, || panic!("matching chunks should be cached"));
+        assert!(Rc::ptr_eq(&original, &hit));
+        drop(hit);
+        let original_weak = Rc::downgrade(&original);
+        let replacement = arena.text_content(node).unwrap().text_chunks(
+            TextChunkCacheKey {
+                should_wrap_lines: false,
+                ..key
+            },
+            Vec::new,
+        );
+        assert!(replacement.is_empty());
+        assert_eq!(&**original, &[chunk]);
+        assert_eq!(Rc::strong_count(&original), 1);
+        drop(original);
+        assert!(original_weak.upgrade().is_none());
+
+        let replacement_weak = Rc::downgrade(&replacement);
+        arena.set_text_content(node, content("hello", 0, 5, Vec::new()));
+        assert_eq!(Rc::strong_count(&replacement), 2);
+        arena.set_text_content(node, content("goodbye", 0, 7, Vec::new()));
+        assert_eq!(Rc::strong_count(&replacement), 1);
+        let new_chunks = arena.text_content(node).unwrap().text_chunks(key, || vec![chunk]);
+        assert_eq!(&**new_chunks, &[chunk]);
+        drop(replacement);
+        assert!(replacement_weak.upgrade().is_none());
+        arena.free_subtree(node);
+        assert_eq!(Rc::strong_count(&new_chunks), 1);
     }
 
     #[test]

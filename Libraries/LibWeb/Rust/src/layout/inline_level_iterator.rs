@@ -302,7 +302,7 @@ struct ExtraBoxMetrics {
 }
 
 struct TextNodeContext<'pass> {
-    chunks: std::rc::Rc<super::layout_node_arena::CachedTextChunks>,
+    chunks: std::rc::Rc<super::rendered_text::CachedTextChunks>,
     text: &'pass [u16],
     next_chunk_index: usize,
     should_collapse_whitespace: bool,
