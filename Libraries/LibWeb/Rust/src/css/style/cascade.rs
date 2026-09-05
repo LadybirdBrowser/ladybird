@@ -440,15 +440,16 @@ where
     /// Join one candidate into the top-1 relation. A later equal-priority row wins, matching
     /// cascade source-order tie breaking after the priority program has compared equal.
     pub(super) fn consider(&mut self, key: Key, priority: Priority, payload: Payload) {
-        match self.winner_by_key.get(&key).copied() {
-            Some(index) if priority >= self.winners[index].priority => {
-                self.winners[index] = Top1Winner { key, priority, payload };
+        match self.winner_by_key.entry(key) {
+            std::collections::hash_map::Entry::Occupied(entry) => {
+                let winner = &mut self.winners[*entry.get()];
+                if priority >= winner.priority {
+                    *winner = Top1Winner { key, priority, payload };
+                }
             }
-            Some(_) => {}
-            None => {
-                let index = self.winners.len();
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert(self.winners.len());
                 self.winners.push(Top1Winner { key, priority, payload });
-                self.winner_by_key.insert(key, index);
                 self.sorted = false;
             }
         }
