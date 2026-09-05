@@ -577,6 +577,15 @@ bool NodeWithStyle::reinherit_owned_computed_values_from(CSS::StyleRecordID pare
     //     the parent.
     if (is_pseudo_element_principal_box())
         return false;
+    // A box generated for a pseudo-element's content (a marker's image box) was created
+    // on the pseudo-element's own record rather than on inherited values: it follows
+    // its principal box's record.
+    if (is_generated_for_pseudo_element() && !m_owned_computed_values) {
+        auto* parent = this->parent();
+        if (parent && parent->is_pseudo_element_principal_box() && parent->generated_for_pseudo_element() == generated_for_pseudo_element())
+            apply_style(parent_style_record_identity);
+        return false;
+    }
     auto parent_record_view = document().style_computer().computed_style_record_view(parent_style_record_identity);
     VERIFY(parent_record_view);
     CSS::ComputedValues::Builder builder(owned_computed_values());

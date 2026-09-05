@@ -1,0 +1,8 @@
+initial span: block
+initial wbr: block
+go span: contents
+go wbr: none
+initial span: block
+initial wbr: block
+go span: contents
+go wbr: none

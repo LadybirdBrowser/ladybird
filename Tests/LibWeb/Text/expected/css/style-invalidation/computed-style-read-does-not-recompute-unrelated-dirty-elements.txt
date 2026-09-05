@@ -1,2 +1,2 @@
-PASS: computed style read outside a dirty subtree | elementStyleRecomputations=10, elementStyleNoopRecomputations=0, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0
+PASS: computed style read outside a dirty subtree | elementStyleRecomputations=10, elementStyleNoopRecomputations=0
 PASS: computed style read inside the dirty subtree sees fresh style

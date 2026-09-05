@@ -3,4 +3,4 @@ second sweep found unreachable groups: true
 reclaimed group slots stay bounded: true
 current style survives reclamation: true
 stale input record survives reclamation: true
-cached style record survives reclamation: true
+style derived after reclamation: true

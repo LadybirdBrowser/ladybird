@@ -43,8 +43,8 @@
         println(`em margin: ${getComputedStyle(emMargin).marginLeft}`);
 
         const counters = internals.getStyleInvalidationCounters();
-        println(`inherited recomputations: ${counters.elementInheritedStyleRecomputations}`);
-        println(`answered by group swap: ${counters.elementInheritedStyleGroupSwaps}`);
+        println(`C++ recomputations: ${counters.elementStyleRecomputations}`);
+        println(`engine records: ${counters.engineComputedStyleRecords}`);
 
         internals.resetStyleInvalidationCounters();
         root.style.color = "rgb(0, 128, 0)";
@@ -59,7 +59,7 @@
         println(`shadow color: ${getComputedStyle(shadow).boxShadow}`);
         println(`stop color: ${getComputedStyle(stop).stopColor}`);
         const colorCounters = internals.getStyleInvalidationCounters();
-        println(`color inherited recomputations: ${colorCounters.elementInheritedStyleRecomputations}`);
-        println(`color answered by group swap: ${colorCounters.elementInheritedStyleGroupSwaps}`);
+        println(`color C++ recomputations: ${colorCounters.elementStyleRecomputations}`);
+        println(`color engine records: ${colorCounters.engineComputedStyleRecords}`);
     });
 </script>

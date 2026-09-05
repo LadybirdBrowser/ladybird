@@ -1,5 +1,5 @@
-PASS: a non-inherited change reaches no child | elementStyleRecomputations=0, elementStyleNoopRecomputations=0, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0
-PASS: a child explicitly inheriting a non-inherited property is reached | elementStyleRecomputations=3, elementStyleNoopRecomputations=0, elementInheritedStyleRecomputations=3, elementInheritedStyleNoopRecomputations=0
+PASS: a non-inherited change reaches no child | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: a child explicitly inheriting a non-inherited property is reached | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 explicitly inherited margin-left: 27px
-PASS: an inherited change reaches every child | elementStyleRecomputations=0, elementStyleNoopRecomputations=0, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0
+PASS: an inherited change reaches every child | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 inherited color: rgb(0, 0, 255)

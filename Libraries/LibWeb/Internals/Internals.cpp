@@ -2011,9 +2011,6 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     object->define_direct_property("elementStyleInputChangedByParentStyle"_utf16_fly_string, JS::Value(counters.element_style_input_changed_by_parent_style), JS::default_attributes);
     object->define_direct_property("elementStyleInputChangedByParentCustomProperties"_utf16_fly_string, JS::Value(counters.element_style_input_changed_by_parent_custom_properties), JS::default_attributes);
     object->define_direct_property("elementStyleInputReused"_utf16_fly_string, JS::Value(counters.element_style_input_reused), JS::default_attributes);
-    object->define_direct_property("elementInheritedStyleRecomputations"_utf16_fly_string, JS::Value(counters.element_inherited_style_recomputations), JS::default_attributes);
-    object->define_direct_property("elementInheritedStyleNoopRecomputations"_utf16_fly_string, JS::Value(counters.element_inherited_style_noop_recomputations), JS::default_attributes);
-    object->define_direct_property("elementInheritedStyleGroupSwaps"_utf16_fly_string, JS::Value(counters.element_inherited_style_group_swaps), JS::default_attributes);
     object->define_direct_property("engineComputedStyleRecords"_utf16_fly_string, JS::Value(counters.engine_computed_style_records), JS::default_attributes);
     object->define_direct_property("animatedStyleReconstructionFallbacks"_utf16_fly_string, JS::Value(counters.animated_style_reconstruction_fallbacks), JS::default_attributes);
     object->define_direct_property("animatedStyleOverlayBuilds"_utf16_fly_string, JS::Value(counters.animated_style_overlay_builds), JS::default_attributes);

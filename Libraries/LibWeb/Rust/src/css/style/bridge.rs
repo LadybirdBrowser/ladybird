@@ -185,6 +185,12 @@ pub struct FfiDocumentStyleComputationInputs {
     pub root_font_zero_advance: f64,
     pub root_line_height: f64,
     pub root_font_metrics_depend_on_viewport_metrics: bool,
+    /// The metrics of the document's initial font, which the document element's own font
+    /// resolves against.
+    pub initial_font_size: f64,
+    pub initial_font_x_height: f64,
+    pub initial_font_cap_height: f64,
+    pub initial_font_zero_advance: f64,
     pub initial_font_size_raw: i32,
     pub default_font_size_raw: i32,
     pub device_pixels_per_css_pixel: f64,
@@ -477,6 +483,9 @@ pub mod style_reaction_applied_fact {
     pub const IS_DISPLAY_NONE: u32 = 1 << 8;
     pub const IN_DISPLAY_NONE_SUBTREE: u32 = 1 << 9;
     pub const HAS_STYLE: u32 = 1 << 10;
+    /// The applied reaction moved the element's computed display, which its children's box-type
+    /// transformation reads.
+    pub const DISPLAY_CHANGED: u32 = 1 << 11;
 }
 
 /// The element facts the style computation's box-type transformation and element style
@@ -2290,7 +2299,11 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
         animation_overlay_payloads,
         longhand_table: longhand_table.map_or(std::ptr::null(), std::ptr::from_ref),
     };
-    let publication = if let Some(node) = StyleNodeID::from_raw(node) {
+    // A C++ verification computation interns a comparable record without replacing the engine's
+    // authoritative assignment for the node it is checking.
+    let publication = if engine.computed_record_verification_counters.is_none()
+        && let Some(node) = StyleNodeID::from_raw(node)
+    {
         engine.publish_computed_groups(
             super::computed::ComputedStyleTarget::new(node, pseudo_kind),
             payloads,
@@ -2312,6 +2325,11 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
             .map_or(0, super::computed::FinalStyleRecordID::raw),
         new_style_record: publication.style_record_identity.raw(),
     };
+    if engine.computed_record_verification_counters.is_some() {
+        // C++ can retain a verification record on a pseudo-element the authoritative reaction
+        // leaves unchanged. With no target assignment to own it, keep it live with the engine.
+        engine.pin_style_record(result.new_style_record);
+    }
     engine.record_boundary_call(EventKind::PublishComputedGroups, |payload| {
         let pointer_token = |pointer: *const c_void| match pointer.is_null() {
             true => 0,
@@ -2386,6 +2404,30 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
         payload.write_u64(result.new_style_record);
     });
     result
+}
+
+/// Enter a C++ computed-record verification scope.
+///
+/// # Safety
+/// `engine` must be live, and verification scopes must not nest.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_begin_computed_record_verification(engine: *mut c_void) {
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    assert!(engine.computed_record_verification_counters.is_none());
+    engine.computed_record_verification_counters = Some(engine.counters.clone());
+}
+
+/// Leave a C++ computed-record verification scope without exposing its instrumentation work.
+///
+/// # Safety
+/// `engine` must be live and inside a verification scope.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_end_computed_record_verification(engine: *mut c_void) {
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    engine.counters = engine
+        .computed_record_verification_counters
+        .take()
+        .expect("computed-record verification scope must be active");
 }
 
 /// Replaces only the animation overlay on an already-published target. Recording falls back to
@@ -2867,6 +2909,10 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
             payload.write_u64(computation_inputs.root_font_zero_advance.to_bits());
             payload.write_u64(computation_inputs.root_line_height.to_bits());
             payload.write_bool(computation_inputs.root_font_metrics_depend_on_viewport_metrics);
+            payload.write_u64(computation_inputs.initial_font_size.to_bits());
+            payload.write_u64(computation_inputs.initial_font_x_height.to_bits());
+            payload.write_u64(computation_inputs.initial_font_cap_height.to_bits());
+            payload.write_u64(computation_inputs.initial_font_zero_advance.to_bits());
             payload.write_i32(computation_inputs.initial_font_size_raw);
             payload.write_i32(computation_inputs.default_font_size_raw);
             payload.write_u64(computation_inputs.device_pixels_per_css_pixel.to_bits());

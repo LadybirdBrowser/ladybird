@@ -17,6 +17,8 @@
 <script>
     test(() => {
         internals.resetStyleInvalidationCounters();
+        const engineCountersBefore = internals.styleEngineCounters();
+        const engineSharedBefore = (engineCountersBefore.engineComputedRecordSharedHits ?? 0) + (engineCountersBefore.engineComputedRecordCohortHits ?? 0);
         const first = document.createElement("span");
         first.className = "winner loser-a";
         const second = document.createElement("span");
@@ -25,7 +27,10 @@
         document.body.offsetWidth;
 
         const counters = internals.getStyleInvalidationCounters();
-        println(`shared equivalent cascade: ${counters.elementStyleSharedComputations >= 1}`);
+        // The record is shared either by C++'s style sharing or by the style engine's first-record cache.
+        const engineCounters = internals.styleEngineCounters();
+        const engineShared = (engineCounters.engineComputedRecordSharedHits ?? 0) + (engineCounters.engineComputedRecordCohortHits ?? 0) - engineSharedBefore;
+        println(`shared equivalent cascade: ${counters.elementStyleSharedComputations + engineShared >= 1}`);
         println(`first color: ${getComputedStyle(first).color}`);
         println(`second color: ${getComputedStyle(second).color}`);
     });

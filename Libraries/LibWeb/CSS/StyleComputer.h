@@ -85,7 +85,9 @@ public:
 
     // Materialize the complete computed view for one exact StyleEngine target and publish its
     // StyleRecord assignment.
-    [[nodiscard]] NonnullRefPtr<ComputedValues const> materialize_style_record(DOM::AbstractElement, Optional<bool&> did_change_custom_properties = {}, StyleEngineMatchResult* = nullptr, Optional<StyleEngine::StyleRecordDelta&> = {}, u8 inherited_style_groups = 0) const;
+    // The document element's style installed: the metrics `rem` resolves against are its font's.
+    void update_root_element_font_metrics(ComputedValues const&);
+    [[nodiscard]] NonnullRefPtr<ComputedValues const> materialize_style_record(DOM::AbstractElement, Optional<bool&> did_change_custom_properties = {}, StyleEngineMatchResult* = nullptr, Optional<StyleEngine::StyleRecordDelta&> = {}) const;
     [[nodiscard]] bool can_reuse_style_after_inherited_custom_property_change(DOM::Element&) const;
     void record_style_custom_property_reference(DOM::Element&, Utf16FlyString const&) const;
     // Compute the cascade supplied by rules, presentational hints, and inheritance while excluding the element's
@@ -289,7 +291,6 @@ public:
         // The base style supplying those groups when it is another element's rather than this
         // element's previous one.
         RefPtr<ComputedValues const> donor_values;
-        u8 inherited_style_groups { 0 };
     };
 
 private:

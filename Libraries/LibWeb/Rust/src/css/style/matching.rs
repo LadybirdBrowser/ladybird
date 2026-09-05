@@ -2678,6 +2678,10 @@ impl StyleEngine {
             let stopped = transition.new_cascade_input == old_cascade_input;
             if let Some((state, version)) = transition.winner_state {
                 let _ = self.winner_groups.set(node, state, version);
+                // The pseudo-element rows replay with the winner state, of the same version.
+                for &(pseudo, state) in transition.pseudo_winner_states.iter() {
+                    let _ = self.winner_groups.set_pseudo(node, pseudo, state, version);
+                }
             }
             // Pseudo-element rows are independent of the element's sparse winner row.
             for &(pseudo, state) in transition.pseudo_winner_states.iter() {

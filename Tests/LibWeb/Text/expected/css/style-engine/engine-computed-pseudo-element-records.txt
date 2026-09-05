@@ -6,5 +6,5 @@ d: before content none
 e: before content "e" color rgb(0, 0, 255)
 none: before content normal
 second b: before content "b"
-engine pseudo records: 9
-C++ recomputations: 8
+engine pseudo records: 11
+C++ recomputations: 7

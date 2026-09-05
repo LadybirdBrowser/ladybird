@@ -750,6 +750,8 @@ pub struct StyleEngine {
     memory: MemoryController,
     parsed_substitution_memory: MemoryLease,
     counters: Counters,
+    /// The instrumentation state to restore after C++ materializes a record for verification.
+    computed_record_verification_counters: Option<Counters>,
     tree: StyleNodeTree,
     program: StyleSheetProgram,
     journal: NormalizationJournal,
@@ -844,6 +846,14 @@ pub struct StyleEngine {
     /// First records derived earlier, by what they were derived from, for later elements alike.
     /// Pseudo-element records the engine derived, by what they were derived from, for elements
     /// alike in that to share.
+    /// Counts the style transactions taken; the winner rows record which one published them.
+    flush_stamp: u64,
+    /// Nodes whose style input the C++ computation has to settle: C++ recorded one, or their
+    /// parent's display moved, which their box-type transformation reads.
+    style_input_nodes_for_cpp: HashSet<StyleNodeID>,
+    /// Elements whose parent's display moved under their record this transaction: their
+    /// box-type transformation reads it, so their record is driven again in full.
+    parent_inputs_moved_nodes: HashSet<StyleNodeID>,
     engine_pseudo_record_cache: HashMap<publication::PseudoCohortKey, computed::FinalStyleRecordID>,
     engine_cold_record_cache: HashMap<publication::ColdRecordKey, publication::ColdRecord>,
     /// Which winner states the engine can compute records from, decided once per state.

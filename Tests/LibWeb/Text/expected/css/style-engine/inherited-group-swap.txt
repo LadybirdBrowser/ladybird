@@ -1,8 +1,8 @@
 plain font size: 20px
 declared font size: 12px
 em margin: 40px
-inherited recomputations: 2
-answered by group swap: 8
+C++ recomputations: 1
+engine records: 14
 plain color: rgb(0, 128, 0)
 plain background color: rgb(0, 128, 0)
 plain border color: rgb(0, 128, 0)
@@ -11,5 +11,5 @@ plain text decoration color: rgb(0, 128, 0)
 mixed background color: rgb(128, 191, 128)
 shadow color: rgb(128, 191, 128) 0px 0px 0px 0px
 stop color: rgb(128, 191, 128)
-color inherited recomputations: 1
-color answered by group swap: 9
+color C++ recomputations: 1
+color engine records: 14

@@ -136,8 +136,7 @@
         println(`pseudo width: ${child.getComputedStyle(child.document.getElementById("pseudo"), "::before").width}`);
         println(`pseudo originating font size: ${child.getComputedStyle(child.document.getElementById("pseudo-font-target")).fontSize}`);
         println(`pseudo inherited font size: ${child.getComputedStyle(child.document.getElementById("pseudo-font-target"), "::before").fontSize}`);
-        const nonInheritedStyleRecomputations = counters.elementStyleRecomputations - counters.elementInheritedStyleRecomputations;
+        const nonInheritedStyleRecomputations = counters.elementStyleRecomputations;
         println(`root font metrics recompute descendants: ${nonInheritedStyleRecomputations >= elementCount / 2}`);
-        println(`inherited recomputations present: ${counters.elementInheritedStyleRecomputations > 0}`);
     });
 </script>

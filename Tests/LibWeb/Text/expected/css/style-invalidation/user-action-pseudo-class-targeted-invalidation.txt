@@ -1,4 +1,4 @@
 plain text hover: elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-link hover: elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+link hover: elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 link color: rgb(0, 128, 0)
-active state: elementStyleRecomputations=2
+active state: elementStyleRecomputations=1

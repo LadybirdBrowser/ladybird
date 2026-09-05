@@ -33,7 +33,7 @@
             getComputedStyle(container).transform;
             const counters = internals.getStyleInvalidationCounters();
             animation.cancel();
-            return counters.elementStyleRecomputations + counters.elementInheritedStyleRecomputations > 0;
+            return counters.elementStyleRecomputations > 0;
         }
 
         println(`plain descendants recomputed: ${await descendantsRecomputedDuringAnimationUpdate(plainContainer)}`);

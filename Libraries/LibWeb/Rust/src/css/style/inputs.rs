@@ -43,6 +43,7 @@ impl StyleEngine {
             memory,
             parsed_substitution_memory: MemoryLease::new(MemoryCategory::ParsedSubstitutionCache),
             counters: Counters::new(),
+            computed_record_verification_counters: None,
             tree,
             program: StyleSheetProgram::new(),
             journal: NormalizationJournal::new(),
@@ -82,6 +83,9 @@ impl StyleEngine {
             pending_element_style_computation_selections: HashMap::default(),
             pending_pseudo_style_computation_selections: HashMap::default(),
             engine_computed_records_pending: Vec::new(),
+            flush_stamp: 0,
+            style_input_nodes_for_cpp: HashSet::default(),
+            parent_inputs_moved_nodes: HashSet::default(),
             engine_pseudo_record_cache: HashMap::default(),
             engine_cold_record_cache: HashMap::default(),
             engine_computable_states: HashMap::default(),
@@ -745,12 +749,16 @@ impl StyleEngine {
         if reaction == 0 {
             return;
         }
+        // A recorded input asks for the C++ computation, whatever the engine derived for the
+        // element beside it. For the style pass accounting, a transaction stays one of derived
+        // child reactions when the recorded inputs join reactions the engine derived.
         let derived_already = self.has_deferred_element_style_input(node);
         let externally_recorded_already = self.externally_recorded_style_input_nodes.contains(&node);
         self.record_derived_element_style_input(node, reaction, inherited_style_groups);
         if !derived_already || externally_recorded_already {
             self.externally_recorded_style_input_nodes.insert(node);
         }
+        self.style_input_nodes_for_cpp.insert(node);
     }
 
     /// Record a style reaction the engine derived itself for one element.

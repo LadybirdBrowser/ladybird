@@ -109,13 +109,22 @@ impl StyleEngine {
             let reaction = common_child_reaction | if groups != 0 { STYLE_REACTION_INHERITED_STYLE } else { 0 };
             (reaction, groups)
         };
+        // A child's box-type transformation reads its parent's display: when that moved, the
+        // child's record is driven again in full, whatever its own winners did.
+        let display_changed = has(fact::DISPLAY_CHANGED);
         let (light_reaction, light_groups) = child_reaction(has(fact::CHILDREN_EXPLICITLY_INHERIT));
         for child in light_children {
             self.record_derived_element_style_input(child, light_reaction, light_groups);
+            if display_changed {
+                self.parent_inputs_moved_nodes.insert(child);
+            }
         }
         let (shadow_reaction, shadow_groups) = child_reaction(has(fact::SHADOW_CHILDREN_EXPLICITLY_INHERIT));
         for child in shadow_children {
             self.record_derived_element_style_input(child, shadow_reaction, shadow_groups);
+            if display_changed {
+                self.parent_inputs_moved_nodes.insert(child);
+            }
         }
     }
 }

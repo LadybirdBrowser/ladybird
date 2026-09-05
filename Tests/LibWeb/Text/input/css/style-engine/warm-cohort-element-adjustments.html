@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .x { display: inline; }
+    .ready .x { display: block; }
+    .go .x { display: contents; }
+</style>
+<div id="parent"></div>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        parent.innerHTML = '<span class="x"></span><wbr class="x">';
+        internals.updateStyle();
+        // Warm the records before changing a type-sensitive display value.
+        parent.className = "ready";
+        internals.updateStyle();
+        for (const className of ["", "go", "", "go"]) {
+            parent.className = `ready ${className}`;
+            internals.updateStyle();
+            for (const child of parent.children)
+                println(`${className || "initial"} ${child.localName}: ${getComputedStyle(child).display}`);
+        }
+    });
+</script>

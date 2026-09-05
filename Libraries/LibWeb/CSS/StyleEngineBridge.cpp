@@ -40,7 +40,8 @@ static StyleEngineFFI::FfiResolvedFont resolve_font(void* context, StyleEngineFF
         {},
         {});
     font_computer.pin_font_list_for_style_record(font_list);
-    auto const& first_available_font = font_list->font_for_code_point(' ');
+    // The metric probe must not load a face: the first available font answers without one.
+    auto const& first_available_font = font_list->first_available_font();
     auto const metrics = first_available_font.pixel_metrics();
     auto* handle = &font_list.leak_ref();
     return {
@@ -257,6 +258,15 @@ u64 StyleEngine::style_record_custom_property_environment(StyleRecordID style_re
     return StyleEngineFFI::style_engine_style_record_custom_property_environment(m_impl, style_record.value());
 }
 
+void StyleEngine::begin_computed_record_verification()
+{
+    StyleEngineFFI::style_engine_begin_computed_record_verification(m_impl);
+}
+
+void StyleEngine::end_computed_record_verification()
+{
+    StyleEngineFFI::style_engine_end_computed_record_verification(m_impl);
+}
 u32 StyleEngine::compare_style_records(StyleRecordID old_style_record, StyleRecordID new_style_record, bool font_lists_equal, bool element_folds_transform_into_layout) const
 {
     return StyleEngineFFI::style_engine_compare_style_records(m_impl, old_style_record.value(), new_style_record.value(), font_lists_equal, element_folds_transform_into_layout);
@@ -625,6 +635,8 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
     if (m_style_computer) {
         auto const viewport_rect = m_style_computer->viewport_rect_for_style_environment();
         auto const& root_font_metrics = m_style_computer->root_element_font_metrics();
+        auto const& initial_font = m_style_computer->document().font_computer().initial_font();
+        Length::FontMetrics const initial_font_metrics { CSSPixels { initial_font.pixel_size() }, initial_font.pixel_metrics(), InitialValues::line_height() };
         computation_inputs = {
             .viewport_width = viewport_rect.width().to_double(),
             .viewport_height = viewport_rect.height().to_double(),
@@ -634,6 +646,10 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
             .root_font_zero_advance = root_font_metrics.zero_advance.to_double(),
             .root_line_height = root_font_metrics.line_height.to_double(),
             .root_font_metrics_depend_on_viewport_metrics = m_style_computer->root_element_font_metrics_depend_on_viewport_metrics(),
+            .initial_font_size = initial_font_metrics.font_size.to_double(),
+            .initial_font_x_height = initial_font_metrics.x_height.to_double(),
+            .initial_font_cap_height = initial_font_metrics.cap_height.to_double(),
+            .initial_font_zero_advance = initial_font_metrics.zero_advance.to_double(),
             .initial_font_size_raw = InitialValues::font_size().raw_value(),
             .default_font_size_raw = StyleComputer::default_user_font_size().raw_value(),
             .device_pixels_per_css_pixel = m_style_computer->document().page().client().device_pixels_per_css_pixel(),

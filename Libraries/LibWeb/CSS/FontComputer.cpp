@@ -862,6 +862,8 @@ void FontComputer::did_load_font(FontFaceKey const& changed_face)
     }
 
     m_document->bump_style_environment_version();
+    // The style engine's own resolutions are keyed on the environment generation.
+    ++m_environment_generation;
     // A family can contain many faces, but one face becoming available changes only the cached
     // selections which now resolve to it. Compare those selections before discarding their cache
     // entries, then find the elements holding the discarded cascade identities.
