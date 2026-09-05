@@ -22,14 +22,6 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/StorageAPI/StorageShed.h>
 
-#ifdef AK_OS_MACOS
-#    include <LibGfx/MetalContext.h>
-#endif
-
-#ifdef USE_VULKAN
-#    include <LibGfx/VulkanContext.h>
-#endif
-
 namespace Web::HTML {
 
 struct ChangingNavigableContinuationState;
@@ -84,7 +76,6 @@ public:
     void run_ui_descendant_unload_task(CrossProcessId navigable_id, GC::Ref<GC::Function<void()>> on_complete);
     void unload_child_navigable_before_destruction(GC::Ref<LocalNavigable>, GC::Ref<GC::Function<void()>> after_all_unloads);
     void continue_child_navigable_destruction(CrossProcessId navigable_id, UnloadDisplayedDocument);
-    void update_nonchanging_navigable_history_step_state(CrossProcessId navigable_id, HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
     void complete_ui_history_operation(CrossProcessId operation_id, HistoryStepResult, Optional<i32> committed_step, u64 session_history_entry_count);
 
     void finalize_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement, Optional<SessionHistoryEntryPersistedState> previous_entry_persisted_state);
@@ -125,14 +116,6 @@ public:
     void set_emulated_position_data(Geolocation::CoordinatesData);
     u64 register_emulated_position_data_observer(GC::Ref<GC::Function<void()>>);
     void unregister_emulated_position_data_observer(u64 observer_id);
-
-    void process_screenshot_requests();
-    void queue_screenshot_task(Optional<UniqueNodeID> node_id)
-    {
-        m_screenshot_tasks.enqueue({ node_id });
-        set_needs_repaint();
-        page().client().request_frame();
-    }
 
 private:
     LocalTraversableNavigable(GC::Ref<Page>);
@@ -195,11 +178,6 @@ private:
     Geolocation::EmulatedPositionData m_emulated_position_data;
     HashMap<u64, GC::Ref<GC::Function<void()>>> m_emulated_position_data_observers;
     u64 m_next_emulated_position_data_observer_id { 0 };
-
-    struct ScreenshotTask {
-        Optional<Web::UniqueNodeID> node_id;
-    };
-    Queue<ScreenshotTask> m_screenshot_tasks;
 };
 
 struct BrowsingContextAndDocument {

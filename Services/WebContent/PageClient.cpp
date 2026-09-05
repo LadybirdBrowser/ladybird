@@ -182,7 +182,7 @@ void PageClient::set_has_focus(bool has_focus)
 
     m_has_focus = has_focus;
 
-    if (auto document = page().top_level_traversable()->active_document(); document && has_focus)
+    if (auto document = page().local_root_navigable()->active_document(); document && has_focus)
         document->reset_cursor_blink_cycle();
 
     // The focus ring, the text caret, and selection highlight colors all depend on the window focus state, so
@@ -197,12 +197,12 @@ void PageClient::set_has_focus(bool has_focus)
         for (auto& child_navigable : navigable.child_navigables())
             invalidate_cached_paint_recursively(*child_navigable);
     };
-    invalidate_cached_paint_recursively(page().top_level_traversable());
+    invalidate_cached_paint_recursively(page().local_root_navigable());
 }
 
 void PageClient::set_window_handle(Utf16String window_handle)
 {
-    page().top_level_traversable()->set_window_handle(move(window_handle));
+    as<Web::HTML::LocalTraversableNavigable>(*page().top_level_traversable()).set_window_handle(move(window_handle));
 }
 
 void PageClient::setup_palette()
@@ -265,14 +265,14 @@ void PageClient::navigation_population_failed(Web::HTML::CrossProcessId navigabl
 
 void PageClient::populate_navigation(Web::HTML::NavigationPopulationRequest request, Web::HTML::NavigationPopulationResult result)
 {
-    page().top_level_traversable()->continue_navigation_at_population(move(request), move(result));
+    as<Web::HTML::LocalTraversableNavigable>(*page().local_root_navigable()).continue_navigation_at_population(move(request), move(result));
 }
 
 void PageClient::create_navigation_params(Web::HTML::NavigationPopulationRequest request)
 {
     auto navigable_id = request.navigable_id;
     auto navigation_id = request.navigation_id;
-    auto active_document = page().top_level_traversable()->active_document();
+    auto active_document = page().local_root_navigable()->active_document();
     if (!active_document) {
         client().async_did_finish_navigation_params_creation(m_id, navigable_id, navigation_id, {});
         return;
@@ -291,7 +291,7 @@ void PageClient::create_navigation_params(Web::HTML::NavigationPopulationRequest
 
 void PageClient::cancel_navigation_params_creation(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id)
 {
-    auto active_document = page().top_level_traversable()->active_document();
+    auto active_document = page().local_root_navigable()->active_document();
     if (!active_document)
         return;
 
@@ -305,7 +305,7 @@ void PageClient::cancel_navigation_params_creation(Web::HTML::CrossProcessId nav
 
 void PageClient::run_navigation_unload_check(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id)
 {
-    auto active_document = page().top_level_traversable()->active_document();
+    auto active_document = page().local_root_navigable()->active_document();
     if (!active_document) {
         client().async_did_fail_navigation_population(m_id, navigable_id, navigation_id);
         return;
@@ -361,7 +361,7 @@ Optional<Web::Compositor::CompositorContextId> PageClient::compositor_context_id
 
 void PageClient::run_iframe_load_event_steps(Web::HTML::CrossProcessId frame_id)
 {
-    auto active_document = page().top_level_traversable()->active_document();
+    auto active_document = page().local_root_navigable()->active_document();
     if (!active_document)
         return;
 
@@ -446,7 +446,7 @@ void PageClient::compositor_process_reconnected()
     if (auto* compositor_host = m_owner.compositor_host())
         compositor_host->discard_canvas_2d_stream();
 
-    page().top_level_traversable()->repaint_after_compositor_process_reconnect();
+    page().local_root_navigable()->repaint_after_compositor_process_reconnect();
     page().notify_all_canvas_elements_of_lost_backing_storage();
     page().prepare_canvas_contexts_for_compositing();
     page().restore_all_media_element_video_sinks();
@@ -508,13 +508,13 @@ void PageClient::set_viewport(Web::DevicePixelSize const& size, double device_pi
     m_viewport_size = size;
     m_device_pixel_ratio = device_pixel_ratio;
 
-    page().top_level_traversable()->set_viewport_size(page().device_to_css_size(size), invalidate);
+    page().local_root_navigable()->set_viewport_size(page().device_to_css_size(size), invalidate);
 }
 
 void PageClient::set_zoom_level(double zoom_level)
 {
     m_zoom_level = zoom_level;
-    page().top_level_traversable()->set_viewport_size(page().device_to_css_size(m_viewport_size), Web::InvalidateDisplayList::Yes);
+    page().local_root_navigable()->set_viewport_size(page().device_to_css_size(m_viewport_size), Web::InvalidateDisplayList::Yes);
 }
 
 void PageClient::request_frame()
@@ -544,9 +544,9 @@ void PageClient::request_rendering_opportunity_if_needed()
     if (Web::HTML::main_thread_event_loop().rendering_task_queued_or_running())
         return;
 
-    if (page().top_level_traversable_is_initialized()) {
-        auto& traversable = *page().top_level_traversable();
-        if (traversable.has_compositor_context() && traversable.compositor_context().request_rendering_opportunity(m_maximum_frames_per_second)) {
+    if (page().has_local_root_navigable()) {
+        auto& local_root_navigable = *page().local_root_navigable();
+        if (local_root_navigable.has_compositor_context() && local_root_navigable.compositor_context().request_rendering_opportunity(m_maximum_frames_per_second)) {
             m_compositor_rendering_opportunity_outstanding = true;
             schedule_compositor_watchdog();
             return;
@@ -589,7 +589,7 @@ void PageClient::frame_timer_fired()
     auto purpose = m_frame_timer_purpose;
     m_frame_timer_purpose = FrameTimerPurpose::Inactive;
 
-    auto document = page().top_level_traversable_is_initialized() ? page().top_level_traversable()->active_document() : nullptr;
+    auto document = page().has_local_root_navigable() ? page().local_root_navigable()->active_document() : nullptr;
     // NB: The Compositor keeps its pending request while the context is hidden. Forget our copy once its watchdog
     //     fires so becoming visible can arm a new watchdog for the retained request.
     if (document && document->hidden()) {
@@ -620,7 +620,7 @@ void PageClient::frame_timer_fired()
                 return;
             if (page_client->m_compositor_watchdog_deadline != watchdog_deadline)
                 return;
-            auto document = page_client->page().top_level_traversable_is_initialized() ? page_client->page().top_level_traversable()->active_document() : nullptr;
+            auto document = page_client->page().has_local_root_navigable() ? page_client->page().local_root_navigable()->active_document() : nullptr;
             if (document && document->hidden()) {
                 page_client->m_compositor_rendering_opportunity_outstanding = false;
                 page_client->m_compositor_watchdog_deadline = 0;
@@ -721,7 +721,7 @@ void PageClient::inject_rendering_opportunity(double frame_time)
     if (!m_rendering_update_requested || m_rendering_opportunity_granted)
         return;
 
-    auto document = page().top_level_traversable_is_initialized() ? page().top_level_traversable()->active_document() : nullptr;
+    auto document = page().has_local_root_navigable() ? page().local_root_navigable()->active_document() : nullptr;
     if (document && document->hidden())
         return;
 
@@ -957,12 +957,12 @@ void PageClient::page_did_receive_reference_test_metadata(JsonValue metadata)
 
 void PageClient::page_did_set_browser_zoom(double factor)
 {
-    auto traversable = page().top_level_traversable();
-    traversable->set_pending_set_browser_zoom_request(true);
+    auto local_root_navigable = page().local_root_navigable();
+    local_root_navigable->set_pending_set_browser_zoom_request(true);
     client().async_did_set_browser_zoom(m_id, factor);
     auto& event_loop = Web::HTML::main_thread_event_loop();
-    event_loop.spin_until(GC::create_function(GC::Heap::the(), [this, traversable]() {
-        return !traversable->pending_set_browser_zoom_request() || !is_connection_open();
+    event_loop.spin_until(GC::create_function(GC::Heap::the(), [this, local_root_navigable]() {
+        return !local_root_navigable->pending_set_browser_zoom_request() || !is_connection_open();
     }));
 }
 
@@ -1006,19 +1006,19 @@ void PageClient::set_geolocation_emulated_position(WebView::GeolocationPositionD
 
 void PageClient::apply_pending_geolocation_emulated_position()
 {
-    if (!m_pending_geolocation_emulated_position.has_value() || !page().top_level_traversable_is_initialized())
+    if (!m_pending_geolocation_emulated_position.has_value() || !page().has_local_root_navigable())
         return;
 
     auto const& pending = *m_pending_geolocation_emulated_position;
     auto const& position = pending.position;
-    auto traversable = page().top_level_traversable();
+    auto& traversable = as<Web::HTML::LocalTraversableNavigable>(*page().top_level_traversable());
 
     if (pending.error_code.has_value())
-        traversable->set_emulated_position_data(geolocation_position_error_code_from_ipc(*pending.error_code));
+        traversable.set_emulated_position_data(geolocation_position_error_code_from_ipc(*pending.error_code));
     else if (auto coordinates = geolocation_coordinates_from_ipc(position); coordinates.has_value())
-        traversable->set_emulated_position_data(*coordinates);
+        traversable.set_emulated_position_data(*coordinates);
     else
-        traversable->set_emulated_position_data(Empty {});
+        traversable.set_emulated_position_data(Empty {});
 }
 
 void PageClient::geolocation_position_response(u64 request_id, WebView::GeolocationPositionData const& position, Optional<u16> error_code)
@@ -1206,7 +1206,7 @@ void PageClient::page_did_update_cookie(HTTP::Cookie::Cookie const& cookie)
     client().async_did_update_cookie(cookie);
 
     // Since the above (test-only) IPC is async, we reset the document cookie version now to avoid a stale cache.
-    if (auto* document = page().top_level_browsing_context().active_document())
+    if (auto document = page().local_root_navigable()->active_document())
         document->reset_cookie_version();
 }
 
@@ -1215,7 +1215,7 @@ void PageClient::page_did_expire_cookies_with_time_offset(AK::Duration offset)
     client().async_did_expire_cookies_with_time_offset(offset);
 
     // Since the above (test-only) IPC is async, we reset the document cookie version now to avoid a stale cache.
-    if (auto* document = page().top_level_browsing_context().active_document())
+    if (auto document = page().local_root_navigable()->active_document())
         document->reset_cookie_version();
 }
 
@@ -1225,7 +1225,7 @@ void PageClient::page_did_delete_all_cookies(URL::URL const& url, GC::Ref<Web::W
     m_pending_delete_all_cookies_promises.set(request_id, promise);
     client().async_did_request_delete_all_cookies(m_id, request_id, url);
 
-    if (auto* document = page().top_level_browsing_context().active_document())
+    if (auto document = page().local_root_navigable()->active_document())
         document->reset_cookie_version();
 }
 
@@ -1391,7 +1391,7 @@ void PageClient::page_did_request_activate_tab()
 
 void PageClient::page_did_close_top_level_traversable()
 {
-    page().top_level_traversable()->compositor_context().stop_presenting_to_client();
+    page().local_root_navigable()->compositor_context().stop_presenting_to_client();
 
     // FIXME: Rename this IPC call
     client().async_did_close_browsing_context(m_id);
@@ -1676,7 +1676,7 @@ void PageClient::set_webdriver_session_config(Web::WebDriver::UserPromptHandler 
 
 ErrorOr<void> PageClient::connect_to_web_ui(IPC::TransportHandle handle)
 {
-    auto* active_document = page().top_level_browsing_context().active_document();
+    auto active_document = page().local_root_navigable()->active_document();
     if (!active_document || !active_document->window())
         return {};
 
@@ -1771,7 +1771,7 @@ void PageClient::js_console_input(StringView js_source)
 
 void PageClient::run_javascript(StringView js_source)
 {
-    auto* active_document = page().top_level_browsing_context().active_document();
+    auto active_document = page().local_root_navigable()->active_document();
 
     if (!active_document)
         return;
@@ -1829,7 +1829,7 @@ Vector<Web::CSS::StyleSheetIdentifier> PageClient::list_style_sheets() const
 {
     Vector<Web::CSS::StyleSheetIdentifier> results;
 
-    auto const* document = page().top_level_browsing_context().active_document();
+    auto document = page().local_root_navigable()->active_document();
     if (document) {
         for (auto& sheet : document->style_sheets().sheets()) {
             gather_style_sheets(results, sheet);
@@ -1875,7 +1875,7 @@ Vector<Web::HTML::ScriptRegistry::Description> PageClient::list_devtools_sources
 {
     Vector<Web::HTML::ScriptRegistry::Description> results;
 
-    auto const* document = page().top_level_browsing_context().active_document();
+    auto document = page().local_root_navigable()->active_document();
     if (document)
         append_devtools_sources_for_document(results, *document);
 
@@ -1899,7 +1899,7 @@ static Optional<Web::HTML::ScriptRegistry::Description> find_devtools_source_des
 
 Optional<Web::HTML::ScriptRegistry::Description> PageClient::devtools_source_description(JS::SourceCode const& source_code) const
 {
-    auto const* document = page().top_level_browsing_context().active_document();
+    auto document = page().local_root_navigable()->active_document();
     if (!document)
         return {};
     return find_devtools_source_description(*document, source_code);
@@ -1978,7 +1978,7 @@ Web::Compositor::CompositorHost const* PageClient::compositor_host() const
 
 void PageClient::queue_screenshot_task(Optional<Web::UniqueNodeID> node_id)
 {
-    page().top_level_traversable()->queue_screenshot_task(node_id);
+    page().queue_screenshot_task(node_id);
 }
 
 }

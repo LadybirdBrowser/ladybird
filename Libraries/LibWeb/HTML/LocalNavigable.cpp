@@ -901,6 +901,37 @@ void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, G
     notify_navigation_observers_navigation_complete();
 }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-history-step
+// The steps queued for one navigable of nonchangingNavigablesThatStillNeedUpdates.
+void LocalNavigable::update_nonchanging_navigable_history_step_state(HistoryObjectLengthAndIndex history_object_length_and_index, GC::Ref<GC::Function<void()>> on_complete)
+{
+    // AD-HOC: The navigable may have been destroyed while the UI process dispatched this job.
+    if (has_been_destroyed() || !active_document()) {
+        on_complete->function()();
+        return;
+    }
+
+    // AD-HOC: Queue with null document instead of using queue_global_task. A document-associated task can become
+    //         unrunnable while the UI process waits for completion, so validate the document when the task runs.
+    queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr, GC::create_function(heap(), [navigable = GC::Ref { *this }, history_object_length_and_index, on_complete] {
+        // 1. Let document be navigable's active document.
+        auto document = navigable->active_document();
+        if (navigable->has_been_destroyed() || !document || !document->is_fully_active()) {
+            on_complete->function()();
+            return;
+        }
+
+        // 2. Set document's history object's index to scriptHistoryIndex.
+        document->history()->m_index = history_object_length_and_index.script_history_index;
+
+        // 3. Set document's history object's length to scriptHistoryLength.
+        document->history()->m_length = history_object_length_and_index.script_history_length;
+
+        // 4. Increment completedNonchangingJobs.
+        on_complete->function()();
+    }));
+}
+
 void LocalNavigable::notify_navigation_observers_navigation_complete()
 {
     if (!m_ongoing_navigation.has<Empty>())
@@ -1339,7 +1370,7 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
 
             auto create_new_traversable = [&](GC::Ptr<BrowsingContext> opener) -> GC::Ref<LocalTraversableNavigable> {
                 auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*new_web_view.page, opener, target_name, {}, new_web_view.system_visibility_state);
-                new_web_view.page->set_top_level_traversable(traversable);
+                new_web_view.page->set_local_root_navigable(traversable);
                 traversable->set_window_handle(Utf16String::from_ascii_without_validation(new_web_view.window_handle.bytes()));
                 return traversable;
             };
@@ -2703,7 +2734,7 @@ void LocalNavigable::continue_navigation_after_population_dispatch(PreparedNavig
         return;
     }
 
-    if (!is_top_level_traversable()) {
+    if (!is_local_root()) {
         if (auto parent = this->parent(); parent && has_compositor_context()) {
             auto& local_parent = as<LocalNavigable>(*parent);
             if (local_parent.has_compositor_context())
@@ -3655,18 +3686,24 @@ void LocalNavigable::scroll_offset_did_change()
     doc->append_pending_scroll_event({ *doc, EventNames::scroll });
 }
 
-CSSPixelRect LocalNavigable::to_top_level_rect(CSSPixelRect const& a_rect)
+bool LocalNavigable::is_local_root() const
+{
+    HTML::LocalNavigable& local_root = page().local_root_navigable();
+    return &local_root == this;
+}
+
+CSSPixelRect LocalNavigable::to_page_rect(CSSPixelRect const& a_rect)
 {
     auto rect = a_rect;
-    rect.set_location(to_top_level_position(a_rect.location()));
+    rect.set_location(to_page_position(a_rect.location()));
     return rect;
 }
 
-CSSPixelPoint LocalNavigable::to_top_level_position(CSSPixelPoint a_position)
+CSSPixelPoint LocalNavigable::to_page_position(CSSPixelPoint a_position)
 {
     auto position = a_position;
     for (GC::Ptr<LocalNavigable> ancestor = this; ancestor;) {
-        if (is<LocalTraversableNavigable>(*ancestor))
+        if (ancestor->is_local_root())
             break;
         if (!ancestor->container())
             return {};
@@ -4722,8 +4759,8 @@ bool LocalNavigable::is_focused() const
     if (!m_page->client().has_focus())
         return false;
 
-    // A top-level traversable retains system focus while the focus chain descends into a child navigable.
-    if (is_traversable())
+    // The local root retains the page's system focus while the focus chain descends into a child navigable.
+    if (is_local_root())
         return true;
     return &m_page->focused_navigable() == this;
 }
@@ -5324,9 +5361,9 @@ void LocalNavigable::set_force_dark_enabled(bool value)
     m_force_dark_enabled = value;
     set_needs_repaint();
 
-    // The page presents a dark preferred color scheme while the top-level traversable has force-dark on, so flipping
+    // The page presents a dark preferred color scheme while its local root has force-dark on, so flipping
     // it here changes what every media query and system color in the page resolves to.
-    if (is_top_level_traversable())
+    if (is_local_root())
         page().invalidate_style_for_preference_change();
 
     for (auto const& child_navigable : child_navigables())
@@ -5531,7 +5568,7 @@ void LocalNavigable::paint_next_frame()
 
     auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
     PaintConfig paint_config { .paint_overlay = true, .should_show_caret_hit_test_debug_overlay = m_should_show_caret_hit_test_debug_overlay };
-    if (is_top_level_traversable()) {
+    if (is_local_root()) {
         paint_config.canvas_fill_rect = Gfx::IntRect { {}, viewport_rect.size() };
     } else {
         // Nested navigables paint transparent bitmaps for their parent compositor context.

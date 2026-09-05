@@ -152,8 +152,7 @@ void WebDriverBrowserConnection::load_url(u64 command_id, String window_handle, 
         return;
     }
 
-    if (url.scheme() != "javascript"sv)
-        view->did_start_webdriver_navigation();
+    view->did_start_webdriver_navigation();
 
     auto strong_this = NonnullRefPtr { *this };
     Core::deferred_invoke([strong_this, command_id, view_id = view->view_id(), url = move(url)]() {

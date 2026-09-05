@@ -9,6 +9,8 @@
 #include <AK/SourceLocation.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapVector.h>
+#include <LibGfx/Bitmap.h>
+#include <LibGfx/PaintingSurface.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibWeb/Bindings/CSS.h>
@@ -31,8 +33,10 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Selection/Selection.h>
 
@@ -97,7 +101,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     if (m_context_menu_request.has_value())
         visitor.visit(m_context_menu_request->target);
-    visitor.visit(m_top_level_traversable);
+    visitor.visit(m_local_root_navigable);
     visitor.visit(m_client);
     visitor.visit(m_window_rect_observer);
     visitor.visit(m_on_pending_dialog_closed);
@@ -120,7 +124,7 @@ HTML::LocalNavigable& Page::focused_navigable()
 {
     if (m_focused_navigable)
         return *m_focused_navigable;
-    return top_level_traversable();
+    return local_root_navigable();
 }
 
 void Page::set_focused_navigable(HTML::LocalNavigable& navigable)
@@ -138,7 +142,7 @@ void Page::navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigab
 
 void Page::load(URL::URL const& url, Bindings::NavigationHistoryBehavior history_handling, Utf16String navigation_id)
 {
-    (void)top_level_traversable()->navigate({ .url = url, .history_handling = history_handling, .user_involvement = HTML::UserNavigationInvolvement::BrowserUI, .navigation_id = move(navigation_id) });
+    (void)local_root_navigable()->navigate({ .url = url, .history_handling = history_handling, .user_involvement = HTML::UserNavigationInvolvement::BrowserUI, .navigation_id = move(navigation_id) });
 }
 
 void Page::load_html(StringView html, Utf16String navigation_id)
@@ -146,7 +150,7 @@ void Page::load_html(StringView html, Utf16String navigation_id)
     // FIXME: #23909 Figure out why GC threshold does not stay low when repeatedly loading html from the WebView
     heap().collect_garbage();
 
-    (void)top_level_traversable()->navigate({ .url = URL::about_srcdoc(),
+    (void)local_root_navigable()->navigate({ .url = URL::about_srcdoc(),
         .document_resource = Utf16String::from_utf8(html),
         .user_involvement = HTML::UserNavigationInvolvement::BrowserUI,
         .navigation_id = move(navigation_id) });
@@ -154,7 +158,62 @@ void Page::load_html(StringView html, Utf16String navigation_id)
 
 void Page::reload()
 {
-    top_level_traversable()->reload();
+    local_root_navigable()->reload();
+}
+
+void Page::queue_screenshot_task(Optional<UniqueNodeID> node_id)
+{
+    m_screenshot_tasks.enqueue({ node_id });
+    local_root_navigable()->set_needs_repaint();
+    client().request_frame();
+}
+
+void Page::process_screenshot_requests()
+{
+    auto& client = this->client();
+    auto navigable = local_root_navigable();
+    while (!m_screenshot_tasks.is_empty()) {
+        auto task = m_screenshot_tasks.dequeue();
+        if (task.node_id.has_value()) {
+            auto* dom_node = DOM::Node::from_unique_id(*task.node_id);
+            if (dom_node)
+                dom_node->document().update_layout(DOM::UpdateLayoutReason::ProcessScreenshot);
+            auto const* layout_node = dom_node ? dom_node->layout_node() : nullptr;
+            if (!layout_node || !Painting::has_committed_box(*layout_node)) {
+                client.page_did_take_screenshot({});
+                continue;
+            }
+            auto rect = enclosing_device_rect(Painting::absolute_border_box_rect(*layout_node));
+            auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>());
+            if (bitmap_or_error.is_error()) {
+                client.page_did_take_screenshot({});
+                continue;
+            }
+            auto bitmap = bitmap_or_error.release_value();
+            auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
+            HTML::PaintConfig paint_config { .canvas_fill_rect = rect.to_type<int>() };
+            navigable->render_screenshot(painting_surface, paint_config, [bitmap, &client] {
+                client.page_did_take_screenshot(bitmap->to_shareable_bitmap());
+            });
+        } else {
+            navigable->active_document()->update_layout(DOM::UpdateLayoutReason::ProcessScreenshot);
+            auto const* layout_node = navigable->active_document()->layout_node();
+            VERIFY(layout_node && Painting::has_committed_box(*layout_node));
+            auto scrollable_overflow_rect = Painting::scrollable_overflow_rect(*layout_node);
+            auto rect = enclosing_device_rect(scrollable_overflow_rect.value());
+            auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>());
+            if (bitmap_or_error.is_error()) {
+                client.page_did_take_screenshot({});
+                continue;
+            }
+            auto bitmap = bitmap_or_error.release_value();
+            auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
+            HTML::PaintConfig paint_config { .paint_overlay = true, .canvas_fill_rect = rect.to_type<int>() };
+            navigable->render_screenshot(painting_surface, paint_config, [bitmap, &client] {
+                client.page_did_take_screenshot(bitmap->to_shareable_bitmap());
+            });
+        }
+    }
 }
 
 Gfx::Palette Page::palette() const
@@ -212,7 +271,7 @@ CSS::PreferredColorScheme Page::preferred_color_scheme() const
     // Force-dark presents a dark preference, the way Android WebView's force-dark does (Chrome itself leaves the
     // preference alone and darkens per element): a page that can style itself dark does, the color-scheme opt-out keeps
     // the filter away from it, and only pages with no dark support get filtered.
-    if (top_level_traversable_is_initialized() && top_level_traversable()->force_dark_enabled())
+    if (has_local_root_navigable() && local_root_navigable()->force_dark_enabled())
         return CSS::PreferredColorScheme::Dark;
 
     auto preferred_color_scheme = m_client->preferred_color_scheme();
@@ -313,7 +372,7 @@ EventResult Page::handle_mouseup(DevicePixelPoint position, DevicePixelPoint scr
             navigable->event_handler().reset_mouse_input_tracking({});
         }
     };
-    return top_level_traversable()->event_handler().handle_mouseup(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers);
+    return local_root_navigable()->event_handler().handle_mouseup(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers);
 }
 
 EventResult Page::handle_mousedown(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count)
@@ -323,7 +382,7 @@ EventResult Page::handle_mousedown(DevicePixelPoint position, DevicePixelPoint s
             navigable->event_handler().reset_mouse_input_tracking({});
         m_mouse_event_tracking_navigable = nullptr;
     }
-    return top_level_traversable()->event_handler().handle_mousedown(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, click_count);
+    return local_root_navigable()->event_handler().handle_mousedown(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, click_count);
 }
 
 void Page::set_mouse_event_tracking_navigable(Badge<EventHandler>, HTML::LocalNavigable& navigable)
@@ -333,24 +392,24 @@ void Page::set_mouse_event_tracking_navigable(Badge<EventHandler>, HTML::LocalNa
 
 EventResult Page::handle_mousemove(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned buttons, unsigned modifiers)
 {
-    return top_level_traversable()->event_handler().handle_mousemove(device_to_css_point(position), device_to_css_point(screen_position), buttons, modifiers);
+    return local_root_navigable()->event_handler().handle_mousemove(device_to_css_point(position), device_to_css_point(screen_position), buttons, modifiers);
 }
 
 EventResult Page::handle_mouseleave()
 {
-    return top_level_traversable()->event_handler().handle_mouseleave();
+    return local_root_navigable()->event_handler().handle_mouseleave();
 }
 
 #if defined(AK_OS_MACOS)
 bool Page::select_word_for_dictionary_lookup(DevicePixelPoint position)
 {
-    return top_level_traversable()->event_handler().select_word_for_dictionary_lookup(device_to_css_point(position));
+    return local_root_navigable()->event_handler().select_word_for_dictionary_lookup(device_to_css_point(position));
 }
 #endif
 
 UniqueNodeID Page::node_id_at_position(DevicePixelPoint position)
 {
-    auto node = top_level_traversable()->event_handler().target_node_for_mouse_position(device_to_css_point(position));
+    auto node = local_root_navigable()->event_handler().target_node_for_mouse_position(device_to_css_point(position));
     if (!node)
         return 0;
 
@@ -359,17 +418,17 @@ UniqueNodeID Page::node_id_at_position(DevicePixelPoint position)
 
 EventResult Page::handle_mousewheel(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, WheelDeltaPrecision wheel_delta_precision, ScrollGesturePhase scroll_gesture_phase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation)
 {
-    return top_level_traversable()->event_handler().handle_mousewheel(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, async_scroll_performed_default_action, async_scroll_operation);
+    return local_root_navigable()->event_handler().handle_mousewheel(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, async_scroll_performed_default_action, async_scroll_operation);
 }
 
 EventResult Page::handle_drag_and_drop_event(DragEvent::Type type, DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files)
 {
-    return top_level_traversable()->event_handler().handle_drag_and_drop_event(type, device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, move(files));
+    return local_root_navigable()->event_handler().handle_drag_and_drop_event(type, device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, move(files));
 }
 
 EventResult Page::handle_pinch_event(DevicePixelPoint position, unsigned modifiers, double scale)
 {
-    return top_level_traversable()->event_handler().handle_pinch_event(device_to_css_point(position), modifiers, scale);
+    return local_root_navigable()->event_handler().handle_pinch_event(device_to_css_point(position), modifiers, scale);
 }
 
 EventResult Page::handle_keydown(UIEvents::KeyCode key, unsigned modifiers, u32 code_point, bool repeat, bool should_insert_text)
@@ -384,30 +443,30 @@ EventResult Page::handle_keyup(UIEvents::KeyCode key, unsigned modifiers, u32 co
 
 void Page::handle_sdl_input_events()
 {
-    top_level_traversable()->event_handler().handle_sdl_input_events();
+    local_root_navigable()->event_handler().handle_sdl_input_events();
 }
 
 void Page::invalidate_compositor_wheel_event_listener_state()
 {
     ++m_wheel_event_listener_state_generation;
 
-    if (!m_async_scrolling_enabled || !top_level_traversable_is_initialized() || !top_level_traversable()->has_compositor_context())
+    if (!m_async_scrolling_enabled || !has_local_root_navigable() || !local_root_navigable()->has_compositor_context())
         return;
 
-    top_level_traversable()->compositor_context().invalidate_wheel_event_listener_state(m_wheel_event_listener_state_generation);
+    local_root_navigable()->compositor_context().invalidate_wheel_event_listener_state(m_wheel_event_listener_state_generation);
 }
 
 void Page::update_needs_beforeunload_check()
 {
     auto needs_beforeunload_check = [&] {
-        if (!top_level_traversable_is_initialized())
+        if (!has_local_root_navigable())
             return true;
 
-        auto top_level_traversable = this->top_level_traversable();
-        auto active_document = top_level_traversable->active_document();
+        auto local_root_navigable = this->local_root_navigable();
+        auto active_document = local_root_navigable->active_document();
         if (!active_document)
             return true;
-        if (active_document->navigable() != top_level_traversable)
+        if (active_document->navigable() != local_root_navigable)
             return true;
 
         for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
@@ -426,32 +485,37 @@ void Page::update_needs_beforeunload_check()
     client().page_did_change_needs_beforeunload_check(m_needs_beforeunload_check);
 }
 
-void Page::set_top_level_traversable(GC::Ref<HTML::LocalTraversableNavigable> navigable)
+void Page::set_local_root_navigable(GC::Ref<HTML::LocalNavigable> navigable)
 {
-    VERIFY(!m_top_level_traversable); // Replacement is not allowed!
+    VERIFY(!m_local_root_navigable); // Replacement is not allowed!
     VERIFY(&navigable->page() == this);
-    m_top_level_traversable = navigable;
+    m_local_root_navigable = navigable;
     update_needs_beforeunload_check();
 }
 
-bool Page::top_level_traversable_is_initialized() const
+bool Page::has_local_root_navigable() const
 {
-    return !!m_top_level_traversable;
+    return m_local_root_navigable != nullptr;
 }
 
 HTML::BrowsingContext& Page::top_level_browsing_context()
 {
-    return *m_top_level_traversable->active_browsing_context();
+    return *as<HTML::LocalNavigable>(*top_level_traversable()).active_browsing_context();
 }
 
 HTML::BrowsingContext const& Page::top_level_browsing_context() const
 {
-    return *m_top_level_traversable->active_browsing_context();
+    return *as<HTML::LocalNavigable>(*top_level_traversable()).active_browsing_context();
 }
 
-GC::Ref<HTML::LocalTraversableNavigable> Page::top_level_traversable() const
+GC::Ref<HTML::LocalNavigable> Page::local_root_navigable() const
 {
-    return *m_top_level_traversable;
+    return *m_local_root_navigable;
+}
+
+GC::Ref<HTML::Navigable> Page::top_level_traversable() const
+{
+    return local_root_navigable()->top_level_traversable();
 }
 
 void Page::did_complete_window_rect_request(u64 completion_id)
@@ -967,7 +1031,7 @@ void Page::set_content_blocking_enabled(bool enabled)
 
 void Page::invalidate_user_style()
 {
-    if (!top_level_traversable_is_initialized() || !top_level_traversable()->active_document())
+    if (!has_local_root_navigable() || !local_root_navigable()->active_document())
         return;
 
     auto invalidate_document = [](DOM::Document& document) {
@@ -979,7 +1043,7 @@ void Page::invalidate_user_style()
         document.record_style_environment_change();
     };
 
-    auto& active_document = *top_level_traversable()->active_document();
+    auto& active_document = *local_root_navigable()->active_document();
     invalidate_document(active_document);
 
     for (auto& navigable : active_document.descendant_navigables()) {
@@ -990,7 +1054,7 @@ void Page::invalidate_user_style()
 
 void Page::invalidate_style_for_preference_change()
 {
-    if (!top_level_traversable_is_initialized() || !top_level_traversable()->active_document())
+    if (!has_local_root_navigable() || !local_root_navigable()->active_document())
         return;
 
     auto invalidate_document = [](DOM::Document& document) {
@@ -998,7 +1062,7 @@ void Page::invalidate_style_for_preference_change()
         document.set_needs_media_query_evaluation();
     };
 
-    auto& active_document = *top_level_traversable()->active_document();
+    auto& active_document = *local_root_navigable()->active_document();
     invalidate_document(active_document);
 
     for (auto& navigable : active_document.descendant_navigables()) {
@@ -1009,11 +1073,11 @@ void Page::invalidate_style_for_preference_change()
 
 Vector<GC::Root<DOM::Document>> Page::documents_in_active_window() const
 {
-    if (!top_level_traversable_is_initialized())
+    if (!has_local_root_navigable())
         return {};
 
     auto documents = HTML::main_thread_event_loop().documents_in_this_event_loop_matching([&](auto& document) {
-        return document.window() == top_level_traversable()->active_window();
+        return document.window() == local_root_navigable()->active_window();
     });
 
     return documents;
@@ -1032,7 +1096,7 @@ void Page::clear_selection()
 
 Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& query, Optional<SearchDirection> direction)
 {
-    VERIFY(top_level_traversable_is_initialized());
+    VERIFY(has_local_root_navigable());
 
     Vector<GC::Root<DOM::Range>> all_matches;
 
@@ -1061,7 +1125,7 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
     auto should_update_match_index = false;
     for (auto const& document : documents_in_active_window()) {
         auto matches = document->find_matching_text(query.string, query.case_sensitivity);
-        if (GC::Ptr { document.ptr() } == top_level_traversable()->active_document()) {
+        if (GC::Ptr { document.ptr() } == local_root_navigable()->active_document()) {
             if (auto range = active_range(*document)) {
                 auto new_match_index = find_current_match_index(*range, matches);
                 should_update_match_index = true;
@@ -1074,9 +1138,9 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
         all_matches.extend(move(matches));
     }
 
-    if (auto active_document = top_level_traversable()->active_document()) {
+    if (auto active_document = local_root_navigable()->active_document()) {
         if (m_last_find_in_page_url.serialize(URL::ExcludeFragment::Yes) != active_document->url().serialize(URL::ExcludeFragment::Yes)) {
-            m_last_find_in_page_url = top_level_traversable()->active_document()->url();
+            m_last_find_in_page_url = local_root_navigable()->active_document()->url();
             m_find_in_page_match_index = 0;
         }
     }
@@ -1111,7 +1175,7 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
 
 Page::FindInPageResult Page::find_in_page(FindInPageQuery const& query)
 {
-    if (!top_level_traversable_is_initialized())
+    if (!has_local_root_navigable())
         return {};
 
     if (query.string.is_empty()) {
@@ -1123,14 +1187,14 @@ Page::FindInPageResult Page::find_in_page(FindInPageQuery const& query)
     auto result = perform_find_in_page_query(query);
 
     m_last_find_in_page_query = query;
-    m_last_find_in_page_url = top_level_traversable()->active_document()->url();
+    m_last_find_in_page_url = local_root_navigable()->active_document()->url();
 
     return result;
 }
 
 Page::FindInPageResult Page::find_in_page_next_match()
 {
-    if (!(m_last_find_in_page_query.has_value() && top_level_traversable_is_initialized()))
+    if (!(m_last_find_in_page_query.has_value() && has_local_root_navigable()))
         return {};
 
     auto result = perform_find_in_page_query(*m_last_find_in_page_query, SearchDirection::Forward);
@@ -1139,7 +1203,7 @@ Page::FindInPageResult Page::find_in_page_next_match()
 
 Page::FindInPageResult Page::find_in_page_previous_match()
 {
-    if (!(m_last_find_in_page_query.has_value() && top_level_traversable_is_initialized()))
+    if (!(m_last_find_in_page_query.has_value() && has_local_root_navigable()))
         return {};
 
     auto result = perform_find_in_page_query(*m_last_find_in_page_query, SearchDirection::Backward);
@@ -1390,7 +1454,7 @@ void Page::set_viewport_is_fullscreen(ViewportIsFullscreen is_fullscreen)
 
 void PageClient::history_navigation_params_creation_finished(HTML::CrossProcessId operation_id, HTML::HistoryNavigationPopulation population)
 {
-    page().top_level_traversable()->resume_history_navigation_population(operation_id, move(population));
+    as<HTML::LocalTraversableNavigable>(*page().local_root_navigable()).resume_history_navigation_population(operation_id, move(population));
 }
 
 void PageClient::request_navigation_start(HTML::LocalNavigable& navigable, NavigationTarget target, URL::URL const&, Utf16String navigation_id, Optional<HTML::NavigationStartRequest> start_request)

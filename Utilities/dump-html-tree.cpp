@@ -338,8 +338,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto page = Web::Page::create(page_client);
     page->set_is_scripting_enabled(false);
     page_client->set_page(page);
-    page->set_top_level_traversable(Web::HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {}));
-    auto& origin_document = *page->top_level_traversable()->active_document();
+    page->set_local_root_navigable(Web::HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {}));
+    auto& origin_document = *page->local_root_navigable()->active_document();
 
     auto timer = Core::ElapsedTimer::start_new();
 

@@ -991,7 +991,7 @@ TEST_CASE(relevant_global_main_world_wrapper_ignores_preferred_realm)
     client->m_page = page.ptr();
 
     auto traversable = Web::HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {});
-    page->set_top_level_traversable(traversable);
+    page->set_local_root_navigable(traversable);
     auto window = GC::Ref { *traversable->active_document()->window() };
 
     auto preferred_execution_context = MUST(JS::Realm::initialize_host_defined_realm(vm, nullptr, nullptr));
@@ -1030,7 +1030,7 @@ TEST_CASE(resize_observer_releases_activity_root_when_registration_document_is_c
         auto page = Web::Page::create(client);
         client->m_page = page.ptr();
         auto traversable = Web::HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {});
-        page->set_top_level_traversable(traversable);
+        page->set_local_root_navigable(traversable);
         return GC::Ref { *traversable->active_document() };
     };
 

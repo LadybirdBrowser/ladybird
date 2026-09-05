@@ -10,9 +10,6 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
 #include <LibGC/RootVector.h>
-#include <LibGfx/Bitmap.h>
-#include <LibGfx/PaintingSurface.h>
-#include <LibGfx/SkiaBackendContext.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Geolocation/GeolocationCoordinates.h>
@@ -35,7 +32,6 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
 
@@ -169,7 +165,7 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top
 {
     // 1. Let traversable be the result of creating a new top-level traversable given null and the empty string.
     auto traversable = create_a_new_top_level_traversable(page, nullptr, {}, initial_document_state_id, system_visibility_state);
-    page->set_top_level_traversable(traversable);
+    page->set_local_root_navigable(traversable);
 
     // AD-HOC: Deny geolocation until the UI process sends the browser-wide setting via IPC. This prevents a request
     //         from observing the test position during the short window before the initial settings IPC arrives.
@@ -1130,42 +1126,6 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
     }
 }
 
-void LocalTraversableNavigable::update_nonchanging_navigable_history_step_state(CrossProcessId navigable_id, HistoryObjectLengthAndIndex history_object_length_and_index, GC::Ref<GC::Function<void()>> on_complete)
-{
-    auto navigable = local_navigable_with_id(navigable_id);
-
-    // AD-HOC: This check is not in the spec but we should not continue navigation if navigable has been destroyed,
-    //         or if there's no active window.
-    if (!navigable || navigable->has_been_destroyed() || !navigable->active_window()) {
-        on_complete->function()();
-        return;
-    }
-
-    // AD-HOC: Queue with null document instead of using queue_global_task.
-    //         Tasks associated with a document are only runnable when fully active.
-    //         In the async state machine, documents can become non-fully-active between
-    //         queue time and execution, causing the task to be permanently stuck.
-    //         A null-document task is always runnable; we check validity inside.
-    queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr, GC::create_function(heap(), [navigable = GC::Ref { *navigable }, history_object_length_and_index, on_complete] {
-        if (navigable->has_been_destroyed() || !navigable->active_window() || !navigable->active_document()->is_fully_active()) {
-            on_complete->function()();
-            return;
-        }
-
-        // 1. Let document be navigable's active document.
-        auto document = navigable->active_document();
-
-        // 2. Set document's history object's index to scriptHistoryIndex.
-        document->history()->m_index = history_object_length_and_index.script_history_index;
-
-        // 3. Set document's history object's length to scriptHistoryLength.
-        document->history()->m_length = history_object_length_and_index.script_history_length;
-
-        // 4. Increment completedNonchangingJobs.
-        on_complete->function()();
-    }));
-}
-
 class CheckUnloadingCanceledState : public GC::Cell {
     GC_CELL(CheckUnloadingCanceledState, GC::Cell);
     GC_DECLARE_ALLOCATOR(CheckUnloadingCanceledState);
@@ -2060,53 +2020,6 @@ void LocalTraversableNavigable::unregister_emulated_position_data_observer(u64 o
 {
     VERIFY(is_top_level_traversable());
     m_emulated_position_data_observers.remove(observer_id);
-}
-
-void LocalTraversableNavigable::process_screenshot_requests()
-{
-    auto& client = page().client();
-    while (!m_screenshot_tasks.is_empty()) {
-        auto task = m_screenshot_tasks.dequeue();
-        if (task.node_id.has_value()) {
-            auto* dom_node = DOM::Node::from_unique_id(*task.node_id);
-            if (dom_node)
-                dom_node->document().update_layout(DOM::UpdateLayoutReason::ProcessScreenshot);
-            auto const* layout_node = dom_node ? dom_node->layout_node() : nullptr;
-            if (!layout_node || !Painting::has_committed_box(*layout_node)) {
-                client.page_did_take_screenshot({});
-                continue;
-            }
-            auto rect = page().enclosing_device_rect(Painting::absolute_border_box_rect(*layout_node));
-            auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>());
-            if (bitmap_or_error.is_error()) {
-                client.page_did_take_screenshot({});
-                continue;
-            }
-            auto bitmap = bitmap_or_error.release_value();
-            auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
-            PaintConfig paint_config { .canvas_fill_rect = rect.to_type<int>() };
-            render_screenshot(painting_surface, paint_config, [bitmap, &client] {
-                client.page_did_take_screenshot(bitmap->to_shareable_bitmap());
-            });
-        } else {
-            active_document()->update_layout(DOM::UpdateLayoutReason::ProcessScreenshot);
-            auto const* layout_node = active_document()->layout_node();
-            VERIFY(layout_node && Painting::has_committed_box(*layout_node));
-            auto scrollable_overflow_rect = Painting::scrollable_overflow_rect(*layout_node);
-            auto rect = page().enclosing_device_rect(scrollable_overflow_rect.value());
-            auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>());
-            if (bitmap_or_error.is_error()) {
-                client.page_did_take_screenshot({});
-                continue;
-            }
-            auto bitmap = bitmap_or_error.release_value();
-            auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
-            PaintConfig paint_config { .paint_overlay = true, .canvas_fill_rect = rect.to_type<int>() };
-            render_screenshot(painting_surface, paint_config, [bitmap, &client] {
-                client.page_did_take_screenshot(bitmap->to_shareable_bitmap());
-            });
-        }
-    }
 }
 
 }

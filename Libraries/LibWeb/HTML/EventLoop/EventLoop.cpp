@@ -278,7 +278,7 @@ bool EventLoop::rendering_opportunity(HighResolutionTime::DOMHighResTimeStamp fr
     // 3. For each navigable that has a rendering opportunity, queue a global task on the rendering task source given navigable's active window to update the rendering:
     bool has_eligible_navigable = false;
     for (auto& navigable : all_local_navigables()) {
-        if (!navigable->is_traversable())
+        if (!navigable->is_local_root())
             continue;
         if (!navigable->has_a_rendering_opportunity())
             continue;
@@ -297,7 +297,7 @@ bool EventLoop::rendering_opportunity(HighResolutionTime::DOMHighResTimeStamp fr
         return false;
 
     // AD-HOC: One rendering update services every document in this event loop, so queue one event-loop task for the
-    //         opportunity instead of one global task per traversable.
+    //         opportunity instead of one global task per page local root.
     VERIFY(!m_rendering_task_queued);
     m_rendering_task_queued = true;
     queue_a_task(Task::Source::Rendering, this, nullptr, *m_rendering_task_function);
@@ -394,7 +394,7 @@ void EventLoop::update_the_rendering()
     VERIFY(!m_running_rendering_task);
     m_running_rendering_task = true;
     for (auto& navigable : all_local_navigables()) {
-        if (navigable->is_traversable())
+        if (navigable->is_local_root())
             navigable->page().client().will_begin_rendering_update();
     }
     auto update_start_time = HighResolutionTime::unsafe_shared_current_time();
@@ -405,7 +405,7 @@ void EventLoop::update_the_rendering()
         m_running_rendering_task = false;
 
         for (auto& navigable : all_local_navigables()) {
-            if (navigable->is_traversable())
+            if (navigable->is_local_root())
                 navigable->page().client().did_finish_rendering_update();
         }
 
@@ -692,10 +692,8 @@ void EventLoop::update_the_rendering()
             document->update_layout(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate);
         navigable->paint_next_frame();
         ++m_rendering_scheduler_counters.paints;
-        if (navigable->is_traversable()) {
-            auto traversable = navigable->traversable_navigable();
-            traversable->process_screenshot_requests();
-        }
+        if (navigable->is_local_root())
+            navigable->page().process_screenshot_requests();
     }
 
     // 23. For each doc of docs, process top layer removals given doc.

@@ -81,7 +81,7 @@ TEST_CASE(download_reader_is_registered_with_page_client)
     client->m_page = page.ptr();
 
     auto traversable = Web::HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {});
-    page->set_top_level_traversable(traversable);
+    page->set_local_root_navigable(traversable);
 
     auto response = Web::Fetch::Infrastructure::Response::create(vm);
     response->set_body(Web::Fetch::Infrastructure::byte_sequence_as_body(*realm, "download contents"sv.bytes()));
