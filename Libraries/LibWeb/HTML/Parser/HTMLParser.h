@@ -24,6 +24,7 @@
 #include <LibWeb/Platform/Timer.h>
 
 struct RustFfiHtmlParserHandle;
+struct RustFfiHtmlParserAttribute;
 
 namespace Web::HTML {
 
@@ -74,7 +75,7 @@ public:
     void set_allow_declarative_shadow_roots(AllowDeclarativeShadowRoots allow) { m_allow_declarative_shadow_roots = allow; }
 
     void configure_element_created_by_rust_parser(DOM::Element&);
-    GC::Ref<DOM::Element> create_element_for_rust_parser(HTMLToken const&, Optional<Utf16FlyString> const& namespace_, DOM::Node& intended_parent, bool had_duplicate_attribute, GC::Ptr<HTMLFormElement>, bool has_template_element_on_stack);
+    GC::Ref<DOM::Element> create_element_for_rust_parser(Utf16FlyString const&, ReadonlySpan<RustFfiHtmlParserAttribute>, Optional<Utf16FlyString> const& namespace_, DOM::Node& intended_parent, bool had_duplicate_attribute, GC::Ptr<HTMLFormElement>, bool has_template_element_on_stack);
     void prepare_svg_script_for_rust_parser(SVG::SVGScriptElement&, size_t source_line_number);
     void set_script_source_line_from_rust_parser(DOM::Element&, size_t source_line_number);
     void mark_script_already_started_from_rust_parser(HTMLScriptElement&);
@@ -127,7 +128,7 @@ private:
     // https://html.spec.whatwg.org/multipage/parsing.html#stop-the-speculative-html-parser
     void stop_the_speculative_html_parser();
 
-    GC::Ref<DOM::Element> create_element_for(HTMLToken const&, Optional<Utf16FlyString> const& namespace_, DOM::Node& intended_parent);
+    GC::Ref<DOM::Element> create_element_for(Utf16FlyString const&, ReadonlySpan<RustFfiHtmlParserAttribute>, Optional<Utf16FlyString> const& namespace_, DOM::Node& intended_parent);
     void increment_script_nesting_level();
     void decrement_script_nesting_level();
     void change_the_encoding(StringView new_encoding);

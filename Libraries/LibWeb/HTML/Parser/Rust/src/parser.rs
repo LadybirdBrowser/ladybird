@@ -83,10 +83,10 @@ pub enum RustFfiHtmlAttributeNamespace {
 #[repr(C)]
 pub struct RustFfiHtmlParserAttribute {
     pub local_name: usize,
-    pub prefix_ptr: *const u16,
+    pub prefix_ptr: *const u8,
     pub prefix_len: usize,
     pub namespace_: RustFfiHtmlAttributeNamespace,
-    pub value_ptr: *const u16,
+    pub value_ptr: *const u8,
     pub value_len: usize,
 }
 
@@ -118,7 +118,7 @@ unsafe extern "C" {
         system_id_len: usize,
     ) -> usize;
     fn ladybird_html_parser_create_comment(parser: *mut c_void, data_ptr: *const u16, data_len: usize) -> usize;
-    fn ladybird_html_parser_insert_text(parent: usize, offset: usize, data_ptr: *const u16, data_len: usize);
+    fn ladybird_html_parser_insert_text(parent: usize, offset: usize, data_ptr: *const u8, data_len: usize);
     fn ladybird_html_parser_add_missing_attribute(
         element: usize,
         local_name: usize,
@@ -355,6 +355,7 @@ struct ParserState {
     scripting_enabled: bool,
     next_line_feed_can_be_ignored: bool,
     pending_text: String,
+    attribute_buffers: AttributeBuffers,
     pending_table_text: String,
     pending_table_text_contains_non_whitespace: bool,
     pending_script: Option<usize>,
@@ -382,6 +383,7 @@ impl ParserState {
             scripting_enabled: true,
             next_line_feed_can_be_ignored: false,
             pending_text: String::new(),
+            attribute_buffers: AttributeBuffers::default(),
             pending_table_text: String::new(),
             pending_table_text_contains_non_whitespace: false,
             pending_script: None,
@@ -3367,17 +3369,18 @@ impl TreeBuilder {
 
     fn insert_html_element_for_document(&mut self, token: &Token, document: usize) -> usize {
         self.flush_character_insertions();
-        let attributes = attributes_from_token(token, RustFfiHtmlNamespace::Html);
+        let mut attributes = std::mem::take(&mut self.attribute_buffers);
+        attributes.fill_from_token(token, RustFfiHtmlNamespace::Html);
         let local_name = token.tag_name();
         let element = self.create_element(
             document,
             RustFfiHtmlNamespace::Html,
             None,
             local_name,
-            &attributes.0,
+            &attributes.attributes,
             token.had_duplicate_attribute(),
         );
-        drop(attributes);
+        self.recycle_attribute_buffers(attributes);
         self.append_child(document, element);
         self.stack_of_open_elements.push(StackNode {
             handle: element,
@@ -3408,7 +3411,8 @@ impl TreeBuilder {
         // 1. Let the adjustedInsertionLocation be the appropriate place for inserting a node.
         let adjusted_insertion_location = self.appropriate_place_for_inserting_node(None);
         let local_name = adjusted_foreign_tag_name(token.tag_name(), namespace_);
-        let attributes = attributes_from_token(token, namespace_);
+        let mut attributes = std::mem::take(&mut self.attribute_buffers);
+        attributes.fill_from_token(token, namespace_);
         let owned_attributes =
             if namespace_ == RustFfiHtmlNamespace::MathMl && local_name == tag_name!("annotation-xml") {
                 owned_attributes_from_token(token, namespace_)
@@ -3429,7 +3433,7 @@ impl TreeBuilder {
             namespace_,
             namespace_uri.as_deref(),
             &local_name,
-            &attributes.0,
+            &attributes.attributes,
             token.had_duplicate_attribute(),
         );
         if local_name == tag_name!("script") {
@@ -3440,7 +3444,7 @@ impl TreeBuilder {
                 self.set_script_source_line(element, source_line_number);
             }
         }
-        drop(attributes);
+        self.recycle_attribute_buffers(attributes);
         // 3. If onlyAddToElementStack is false, then run insert an element at the adjusted insertion location with
         //    element.
         if !only_add_to_element_stack {
@@ -3489,17 +3493,26 @@ impl TreeBuilder {
         parent: usize,
     ) -> usize {
         self.flush_character_insertions();
-        let attributes = attributes_from_owned_attributes(&entry.attributes);
+        let mut attributes = std::mem::take(&mut self.attribute_buffers);
+        attributes.fill_from_owned_attributes(&entry.attributes);
         let element = self.create_element(
             parent,
             RustFfiHtmlNamespace::Html,
             None,
             &entry.local_name,
-            &attributes.0,
+            &attributes.attributes,
             false,
         );
-        drop(attributes);
+        self.recycle_attribute_buffers(attributes);
         element
+    }
+
+    fn recycle_attribute_buffers(&mut self, mut buffers: AttributeBuffers) {
+        buffers.attributes.clear();
+        buffers.local_names.clear();
+        if buffers.attributes.capacity() <= 64 && buffers.local_names.capacity() <= 64 {
+            self.attribute_buffers = buffers;
+        }
     }
 
     fn create_element(
@@ -3876,14 +3889,18 @@ impl TreeBuilder {
         }
         // AD-HOC: Coalesce consecutive character tokens before asking the host to insert text. The host still runs the
         // same DOM insertion logic for the adjusted insertion location.
-        let data = std::mem::take(&mut self.pending_text);
+        let mut data = std::mem::take(&mut self.pending_text);
 
         let insertion_location = self.adjusted_insertion_location_for_text();
         self.insert_text(insertion_location, &data);
+        // OPTIMIZATION: Keep small text buffers for the next run without retaining large text nodes.
+        if data.capacity() <= 4096 && self.pending_text.is_empty() {
+            data.clear();
+            self.pending_text = data;
+        }
     }
 
     fn insert_text(&mut self, insertion_location: AdjustedInsertionLocation, data: &str) {
-        let data = data.encode_utf16().collect::<Vec<_>>();
         unsafe {
             ladybird_html_parser_insert_text(
                 insertion_location.parent,
@@ -4756,10 +4773,10 @@ impl TreeBuilder {
     }
 }
 
-struct AttributeStorage {
+#[derive(Default)]
+struct AttributeBuffers {
+    attributes: Vec<RustFfiHtmlParserAttribute>,
     local_names: Vec<HtmlName>,
-    prefix_code_units: Vec<Vec<u16>>,
-    value_code_units: Vec<Vec<u16>>,
 }
 
 struct AdjustedAttributeName {
@@ -4852,87 +4869,42 @@ fn source_line_number_for_script_token(token: &Token) -> usize {
     token.end_position.line.saturating_add(1).min(usize::MAX as u64) as usize
 }
 
-fn attributes_from_owned_attributes(
-    attributes: &[OwnedAttribute],
-) -> (Vec<RustFfiHtmlParserAttribute>, AttributeStorage) {
-    let mut storage = AttributeStorage {
-        local_names: Vec::new(),
-        prefix_code_units: Vec::new(),
-        value_code_units: Vec::with_capacity(attributes.len()),
-    };
-    let mut ffi_attributes = Vec::with_capacity(attributes.len());
-
-    for attribute in attributes {
-        storage.value_code_units.push(attribute.value.encode_utf16().collect());
-        let (prefix_ptr, prefix_len) = match &attribute.prefix {
-            Some(prefix) => {
-                storage.prefix_code_units.push(prefix.encode_utf16().collect());
-                let prefix_code_units = storage.prefix_code_units.last().unwrap();
-                (prefix_code_units.as_ptr(), prefix_code_units.len())
+impl AttributeBuffers {
+    // The caller keeps the source attributes alive until the synchronous host callback returns.
+    fn fill_from_owned_attributes(&mut self, attributes: &[OwnedAttribute]) {
+        self.attributes.extend(attributes.iter().map(|attribute| {
+            let prefix = attribute.prefix.as_deref().unwrap_or("");
+            RustFfiHtmlParserAttribute {
+                local_name: attribute.local_name.raw_identity(),
+                prefix_ptr: prefix.as_ptr(),
+                prefix_len: prefix.len(),
+                namespace_: attribute.namespace_,
+                value_ptr: attribute.value.as_ptr(),
+                value_len: attribute.value.len(),
             }
-            None => (std::ptr::null(), 0),
-        };
-        let value_code_units = storage.value_code_units.last().unwrap();
-        ffi_attributes.push(RustFfiHtmlParserAttribute {
-            local_name: attribute.local_name.raw_identity(),
-            prefix_ptr,
-            prefix_len,
-            namespace_: attribute.namespace_,
-            value_ptr: value_code_units.as_ptr(),
-            value_len: value_code_units.len(),
-        });
+        }));
     }
 
-    (ffi_attributes, storage)
-}
-
-fn attributes_from_token(
-    token: &Token,
-    namespace_: RustFfiHtmlNamespace,
-) -> (Vec<RustFfiHtmlParserAttribute>, AttributeStorage) {
-    let mut storage = AttributeStorage {
-        local_names: Vec::new(),
-        prefix_code_units: Vec::new(),
-        value_code_units: Vec::new(),
-    };
-    let mut attributes = Vec::new();
-    let TokenPayload::Tag {
-        attributes: token_attributes,
-        ..
-    } = &token.payload
-    else {
-        return (attributes, storage);
-    };
-
-    storage.local_names.reserve(token_attributes.len());
-    storage.value_code_units.reserve(token_attributes.len());
-    attributes.reserve(token_attributes.len());
-
-    for attribute in token_attributes {
-        let adjusted_name = adjusted_foreign_attribute_name(&attribute.local_name, namespace_);
-        storage.value_code_units.push(attribute.value.encode_utf16().collect());
-        let (prefix_ptr, prefix_len) = match adjusted_name.prefix {
-            Some(prefix) => {
-                storage.prefix_code_units.push(prefix.encode_utf16().collect());
-                let prefix_code_units = storage.prefix_code_units.last().unwrap();
-                (prefix_code_units.as_ptr(), prefix_code_units.len())
-            }
-            None => (std::ptr::null(), 0),
+    fn fill_from_token(&mut self, token: &Token, namespace_: RustFfiHtmlNamespace) {
+        let TokenPayload::Tag { attributes, .. } = &token.payload else {
+            return;
         };
-        let value_code_units = storage.value_code_units.last().unwrap();
-        storage.local_names.push(adjusted_name.local_name);
-        let local_name = storage.local_names.last().unwrap();
-        attributes.push(RustFfiHtmlParserAttribute {
-            local_name: local_name.raw_identity(),
-            prefix_ptr,
-            prefix_len,
-            namespace_: adjusted_name.namespace_,
-            value_ptr: value_code_units.as_ptr(),
-            value_len: value_code_units.len(),
-        });
+        self.attributes.reserve(attributes.len());
+        self.local_names.reserve(attributes.len());
+        for attribute in attributes {
+            let adjusted_name = adjusted_foreign_attribute_name(&attribute.local_name, namespace_);
+            let prefix = adjusted_name.prefix.unwrap_or("");
+            self.local_names.push(adjusted_name.local_name);
+            self.attributes.push(RustFfiHtmlParserAttribute {
+                local_name: self.local_names.last().unwrap().raw_identity(),
+                prefix_ptr: prefix.as_ptr(),
+                prefix_len: prefix.len(),
+                namespace_: adjusted_name.namespace_,
+                value_ptr: attribute.value.as_ptr(),
+                value_len: attribute.value.len(),
+            });
+        }
     }
-
-    (attributes, storage)
 }
 
 fn adjusted_foreign_tag_name(tag_name: &HtmlName, namespace_: RustFfiHtmlNamespace) -> HtmlName {
