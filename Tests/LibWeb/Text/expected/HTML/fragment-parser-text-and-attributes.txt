@@ -1,0 +1,14 @@
+café & 😀 |  | "α&β\n😀"
+checkbox | true | true | 日本語
+é&😀 | Ω
+café & 😀 |  | "α&β\n😀"
+checkbox | true | true | 日本語
+é&😀 | Ω
+café & 😀 |  | "α&β\n😀"
+checkbox | true | true | 日本語
+é&😀 | Ω
+café & 😀 |  | "α&β\n😀"
+checkbox | true | true | 日本語
+é&😀 | Ω
+<b data-value="first">one<i title="second">two</i></b><i title="second">three</i>
+beforeafter<table><tbody><tr><td data-value="cell">inside</td></tr></tbody></table>

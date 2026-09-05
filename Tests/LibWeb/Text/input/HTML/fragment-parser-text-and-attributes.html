@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const host = document.createElement("div");
+    for (let i = 0; i < 4; ++i) {
+        host.innerHTML = '<p title="café &amp; 😀" data-empty="" TITLE="ignored">α&amp;β\r\n😀</p><input type="checkbox" checked value="日本語"><svg><a xlink:href="é&amp;😀" xmlns:xlink="http://www.w3.org/1999/xlink"><text>Ω</text></a></svg>';
+        const paragraph = host.firstChild;
+        println(`${paragraph.title} | ${paragraph.getAttribute("data-empty")} | ${JSON.stringify(paragraph.textContent)}`);
+        const input = host.querySelector("input");
+        println(`${input.type} | ${input.checked} | ${input.defaultChecked} | ${input.value}`);
+        const link = host.querySelector("a");
+        println(`${link.getAttributeNS("http://www.w3.org/1999/xlink", "href")} | ${link.firstChild.textContent}`);
+    }
+
+    host.innerHTML = '<b data-value="first">one<i title="second">two</b>three</i>';
+    println(host.innerHTML);
+    host.innerHTML = '<table>before<tr><td data-value="cell">inside</td></tr>after</table>';
+    println(host.innerHTML);
+});
+</script>
