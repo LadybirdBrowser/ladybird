@@ -9,7 +9,7 @@ use super::formatting_context::DerivedBaselines;
 use super::formatting_context::LayoutMode;
 use super::geometry::AvailableSize;
 use super::geometry::AvailableSpace;
-use super::rendered_text::{RenderedTextBoundary, TextContent};
+use super::rendered_text::{FfiTextFragments, FfiTextSourceRange, RenderedTextBoundary, TextContent};
 use super::used_values::SizeConstraint;
 use super::used_values::UsedValues;
 use crate::css::style::fast_hash::{FastMap as HashMap, FastSet as HashSet};
@@ -320,9 +320,16 @@ struct DefaultScrollShiftAnchorSlot {
 }
 
 #[derive(Default)]
-struct TextContentSlot {
+struct TextNodeSlot {
     generation: u8,
-    content: Option<Box<TextContent>>,
+    state: Option<Box<TextNodeState>>,
+}
+
+#[derive(Default)]
+struct TextNodeState {
+    source_range: Option<FfiTextSourceRange>,
+    first_letter: NodeSlotId,
+    content: Option<TextContent>,
 }
 
 #[derive(Default)]
@@ -557,7 +564,7 @@ pub(crate) struct LayoutNodeArena {
     saved_abspos_layout_inputs: RefCell<Vec<SavedAbsposLayoutInputsSlot>>,
     default_scroll_shift_anchors: RefCell<Vec<DefaultScrollShiftAnchorSlot>>,
     any_default_scroll_shift_anchor_ever_stored: Cell<bool>,
-    text_contents: Vec<TextContentSlot>,
+    text_nodes: Vec<TextNodeSlot>,
     text_chunk_caches: RefCell<Vec<TextChunkCacheSlot>>,
     replaced_content_facts: Vec<ReplacedContentFactsSlot>,
     raw_table_column_spans: HashMap<NodeSlotId, u32>,
@@ -597,7 +604,7 @@ impl LayoutNodeArena {
             saved_abspos_layout_inputs: RefCell::new(Vec::new()),
             default_scroll_shift_anchors: RefCell::new(Vec::new()),
             any_default_scroll_shift_anchor_ever_stored: Cell::new(false),
-            text_contents: Vec::new(),
+            text_nodes: Vec::new(),
             text_chunk_caches: RefCell::new(Vec::new()),
             replaced_content_facts: Vec::new(),
             raw_table_column_spans: HashMap::default(),
@@ -861,8 +868,8 @@ impl LayoutNodeArena {
             *slot = DefaultScrollShiftAnchorSlot::default();
         }
         self.paintable_rows.reset_committed_fragment_link_slot(index);
-        if let Some(slot) = self.text_contents.get_mut(index as usize) {
-            *slot = TextContentSlot::default();
+        if let Some(slot) = self.text_nodes.get_mut(index as usize) {
+            *slot = TextNodeSlot::default();
         }
         self.text_nodes_enrolled_for_content_sync.get_mut().remove(&id);
         if let Some(slot) = self.text_chunk_caches.get_mut().get_mut(index as usize) {
@@ -1923,26 +1930,43 @@ impl LayoutNodeArena {
         drop(self.take_committed_fragment_link(self.data(id)));
     }
 
-    pub(crate) fn set_text_content(&mut self, id: NodeSlotId, content: TextContent) {
+    fn text_node_state_mut(&mut self, id: NodeSlotId) -> &mut TextNodeState {
         self.assert_owner_thread();
         self.data(id);
         let index = id.slot_index() as usize;
-        if self.text_contents.len() <= index {
-            self.text_contents.resize_with(index + 1, TextContentSlot::default);
+        if self.text_nodes.len() <= index {
+            self.text_nodes.resize_with(index + 1, TextNodeSlot::default);
         }
-        let previous = &mut self.text_contents[index];
-        if previous.generation == id.generation()
-            && let Some(previous) = previous.content.as_mut()
+        let slot = &mut self.text_nodes[index];
+        if slot.generation != id.generation() {
+            *slot = TextNodeSlot {
+                generation: id.generation(),
+                ..TextNodeSlot::default()
+            };
+        }
+        slot.state.get_or_insert_with(Default::default)
+    }
+
+    fn text_node_state(&self, id: NodeSlotId) -> Option<&TextNodeState> {
+        if !self.slot_is_live(id) {
+            return None;
+        }
+        self.text_nodes
+            .get(id.slot_index() as usize)
+            .filter(|slot| slot.generation == id.generation())
+            .and_then(|slot| slot.state.as_deref())
+    }
+
+    pub(crate) fn set_text_content(&mut self, id: NodeSlotId, content: TextContent) {
+        let state = self.text_node_state_mut(id);
+        if let Some(previous) = state.content.as_mut()
             && previous.has_same_content_as(&content)
         {
             previous.rendering_key = content.rendering_key;
             return;
         }
-        self.text_contents[index] = TextContentSlot {
-            generation: id.generation(),
-            content: Some(Box::new(content)),
-        };
-        if let Some(slot) = self.text_chunk_caches.get_mut().get_mut(index) {
+        state.content = Some(content);
+        if let Some(slot) = self.text_chunk_caches.get_mut().get_mut(id.slot_index() as usize) {
             *slot = TextChunkCacheSlot::default();
         }
         // Publication can happen through a C++ text read before the enrolled
@@ -1953,9 +1977,10 @@ impl LayoutNodeArena {
 
     pub(super) fn invalidate_text_content(&mut self, id: NodeSlotId) {
         self.data(id);
-        if let Some(slot) = self.text_contents.get_mut(id.slot_index() as usize)
+        if let Some(slot) = self.text_nodes.get_mut(id.slot_index() as usize)
             && slot.generation == id.generation()
-            && let Some(content) = slot.content.as_mut()
+            && let Some(state) = slot.state.as_mut()
+            && let Some(content) = state.content.as_mut()
         {
             content.rendering_key = None;
         }
@@ -2012,11 +2037,78 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn text_content(&self, id: NodeSlotId) -> Option<&TextContent> {
-        assert!(!id.is_invalid(), "invalid layout node arena slot ID");
-        self.text_contents
-            .get(id.slot_index() as usize)
-            .filter(|slot| slot.generation == id.generation())
-            .and_then(|slot| slot.content.as_deref())
+        self.text_node_state(id)?.content.as_ref()
+    }
+
+    pub(super) fn set_first_letter_slices(
+        &mut self,
+        first_letter: NodeSlotId,
+        remainder: NodeSlotId,
+        letter_end: usize,
+        source_length: usize,
+    ) {
+        assert_ne!(first_letter, remainder);
+        assert_eq!(self.data(first_letter).kind.get(), NodeKind::TextSliceNode);
+        assert_eq!(self.data(remainder).kind.get(), NodeKind::TextSliceNode);
+        assert!(letter_end <= source_length);
+        self.text_node_state_mut(first_letter).source_range = Some(FfiTextSourceRange {
+            start: 0,
+            length: letter_end,
+        });
+        let remainder_state = self.text_node_state_mut(remainder);
+        remainder_state.source_range = Some(FfiTextSourceRange {
+            start: letter_end,
+            length: source_length - letter_end,
+        });
+        remainder_state.first_letter = first_letter;
+        self.invalidate_text_content(first_letter);
+        self.invalidate_text_content(remainder);
+    }
+
+    pub(crate) fn text_source_range(&self, id: NodeSlotId, source_length: usize) -> FfiTextSourceRange {
+        self.data(id);
+        self.text_node_state(id)
+            .and_then(|state| state.source_range)
+            .unwrap_or(FfiTextSourceRange {
+                start: 0,
+                length: source_length,
+            })
+    }
+
+    pub(crate) fn text_fragments(&self, primary: NodeSlotId) -> FfiTextFragments {
+        let mut fragments = FfiTextFragments {
+            nodes: [NodeSlotId::INVALID; 2],
+            length: 0,
+        };
+        if !self.slot_is_live(primary) || !super::node_facts::kind_is_text(self.data(primary).kind.get()) {
+            return fragments;
+        }
+        if let Some(state) = self.text_node_state(primary)
+            && self.slot_is_live(state.first_letter)
+        {
+            fragments.nodes[0] = state.first_letter;
+            fragments.length = 1;
+        }
+        fragments.nodes[fragments.length] = primary;
+        fragments.length += 1;
+        fragments
+    }
+
+    pub(crate) fn text_fragment_containing(
+        &self,
+        primary: NodeSlotId,
+        dom_offset: usize,
+        source_length: usize,
+    ) -> NodeSlotId {
+        self.text_fragments(primary)
+            .as_slice()
+            .iter()
+            .copied()
+            .find(|&fragment| {
+                let range = self.text_source_range(fragment, source_length);
+                dom_offset >= range.start && dom_offset <= range.start + range.length
+            })
+            .unwrap_or(NodeSlotId::INVALID)
     }
 
     /// The node's group payload pointer array, read in place from the

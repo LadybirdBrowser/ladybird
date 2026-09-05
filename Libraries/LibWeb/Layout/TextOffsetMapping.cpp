@@ -13,22 +13,14 @@ namespace Web::Layout {
 TextOffsetMapping::TextOffsetMapping(DOM::Text const& text)
 {
     m_primary = as_if<TextNode>(text.unsafe_layout_node());
-    if (auto* primary_slice = as_if<TextSliceNode>(m_primary))
-        m_first_letter_slice = primary_slice->first_letter_slice();
 }
 
 TextNode const* TextOffsetMapping::fragment_containing(size_t dom_offset) const
 {
-    auto contains = [&](TextNode const& fragment) {
-        auto const start = fragment.dom_start_offset();
-        return dom_offset >= start && dom_offset <= start + fragment.dom_length();
-    };
-
-    if (m_first_letter_slice && contains(*m_first_letter_slice))
-        return m_first_letter_slice;
-    if (m_primary && contains(*m_primary))
-        return m_primary;
-    return nullptr;
+    if (!m_primary)
+        return nullptr;
+    auto slot = RustFFI::layout_arena_text_fragment_containing(m_primary->arena_handle(), Node::slot_id(m_primary), dom_offset, m_primary->text().length_in_code_units());
+    return as_if<TextNode>(static_cast<Node const*>(RustFFI::layout_arena_node_shell_if_live(m_primary->arena_handle(), slot)));
 }
 
 }

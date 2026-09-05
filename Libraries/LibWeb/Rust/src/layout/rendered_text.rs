@@ -149,8 +149,62 @@ pub struct FfiTextSource {
     pub locale: FfiUtf16View,
     pub has_locale: bool,
     pub is_password_input: bool,
-    pub dom_start_offset: usize,
-    pub dom_length_in_code_units: usize,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiTextSourceRange {
+    pub start: usize,
+    pub length: usize,
+}
+
+/// Layout fragments of one DOM text node, in source order with the primary last.
+#[repr(C)]
+pub struct FfiTextFragments {
+    pub nodes: [NodeSlotId; 2],
+    pub length: usize,
+}
+
+impl FfiTextFragments {
+    pub(crate) fn as_slice(&self) -> &[NodeSlotId] {
+        &self.nodes[..self.length]
+    }
+}
+
+/// # Safety
+///
+/// The arena must be live on the document thread and `id` must name a live text node.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_text_source_range(
+    arena: *mut c_void,
+    id: NodeSlotId,
+    source_length: usize,
+) -> FfiTextSourceRange {
+    // SAFETY: The caller lends the arena for this synchronous query.
+    unsafe { LayoutNodeArena::from_handle(arena) }.text_source_range(id, source_length)
+}
+
+/// # Safety
+///
+/// The arena must be live on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_text_fragments(arena: *mut c_void, primary: NodeSlotId) -> FfiTextFragments {
+    // SAFETY: The caller lends the arena for this synchronous query.
+    unsafe { LayoutNodeArena::from_handle(arena) }.text_fragments(primary)
+}
+
+/// # Safety
+///
+/// The arena must be live on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_text_fragment_containing(
+    arena: *mut c_void,
+    primary: NodeSlotId,
+    dom_offset: usize,
+    source_length: usize,
+) -> NodeSlotId {
+    // SAFETY: The caller lends the arena for this synchronous query.
+    unsafe { LayoutNodeArena::from_handle(arena) }.text_fragment_containing(primary, dom_offset, source_length)
 }
 
 #[repr(C)]
@@ -163,7 +217,7 @@ pub struct FfiRenderedTextView {
 ///
 /// The arena must be exclusively available and `id` must name a live node.
 /// Source and optional locale views must remain readable throughout this call.
-/// The DOM range must be contained in the source text.
+/// The node's source range must be contained in the source text.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_sync_text_content(arena: *mut c_void, id: NodeSlotId, input: FfiTextSource) {
     // SAFETY: The host lends the arena exclusively; Unicode callbacks only
@@ -177,12 +231,13 @@ pub unsafe extern "C" fn layout_arena_sync_text_content(arena: *mut c_void, id: 
             .groups,
     )
     .inherited_text();
+    let source_range = arena.text_source_range(id, input.text.length);
     let options = TextRenderingOptions {
         text_transform: inherited.text_transform,
         white_space_collapse: inherited.white_space_collapse,
         is_password_input: input.is_password_input,
-        dom_start_offset: input.dom_start_offset,
-        dom_length_in_code_units: input.dom_length_in_code_units,
+        dom_start_offset: source_range.start,
+        dom_length_in_code_units: source_range.length,
     };
     let uses_locale = matches!(
         options.text_transform,
@@ -208,8 +263,8 @@ pub unsafe extern "C" fn layout_arena_sync_text_content(arena: *mut c_void, id: 
             may_require_bidi_processing: may_require_bidi_processing(&rendered.text),
             text: rendered.text,
             untransformed_text_is_ascii_whitespace,
-            dom_start_offset: input.dom_start_offset,
-            dom_length_in_code_units: input.dom_length_in_code_units,
+            dom_start_offset: source_range.start,
+            dom_length_in_code_units: source_range.length,
             edits: rendered.edits,
             grapheme_segmenter: OnceCell::new(),
             rendering_key: Some(key),
@@ -394,5 +449,92 @@ mod tests {
         arena.enroll_text_node_for_content_sync(node);
         arena.finish_text_content_sync(node);
         assert!(arena.take_text_nodes_for_content_sync().is_empty());
+    }
+
+    fn first_letter_slices(arena: &mut LayoutNodeArena, end: usize, length: usize) -> (NodeSlotId, NodeSlotId) {
+        let first = arena.allocate_for_test().slot;
+        let remainder = arena.allocate_for_test().slot;
+        arena.data(first).kind.set(NodeKind::TextSliceNode);
+        arena.data(remainder).kind.set(NodeKind::TextSliceNode);
+        arena.set_first_letter_slices(first, remainder, end, length);
+        (first, remainder)
+    }
+
+    #[test]
+    fn slice_ranges_and_relationships_survive_content_publication() {
+        let mut arena = LayoutNodeArena::new();
+        let (first, remainder) = first_letter_slices(&mut arena, 2, 5);
+        assert_eq!(arena.text_fragments(remainder).as_slice(), &[first, remainder]);
+        assert_eq!(arena.text_fragment_containing(remainder, 0, 5), first);
+        // Both ranges include their end boundary; the first-letter wins the shared boundary.
+        assert_eq!(arena.text_fragment_containing(remainder, 2, 5), first);
+        assert_eq!(arena.text_fragment_containing(remainder, 3, 5), remainder);
+        assert_eq!(arena.text_fragment_containing(remainder, 5, 5), remainder);
+        assert!(arena.text_fragment_containing(remainder, 6, 5).is_invalid());
+
+        arena.set_text_content(first, content("«SS", 0, 2, vec![edit(1, 1, 1, 2)]));
+        arena.set_text_content(remainder, content("abc", 2, 3, Vec::new()));
+        arena.invalidate_text_content(first);
+        arena.set_text_content(first, content("«ß", 0, 2, Vec::new()));
+        assert_eq!(
+            arena.text_source_range(first, 5),
+            FfiTextSourceRange { start: 0, length: 2 }
+        );
+        assert_eq!(
+            arena.text_source_range(remainder, 5),
+            FfiTextSourceRange { start: 2, length: 3 }
+        );
+        assert_eq!(arena.text_fragments(remainder).as_slice(), &[first, remainder]);
+        assert_eq!(arena.text_fragments(first).as_slice(), &[first]);
+    }
+
+    #[test]
+    fn freed_slices_do_not_resolve_to_reused_slots() {
+        let mut arena = LayoutNodeArena::new();
+        let (first, remainder) = first_letter_slices(&mut arena, 1, 1);
+        assert_eq!(
+            arena.text_source_range(remainder, 1),
+            FfiTextSourceRange { start: 1, length: 0 }
+        );
+        arena.free_subtree(first);
+        let replacement = arena.allocate_for_test().slot;
+        arena.data(replacement).kind.set(NodeKind::TextNode);
+        assert_eq!(replacement.slot_index(), first.slot_index());
+        assert_ne!(replacement, first);
+        assert_eq!(arena.text_fragments(remainder).as_slice(), &[remainder]);
+        assert!(arena.text_fragment_containing(remainder, 0, 1).is_invalid());
+        assert_eq!(arena.text_fragment_containing(remainder, 1, 1), remainder);
+        assert_eq!(
+            arena.text_source_range(replacement, 4),
+            FfiTextSourceRange { start: 0, length: 4 }
+        );
+
+        arena.free_subtree(remainder);
+        let replacement = arena.allocate_for_test().slot;
+        arena.data(replacement).kind.set(NodeKind::TextNode);
+        assert_eq!(replacement.slot_index(), remainder.slot_index());
+        assert!(arena.text_fragments(remainder).as_slice().is_empty());
+        assert_eq!(arena.text_fragments(replacement).as_slice(), &[replacement]);
+        assert_eq!(arena.text_fragment_containing(replacement, 3, 4), replacement);
+        assert!(arena.text_fragments(NodeSlotId::INVALID).as_slice().is_empty());
+    }
+
+    #[test]
+    fn selection_entries_expand_the_primary_text_node_to_both_slices() {
+        use crate::painting::paintable_data::{FfiSelectionEntry, SELECTION_STATE_START_AND_END};
+
+        let mut arena = LayoutNodeArena::new();
+        let viewport = arena.allocate_for_test().slot;
+        arena.populate_paintable_row(viewport);
+        let (first, remainder) = first_letter_slices(&mut arena, 1, 4);
+        let entries = [FfiSelectionEntry {
+            is_text_node_entry: true,
+            layout_node: remainder,
+            state: SELECTION_STATE_START_AND_END,
+        }];
+        let states = crate::painting::selection::apply(&mut arena.paintable_rows_mut(), viewport, &entries);
+        assert_eq!(states.len(), 2);
+        assert_eq!(states.get(&first), Some(&SELECTION_STATE_START_AND_END));
+        assert_eq!(states.get(&remainder), Some(&SELECTION_STATE_START_AND_END));
     }
 }

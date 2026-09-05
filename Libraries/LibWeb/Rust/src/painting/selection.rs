@@ -56,8 +56,10 @@ pub(crate) fn apply(
     let mut text_states = std::collections::HashMap::new();
     for entry in entries {
         if entry.is_text_node_entry {
-            text_states.insert(entry.layout_node, entry.state);
-            invalidate_text_node(layout_arena, entry.layout_node);
+            for &node in layout_arena.text_fragments(entry.layout_node).as_slice() {
+                text_states.insert(node, entry.state);
+                invalidate_text_node(layout_arena, node);
+            }
         } else {
             if !layout_arena.paintable_row_is_populated(entry.layout_node) {
                 continue;

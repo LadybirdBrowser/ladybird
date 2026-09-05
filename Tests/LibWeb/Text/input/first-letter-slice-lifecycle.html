@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+    #target {
+        font: 20px Ahem;
+        text-transform: uppercase;
+    }
+    .split::first-letter {
+        color: blue;
+    }
+    .untransformed::first-letter {
+        text-transform: none;
+    }
+</style>
+<div id="host"><div id="target" class="split">ßa</div></div>
+<div id="other-host"></div>
+<script>
+    promiseTest(async () => {
+        await document.fonts.load("20px Ahem");
+        const target = document.getElementById("target");
+        const source = target.firstChild;
+        const range = document.createRange();
+        function dump(label) {
+            const widths = [];
+            for (let offset = 0; offset < source.length; ++offset) {
+                range.setStart(source, offset);
+                range.setEnd(source, offset + 1);
+                widths.push(range.getBoundingClientRect().width);
+            }
+            println(`${label}: ${JSON.stringify(target.innerText)}, character widths: [${widths.join(", ")}]`);
+        }
+
+        dump("initial slices");
+        target.classList.add("untransformed");
+        dump("first-letter style change");
+        target.className = "";
+        dump("unsplit text");
+        target.className = "split";
+        source.data = "aß";
+        dump("new slice boundary");
+        source.data = "ß";
+        dump("empty remainder");
+        source.data = "";
+        dump("empty source");
+        source.data = "ßa";
+        dump("restored slices");
+        target.remove();
+        source.data = "aß";
+        document.getElementById("other-host").append(target);
+        dump("reparented slices");
+    });
+</script>

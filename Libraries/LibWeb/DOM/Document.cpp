@@ -213,7 +213,6 @@
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
-#include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
@@ -10300,14 +10299,11 @@ Optional<CSSPixelRect> Document::current_caret_rect()
         return navigable->to_top_level_rect(viewport_rect);
     };
 
-    if (auto* text = as_if<DOM::Text>(dom_node)) {
-        auto text_slots = Layout::TextOffsetMapping { *text }.slot_ids();
-        if (!text_slots.is_empty()) {
-            auto result = Layout::RustFFI::layout_arena_text_caret_rect_in_dom_range(
-                layout_node->arena_handle(), text_slots.data(), text_slots.size(), position->offset());
-            if (result.has_value)
-                return to_viewport_rect(result.rect);
-        }
+    if (is<DOM::Text>(dom_node)) {
+        auto result = Layout::RustFFI::layout_arena_text_caret_rect_in_dom_range(
+            layout_node->arena_handle(), Layout::Node::slot_id(layout_node), position->offset());
+        if (result.has_value)
+            return to_viewport_rect(result.rect);
     }
 
     // Empty editable elements have no fragments; fall back to the caret position for the cursor's child offset

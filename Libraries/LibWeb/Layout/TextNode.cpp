@@ -89,14 +89,22 @@ GC::Ptr<DOM::Element const> GeneratedTextNode::parent_element_for_text_transform
     return nullptr;
 }
 
-TextSliceNode::TextSliceNode(DOM::Document& document, DOM::Text& text, AttachToDOMNode attach_to_dom_node, size_t dom_start_offset, size_t dom_length)
+TextSliceNode::TextSliceNode(DOM::Document& document, DOM::Text& text, AttachToDOMNode attach_to_dom_node)
     : TextNode(document, text, attach_to_dom_node, RustFFI::NodeKind::TextSliceNode)
-    , m_dom_start_offset(dom_start_offset)
-    , m_dom_length_in_code_units(dom_length)
 {
 }
 
 TextSliceNode::~TextSliceNode() = default;
+
+size_t TextNode::dom_start_offset() const
+{
+    return RustFFI::layout_arena_text_source_range(arena_handle(), slot_id(this), text().length_in_code_units()).start;
+}
+
+size_t TextNode::dom_length() const
+{
+    return RustFFI::layout_arena_text_source_range(arena_handle(), slot_id(this), text().length_in_code_units()).length;
+}
 
 void TextNode::invalidate_text_for_rendering()
 {
@@ -127,8 +135,6 @@ void TextNode::sync_text_content_to_arena() const
         .locale = lang.has_value() ? view_for(*lang) : RustFFI::FfiUtf16View {},
         .has_locale = lang.has_value(),
         .is_password_input = is_password_input(),
-        .dom_start_offset = dom_start_offset(),
-        .dom_length_in_code_units = dom_length(),
     };
     RustFFI::layout_arena_sync_text_content(arena_handle(), slot_id(this), source);
 }

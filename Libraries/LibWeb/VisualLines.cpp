@@ -10,7 +10,6 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/GraphemeEdgeTracker.h>
 #include <LibWeb/Layout/TextNode.h>
-#include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/VisualLines.h>
 
 namespace Web {
@@ -23,8 +22,7 @@ Vector<VisualLine> collect_visual_lines(DOM::Text const& dom_node)
     if (!layout_node)
         return lines;
 
-    auto slots = Layout::TextOffsetMapping { dom_node }.slot_ids();
-    Layout::RustFFI::layout_arena_text_visual_lines(layout_node->arena_handle(), slots.data(), slots.size(), &lines,
+    Layout::RustFFI::layout_arena_text_visual_lines(layout_node->arena_handle(), Layout::Node::slot_id(layout_node), &lines,
         [](void* context, Layout::RustFFI::FfiVisualLine line) {
             static_cast<Vector<VisualLine>*>(context)->append({
                 .start_offset = line.start_offset,
@@ -118,9 +116,8 @@ static Optional<CSSPixels> caret_inline_coordinate(DOM::Text const& dom_node, Vi
     auto const* layout_node = dom_node.unsafe_layout_node();
     if (!layout_node)
         return {};
-    auto slots = Layout::TextOffsetMapping { dom_node }.slot_ids();
     auto result = Layout::RustFFI::layout_arena_visual_line_caret_inline_coordinate(
-        layout_node->arena_handle(), line.owner_paintable, line.line_index, slots.data(), slots.size(), offset);
+        layout_node->arena_handle(), line.owner_paintable, line.line_index, Layout::Node::slot_id(layout_node), offset);
     if (!result.has_value)
         return {};
     return result.value;
@@ -133,9 +130,8 @@ static size_t offset_in_visual_line_closest_to_inline_coordinate(DOM::Text const
     auto const* layout_node = dom_node.unsafe_layout_node();
     if (!layout_node)
         return line.start_offset;
-    auto slots = Layout::TextOffsetMapping { dom_node }.slot_ids();
     return Layout::RustFFI::layout_arena_visual_line_offset_closest_to_inline_coordinate(
-        layout_node->arena_handle(), line.owner_paintable, line.line_index, slots.data(), slots.size(),
+        layout_node->arena_handle(), line.owner_paintable, line.line_index, Layout::Node::slot_id(layout_node),
         *inline_coordinate, line.start_offset);
 }
 

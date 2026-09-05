@@ -11,7 +11,6 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/TextNode.h>
-#include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
@@ -209,16 +208,15 @@ void DocumentPaintState::reset_selection_states(DOM::Document& document)
 void DocumentPaintState::recompute_selection_states(DOM::Document& document, DOM::Range& range)
 {
     Vector<Layout::RustFFI::FfiSelectionEntry> entries;
-    auto set_selection_state_on_all_slices = [&](DOM::Node& container, SelectionState state) {
-        if (auto* text = as_if<DOM::Text>(container)) {
-            Layout::TextOffsetMapping mapping { *text };
-            mapping.for_each_fragment([&](Layout::TextNode const& slice) {
+    auto set_selection_state = [&](DOM::Node& container, SelectionState state) {
+        if (is<DOM::Text>(container)) {
+            if (auto* layout_node = container.unsafe_layout_node()) {
                 entries.append({
                     .is_text_node_entry = true,
-                    .layout_node = Layout::Node::slot_id(&slice),
+                    .layout_node = Layout::Node::slot_id(layout_node),
                     .state = to_underlying(state),
                 });
-            });
+            }
             return;
         }
         if (auto* layout_node = container.unsafe_layout_node()) {
@@ -260,7 +258,7 @@ void DocumentPaintState::recompute_selection_states(DOM::Document& document, DOM
 
         // 2. If it's a text node, mark it as StartAndEnd and return.
         if (is<DOM::Text>(*start_container) && !is_excluded_from_selection(*start_container)) {
-            set_selection_state_on_all_slices(*start_container, SelectionState::StartAndEnd);
+            set_selection_state(*start_container, SelectionState::StartAndEnd);
             apply_entries();
             return;
         }
@@ -269,9 +267,9 @@ void DocumentPaintState::recompute_selection_states(DOM::Document& document, DOM
     // 3. Mark the selection start node as Start (if text) or Full (if anything else).
     if (!is_excluded_from_selection(*start_container) && start_container->unsafe_layout_node()) {
         if (is<DOM::Text>(*start_container))
-            set_selection_state_on_all_slices(*start_container, SelectionState::Start);
+            set_selection_state(*start_container, SelectionState::Start);
         else
-            set_selection_state_on_all_slices(*start_container, SelectionState::Full);
+            set_selection_state(*start_container, SelectionState::Full);
     }
 
     // 4. Mark the nodes between the start and end of the selection as Full.
@@ -290,12 +288,12 @@ void DocumentPaintState::recompute_selection_states(DOM::Document& document, DOM
     for (auto* node = start_at; node && (node != stop_at && !(node == end_container.ptr() && !end_container->has_children())); node = node->next_in_pre_order(end_container.ptr())) {
         if (is_excluded_from_selection(*node))
             continue;
-        set_selection_state_on_all_slices(*node, SelectionState::Full);
+        set_selection_state(*node, SelectionState::Full);
     }
 
     // 5. Mark the selection end node as End if it is a text node.
     if (!is_excluded_from_selection(*end_container) && is<DOM::Text>(*end_container) && end_container->unsafe_layout_node()) {
-        set_selection_state_on_all_slices(*end_container, SelectionState::End);
+        set_selection_state(*end_container, SelectionState::End);
     }
 
     apply_entries();

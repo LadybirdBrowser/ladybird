@@ -19,7 +19,6 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -598,13 +597,13 @@ Optional<CaretPaint> resolve_caret_paint(Layout::Node const& block, Layout::Node
 
     auto const* dom_node = block.dom_node();
 
-    Vector<Layout::RustFFI::NodeSlotId, 2> text_slots;
+    Layout::Node const* text_layout_node = nullptr;
     if (auto const* text = as_if<DOM::Text>(cursor_position->node().ptr()))
-        text_slots = Layout::TextOffsetMapping { *text }.slot_ids();
+        text_layout_node = text->unsafe_layout_node();
 
-    if (!text_slots.is_empty()) {
+    if (text_layout_node) {
         auto result = Layout::RustFFI::layout_arena_text_caret_rect_for_position(
-            block.arena_handle(), text_slots.data(), text_slots.size(), cursor_position->offset(),
+            block.arena_handle(), Layout::Node::slot_id(text_layout_node), cursor_position->offset(),
             cursor_position->affinity() == TextAffinity::Downstream);
         if (result.found && result.owner_paintable.index == committed_row_slot(block).index) {
             auto owner_slot = owner_inline ? committed_row_slot(*owner_inline)
@@ -630,9 +629,9 @@ Optional<CaretPaint> resolve_caret_paint(Layout::Node const& block, Layout::Node
         return {};
     }
 
-    if (!text_slots.is_empty()) {
+    if (text_layout_node) {
         auto empty_line = Layout::RustFFI::layout_arena_paintable_empty_line_caret_rect(
-            block.arena_handle(), committed_row_slot(block), text_slots.data(), text_slots.size(), cursor_position->offset());
+            block.arena_handle(), committed_row_slot(block), Layout::Node::slot_id(text_layout_node), cursor_position->offset());
         if (empty_line.has_value) {
             auto const* style_source = static_cast<Layout::NodeWithStyle const*>(empty_line.style_source);
             if (!style_source)

@@ -10,7 +10,6 @@
 #include <LibWeb/Editing/VisiblePosition.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/Layout/TextNode.h>
-#include <LibWeb/Layout/TextOffsetMapping.h>
 
 namespace Web::Editing {
 
@@ -82,8 +81,7 @@ static bool has_rendered_text_before(DOM::Text const& text, size_t offset)
     auto const* layout_node = text.unsafe_layout_node();
     if (!layout_node)
         return false;
-    auto slots = Layout::TextOffsetMapping { text }.slot_ids();
-    return Layout::RustFFI::layout_arena_text_has_rendered_text_before(layout_node->arena_handle(), slots.data(), slots.size(), offset);
+    return Layout::RustFFI::layout_arena_text_has_rendered_text_before(layout_node->arena_handle(), Layout::Node::slot_id(layout_node), offset);
 }
 
 static bool has_rendered_text_after(DOM::Text const& text, size_t offset)
@@ -91,8 +89,7 @@ static bool has_rendered_text_after(DOM::Text const& text, size_t offset)
     auto const* layout_node = text.unsafe_layout_node();
     if (!layout_node)
         return false;
-    auto slots = Layout::TextOffsetMapping { text }.slot_ids();
-    return Layout::RustFFI::layout_arena_text_has_rendered_text_after(layout_node->arena_handle(), slots.data(), slots.size(), offset);
+    return Layout::RustFFI::layout_arena_text_has_rendered_text_after(layout_node->arena_handle(), Layout::Node::slot_id(layout_node), offset);
 }
 
 static bool is_rendered_atomic_inline(DOM::Node const& node)
