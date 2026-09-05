@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="host" lang="en"><span id="target" style="text-transform: lowercase; white-space: pre">I I</span></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const target = document.getElementById("target");
+        const source = target.firstChild;
+        const dump = label => println(`${label}: ${JSON.stringify(target.innerText)}`);
+
+        dump("initial");
+        host.lang = "tr";
+        dump("inherited language");
+        source.data = "İ\tA";
+        dump("same source length");
+        target.style.whiteSpace = "normal";
+        dump("whitespace style");
+        target.style.textTransform = "uppercase";
+        dump("casing style");
+        target.style.color = "blue";
+        dump("unrelated style");
+
+        target.remove();
+        source.data = "I B";
+        host.lang = "en";
+        target.style.textTransform = "lowercase";
+        host.append(target);
+        dump("changed while detached");
+    });
+</script>

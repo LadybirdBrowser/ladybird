@@ -40,7 +40,6 @@ public:
     Utf16View text_for_rendering() const;
     void invalidate_text_for_rendering();
 
-    void enroll_for_arena_text_content_sync() const;
     void sync_text_content_to_arena() const;
 
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes) const;
@@ -56,23 +55,6 @@ protected:
 
 private:
     virtual bool is_text_node() const final { return true; }
-
-    struct TextForRenderingCacheKey {
-        CSS::TextTransform text_transform { CSS::TextTransform::None };
-        CSS::WhiteSpaceCollapse white_space_collapse { CSS::WhiteSpaceCollapse::Collapse };
-        Optional<Utf16String> lang;
-        bool is_password_input { false };
-        size_t dom_start_offset { 0 };
-        size_t dom_length { 0 };
-
-        bool operator==(TextForRenderingCacheKey const&) const = default;
-    };
-
-    TextForRenderingCacheKey create_text_for_rendering_cache_key() const;
-    void ensure_text_content() const;
-
-    mutable Optional<TextForRenderingCacheKey> m_text_for_rendering_cache_key;
-    mutable bool m_enrolled_for_arena_text_content_sync { false };
 };
 
 class GeneratedTextNode final : public TextNode {

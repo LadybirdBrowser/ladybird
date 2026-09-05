@@ -1,0 +1,7 @@
+initial: "i i"
+inherited language: "ı ı"
+same source length: "i\ta"
+whitespace style: "i a"
+casing style: "İ A"
+unrelated style: "İ A"
+changed while detached: "i b"
