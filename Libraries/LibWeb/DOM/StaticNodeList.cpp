@@ -19,7 +19,7 @@ GC::Ref<NodeList> StaticNodeList::create(Vector<GC::RawRef<Node>> static_nodes)
     return GC::Heap::the().allocate<StaticNodeList>(move(static_nodes));
 }
 
-GC::Ref<NodeList> StaticNodeList::create(Vector<GC::Root<Node>> rooted_nodes)
+GC::Ref<NodeList> StaticNodeList::create(ReadonlySpan<GC::Root<Node>> rooted_nodes)
 {
     Vector<GC::RawRef<Node>> static_nodes;
     static_nodes.ensure_capacity(rooted_nodes.size());

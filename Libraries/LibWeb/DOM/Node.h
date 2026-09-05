@@ -493,7 +493,7 @@ public:
 
     void add_registered_observer(RegisteredObserver&);
 
-    void queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlyString> const& attribute_name, Optional<Utf16FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value, Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling);
+    void queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlyString> const& attribute_name, Optional<Utf16FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value, ReadonlySpan<GC::Root<Node>> added_nodes, ReadonlySpan<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling);
 
     // https://dom.spec.whatwg.org/#concept-shadow-including-inclusive-descendant
     template<typename Callback>
@@ -613,12 +613,12 @@ protected:
     ErrorOr<Utf16String> name_or_description(NameOrDescription, Document const&, HashTable<UniqueNodeID>&, IsDescendant = IsDescendant::No, ShouldComputeRole = ShouldComputeRole::Yes) const;
 
 private:
-    void queue_tree_mutation_record(Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling);
+    void queue_tree_mutation_record(ReadonlySpan<GC::Root<Node>> added_nodes, ReadonlySpan<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling);
 
     void live_range_pre_remove();
 
     void insert_before_impl(GC::Ref<Node>, GC::Ptr<Node> child);
-    void insert_nodes_before(Vector<GC::Root<Node>>, GC::Ptr<Node> child, bool suppress_observers, GC::Ref<Node> metadata_node, ChildrenChangedMetadata::AffectsElements);
+    void insert_nodes_before(ReadonlySpan<GC::Root<Node>>, GC::Ptr<Node> child, bool suppress_observers, GC::Ref<Node> metadata_node, ChildrenChangedMetadata::AffectsElements);
     void append_child_impl(GC::Ref<Node>);
     void remove_child_impl(GC::Ref<Node>);
     void set_root_for_subtree(Node&);

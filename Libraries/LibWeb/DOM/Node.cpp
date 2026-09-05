@@ -825,11 +825,17 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
         history->notify_dom_mutation();
 
     // 1. Let nodes be node’s children, if node is a DocumentFragment node; otherwise « node ».
-    Vector<GC::Root<Node>> nodes;
-    if (is<DocumentFragment>(*node))
-        nodes = node->children_as_vector();
-    else
-        nodes.append(GC::make_root(*node));
+    // OPTIMIZATION: A single node needs no vector allocation. Keep fragment children in their original vector.
+    Vector<GC::Root<Node>> fragment_children;
+    GC::Root<Node> single_node;
+    ReadonlySpan<GC::Root<Node>> nodes;
+    if (is<DocumentFragment>(*node)) {
+        fragment_children = node->children_as_vector();
+        nodes = fragment_children;
+    } else {
+        single_node = GC::make_root(*node);
+        nodes = { &single_node, 1 };
+    }
 
     // 2. Let count be nodes’s size.
     auto count = nodes.size();
@@ -847,7 +853,7 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
 
     auto affects_elements = ChildrenChangedMetadata::AffectsElements::No;
     if (document().has_valid_html_collection_caches())
-        affects_elements = mutation_affects_elements(nodes.span());
+        affects_elements = mutation_affects_elements(nodes);
 
     // 4. If node is a DocumentFragment node:
     if (is<DocumentFragment>(*node)) {
@@ -856,13 +862,13 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
 
         // 2. Queue a tree mutation record for node with « », nodes, null, and null.
         // NOTE: This step intentionally does not pay attention to suppressObservers.
-        node->queue_tree_mutation_record({}, nodes, nullptr, nullptr);
+        node->queue_tree_mutation_record({}, fragment_children, nullptr, nullptr);
     }
 
-    insert_nodes_before(move(nodes), child, suppress_observers, node, affects_elements);
+    insert_nodes_before(nodes, child, suppress_observers, node, affects_elements);
 }
 
-void Node::insert_nodes_before(Vector<GC::Root<Node>> nodes, GC::Ptr<Node> child, bool suppress_observers, GC::Ref<Node> metadata_node, ChildrenChangedMetadata::AffectsElements affects_elements)
+void Node::insert_nodes_before(ReadonlySpan<GC::Root<Node>> nodes, GC::Ptr<Node> child, bool suppress_observers, GC::Ref<Node> metadata_node, ChildrenChangedMetadata::AffectsElements affects_elements)
 {
     auto count = nodes.size();
 
@@ -1472,7 +1478,8 @@ void Node::remove(bool suppress_observers)
     // 16. If suppressObservers is false, then queue a tree mutation record for parent with « », « node »,
     //     oldPreviousSibling, and oldNextSibling.
     if (!suppress_observers) {
-        parent->queue_tree_mutation_record({}, { *this }, old_previous_sibling.ptr(), old_next_sibling.ptr());
+        auto removed_node = GC::make_root(*this);
+        parent->queue_tree_mutation_record({}, { &removed_node, 1 }, old_previous_sibling.ptr(), old_next_sibling.ptr());
     }
 
     // 17. Run the children changed steps for parent.
@@ -1579,7 +1586,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::R
     }
 
     // 14. Queue a tree mutation record for parent with nodes, removedNodes, previousSibling, and referenceChild.
-    queue_tree_mutation_record(move(nodes), move(removed_nodes), previous_sibling.ptr(), reference_child.ptr());
+    queue_tree_mutation_record(nodes, removed_nodes, previous_sibling.ptr(), reference_child.ptr());
 
     // 15. Return child.
     return child;
@@ -1890,10 +1897,11 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         CSS::Invalidation::invalidate_style_after_read_write_state_change(*state.element, state.value);
 
     // 25. Queue a tree mutation record for oldParent with « », « node », oldPreviousSibling, and oldNextSibling.
-    old_parent->queue_tree_mutation_record({}, { *this }, old_previous_sibling, old_next_sibling);
+    auto moved_node = GC::make_root(*this);
+    old_parent->queue_tree_mutation_record({}, { &moved_node, 1 }, old_previous_sibling, old_next_sibling);
 
     // 26. Queue a tree mutation record for newParent with « node », « », newPreviousSibling, and child.
-    new_parent.queue_tree_mutation_record({ *this }, {}, new_previous_sibling, child);
+    new_parent.queue_tree_mutation_record({ &moved_node, 1 }, {}, new_previous_sibling, child);
 
     old_parent->invalidate_html_collection_caches_in_ancestors(affects_elements);
     new_parent.invalidate_html_collection_caches_in_ancestors(affects_elements);
@@ -2879,7 +2887,7 @@ void Node::replace_all(GC::Ptr<Node> node)
     // 7. If either addedNodes or removedNodes is not empty, then queue a tree mutation record for parent with
     //    addedNodes, removedNodes, null, and null.
     if (!added_nodes.is_empty() || !removed_nodes.is_empty()) {
-        queue_tree_mutation_record(move(added_nodes), move(removed_nodes), nullptr, nullptr);
+        queue_tree_mutation_record(added_nodes, removed_nodes, nullptr, nullptr);
     }
 }
 
@@ -2889,7 +2897,6 @@ void Node::replace_all(Vector<GC::Root<Node>> added_nodes)
         history->notify_dom_mutation();
 
     auto removed_nodes = children_as_vector();
-    auto added_nodes_for_mutation_record = added_nodes;
 
     document().flush_deferred_style_change_event();
     auto affects_elements = ChildrenChangedMetadata::AffectsElements::No;
@@ -2898,10 +2905,10 @@ void Node::replace_all(Vector<GC::Root<Node>> added_nodes)
 
     remove_all_children(true);
     if (!added_nodes.is_empty())
-        insert_nodes_before(move(added_nodes), nullptr, true, *this, affects_elements);
+        insert_nodes_before(added_nodes, nullptr, true, *this, affects_elements);
 
-    if (!added_nodes_for_mutation_record.is_empty() || !removed_nodes.is_empty())
-        queue_tree_mutation_record(move(added_nodes_for_mutation_record), move(removed_nodes), nullptr, nullptr);
+    if (!added_nodes.is_empty() || !removed_nodes.is_empty())
+        queue_tree_mutation_record(added_nodes, removed_nodes, nullptr, nullptr);
 }
 
 void Node::string_replace_all(Utf16View string)
@@ -3432,7 +3439,7 @@ void Node::set_needs_layout_update(SetNeedsLayoutReason reason, Layout::LayoutUp
 }
 
 // https://dom.spec.whatwg.org/#queue-a-mutation-record
-void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlyString> const& attribute_name, Optional<Utf16FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value, Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling)
+void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlyString> const& attribute_name, Optional<Utf16FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value, ReadonlySpan<GC::Root<Node>> added_nodes, ReadonlySpan<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling)
 {
     auto& document = this->document();
     auto& page = document.page();
@@ -3485,8 +3492,8 @@ void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlySt
     if (interested_observers.is_empty() && !page.listen_for_dom_mutations())
         return;
 
-    auto added_nodes_list = StaticNodeList::create(move(added_nodes));
-    auto removed_nodes_list = StaticNodeList::create(move(removed_nodes));
+    auto added_nodes_list = StaticNodeList::create(added_nodes);
+    auto removed_nodes_list = StaticNodeList::create(removed_nodes);
 
     // 4. For each observer → mappedOldValue of interestedObservers:
     for (auto& [observer, mapped_old_value] : interested_observers) {
@@ -3510,13 +3517,13 @@ void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlySt
 }
 
 // https://dom.spec.whatwg.org/#queue-a-tree-mutation-record
-void Node::queue_tree_mutation_record(Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling)
+void Node::queue_tree_mutation_record(ReadonlySpan<GC::Root<Node>> added_nodes, ReadonlySpan<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling)
 {
     // 1. Assert: either addedNodes or removedNodes is not empty.
     VERIFY(added_nodes.size() > 0 || removed_nodes.size() > 0);
 
     // 2. Queue a mutation record of "childList" for target with null, null, null, addedNodes, removedNodes, previousSibling, and nextSibling.
-    queue_mutation_record(MutationType::childList, {}, {}, {}, move(added_nodes), move(removed_nodes), previous_sibling, next_sibling);
+    queue_mutation_record(MutationType::childList, {}, {}, {}, added_nodes, removed_nodes, previous_sibling, next_sibling);
 }
 
 void Node::append_child_impl(GC::Ref<Node> node)

@@ -1,0 +1,7 @@
+parent: added [span], removed []
+fragment: added [], removed [b,i]
+parent: added [b,i], removed []
+parent: added [], removed [span]
+parent: added [label,input], removed [b,i]
+parent: added [], removed [label,input]
+fragment: added [span], removed []
