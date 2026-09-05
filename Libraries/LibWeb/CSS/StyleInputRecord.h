@@ -52,6 +52,7 @@ struct StyleInputRecord {
     bool style_depends_on_viewport_metrics { false };
     bool style_depends_on_size_container_query { false };
     bool style_depends_on_style_container_query { false };
+    bool style_reads_resource_context { false };
     u32 explicitly_inherited_non_inherited_style_groups { 0 };
     bool cascade_reads_custom_properties { false };
     // The viewport environment the computation ran under; compared only when it read a viewport metric.

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .image { background-image: url(data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22/%3E) }
+    .image.marked { color: green }
+</style>
+<div id="target" class="image"></div>
+<script>
+    test(() => {
+        const style = getComputedStyle(target);
+        internals.updateStyle();
+        internals.resetStyleInvalidationCounters();
+        target.classList.add("marked");
+        internals.updateStyle();
+        const counters = internals.getStyleInvalidationCounters();
+        println(`recomputes: ${counters.elementStyleRecomputations}`);
+        println(`full builds: ${counters.baseStyleFullBuilds}`);
+        println(`partial builds: ${counters.baseStylePartialBuilds}`);
+        println(`unrelated longhands skipped: ${counters.computedLonghandEvaluations < 100}`);
+        println(`color: ${style.color}`);
+        println(`background-image ${style.backgroundImage.startsWith("url(") ? "kept" : "lost"}`);
+    });
+</script>

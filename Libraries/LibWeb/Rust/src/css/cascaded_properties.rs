@@ -555,6 +555,7 @@ pub struct FfiStyleComputationRequirements {
     pub environment_requirements: u8,
     pub has_monospace_font_family: bool,
     pub computation_reads_unkeyed_context: bool,
+    pub computation_reads_resource_context: bool,
     pub computed_group_mask: u32,
     pub has_computed_property_selection: bool,
     pub computed_property_words: *const u64,
@@ -779,9 +780,8 @@ pub(crate) unsafe fn collect_style_computation_requirements(
         .into_boxed_slice();
     let (has_monospace_font_family, computed_group_mask, has_computed_property_selection, computed_property_words) =
         unsafe { plan_style_computation(store, plan_input) };
-    let computation_reads_unkeyed_context = has_monospace_font_family
-        || unfixed_random_sharings.iter().any(|sharing| !sharing.element_shared)
-        || has_resource_context_dependent_values;
+    let computation_reads_unkeyed_context =
+        has_monospace_font_family || unfixed_random_sharings.iter().any(|sharing| !sharing.element_shared);
     let storage = Box::new(StyleComputationRequirementsStorage {
         computed_property_words,
         unfixed_random_sharings,
@@ -796,6 +796,7 @@ pub(crate) unsafe fn collect_style_computation_requirements(
         environment_requirements,
         has_monospace_font_family,
         computation_reads_unkeyed_context,
+        computation_reads_resource_context: has_resource_context_dependent_values,
         computed_group_mask,
         has_computed_property_selection,
         computed_property_words,
