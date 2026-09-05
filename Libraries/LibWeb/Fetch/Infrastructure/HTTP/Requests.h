@@ -166,7 +166,7 @@ public:
     using PolicyContainerType = Variant<PolicyContainer, GC::Ref<HTML::PolicyContainer>>;
     using ReferrerType = Variant<Referrer, URL::URL>;
     using ReservedClientType = GC::Ptr<HTML::Environment>;
-    using TraversableForUserPromptsType = Variant<TraversableForUserPrompts, GC::Ptr<HTML::EnvironmentSettingsObject>, GC::Ptr<HTML::LocalTraversableNavigable>>;
+    using TraversableForUserPromptsType = Variant<TraversableForUserPrompts, GC::Ptr<HTML::EnvironmentSettingsObject>, GC::Ptr<HTML::Navigable>>;
 
     [[nodiscard]] static GC::Ref<Request> create();
     [[nodiscard]] static GC::Ref<Request> create(JS::VM&);

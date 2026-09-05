@@ -42,7 +42,7 @@ JsonObject window_proxy_reference_object(HTML::WindowProxy const& window)
 
     // identifier
     //    Associated window handle of the window’s browsing context.
-    object.set(MUST(identifier.as_string().view().to_utf8()), navigable->traversable_navigable()->window_handle().to_utf8());
+    object.set(MUST(identifier.as_string().view().to_utf8()), as<HTML::LocalTraversableNavigable>(*navigable->traversable_navigable()).window_handle().to_utf8());
 
     return object;
 }
@@ -53,7 +53,7 @@ static GC::Ptr<HTML::LocalNavigable> find_navigable_with_handle(Utf16View handle
         if (navigable->is_top_level_traversable() != should_be_top_level)
             continue;
 
-        if (navigable->traversable_navigable()->window_handle() == handle)
+        if (as<HTML::LocalTraversableNavigable>(*navigable->traversable_navigable()).window_handle() == handle)
             return navigable;
     }
 

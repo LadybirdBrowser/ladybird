@@ -25,7 +25,7 @@ void HTMLTitleElement::children_changed(ChildrenChangedMetadata const& metadata)
     HTMLElement::children_changed(metadata);
     auto navigable = this->navigable();
     if (navigable && navigable->is_traversable()) {
-        navigable->traversable_navigable()->page().client().page_did_change_title(document().title());
+        navigable->page().client().page_did_change_title(document().title());
     }
 }
 

@@ -1067,10 +1067,6 @@ Utf16String Internals::dump_session_history()
     if (!navigable)
         return "(no navigable)"_utf16;
 
-    auto traversable = navigable->traversable_navigable();
-    if (!traversable)
-        return "(no traversable)"_utf16;
-
     auto serialized_history = document.page().client().page_did_request_ui_process_session_history_for_testing();
     auto parsed_history = JsonValue::from_string(serialized_history);
     if (parsed_history.is_error() || !parsed_history.value().is_object())
@@ -1094,7 +1090,7 @@ Utf16String Internals::dump_session_history()
     }
 
     auto const* entries = &*top_level_entries;
-    if (navigable.ptr() != traversable.ptr()) {
+    if (!navigable->is_traversable()) {
         auto navigable_id = MUST(String::formatted("{}", navigable->id()));
         Function<JsonArray const*(JsonArray const&)> find_entries =
             [&](JsonArray const& candidate_entries) -> JsonArray const* {

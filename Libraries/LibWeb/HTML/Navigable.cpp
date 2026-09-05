@@ -32,6 +32,20 @@ bool Navigable::is_ancestor_of(Navigable const& other) const
     return false;
 }
 
+// https://html.spec.whatwg.org/multipage/document-sequences.html#nav-traversable
+GC::Ref<Navigable> Navigable::traversable_navigable()
+{
+    // 1. Let navigable be inputNavigable.
+    GC::Ref<Navigable> navigable = *this;
+
+    // 2. While navigable is not a traversable navigable, set navigable to navigable's parent.
+    while (!navigable->is_traversable())
+        navigable = *navigable->parent();
+
+    // 3. Return navigable.
+    return navigable;
+}
+
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-top
 GC::Ref<Navigable> Navigable::top_level_traversable()
 {
