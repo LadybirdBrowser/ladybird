@@ -37,6 +37,7 @@ class InterfaceSets:
     window_exposed: List[Interface] = field(default_factory=list)
     dedicated_worker_exposed: List[Interface] = field(default_factory=list)
     shared_worker_exposed: List[Interface] = field(default_factory=list)
+    audio_worklet_exposed: List[Interface] = field(default_factory=list)
 
     def add_interface(self, interface: Interface) -> None:
         exposed_value = interface.extended_attributes.get("Exposed")
@@ -55,6 +56,10 @@ class InterfaceSets:
 
         if "SharedWorker" in exposures:
             self.shared_worker_exposed.append(interface)
+
+        # "Worklet" is the union of all worklet global scope types; AudioWorklet is the only one we have.
+        if "AudioWorklet" in exposures or "Worklet" in exposures:
+            self.audio_worklet_exposed.append(interface)
 
 
 @dataclass
@@ -233,6 +238,7 @@ def write_intrinsic_definitions_implementation(out: TextIO, interface_sets: Inte
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/SharedWorkerGlobalScope.h>
+#include <LibWeb/WebAudio/AudioWorkletGlobalScope.h>
 """
     )
 
@@ -255,6 +261,7 @@ namespace Web::Bindings {
     write_global_exposed_switch(out, "window", interface_sets.window_exposed)
     write_global_exposed_switch(out, "dedicated_worker", interface_sets.dedicated_worker_exposed)
     write_global_exposed_switch(out, "shared_worker", interface_sets.shared_worker_exposed)
+    write_global_exposed_switch(out, "audio_worklet", interface_sets.audio_worklet_exposed)
 
     out.write(
         """
@@ -273,8 +280,11 @@ bool is_exposed(InterfaceName name, JS::Realm& realm)
     } else if (impl_from<HTML::SharedWorkerGlobalScope>(&global_object)) {
         if (!is_shared_worker_exposed(name))
             return false;
+    } else if (impl_from<WebAudio::AudioWorkletGlobalScope>(&global_object)) {
+        if (!is_audio_worklet_exposed(name))
+            return false;
     } else {
-        TODO(); // FIXME: ServiceWorkerGlobalScope and WorkletGlobalScope.
+        TODO(); // FIXME: ServiceWorkerGlobalScope and non-audio WorkletGlobalScopes.
     }
 
     // 2. If realm’s settings object is not a secure context, and construct is conditionally exposed on

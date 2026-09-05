@@ -36,6 +36,7 @@ class DOMException;
 namespace Web::WebAudio {
 
 class AudioDestinationNode;
+class AudioWorklet;
 
 using AudioContextState = Bindings::AudioContextState;
 
@@ -71,8 +72,16 @@ public:
     AudioContextState state() const { return m_control_thread_state; }
     HTML::EnvironmentSettingsObject& relevant_settings_object() const;
     JS::Object& relevant_global_object() const;
+    GC::Ref<DOM::EventTarget> relevant_global_event_target() const { return m_global_object; }
     GC::Ref<DOM::Event> create_associated_event(Utf16FlyString const&) const;
     HTML::Window& relevant_window() const;
+
+    // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-audioworklet
+    GC::Ref<AudioWorklet> audio_worklet();
+
+    // Marks every worklet node's pipe shut down and drops the pump slots; called when the context
+    // closes or its document stops being fully active.
+    void shutdown_audio_worklet();
 
     // https://webaudio.github.io/web-audio-api/#--nyquist-frequency
     float nyquist_frequency() const { return m_sample_rate / 2; }
@@ -153,6 +162,8 @@ private:
     HTML::UniqueTaskSource m_media_element_event_task_source {};
 
     GC::Ptr<DOM::DocumentObserver> m_document_observer;
+
+    GC::Ptr<AudioWorklet> m_audio_worklet;
 
     NonnullRefPtr<ControlMessageQueue> m_control_message_queue;
 

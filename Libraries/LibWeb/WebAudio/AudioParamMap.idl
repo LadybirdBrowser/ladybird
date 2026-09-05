@@ -1,0 +1,5 @@
+// https://webaudio.github.io/web-audio-api/#AudioParamMap
+[Exposed=Window]
+interface AudioParamMap {
+    readonly maplike<DOMString, AudioParam>;
+};

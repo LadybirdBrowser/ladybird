@@ -1,0 +1,6 @@
+// https://webaudio.github.io/web-audio-api/#AudioWorkletProcessor
+[Exposed=AudioWorklet]
+interface AudioWorkletProcessor {
+    constructor();
+    readonly attribute MessagePort port;
+};

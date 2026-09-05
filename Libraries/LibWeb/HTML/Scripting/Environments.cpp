@@ -26,6 +26,7 @@
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WorkerAgentParent.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
+#include <LibWeb/HTML/WorkletGlobalScope.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/SecureContexts/AbstractOperations.h>
@@ -645,8 +646,10 @@ bool is_secure_context(Environment const& environment)
             return false;
         }
 
-        // FIXME: 3. If global is a WorkletGlobalScope, then return true.
+        // 3. If global is a WorkletGlobalScope, then return true.
         // NOTE: Worklets can only be created in secure contexts.
+        if (Bindings::impl_from<WorkletGlobalScope>(&global))
+            return true;
     }
 
     // 2. If the result of Is url potentially trustworthy? given environment's top-level creation URL is "Potentially Trustworthy", then return true.

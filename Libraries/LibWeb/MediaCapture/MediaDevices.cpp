@@ -25,6 +25,7 @@
 #include <LibWeb/MediaCapture/MediaDevices.h>
 #include <LibWeb/MediaCapture/MediaStream.h>
 #include <LibWeb/MediaCapture/MediaStreamTrack.h>
+#include <LibWeb/PermissionsAPI/Permissions.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -73,6 +74,9 @@ MediaDevices::MediaDevices(HTML::Window& window)
     : DOM::EventTarget()
     , m_window(window)
 {
+    if (HTML::Window::in_test_mode())
+        return;
+
     m_audio_device_cache_listener_id = Media::AudioDevices::the().add_devices_changed_listener([this] {
         did_observe_audio_device_cache_update();
     });
@@ -226,13 +230,20 @@ void MediaDevices::set_device_information_exposure(bool audio_requested, bool vi
 
 void MediaDevices::enumerate_devices(GC::Ref<WebIDL::Promise> promise)
 {
-    m_stored_device_list = current_audio_device_snapshot();
-
     // 2. Let proceed be the result of device enumeration can proceed with this.
     if (!device_enumeration_can_proceed()) {
         m_pending_enumerate_devices_requests.append({ promise });
         return;
     }
+
+    if (!HTML::Window::in_test_mode() && !Media::AudioDevices::the().has_completed_refresh()) {
+        m_pending_enumerate_devices_requests.append({ promise });
+        Media::AudioDevices::the().refresh();
+        return;
+    }
+
+    m_stored_device_list = current_audio_device_snapshot();
+
     // 3. Let mediaDevices be this.
     // 4. Run the following steps in parallel.
     queue_enumerate_devices_task(promise);
@@ -378,7 +389,9 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
     GC::Ref<MediaDevices> media_devices = *this;
 
     // FIXME: Add camera/video
-    Vector<Media::AudioDeviceInfo> audio_input_devices = Media::AudioDevices::the().input_devices();
+    Vector<Media::AudioDeviceInfo> audio_input_devices;
+    if (!HTML::Window::in_test_mode())
+        audio_input_devices = Media::AudioDevices::the().input_devices();
 
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [promise = GC::Root(promise), media_devices, requested_device_ids = move(requested_device_ids), audio_input_devices = move(audio_input_devices)] mutable {
         auto& realm = WebIDL::promise_realm(*promise);
@@ -436,7 +449,13 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
             }
         }
 
-        // FIXME: 11.3.6 Read the current permission state for all candidate devices in candidateSet that are not attached to a live MediaStreamTrack in the current Document. Remove from candidateSet any candidate whose device's permission state is "denied".
+        PermissionsAPI::PermissionDescriptor microphone_permission { "microphone"_utf16 };
+
+        // 11.3.6 Read the current permission state for all candidate devices in candidateSet that are not attached to a live MediaStreamTrack in the current Document. Remove from candidateSet any candidate whose device's permission state is "denied".
+        if (PermissionsAPI::permission_state(microphone_permission) == PermissionsAPI::PermissionState::Denied) {
+            reject_permission_failure();
+            return;
+        }
         // FIXME: 11.3.7 Optionally, e.g., based on a previously-established user preference, for security reasons, or due to platform limitations, jump to the step labeled Permission Failure below.
 
         // 11.3.8 Add all candidates from candidateSet to finalSet.
@@ -447,8 +466,17 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
 
         // 11.5 For each media type kind in requestedMediaTypes, run the following sub steps, preferably at the same time.
 
-        // FIXME: 11.5.1 Request permission to use a PermissionDescriptor with its name member set to the permission name associated with kind.
-        // FIXME: 11.5.2 If the result of the request is "denied", jump to the step labeled Permission Failure below.
+        // 11.5.1 Request permission to use a PermissionDescriptor with its name member set to the permission name associated with kind.
+        auto microphone_permission_result = PermissionsAPI::permission_state(microphone_permission);
+        // FIXME: Wire this up to a real microphone permission prompt. Until then, do not turn
+        //        a prompt state into a persisted denied state without a user decision.
+        if (HTML::Window::in_test_mode() && microphone_permission_result == PermissionsAPI::PermissionState::Prompt)
+            microphone_permission_result = PermissionsAPI::request_permission(microphone_permission);
+        // 11.5.2 If the result of the request is "denied", jump to the step labeled Permission Failure below.
+        if (microphone_permission_result == PermissionsAPI::PermissionState::Denied) {
+            reject_permission_failure();
+            return;
+        }
 
         // 11.8 Set the device information exposure on mediaDevices with requestedMediaTypes and true.
         media_devices->set_device_information_exposure(true, false, true);
@@ -501,7 +529,6 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
         resolve_media_stream_promise(*promise, stream);
 
         // 11.15 Permission Failure: Reject p with a new DOMException object whose name attribute has the value "NotAllowedError".
-        (void)reject_permission_failure;
     }));
 }
 
@@ -523,6 +550,10 @@ void MediaDevices::process_pending_enumerate_devices_requests()
 {
     if (!device_enumeration_can_proceed())
         return;
+    if (!HTML::Window::in_test_mode() && !Media::AudioDevices::the().has_completed_refresh()) {
+        Media::AudioDevices::the().refresh();
+        return;
+    }
 
     run_device_change_notification_steps(current_audio_device_snapshot());
 
@@ -535,6 +566,10 @@ void MediaDevices::process_pending_get_user_media_requests()
 {
     if (!get_user_media_can_proceed())
         return;
+    if (!HTML::Window::in_test_mode() && !Media::AudioDevices::the().has_completed_refresh()) {
+        Media::AudioDevices::the().refresh();
+        return;
+    }
 
     auto pending_requests = move(m_pending_get_user_media_requests);
     for (auto& request : pending_requests)
@@ -643,9 +678,17 @@ void MediaDevices::get_user_media(Optional<MediaStreamConstraints> const& constr
     }
 
     // 6. If requestedMediaTypes contains "audio" and document is not allowed to use the feature identified by the "microphone" permission name, jump to Permission Failure.
-    // FIXME: Do microphone permission policy checks once PolicyControlledFeature includes microphone.
+    if (audio_requested && !can_use_microphone_feature()) {
+        WebIDL::reject_promise(promise, WebIDL::NotAllowedError::create("Permission denied"_utf16));
+        return;
+    }
+
     // 7. If requestedMediaTypes contains "video" and document is not allowed to use the feature identified by the "camera" permission name, jump to Permission Failure.
-    // FIXME: Do camera permission policy checks once PolicyControlledFeature includes camera.
+    if (video_requested && !can_use_camera_feature()) {
+        WebIDL::reject_promise(promise, WebIDL::NotAllowedError::create("Permission denied"_utf16));
+        return;
+    }
+
     // 8. Let mediaDevices be this.
     // 9. Let isInView be the result of the is in view algorithm.
 
@@ -659,6 +702,12 @@ void MediaDevices::get_user_media(Optional<MediaStreamConstraints> const& constr
     // AD-HOC: Keep the request queued until isInView and hasSystemFocus allow the deferred task
     // to continue without spinning in the event loop.
     if (!get_user_media_can_proceed()) {
+        m_pending_get_user_media_requests.append({ .promise = promise, .requested_device_ids = move(requested_device_ids) });
+        return;
+    }
+
+    if (!HTML::Window::in_test_mode() && !Media::AudioDevices::the().has_completed_refresh()) {
+        Media::AudioDevices::the().refresh();
         m_pending_get_user_media_requests.append({ .promise = promise, .requested_device_ids = move(requested_device_ids) });
         return;
     }
@@ -680,6 +729,9 @@ void MediaDevices::set_ondevicechange(WebIDL::CallbackType* event_handler)
 Vector<MediaDevices::StoredDevice> MediaDevices::current_audio_device_snapshot()
 {
     Vector<StoredDevice> stored_devices;
+    if (HTML::Window::in_test_mode())
+        return stored_devices;
+
     auto input_devices = Media::AudioDevices::the().input_devices();
     auto output_devices = Media::AudioDevices::the().output_devices();
     stored_devices.ensure_capacity(input_devices.size() + output_devices.size());

@@ -13,13 +13,21 @@
 #include <AK/Error.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
+#include <AK/Vector.h>
 #include <LibMedia/Audio/SampleSpecification.h>
 #include <LibMedia/Export.h>
 #include <pulse/pulseaudio.h>
 
+namespace Media {
+
+struct AudioDeviceInfo;
+
+}
+
 namespace Audio {
 
 class PulseAudioStream;
+class PulseAudioRecordStream;
 
 enum class PulseAudioContextState {
     Unconnected = PA_CONTEXT_UNCONNECTED,
@@ -34,6 +42,10 @@ enum class PulseAudioContextState {
 enum class PulseAudioErrorCode;
 
 using PulseAudioDataRequestCallback = Function<ReadonlySpan<float>(PulseAudioStream&, Span<float> buffer)>;
+// Receives captured audio as interleaved float32 LE samples matching the record stream's
+// sample specification. Invoked on the PulseAudio main-loop thread; implementations must
+// hand the data off to whichever thread wants to consume it without blocking.
+using PulseAudioRecordCallback = Function<void(ReadonlyBytes, SampleSpecification const&)>;
 
 // A wrapper around the PulseAudio main loop and context structs.
 // Generally, only one instance of this should be needed for a single process.
@@ -67,12 +79,16 @@ public:
 
     void request_device_sample_specification();
 
+    ErrorOr<void> enumerate_audio_devices(Vector<Media::AudioDeviceInfo>& inputs, Vector<Media::AudioDeviceInfo>& outputs);
     ErrorOr<NonnullRefPtr<PulseAudioStream>> create_stream(OutputState, u32 target_latency_ms, PulseAudioDataRequestCallback);
+    ErrorOr<NonnullRefPtr<PulseAudioRecordStream>> create_record_stream(SampleSpecification const&, u32 fragment_size_bytes, char const* device_name, PulseAudioRecordCallback);
 
 private:
     friend class PulseAudioStream;
+    friend class PulseAudioRecordStream;
 
     PulseAudioContext*& nullable_instance();
+    ErrorOr<void> wait_for_operation(pa_operation*, StringView error_message);
 
     pa_threaded_mainloop* m_main_loop { nullptr };
     pa_mainloop_api* m_api { nullptr };
@@ -156,6 +172,31 @@ private:
     };
 
     Atomic<CallbackState> m_callback_state { CallbackState::Parked };
+};
+
+class MEDIA_API PulseAudioRecordStream : public AtomicRefCounted<PulseAudioRecordStream> {
+public:
+    ~PulseAudioRecordStream();
+
+    PulseAudioStreamState get_connection_state();
+    bool connection_is_good();
+
+    SampleSpecification const& sample_specification() const { return m_sample_specification; }
+
+    PulseAudioContext& context() { return *m_context; }
+
+private:
+    friend class PulseAudioContext;
+
+    PulseAudioRecordStream(PulseAudioContext&, pa_stream*, SampleSpecification);
+    PulseAudioRecordStream(PulseAudioRecordStream const&) = delete;
+
+    void on_data_available();
+
+    NonnullRefPtr<PulseAudioContext> m_context;
+    pa_stream* m_stream { nullptr };
+    SampleSpecification m_sample_specification;
+    PulseAudioRecordCallback m_read_callback;
 };
 
 enum class PulseAudioErrorCode {

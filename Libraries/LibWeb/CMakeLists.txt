@@ -707,6 +707,7 @@ set(SOURCES
     HTML/Scripting/WindowRealm.cpp
     HTML/Scripting/WorkerAgent.cpp
     HTML/Scripting/WorkerEnvironmentSettingsObject.cpp
+    HTML/Scripting/WorkletEnvironmentSettingsObject.cpp
     HTML/SelectedFile.cpp
     HTML/SelectItem.cpp
     HTML/SerializedPolicyContainer.cpp
@@ -739,6 +740,7 @@ set(SOURCES
     HTML/TrackEvent.cpp
     HTML/UserActivation.cpp
     HTML/UserNavigationInvolvement.cpp
+    HTML/UniversalGlobalScope.cpp
     HTML/ValidityState.cpp
     HTML/VideoTrack.cpp
     HTML/VideoTrackList.cpp
@@ -754,6 +756,7 @@ set(SOURCES
     HTML/WorkerLocation.cpp
     HTML/WorkerAgentTypes.cpp
     HTML/WorkerNavigator.cpp
+    HTML/Worklet.cpp
     HTML/WorkletGlobalScope.cpp
     HTML/XMLSerializer.cpp
     IndexedDB/Inspection.cpp
@@ -1064,6 +1067,11 @@ set(SOURCES
     WebAssembly/WebAssembly.cpp
     WebAssembly/WebAssemblyModule.cpp
     WebAudio/AnalyserNode.cpp
+    WebAudio/AudioParamMap.cpp
+    WebAudio/AudioWorklet.cpp
+    WebAudio/AudioWorkletGlobalScope.cpp
+    WebAudio/AudioWorkletNode.cpp
+    WebAudio/AudioWorkletProcessor.cpp
     WebAudio/AudioArray.cpp
     WebAudio/AudioBuffer.cpp
     WebAudio/AudioBufferSourceNode.cpp
@@ -1084,13 +1092,20 @@ set(SOURCES
     WebAudio/DynamicsCompressorNode.cpp
     WebAudio/GainNode.cpp
     WebAudio/MediaElementAudioSourceNode.cpp
+    WebAudio/MediaStreamAudioDestinationNode.cpp
+    WebAudio/MediaStreamAudioSourceNode.cpp
     WebAudio/OfflineAudioCompletionEvent.cpp
     WebAudio/OfflineAudioContext.cpp
     WebAudio/OscillatorNode.cpp
     WebAudio/PannerNode.cpp
     WebAudio/PeriodicWave.cpp
+    WebAudio/Rendering/AnalyserRenderNode.cpp
     WebAudio/Rendering/AudioBus.cpp
+    WebAudio/Rendering/AudioWorkletPipe.cpp
+    WebAudio/Rendering/AudioWorkletRenderNode.cpp
     WebAudio/Rendering/BiquadCoefficients.cpp
+    WebAudio/Rendering/MediaStreamDestinationRenderNode.cpp
+    WebAudio/Rendering/MediaStreamSourceRenderNode.cpp
     WebAudio/Rendering/OfflineAudioRenderer.cpp
     WebAudio/Rendering/RealtimeAudioRenderer.cpp
     WebAudio/Rendering/RenderGraph.cpp

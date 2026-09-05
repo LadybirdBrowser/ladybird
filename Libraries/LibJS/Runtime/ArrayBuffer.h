@@ -495,6 +495,7 @@ public:
     bool is_caged() const { return m_data_block.is_caged(); }
     bool shares_storage_with(ArrayBuffer const& other) const { return m_data_block.shares_storage_with(other.m_data_block); }
     size_t data_offset() const { return m_data_block.offset(); }
+    DataBlock const& data_block() const { return m_data_block; }
 
     // Detaches this ArrayBuffer and returns its underlying DataBlock for use in a TransferArrayBuffer-like operation.
     // If detach fails, the underlying storage is left untouched.

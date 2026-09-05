@@ -332,6 +332,7 @@ function (generate_js_bindings target)
     set(exposed_interface_sources
         Forward.h
         IntrinsicDefinitions.cpp IntrinsicDefinitions.h
+        AudioWorkletExposedInterfaces.cpp AudioWorkletExposedInterfaces.h
         DedicatedWorkerExposedInterfaces.cpp DedicatedWorkerExposedInterfaces.h
         SharedWorkerExposedInterfaces.cpp SharedWorkerExposedInterfaces.h
         WindowExposedInterfaces.cpp WindowExposedInterfaces.h

@@ -10,7 +10,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/HashMap.h>
 #include <AK/Vector.h>
-#include <LibGC/Forward.h>
+#include <LibGC/Root.h>
 #include <LibIPC/Forward.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Export.h>
@@ -22,6 +22,10 @@ using SerializationMemory = HashMap<GC::Root<JS::Value>, u32>;
 
 struct IPCSerializationRecord {
     IPC::MessageDataType data;
+
+    // Same-process SharedArrayBuffer aliases. This is intentionally not IPC-encoded; cross-process
+    // records fall back to the byte copy in `data`.
+    Vector<GC::Root<JS::ArrayBuffer>> shared_array_buffers;
 
     IPCSerializationRecord() = default;
     explicit IPCSerializationRecord(IPC::MessageDataType data)

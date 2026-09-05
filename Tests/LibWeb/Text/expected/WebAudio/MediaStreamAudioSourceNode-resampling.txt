@@ -1,0 +1,1 @@
+PASS: mono MediaStream preserves tone frequency from 32000 Hz to 44100 Hz

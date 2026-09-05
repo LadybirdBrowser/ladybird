@@ -25,7 +25,12 @@ from Utils.webidl_parser import Interface
 
 
 def global_mixin_header_is_provided_by_bindings(interface: Interface) -> bool:
-    return interface.name in ("DedicatedWorkerGlobalScope", "SharedWorkerGlobalScope", "Window")
+    return interface.name in (
+        "AudioWorkletGlobalScope",
+        "DedicatedWorkerGlobalScope",
+        "SharedWorkerGlobalScope",
+        "Window",
+    )
 
 
 def global_mixin_member_interfaces(interface: Interface, context: GenerationContext) -> list[Interface]:

@@ -24,6 +24,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WorkletGlobalScope.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
@@ -823,8 +824,14 @@ void EventLoop::perform_a_microtask_checkpoint()
 
     // 4. For each environment settings object settingsObject whose responsible event loop is this event loop, notify about rejected promises given settingsObject's global object.
     auto environments = GC::RootVector { m_related_environment_settings_objects };
-    for (auto& environment_settings_object : environments)
-        relevant_window_or_worker_global_scope(environment_settings_object->global_object()).notify_about_rejected_promises({});
+    for (auto& environment_settings_object : environments) {
+        auto& global_object = environment_settings_object->global_object();
+        if (auto* worklet_global_scope = Bindings::impl_from<WorkletGlobalScope>(&global_object)) {
+            worklet_global_scope->notify_about_rejected_promises({});
+            continue;
+        }
+        relevant_window_or_worker_global_scope(global_object).notify_about_rejected_promises({});
+    }
 
     // 5. Cleanup Indexed Database transactions.
     IndexedDB::cleanup_indexed_database_transactions(*this);
