@@ -601,8 +601,7 @@ bool Request::notify_retrieved_http_cookie(Badge<ConnectionFromClient>, u64 cook
     mark_lifecycle_event(this, &WireStats::cookie_completed_at);
 
     if (!cookie.is_empty()) {
-        auto header = HTTP::Header::isomorphic_encode("Cookie"sv, cookie);
-        m_request_headers->append(move(header));
+        m_request_headers->append({ "Cookie"sv, cookie });
     }
 
     transition_to_state(State::Fetch);
