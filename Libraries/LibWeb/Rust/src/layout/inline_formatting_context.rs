@@ -1309,6 +1309,10 @@ impl<'context> InlineFormattingContext<'context> {
         content_baselines
     }
 
+    pub(crate) fn sizing(&self) -> sizing_context::SizingContext {
+        self.parent.sizing()
+    }
+
     pub(crate) fn paired_min_content_inline_size_for_atomic_root(&self, node: Node) -> Option<CssPixels> {
         self.parent.sizing().paired_min_content_inline_size_for_atomic_root(
             node,
@@ -1420,7 +1424,7 @@ impl<'context> InlineFormattingContext<'context> {
         (reused_lines, item_index)
     }
 
-    fn min_content_inline_size_from_max_content_items(
+    pub(crate) fn min_content_inline_size_from_max_content_items(
         &self,
         items: &[inline_level_iterator::Item],
     ) -> Option<CssPixels> {

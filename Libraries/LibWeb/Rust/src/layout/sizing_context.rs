@@ -885,7 +885,7 @@ impl SizingContext {
 
     // Descendants resolve percentages against the measured box itself, so only the box's own style
     // can reach its containing block's inline basis.
-    fn measurement_root_observes_percentage_inline_basis(&self, node: Node) -> bool {
+    pub(crate) fn measurement_root_observes_percentage_inline_basis(&self, node: Node) -> bool {
         let facts = self.facts(node);
         if facts.is_anonymous() || facts.is_replaced_box() || facts.has_auto_content_box_size() {
             return true;
@@ -1391,7 +1391,7 @@ impl SizingContext {
         Some(max_content_size + self.used(node).horizontal_margin_border_padding())
     }
 
-    fn calculate_atomic_root_content_inline_size(
+    pub(crate) fn calculate_atomic_root_content_inline_size(
         &self,
         node: Node,
         available_space: AvailableSpace,
@@ -1595,15 +1595,17 @@ impl SizingContext {
             IntrinsicInlineSizeMeasurement {
                 automatic_content_inline_size: result.automatic_content_inline_size,
                 min_content_inline_size_from_max_content_layout: result.min_content_inline_size_from_max_content_layout,
-                available_block_size,
-                content_inline_size: used.content_inline_size.get(),
-                content_block_size: used.content_block_size.get(),
-                automatic_content_block_size: result.automatic_content_block_size,
-                uses_collapsing_borders_model: used.uses_collapsing_borders_model.get(),
-                has_first_baseline: used.has_first_baseline.get(),
-                first_baseline: used.first_baseline.get(),
-                has_last_baseline: used.has_last_baseline.get(),
-                last_baseline: used.last_baseline.get(),
+                layout: Some(layout_node_arena::IntrinsicInlineMeasurementLayout {
+                    available_block_size,
+                    content_inline_size: used.content_inline_size.get(),
+                    content_block_size: used.content_block_size.get(),
+                    automatic_content_block_size: result.automatic_content_block_size,
+                    uses_collapsing_borders_model: used.uses_collapsing_borders_model.get(),
+                    has_first_baseline: used.has_first_baseline.get(),
+                    first_baseline: used.first_baseline.get(),
+                    has_last_baseline: used.has_last_baseline.get(),
+                    last_baseline: used.last_baseline.get(),
+                }),
                 depends_on_percentage_block_size: result.depends_on_percentage_block_size,
                 depends_on_percentage_inline_basis: self.measurement_root_observes_percentage_inline_basis(node),
             },
@@ -1617,10 +1619,9 @@ impl SizingContext {
         available_block_size: AvailableSize,
         constraints: ContainingBlockConstraints,
     ) -> Option<(CssPixels, DerivedBaselines)> {
-        // OPTIMIZATION: Calculating an intrinsic inline size already performs a complete measurement layout.
-        // A later equivalent intrinsic line build only consumes the atomic box's measured dimensions and
-        // baselines, so retain that summary instead of formatting the same descendants again. Commit layout
-        // must still create all descendant geometry.
+        // OPTIMIZATION: When intrinsic sizing needs measurement layout, a later equivalent intrinsic line
+        // build can reuse its dimensions and baselines. A width-only query has no layout summary to reuse,
+        // and commit layout must still create all descendant geometry.
         if !self.purpose.is_measurement() {
             return None;
         }
@@ -1634,6 +1635,7 @@ impl SizingContext {
             kind,
             formatting_context::cache_key(None, None, constraints),
         )?;
+        let measurement = measurement.layout?;
         if measurement.available_block_size != available_block_size {
             return None;
         }
@@ -2022,6 +2024,17 @@ impl SizingContext {
         } else {
             AvailableSize::Indefinite
         };
+        if kind == IntrinsicSizeCacheKind::MaxContentInline
+            && let Some(sizes) =
+                intrinsic_sizing::compute_inline_sizes(self.callbacks, node, root.clone(), constraints, block_size)
+        {
+            self.charge_measurement_dependency_to_measured_box_and_containing_block(
+                node,
+                sizes.depends_on_percentage_block_size,
+            );
+            self.intrinsic_inline_measurement_cache_put(node, kind, key, sizes);
+            return sizes.automatic_content_inline_size;
+        }
         let mut result = measurement.run(
             node,
             &root,

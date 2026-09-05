@@ -217,6 +217,14 @@ pub(crate) enum IntrinsicSizeCacheKind {
 pub(crate) struct IntrinsicInlineSizeMeasurement {
     pub(crate) automatic_content_inline_size: CssPixels,
     pub(crate) min_content_inline_size_from_max_content_layout: Option<CssPixels>,
+    // A dedicated inline-size query does not produce block sizes or baselines.
+    pub(crate) layout: Option<IntrinsicInlineMeasurementLayout>,
+    pub(crate) depends_on_percentage_block_size: bool,
+    pub(crate) depends_on_percentage_inline_basis: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct IntrinsicInlineMeasurementLayout {
     pub(crate) available_block_size: AvailableSize,
     pub(crate) content_inline_size: CssPixels,
     pub(crate) content_block_size: CssPixels,
@@ -226,8 +234,6 @@ pub(crate) struct IntrinsicInlineSizeMeasurement {
     pub(crate) first_baseline: CssPixels,
     pub(crate) has_last_baseline: bool,
     pub(crate) last_baseline: CssPixels,
-    pub(crate) depends_on_percentage_block_size: bool,
-    pub(crate) depends_on_percentage_inline_basis: bool,
 }
 
 impl IntrinsicMeasurement for IntrinsicInlineSizeMeasurement {
@@ -3602,15 +3608,17 @@ mod tests {
         let inline_measurement = IntrinsicInlineSizeMeasurement {
             automatic_content_inline_size: CssPixels::from_raw(192),
             min_content_inline_size_from_max_content_layout: Some(CssPixels::from_raw(96)),
-            available_block_size: crate::layout::layout_node_arena::AvailableSize::MaxContent,
-            content_inline_size: CssPixels::from_raw(192),
-            content_block_size: CssPixels::from_raw(256),
-            automatic_content_block_size: CssPixels::from_raw(320),
-            uses_collapsing_borders_model: true,
-            has_first_baseline: true,
-            first_baseline: CssPixels::from_raw(64),
-            has_last_baseline: true,
-            last_baseline: CssPixels::from_raw(128),
+            layout: Some(super::IntrinsicInlineMeasurementLayout {
+                available_block_size: crate::layout::layout_node_arena::AvailableSize::MaxContent,
+                content_inline_size: CssPixels::from_raw(192),
+                content_block_size: CssPixels::from_raw(256),
+                automatic_content_block_size: CssPixels::from_raw(320),
+                uses_collapsing_borders_model: true,
+                has_first_baseline: true,
+                first_baseline: CssPixels::from_raw(64),
+                has_last_baseline: true,
+                last_baseline: CssPixels::from_raw(128),
+            }),
             depends_on_percentage_block_size: false,
             depends_on_percentage_inline_basis: false,
         };
