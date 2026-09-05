@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The timer initialization steps clamp a timeout below 4ms up to 4ms once the timer nesting level exceeds 5, and a
+    // setTimeout() call made from inside a timer callback inherits the callback's nesting level, so a chain of nested
+    // setTimeout(f, 0) calls slows to one hop per 4ms after its first few hops. A chain of 30 hops therefore takes at
+    // least 24 * 4ms = 96ms, while an unclamped one finishes in well under a millisecond.
+    asyncTest(done => {
+        const start = performance.now();
+        let hop = 0;
+        const step = () => {
+            if (++hop < 30) {
+                setTimeout(step, 0);
+                return;
+            }
+            const elapsed = performance.now() - start;
+            println(`A chain of 30 nested setTimeout(f, 0) calls takes at least 90ms: ${elapsed >= 90}`);
+            testTimerScheduledFromMicrotask();
+        };
+        setTimeout(step, 0);
+
+        // A microtask isn't a task created by the timer initialization steps, so a setTimeout() call made during the
+        // microtask checkpoint after a deeply-nested timer callback starts over at nesting level 0: its 0ms timer fires
+        // before the clamped 4ms one that the callback itself scheduled a moment earlier.
+        function testTimerScheduledFromMicrotask() {
+            const order = [];
+            const record = name => {
+                order.push(name);
+                if (order.length === 2) {
+                    println(`Timers fired in the order: ${order.join(", ")}`);
+                    done();
+                }
+            };
+            let depth = 0;
+            const nest = () => {
+                if (++depth < 8) {
+                    setTimeout(nest, 0);
+                    return;
+                }
+                setTimeout(() => record("clamped timer from the callback"), 0);
+                queueMicrotask(() => setTimeout(() => record("unclamped timer from the microtask"), 0));
+            };
+            setTimeout(nest, 0);
+        }
+    });
+</script>

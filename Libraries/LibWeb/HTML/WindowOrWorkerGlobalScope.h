@@ -154,9 +154,6 @@ private:
     IDAllocator m_timer_id_allocator;
     HashMap<int, GC::Ref<Timer>> m_timers;
 
-    // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#timer-nesting-level
-    HashMap<i32, u32> m_timer_nesting_levels;
-
     // https://www.w3.org/TR/performance-timeline/#performance-timeline
     // Each global object has:
     // - a performance observer task queued flag
