@@ -5757,6 +5757,53 @@ pub struct FfiBoxTypeTransformationInput {
     pub webkit_box_layout_transformation_applies: bool,
 }
 
+/// Whether element-specific adjustments apply to the subject being computed.
+#[repr(C)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum FfiStyleAdjustmentTarget {
+    Element,
+    PseudoElement,
+}
+
+/// Build the shared adjustment inputs from element facts. The caller supplies the first
+/// non-`display: contents` ancestor's display, using live styles on the C++ path.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_box_type_transformation_input(
+    facts: u32,
+    target: FfiStyleAdjustmentTarget,
+    has_parent_display: bool,
+    parent_display: FfiDisplay,
+) -> FfiBoxTypeTransformationInput {
+    use crate::css::style::bridge::element_adjustment_fact as fact;
+
+    let has = |bit| facts & bit != 0;
+    let adjust_element = target == FfiStyleAdjustmentTarget::Element;
+    FfiBoxTypeTransformationInput {
+        display: crate::css::display::FfiDisplay::inline(),
+        position: keyword::STATIC,
+        float_value: keyword::NONE,
+        is_br_element: adjust_element && has(fact::IS_BR),
+        is_document_element: has(fact::IS_DOCUMENT_ELEMENT),
+        is_mathml_element: has(fact::IS_MATHML),
+        is_mathml_mtable: has(fact::IS_MATHML_MTABLE),
+        is_mathml_mtr: has(fact::IS_MATHML_MTR),
+        is_mathml_mtd: has(fact::IS_MATHML_MTD),
+        has_parent_display,
+        parent_display,
+        is_wbr_element: adjust_element && has(fact::IS_WBR),
+        disallow_display_contents: adjust_element && has(fact::DISALLOW_DISPLAY_CONTENTS),
+        rewrite_inline_flow: adjust_element && has(fact::REWRITE_INLINE_FLOW),
+        is_button_element: adjust_element && has(fact::IS_BUTTON),
+        force_line_height_normal: adjust_element && has(fact::FORCE_LINE_HEIGHT_NORMAL),
+        check_input_line_height: adjust_element && has(fact::CHECK_INPUT_LINE_HEIGHT),
+        hide_audio_without_controls: adjust_element && has(fact::HIDE_AUDIO_WITHOUT_CONTROLS),
+        is_table_element: adjust_element && has(fact::IS_TABLE),
+        force_position_static: adjust_element && has(fact::FORCE_POSITION_STATIC),
+        force_symbol_display_inline: adjust_element && has(fact::FORCE_SYMBOL_DISPLAY_INLINE),
+        webkit_box_layout_transformation_applies: false,
+    }
+}
+
 /// Result of the box type transformation: whether float must be reset to none,
 /// and the possibly replaced display.
 #[repr(C)]

@@ -27,10 +27,9 @@ impl StyleEngine {
     )> {
         use crate::css::computed_value_types::{STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_INHERITED_BOX};
         use crate::css::style_compute::{
-            FfiBoxTypeTransformationInput, FfiEffectiveColorSchemeInput, FfiFontMetrics, FfiLengthResolutionContext,
-            FfiStyleComputationEnvironment, LONGHAND_DRIVE_PHASE_REMAINING, drive_property_computation,
-            empty_longhand_driver_results, is_required_driver_input, keyword, parent_snapshot_for_style_record,
-            property_computation_order_for_phase,
+            FfiEffectiveColorSchemeInput, FfiFontMetrics, FfiLengthResolutionContext, FfiStyleComputationEnvironment,
+            LONGHAND_DRIVE_PHASE_REMAINING, drive_property_computation, empty_longhand_driver_results,
+            is_required_driver_input, parent_snapshot_for_style_record, property_computation_order_for_phase,
         };
 
         let Some(view) = self.computed_group_sets.style_record_view(old_style_record.raw()) else {
@@ -113,30 +112,12 @@ impl StyleEngine {
         // properties were checked not to need one, and the required driver inputs are compared
         // against the record below.
         let environment = FfiStyleComputationEnvironment {
-            box_type_input: FfiBoxTypeTransformationInput {
-                display: crate::css::display::FfiDisplay::inline(),
-                position: keyword::STATIC,
-                float_value: keyword::NONE,
-                is_br_element: false,
-                is_document_element: false,
-                is_mathml_element: false,
-                is_mathml_mtable: false,
-                is_mathml_mtr: false,
-                is_mathml_mtd: false,
-                has_parent_display: false,
-                parent_display: crate::css::display::FfiDisplay::block(),
-                is_wbr_element: false,
-                disallow_display_contents: false,
-                rewrite_inline_flow: false,
-                is_button_element: false,
-                force_line_height_normal: false,
-                check_input_line_height: false,
-                hide_audio_without_controls: false,
-                is_table_element: false,
-                force_position_static: false,
-                force_symbol_display_inline: false,
-                webkit_box_layout_transformation_applies: false,
-            },
+            box_type_input: crate::css::style_compute::rust_box_type_transformation_input(
+                0,
+                crate::css::style_compute::FfiStyleAdjustmentTarget::Element,
+                false,
+                crate::css::display::FfiDisplay::block(),
+            ),
             color_scheme_input: FfiEffectiveColorSchemeInput {
                 preferred_color_scheme: 0,
                 has_document_supported_schemes: false,
@@ -243,11 +224,10 @@ impl StyleEngine {
         use crate::css::css_pixels::CssPixels;
         use crate::css::property_metadata::property_id as prop;
         use crate::css::style_compute::{
-            FfiBoxTypeTransformationInput, FfiEffectiveColorSchemeInput, FfiFontMetrics, FfiInputLineHeightMetrics,
-            FfiLengthResolutionContext, FfiStyleComputationEnvironment, LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
-            LONGHAND_DRIVE_PHASE_FONT, LONGHAND_DRIVE_PHASE_LINE_HEIGHT, LONGHAND_DRIVE_PHASE_REMAINING,
-            drive_property_computation, effective_display, empty_longhand_driver_results, font_family_is_monospace,
-            keyword,
+            FfiEffectiveColorSchemeInput, FfiFontMetrics, FfiInputLineHeightMetrics, FfiLengthResolutionContext,
+            FfiStyleComputationEnvironment, LONGHAND_DRIVE_PHASE_COLOR_SCHEME, LONGHAND_DRIVE_PHASE_FONT,
+            LONGHAND_DRIVE_PHASE_LINE_HEIGHT, LONGHAND_DRIVE_PHASE_REMAINING, drive_property_computation,
+            effective_display, empty_longhand_driver_results, font_family_is_monospace, keyword,
         };
         use crate::css::table_group_builder::FfiFontGroupBuildInputs;
         use bridge::element_adjustment_fact as fact;
@@ -414,30 +394,12 @@ impl StyleEngine {
             line_height: inputs.root_line_height,
         };
         let environment = FfiStyleComputationEnvironment {
-            box_type_input: FfiBoxTypeTransformationInput {
-                display: crate::css::display::FfiDisplay::inline(),
-                position: keyword::STATIC,
-                float_value: keyword::NONE,
-                is_br_element: has(fact::IS_BR),
-                is_document_element,
-                is_mathml_element: has(fact::IS_MATHML),
-                is_mathml_mtable: has(fact::IS_MATHML_MTABLE),
-                is_mathml_mtr: has(fact::IS_MATHML_MTR),
-                is_mathml_mtd: has(fact::IS_MATHML_MTD),
-                has_parent_display: parent_display.is_some(),
-                parent_display: parent_display.unwrap_or_else(crate::css::display::FfiDisplay::block),
-                is_wbr_element: has(fact::IS_WBR),
-                disallow_display_contents: has(fact::DISALLOW_DISPLAY_CONTENTS),
-                rewrite_inline_flow: has(fact::REWRITE_INLINE_FLOW),
-                is_button_element: has(fact::IS_BUTTON),
-                force_line_height_normal: has(fact::FORCE_LINE_HEIGHT_NORMAL),
-                check_input_line_height: has(fact::CHECK_INPUT_LINE_HEIGHT),
-                hide_audio_without_controls: has(fact::HIDE_AUDIO_WITHOUT_CONTROLS),
-                is_table_element: has(fact::IS_TABLE),
-                force_position_static: has(fact::FORCE_POSITION_STATIC),
-                force_symbol_display_inline: has(fact::FORCE_SYMBOL_DISPLAY_INLINE),
-                webkit_box_layout_transformation_applies: false,
-            },
+            box_type_input: crate::css::style_compute::rust_box_type_transformation_input(
+                facts,
+                crate::css::style_compute::FfiStyleAdjustmentTarget::Element,
+                parent_display.is_some(),
+                parent_display.unwrap_or_else(crate::css::display::FfiDisplay::block),
+            ),
             color_scheme_input: FfiEffectiveColorSchemeInput {
                 preferred_color_scheme: inputs.preferred_color_scheme,
                 has_document_supported_schemes: inputs.has_document_supported_schemes,

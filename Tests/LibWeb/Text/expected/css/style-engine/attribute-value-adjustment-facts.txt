@@ -1,0 +1,5 @@
+initial: input inline-block, rect rgb(255, 0, 0)
+changed values: input inline, rect rgb(0, 128, 0)
+changed cascade: input inline, rect rgb(0, 128, 0)
+removed hint: input inline-block, rect rgb(0, 0, 0)
+added hint: input inline-block, rect rgb(0, 0, 255)
