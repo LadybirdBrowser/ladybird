@@ -118,6 +118,55 @@ static ThrowCompletionOr<GC::RootVector<Value>> get_own_property_keys(VM& vm, Va
     return { move(name_list) };
 }
 
+static ThrowCompletionOr<bool> try_assign_from_shape(Object& target, Object& source)
+{
+    if (!source.eligible_for_own_property_enumeration_fast_path()
+        || source.has_intrinsic_accessors()
+        || source.may_interfere_with_indexed_property_access()
+        || source.has_parameter_map()
+        || source.is_ecmascript_function_object()
+        || source.indexed_storage_kind() != IndexedStorageKind::None
+        || source.shape().is_dictionary())
+        return false;
+
+    struct Property {
+        PropertyKey key;
+        PropertyMetadata metadata;
+    };
+    Vector<Property, 8> properties;
+    properties.ensure_capacity(source.shape().property_count());
+    bool has_non_string_keys = false;
+    source.shape().for_each_property_in_insertion_order([&](auto const& key, auto const& metadata) {
+        if (!key.is_string()) {
+            has_non_string_keys = true;
+            return IterationDecision::Break;
+        }
+        properties.unchecked_append({ key, metadata });
+        return IterationDecision::Continue;
+    });
+    if (has_non_string_keys)
+        return false;
+
+    GC::Ref source_shape = source.shape();
+    for (auto const& property : properties) {
+        Value value;
+        if (&source.shape() == source_shape.ptr()) {
+            if (!property.metadata.attributes.is_enumerable())
+                continue;
+            value = source.get_direct(property.metadata.offset);
+            if (value.is_accessor())
+                value = TRY(source.get(property.key));
+        } else {
+            auto descriptor = TRY(source.internal_get_own_property(property.key));
+            if (!descriptor.has_value() || !*descriptor->enumerable)
+                continue;
+            value = TRY(source.get(property.key));
+        }
+        TRY(target.set(property.key, value, Object::ShouldThrowExceptions::Yes));
+    }
+    return true;
+}
+
 // 20.1.2.1 Object.assign ( target, ...sources ), https://tc39.es/ecma262/#sec-object.assign
 JS_DEFINE_NATIVE_FUNCTION(ObjectConstructor::assign)
 {
@@ -138,6 +187,12 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectConstructor::assign)
 
         // i. Let from be ! ToObject(nextSource).
         auto from = MUST(next_source.to_object(vm));
+
+        // OPTIMIZATION: Snapshot named property keys and offsets without converting keys to JS strings.
+        // Read current values directly while the source shape is unchanged. Getters and target setters
+        // can mutate the source, so retain every original key and recheck the shape before each read.
+        if (TRY(try_assign_from_shape(*to, *from)))
+            continue;
 
         // ii. Let keys be ? from.[[OwnPropertyKeys]]().
         auto keys = TRY(from->internal_own_property_keys());
