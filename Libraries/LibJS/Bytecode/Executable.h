@@ -317,7 +317,7 @@ private:
 
     Vector<PropertyKey> m_properties;
     Vector<Value> m_property_values;
-    GC::Ptr<Shape> m_shape;
+    GC::Ref<Shape> m_shape;
     GC::Ptr<PrototypeChainValidity> m_prototype_chain_validity;
     u32 m_indexed_property_count { 0 };
     u32 m_shape_dictionary_generation { 0 };
