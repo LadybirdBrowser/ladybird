@@ -2969,8 +2969,10 @@ impl StyleEngine {
                 let mut visited = Vec::new();
                 let mut changed_nodes = Vec::new();
                 let mut prefix_delta_arena = PrefixDeltaArena::default();
+                let positional_workspace = MatchEvaluationWorkspace::default();
                 let old_evaluator = MatchEvaluator::new(&self.tree, resident_facts)
-                    .with_transaction_fact_view(view, TransactionFactSide::Before);
+                    .with_transaction_fact_view(view, TransactionFactSide::Before)
+                    .with_match_workspace(&positional_workspace, MatchEvaluationSide::OldTree);
                 let old_evaluation = PrefixEvaluation::new(
                     dispatch.prefixes(),
                     &self.tree,
@@ -2981,7 +2983,8 @@ impl StyleEngine {
                     None,
                 );
                 let new_evaluator = MatchEvaluator::new(&self.tree, resident_facts)
-                    .with_transaction_fact_view(view, TransactionFactSide::After);
+                    .with_transaction_fact_view(view, TransactionFactSide::After)
+                    .with_match_workspace(&positional_workspace, MatchEvaluationSide::Current);
                 let new_evaluation = PrefixEvaluation::new(
                     dispatch.prefixes(),
                     &self.tree,
@@ -3001,6 +3004,7 @@ impl StyleEngine {
                         + (changed_node_capacity * size_of::<StyleNodeID>()) as u64
                         + selection_bytes
                         + delta_capacity_bytes
+                        + positional_workspace.capacity_bytes()
                 };
                 let mut charged_bytes = workspace_bytes(
                     pending_nodes.capacity(),

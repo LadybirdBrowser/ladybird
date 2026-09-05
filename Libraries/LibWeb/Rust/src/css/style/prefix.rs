@@ -2504,9 +2504,13 @@ impl PrefixStates {
             };
             local_facts
         };
-        let positional_bits = match evaluation.positional_bits(node, counters) {
-            Ok(bits) => bits,
-            Err(incomplete) => return PrefixTransitionLookup::Missing(PrefixTransitionGap::Incomplete(incomplete)),
+        let positional_bits = if positional_truth_stable && old.is_some() {
+            self.positional_bits_of(node)
+        } else {
+            match evaluation.positional_bits(node, counters) {
+                Ok(bits) => bits,
+                Err(incomplete) => return PrefixTransitionLookup::Missing(PrefixTransitionGap::Incomplete(incomplete)),
+            }
         };
         let entering = EnteringStates {
             parent: parent_state,
