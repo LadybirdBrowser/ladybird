@@ -13,4 +13,4 @@ a subtree arrives as its guard does: settles exactly
 the guard leaves the arrived subtree: settles exactly
 a state changes under the guard: settles exactly
 convergence planned some of these: true
-and stopped descending somewhere: true
+and stopped propagation somewhere: true

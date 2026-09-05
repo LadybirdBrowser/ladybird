@@ -1,4 +1,4 @@
-PASS: same-parent move preserves unchanged descendant styles | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: same-parent move preserves unchanged descendant styles | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: same-parent move invalidates descendants: first-child descendant begins matching
 PASS: same-parent move invalidates descendants: first-child child combinator begins matching
 PASS: same-parent move invalidates descendants: first-child descendant stops matching

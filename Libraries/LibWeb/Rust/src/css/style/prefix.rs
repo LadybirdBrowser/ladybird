@@ -55,6 +55,9 @@ use super::selector::SelectorPrograms;
 use super::tree::StyleNodeID;
 use super::tree::StyleNodeTree;
 
+mod relation;
+pub(super) use relation::PrefixRelation;
+
 define_id! { struct PrefixCompoundID(); }
 
 define_id! { pub(super) struct PrefixStepID(); }
@@ -1028,8 +1031,10 @@ impl LocalFactInterner {
     }
 }
 
-/// Traversal-local prefix states for one immutable selector dispatch.
+/// Retained prefix states for one immutable selector dispatch.
 pub(super) struct PrefixStates {
+    pub(super) relation: Option<Box<PrefixRelation>>,
+    relation_answers: Column<Option<PrefixMatchSetID>>,
     states: Vec<PrefixState>,
     /// Every state's delta payload: its persisting additions followed by its expiring steps.
     delta_steps: Vec<std::mem::MaybeUninit<PrefixStepID>>,
@@ -1569,6 +1574,8 @@ impl PrefixStates {
     #[must_use]
     pub(super) fn new(row_count: usize) -> Self {
         Self {
+            relation_answers: Column::default(),
+            relation: None,
             states: vec![PrefixState::default()],
             delta_steps: Vec::new(),
             states_by_hash: HashMap::default(),
@@ -1630,6 +1637,9 @@ impl PrefixStates {
         node: StyleNodeID,
         counters: &mut Counters,
     ) -> PrefixTransitionLookup<PrefixMatchSetID> {
+        if let Some(matches) = self.relation_answer(node) {
+            return PrefixTransitionLookup::Known(matches);
+        }
         match self.transition_of(node) {
             PrefixTransitionLookup::Known(transition) => {
                 counters.bump(Counter::PrefixTransitionCacheMatchHits);
@@ -1652,10 +1662,28 @@ impl PrefixStates {
     /// Read the exact terminal matches already retained for one element without extending the
     /// prefix relation. A missing transition is not an empty answer.
     pub(super) fn retained_matches_for(&self, node: StyleNodeID) -> Option<&[EntryID]> {
+        if let Some(matches) = self.relation_answer(node) {
+            return Some(self.matches_in(matches));
+        }
         match self.transition_of(node) {
             PrefixTransitionLookup::Known(transition) => Some(self.matches_in(self.matches_of(transition))),
             PrefixTransitionLookup::Missing(_) => None,
         }
+    }
+
+    fn relation_answer(&self, node: StyleNodeID) -> Option<PrefixMatchSetID> {
+        node.element_index()
+            .and_then(|index| self.relation_answers.get(index as usize))
+            .copied()
+            .flatten()
+    }
+
+    fn install_relation_answer(&mut self, node: StyleNodeID, entries: &[EntryID], counters: &mut Counters) {
+        self.output_matches.clear();
+        self.output_matches.extend_from_slice(entries);
+        let matches = self.intern_output_matches(counters);
+        self.relation_answers
+            .insert(node.element_index().unwrap() as usize, Some(matches));
     }
 
     fn matches_of(&self, transition: PrefixTransition) -> PrefixMatchSetID {
@@ -1918,6 +1946,9 @@ impl PrefixStates {
         let Some(index) = node.element_index().map(|index| index as usize) else {
             return;
         };
+        if let Some(answer) = self.relation_answers.get_mut(index) {
+            *answer = None;
+        }
         let Some(transition) = self.transition_by_element.get_mut(index) else {
             return;
         };
@@ -3825,6 +3856,7 @@ impl PrefixStates {
         capacity_bytes! {
             shallow [
                 self.states,
+                self.relation_answers,
                 self.delta_steps,
                 self.states_by_hash,
                 self.match_offsets,
@@ -3862,7 +3894,10 @@ impl PrefixStates {
                 self.ancestor_chain,
             ];
             cached [];
-            nested [self.states_by_hash_collision_bytes];
+            nested [
+                self.states_by_hash_collision_bytes,
+                self.relation.as_ref().map_or(0, |relation| size_of::<PrefixRelation>() as u64 + relation.capacity_bytes()),
+            ];
             skip [
                 self.local_fact_interner,
                 self.comparison_epoch,
@@ -4216,6 +4251,10 @@ pub(super) enum PrefixStateCacheGap {
 }
 
 impl PrefixStateCache {
+    pub(super) fn has_relation(&self) -> bool {
+        self.by_program.iter().flatten().any(|states| states.relation.is_some())
+    }
+
     pub(super) fn lookup(&self, program: ScopeProgramID) -> Lookup<&PrefixStates, PrefixStateCacheGap> {
         match self.by_program.get(program.0 as usize).and_then(Option::as_deref) {
             Some(states) => Lookup::Known(states),

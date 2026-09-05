@@ -607,6 +607,7 @@ impl StyleEngine {
                     .or_else(|| self.materialize_cold_matching_batch(root, None))
             })
             .flatten();
+        let relation_dispatch = batch.as_ref().map(|_| self.ranked_scope_program(TreeScopeID::DOCUMENT));
         // The walk that just converged left the retained states describing THIS transaction,
         // so the completion batch can extend the warm automaton instead of re-deriving every
         // upquery spine. Without a current walk the retained states describe the previous
@@ -619,6 +620,37 @@ impl StyleEngine {
             }
             caches.states.make_scratch(&mut self.memory);
             caches.answers.make_scratch(&mut self.memory);
+            if let Some((program, dispatch)) = relation_dispatch
+                && let Some(facts) = batch.as_ref()
+                && (matches!(caches.states.lookup(program), Lookup::Known(states) if states.relation.is_some())
+                    || dispatch.prefixes().supports_relation(&self.tree, root))
+            {
+                let states = caches
+                    .states
+                    .get_or_insert(program, facts.generation(), facts.row_count());
+                let relation = states.relation.take().unwrap_or_else(|| {
+                    let workspace = MatchEvaluationWorkspace::default();
+                    let evaluator = MatchEvaluator::new(&self.tree, facts)
+                        .with_match_workspace(&workspace, selector::MatchEvaluationSide::Current);
+                    let evaluation = PrefixEvaluation::new(
+                        dispatch.prefixes(),
+                        &self.tree,
+                        facts,
+                        &self.programs,
+                        &evaluator,
+                        None,
+                        None,
+                    );
+                    Box::new(
+                        dispatch
+                            .prefixes()
+                            .build_relation(&evaluation, root, &mut self.counters),
+                    )
+                });
+                relation.install_answers(states, &mut self.counters);
+                states.relation = Some(relation);
+                caches.states.settle_memory(&mut self.memory);
+            }
         }
         self.batch_matching_traversal = Some(Box::new(BatchMatchingTraversal {
             root,

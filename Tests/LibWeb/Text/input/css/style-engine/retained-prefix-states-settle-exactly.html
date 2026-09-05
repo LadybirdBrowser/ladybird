@@ -36,7 +36,8 @@
         mutate();
         internals.updateStyle();
         const after = internals.styleEngineCounters();
-        cacheHits += after.prefixTransitionCacheHits - before.prefixTransitionCacheHits;
+        cacheHits += after.prefixTransitionCacheHits - before.prefixTransitionCacheHits
+            + after.prefixRelationUpdates - before.prefixRelationUpdates;
         const incremental = snapshot();
         CSS.registerProperty({ name: `--force-${forced++}`, syntax: "*", inherits: false, initialValue: "1px" });
         internals.updateStyle();
@@ -91,7 +92,7 @@
             ++stale;
 
         // Without these the cycles above would pass whether or not anything was ever retained.
-        println(`invalidation consumed a retained transition: ${cacheHits > 0}`);
+        println(`invalidation consumed retained selector state: ${cacheHits > 0}`);
         println(`stale settlements: ${stale}`);
         println(`final: ${snapshot()}`);
     });
