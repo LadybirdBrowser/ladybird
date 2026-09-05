@@ -72,8 +72,6 @@ protected:
 
     void set_potentially_delays_the_load_event(bool value);
 
-    void set_content_navigable_has_session_history_entry_and_ready_for_navigation();
-
 private:
     virtual bool is_navigable_container() const override { return true; }
 
