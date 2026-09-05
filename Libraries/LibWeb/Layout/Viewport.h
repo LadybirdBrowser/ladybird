@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/Utf16String.h>
 #include <LibWeb/Layout/BlockContainer.h>
 
 namespace Web::Layout {
@@ -16,26 +15,12 @@ public:
     explicit Viewport(DOM::Document&, CSS::LayoutStyle);
     virtual ~Viewport() override;
 
-    struct TextPosition {
-        GC::Weak<DOM::Text> dom_node;
-        size_t start_offset { 0 };
-        size_t dom_offset_within_node { 0 };
-    };
-    struct TextBlock {
-        Utf16String text;
-        Vector<TextPosition> positions;
-    };
-    Vector<TextBlock> const& text_blocks();
-    void invalidate_text_blocks_cache() { m_text_blocks.clear(); }
+    void invalidate_text_blocks_cache() { RustFFI::layout_arena_invalidate_searchable_text(arena_handle()); }
 
     DOM::Document const& dom_node() const;
 
 private:
-    void update_text_blocks();
-
     virtual bool is_viewport() const override { return true; }
-
-    Optional<Vector<TextBlock>> m_text_blocks;
 };
 
 template<>

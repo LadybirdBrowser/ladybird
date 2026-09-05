@@ -51,7 +51,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/Strings.h>
-#include <LibWeb/Layout/TextOffsetMapping.h>
+#include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/AutoScrollHandler.h>
 #include <LibWeb/Page/DragAndDropEventHandler.h>
@@ -2900,23 +2900,13 @@ bool EventHandler::initiate_word_selection(DOM::Document& document, Painting::Ca
 
     auto& hit_node = as<DOM::Text>(*caret_position.boundary.node);
     auto hit_index = caret_position.boundary.offset;
-    Layout::TextOffsetMapping mapping { hit_node };
-    auto const* hit_layout_text_node = mapping.fragment_containing(hit_index);
+    auto const* hit_layout_text_node = as_if<Layout::TextNode>(hit_node.unsafe_layout_node());
     if (!hit_layout_text_node)
         return false;
 
-    size_t previous_boundary = 0;
-    size_t next_boundary = 0;
-
-    if (hit_node.is_password_input()) {
-        next_boundary = hit_node.length_in_utf16_code_units();
-    } else {
-        auto& segmenter = word_segmenter();
-        segmenter.set_segmented_text(hit_layout_text_node->text_for_rendering());
-
-        previous_boundary = segmenter.previous_boundary(hit_index, Unicode::Segmenter::Inclusive::Yes).value_or(0);
-        next_boundary = segmenter.next_boundary(hit_index).value_or(hit_node.length());
-    }
+    auto word_range = hit_layout_text_node->word_range_at(hit_index);
+    auto previous_boundary = word_range.start;
+    auto next_boundary = word_range.start + word_range.length;
 
     m_selection_mode = SelectionMode::Word;
     m_selection_origin = DOM::Range::create(hit_node, previous_boundary, hit_node, next_boundary);
@@ -3149,9 +3139,12 @@ void EventHandler::apply_mouse_selection(CSSPixelPoint visual_viewport_position)
     // In word selection mode, extend selection by whole words.
     if (m_selection_mode == SelectionMode::Word && m_selection_origin && is<DOM::Text>(*focus_node)) {
         auto& hit_text_node = as<DOM::Text>(*focus_node);
-        auto& segmenter = hit_text_node.word_segmenter();
-        auto word_start = segmenter.previous_boundary(focus_index, Unicode::Segmenter::Inclusive::Yes).value_or(0);
-        auto word_end = segmenter.next_boundary(focus_index).value_or(focus_node->length());
+        auto const* text_layout_node = as_if<Layout::TextNode>(hit_text_node.unsafe_layout_node());
+        if (!text_layout_node)
+            return;
+        auto word_range = text_layout_node->word_range_at(focus_index);
+        auto word_start = word_range.start;
+        auto word_end = word_range.start + word_range.length;
 
         // Determine cursor position relative to anchor.
         auto position = m_selection_origin->compare_point(*focus_node, focus_index);
@@ -3619,13 +3612,6 @@ bool EventHandler::has_committed_root_box() const
 {
     auto document = m_navigable->active_document();
     return document && document->has_committed_viewport_box();
-}
-
-Unicode::Segmenter& EventHandler::word_segmenter()
-{
-    if (!m_word_segmenter)
-        m_word_segmenter = m_navigable->active_document()->word_segmenter().clone();
-    return *m_word_segmenter;
 }
 
 void EventHandler::clear_per_test_input_state(Badge<Internals::Internals>)

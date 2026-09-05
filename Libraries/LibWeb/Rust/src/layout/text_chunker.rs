@@ -13,6 +13,13 @@ unsafe extern "C" {
     fn unicode_layout_line_segmenter_create(text: *const u16, length_in_code_units: usize) -> *mut c_void;
     fn unicode_layout_segmenter_next_boundary(handle: *mut c_void, index: usize, inclusive: bool) -> i64;
     fn unicode_layout_segmenter_destroy(handle: *mut c_void);
+    fn unicode_layout_word_boundaries(
+        text: *const u16,
+        length: usize,
+        offset: usize,
+        start: *mut usize,
+        end: *mut usize,
+    );
     fn ladybird_layout_text_type_for_code_point(code_point: u32) -> u8;
     fn ladybird_layout_code_point_has_break_all_line_break_class(code_point: u32) -> bool;
     fn ladybird_layout_code_point_has_keep_all_line_break_class(code_point: u32) -> bool;
@@ -50,6 +57,15 @@ pub(crate) fn chunk_text(inputs: TextChunkInputs<'_>) -> Vec<TextChunk> {
         chunks.push(chunk);
     }
     chunks
+}
+
+pub(super) fn word_boundaries(text: &[u16], offset: usize) -> std::ops::Range<usize> {
+    let mut start = 0;
+    let mut end = text.len();
+    // SAFETY: The Unicode service borrows the buffer only for this call and
+    // writes its boundaries into the two live output slots.
+    unsafe { unicode_layout_word_boundaries(text.as_ptr(), text.len(), offset, &raw mut start, &raw mut end) };
+    start..end
 }
 
 pub(crate) struct IcuSegmenterHandle {

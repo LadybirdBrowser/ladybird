@@ -41,6 +41,7 @@ pub(crate) mod style_values;
 pub mod svg_formatting_context;
 pub mod table_formatting_context;
 pub(crate) mod text_chunker;
+mod text_queries;
 mod text_transform;
 mod tree_builder;
 mod tree_mutation;

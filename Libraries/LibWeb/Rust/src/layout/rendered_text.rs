@@ -122,6 +122,27 @@ impl std::ops::Deref for CachedTextChunks {
 }
 
 impl TextContent {
+    #[cfg(test)]
+    pub(super) fn for_test(text: &str, dom_start: usize, dom_length: usize, edits: Vec<RenderedTextEdit>) -> Self {
+        Self {
+            text: text.encode_utf16().collect(),
+            dom_start_offset: dom_start,
+            dom_length_in_code_units: dom_length,
+            edits,
+            ..Self::default()
+        }
+    }
+
+    pub(super) fn dom_range(&self) -> std::ops::Range<usize> {
+        self.dom_start_offset..self.dom_start_offset + self.dom_length_in_code_units
+    }
+
+    pub(super) fn is_password_input(&self) -> bool {
+        self.rendering_key
+            .as_ref()
+            .is_some_and(|key| key.options.is_password_input)
+    }
+
     pub(crate) fn text_chunks(
         &self,
         key: TextChunkCacheKey,
@@ -252,52 +273,15 @@ pub struct FfiTextSourceRange {
 }
 
 /// Layout fragments of one DOM text node, in source order with the primary last.
-#[repr(C)]
-pub struct FfiTextFragments {
+pub(crate) struct TextFragments {
     pub nodes: [NodeSlotId; 2],
     pub length: usize,
 }
 
-impl FfiTextFragments {
+impl TextFragments {
     pub(crate) fn as_slice(&self) -> &[NodeSlotId] {
         &self.nodes[..self.length]
     }
-}
-
-/// # Safety
-///
-/// The arena must be live on the document thread and `id` must name a live text node.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_text_source_range(
-    arena: *mut c_void,
-    id: NodeSlotId,
-    source_length: usize,
-) -> FfiTextSourceRange {
-    // SAFETY: The caller lends the arena for this synchronous query.
-    unsafe { LayoutNodeArena::from_handle(arena) }.text_source_range(id, source_length)
-}
-
-/// # Safety
-///
-/// The arena must be live on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_text_fragments(arena: *mut c_void, primary: NodeSlotId) -> FfiTextFragments {
-    // SAFETY: The caller lends the arena for this synchronous query.
-    unsafe { LayoutNodeArena::from_handle(arena) }.text_fragments(primary)
-}
-
-/// # Safety
-///
-/// The arena must be live on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_text_fragment_containing(
-    arena: *mut c_void,
-    primary: NodeSlotId,
-    dom_offset: usize,
-    source_length: usize,
-) -> NodeSlotId {
-    // SAFETY: The caller lends the arena for this synchronous query.
-    unsafe { LayoutNodeArena::from_handle(arena) }.text_fragment_containing(primary, dom_offset, source_length)
 }
 
 #[repr(C)]
@@ -421,13 +405,7 @@ mod tests {
     use RenderedTextBoundary::{End, Start};
 
     fn content(text: &str, dom_start: usize, dom_length: usize, edits: Vec<RenderedTextEdit>) -> TextContent {
-        TextContent {
-            text: text.encode_utf16().collect(),
-            dom_start_offset: dom_start,
-            dom_length_in_code_units: dom_length,
-            edits,
-            ..TextContent::default()
-        }
+        TextContent::for_test(text, dom_start, dom_length, edits)
     }
 
     fn edit(dom_start: usize, dom_length: usize, rendered_start: usize, rendered_length: usize) -> RenderedTextEdit {
@@ -705,12 +683,6 @@ mod tests {
         let mut arena = LayoutNodeArena::new();
         let (first, remainder) = first_letter_slices(&mut arena, 2, 5);
         assert_eq!(arena.text_fragments(remainder).as_slice(), &[first, remainder]);
-        assert_eq!(arena.text_fragment_containing(remainder, 0, 5), first);
-        // Both ranges include their end boundary; the first-letter wins the shared boundary.
-        assert_eq!(arena.text_fragment_containing(remainder, 2, 5), first);
-        assert_eq!(arena.text_fragment_containing(remainder, 3, 5), remainder);
-        assert_eq!(arena.text_fragment_containing(remainder, 5, 5), remainder);
-        assert!(arena.text_fragment_containing(remainder, 6, 5).is_invalid());
 
         arena.set_text_content(first, content("«SS", 0, 2, vec![edit(1, 1, 1, 2)]));
         arena.set_text_content(remainder, content("abc", 2, 3, Vec::new()));
@@ -742,8 +714,6 @@ mod tests {
         assert_eq!(replacement.slot_index(), first.slot_index());
         assert_ne!(replacement, first);
         assert_eq!(arena.text_fragments(remainder).as_slice(), &[remainder]);
-        assert!(arena.text_fragment_containing(remainder, 0, 1).is_invalid());
-        assert_eq!(arena.text_fragment_containing(remainder, 1, 1), remainder);
         assert_eq!(
             arena.text_source_range(replacement, 4),
             FfiTextSourceRange { start: 0, length: 4 }
@@ -755,7 +725,6 @@ mod tests {
         assert_eq!(replacement.slot_index(), remainder.slot_index());
         assert!(arena.text_fragments(remainder).as_slice().is_empty());
         assert_eq!(arena.text_fragments(replacement).as_slice(), &[replacement]);
-        assert_eq!(arena.text_fragment_containing(replacement, 3, 4), replacement);
         assert!(arena.text_fragments(NodeSlotId::INVALID).as_slice().is_empty());
     }
 

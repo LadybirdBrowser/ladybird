@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+    #target { font: 20px Ahem; }
+    #target::first-letter { color: blue; }
+</style>
+<div id="target"></div>
+<script>
+    promiseTest(async () => {
+        await document.fonts.load("20px Ahem");
+        const target = document.getElementById("target");
+        function selectWord(label, text, offset, transform = "none", language = "en") {
+            target.lang = language;
+            target.style.textTransform = transform;
+            target.textContent = text;
+            const character = document.createRange();
+            character.setStart(target.firstChild, offset);
+            character.setEnd(target.firstChild, offset + 1);
+            const rect = character.getBoundingClientRect();
+            const x = rect.x + rect.width / 4;
+            const y = rect.y + rect.height / 2;
+            internals.click(x, y);
+            internals.click(x, y, 2);
+            const range = getSelection().getRangeAt(0);
+            println(`${label}: ${JSON.stringify(range.toString())}, ${range.startOffset}-${range.endOffset}`);
+        }
+
+        selectWord("first word across slices", "Hello world", 2);
+        selectWord("word in remainder", "Hello world", 6);
+        selectWord("expanded first letter", "ßa next", 0, "uppercase");
+        selectWord("word after expansion", "ßa next", 3, "uppercase");
+        selectWord("contracted first letter", "I\u0307x end", 2, "lowercase", "tr");
+        selectWord("word after contraction", "I\u0307x end", 4, "lowercase", "tr");
+    });
+</script>

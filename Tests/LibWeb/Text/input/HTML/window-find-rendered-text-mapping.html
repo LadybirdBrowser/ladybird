@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .split::first-letter { text-transform: uppercase; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const output = document.getElementById("out");
+        output.style.display = "none";
+        function find(label, markup, query, split = false) {
+            target.className = split ? "split" : "";
+            target.innerHTML = markup;
+            getSelection().removeAllRanges();
+            if (!window.find(query)) {
+                println(`${label}: not found`);
+                return;
+            }
+            const range = getSelection().getRangeAt(0);
+            const start = `${range.startContainer.parentElement.id}:${range.startOffset}`;
+            const end = `${range.endContainer.parentElement.id}:${range.endOffset}`;
+            println(`${label}: ${start}-${end}, ${JSON.stringify(range.toString())}`);
+        }
+
+        find("expansion", '<span id="a" style="text-transform: uppercase">ß</span>', "SS");
+        find("partial expansion", '<span id="a" style="text-transform: uppercase">ß</span>', "S");
+        find("after expansion", '<span id="a" style="text-transform: uppercase">abß cd</span>', "CD");
+        find("contraction", '<span id="a" lang="tr" style="text-transform: lowercase">I\u0307x</span>', "ix");
+        find("after contraction", '<span id="a" lang="tr" style="text-transform: lowercase">I\u0307x</span>', "x");
+        find("across slices", "ßabc", "SSa", true);
+        find("remainder", "ßabc", "abc", true);
+        const spaced = '<span id="a" style="text-transform: uppercase">ß \t</span><span id="b">  x</span>';
+        find("across collapsed spaces", spaced, "SS x");
+        find("ending on collapsed spaces", spaced, "SS ");
+        find("after supplementary letter", '<span id="a" style="text-transform: uppercase">𐐨x</span>', "X");
+        output.style.display = "block";
+    });
+</script>
