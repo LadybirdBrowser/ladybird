@@ -188,6 +188,8 @@ public:
         return m_utf16_string_cache;
     }
 
+    Bytecode::KeyedPropertyLookupCache& keyed_property_lookup_cache() { return *m_keyed_property_lookup_cache; }
+
     auto& numeric_string_cache() { return m_numeric_string_cache; }
 
     PrimitiveString& empty_string() { return *m_empty_string; }
@@ -588,6 +590,7 @@ private:
     static VM* s_the;
 
     HashMap<Utf16String, GC::Ptr<PrimitiveString>> m_utf16_string_cache;
+    OwnPtr<Bytecode::KeyedPropertyLookupCache> m_keyed_property_lookup_cache;
 
     static constexpr size_t numeric_string_cache_size = 1000;
     AK::Array<GC::Ptr<PrimitiveString>, numeric_string_cache_size> m_numeric_string_cache;

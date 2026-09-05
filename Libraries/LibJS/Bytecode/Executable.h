@@ -233,6 +233,26 @@ struct StaticPropertyLookupCache : public PropertyLookupCache {
     static void sweep_all();
 };
 
+struct KeyedPropertyLookupCache {
+    static constexpr size_t number_of_entries = 2048;
+
+    struct Entry {
+        PropertyLookupCache::Entry::Type type { PropertyLookupCache::Entry::Type::Empty };
+        u32 property_offset { 0 };
+        u32 shape_dictionary_generation { 0 };
+        GC::RawPtr<Shape> shape;
+        GC::RawPtr<Object> prototype;
+        GC::RawPtr<PrototypeChainValidity> prototype_chain_validity;
+        Utf16FlyString property_name;
+    };
+
+    [[nodiscard]] Entry& entry_for(Shape const&, Utf16FlyString const& property_name);
+    void remove_dead_entries();
+
+private:
+    AK::Array<Entry, number_of_entries> m_entries;
+};
+
 struct GlobalVariableCache {
     PropertyLookupCache::Entry* first_entry()
     {
