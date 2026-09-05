@@ -506,11 +506,11 @@ void ConnectionFromClient::continue_history_navigation_population(u64 page_id, W
         async_changing_navigable_history_job_ready(page_id, operation_id, navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition::Skipped, Web::HTML::UnloadDisplayedDocument::No);
         return;
     }
-    auto& traversable = as<Web::HTML::LocalTraversableNavigable>(*page->page().local_root_navigable());
-    if (traversable.resume_history_navigation_population(operation_id, move(population)))
+    auto& history_executor = page->page().history_executor();
+    if (history_executor.resume_history_navigation_population(operation_id, move(population)))
         return;
     auto user_involvement = population.request.user_involvement;
-    traversable.run_ui_changing_navigable_history_job(operation_id, navigable_id, move(target_entry), user_involvement, navigation_type, false,
+    history_executor.run_ui_changing_navigable_history_job(operation_id, navigable_id, move(target_entry), user_involvement, navigation_type, false,
         GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, Web::HTML::UnloadDisplayedDocument unload_displayed_document) {
             async_changing_navigable_history_job_ready(page_id, operation_id, navigable_id, disposition, unload_displayed_document);
         }),
@@ -525,7 +525,7 @@ void ConnectionFromClient::run_changing_navigable_history_job(u64 page_id, Web::
         return;
     }
 
-    as<Web::HTML::LocalTraversableNavigable>(*page->page().local_root_navigable()).run_ui_changing_navigable_history_job(operation_id, navigable_id, move(target_entry), user_involvement, navigation_type, superseded_by_newer_navigation, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, Web::HTML::UnloadDisplayedDocument unload_displayed_document) {
+    page->page().history_executor().run_ui_changing_navigable_history_job(operation_id, navigable_id, move(target_entry), user_involvement, navigation_type, superseded_by_newer_navigation, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, Web::HTML::UnloadDisplayedDocument unload_displayed_document) {
         async_changing_navigable_history_job_ready(page_id, operation_id, navigable_id, disposition, unload_displayed_document);
     }));
 }
@@ -538,7 +538,7 @@ void ConnectionFromClient::prepare_changing_navigable_for_unload(u64 page_id, We
         return;
     }
 
-    as<Web::HTML::LocalTraversableNavigable>(*page->page().local_root_navigable()).prepare_ui_changing_navigable_for_unload(operation_id, navigable_id, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id] {
+    page->page().history_executor().prepare_ui_changing_navigable_for_unload(operation_id, navigable_id, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id] {
         async_changing_navigable_unload_preparation_complete(page_id, operation_id, navigable_id);
     }));
 }
@@ -551,7 +551,7 @@ void ConnectionFromClient::apply_changing_navigable_continuation(u64 page_id, We
         return;
     }
 
-    as<Web::HTML::LocalTraversableNavigable>(*page->page().local_root_navigable()).apply_ui_changing_navigable_continuation(operation_id, navigable_id, { script_history_length, script_history_index }, move(entries_for_navigation_api), system_visibility_state, unload_displayed_document, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) {
+    page->page().history_executor().apply_ui_changing_navigable_continuation(operation_id, navigable_id, { script_history_length, script_history_index }, move(entries_for_navigation_api), system_visibility_state, unload_displayed_document, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) {
         async_changing_navigable_continuation_applied(page_id, operation_id, navigable_id, move(activated_navigable_state), move(previous_entry_persisted_state));
     }));
 }
