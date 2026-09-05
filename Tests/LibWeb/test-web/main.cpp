@@ -907,12 +907,28 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
 
     test.timeout_timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &context, test_index]() {
         auto& test = context.tests[test_index];
-        if (!test.did_start_test)
-            dbgln("Timeout during pre-navigation for {}, WebContent process may be unresponsive", test.relative_path);
+        if (!test.did_start_test) {
+            auto stalled_phase = test.did_load_about_blank ? "the session-history reset"sv : "the about:blank load"sv;
+            dbgln("Timeout during pre-navigation for {}: {} never completed, WebContent process may be unresponsive",
+                test.relative_path, stalled_phase);
+            capture_web_content_state_on_pre_navigation_timeout(view.web_content_pid());
+        }
 
         view.on_test_complete({ test_index, TestResult::Timeout });
     });
     test.timeout_timer->start();
+
+    // The about:blank load that opens every test has been seen to just vanish: WebContent stays healthy and idle, the
+    // load-finish never arrives. See #10123. One re-issued load turns that loss into a 15s hiccup — and the line it
+    // prints keeps every rescue visible. So, the underlying drop stays hunted — rather than hidden.
+    test.pre_navigation_watchdog = Core::Timer::create_single_shot(15'000, [&view, &context, test_index]() {
+        auto& test = context.tests[test_index];
+        if (test.did_load_about_blank)
+            return;
+        dbgln("Pre-navigation about:blank load for {} has not finished after 15 seconds; re-issuing it", test.relative_path);
+        view.load(URL::about_blank());
+    });
+    test.pre_navigation_watchdog->start();
 
     view.on_set_test_timeout = [&context, test_index](double milliseconds) {
         auto& test = context.tests[test_index];
@@ -924,19 +940,34 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
     // Clear the current document.
     auto promise = Core::Promise<Empty>::construct();
 
-    view.on_load_finish = [promise](auto const& url) {
+    view.on_load_finish = [promise, &context, test_index](auto const& url) {
         if (!url.equals(URL::about_blank()))
             return;
 
+        auto& test = context.tests[test_index];
+        test.did_load_about_blank = true;
+        if (test.pre_navigation_watchdog)
+            test.pre_navigation_watchdog->stop();
+
+        // A load re-issued by the watchdog can complete twice; the second arrival has nothing left to do.
         Core::deferred_invoke([promise]() {
-            promise->resolve({});
+            if (!promise->is_resolved())
+                promise->resolve({});
         });
     };
 
     view.on_test_finish = {};
 
     promise->when_resolved([&view, test_index, &app, &context](auto) {
+        // The timeout can retire this test and start the next one on this view while our resolve was already
+        // queued; the map names whichever test owns the view now, so a stale continuation stops here.
+        if (s_current_test_index_by_view.get(&view) != test_index)
+            return;
+
         view.reset_session_history()->when_resolved([&view, test_index, &app, &context](auto) {
+            if (s_current_test_index_by_view.get(&view) != test_index)
+                return;
+
             auto& test = context.tests[test_index];
             test.did_start_test = true;
 
@@ -1224,6 +1255,10 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             if (test.timeout_timer) {
                 test.timeout_timer->stop();
                 test.timeout_timer.clear();
+            }
+            if (test.pre_navigation_watchdog) {
+                test.pre_navigation_watchdog->stop();
+                test.pre_navigation_watchdog.clear();
             }
 
             s_current_test_index_by_view.remove(view);

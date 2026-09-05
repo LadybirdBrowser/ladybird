@@ -9,12 +9,50 @@
 
 #include <AK/Array.h>
 #include <AK/ByteString.h>
+#include <AK/Platform.h>
 #include <AK/Vector.h>
 #include <LibCore/File.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
 
 namespace TestWeb {
+
+// A pre-navigation timeout means WebContent sat healthy but idle for the whole per-test budget. Capture the live
+// process, while it's still wedged. macOS ships the sample tool for exactly this; elsewhere this stays a no-op for now.
+void capture_web_content_state_on_pre_navigation_timeout(pid_t pid)
+{
+#if defined(AK_OS_MACOS)
+    if (pid <= 0)
+        return;
+
+    (void)Core::System::mkdir("test-dumps"sv, 0755);
+    auto output_path = ByteString::formatted("test-dumps/pre-navigation-hang-{}.sample.txt", pid);
+
+    auto process_or_error = Core::Process::spawn({
+        .executable = "/usr/bin/sample"sv,
+        .arguments = Vector<ByteString> { ByteString::number(pid), "2"sv, "-file"sv, output_path },
+    });
+    if (process_or_error.is_error()) {
+        warnln("Failed to spawn sample for WebContent pid {}: {}", pid, process_or_error.error());
+        return;
+    }
+
+    auto sample_process = process_or_error.release_value();
+    auto wait_result = sample_process.wait_for_termination();
+    if (wait_result.is_error()) {
+        warnln("Failed waiting for sample: {}", wait_result.error());
+        return;
+    }
+    if (wait_result.value() != 0) {
+        warnln("sample exited with status {} for WebContent pid {}", wait_result.value(), pid);
+        return;
+    }
+
+    warnln("Sampled the wedged WebContent pid {} into {}", pid, output_path);
+#else
+    (void)pid;
+#endif
+}
 
 static void maybe_attach_lldb_to_process(pid_t pid)
 {
