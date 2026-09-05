@@ -1084,14 +1084,11 @@ impl WinnerGroups {
     pub fn intern_sorted(&mut self, winners: &[PropertyWinner], previous: Option<CascadeStateID>) -> CascadeStateID {
         debug_assert!(winners.windows(2).all(|pair| pair[0].property < pair[1].property));
         let mut groups = Vec::new();
-        let mut start = 0;
         let mut previous_group_index = 0;
-        while start < winners.len() {
-            let bucket = winners[start].property / WINNER_GROUP_PROPERTY_COUNT;
-            let mut end = start + 1;
-            while end < winners.len() && winners[end].property / WINNER_GROUP_PROPERTY_COUNT == bucket {
-                end += 1;
-            }
+        for winners in winners.chunk_by(|left, right| {
+            left.property / WINNER_GROUP_PROPERTY_COUNT == right.property / WINNER_GROUP_PROPERTY_COUNT
+        }) {
+            let bucket = winners[0].property / WINNER_GROUP_PROPERTY_COUNT;
             let previous_group = previous.and_then(|previous| {
                 let previous_groups = &self.states[previous];
                 while previous_group_index < previous_groups.len()
@@ -1105,10 +1102,9 @@ impl WinnerGroups {
                     .filter(|&group| self.group_bucket(group) == bucket)
             });
             let group = previous_group
-                .filter(|&group| self.group_matches(group, &winners[start..end]))
-                .unwrap_or_else(|| self.intern_group(&winners[start..end]));
+                .filter(|&group| self.group_matches(group, winners))
+                .unwrap_or_else(|| self.intern_group(winners));
             groups.push(group);
-            start = end;
         }
         if let Some(previous) = previous
             && self.states[previous] == groups

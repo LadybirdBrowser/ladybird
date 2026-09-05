@@ -44,15 +44,8 @@ impl FeatureFluxColumn {
             nodes_by_key,
             ..Self::default()
         };
-        let mut start = 0;
-        while start < entries.len() {
-            let node = entries[start].0;
-            let mut end = start + 1;
-            while end < entries.len() && entries[end].0 == node {
-                end += 1;
-            }
-            features.push_node(node, entries[start..end].iter().map(|&(_, key)| key));
-            start = end;
+        for entries in entries.chunk_by(|left, right| left.0 == right.0) {
+            features.push_node(entries[0].0, entries.iter().map(|&(_, key)| key));
         }
         features
     }
