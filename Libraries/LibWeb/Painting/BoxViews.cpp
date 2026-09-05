@@ -226,9 +226,14 @@ Optional<OverflowData> overflow_data(Layout::Node const& node)
     return OverflowData { row->overflow_relative_to_padding_box.rect, row->overflow_relative_to_padding_box.has_scrollable_overflow };
 }
 
-static void measure_scrollable_overflow_if_missing(Layout::Node const& node, Layout::RustFFI::PaintableData const& row)
+static bool overflow_is_valid(Layout::Node const& node)
 {
-    if (row.overflow_measured_this_commit || row.overflow_valid_across_recommits)
+    return Layout::RustFFI::layout_arena_paintable_overflow_is_valid(node.arena_handle(), committed_row_slot(node));
+}
+
+static void measure_scrollable_overflow_if_missing(Layout::Node const& node)
+{
+    if (overflow_is_valid(node))
         return;
     if (auto const* box = as_if<Layout::Box>(node))
         rust_measure_scrollable_overflow(*box);
@@ -239,8 +244,8 @@ bool has_scrollable_overflow(Layout::Node const& node)
     auto const* row = committed_row(node);
     if (!row)
         return false;
-    measure_scrollable_overflow_if_missing(node, *row);
-    return (row->overflow_measured_this_commit || row->overflow_valid_across_recommits) && row->overflow_relative_to_padding_box.has_scrollable_overflow;
+    measure_scrollable_overflow_if_missing(node);
+    return overflow_is_valid(node) && row->overflow_relative_to_padding_box.has_scrollable_overflow;
 }
 
 Optional<CSSPixelRect> scrollable_overflow_rect(Layout::Node const& node)
@@ -248,8 +253,8 @@ Optional<CSSPixelRect> scrollable_overflow_rect(Layout::Node const& node)
     auto const* row = committed_row(node);
     if (!row)
         return {};
-    measure_scrollable_overflow_if_missing(node, *row);
-    if (!row->overflow_measured_this_commit && !row->overflow_valid_across_recommits)
+    measure_scrollable_overflow_if_missing(node);
+    if (!overflow_is_valid(node))
         return {};
     auto rect = row->overflow_relative_to_padding_box.rect;
     rect.translate_by(absolute_padding_box_rect(node).location());

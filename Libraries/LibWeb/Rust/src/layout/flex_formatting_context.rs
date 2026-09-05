@@ -174,10 +174,10 @@ struct AxisAgnosticAvailableSpace {
 
 pub(super) struct FlexFormattingContext<'pass> {
     purpose: formatting_context::LayoutPurpose,
-    records: std::rc::Rc<RunRecords>,
+    records: &'pass RunRecords<'pass>,
     flex_container: Node,
     layout_mode: LayoutMode,
-    callbacks: FfiLayoutFcCallbacks,
+    callbacks: LayoutPass<'pass>,
     fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
     should_collect_devtools_layout_data: bool,
     treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
@@ -192,11 +192,11 @@ pub(super) struct FlexFormattingContext<'pass> {
 }
 
 impl<'pass> FlexFormattingContext<'pass> {
-    pub(super) fn new(run: &FormattingContextRun) -> Self {
+    pub(super) fn new(run: &FormattingContextRun<'pass>) -> Self {
         let flex_direction = StyleValues::for_node(&run.callbacks, run.box_).effective_flex_direction();
         Self {
             purpose: run.purpose,
-            records: run.records.clone(),
+            records: run.records,
             flex_container: run.box_,
             layout_mode: run.layout_mode,
             callbacks: run.callbacks,
@@ -215,10 +215,10 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    fn formatting_context_run(&self) -> FormattingContextRun {
+    fn formatting_context_run(&self) -> FormattingContextRun<'pass> {
         FormattingContextRun {
             purpose: self.purpose,
-            records: self.records.clone(),
+            records: self.records,
             box_: self.flex_container,
             layout_mode: self.layout_mode,
             callbacks: self.callbacks,
@@ -245,8 +245,8 @@ impl<'pass> FlexFormattingContext<'pass> {
         NodeFacts::new(&self.callbacks, node)
     }
 
-    fn sizing(&self) -> sizing_context::SizingContext {
-        sizing_context::SizingContext::new(self.purpose, self.records.clone(), self.callbacks)
+    fn sizing(&self) -> sizing_context::SizingContext<'pass> {
+        sizing_context::SizingContext::new(self.purpose, self.records, self.callbacks)
     }
 
     fn create_used_values(&self, node: Node) -> std::rc::Rc<UsedValues> {
@@ -2357,7 +2357,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    fn layout_inside_item(&mut self, run: &FormattingContextRun, index: usize) {
+    fn layout_inside_item(&mut self, run: &FormattingContextRun<'pass>, index: usize) {
         let node = self.flex_items[index].box_;
         let mut input = LayoutInput {
             available_space: self
@@ -2534,7 +2534,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                 let main_size_property = self.select_main(style.width(), style.height());
                 let main_min_size_property = self.select_main(style.min_width(), style.min_height());
                 let main_max_size_property = self.select_main(style.max_width(), style.max_height());
-                let node_id = unsafe { (self.callbacks.node_unique_id)(self.callbacks.shell(node)) };
+                let node_id = unsafe { (self.callbacks.host.node_unique_id)(self.callbacks.shell(node)) };
                 items.push(formatting_context::FlexLayoutItem {
                     node_id: (node_id >= 0).then_some(node_id),
                     rect,
@@ -3028,7 +3028,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         sum
     }
 
-    pub(super) fn run(&mut self, run: &FormattingContextRun, layout_input: LayoutInput) {
+    pub(super) fn run(&mut self, run: &FormattingContextRun<'pass>, layout_input: LayoutInput) {
         let available_space = layout_input.available_space;
         // This implements https://www.w3.org/TR/css-flexbox-1/#layout-algorithm
 
@@ -3224,7 +3224,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     // AD-HOC: Layout the inside of all flex items after resolving their dimensions.
-    fn layout_items_and_derive_baselines(&mut self, run: &FormattingContextRun) {
+    fn layout_items_and_derive_baselines(&mut self, run: &FormattingContextRun<'pass>) {
         self.copy_dimensions_from_flex_items_to_boxes();
         for index in 0..self.flex_items.len() {
             self.layout_inside_item(run, index);
@@ -3246,7 +3246,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             formatting_context::place_child(&self.formatting_context_run(), item.box_, offset, None);
         }
         self.derived_baselines_of_root_box =
-            formatting_context::derive_baselines(&self.records, &self.callbacks, self.flex_container, true);
+            formatting_context::derive_baselines(self.records, &self.callbacks, self.flex_container, true);
     }
 
     pub(super) fn parent_did_dimension(&self) {

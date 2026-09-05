@@ -23,29 +23,28 @@ pub(crate) struct ReplacedCommittedFragmentLink {
 }
 
 pub(crate) struct PaintableCommit<'a> {
-    callbacks: &'a formatting_context::FfiLayoutFcCallbacks,
+    arena: &'a mut LayoutNodeArena,
     committed_offsets_before_recommit_reset: std::collections::HashMap<NodeSlotId, used_values::FfiCssPixelPoint>,
     committed_navigable_container_viewports: Vec<NodeSlotId>,
+    row_reset_notifications: Vec<crate::painting::paintable_rows::PaintableRowReset>,
 }
 
 impl<'a> PaintableCommit<'a> {
-    pub(crate) fn new(callbacks: &'a formatting_context::FfiLayoutFcCallbacks) -> Self {
+    pub(crate) fn new(arena: &'a mut LayoutNodeArena) -> Self {
         Self {
-            callbacks,
+            arena,
             committed_offsets_before_recommit_reset: std::collections::HashMap::new(),
             committed_navigable_container_viewports: Vec::new(),
+            row_reset_notifications: Vec::new(),
         }
     }
 
-    fn arena(&self) -> &LayoutNodeArena {
-        self.callbacks.arena()
+    pub(crate) fn arena(&self) -> &LayoutNodeArena {
+        self.arena
     }
 
     fn arena_mut(&mut self) -> &mut LayoutNodeArena {
-        // SAFETY: Layout commit is synchronous on the document thread. The mutable
-        // PaintableCommit borrow prevents Rust code from retaining another arena
-        // borrow across this callback-free mutation phase.
-        unsafe { LayoutNodeArena::from_handle_mut(self.callbacks.arena) }
+        self.arena
     }
 
     pub(crate) fn discard_absolute_rects_memoized_during_commit(&self) {
@@ -64,10 +63,11 @@ impl<'a> PaintableCommit<'a> {
         enclosing_line_root_content_changed: bool,
     ) -> PreparedPaintable {
         let (wants_paintable, node_kind) = {
-            let facts = node_facts::NodeFacts::new(self.callbacks, node);
-            let data = self.callbacks.node_data(node);
+            let data = self.arena().data(node);
+            let is_fragmented_inline = node_facts::node_is_fragmented_inline(data, node_facts::node_style_view(data));
+            let has_dom_node = !node_facts::has_flag(data, crate::layout::node_data::NodeFlag::Anonymous);
             (
-                (has_used_values || (facts.is_fragmented_inline() && facts.has_dom_node()))
+                (has_used_values || (is_fragmented_inline && has_dom_node))
                     && node_painting::has_paintable(data.kind.get()),
                 data.kind.get(),
             )
@@ -83,7 +83,7 @@ impl<'a> PaintableCommit<'a> {
                         .prepare_paintable_row_cleared_reset(node)
                         .expect("live row for node could not be cleared")
                 };
-                reset.invoke_callback();
+                self.row_reset_notifications.push(reset);
                 self.arena_mut().paintable_row_cleared(reset);
             }
             return PreparedPaintable {
@@ -125,7 +125,7 @@ impl<'a> PaintableCommit<'a> {
                 )
             };
             self.committed_offsets_before_recommit_reset.insert(node, offset);
-            notification.invoke_callback();
+            self.row_reset_notifications.push(notification);
         }
         let arena = self.arena_mut();
         if row_existed_before_this_commit {
@@ -143,10 +143,14 @@ impl<'a> PaintableCommit<'a> {
         }
     }
 
+    pub(crate) fn take_row_reset_notifications(&mut self) -> Vec<crate::painting::paintable_rows::PaintableRowReset> {
+        std::mem::take(&mut self.row_reset_notifications)
+    }
+
     pub(crate) fn committed_navigable_container_viewport_shells(&self) -> Vec<*mut std::ffi::c_void> {
         self.committed_navigable_container_viewports
             .iter()
-            .map(|node| self.callbacks.shell(*node))
+            .map(|node| self.arena().node_shell(*node))
             .collect()
     }
 
@@ -182,8 +186,10 @@ impl<'a> PaintableCommit<'a> {
             content_size_change = Some((old_content_size, new_content_size));
         }
         let committed_fragment_identity_changed = old_identity != fragment.identity;
-        let painted_geometry_lives_in_enclosing_line_root =
-            || node_facts::NodeFacts::new(self.callbacks, node).is_fragmented_inline();
+        let painted_geometry_lives_in_enclosing_line_root = || {
+            let data = self.arena().data(node);
+            node_facts::node_is_fragmented_inline(data, node_facts::node_style_view(data))
+        };
         let painted_content_changed = committed_fragment_identity_changed
             || (enclosing_line_root_content_changed && painted_geometry_lives_in_enclosing_line_root());
         // A reused committed subtree's root counts as unchanged even though its run-root
@@ -204,17 +210,18 @@ impl<'a> PaintableCommit<'a> {
             self.arena()
                 .note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::RecommittedInPlace);
         }
+        if painted_content_changed {
+            self.arena().paintable_rows().clear_cached_overflow_data(node);
+        }
         {
             let arena = self.arena_mut();
             let mut paintable_rows = arena.paintable_rows_mut();
             let data = paintable_rows.paintable_data_mut(node);
-            if painted_content_changed {
-                data.overflow_valid_across_recommits = false;
-            }
             data.content_size = new_content_size;
             data.offset = link.committed_offset;
         }
-        self.callbacks.set_committed_fragment_link(node, link.clone());
+        self.arena()
+            .set_committed_fragment_link(self.arena().data(node), link.clone());
         ReplacedCommittedFragmentLink {
             content_size_change,
             committed_fragment_identity_changed,
@@ -240,7 +247,7 @@ impl<'a> PaintableCommit<'a> {
     }
 
     pub(crate) fn stamp_containing_block(&mut self, node: formatting_context::Node) {
-        let containing_block = self.callbacks.node_data(node).containing_block.get();
+        let containing_block = self.arena().data(node).containing_block.get();
         let arena = self.arena_mut();
         let mut paintable_rows = arena.paintable_rows_mut();
         if !paintable_rows.paintable_row_is_populated(node) {

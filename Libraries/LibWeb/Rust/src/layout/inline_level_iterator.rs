@@ -301,10 +301,9 @@ struct ExtraBoxMetrics {
     padding: CssPixels,
 }
 
-#[derive(Clone, Copy)]
-struct TextNodeContext {
-    chunks: &'static [text_chunker::TextChunk],
-    text: &'static [u16],
+struct TextNodeContext<'pass> {
+    chunks: std::rc::Rc<super::layout_node_arena::CachedTextChunks>,
+    text: &'pass [u16],
     next_chunk_index: usize,
     should_collapse_whitespace: bool,
     should_respect_linebreaks: bool,
@@ -322,7 +321,7 @@ struct InlineLevelIteratorGenerator<'iterator, 'context> {
     atomic_sizing: AtomicInlineSizing,
     current_node: Node,
     next_node: Node,
-    text_node_context: Option<TextNodeContext>,
+    text_node_context: Option<TextNodeContext<'context>>,
     is_unidirectional_left_to_right: bool,
     extra_leading_metrics: Option<ExtraBoxMetrics>,
     extra_trailing_metrics: Option<ExtraBoxMetrics>,
@@ -581,8 +580,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         });
     }
 
-    fn resolve_text_direction_from_context(&self) -> u8 {
-        let context = self.text_node_context.unwrap();
+    fn resolve_text_direction_from_context(&self, context: &TextNodeContext<'_>) -> u8 {
         let next_known_direction = context.chunks[context.next_chunk_index..].iter().find_map(|chunk| {
             matches!(
                 chunk.text_type,
@@ -627,8 +625,8 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         if self.text_node_context.is_none() {
             self.enter_text_node(text_node);
         }
-        let mut text_context = self.text_node_context.unwrap();
-        let chunks = text_context.chunks;
+        let mut text_context = self.text_node_context.take().unwrap();
+        let chunks = &text_context.chunks;
         let is_first_chunk = text_context.next_chunk_index == 0;
         let chunk = chunks.get(text_context.next_chunk_index).copied();
         if chunk.is_some() {
@@ -675,11 +673,11 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
                 text_type = line_box_fragment::GLYPH_TEXT_TYPE_END_PADDING;
             }
         }
-        self.text_node_context = Some(text_context);
         if text_type == line_box_fragment::GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT {
-            text_type = self.resolve_text_direction_from_context();
+            text_type = self.resolve_text_direction_from_context(&text_context);
         }
         if text_context.should_respect_linebreaks && chunk.has_breaking_newline {
+            self.text_node_context = Some(text_context);
             return Some(Item::new(ItemType::ForcedBreak, NodeSlotId::INVALID));
         }
 
@@ -748,6 +746,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         item.can_break_before = self.previous_chunk_can_break_after;
         self.previous_chunk_can_break_after = chunk.can_break_after;
         self.add_extra_box_model_metrics_to_item(&mut item, is_first_chunk, is_last_chunk);
+        self.text_node_context = Some(text_context);
         Some(item)
     }
 

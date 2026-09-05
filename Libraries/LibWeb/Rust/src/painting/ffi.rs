@@ -523,6 +523,18 @@ pub unsafe extern "C" fn layout_arena_paintable_row(arena: *mut c_void, slot: No
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_overflow_is_valid(arena: *mut c_void, slot: NodeSlotId) -> bool {
+    let arena = unsafe { arena_from_handle(arena) };
+    let rows = arena.paintable_rows();
+    rows.paintable_row_is_populated(slot)
+        && (rows.paintable_data(slot).overflow_measured_this_commit
+            || arena.paintable_side_data(slot).overflow_valid_across_recommits.get())
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_cleared_from_node(arena: *mut c_void, layout_node: NodeSlotId) {
     let reset = {
         let arena = unsafe { arena_from_handle(arena) };

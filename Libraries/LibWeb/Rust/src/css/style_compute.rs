@@ -6605,6 +6605,8 @@ mod ffi_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]
+    extern "C" fn ladybird_gfx_font_cascade_list_ref(_raw: *const std::ffi::c_void) {}
+    #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_font_cascade_list_unref(_raw: *const std::ffi::c_void) {}
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_font_unref(_raw: *const std::ffi::c_void) {}

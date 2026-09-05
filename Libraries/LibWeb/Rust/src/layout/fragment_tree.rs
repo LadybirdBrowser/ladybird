@@ -204,7 +204,7 @@ fn propagate_payload_toward_run_root_space<Payload: PropagatedPayload>(
     payload: &mut Payload,
     run_root: crate::layout::node_data::NodeSlotId,
     records: &RunRecords,
-    callbacks: &FfiLayoutFcCallbacks,
+    callbacks: &LayoutPass<'_>,
 ) {
     while payload.coordinate_space_box() != run_root {
         let Some(used) = records
@@ -223,7 +223,7 @@ fn propagate_payload_toward_run_root_space<Payload: PropagatedPayload>(
 }
 
 fn previously_committed_fragment_matching(
-    callbacks: &FfiLayoutFcCallbacks,
+    callbacks: &LayoutPass<'_>,
     candidate: &Fragment,
 ) -> Option<std::rc::Rc<Fragment>> {
     if !callbacks.has_committed_fragment_link(candidate.node) {
@@ -239,7 +239,7 @@ fn previously_committed_fragment_matching(
 }
 
 fn snapshot_fragment(
-    callbacks: &FfiLayoutFcCallbacks,
+    callbacks: &LayoutPass<'_>,
     node: crate::layout::node_data::NodeSlotId,
     children: Vec<FragmentLink>,
     used: &UsedValues,
@@ -573,7 +573,7 @@ impl RunFragmentBuilder {
     pub(crate) fn pending_abspos_children_awaiting_containing_block_info(
         &self,
         containing_block: crate::layout::node_data::NodeSlotId,
-        callbacks: &FfiLayoutFcCallbacks,
+        callbacks: &LayoutPass<'_>,
     ) -> Vec<crate::layout::node_data::NodeSlotId> {
         let inner = self.inner.borrow();
         let awaits_info = |entry: &abspos_inputs::PendingAbsposChild| {
@@ -643,7 +643,7 @@ impl RunFragmentBuilder {
             .any(|entry| entry.inline_containing_block == inline_box)
     }
 
-    pub(crate) fn anchor_candidate_shells(&self, callbacks: &FfiLayoutFcCallbacks) -> Vec<*mut c_void> {
+    pub(crate) fn anchor_candidate_shells(&self, callbacks: &LayoutPass<'_>) -> Vec<*mut c_void> {
         self.inner
             .borrow()
             .iter_anchor_candidates()
@@ -666,7 +666,7 @@ impl RunFragmentBuilder {
         &self,
         placed: crate::layout::node_data::NodeSlotId,
         records: &RunRecords,
-        callbacks: &FfiLayoutFcCallbacks,
+        callbacks: &LayoutPass<'_>,
     ) -> Vec<abspos_inputs::PendingAbsposChild> {
         let mut inner = self.inner.borrow_mut();
         let containing_block_is_owned_and_placed = |entry: &abspos_inputs::PendingAbsposChild| {
@@ -768,7 +768,7 @@ impl RunFragmentBuilder {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn build_fragment_for_placed_box(
         &self,
-        callbacks: &FfiLayoutFcCallbacks,
+        callbacks: &LayoutPass<'_>,
         node: crate::layout::node_data::NodeSlotId,
         containing_block: Option<crate::layout::node_data::NodeSlotId>,
         used: &UsedValues,
@@ -874,11 +874,7 @@ impl RunFragmentBuilder {
             .insert(containing_block.slot_index(), pending_fragment);
     }
 
-    pub(crate) fn take_unplaced_root(
-        &self,
-        records: &RunRecords,
-        callbacks: &FfiLayoutFcCallbacks,
-    ) -> UnplacedRootFragment {
+    pub(crate) fn take_unplaced_root(&self, records: &RunRecords, callbacks: &LayoutPass<'_>) -> UnplacedRootFragment {
         debug_assert!(
             !self.is_entry_accumulator,
             "an entry accumulator closes as a pass, not a run"
@@ -889,7 +885,7 @@ impl RunFragmentBuilder {
     pub(crate) fn take_completed_pass(
         &self,
         records: &RunRecords,
-        callbacks: &FfiLayoutFcCallbacks,
+        callbacks: &LayoutPass<'_>,
     ) -> CompletedPassFragments {
         debug_assert!(
             self.is_entry_accumulator,
@@ -902,7 +898,7 @@ impl RunFragmentBuilder {
         }
     }
 
-    fn close(&self, records: &RunRecords, callbacks: &FfiLayoutFcCallbacks) -> UnplacedRootFragment {
+    fn close(&self, records: &RunRecords, callbacks: &LayoutPass<'_>) -> UnplacedRootFragment {
         let mut inner = self.inner.take();
         let mut propagated_pending_abspos = std::mem::take(&mut inner.pending_abspos_at_root);
         let mut propagated_anchor_candidates = std::mem::take(&mut inner.anchor_candidates_at_root);

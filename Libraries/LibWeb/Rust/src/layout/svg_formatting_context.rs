@@ -356,12 +356,12 @@ pub(crate) fn scale_and_align_viewbox_content(
     result
 }
 
-pub(super) struct SvgFormattingContext {
+pub(super) struct SvgFormattingContext<'pass> {
     purpose: formatting_context::LayoutPurpose,
-    records: std::rc::Rc<RunRecords>,
+    records: &'pass RunRecords<'pass>,
     box_: Node,
     layout_mode: LayoutMode,
-    callbacks: FfiLayoutFcCallbacks,
+    callbacks: LayoutPass<'pass>,
     available_space: Option<AvailableSpace>,
     quirks_mode_percentage_basis_block_size: Option<CssPixels>,
     viewport_width: CssPixels,
@@ -372,15 +372,15 @@ pub(super) struct SvgFormattingContext {
     treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
 }
 
-impl SvgFormattingContext {
-    pub(super) fn new(run: &FormattingContextRun) -> Self {
+impl<'pass> SvgFormattingContext<'pass> {
+    pub(super) fn new(run: &FormattingContextRun<'pass>) -> Self {
         Self::new_nested(run, run.box_)
     }
 
-    fn new_nested(run: &FormattingContextRun, box_: Node) -> Self {
+    fn new_nested(run: &FormattingContextRun<'pass>, box_: Node) -> Self {
         Self {
             purpose: run.purpose,
-            records: run.records.clone(),
+            records: run.records,
             box_,
             layout_mode: run.layout_mode,
             callbacks: run.callbacks,
@@ -396,10 +396,10 @@ impl SvgFormattingContext {
         }
     }
 
-    fn formatting_context_run(&self) -> FormattingContextRun {
+    fn formatting_context_run(&self) -> FormattingContextRun<'pass> {
         FormattingContextRun {
             purpose: self.purpose,
-            records: self.records.clone(),
+            records: self.records,
             box_: self.box_,
             layout_mode: self.layout_mode,
             callbacks: self.callbacks,
@@ -443,7 +443,7 @@ impl SvgFormattingContext {
     fn svg_facts(&self, node: Node) -> FfiSvgElementFacts {
         // SAFETY: The callback snapshots plain data from a live node and
         // returns no borrowed storage.
-        unsafe { (self.callbacks.build_svg_facts)(self.callbacks.context, self.callbacks.shell(node)) }
+        unsafe { (self.callbacks.host.build_svg_facts)(self.callbacks.host.context, self.callbacks.shell(node)) }
     }
 
     fn style(&self, node: Node) -> StyleValues<'_> {
@@ -501,7 +501,7 @@ impl SvgFormattingContext {
         result
     }
 
-    pub(super) fn run(&mut self, run: &FormattingContextRun, input: LayoutInput) {
+    pub(super) fn run(&mut self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
         // NOTE: SVG doesn't have a "formatting context" in the spec, but this is the most
         //       obvious way to drive SVG layout in our engine at the moment.
         let kind = self.node_kind(self.box_);
@@ -634,7 +634,7 @@ impl SvgFormattingContext {
         }
     }
 
-    fn layout_svg_element(&mut self, run: &FormattingContextRun, child: Node, input: LayoutInput) {
+    fn layout_svg_element(&mut self, run: &FormattingContextRun<'pass>, child: Node, input: LayoutInput) {
         let kind = self.node_kind(child);
         let facts = self.svg_facts(child);
         if facts.is_fit_to_view_box {
@@ -685,7 +685,7 @@ impl SvgFormattingContext {
         }
     }
 
-    fn layout_nested_viewport(&mut self, run: &FormattingContextRun, viewport: Node) {
+    fn layout_nested_viewport(&mut self, run: &FormattingContextRun<'pass>, viewport: Node) {
         // Layout for a nested SVG viewport.
         // https://svgwg.org/svg2-draft/coords.html#EstablishingANewSVGViewport.
         let used_pointer = self.create_used_values(viewport);
@@ -723,7 +723,7 @@ impl SvgFormattingContext {
         self.place_child(viewport, nested_viewport_x, nested_viewport_y);
     }
 
-    fn layout_graphics_element(&mut self, run: &FormattingContextRun, graphics_box: Node, input: LayoutInput) {
+    fn layout_graphics_element(&mut self, run: &FormattingContextRun<'pass>, graphics_box: Node, input: LayoutInput) {
         self.create_used_values(graphics_box);
         let facts = self.svg_facts(graphics_box);
         self.commit_svg_element_facts(graphics_box, facts);
@@ -761,13 +761,13 @@ impl SvgFormattingContext {
         }
     }
 
-    fn layout_path_like_element(&mut self, run: &FormattingContextRun, graphics_box: Node, input: LayoutInput) {
+    fn layout_path_like_element(&mut self, run: &FormattingContextRun<'pass>, graphics_box: Node, input: LayoutInput) {
         let facts = self.svg_facts(graphics_box);
         // SAFETY: The callback computes geometry synchronously and transfers
         // sole ownership of a heap-allocated path into the result.
         let result = unsafe {
-            (self.callbacks.compute_svg_path)(
-                self.callbacks.context,
+            (self.callbacks.host.compute_svg_path)(
+                self.callbacks.host.context,
                 self.callbacks.shell(graphics_box),
                 FfiSvgPathRequest {
                     viewport_width: self.viewport_width,
@@ -812,8 +812,8 @@ impl SvgFormattingContext {
         // SAFETY: The callback returns a POD bounding box for the live image
         // node and requested viewport.
         let source = unsafe {
-            (self.callbacks.svg_image_bounding_box)(
-                self.callbacks.context,
+            (self.callbacks.host.svg_image_bounding_box)(
+                self.callbacks.host.context,
                 self.callbacks.shell(image_box),
                 self.viewport_width,
                 self.viewport_height,
@@ -829,7 +829,7 @@ impl SvgFormattingContext {
         used.has_definite_block_size.set(true);
     }
 
-    fn layout_mask_or_clip(&mut self, run: &FormattingContextRun, resource: Node) {
+    fn layout_mask_or_clip(&mut self, run: &FormattingContextRun<'pass>, resource: Node) {
         let kind = self.node_kind(resource);
         let facts = self.svg_facts(resource);
         assert!(kind_is_svg_resource_box(kind));
@@ -889,7 +889,7 @@ impl SvgFormattingContext {
         self.place_child(resource, CssPixels::default(), CssPixels::default());
     }
 
-    fn layout_container_element(&mut self, run: &FormattingContextRun, container: Node, input: LayoutInput) {
+    fn layout_container_element(&mut self, run: &FormattingContextRun<'pass>, container: Node, input: LayoutInput) {
         let mut has_points = false;
         let mut min_x = CssPixels::default();
         let mut min_y = CssPixels::default();

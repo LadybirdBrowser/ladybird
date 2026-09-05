@@ -118,7 +118,7 @@ impl<'a> StyleValues<'a> {
     }
 
     #[inline]
-    pub(crate) fn for_node(callbacks: &FfiLayoutFcCallbacks, node: Node) -> StyleValues<'static> {
+    pub(crate) fn for_node(callbacks: &LayoutPass<'a>, node: Node) -> Self {
         StyleValues::new(callbacks.style_payloads(node))
     }
 

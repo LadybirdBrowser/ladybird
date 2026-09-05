@@ -311,24 +311,24 @@ mod tests {
         for node in [grandparent.slot, parent.slot] {
             arena.populate_paintable_row(node);
             arena
-                .paintable_rows_mut()
-                .paintable_data_mut(node)
-                .overflow_valid_across_recommits = true;
+                .paintable_side_data(node)
+                .overflow_valid_across_recommits
+                .set(true);
         }
 
         arena.attach_child(parent.slot, owned(child.slot), NodeSlotId::INVALID);
 
         assert!(
             !arena
-                .paintable_rows()
-                .paintable_data(grandparent.slot)
+                .paintable_side_data(grandparent.slot)
                 .overflow_valid_across_recommits
+                .get()
         );
         assert!(
             arena
-                .paintable_rows()
-                .paintable_data(parent.slot)
+                .paintable_side_data(parent.slot)
                 .overflow_valid_across_recommits
+                .get()
         );
 
         free(&mut arena, grandparent);

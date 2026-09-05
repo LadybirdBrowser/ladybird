@@ -7,13 +7,12 @@
 use super::*;
 
 /// The per-run registry of UsedValues records, backed by the slot-indexed side
-/// table in the layout node arena. Registering a slot that a surrounding run
-/// owns displaces that run's entry, and dropping the RunRecords restores it.
-/// That is sound only because runs strictly nest on the call stack, so an
-/// Rc<RunRecords> must never escape its run.
-pub(crate) struct RunRecords {
+/// table in the layout node arena. Nested runs temporarily displace their
+/// parents' entries. The scoped constructors lend records to the run and restore
+/// the entries before returning, so callers cannot extend the registry's lifetime.
+pub(crate) struct RunRecords<'arena> {
     root: Node,
-    arena: *mut c_void,
+    arena: &'arena LayoutNodeArena,
     nonce: u64,
     undo: RefCell<Vec<UndoEntry>>,
     // Wrapper sizing hands this state to the wrapper's child run, which consumes it while laying
@@ -26,34 +25,33 @@ struct UndoEntry {
     previous: Option<(u64, std::rc::Rc<UsedValues>)>,
 }
 
-impl RunRecords {
-    pub(crate) fn new(arena: *mut c_void, root: Node, root_used: std::rc::Rc<UsedValues>) -> Self {
-        let records = Self::new_unrooted(arena, root);
-        records.register(root, root_used);
-        records
+impl<'arena> RunRecords<'arena> {
+    pub(crate) fn with_root<R>(
+        arena: &'arena LayoutNodeArena,
+        root: Node,
+        root_used: std::rc::Rc<UsedValues>,
+        run: impl FnOnce(&Self) -> R,
+    ) -> R {
+        Self::with_unrooted(arena, root, |records| {
+            records.register(root, root_used);
+            run(records)
+        })
     }
 
-    pub(crate) fn new_unrooted(arena: *mut c_void, root: Node) -> Self {
-        // SAFETY: Layout passes borrow the document's arena synchronously, and
-        // the document keeps it alive for the duration of the pass.
-        let nonce = unsafe { LayoutNodeArena::from_handle(arena) }.allocate_run_nonce();
-        Self {
+    pub(crate) fn with_unrooted<R>(arena: &'arena LayoutNodeArena, root: Node, run: impl FnOnce(&Self) -> R) -> R {
+        let records = Self {
             root,
             arena,
-            nonce,
+            nonce: arena.allocate_run_nonce(),
             undo: RefCell::new(Vec::new()),
             table_inline_layouts: RefCell::new(HashMap::default()),
-        }
-    }
-
-    fn arena(&self) -> &LayoutNodeArena {
-        // SAFETY: See new_unrooted().
-        unsafe { LayoutNodeArena::from_handle(self.arena) }
+        };
+        run(&records)
     }
 
     pub(crate) fn register(&self, node: Node, used: std::rc::Rc<UsedValues>) {
         let slot_index = node.slot_index();
-        let previous = self.arena().replace_run_record(slot_index, self.nonce, used);
+        let previous = self.arena.replace_run_record(slot_index, self.nonce, used);
         assert!(
             previous.as_ref().is_none_or(|(nonce, _)| *nonce != self.nonce),
             "slot {} registered twice in the run rooted at slot {}",
@@ -65,7 +63,7 @@ impl RunRecords {
 
     pub(crate) fn create_used_values(
         &self,
-        callbacks: &FfiLayoutFcCallbacks,
+        callbacks: &LayoutPass<'_>,
         node: Node,
         constraints: ContainingBlockConstraints,
     ) -> std::rc::Rc<UsedValues> {
@@ -87,7 +85,7 @@ impl RunRecords {
     }
 
     pub(crate) fn used_values_if_owned(&self, node: Node) -> Option<std::rc::Rc<UsedValues>> {
-        self.arena().run_record(node.slot_index(), self.nonce)
+        self.arena.run_record(node.slot_index(), self.nonce)
     }
 
     pub(crate) fn root(&self) -> Node {
@@ -103,12 +101,64 @@ impl RunRecords {
     }
 }
 
-impl Drop for RunRecords {
+impl Drop for RunRecords<'_> {
     fn drop(&mut self) {
         let undo = std::mem::take(self.undo.get_mut());
-        let arena = self.arena();
+        let arena = self.arena;
         for entry in undo.into_iter().rev() {
             arena.restore_run_record(entry.slot_index, self.nonce, entry.previous);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::rc::Rc;
+
+    #[test]
+    fn nested_runs_restore_displaced_records_before_the_parent_continues() {
+        let mut arena = LayoutNodeArena::new();
+        let root = arena.allocate_for_test().slot;
+        let child = arena.allocate_for_test().slot;
+        let root_used = Rc::new(UsedValues::default());
+        let child_used = Rc::new(UsedValues::default());
+        let parent_nonce = RunRecords::with_root(&arena, root, root_used.clone(), |parent| {
+            parent.register(child, child_used.clone());
+            let nested_used = Rc::new(UsedValues::default());
+            RunRecords::with_root(&arena, child, nested_used.clone(), |nested| {
+                assert!(parent.used_values_if_owned(child).is_none());
+                assert!(Rc::ptr_eq(&parent.used_values(root), &root_used));
+                assert!(Rc::ptr_eq(&nested.used_values(child), &nested_used));
+                RunRecords::with_unrooted(&arena, child, |measurement| {
+                    measurement.register(child, Rc::new(UsedValues::default()));
+                    assert!(nested.used_values_if_owned(child).is_none());
+                });
+                assert!(Rc::ptr_eq(&nested.used_values(child), &nested_used));
+            });
+            assert!(Rc::ptr_eq(&parent.used_values(child), &child_used));
+            parent.nonce
+        });
+        assert!(arena.run_record(root.slot_index(), parent_nonce).is_none());
+        assert!(arena.run_record(child.slot_index(), parent_nonce).is_none());
+        assert_eq!(Rc::strong_count(&root_used), 1);
+        assert_eq!(Rc::strong_count(&child_used), 1);
+    }
+
+    #[test]
+    fn unwinding_a_nested_run_restores_its_parent() {
+        let mut arena = LayoutNodeArena::new();
+        let root = arena.allocate_for_test().slot;
+        let root_used = Rc::new(UsedValues::default());
+        RunRecords::with_root(&arena, root, root_used.clone(), |parent| {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                RunRecords::with_root(&arena, root, Rc::new(UsedValues::default()), |_| {
+                    panic!("abort the nested measurement");
+                });
+            }));
+            assert!(result.is_err());
+            assert!(Rc::ptr_eq(&parent.used_values(root), &root_used));
+        });
+        assert_eq!(Rc::strong_count(&root_used), 1);
     }
 }

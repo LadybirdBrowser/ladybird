@@ -22,6 +22,36 @@ use std::ops::{Deref, DerefMut};
 
 pub(crate) const PAINTABLE_SLOTS_PER_CHUNK: usize = 64;
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn overflow_cache_invalidation_is_independent_of_borrowed_geometry() {
+        let mut arena = LayoutNodeArena::new();
+        let node = arena.allocate_for_test().slot;
+        arena.populate_paintable_row(node);
+        arena
+            .paintable_side_data(node)
+            .overflow_valid_across_recommits
+            .set(true);
+        arena
+            .paintable_rows_mut()
+            .paintable_data_mut(node)
+            .overflow_measured_this_commit = true;
+        arena.paintable_rows_mut().begin_paintable_row_recommit(node);
+        assert!(arena.paintable_side_data(node).overflow_valid_across_recommits.get());
+
+        let rows = arena.paintable_rows();
+        let geometry = rows.paintable_data(node);
+        let previous_geometry = *geometry;
+        rows.clear_cached_overflow_data(node);
+        assert_eq!(*geometry, previous_geometry);
+        assert!(!arena.paintable_side_data(node).overflow_valid_across_recommits.get());
+        assert!(!geometry.overflow_measured_this_commit);
+    }
+}
+
 #[repr(align(64))]
 struct PaintableRowChunk {
     slots: [PaintableData; PAINTABLE_SLOTS_PER_CHUNK],
@@ -171,11 +201,10 @@ where
         if !self.paintable_row_is_populated(id) {
             return;
         }
-        let index = id.slot_index() as usize;
-        let chunk = &self.arena.paintable_rows.chunks[index / PAINTABLE_SLOTS_PER_CHUNK];
-        let data = (&raw const chunk.slots[index % PAINTABLE_SLOTS_PER_CHUNK]).cast_mut();
-        // SAFETY: paintable_row_is_populated established that the chunk and slot exist.
-        unsafe { (&raw mut (*data).overflow_valid_across_recommits).write(false) };
+        self.arena
+            .paintable_side_data(id)
+            .overflow_valid_across_recommits
+            .set(false);
     }
 
     pub(crate) fn inline_pieces_root(&self, inline_paintable: NodeSlotId) -> Option<NodeSlotId> {

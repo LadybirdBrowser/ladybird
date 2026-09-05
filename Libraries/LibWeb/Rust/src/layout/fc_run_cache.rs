@@ -403,7 +403,7 @@ impl FcRunCacheArenaStore {
     }
 }
 
-fn run_root_validity(callbacks: &FfiLayoutFcCallbacks, box_: Node) -> FcRunCacheValidity {
+fn run_root_validity(callbacks: &LayoutPass<'_>, box_: Node) -> FcRunCacheValidity {
     let data = NodeFacts::new(callbacks, box_).data();
     FcRunCacheValidity {
         slot_generation: data.slot_generation.get(),
@@ -443,7 +443,7 @@ impl FcRunCacheAttempt {
         fc_type: formatting_context::FfiFormattingContextType,
         layout_mode: LayoutMode,
         should_collect_devtools_layout_data: bool,
-        callbacks: &FfiLayoutFcCallbacks,
+        callbacks: &LayoutPass<'_>,
         input: &LayoutInput,
         root_cells: &used_values::UsedValuesCellState,
     ) -> Result<Self, std::rc::Rc<FcRunCacheEntry>> {
@@ -546,12 +546,7 @@ impl FcRunCacheAttempt {
         entry.outputs.root_outcome.line_data.clone()
     }
 
-    pub(super) fn conclude(
-        self,
-        callbacks: &FfiLayoutFcCallbacks,
-        box_: Node,
-        outputs: &formatting_context::RunOutputs,
-    ) {
+    pub(super) fn conclude(self, callbacks: &LayoutPass<'_>, box_: Node, outputs: &formatting_context::RunOutputs) {
         let Self::Store {
             key,
             validity,

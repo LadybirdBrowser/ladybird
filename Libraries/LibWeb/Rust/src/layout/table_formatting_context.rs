@@ -842,12 +842,12 @@ enum TrackAxis {
     Column,
 }
 
-pub(super) struct TableFormattingContext {
+pub(super) struct TableFormattingContext<'pass> {
     purpose: formatting_context::LayoutPurpose,
-    records: std::rc::Rc<RunRecords>,
+    records: &'pass RunRecords<'pass>,
     table_box: Node,
     layout_mode: LayoutMode,
-    callbacks: FfiLayoutFcCallbacks,
+    callbacks: LayoutPass<'pass>,
     fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
     should_collect_devtools_layout_data: bool,
     treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
@@ -869,7 +869,7 @@ pub(super) struct TableFormattingContext {
     derived_baselines_of_root_box: Cell<DerivedBaselines>,
 }
 
-impl TableTree for TableFormattingContext {
+impl TableTree for TableFormattingContext<'_> {
     fn first_child(&self, node: Node) -> Node {
         self.callbacks.first_child(node)
     }
@@ -895,12 +895,12 @@ impl TableTree for TableFormattingContext {
     }
 }
 
-impl TableFormattingContext {
+impl<'pass> TableFormattingContext<'pass> {
     fn node_facts(&self, node: Node) -> NodeFacts<'_> {
         NodeFacts::new(&self.callbacks, node)
     }
 
-    fn style(&self, node: Node) -> StyleValues<'static> {
+    fn style(&self, node: Node) -> StyleValues<'pass> {
         StyleValues::for_node(&self.callbacks, node)
     }
 
@@ -908,10 +908,10 @@ impl TableFormattingContext {
         self.callbacks.arena().raw_table_column_span(column) as usize
     }
 
-    pub(super) fn new(run: &FormattingContextRun) -> Self {
+    pub(super) fn new(run: &FormattingContextRun<'pass>) -> Self {
         Self {
             purpose: run.purpose,
-            records: run.records.clone(),
+            records: run.records,
             table_box: run.box_,
             layout_mode: run.layout_mode,
             callbacks: run.callbacks,
@@ -984,14 +984,14 @@ impl TableFormattingContext {
         true
     }
 
-    fn sizing(&self) -> sizing_context::SizingContext {
-        sizing_context::SizingContext::new(self.purpose, self.records.clone(), self.callbacks)
+    fn sizing(&self) -> sizing_context::SizingContext<'pass> {
+        sizing_context::SizingContext::new(self.purpose, self.records, self.callbacks)
     }
 
-    fn formatting_context_run(&self) -> FormattingContextRun {
+    fn formatting_context_run(&self) -> FormattingContextRun<'pass> {
         FormattingContextRun {
             purpose: self.purpose,
-            records: self.records.clone(),
+            records: self.records,
             box_: self.table_box,
             layout_mode: self.layout_mode,
             callbacks: self.callbacks,
@@ -2122,7 +2122,7 @@ impl TableFormattingContext {
 
     fn layout_inside_cell(
         &mut self,
-        run: &FormattingContextRun,
+        run: &FormattingContextRun<'pass>,
         cell: TableCell,
         input: AvailableSpace,
         adopt_automatic_content_block_size: bool,
@@ -2260,7 +2260,7 @@ impl TableFormattingContext {
         }
     }
 
-    fn compute_table_block_size(&mut self, run: &FormattingContextRun) {
+    fn compute_table_block_size(&mut self, run: &FormattingContextRun<'pass>) {
         // First pass of row block-size calculation:
         for row_index in 0..self.rows.len() {
             if self.rows[row_index].is_collapsed {
@@ -2572,7 +2572,7 @@ impl TableFormattingContext {
         self.table_block_size = self.table_block_size.max(total);
     }
 
-    fn layout_deferred_cells_inside(&mut self, run: &FormattingContextRun) {
+    fn layout_deferred_cells_inside(&mut self, run: &FormattingContextRun<'pass>) {
         // Deferred cells get their one and only committing inside layout here, once row
         // block sizes are final.
         let collapsed = self.style(self.table_box).border_collapse() != BORDER_COLLAPSE_SEPARATE;
@@ -2725,7 +2725,7 @@ impl TableFormattingContext {
     }
 
     fn compute_and_store_baselines(&self, node: Node) {
-        let baselines = formatting_context::derive_baselines(&self.records, &self.callbacks, node, false);
+        let baselines = formatting_context::derive_baselines(self.records, &self.callbacks, node, false);
         if node == self.table_box {
             self.derived_baselines_of_root_box.set(baselines);
         } else {
@@ -2735,7 +2735,7 @@ impl TableFormattingContext {
 
     pub(super) fn run(
         &mut self,
-        run: &FormattingContextRun,
+        run: &FormattingContextRun<'pass>,
         input: LayoutInput,
         inline_layout: Option<TableInlineLayout>,
     ) {

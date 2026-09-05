@@ -581,12 +581,12 @@ impl<'text> TextChunker<'text> {
 }
 
 pub(crate) fn text_chunks(
-    callbacks: &FfiLayoutFcCallbacks,
+    callbacks: &LayoutPass<'_>,
     node: Node,
     should_wrap_lines: bool,
     should_respect_linebreaks: bool,
     unidirectional_ltr: bool,
-) -> &'static [TextChunk] {
+) -> std::rc::Rc<super::layout_node_arena::CachedTextChunks> {
     let parent_style = StyleValues::for_node(callbacks, callbacks.parent(node));
     let key = crate::layout::layout_node_arena::TextChunkCacheKey {
         should_wrap_lines,
