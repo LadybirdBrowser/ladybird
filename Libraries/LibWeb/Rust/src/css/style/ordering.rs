@@ -1153,7 +1153,7 @@ impl StyleEngine {
             layer_rank: self.program.layer_rank(context_scope, version.layer),
             specificity,
             scope_proximity,
-            sheet_rank: attachment.map_or((0, 0), |attachment| self.program.sheet_rank(attachment)),
+            sheet_rank: attachment.map_or(0, |attachment| self.program.sheet_rank(attachment)),
             rule_rank: self.program.rule_rank(rule),
         })
     }
@@ -1181,8 +1181,8 @@ impl StyleEngine {
             layer_rank: self.program.layer_rank(tree_scope, CascadeLayerID::UNLAYERED),
             specificity: Specificity::default(),
             scope_proximity: u32::MAX,
-            sheet_rank: (u64::MAX, u64::MAX),
-            rule_rank: (u64::MAX, u64::MAX),
+            sheet_rank: u64::MAX,
+            rule_rank: u64::MAX,
         })
     }
 

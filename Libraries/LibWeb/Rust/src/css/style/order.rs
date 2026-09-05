@@ -77,11 +77,10 @@ impl OrderMaintenance {
             .cmp(&self.entries[second.0 as usize].label)
     }
 
-    /// The comparable rank of a position. Keep the second component until cascade priority changes
-    /// its representation independently of this order-maintenance implementation.
+    /// The comparable rank of a position.
     #[must_use]
-    pub fn rank(&self, token: OrderToken) -> (u64, u64) {
-        (self.entries[token.0 as usize].label, 0)
+    pub fn rank(&self, token: OrderToken) -> u64 {
+        self.entries[token.0 as usize].label
     }
 
     /// Insert at the end of the order.

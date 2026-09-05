@@ -1082,8 +1082,8 @@ impl StyleSheetProgram {
     /// The comparable rank of a layer. A topology change rewrites these ranks without touching any
     /// rule that references the layer.
     #[must_use]
-    pub fn layer_rank(&self, scope: TreeScopeID, layer: CascadeLayerID) -> (u64, u64) {
-        (u64::from(self.layer_index(scope, layer)), 0)
+    pub fn layer_rank(&self, scope: TreeScopeID, layer: CascadeLayerID) -> u64 {
+        u64::from(self.layer_index(scope, layer))
     }
 
     /// The dense rank C++ cascade consumers use. The implicit outer layer and an as-yet undeclared
@@ -1354,7 +1354,7 @@ impl StyleSheetProgram {
 
     /// The comparable rank of a sheet within a tree scope.
     #[must_use]
-    pub fn sheet_rank(&self, attachment: Attachment) -> (u64, u64) {
+    pub fn sheet_rank(&self, attachment: Attachment) -> u64 {
         self.sheet_order
             .get(attachment.tree_scope.0 as usize)
             .and_then(Option::as_ref)
@@ -1364,7 +1364,7 @@ impl StyleSheetProgram {
 
     /// The comparable rank of a rule within its sheet.
     #[must_use]
-    pub fn rule_rank(&self, rule: RuleID) -> (u64, u64) {
+    pub fn rule_rank(&self, rule: RuleID) -> u64 {
         let sheet = self.rules[rule.0 as usize].sheet;
         self.sheets[sheet.0 as usize]
             .rule_order

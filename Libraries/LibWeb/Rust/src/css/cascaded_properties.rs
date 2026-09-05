@@ -1529,7 +1529,7 @@ fn cascade_custom_properties(
             important,
             block.author_context_index,
             layer,
-            (layer_rank, 0),
+            layer_rank,
             if block.is_inline_style {
                 CascadeAttachment::InlineStyle
             } else {

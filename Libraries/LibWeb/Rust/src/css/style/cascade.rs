@@ -98,13 +98,13 @@ pub struct PriorityInputs {
     pub element_attachment: ElementAttachment,
     pub layer: CascadeLayerID,
     /// The layer's current rank, read from the layer order rather than copied into the rule.
-    pub layer_rank: (u64, u64),
+    pub layer_rank: u64,
     pub specificity: Specificity,
     /// Distance from the `@scope` root; nearer wins. Zero when not scoped.
     pub scope_proximity: u32,
     /// The rule's position: its sheet's rank, then its own rank within that sheet.
-    pub sheet_rank: (u64, u64),
-    pub rule_rank: (u64, u64),
+    pub sheet_rank: u64,
+    pub rule_rank: u64,
 }
 
 /// A total order over declarations. Greater wins.
@@ -118,18 +118,17 @@ pub struct CascadePriority {
     context: u32,
     element_attachment: ElementAttachment,
     /// Later layers win for normal declarations; the order is reversed for important ones.
-    layer: (u64, u64),
+    layer: u64,
     specificity: Specificity,
     /// Nearer scope roots win, so proximity is stored inverted.
     scope_proximity: u32,
-    sheet_rank: (u64, u64),
-    rule_rank: (u64, u64),
+    sheet_rank: u64,
+    rule_rank: u64,
 }
 
 impl CascadePriority {
     #[must_use]
     pub fn new(inputs: PriorityInputs) -> Self {
-        let reverse = |value: (u64, u64)| (u64::MAX - value.0, u64::MAX - value.1);
         Self {
             origin_importance: origin_importance_rank(inputs.origin, inputs.important),
             context: if inputs.important {
@@ -139,7 +138,7 @@ impl CascadePriority {
             },
             element_attachment: inputs.element_attachment,
             layer: if inputs.important {
-                reverse(inputs.layer_rank)
+                u64::MAX - inputs.layer_rank
             } else {
                 inputs.layer_rank
             },
@@ -157,11 +156,11 @@ impl CascadePriority {
             context_depth: 0,
             element_attachment: ElementAttachment::Rule,
             layer: CascadeLayerID::UNLAYERED,
-            layer_rank: (0, 0),
+            layer_rank: 0,
             specificity: Specificity::default(),
             scope_proximity: 0,
-            sheet_rank: (0, 0),
-            rule_rank: (0, 0),
+            sheet_rank: 0,
+            rule_rank: 0,
         })
     }
 }
@@ -264,7 +263,7 @@ pub enum CascadeContinuationCeiling {
         important: bool,
         context: u32,
         layer: CascadeLayerID,
-        layer_rank: (u64, u64),
+        layer_rank: u64,
         attachment: CascadeAttachment,
     },
 }
@@ -284,7 +283,7 @@ pub struct CascadeStratum {
     important: bool,
     context: u32,
     layer: CascadeLayerID,
-    layer_rank: (u64, u64),
+    layer_rank: u64,
     attachment: CascadeAttachment,
 }
 
@@ -295,7 +294,7 @@ impl CascadeStratum {
         important: bool,
         context: u32,
         layer: CascadeLayerID,
-        layer_rank: (u64, u64),
+        layer_rank: u64,
         attachment: CascadeAttachment,
     ) -> Self {
         let origin_group = match origin {
@@ -2006,11 +2005,11 @@ mod tests {
             context_depth: 0,
             element_attachment: ElementAttachment::Rule,
             layer: CascadeLayerID::UNLAYERED,
-            layer_rank: (100, 100),
+            layer_rank: 100,
             specificity: Specificity::default(),
             scope_proximity: 0,
-            sheet_rank: (10, 10),
-            rule_rank: (10, 10),
+            sheet_rank: 10,
+            rule_rank: 10,
         }
     }
 
@@ -2046,9 +2045,9 @@ mod tests {
     #[test]
     fn importance_reverses_layer_order() {
         let mut early = inputs(CascadeOrigin::Author, false);
-        early.layer_rank = (10, 0);
+        early.layer_rank = 10;
         let mut late = inputs(CascadeOrigin::Author, false);
-        late.layer_rank = (20, 0);
+        late.layer_rank = 20;
         assert!(
             CascadePriority::new(early) < CascadePriority::new(late),
             "later layers win"
@@ -2084,7 +2083,7 @@ mod tests {
     #[test]
     fn an_element_attached_style_beats_every_rule_in_its_context() {
         let mut rule = inputs(CascadeOrigin::Author, false);
-        rule.layer_rank = (u64::MAX - 1, u64::MAX - 1);
+        rule.layer_rank = u64::MAX - 1;
         rule.specificity = Specificity {
             ids: 100,
             classes: 100,
@@ -2092,7 +2091,7 @@ mod tests {
         };
         let mut inline = inputs(CascadeOrigin::Author, false);
         inline.element_attachment = ElementAttachment::InlineStyle;
-        inline.layer_rank = (0, 0);
+        inline.layer_rank = 0;
 
         assert!(CascadePriority::new(rule) < CascadePriority::new(inline));
     }
@@ -2117,17 +2116,17 @@ mod tests {
         );
 
         let mut early = base;
-        early.rule_rank = (10, 10);
+        early.rule_rank = 10;
         let mut late = base;
-        late.rule_rank = (10, 20);
+        late.rule_rank = 20;
         assert!(CascadePriority::new(early) < CascadePriority::new(late));
 
         let mut early_sheet = base;
-        early_sheet.sheet_rank = (1, 0);
-        early_sheet.rule_rank = (u64::MAX, u64::MAX);
+        early_sheet.sheet_rank = 1;
+        early_sheet.rule_rank = u64::MAX;
         let mut late_sheet = base;
-        late_sheet.sheet_rank = (2, 0);
-        late_sheet.rule_rank = (0, 0);
+        late_sheet.sheet_rank = 2;
+        late_sheet.rule_rank = 0;
         assert!(
             CascadePriority::new(early_sheet) < CascadePriority::new(late_sheet),
             "sheet order outranks position within a sheet"
@@ -2165,8 +2164,8 @@ mod tests {
     ) -> CascadeCandidate {
         let mut priority_inputs = inputs(origin, important);
         priority_inputs.layer = layer;
-        priority_inputs.layer_rank = (layer_rank, 0);
-        priority_inputs.rule_rank = (u64::from(rule), 0);
+        priority_inputs.layer_rank = layer_rank;
+        priority_inputs.rule_rank = u64::from(rule);
         let mut winner = winner(1, value, rule);
         winner.key.operator = operator;
         let priority = CascadePriority::new(priority_inputs);
@@ -2174,14 +2173,7 @@ mod tests {
         CascadeCandidate {
             winner,
             priority,
-            stratum: CascadeStratum::new(
-                origin,
-                important,
-                0,
-                layer,
-                (layer_rank, 0),
-                CascadeAttachment::StyleSheet,
-            ),
+            stratum: CascadeStratum::new(origin, important, 0, layer, layer_rank, CascadeAttachment::StyleSheet),
         }
     }
 
@@ -2411,14 +2403,14 @@ mod tests {
         let mut groups = WinnerGroups::new();
         let mut before_winner = winner(1, 10, 1);
         let mut before_inputs = inputs(CascadeOrigin::Author, false);
-        before_inputs.rule_rank = (1, 0);
+        before_inputs.rule_rank = 1;
         before_winner.priority = CascadePriority::new(before_inputs);
         let before = groups.intern_sorted(&[before_winner], None);
         let semantic_group_count = groups.payload_count();
 
         let mut after_winner = before_winner;
         let mut after_inputs = before_inputs;
-        after_inputs.rule_rank = (2, 0);
+        after_inputs.rule_rank = 2;
         after_winner.priority = CascadePriority::new(after_inputs);
         let after = groups.intern_sorted(&[after_winner], None);
 
@@ -2445,14 +2437,14 @@ mod tests {
             ids: 1,
             ..Specificity::default()
         };
-        specific.rule_rank = (20, 20);
+        specific.rule_rank = 20;
 
         let mut important = inputs(CascadeOrigin::Author, true);
         important.specificity = Specificity {
             classes: 1,
             ..Specificity::default()
         };
-        important.rule_rank = (10, 10);
+        important.rule_rank = 10;
 
         assert!(
             CascadePriority::new(specific) < CascadePriority::new(important),
