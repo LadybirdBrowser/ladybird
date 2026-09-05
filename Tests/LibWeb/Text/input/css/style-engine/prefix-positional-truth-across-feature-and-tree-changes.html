@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .sequence .leaf { color: black }
+    .active > div:nth-of-type(2n) .leaf { color: red }
+    .active > :nth-last-child(3n) .leaf { color: blue }
+    .active > :empty { background-color: green }
+</style>
+<div id="root"></div>
+<script>
+    test(() => {
+        const sequences = [];
+        for (let sequenceIndex = 0; sequenceIndex < 3; ++sequenceIndex) {
+            const sequence = document.createElement("section");
+            sequence.className = "sequence";
+            for (let index = 0; index < 48; ++index) {
+                const child = document.createElement(index % 3 ? "div" : "span");
+                child.innerHTML = '<span class="leaf"></span>';
+                sequence.append(child);
+            }
+            root.append(sequence);
+            sequences.push(sequence);
+        }
+
+        let mismatches = 0;
+        const check = () => {
+            internals.updateStyle();
+            for (const sequence of sequences) {
+                const active = sequence.classList.contains("active");
+                let divIndex = 0;
+                for (let index = 0; index < sequence.children.length; ++index) {
+                    const child = sequence.children[index];
+                    if (child.localName === "div")
+                        ++divIndex;
+                    const leaf = child.firstElementChild;
+                    if (leaf) {
+                        const expected = !active ? "rgb(0, 0, 0)"
+                            : child.localName === "div" && divIndex % 2 === 0 ? "rgb(255, 0, 0)"
+                            : (sequence.children.length - index) % 3 === 0 ? "rgb(0, 0, 255)"
+                            : "rgb(0, 0, 0)";
+                        if (getComputedStyle(leaf).color !== expected)
+                            ++mismatches;
+                    }
+                    const expectedBackground = active && !child.hasChildNodes()
+                        ? "rgb(0, 128, 0)" : "rgba(0, 0, 0, 0)";
+                    if (getComputedStyle(child).backgroundColor !== expectedBackground)
+                        ++mismatches;
+                }
+            }
+        };
+
+        check();
+        for (let round = 0; round < 4; ++round) {
+            sequences.forEach(sequence => sequence.classList.add("active"));
+            check();
+            for (const sequence of sequences) {
+                sequence.prepend(document.createElement("div"));
+                sequence.children[8].replaceChildren();
+                sequence.children[12].remove();
+            }
+            check();
+            sequences.forEach(sequence => sequence.classList.remove("active"));
+            check();
+            for (const sequence of sequences) {
+                sequence.firstElementChild.remove();
+                sequence.append(sequence.firstElementChild);
+            }
+            check();
+        }
+        println(`mismatches: ${mismatches}`);
+    });
+</script>
