@@ -2235,10 +2235,10 @@ static Optional<Gfx::IntPoint> dictionary_lookup_baseline_origin_for_range(Web::
     if (!navigable)
         return {};
 
-    auto to_top_level_viewport_point = [&](Web::CSSPixelPoint point) {
+    auto to_page_viewport_point = [&](Web::CSSPixelPoint point) {
         auto scroll_offset = navigable->viewport_scroll_offset();
         Web::CSSPixelPoint viewport_point { point.x() - scroll_offset.x(), point.y() - scroll_offset.y() };
-        return navigable->to_top_level_position(viewport_point);
+        return navigable->to_page_position(viewport_point);
     };
 
     auto rect = range.get_bounding_client_rect();
@@ -2250,7 +2250,7 @@ static Optional<Gfx::IntPoint> dictionary_lookup_baseline_origin_for_range(Web::
         Web::CSSPixels::nearest_value_for(rect->x()),
         Web::CSSPixels::nearest_value_for(rect->y() + font.pixel_metrics().ascent),
     };
-    return page.css_to_device_point(to_top_level_viewport_point(baseline_origin)).to_type<int>();
+    return page.css_to_device_point(to_page_viewport_point(baseline_origin)).to_type<int>();
 }
 
 void ConnectionFromClient::get_selected_text_for_lookup(u64 page_id, u64 request_id)

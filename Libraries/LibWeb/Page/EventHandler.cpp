@@ -2604,13 +2604,13 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
             node_of_box_under_pointer = *parent_element;
     }
 
-    auto top_level_viewport_position = m_navigable->to_top_level_position(viewport_position);
+    auto page_viewport_position = m_navigable->to_page_position(viewport_position);
     if (auto const* link = node_under_pointer->enclosing_link_element()) {
         auto href = link->href();
         auto url = document->encoding_parse_url(href);
         if (url.has_value()) {
             m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Link, .target = const_cast<DOM::Element&>(link->hyperlink_element_utils_element()) });
-            m_navigable->page().client().page_did_request_link_context_menu(top_level_viewport_position, *url, link->target().to_byte_string(), modifiers);
+            m_navigable->page().client().page_did_request_link_context_menu(page_viewport_position, *url, link->target().to_byte_string(), modifiers);
         }
     } else {
         // AD-HOC: Skip up the tree to the first ancestor that is not a UA shadow DOM node, and use its context menu.
@@ -2633,7 +2633,7 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
                     bitmap = &frame->bitmap();
 
                 m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Image, .target = image_element });
-                m_navigable->page().client().page_did_request_image_context_menu(top_level_viewport_position, *image_url, "", modifiers, bitmap);
+                m_navigable->page().client().page_did_request_image_context_menu(page_viewport_position, *image_url, "", modifiers, bitmap);
             }
         } else if (is<HTML::HTMLMediaElement>(*context_menu_node)) {
             auto& media_element = as<HTML::HTMLMediaElement>(*context_menu_node);
@@ -2650,13 +2650,13 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
             };
 
             m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Media, .target = media_element });
-            m_navigable->page().did_request_media_context_menu(media_element.unique_id(), top_level_viewport_position, "", modifiers, menu);
+            m_navigable->page().did_request_media_context_menu(media_element.unique_id(), page_viewport_position, "", modifiers, menu);
         } else {
             select_context_menu_text(document, coordinates.visual_viewport_position);
 
             auto for_input_events_target = document->active_input_events_target() ? ContextMenuForInputEventsTarget::Yes : ContextMenuForInputEventsTarget::No;
             m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Page, .target = context_menu_node });
-            m_navigable->page().client().page_did_request_context_menu(top_level_viewport_position, for_input_events_target);
+            m_navigable->page().client().page_did_request_context_menu(page_viewport_position, for_input_events_target);
         }
     }
 }

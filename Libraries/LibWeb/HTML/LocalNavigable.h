@@ -206,8 +206,8 @@ public:
     void report_child_frame_destroyed();
     void remove_from_all_local_navigables();
 
-    CSSPixelPoint to_top_level_position(CSSPixelPoint);
-    CSSPixelRect to_top_level_rect(CSSPixelRect const&);
+    CSSPixelPoint to_page_position(CSSPixelPoint);
+    CSSPixelRect to_page_rect(CSSPixelRect const&);
 
     CSSPixelPoint viewport_scroll_offset() const { return m_viewport_scroll_offset; }
     CSSPixelRect viewport_rect() const { return { m_viewport_scroll_offset, m_viewport_size }; }

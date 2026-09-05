@@ -3661,18 +3661,18 @@ bool LocalNavigable::is_local_root() const
     return &local_root == this;
 }
 
-CSSPixelRect LocalNavigable::to_top_level_rect(CSSPixelRect const& a_rect)
+CSSPixelRect LocalNavigable::to_page_rect(CSSPixelRect const& a_rect)
 {
     auto rect = a_rect;
-    rect.set_location(to_top_level_position(a_rect.location()));
+    rect.set_location(to_page_position(a_rect.location()));
     return rect;
 }
 
-CSSPixelPoint LocalNavigable::to_top_level_position(CSSPixelPoint a_position)
+CSSPixelPoint LocalNavigable::to_page_position(CSSPixelPoint a_position)
 {
     auto position = a_position;
     for (GC::Ptr<LocalNavigable> ancestor = this; ancestor;) {
-        if (is<LocalTraversableNavigable>(*ancestor))
+        if (ancestor->is_local_root())
             break;
         if (!ancestor->container())
             return {};

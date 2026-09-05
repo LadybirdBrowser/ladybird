@@ -10268,14 +10268,14 @@ Optional<CSSPixelRect> Document::current_caret_rect()
         return {};
 
     // The caret rects computed here are document-relative (absolute). Platform IME overlays are positioned relative to
-    // the viewport — so translate by scroll offset and map through any containing navigables to the top-level viewport.
+    // the viewport — so translate by scroll offset and map through any containing navigables to the local page viewport.
     auto to_viewport_rect = [this](CSSPixelRect rect) -> CSSPixelRect {
         auto navigable = this->navigable();
         if (!navigable)
             return rect;
         auto scroll = navigable->viewport_scroll_offset();
         CSSPixelRect viewport_rect { rect.x() - scroll.x(), rect.y() - scroll.y(), rect.width(), rect.height() };
-        return navigable->to_top_level_rect(viewport_rect);
+        return navigable->to_page_rect(viewport_rect);
     };
 
     if (is<DOM::Text>(dom_node)) {
