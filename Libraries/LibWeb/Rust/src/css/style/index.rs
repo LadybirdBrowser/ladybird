@@ -4597,6 +4597,11 @@ impl ElementFactStore {
     }
 
     /// Whether this element used custom properties whose names could not all be enumerated.
+    pub fn uses_unnamed_custom_properties(&self, node: StyleNodeID) -> bool {
+        self.metadata_of(node)
+            .is_some_and(|metadata| metadata.uses_unnamed_custom_properties)
+    }
+
     pub fn set_uses_unnamed_custom_properties(&mut self, node: StyleNodeID, uses: bool, memory: &mut MemoryController) {
         if self
             .metadata_of(node)

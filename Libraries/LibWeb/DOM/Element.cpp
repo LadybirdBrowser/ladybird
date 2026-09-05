@@ -2111,7 +2111,7 @@ RefPtr<CSS::CustomPropertyData const> Element::custom_property_environment_of_en
     return data;
 }
 
-CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const& pseudo_element_records, bool& did_change_custom_properties)
+CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const& pseudo_element_records, bool uses_substitution, bool& did_change_custom_properties)
 {
     VERIFY(parent());
     auto old_style_record = style_record_identity();
@@ -2125,7 +2125,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
 
     // The engine substituted custom properties into the record's winners the way a C++
     // computation notes it read them, even if the custom-property environment stayed the same.
-    if (style_computer.style_engine().node_style_uses_substitution(style_node_id()))
+    if (uses_substitution)
         m_style_uses_var_css_function = true;
 
     // The environment the record was published with: what the element inherits, or what the

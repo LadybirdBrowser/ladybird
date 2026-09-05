@@ -154,7 +154,6 @@
     { "event": "NoteStyleReactionApplied", "ffi": "style_engine_note_style_reaction_applied", "cpp": "note_style_reaction_applied", "return": "void", "args": [["node", "style_node"], ["reaction", "u8"], ["inherited_style_groups_changed", "u8"], ["facts", "u32"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.note_style_reaction_applied(node, reaction, inherited_style_groups_changed, facts);" },
     { "event": "SetElementAdjustmentFacts", "ffi": "style_engine_set_element_adjustment_facts", "cpp": "set_element_adjustment_facts", "return": "void", "args": [["node", "style_node"], ["facts", "u32"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.set_element_adjustment_facts(node, facts);" },
     { "event": "SetElementHeadingLevel", "ffi": "style_engine_set_element_heading_level", "cpp": "set_element_heading_level", "return": "void", "args": [["node", "style_node"], ["level", "u8"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.set_element_heading_level(node, level);" },
-    { "event": "RetryEngineRecordAfterAncestor", "ffi": "style_engine_retry_engine_record_after_ancestor", "cpp": "retry_engine_record_after_ancestor", "return": "u64", "replay": false, "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return 0; }; let result = engine.retry_engine_record_after_ancestor(node);" },
     { "event": "NodeDeclaresCustomProperties", "ffi": "style_engine_node_declares_custom_properties", "cpp": "node_declares_custom_properties", "return": "bool", "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return false; }; let result = engine.node_declares_custom_properties(node);" },
     { "event": "PrepareSharedExactCascadeState", "ffi": "style_engine_prepare_shared_exact_cascade_state", "cpp": "prepare_shared_exact_cascade_state", "return": "void", "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.prepare_shared_exact_cascade_state(node);" },
     { "event": "RetainExactCascadeState", "ffi": "style_engine_retain_exact_cascade_state", "cpp": "retain_exact_cascade_state", "return": "void", "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.retain_exact_cascade_state(node);" },
@@ -186,6 +185,7 @@
     { "event": "SetSheetConditionsHold", "ffi": "style_engine_set_sheet_conditions_hold", "cpp": "set_sheet_conditions_hold", "return": "void", "args": [["sheet", "sheet_id"], ["conditions_hold", "bool"]], "body": "if sheet != 0 { engine.set_sheet_conditions_hold(SheetID(sheet - 1), conditions_hold); }" }
   ],
   "bespoke_events": [
+    "RetryEngineRecordAfterAncestor",
     "CreateGraph",
     "DestroyGraph",
     "AllocateStyleNodes",

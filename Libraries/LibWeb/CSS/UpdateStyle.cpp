@@ -157,6 +157,7 @@ static StyleEngine::PublishedStyleDelta make_materialize_gap_delta(StyleNodeID s
         .inherited_style_groups = inherited_style_groups,
         .pseudo_kind = NumericLimits<u8>::max(),
         .gap = StyleEngineFFI::FfiStyleDeltaGap::Materialize,
+        .uses_substitution = false,
     };
 }
 
@@ -250,11 +251,12 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             }
 
             if (reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::RetryAfterAncestor) {
-                if (auto style_record = element->namespace_uri() == Namespace::HTML
+                if (auto retried = element->namespace_uri() == Namespace::HTML
                         ? document.style_computer().style_engine().retry_engine_record_after_ancestor(reaction.style_node)
-                        : 0;
-                    style_record != 0) {
-                    reaction.new_style_record = style_record;
+                        : StyleEngineFFI::FfiEngineComputedRecord {};
+                    retried.style_record != 0) {
+                    reaction.new_style_record = retried.style_record;
+                    reaction.uses_substitution = retried.uses_substitution;
                     reaction.damage = StyleEngineFFI::FfiStyleDeltaDamage::Full;
                     reaction.gap = StyleEngineFFI::FfiStyleDeltaGap::Computed;
                 } else {
@@ -387,7 +389,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                     counters = counters_before_verification;
                     auto const computed_style_changes_before_application = counters.element_computed_style_changes;
                     if (engine_record_is_installable) {
-                        invalidation = element->apply_engine_computed_style_record(StyleRecordID { reaction.new_style_record }, pseudo_element_records, did_change_custom_properties);
+                        invalidation = element->apply_engine_computed_style_record(StyleRecordID { reaction.new_style_record }, pseudo_element_records, reaction.uses_substitution, did_change_custom_properties);
                         // The reference pass already installed equal values, so applying the engine
                         // record may be a no-op. Preserve the invalidation it proved the originating
                         // record or pseudo-element transitions need.
@@ -424,7 +426,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                     // later transaction to plan.
                     if (!element->has_style())
                         style_engine.consume_recorded_element_style_input_change(reaction.style_node);
-                    invalidation = element->apply_engine_computed_style_record(StyleRecordID { reaction.new_style_record }, pseudo_element_records, did_change_custom_properties);
+                    invalidation = element->apply_engine_computed_style_record(StyleRecordID { reaction.new_style_record }, pseudo_element_records, reaction.uses_substitution, did_change_custom_properties);
                 }
                 if (acknowledge)
                     style_engine.acknowledge_engine_computed_record(StyleNodeID { reaction.style_node });

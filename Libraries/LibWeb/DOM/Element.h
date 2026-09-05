@@ -342,7 +342,7 @@ public:
     // The synthetic pseudo-element records the style engine settled beside an engine-computed record: a kind it
     // decided holds the record, or none when the pseudo-element is not generated; a kind it left alone is unchanged.
     using EnginePseudoElementRecords = Array<Optional<CSS::StyleRecordID>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount)>;
-    CSS::RequiredInvalidationAfterStyleChange apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const&, bool& did_change_custom_properties);
+    CSS::RequiredInvalidationAfterStyleChange apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const&, bool uses_substitution, bool& did_change_custom_properties);
     // The custom-property environment an engine-computed record was published with: the one the
     // element inherits, or one the engine resolved over it. Nothing when it cannot be installed.
     [[nodiscard]] RefPtr<CSS::CustomPropertyData const> custom_property_environment_of_engine_record(CSS::StyleRecordID, bool& installable) const;
