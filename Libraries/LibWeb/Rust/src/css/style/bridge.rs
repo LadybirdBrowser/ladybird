@@ -143,6 +143,7 @@ pub struct FfiStyleDelta {
 pub(super) struct FfiStyleTransactionOutput {
     scoped: bool,
     style_atoms_swept: bool,
+    only_derived_child_reactions: bool,
     transaction_version: u64,
     program_version: u64,
     answers: Vec<FfiStyleDelta>,
@@ -167,6 +168,9 @@ pub struct FfiStyleTransactionView {
     pub reclaimed_style_atom_count: usize,
     pub scoped: bool,
     pub style_atoms_swept: bool,
+    /// The transaction planned nothing but the child reactions the engine derived from the
+    /// reactions C++ applied last: one more generation of the same style change, not a new one.
+    pub only_derived_child_reactions: bool,
 }
 
 /// Document-wide scalar computation inputs captured at a style transaction boundary.
@@ -259,6 +263,7 @@ impl Default for FfiStyleTransactionView {
             reclaimed_style_atoms: std::ptr::null(),
             reclaimed_style_atom_count: 0,
             scoped: false,
+            only_derived_child_reactions: false,
             style_atoms_swept: false,
         }
     }
@@ -457,6 +462,22 @@ pub struct FfiElementArrival {
 /// it are the bits a style record's pseudo-element mask carries. Mirrors the C++
 /// `last_synthetic_pseudo_element`.
 pub const LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND: u16 = 7;
+
+/// What C++ reports about a style reaction it applied, for the engine to derive the reactions of
+/// the element's children. Mirrors C++ `StyleReactionAppliedFact`.
+pub mod style_reaction_applied_fact {
+    pub const DID_CHANGE_CUSTOM_PROPERTIES: u32 = 1 << 0;
+    pub const INVALIDATION_IS_NONE: u32 = 1 << 1;
+    pub const NEEDS_LAYOUT_TREE_REBUILD: u32 = 1 << 2;
+    pub const RECOMPUTE_DESCENDANT_STYLES: u32 = 1 << 3;
+    pub const CHILDREN_EXPLICITLY_INHERIT: u32 = 1 << 4;
+    pub const SHADOW_CHILDREN_EXPLICITLY_INHERIT: u32 = 1 << 5;
+    pub const WAS_UNSTYLED: u32 = 1 << 6;
+    pub const WAS_DISPLAY_NONE: u32 = 1 << 7;
+    pub const IS_DISPLAY_NONE: u32 = 1 << 8;
+    pub const IN_DISPLAY_NONE_SUBTREE: u32 = 1 << 9;
+    pub const HAS_STYLE: u32 = 1 << 10;
+}
 
 /// The element facts the style computation's box-type transformation and element style
 /// adjustments read. Mirrors C++ `ElementStyleAdjustmentFact`.
@@ -1353,6 +1374,7 @@ pub unsafe fn replay_set_element_declared_properties(
         node,
         decode_element_declaration_kind(kind),
         declared,
+        Vec::new(),
         declarations_are_complete,
     );
 }
@@ -1942,6 +1964,7 @@ pub unsafe extern "C" fn style_engine_set_element_declared_properties(
         return;
     };
     let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let mut written_values = Vec::with_capacity(count);
     let declared: Vec<DeclaredProperty> = match count == 0 {
         true => Vec::new(),
         false => {
@@ -1967,6 +1990,9 @@ pub unsafe extern "C" fn style_engine_set_element_declared_properties(
                 .map(|(((property, important), operator), (value, original_value))| {
                     let specified_value = unsafe { engine.intern_specified_value(value.cast()) };
                     unsafe { engine.alias_specified_value(original_value.cast(), specified_value) };
+                    written_values.push(unsafe {
+                        RetainedStyleValueData::from_retained_pointer(retain_style_value(original_value.cast()))
+                    });
                     DeclaredProperty {
                         property,
                         important,
@@ -1981,6 +2007,7 @@ pub unsafe extern "C" fn style_engine_set_element_declared_properties(
         node,
         decode_element_declaration_kind(kind),
         &declared,
+        written_values,
         declarations_are_complete,
     );
     engine.record_boundary_call(EventKind::SetElementDeclaredProperties, |payload| {
@@ -2510,13 +2537,11 @@ pub unsafe extern "C" fn style_engine_style_record_custom_property_environment(
     engine: *const c_void,
     style_record: u64,
 ) -> u64 {
-    abort_on_panic(|| {
-        let engine = unsafe { &*engine.cast::<StyleEngine>() };
-        engine
-            .computed_group_sets
-            .style_record_custom_property_environment(style_record)
-            .unwrap_or(0)
-    })
+    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    engine
+        .computed_group_sets
+        .style_record_custom_property_environment(style_record)
+        .unwrap_or(0)
 }
 
 /// Computes the property-dependent damage between two final style records.
@@ -2830,6 +2855,7 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
         })
         .collect();
     output.style_atoms_swept = std::mem::take(&mut engine.style_atoms_swept);
+    output.only_derived_child_reactions = engine.take_only_derived_child_reactions();
     if engine.recording_id().is_some() {
         engine.record_boundary_call(EventKind::StyleDeltaBatch, |payload| {
             payload.write_u32(root.raw());
@@ -2862,6 +2888,7 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
         reclaimed_style_atoms: output.reclaimed_style_atoms.as_ptr(),
         reclaimed_style_atom_count: output.reclaimed_style_atoms.len(),
         scoped: output.scoped,
+        only_derived_child_reactions: output.only_derived_child_reactions,
         style_atoms_swept: output.style_atoms_swept,
     }
 }
@@ -2882,10 +2909,21 @@ pub unsafe extern "C" fn style_engine_sort_style_deltas_for_direct_application(
     assert!(!deltas.is_null(), "a non-empty delta span must have storage");
     let engine = unsafe { &*engine.cast::<StyleEngine>() };
     let deltas = unsafe { std::slice::from_raw_parts_mut(deltas, count) };
+    // An element's own delta leads the pseudo-element deltas settled beside it.
+    let pseudo_rank = |delta: &FfiStyleDelta| {
+        if delta.pseudo_kind == u8::MAX {
+            0
+        } else {
+            1 + u16::from(delta.pseudo_kind)
+        }
+    };
     deltas.sort_unstable_by(|first, second| {
-        let first = StyleNodeID::from_raw(first.style_node).expect("a style delta must name an element");
-        let second = StyleNodeID::from_raw(second.style_node).expect("a style delta must name an element");
-        engine.tree.compare_style_reaction_order(first, second)
+        let first_node = StyleNodeID::from_raw(first.style_node).expect("a style delta must name an element");
+        let second_node = StyleNodeID::from_raw(second.style_node).expect("a style delta must name an element");
+        engine
+            .tree
+            .compare_style_reaction_order(first_node, second_node)
+            .then_with(|| pseudo_rank(first).cmp(&pseudo_rank(second)))
     });
 }
 
@@ -3261,6 +3299,7 @@ mod tests {
                 namespace_atom: 11,
                 language_atom: 12,
                 directionality_atom: 13,
+                adjustment_facts: 0,
                 custom_state_offset: 0,
                 custom_state_count: 2,
                 heading_level: 4,
@@ -3272,6 +3311,7 @@ mod tests {
                 namespace_atom: 21,
                 language_atom: 22,
                 directionality_atom: 23,
+                adjustment_facts: 0,
                 custom_state_offset: 2,
                 custom_state_count: 1,
                 heading_level: 0,
@@ -3301,6 +3341,7 @@ mod tests {
             namespace_atom: 1,
             language_atom: 2,
             directionality_atom: 3,
+            adjustment_facts: 0,
             custom_state_offset,
             custom_state_count,
             heading_level: 0,

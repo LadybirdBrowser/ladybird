@@ -1,0 +1,2 @@
+before: inline
+after: block

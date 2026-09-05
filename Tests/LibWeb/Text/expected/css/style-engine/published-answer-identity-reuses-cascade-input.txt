@@ -1,6 +1,5 @@
 first color: rgb(255, 0, 0)
 second color: rgb(255, 0, 0)
 published answers: 2
-identity reads: 2
-payload consumptions: 1
+engine records: 2
 shared payloads: 1

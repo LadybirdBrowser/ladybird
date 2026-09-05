@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #parent { display: block; }
+    #child { display: inline; }
+</style>
+<div id="parent"><span id="child">child</span></div>
+<script>
+    test(() => {
+        const parentElement = document.getElementById("parent");
+        const child = document.getElementById("child");
+        println(`before: ${getComputedStyle(child).display}`);
+        parentElement.style.display = "flex";
+        println(`after: ${getComputedStyle(child).display}`);
+    });
+</script>

@@ -400,9 +400,13 @@ impl MatchAnswerCatalog {
     }
 }
 
+type PseudoWinnerGroups = Rc<[(super::tree::PseudoElementTarget, CascadeStateID)]>;
+
 pub(super) struct PrefixAnswer {
     pub(super) matches: MatchAnswerID,
     pub(super) winner_group: Option<(u64, CascadeStateID)>,
+    /// The pseudo-element winner states published beside the answer, and their generation.
+    pub(super) pseudo_winner_groups: Option<(u64, PseudoWinnerGroups)>,
     pub(super) cascade_input: MatchAnswerID,
     pub(super) cascade_winner_inventory_is_complete: bool,
 }
@@ -587,12 +591,14 @@ impl PrefixAnswerCache {
         });
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn remember(
         &mut self,
         catalog: &mut MatchAnswerCatalog,
         key: PrefixAnswerKey,
         answer: &[RuleMatch],
         winner_group: Option<(u64, CascadeStateID)>,
+        pseudo_winner_groups: Option<(u64, PseudoWinnerGroups)>,
         cascade_input: MatchAnswerID,
         cascade_winner_inventory_is_complete: bool,
     ) {
@@ -604,6 +610,7 @@ impl PrefixAnswerCache {
                 PrefixAnswer {
                     matches,
                     winner_group,
+                    pseudo_winner_groups,
                     cascade_input,
                     cascade_winner_inventory_is_complete,
                 },
@@ -967,7 +974,7 @@ impl RetainedAnswerDeltaMemoEntry {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub(super) struct RetainedAnswerDeltaTransition {
     pub(super) new_answer: MatchAnswerID,
     /// The compact identity after the transition. Equal to the asker's old identity exactly when
@@ -976,6 +983,9 @@ pub(super) struct RetainedAnswerDeltaTransition {
     /// The winner state the cohort's first member settled after applying the same deltas, with
     /// its program version, when one was retained. Emitting replays assign it by column store.
     pub(super) winner_state: Option<(CascadeStateID, ProgramVersion)>,
+    /// The pseudo-element winner states the first member settled beside its winner state, of
+    /// the same program version.
+    pub(super) pseudo_winner_states: Rc<[(super::tree::PseudoElementTarget, CascadeStateID)]>,
     /// Whether the first member's winner application reported an update, which decides whether
     /// replays hand the traversal an incremental cascade answer.
     pub(super) winners_updated: bool,

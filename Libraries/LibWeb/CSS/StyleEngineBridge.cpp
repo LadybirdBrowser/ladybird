@@ -70,15 +70,6 @@ static_assert(!IsMoveAssignable<StyleEngine>);
 
 #include <LibWeb/StyleEngineBridgeGenerated.inc>
 
-bool StyleEngine::published_style_delta_can_absorb_reaction(PublishedStyleDelta const& delta, u8 reaction, u8 inherited_style_groups)
-{
-    if (delta.gap == StyleEngineFFI::FfiStyleDeltaGap::Materialize)
-        return true;
-    bool const has_additional_reaction = (reaction & ~delta.reaction) != 0;
-    bool const has_additional_inherited_style_groups = (inherited_style_groups & ~delta.inherited_style_groups) != 0;
-    return !has_additional_reaction && !has_additional_inherited_style_groups;
-}
-
 StyleEngine::StyleEngine(DeviceClass device_class, StyleComputer* style_computer)
     : m_impl(StyleEngineFFI::style_engine_create(device_class))
     , m_style_computer(style_computer)
@@ -500,25 +491,12 @@ void StyleEngine::record_element_declaration_delta(StyleEngineFFI::FfiElementDec
     m_element_declaration_deltas.append(delta);
 }
 
-void StyleEngine::append_or_merge_element_style_input(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups)
-{
-    if (auto existing = m_element_style_input_indices.find(style_node); existing != m_element_style_input_indices.end()) {
-        auto& input = m_element_style_inputs[existing->value];
-        input.reaction |= reaction;
-        input.inherited_style_groups |= inherited_style_groups;
-        return;
-    }
-
-    m_element_style_input_indices.set(style_node, m_element_style_inputs.size());
-    m_element_style_inputs.append({ style_node.value(), reaction, inherited_style_groups });
-}
-
 void StyleEngine::record_element_style_input_change(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups)
 {
     if (style_node != 0 && reaction != 0) {
         flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
         request_frame_for_first_recorded_input(*this, m_style_computer);
-        append_or_merge_element_style_input(style_node, reaction, inherited_style_groups);
+        record_element_style_input(style_node, reaction, inherited_style_groups);
     }
 }
 
@@ -528,15 +506,10 @@ void StyleEngine::record_flat_tree_descendant_style_input_changes(StyleNodeID st
         return;
 
     flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
-    // The relation columns must include every tree delta recorded before this derived action. The
-    // descendants themselves stay in the C++ batch so the next transaction normalizes them with
-    // every other feedback action from this stabilization pass.
+    // The relation columns must include every tree delta recorded before this derived action.
     submit_recorded_input();
     request_frame_for_first_recorded_input(*this, m_style_computer);
-    auto descendants = StyleEngineFFI::style_engine_flat_tree_descendants(m_impl, style_node.value());
-    for (auto descendant : ReadonlySpan<u32> { descendants.nodes, descendants.count })
-        append_or_merge_element_style_input(StyleNodeID { descendant }, reaction, inherited_style_groups);
-    StyleEngineFFI::style_engine_discard_flat_tree_descendants(m_impl);
+    record_flat_tree_descendant_style_inputs(style_node, reaction, inherited_style_groups);
 }
 
 Vector<StyleNodeID> StyleEngine::viewport_dependent_style_nodes()
@@ -550,25 +523,9 @@ Vector<StyleNodeID> StyleEngine::viewport_dependent_style_nodes()
     return nodes;
 }
 
-void StyleEngine::consume_recorded_element_style_input_change(StyleNodeID style_node)
-{
-    auto existing = m_element_style_input_indices.find(style_node);
-    if (existing == m_element_style_input_indices.end())
-        return;
-
-    auto index = existing->value;
-    VERIFY(index < m_element_style_inputs.size());
-    m_element_style_input_indices.remove(style_node);
-    auto last_input = m_element_style_inputs.take_last();
-    if (index < m_element_style_inputs.size()) {
-        m_element_style_inputs[index] = last_input;
-        m_element_style_input_indices.set(StyleNodeID { last_input.style_node }, index);
-    }
-}
-
 bool StyleEngine::has_recorded_element_style_input_change(StyleNodeID style_node) const
 {
-    return m_element_style_input_indices.contains(style_node);
+    return has_deferred_element_style_input(style_node);
 }
 void StyleEngine::record_benchmark_marker(Utf16View name)
 {
@@ -584,8 +541,7 @@ bool StyleEngine::has_recorded_input() const
         || !m_element_arrivals.is_empty()
         || !m_local_feature_deltas.is_empty()
         || !m_state_deltas.is_empty()
-        || !m_element_declaration_deltas.is_empty()
-        || !m_element_style_inputs.is_empty();
+        || !m_element_declaration_deltas.is_empty();
 }
 
 void StyleEngine::submit_recorded_input()
@@ -611,8 +567,8 @@ void StyleEngine::submit_recorded_input()
         .state_delta_count = m_state_deltas.size(),
         .element_declaration_deltas = m_element_declaration_deltas.data(),
         .element_declaration_delta_count = m_element_declaration_deltas.size(),
-        .element_style_inputs = m_element_style_inputs.data(),
-        .element_style_input_count = m_element_style_inputs.size(),
+        .element_style_inputs = nullptr,
+        .element_style_input_count = 0,
     };
     apply_transaction(transaction);
 
@@ -622,8 +578,6 @@ void StyleEngine::submit_recorded_input()
     m_local_feature_deltas.clear_with_capacity();
     m_state_deltas.clear_with_capacity();
     m_element_declaration_deltas.clear_with_capacity();
-    m_element_style_inputs.clear_with_capacity();
-    m_element_style_input_indices.clear_with_capacity();
 
     // Selector demand can arrive while the program change and element facts are still staged.
     // Refresh after applying the fact batch, then backfill values before matching observes it.
@@ -646,8 +600,12 @@ bool StyleEngine::take_diagnostic_style_transaction(StyleNodeID root, Function<v
 {
     Vector<StyleNodeID> reaction_nodes;
     auto transaction = take_style_transaction(root);
-    for (auto const& reaction : transaction.reactions)
+    for (auto const& reaction : transaction.reactions) {
+        // A pseudo-element record is part of its element's reaction.
+        if (reaction.pseudo_kind != NumericLimits<u8>::max())
+            continue;
         reaction_nodes.append(StyleNodeID { reaction.style_node });
+    }
     discard_style_transaction_outputs();
     if (!transaction.is_scoped)
         return false;
@@ -730,6 +688,7 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
         .version = { view.transaction_version, view.program_version },
         .reactions = { view.answers, view.count },
         .is_scoped = view.scoped,
+        .only_derived_child_reactions = view.only_derived_child_reactions,
     };
 }
 

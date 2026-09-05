@@ -2305,7 +2305,7 @@ bool Document::needs_style_update_after_layout()
 {
     return !m_query_containers_needing_container_query_evaluation_after_layout.is_empty()
         || m_needs_animated_style_update
-        || style_computer().style_engine().has_recorded_input();
+        || style_computer().style_engine().has_pending_transaction();
 }
 
 // Attempts to satisfy the pending layout update by re-laying out only the registered partial

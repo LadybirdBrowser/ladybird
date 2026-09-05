@@ -1,0 +1,10 @@
+initial: rgb(255, 0, 0) / inline
+display only: inline
+blue: rgb(0, 0, 255) / inline
+display only: inline
+blue flex: rgb(0, 0, 255) / block
+display only: block
+blue grid: rgb(0, 0, 255) / block
+display only: block
+initial: rgb(255, 0, 0) / inline
+display only: inline

@@ -385,6 +385,11 @@ static bool element_may_have_presentational_hints(DOM::Element const& element)
     if (element.supports_dimension_attributes()
         && (element.has_attribute(HTML::AttributeNames::width) || element.has_attribute(HTML::AttributeNames::height)))
         return true;
+    // A body's link, vlink and alink attributes are presentational hints on every link, by the
+    // link's :link, :visited and :active state.
+    if ((element.matches_link_pseudo_class() || element.matches_visited_pseudo_class())
+        && (element.document().normal_link_color().has_value() || element.document().visited_link_color().has_value() || element.document().active_link_color().has_value()))
+        return true;
     bool has_presentational_hint = false;
     element.for_each_attribute([&](Utf16FlyString const& name, Utf16View) {
         if (element.is_presentational_hint(name))

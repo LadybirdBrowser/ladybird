@@ -1323,6 +1323,12 @@ impl WinnerGroups {
             / WINNER_GROUP_PROPERTY_COUNT
     }
 
+    /// Whether a rule contributes a winner to the state.
+    #[must_use]
+    pub fn state_wins_with_rule(&self, state: CascadeStateID, rule: RuleID) -> bool {
+        self.state_winning_rules[state.0 as usize].contains(&rule)
+    }
+
     #[must_use]
     pub fn winner_in_state(&self, state: CascadeStateID, property: PropertyID) -> Option<PropertyWinner> {
         let groups = &self.states[state];

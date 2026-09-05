@@ -70,7 +70,7 @@ impl StyleEngine {
             })
             .collect();
         self.record_rule_declaration_change(rule, &declared);
-        self.stage_rule_declared_properties(rule, declared, declarations_are_complete);
+        self.stage_rule_declared_properties(rule, declared, Vec::new(), declarations_are_complete);
     }
 
     /// Record the canonical specified value beside every declared longhand.
@@ -91,7 +91,7 @@ impl StyleEngine {
             })
             .collect();
         self.record_rule_declaration_change(rule, &declared);
-        self.stage_rule_declared_properties(rule, declared, declarations_are_complete);
+        self.stage_rule_declared_properties(rule, declared, Vec::new(), declarations_are_complete);
     }
 
     /// Record already decoded cascade operators beside canonical specified values.
