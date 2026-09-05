@@ -794,7 +794,6 @@ set(SOURCES
     Layout/Node.cpp
     Layout/NodeArena.cpp
     Layout/TextNode.cpp
-    Layout/TextOffsetMapping.cpp
     Layout/TreeBuilder.cpp
     Layout/Viewport.cpp
     Loader/ContentBlocker.cpp

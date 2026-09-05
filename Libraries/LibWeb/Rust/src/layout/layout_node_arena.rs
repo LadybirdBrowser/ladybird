@@ -9,7 +9,7 @@ use super::formatting_context::DerivedBaselines;
 use super::formatting_context::LayoutMode;
 use super::geometry::AvailableSize;
 use super::geometry::AvailableSpace;
-use super::rendered_text::{FfiTextFragments, FfiTextSource, FfiTextSourceRange, RenderedTextBoundary, TextContent};
+use super::rendered_text::{FfiTextSource, FfiTextSourceRange, RenderedTextBoundary, TextContent, TextFragments};
 use super::used_values::SizeConstraint;
 use super::used_values::UsedValues;
 use crate::css::style::fast_hash::{FastMap as HashMap, FastSet as HashSet};
@@ -535,6 +535,7 @@ pub(crate) struct LayoutNodeArena {
     any_default_scroll_shift_anchor_ever_stored: Cell<bool>,
     text_nodes: Vec<TextNodeSlot>,
     pub(super) text_source_callback: Option<unsafe extern "C" fn(*mut c_void) -> FfiTextSource>,
+    pub(super) searchable_text: Option<Vec<super::text_queries::MappedText>>,
     replaced_content_facts: Vec<ReplacedContentFactsSlot>,
     raw_table_column_spans: HashMap<NodeSlotId, u32>,
     run_used_records: RefCell<Vec<RunRecordSlot>>,
@@ -575,6 +576,7 @@ impl LayoutNodeArena {
             any_default_scroll_shift_anchor_ever_stored: Cell::new(false),
             text_nodes: Vec::new(),
             text_source_callback: None,
+            searchable_text: None,
             replaced_content_facts: Vec::new(),
             raw_table_column_spans: HashMap::default(),
             run_used_records: RefCell::new(Vec::new()),
@@ -805,6 +807,7 @@ impl LayoutNodeArena {
     }
 
     fn free_unlinked_slot(&mut self, id: NodeSlotId) -> Option<crate::painting::paintable_rows::PaintableRowReset> {
+        self.searchable_text = None;
         let index = id.slot_index();
         let id_generation = id.generation();
         let should_reuse = {
@@ -1927,6 +1930,7 @@ impl LayoutNodeArena {
             return;
         }
         state.content = Some(content);
+        self.searchable_text = None;
         // Publication can happen through a C++ text read before the enrolled
         // sync runs. Invalidate here so every publication invalidates layout,
         // including mapping-only changes with identical rendered code units.
@@ -2044,8 +2048,8 @@ impl LayoutNodeArena {
             })
     }
 
-    pub(crate) fn text_fragments(&self, primary: NodeSlotId) -> FfiTextFragments {
-        let mut fragments = FfiTextFragments {
+    pub(crate) fn text_fragments(&self, primary: NodeSlotId) -> TextFragments {
+        let mut fragments = TextFragments {
             nodes: [NodeSlotId::INVALID; 2],
             length: 0,
         };
@@ -2061,23 +2065,6 @@ impl LayoutNodeArena {
         fragments.nodes[fragments.length] = primary;
         fragments.length += 1;
         fragments
-    }
-
-    pub(crate) fn text_fragment_containing(
-        &self,
-        primary: NodeSlotId,
-        dom_offset: usize,
-        source_length: usize,
-    ) -> NodeSlotId {
-        self.text_fragments(primary)
-            .as_slice()
-            .iter()
-            .copied()
-            .find(|&fragment| {
-                let range = self.text_source_range(fragment, source_length);
-                dom_offset >= range.start && dom_offset <= range.start + range.length
-            })
-            .unwrap_or(NodeSlotId::INVALID)
     }
 
     /// The node's group payload pointer array, read in place from the

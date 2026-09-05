@@ -3048,6 +3048,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &[
             manifest_dir.join("src/layout/layout_node_arena.rs"),
             manifest_dir.join("src/layout/rendered_text.rs"),
+            manifest_dir.join("src/layout/text_queries.rs"),
             manifest_dir.join("src/css/ffi_support.rs"),
             manifest_dir.join("src/layout/node_data.rs"),
             manifest_dir.join("src/layout/partial_relayout.rs"),

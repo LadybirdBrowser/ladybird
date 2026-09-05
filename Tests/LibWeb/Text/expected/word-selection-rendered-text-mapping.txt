@@ -1,0 +1,6 @@
+first word across slices: "Hello", 0-5
+word in remainder: "world", 6-11
+expanded first letter: "ßa", 0-2
+word after expansion: "next", 3-7
+contracted first letter: "İx", 0-3
+word after contraction: "end", 4-7

@@ -754,6 +754,7 @@ struct UnicodeLayoutSegmenterHandle {
 extern "C" {
 void* unicode_layout_grapheme_segmenter_create(u16 const*, size_t);
 void* unicode_layout_line_segmenter_create(u16 const*, size_t);
+void unicode_layout_word_boundaries(u16 const*, size_t, size_t, size_t*, size_t*);
 i64 unicode_layout_segmenter_next_boundary(void*, size_t, bool);
 void unicode_layout_segmenter_destroy(void*);
 }
@@ -762,7 +763,10 @@ static Unicode::Segmenter& unicode_layout_segmenter_prototype(Unicode::Segmenter
 {
     static thread_local Unicode::Segmenter* grapheme_prototype = nullptr;
     static thread_local Unicode::Segmenter* line_prototype = nullptr;
-    auto& prototype = granularity == Unicode::SegmenterGranularity::Grapheme ? grapheme_prototype : line_prototype;
+    static thread_local Unicode::Segmenter* word_prototype = nullptr;
+    auto& prototype = granularity == Unicode::SegmenterGranularity::Grapheme ? grapheme_prototype
+        : granularity == Unicode::SegmenterGranularity::Word                 ? word_prototype
+                                                                             : line_prototype;
     if (!prototype)
         prototype = Unicode::Segmenter::create(granularity).leak_ptr();
     return *prototype;
@@ -803,6 +807,14 @@ extern "C" void* unicode_layout_line_segmenter_create(u16 const* text, size_t le
     auto segmenter = unicode_layout_segmenter_prototype(Unicode::SegmenterGranularity::Line).clone();
     segmenter->set_segmented_text(view);
     return new UnicodeLayoutSegmenterHandle { .segmenter = move(segmenter), .ascii_storage = {} };
+}
+
+extern "C" void unicode_layout_word_boundaries(u16 const* text, size_t length, size_t offset, size_t* start, size_t* end)
+{
+    auto segmenter = unicode_layout_segmenter_prototype(Unicode::SegmenterGranularity::Word).clone();
+    segmenter->set_segmented_text(Utf16View { reinterpret_cast<char16_t const*>(text), length });
+    *start = segmenter->previous_boundary(offset, Unicode::Segmenter::Inclusive::Yes).value_or(0);
+    *end = segmenter->next_boundary(offset).value_or(length);
 }
 
 extern "C" i64 unicode_layout_segmenter_next_boundary(void* handle, size_t index, bool inclusive)

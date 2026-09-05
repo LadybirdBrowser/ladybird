@@ -84,7 +84,6 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
-#include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/MathML/MathMLElement.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
@@ -4032,14 +4031,10 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
     // cause traversal through element subtrees in way that’s necessary to check for descendants that are referenced by
     // aria-labelledby or aria-describedby and/or un-hidden. See the comment for substep A above.
     if (is_text() && (!parent_element() || (parent_element()->is_referenced() || !parent_element()->is_hidden() || !parent_element()->has_hidden_ancestor() || parent_element()->has_referenced_and_hidden_ancestor()))) {
-        if (layout_node()) {
-            Utf16StringBuilder builder;
-            Layout::TextOffsetMapping mapping { static_cast<DOM::Text const&>(*this) };
-            mapping.for_each_fragment([&](Layout::TextNode const& slice) {
-                builder.append(slice.text_for_rendering());
-            });
-            if (!builder.is_empty())
-                return builder.to_string();
+        if (auto const* text_node = as_if<Layout::TextNode>(layout_node())) {
+            auto text = text_node->rendered_text_for_dom(false);
+            if (!text.is_empty())
+                return text;
         }
         return text_content().value();
     }

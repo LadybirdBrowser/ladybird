@@ -29,13 +29,12 @@ public:
     DOM::Text const& dom_node() const { return static_cast<DOM::Text const&>(*Node::dom_node()); }
     virtual DOM::Text const* dom_text() const { return &dom_node(); }
 
-    size_t dom_start_offset() const;
-    size_t dom_length() const;
-
     virtual Utf16String const& text() const { return dom_node().data(); }
 
     // Borrows the arena's rendered text until this node's content is republished or freed.
     Utf16View text_for_rendering() const;
+    Utf16String rendered_text_for_dom(bool collapse_whitespace) const;
+    RustFFI::FfiTextSourceRange word_range_at(size_t dom_offset) const;
     void invalidate_text_for_rendering();
 
     // The returned views survive until the next DOM mutation.

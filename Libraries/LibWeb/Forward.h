@@ -1016,7 +1016,6 @@ class Node;
 class NodeArena;
 class NodeWithStyle;
 class TextNode;
-class TextOffsetMapping;
 class LayoutTreeBuilderAccess;
 class Viewport;
 

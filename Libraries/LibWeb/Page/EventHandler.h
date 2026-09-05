@@ -15,7 +15,6 @@
 #include <LibGC/Ptr.h>
 #include <LibGC/Weak.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibUnicode/Forward.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/DOM/HoverEventData.h>
@@ -178,7 +177,6 @@ private:
     void handle_gamepad_disconnected(SDL_JoystickID);
 
     bool has_committed_root_box() const;
-    Unicode::Segmenter& word_segmenter();
 
     GC::Ref<HTML::LocalNavigable> m_navigable;
 
@@ -211,8 +209,6 @@ private:
     CSSPixelPoint m_last_known_mouse_screen_position;
     unsigned m_last_known_mouse_buttons { 0 };
     unsigned m_last_known_mouse_modifiers { 0 };
-
-    OwnPtr<Unicode::Segmenter> m_word_segmenter;
 
     OwnPtr<AutoScrollHandler> m_auto_scroll_handler;
     OwnPtr<MiddleButtonScrollHandler> m_middle_button_scroll_handler;

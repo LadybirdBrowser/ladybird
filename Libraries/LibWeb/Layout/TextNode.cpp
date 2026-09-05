@@ -96,14 +96,19 @@ TextSliceNode::TextSliceNode(DOM::Document& document, DOM::Text& text, AttachToD
 
 TextSliceNode::~TextSliceNode() = default;
 
-size_t TextNode::dom_start_offset() const
+Utf16String TextNode::rendered_text_for_dom(bool collapse_whitespace) const
 {
-    return RustFFI::layout_arena_text_source_range(arena_handle(), slot_id(this), text().length_in_code_units()).start;
+    Utf16String text;
+    RustFFI::layout_arena_collect_rendered_text(arena_handle(), slot_id(this), collapse_whitespace, &text,
+        [](void* context, RustFFI::FfiRenderedTextView view) {
+            *static_cast<Utf16String*>(context) = Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(view.text), view.length_in_code_units });
+        });
+    return text;
 }
 
-size_t TextNode::dom_length() const
+RustFFI::FfiTextSourceRange TextNode::word_range_at(size_t dom_offset) const
 {
-    return RustFFI::layout_arena_text_source_range(arena_handle(), slot_id(this), text().length_in_code_units()).length;
+    return RustFFI::layout_arena_text_word_range(arena_handle(), slot_id(this), dom_offset);
 }
 
 void TextNode::invalidate_text_for_rendering()

@@ -9818,56 +9818,28 @@ Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensit
     if (!layout_node())
         return {};
 
-    auto const& text_blocks = layout_node()->text_blocks();
-    if (text_blocks.is_empty())
-        return {};
-
     Vector<GC::Root<Range>> matches;
-    for (auto const& text_block : text_blocks) {
-        size_t offset = 0;
-        size_t i = 0;
-        Utf16View text_view { text_block.text };
-        auto* match_start_position = text_block.positions.data();
-        while (true) {
-            auto match_index = case_sensitivity == CaseSensitivity::CaseInsensitive
-                ? text_view.find_code_unit_offset_ignoring_case(query, offset)
-                : text_view.find_code_unit_offset(query, offset);
-            if (!match_index.has_value())
-                break;
-
-            for (; i < text_block.positions.size() - 1 && match_index.value() > text_block.positions[i + 1].start_offset; ++i)
-                match_start_position = &text_block.positions[i + 1];
-
-            auto start_position = match_index.value() - match_start_position->start_offset + match_start_position->dom_offset_within_node;
-            auto start_dom_node = match_start_position->dom_node.ptr();
-            VERIFY(start_dom_node);
-
-            auto* match_end_position = match_start_position;
-            for (; i < text_block.positions.size() - 1 && (match_index.value() + query.length_in_code_units() > text_block.positions[i + 1].start_offset); ++i)
-                match_end_position = &text_block.positions[i + 1];
-
-            auto end_dom_node = match_end_position->dom_node.ptr();
-            VERIFY(end_dom_node);
-            auto end_position = match_index.value() + query.length_in_code_units() - match_end_position->start_offset + match_end_position->dom_offset_within_node;
-
-            if (&start_dom_node->root() != &end_dom_node->root()
-                || !start_dom_node->is_connected()
-                || !end_dom_node->is_connected()
-                || start_position > start_dom_node->length()
-                || end_position > end_dom_node->length()) {
-                offset = match_index.value() + query.length_in_code_units() + 1;
-                if (offset >= text_view.length_in_code_units())
-                    break;
-                continue;
-            }
-
-            matches.append(Range::create(*start_dom_node, start_position, *end_dom_node, end_position));
-            match_start_position = match_end_position;
-            offset = match_index.value() + query.length_in_code_units() + 1;
-            if (offset >= text_view.length_in_code_units())
-                break;
-        }
-    }
+    auto query_view = Layout::RustFFI::FfiUtf16View {
+        .ascii = query.has_ascii_storage() ? reinterpret_cast<u8 const*>(query.ascii_span().data()) : nullptr,
+        .utf16 = query.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(query.utf16_span().data()),
+        .length = query.length_in_code_units(),
+    };
+    Layout::RustFFI::layout_arena_find_matching_text(
+        layout_node()->arena_handle(), Layout::Node::slot_id(layout_node()), query_view,
+        case_sensitivity == CaseSensitivity::CaseSensitive,
+        [](void* dom_node) {
+            // Inert text is excluded from find-in-page.
+            return !static_cast<DOM::Text const*>(dom_node)->is_inert();
+        },
+        &matches, [](void* context, Layout::RustFFI::FfiDomTextRange match) {
+            auto* start = static_cast<DOM::Text*>(match.start_node);
+            auto* end = static_cast<DOM::Text*>(match.end_node);
+            if (!start || !end || &start->root() != &end->root()
+                || !start->is_connected() || !end->is_connected()
+                || match.start_offset > start->length() || match.end_offset > end->length())
+                return;
+            static_cast<Vector<GC::Root<Range>>*>(context)->append(
+                Range::create(*start, match.start_offset, *end, match.end_offset)); });
 
     return matches;
 }
