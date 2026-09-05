@@ -714,8 +714,10 @@ void record_element_moved(DOM::Element& element, DOM::Node* old_parent, DOM::Ele
         // foreignObject elements above it. A preserved move changes that chain without giving
         // the moved subtree another arrival notification.
         element.for_each_shadow_including_inclusive_descendant([&](auto& node) {
-            if (auto* descendant = as_if<DOM::Element>(node); descendant && descendant->namespace_uri() == Namespace::SVG && descendant->style_node_id() != no_style_node)
+            if (auto* descendant = as_if<DOM::Element>(node); descendant && descendant->namespace_uri() == Namespace::SVG && descendant->style_node_id() != no_style_node) {
                 style_engine->set_element_adjustment_facts(descendant->style_node_id(), element_style_adjustment_facts(*descendant));
+                style_engine->record_element_style_input_change(descendant->style_node_id(), StyleEngine::RecomputeStyle);
+            }
             return TraversalDecision::Continue;
         });
 

@@ -122,10 +122,7 @@ impl StyleEngine {
             && transaction.inputs.iter().all(|input| {
                 !matches!(
                     input.key,
-                    InputKey::ElementDeclaration(..)
-                        | InputKey::ElementStyleInput(..)
-                        | InputKey::RuleField(_, RuleField::Declarations | RuleField::Layer)
-                        | InputKey::CascadeTopology(_)
+                    InputKey::RuleField(_, RuleField::Declarations | RuleField::Layer) | InputKey::CascadeTopology(_)
                 )
             });
         let retained_answer_patch_selection = self.rules_for_retained_answer_patch(&transaction);
@@ -765,12 +762,10 @@ impl StyleEngine {
                 .iter()
                 .any(|region| matches!(region, ImpactRegion::TreeScope(_)) || *region == ImpactRegion::Subtree(root));
         let mut direct_action_nodes = DeltaBatch::default();
-        if !plan_is_broad {
-            for node in transaction.inputs.iter().filter_map(|input| input.key.style_node()) {
-                direct_action_nodes.push(node);
-            }
-            direct_action_nodes.consolidate();
+        for node in transaction.inputs.iter().filter_map(|input| input.key.style_node()) {
+            direct_action_nodes.push(node);
         }
+        direct_action_nodes.consolidate();
         let direct_action_node_bytes = direct_action_nodes.capacity_bytes();
         self.memory
             .reserve_required(MemoryCategory::BatchScratch, direct_action_node_bytes);
@@ -811,14 +806,16 @@ impl StyleEngine {
                 }
             }
         }
-        if plan_is_broad {
-            if !transaction_reaches_no_selector {
-                self.retained_match_answers.evict(&mut self.match_answers);
-            }
-            #[cfg(test)]
-            if let Some(capture) = &mut self.diagnostic_plan_capture {
-                capture.scoped = false;
-            }
+        if plan_is_broad
+            && retained_answer_patch_selection
+                .as_ref()
+                .is_some_and(|selection| selection.orders_shifted)
+        {
+            self.retained_match_answers.evict(&mut self.match_answers);
+        }
+        #[cfg(test)]
+        if plan_is_broad && let Some(capture) = &mut self.diagnostic_plan_capture {
+            capture.scoped = false;
         }
         let mut retained_answer_patch =
             retained_answer_patch_selection.map(|selection| self.prepare_retained_answer_patch(selection));
@@ -952,7 +949,7 @@ impl StyleEngine {
                             refreshes,
                         }
                     } else if !node_deltas.is_empty()
-                        || (patch.always_emit && patch.rule_keys.is_empty())
+                        || (patch.always_emit_for(node) && patch.rule_keys.is_empty())
                         || !patch.cascade_update_properties.is_empty()
                     {
                         SelectorTruthPatch::Direct(node_deltas)
@@ -991,7 +988,6 @@ impl StyleEngine {
                         }
                     };
                     can_confirm_exact_cascade = transaction_supports_retained_cascade_stops
-                        && !plan_is_broad
                         && !has_direct_action
                         && node_has_safe_exact_cascade_provenance
                         && self.match_answer_is_comparable_across_elements(node);
@@ -1013,7 +1009,7 @@ impl StyleEngine {
                         None => {
                             self.counters.bump(Counter::RetainedMatchAnswerPatchMisses);
                             repair_match_identity = match_identity_is_complete_output
-                                && !patch.always_emit
+                                && !patch.always_emit_for(node)
                                 && !patch.orders_shifted
                                 && matches!(self.retained_match_answers.cascade_input_lookup(node), Lookup::Known(_));
                             self.retained_match_answers.forget_answer(&mut self.match_answers, node);

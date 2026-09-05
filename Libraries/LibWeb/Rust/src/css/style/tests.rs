@@ -8245,6 +8245,50 @@ fn a_published_local_reaction_names_its_semantic_provenance() {
 }
 
 #[test]
+fn element_inputs_force_only_their_own_retained_answer_reactions() {
+    for declaration_input in [false, true] {
+        let (mut engine, nodes) = nested_document();
+        discard_transaction(&mut engine);
+        for &node in &nodes {
+            let matches = engine.match_element(node).unwrap();
+            let compact = engine.matches_for_cascade(matches.clone(), false, None);
+            engine.remember_retained_match_answer(node, &matches);
+            engine.remember_cascade_input(node, &compact);
+        }
+        if declaration_input {
+            engine.record_input(
+                InputKey::ElementDeclaration(nodes[2], ElementDeclarationKind::InlineStyle),
+                InputValue::ElementDeclaration(None),
+                InputValue::ElementDeclaration(Some(DeclarationBlockID(1))),
+            );
+        } else {
+            engine.record_input(
+                InputKey::ElementStyleInput(nodes[2]),
+                InputValue::ElementStyleInput {
+                    reaction: 0,
+                    inherited_style_groups: 0,
+                },
+                InputValue::ElementStyleInput {
+                    reaction: transaction::STYLE_REACTION_RECOMPUTE_STYLE,
+                    inherited_style_groups: 0,
+                },
+            );
+        }
+        let transaction = engine.take_transaction();
+        let selection = engine.rules_for_retained_answer_patch(&transaction).unwrap();
+        let mut patch = engine.prepare_retained_answer_patch(selection);
+        for &node in &nodes {
+            let outcome = engine
+                .patch_retained_match_answer(node, &mut patch, SelectorTruthPatch::Direct(&[]))
+                .unwrap();
+            assert_eq!(outcome.emit, node == nodes[2]);
+            assert!(outcome.identity_preserved);
+        }
+        engine.release_transaction(transaction);
+    }
+}
+
+#[test]
 fn an_element_style_input_publishes_an_exact_reaction_without_matching() {
     let (mut engine, nodes) = nested_document();
     discard_transaction(&mut engine);

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="container"></div>
+<script>
+    test(() => {
+        const sheet = new CSSStyleSheet();
+        document.adoptedStyleSheets = [sheet];
+        for (let index = 0; index < 64; ++index)
+            container.appendChild(document.createElement("div"));
+        const target = container.firstElementChild;
+        const other = container.lastElementChild;
+        other.className = "other";
+        internals.updateStyle();
+
+        function mutate(label, mutation) {
+            const before = internals.getStyleInvalidationCounters();
+            mutation();
+            internals.updateStyle();
+            const after = internals.getStyleInvalidationCounters();
+            println(`${label} stays selective: ${after.elementStyleRecomputations - before.elementStyleRecomputations < 8}`);
+            println(`${label} target opacity: ${getComputedStyle(target).opacity}`);
+            println(`${label} other opacity: ${getComputedStyle(other).opacity}`);
+        }
+
+        mutate("insert", () => {
+            sheet.insertRule(":not(*) { color: red; }");
+            sheet.insertRule(".other { opacity: 0.75; }");
+            target.style.opacity = "0.5";
+        });
+        mutate("delete", () => {
+            sheet.deleteRule(1);
+            target.style.opacity = "0.25";
+        });
+        mutate("declaration", () => {
+            sheet.cssRules[0].style.opacity = "0.125";
+            target.style.opacity = "0.75";
+        });
+    });
+</script>

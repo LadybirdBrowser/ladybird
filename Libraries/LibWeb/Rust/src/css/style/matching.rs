@@ -2093,6 +2093,7 @@ impl StyleEngine {
 
         let mut affected = Vec::new();
         let mut always_emit = false;
+        let mut always_emit_nodes = Vec::new();
         let mut orders_shifted = false;
         let mut requires_full_match = false;
         let mut tree_mutation_rules_selected = false;
@@ -2242,12 +2243,8 @@ impl StyleEngine {
                     keys
                 }
                 InputKey::LocalFeature(..) | InputKey::State(..) => routing_keys_for_input(input),
-                InputKey::ElementDeclaration(..) => {
-                    always_emit = true;
-                    continue;
-                }
-                InputKey::ElementStyleInput(..) => {
-                    always_emit = true;
+                InputKey::ElementDeclaration(node, _) | InputKey::ElementStyleInput(node) => {
+                    always_emit_nodes.push(node);
                     continue;
                 }
                 InputKey::CustomPropertyRegistration(..) => {
@@ -2326,6 +2323,7 @@ impl StyleEngine {
         Some(RetainedAnswerPatchSelection {
             affected,
             always_emit,
+            always_emit_nodes,
             orders_shifted,
             requires_full_match,
             custom_changed_rules,
@@ -2360,6 +2358,9 @@ impl StyleEngine {
         let mut custom_changed_rules = selection.custom_changed_rules;
         custom_changed_rules.sort_unstable();
         custom_changed_rules.dedup();
+        let mut always_emit_nodes = selection.always_emit_nodes;
+        always_emit_nodes.sort_unstable();
+        always_emit_nodes.dedup();
         RetainedAnswerPatch {
             rule_keys,
             scope_program,
@@ -2368,6 +2369,7 @@ impl StyleEngine {
             prefix_caches: Rc::clone(&self.prefix_caches),
             dispatch_workspace,
             always_emit: selection.always_emit,
+            always_emit_nodes,
             orders_shifted: selection.orders_shifted,
             requires_full_match: selection.requires_full_match,
             cascade_update_properties,
@@ -2465,6 +2467,7 @@ impl StyleEngine {
         // An edit to a matched rule's custom declarations moves no winner; the node reacts to it
         // all the same, since its environment is computed from those declarations.
         let emit = !delta.is_empty()
+            || patch.always_emit_nodes.binary_search(&node).is_ok()
             || exact_answer.iter().any(|entry| {
                 entry.pseudo_element.is_none() && patch.custom_changed_rules.binary_search(&entry.rule).is_ok()
             });
@@ -2692,7 +2695,7 @@ impl StyleEngine {
         if deltas.is_empty() && !patch.orders_shifted {
             self.publish_cascade_input(node, old_cascade_input);
             self.counters.bump(Counter::RetainedMatchAnswerDeltaPatches);
-            let emit = patch.always_emit;
+            let emit = patch.always_emit_for(node);
             if !emit {
                 self.counters.bump(Counter::RetainedMatchAnswerPatchStops);
             }
@@ -2708,8 +2711,9 @@ impl StyleEngine {
         // reduction, and the stop verdict are all node-independent for comparable document-scope
         // answers under one patch's fixed cascade orders. A stopping transition therefore runs
         // once per cohort; every further member is one column store.
-        let memo_key = (!patch.always_emit && !patch.orders_shifted && !self.node_has_element_declaration_input(node))
-            .then(|| Self::retained_answer_delta_memo_key(old_identity, old_cascade_input, deltas));
+        let memo_key =
+            (!patch.always_emit_for(node) && !patch.orders_shifted && !self.node_has_element_declaration_input(node))
+                .then(|| Self::retained_answer_delta_memo_key(old_identity, old_cascade_input, deltas));
         if let Some(key) = &memo_key
             && let Some(entry) = patch.delta_memo.get(key)
             && Self::retained_answer_delta_memo_entry_matches(entry, deltas)
@@ -2760,7 +2764,7 @@ impl StyleEngine {
             self.publish_cascade_input(node, old_cascade_input);
             self.counters.bump(Counter::RetainedMatchAnswerDeltaPatches);
             self.counters.add(Counter::RetainedMatchAnswerDeltaEntries, applied);
-            if !patch.always_emit {
+            if !patch.always_emit_for(node) {
                 self.counters.bump(Counter::RetainedMatchAnswerPatchStops);
             }
             if let Some(key) = memo_key
@@ -2790,7 +2794,7 @@ impl StyleEngine {
             }
             return Some(RetainedAnswerPatchOutcome {
                 identity_preserved: true,
-                emit: patch.always_emit,
+                emit: patch.always_emit_for(node),
                 incremental_cascade_answer: None,
             });
         }
@@ -2823,7 +2827,7 @@ impl StyleEngine {
         self.publish_cascade_input(node, new_cascade_input);
         self.counters.bump(Counter::RetainedMatchAnswerDeltaPatches);
         self.counters.add(Counter::RetainedMatchAnswerDeltaEntries, applied);
-        let emit = patch.always_emit || changed;
+        let emit = patch.always_emit_for(node) || changed;
         if !emit {
             self.counters.bump(Counter::RetainedMatchAnswerPatchStops);
         }
@@ -3045,12 +3049,12 @@ impl StyleEngine {
                 // Nothing this transaction affects reached the node through a rule-naming route.
                 self.publish_cascade_input(node, old_cascade_input);
                 self.counters.bump(Counter::RetainedMatchAnswerPatches);
-                if !patch.always_emit {
+                if !patch.always_emit_for(node) {
                     self.counters.bump(Counter::RetainedMatchAnswerPatchStops);
                 }
                 return Some(RetainedAnswerPatchOutcome {
                     identity_preserved: true,
-                    emit: patch.always_emit,
+                    emit: patch.always_emit_for(node),
                     incremental_cascade_answer: None,
                 });
             }
@@ -3132,7 +3136,7 @@ impl StyleEngine {
         if matches_retained_answer && !patch.orders_shifted {
             self.publish_cascade_input(node, old_cascade_input);
             self.counters.bump(Counter::RetainedMatchAnswerPatches);
-            let emit = patch.always_emit;
+            let emit = patch.always_emit_for(node);
             if !emit {
                 self.counters.bump(Counter::RetainedMatchAnswerPatchStops);
             }
@@ -3153,7 +3157,7 @@ impl StyleEngine {
         }
         self.publish_cascade_input(node, new_cascade_input);
         self.counters.bump(Counter::RetainedMatchAnswerPatches);
-        let emit = patch.always_emit || changed;
+        let emit = patch.always_emit_for(node) || changed;
         if !emit {
             self.counters.bump(Counter::RetainedMatchAnswerPatchStops);
         }

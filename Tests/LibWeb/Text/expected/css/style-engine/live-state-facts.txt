@@ -10,8 +10,8 @@ make subtree editable: [editable-subject]
 make subtree non-editable: [editable-subject]
 design mode makes elements read-write: rgb(0, 128, 0)
 disabling design mode makes elements read-only: rgb(0, 0, 0)
-move into editable subtree: [moved, editable-parent]
-move out of editable subtree: [moved, editable-parent]
+move into editable subtree: [moved]
+move out of editable subtree: [moved]
 mute media: [muted-subject]
 unmute media: []
 media has enough data: [buffering-subject]
