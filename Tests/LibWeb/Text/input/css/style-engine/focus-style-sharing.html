@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #fallback, #plain { all: initial; display: block; background-color: red }
+    .recolored #fallback { background-color: blue }
+    .flexed #plain { display: flex }
+    #fallback::before { content: "x"; background-color: inherit }
+    #plain::before { content: "y" }
+</style>
+<input id="first"><input id="second">
+<div id="fallback"></div>
+<div id="plain"></div>
+<script>
+    test(() => {
+        const inputs = [document.getElementById("first"), document.getElementById("second")];
+        for (let index = 0; index < 4; ++index)
+            inputs[index & 1].focus();
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+        for (let index = 0; index < 20; ++index)
+            inputs[index & 1].focus();
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`shared computations: ${after.elementStyleSharedComputations - before.elementStyleSharedComputations}`);
+        println(`element recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+        const fallback = document.getElementById("fallback");
+        const printPseudo = label => {
+            const style = getComputedStyle(fallback, "::before");
+            println(`${label}: ${style.display}, ${style.backgroundColor}`);
+        };
+        printPseudo("initial pseudo");
+        document.body.classList.add("recolored");
+        printPseudo("recolored pseudo");
+        const plain = document.getElementById("plain");
+        println(`initial display: ${getComputedStyle(plain, "::before").display}`);
+        document.body.classList.add("flexed");
+        println(`changed display: ${getComputedStyle(plain, "::before").display}`);
+    });
+</script>

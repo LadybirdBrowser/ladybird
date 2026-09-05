@@ -1,0 +1,6 @@
+shared computations: 40
+element recomputations: 40
+initial pseudo: inline, rgb(255, 0, 0)
+recolored pseudo: inline, rgb(0, 0, 255)
+initial display: inline
+changed display: block

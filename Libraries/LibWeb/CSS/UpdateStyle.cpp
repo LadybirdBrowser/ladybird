@@ -462,7 +462,10 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             } else if (needs_regular_style_recompute || needs_inherited_style_recompute || needs_full_custom_property_recompute) {
                 if (needs_regular_style_recompute)
                     document.style_computer().style_engine().consume_recorded_element_style_input_change(reaction.style_node);
-                invalidation = element->apply_style_engine_reaction(did_change_custom_properties);
+                auto pseudo_element_inputs = (reaction.reaction & StyleEngine::PseudoInputsMayHaveChanged)
+                    ? DOM::Element::PseudoElementInputs::Changed
+                    : DOM::Element::PseudoElementInputs::Unchanged;
+                invalidation = element->apply_style_engine_reaction(did_change_custom_properties, DOM::Element::StyleRecomputeMode::Normal, pseudo_element_inputs);
             } else if (needs_custom_property_recompute && element->refresh_inherited_custom_property_data()) {
                 did_change_custom_properties = true;
                 element->republish_style_record_environment();
