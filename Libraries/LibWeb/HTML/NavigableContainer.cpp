@@ -103,6 +103,7 @@ void NavigableContainer::create_new_child_navigable()
 
     // 8. Initialize the navigable navigable given documentState and parentNavigable.
     navigable->initialize_navigable(document_state, parent_navigable, *document, parent_navigable->active_document()->visibility_state());
+    navigable->inherit_page_state_from(*parent_navigable);
 
     // 9. Set element's content navigable to navigable.
     m_content_navigable = navigable;

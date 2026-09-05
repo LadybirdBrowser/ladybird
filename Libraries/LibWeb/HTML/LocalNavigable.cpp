@@ -1075,7 +1075,7 @@ Vector<NonnullRefPtr<SessionHistoryEntry>> LocalNavigable::session_history_entri
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#initialize-the-navigable
-void LocalNavigable::initialize_navigable(NonnullRefPtr<DocumentState> document_state, GC::Ptr<LocalNavigable> parent, GC::Ref<DOM::Document> document, VisibilityState system_visibility_state)
+void LocalNavigable::initialize_navigable(NonnullRefPtr<DocumentState> document_state, GC::Ptr<Navigable> parent, GC::Ref<DOM::Document> document, VisibilityState system_visibility_state)
 {
     set_id(page().client().allocate_navigable_id());
 
@@ -1100,19 +1100,23 @@ void LocalNavigable::initialize_navigable(NonnullRefPtr<DocumentState> document_
 
     // 5. Set navigable's parent to parent.
     set_parent(parent);
-    if (parent) {
-        m_should_show_line_box_borders = parent->m_should_show_line_box_borders;
-        m_force_dark_enabled = parent->m_force_dark_enabled;
-        m_force_dark_foreground_threshold = parent->m_force_dark_foreground_threshold;
-        m_force_dark_background_threshold = parent->m_force_dark_background_threshold;
-        m_should_show_caret_hit_test_debug_overlay = parent->m_should_show_caret_hit_test_debug_overlay;
-    }
-    if (parent && !m_is_svg_page && has_compositor_context() && parent->has_compositor_context()) {
-        compositor_context().set_parent_context(parent->compositor_context().id());
-    }
 
     // 6. Set the initial visibility state of documentState's document to navigable's traversable navigable's system visibility state.
     document->set_initial_visibility_state(system_visibility_state);
+}
+
+// AD-HOC: The debug settings and the compositor tree are per page, so a child navigable starts from its parent's. A
+//         navigable that roots a page receives both from the page host instead.
+void LocalNavigable::inherit_page_state_from(LocalNavigable const& parent)
+{
+    m_should_show_line_box_borders = parent.m_should_show_line_box_borders;
+    m_force_dark_enabled = parent.m_force_dark_enabled;
+    m_force_dark_foreground_threshold = parent.m_force_dark_foreground_threshold;
+    m_force_dark_background_threshold = parent.m_force_dark_background_threshold;
+    m_should_show_caret_hit_test_debug_overlay = parent.m_should_show_caret_hit_test_debug_overlay;
+
+    if (!m_is_svg_page && has_compositor_context() && parent.has_compositor_context())
+        compositor_context().set_parent_context(parent.compositor_context().id());
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#activate-history-entry
@@ -5904,7 +5908,7 @@ void LocalNavigable::repaint_after_compositor_process_reconnect()
     m_adopted_async_scroll_sequence = 0;
 
     if (has_compositor_context()) {
-        if (auto parent = this->parent()) {
+        if (auto parent = this->parent(); parent && !is_local_root()) {
             auto& local_parent = as<LocalNavigable>(*parent);
             if (local_parent.has_compositor_context())
                 compositor_context().set_parent_context(local_parent.compositor_context().id());
