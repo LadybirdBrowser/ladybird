@@ -30,6 +30,7 @@ public:
     AK::Duration media_time_start() const { return m_timing.media_time_start(); }
     AK::Duration media_time_duration() const { return m_timing.media_time_duration(); }
     AK::Duration media_time_end() const { return m_timing.media_time_end(); }
+    bool contains_media_time(AK::Duration timestamp) const { return timestamp >= media_time_start() && timestamp < media_time_end(); }
     i64 first_frame_index() const { return m_timing.first_frame_index(); }
     i64 end_frame_index() const { return m_timing.end_frame_index(); }
     Span<float> channel_data(size_t channel)

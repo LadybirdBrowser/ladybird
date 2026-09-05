@@ -598,6 +598,14 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
                 }
 
                 auto current_frame = frame_result.release_value();
+
+                if (current_frame->contains_timestamp(timestamp)) {
+                    auto locker = take_lock();
+                    resolve_seek(seek_id, moved_position);
+                    queue_frame(current_frame);
+                    return true;
+                }
+
                 if (current_frame->timestamp() > timestamp) {
                     auto locker = take_lock();
                     resolve_seek(seek_id, moved_position);

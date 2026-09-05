@@ -41,6 +41,8 @@ public:
 
     AK::Duration timestamp() const { return m_timestamp; }
     AK::Duration duration() const { return m_duration; }
+    AK::Duration end() const { return m_timestamp + m_duration; }
+    bool contains_timestamp(AK::Duration timestamp) { return timestamp >= m_timestamp && timestamp < end(); }
     static AK::Duration conservative_end_of(AK::Duration timestamp, AK::Duration duration) { return timestamp + duration.scaled_by(3, 2); }
     AK::Duration conservative_end() const { return conservative_end_of(m_timestamp, m_duration); }
 
