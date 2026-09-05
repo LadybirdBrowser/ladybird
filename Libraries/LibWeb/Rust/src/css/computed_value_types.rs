@@ -491,6 +491,7 @@ pub struct FontLayoutFacts {
     pub font_ascent: f32,
     pub font_descent: f32,
     pub font_x_height: f32,
+    pub font_zero_advance: f32,
     pub first_available_font: *const std::ffi::c_void,
     pub font_cascade_list: *const std::ffi::c_void,
 }
@@ -504,6 +505,7 @@ pub struct FontValues {
     pub font_ascent: f32,
     pub font_descent: f32,
     pub font_x_height: f32,
+    pub font_zero_advance: f32,
     pub first_available_font: *const std::ffi::c_void,
     pub font_cascade_list: *const std::ffi::c_void,
     pub font_weight: f64,

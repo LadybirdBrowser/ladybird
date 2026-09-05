@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta name="color-scheme" content="custom1 custom2 custom3 custom4 dark">
+<script src="../../include.js"></script>
+<style>
+    #target { color: CanvasText; background-color: light-dark(white, black); }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const meta = document.querySelector('meta[name="color-scheme"]');
+        for (const [preference, schemes] of [
+            ["light", "custom1 custom2 custom3 custom4 dark"],
+            ["dark", "light light light light dark"],
+            ["light", "dark dark dark dark light"],
+            ["light", "custom1 custom2 dark light"],
+            ["dark", "custom1 custom2 light dark"],
+            ["dark", "custom1 custom2 custom3 custom4 custom5"],
+        ]) {
+            internals.setPreferredColorScheme(preference);
+            meta.content = schemes;
+            internals.updateStyle();
+            const style = getComputedStyle(target);
+            println(`${preference} / ${schemes}: ${style.color} / ${style.backgroundColor}`);
+        }
+        internals.setPreferredColorScheme("auto");
+    });
+</script>

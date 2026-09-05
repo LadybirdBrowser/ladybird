@@ -3523,72 +3523,32 @@ static ComputedValuesFFI::FfiBoxTypeTransformationInput make_box_type_transforma
     }
 
     bool has_parent_display = parent_display.has_value();
-    bool is_html_element = element.namespace_uri() == Namespace::HTML;
     bool should_adjust_element = !abstract_element.pseudo_element().has_value();
-    auto local_name = element.local_name();
-
-    bool input_allows_adjustment = false;
-    bool input_is_single_line = false;
-    if (is<HTML::HTMLInputElement>(element)) {
-        auto const& input = static_cast<HTML::HTMLInputElement const&>(element);
-        input_allows_adjustment = !first_is_one_of(
-            input.type_state(),
-            HTML::HTMLInputElement::TypeAttributeState::Hidden,
-            HTML::HTMLInputElement::TypeAttributeState::SubmitButton,
-            HTML::HTMLInputElement::TypeAttributeState::Button,
-            HTML::HTMLInputElement::TypeAttributeState::ResetButton,
-            HTML::HTMLInputElement::TypeAttributeState::ImageButton,
-            HTML::HTMLInputElement::TypeAttributeState::Checkbox,
-            HTML::HTMLInputElement::TypeAttributeState::RadioButton);
-        input_is_single_line = input_allows_adjustment && input.is_single_line();
-    }
-
-    bool force_position_static = false;
-    if (element.namespace_uri() == Namespace::SVG) {
-        force_position_static = true;
-        if (local_name == "svg"sv) {
-            force_position_static = false;
-            for (auto ancestor = element.parent_element(); ancestor; ancestor = ancestor->parent_element()) {
-                if (ancestor->namespace_uri() == Namespace::SVG && ancestor->local_name() == "foreignObject"sv)
-                    break;
-                if (ancestor->namespace_uri() == Namespace::SVG && ancestor->local_name() == "svg"sv) {
-                    force_position_static = true;
-                    break;
-                }
-            }
-        }
-    }
-
-    bool force_symbol_display_inline = false;
-    if (element.namespace_uri() == Namespace::SVG && local_name == "symbol"sv) {
-        if (auto* shadow_root = as_if<DOM::ShadowRoot>(element.parent())) {
-            auto* host = shadow_root->host();
-            force_symbol_display_inline = host->namespace_uri() == Namespace::SVG && host->local_name() == "use"sv;
-        }
-    }
+    auto facts = element_style_adjustment_facts(element);
+    auto adjusts = [&](ElementStyleAdjustmentFact fact) { return should_adjust_element && (facts & fact) != 0; };
 
     return {
         .display = to_ffi_display(InitialValues::display()),
         .position = to_underlying(Keyword::Static),
         .float_value = to_underlying(Keyword::None),
-        .is_br_element = !abstract_element.pseudo_element().has_value() && is<HTML::HTMLBRElement>(element),
-        .is_document_element = element.is_document_element(),
-        .is_mathml_element = element.namespace_uri() == Namespace::MathML,
-        .is_mathml_mtable = local_name.equals_ignoring_ascii_case("mtable"sv),
-        .is_mathml_mtr = local_name.equals_ignoring_ascii_case("mtr"sv),
-        .is_mathml_mtd = local_name.equals_ignoring_ascii_case("mtd"sv),
+        .is_br_element = adjusts(ElementStyleAdjustmentFact::IsBr),
+        .is_document_element = (facts & ElementStyleAdjustmentFact::IsDocumentElement) != 0,
+        .is_mathml_element = (facts & ElementStyleAdjustmentFact::IsMathML) != 0,
+        .is_mathml_mtable = (facts & ElementStyleAdjustmentFact::IsMathMLMtable) != 0,
+        .is_mathml_mtr = (facts & ElementStyleAdjustmentFact::IsMathMLMtr) != 0,
+        .is_mathml_mtd = (facts & ElementStyleAdjustmentFact::IsMathMLMtd) != 0,
         .has_parent_display = has_parent_display,
         .parent_display = has_parent_display ? to_ffi_display(*parent_display) : ComputedValuesFFI::FfiDisplay {},
-        .is_wbr_element = should_adjust_element && is_html_element && local_name == HTML::TagNames::wbr,
-        .disallow_display_contents = should_adjust_element && (input_allows_adjustment || (is_html_element && first_is_one_of(local_name, HTML::TagNames::textarea, HTML::TagNames::audio, HTML::TagNames::video, HTML::TagNames::canvas, HTML::TagNames::object, HTML::TagNames::iframe, HTML::TagNames::progress, HTML::TagNames::embed, HTML::TagNames::frame, HTML::TagNames::meter, HTML::TagNames::frameset, HTML::TagNames::img))),
-        .rewrite_inline_flow = should_adjust_element && (input_allows_adjustment || (is_html_element && first_is_one_of(local_name, HTML::TagNames::textarea, HTML::TagNames::audio, HTML::TagNames::video, HTML::TagNames::select))),
-        .is_button_element = should_adjust_element && is_html_element && local_name == HTML::TagNames::button,
-        .force_line_height_normal = should_adjust_element && is_html_element && local_name == HTML::TagNames::select,
-        .check_input_line_height = should_adjust_element && input_is_single_line,
-        .hide_audio_without_controls = should_adjust_element && is_html_element && local_name == HTML::TagNames::audio && !element.has_attribute(HTML::AttributeNames::controls),
-        .is_table_element = should_adjust_element && is_html_element && local_name == HTML::TagNames::table,
-        .force_position_static = should_adjust_element && force_position_static,
-        .force_symbol_display_inline = should_adjust_element && force_symbol_display_inline,
+        .is_wbr_element = adjusts(ElementStyleAdjustmentFact::IsWbr),
+        .disallow_display_contents = adjusts(ElementStyleAdjustmentFact::DisallowDisplayContents),
+        .rewrite_inline_flow = adjusts(ElementStyleAdjustmentFact::RewriteInlineFlow),
+        .is_button_element = adjusts(ElementStyleAdjustmentFact::IsButton),
+        .force_line_height_normal = adjusts(ElementStyleAdjustmentFact::ForceLineHeightNormal),
+        .check_input_line_height = adjusts(ElementStyleAdjustmentFact::CheckInputLineHeight),
+        .hide_audio_without_controls = adjusts(ElementStyleAdjustmentFact::HideAudioWithoutControls),
+        .is_table_element = adjusts(ElementStyleAdjustmentFact::IsTable),
+        .force_position_static = adjusts(ElementStyleAdjustmentFact::ForcePositionStatic),
+        .force_symbol_display_inline = adjusts(ElementStyleAdjustmentFact::ForceSymbolDisplayInline),
         .webkit_box_layout_transformation_applies = false,
     };
 }
@@ -4863,6 +4823,10 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             }
             sharing->reused_values = move(reused);
         }
+        // The style is the one the last cascade produced from these same inputs, so the winner
+        // state that cascade bound still stands behind the publication about to reuse it.
+        if (auto node = abstract_element.element().style_node_id(); node != 0 && !abstract_element.pseudo_element().has_value())
+            const_cast<StyleComputer&>(*this).style_engine().retain_exact_cascade_state(node);
         report_custom_property_change(abstract_element, old_custom_property_data, did_change_custom_properties);
         return {};
     }

@@ -1,2 +1,2 @@
-PASS: document insertRule stays targeted across many bystanders (1 recomputations)
+PASS: document insertRule stays targeted across many bystanders (0 recomputations)
 PASS: shadow insertRule stays targeted across many bystanders (1 recomputations)

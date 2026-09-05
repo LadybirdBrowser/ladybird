@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @font-face {
+        font-family: LatoBold;
+        src: url("../../../../Assets/Lato-Bold.ttf");
+    }
+    #parent { font: 30px LatoBold; font-feature-settings: 'kern' 0; }
+    #target { display: inline-block; font-size: 61px; }
+</style>
+<div id="parent"></div>
+<script>
+    promiseTest(async () => {
+        await document.fonts.load("61px LatoBold", "AVAVAVAVAV");
+        const parent = document.getElementById("parent");
+        internals.updateStyle();
+        const target = document.createElement("span");
+        target.id = "target";
+        target.textContent = "AVAVAVAVAV";
+        parent.appendChild(target);
+        println(`inherited features: ${target.getBoundingClientRect().width}`);
+        target.style.fontSize = "62px";
+        println(`resized with inherited features: ${target.getBoundingClientRect().width}`);
+        parent.style.fontFeatureSettings = "normal";
+        parent.style.fontKerning = "none";
+        println(`inherited kerning: ${target.getBoundingClientRect().width}`);
+    });
+</script>

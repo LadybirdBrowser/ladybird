@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .target { font-size: 13px; width: 100lh; }
+    #number { line-height: 1.12345; }
+    #length { line-height: 14.60485px; }
+    #percentage { line-height: 112.345%; }
+</style>
+<div id="number" class="target"></div>
+<div id="length" class="target"></div>
+<div id="percentage" class="target"></div>
+<script>
+    test(() => {
+        for (const target of document.querySelectorAll(".target")) {
+            println(`${target.id}: ${getComputedStyle(target).width}`);
+            target.style.width = "200lh";
+            println(`${target.id} updated: ${getComputedStyle(target).width}`);
+        }
+    });
+</script>

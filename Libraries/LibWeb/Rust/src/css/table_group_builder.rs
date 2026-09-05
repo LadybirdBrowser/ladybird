@@ -55,7 +55,7 @@ use crate::css::style_value::{GridTrackEntryKind, RetainedGridTrackEntry, StyleV
 /// Mirror of the C++ StyleGroupIndex numbering; ComputedValues.cpp
 /// static-asserts these values against the enum, and the entry point asserts
 /// the caller's group count.
-mod group_index {
+pub(crate) mod group_index {
     pub const INHERITED_TABLE: usize = 0;
     pub const INHERITED_LIST: usize = 1;
     pub const INHERITED_UI: usize = 2;
@@ -111,6 +111,7 @@ pub struct FfiFontGroupBuildInputs {
     pub font_ascent: f32,
     pub font_descent: f32,
     pub font_x_height: f32,
+    pub font_zero_advance: f32,
     pub first_available_font: *const c_void,
     pub font_cascade_list: *const c_void,
     pub font_weight: f64,
@@ -3179,6 +3180,7 @@ unsafe fn build_font_group(
         font_ascent: inputs.font_ascent,
         font_descent: inputs.font_descent,
         font_x_height: inputs.font_x_height,
+        font_zero_advance: inputs.font_zero_advance,
         first_available_font: inputs.first_available_font,
         font_cascade_list: inputs.font_cascade_list,
         font_weight: inputs.font_weight,
@@ -3274,6 +3276,49 @@ unsafe fn build_animation_group(
     }
 }
 
+/// Rebuilds the font group from the table and the platform font inputs the engine resolved.
+///
+/// # Safety
+/// `table` must be a valid frozen table and `parent_payload` a valid font payload or null.
+pub(crate) unsafe fn rebuild_font_group_from_table(
+    table: &ComputedLonghandTable,
+    inputs: &FfiFontGroupBuildInputs,
+    parent_payload: *const c_void,
+) -> Option<*const c_void> {
+    let values = EffectiveValues {
+        table,
+        animated_overlay: None,
+    };
+    let payload = unsafe { build_font_group(&values, inputs, parent_payload) };
+    (!payload.is_null()).then_some(payload)
+}
+
+/// The element's own resolved color as the group builders consume it: the table's computed
+/// `color`, resolved against the initial color the way the C++ build seeds its context.
+pub(crate) fn own_color_from_table(
+    table: &ComputedLonghandTable,
+    used_color_scheme: u8,
+    length: Option<&crate::css::style_compute::FfiLengthResolutionContext>,
+) -> Option<u32> {
+    let values = EffectiveValues {
+        table,
+        animated_overlay: None,
+    };
+    let input = ColorResolutionInput {
+        scheme: Some(used_color_scheme),
+        current_color: Some(Rgba {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: 255,
+        }),
+        current_color_value: None,
+        length,
+        channels: None,
+    };
+    to_color(values.value(property_id::COLOR)?, &input).map(packed_color)
+}
+
 /// Rebuilds one non-inherited group whose specified values read the newly
 /// inherited `color`. These groups need no DOM, layout, or font input.
 pub(crate) unsafe fn rebuild_group_for_inherited_current_color(
@@ -3282,6 +3327,31 @@ pub(crate) unsafe fn rebuild_group_for_inherited_current_color(
     parent_payload: *const c_void,
     current_color: u32,
     used_color_scheme: u8,
+) -> Option<*const c_void> {
+    if !matches!(
+        group,
+        group_index::SVG_RESET
+            | group_index::EFFECTS
+            | group_index::TEXT_RESET
+            | group_index::BACKGROUND
+            | group_index::BORDER
+            | group_index::MISC_RESET
+    ) {
+        return None;
+    }
+    unsafe { rebuild_group_from_table(table, group, parent_payload, current_color, used_color_scheme, None) }
+}
+
+/// Rebuilds one of the groups whose payload is a function of the longhand table, the element's
+/// own `color` and its used color scheme alone. `parent_payload` is the group's previous payload,
+/// returned retained when the rebuilt values equal it.
+pub(crate) unsafe fn rebuild_group_from_table(
+    table: &ComputedLonghandTable,
+    group: usize,
+    parent_payload: *const c_void,
+    current_color: u32,
+    used_color_scheme: u8,
+    length: Option<&crate::css::style_compute::FfiLengthResolutionContext>,
 ) -> Option<*const c_void> {
     let values = EffectiveValues {
         table,
@@ -3296,17 +3366,65 @@ pub(crate) unsafe fn rebuild_group_for_inherited_current_color(
             a: (current_color >> 24) as u8,
         }),
         current_color_value: values.value(property_id::COLOR),
-        length: None,
+        length,
         channels: None,
     };
     let payload = unsafe {
         match group {
-            group_index::SVG_RESET => build_svg_reset_group(&values, &input, parent_payload),
-            group_index::EFFECTS => build_effects_group(&values, &input, used_color_scheme, parent_payload),
+            // The font group needs platform font resources the table does not hold.
+            group_index::FONT => return None,
+            group_index::BOX => {
+                build_box_group(&values, table.display_before_box_type_transformation(), parent_payload)
+            }
+            group_index::INHERITED_TABLE => rust_build_inherited_table_group(
+                group,
+                values.pointer(property_id::BORDER_COLLAPSE),
+                values.pointer(property_id::CAPTION_SIDE),
+                values.pointer(property_id::EMPTY_CELLS),
+                values.pointer(property_id::BORDER_SPACING),
+                parent_payload,
+            ),
+            group_index::INHERITED_BOX => rust_build_inherited_box_group(
+                group,
+                values.pointer(property_id::VISIBILITY),
+                values.pointer(property_id::DIRECTION),
+                values.pointer(property_id::WRITING_MODE),
+                values.pointer(property_id::CONTENT_VISIBILITY),
+                values.pointer(property_id::IMAGE_RENDERING),
+                parent_payload,
+            ),
+            group_index::SIZING => rust_build_sizing_group(
+                group,
+                values.pointer(property_id::WIDTH),
+                values.pointer(property_id::MIN_WIDTH),
+                values.pointer(property_id::MAX_WIDTH),
+                values.pointer(property_id::HEIGHT),
+                values.pointer(property_id::MIN_HEIGHT),
+                values.pointer(property_id::MAX_HEIGHT),
+                parent_payload,
+            ),
+            group_index::SURROUND => build_surround_group(&values, parent_payload),
+            group_index::ANIMATION => build_animation_group(&values, &input, used_color_scheme, parent_payload),
+            group_index::ANCHOR => build_anchor_group(&values, &input, used_color_scheme, parent_payload),
             group_index::TEXT_RESET => build_text_reset_group(&values, &input, parent_payload),
+            group_index::ALIGNMENT => build_alignment_group(&values, parent_payload),
+            group_index::SVG_RESET => build_svg_reset_group(&values, &input, parent_payload),
+            group_index::GRID => build_grid_group(&values, parent_payload),
+            group_index::TRANSFORM => build_transform_group(&values, &input, used_color_scheme, parent_payload),
+            group_index::EFFECTS => build_effects_group(&values, &input, used_color_scheme, parent_payload),
+            group_index::INHERITED_UI => build_inherited_ui_group(&values, &input, used_color_scheme, parent_payload),
+            group_index::INHERITED_TEXT => {
+                build_inherited_text_group(&values, &input, used_color_scheme, parent_payload)
+            }
+            group_index::MISC_RESET => build_misc_reset_group(&values, &input, used_color_scheme, parent_payload),
+            group_index::INHERITED_SVG => build_inherited_svg_group(&values, &input, used_color_scheme, parent_payload),
+            group_index::INHERITED_LIST => {
+                build_inherited_list_group(&values, &input, used_color_scheme, parent_payload)
+            }
+            group_index::CONTENT => build_content_group(&values, &input, used_color_scheme, parent_payload),
+            group_index::MASK => build_mask_group(&values, &input, used_color_scheme, parent_payload),
             group_index::BACKGROUND => build_background_group(&values, &input, used_color_scheme, parent_payload),
             group_index::BORDER => build_border_group(&values, &input, used_color_scheme, parent_payload),
-            group_index::MISC_RESET => build_misc_reset_group(&values, &input, used_color_scheme, parent_payload),
             _ => return None,
         }
     };

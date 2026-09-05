@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSAnimationProperties.h>
 #include <LibWeb/CSS/CSSTransition.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 
@@ -180,6 +181,11 @@ void Animatable::invalidate_associated_animation_composite_order()
         m_impl->is_sorted_by_composite_order = false;
 }
 
+bool Animatable::has_associated_animations() const
+{
+    return m_impl && !m_impl->associated_animations.is_empty();
+}
+
 bool Animatable::has_relevant_animations() const
 {
     if (!m_impl)
@@ -200,6 +206,8 @@ void Animatable::associate_with_animation(GC::Ref<Animation> animation)
         return;
     impl.associated_animations.append(animation);
     impl.is_sorted_by_composite_order = false;
+    // The style engine computes no record for an element whose animations compose its style.
+    CSS::record_element_adjustment_facts(as<DOM::Element>(*this));
 
     as<DOM::Element>(*this).document().associate_with_animation(animation);
 }
@@ -209,6 +217,7 @@ void Animatable::disassociate_with_animation(GC::Ref<Animation> animation)
     auto& impl = *m_impl;
     impl.associated_animations.remove_first_matching([&](auto element) { return animation == element; });
     impl.is_sorted_by_composite_order = false;
+    CSS::record_element_adjustment_facts(as<DOM::Element>(*this));
 
     as<DOM::Element>(*this).document().disassociate_with_animation(animation);
 }

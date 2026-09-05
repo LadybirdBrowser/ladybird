@@ -8,7 +8,12 @@
 <script>
     test(() => {
         internals.updateStyle();
-        const before = internals.getStyleInvalidationCounters();
+        // Spans under differently decorated parents share one style, whether C++'s style sharing or
+        // the style engine's first-record cache provides it.
+        const sharedComputations = () => internals.getStyleInvalidationCounters().elementStyleSharedComputations
+            + (internals.styleEngineCounters().engineComputedRecordSharedHits ?? 0)
+            + (internals.styleEngineCounters().engineComputedRecordCohortHits ?? 0);
+        const before = sharedComputations();
         for (const decoration of ["underline", "overline", "line-through"]) {
             const parent = document.createElement("div");
             parent.className = decoration;
@@ -16,10 +21,10 @@
             document.body.append(parent);
         }
         internals.updateStyle();
-        const after = internals.getStyleInvalidationCounters();
+        const after = sharedComputations();
 
         for (const child of document.querySelectorAll("span"))
             println(getComputedStyle(child).textDecorationLine);
-        println(`shared computations: ${after.elementStyleSharedComputations - before.elementStyleSharedComputations}`);
+        println(`shared computations: ${after - before}`);
     });
 </script>

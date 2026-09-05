@@ -5,6 +5,7 @@
  */
 
 use super::*;
+use crate::css::style_value::RetainedStyleValueData;
 
 impl StyleEngine {
     /// Put the qualified layer names in the order one tree scope declares them in.
@@ -100,14 +101,27 @@ impl StyleEngine {
         declared: &[DeclaredProperty],
         declarations_are_complete: bool,
     ) {
+        self.set_rule_declared_properties_with_written_values(rule, declared, Vec::new(), declarations_are_complete);
+    }
+
+    /// Set a rule's declarations together with the values they were written with, parallel to
+    /// `declared`, so a consumer computing a value can read the written spelling.
+    pub fn set_rule_declared_properties_with_written_values(
+        &mut self,
+        rule: RuleID,
+        declared: &[DeclaredProperty],
+        written_values: Vec<RetainedStyleValueData>,
+        declarations_are_complete: bool,
+    ) {
         self.record_rule_declaration_change(rule, declared);
-        self.stage_rule_declared_properties(rule, declared.to_vec(), declarations_are_complete);
+        self.stage_rule_declared_properties(rule, declared.to_vec(), written_values, declarations_are_complete);
     }
 
     pub(super) fn stage_rule_declared_properties(
         &mut self,
         rule: RuleID,
         declared: Vec<DeclaredProperty>,
+        written_values: Vec<RetainedStyleValueData>,
         complete: bool,
     ) {
         if !self.staged_rule_is_arriving(rule) {
@@ -118,9 +132,14 @@ impl StyleEngine {
             rule,
             PendingRuleDeclarations {
                 declared: self.program.declared_properties_of(rule).to_vec(),
+                written_values: self.program.written_values_of(rule).to_vec(),
                 complete: self.program.declarations_are_complete_for(rule),
             },
-            PendingRuleDeclarations { declared, complete },
+            PendingRuleDeclarations {
+                declared,
+                written_values,
+                complete,
+            },
         );
     }
 
@@ -440,7 +459,7 @@ impl StyleEngine {
         replacement.reused += 1;
 
         self.set_rule_conditions_hold(rule, true);
-        self.stage_rule_declared_properties(rule, Vec::new(), false);
+        self.stage_rule_declared_properties(rule, Vec::new(), Vec::new(), false);
         self.stage_rule_in_a_layer(rule, false);
         self.stage_rule_gated_by_container_query(rule, false);
         let mut version = RuleVersion::new(rule, RuleKind::Style);
@@ -589,7 +608,7 @@ impl StyleEngine {
         let declarations = self.program_staging.rule_declarations.take_dirty();
         for (rule, pending) in declarations {
             self.program
-                .set_rule_declared_properties(rule, pending.declared, pending.complete);
+                .set_rule_declared_properties(rule, pending.declared, pending.written_values, pending.complete);
         }
 
         let mut versions = self.program_staging.rule_versions.take_dirty();
@@ -1142,6 +1161,7 @@ impl StyleEngine {
 
     pub(super) fn discard_style_transaction_outputs(&mut self) {
         self.clear_ffi_style_transaction_output();
+        self.discard_engine_computed_records();
         self.retain_prefix_states();
         self.discard_prepared_batch_matching_traversal();
         self.discard_published_match_answers();

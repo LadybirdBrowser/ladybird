@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @font-face {
+        font-family: VariableFont;
+        src: url("../../../../Ref/input/wpt-import/css/css-fonts/support/fonts/RobotoExtremo-VF.subset.ttf");
+    }
+    #parent { font: 30px VariableFont; font-variation-settings: 'wdth' 50; }
+    span { display: inline-block; font-family: VariableFont; font-size: 61px; }
+    #reference { font-variation-settings: 'wdth' 50; }
+</style>
+<div id="parent"></div>
+<span id="reference">text</span>
+<span id="normal">text</span>
+<script>
+    promiseTest(async () => {
+        await document.fonts.load("61px VariableFont", "text");
+        const parent = document.getElementById("parent");
+        const reference = document.getElementById("reference");
+        const normal = document.getElementById("normal");
+        internals.updateStyle();
+        const target = document.createElement("span");
+        target.textContent = "text";
+        parent.appendChild(target);
+        const width = element => element.getBoundingClientRect().width;
+        println(`inherited variation matches explicit: ${width(target) === width(reference)}`);
+        println(`variation changes width: ${width(reference) !== width(normal)}`);
+        target.style.fontSize = reference.style.fontSize = "62px";
+        println(`resized variation matches explicit: ${width(target) === width(reference)}`);
+        parent.style.fontVariationSettings = reference.style.fontVariationSettings = "'wdth' 150";
+        println(`updated variation matches explicit: ${width(target) === width(reference)}`);
+    });
+</script>

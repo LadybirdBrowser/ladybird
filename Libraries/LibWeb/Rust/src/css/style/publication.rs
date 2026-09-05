@@ -5,6 +5,7 @@
  */
 
 use super::*;
+use crate::css::computed_longhand_table::ComputedLonghandTable;
 
 /// Another element's published style that a first-time computation may build over: the element
 /// whose cascade state stands in for the previous one, and the record it must still hold.
@@ -73,6 +74,1429 @@ impl StyleEngine {
             store.seed_retained_property(winner.property, value, winner.important, false);
         }
         Some(store)
+    }
+
+    /// Derive the record a published-style reaction moves `node` to, when the engine can compute
+    /// it exactly: the winners that moved compute in the drive's remaining phase from the values
+    /// their declarations were written with, against the record's own font, the document's
+    /// computation inputs, and the parent's record. Every node of one cohort - the same old
+    /// record moved to the same winner state - derives the same record, so the second and later
+    /// members take the first one's answer.
+    pub(super) fn engine_computed_record_delta(
+        &mut self,
+        node: StyleNodeID,
+        cascade_winners_are_complete: bool,
+        scratch: &mut EngineComputedRecordScratch,
+    ) -> Option<(computed::FinalStyleRecordID, computed::FinalStyleRecordID)> {
+        use crate::css::computed_value_types::{
+            STYLE_GROUP_INDEX_ANCHOR, STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_SURROUND,
+        };
+        use crate::css::computed_values::computed_group_dependency_mask;
+        use crate::css::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, LONGHAND_WORD_COUNT};
+
+        let target = computed::ComputedStyleTarget::new(node, u8::MAX);
+        if !cascade_winners_are_complete {
+            self.counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
+            return None;
+        }
+        // The winners the record was computed from, against the winners the node holds now: the
+        // same comparison a C++ publication makes to select what it recomputes.
+        let (generation, state) = match self
+            .winner_groups
+            .token_for(WinnerGroupKey::current(node, self.program.version()))
+        {
+            Lookup::Known(token) => token,
+            Lookup::Missing(gap) => {
+                self.counters.bump(match gap {
+                    cascade::WinnerGroupGap::MissingNode(_) => Counter::EngineComputedRecordBailWinnerMissingNode,
+                    cascade::WinnerGroupGap::StaleProgram { .. } => Counter::EngineComputedRecordBailWinnerStaleProgram,
+                    cascade::WinnerGroupGap::StalePriority(_) => Counter::EngineComputedRecordBailWinnerStalePriority,
+                });
+                return None;
+            }
+            Lookup::KnownAbsent => {
+                self.counters.bump(Counter::EngineComputedRecordBailWinner);
+                return None;
+            }
+        };
+        // Presentational hints reach the cascade through the C++ computation, where a changed
+        // attribute may have moved one the winner state does not carry yet, and an element's
+        // animations compose into its style there.
+        if self.computed_group_sets.adjustment_facts(node)
+            & (bridge::element_adjustment_fact::HAS_PRESENTATIONAL_HINTS
+                | bridge::element_adjustment_fact::HAS_ANIMATIONS)
+            != 0
+        {
+            self.counters.bump(Counter::EngineComputedRecordBailWinnerElement);
+            return None;
+        }
+        let Some(old_style_record) = self.computed_group_sets.assigned_style_record(node) else {
+            return self.engine_cold_record(node, (generation, state), scratch);
+        };
+        let Some((previous_generation, previous_state)) = self.computed_group_sets.cascade_state(target) else {
+            self.counters.bump(Counter::EngineComputedRecordBailNoCascadeState);
+            return None;
+        };
+        if previous_generation != generation {
+            self.counters.bump(Counter::EngineComputedRecordBailStaleCascadeState);
+            return None;
+        }
+        let delta = self.winner_groups.semantic_delta(Some(previous_state), state);
+        if delta.is_empty() {
+            self.counters.bump(Counter::EngineComputedRecordBailUnchangedWinners);
+            return None;
+        }
+        let delta_property_count = delta.properties().len() as u64;
+        let cohort = (old_style_record.raw(), state);
+        if let Some(&new_style_record) = scratch.cohorts.get(&cohort) {
+            let delta =
+                self.computed_group_sets
+                    .assign_engine_computed_record(node, old_style_record, new_style_record)?;
+            if delta.0 == delta.1 {
+                self.counters.bump(Counter::ComputedWinnerPropagationStops);
+            }
+            self.note_engine_computed_record(node, delta, (generation, state), delta_property_count, 0);
+            self.counters.bump(Counter::EngineComputedRecordCohortHits);
+            return Some(delta);
+        }
+        let Some(inputs) = self.document_style_computation_inputs else {
+            self.counters.bump(Counter::EngineComputedRecordBailNoEnvironment);
+            return None;
+        };
+
+        // The moved properties, the groups they feed, and the drive selection. A moved member of
+        // a logical property group takes its counterpart along: which of the pair the other
+        // derives from is a cascade decision the drive makes for both.
+        let mut groups_to_rebuild = 0_u32;
+        let mut selected = [0_u64; LONGHAND_WORD_COUNT];
+        let mut select = |property: u16| {
+            let index = usize::from(property - FIRST_LONGHAND_PROPERTY_ID);
+            selected[index / 64] |= 1 << (index % 64);
+        };
+        // A moved font-phase longhand reaches every value the font feeds, so the record is driven
+        // through every phase and every group is rebuilt.
+        let full_drive = delta
+            .properties()
+            .iter()
+            .any(|&property| !property_computes_in_remaining_phase(property));
+        let (writing_mode, direction) = {
+            let Some(view) = self.computed_group_sets.style_record_view(old_style_record.raw()) else {
+                self.counters.bump(Counter::EngineComputedRecordBailRecord);
+                return None;
+            };
+            let inherited_box = unsafe {
+                &*view.payloads[crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_BOX]
+                    .cast::<crate::css::computed_values::InheritedBoxValues>()
+            };
+            (inherited_box.writing_mode, inherited_box.direction)
+        };
+        for &property in delta.properties() {
+            // Animations and transitions start from the C++ computation, and the counter-style
+            // environment behind `content` and `list-style-type` is resolved there.
+            if property_starts_animation_or_counter_environment(property) {
+                self.counters.bump(Counter::EngineComputedRecordBailProperty);
+                return None;
+            }
+            let Some(groups) = computed_group_dependency_mask(property) else {
+                self.counters.bump(Counter::EngineComputedRecordBailProperty);
+                return None;
+            };
+            groups_to_rebuild |= groups;
+            select(property);
+            let bits = crate::css::style_compute::table_row_bits(property);
+            let counterpart = if bits & crate::css::style_compute::LOGICAL_ALIAS_BIT != 0 {
+                crate::css::style_compute::map_logical_alias_to_physical(property, writing_mode, direction)
+            } else if bits & crate::css::style_compute::PHYSICAL_TO_LOGICAL_BIT != 0 {
+                crate::css::style_compute::map_physical_to_logical_alias(property, writing_mode, direction)
+            } else {
+                property
+            };
+            if counterpart != property {
+                let Some(groups) = computed_group_dependency_mask(counterpart) else {
+                    self.counters.bump(Counter::EngineComputedRecordBailProperty);
+                    return None;
+                };
+                groups_to_rebuild |= groups;
+                select(counterpart);
+            }
+        }
+        if groups_to_rebuild & (1 << STYLE_GROUP_INDEX_ANCHOR) != 0 {
+            groups_to_rebuild |= 1 << STYLE_GROUP_INDEX_SURROUND;
+        }
+        // A moved `color` reaches every group holding a value resolved against currentcolor.
+        if delta
+            .properties()
+            .contains(&crate::css::property_metadata::property_id::COLOR)
+        {
+            let Some(dependencies) = self.computed_group_sets.current_color_dependency_mask(target) else {
+                self.counters.bump(Counter::EngineComputedRecordBailRecord);
+                return None;
+            };
+            groups_to_rebuild |= dependencies;
+        }
+        if full_drive {
+            groups_to_rebuild = (1 << crate::css::table_group_builder::group_index::COUNT) - 1;
+        } else if groups_to_rebuild & (1 << STYLE_GROUP_INDEX_FONT) != 0 {
+            self.counters.bump(Counter::EngineComputedRecordBailFontPhase);
+            return None;
+        }
+
+        let store = match scratch.stores.get(&state) {
+            Some(store) => store.clone(),
+            None => {
+                let store = std::rc::Rc::new(self.cascaded_store_for_state(state)?);
+                scratch.stores.insert(state, store.clone());
+                store
+            }
+        };
+        let (table, length, longhand_evaluations, font) = if full_drive {
+            self.engine_full_drive(node, Some(old_style_record), &store, &inputs)?
+        } else {
+            self.engine_driven_table(node, old_style_record, &store, &selected, &inputs)?
+        };
+        let Some(assembly) = self.computed_group_sets.replace_engine_computed_table(
+            node,
+            table,
+            groups_to_rebuild,
+            &length,
+            font.as_ref(),
+        ) else {
+            self.counters.bump(Counter::EngineComputedRecordBailAssemble);
+            return None;
+        };
+        self.settle_computed_memory();
+        self.counters.add(
+            Counter::ComputedOutputGroupsCanonicalized,
+            u64::from(assembly.canonicalized_groups),
+        );
+        if assembly.group_set_unchanged {
+            self.counters.bump(Counter::ComputedWinnerPropagationStops);
+        }
+        let delta = assembly.delta;
+        self.note_engine_computed_record(
+            node,
+            delta,
+            (generation, state),
+            delta_property_count,
+            longhand_evaluations,
+        );
+        scratch.cohorts.insert(cohort, delta.1);
+        Some(delta)
+    }
+
+    /// Account for a record the engine derived and leave its commitment to C++'s acknowledgement.
+    fn note_engine_computed_record(
+        &mut self,
+        node: StyleNodeID,
+        delta: (computed::FinalStyleRecordID, computed::FinalStyleRecordID),
+        cascade_state: (u64, CascadeStateID),
+        delta_property_count: u64,
+        longhand_evaluations: u32,
+    ) {
+        self.counters
+            .add(Counter::CascadeWinnerDeltaProperties, delta_property_count);
+        self.counters
+            .add(Counter::ComputedWinnerDeltaPropertiesConsumed, delta_property_count);
+        self.counters.bump(Counter::EngineComputedRecordDeltas);
+        self.engine_computed_records_pending.push(PendingEngineComputedRecord {
+            node,
+            old_style_record: delta.0,
+            new_style_record: delta.1,
+            cascade_state,
+            longhand_evaluations,
+        });
+    }
+
+    /// C++ installed the record the engine derived for `node`: the winner state it was computed
+    /// from becomes the node's cascade state, and the answer counts as consumed.
+    pub(crate) fn acknowledge_engine_computed_record(&mut self, node: StyleNodeID) {
+        let Some(position) = self
+            .engine_computed_records_pending
+            .iter()
+            .position(|pending| pending.node == node)
+        else {
+            return;
+        };
+        let pending = self.engine_computed_records_pending.swap_remove(position);
+        let target = computed::ComputedStyleTarget::new(node, u8::MAX);
+        self.remove_pending_style_computation_selection(target);
+        self.computed_group_sets.take_pending_cascade_state(target);
+        self.computed_group_sets
+            .bind_cascade_state(target, pending.cascade_state);
+        self.published_match_answers.mark_observed(node);
+        self.counters.add(
+            Counter::EngineComputedLonghandEvaluations,
+            u64::from(pending.longhand_evaluations),
+        );
+    }
+
+    /// The transaction's outputs are gone: every derived record C++ did not install goes back to
+    /// the record the node held, unless a publication has moved the node on since.
+    pub(super) fn discard_engine_computed_records(&mut self) {
+        for pending in std::mem::take(&mut self.engine_computed_records_pending) {
+            self.computed_group_sets.revert_engine_computed_record(
+                pending.node,
+                pending.new_style_record,
+                pending.old_style_record,
+            );
+        }
+    }
+
+    /// Derive a node's first record: every winner of its state driven through every phase, every
+    /// group built against the parent's payloads, and the record published the way a C++ first
+    /// computation publishes it, with the parent's custom-property environment. A node alike in
+    /// everything a first record is computed from takes the record an earlier node got, whether
+    /// in this flush or one before it.
+    fn engine_cold_record(
+        &mut self,
+        node: StyleNodeID,
+        cascade_state: (u64, CascadeStateID),
+        scratch: &mut EngineComputedRecordScratch,
+    ) -> Option<(computed::FinalStyleRecordID, computed::FinalStyleRecordID)> {
+        use crate::css::computed_value_types::STYLE_GROUP_INDEX_FONT;
+        use crate::css::computed_values::computed_group_dependency_mask;
+        use crate::css::table_group_builder::group_index;
+
+        let target = computed::ComputedStyleTarget::new(node, u8::MAX);
+        let (_, state) = cascade_state;
+        let Some(inputs) = self.document_style_computation_inputs else {
+            self.counters.bump(Counter::EngineComputedRecordBailNoEnvironment);
+            return None;
+        };
+        let delta = self.winner_groups.semantic_delta(None, state);
+        for &property in delta.properties() {
+            if property_starts_animation_or_counter_environment(property)
+                || computed_group_dependency_mask(property).is_none()
+            {
+                self.counters.bump(Counter::EngineComputedRecordBailProperty);
+                return None;
+            }
+        }
+        let delta_property_count = delta.properties().len() as u64;
+        let Some(parent) = self.tree.flat_tree_parent(node) else {
+            self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
+            return None;
+        };
+        let Some(parent_record) = self.computed_group_sets.assigned_style_record(parent) else {
+            self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
+            return None;
+        };
+        let facts = self.computed_group_sets.adjustment_facts(node);
+        // The state has to be one the engine can compute from before any record is shared under
+        // it: a record C++ computed for a per-element value, such as a `random()` draw, is that
+        // element's alone.
+        let store = match scratch.stores.get(&state) {
+            Some(store) => store.clone(),
+            None => {
+                let store = self.cascaded_store_for_state(state);
+                self.remember_state_admission(cascade_state, store.is_some());
+                let store = std::rc::Rc::new(store?);
+                scratch.stores.insert(state, store.clone());
+                store
+            }
+        };
+        let Some(pseudo_styles) = self.pseudo_style_mask(node) else {
+            self.counters.bump(Counter::EngineComputedRecordBailWinner);
+            return None;
+        };
+        let cache_key = self
+            .cold_record_parent(parent, parent_record, state)
+            .map(|parent| ColdRecordKey {
+                parent,
+                generation: cascade_state.0,
+                state,
+                facts,
+                pseudo_styles,
+                font_environment_generation: inputs.font_environment_generation,
+            });
+        let shared = cache_key.and_then(|cache_key| {
+            scratch
+                .cold_cohorts
+                .get(&cache_key)
+                .copied()
+                .map(|record| (record, false))
+                .or_else(|| {
+                    let record = *self.engine_cold_record_cache.get(&cache_key)?;
+                    self.computed_group_sets
+                        .final_style_record_is_live(record.record.raw())
+                        .then_some((record, true))
+                })
+        });
+        if let Some((ColdRecord { record, swap_eligible }, from_cache)) = shared {
+            self.computed_group_sets
+                .set_pending_cascade_state(target, cascade_state);
+            let publication = self.assign_shared_style_record(
+                target,
+                record.raw(),
+                computed::ENGINE_INHERITED_GROUP_COUNT,
+                swap_eligible,
+            );
+            let delta = (computed::FinalStyleRecordID::NONE, publication.style_record_identity);
+            self.note_engine_computed_record(node, delta, cascade_state, delta_property_count, 0);
+            self.counters.bump(if from_cache {
+                Counter::EngineComputedRecordSharedHits
+            } else {
+                Counter::EngineComputedRecordCohortHits
+            });
+            return Some(delta);
+        }
+        let (mut table, length, longhand_evaluations, font) = self.engine_full_drive(node, None, &store, &inputs)?;
+        let font = font.expect("a full drive resolves the font");
+        let Some(parent_view) = self.computed_group_sets.style_record_view(parent_record.raw()) else {
+            self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
+            return None;
+        };
+        let parent_payloads = parent_view.payloads.to_vec();
+        let parent_in_display_none_subtree = parent_view.dependency_flags & (1 << 2) != 0;
+        let Some(environment) = self.computed_group_sets.custom_property_environment_identity(parent) else {
+            self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
+            return None;
+        };
+        let Ok(used_color_scheme) = u8::try_from(table.effective_color_scheme()) else {
+            self.counters.bump(Counter::EngineComputedRecordBailDrive);
+            return None;
+        };
+        let display_is_none = crate::css::style_compute::effective_display(&table, None).is_none();
+        table.set_in_display_none_subtree(parent_in_display_none_subtree || display_is_none);
+        table.freeze();
+        let swap_eligible = table.property_inheritance_is_standard()
+            && !table.display_is_list_item()
+            && crate::css::style_compute::active_transition_properties(&table).is_empty();
+        let table = table.into_raw_shared();
+        let release_table = |table: *const ComputedLonghandTable| unsafe {
+            crate::css::computed_longhand_table::rust_computed_longhand_table_release(table.cast_mut());
+        };
+        let Some(current_color) =
+            crate::css::table_group_builder::own_color_from_table(unsafe { &*table }, used_color_scheme, Some(&length))
+        else {
+            release_table(table);
+            self.counters.bump(Counter::EngineComputedRecordBailAssemble);
+            return None;
+        };
+        let mut payloads = Vec::with_capacity(group_index::COUNT);
+        for (group, &parent_payload) in parent_payloads.iter().enumerate().take(group_index::COUNT) {
+            let payload = if group == STYLE_GROUP_INDEX_FONT {
+                unsafe {
+                    crate::css::table_group_builder::rebuild_font_group_from_table(&*table, &font, parent_payload)
+                }
+            } else {
+                unsafe {
+                    crate::css::table_group_builder::rebuild_group_from_table(
+                        &*table,
+                        group,
+                        parent_payload,
+                        current_color,
+                        used_color_scheme,
+                        Some(&length),
+                    )
+                }
+            };
+            let Some(payload) = payload else {
+                for (group, payload) in payloads.into_iter().enumerate() {
+                    crate::css::computed_values::release_group_payload(group, payload);
+                }
+                release_table(table);
+                self.counters.bump(Counter::EngineComputedRecordBailAssemble);
+                return None;
+            };
+            payloads.push(payload);
+        }
+        let holds_image_values = crate::css::computed_values::style_group_payloads_hold_image_values(&payloads);
+        let dependency_flags = unsafe { &*table }.publication_dependency_flags()
+            | (u8::from(swap_eligible) * computed::INHERITED_GROUP_SWAP_ELIGIBLE)
+            | (u8::from(holds_image_values) * computed::HOLDS_IMAGE_VALUES);
+        let metadata_input = computed::ComputedMetadataInput {
+            pseudo_element_styles: pseudo_styles,
+            dependency_flags,
+            counter_style_environment_identity: 0,
+            animation_overlay_identity: 0,
+            animated_overlay: std::ptr::null(),
+            animation_overlay_payloads: &[],
+            longhand_table: table,
+        };
+        self.computed_group_sets
+            .set_pending_cascade_state(target, cascade_state);
+        let publication = self.publish_computed_groups_impl(
+            Some(target),
+            &payloads,
+            computed::ENGINE_INHERITED_GROUP_COUNT,
+            environment,
+            metadata_input,
+        );
+        for (group, payload) in payloads.into_iter().enumerate() {
+            crate::css::computed_values::release_group_payload(group, payload);
+        }
+        release_table(table);
+        let delta = (computed::FinalStyleRecordID::NONE, publication.style_record_identity);
+        // The publication itself kept the record for later transactions; alike elements in this
+        // one take it from the cohort.
+        if let Some(cache_key) = cache_key {
+            scratch.cold_cohorts.insert(
+                cache_key,
+                ColdRecord {
+                    record: delta.1,
+                    swap_eligible,
+                },
+            );
+        }
+        self.note_engine_computed_record(node, delta, cascade_state, delta_property_count, longhand_evaluations);
+        Some(delta)
+    }
+
+    /// A later element alike in what a first record is computed from takes this record, the way a
+    /// C++ computation shares across transactions. The cache is small and bounded.
+    fn remember_cold_record(&mut self, key: ColdRecordKey, record: ColdRecord) {
+        if self.engine_cold_record_cache.len() >= COLD_RECORD_CACHE_LIMIT {
+            self.engine_cold_record_cache.clear();
+        }
+        self.engine_cold_record_cache.insert(key, record);
+    }
+
+    /// Whether a winner state is one the engine computes records from: every winner a plain rule
+    /// declaration with a written value that needs no document context. Decided once per state.
+    fn state_is_engine_computable(&mut self, cascade_state: (u64, CascadeStateID)) -> bool {
+        if let Some(&admitted) = self.engine_computable_states.get(&cascade_state) {
+            return admitted;
+        }
+        let admitted = self.cascaded_store_for_state(cascade_state.1).is_some();
+        self.remember_state_admission(cascade_state, admitted);
+        admitted
+    }
+
+    fn remember_state_admission(&mut self, cascade_state: (u64, CascadeStateID), admitted: bool) {
+        if self.engine_computable_states.len() >= COLD_RECORD_CACHE_LIMIT {
+            self.engine_computable_states.clear();
+        }
+        self.engine_computable_states.insert(cascade_state, admitted);
+    }
+
+    /// The parent-side half of a first record's sharing key, or nothing when the parent's style
+    /// is one no first record may be shared under.
+    fn cold_record_parent(
+        &self,
+        parent: StyleNodeID,
+        parent_record: computed::FinalStyleRecordID,
+        state: CascadeStateID,
+    ) -> Option<ColdRecordParent> {
+        let view = self.computed_group_sets.style_record_view(parent_record.raw())?;
+        if !view.animated_overlay.is_null() {
+            return None;
+        }
+        let dependency_flags = view.dependency_flags;
+        let environment = self.computed_group_sets.custom_property_environment_identity(parent)?;
+        let inherited_groups = self.computed_group_sets.node_inherited_groups_identity(parent)?;
+        let parent_display = self.box_type_parent_display(parent)?;
+        let record = if self.state_explicitly_inherits_non_inherited_property(state) {
+            parent_record.raw()
+        } else {
+            0
+        };
+        Some(ColdRecordParent {
+            record,
+            inherited_groups,
+            environment,
+            dependency_flags,
+            parent_display,
+        })
+    }
+
+    /// The display the box-type transformation reads as the parent's for a child of the parent:
+    /// the parent's own, past any display:contents ancestor, packed into one word.
+    fn box_type_parent_display(&self, parent: StyleNodeID) -> Option<u32> {
+        let mut ancestor = Some(parent);
+        while let Some(current) = ancestor {
+            let record = self.computed_group_sets.assigned_style_record(current)?;
+            let view = self.computed_group_sets.style_record_view(record.raw())?;
+            let table = unsafe { view.longhand_table.as_ref() }?;
+            let display = crate::css::style_compute::effective_display(table, None);
+            // C++ styles the children of a display:none element on demand, past the engine's
+            // view of the parent, so no first record is computed under one.
+            if display.is_none() {
+                return None;
+            }
+            if !display.is_contents() {
+                return Some(
+                    u32::from(display.tag)
+                        | u32::from(display.outside) << 8
+                        | u32::from(display.inside) << 16
+                        | u32::from(display.internal) << 24
+                        | u32::from(display.list_item) << 3,
+                );
+            }
+            ancestor = self.tree.flat_tree_parent(current);
+        }
+        None
+    }
+
+    /// Whether a winner state declares `inherit` for a non-inherited property, or carries a value
+    /// the engine cannot see the spelling of.
+    fn state_explicitly_inherits_non_inherited_property(&self, state: CascadeStateID) -> bool {
+        self.winner_groups.winners_in_state(state).any(|winner| {
+            if crate::css::property_metadata::property_is_inherited(winner.property) {
+                return false;
+            }
+            let Some(winner) = self.winner_groups.resolved_winner(winner) else {
+                return false;
+            };
+            match winner.source {
+                WinnerSource::Rule(rule) => self
+                    .program
+                    .written_winner_value(rule, winner.property, winner.important, winner.key.value)
+                    .is_none_or(|value| {
+                        matches!(value.data(), crate::css::style_value::StyleValueData::Keyword { keyword }
+                            if *keyword == crate::css::style_compute::keyword::INHERIT)
+                    }),
+                _ => true,
+            }
+        })
+    }
+
+    /// Keep a record C++ published for an element as a first record a later alike element can
+    /// take, when it was computed from nothing but what the engine keys first records on: the
+    /// parent's inherited style and environment, a winner state the engine can compute from, the
+    /// element facts and the pseudo-elements it has rules for.
+    fn remember_cold_record_candidate(
+        &mut self,
+        target: computed::ComputedStyleTarget,
+        cascade_state: (u64, CascadeStateID),
+        custom_property_environment: u64,
+        pseudo_styles: u64,
+        style_record: computed::FinalStyleRecordID,
+        is_base_record: bool,
+    ) {
+        if target.is_pseudo() || !is_base_record {
+            return;
+        }
+        let Some(inputs) = self.document_style_computation_inputs else {
+            return;
+        };
+        let node = target.node();
+        let facts = self.computed_group_sets.adjustment_facts(node);
+        // A record C++ computed for an element with hints or animations is not what its winner
+        // state alone describes.
+        if facts
+            & (bridge::element_adjustment_fact::HAS_PRESENTATIONAL_HINTS
+                | bridge::element_adjustment_fact::HAS_ANIMATIONS)
+            != 0
+        {
+            return;
+        }
+        let Some(parent) = self.tree.flat_tree_parent(node) else {
+            return;
+        };
+        let Some(parent_record) = self.computed_group_sets.assigned_style_record(parent) else {
+            return;
+        };
+        if self.computed_group_sets.custom_property_environment_identity(parent) != Some(custom_property_environment) {
+            return;
+        }
+        if !self.state_is_engine_computable(cascade_state) {
+            return;
+        }
+        let Some(parent) = self.cold_record_parent(parent, parent_record, cascade_state.1) else {
+            return;
+        };
+        let swap_eligible = self.computed_group_sets.node_inherited_group_swap_eligible(node);
+        let key = ColdRecordKey {
+            parent,
+            generation: cascade_state.0,
+            state: cascade_state.1,
+            facts,
+            pseudo_styles,
+            font_environment_generation: inputs.font_environment_generation,
+        };
+        self.remember_cold_record(
+            key,
+            ColdRecord {
+                record: style_record,
+                swap_eligible,
+            },
+        );
+    }
+
+    /// The synthetic pseudo-elements the node has matching rules for, as the bits a C++ record
+    /// carries in its pseudo-style mask: derived from the node's match answer the way C++ derives
+    /// its own, since pseudo winner rows exist only for answers the engine cascaded itself. `None`
+    /// when the engine holds no answer for the node.
+    fn pseudo_style_mask(&self, node: StyleNodeID) -> Option<u64> {
+        let bit = |pseudo: Option<tree::PseudoElementTarget>| {
+            pseudo
+                .map(|pseudo| pseudo.kind.0)
+                .filter(|&kind| kind <= bridge::LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND)
+                .map_or(0, |kind| 1u64 << kind)
+        };
+        if let Some(answer) = self.published_match_answers.lookup(node)
+            && let Some(matches) = self.published_match_answers.matches_for(answer)
+        {
+            return Some(
+                matches
+                    .iter()
+                    .fold(0, |mask, rule_match| mask | bit(rule_match.pseudo_element)),
+            );
+        }
+        let Lookup::Known(answer) = self.retained_match_answer(node) else {
+            return None;
+        };
+        Some(answer.iter().fold(0, |mask, rule_match| {
+            let entry = &self.programs.get(rule_match.program).entries()[rule_match.entry as usize];
+            mask | bit(entry.pseudo_element)
+        }))
+    }
+
+    /// The cascade a winner state describes, as the drive consumes it: every winner's written
+    /// value, seeded in cascade order so a logical property pair resolves the way it cascaded.
+    /// `None` when a winner is not a plain rule declaration the engine can compute from.
+    fn cascaded_store_for_state(&mut self, state: CascadeStateID) -> Option<CascadedPropertyStore> {
+        let winners: Vec<PropertyWinner> = self.winner_groups.winners_in_state(state).collect();
+        // Seeded in cascade order, and within one rule in declaration order, since a logical
+        // property and its physical associate resolve by order of appearance.
+        let mut declarations = Vec::with_capacity(winners.len());
+        for winner in winners {
+            // A revert whose continuation resumes at nothing leaves the property undeclared.
+            let Some(winner) = self.winner_groups.resolved_winner(winner) else {
+                continue;
+            };
+            if winner.key.animation_relevance != 0 {
+                self.counters.bump(Counter::EngineComputedRecordBailWinnerAnimated);
+                return None;
+            }
+            // The drive computes from the spelling the declaration was written in, which the
+            // cascade's canonical identity may have rewritten; the rule keeps it.
+            let declaration = match winner.source {
+                WinnerSource::Rule(rule) => {
+                    self.program
+                        .written_winner_declaration(rule, winner.property, winner.important, winner.key.value)
+                }
+                WinnerSource::Element(_) => {
+                    self.counters.bump(Counter::EngineComputedRecordBailWinnerElement);
+                    return None;
+                }
+                WinnerSource::ExactCascade => {
+                    self.counters.bump(Counter::EngineComputedRecordBailWinnerOperator);
+                    return None;
+                }
+            };
+            let Some((index, value)) = declaration else {
+                self.counters.bump(Counter::EngineComputedRecordBailWinnerSpelling);
+                return None;
+            };
+            // A longhand declared through a shorthand keeps the whole shorthand as its written
+            // value; the store takes the longhand's own part of it.
+            let value = match value.data() {
+                crate::css::style_value::StyleValueData::Shorthand { .. } => {
+                    let Some(value) = shorthand_longhand_value(winner.property, value.data()) else {
+                        self.counters.bump(Counter::EngineComputedRecordBailWinnerSpelling);
+                        return None;
+                    };
+                    value
+                }
+                _ => value,
+            };
+            if !value_computes_without_document_context(value.data()) {
+                self.counters.bump(Counter::EngineComputedRecordBailValue);
+                return None;
+            }
+            declarations.push((winner.priority, index, winner.property, winner.important, value));
+        }
+        declarations.sort_by_key(|(priority, index, ..)| (*priority, *index));
+        let mut store = CascadedPropertyStore::new();
+        for (_, _, property, important, value) in declarations {
+            store.seed_retained_property(property, value, important, false);
+        }
+        Some(store)
+    }
+
+    /// Run the drive's remaining phase for the selected longhands over a copy of the node's
+    /// current table, against the record's own font metrics, the document's computation inputs
+    /// and the parent's record. The required driver inputs recompute on every drive and their
+    /// post-compute adjustments read element facts this context does not carry, so the table
+    /// stands only when they came out exactly as before.
+    fn engine_driven_table(
+        &mut self,
+        node: StyleNodeID,
+        old_style_record: computed::FinalStyleRecordID,
+        store: &CascadedPropertyStore,
+        selected: &[u64],
+        inputs: &bridge::FfiDocumentStyleComputationInputs,
+    ) -> Option<(
+        ComputedLonghandTable,
+        crate::css::style_compute::FfiLengthResolutionContext,
+        u32,
+        Option<crate::css::table_group_builder::FfiFontGroupBuildInputs>,
+    )> {
+        use crate::css::computed_value_types::{STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_INHERITED_BOX};
+        use crate::css::style_compute::{
+            FfiBoxTypeTransformationInput, FfiEffectiveColorSchemeInput, FfiFontMetrics, FfiLengthResolutionContext,
+            FfiStyleComputationEnvironment, LONGHAND_DRIVE_PHASE_REMAINING, drive_property_computation,
+            empty_longhand_driver_results, is_required_driver_input, keyword, parent_snapshot_for_style_record,
+            property_computation_order_for_phase,
+        };
+
+        let Some(view) = self.computed_group_sets.style_record_view(old_style_record.raw()) else {
+            self.counters.bump(Counter::EngineComputedRecordBailRecord);
+            return None;
+        };
+        if !view.animated_overlay.is_null() {
+            self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
+            return None;
+        }
+        let Some(old_table) = (unsafe { view.longhand_table.as_ref() }) else {
+            self.counters.bump(Counter::EngineComputedRecordBailRecordTable);
+            return None;
+        };
+        // A record under display:none may no longer be the style C++ holds, and a property change
+        // on an element with active transitions starts one in the C++ computation.
+        if view.dependency_flags & (1 << 2) != 0
+            || !crate::css::style_compute::active_transition_properties(old_table).is_empty()
+        {
+            self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
+            return None;
+        }
+        let snapshot = match self.tree.flat_tree_parent(node) {
+            None => None,
+            Some(parent) => match self.computed_group_sets.assigned_style_record(parent) {
+                Some(record) => Some(parent_snapshot_for_style_record(self, record.raw(), None)),
+                None => {
+                    self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
+                    return None;
+                }
+            },
+        };
+        let font =
+            unsafe { &*view.payloads[STYLE_GROUP_INDEX_FONT].cast::<crate::css::computed_value_types::FontValues>() };
+        let inherited_box = unsafe {
+            &*view.payloads[STYLE_GROUP_INDEX_INHERITED_BOX].cast::<crate::css::computed_values::InheritedBoxValues>()
+        };
+        let mut resolved_viewport_relative_length = false;
+        let length = FfiLengthResolutionContext {
+            viewport_width: inputs.viewport_width,
+            viewport_height: inputs.viewport_height,
+            font_metrics: FfiFontMetrics {
+                font_size: font.font_size.to_double(),
+                x_height: f64::from(font.font_x_height),
+                // The C++ metrics approximate the cap height with the ascent.
+                cap_height: f64::from(font.font_ascent),
+                zero_advance: f64::from(font.font_zero_advance),
+                line_height: font.line_height_used.to_double(),
+            },
+            root_font_metrics: FfiFontMetrics {
+                font_size: inputs.root_font_size,
+                x_height: inputs.root_font_x_height,
+                cap_height: inputs.root_font_cap_height,
+                zero_advance: inputs.root_font_zero_advance,
+                line_height: inputs.root_line_height,
+            },
+            font_metrics_depend_on_viewport_metrics: view.dependency_flags & (1 << 1) != 0,
+            root_font_metrics_depend_on_viewport_metrics: inputs.root_font_metrics_depend_on_viewport_metrics,
+            has_container_width_basis: false,
+            has_container_height_basis: false,
+            container_width_basis: 0.0,
+            container_height_basis: 0.0,
+            container_width_basis_depends_on_viewport_metrics: false,
+            container_height_basis_depends_on_viewport_metrics: false,
+            subject_inline_axis_is_horizontal: inherited_box.writing_mode
+                == crate::css::css_enums::writing_mode::HORIZONTAL_TB,
+            resolved_viewport_relative_length: &raw mut resolved_viewport_relative_length,
+        };
+        // No element fact reaches the remaining phase through this environment: the moved
+        // properties were checked not to need one, and the required driver inputs are compared
+        // against the record below.
+        let environment = FfiStyleComputationEnvironment {
+            box_type_input: FfiBoxTypeTransformationInput {
+                display: crate::css::display::FfiDisplay::inline(),
+                position: keyword::STATIC,
+                float_value: keyword::NONE,
+                is_br_element: false,
+                is_document_element: false,
+                is_mathml_element: false,
+                is_mathml_mtable: false,
+                is_mathml_mtr: false,
+                is_mathml_mtd: false,
+                has_parent_display: false,
+                parent_display: crate::css::display::FfiDisplay::block(),
+                is_wbr_element: false,
+                disallow_display_contents: false,
+                rewrite_inline_flow: false,
+                is_button_element: false,
+                force_line_height_normal: false,
+                check_input_line_height: false,
+                hide_audio_without_controls: false,
+                is_table_element: false,
+                force_position_static: false,
+                force_symbol_display_inline: false,
+                webkit_box_layout_transformation_applies: false,
+            },
+            color_scheme_input: FfiEffectiveColorSchemeInput {
+                preferred_color_scheme: 0,
+                has_document_supported_schemes: false,
+                document_supported_scheme_codes: std::ptr::null(),
+                document_supported_scheme_count: 0,
+            },
+            is_th_element: false,
+            has_new_font_size: false,
+            has_tree_counting_context: false,
+            sibling_count: 0,
+            sibling_index: 0,
+            random_base_values: std::ptr::null(),
+            random_base_value_count: 0,
+            document_base_url: std::ptr::null(),
+            document_base_url_length: 0,
+            style_sheet_resource_contexts: std::ptr::null(),
+            style_sheet_resource_context_count: 0,
+            device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
+            initial_font_size_raw: inputs.initial_font_size_raw,
+            default_font_size_raw: inputs.default_font_size_raw,
+        };
+        let mut table = view.longhand_table_for_partial_drive();
+        let mut results = empty_longhand_driver_results();
+        let mut effective_color_scheme = old_table.effective_color_scheme();
+        unsafe {
+            drive_property_computation(
+                &raw mut table,
+                std::ptr::null_mut(),
+                store,
+                snapshot.as_ref(),
+                &raw const environment,
+                u32::MAX,
+                selected.as_ptr(),
+                LONGHAND_DRIVE_PHASE_REMAINING,
+                &raw const length,
+                std::ptr::null(),
+                std::ptr::null(),
+                &raw mut results,
+                &mut effective_color_scheme,
+                true,
+            );
+        }
+        if results.explicitly_inherited_non_inherited_style_groups != 0
+            || results.uses_tree_counting_function
+            || table.display_before_box_type_transformation() != old_table.display_before_box_type_transformation()
+        {
+            self.counters.bump(Counter::EngineComputedRecordBailDrive);
+            return None;
+        }
+        let old_values = old_table.value_pointers();
+        for &property in property_computation_order_for_phase(LONGHAND_DRIVE_PHASE_REMAINING) {
+            if !is_required_driver_input(property) {
+                continue;
+            }
+            let slot = usize::from(property - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
+            let old_value = old_values[slot];
+            let new_value = table.value_pointers()[slot];
+            if old_value == new_value {
+                continue;
+            }
+            let equal = unsafe {
+                match (
+                    old_value.cast::<StyleValueData>().as_ref(),
+                    new_value.cast::<StyleValueData>().as_ref(),
+                ) {
+                    (Some(old_value), Some(new_value)) => old_value == new_value,
+                    _ => false,
+                }
+            };
+            if !equal {
+                self.counters.bump(Counter::EngineComputedRecordBailDrive);
+                return None;
+            }
+            table.copy_slot_from(old_table, property);
+        }
+        // The group builders resolve against the same context; they report no viewport dependence
+        // of their own.
+        let length = FfiLengthResolutionContext {
+            resolved_viewport_relative_length: std::ptr::null_mut(),
+            ..length
+        };
+        Some((table, length, results.longhand_evaluations, None))
+    }
+
+    /// Drive a record through every phase: the font phase against the parent's metrics, the
+    /// element's font resolved through the document's resolver, line-height and color-scheme
+    /// against that font, and the remaining phase with the element facts the box-type
+    /// transformation reads. Elements whose font family selects the monospace default size, and
+    /// the document element, still compute in C++.
+    #[allow(clippy::too_many_lines)]
+    fn engine_full_drive(
+        &mut self,
+        node: StyleNodeID,
+        old_style_record: Option<computed::FinalStyleRecordID>,
+        store: &CascadedPropertyStore,
+        inputs: &bridge::FfiDocumentStyleComputationInputs,
+    ) -> Option<(
+        ComputedLonghandTable,
+        crate::css::style_compute::FfiLengthResolutionContext,
+        u32,
+        Option<crate::css::table_group_builder::FfiFontGroupBuildInputs>,
+    )> {
+        use crate::css::computed_value_types::{STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_INHERITED_BOX};
+        use crate::css::css_pixels::CssPixels;
+        use crate::css::property_metadata::property_id as prop;
+        use crate::css::style_compute::{
+            FfiBoxTypeTransformationInput, FfiEffectiveColorSchemeInput, FfiFontMetrics, FfiInputLineHeightMetrics,
+            FfiLengthResolutionContext, FfiStyleComputationEnvironment, LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
+            LONGHAND_DRIVE_PHASE_FONT, LONGHAND_DRIVE_PHASE_LINE_HEIGHT, LONGHAND_DRIVE_PHASE_REMAINING,
+            drive_property_computation, effective_display, empty_longhand_driver_results, font_family_is_monospace,
+            keyword,
+        };
+        use crate::css::table_group_builder::FfiFontGroupBuildInputs;
+        use bridge::element_adjustment_fact as fact;
+
+        let facts = self.computed_group_sets.adjustment_facts(node);
+        if facts & fact::IS_DOCUMENT_ELEMENT != 0 {
+            self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
+            return None;
+        }
+        // An element with animations composes its style with their effects in C++.
+        if facts & fact::HAS_ANIMATIONS != 0 {
+            self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
+            return None;
+        }
+        if self.font_resolver.is_none() {
+            self.counters.bump(Counter::EngineComputedRecordBailNoEnvironment);
+            return None;
+        }
+        if store
+            .winning_declaration(prop::FONT_FAMILY)
+            .is_some_and(|(value, ..)| font_family_is_monospace(unsafe { &*value.cast::<StyleValueData>() }))
+        {
+            self.counters.bump(Counter::EngineComputedRecordBailFontPhase);
+            return None;
+        }
+        let old_table = match old_style_record {
+            Some(old_style_record) => {
+                let Some(view) = self.computed_group_sets.style_record_view(old_style_record.raw()) else {
+                    self.counters.bump(Counter::EngineComputedRecordBailRecord);
+                    return None;
+                };
+                if !view.animated_overlay.is_null() {
+                    self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
+                    return None;
+                }
+                let Some(old_table) = (unsafe { view.longhand_table.as_ref() }) else {
+                    self.counters.bump(Counter::EngineComputedRecordBailRecordTable);
+                    return None;
+                };
+                if view.dependency_flags & (1 << 2) != 0
+                    || !crate::css::style_compute::active_transition_properties(old_table).is_empty()
+                {
+                    self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
+                    return None;
+                }
+                Some(old_table)
+            }
+            None => None,
+        };
+        let Some(parent) = self.tree.flat_tree_parent(node) else {
+            self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
+            return None;
+        };
+        let Some(parent_record) = self.computed_group_sets.assigned_style_record(parent) else {
+            self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
+            return None;
+        };
+        let Some(parent_view) = self.computed_group_sets.style_record_view(parent_record.raw()) else {
+            self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
+            return None;
+        };
+        let parent_font = unsafe {
+            &*parent_view.payloads[STYLE_GROUP_INDEX_FONT].cast::<crate::css::computed_value_types::FontValues>()
+        };
+        let parent_metrics = FfiFontMetrics {
+            font_size: parent_font.font_size.to_double(),
+            x_height: f64::from(parent_font.font_x_height),
+            cap_height: f64::from(parent_font.font_ascent),
+            zero_advance: f64::from(parent_font.font_zero_advance),
+            line_height: parent_font.line_height_used.to_double(),
+        };
+        let parent_font_metrics_depend_on_viewport_metrics = parent_view.dependency_flags & (1 << 1) != 0;
+        let parent_line_height_used = parent_font.line_height_used.to_double();
+        // C++ computes no style under a display:none ancestor.
+        if old_table.is_none() && parent_view.dependency_flags & (1 << 2) != 0 {
+            self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
+            return None;
+        }
+        // The parent's display, past any display:contents ancestor, is what the box-type
+        // transformation reads.
+        let mut parent_display = None;
+        let mut ancestor = Some(parent);
+        while let Some(current) = ancestor {
+            let Some(record) = self.computed_group_sets.assigned_style_record(current) else {
+                break;
+            };
+            let Some(ancestor_view) = self.computed_group_sets.style_record_view(record.raw()) else {
+                break;
+            };
+            let Some(ancestor_table) = (unsafe { ancestor_view.longhand_table.as_ref() }) else {
+                break;
+            };
+            let display = effective_display(ancestor_table, None);
+            if !display.is_contents() {
+                parent_display = Some(display);
+                break;
+            }
+            ancestor = self.tree.flat_tree_parent(current);
+        }
+        let Some(parent_table) = (unsafe { parent_view.longhand_table.as_ref() }) else {
+            self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
+            return None;
+        };
+        let snapshot = crate::css::style_compute::ParentSnapshot::new(
+            parent_table,
+            unsafe { parent_view.animated_overlay.as_ref() },
+            parent_font_metrics_depend_on_viewport_metrics,
+            parent_view.dependency_flags & (1 << 2) != 0,
+        );
+        // The subject axis is the element's own writing mode when it has one, else its parent's.
+        let inherited_box_payload = match old_style_record {
+            Some(old_style_record) => {
+                self.computed_group_sets
+                    .style_record_view(old_style_record.raw())?
+                    .payloads[STYLE_GROUP_INDEX_INHERITED_BOX]
+            }
+            None => parent_view.payloads[STYLE_GROUP_INDEX_INHERITED_BOX],
+        };
+        let inherited_box =
+            unsafe { &*inherited_box_payload.cast::<crate::css::computed_values::InheritedBoxValues>() };
+        let subject_inline_axis_is_horizontal =
+            inherited_box.writing_mode == crate::css::css_enums::writing_mode::HORIZONTAL_TB;
+        let root_font_metrics = FfiFontMetrics {
+            font_size: inputs.root_font_size,
+            x_height: inputs.root_font_x_height,
+            cap_height: inputs.root_font_cap_height,
+            zero_advance: inputs.root_font_zero_advance,
+            line_height: inputs.root_line_height,
+        };
+        let has = |bit: u32| facts & bit != 0;
+        let environment = FfiStyleComputationEnvironment {
+            box_type_input: FfiBoxTypeTransformationInput {
+                display: crate::css::display::FfiDisplay::inline(),
+                position: keyword::STATIC,
+                float_value: keyword::NONE,
+                is_br_element: has(fact::IS_BR),
+                is_document_element: false,
+                is_mathml_element: has(fact::IS_MATHML),
+                is_mathml_mtable: has(fact::IS_MATHML_MTABLE),
+                is_mathml_mtr: has(fact::IS_MATHML_MTR),
+                is_mathml_mtd: has(fact::IS_MATHML_MTD),
+                has_parent_display: parent_display.is_some(),
+                parent_display: parent_display.unwrap_or_else(crate::css::display::FfiDisplay::block),
+                is_wbr_element: has(fact::IS_WBR),
+                disallow_display_contents: has(fact::DISALLOW_DISPLAY_CONTENTS),
+                rewrite_inline_flow: has(fact::REWRITE_INLINE_FLOW),
+                is_button_element: has(fact::IS_BUTTON),
+                force_line_height_normal: has(fact::FORCE_LINE_HEIGHT_NORMAL),
+                check_input_line_height: has(fact::CHECK_INPUT_LINE_HEIGHT),
+                hide_audio_without_controls: has(fact::HIDE_AUDIO_WITHOUT_CONTROLS),
+                is_table_element: has(fact::IS_TABLE),
+                force_position_static: has(fact::FORCE_POSITION_STATIC),
+                force_symbol_display_inline: has(fact::FORCE_SYMBOL_DISPLAY_INLINE),
+                webkit_box_layout_transformation_applies: false,
+            },
+            color_scheme_input: FfiEffectiveColorSchemeInput {
+                preferred_color_scheme: inputs.preferred_color_scheme,
+                has_document_supported_schemes: inputs.has_document_supported_schemes,
+                document_supported_scheme_codes: inputs.document_supported_scheme_codes.as_ptr(),
+                document_supported_scheme_count: usize::from(inputs.document_supported_scheme_count),
+            },
+            is_th_element: has(fact::IS_TH),
+            has_new_font_size: false,
+            has_tree_counting_context: false,
+            sibling_count: 0,
+            sibling_index: 0,
+            random_base_values: std::ptr::null(),
+            random_base_value_count: 0,
+            document_base_url: std::ptr::null(),
+            document_base_url_length: 0,
+            style_sheet_resource_contexts: std::ptr::null(),
+            style_sheet_resource_context_count: 0,
+            device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
+            initial_font_size_raw: inputs.initial_font_size_raw,
+            default_font_size_raw: inputs.default_font_size_raw,
+        };
+        let mut resolved_viewport_relative_length = false;
+        let resolved_viewport_relative_length_pointer = &raw mut resolved_viewport_relative_length;
+        let length_context =
+            |font_metrics: FfiFontMetrics, font_metrics_depend_on_viewport_metrics: bool| FfiLengthResolutionContext {
+                viewport_width: inputs.viewport_width,
+                viewport_height: inputs.viewport_height,
+                font_metrics,
+                root_font_metrics,
+                font_metrics_depend_on_viewport_metrics,
+                root_font_metrics_depend_on_viewport_metrics: inputs.root_font_metrics_depend_on_viewport_metrics,
+                has_container_width_basis: false,
+                has_container_height_basis: false,
+                container_width_basis: 0.0,
+                container_height_basis: 0.0,
+                container_width_basis_depends_on_viewport_metrics: false,
+                container_height_basis_depends_on_viewport_metrics: false,
+                subject_inline_axis_is_horizontal,
+                resolved_viewport_relative_length: resolved_viewport_relative_length_pointer,
+            };
+        let mut table = old_table.map_or_else(ComputedLonghandTable::new, ComputedLonghandTable::copied_for_drive);
+        let mut results = empty_longhand_driver_results();
+        let mut effective_color_scheme: i16 = -1;
+        let drive = |table: &mut ComputedLonghandTable,
+                     results: &mut crate::css::style_compute::FfiLonghandDriverResults,
+                     effective_color_scheme: &mut i16,
+                     phase: u8,
+                     length: *const FfiLengthResolutionContext,
+                     input_line_height_metrics: *const FfiInputLineHeightMetrics,
+                     line_height_before: *const std::ffi::c_void| unsafe {
+            drive_property_computation(
+                std::ptr::from_mut(table),
+                std::ptr::null_mut(),
+                store,
+                Some(&snapshot),
+                &raw const environment,
+                u32::MAX,
+                std::ptr::null(),
+                phase,
+                length,
+                input_line_height_metrics,
+                line_height_before,
+                std::ptr::from_mut(results),
+                effective_color_scheme,
+                true,
+            );
+        };
+        let font_length = length_context(parent_metrics, parent_font_metrics_depend_on_viewport_metrics);
+        drive(
+            &mut table,
+            &mut results,
+            &mut effective_color_scheme,
+            LONGHAND_DRIVE_PHASE_FONT,
+            &raw const font_length,
+            std::ptr::null(),
+            std::ptr::null(),
+        );
+
+        // The element's own font, resolved as the C++ font computer would for these values.
+        let value_of = |table: &ComputedLonghandTable, property: u16| -> Option<&StyleValueData> {
+            unsafe {
+                table
+                    .effective_value(None, property, true)
+                    .value
+                    .cast::<StyleValueData>()
+                    .as_ref()
+            }
+        };
+        // The font resolver supplies default feature and variation settings. Check computed
+        // values here because non-default settings can also come from inheritance.
+        for (property, default_keyword) in [
+            (prop::FONT_FEATURE_SETTINGS, keyword::NORMAL),
+            (prop::FONT_VARIATION_SETTINGS, keyword::NORMAL),
+            (prop::FONT_VARIANT_ALTERNATES, keyword::NORMAL),
+            (prop::FONT_VARIANT_CAPS, keyword::NORMAL),
+            (prop::FONT_VARIANT_EAST_ASIAN, keyword::NORMAL),
+            (prop::FONT_VARIANT_EMOJI, keyword::NORMAL),
+            (prop::FONT_VARIANT_LIGATURES, keyword::NORMAL),
+            (prop::FONT_VARIANT_NUMERIC, keyword::NORMAL),
+            (prop::FONT_VARIANT_POSITION, keyword::NORMAL),
+            (prop::FONT_KERNING, keyword::AUTO),
+            (prop::TEXT_RENDERING, keyword::AUTO),
+        ] {
+            if !matches!(value_of(&table, property), Some(StyleValueData::Keyword { keyword }) if *keyword == default_keyword)
+            {
+                self.counters.bump(Counter::EngineComputedRecordBailFontPhase);
+                return None;
+            }
+        }
+        let font_size = match value_of(&table, prop::FONT_SIZE) {
+            Some(StyleValueData::Length { value, unit }) if *unit == crate::css::style_compute::px_length_unit() => {
+                *value
+            }
+            _ => {
+                self.counters.bump(Counter::EngineComputedRecordBailFontPhase);
+                return None;
+            }
+        };
+        let font_size_raw = CssPixels::nearest_value_for(font_size).raw_value();
+        let font_family = table.effective_value(None, prop::FONT_FAMILY, true).value;
+        let font_slope = match value_of(&table, prop::FONT_STYLE) {
+            Some(StyleValueData::FontStyle { font_style, .. }) => match *font_style {
+                crate::css::css_enums::font_style_keyword::ITALIC => 1,
+                crate::css::css_enums::font_style_keyword::OBLIQUE => 2,
+                _ => 0,
+            },
+            _ => 0,
+        };
+        let (font_weight, font_width) = match (value_of(&table, prop::FONT_WEIGHT), value_of(&table, prop::FONT_WIDTH))
+        {
+            (Some(StyleValueData::Number { value: weight }), Some(StyleValueData::Percentage { value: width })) => {
+                (*weight, *width)
+            }
+            _ => {
+                self.counters.bump(Counter::EngineComputedRecordBailFontPhase);
+                return None;
+            }
+        };
+        let font_optical_sizing = match value_of(&table, prop::FONT_OPTICAL_SIZING) {
+            Some(StyleValueData::Keyword { keyword }) => {
+                crate::css::css_enums::keyword_to_font_optical_sizing(*keyword).unwrap_or(0)
+            }
+            _ => 0,
+        };
+        let request = bridge::FfiFontResolutionRequest {
+            font_family: font_family.cast(),
+            font_size_raw,
+            font_slope,
+            font_weight,
+            font_width,
+            font_optical_sizing,
+            font_environment_generation: inputs.font_environment_generation,
+        };
+        let Some(resolved) = self
+            .font_resolver
+            .as_mut()
+            .and_then(|resolver| resolver.resolve(request))
+        else {
+            self.counters.bump(Counter::EngineComputedRecordBailFontPhase);
+            return None;
+        };
+        let own_metrics = |line_height: f64| FfiFontMetrics {
+            font_size,
+            x_height: f64::from(resolved.x_height),
+            cap_height: f64::from(resolved.ascent),
+            zero_advance: f64::from(resolved.zero_advance),
+            line_height,
+        };
+
+        let line_height_length = length_context(
+            own_metrics(parent_line_height_used),
+            results.font_metrics_depend_on_viewport_metrics,
+        );
+        drive(
+            &mut table,
+            &mut results,
+            &mut effective_color_scheme,
+            LONGHAND_DRIVE_PHASE_LINE_HEIGHT,
+            &raw const line_height_length,
+            std::ptr::null(),
+            std::ptr::null(),
+        );
+        drive(
+            &mut table,
+            &mut results,
+            &mut effective_color_scheme,
+            LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
+            std::ptr::null(),
+            std::ptr::null(),
+            std::ptr::null(),
+        );
+        effective_color_scheme = table.effective_color_scheme();
+
+        // The used line height, as the C++ working set reads it from the computed value.
+        let normal_line_height = f64::from(resolved.ascent.round() as i32 + resolved.descent.round() as i32);
+        let line_height_used = |table: &ComputedLonghandTable| -> Option<f64> {
+            match value_of(table, prop::LINE_HEIGHT)? {
+                StyleValueData::Keyword { keyword } if *keyword == keyword::NORMAL => Some(normal_line_height),
+                StyleValueData::Length { value, unit } if *unit == crate::css::style_compute::px_length_unit() => {
+                    Some(CssPixels::nearest_value_for(*value).to_double())
+                }
+                StyleValueData::Number { value } => Some(CssPixels::nearest_value_for(value * font_size).to_double()),
+                _ => None,
+            }
+        };
+        let Some(line_height_before_adjustments) = line_height_used(&table) else {
+            self.counters.bump(Counter::EngineComputedRecordBailFontPhase);
+            return None;
+        };
+        let remaining_length = length_context(
+            own_metrics(line_height_before_adjustments),
+            results.font_metrics_depend_on_viewport_metrics,
+        );
+        let input_line_height_metrics = if has(fact::CHECK_INPUT_LINE_HEIGHT) {
+            FfiInputLineHeightMetrics {
+                current_line_height: line_height_before_adjustments,
+                minimum_line_height: normal_line_height,
+            }
+        } else {
+            FfiInputLineHeightMetrics {
+                current_line_height: 0.0,
+                minimum_line_height: 0.0,
+            }
+        };
+        let line_height_value = table.effective_value(None, prop::LINE_HEIGHT, true).value;
+        drive(
+            &mut table,
+            &mut results,
+            &mut effective_color_scheme,
+            LONGHAND_DRIVE_PHASE_REMAINING,
+            &raw const remaining_length,
+            &raw const input_line_height_metrics,
+            line_height_value,
+        );
+        if results.explicitly_inherited_non_inherited_style_groups != 0 || results.uses_tree_counting_function {
+            self.counters.bump(Counter::EngineComputedRecordBailDrive);
+            return None;
+        }
+        let Some(line_height_used_after) = line_height_used(&table) else {
+            self.counters.bump(Counter::EngineComputedRecordBailFontPhase);
+            return None;
+        };
+        let keyword_code = |property: u16, map: fn(u16) -> Option<u8>| match value_of(&table, property) {
+            Some(StyleValueData::Keyword { keyword }) => map(*keyword).unwrap_or(0),
+            _ => 0,
+        };
+        let math_depth = match value_of(&table, prop::MATH_DEPTH) {
+            Some(StyleValueData::Integer { value }) => *value,
+            _ => 0,
+        };
+        let font = FfiFontGroupBuildInputs {
+            font_size_raw,
+            line_height_used_raw: CssPixels::nearest_value_for(line_height_used_after).raw_value(),
+            font_variant_emoji: keyword_code(
+                prop::FONT_VARIANT_EMOJI,
+                crate::css::css_enums::keyword_to_font_variant_emoji,
+            ),
+            font_ascent: resolved.ascent,
+            font_descent: resolved.descent,
+            font_x_height: resolved.x_height,
+            font_zero_advance: resolved.zero_advance,
+            first_available_font: resolved.first_available_font,
+            font_cascade_list: resolved.font_cascade_list,
+            font_weight,
+            font_width,
+            math_shift: keyword_code(prop::MATH_SHIFT, crate::css::css_enums::keyword_to_math_shift),
+            math_style: keyword_code(prop::MATH_STYLE, crate::css::css_enums::keyword_to_math_style),
+            math_depth,
+        };
+        let length = FfiLengthResolutionContext {
+            resolved_viewport_relative_length: std::ptr::null_mut(),
+            ..remaining_length
+        };
+        Some((table, length, results.longhand_evaluations, Some(font)))
+    }
+
+    /// Whether every cascade winner that moved on this node since its record was computed is a
+    /// longhand the engine computes itself. Such a change cannot reach the node's descendants:
+    /// nothing inherited moves, and no custom property does, so a descendant's engine-computed
+    /// record stays exact even though this ancestor changes in the same batch.
+    pub(super) fn winner_delta_is_engine_confined(&self, node: StyleNodeID) -> bool {
+        let target = computed::ComputedStyleTarget::new(node, u8::MAX);
+        let Lookup::Known((generation, state)) = self
+            .winner_groups
+            .token_for(WinnerGroupKey::current(node, self.program.version()))
+        else {
+            return false;
+        };
+        let Some((previous_generation, previous_state)) = self.computed_group_sets.cascade_state(target) else {
+            return false;
+        };
+        if previous_generation != generation {
+            return false;
+        }
+        // A descendant's engine-computed record is assembled before C++ applies the ancestor, so
+        // nothing the descendant inherits may move; custom properties inherit unless registered
+        // otherwise.
+        self.winner_groups
+            .semantic_delta(Some(previous_state), state)
+            .properties()
+            .iter()
+            .all(|&property| {
+                property != crate::css::property_metadata::property_id::CUSTOM
+                    && !crate::css::property_metadata::property_is_inherited(property)
+            })
     }
 
     /// Publish the immutable computed-group payloads of one element's base style. This assigns
@@ -312,6 +1736,8 @@ impl StyleEngine {
     ) -> computed::ComputedGroupPublication {
         let current_cascade_state =
             target.and_then(|target| self.computed_group_sets.take_pending_cascade_state(target));
+        let is_base_record = metadata_input.animation_overlay_identity == 0;
+        let pseudo_styles = metadata_input.pseudo_element_styles;
         let publication = self.computed_group_sets.publish(
             target,
             payloads,
@@ -327,6 +1753,14 @@ impl StyleEngine {
                 .and_then(|(previous_generation, previous_state)| {
                     (previous_generation == current_generation).then_some(previous_state)
                 });
+            self.remember_cold_record_candidate(
+                target,
+                (current_generation, current_cascade_state),
+                custom_property_environment,
+                pseudo_styles,
+                publication.style_record_identity,
+                is_base_record,
+            );
             let delta = self
                 .winner_groups
                 .semantic_delta(previous_cascade_state, current_cascade_state);
@@ -1019,6 +2453,30 @@ impl StyleEngine {
         }
     }
 
+    /// Carry the exact winner state behind a style an element hands back unchanged into its next
+    /// publication. Reuse is granted only when the record's inputs are the ones the cascade ran
+    /// on, so the state bound by that cascade still describes the element's winners.
+    pub(crate) fn retain_exact_cascade_state(&mut self, node: StyleNodeID) {
+        let target = computed::ComputedStyleTarget::new(node, u8::MAX);
+        let Some((generation, state)) = self.computed_group_sets.cascade_state(target) else {
+            return;
+        };
+        verify_cascade_winners(self, |engine| {
+            if let Lookup::Known(current) = engine
+                .winner_groups
+                .token_for(WinnerGroupKey::current(node, engine.program.version()))
+            {
+                assert_eq!(
+                    current,
+                    (generation, state),
+                    "a reused style must keep the winner state its cascade bound"
+                );
+            }
+        });
+        self.computed_group_sets
+            .set_pending_cascade_state(target, (generation, state));
+    }
+
     /// Bind an exact winner state to a style-sharing publication which consumes the same complete
     /// cascade input without running the C++ cascade.
     pub(crate) fn prepare_shared_exact_cascade_state(&mut self, node: StyleNodeID) {
@@ -1110,4 +2568,148 @@ impl StyleEngine {
         );
         Some(removed_style_record)
     }
+}
+
+/// What a first record was derived from: the parent's side of the computation, the winner state
+/// (with the generation its identity belongs to), the element facts, the pseudo-elements the
+/// element has rules for, and the font environment.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub(super) struct ColdRecordKey {
+    parent: ColdRecordParent,
+    generation: u64,
+    state: CascadeStateID,
+    facts: u32,
+    /// The pseudo-elements the element has rules for: the record's metadata says which, and
+    /// C++ computes their styles beside it.
+    pseudo_styles: u64,
+    font_environment_generation: u64,
+}
+
+/// What a first record reads of the parent's style: its inherited groups, its custom-property
+/// environment, its dependency flags, and the display the box-type transformation takes as the
+/// parent's. A state that explicitly inherits a non-inherited property reads the parent's whole
+/// table, so it keys on the parent's record instead.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+struct ColdRecordParent {
+    record: u64,
+    inherited_groups: u32,
+    environment: u64,
+    dependency_flags: u8,
+    parent_display: u32,
+}
+
+/// A first record the engine keeps for reuse, with the swap eligibility its assignment carries.
+#[derive(Clone, Copy)]
+pub(super) struct ColdRecord {
+    record: computed::FinalStyleRecordID,
+    swap_eligible: bool,
+}
+
+/// First records the engine keeps for reuse; cleared wholesale past this many entries.
+const COLD_RECORD_CACHE_LIMIT: usize = 4096;
+
+/// A record the engine derived for a published reaction, awaiting C++'s installation.
+pub(super) struct PendingEngineComputedRecord {
+    node: StyleNodeID,
+    old_style_record: computed::FinalStyleRecordID,
+    new_style_record: computed::FinalStyleRecordID,
+    cascade_state: (u64, CascadeStateID),
+    /// Longhands the drive evaluated for the record; counted once C++ installs it.
+    longhand_evaluations: u32,
+}
+
+/// What one flush accumulates while deriving engine-computed records: the record each cohort
+/// (an old record moved to a winner state) derived, and the cascade each winner state describes.
+#[derive(Default)]
+pub(super) struct EngineComputedRecordScratch {
+    pub(super) cohorts: HashMap<(u64, CascadeStateID), computed::FinalStyleRecordID>,
+    /// First records derived this flush, by what they were derived from.
+    pub(super) cold_cohorts: HashMap<ColdRecordKey, ColdRecord>,
+    pub(super) stores: HashMap<CascadeStateID, std::rc::Rc<CascadedPropertyStore>>,
+}
+
+impl EngineComputedRecordScratch {
+    pub(super) fn capacity_bytes(&self) -> u64 {
+        ((self.cohorts.capacity() + self.cold_cohorts.capacity())
+            * size_of::<((u64, CascadeStateID), computed::FinalStyleRecordID)>()
+            + self.stores.capacity() * size_of::<(CascadeStateID, std::rc::Rc<CascadedPropertyStore>)>()) as u64
+    }
+}
+
+/// The value a shorthand value carries for one of its longhands, through nested shorthands.
+fn shorthand_longhand_value(
+    property: u16,
+    data: &crate::css::style_value::StyleValueData,
+) -> Option<crate::css::style_value::RetainedStyleValueData> {
+    let crate::css::style_value::StyleValueData::Shorthand {
+        sub_properties, values, ..
+    } = data
+    else {
+        return None;
+    };
+    for (&sub_property, sub_value) in sub_properties.as_slice().iter().zip(values.as_slice()) {
+        let sub_data = unsafe { &*sub_value.pointer().cast::<crate::css::style_value::StyleValueData>() };
+        if sub_property == property {
+            return Some(unsafe {
+                crate::css::style_value::RetainedStyleValueData::from_retained_pointer(
+                    crate::css::style_value::retain_style_value(sub_data),
+                )
+            });
+        }
+        if let Some(found) = shorthand_longhand_value(property, sub_data) {
+            return Some(found);
+        }
+    }
+    None
+}
+
+/// Whether a longhand computes in the drive's remaining phase: after the font, line-height and
+/// color-scheme stages, whose outputs the engine does not derive itself yet.
+fn property_computes_in_remaining_phase(property: u16) -> bool {
+    use crate::css::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, LONGHAND_WORD_COUNT};
+    use crate::css::style_compute::{LONGHAND_DRIVE_PHASE_REMAINING, property_computation_order_for_phase};
+    static REMAINING: std::sync::OnceLock<[u64; LONGHAND_WORD_COUNT]> = std::sync::OnceLock::new();
+    let words = REMAINING.get_or_init(|| {
+        let mut words = [0_u64; LONGHAND_WORD_COUNT];
+        for &property in property_computation_order_for_phase(LONGHAND_DRIVE_PHASE_REMAINING) {
+            let index = usize::from(property - FIRST_LONGHAND_PROPERTY_ID);
+            words[index / 64] |= 1 << (index % 64);
+        }
+        words
+    });
+    let Some(index) = property.checked_sub(FIRST_LONGHAND_PROPERTY_ID).map(usize::from) else {
+        return false;
+    };
+    index / 64 < words.len() && words[index / 64] & (1 << (index % 64)) != 0
+}
+
+/// Whether a longhand's new value would start an animation or a transition in the C++
+/// computation, register anchor names there, or feed the counter-style environment identity it
+/// resolves.
+fn property_starts_animation_or_counter_environment(property: u16) -> bool {
+    use crate::css::property_metadata::{
+        FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, property_id as prop, property_style_group_index,
+    };
+    if !(FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property) {
+        return true;
+    }
+    matches!(property, prop::CONTENT | prop::LIST_STYLE_TYPE | prop::ANCHOR_NAME)
+        || property_style_group_index(property)
+            .is_some_and(|group| usize::from(group) == crate::css::table_group_builder::group_index::ANIMATION)
+}
+
+/// Whether a written value computes from the record, the parent and the document's computation
+/// inputs alone: no custom-property substitution, and none of the element or sheet facts the C++
+/// computation gathers per drive.
+fn value_computes_without_document_context(value: &StyleValueData) -> bool {
+    if matches!(value, StyleValueData::Unresolved { .. }) {
+        return false;
+    }
+    let dependencies = crate::css::style_compute::external_value_dependencies(value);
+    !dependencies.uses_tree_counting_function
+        && dependencies.container_relative_length_unit_mask == 0
+        && !dependencies.has_unfixed_random_sharing
+        && !dependencies.uses_random_function
+        && !dependencies.needs_document_base_url
+        && !dependencies.may_need_style_sheet_resource_context
 }

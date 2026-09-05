@@ -41,6 +41,7 @@ use crate::css::computed_values::replaying_style_groups;
 use crate::css::computed_values::retain_group_payload;
 use crate::css::computed_values::retained_group_payload_bytes;
 use crate::css::computed_values::style_group_payloads_equal;
+use crate::css::computed_values::style_group_payloads_hold_image_values;
 use crate::css::style_value::RetainedStyleValueData;
 use crate::css::style_value::retained_value_depends_on_color_scheme;
 use crate::css::style_value::retained_value_depends_on_current_color;
@@ -52,6 +53,18 @@ pub(crate) const INHERITED_GROUP_SWAP_ELIGIBLE: u8 = 1 << 3;
 /// The record holds an `<image>` in a property whose images a layout node loads and observes.
 /// Derived from the published payloads; see `style_group_payloads_hold_image_values`.
 pub(crate) const HOLDS_IMAGE_VALUES: u8 = 1 << 4;
+
+/// The inherited style groups lead every group tuple; a node's inherited-group column names them.
+pub(super) const ENGINE_INHERITED_GROUP_COUNT: usize = 7;
+
+/// What assembling an engine-computed record produced, for the publication counters.
+pub(super) struct EngineComputedAssembly {
+    pub(super) delta: (FinalStyleRecordID, FinalStyleRecordID),
+    /// Rebuilt groups whose payload equalled the old one and kept its identity.
+    pub(super) canonicalized_groups: u32,
+    /// Whether the node's group tuple identity stayed put, so nothing propagates from it.
+    pub(super) group_set_unchanged: bool,
+}
 const COMPUTED_VALUE_DEPENDENCY_FLAGS: u8 = (INHERITED_GROUP_SWAP_ELIGIBLE - 1) | HOLDS_IMAGE_VALUES;
 
 define_id! { pub struct ComputedGroupID(); }
@@ -129,6 +142,9 @@ struct ComputedFixedMetadata {
 /// the source-slot sidecar is per-drive and does not participate in identity.
 struct RetainedLonghandTable {
     table: *const ComputedLonghandTable,
+    /// The order-sensitive sum of the table's per-slot value hashes: the part of the table's
+    /// publication hash a patched copy can adjust slot by slot instead of rehashing every value.
+    slot_hash_sum: u64,
 }
 
 impl RetainedLonghandTable {
@@ -214,6 +230,8 @@ pub struct ComputedMetadataInput<'a> {
 pub struct FinalStyleRecordID(u64);
 
 impl FinalStyleRecordID {
+    /// No record: what a node holds before its first publication.
+    pub(crate) const NONE: Self = Self(0);
     const ANIMATION_OVERLAY_TAG: u64 = 1 << 63;
     const MAX_BASE_GENERATION: u32 = (1 << 31) - 1;
 
@@ -310,6 +328,9 @@ struct PublishedComputedColumns {
     cascade_versions: Vec<u64>,
     cascade_states: Vec<u32>,
     flags: Vec<u8>,
+    /// The element facts the style computation's adjustments read; see
+    /// `bridge::element_adjustment_fact`.
+    adjustment_facts: Vec<u32>,
 }
 
 impl PublishedComputedColumns {
@@ -332,6 +353,7 @@ impl PublishedComputedColumns {
         self.cascade_versions.resize(len, 0);
         self.cascade_states.resize(len, 0);
         self.flags.resize(len, 0);
+        self.adjustment_facts.resize(len, 0);
     }
 
     fn is_assigned(&self, index: usize) -> bool {
@@ -875,7 +897,19 @@ impl ComputedGroupSets {
                 return candidate;
             }
         }
-        let hash = longhand_table_hash(table);
+        self.intern_longhand_table_with_slot_hash_sum(table, longhand_table_slot_hash_sum(table))
+    }
+
+    /// Intern a frozen table whose per-slot hash sum the caller already knows, from the table it
+    /// was patched from.
+    fn intern_longhand_table_with_slot_hash_sum(
+        &mut self,
+        table: &ComputedLonghandTable,
+        slot_hash_sum: u64,
+    ) -> ComputedLonghandTableID {
+        debug_assert!(table.is_frozen(), "only frozen longhand tables are published");
+        debug_assert_eq!(slot_hash_sum, longhand_table_slot_hash_sum(table));
+        let hash = longhand_table_hash_with_slot_hash_sum(table, slot_hash_sum);
         if let Some(identity) = self
             .computed_longhand_tables
             .find(hash, |_identity, candidate| candidate.table().publication_equals(table))
@@ -891,8 +925,14 @@ impl ComputedGroupSets {
         let retained = unsafe { crate::css::computed_longhand_table::rust_computed_longhand_table_retain(table) };
         self.longhand_table_nested_memory
             .grow_committed(size_of_val(table.value_pointers()) as u64);
-        self.computed_longhand_tables
-            .insert(hash, identity, RetainedLonghandTable { table: retained });
+        self.computed_longhand_tables.insert(
+            hash,
+            identity,
+            RetainedLonghandTable {
+                table: retained,
+                slot_hash_sum,
+            },
+        );
         identity
     }
 
@@ -1109,6 +1149,261 @@ impl ComputedGroupSets {
             self.final_base_style_record(old_style_record),
             self.final_base_style_record(new_style_record),
         ))
+    }
+
+    /// Assemble a new base record for `node` from a longhand table the engine drove itself. The
+    /// table began as a copy of the node's current one, so its hash adjusts slot by slot; the
+    /// groups `groups_to_rebuild` names are rebuilt from it, and the record's fixed metadata
+    /// follows the table's dependency flags. The font group is never rebuilt here: it needs
+    /// platform font resources the table does not hold.
+    ///
+    /// This decides only whether the record can be assembled here: the node must hold a retained
+    /// longhand table, must not carry an animation overlay, and must have published under the
+    /// same eligibility the inherited-group swap needs. Its pseudo-elements' records are
+    /// untouched: they inherit from the element, and the caller has proven that nothing they
+    /// inherit moved.
+    pub(super) fn replace_engine_computed_table(
+        &mut self,
+        node: StyleNodeID,
+        mut table: ComputedLonghandTable,
+        groups_to_rebuild: u32,
+        length: &crate::css::style_compute::FfiLengthResolutionContext,
+        font: Option<&crate::css::table_group_builder::FfiFontGroupBuildInputs>,
+    ) -> Option<EngineComputedAssembly> {
+        use crate::css::computed_value_types::STYLE_GROUP_INDEX_FONT;
+        if groups_to_rebuild == 0 || (groups_to_rebuild & (1 << STYLE_GROUP_INDEX_FONT) != 0 && font.is_none()) {
+            return None;
+        }
+        let index = node.element_index()? as usize;
+        if !self.columns.inherited_group_swap_eligible(index) || self.columns.animation_overlay_slot(index).is_some() {
+            return None;
+        }
+        let old_style_record = *self.style_record_column.get(index)?.as_ref()?;
+        let old_record = *self.style_records.get_index(old_style_record.index())?;
+        let old_table = old_record.longhand_table?;
+        let old_group_set = self.sets.get_index(old_record.groups.0 as usize)?;
+        let old_payloads = old_group_set.payloads.to_vec();
+        if groups_to_rebuild >> old_payloads.len() != 0
+            || old_payloads.len() <= crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_UI
+        {
+            return None;
+        }
+        let used_color_scheme = unsafe {
+            let inherited_ui = &*old_payloads[crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_UI]
+                .cast::<crate::css::computed_value_types::InheritedUIValues>();
+            inherited_ui.color_scheme
+        };
+        // The builders take the element's own color from the caller, so it is resolved from the
+        // driven table before any group reads it.
+        let current_color =
+            crate::css::table_group_builder::own_color_from_table(&table, used_color_scheme, Some(length))?;
+        let (table, slot_hash_sum) = {
+            let retained = &self.computed_longhand_tables[old_table];
+            let source = retained.table();
+            let mut slot_hash_sum = retained.slot_hash_sum;
+            let old_values = source.value_pointers();
+            let new_values = table.value_pointers();
+            for slot in 0..old_values.len() {
+                if old_values[slot] != new_values[slot] {
+                    slot_hash_sum = slot_hash_sum
+                        .wrapping_sub(longhand_slot_hash(slot, old_values[slot]))
+                        .wrapping_add(longhand_slot_hash(slot, new_values[slot]));
+                }
+            }
+            table.freeze();
+            (table.into_raw_shared(), slot_hash_sum)
+        };
+        let release_table = |table: *const ComputedLonghandTable| unsafe {
+            crate::css::computed_longhand_table::rust_computed_longhand_table_release(table.cast_mut());
+        };
+
+        let mut groups = self.group_identities(old_record.groups);
+        let mut canonicalized_groups = 0_u32;
+        for group in 0..groups.len() {
+            if groups_to_rebuild & (1 << group) == 0 {
+                continue;
+            }
+            let payload = if group == STYLE_GROUP_INDEX_FONT {
+                unsafe {
+                    crate::css::table_group_builder::rebuild_font_group_from_table(
+                        &*table,
+                        font.expect("a font group rebuild carries the resolved font"),
+                        old_payloads[group],
+                    )
+                }
+            } else {
+                unsafe {
+                    crate::css::table_group_builder::rebuild_group_from_table(
+                        &*table,
+                        group,
+                        old_payloads[group],
+                        current_color,
+                        used_color_scheme,
+                        Some(length),
+                    )
+                }
+            };
+            let Some(payload) = payload else {
+                release_table(table);
+                return None;
+            };
+            // An equal payload keeps the old identity, as a C++ build adopts its parent's and
+            // predecessor's identical payloads.
+            let identity = if payload == old_payloads[group]
+                || style_group_payloads_equal(group, old_payloads[group], payload)
+            {
+                canonicalized_groups += 1;
+                groups[group]
+            } else if let Some(identity) = self
+                .groups
+                .find(content_hash((group, payload as usize)), |_identity, candidate| {
+                    candidate.index == group && candidate.payload == payload
+                })
+            {
+                identity
+            } else {
+                retain_group_payload(group, payload);
+                let identity = self.groups.take_free_identity().unwrap_or_else(|| {
+                    ComputedGroupID(u32::try_from(self.groups.len()).expect("computed group identity space exhausted"))
+                });
+                self.groups.insert(
+                    content_hash((group, payload as usize)),
+                    identity,
+                    ComputedGroup { index: group, payload },
+                );
+                self.group_set_nested_memory
+                    .grow_committed(retained_group_payload_bytes(group, payload) as u64);
+                identity
+            };
+            release_group_payload(group, payload);
+            groups[group] = identity;
+        }
+        let group_set = self.intern_group_set(&groups).0;
+        let holds_image_values = self
+            .sets
+            .get_index(group_set.0 as usize)
+            .is_some_and(|set| style_group_payloads_hold_image_values(&set.payloads));
+        let old_metadata = self.computed_fixed_metadata[old_record.fixed_metadata];
+        let dependency_flags = unsafe { &*table }.publication_dependency_flags()
+            | (old_metadata.dependency_flags & INHERITED_GROUP_SWAP_ELIGIBLE)
+            | (u8::from(holds_image_values) * HOLDS_IMAGE_VALUES);
+        let fixed_metadata = if dependency_flags == old_metadata.dependency_flags {
+            old_record.fixed_metadata
+        } else {
+            self.intern_fixed_metadata(ComputedFixedMetadata {
+                dependency_flags,
+                ..old_metadata
+            })
+        };
+        let longhand_table = self.intern_longhand_table_with_slot_hash_sum(unsafe { &*table }, slot_hash_sum);
+        release_table(table);
+        let inherited_identity = self
+            .intern_inherited_group_set(&groups[..ENGINE_INHERITED_GROUP_COUNT])
+            .0;
+        let new_record = StyleRecord {
+            groups: group_set,
+            inherited_groups: inherited_identity,
+            custom_properties: old_record.custom_properties,
+            fixed_metadata,
+            longhand_table: Some(longhand_table),
+        };
+        let new_style_record = self.intern_style_record(new_record).0;
+        // Descendant swaps read the node's inherited groups from their own column.
+        self.columns.groups[index] = group_set.0;
+        self.columns.inherited_groups[index] = inherited_identity.0;
+        self.style_record_column[index] = Some(new_style_record);
+        Some(EngineComputedAssembly {
+            delta: (
+                self.final_base_style_record(old_style_record),
+                self.final_base_style_record(new_style_record),
+            ),
+            canonicalized_groups,
+            group_set_unchanged: group_set == old_record.groups,
+        })
+    }
+
+    /// Put a node back on the record it held before an engine derivation C++ never installed,
+    /// unless a publication has moved it on since.
+    pub(super) fn revert_engine_computed_record(
+        &mut self,
+        node: StyleNodeID,
+        derived_style_record: FinalStyleRecordID,
+        previous_style_record: FinalStyleRecordID,
+    ) {
+        let Some(index) = node.element_index().map(|index| index as usize) else {
+            return;
+        };
+        let Some(current) = self.style_record_column.get(index).copied().flatten() else {
+            return;
+        };
+        if self.final_base_style_record(current) != derived_style_record {
+            return;
+        }
+        // A first record never installed leaves the node the way it was: unassigned.
+        if previous_style_record == FinalStyleRecordID::NONE {
+            self.remove(node);
+            return;
+        }
+        let Some(previous_base) = previous_style_record.base_record() else {
+            return;
+        };
+        let Some(record) = self.style_records.get_index(previous_base.index()).copied() else {
+            return;
+        };
+        let groups = self.group_identities(record.groups);
+        let inherited_identity = self
+            .intern_inherited_group_set(&groups[..ENGINE_INHERITED_GROUP_COUNT])
+            .0;
+        self.columns.groups[index] = record.groups.0;
+        self.columns.inherited_groups[index] = inherited_identity.0;
+        self.style_record_column[index] = Some(previous_base);
+    }
+
+    fn intern_fixed_metadata(&mut self, metadata: ComputedFixedMetadata) -> ComputedFixedMetadataID {
+        if let Some(identity) = self
+            .computed_fixed_metadata
+            .find(content_hash(metadata), |_identity, candidate| *candidate == metadata)
+        {
+            return identity;
+        }
+        let identity = self.computed_fixed_metadata.take_free_identity().unwrap_or_else(|| {
+            ComputedFixedMetadataID(
+                u32::try_from(self.computed_fixed_metadata.len())
+                    .expect("computed fixed-metadata identity space exhausted"),
+            )
+        });
+        self.computed_fixed_metadata
+            .insert(content_hash(metadata), identity, metadata);
+        identity
+    }
+
+    /// Assign a node the record another node of its cohort already derived this flush: the same
+    /// old record moved to the same new winner state produces the same new record, so only the
+    /// node's columns move.
+    pub(super) fn assign_engine_computed_record(
+        &mut self,
+        node: StyleNodeID,
+        old_style_record: FinalStyleRecordID,
+        new_style_record: FinalStyleRecordID,
+    ) -> Option<(FinalStyleRecordID, FinalStyleRecordID)> {
+        let index = node.element_index()? as usize;
+        if !self.columns.inherited_group_swap_eligible(index) || self.columns.animation_overlay_slot(index).is_some() {
+            return None;
+        }
+        let current = *self.style_record_column.get(index)?.as_ref()?;
+        if self.final_base_style_record(current) != old_style_record {
+            return None;
+        }
+        let new_base_record = new_style_record.base_record()?;
+        let new_record = *self.style_records.get_index(new_base_record.index())?;
+        let groups = self.group_identities(new_record.groups);
+        let inherited_identity = self
+            .intern_inherited_group_set(&groups[..ENGINE_INHERITED_GROUP_COUNT])
+            .0;
+        self.columns.groups[index] = new_record.groups.0;
+        self.columns.inherited_groups[index] = inherited_identity.0;
+        self.style_record_column[index] = Some(new_base_record);
+        Some((old_style_record, new_style_record))
     }
 
     fn next_animation_overlay_record(&mut self) -> FinalStyleRecordID {
@@ -1992,8 +2287,56 @@ impl ComputedGroupSets {
         self.specified_value_dependency_properties(target, retained_value_may_depend_on_font_metrics)
     }
 
-    /// Bind a published base style to the complete cascade state it consumed, returning the state
-    /// used by the preceding publication for the same style target.
+    /// Whether a raw final record identity still names a live base record.
+    pub fn final_style_record_is_live(&self, raw_style_record: u64) -> bool {
+        let final_style_record = FinalStyleRecordID(raw_style_record);
+        final_style_record
+            .base_record()
+            .is_some_and(|record| self.style_record_generation_is_live(record, final_style_record.base_generation()))
+    }
+
+    /// The raw custom-property environment identity behind a node's record.
+    pub fn custom_property_environment_identity(&self, node: StyleNodeID) -> Option<u64> {
+        let index = node.element_index()? as usize;
+        let identity = self.columns.custom_properties(index)?;
+        Some(self.custom_property_environments[identity])
+    }
+
+    /// The raw custom-property environment identity a record was published with.
+    pub fn style_record_custom_property_environment(&self, raw_style_record: u64) -> Option<u64> {
+        let record = self
+            .style_records
+            .get_index(FinalStyleRecordID(raw_style_record).base_record()?.index())?;
+        Some(self.custom_property_environments[record.custom_properties])
+    }
+
+    pub fn set_adjustment_facts(&mut self, node: StyleNodeID, facts: u32) {
+        let Some(index) = node.element_index().map(|index| index as usize) else {
+            return;
+        };
+        self.columns.ensure(index);
+        self.columns.adjustment_facts[index] = facts;
+    }
+
+    /// The identity of the inherited groups a node's published style carries.
+    pub(super) fn node_inherited_groups_identity(&self, node: StyleNodeID) -> Option<u32> {
+        let index = node.element_index()? as usize;
+        self.columns.inherited_groups(index).map(|identity| identity.0)
+    }
+
+    /// Whether the node's assignment may take an inherited-group swap.
+    pub(super) fn node_inherited_group_swap_eligible(&self, node: StyleNodeID) -> bool {
+        node.element_index()
+            .is_some_and(|index| self.columns.inherited_group_swap_eligible(index as usize))
+    }
+
+    pub fn adjustment_facts(&self, node: StyleNodeID) -> u32 {
+        node.element_index()
+            .and_then(|index| self.columns.adjustment_facts.get(index as usize))
+            .copied()
+            .unwrap_or(0)
+    }
+
     pub fn bind_cascade_state(
         &mut self,
         target: ComputedStyleTarget,
@@ -2103,7 +2446,7 @@ impl ComputedGroupSets {
     #[must_use]
     pub fn custom_property_environment_capacity_bytes(&self) -> u64 {
         capacity_bytes! {
-            shallow [self.custom_property_environments, self.columns.custom_properties];
+            shallow [self.custom_property_environments, self.columns.custom_properties, self.columns.adjustment_facts];
             cached [];
             nested [];
             skip [];
@@ -2336,11 +2679,13 @@ impl ComputedGroupSets {
             if reachable.longhand_tables[identity.index()] {
                 continue;
             }
-            let hash = longhand_table_hash(self.computed_longhand_tables[identity].table());
+            let retained = &self.computed_longhand_tables[identity];
+            let hash = longhand_table_hash_with_slot_hash_sum(retained.table(), retained.slot_hash_sum);
             let table = std::mem::replace(
                 self.computed_longhand_tables.get_mut(identity),
                 RetainedLonghandTable {
                     table: std::ptr::null(),
+                    slot_hash_sum: 0,
                 },
             );
             self.longhand_table_nested_memory
@@ -2683,11 +3028,33 @@ fn content_hash(content: impl Hash) -> u64 {
     hasher.finish()
 }
 
+/// One slot's contribution to a table's slot hash sum: the value's content hash mixed with the
+/// slot, so the sum is order-sensitive while any slot's share can be subtracted and replaced.
+fn longhand_slot_hash(slot: usize, value: *const c_void) -> u64 {
+    let content = unsafe { crate::css::style_value::style_value_content_hash(value.cast()) };
+    (content ^ (slot as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15))
+        .wrapping_mul(0x2545_F491_4F6C_DD1D)
+        .rotate_left((slot as u32) & 63)
+}
+
+fn longhand_table_slot_hash_sum(table: &ComputedLonghandTable) -> u64 {
+    table
+        .value_pointers()
+        .iter()
+        .enumerate()
+        .fold(0_u64, |sum, (slot, &value)| {
+            sum.wrapping_add(longhand_slot_hash(slot, value))
+        })
+}
+
+#[cfg(test)]
 fn longhand_table_hash(table: &ComputedLonghandTable) -> u64 {
+    longhand_table_hash_with_slot_hash_sum(table, longhand_table_slot_hash_sum(table))
+}
+
+fn longhand_table_hash_with_slot_hash_sum(table: &ComputedLonghandTable, slot_hash_sum: u64) -> u64 {
     let mut hasher = fast_hasher();
-    for &value in table.value_pointers() {
-        unsafe { crate::css::style_value::style_value_content_hash(value.cast()) }.hash(&mut hasher);
-    }
+    slot_hash_sum.hash(&mut hasher);
     table.importance_bits().hash(&mut hasher);
     table.inheritance_bits().hash(&mut hasher);
     table.publication_sidecars().hash(&mut hasher);

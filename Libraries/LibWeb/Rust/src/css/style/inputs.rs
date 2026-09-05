@@ -78,6 +78,9 @@ impl StyleEngine {
             computed_group_sets: ComputedGroupSets::default(),
             pending_element_style_computation_selections: HashMap::default(),
             pending_pseudo_style_computation_selections: HashMap::default(),
+            engine_computed_records_pending: Vec::new(),
+            engine_cold_record_cache: HashMap::default(),
+            engine_computable_states: HashMap::default(),
             computed_group_set_memory: MemoryLease::new(MemoryCategory::ComputedGroupSet),
             custom_property_environment_memory: MemoryLease::new(MemoryCategory::CustomPropertyEnvironment),
             computed_fixed_metadata_memory: MemoryLease::new(MemoryCategory::ComputedFixedMetadata),
@@ -969,6 +972,8 @@ impl StyleEngine {
                 FeatureValue::Number(u32::from(arrival.heading_level)),
             );
         }
+        self.computed_group_sets
+            .set_adjustment_facts(node, arrival.adjustment_facts);
         for &state in custom_states {
             self.record_batched_input(
                 InputKey::LocalFeature(node, LocalFeatureKey::CustomState(state)),
@@ -1453,6 +1458,11 @@ impl StyleEngine {
     /// Record that an element is a `<slot>`, which decides whether `::slotted()` can name it.
     pub fn set_element_is_slot(&mut self, node: StyleNodeID, is_slot: bool) {
         self.facts.set_is_slot(node, is_slot);
+    }
+
+    /// Replace the element facts the style computation's adjustments read.
+    pub fn set_element_adjustment_facts(&mut self, node: StyleNodeID, facts: u32) {
+        self.computed_group_sets.set_adjustment_facts(node, facts);
     }
 
     pub fn set_element_heading_level(&mut self, node: StyleNodeID, level: u8) {

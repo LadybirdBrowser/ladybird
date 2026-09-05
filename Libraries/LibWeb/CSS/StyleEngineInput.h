@@ -78,6 +78,32 @@ WEB_API void record_element_custom_states_changed(DOM::Element&);
 // publishes the value it now resolves to.
 WEB_API void record_element_language_and_directionality(DOM::Element&);
 WEB_API void record_element_directionality(DOM::Element&);
+
+// The element facts the style computation's box-type transformation and element style adjustments
+// read of the DOM. Mirrors Rust `element_adjustment_fact`.
+enum ElementStyleAdjustmentFact : u32 {
+    IsBr = 1 << 0,
+    IsWbr = 1 << 1,
+    DisallowDisplayContents = 1 << 2,
+    RewriteInlineFlow = 1 << 3,
+    IsButton = 1 << 4,
+    ForceLineHeightNormal = 1 << 5,
+    CheckInputLineHeight = 1 << 6,
+    HideAudioWithoutControls = 1 << 7,
+    IsTable = 1 << 8,
+    ForcePositionStatic = 1 << 9,
+    ForceSymbolDisplayInline = 1 << 10,
+    IsMathML = 1 << 11,
+    IsMathMLMtable = 1 << 12,
+    IsMathMLMtr = 1 << 13,
+    IsMathMLMtd = 1 << 14,
+    IsTh = 1 << 15,
+    IsDocumentElement = 1 << 16,
+    HasAnimations = 1 << 17,
+    HasPresentationalHints = 1 << 18,
+};
+WEB_API u32 element_style_adjustment_facts(DOM::Element const&);
+WEB_API void record_element_adjustment_facts(DOM::Element&);
 WEB_API bool record_element_presentational_hint_properties(DOM::Element&, ReadonlySpan<StyleProperty>);
 WEB_API void record_element_animation_names(DOM::Element&, ReadonlySpan<Utf16FlyString>);
 WEB_API void record_element_custom_property_names(DOM::Element&, ReadonlySpan<Utf16FlyString>, bool uses_unnamed, bool uses_custom_functions);

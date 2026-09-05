@@ -1096,6 +1096,9 @@ public:
         u64 element_inherited_style_recomputations { 0 };
         u64 element_inherited_style_noop_recomputations { 0 };
         u64 element_inherited_style_group_swaps { 0 };
+        // Reactions whose new record the style engine computed itself, applied without a style
+        // computation.
+        u64 engine_computed_style_records { 0 };
         // Animation frames that rebuilt only the groups the animated properties write, against
         // frames that had to rebuild the whole style.
         u64 animated_style_reconstruction_fallbacks { 0 };

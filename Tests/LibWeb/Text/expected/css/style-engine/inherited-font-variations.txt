@@ -1,0 +1,4 @@
+inherited variation matches explicit: true
+variation changes width: true
+resized variation matches explicit: true
+updated variation matches explicit: true

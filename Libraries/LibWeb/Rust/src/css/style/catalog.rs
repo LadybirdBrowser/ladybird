@@ -1548,6 +1548,7 @@ pub(super) struct PendingRuleDeclarationChange {
 #[derive(Clone)]
 pub(super) struct PendingRuleDeclarations {
     pub(super) declared: Vec<DeclaredProperty>,
+    pub(super) written_values: Vec<crate::css::style_value::RetainedStyleValueData>,
     pub(super) complete: bool,
 }
 
