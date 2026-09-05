@@ -139,7 +139,7 @@ fn is_utf16_low_surrogate(code_unit: u16) -> bool {
 
 /// Mirrors AK::Utf16View::code_point_at, including its lone-surrogate
 /// pass-through behavior.
-fn code_point_at(text: &[u16], index: usize) -> u32 {
+pub(super) fn code_point_at(text: &[u16], index: usize) -> u32 {
     let code_unit = text[index];
     let code_point = u32::from(code_unit);
     if !is_utf16_high_surrogate(code_unit) && !is_utf16_low_surrogate(code_unit) {
@@ -166,7 +166,7 @@ fn previous_code_point_at(text: &[u16], index: &mut usize) -> u32 {
     code_point_at(text, *index)
 }
 
-fn code_unit_length_for_code_point(code_point: u32) -> usize {
+pub(super) fn code_unit_length_for_code_point(code_point: u32) -> usize {
     if code_point >= 0x10000 { 2 } else { 1 }
 }
 

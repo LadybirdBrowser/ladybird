@@ -57,8 +57,6 @@ protected:
 private:
     virtual bool is_text_node() const final { return true; }
 
-    using RenderedTextEdit = RustFFI::RenderedTextEdit;
-
     struct TextForRenderingCacheKey {
         CSS::TextTransform text_transform { CSS::TextTransform::None };
         CSS::WhiteSpaceCollapse white_space_collapse { CSS::WhiteSpaceCollapse::Collapse };
@@ -70,14 +68,7 @@ private:
         bool operator==(TextForRenderingCacheKey const&) const = default;
     };
 
-    struct TextForRendering {
-        Utf16String text;
-        Vector<RenderedTextEdit> edits;
-    };
-
-    static TextForRendering apply_text_transform(Utf16String const&, CSS::TextTransform, Optional<Utf16View> const& locale);
     TextForRenderingCacheKey create_text_for_rendering_cache_key() const;
-    TextForRendering compute_text_for_rendering(TextForRenderingCacheKey const&) const;
     void ensure_text_content() const;
 
     mutable Optional<TextForRenderingCacheKey> m_text_for_rendering_cache_key;

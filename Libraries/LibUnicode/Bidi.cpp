@@ -6,6 +6,7 @@
 
 #include <LibUnicode/Bidi.h>
 #include <LibUnicode/CharacterTypes.h>
+#include <LibUnicode/TextMapping.h>
 
 namespace Unicode {
 
@@ -36,4 +37,9 @@ bool may_require_bidi_processing(Utf16View const& text)
     return false;
 }
 
+}
+
+extern "C" bool unicode_text_may_require_bidi_processing(u16 const* text, size_t length)
+{
+    return Unicode::may_require_bidi_processing({ reinterpret_cast<char16_t const*>(text), length });
 }

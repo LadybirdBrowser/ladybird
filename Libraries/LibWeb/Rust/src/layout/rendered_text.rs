@@ -6,6 +6,8 @@
 
 use super::LayoutNodeArena;
 use super::node_data::NodeSlotId;
+use super::text_transform::{TextRenderingOptions, may_require_bidi_processing, render_text};
+use crate::css::ffi_support::FfiUtf16View;
 use std::cell::OnceCell;
 use std::ffi::c_void;
 
@@ -29,7 +31,7 @@ pub struct RenderedTextEdit {
 }
 
 /// Rendered text and its DOM offset mapping are published and invalidated together.
-/// C++ text transforms produce this snapshot; layout and painting only read it.
+/// Rust builds this snapshot from source text and rendering options; layout and painting read it.
 #[derive(Default)]
 pub(crate) struct TextContent {
     pub(crate) text: Vec<u16>,
@@ -95,7 +97,7 @@ impl TextContent {
     }
 }
 
-fn rendered_text_offset_for_dom_offset(
+pub(super) fn rendered_text_offset_for_dom_offset(
     edits: &[RenderedTextEdit],
     dom_base_offset: usize,
     offset: usize,
@@ -129,17 +131,17 @@ fn rendered_text_offset_for_dom_offset(
     previous_rendered_end + offset - previous_dom_end
 }
 
+#[derive(Clone, Copy)]
 #[repr(C)]
-pub struct FfiTextContent {
-    pub ascii_text: *const u8,
-    pub utf16_text: *const u16,
-    pub length_in_code_units: usize,
-    pub untransformed_text_is_ascii_whitespace: bool,
-    pub may_require_bidi_processing: bool,
+pub struct FfiTextSource {
+    pub text: FfiUtf16View,
+    pub locale: FfiUtf16View,
+    pub has_locale: bool,
+    pub is_password_input: bool,
+    pub text_transform: u8,
+    pub white_space_collapse: u8,
     pub dom_start_offset: usize,
     pub dom_length_in_code_units: usize,
-    pub edits: *const RenderedTextEdit,
-    pub edit_count: usize,
 }
 
 #[repr(C)]
@@ -151,37 +153,34 @@ pub struct FfiRenderedTextView {
 /// # Safety
 ///
 /// The arena must be exclusively available and `id` must name a live node.
-/// Input text and edits must remain readable for this call. Edits must describe
-/// ordered, non-overlapping length changes within the supplied DOM and rendered ranges.
+/// Source and optional locale views must remain readable throughout this call.
+/// The DOM range must be contained in the source text.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_text_content(arena: *mut c_void, id: NodeSlotId, input: FfiTextContent) {
-    let text = if input.length_in_code_units == 0 {
-        Vec::new()
-    } else if !input.ascii_text.is_null() {
-        // SAFETY: The host lends this ASCII buffer for the call.
-        unsafe { std::slice::from_raw_parts(input.ascii_text, input.length_in_code_units) }
-            .iter()
-            .map(|unit| u16::from(*unit))
-            .collect()
-    } else {
-        assert!(!input.utf16_text.is_null(), "text content push carries no storage");
-        // SAFETY: The host lends this UTF-16 buffer for the call.
-        unsafe { std::slice::from_raw_parts(input.utf16_text, input.length_in_code_units) }.to_vec()
-    };
-    let edits = if input.edit_count == 0 {
-        Vec::new()
-    } else {
-        assert!(!input.edits.is_null(), "text content push carries no edit storage");
-        // SAFETY: The host lends the edit array for the call.
-        unsafe { std::slice::from_raw_parts(input.edits, input.edit_count) }.to_vec()
-    };
+pub unsafe extern "C" fn layout_arena_build_text_content(arena: *mut c_void, id: NodeSlotId, input: FfiTextSource) {
+    // SAFETY: The host lends these views for the synchronous text build.
+    let source = unsafe { input.text.to_utf16() }.expect("text source carries no storage");
+    let locale = input
+        .has_locale
+        .then(|| unsafe { input.locale.to_utf16() }.expect("text locale carries no storage"));
+    let untransformed_text_is_ascii_whitespace = source.iter().all(|unit| matches!(unit, 0x09..=0x0d | 0x20));
+    let rendered = render_text(
+        source,
+        locale.as_deref(),
+        TextRenderingOptions {
+            text_transform: input.text_transform,
+            white_space_collapse: input.white_space_collapse,
+            is_password_input: input.is_password_input,
+            dom_start_offset: input.dom_start_offset,
+            dom_length_in_code_units: input.dom_length_in_code_units,
+        },
+    );
     let content = TextContent {
-        text,
-        untransformed_text_is_ascii_whitespace: input.untransformed_text_is_ascii_whitespace,
-        may_require_bidi_processing: input.may_require_bidi_processing,
+        may_require_bidi_processing: may_require_bidi_processing(&rendered.text),
+        text: rendered.text,
+        untransformed_text_is_ascii_whitespace,
         dom_start_offset: input.dom_start_offset,
         dom_length_in_code_units: input.dom_length_in_code_units,
-        edits,
+        edits: rendered.edits,
         grapheme_segmenter: OnceCell::new(),
     };
     // SAFETY: The host lends its arena exclusively while publishing the snapshot.
@@ -202,29 +201,6 @@ pub unsafe extern "C" fn layout_arena_text_for_rendering(arena: *mut c_void, id:
         text: content.text.as_ptr(),
         length_in_code_units: content.text.len(),
     }
-}
-
-/// Used by the text producer when slicing a complete transform for ::first-letter.
-///
-/// # Safety
-///
-/// `edits` must contain `edit_count` readable, ordered, non-overlapping edits for
-/// the source text. `offset` must be within that text and at least `dom_base_offset`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_rendered_text_offset_for_dom_offset(
-    edits: *const RenderedTextEdit,
-    edit_count: usize,
-    dom_base_offset: usize,
-    offset: usize,
-    boundary: RenderedTextBoundary,
-) -> usize {
-    let edits = if edit_count == 0 {
-        &[]
-    } else {
-        // SAFETY: The caller lends the edit array for this synchronous calculation.
-        unsafe { std::slice::from_raw_parts(edits, edit_count) }
-    };
-    rendered_text_offset_for_dom_offset(edits, dom_base_offset, offset, boundary)
 }
 
 #[cfg(test)]
@@ -323,37 +299,5 @@ mod tests {
         assert_ne!(arena.data(parent).fragment_cache_epoch.get(), epoch);
         assert_eq!(arena.rendered_text_offset_for_dom_offset(node, 1, Start), 1);
         assert_eq!(arena.dom_offset_for_rendered_text_offset(node, 2, End), 2);
-    }
-
-    #[test]
-    fn publication_owns_text_and_edits_after_the_producer_reuses_its_buffers() {
-        let mut arena = LayoutNodeArena::new();
-        let node = arena.allocate_for_test().slot;
-        arena.data(node).kind.set(NodeKind::TextNode);
-        let mut text = vec![u16::from(b'S'); 2];
-        let mut edits = vec![edit(0, 1, 0, 2)];
-        // SAFETY: The local arena and input arrays stay live for the synchronous publication.
-        unsafe {
-            layout_arena_set_text_content(
-                std::ptr::from_mut(&mut arena).cast(),
-                node,
-                FfiTextContent {
-                    ascii_text: std::ptr::null(),
-                    utf16_text: text.as_ptr(),
-                    length_in_code_units: text.len(),
-                    untransformed_text_is_ascii_whitespace: false,
-                    may_require_bidi_processing: false,
-                    dom_start_offset: 0,
-                    dom_length_in_code_units: 1,
-                    edits: edits.as_ptr(),
-                    edit_count: edits.len(),
-                },
-            );
-        }
-        text.fill(u16::from(b'X'));
-        edits[0] = edit(0, 2, 0, 1);
-        assert_eq!(arena.text_content(node).unwrap().text, [u16::from(b'S'); 2]);
-        assert_eq!(arena.dom_offset_for_rendered_text_offset(node, 1, End), 1);
-        assert_eq!(arena.rendered_text_offset_for_dom_offset(node, 1, End), 2);
     }
 }
