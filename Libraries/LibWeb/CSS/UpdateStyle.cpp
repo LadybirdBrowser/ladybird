@@ -253,6 +253,20 @@ static bool element_style_depends_on_more_than_the_inherited_groups(DOM::Element
         || !element.property_ids_with_matching_transition_property_entry({}).is_empty();
 }
 
+// Whether the custom-property environment an engine-computed first record was published with is
+// the one the element inherits: the parent's inheritable data, which is the parent's own unless a
+// registration made some of it non-inherited.
+static bool engine_computed_record_environment_matches(DOM::Element& element, StyleRecordID style_record)
+{
+    RefPtr<CustomPropertyData const> inherited_data;
+    if (auto parent = DOM::AbstractElement { element }.element_to_inherit_style_from(); parent.has_value()) {
+        if (auto parent_data = parent->custom_property_data())
+            inherited_data = parent_data->inheritable(element.document());
+    }
+    auto identity = inherited_data ? inherited_data->identity() : 0;
+    return identity == element.document().style_computer().style_engine().style_record_custom_property_environment(style_record);
+}
+
 static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Document& document, Vector<StyleEngine::PublishedStyleDelta> reactions)
 {
     // Reactions are applied generation by generation: applying an element can derive reactions for
@@ -278,7 +292,11 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             if (!element)
                 continue;
 
-            if (reaction.gap != StyleEngineFFI::FfiStyleDeltaGap::Materialize && !element->has_style())
+            // An engine-computed first record installs on an element without style; other record
+            // deltas assume the style they move.
+            if (!element->has_style()
+                && reaction.gap != StyleEngineFFI::FfiStyleDeltaGap::Materialize
+                && !(reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::Computed && reaction.old_style_record == 0))
                 continue;
             // An earlier display:none reaction in this batch can clear the style of a materialization gap after the
             // inheritance closure was built. The gap must then rematerialize rather than letting its descendants
@@ -301,7 +319,10 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 VERIFY(reaction.new_style_record == 0);
                 VERIFY(reaction.damage == StyleEngineFFI::FfiStyleDeltaDamage::None);
             } else {
-                VERIFY(reaction.old_style_record == element->style_record_identity().value());
+                // An engine-computed record is the engine's current answer for the element, which
+                // may have skipped a delta C++ never installed; it is applied against whatever the
+                // element holds now.
+                VERIFY(reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::Computed || reaction.old_style_record == element->style_record_identity().value());
                 VERIFY(reaction.new_style_record != 0);
                 VERIFY(reaction.damage == StyleEngineFFI::FfiStyleDeltaDamage::Full);
             }
@@ -331,14 +352,15 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 VERIFY(needs_inherited_style_recompute);
                 VERIFY(!needs_custom_property_recompute);
                 VERIFY(reaction.pseudo_kind == NumericLimits<u8>::max());
-                if (element_style_depends_on_more_than_the_inherited_groups(*element)) {
+                // An element whose last record the engine computed holds no input record to swap
+                // the parent half of; it takes the ordinary computation.
+                if (element_style_depends_on_more_than_the_inherited_groups(*element) || !element->style_input_record()) {
                     invalidation = element->apply_style_engine_reaction(
                         did_change_custom_properties,
                         DOM::Element::StyleEngineRecomputeReason::General,
                         0);
                 } else {
                     auto* input_record = element->style_input_record();
-                    VERIFY(input_record);
                     auto const* payloads = static_cast<void const* const*>(document.style_computer().style_record_payloads(StyleRecordID { reaction.new_style_record }));
                     VERIFY(payloads);
                     constexpr size_t inherited_group_count = ComputedValues::inherited_style_group_count;
@@ -353,6 +375,51 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                         if (reaction.inherited_style_groups & (1 << index))
                             invalidation.mark_inherited_style_group_changed(index);
                     }
+                }
+            } else if (reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::Computed) {
+                // The engine computed the new record from this element's moved cascade winners.
+                // Under verification the ordinary computation runs instead and its record must
+                // equal the engine's by value.
+                VERIFY(needs_regular_style_recompute);
+                VERIFY(!needs_inherited_style_recompute);
+                VERIFY(!needs_custom_property_recompute);
+                VERIFY(reaction.pseudo_kind == NumericLimits<u8>::max());
+                static bool const verify_engine_computed_records = getenv("LIBWEB_VERIFY_STYLE_RECORD_PATCH") != nullptr;
+                if (!element->has_style() && !engine_computed_record_environment_matches(*element, StyleRecordID { reaction.new_style_record })) {
+                    // The engine gave the first record the parent's own custom-property environment;
+                    // when the parent's inheritable environment differs, C++ computes the style.
+                    document.style_computer().style_engine().consume_recorded_element_style_input_change(reaction.style_node);
+                    invalidation = element->apply_style_engine_reaction(
+                        did_change_custom_properties,
+                        DOM::Element::StyleEngineRecomputeReason::General,
+                        0);
+                } else if (verify_engine_computed_records) {
+                    auto& style_engine = document.style_computer().style_engine();
+                    auto& counters = document.style_invalidation_counters();
+                    auto const longhand_evaluations_before = counters.computed_longhand_evaluations;
+                    auto const shared_computations_before = counters.element_style_shared_computations;
+                    style_engine.consume_recorded_element_style_input_change(reaction.style_node);
+                    invalidation = element->apply_style_engine_reaction(
+                        did_change_custom_properties,
+                        DOM::Element::StyleEngineRecomputeReason::General,
+                        0);
+                    auto packed = style_engine.compare_style_records(StyleRecordID { reaction.new_style_record }, element->style_record_identity(), true, false);
+                    VERIFY(!(packed & to_underlying(StyleEngineFFI::FfiStyleInvalidationField::AnyComputedValueChanged)));
+                    // The check is not the production path: report the reaction as the engine
+                    // record it is, not as the recomputation that verified it, and let the engine
+                    // account for it as installed.
+                    --counters.element_style_recomputations;
+                    counters.computed_longhand_evaluations = longhand_evaluations_before;
+                    counters.element_style_shared_computations = shared_computations_before;
+                    ++counters.engine_computed_style_records;
+                    style_engine.acknowledge_engine_computed_record(StyleNodeID { reaction.style_node });
+                } else {
+                    // A first record answers the element's recorded arrival; nothing is left for a
+                    // later transaction to plan.
+                    if (!element->has_style())
+                        document.style_computer().style_engine().consume_recorded_element_style_input_change(reaction.style_node);
+                    invalidation = element->apply_engine_computed_style_record(StyleRecordID { reaction.new_style_record });
+                    document.style_computer().style_engine().acknowledge_engine_computed_record(StyleNodeID { reaction.style_node });
                 }
             } else if (needs_regular_style_recompute || needs_inherited_style_recompute || needs_full_custom_property_recompute) {
                 if (!needs_regular_style_recompute

@@ -1,0 +1,3 @@
+inherited features: 433.125
+resized with inherited features: 440.15625
+inherited kerning: 440.15625

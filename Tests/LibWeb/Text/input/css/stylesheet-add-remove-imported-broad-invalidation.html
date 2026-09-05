@@ -2,10 +2,12 @@
 <script src="../include.js"></script>
 <div id="target">target</div>
 <script>
+    let engineComputedRecordDeltasAtReset = 0;
     function settleAndReset(triggerElement) {
         getComputedStyle(triggerElement).color;
         getComputedStyle(triggerElement).color;
         internals.resetStyleInvalidationCounters();
+        engineComputedRecordDeltasAtReset = internals.styleEngineCounters().engineComputedRecordDeltas ?? 0;
     }
 
     function verifyRecomputationsStayBounded(label, maximum) {
@@ -17,7 +19,9 @@
     }
 
     function verifyTargetWasRecomputed(label) {
-        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        // The style engine may derive the element's new record itself instead of having C++ recompute it.
+        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations
+            + (internals.styleEngineCounters().engineComputedRecordDeltas ?? 0) - engineComputedRecordDeltasAtReset;
         if (recomputations >= 1)
             println(`PASS: ${label}`);
         else

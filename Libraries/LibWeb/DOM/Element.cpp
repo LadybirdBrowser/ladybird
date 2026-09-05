@@ -2073,6 +2073,73 @@ static bool unregister_current_anchor_names(Element& element, Node& tree_root)
     return true;
 }
 
+CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_record(CSS::StyleRecordID new_style_record)
+{
+    VERIFY(parent());
+    auto old_style_record = style_record_identity();
+    auto& counters = document().style_invalidation_counters();
+    auto& style_computer = document().style_computer();
+    auto recompute_started_at = MonotonicTime::now();
+    ScopeGuard record_recompute_time = [&] {
+        counters.style_recompute_microseconds += (MonotonicTime::now() - recompute_started_at).to_microseconds();
+    };
+    ++counters.engine_computed_style_records;
+
+    auto old_computed_values = computed_style();
+    if (!old_computed_values) {
+        // The element's first style: what a C++ first computation installs beside the record,
+        // with the pseudo-element styles it still computes.
+        DOM::AbstractElement abstract_element { *this };
+        RefPtr<CSS::CustomPropertyData const> inherited_data;
+        if (auto parent = abstract_element.element_to_inherit_style_from(); parent.has_value()) {
+            if (auto parent_data = parent->custom_property_data())
+                inherited_data = parent_data->inheritable(document());
+        }
+        set_custom_property_data({}, inherited_data);
+        PublishedCustomPropertyNames published_names {
+            .data = custom_property_data({}),
+            .uses_var_css_function = false,
+            .uses_custom_function = false,
+        };
+        if (published_names != m_published_custom_property_names) {
+            CSS::record_element_custom_property_names(*this, published_names.data.ptr(), false, false);
+            m_published_custom_property_names = move(published_names);
+        }
+        set_computed_style({}, new_style_record);
+        counters.element_computed_style_changes++;
+        auto invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
+        bool did_change_custom_properties = false;
+        invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, false, nullptr, nullptr, nullptr);
+        apply_computed_style_to_layout_node_if_needed(invalidation);
+        return invalidation;
+    }
+    auto new_computed_values = style_computer.computed_style_record_view(new_style_record);
+    VERIFY(new_computed_values);
+    // The engine derives records this way only when the element's inherited groups, custom
+    // properties, pseudo-element styles, anchor names, animation names and display are exactly
+    // what they were; what is left to decide is what the layout tree and paint need.
+    ElementDependentInvalidationState old_state {
+        .layout_node = unsafe_layout_node(),
+        .content_counter_style_dependencies = {},
+        .list_counter_style = {},
+        .has_snapshot = false,
+    };
+    DOM::AbstractElement abstract_element { *this };
+    CSS::StyleEngine::StyleRecordDelta style_record_delta {
+        .old_style_record = old_style_record,
+        .new_style_record = new_style_record,
+    };
+    auto result = compute_required_invalidation_with_cache(style_computer, *old_computed_values, *new_computed_values, old_state, abstract_element, style_record_delta);
+    if (result.any_computed_value_changed)
+        counters.element_computed_style_changes++;
+    // The input record's declaration half described the cascade that produced the old record, so
+    // the next computation on this element derives a fresh one.
+    retire_style_input_record();
+    set_computed_style({}, new_style_record);
+    apply_computed_style_to_layout_node_if_needed(result.invalidation);
+    return result.invalidation;
+}
+
 CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(bool& did_change_custom_properties, StyleEngineRecomputeReason recompute_reason, u8 inherited_style_groups)
 {
     VERIFY(parent());

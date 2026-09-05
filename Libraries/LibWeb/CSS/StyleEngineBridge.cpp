@@ -50,6 +50,7 @@ static StyleEngineFFI::FfiResolvedFont resolve_font(void* context, StyleEngineFF
         .ascent = metrics.ascent,
         .descent = metrics.descent,
         .x_height = metrics.x_height,
+        .zero_advance = metrics.advance_of_ascii_zero,
     };
 }
 
@@ -63,6 +64,7 @@ static void release_resolved_font(void const* handle)
     static_cast<Gfx::FontCascadeList const*>(handle)->unref();
 }
 
+static_assert(StyleEngineFFI::LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND == to_underlying(last_synthetic_pseudo_element));
 static_assert(!IsMoveConstructible<StyleEngine>);
 static_assert(!IsMoveAssignable<StyleEngine>);
 
@@ -257,6 +259,11 @@ void const* StyleEngine::style_record_payloads(StyleRecordID style_record) const
 u8 StyleEngine::style_record_dependency_flags(StyleRecordID style_record) const
 {
     return StyleEngineFFI::style_engine_style_record_dependency_flags(m_impl, style_record.value());
+}
+
+u64 StyleEngine::style_record_custom_property_environment(StyleRecordID style_record) const
+{
+    return StyleEngineFFI::style_engine_style_record_custom_property_environment(m_impl, style_record.value());
 }
 
 u32 StyleEngine::compare_style_records(StyleRecordID old_style_record, StyleRecordID new_style_record, bool font_lists_equal, bool element_folds_transform_into_layout) const
@@ -673,7 +680,25 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
             .default_font_size_raw = StyleComputer::default_user_font_size().raw_value(),
             .device_pixels_per_css_pixel = m_style_computer->document().page().client().device_pixels_per_css_pixel(),
             .font_environment_generation = m_style_computer->document().font_computer().environment_generation(),
+            .preferred_color_scheme = static_cast<u8>(to_underlying(m_style_computer->document().page().preferred_color_scheme())),
+            .has_document_supported_schemes = false,
+            .document_supported_scheme_count = 0,
+            .document_supported_scheme_codes = {},
         };
+        if (auto supported = m_style_computer->document().supported_color_schemes(); supported.has_value()) {
+            computation_inputs.has_document_supported_schemes = true;
+            for (auto const& scheme : *supported) {
+                auto preferred_scheme = preferred_color_scheme_from_string(scheme);
+                if (preferred_scheme == PreferredColorScheme::Auto)
+                    continue;
+                auto code = static_cast<u8>(to_underlying(preferred_scheme));
+                auto supported_codes = Span<u8> { computation_inputs.document_supported_scheme_codes };
+                if (supported_codes.trim(computation_inputs.document_supported_scheme_count).contains_slow(code))
+                    continue;
+                VERIFY(computation_inputs.document_supported_scheme_count < supported_codes.size());
+                supported_codes[computation_inputs.document_supported_scheme_count++] = code;
+            }
+        }
     }
     auto view = StyleEngineFFI::style_engine_take_style_transaction(m_impl, root.value(), computation_inputs);
     if (view.reclaimed_style_atom_count != 0) {

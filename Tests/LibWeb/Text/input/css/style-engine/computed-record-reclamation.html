@@ -46,12 +46,16 @@
         internals.updateStyle();
         println(`stale input record survives reclamation: ${getComputedStyle(inputReceiver).paddingLeft === "2px" && getComputedStyle(inputReceiver).color === "rgb(4, 5, 6)"}`);
 
-        const sharedBefore = internals.getStyleInvalidationCounters().elementStyleSharedComputations;
+        // The record is shared either by C++'s style sharing or by the style engine's first-record cache.
+        const sharedComputations = () => internals.getStyleInvalidationCounters().elementStyleSharedComputations
+            + (internals.styleEngineCounters().engineComputedRecordSharedHits ?? 0)
+            + (internals.styleEngineCounters().engineComputedRecordCohortHits ?? 0);
+        const sharedBefore = sharedComputations();
         const receiver = document.createElement("div");
         receiver.className = "shared";
         document.body.appendChild(receiver);
         internals.updateStyle();
-        const sharedAfter = internals.getStyleInvalidationCounters().elementStyleSharedComputations;
+        const sharedAfter = sharedComputations();
         println(`cached style record survives reclamation: ${sharedAfter > sharedBefore && getComputedStyle(receiver).color === "rgb(1, 2, 3)"}`);
     });
 </script>

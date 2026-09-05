@@ -1564,6 +1564,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedStyl
             .font_ascent = metrics.ascent,
             .font_descent = metrics.descent,
             .font_x_height = metrics.x_height,
+            .font_zero_advance = metrics.advance_of_ascii_zero,
             .first_available_font = &first_available_font,
             .font_cascade_list = font_list.ptr(),
             .font_weight = computed_style.font_weight(),

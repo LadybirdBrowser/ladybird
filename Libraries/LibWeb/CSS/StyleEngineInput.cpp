@@ -37,7 +37,9 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/CustomElements/CustomStateSet.h>
+#include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLHeadingElement.h>
+#include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 
 namespace Web::CSS {
@@ -365,8 +367,112 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
                                             .heading_level = heading_level,
                                             .is_slot = is_slot,
                                             .reserved = 0,
+                                            .adjustment_facts = element_style_adjustment_facts(element),
                                         },
         custom_states);
+}
+
+// Whether the element's cascade may include presentational hints. The hints themselves are
+// collected during the C++ computation, and a table cell's read the table's computed style, so
+// this decides from the element kind and its attributes alone, conservatively.
+static bool element_may_have_presentational_hints(DOM::Element const& element)
+{
+    // A table cell's hints also come from its table's attributes, and an image's from the
+    // <source> its <picture> selected.
+    if (element.namespace_uri() == Namespace::HTML && first_is_one_of(element.local_name(), HTML::TagNames::td, HTML::TagNames::th, HTML::TagNames::img))
+        return true;
+    // The cascade also reads the width and height attributes of an element that supports them.
+    if (element.supports_dimension_attributes()
+        && (element.has_attribute(HTML::AttributeNames::width) || element.has_attribute(HTML::AttributeNames::height)))
+        return true;
+    bool has_presentational_hint = false;
+    element.for_each_attribute([&](Utf16FlyString const& name, Utf16View) {
+        if (element.is_presentational_hint(name))
+            has_presentational_hint = true;
+    });
+    return has_presentational_hint;
+}
+
+u32 element_style_adjustment_facts(DOM::Element const& element)
+{
+    bool is_html_element = element.namespace_uri() == Namespace::HTML;
+    auto local_name = element.local_name();
+
+    bool input_allows_adjustment = false;
+    bool input_is_single_line = false;
+    if (is<HTML::HTMLInputElement>(element)) {
+        auto const& input = static_cast<HTML::HTMLInputElement const&>(element);
+        input_allows_adjustment = !first_is_one_of(
+            input.type_state(),
+            HTML::HTMLInputElement::TypeAttributeState::Hidden,
+            HTML::HTMLInputElement::TypeAttributeState::SubmitButton,
+            HTML::HTMLInputElement::TypeAttributeState::Button,
+            HTML::HTMLInputElement::TypeAttributeState::ResetButton,
+            HTML::HTMLInputElement::TypeAttributeState::ImageButton,
+            HTML::HTMLInputElement::TypeAttributeState::Checkbox,
+            HTML::HTMLInputElement::TypeAttributeState::RadioButton);
+        input_is_single_line = input_allows_adjustment && input.is_single_line();
+    }
+
+    bool force_position_static = false;
+    if (element.namespace_uri() == Namespace::SVG) {
+        force_position_static = true;
+        if (local_name == "svg"sv) {
+            force_position_static = false;
+            for (auto ancestor = element.parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+                if (ancestor->namespace_uri() == Namespace::SVG && ancestor->local_name() == "foreignObject"sv)
+                    break;
+                if (ancestor->namespace_uri() == Namespace::SVG && ancestor->local_name() == "svg"sv) {
+                    force_position_static = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    bool force_symbol_display_inline = false;
+    if (element.namespace_uri() == Namespace::SVG && local_name == "symbol"sv) {
+        if (auto* shadow_root = as_if<DOM::ShadowRoot>(element.parent())) {
+            if (auto* host = shadow_root->host())
+                force_symbol_display_inline = host->namespace_uri() == Namespace::SVG && host->local_name() == "use"sv;
+        }
+    }
+
+    u32 facts = 0;
+    auto set = [&](bool condition, ElementStyleAdjustmentFact fact) {
+        if (condition)
+            facts |= fact;
+    };
+    set(is<HTML::HTMLBRElement>(element), ElementStyleAdjustmentFact::IsBr);
+    set(is_html_element && local_name == HTML::TagNames::wbr, ElementStyleAdjustmentFact::IsWbr);
+    set(input_allows_adjustment || (is_html_element && first_is_one_of(local_name, HTML::TagNames::textarea, HTML::TagNames::audio, HTML::TagNames::video, HTML::TagNames::canvas, HTML::TagNames::object, HTML::TagNames::iframe, HTML::TagNames::progress, HTML::TagNames::embed, HTML::TagNames::frame, HTML::TagNames::meter, HTML::TagNames::frameset, HTML::TagNames::img)), ElementStyleAdjustmentFact::DisallowDisplayContents);
+    set(input_allows_adjustment || (is_html_element && first_is_one_of(local_name, HTML::TagNames::textarea, HTML::TagNames::audio, HTML::TagNames::video, HTML::TagNames::select)), ElementStyleAdjustmentFact::RewriteInlineFlow);
+    set(is_html_element && local_name == HTML::TagNames::button, ElementStyleAdjustmentFact::IsButton);
+    set(is_html_element && local_name == HTML::TagNames::select, ElementStyleAdjustmentFact::ForceLineHeightNormal);
+    set(input_is_single_line, ElementStyleAdjustmentFact::CheckInputLineHeight);
+    set(is_html_element && local_name == HTML::TagNames::audio && !element.has_attribute(HTML::AttributeNames::controls), ElementStyleAdjustmentFact::HideAudioWithoutControls);
+    set(is_html_element && local_name == HTML::TagNames::table, ElementStyleAdjustmentFact::IsTable);
+    set(force_position_static, ElementStyleAdjustmentFact::ForcePositionStatic);
+    set(force_symbol_display_inline, ElementStyleAdjustmentFact::ForceSymbolDisplayInline);
+    set(element.namespace_uri() == Namespace::MathML, ElementStyleAdjustmentFact::IsMathML);
+    set(local_name.equals_ignoring_ascii_case("mtable"sv), ElementStyleAdjustmentFact::IsMathMLMtable);
+    set(local_name.equals_ignoring_ascii_case("mtr"sv), ElementStyleAdjustmentFact::IsMathMLMtr);
+    set(local_name.equals_ignoring_ascii_case("mtd"sv), ElementStyleAdjustmentFact::IsMathMLMtd);
+    set(is_html_element && local_name.equals_ignoring_ascii_case(HTML::TagNames::th), ElementStyleAdjustmentFact::IsTh);
+    set(element.is_document_element(), ElementStyleAdjustmentFact::IsDocumentElement);
+    // An animation the element is associated with composes into its style once it is relevant,
+    // which its timeline can make it after the element's arrival.
+    set(element.has_relevant_animations() || element.has_associated_animations(), ElementStyleAdjustmentFact::HasAnimations);
+    set(element_may_have_presentational_hints(element), ElementStyleAdjustmentFact::HasPresentationalHints);
+    return facts;
+}
+
+void record_element_adjustment_facts(DOM::Element& element)
+{
+    auto* style_engine = style_engine_for(element);
+    if (!style_engine || element.style_node_id() == no_style_node)
+        return;
+    style_engine->set_element_adjustment_facts(element.style_node_id(), element_style_adjustment_facts(element));
 }
 
 void publish_required_attribute_value_texts(StyleEngine& style_engine, StyleComputer& style_computer)
@@ -576,6 +682,15 @@ void record_element_moved(DOM::Element& element, DOM::Node* old_parent, DOM::Ele
         // Language and directionality resolve through the parent chain, but are published facts
         // rather than computed values. Republish them for the moved subtree from its new place.
         Invalidation::invalidate_style_after_language_change(element);
+
+        // Whether an SVG element's position must become static depends on the SVG and
+        // foreignObject elements above it. A preserved move changes that chain without giving
+        // the moved subtree another arrival notification.
+        element.for_each_shadow_including_inclusive_descendant([&](auto& node) {
+            if (auto* descendant = as_if<DOM::Element>(node); descendant && descendant->namespace_uri() == Namespace::SVG && descendant->style_node_id() != no_style_node)
+                style_engine->set_element_adjustment_facts(descendant->style_node_id(), element_style_adjustment_facts(*descendant));
+            return TraversalDecision::Continue;
+        });
 
         // Moving to a different parent changes the inherited input even if the moved element
         // matches exactly the same rules. Recomputing its style lets ordinary inherited-style
@@ -2320,6 +2435,10 @@ void record_element_attribute_changed(DOM::Element& element, Utf16FlyString cons
     // These two are what a heading level counts, and they answer for every heading beneath them.
     if (name == HTML::AttributeNames::headingoffset || name == HTML::AttributeNames::headingreset)
         record_heading_levels_in_subtree(element);
+
+    // Attributes decide which style adjustments apply to the element and whether it cascades
+    // presentational hints, both of which the engine reads as facts.
+    record_element_adjustment_facts(element);
 
     // Both values cross as atoms. Their text is recorded once per distinct value only when a
     // compiled selector for this attribute uses an operator that cannot compare atom identities.

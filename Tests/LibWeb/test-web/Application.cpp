@@ -77,6 +77,7 @@ void Application::create_platform_options(WebView::BrowserOptions& browser_optio
             "LIBWEB_VERIFY_STYLE_PLAN_PROVENANCE"sv,
             "LIBWEB_VERIFY_PUBLISHED_STYLE_TRANSACTION"sv,
             "LIBWEB_VERIFY_STYLE_ANSWER_PATCH"sv,
+            "LIBWEB_VERIFY_STYLE_RECORD_PATCH"sv,
             "LIBWEB_VERIFY_CASCADE_WINNERS"sv,
             "LIBWEB_VERIFY_STYLE_INPUT_REUSE"sv,
             "LIBWEB_VERIFY_COMPUTED_CLOSURE"sv,

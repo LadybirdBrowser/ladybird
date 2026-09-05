@@ -92,7 +92,10 @@
     [89, "HasDeferredElementStyleInput"],
     [90, "BeginStyleRecordViewEpoch"],
     [91, "EndStyleRecordViewEpoch"],
-    [92, "RecordCustomPropertyRegistrationChange"]
+    [92, "RecordCustomPropertyRegistrationChange"],
+    [93, "RetainExactCascadeState"],
+    [94, "AcknowledgeEngineComputedRecord"],
+    [95, "SetElementAdjustmentFacts"]
   ],
   "operations": [
     { "event": "SetFoldIdAndClassNameCase", "ffi": "style_engine_set_fold_id_and_class_name_case", "cpp": "set_fold_id_and_class_name_case", "return": "void", "args": [["fold", "bool"]], "body": "engine.set_fold_id_and_class_name_case(fold);" },
@@ -135,8 +138,11 @@
     { "event": "SetLayerOrder", "ffi": "style_engine_set_layer_order", "cpp": "set_layer_order", "return": "void", "args": [["tree_scope", "tree_scope_id"], ["layers", "u32_slice"]], "body": "let layers = layers.iter().copied().map(CascadeLayerID).collect::<Vec<_>>(); engine.set_layer_order(TreeScopeID(tree_scope), &layers);" },
     { "event": "LayerIndex", "ffi": "style_engine_layer_index", "cpp": "layer_index", "return": "u32", "receiver": "const", "args": [["tree_scope", "tree_scope_id"], ["layer", "u32"]], "body": "let result = engine.layer_index(TreeScopeID(tree_scope), CascadeLayerID(layer));" },
     { "event": "SetElementIsSlot", "ffi": "style_engine_set_element_is_slot", "cpp": "set_element_is_slot", "return": "void", "args": [["node", "style_node"], ["is_slot", "bool"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.set_element_is_slot(node, is_slot);" },
+    { "event": "SetElementAdjustmentFacts", "ffi": "style_engine_set_element_adjustment_facts", "cpp": "set_element_adjustment_facts", "return": "void", "args": [["node", "style_node"], ["facts", "u32"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.set_element_adjustment_facts(node, facts);" },
     { "event": "SetElementHeadingLevel", "ffi": "style_engine_set_element_heading_level", "cpp": "set_element_heading_level", "return": "void", "args": [["node", "style_node"], ["level", "u8"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.set_element_heading_level(node, level);" },
     { "event": "PrepareSharedExactCascadeState", "ffi": "style_engine_prepare_shared_exact_cascade_state", "cpp": "prepare_shared_exact_cascade_state", "return": "void", "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.prepare_shared_exact_cascade_state(node);" },
+    { "event": "RetainExactCascadeState", "ffi": "style_engine_retain_exact_cascade_state", "cpp": "retain_exact_cascade_state", "return": "void", "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.retain_exact_cascade_state(node);" },
+    { "event": "AcknowledgeEngineComputedRecord", "ffi": "style_engine_acknowledge_engine_computed_record", "cpp": "acknowledge_engine_computed_record", "return": "void", "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.acknowledge_engine_computed_record(node);" },
     { "event": "DiscardPendingExactCascadeState", "ffi": "style_engine_discard_pending_exact_cascade_state", "cpp": "discard_pending_exact_cascade_state", "return": "void", "args": [["node", "style_node"], ["pseudo_kind", "u8"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.discard_pending_exact_cascade_state(super::computed::ComputedStyleTarget::new(node, pseudo_kind));" },
     { "event": "PinStyleRecord", "ffi": "style_engine_pin_style_record", "cpp": "pin_style_record", "return": "void", "args": [["style_record", "style_record"]], "body": "engine.pin_style_record(style_record);" },
     { "event": "UnpinStyleRecord", "ffi": "style_engine_unpin_style_record", "cpp": "unpin_style_record", "return": "void", "args": [["style_record", "style_record"]], "body": "engine.unpin_style_record(style_record);" },

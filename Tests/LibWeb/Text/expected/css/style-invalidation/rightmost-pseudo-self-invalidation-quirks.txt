@@ -143,10 +143,10 @@ quirks structural :has() lowercase class in selector-list later branch after upp
 PASS: quirks structural :has() lowercase class in selector-list later branch after uppercase descendant append | elementStyleRecomputations=2, elementStyleNoopRecomputations=1, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0
 quirks structural :has() lowercase class with missing required id stays false after uppercase descendant append initial: selectorMatches=false, probe=base
 quirks structural :has() lowercase class with missing required id stays false after uppercase descendant append after mutation: selectorMatches=false, probe=base
-PASS: quirks structural :has() lowercase class with missing required id stays false after uppercase descendant append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0
+PASS: quirks structural :has() lowercase class with missing required id stays false after uppercase descendant append | elementStyleRecomputations=0, elementStyleNoopRecomputations=0, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0
 quirks structural :has() lowercase class with missing required attribute stays false after uppercase descendant append initial: selectorMatches=false, probe=base
 quirks structural :has() lowercase class with missing required attribute stays false after uppercase descendant append after mutation: selectorMatches=false, probe=base
-PASS: quirks structural :has() lowercase class with missing required attribute stays false after uppercase descendant append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0
+PASS: quirks structural :has() lowercase class with missing required attribute stays false after uppercase descendant append | elementStyleRecomputations=0, elementStyleNoopRecomputations=0, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0
 quirks structural :has() lowercase class loses style after uppercase descendant removal initial: selectorMatches=true, probe=match
 quirks structural :has() lowercase class loses style after uppercase descendant removal after mutation: selectorMatches=false, probe=base
 PASS: quirks structural :has() lowercase class loses style after uppercase descendant removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=1, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0
@@ -164,13 +164,13 @@ quirks structural :has() lowercase class after uppercase child moved into subjec
 PASS: quirks structural :has() lowercase class after uppercase child moved into subject | elementStyleRecomputations=2, elementStyleNoopRecomputations=1, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0
 quirks structural :has() lowercase class loses style after uppercase child moved out of subject initial: selectorMatches=true, probe=match
 quirks structural :has() lowercase class loses style after uppercase child moved out of subject after mutation: selectorMatches=false, probe=base
-PASS: quirks structural :has() lowercase class loses style after uppercase child moved out of subject | elementStyleRecomputations=2, elementStyleNoopRecomputations=1, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0
+PASS: quirks structural :has() lowercase class loses style after uppercase child moved out of subject | elementStyleRecomputations=1, elementStyleNoopRecomputations=1, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0
 quirks structural :has() uppercase class selector after lowercase descendant append initial: selectorMatches=false, probe=base
 quirks structural :has() uppercase class selector after lowercase descendant append after mutation: selectorMatches=true, probe=match
 PASS: quirks structural :has() uppercase class selector after lowercase descendant append | elementStyleRecomputations=2, elementStyleNoopRecomputations=1, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0
 quirks structural :has() lowercase class unaffected by unrelated uppercase structural append initial: selectorMatches=false, probe=base
 quirks structural :has() lowercase class unaffected by unrelated uppercase structural append after mutation: selectorMatches=false, probe=base
-PASS: quirks structural :has() lowercase class unaffected by unrelated uppercase structural append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0
+PASS: quirks structural :has() lowercase class unaffected by unrelated uppercase structural append | elementStyleRecomputations=0, elementStyleNoopRecomputations=0, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0
 quirks class add then state initial: selectorMatches=false, probe=base
 quirks class add then state after mutation: selectorMatches=true, probe=match
 PASS: quirks uppercase class with rightmost state selector matches after lowercase class add then state change | elementStyleRecomputations=1, elementStyleNoopRecomputations=1, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0

@@ -826,6 +826,15 @@ pub struct StyleEngine {
     /// Both are keyed by the element so that retiring it releases every selection by key.
     pending_element_style_computation_selections: HashMap<StyleNodeID, StyleComputationSelection>,
     pending_pseudo_style_computation_selections: HashMap<StyleNodeID, Vec<(u8, StyleComputationSelection)>>,
+    /// Records the engine derived for published reactions that C++ has not installed yet. Their
+    /// columns already moved so descendants in the same flush build on them; the cascade state
+    /// and answer consumption follow C++'s acknowledgement, and a discarded transaction reverts
+    /// the columns of the ones it never installed.
+    engine_computed_records_pending: Vec<publication::PendingEngineComputedRecord>,
+    /// First records derived earlier, by what they were derived from, for later elements alike.
+    engine_cold_record_cache: HashMap<publication::ColdRecordKey, publication::ColdRecord>,
+    /// Which winner states the engine can compute records from, decided once per state.
+    engine_computable_states: HashMap<(u64, CascadeStateID), bool>,
     computed_group_set_memory: MemoryLease,
     custom_property_environment_memory: MemoryLease,
     computed_fixed_metadata_memory: MemoryLease,

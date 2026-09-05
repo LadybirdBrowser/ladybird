@@ -3,4 +3,4 @@ reaction color: rgb(0, 128, 0)
 reaction batch runs: 1
 reaction elements: 2
 published reactions: 2
-recomputations: 2
+recomputations: 1

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #host { color: blue; font-size: 10px; }
+    .parent { all: initial; color: red; font-size: 30px; }
+    .child { font-size: 2em; }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        for (let index = 0; index < 40; ++index) {
+            const child = document.createElement("span");
+            child.className = "child";
+            host.append(child);
+        }
+        internals.updateStyle();
+        const children = [...host.children];
+        const parent = document.createElement("div");
+        parent.className = "parent";
+        parent.append(...children);
+        host.append(parent);
+        internals.updateStyle();
+        const styles = children.map(child => {
+            const style = getComputedStyle(child);
+            return `${style.color} / ${style.fontSize}`;
+        });
+        println(styles.every(style => style === "rgb(255, 0, 0) / 60px"));
+    });
+</script>

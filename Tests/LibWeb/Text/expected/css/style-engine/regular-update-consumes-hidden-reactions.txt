@@ -1,4 +1,4 @@
 reaction color: rgb(0, 128, 0)
 hidden reaction color: rgb(0, 128, 0)
-regular recomputations: 3
+regular recomputations: 1
 targeted hidden recomputations: 1

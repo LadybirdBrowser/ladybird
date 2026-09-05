@@ -22,13 +22,17 @@
             unrelated.appendChild(child);
         }
 
+        // A new element's style is either recomputed by C++ or derived as a record by the style engine.
+        const styledElements = () => internals.getStyleInvalidationCounters().elementStyleRecomputations
+            + (internals.styleEngineCounters().engineComputedRecordDeltas ?? 0);
         internals.resetStyleInvalidationCounters();
+        const styledElementsBeforeRead = styledElements();
         println(`target color: ${getComputedStyle(document.querySelector(".target")).color}`);
-        const countersAfterTargetRead = internals.getStyleInvalidationCounters();
+        const styledElementsAfterTargetRead = styledElements();
         println(`unrelated color: ${getComputedStyle(unrelated.firstChild).color}`);
-        const countersAfterUnrelatedRead = internals.getStyleInvalidationCounters();
-        const completeBatchWasConsumed = countersAfterTargetRead.elementStyleRecomputations >= 100
-            && countersAfterUnrelatedRead.elementStyleRecomputations === countersAfterTargetRead.elementStyleRecomputations;
+        const styledElementsAfterUnrelatedRead = styledElements();
+        const completeBatchWasConsumed = styledElementsAfterTargetRead - styledElementsBeforeRead >= 100
+            && styledElementsAfterUnrelatedRead === styledElementsAfterTargetRead;
         println(`PASS: the first style read consumed the complete reaction batch: ${completeBatchWasConsumed}`);
     });
 </script>

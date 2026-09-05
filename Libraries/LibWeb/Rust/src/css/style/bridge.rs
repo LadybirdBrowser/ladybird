@@ -29,6 +29,8 @@ use std::ffi::c_void;
 use crate::abort_on_panic as abort_on_boundary_panic;
 use crate::css::selector::CompiledSelector;
 use crate::css::selector::RustSelector;
+use crate::css::style_value::RetainedStyleValueData;
+use crate::css::style_value::retain_style_value;
 
 use super::HashSet;
 use super::PinnedAtoms;
@@ -107,6 +109,9 @@ pub struct FfiAnimationInvalidation {
 pub enum FfiStyleDeltaGap {
     None,
     Materialize,
+    /// The engine computed the new record itself from the moved cascade winners; C++ applies it
+    /// without running a style computation.
+    Computed,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -180,6 +185,12 @@ pub struct FfiDocumentStyleComputationInputs {
     pub default_font_size_raw: i32,
     pub device_pixels_per_css_pixel: f64,
     pub font_environment_generation: u64,
+    /// The page's preferred color scheme and the document's supported schemes, as
+    /// PreferredColorScheme codes; up to four supported schemes are carried.
+    pub preferred_color_scheme: u8,
+    pub has_document_supported_schemes: bool,
+    pub document_supported_scheme_count: u8,
+    pub document_supported_scheme_codes: [u8; 4],
 }
 
 #[repr(C)]
@@ -203,6 +214,7 @@ pub struct FfiResolvedFont {
     pub ascent: f32,
     pub descent: f32,
     pub x_height: f32,
+    pub zero_advance: f32,
 }
 
 #[derive(Clone, Copy)]
@@ -436,6 +448,38 @@ pub struct FfiElementArrival {
     pub heading_level: u8,
     pub is_slot: bool,
     pub reserved: u16,
+    /// The element's `ElementStyleAdjustmentFact` bits: what the box-type transformation and the
+    /// element style adjustments read of the DOM. Mirrors the C++ enum.
+    pub adjustment_facts: u32,
+}
+
+/// The last pseudo-element kind C++ materializes as a synthetic pseudo-element; the kinds up to
+/// it are the bits a style record's pseudo-element mask carries. Mirrors the C++
+/// `last_synthetic_pseudo_element`.
+pub const LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND: u16 = 7;
+
+/// The element facts the style computation's box-type transformation and element style
+/// adjustments read. Mirrors C++ `ElementStyleAdjustmentFact`.
+pub mod element_adjustment_fact {
+    pub const IS_BR: u32 = 1 << 0;
+    pub const IS_WBR: u32 = 1 << 1;
+    pub const DISALLOW_DISPLAY_CONTENTS: u32 = 1 << 2;
+    pub const REWRITE_INLINE_FLOW: u32 = 1 << 3;
+    pub const IS_BUTTON: u32 = 1 << 4;
+    pub const FORCE_LINE_HEIGHT_NORMAL: u32 = 1 << 5;
+    pub const CHECK_INPUT_LINE_HEIGHT: u32 = 1 << 6;
+    pub const HIDE_AUDIO_WITHOUT_CONTROLS: u32 = 1 << 7;
+    pub const IS_TABLE: u32 = 1 << 8;
+    pub const FORCE_POSITION_STATIC: u32 = 1 << 9;
+    pub const FORCE_SYMBOL_DISPLAY_INLINE: u32 = 1 << 10;
+    pub const IS_MATHML: u32 = 1 << 11;
+    pub const IS_MATHML_MTABLE: u32 = 1 << 12;
+    pub const IS_MATHML_MTR: u32 = 1 << 13;
+    pub const IS_MATHML_MTD: u32 = 1 << 14;
+    pub const IS_TH: u32 = 1 << 15;
+    pub const IS_DOCUMENT_ELEMENT: u32 = 1 << 16;
+    pub const HAS_ANIMATIONS: u32 = 1 << 17;
+    pub const HAS_PRESENTATIONAL_HINTS: u32 = 1 << 18;
 }
 
 /// Which local fact a feature delta describes.
@@ -2457,6 +2501,24 @@ pub unsafe extern "C" fn style_engine_style_record_dependency_flags(engine: *con
     engine.style_record_dependency_flags(style_record).unwrap_or(0)
 }
 
+/// The raw custom-property environment identity a style record was published with.
+///
+/// # Safety
+/// `engine` must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_style_record_custom_property_environment(
+    engine: *const c_void,
+    style_record: u64,
+) -> u64 {
+    abort_on_panic(|| {
+        let engine = unsafe { &*engine.cast::<StyleEngine>() };
+        engine
+            .computed_group_sets
+            .style_record_custom_property_environment(style_record)
+            .unwrap_or(0)
+    })
+}
+
 /// Computes the property-dependent damage between two final style records.
 ///
 /// # Safety
@@ -2663,6 +2725,7 @@ pub unsafe extern "C" fn style_engine_set_rule_declared_properties(
         return;
     }
     let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let mut written_values = Vec::with_capacity(count);
     let declared: Vec<DeclaredProperty> = match count == 0 {
         true => Vec::new(),
         false => {
@@ -2688,6 +2751,9 @@ pub unsafe extern "C" fn style_engine_set_rule_declared_properties(
                 .map(|(((property, important), operator), (value, original_value))| {
                     let value = unsafe { engine.intern_specified_value(value.cast()) };
                     unsafe { engine.alias_specified_value(original_value.cast(), value) };
+                    written_values.push(unsafe {
+                        RetainedStyleValueData::from_retained_pointer(retain_style_value(original_value.cast()))
+                    });
                     DeclaredProperty {
                         property,
                         important,
@@ -2698,7 +2764,12 @@ pub unsafe extern "C" fn style_engine_set_rule_declared_properties(
                 .collect()
         }
     };
-    engine.set_rule_declared_properties_with_operators(RuleID(rule - 1), &declared, declarations_are_complete);
+    engine.set_rule_declared_properties_with_written_values(
+        RuleID(rule - 1),
+        &declared,
+        written_values,
+        declarations_are_complete,
+    );
     engine.record_boundary_call(EventKind::SetRuleDeclaredProperties, |payload| {
         payload.write_u32(rule);
         payload.write_bool(declarations_are_complete);
@@ -3161,7 +3232,7 @@ mod tests {
 
     #[test]
     fn element_arrival_rows_install_intrinsic_facts() {
-        assert_eq!(size_of::<FfiElementArrival>(), 28);
+        assert_eq!(size_of::<FfiElementArrival>(), 32);
         let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
         let mut nodes = [0_u32; 2];
         engine.allocate_style_nodes(&mut nodes);

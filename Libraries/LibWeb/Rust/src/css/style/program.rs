@@ -41,6 +41,7 @@ use super::order::OrderMaintenance;
 use super::order::OrderToken;
 use super::transaction::ProgramVersion;
 use super::tree::TreeScopeID;
+use crate::css::style_value::RetainedStyleValueData;
 
 define_id! {
     /// Identity of a CSSOM `CSSStyleSheet` wrapper object. Assigned by C++, which owns the wrapper.
@@ -209,6 +210,10 @@ struct Rule {
     live: bool,
     gated_by_container_query: bool,
     declared_properties: Vec<DeclaredProperty>,
+    /// The value each declaration was written with, parallel to `declared_properties`, when the
+    /// rule arrived with them. A consumer computing a value needs the written spelling, which the
+    /// canonical identity may have rewritten. Empty when the rule arrived without them.
+    written_values: Vec<RetainedStyleValueData>,
     declarations_are_complete: bool,
     semantic_declaration: SemanticDeclarationID,
 }
@@ -704,6 +709,7 @@ impl StyleSheetProgram {
             live,
             gated_by_container_query: false,
             declared_properties: Vec::new(),
+            written_values: Vec::new(),
             declarations_are_complete: false,
             semantic_declaration: SemanticDeclarationID::default(),
         });
@@ -1089,15 +1095,18 @@ impl StyleSheetProgram {
         &mut self,
         rule: RuleID,
         declared: Vec<DeclaredProperty>,
+        written_values: Vec<RetainedStyleValueData>,
         declarations_are_complete: bool,
     ) {
+        debug_assert!(written_values.is_empty() || written_values.len() == declared.len());
         if self.rules[rule.0 as usize].semantic_declaration != SemanticDeclarationID::default() {
             self.invalidate_semantic_declarations();
         }
         let entry = &mut self.rules[rule.0 as usize];
-        let previous_capacity = (entry.declared_properties.capacity() * size_of::<DeclaredProperty>()) as u64;
+        let previous_capacity = Self::rule_declaration_capacity_bytes(entry);
         entry.declared_properties = declared;
-        let current_capacity = (entry.declared_properties.capacity() * size_of::<DeclaredProperty>()) as u64;
+        entry.written_values = written_values;
+        let current_capacity = Self::rule_declaration_capacity_bytes(entry);
         entry.declarations_are_complete = declarations_are_complete;
         self.record_capacity_change(previous_capacity, current_capacity);
         self.bump_rule_sheet_dispatch_version(rule);
@@ -1174,9 +1183,54 @@ impl StyleSheetProgram {
         id
     }
 
+    fn rule_declaration_capacity_bytes(entry: &Rule) -> u64 {
+        (entry.declared_properties.capacity() * size_of::<DeclaredProperty>()
+            + entry.written_values.capacity() * size_of::<RetainedStyleValueData>()) as u64
+    }
+
     #[must_use]
     pub fn declared_properties_of(&self, rule: RuleID) -> &[DeclaredProperty] {
         &self.rules[rule.0 as usize].declared_properties
+    }
+
+    #[must_use]
+    pub fn written_values_of(&self, rule: RuleID) -> &[RetainedStyleValueData] {
+        &self.rules[rule.0 as usize].written_values
+    }
+
+    /// The value the rule's winning declaration for one property was written with: the last of
+    /// its declarations naming that property, importance and identity. `None` when the rule
+    /// arrived without its written values.
+    #[must_use]
+    pub fn written_winner_value(
+        &self,
+        rule: RuleID,
+        property: u16,
+        important: bool,
+        value: SpecifiedValueID,
+    ) -> Option<RetainedStyleValueData> {
+        self.written_winner_declaration(rule, property, important, value)
+            .map(|(_, value)| value)
+    }
+
+    /// The winning declaration's position in its rule and the value it was written with. The
+    /// position orders declarations the cascade ranks equally, such as a logical property and its
+    /// physical associate in one rule.
+    pub fn written_winner_declaration(
+        &self,
+        rule: RuleID,
+        property: u16,
+        important: bool,
+        value: SpecifiedValueID,
+    ) -> Option<(usize, RetainedStyleValueData)> {
+        let entry = &self.rules[rule.0 as usize];
+        if entry.written_values.len() != entry.declared_properties.len() {
+            return None;
+        }
+        let index = entry.declared_properties.iter().rposition(|declared| {
+            declared.property == property && declared.important == important && declared.value == value
+        })?;
+        Some((index, entry.written_values[index].clone_retained()))
     }
 
     #[must_use]
@@ -1275,6 +1329,7 @@ impl StyleSheetProgram {
             .map(|rule| {
                 rule.children.capacity() * size_of::<RuleID>()
                     + rule.declared_properties.capacity() * size_of::<DeclaredProperty>()
+                    + rule.written_values.capacity() * size_of::<RetainedStyleValueData>()
             })
             .sum();
         let orders: u64 = self
@@ -1433,9 +1488,9 @@ mod tests {
             value: SpecifiedValueID(value),
         };
 
-        program.set_rule_declared_properties(first, vec![declared(10)], true);
-        program.set_rule_declared_properties(second, vec![declared(10)], true);
-        program.set_rule_declared_properties(third, vec![declared(20)], true);
+        program.set_rule_declared_properties(first, vec![declared(10)], Vec::new(), true);
+        program.set_rule_declared_properties(second, vec![declared(10)], Vec::new(), true);
+        program.set_rule_declared_properties(third, vec![declared(20)], Vec::new(), true);
 
         let first_identity = program.ensure_semantic_declaration(first);
         let second_identity = program.ensure_semantic_declaration(second);
@@ -1444,10 +1499,10 @@ mod tests {
         assert_eq!(first_identity, second_identity);
         assert_ne!(first_identity, third_identity);
 
-        program.set_rule_declared_properties(never_interned, vec![declared(30)], true);
+        program.set_rule_declared_properties(never_interned, vec![declared(30)], Vec::new(), true);
         assert_eq!(program.ensure_semantic_declaration(first), first_identity);
 
-        program.set_rule_declared_properties(second, vec![declared(10)], false);
+        program.set_rule_declared_properties(second, vec![declared(10)], Vec::new(), false);
         assert_eq!(
             program.ensure_semantic_declaration(second),
             SemanticDeclarationID::default()

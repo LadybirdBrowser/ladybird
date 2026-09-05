@@ -1,0 +1,6 @@
+number: 1460.9375px
+number updated: 2921.875px
+length: 1460.9375px
+length updated: 2921.875px
+percentage: 1460.9375px
+percentage updated: 2921.875px

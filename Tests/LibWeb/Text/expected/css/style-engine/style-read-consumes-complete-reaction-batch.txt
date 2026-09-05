@@ -1,7 +1,7 @@
 style read reaction batch runs: 1
 style read reaction elements: 1
 style read published reactions: 1
-style read recomputations: 1
+style read recomputations: 0
 reaction color: rgb(0, 128, 0)
 subsequent update reaction batch runs: 0
 subsequent update recomputations: 0

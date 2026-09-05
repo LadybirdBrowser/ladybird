@@ -17,7 +17,9 @@
         internals.updateStyle();
 
         let counters = internals.getStyleInvalidationCounters();
-        println(`shared across transactions: ${counters.elementStyleSharedComputations >= 1}`);
+        // The engine shares a first record it derived earlier the way the C++ computation shares.
+        const sharedByEngine = () => (internals.styleEngineCounters().engineComputedRecordSharedHits ?? 0) >= 1;
+        println(`shared across transactions: ${counters.elementStyleSharedComputations >= 1 || sharedByEngine()}`);
         println(`initial colors: ${getComputedStyle(first).color}, ${getComputedStyle(second).color}`);
 
         document.getElementById("sheet").sheet.cssRules[0].style.color = "green";

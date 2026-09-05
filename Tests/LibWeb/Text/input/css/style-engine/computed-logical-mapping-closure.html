@@ -30,10 +30,16 @@
 
         const marginTarget = document.getElementById("margin-target");
         const beforeMargin = internals.getStyleInvalidationCounters();
+        const engineBeforeMargin = internals.styleEngineCounters();
         marginTarget.className = "margin-after";
         internals.updateStyle();
         const margin = internals.getStyleInvalidationCounters();
-        println(`margin family longhand evaluations: ${margin.computedLonghandEvaluations - beforeMargin.computedLonghandEvaluations}`);
+        const engineMargin = internals.styleEngineCounters();
+        // The engine drives a moved margin itself, re-evaluating its required driver inputs alongside
+        // the family; either way nothing outside them is evaluated.
+        const evaluations = margin.computedLonghandEvaluations - beforeMargin.computedLonghandEvaluations
+            + (engineMargin.engineComputedLonghandEvaluations ?? 0) - (engineBeforeMargin.engineComputedLonghandEvaluations ?? 0);
+        println(`margin family longhand evaluations: ${evaluations}`);
         println(`changed logical margin: ${getComputedStyle(marginTarget).marginLeft}`);
     });
 </script>

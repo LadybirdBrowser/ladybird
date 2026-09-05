@@ -1,0 +1,5 @@
+outermost SVG position: absolute
+nested SVG position: static
+SVG below foreignObject position: absolute
+descendant below HTML position: absolute
+descendant after ancestor move position: static

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .positioned { position: absolute }
+</style>
+<div id="html-container">
+    <div id="wrapper">
+        <svg id="descendant-svg" class="positioned"></svg>
+    </div>
+</div>
+<svg id="outer-svg">
+    <foreignObject id="foreign-object"></foreignObject>
+</svg>
+<script>
+    test(() => {
+        const svgNamespace = "http://www.w3.org/2000/svg";
+        const htmlContainer = document.getElementById("html-container");
+        const outerSvg = document.getElementById("outer-svg");
+        const foreignObject = document.getElementById("foreign-object");
+        const movableSvg = document.createElementNS(svgNamespace, "svg");
+        movableSvg.classList.add("positioned");
+
+        htmlContainer.appendChild(movableSvg);
+        internals.updateStyle();
+        println(`outermost SVG position: ${getComputedStyle(movableSvg).position}`);
+
+        outerSvg.moveBefore(movableSvg, null);
+        internals.updateStyle();
+        println(`nested SVG position: ${getComputedStyle(movableSvg).position}`);
+
+        foreignObject.moveBefore(movableSvg, null);
+        internals.updateStyle();
+        println(`SVG below foreignObject position: ${getComputedStyle(movableSvg).position}`);
+
+        const wrapper = document.getElementById("wrapper");
+        const descendantSvg = document.getElementById("descendant-svg");
+        println(`descendant below HTML position: ${getComputedStyle(descendantSvg).position}`);
+
+        outerSvg.moveBefore(wrapper, null);
+        internals.updateStyle();
+        println(`descendant after ancestor move position: ${getComputedStyle(descendantSvg).position}`);
+    });
+</script>

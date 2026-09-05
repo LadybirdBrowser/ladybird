@@ -1,0 +1,6 @@
+light / custom1 custom2 custom3 custom4 dark: rgb(235, 235, 235) / rgb(0, 0, 0)
+dark / light light light light dark: rgb(235, 235, 235) / rgb(0, 0, 0)
+light / dark dark dark dark light: rgb(0, 0, 0) / rgb(255, 255, 255)
+light / custom1 custom2 dark light: rgb(0, 0, 0) / rgb(255, 255, 255)
+dark / custom1 custom2 light dark: rgb(235, 235, 235) / rgb(0, 0, 0)
+dark / custom1 custom2 custom3 custom4 custom5: rgb(0, 0, 0) / rgb(255, 255, 255)
