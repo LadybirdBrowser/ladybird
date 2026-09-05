@@ -21,21 +21,21 @@ namespace Web::Layout {
 TextNode::TextNode(DOM::Document& document, DOM::Text& text)
     : Node(document, &text, RustFFI::NodeKind::TextNode)
 {
-    enroll_for_arena_text_content_sync();
+    invalidate_text_for_rendering();
     update_produces_line_box_fragment_when_empty_flag();
 }
 
 TextNode::TextNode(DOM::Document& document, DOM::Text& text, AttachToDOMNode attach_to_dom_node, RustFFI::NodeKind kind)
     : Node(document, &text, kind, attach_to_dom_node)
 {
-    enroll_for_arena_text_content_sync();
+    invalidate_text_for_rendering();
     update_produces_line_box_fragment_when_empty_flag();
 }
 
 TextNode::TextNode(DOM::Document& document, RustFFI::NodeKind kind)
     : Node(document, nullptr, kind)
 {
-    enroll_for_arena_text_content_sync();
+    invalidate_text_for_rendering();
 }
 
 bool TextNode::update_produces_line_box_fragment_when_empty_flag()
@@ -98,53 +98,23 @@ TextSliceNode::TextSliceNode(DOM::Document& document, DOM::Text& text, AttachToD
 
 TextSliceNode::~TextSliceNode() = default;
 
-static CSS::ComputedValues::InheritedTextValues const& inherited_text_values_of_parent(TextNode const& text_node)
-{
-    auto parent_slot = text_node.linked_slot(RustFFI::FfiNodeLink::Parent);
-    auto const* payloads = static_cast<void const* const*>(RustFFI::layout_arena_node_style_payloads(text_node.arena_handle(), parent_slot));
-    VERIFY(payloads);
-    return *static_cast<CSS::ComputedValues::InheritedTextValues const*>(payloads[CSS::ComputedValues::InheritedTextValues::style_group_index]);
-}
-
-TextNode::TextForRenderingCacheKey TextNode::create_text_for_rendering_cache_key() const
-{
-    auto const& parent_inherited_text_values = inherited_text_values_of_parent(*this);
-    auto text_transform = parent_inherited_text_values.text_transform_value();
-    Optional<Utf16String> lang;
-    if (first_is_one_of(text_transform, CSS::TextTransform::Uppercase, CSS::TextTransform::Lowercase, CSS::TextTransform::Capitalize)) {
-        if (auto parent_element = parent_element_for_text_transform())
-            lang = parent_element->lang();
-    }
-
-    return {
-        .text_transform = text_transform,
-        .white_space_collapse = parent_inherited_text_values.white_space_collapse_value(),
-        .lang = move(lang),
-        .is_password_input = is_password_input(),
-        .dom_start_offset = dom_start_offset(),
-        .dom_length = dom_length(),
-    };
-}
-
 void TextNode::invalidate_text_for_rendering()
 {
-    m_text_for_rendering_cache_key = {};
-    enroll_for_arena_text_content_sync();
+    RustFFI::layout_arena_invalidate_text_content(arena_handle(), slot_id(this));
 }
 
 Utf16View TextNode::text_for_rendering() const
 {
-    ensure_text_content();
+    sync_text_content_to_arena();
     auto view = RustFFI::layout_arena_text_for_rendering(arena_handle(), slot_id(this));
     return Utf16View { reinterpret_cast<char16_t const*>(view.text), view.length_in_code_units };
 }
 
-void TextNode::ensure_text_content() const
+void TextNode::sync_text_content_to_arena() const
 {
-    auto key = create_text_for_rendering_cache_key();
-    if (m_text_for_rendering_cache_key.has_value() && *m_text_for_rendering_cache_key == key)
-        return;
-
+    Optional<Utf16String> lang;
+    if (auto element = parent_element_for_text_transform())
+        lang = element->lang();
     auto view_for = [](Utf16View view) -> RustFFI::FfiUtf16View {
         return {
             .ascii = view.has_ascii_storage() ? reinterpret_cast<u8 const*>(view.ascii_span().data()) : nullptr,
@@ -154,30 +124,13 @@ void TextNode::ensure_text_content() const
     };
     RustFFI::FfiTextSource source {
         .text = view_for(text()),
-        .locale = key.lang.has_value() ? view_for(*key.lang) : RustFFI::FfiUtf16View {},
-        .has_locale = key.lang.has_value(),
-        .is_password_input = key.is_password_input,
-        .text_transform = to_underlying(key.text_transform),
-        .white_space_collapse = to_underlying(key.white_space_collapse),
-        .dom_start_offset = key.dom_start_offset,
-        .dom_length_in_code_units = key.dom_length,
+        .locale = lang.has_value() ? view_for(*lang) : RustFFI::FfiUtf16View {},
+        .has_locale = lang.has_value(),
+        .is_password_input = is_password_input(),
+        .dom_start_offset = dom_start_offset(),
+        .dom_length_in_code_units = dom_length(),
     };
-    RustFFI::layout_arena_build_text_content(arena_handle(), slot_id(this), source);
-    m_text_for_rendering_cache_key = move(key);
-}
-
-void TextNode::enroll_for_arena_text_content_sync() const
-{
-    if (m_enrolled_for_arena_text_content_sync)
-        return;
-    m_enrolled_for_arena_text_content_sync = true;
-    RustFFI::layout_arena_enroll_text_node_for_content_sync(arena_handle(), slot_id(this));
-}
-
-void TextNode::sync_text_content_to_arena() const
-{
-    m_enrolled_for_arena_text_content_sync = false;
-    ensure_text_content();
+    RustFFI::layout_arena_sync_text_content(arena_handle(), slot_id(this), source);
 }
 
 Gfx::GlyphRun::TextType text_type_for_code_point(u32 code_point)
