@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<div id="host"></div>
+<form id="form"></form>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function read(object, key) {
+            return object[key];
+        }
+
+        for (let i = 0; i < 5; ++i)
+            read(form, "action");
+        const input = document.createElement("input");
+        input.name = "action";
+        form.append(input);
+        println(`form: ${read(form, "action") === input}`);
+
+        for (let i = 0; i < 5; ++i)
+            read(document, "images");
+        const namedForm = document.createElement("form");
+        namedForm.name = "images";
+        document.body.append(namedForm);
+        println(`document: ${read(document, "images") === namedForm}`);
+
+        const map = host.dataset;
+        for (let i = 0; i < 5; ++i)
+            read(map, "toString");
+        host.setAttribute("data-to-string", "shadow");
+        println(`dataset: ${read(map, "toString")}`);
+
+        function readAction(object) {
+            return object.action;
+        }
+        const otherForm = document.createElement("form");
+        document.body.append(otherForm);
+        for (let i = 0; i < 5; ++i)
+            readAction(otherForm);
+        println(`form with a fixed name: ${readAction(form) === input}`);
+    });
+</script>
