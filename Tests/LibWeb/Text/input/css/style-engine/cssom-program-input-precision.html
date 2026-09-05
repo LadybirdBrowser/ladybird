@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="target"></div>
+<div id="host"></div>
+<script>
+    test(() => {
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync("@layer base, theme; @layer base { #target { color: red } } @layer theme { #target { color: blue } }");
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = '<div id="target"></div>';
+        const shadowTarget = shadow.firstElementChild;
+        document.adoptedStyleSheets = [sheet];
+        shadow.adoptedStyleSheets = [sheet];
+        internals.updateStyle();
+
+        function mutate(label, mutation) {
+            const before = internals.getStyleInvalidationCounters();
+            const engineBefore = internals.styleEngineCounters();
+            mutation();
+            internals.updateStyle();
+            const after = internals.getStyleInvalidationCounters();
+            const engineAfter = internals.styleEngineCounters();
+            println(`${label} environment changed: ${after.styleEnvironmentVersion !== before.styleEnvironmentVersion}`);
+            println(`${label} topology changed: ${engineAfter.cascadeTopologyDeltas !== engineBefore.cascadeTopologyDeltas}`);
+            println(`${label} colors: ${getComputedStyle(target).color}, ${getComputedStyle(shadowTarget).color}`);
+        }
+
+        mutate("repeat layers", () => sheet.insertRule("@layer base, theme;", 0));
+        mutate("remove repeated layers", () => sheet.deleteRule(0));
+        mutate("reorder layers", () => sheet.insertRule("@layer theme, base;", 0));
+        mutate("restore layers", () => sheet.deleteRule(0));
+        mutate("insert style rule", () => sheet.insertRule("#target { color: green; }", sheet.cssRules.length));
+        mutate("edit declarations", () => sheet.cssRules[sheet.cssRules.length - 1].style.color = "purple");
+        mutate("replace declarations", () => sheet.cssRules[sheet.cssRules.length - 1].style.cssText = "--color: olive; color: var(--color)");
+        mutate("edit custom property", () => sheet.cssRules[sheet.cssRules.length - 1].style.setProperty("--color", "green"));
+        mutate("delete style rule", () => sheet.deleteRule(sheet.cssRules.length - 1));
+    });
+</script>

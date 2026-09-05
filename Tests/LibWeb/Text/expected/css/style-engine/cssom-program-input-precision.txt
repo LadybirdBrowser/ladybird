@@ -1,0 +1,27 @@
+repeat layers environment changed: true
+repeat layers topology changed: false
+repeat layers colors: rgb(0, 0, 255), rgb(0, 0, 255)
+remove repeated layers environment changed: true
+remove repeated layers topology changed: false
+remove repeated layers colors: rgb(0, 0, 255), rgb(0, 0, 255)
+reorder layers environment changed: true
+reorder layers topology changed: true
+reorder layers colors: rgb(255, 0, 0), rgb(255, 0, 0)
+restore layers environment changed: true
+restore layers topology changed: true
+restore layers colors: rgb(0, 0, 255), rgb(0, 0, 255)
+insert style rule environment changed: false
+insert style rule topology changed: false
+insert style rule colors: rgb(0, 128, 0), rgb(0, 128, 0)
+edit declarations environment changed: false
+edit declarations topology changed: false
+edit declarations colors: rgb(128, 0, 128), rgb(128, 0, 128)
+replace declarations environment changed: false
+replace declarations topology changed: false
+replace declarations colors: rgb(128, 128, 0), rgb(128, 128, 0)
+edit custom property environment changed: false
+edit custom property topology changed: false
+edit custom property colors: rgb(0, 128, 0), rgb(0, 128, 0)
+delete style rule environment changed: false
+delete style rule topology changed: false
+delete style rule colors: rgb(0, 0, 255), rgb(0, 0, 255)

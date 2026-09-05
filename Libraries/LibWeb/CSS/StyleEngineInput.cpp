@@ -1556,6 +1556,14 @@ struct RuleCompilationContext {
     bool gated_by_container_query { false };
 };
 
+static void publish_layer_order_for_sheet(CSSStyleSheet& sheet, DOM::Document const& document)
+{
+    sheet.for_each_owning_style_scope([&](StyleScope& scope) {
+        if (&scope.document() == &document)
+            scope.publish_cascade_layer_order();
+    });
+}
+
 static void compile_rules_into(RuleCompilationContext const& context, CSSRule& rule)
 {
     auto& style_engine = context.style_engine;
@@ -1649,11 +1657,11 @@ static void compile_rules_into(RuleCompilationContext const& context, CSSRule& r
     // the way in as well. A declaration behind a condition that does not hold declares nothing, so it
     // moves no order.
     if (conditions_hold && declares_a_layer(rule)) {
-        style_engine.record_layer_statement(sheet_handle);
         // NB: The layer order is otherwise published lazily with the rule cache, which is after
         //     transaction has already ranked with the old order. Publish it now so the
         //     plan for this very statement ranks with the order it establishes.
-        style_computer.document().style_scope().publish_cascade_layer_order();
+        if (auto* sheet = rule.parent_style_sheet())
+            publish_layer_order_for_sheet(*sheet, document);
     }
     if (is<CSSLayerStatementRule>(rule))
         return;
@@ -1915,6 +1923,13 @@ static void collect_enclosing_group_context(GC::RootVector<GC::Ref<CSSRule>> con
     context.in_a_layer = in_a_layer;
 }
 
+static bool rule_change_needs_style_environment_bump(CSSRule const& rule)
+{
+    if (auto const* style_rule = as_if<CSSStyleRule>(rule))
+        return style_rule->css_rules().length() != 0;
+    return !is<CSSNestedDeclarations>(rule) && !is<CSSPropertyRule>(rule);
+}
+
 // A rule arrived in one document's engine. Compile it, and everything it brings with it, into the
 // position it holds there.
 static void record_style_rule_inserted_in(CSSRule& rule, CSSStyleSheet& sheet, DOM::Document& document)
@@ -1925,7 +1940,7 @@ static void record_style_rule_inserted_in(CSSRule& rule, CSSStyleSheet& sheet, D
     if (sheet_id == 0)
         return;
 
-    if (!is<CSSPropertyRule>(rule))
+    if (rule_change_needs_style_environment_bump(rule))
         document.bump_style_environment_version();
 
     Vector<void const*> scope_roots;
@@ -1988,7 +2003,7 @@ void record_style_rule_removed(CSSStyleSheet& sheet_it_left, CSSRule& rule)
     for_each_document_with_engine_copy(sheet_it_left, [&](DOM::Document& document) {
         any_engine_heard = true;
         document.flush_deferred_style_change_event();
-        if (removed.size() != 1 || !is<CSSPropertyRule>(*removed.first()))
+        if (any_of(removed, [](auto& entry) { return rule_change_needs_style_environment_bump(entry); }))
             document.bump_style_environment_version();
 
         auto& style_computer = document.style_computer();
@@ -1997,9 +2012,7 @@ void record_style_rule_removed(CSSStyleSheet& sheet_it_left, CSSRule& rule)
             // A layer declaration leaving reorders the layers as much as one arriving does, and it holds no
             // rule identity that removing would carry the change for.
             if (declares_a_layer(entry)) {
-                if (auto sheet_id = style_computer.style_engine_sheet_id_for(sheet_it_left); sheet_id != 0)
-                    style_engine.record_layer_statement(sheet_id);
-                document.style_scope().publish_cascade_layer_order();
+                publish_layer_order_for_sheet(sheet_it_left, document);
             }
             if (auto rule_id = style_computer.style_engine_rule_id_for(entry); rule_id != 0) {
                 style_engine.remove_rule(rule_id);
@@ -2108,8 +2121,8 @@ void record_style_rule_declarations_changed(CSSRule& rule)
         if (rule_id == 0)
             return;
 
-        // Every style input record naming this block names it by its identity, which has not moved.
-        document.bump_style_environment_version();
+        if (rule_change_needs_style_environment_bump(rule_to_report))
+            document.bump_style_environment_version();
 
         auto& style_engine = style_computer.style_engine();
         style_engine.record_rule_declarations_changed(rule_id, style_engine.next_declaration_block_version());
