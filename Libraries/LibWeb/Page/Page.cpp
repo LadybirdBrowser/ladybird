@@ -9,6 +9,8 @@
 #include <AK/SourceLocation.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapVector.h>
+#include <LibGfx/Bitmap.h>
+#include <LibGfx/PaintingSurface.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibWeb/Bindings/CSS.h>
@@ -31,8 +33,10 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Selection/Selection.h>
 
@@ -155,6 +159,61 @@ void Page::load_html(StringView html, Utf16String navigation_id)
 void Page::reload()
 {
     top_level_traversable()->reload();
+}
+
+void Page::queue_screenshot_task(Optional<UniqueNodeID> node_id)
+{
+    m_screenshot_tasks.enqueue({ node_id });
+    top_level_traversable()->set_needs_repaint();
+    client().request_frame();
+}
+
+void Page::process_screenshot_requests()
+{
+    auto& client = this->client();
+    auto navigable = top_level_traversable();
+    while (!m_screenshot_tasks.is_empty()) {
+        auto task = m_screenshot_tasks.dequeue();
+        if (task.node_id.has_value()) {
+            auto* dom_node = DOM::Node::from_unique_id(*task.node_id);
+            if (dom_node)
+                dom_node->document().update_layout(DOM::UpdateLayoutReason::ProcessScreenshot);
+            auto const* layout_node = dom_node ? dom_node->layout_node() : nullptr;
+            if (!layout_node || !Painting::has_committed_box(*layout_node)) {
+                client.page_did_take_screenshot({});
+                continue;
+            }
+            auto rect = enclosing_device_rect(Painting::absolute_border_box_rect(*layout_node));
+            auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>());
+            if (bitmap_or_error.is_error()) {
+                client.page_did_take_screenshot({});
+                continue;
+            }
+            auto bitmap = bitmap_or_error.release_value();
+            auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
+            HTML::PaintConfig paint_config { .canvas_fill_rect = rect.to_type<int>() };
+            navigable->render_screenshot(painting_surface, paint_config, [bitmap, &client] {
+                client.page_did_take_screenshot(bitmap->to_shareable_bitmap());
+            });
+        } else {
+            navigable->active_document()->update_layout(DOM::UpdateLayoutReason::ProcessScreenshot);
+            auto const* layout_node = navigable->active_document()->layout_node();
+            VERIFY(layout_node && Painting::has_committed_box(*layout_node));
+            auto scrollable_overflow_rect = Painting::scrollable_overflow_rect(*layout_node);
+            auto rect = enclosing_device_rect(scrollable_overflow_rect.value());
+            auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>());
+            if (bitmap_or_error.is_error()) {
+                client.page_did_take_screenshot({});
+                continue;
+            }
+            auto bitmap = bitmap_or_error.release_value();
+            auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
+            HTML::PaintConfig paint_config { .paint_overlay = true, .canvas_fill_rect = rect.to_type<int>() };
+            navigable->render_screenshot(painting_surface, paint_config, [bitmap, &client] {
+                client.page_did_take_screenshot(bitmap->to_shareable_bitmap());
+            });
+        }
+    }
 }
 
 Gfx::Palette Page::palette() const

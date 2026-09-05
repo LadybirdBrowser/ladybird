@@ -10,9 +10,6 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
 #include <LibGC/RootVector.h>
-#include <LibGfx/Bitmap.h>
-#include <LibGfx/PaintingSurface.h>
-#include <LibGfx/SkiaBackendContext.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Geolocation/GeolocationCoordinates.h>
@@ -35,7 +32,6 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
 
@@ -2060,53 +2056,6 @@ void LocalTraversableNavigable::unregister_emulated_position_data_observer(u64 o
 {
     VERIFY(is_top_level_traversable());
     m_emulated_position_data_observers.remove(observer_id);
-}
-
-void LocalTraversableNavigable::process_screenshot_requests()
-{
-    auto& client = page().client();
-    while (!m_screenshot_tasks.is_empty()) {
-        auto task = m_screenshot_tasks.dequeue();
-        if (task.node_id.has_value()) {
-            auto* dom_node = DOM::Node::from_unique_id(*task.node_id);
-            if (dom_node)
-                dom_node->document().update_layout(DOM::UpdateLayoutReason::ProcessScreenshot);
-            auto const* layout_node = dom_node ? dom_node->layout_node() : nullptr;
-            if (!layout_node || !Painting::has_committed_box(*layout_node)) {
-                client.page_did_take_screenshot({});
-                continue;
-            }
-            auto rect = page().enclosing_device_rect(Painting::absolute_border_box_rect(*layout_node));
-            auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>());
-            if (bitmap_or_error.is_error()) {
-                client.page_did_take_screenshot({});
-                continue;
-            }
-            auto bitmap = bitmap_or_error.release_value();
-            auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
-            PaintConfig paint_config { .canvas_fill_rect = rect.to_type<int>() };
-            render_screenshot(painting_surface, paint_config, [bitmap, &client] {
-                client.page_did_take_screenshot(bitmap->to_shareable_bitmap());
-            });
-        } else {
-            active_document()->update_layout(DOM::UpdateLayoutReason::ProcessScreenshot);
-            auto const* layout_node = active_document()->layout_node();
-            VERIFY(layout_node && Painting::has_committed_box(*layout_node));
-            auto scrollable_overflow_rect = Painting::scrollable_overflow_rect(*layout_node);
-            auto rect = page().enclosing_device_rect(scrollable_overflow_rect.value());
-            auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>());
-            if (bitmap_or_error.is_error()) {
-                client.page_did_take_screenshot({});
-                continue;
-            }
-            auto bitmap = bitmap_or_error.release_value();
-            auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
-            PaintConfig paint_config { .paint_overlay = true, .canvas_fill_rect = rect.to_type<int>() };
-            render_screenshot(painting_surface, paint_config, [bitmap, &client] {
-                client.page_did_take_screenshot(bitmap->to_shareable_bitmap());
-            });
-        }
-    }
 }
 
 }

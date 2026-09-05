@@ -127,6 +127,9 @@ public:
 
     void reload();
 
+    void queue_screenshot_task(Optional<UniqueNodeID> node_id);
+    void process_screenshot_requests();
+
     CSSPixelPoint device_to_css_point(DevicePixelPoint) const;
     DevicePixelPoint css_to_device_point(CSSPixelPoint) const;
     DevicePixelRect css_to_device_rect(CSSPixelRect) const;
@@ -375,6 +378,11 @@ private:
     GC::Weak<HTML::LocalNavigable> m_mouse_event_tracking_navigable;
 
     GC::Ptr<HTML::LocalTraversableNavigable> m_top_level_traversable;
+
+    struct ScreenshotTask {
+        Optional<UniqueNodeID> node_id;
+    };
+    Queue<ScreenshotTask> m_screenshot_tasks;
 
     bool m_is_scripting_enabled { true };
     bool m_should_block_pop_ups { true };

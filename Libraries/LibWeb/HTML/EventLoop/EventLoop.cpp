@@ -692,10 +692,8 @@ void EventLoop::update_the_rendering()
             document->update_layout(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate);
         navigable->paint_next_frame();
         ++m_rendering_scheduler_counters.paints;
-        if (navigable->is_traversable()) {
-            auto traversable = navigable->traversable_navigable();
-            traversable->process_screenshot_requests();
-        }
+        if (navigable->is_traversable())
+            navigable->page().process_screenshot_requests();
     }
 
     // 23. For each doc of docs, process top layer removals given doc.

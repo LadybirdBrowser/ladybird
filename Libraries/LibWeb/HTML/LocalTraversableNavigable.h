@@ -22,14 +22,6 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/StorageAPI/StorageShed.h>
 
-#ifdef AK_OS_MACOS
-#    include <LibGfx/MetalContext.h>
-#endif
-
-#ifdef USE_VULKAN
-#    include <LibGfx/VulkanContext.h>
-#endif
-
 namespace Web::HTML {
 
 struct ChangingNavigableContinuationState;
@@ -126,14 +118,6 @@ public:
     u64 register_emulated_position_data_observer(GC::Ref<GC::Function<void()>>);
     void unregister_emulated_position_data_observer(u64 observer_id);
 
-    void process_screenshot_requests();
-    void queue_screenshot_task(Optional<UniqueNodeID> node_id)
-    {
-        m_screenshot_tasks.enqueue({ node_id });
-        set_needs_repaint();
-        page().client().request_frame();
-    }
-
 private:
     LocalTraversableNavigable(GC::Ref<Page>);
 
@@ -195,11 +179,6 @@ private:
     Geolocation::EmulatedPositionData m_emulated_position_data;
     HashMap<u64, GC::Ref<GC::Function<void()>>> m_emulated_position_data_observers;
     u64 m_next_emulated_position_data_observer_id { 0 };
-
-    struct ScreenshotTask {
-        Optional<Web::UniqueNodeID> node_id;
-    };
-    Queue<ScreenshotTask> m_screenshot_tasks;
 };
 
 struct BrowsingContextAndDocument {

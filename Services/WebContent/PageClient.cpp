@@ -1978,7 +1978,7 @@ Web::Compositor::CompositorHost const* PageClient::compositor_host() const
 
 void PageClient::queue_screenshot_task(Optional<Web::UniqueNodeID> node_id)
 {
-    page().top_level_traversable()->queue_screenshot_task(node_id);
+    page().queue_screenshot_task(node_id);
 }
 
 }
