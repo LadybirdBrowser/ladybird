@@ -265,14 +265,14 @@ void PageClient::navigation_population_failed(Web::HTML::CrossProcessId navigabl
 
 void PageClient::populate_navigation(Web::HTML::NavigationPopulationRequest request, Web::HTML::NavigationPopulationResult result)
 {
-    page().top_level_traversable()->continue_navigation_at_population(move(request), move(result));
+    as<Web::HTML::LocalTraversableNavigable>(*page().local_root_navigable()).continue_navigation_at_population(move(request), move(result));
 }
 
 void PageClient::create_navigation_params(Web::HTML::NavigationPopulationRequest request)
 {
     auto navigable_id = request.navigable_id;
     auto navigation_id = request.navigation_id;
-    auto active_document = page().top_level_traversable()->active_document();
+    auto active_document = page().local_root_navigable()->active_document();
     if (!active_document) {
         client().async_did_finish_navigation_params_creation(m_id, navigable_id, navigation_id, {});
         return;
@@ -291,7 +291,7 @@ void PageClient::create_navigation_params(Web::HTML::NavigationPopulationRequest
 
 void PageClient::cancel_navigation_params_creation(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id)
 {
-    auto active_document = page().top_level_traversable()->active_document();
+    auto active_document = page().local_root_navigable()->active_document();
     if (!active_document)
         return;
 
@@ -305,7 +305,7 @@ void PageClient::cancel_navigation_params_creation(Web::HTML::CrossProcessId nav
 
 void PageClient::run_navigation_unload_check(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id)
 {
-    auto active_document = page().top_level_traversable()->active_document();
+    auto active_document = page().local_root_navigable()->active_document();
     if (!active_document) {
         client().async_did_fail_navigation_population(m_id, navigable_id, navigation_id);
         return;
@@ -361,7 +361,7 @@ Optional<Web::Compositor::CompositorContextId> PageClient::compositor_context_id
 
 void PageClient::run_iframe_load_event_steps(Web::HTML::CrossProcessId frame_id)
 {
-    auto active_document = page().top_level_traversable()->active_document();
+    auto active_document = page().local_root_navigable()->active_document();
     if (!active_document)
         return;
 
@@ -1206,7 +1206,7 @@ void PageClient::page_did_update_cookie(HTTP::Cookie::Cookie const& cookie)
     client().async_did_update_cookie(cookie);
 
     // Since the above (test-only) IPC is async, we reset the document cookie version now to avoid a stale cache.
-    if (auto* document = page().top_level_browsing_context().active_document())
+    if (auto document = page().local_root_navigable()->active_document())
         document->reset_cookie_version();
 }
 
@@ -1215,7 +1215,7 @@ void PageClient::page_did_expire_cookies_with_time_offset(AK::Duration offset)
     client().async_did_expire_cookies_with_time_offset(offset);
 
     // Since the above (test-only) IPC is async, we reset the document cookie version now to avoid a stale cache.
-    if (auto* document = page().top_level_browsing_context().active_document())
+    if (auto document = page().local_root_navigable()->active_document())
         document->reset_cookie_version();
 }
 
@@ -1225,7 +1225,7 @@ void PageClient::page_did_delete_all_cookies(URL::URL const& url, GC::Ref<Web::W
     m_pending_delete_all_cookies_promises.set(request_id, promise);
     client().async_did_request_delete_all_cookies(m_id, request_id, url);
 
-    if (auto* document = page().top_level_browsing_context().active_document())
+    if (auto document = page().local_root_navigable()->active_document())
         document->reset_cookie_version();
 }
 
@@ -1676,7 +1676,7 @@ void PageClient::set_webdriver_session_config(Web::WebDriver::UserPromptHandler 
 
 ErrorOr<void> PageClient::connect_to_web_ui(IPC::TransportHandle handle)
 {
-    auto* active_document = page().top_level_browsing_context().active_document();
+    auto active_document = page().local_root_navigable()->active_document();
     if (!active_document || !active_document->window())
         return {};
 
@@ -1771,7 +1771,7 @@ void PageClient::js_console_input(StringView js_source)
 
 void PageClient::run_javascript(StringView js_source)
 {
-    auto* active_document = page().top_level_browsing_context().active_document();
+    auto active_document = page().local_root_navigable()->active_document();
 
     if (!active_document)
         return;
@@ -1829,7 +1829,7 @@ Vector<Web::CSS::StyleSheetIdentifier> PageClient::list_style_sheets() const
 {
     Vector<Web::CSS::StyleSheetIdentifier> results;
 
-    auto const* document = page().top_level_browsing_context().active_document();
+    auto document = page().local_root_navigable()->active_document();
     if (document) {
         for (auto& sheet : document->style_sheets().sheets()) {
             gather_style_sheets(results, sheet);
@@ -1875,7 +1875,7 @@ Vector<Web::HTML::ScriptRegistry::Description> PageClient::list_devtools_sources
 {
     Vector<Web::HTML::ScriptRegistry::Description> results;
 
-    auto const* document = page().top_level_browsing_context().active_document();
+    auto document = page().local_root_navigable()->active_document();
     if (document)
         append_devtools_sources_for_document(results, *document);
 
@@ -1899,7 +1899,7 @@ static Optional<Web::HTML::ScriptRegistry::Description> find_devtools_source_des
 
 Optional<Web::HTML::ScriptRegistry::Description> PageClient::devtools_source_description(JS::SourceCode const& source_code) const
 {
-    auto const* document = page().top_level_browsing_context().active_document();
+    auto document = page().local_root_navigable()->active_document();
     if (!document)
         return {};
     return find_devtools_source_description(*document, source_code);
