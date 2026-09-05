@@ -4119,10 +4119,24 @@ impl StyleEngine {
                     ProgramJoinDeltaKind::Priority,
                 )
             }
-            InputKey::CascadeTopology(TopologyAxis::LayerOrder(tree_scope)) => (
-                self.program.rules_in_a_layer_in_scope(tree_scope),
-                ProgramJoinDeltaKind::Priority,
-            ),
+            InputKey::CascadeTopology(TopologyAxis::LayerOrder(tree_scope)) => {
+                let layer_order = self
+                    .program_staging
+                    .layer_orders
+                    .pairs()
+                    .find(|(scope, _, _)| *scope == tree_scope);
+                (
+                    self.program
+                        .rules_in_a_layer_in_scope(tree_scope)
+                        .into_iter()
+                        .filter(|&rule| {
+                            let layer = self.program.rule_version(rule).layer;
+                            layer_order.is_none_or(|(_, before, after)| before.get(&layer) != after.get(&layer))
+                        })
+                        .collect(),
+                    ProgramJoinDeltaKind::Priority,
+                )
+            }
             _ => return,
         };
 

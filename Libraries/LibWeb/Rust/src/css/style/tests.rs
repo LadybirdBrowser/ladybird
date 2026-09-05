@@ -3085,6 +3085,35 @@ fn an_evicted_retained_match_answer_falls_back_to_cold_matching() {
 }
 
 #[test]
+fn layer_order_inputs_only_name_rules_whose_rank_changed() {
+    let (mut engine, _) = linear_document();
+    let base = CascadeLayerID(1);
+    let middle = CascadeLayerID(2);
+    let theme = CascadeLayerID(3);
+    let mut rules = Vec::new();
+    for (index, layer) in [base, middle, theme].into_iter().enumerate() {
+        let rule = add_target_rule(&mut engine, StyleSheetObjectID(index as u32 + 1), StyleAtomID(200));
+        engine.set_rule_layer(rule, layer);
+        engine.set_rule_in_a_layer(rule);
+        rules.push(rule);
+    }
+    engine.set_layer_order(TreeScopeID::DOCUMENT, &[base, middle, theme]);
+    discard_transaction(&mut engine);
+
+    engine.set_layer_order(TreeScopeID::DOCUMENT, &[theme, middle, base]);
+    let transaction = engine.take_transaction();
+    let mut changed: Vec<_> = transaction.program_joins.iter().map(|delta| delta.rule).collect();
+    changed.sort_unstable();
+    assert_eq!(changed, vec![rules[0], rules[2]]);
+    engine.release_transaction(transaction);
+
+    engine.set_layer_order(TreeScopeID::DOCUMENT, &[theme, middle, base, CascadeLayerID(4)]);
+    let transaction = engine.take_transaction();
+    assert!(transaction.program_joins.is_empty());
+    engine.release_transaction(transaction);
+}
+
+#[test]
 fn an_evicted_answer_payload_repairs_to_its_retained_identity() {
     let (mut engine, nodes) = linear_document();
     let target = StyleAtomID(200);
