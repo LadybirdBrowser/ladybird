@@ -439,10 +439,6 @@ impl Default for PrefixAnswerCache {
 }
 
 impl PrefixAnswerCache {
-    pub(super) fn non_prefix_identity(catalog: &mut MatchAnswerCatalog, matches: &[RuleMatch]) -> MatchAnswerID {
-        catalog.intern(matches)
-    }
-
     /// Wraps a catalog mutation so the prefix payload bytes it added or released are mirrored in
     /// this cache's nested footprint.
     pub(super) fn with_payload_accounting<R>(

@@ -4085,8 +4085,7 @@ impl StyleEngine {
                         retained_selector_truth = matches.prepared_selector_truth();
                     }
                     let (scope_program, dispatch) = self.ranked_scope_program(scope);
-                    let non_prefix_matches =
-                        PrefixAnswerCache::non_prefix_identity(&mut self.match_answers, matches.as_slice());
+                    let non_prefix_matches = self.match_answers.intern(matches.as_slice());
                     let contribution_key = PrefixContributionKey {
                         program: scope_program,
                         matches: prefix_matches,

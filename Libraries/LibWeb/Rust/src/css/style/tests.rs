@@ -838,7 +838,7 @@ fn an_evicted_prefix_answer_is_a_typed_missing_key() {
     ));
     let contribution =
         answers.remember_prefix_contribution(&mut catalog, contribution_key.program, contribution_key.matches, &[]);
-    let non_prefix = PrefixAnswerCache::non_prefix_identity(&mut catalog, &[]);
+    let non_prefix = catalog.intern(&[]);
     assert_eq!(contribution, non_prefix, "equal factors share one answer identity");
     assert!(matches!(
         answers.prefix_contribution(&catalog, contribution_key),
