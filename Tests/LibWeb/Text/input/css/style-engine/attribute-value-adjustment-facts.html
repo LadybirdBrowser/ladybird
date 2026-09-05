@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    input { display: inline; width: 40px; height: 20px }
+    .changed { color: blue }
+</style>
+<input id="input" type="text">
+<svg><rect id="rect" fill="red" width="10" height="10"></rect></svg>
+<script>
+    test(() => {
+        const input = document.getElementById("input");
+        const rect = document.getElementById("rect");
+        const printStyles = label => {
+            internals.updateStyle();
+            println(`${label}: input ${getComputedStyle(input).display}, rect ${getComputedStyle(rect).fill}`);
+        };
+        printStyles("initial");
+        input.type = "checkbox";
+        rect.setAttribute("fill", "green");
+        printStyles("changed values");
+        input.className = "changed";
+        rect.classList.add("changed");
+        printStyles("changed cascade");
+        input.type = "text";
+        rect.removeAttribute("fill");
+        printStyles("removed hint");
+        rect.setAttribute("fill", "blue");
+        printStyles("added hint");
+    });
+</script>

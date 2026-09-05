@@ -400,13 +400,13 @@ static bool element_may_have_presentational_hints(DOM::Element const& element)
         return true;
     bool has_presentational_hint = false;
     element.for_each_attribute([&](Utf16FlyString const& name, Utf16View) {
-        if (element.is_presentational_hint(name))
+        if (!has_presentational_hint && element.is_presentational_hint(name))
             has_presentational_hint = true;
     });
     return has_presentational_hint;
 }
 
-u32 element_style_adjustment_facts(DOM::Element const& element)
+u32 element_box_type_adjustment_facts(DOM::Element const& element)
 {
     bool is_html_element = element.namespace_uri() == Namespace::HTML;
     auto local_name = element.local_name();
@@ -473,6 +473,18 @@ u32 element_style_adjustment_facts(DOM::Element const& element)
     set(local_name.equals_ignoring_ascii_case("mtd"sv), ElementStyleAdjustmentFact::IsMathMLMtd);
     set(is_html_element && local_name.equals_ignoring_ascii_case(HTML::TagNames::th), ElementStyleAdjustmentFact::IsTh);
     set(element.is_document_element(), ElementStyleAdjustmentFact::IsDocumentElement);
+    return facts;
+}
+
+u32 element_style_adjustment_facts(DOM::Element const& element)
+{
+    auto facts = element_box_type_adjustment_facts(element);
+    auto set = [&](bool condition, ElementStyleAdjustmentFact fact) {
+        if (condition)
+            facts |= fact;
+    };
+    // Admission facts do not participate in box transformations. In particular, collecting
+    // presentational hints can scan every attribute, so only collect them for the engine.
     // An animation the element is associated with composes into its style once it is relevant,
     // which its timeline can make it after the element's arrival.
     set(element.has_relevant_animations() || element.has_associated_animations(), ElementStyleAdjustmentFact::HasAnimations);
@@ -2490,9 +2502,11 @@ void record_element_attribute_changed(DOM::Element& element, Utf16FlyString cons
     if (name == HTML::AttributeNames::headingoffset || name == HTML::AttributeNames::headingreset)
         record_heading_levels_in_subtree(element);
 
-    // Attributes decide which style adjustments apply to the element and whether it cascades
-    // presentational hints, both of which the engine reads as facts.
-    record_element_adjustment_facts(element);
+    // Attribute presence decides whether the element cascades presentational hints. Changing
+    // only a value cannot move that fact, except for an input's type, which also decides its
+    // box adjustments and whether it supports dimension attributes.
+    if (old_value.has_value() != new_value.has_value() || name == HTML::AttributeNames::type)
+        record_element_adjustment_facts(element);
 
     // Both values cross as atoms. Their text is recorded once per distinct value only when a
     // compiled selector for this attribute uses an operator that cannot compare atom identities.
