@@ -1,2 +1,2 @@
-PASS: :nth-child of :has() invalidates following structural dependents | elementStyleRecomputations=1, elementStyleNoopRecomputations=0, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0
-PASS: :nth-last-child of :has() invalidates previous structural dependents | elementStyleRecomputations=1, elementStyleNoopRecomputations=0, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0
+PASS: :nth-child of :has() invalidates following structural dependents | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: :nth-last-child of :has() invalidates previous structural dependents | elementStyleRecomputations=0, elementStyleNoopRecomputations=0

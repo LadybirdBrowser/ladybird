@@ -3326,6 +3326,12 @@ Length::FontMetrics StyleComputer::calculate_root_element_font_metrics(ComputedS
     return font_metrics;
 }
 
+void StyleComputer::update_root_element_font_metrics(ComputedValues const& values)
+{
+    m_root_element_font_metrics = Length::FontMetrics { values.font_size(), values.font_list().first_available_font().pixel_metrics(), values.line_height() };
+    m_root_element_font_metrics_depend_on_viewport_metrics = values.font_metrics_depend_on_viewport_metrics();
+}
+
 CSSPixels StyleComputer::default_user_font_size()
 {
     // FIXME: This value should be configurable by the user.
@@ -3809,7 +3815,7 @@ StyleEngine::StyleRecordDelta StyleComputer::record_computed_style_inputs(Option
     return publication;
 }
 
-NonnullRefPtr<ComputedValues const> StyleComputer::materialize_style_record(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties, StyleEngineMatchResult* reusable_matches, Optional<StyleEngine::StyleRecordDelta&> style_record_delta, u8 inherited_style_groups) const
+NonnullRefPtr<ComputedValues const> StyleComputer::materialize_style_record(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties, StyleEngineMatchResult* reusable_matches, Optional<StyleEngine::StyleRecordDelta&> style_record_delta) const
 {
     auto was_materializing_for_targeted_style_update = m_materializing_for_targeted_style_update;
     m_materializing_for_targeted_style_update = true;
@@ -3817,7 +3823,6 @@ NonnullRefPtr<ComputedValues const> StyleComputer::materialize_style_record(DOM:
         m_materializing_for_targeted_style_update = was_materializing_for_targeted_style_update;
     };
     StyleSharingCandidate sharing;
-    sharing.inherited_style_groups = inherited_style_groups;
     auto publish_computed_groups = [&](NonnullRefPtr<ComputedValues const> values) {
         auto publication = publish_computed_style_inputs(abstract_element, *values);
         if (sharing.new_style_sharing_entry_hash.has_value()) {
@@ -4503,7 +4508,6 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     StyleInputRecord* new_style_input_record = nullptr;
     bool style_input_is_unchanged = false;
     bool only_declarations_changed = false;
-    bool only_inherited_style_changed = false;
     // What the last computation decided and left behind, kept when this one differs from it in
     // nothing but which declarations it was handed.
     struct PreviousComputation {
@@ -4612,23 +4616,6 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                 break;
             case StyleInputRecord::Difference::ParentStyle:
                 counters.element_style_input_changed_by_parent_style++;
-                if (sharing->inherited_style_groups != 0) {
-                    only_inherited_style_changed = true;
-                    previous_computation = PreviousComputation {
-                        .read_beyond_the_record = previous->read_beyond_the_record,
-                        .style_uses_attr_css_function = previous->style_uses_attr_css_function,
-                        .style_uses_var_css_function = previous->style_uses_var_css_function,
-                        .style_uses_if_css_function = previous->style_uses_if_css_function,
-                        .style_uses_custom_function = previous->style_uses_custom_function,
-                        .style_uses_inherit_css_function = previous->style_uses_inherit_css_function,
-                        .style_uses_tree_counting_function = previous->style_uses_tree_counting_function,
-                        .style_depends_on_viewport_metrics = previous->style_depends_on_viewport_metrics,
-                        .style_depends_on_size_container_query = previous->style_depends_on_size_container_query,
-                        .style_depends_on_style_container_query = previous->style_depends_on_style_container_query,
-                        .explicitly_inherited_non_inherited_style_groups = previous->explicitly_inherited_non_inherited_style_groups,
-                        .custom_property_references = previous->custom_property_references,
-                    };
-                }
                 break;
             case StyleInputRecord::Difference::ParentCustomProperties:
                 counters.element_style_input_changed_by_parent_custom_properties++;
@@ -4940,12 +4927,12 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             node,
             pseudo_element_to_ffi(abstract_element.pseudo_element()),
             cascaded_properties->rust_store(),
-            sharing->inherited_style_groups,
+            0,
             donor ? donor->style_node_id : StyleNodeID {},
             donor ? *donor->style_record_identity : StyleRecordID {});
         exact_cascade_is_unchanged = publication.unchanged;
         if (previous_style_record.present
-            && (only_declarations_changed || only_inherited_style_changed)
+            && only_declarations_changed
             && previous_computation.has_value()
             && !previous_computation->read_beyond_the_record
             && !previous_computation->style_uses_var_css_function
@@ -4963,7 +4950,6 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     if (previous_computation.has_value()
         && !previous_computation->read_beyond_the_record
         && exact_cascade_is_unchanged
-        && !only_inherited_style_changed
         // A computation that read the other half of its inherited style, through `inherit` on a
         // non-inherited property, read what the record does not name, so an unchanged cascade does
         // not mean an unchanged answer.

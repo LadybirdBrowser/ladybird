@@ -20,9 +20,7 @@ function styleCounterSummary() {
     const counters = internals.getStyleInvalidationCounters();
     return (
         `elementStyleRecomputations=${counters.elementStyleRecomputations}, ` +
-        `elementStyleNoopRecomputations=${counters.elementStyleNoopRecomputations}, ` +
-        `elementInheritedStyleRecomputations=${counters.elementInheritedStyleRecomputations}, ` +
-        `elementInheritedStyleNoopRecomputations=${counters.elementInheritedStyleNoopRecomputations}`
+        `elementStyleNoopRecomputations=${counters.elementStyleNoopRecomputations}`
     );
 }
 

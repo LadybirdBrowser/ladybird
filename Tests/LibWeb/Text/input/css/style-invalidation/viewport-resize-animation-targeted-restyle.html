@@ -113,7 +113,7 @@
         println(`resized animated font size: ${child.getComputedStyle(animatedFontSource).fontSize}`);
         println(`resized animated inherited-font width: ${child.getComputedStyle(animatedInheritedFontTarget).width}`);
         println(`resized post-style animated width: ${child.getComputedStyle(postStyleAnimationTarget).width}`);
-        const nonInheritedStyleRecomputations = counters.elementStyleRecomputations - counters.elementInheritedStyleRecomputations;
+        const nonInheritedStyleRecomputations = counters.elementStyleRecomputations;
         println(`style recomputations bounded: ${nonInheritedStyleRecomputations < elementCount}`);
     });
 </script>

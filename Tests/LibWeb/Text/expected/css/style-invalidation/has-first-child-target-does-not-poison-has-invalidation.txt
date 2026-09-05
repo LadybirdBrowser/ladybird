@@ -1,1 +1,1 @@
-PASS: :has() with a :first-child target stays targeted | elementStyleRecomputations=1, elementStyleNoopRecomputations=0, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0
+PASS: :has() with a :first-child target stays targeted | elementStyleRecomputations=0, elementStyleNoopRecomputations=0

@@ -835,6 +835,10 @@ pub struct WinnerGroups {
     winner_entry_count: usize,
     winner_rule_references: WinnerRuleReferences,
     column: Column<Option<(CascadeStateID, ProgramVersion)>>,
+    /// The flush that published each node's row: a row published in the current flush holds the
+    /// cascade of the node's current answer.
+    stamps: Column<u64>,
+    stamp: u64,
     pseudo_rows_by_node: Column<Vec<PseudoWinnerRow>>,
     pseudo_row_capacity_bytes: u64,
     priority_current: BitColumn,
@@ -855,6 +859,8 @@ struct PseudoWinnerRow {
     pseudo: PseudoElementTarget,
     state: (CascadeStateID, ProgramVersion),
     priority_current: bool,
+    /// The flush that published the row's state.
+    stamp: u64,
 }
 
 #[derive(Clone)]
@@ -895,6 +901,8 @@ impl Default for WinnerGroups {
             winner_entry_count: 0,
             winner_rule_references: WinnerRuleReferences::default(),
             column: Column::default(),
+            stamps: Column::default(),
+            stamp: 0,
             pseudo_rows_by_node: Column::default(),
             pseudo_row_capacity_bytes: 0,
             priority_current: BitColumn::default(),
@@ -935,6 +943,8 @@ impl WinnerGroups {
             winner_entry_count: self.winner_entry_count,
             winner_rule_references: self.winner_rule_references.clone(),
             column: self.column.clone(),
+            stamps: self.stamps.clone(),
+            stamp: self.stamp,
             pseudo_rows_by_node,
             pseudo_row_capacity_bytes,
             priority_current: self.priority_current.clone(),
@@ -1323,10 +1333,26 @@ impl WinnerGroups {
             / WINNER_GROUP_PROPERTY_COUNT
     }
 
-    /// Whether a rule contributes a winner to the state.
+    /// Name the flush whose publications the rows record from now on.
+    pub fn begin_flush(&mut self, stamp: u64) {
+        self.stamp = stamp;
+    }
+
+    /// The flush that published the node's row, when it has one.
     #[must_use]
-    pub fn state_wins_with_rule(&self, state: CascadeStateID, rule: RuleID) -> bool {
-        self.state_winning_rules[state.0 as usize].contains(&rule)
+    pub fn row_stamp(&self, node: StyleNodeID) -> Option<u64> {
+        let index = node.element_index()? as usize;
+        self.column.get(index)?.as_ref()?;
+        Some(self.stamps.get(index).copied().unwrap_or(0))
+    }
+
+    /// The flush that published the node's row for a pseudo-element, when it has one.
+    #[must_use]
+    pub fn pseudo_row_stamp(&self, node: StyleNodeID, pseudo: PseudoElementTarget) -> Option<u64> {
+        node.element_index()
+            .and_then(|index| self.pseudo_rows_by_node.get(index as usize))
+            .and_then(|rows| rows.iter().find(|row| row.pseudo == pseudo))
+            .map(|row| row.stamp)
     }
 
     #[must_use]
@@ -1445,6 +1471,8 @@ impl WinnerGroups {
             return false;
         }
         self.column.ensure(index);
+        self.stamps.ensure(index);
+        self.stamps[index] = self.stamp;
         if self.column[index] == Some((state, program_version)) {
             self.set_priority_current(index, true);
             return true;
@@ -1493,6 +1521,7 @@ impl WinnerGroups {
         self.pseudo_rows_by_node.ensure(index);
         if let Some(existing) = existing {
             let row = &mut self.pseudo_rows_by_node[index][existing];
+            row.stamp = self.stamp;
             if row.state == (state, program_version) {
                 row.priority_current = true;
                 return true;
@@ -1502,6 +1531,7 @@ impl WinnerGroups {
                 pseudo,
                 state: (state, program_version),
                 priority_current: true,
+                stamp: self.stamp,
             };
             self.update_winner_rule_node_references(previous, node, false);
             self.release_state(previous);
@@ -1511,6 +1541,7 @@ impl WinnerGroups {
                 pseudo,
                 state: (state, program_version),
                 priority_current: true,
+                stamp: self.stamp,
             });
             self.pseudo_row_capacity_bytes +=
                 ((self.pseudo_rows_by_node[index].capacity() - capacity_before) * size_of::<PseudoWinnerRow>()) as u64;
@@ -1820,6 +1851,7 @@ impl WinnerGroups {
         self.winner_entry_count = 0;
         self.winner_rule_references = WinnerRuleReferences::default();
         self.column = Column::default();
+        self.stamps = Column::default();
         self.pseudo_rows_by_node = Column::default();
         self.pseudo_row_capacity_bytes = 0;
         self.priority_current = BitColumn::default();
@@ -1844,6 +1876,7 @@ impl WinnerGroups {
                 self.state_reference_counts,
                 self.state_winning_rules,
                 self.winner_rule_references,
+                self.stamps,
             ];
             cached [self.nested_residency.bytes()];
             nested [self.pseudo_row_capacity_bytes];

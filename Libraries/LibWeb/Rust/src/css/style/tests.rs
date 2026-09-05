@@ -3081,6 +3081,69 @@ fn a_changed_exact_cascade_is_still_published_for_recomputation() {
 }
 
 #[test]
+fn published_ancestor_checks_follow_preorder_instead_of_node_identity() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let mut raw = [0_u32; 40];
+    engine.allocate_style_nodes(&mut raw);
+    let nodes: Vec<_> = raw.iter().map(|&raw| StyleNodeID::from_raw(raw).unwrap()).collect();
+    engine.record_tree_delta(nodes[0], None, Some(relations(None, None, None)));
+    set_atom_feature(&mut engine, nodes[0], LocalFeatureKey::TagName, StyleAtomID(100));
+    discard_transaction(&mut engine);
+    engine.match_element_for_cascade(nodes[0]).unwrap();
+    publish_current_cascade_as_computed(&mut engine, nodes[0]);
+
+    let parent = nodes[39];
+    engine.record_tree_delta(parent, None, Some(relations(Some(raw[0]), None, None)));
+    set_atom_feature(&mut engine, parent, LocalFeatureKey::TagName, StyleAtomID(100));
+    for index in 1..39 {
+        let node = nodes[index];
+        let previous = (index > 1).then_some(raw[index - 1]);
+        engine.record_tree_delta(node, None, Some(relations(Some(parent.raw()), previous, None)));
+        set_atom_feature(&mut engine, node, LocalFeatureKey::TagName, StyleAtomID(100));
+    }
+    let mut published = Vec::new();
+    assert!(engine.take_style_transaction(nodes[0], |_, _, reactions| {
+        published.extend(reactions.iter().map(|reaction| reaction.style_node));
+    }));
+    let expected: Vec<_> = std::iter::once(raw[39]).chain(raw[1..39].iter().copied()).collect();
+    assert_eq!(published, expected);
+    assert_eq!(engine.counters().get(Counter::EngineComputedRecordGateAncestors), 38);
+}
+
+#[test]
+fn a_changed_cascade_survives_an_earlier_exact_cascade_stop() {
+    let (mut engine, nodes) = linear_document();
+    let classes = [StyleAtomID(200), StyleAtomID(201), StyleAtomID(202)];
+    for (index, class) in classes.into_iter().enumerate() {
+        let rule = add_target_rule(&mut engine, StyleSheetObjectID(index as u32 + 1), class);
+        let value = SpecifiedValueID(if index == 2 { 102 } else { 101 });
+        engine.set_rule_declared_properties_with_values(rule, &[(1, false, value)], true);
+    }
+    for &node in &nodes[1..3] {
+        add_feature(&mut engine, node, LocalFeatureKey::Class(classes[0]));
+    }
+    discard_transaction(&mut engine);
+    for &node in &nodes[1..3] {
+        engine.match_element_for_cascade(node).unwrap();
+        publish_current_cascade_as_computed(&mut engine, node);
+    }
+    for index in 1..3 {
+        remove_feature(&mut engine, nodes[index], LocalFeatureKey::Class(classes[0]));
+        add_feature(&mut engine, nodes[index], LocalFeatureKey::Class(classes[index]));
+    }
+    let stops_before = engine.counters().get(Counter::PublishedExactCascadeStops);
+    let mut published = Vec::new();
+    assert!(engine.take_style_transaction(nodes[0], |_, _, reactions| {
+        published.extend(reactions.iter().map(|reaction| reaction.style_node));
+    }));
+    assert_eq!(published, [nodes[2].raw()]);
+    assert_eq!(
+        engine.counters().get(Counter::PublishedExactCascadeStops),
+        stops_before + 1
+    );
+}
+
+#[test]
 fn program_and_local_routes_merge_retained_answer_attribution() {
     let (mut engine, nodes) = linear_document();
     let departing_class = StyleAtomID(200);

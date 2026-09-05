@@ -21,7 +21,6 @@
         getComputedStyle(plain).color;
         internals.updateStyle();
         internals.resetStyleInvalidationCounters();
-        const graphBefore = internals.styleEngineCounters();
 
         // An inherited color change flows to fully inheriting descendants and leaves an element
         // that declares its own color alone. A default border color is currentcolor, so the
@@ -33,11 +32,8 @@
         println(`border color: ${getComputedStyle(document.getElementById("bordered")).borderTopColor}`);
 
         let counters = internals.getStyleInvalidationCounters();
-        println(`inherited recomputations: ${counters.elementInheritedStyleRecomputations}`);
-        println(`complete reactions materialized: ${counters.elementStyleRecomputations >= counters.elementInheritedStyleRecomputations}`);
-        const graphAfter = internals.styleEngineCounters();
-        println(`complete reactions publish inherited handles: ${graphAfter.inheritedGroupNodeHandlesPublished - graphBefore.inheritedGroupNodeHandlesPublished >= counters.elementInheritedStyleRecomputations}`);
-        println(`complete reactions publish style records: ${graphAfter.styleRecordNodeHandlesPublished - graphBefore.styleRecordNodeHandlesPublished >= counters.elementInheritedStyleRecomputations}`);
+        println(`C++ recomputations: ${counters.elementStyleRecomputations}`);
+        println(`engine records: ${counters.engineComputedStyleRecords}`);
 
         // An inherited font-size change must still recompute the element whose margin is declared
         // in em, so its declared value is re-resolved against the new font size.
@@ -48,7 +44,7 @@
         println(`plain font-size: ${getComputedStyle(plain).fontSize}`);
 
         counters = internals.getStyleInvalidationCounters();
-        println(`inherited recomputations: ${counters.elementInheritedStyleRecomputations}`);
-        println(`complete reactions materialized: ${counters.elementStyleRecomputations >= counters.elementInheritedStyleRecomputations}`);
+        println(`C++ recomputations: ${counters.elementStyleRecomputations}`);
+        println(`engine records: ${counters.engineComputedStyleRecords}`);
     });
 </script>

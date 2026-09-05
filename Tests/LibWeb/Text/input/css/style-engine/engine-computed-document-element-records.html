@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<script src="../../include.js"></script>
+<style>
+    html.big { font-size: 24px; }
+    html.pad { padding: 1rem; margin: 2em; }
+    .r { width: 2rem; }
+</style>
+<body><div class="r"><p>one <span>two</span></p><section><h1>t</h1><p class="r">p</p></section></div></body>
+<script>
+    // The document element inherits from the initial values and its font is the root font
+    // `rem` resolves against: the engine computes its records, first and later, and the
+    // records under it in the same flush.
+    test(() => {
+        const counters = () => Object.assign({}, internals.styleEngineCounters(), internals.getStyleInvalidationCounters());
+        let before = {};
+        const report = (label) => {
+            internals.updateStyle();
+            const after = counters();
+            const delta = (key) => (after[key] ?? 0) - (before[key] ?? 0);
+            const html = getComputedStyle(document.documentElement);
+            println(`${label}: engine records ${delta("engineComputedStyleRecords")}, C++ recomputations ${delta("elementStyleRecomputations")}`);
+            println(`    html font-size ${html.fontSize}, padding ${html.paddingTop}, margin ${html.marginTop}, 2rem width ${getComputedStyle(document.querySelector("p.r")).width}`);
+            before = after;
+        };
+        report("load");
+        for (const className of ["big", "big pad", "pad", ""]) {
+            document.documentElement.className = className;
+            report(`html.${className || "none"}`);
+        }
+    });
+</script>
+</html>

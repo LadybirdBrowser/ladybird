@@ -1,4 +1,4 @@
 shared initial style: true
-longhand evaluations: 83
+longhand evaluations: 338
 first list style: disc
 second list style: square

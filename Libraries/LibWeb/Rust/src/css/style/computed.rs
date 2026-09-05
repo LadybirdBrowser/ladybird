@@ -57,6 +57,14 @@ pub(crate) const HOLDS_IMAGE_VALUES: u8 = 1 << 4;
 /// The inherited style groups lead every group tuple; a node's inherited-group column names them.
 pub(super) const ENGINE_INHERITED_GROUP_COUNT: usize = 7;
 
+/// Whether a record with this table may take an inherited-group swap: every property inherits
+/// the way its definition says, no marker is generated for it, and no transition runs on it.
+pub(super) fn table_inherited_group_swap_eligible(table: &ComputedLonghandTable) -> bool {
+    table.property_inheritance_is_standard()
+        && !table.display_is_list_item()
+        && crate::css::style_compute::active_transition_properties(table).is_empty()
+}
+
 /// What assembling an engine-computed record produced, for the publication counters.
 pub(super) struct EngineComputedAssembly {
     pub(super) delta: (FinalStyleRecordID, FinalStyleRecordID),
@@ -337,6 +345,8 @@ impl PublishedComputedColumns {
     const ASSIGNED: u8 = 1;
     const INHERITED_GROUP_SWAP_ELIGIBLE: u8 = 1 << 1;
     const HAS_CASCADE_STATE: u8 = 1 << 2;
+    /// The node's last published match answer declared past its winners.
+    const INCOMPLETE_ANSWER: u8 = 1 << 3;
 
     fn ensure(&mut self, index: usize) {
         if self.flags.len() > index {
@@ -397,6 +407,31 @@ impl PublishedComputedColumns {
             .is_some_and(|flags| flags & Self::INHERITED_GROUP_SWAP_ELIGIBLE != 0)
     }
 
+    fn answer_is_incomplete(&self, index: usize) -> bool {
+        self.flags
+            .get(index)
+            .is_some_and(|flags| flags & Self::INCOMPLETE_ANSWER != 0)
+    }
+
+    fn set_answer_incomplete(&mut self, index: usize, incomplete: bool) {
+        self.ensure(index);
+        if incomplete {
+            self.flags[index] |= Self::INCOMPLETE_ANSWER;
+        } else {
+            self.flags[index] &= !Self::INCOMPLETE_ANSWER;
+        }
+    }
+
+    fn set_inherited_group_swap_eligible(&mut self, index: usize, eligible: bool) {
+        if let Some(flags) = self.flags.get_mut(index) {
+            if eligible {
+                *flags |= Self::INHERITED_GROUP_SWAP_ELIGIBLE;
+            } else {
+                *flags &= !Self::INHERITED_GROUP_SWAP_ELIGIBLE;
+            }
+        }
+    }
+
     fn cascade_state(&self, index: usize) -> Option<(u64, CascadeStateID)> {
         self.flags
             .get(index)
@@ -427,7 +462,7 @@ impl PublishedComputedColumns {
         self.custom_properties[index] = inputs.custom_properties.0;
         self.fixed_metadata[index] = inputs.fixed_metadata.0;
         self.set_animation_overlay_slot(index, inputs.animation_overlay_slot);
-        self.flags[index] = (self.flags[index] & Self::HAS_CASCADE_STATE)
+        self.flags[index] = (self.flags[index] & (Self::HAS_CASCADE_STATE | Self::INCOMPLETE_ANSWER))
             | Self::ASSIGNED
             | if inherited_group_swap_eligible {
                 Self::INHERITED_GROUP_SWAP_ELIGIBLE
@@ -990,9 +1025,11 @@ impl ComputedGroupSets {
         }
         let index = node.element_index()? as usize;
         let parent_index = parent.element_index()? as usize;
+        // A child inherits the parent's animated values, which C++ composes over the record.
         if !self.columns.inherited_group_swap_eligible(index)
             || self.columns.animation_overlay_slot(index).is_some()
-            || self.columns.animation_overlay_slot(parent_index).is_some()
+            || self.node_has_animation_overlay(parent)
+            || self.adjustment_facts(parent) & super::bridge::element_adjustment_fact::HAS_ANIMATIONS != 0
             || self.assigned_pseudo_kinds(node).next().is_some()
         {
             return None;
@@ -1000,6 +1037,18 @@ impl ComputedGroupSets {
 
         let old_style_record = *self.style_record_column.get(index)?.as_ref()?;
         let old_record = *self.style_records.get_index(old_style_record.index())?;
+        // An element animating, or declaring transitions a moved inherited value may start,
+        // composes its style in C++.
+        if self.adjustment_facts(node) & super::bridge::element_adjustment_fact::HAS_ANIMATIONS != 0
+            || old_record
+                .longhand_table
+                .and_then(|table| self.computed_longhand_tables.get_index(table.index()))
+                .is_none_or(|retained| {
+                    !crate::css::style_compute::active_transition_properties(retained.table()).is_empty()
+                })
+        {
+            return None;
+        }
         let old_group_set = self.sets.get_index(old_record.groups.0 as usize)?;
         let old_payloads = old_group_set.payloads.to_vec();
         let parent_inherited = self.columns.inherited_groups(parent_index)?;
@@ -1057,6 +1106,12 @@ impl ComputedGroupSets {
         let parent_table = parent_style_record
             .and_then(|record| self.style_records.get_index(record.index()))
             .and_then(|record| record.longhand_table);
+        if parent_table.is_some_and(|table| {
+            !crate::css::style_compute::active_transition_properties(self.computed_longhand_tables[table].table())
+                .is_empty()
+        }) {
+            return None;
+        }
         let swapped_table = match (old_record.longhand_table, parent_table) {
             (Some(old_table), Some(parent_table)) => Some(
                 self.computed_longhand_tables[old_table]
@@ -1173,13 +1228,14 @@ impl ComputedGroupSets {
         groups_to_rebuild: u32,
         length: &crate::css::style_compute::FfiLengthResolutionContext,
         font: Option<&crate::css::table_group_builder::FfiFontGroupBuildInputs>,
+        parent_in_display_none_subtree: bool,
     ) -> Option<EngineComputedAssembly> {
         use crate::css::computed_value_types::STYLE_GROUP_INDEX_FONT;
         if groups_to_rebuild == 0 || (groups_to_rebuild & (1 << STYLE_GROUP_INDEX_FONT) != 0 && font.is_none()) {
             return None;
         }
         let index = node.element_index()? as usize;
-        if !self.columns.inherited_group_swap_eligible(index) || self.columns.animation_overlay_slot(index).is_some() {
+        if self.columns.animation_overlay_slot(index).is_some() {
             return None;
         }
         let old_style_record = *self.style_record_column.get(index)?.as_ref()?;
@@ -1246,6 +1302,10 @@ impl ComputedGroupSets {
                         .wrapping_add(longhand_slot_hash(slot, new_values[slot]));
                 }
             }
+            // The flag is the parent's and the driven display's, the way a fresh computation
+            // sets it, not what the old table held.
+            let display_is_none = crate::css::style_compute::effective_display(&table, None).is_none();
+            table.set_in_display_none_subtree(parent_in_display_none_subtree || display_is_none);
             table.freeze();
             (table.into_raw_shared(), slot_hash_sum)
         };
@@ -1320,9 +1380,9 @@ impl ComputedGroupSets {
             .get_index(group_set.0 as usize)
             .is_some_and(|set| style_group_payloads_hold_image_values(&set.payloads));
         let old_metadata = self.computed_fixed_metadata[old_record.fixed_metadata];
-        let dependency_flags = unsafe { &*table }.publication_dependency_flags()
-            | (old_metadata.dependency_flags & INHERITED_GROUP_SWAP_ELIGIBLE)
-            | (u8::from(holds_image_values) * HOLDS_IMAGE_VALUES);
+        let swap_eligible = table_inherited_group_swap_eligible(unsafe { &*table });
+        let dependency_flags =
+            unsafe { &*table }.publication_dependency_flags() | (u8::from(holds_image_values) * HOLDS_IMAGE_VALUES);
         let fixed_metadata = if dependency_flags == old_metadata.dependency_flags {
             old_record.fixed_metadata
         } else {
@@ -1347,6 +1407,7 @@ impl ComputedGroupSets {
         // Descendant swaps read the node's inherited groups from their own column.
         self.columns.groups[index] = group_set.0;
         self.columns.inherited_groups[index] = inherited_identity.0;
+        self.columns.set_inherited_group_swap_eligible(index, swap_eligible);
         self.style_record_column[index] = Some(new_style_record);
         Some(EngineComputedAssembly {
             delta: (
@@ -1423,7 +1484,7 @@ impl ComputedGroupSets {
         new_style_record: FinalStyleRecordID,
     ) -> Option<(FinalStyleRecordID, FinalStyleRecordID)> {
         let index = node.element_index()? as usize;
-        if !self.columns.inherited_group_swap_eligible(index) || self.columns.animation_overlay_slot(index).is_some() {
+        if self.columns.animation_overlay_slot(index).is_some() {
             return None;
         }
         let current = *self.style_record_column.get(index)?.as_ref()?;
@@ -1432,14 +1493,31 @@ impl ComputedGroupSets {
         }
         let new_base_record = new_style_record.base_record()?;
         let new_record = *self.style_records.get_index(new_base_record.index())?;
+        let swap_eligible = new_record
+            .longhand_table
+            .and_then(|table| self.computed_longhand_tables.get_index(table.index()))
+            .is_some_and(|retained| table_inherited_group_swap_eligible(retained.table()));
         let groups = self.group_identities(new_record.groups);
         let inherited_identity = self
             .intern_inherited_group_set(&groups[..ENGINE_INHERITED_GROUP_COUNT])
             .0;
         self.columns.groups[index] = new_record.groups.0;
         self.columns.inherited_groups[index] = inherited_identity.0;
+        self.columns.set_inherited_group_swap_eligible(index, swap_eligible);
         self.style_record_column[index] = Some(new_base_record);
         Some((old_style_record, new_style_record))
+    }
+
+    /// The identity of a record's inherited groups, the way a node assigned it would hold them.
+    pub(super) fn style_record_inherited_groups_identity(&mut self, style_record: FinalStyleRecordID) -> Option<u32> {
+        let base_record = style_record.base_record()?;
+        let record = *self.style_records.get_index(base_record.index())?;
+        let groups = self.group_identities(record.groups);
+        Some(
+            self.intern_inherited_group_set(&groups[..ENGINE_INHERITED_GROUP_COUNT])
+                .0
+                .0,
+        )
     }
 
     fn next_animation_overlay_record(&mut self) -> FinalStyleRecordID {
@@ -2431,6 +2509,30 @@ impl ComputedGroupSets {
     }
 
     /// Whether the node's assignment may take an inherited-group swap.
+    /// Whether the node's last published match answer declared past its winners (custom
+    /// properties, `all`): a record computed from it is no function of a winner state.
+    pub(super) fn node_answer_is_incomplete(&self, node: StyleNodeID) -> bool {
+        node.element_index()
+            .is_some_and(|index| self.columns.answer_is_incomplete(index as usize))
+    }
+
+    pub(super) fn set_node_answer_incomplete(&mut self, node: StyleNodeID, incomplete: bool) {
+        if let Some(index) = node.element_index() {
+            self.columns.set_answer_incomplete(index as usize, incomplete);
+        }
+    }
+
+    pub(super) fn node_has_animation_overlay(&self, node: StyleNodeID) -> bool {
+        let Some(index) = node.element_index().map(|index| index as usize) else {
+            return false;
+        };
+        self.columns.animation_overlay_slot(index).is_some()
+            || self
+                .assigned_style_record(node)
+                .and_then(|record| self.style_record_view(record.raw()))
+                .is_some_and(|view| !view.animated_overlay.is_null())
+    }
+
     pub(super) fn node_inherited_group_swap_eligible(&self, node: StyleNodeID) -> bool {
         node.element_index()
             .is_some_and(|index| self.columns.inherited_group_swap_eligible(index as usize))

@@ -2,4 +2,4 @@
   elementStyleRecomputations: 50
 rgb(255, 0, 0)
 [cold shadow root with :has()]
-  elementStyleRecomputations: 4
+  elementStyleRecomputations: 3

@@ -332,18 +332,13 @@ public:
 
     void run_attribute_change_steps(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_);
 
-    enum class StyleEngineRecomputeReason : u8 {
-        General,
-        InheritedOnly,
-        PseudoInputsUnchanged,
-    };
-    CSS::RequiredInvalidationAfterStyleChange apply_style_engine_reaction(bool& did_change_custom_properties, StyleEngineRecomputeReason = StyleEngineRecomputeReason::General, u8 inherited_style_groups = 0);
+    CSS::RequiredInvalidationAfterStyleChange apply_style_engine_reaction(bool& did_change_custom_properties);
     // Apply a base style record the style engine computed itself from this element's moved cascade
     // winners: no style computation runs here, only the diff against the old record and its effects.
     // The synthetic pseudo-element records the style engine settled beside an engine-computed record: a kind it
     // decided holds the record, or none when the pseudo-element is not generated; a kind it left alone is unchanged.
     using EnginePseudoElementRecords = Array<Optional<CSS::StyleRecordID>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount)>;
-    CSS::RequiredInvalidationAfterStyleChange apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const&);
+    CSS::RequiredInvalidationAfterStyleChange apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const&, bool& did_change_custom_properties);
     CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles_after_animation_update(Badge<Web::Animations::AnimationUpdateContext>);
 
     void set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason, CSS::LayoutTreeRebuildRoot);

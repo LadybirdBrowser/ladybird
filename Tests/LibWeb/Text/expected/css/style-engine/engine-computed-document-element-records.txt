@@ -1,0 +1,10 @@
+load: engine records 10, C++ recomputations 3
+    html font-size 16px, padding 0px, margin 0px, 2rem width 32px
+html.big: engine records 3, C++ recomputations 10
+    html font-size 24px, padding 0px, margin 0px, 2rem width 48px
+html.big pad: engine records 1, C++ recomputations 0
+    html font-size 24px, padding 24px, margin 48px, 2rem width 48px
+html.pad: engine records 3, C++ recomputations 10
+    html font-size 16px, padding 24px, margin 32px, 2rem width 32px
+html.none: engine records 1, C++ recomputations 0
+    html font-size 16px, padding 0px, margin 0px, 2rem width 32px

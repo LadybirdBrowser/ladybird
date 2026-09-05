@@ -106,6 +106,7 @@ define_counters! {
     EngineComputedRecordSharedHits => "engineComputedRecordSharedHits",
     EngineComputedRecordGateReaction => "engineComputedRecordGateReaction",
     EngineComputedRecordGateDeclarations => "engineComputedRecordGateDeclarations",
+    EngineComputedRecordGateIncompleteAnswer => "engineComputedRecordGateIncompleteAnswer",
     EngineComputedPseudoRecords => "engineComputedPseudoRecords",
     EngineComputedRecordUnchangedWinners => "engineComputedRecordUnchangedWinners",
     EngineComputedRecordsAbandoned => "engineComputedRecordsAbandoned",

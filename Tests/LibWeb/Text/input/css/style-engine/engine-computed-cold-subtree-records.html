@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .a { color: red; }
+    .b { font-size: 20px; }
+    .c::before { content: "x"; }
+    .k { display: flex; }
+</style>
+<div id="host"></div>
+<script>
+    // A subtree inserted under a styled parent takes its first records from the engine: each
+    // element inherits from the parent the engine settled just before it in the same flush.
+    test(() => {
+        internals.updateStyle();
+        const host = document.getElementById("host");
+        const counters = () => Object.assign({}, internals.styleEngineCounters(), internals.getStyleInvalidationCounters());
+        let before = counters();
+        const report = (label) => {
+            internals.updateStyle();
+            const after = counters();
+            const delta = (key) => (after[key] ?? 0) - (before[key] ?? 0);
+            println(`${label}: engine records ${delta("engineComputedStyleRecords")}, C++ recomputations ${delta("elementStyleRecomputations")}`);
+            before = after;
+        };
+        host.innerHTML = `<div class="a"><div class="b"><p>one <span class="c">two</span> <em>three</em></p></div><section class="k"><h1>t</h1><p>p</p><p class="b">q</p></section></div>`;
+        report("append subtree");
+        host.innerHTML = `<div class="b"><div class="a"><p>one <span>two</span> <em class="c">three</em></p></div></div>`;
+        report("replace subtree");
+        println(`em color: ${getComputedStyle(document.querySelector("em")).color}`);
+        println(`p font size: ${getComputedStyle(document.querySelector("p")).fontSize}`);
+        println(`::before content: ${getComputedStyle(document.querySelector("em"), "::before").content}`);
+    });
+</script>

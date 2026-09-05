@@ -1093,9 +1093,6 @@ public:
         u64 element_style_input_changed_by_parent_style { 0 };
         u64 element_style_input_changed_by_parent_custom_properties { 0 };
         u64 element_style_input_reused { 0 };
-        u64 element_inherited_style_recomputations { 0 };
-        u64 element_inherited_style_noop_recomputations { 0 };
-        u64 element_inherited_style_group_swaps { 0 };
         // Reactions whose new record the style engine computed itself, applied without a style
         // computation.
         u64 engine_computed_style_records { 0 };

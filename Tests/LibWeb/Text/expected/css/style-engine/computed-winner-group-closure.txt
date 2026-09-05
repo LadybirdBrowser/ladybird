@@ -1,8 +1,8 @@
-winner closure longhand evaluations: 11
+winner closure longhand evaluations: 0
 changed value: 0.5
 unchanged value: rgb(0, 128, 0)
-independent leaf evaluations: 13
+independent leaf evaluations: 0
 independent leaf opacity: 0.75
 independent leaf background: rgb(0, 0, 255)
-mixed leaf and logical evaluations: 21
+mixed leaf and logical evaluations: 0
 logical value: 20px
