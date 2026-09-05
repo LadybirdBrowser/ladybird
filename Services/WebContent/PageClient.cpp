@@ -202,7 +202,7 @@ void PageClient::set_has_focus(bool has_focus)
 
 void PageClient::set_window_handle(Utf16String window_handle)
 {
-    page().top_level_traversable()->set_window_handle(move(window_handle));
+    as<Web::HTML::LocalTraversableNavigable>(*page().top_level_traversable()).set_window_handle(move(window_handle));
 }
 
 void PageClient::setup_palette()
@@ -1006,19 +1006,19 @@ void PageClient::set_geolocation_emulated_position(WebView::GeolocationPositionD
 
 void PageClient::apply_pending_geolocation_emulated_position()
 {
-    if (!m_pending_geolocation_emulated_position.has_value() || !page().top_level_traversable_is_initialized())
+    if (!m_pending_geolocation_emulated_position.has_value() || !page().has_local_root_navigable())
         return;
 
     auto const& pending = *m_pending_geolocation_emulated_position;
     auto const& position = pending.position;
-    auto traversable = page().top_level_traversable();
+    auto& traversable = as<Web::HTML::LocalTraversableNavigable>(*page().top_level_traversable());
 
     if (pending.error_code.has_value())
-        traversable->set_emulated_position_data(geolocation_position_error_code_from_ipc(*pending.error_code));
+        traversable.set_emulated_position_data(geolocation_position_error_code_from_ipc(*pending.error_code));
     else if (auto coordinates = geolocation_coordinates_from_ipc(position); coordinates.has_value())
-        traversable->set_emulated_position_data(*coordinates);
+        traversable.set_emulated_position_data(*coordinates);
     else
-        traversable->set_emulated_position_data(Empty {});
+        traversable.set_emulated_position_data(Empty {});
 }
 
 void PageClient::geolocation_position_response(u64 request_id, WebView::GeolocationPositionData const& position, Optional<u16> error_code)

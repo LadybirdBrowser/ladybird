@@ -1260,7 +1260,7 @@ static ErrorOr<void, WebDriver::Error> perform_pointer_move(ActionObject::Pointe
 // https://w3c.github.io/webdriver/#dfn-dispatch-a-pointermove-action
 static ErrorOr<void, WebDriver::Error> dispatch_pointer_move_action(ActionObject::PointerMoveFields const& action_object, PointerInputSource& source, GlobalKeyState const& global_key_state, AK::Duration tick_duration, HTML::BrowsingContext& browsing_context, ActionsOptions const& actions_options)
 {
-    auto viewport = browsing_context.page().top_level_traversable()->viewport_rect();
+    auto viewport = as<HTML::LocalNavigable>(*browsing_context.page().top_level_traversable()).viewport_rect();
 
     // 1. Let x offset be equal to the x property of action object.
     // 2. Let y offset be equal to the y property of action object.
@@ -1304,7 +1304,7 @@ static ErrorOr<void, WebDriver::Error> dispatch_pointer_move_action(ActionObject
 // https://w3c.github.io/webdriver/#dfn-dispatch-a-scroll-action
 static ErrorOr<void, WebDriver::Error> dispatch_scroll_action(ActionObject::ScrollFields const& action_object, GlobalKeyState const& global_key_state, AK::Duration tick_duration, HTML::BrowsingContext& browsing_context, ActionsOptions const& actions_options)
 {
-    auto viewport = browsing_context.page().top_level_traversable()->viewport_rect();
+    auto viewport = as<HTML::LocalNavigable>(*browsing_context.page().top_level_traversable()).viewport_rect();
 
     // 1. Let x offset be equal to the x property of action object.
     // 2. Let y offset be equal to the y property of action object.

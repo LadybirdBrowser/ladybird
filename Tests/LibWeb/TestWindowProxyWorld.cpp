@@ -81,7 +81,7 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
     client->m_page = page.ptr();
 
     auto traversable = Web::HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {});
-    page->set_top_level_traversable(traversable);
+    page->set_local_root_navigable(traversable);
     auto document = GC::Ref { *traversable->active_document() };
     auto browsing_context = GC::Ref { *document->browsing_context() };
     auto window = document->window();

@@ -229,7 +229,7 @@ NonnullRefPtr<WebDriverConnection> WebDriverConnection::create(PageClient& page_
 WebDriverConnection::WebDriverConnection(PageClient& page_client)
     : m_page_client(page_client)
 {
-    set_current_top_level_browsing_context(*page_client.page().top_level_traversable()->active_browsing_context());
+    set_current_top_level_browsing_context(*as<Web::HTML::LocalNavigable>(*page_client.page().top_level_traversable()).active_browsing_context());
     page_client.page().set_is_webdriver_active(true);
 }
 

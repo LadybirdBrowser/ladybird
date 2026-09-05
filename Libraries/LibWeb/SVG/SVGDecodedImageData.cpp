@@ -93,7 +93,7 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(GC::Ref<Page> 
     auto page = Page::create(*page_client);
     page->set_is_scripting_enabled(false);
     page_client->m_svg_page = page.ptr();
-    page->set_top_level_traversable(HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {}));
+    page->set_local_root_navigable(HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {}));
     auto navigable = page->local_root_navigable();
     auto response = Fetch::Infrastructure::Response::create();
     response->url_list().append(url);

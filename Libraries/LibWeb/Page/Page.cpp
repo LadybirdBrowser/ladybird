@@ -101,7 +101,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     if (m_context_menu_request.has_value())
         visitor.visit(m_context_menu_request->target);
-    visitor.visit(m_top_level_traversable);
+    visitor.visit(m_local_root_navigable);
     visitor.visit(m_client);
     visitor.visit(m_window_rect_observer);
     visitor.visit(m_on_pending_dialog_closed);
@@ -485,42 +485,37 @@ void Page::update_needs_beforeunload_check()
     client().page_did_change_needs_beforeunload_check(m_needs_beforeunload_check);
 }
 
-GC::Ref<HTML::LocalNavigable> Page::local_root_navigable() const
+void Page::set_local_root_navigable(GC::Ref<HTML::LocalNavigable> navigable)
 {
-    return *m_top_level_traversable;
+    VERIFY(!m_local_root_navigable); // Replacement is not allowed!
+    VERIFY(&navigable->page() == this);
+    m_local_root_navigable = navigable;
+    update_needs_beforeunload_check();
 }
 
 bool Page::has_local_root_navigable() const
 {
-    return !!m_top_level_traversable;
-}
-
-void Page::set_top_level_traversable(GC::Ref<HTML::LocalTraversableNavigable> navigable)
-{
-    VERIFY(!m_top_level_traversable); // Replacement is not allowed!
-    VERIFY(&navigable->page() == this);
-    m_top_level_traversable = navigable;
-    update_needs_beforeunload_check();
-}
-
-bool Page::top_level_traversable_is_initialized() const
-{
-    return !!m_top_level_traversable;
+    return m_local_root_navigable != nullptr;
 }
 
 HTML::BrowsingContext& Page::top_level_browsing_context()
 {
-    return *m_top_level_traversable->active_browsing_context();
+    return *as<HTML::LocalNavigable>(*top_level_traversable()).active_browsing_context();
 }
 
 HTML::BrowsingContext const& Page::top_level_browsing_context() const
 {
-    return *m_top_level_traversable->active_browsing_context();
+    return *as<HTML::LocalNavigable>(*top_level_traversable()).active_browsing_context();
 }
 
-GC::Ref<HTML::LocalTraversableNavigable> Page::top_level_traversable() const
+GC::Ref<HTML::LocalNavigable> Page::local_root_navigable() const
 {
-    return *m_top_level_traversable;
+    return *m_local_root_navigable;
+}
+
+GC::Ref<HTML::Navigable> Page::top_level_traversable() const
+{
+    return local_root_navigable()->top_level_traversable();
 }
 
 void Page::did_complete_window_rect_request(u64 completion_id)

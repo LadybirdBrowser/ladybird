@@ -1339,7 +1339,7 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
 
             auto create_new_traversable = [&](GC::Ptr<BrowsingContext> opener) -> GC::Ref<LocalTraversableNavigable> {
                 auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*new_web_view.page, opener, target_name, {}, new_web_view.system_visibility_state);
-                new_web_view.page->set_top_level_traversable(traversable);
+                new_web_view.page->set_local_root_navigable(traversable);
                 traversable->set_window_handle(Utf16String::from_ascii_without_validation(new_web_view.window_handle.bytes()));
                 return traversable;
             };

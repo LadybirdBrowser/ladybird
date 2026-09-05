@@ -107,18 +107,15 @@ public:
     Compositor::CompositorHost const& compositor_host() const;
 
     // The root navigable hosted by this Page. Its logical ancestors may belong to other pages or processes.
+    void set_local_root_navigable(GC::Ref<HTML::LocalNavigable>);
     GC::Ref<HTML::LocalNavigable> local_root_navigable() const;
+
     bool has_local_root_navigable() const;
-
-    void set_top_level_traversable(GC::Ref<HTML::LocalTraversableNavigable>);
-
-    // FIXME: This is a hack.
-    bool top_level_traversable_is_initialized() const;
 
     HTML::BrowsingContext& top_level_browsing_context();
     HTML::BrowsingContext const& top_level_browsing_context() const;
 
-    GC::Ref<HTML::LocalTraversableNavigable> top_level_traversable() const;
+    GC::Ref<HTML::Navigable> top_level_traversable() const;
 
     HTML::LocalNavigable& focused_navigable();
     HTML::LocalNavigable const& focused_navigable() const { return const_cast<Page*>(this)->focused_navigable(); }
@@ -381,7 +378,7 @@ private:
     // a child navigable. Retain the interaction owner separately from focus to clear its non-DOM input state.
     GC::Weak<HTML::LocalNavigable> m_mouse_event_tracking_navigable;
 
-    GC::Ptr<HTML::LocalTraversableNavigable> m_top_level_traversable;
+    GC::Ptr<HTML::LocalNavigable> m_local_root_navigable;
 
     struct ScreenshotTask {
         Optional<UniqueNodeID> node_id;

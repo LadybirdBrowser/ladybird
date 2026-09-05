@@ -165,7 +165,7 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top
 {
     // 1. Let traversable be the result of creating a new top-level traversable given null and the empty string.
     auto traversable = create_a_new_top_level_traversable(page, nullptr, {}, initial_document_state_id, system_visibility_state);
-    page->set_top_level_traversable(traversable);
+    page->set_local_root_navigable(traversable);
 
     // AD-HOC: Deny geolocation until the UI process sends the browser-wide setting via IPC. This prevents a request
     //         from observing the test position during the short window before the initial settings IPC arrives.

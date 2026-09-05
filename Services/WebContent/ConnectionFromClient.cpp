@@ -279,7 +279,7 @@ void ConnectionFromClient::close_server()
 Messages::WebContentServer::GetWindowHandleResponse ConnectionFromClient::get_window_handle(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
-        return page->page().top_level_traversable()->window_handle().to_utf8();
+        return as<Web::HTML::LocalTraversableNavigable>(*page->page().top_level_traversable()).window_handle().to_utf8();
     return String {};
 }
 
@@ -2818,13 +2818,13 @@ void ConnectionFromClient::request_close(u64 page_id)
     // Browser user agents should offer users the ability to arbitrarily close any top-level traversable in their top-level traversable set.
     // For example, by clicking a "close tab" button.
     if (auto page = this->page(page_id); page.has_value())
-        page->page().top_level_traversable()->close_top_level_traversable();
+        as<Web::HTML::LocalTraversableNavigable>(*page->page().top_level_traversable()).close_top_level_traversable();
 }
 
 void ConnectionFromClient::force_close(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->page().top_level_traversable()->close_top_level_traversable(Web::HTML::LocalTraversableNavigable::PromptToUnload::No);
+        as<Web::HTML::LocalTraversableNavigable>(*page->page().top_level_traversable()).close_top_level_traversable(Web::HTML::LocalTraversableNavigable::PromptToUnload::No);
 }
 
 void ConnectionFromClient::exit_fullscreen(u64 page_id)
