@@ -339,8 +339,7 @@ static void update_needs_beforeunload_check(EventTarget& event_target, DOMEventL
     if (!navigable)
         return;
 
-    if (auto traversable = navigable->traversable_navigable())
-        traversable->page().update_needs_beforeunload_check();
+    navigable->page().update_needs_beforeunload_check();
 }
 
 // https://dom.spec.whatwg.org/#dom-eventtarget-addeventlistener

@@ -78,8 +78,6 @@ public:
 
     Vector<GC::Root<LocalNavigable>> child_navigables() const;
 
-    virtual bool is_traversable() const { return false; }
-
     bool is_local_root() const;
 
     bool is_closing() const { return m_closing; }
@@ -143,8 +141,6 @@ public:
     GC::Ptr<NavigableContainer> container() const;
     void set_container(Badge<NavigableContainer>, GC::Ptr<NavigableContainer> container) { m_container = container; }
     GC::Ptr<DOM::Document> container_document() const;
-
-    GC::Ptr<LocalTraversableNavigable> traversable_navigable() const;
 
     [[nodiscard]] bool is_focused() const;
 

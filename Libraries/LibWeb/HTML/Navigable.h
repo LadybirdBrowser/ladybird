@@ -35,6 +35,8 @@ public:
 
     virtual GC::Ptr<WindowProxy> active_window_proxy() = 0;
     virtual Utf16String const& target_name() const = 0;
+    virtual bool is_traversable() const { return false; }
+    GC::Ref<Navigable> traversable_navigable();
     GC::Ref<Navigable> top_level_traversable();
     virtual bool is_top_level_traversable() const { return false; }
     virtual Optional<URL::URL> active_document_url() const = 0;

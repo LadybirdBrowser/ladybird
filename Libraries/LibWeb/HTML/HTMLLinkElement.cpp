@@ -1226,7 +1226,7 @@ void HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> doc
             decode_favicon(body, request->url(), document)
                 ->when_resolved(GC::weak_callback(*document, [](DOM::Document& document, NonnullRefPtr<Gfx::Bitmap const>& favicon) {
                     if (auto navigable = document.navigable(); navigable && navigable->is_traversable())
-                        navigable->traversable_navigable()->page().client().page_did_change_favicon(*favicon);
+                        navigable->page().client().page_did_change_favicon(*favicon);
                 }));
         });
         auto process_body_error = GC::create_function(GC::Heap::the(), [](JS::Value) {

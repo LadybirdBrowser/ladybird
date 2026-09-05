@@ -4435,7 +4435,7 @@ void Document::update_readiness(HTML::DocumentReadyState readiness_value)
             if (!is_decoded_svg()) {
                 HTML::HTMLLinkElement::load_fallback_favicon_if_needed(*this);
             }
-            navigable->traversable_navigable()->page().client().page_did_finish_loading(m_navigation_id, url());
+            navigable->page().client().page_did_finish_loading(m_navigation_id, url());
         } else {
             m_needs_to_call_page_did_load = true;
         }
@@ -4733,8 +4733,7 @@ bool Document::is_fully_active() const
     if (!navigable)
         return false;
 
-    auto traversable = navigable->traversable_navigable();
-    if (navigable == traversable && traversable->is_top_level_traversable())
+    if (navigable->is_top_level_traversable())
         return true;
 
     auto container_document = navigable->container_document();
@@ -4994,12 +4993,12 @@ bool Document::has_focus() const
     if (!navigable)
         return false;
 
-    auto traversable = navigable->traversable_navigable();
-    if (!traversable || !traversable->is_focused())
+    auto& traversable = as<HTML::LocalTraversableNavigable>(*navigable->traversable_navigable());
+    if (!traversable.is_focused())
         return false;
 
     // 2. Let candidate be target's node navigable's top-level traversable's active document.
-    auto candidate = traversable->active_document();
+    auto candidate = traversable.active_document();
 
     // 3. While true:
     while (candidate) {
@@ -5308,7 +5307,7 @@ void Document::check_favicon_after_loading_link_resource()
 
     if (largest_icon) {
         if (auto navigable = this->navigable(); navigable && navigable->is_traversable())
-            navigable->traversable_navigable()->page().client().page_did_change_favicon(*largest_icon);
+            navigable->page().client().page_did_change_favicon(*largest_icon);
     } else {
         dbgln_if(SPAM_DEBUG, "No favicon found to be used");
     }
@@ -6208,7 +6207,7 @@ void Document::make_active()
     HTML::relevant_settings_object(window).execution_ready = true;
 
     if (m_needs_to_call_page_did_load) {
-        navigable()->traversable_navigable()->page().client().page_did_finish_loading(m_navigation_id, url());
+        navigable()->page().client().page_did_finish_loading(m_navigation_id, url());
         m_needs_to_call_page_did_load = false;
     }
 
@@ -10181,17 +10180,14 @@ void Document::set_navigable(GC::Ptr<HTML::LocalNavigable> navigable)
     if (m_navigable == navigable)
         return;
 
-    auto previous_traversable = m_navigable ? m_navigable->traversable_navigable() : nullptr;
+    GC::Ptr<Page> previous_page = m_navigable ? &m_navigable->page() : nullptr;
     m_navigable = navigable.ptr();
     HTML::main_thread_event_loop().document_navigable_did_change({});
 
-    if (previous_traversable)
-        previous_traversable->page().update_needs_beforeunload_check();
-    if (navigable) {
-        auto new_traversable = navigable->traversable_navigable();
-        if (new_traversable && new_traversable != previous_traversable)
-            new_traversable->page().update_needs_beforeunload_check();
-    }
+    if (previous_page)
+        previous_page->update_needs_beforeunload_check();
+    if (navigable && &navigable->page() != previous_page.ptr())
+        navigable->page().update_needs_beforeunload_check();
 }
 
 void Document::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)

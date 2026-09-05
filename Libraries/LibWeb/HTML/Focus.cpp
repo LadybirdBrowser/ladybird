@@ -608,7 +608,7 @@ void run_unfocusing_steps(GC::Ptr<DOM::Node> old_focus_target)
     auto& top_document = as<DOM::Document>(*old_chain.last());
 
     // 8. If topDocument's node navigable has system focus, then run the focusing steps for topDocument's viewport.
-    if (top_document.navigable()->traversable_navigable()->is_focused()) {
+    if (as<LocalTraversableNavigable>(*top_document.navigable()->traversable_navigable()).is_focused()) {
 
         // AD-HOC: Remove top_document from old_chain so step 1 in run_focus_update_steps doesn't cancel the blur.
         auto without_viewport_surrogate = old_chain;
