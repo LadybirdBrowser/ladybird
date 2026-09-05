@@ -6,6 +6,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/PreloadEntry.h>
@@ -25,6 +26,7 @@ void PreloadEntry::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(response);
     visitor.visit(on_response_available);
+    visitor.visit(controller);
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#create-a-preload-key
@@ -59,7 +61,8 @@ bool consume_a_preloaded_resource(
     Fetch::Infrastructure::Request::Mode mode,
     Fetch::Infrastructure::Request::CredentialsMode credentials_mode,
     Utf16View integrity_metadata,
-    GC::Ref<GC::Function<void(GC::Ref<Fetch::Infrastructure::Response>)>> on_response_available)
+    GC::Ref<GC::Function<void(GC::Ref<Fetch::Infrastructure::Response>)>> on_response_available,
+    Fetch::Infrastructure::TaskDestination const& consumer_task_destination)
 {
     // 1. Let key be a preload key whose URL is url, destination is destination, mode is mode, and credentials mode is
     //    credentialsMode.
@@ -89,12 +92,35 @@ bool consume_a_preloaded_resource(
     //           then return false.
     (void)integrity_metadata;
 
+    // AD-HOC: If entry's response is null but the preload's fetch has already begun its response processing, a consumer
+    //         on a parallel queue must not park on the entry: That processing captured the preload's event-loop task
+    //         destination when it was scheduled — so it's beyond the reach of the re-targeting in step 9 below. And
+    //         with the consumer's event loop paused (sync XHR send()), it can never run to hand the response over.
+    //         Return false — so the consumer performs an ordinary fetch of its own instead. And leave the entry in the
+    //         map; the preload still completes – for any later consumer — once the event loop resumes.
+    if (!entry->response && consumer_task_destination.has<NonnullRefPtr<ParallelQueue>>() && entry->controller
+        && entry->controller->response_processing_started()) {
+        return false;
+    }
+
     // 8. Remove preloads[key].
     preloads.remove(it);
 
     // 9. If entry's response is null, then set entry's on response available to onResponseAvailable.
     if (!entry->response) {
         entry->on_response_available = on_response_available;
+
+        // AD-HOC: The preload's fetch is still in flight. If the consumer's fetch runs on a parallel queue, its event
+        //         loop is paused for as long as it waits (sync XHR send()). So the preload's fetch — whose response is
+        //         otherwise handed over through event-loop tasks — could never deliver. Move the preload's fetch onto
+        //         a parallel queue of its own. So, fetch response handover reads its body + runs its algorithms without
+        //         the event loop — same way it does for the consumer. See fetch_response_handover()'s parallel-queue
+        //         path. (This re-targeting only works because the fetch has not yet begun its response processing —
+        //         the guard above step 8 sends the consumer elsewhere once it has.)
+        if (consumer_task_destination.has<NonnullRefPtr<ParallelQueue>>() && entry->controller) {
+            if (auto fetch_params = entry->controller->fetch_params())
+                fetch_params->set_task_destination(ParallelQueue::create());
+        }
     }
     // 10. Otherwise, call onResponseAvailable with entry's response.
     else {

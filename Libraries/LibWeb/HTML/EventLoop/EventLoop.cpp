@@ -989,7 +989,7 @@ EventLoop::PauseHandle::~PauseHandle()
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#pause
-EventLoop::PauseHandle EventLoop::pause()
+EventLoop::PauseHandle EventLoop::pause(UpdateTheRendering should_update_the_rendering)
 {
     ++m_execution_pause_depth;
 
@@ -1000,7 +1000,10 @@ EventLoop::PauseHandle EventLoop::pause()
     auto time_before_pause = HighResolutionTime::current_high_resolution_time(global);
 
     // 3. If necessary, update the rendering or user interface of any Document or navigable to reflect the current state.
-    if (!m_running_rendering_task) {
+    // NB: Updating the rendering runs author callbacks (e.g., rAF callbacks). Callers for whom that must not happen
+    //     while they're blocked (e.g., a sync XHR send() — which may itself have been invoked from within a microtask)
+    //     pass UpdateTheRendering::No.
+    if (should_update_the_rendering == UpdateTheRendering::Yes && !m_running_rendering_task) {
         if (m_rendering_task_queued) {
             m_task_queue->remove_tasks_matching([](auto const& task) {
                 return task.source() == Task::Source::Rendering;

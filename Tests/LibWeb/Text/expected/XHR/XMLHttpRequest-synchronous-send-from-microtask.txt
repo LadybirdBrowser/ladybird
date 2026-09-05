@@ -1,0 +1,2 @@
+data: status=200 responseText=hello
+http: status=200 responseText=hello over http
