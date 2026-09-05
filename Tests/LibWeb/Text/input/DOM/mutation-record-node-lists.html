@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const parent = document.createElement('div');
+    const fragment = document.createDocumentFragment();
+    const first = document.createElement('span');
+    const second = document.createElement('b');
+    const third = document.createElement('i');
+    fragment.append(second, third);
+    const observer = new MutationObserver(() => {});
+    observer.observe(parent, { childList: true });
+    observer.observe(fragment, { childList: true });
+
+    parent.append(first);
+    parent.append(fragment);
+    first.remove();
+    parent.innerHTML = '<label></label><input>';
+    parent.replaceChildren();
+    fragment.append(first);
+
+    // The records must retain their original node lists after the source containers change.
+    for (const record of observer.takeRecords()) {
+        const names = nodes => [...nodes].map(node => node.localName).join(',');
+        println(`${record.target === parent ? 'parent' : 'fragment'}: added [${names(record.addedNodes)}], removed [${names(record.removedNodes)}]`);
+    }
+    observer.disconnect();
+});
+</script>
