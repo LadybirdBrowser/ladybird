@@ -623,7 +623,7 @@ void Internals::pinch(double x, double y, double scale_delta, WebIDL::UnsignedSh
 
 void Internals::reset_zoom()
 {
-    page().top_level_traversable()->reset_zoom();
+    page().local_root_navigable()->reset_zoom();
 }
 
 Utf16String Internals::current_cursor()
@@ -709,7 +709,7 @@ void Internals::load_url(Utf16String const& url_string)
     Core::deferred_invoke([page = GC::make_root(page()), url = url.release_value()] {
         // This navigation originates inside WebContent, so it has no UI-recorded navigation id;
         // the navigate algorithm generates one.
-        (void)page->top_level_traversable()->navigate({ .url = url,
+        (void)page->local_root_navigable()->navigate({ .url = url,
             .history_handling = Web::Bindings::NavigationHistoryBehavior::Auto,
             .user_involvement = HTML::UserNavigationInvolvement::BrowserUI });
     });
@@ -992,12 +992,12 @@ bool Internals::headless()
 
 bool Internals::needs_repaint()
 {
-    return page().top_level_traversable()->needs_repaint();
+    return page().local_root_navigable()->needs_repaint();
 }
 
 bool Internals::needs_display_list_record()
 {
-    return page().top_level_traversable()->needs_to_record_display_list();
+    return page().local_root_navigable()->needs_to_record_display_list();
 }
 
 bool Internals::screen_wake_lock_active()
@@ -1274,7 +1274,7 @@ void Internals::perform_per_test_cleanup()
     m_gamepads.clear();
 
     // Clear any input state
-    page().top_level_traversable()->event_handler().clear_per_test_input_state({});
+    page().local_root_navigable()->event_handler().clear_per_test_input_state({});
 
     // Restore the page to the visible state.
     page().client().page_did_request_set_system_visibility_state(HTML::VisibilityState::Visible);

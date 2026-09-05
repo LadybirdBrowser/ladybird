@@ -2703,7 +2703,7 @@ void LocalNavigable::continue_navigation_after_population_dispatch(PreparedNavig
         return;
     }
 
-    if (!is_top_level_traversable()) {
+    if (!is_local_root()) {
         if (auto parent = this->parent(); parent && has_compositor_context()) {
             auto& local_parent = as<LocalNavigable>(*parent);
             if (local_parent.has_compositor_context())
@@ -4728,8 +4728,8 @@ bool LocalNavigable::is_focused() const
     if (!m_page->client().has_focus())
         return false;
 
-    // A top-level traversable retains system focus while the focus chain descends into a child navigable.
-    if (is_traversable())
+    // The local root retains the page's system focus while the focus chain descends into a child navigable.
+    if (is_local_root())
         return true;
     return &m_page->focused_navigable() == this;
 }
@@ -5330,9 +5330,9 @@ void LocalNavigable::set_force_dark_enabled(bool value)
     m_force_dark_enabled = value;
     set_needs_repaint();
 
-    // The page presents a dark preferred color scheme while the top-level traversable has force-dark on, so flipping
+    // The page presents a dark preferred color scheme while its local root has force-dark on, so flipping
     // it here changes what every media query and system color in the page resolves to.
-    if (is_top_level_traversable())
+    if (is_local_root())
         page().invalidate_style_for_preference_change();
 
     for (auto const& child_navigable : child_navigables())
@@ -5537,7 +5537,7 @@ void LocalNavigable::paint_next_frame()
 
     auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
     PaintConfig paint_config { .paint_overlay = true, .should_show_caret_hit_test_debug_overlay = m_should_show_caret_hit_test_debug_overlay };
-    if (is_top_level_traversable()) {
+    if (is_local_root()) {
         paint_config.canvas_fill_rect = Gfx::IntRect { {}, viewport_rect.size() };
     } else {
         // Nested navigables paint transparent bitmaps for their parent compositor context.

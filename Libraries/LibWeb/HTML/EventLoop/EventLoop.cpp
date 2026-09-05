@@ -692,7 +692,7 @@ void EventLoop::update_the_rendering()
             document->update_layout(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate);
         navigable->paint_next_frame();
         ++m_rendering_scheduler_counters.paints;
-        if (navigable->is_traversable())
+        if (navigable->is_local_root())
             navigable->page().process_screenshot_requests();
     }
 
