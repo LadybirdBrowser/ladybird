@@ -9,6 +9,12 @@
     .container { width: 240px; height: 100px; font: 10px/20px Ahem; }
     .target { display: inline-block; }
     .atomic { display: inline-block; }
+    .geometry-container {
+        font: 20px/30px Ahem;
+        white-space: break-spaces;
+        overflow-wrap: break-word;
+        text-justify: none;
+    }
 </style>
 <script>
     asyncTest(async done => {
@@ -74,6 +80,94 @@
             dimensions.push(`${rect.width}x${rect.height}`);
             println(`${name}: ${dimensions.join(", ")}`);
             container.remove();
+        }
+        await document.fonts.load("20px Ahem");
+
+        function geometry(content, width, extraStyle = "") {
+            const container = document.createElement("div");
+            container.className = "geometry-container";
+            container.style.cssText = `width:${width};${extraStyle}`;
+            container.innerHTML = content;
+            document.body.append(container);
+            const root = container.getBoundingClientRect();
+            const result = [root.width, root.height];
+            for (const element of container.querySelectorAll("*")) {
+                for (const rect of element.getClientRects())
+                    result.push(rect.x - root.x, rect.y - root.y, rect.width, rect.height);
+            }
+            container.remove();
+            return JSON.stringify(result);
+        }
+
+        const geometryCases = [
+            ["words", "ABCD EF GH"],
+            ["collapsing spaces", "  AB  CD   ", "white-space:normal"],
+            ["preserved wrapping spaces", "  AB  CD   ", "white-space:pre-wrap"],
+            ["preserved newlines", " AB  CD\n EF ", "white-space:pre-line"],
+            ["no wrapping", "  AB  CD   ", "white-space:nowrap"],
+            ["preserved spaces", "  AB  CD   "],
+            ["only spaces", "   "],
+            ["forced breaks", "AB \n\nC <br>D "],
+            ["inline boundaries", "A<span>B </span><span>CD</span> E"],
+            ["vertical alignment", "A<span style='vertical-align:40px'>BC</span> D"],
+            ["mixed line heights", "A<span style='font-size:40px;line-height:60px'>BC</span> D"],
+            ["tabs", "A\tBC D"],
+            ["decorated inline", "A<span style='padding:5px;border:2px solid'>BC D</span> E"],
+            ["percentage padding", "A<span style='padding-left:10%'>BC D</span> E"],
+            ["atomic inline", "A<span style='display:inline-block'>BC D</span> E"],
+            ["floating inline", "A<span style='float:left'>BC D</span> E"],
+            ["absolutely positioned inline", "A<span style='position:absolute'>BC D</span> E"],
+            ["block interruption", "A<span style='display:block'>BC D</span> E"],
+            ["mixed whitespace", "A<span style='white-space:normal'>BC  D</span> E"],
+            ["overflow anywhere", "ABCD EFGH", "overflow-wrap:anywhere"],
+            ["break word", "ABCD EFGH", "word-break:break-word"],
+            ["text indent", "ABCD EFGH", "text-indent:10px"],
+            ["scroll container paragraphs", "<p>ABCD EF GH</p><p>A<span style='vertical-align:40px'>BC</span> D</p>", "overflow:auto;white-space:normal"],
+            ["later float", "<p>ABCD EF GH</p><div style='float:left;width:30px;height:70px'></div><p>AB CD EF</p>", "white-space:normal"],
+            ["nested flex baseline", "<div style='display:flex;align-items:baseline'><div>A<span style='vertical-align:40px'>BC</span></div><div>DE</div></div>"],
+        ];
+        for (const [name, content, style] of geometryCases) {
+            for (const width of ["min-content", "max-content", "fit-content"])
+                println(`${name}, ${width}: ${geometry(content, width, style)}`);
+        }
+
+        const dynamic = document.createElement("div");
+        dynamic.className = "geometry-container";
+        dynamic.style.width = "max-content";
+        dynamic.textContent = "ABCD";
+        document.body.append(dynamic);
+        println(`initial width: ${dynamic.offsetWidth}`);
+        dynamic.textContent = "ABCDEFGH";
+        println(`changed text width: ${dynamic.offsetWidth}`);
+        dynamic.style.fontSize = "40px";
+        println(`changed font width: ${dynamic.offsetWidth}`);
+        dynamic.innerHTML = "<span style='padding-left:10px'>ABCD</span>";
+        println(`decorated replacement width: ${dynamic.offsetWidth}`);
+        dynamic.remove();
+
+        const flexContainer = document.createElement("div");
+        flexContainer.style.cssText = "display:flex;width:80px";
+        const flexItem = document.createElement("div");
+        flexItem.className = "geometry-container";
+        flexItem.style.whiteSpace = "nowrap";
+        flexItem.textContent = "  AB  CD   ";
+        flexContainer.append(flexItem);
+        document.body.append(flexContainer);
+        println(`nowrap flex item width: ${flexItem.offsetWidth}`);
+        flexContainer.remove();
+
+        for (const whitespace of ["normal", "pre-wrap", "break-spaces"]) {
+            for (const width of ["min-content", "max-content"]) {
+                const scrollContainer = document.createElement("div");
+                scrollContainer.style.cssText = `overflow:auto;width:${width};font:20px/30px Ahem;white-space:${whitespace}`;
+                scrollContainer.innerHTML = "<p>ABCD EF GH</p><p>AB CD</p>";
+                document.body.append(scrollContainer);
+                const before = internals.intrinsicInlineMeasurementCount();
+                const measuredWidth = scrollContainer.offsetWidth;
+                const measuredParagraphs = internals.intrinsicInlineMeasurementCount() > before;
+                println(`${whitespace}, ${width}: width ${measuredWidth}, measured paragraphs ${measuredParagraphs}`);
+                scrollContainer.remove();
+            }
         }
         done();
     });

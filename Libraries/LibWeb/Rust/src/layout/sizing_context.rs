@@ -1595,7 +1595,7 @@ impl<'pass> SizingContext<'pass> {
             IntrinsicInlineSizeMeasurement {
                 automatic_content_inline_size: result.automatic_content_inline_size,
                 min_content_inline_size_from_max_content_layout: result.min_content_inline_size_from_max_content_layout,
-                layout: Some(layout_node_arena::IntrinsicInlineMeasurementLayout {
+                layout: (!result.omitted_line_layout).then(|| layout_node_arena::IntrinsicInlineMeasurementLayout {
                     available_block_size,
                     content_inline_size: used.content_inline_size.get(),
                     content_block_size: used.content_block_size.get(),
@@ -2035,18 +2035,15 @@ impl<'pass> SizingContext<'pass> {
             self.intrinsic_inline_measurement_cache_put(node, kind, key, sizes);
             return sizes.automatic_content_inline_size;
         }
-        let mut result = measurement.run(
-            node,
-            &root,
-            LayoutInput::new(
-                AvailableSpace {
-                    inline_size: available_inline_size,
-                    block_size,
-                },
-                constraints,
-                ParticipationInParentFormattingContext::Root,
-            ),
+        let input = LayoutInput::new(
+            AvailableSpace {
+                inline_size: available_inline_size,
+                block_size,
+            },
+            constraints,
+            ParticipationInParentFormattingContext::Root,
         );
+        let mut result = measurement.measure_intrinsic_inline_size(node, &root, input);
         result.automatic_content_inline_size = clamp_to_max_dimension_value(result.automatic_content_inline_size);
         result.min_content_inline_size_from_max_content_layout = result
             .min_content_inline_size_from_max_content_layout

@@ -11,6 +11,7 @@ use super::*;
 /// parents' entries. The scoped constructors lend records to the run and restore
 /// the entries before returning, so callers cannot extend the registry's lifetime.
 pub(crate) struct RunRecords<'arena> {
+    pub(crate) omitted_line_layout: Cell<bool>,
     root: Node,
     arena: &'arena LayoutNodeArena,
     nonce: u64,
@@ -40,6 +41,7 @@ impl<'arena> RunRecords<'arena> {
 
     pub(crate) fn with_unrooted<R>(arena: &'arena LayoutNodeArena, root: Node, run: impl FnOnce(&Self) -> R) -> R {
         let records = Self {
+            omitted_line_layout: Cell::new(false),
             root,
             arena,
             nonce: arena.allocate_run_nonce(),
