@@ -127,6 +127,7 @@ public:
     bool set_http_memory_cache_enabled(bool enabled);
     void simulate_request_server_connection_loss();
     void simulate_worker_request_server_connection_loss();
+    WebIDL::UnsignedLongLong open_response_pipe_count();
     WebIDL::ExceptionOr<void> set_content_blockers(Utf16String const& patterns);
     WebIDL::ExceptionOr<void> set_site_compatibility_data(Utf16String const& source);
     void set_experimental_interfaces_exposed(bool exposed);

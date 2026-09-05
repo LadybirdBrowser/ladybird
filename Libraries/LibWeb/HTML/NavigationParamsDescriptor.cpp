@@ -13,6 +13,7 @@
 #include <LibRequests/RequestClient.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Fetching/FetchedDataReceiver.h>
+#include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/FileAPI/Blob.h>
@@ -310,12 +311,22 @@ ErrorOr<NavigationParamsVariant> create_navigation_params_from_descriptor(JS::Re
             navigable.active_browsing_context());
     }
 
+    // The navigation bail paths release a request through the params' fetch controller — so when the transferred
+    // response still holds a live RequestServer request, hand these params a controller that owns it, the way
+    // create_navigation_params_by_fetching() does. Otherwise nothing can stop the request — and a navigation torn
+    // down before its body arrives leaves its response pipe open for good.
+    GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller;
+    if (auto const& request_server_request = response->request_server_request(); request_server_request.has_value() && request_server_request->request) {
+        fetch_controller = Fetch::Infrastructure::FetchController::create();
+        fetch_controller->set_pending_request(request_server_request->request);
+    }
+
     return realm.heap().allocate<NavigationParams>(
         move(params.id),
         &navigable,
         request,
         response,
-        nullptr,
+        fetch_controller,
         nullptr,
         move(params.coop_enforcement_result),
         reserved_environment,

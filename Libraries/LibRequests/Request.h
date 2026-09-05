@@ -56,6 +56,9 @@ private:
 class ReadStream {
 public:
     static ErrorOr<NonnullOwnPtr<ReadStream>> create(int reader_fd);
+    ~ReadStream();
+
+    static size_t live_count();
 
     NonnullRefPtr<Core::Notifier> const& notifier() const { return m_notifier; }
 
@@ -64,11 +67,7 @@ public:
     ErrorOr<Bytes> read_some(Bytes bytes) { return m_stream->read_some(bytes); }
 
 private:
-    ReadStream(NonnullOwnPtr<Stream> stream, NonnullRefPtr<Core::Notifier> notifier)
-        : m_stream(move(stream))
-        , m_notifier(move(notifier))
-    {
-    }
+    ReadStream(NonnullOwnPtr<Stream> stream, NonnullRefPtr<Core::Notifier> notifier);
 
     NonnullOwnPtr<Stream> m_stream;
     NonnullRefPtr<Core::Notifier> m_notifier;

@@ -563,8 +563,13 @@ static bool handle_navigation_response_as_download(GC::Ref<NavigationParams> nav
             return true;
         }
 
-        if (navigation_params->fetch_controller)
+        if (navigation_params->fetch_controller) {
+            // AD-HOC: The request now belongs to the UI process (it adopted it above). So, before terminating, drop our
+            //         handle to it. Otherwise, fetch termination would stop a download already under way. RequestServer
+            //         reports the transfer back to us; that's what tears down this process's end of the pipe.
+            navigation_params->fetch_controller->set_pending_request(nullptr);
             navigation_params->fetch_controller->terminate();
+        }
 
         return true;
     }
@@ -682,6 +687,40 @@ void LocalNavigable::set_has_been_destroyed()
     m_has_been_destroyed = true;
     resolve_all_pending_async_scroll_operations();
     cancel_user_scroll_settlement();
+    run_pending_navigation_teardown();
+}
+
+void LocalNavigable::set_pending_navigation_teardown(GC::Ptr<GC::Function<void()>> teardown)
+{
+    // A navigation parking here while another is already parked supersedes it. So, tear the older one down — rather
+    // than dropping it, and leaving its request open.
+    run_pending_navigation_teardown();
+
+    // Destruction has already run, so nothing would ever run this one. Tear it down now — instead of storing it forever.
+    if (m_has_been_destroyed) {
+        if (teardown)
+            teardown->function()();
+        return;
+    }
+
+    m_pending_navigation_teardown = teardown;
+}
+
+void LocalNavigable::clear_pending_navigation_teardown(GC::Ptr<GC::Function<void()>> expected)
+{
+    // Only the navigation that registered this teardown may clear it. A navigation whose sniff-byte callback
+    // arrives after a newer one has parked would otherwise clear the newer teardown — and leave that
+    // newer request with nothing to release it.
+    if (m_pending_navigation_teardown != expected)
+        return;
+
+    m_pending_navigation_teardown = nullptr;
+}
+
+void LocalNavigable::run_pending_navigation_teardown()
+{
+    if (auto teardown = exchange(m_pending_navigation_teardown, nullptr))
+        teardown->function()();
 }
 
 void LocalNavigable::report_child_frame_destroyed()
@@ -720,6 +759,7 @@ void LocalNavigable::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_active_document);
     visitor.visit(m_input_method_composition_node);
     visitor.visit(m_container);
+    visitor.visit(m_pending_navigation_teardown);
     m_event_handler.visit_edges(visitor);
 
     for (auto& pending_navigation : m_pending_navigations) {
@@ -2427,6 +2467,8 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
     queue_global_task(Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window()), GC::create_function(heap(), [this, url, source_allows_downloading, source_interface_origin, user_involvement, navigation_id, navigation_params, csp_navigation_type, navigation_timing_type, output, completion_steps]() mutable {
         // 1. If navigable's ongoing navigation no longer equals navigationId, then run completionSteps and abort these steps.
         if (navigation_id.has_value() && ongoing_navigation() != navigation_id) {
+            // AD-HOC: Nothing downstream will consume this response, and no document exists yet to abort — so,
+            //         release its request here, as the active-window guard above does.
             stop_or_resume_response_body_delivery(navigation_params);
             if (completion_steps)
                 completion_steps->function()(nullptr);
@@ -2532,8 +2574,18 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
             if (!sniff_bytes.has_value()) {
                 // Async path: bytes not yet available, wait for them
                 nav_params->response->resume_body_delivery_up_to(Fetch::Infrastructure::MAX_SNIFF_BYTES);
+
+                // AD-HOC: The callback below runs only once bytes arrive — which never happens if the server sends
+                //         headers and then stops. Hand the navigable a teardown — so that destroying it releases
+                //         the request, instead of leaving the pipe open.
+                auto teardown = GC::create_function(heap(), [navigation_params] {
+                    stop_or_resume_response_body_delivery(navigation_params);
+                });
+                nav_params->navigable->set_pending_navigation_teardown(teardown);
+
                 body->wait_for_sniff_bytes(GC::create_function(heap(),
-                    [output, nav_params, navigation_params, completion_steps, source_allows_downloading, source_interface_origin](ReadonlyBytes sniff_bytes) {
+                    [output, nav_params, navigation_params, completion_steps, source_allows_downloading, source_interface_origin, teardown](ReadonlyBytes sniff_bytes) {
+                        nav_params->navigable->clear_pending_navigation_teardown(teardown);
                         // AD-HOC: The document may have been destroyed between when the fetch started and when the
                         //         bytes arrived.
                         if (nav_params->navigable->active_browsing_context()) {

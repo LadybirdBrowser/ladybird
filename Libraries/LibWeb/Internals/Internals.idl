@@ -112,6 +112,7 @@ interface Internals {
     boolean setHttpMemoryCacheEnabled(boolean enabled);
     undefined simulateRequestServerConnectionLoss();
     undefined simulateWorkerRequestServerConnectionLoss();
+    unsigned long long openResponsePipeCount();
     undefined setContentBlockers(DOMString patterns);
     undefined setSiteCompatibilityData(DOMString source);
     undefined setExperimentalInterfacesExposed(boolean exposed);

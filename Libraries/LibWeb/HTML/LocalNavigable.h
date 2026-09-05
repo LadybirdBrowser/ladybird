@@ -91,6 +91,10 @@ public:
     void set_navigation_load_event_guard(DOM::Document& parent_doc);
     void clear_navigation_load_event_guard();
 
+    void set_pending_navigation_teardown(GC::Ptr<GC::Function<void()>>);
+    void clear_pending_navigation_teardown(GC::Ptr<GC::Function<void()>> expected);
+    void run_pending_navigation_teardown();
+
     RefPtr<SessionHistoryEntry> active_session_history_entry() const;
     void set_active_session_history_entry(RefPtr<SessionHistoryEntry>);
     RefPtr<SessionHistoryEntry> current_session_history_entry() const;
@@ -501,6 +505,8 @@ private:
 
     // AD-HOC: Guards the parent document's load event delay count during cross-document navigation.
     Optional<DOM::DocumentLoadEventDelayer> m_navigation_load_event_guard;
+
+    GC::Ptr<GC::Function<void()>> m_pending_navigation_teardown;
 
     // Implied link between navigable and its container.
     GC::Ptr<NavigableContainer> m_container;

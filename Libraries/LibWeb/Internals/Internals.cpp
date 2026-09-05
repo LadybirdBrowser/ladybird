@@ -22,6 +22,7 @@
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibRequests/Request.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/StateAndProperties.h>
@@ -802,6 +803,11 @@ void Internals::simulate_request_server_connection_loss()
 void Internals::simulate_worker_request_server_connection_loss()
 {
     page().client().page_did_simulate_worker_request_server_connection_loss();
+}
+
+WebIDL::UnsignedLongLong Internals::open_response_pipe_count()
+{
+    return Requests::ReadStream::live_count();
 }
 
 WebIDL::ExceptionOr<void> Internals::set_content_blockers(Utf16String const& patterns_source)
