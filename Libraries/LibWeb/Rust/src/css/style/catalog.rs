@@ -35,7 +35,6 @@ pub(super) struct SelectorTruth {
 pub(super) struct SelectorTruthSetCatalog {
     sets: super::intern_table::InternTable<SelectorTruthSetID, Rc<[SelectorTruth]>>,
     verified_derived_answers: HashMap<(SelectorTruthSetID, TreeScopeID, u64), Rc<[RetainedRuleMatch]>>,
-    last_identity: u32,
 }
 
 impl SelectorTruthSetCatalog {
@@ -47,11 +46,12 @@ impl SelectorTruthSetCatalog {
         {
             return (identity, true);
         }
-        self.last_identity = self
-            .last_identity
-            .checked_add(1)
-            .expect("selector truth-set identity space exhausted");
-        let identity = SelectorTruthSetID(self.last_identity);
+        let identity = SelectorTruthSetID(
+            u32::try_from(self.sets.len())
+                .ok()
+                .and_then(|length| length.checked_add(1))
+                .expect("selector truth-set identity space exhausted"),
+        );
         self.sets.insert(hash, identity, truth.into());
         (identity, false)
     }
@@ -94,7 +94,6 @@ pub(super) struct MatchAnswerCatalogEntry {
 #[derive(Default)]
 pub(super) struct MatchAnswerCatalog {
     pub(super) answers: super::intern_table::InternTable<MatchAnswerID, Option<MatchAnswerCatalogEntry>>,
-    pub(super) last_identity: u32,
     pub(super) prefix_payload_bytes: usize,
     pub(super) cascade_payload_bytes: u64,
     pub(super) retained_payload_bytes: u64,
@@ -121,14 +120,6 @@ impl MatchAnswerCatalog {
                 mark(matched.program);
             }
         }
-    }
-
-    pub(super) fn new_identity(&mut self) -> MatchAnswerID {
-        self.last_identity = self
-            .last_identity
-            .checked_add(1)
-            .expect("match answer catalog identity space exhausted");
-        MatchAnswerID(self.last_identity)
     }
 
     pub(super) fn intern(&mut self, answer: &[RuleMatch]) -> MatchAnswerID {
@@ -164,7 +155,12 @@ impl MatchAnswerCatalog {
     }
 
     pub(super) fn insert_new(&mut self, answer: Vec<RetainedRuleMatch>, hash: u64) -> MatchAnswerID {
-        let identity = self.new_identity();
+        let identity = MatchAnswerID(
+            u32::try_from(self.answers.len())
+                .ok()
+                .and_then(|length| length.checked_add(1))
+                .expect("match answer catalog identity space exhausted"),
+        );
         self.answers.insert(
             hash,
             identity,
@@ -369,7 +365,6 @@ impl MatchAnswerCatalog {
             ];
             skip [
                 self.answers,
-                self.last_identity,
                 self.prefix_payload_bytes,
                 self.cascade_payload_bytes,
                 self.needs_compaction,
