@@ -1518,9 +1518,18 @@ impl StyleEngine {
         parents.sort_unstable();
         parents.dedup();
 
+        // Index the fallback first children once. Scanning every staged row for each parent
+        // would make batches with many newly created or removed subtrees quadratic.
+        let mut before_first_children = HashMap::default();
         for &(node, before, _) in &staged_rows {
             if before.is_none() {
                 view.mark_before_absent(node);
+            }
+            if let Some(relations) = before
+                && let Some(parent) = relations.parent
+                && relations.previous_element_sibling.is_none()
+            {
+                before_first_children.entry(parent).or_insert(node);
             }
         }
 
@@ -1534,15 +1543,7 @@ impl StyleEngine {
             let mut child = self
                 .tree_staging
                 .before_first_child(parent, resident_first)
-                .or_else(|| {
-                    staged_rows.iter().find_map(|&(node, before, _)| {
-                        before
-                            .is_some_and(|relations| {
-                                relations.parent == Some(parent) && relations.previous_element_sibling.is_none()
-                            })
-                            .then_some(node)
-                    })
-                });
+                .or_else(|| before_first_children.get(&parent).copied());
             let mut sequence = Vec::new();
             while let Some(node) = child {
                 assert!(

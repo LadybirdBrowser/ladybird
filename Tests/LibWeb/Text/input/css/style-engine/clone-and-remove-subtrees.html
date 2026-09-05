@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #container:has(.branch) { color: red; }
+    #container > :first-child { color: green; }
+    #container > :last-child { color: blue; }
+</style>
+<div id="container"></div>
+<script>
+    test(() => {
+        const container = document.getElementById("container");
+        let tree = document.createElement("div");
+        tree.className = "branch";
+        for (let depth = 0; depth < 4; ++depth) {
+            const parent = document.createElement("div");
+            for (let child = 0; child < 4; ++child)
+                parent.appendChild(tree.cloneNode(true));
+            tree = parent;
+        }
+
+        println(`Initial color: ${getComputedStyle(container).color}`);
+        for (let iteration = 0; iteration < 512; ++iteration) {
+            const clone = tree.cloneNode(true);
+            container.appendChild(clone);
+            for (let move = 0; move < 10; ++move)
+                container.appendChild(clone);
+            clone.remove();
+        }
+        println(`After removing clones: ${getComputedStyle(container).color}`);
+
+        container.append(tree.cloneNode(true), tree.cloneNode(true));
+        println(`With clones: ${getComputedStyle(container).color}`);
+        println(`First clone: ${getComputedStyle(container.firstChild).color}`);
+        println(`Last clone: ${getComputedStyle(container.lastChild).color}`);
+        container.firstChild.remove();
+        println(`Remaining clone: ${getComputedStyle(container.firstChild).color}`);
+        container.replaceChildren();
+        println(`After removing all children: ${getComputedStyle(container).color}`);
+    });
+</script>

@@ -1,0 +1,7 @@
+Initial color: rgb(0, 0, 0)
+After removing clones: rgb(0, 0, 0)
+With clones: rgb(255, 0, 0)
+First clone: rgb(0, 128, 0)
+Last clone: rgb(0, 0, 255)
+Remaining clone: rgb(0, 0, 255)
+After removing all children: rgb(0, 0, 0)
