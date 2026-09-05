@@ -338,37 +338,6 @@ struct ReplacedContentFactsSlot {
     facts: Option<FfiReplacedContentFacts>,
 }
 
-#[derive(Clone, Copy, PartialEq)]
-pub(crate) struct TextChunkCacheKey {
-    pub(crate) should_wrap_lines: bool,
-    pub(crate) should_respect_linebreaks: bool,
-    pub(crate) unidirectional_ltr: bool,
-    pub(crate) white_space_collapse: u8,
-    pub(crate) word_break: u8,
-    pub(crate) font_variant_emoji: u8,
-    pub(crate) font_cascade_list: *const c_void,
-}
-
-pub(crate) struct CachedTextChunks {
-    key: TextChunkCacheKey,
-    _retained_font_cascade_list: libgfx_rust::font::RetainedFontCascadeList,
-    chunks: Vec<super::text_chunker::TextChunk>,
-}
-
-impl std::ops::Deref for CachedTextChunks {
-    type Target = [super::text_chunker::TextChunk];
-
-    fn deref(&self) -> &Self::Target {
-        &self.chunks
-    }
-}
-
-#[derive(Default)]
-struct TextChunkCacheSlot {
-    generation: u8,
-    entry: Option<Rc<CachedTextChunks>>,
-}
-
 #[derive(Default)]
 struct RunRecordSlot {
     nonce: u64, // 0 = vacant
@@ -565,7 +534,6 @@ pub(crate) struct LayoutNodeArena {
     default_scroll_shift_anchors: RefCell<Vec<DefaultScrollShiftAnchorSlot>>,
     any_default_scroll_shift_anchor_ever_stored: Cell<bool>,
     text_nodes: Vec<TextNodeSlot>,
-    text_chunk_caches: RefCell<Vec<TextChunkCacheSlot>>,
     replaced_content_facts: Vec<ReplacedContentFactsSlot>,
     raw_table_column_spans: HashMap<NodeSlotId, u32>,
     run_used_records: RefCell<Vec<RunRecordSlot>>,
@@ -605,7 +573,6 @@ impl LayoutNodeArena {
             default_scroll_shift_anchors: RefCell::new(Vec::new()),
             any_default_scroll_shift_anchor_ever_stored: Cell::new(false),
             text_nodes: Vec::new(),
-            text_chunk_caches: RefCell::new(Vec::new()),
             replaced_content_facts: Vec::new(),
             raw_table_column_spans: HashMap::default(),
             run_used_records: RefCell::new(Vec::new()),
@@ -872,9 +839,6 @@ impl LayoutNodeArena {
             *slot = TextNodeSlot::default();
         }
         self.text_nodes_enrolled_for_content_sync.get_mut().remove(&id);
-        if let Some(slot) = self.text_chunk_caches.get_mut().get_mut(index as usize) {
-            *slot = TextChunkCacheSlot::default();
-        }
         if let Some(slot) = self.replaced_content_facts.get_mut(index as usize) {
             *slot = ReplacedContentFactsSlot::default();
         }
@@ -1966,9 +1930,6 @@ impl LayoutNodeArena {
             return;
         }
         state.content = Some(content);
-        if let Some(slot) = self.text_chunk_caches.get_mut().get_mut(id.slot_index() as usize) {
-            *slot = TextChunkCacheSlot::default();
-        }
         // Publication can happen through a C++ text read before the enrolled
         // sync runs. Invalidate here so every publication invalidates layout,
         // including mapping-only changes with identical rendered code units.
@@ -2121,48 +2082,6 @@ impl LayoutNodeArena {
         // SAFETY: A non-null style pointer addresses the container's group
         // pointer array, which FfiStylePayloads mirrors exactly.
         (!style.is_null()).then(|| unsafe { &*style.cast::<FfiStylePayloads>() })
-    }
-
-    pub(crate) fn text_chunks(
-        &self,
-        id: NodeSlotId,
-        key: TextChunkCacheKey,
-        compute: impl FnOnce() -> Vec<super::text_chunker::TextChunk>,
-    ) -> Rc<CachedTextChunks> {
-        // data() validates that id names a live slot with a matching generation.
-        self.data(id);
-        let index = id.slot_index() as usize;
-        {
-            let slots = self.text_chunk_caches.borrow();
-            if let Some(slot) = slots.get(index)
-                && slot.generation == id.generation()
-                && let Some(entry) = slot.entry.as_ref()
-                && entry.key == key
-            {
-                return entry.clone();
-            }
-        }
-
-        // A nested measurement can request a different key while an iterator
-        // still uses the previous chunks. Keep both the chunks and their fonts
-        // alive until that iterator finishes.
-        let entry = Rc::new(CachedTextChunks {
-            key,
-            // SAFETY: The caller derives the key's cascade-list pointer from a live style snapshot.
-            _retained_font_cascade_list: unsafe {
-                libgfx_rust::font::RetainedFontCascadeList::retain(key.font_cascade_list)
-            },
-            chunks: compute(),
-        });
-        let mut slots = self.text_chunk_caches.borrow_mut();
-        if slots.len() <= index {
-            slots.resize_with(index + 1, TextChunkCacheSlot::default);
-        }
-        slots[index] = TextChunkCacheSlot {
-            generation: id.generation(),
-            entry: Some(entry.clone()),
-        };
-        entry
     }
 
     pub(crate) fn allocate_run_nonce(&self) -> u64 {
@@ -3197,54 +3116,6 @@ mod tests {
     use crate::layout::node_data::{FfiNodeConstructionFacts, NodeFlag, NodeKind, NodeSlotId};
     use crate::layout::{CssPixels, fragment_tree, used_values};
     use std::ffi::c_void;
-
-    #[test]
-    fn text_chunk_users_survive_cache_replacement() {
-        use super::TextChunkCacheKey;
-        use crate::layout::text_chunker::TextChunk;
-        use std::rc::Rc;
-
-        let mut arena = LayoutNodeArena::new();
-        let node = arena.allocate_for_test().slot;
-        let key = TextChunkCacheKey {
-            should_wrap_lines: true,
-            should_respect_linebreaks: false,
-            unidirectional_ltr: true,
-            white_space_collapse: 0,
-            word_break: 0,
-            font_variant_emoji: 0,
-            // The standalone test binary stubs the C++ retain/release callbacks.
-            font_cascade_list: std::ptr::dangling(),
-        };
-        let chunk = TextChunk {
-            start: 0,
-            length: 5,
-            font: std::ptr::dangling(),
-            has_breaking_newline: false,
-            has_breaking_tab: false,
-            is_all_whitespace: false,
-            can_break_after: true,
-            text_type: 0,
-        };
-        let original = arena.text_chunks(node, key, || vec![chunk]);
-        let hit = arena.text_chunks(node, key, || panic!("matching chunks should be cached"));
-        assert!(Rc::ptr_eq(&original, &hit));
-        drop(hit);
-        let original_weak = Rc::downgrade(&original);
-        let replacement = arena.text_chunks(
-            node,
-            TextChunkCacheKey {
-                should_wrap_lines: false,
-                ..key
-            },
-            Vec::new,
-        );
-        assert!(replacement.is_empty());
-        assert_eq!(&**original, &[chunk]);
-        assert_eq!(Rc::strong_count(&original), 1);
-        drop(original);
-        assert!(original_weak.upgrade().is_none());
-    }
 
     fn test_construction_facts(dom_node: *mut c_void) -> FfiNodeConstructionFacts {
         test_construction_facts_with_kind(dom_node, NodeKind::Box)

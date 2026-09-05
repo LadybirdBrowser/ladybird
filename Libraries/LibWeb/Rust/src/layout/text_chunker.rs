@@ -586,9 +586,9 @@ pub(crate) fn text_chunks(
     should_wrap_lines: bool,
     should_respect_linebreaks: bool,
     unidirectional_ltr: bool,
-) -> std::rc::Rc<super::layout_node_arena::CachedTextChunks> {
+) -> std::rc::Rc<super::rendered_text::CachedTextChunks> {
     let parent_style = StyleValues::for_node(callbacks, callbacks.parent(node));
-    let key = crate::layout::layout_node_arena::TextChunkCacheKey {
+    let key = super::rendered_text::TextChunkCacheKey {
         should_wrap_lines,
         should_respect_linebreaks,
         unidirectional_ltr,
@@ -598,7 +598,7 @@ pub(crate) fn text_chunks(
         font_cascade_list: parent_style.font_cascade_list(),
     };
     let text = &callbacks.text_content(node).text;
-    callbacks.arena().text_chunks(node, key, || {
+    callbacks.text_content(node).text_chunks(key, || {
         chunk_text(TextChunkInputs {
             text,
             font_cascade_list: key.font_cascade_list,
