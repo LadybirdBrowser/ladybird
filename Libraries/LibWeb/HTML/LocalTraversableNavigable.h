@@ -66,13 +66,6 @@ public:
 
     [[nodiscard]] GC::Ptr<DOM::Node> currently_focused_area();
 
-    enum class CheckIfUnloadingIsCanceledResult {
-        CanceledByBeforeUnload,
-        CanceledByNavigate,
-        Continue,
-    };
-    void check_if_unloading_is_canceled(Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback);
-
     StorageAPI::StorageShed& storage_shed() { return m_storage_shed; }
     StorageAPI::StorageShed const& storage_shed() const { return m_storage_shed; }
 
@@ -89,8 +82,6 @@ private:
     virtual bool is_traversable() const override { return true; }
 
     virtual void visit_edges(Cell::Visitor&) override;
-
-    void check_if_unloading_is_canceled(Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload, GC::Ptr<LocalTraversableNavigable> traversable, RefPtr<SessionHistoryEntry> target_entry, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events, UnloadPromptShown, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult, UnloadPromptShown)>> callback);
 
     // WebContent needs the canonical top-level entry count synchronously for is_script_closable().
     u64 m_session_history_entry_count { 1 };
