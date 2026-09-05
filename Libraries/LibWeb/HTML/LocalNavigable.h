@@ -261,8 +261,9 @@ public:
     // https://drafts.csswg.org/css-view-transitions-1/#snapshot-containing-block-size
     CSSPixelSize snapshot_containing_block_size();
 
-    bool has_session_history_entry_and_ready_for_navigation() const { return m_has_session_history_entry_and_ready_for_navigation; }
+    virtual bool has_session_history_entry_and_ready_for_navigation() const override { return m_has_session_history_entry_and_ready_for_navigation; }
     void set_has_session_history_entry_and_ready_for_navigation();
+    virtual bool delays_the_load_event_of_its_container() const override;
 
     void inform_the_navigation_api_about_child_navigable_destruction();
 
