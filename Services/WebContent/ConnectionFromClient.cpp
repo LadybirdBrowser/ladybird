@@ -489,8 +489,12 @@ void ConnectionFromClient::discard_embedded_page(u64 page_id)
 
 void ConnectionFromClient::queue_navigation_api_state_clear_task(u64 page_id, Web::HTML::CrossProcessId, Web::HTML::CrossProcessId navigable_id)
 {
-    if (auto page = this->page(page_id); page.has_value())
-        as<Web::HTML::LocalTraversableNavigable>(*page->page().local_root_navigable()).queue_navigation_api_state_clear_task(navigable_id);
+    auto page = this->page(page_id);
+    auto navigable = Web::HTML::local_navigable_with_id(navigable_id);
+    if (!page.has_value() || !navigable)
+        return;
+
+    navigable->queue_navigation_api_state_clear_task();
 }
 
 void ConnectionFromClient::continue_history_navigation_population(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Optional<Web::Bindings::NavigationType> navigation_type, Web::HTML::HistoryNavigationPopulation population)

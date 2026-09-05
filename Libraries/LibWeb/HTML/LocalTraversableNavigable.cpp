@@ -1527,28 +1527,6 @@ void LocalTraversableNavigable::run_ui_history_step_beforeunload_check(Vector<Cr
         }));
 }
 
-// AD-HOC: This implements https://github.com/whatwg/html/pull/12838.
-void LocalTraversableNavigable::queue_navigation_api_state_clear_task(CrossProcessId navigable_id)
-{
-    auto navigable = local_navigable_with_id(navigable_id);
-    if (!navigable || navigable->has_been_destroyed() || !navigable->active_window())
-        return;
-
-    queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*navigable->active_window()), GC::create_function(heap(), [navigable] {
-        if (navigable->has_been_destroyed() || !navigable->active_window())
-            return;
-
-        // 1. Let navigation be navigable's active window's navigation API.
-        auto navigation = navigable->active_window()->navigation();
-
-        // 2. Set navigation's ongoing navigate event to null.
-        navigation->set_ongoing_navigate_event(nullptr);
-
-        // 3. Set navigation's ongoing API method tracker to null.
-        navigation->set_ongoing_api_method_tracker(nullptr);
-    }));
-}
-
 bool LocalTraversableNavigable::resume_history_navigation_population(CrossProcessId operation_id, HistoryNavigationPopulation&& population)
 {
     auto operation = m_history_operations.find(operation_id);

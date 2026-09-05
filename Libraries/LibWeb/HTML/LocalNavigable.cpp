@@ -932,6 +932,27 @@ void LocalNavigable::update_nonchanging_navigable_history_step_state(HistoryObje
     }));
 }
 
+// AD-HOC: This implements https://github.com/whatwg/html/pull/12838.
+void LocalNavigable::queue_navigation_api_state_clear_task()
+{
+    if (has_been_destroyed() || !active_window())
+        return;
+
+    queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*active_window()), GC::create_function(heap(), [navigable = GC::Ref { *this }] {
+        if (navigable->has_been_destroyed() || !navigable->active_window())
+            return;
+
+        // 1. Let navigation be navigable's active window's navigation API.
+        auto navigation = navigable->active_window()->navigation();
+
+        // 2. Set navigation's ongoing navigate event to null.
+        navigation->set_ongoing_navigate_event(nullptr);
+
+        // 3. Set navigation's ongoing API method tracker to null.
+        navigation->set_ongoing_api_method_tracker(nullptr);
+    }));
+}
+
 void LocalNavigable::notify_navigation_observers_navigation_complete()
 {
     if (!m_ongoing_navigation.has<Empty>())
