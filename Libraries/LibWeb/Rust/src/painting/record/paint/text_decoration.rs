@@ -101,17 +101,18 @@ fn anchor_for_decorating_box(
         return (fragment.baseline, true);
     }
     let side = recorder.layout_arena.paintable_side_data(block);
-    for piece in &side.inline_box_pieces {
+    for piece in side.inline_box_pieces() {
         if piece.node == decorating_node && piece.line_index == fragment.line_index {
             return (
-                piece.baseline - CssPixels::from_raw(fragment.offset.y.raw_value()),
+                piece.baseline - (fragment.offset().1 + fragment.relpos_delta.y),
                 fragment.accumulated_vertical_shift == piece.accumulated_vertical_shift,
             );
         }
     }
-    let line_baseline = side.lines[fragment.line_index as usize].baseline;
+    let line = &side.lines()[fragment.line_index as usize];
+    let line_baseline = line.block_start + line.baseline;
     (
-        line_baseline - CssPixels::from_raw(fragment.offset.y.raw_value()),
+        line_baseline - (fragment.offset().1 + fragment.relpos_delta.y),
         fragment.accumulated_vertical_shift == CssPixels::from_raw(0),
     )
 }
@@ -126,7 +127,8 @@ pub(crate) fn decoration_sets_for_span(
         return sets;
     }
     let arena = recorder.layout_arena;
-    let fragment = &recorder.layout_arena.paintable_side_data(block).fragments[span.fragment_index as usize];
+    let side = recorder.layout_arena.paintable_side_data(block);
+    let fragment = &side.fragments()[span.fragment_index as usize];
     let text_parent = fragment.style_source;
 
     let mut push_set = |decorating_node: crate::layout::node_data::NodeSlotId,
@@ -280,7 +282,8 @@ fn compute_skip_ink_segments(
     line_thickness: i32,
     font_size: f32,
 ) -> Vec<DecorationSegment> {
-    let fragment = &recorder.layout_arena.paintable_side_data(block).fragments[fragment_index as usize];
+    let side = recorder.layout_arena.paintable_side_data(block);
+    let fragment = &side.fragments()[fragment_index as usize];
     let Some(run) = &fragment.glyph_run else {
         return vec![DecorationSegment {
             start_x: span_start_x,

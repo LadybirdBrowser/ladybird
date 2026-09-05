@@ -1,1 +1,4 @@
 hit delta after paint-only change: 1
+clearing selection changes paint: true
+restoring selection restores paint: true
+cached selection matches fresh layout: true

@@ -22,9 +22,10 @@ pub(crate) fn to_logical<T>(writing_mode: u8, horizontal: T, vertical: T) -> (T,
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum AvailableSize {
     Definite(CssPixels),
+    #[default]
     Indefinite,
     MinContent,
     MaxContent,

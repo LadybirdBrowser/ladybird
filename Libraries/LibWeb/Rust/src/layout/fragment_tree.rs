@@ -25,7 +25,7 @@ pub(crate) struct Fragment {
     pub(crate) padding_bottom: CssPixels,
     pub(crate) uses_collapsing_borders_model: bool,
     pub(crate) collapsed_table_borders: Option<std::rc::Rc<table_formatting_context::OwnedCollapsedTableBorders>>,
-    pub(crate) line_data: Option<std::rc::Rc<used_values::LineData>>,
+    pub(crate) line_data: Option<std::rc::Rc<inline_content::InlineContent>>,
     pub(crate) grid_layout_data: Option<std::rc::Rc<grid_formatting_context::GridLayoutData>>,
     pub(crate) flex_layout_data: Option<std::rc::Rc<formatting_context::FlexLayoutData>>,
     pub(crate) used_grid_tracks: Option<std::rc::Rc<grid_formatting_context::OwnedUsedGridTracks>>,
@@ -245,7 +245,7 @@ fn snapshot_fragment(
     used: &UsedValues,
 ) -> std::rc::Rc<Fragment> {
     static NEXT_IDENTITY: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
-    let line_data = used.line_data.get().map(std::cell::RefCell::take);
+    let line_data = used.finish_line_data(callbacks);
     let rare_payloads = used.rare_data.get().map(|cell| {
         let mut rare = cell.borrow_mut();
         (

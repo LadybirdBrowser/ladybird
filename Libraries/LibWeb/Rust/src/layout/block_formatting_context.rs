@@ -210,7 +210,7 @@ pub(crate) struct BlockFormattingContext {
     fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
     should_collect_devtools_layout_data: bool,
     treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
-    previous_line_data: Option<std::rc::Rc<used_values::LineData>>,
+    previous_line_data: Option<std::rc::Rc<inline_content::InlineContent>>,
     is_line_clamp_container: bool,
     max_lines: Cell<Option<usize>>,
     line_clamp_line_count: Cell<usize>,
@@ -2930,7 +2930,7 @@ impl BlockFormattingContext {
         if facts.children_are_inline() {
             let node_used = self.used(node);
             let line_data = node_used.line_data_ref();
-            if let Some(last_line) = line_data.as_deref().and_then(|data| data.line_boxes.last()) {
+            if let Some(last_line) = line_data.as_deref().and_then(|data| data.last_line()) {
                 let mut block_size = last_line.physical_vertical_end();
                 if last_line.has_block_level_box {
                     let mut margin_state = self.margin_state.borrow_mut();
@@ -3054,8 +3054,8 @@ impl BlockFormattingContext {
         let facts = self.facts(node);
         if facts.children_are_inline() {
             if let Some(data) = self.used(node).line_data_ref() {
-                for line in &data.line_boxes {
-                    let mut inline_size_here = inline_formatting_context::line_physical_horizontal_extent(line);
+                for line in data.lines() {
+                    let mut inline_size_here = line.horizontal_extent;
                     let line_block_start = line.physical_vertical_end() - line.physical_vertical_extent();
                     let line_block_end = line.physical_vertical_end();
                     let mut extra_left = CssPixels::default();
@@ -3104,7 +3104,11 @@ impl BlockFormattingContext {
     pub(crate) fn automatic_content_inline_size(&self) -> CssPixels {
         if self.style(self.root).writing_mode() != writing_mode::HORIZONTAL_TB && self.line_clamp_reached() {
             let used = self.used(self.root);
-            if let Some(line) = used.line_data_ref().as_ref().and_then(|data| data.line_boxes.last()) {
+            if let Some(line) = used
+                .line_data_ref()
+                .as_ref()
+                .and_then(|data| data.building().line_boxes.last())
+            {
                 // https://drafts.csswg.org/css-overflow-4/#block-ellipsis
                 // The block overflow ellipsis is wrapped in an anonymous inline whose parent is the block
                 // container's root inline box. This inline is assigned line-height: 0.
@@ -3326,7 +3330,7 @@ pub(crate) fn automatic_block_size_for_bfc_root(
         // the top content edge and the bottom of the bottommost line box.
         let root_used = records.used_values(root);
         let line_data = root_used.line_data_ref();
-        if let Some(last_line) = line_data.as_ref().and_then(|data| data.line_boxes.last()) {
+        if let Some(last_line) = line_data.as_ref().and_then(|data| data.last_line()) {
             bottom = Some(last_line.physical_vertical_end());
             // A trailing interrupting block's bottom margin cannot collapse out of a BFC root,
             // so it contributes to the root's automatic block size. The line box bottom excludes it.

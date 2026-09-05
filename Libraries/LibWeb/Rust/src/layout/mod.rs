@@ -21,6 +21,7 @@ pub mod formatting_context;
 pub(crate) mod fragment_tree;
 pub mod geometry;
 pub mod grid_formatting_context;
+pub mod inline_content;
 pub(crate) mod inline_formatting_context;
 pub mod inline_level_iterator;
 mod intrinsic_sizing;

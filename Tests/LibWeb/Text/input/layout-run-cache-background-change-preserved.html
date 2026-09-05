@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<meta charset="utf-8">
 <script src="include.js"></script>
 <style>
     body { margin: 0; }
@@ -8,15 +9,20 @@
         overflow: hidden;
         background-color: yellow;
     }
-    #inner { width: 120px; height: 40px; }
+    #inner { width: 120px; height: 40px; position: relative; left: 3px; text-transform: uppercase; }
 </style>
 <div id="spacer"></div>
 <div id="cached">
-    <div id="inner"></div>
+    <div id="inner">straße אבג café words that wrap</div>
 </div>
 <script>
     asyncTest(async (done) => {
-        document.body.offsetHeight;
+        const range = document.createRange();
+        range.setStart(inner.firstChild, 1);
+        range.setEnd(inner.firstChild, inner.firstChild.length - 2);
+        const selection = window.getSelection();
+        selection.addRange(range);
+        internals.dumpDisplayList();
 
         // A paint-only background change must not invalidate the subtree's cached
         // run; the relayout forced by the growing sibling must replay it.
@@ -26,7 +32,21 @@
         document.body.offsetHeight;
 
         const hitDelta = internals.layoutRunCacheHitCount() - hitsBefore;
+        const selected = internals.dumpDisplayList();
+        selection.removeAllRanges();
+        const unselected = internals.dumpDisplayList();
+        selection.addRange(range);
+        const reselected = internals.dumpDisplayList();
+        // Rebuild the lines at a different width, then compare with the cached paint.
+        cached.style.width = "301px";
+        document.body.offsetHeight;
+        cached.style.width = "300px";
+        document.body.offsetHeight;
+        const fresh = internals.dumpDisplayList();
         println(`hit delta after paint-only change: ${hitDelta}`);
+        println(`clearing selection changes paint: ${unselected !== selected}`);
+        println(`restoring selection restores paint: ${reselected === selected}`);
+        println(`cached selection matches fresh layout: ${fresh === selected}`);
         done();
     });
 </script>

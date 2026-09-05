@@ -149,7 +149,7 @@ pub(crate) fn with_item_fragment<R>(
     let fragment_index = item.text_fragment_index? as usize;
     arena
         .paintable_side_data(item.paintable)
-        .fragments
+        .fragments()
         .get(fragment_index)
         .map(f)
 }

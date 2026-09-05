@@ -39,24 +39,25 @@ pub(crate) struct InlineBoxBaseline {
     pub(crate) accumulated_vertical_shift: CssPixels,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub(crate) struct LineBoxData {
     pub(crate) fragments: Vec<line_box_fragment::LineBoxFragmentData>,
     pub(crate) static_position_markers: Vec<StaticPositionMarker>,
     pub(crate) inline_box_baselines: Vec<InlineBoxBaseline>,
-    pub(crate) inline_length: CssPixels,
-    pub(crate) inline_length_before_block_ellipsis: Option<CssPixels>,
-    pub(crate) block_length: CssPixels,
-    pub(crate) block_start: CssPixels,
-    pub(crate) block_end: CssPixels,
-    pub(crate) baseline: CssPixels,
-    pub(crate) block_level_box_block_end_margin: CssPixels,
-    pub(crate) direction: u8,
-    pub(crate) writing_mode: u8,
-    pub(crate) original_available_inline_size: AvailableSize,
-    pub(crate) has_break: bool,
-    pub(crate) has_forced_break: bool,
-    pub(crate) has_block_level_box: bool,
+    pub(crate) record: inline_content::LineRecord,
+}
+
+impl std::ops::Deref for LineBoxData {
+    type Target = inline_content::LineRecord;
+    fn deref(&self) -> &Self::Target {
+        &self.record
+    }
+}
+
+impl std::ops::DerefMut for LineBoxData {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.record
+    }
 }
 
 impl LineBoxData {
@@ -65,32 +66,23 @@ impl LineBoxData {
             fragments: Vec::new(),
             static_position_markers: Vec::new(),
             inline_box_baselines: Vec::new(),
-            inline_length: CssPixels::default(),
-            inline_length_before_block_ellipsis: None,
-            block_length: CssPixels::default(),
-            block_start: CssPixels::default(),
-            block_end: CssPixels::default(),
-            baseline: CssPixels::default(),
-            block_level_box_block_end_margin: CssPixels::default(),
-            direction,
-            writing_mode,
-            original_available_inline_size: AvailableSize::Indefinite,
-            has_break: false,
-            has_forced_break: false,
-            has_block_level_box: false,
+            record: inline_content::LineRecord {
+                direction,
+                writing_mode,
+                is_empty: true,
+                ..Default::default()
+            },
         }
     }
 
-    pub(crate) fn physical_horizontal_extent(&self) -> CssPixels {
-        geometry::to_physical(self.writing_mode, self.inline_length, self.block_length).0
-    }
-
-    pub(crate) fn physical_vertical_extent(&self) -> CssPixels {
-        geometry::to_physical(self.writing_mode, self.inline_length, self.block_length).1
-    }
-
-    pub(crate) fn physical_vertical_end(&self) -> CssPixels {
-        geometry::to_physical(self.writing_mode, self.inline_length, self.block_end).1
+    pub(crate) fn retained_metrics(&self) -> inline_content::LineRecord {
+        inline_content::LineRecord {
+            layout_fragment_count: self.fragments.len(),
+            first_fragment_node: self.fragments.first().map(|fragment| fragment.layout_node),
+            is_empty: self.is_empty(),
+            horizontal_extent: inline_formatting_context::line_physical_horizontal_extent(self),
+            ..self.record
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -135,7 +127,7 @@ impl LineBoxData {
                 last.trailing_whitespace = trailing_whitespace;
             }
         } else {
-            let inline_offset = leading_margin + leading_size + self.inline_length;
+            let inline_offset = leading_margin + leading_size + self.record.inline_length;
             let mut fragment = line_box_fragment::LineBoxFragmentData::new(
                 layout_node,
                 start,
@@ -153,7 +145,7 @@ impl LineBoxData {
             fragment.trailing_whitespace = trailing_whitespace;
             self.fragments.push(fragment);
         }
-        self.inline_length += inline_advance(
+        self.record.inline_length += inline_advance(
             leading_margin,
             leading_size,
             content_inline_size,
@@ -168,7 +160,7 @@ impl LineBoxData {
     pub(crate) fn add_static_position_marker(&mut self, box_: Node, preceded_by_inline_box_start_edges: bool) {
         self.static_position_markers.push(StaticPositionMarker {
             box_,
-            inline_offset: self.inline_length,
+            inline_offset: self.record.inline_length,
             block_offset: CssPixels::default(),
             writing_mode: self.writing_mode,
             preceded_by_in_flow_content: !self.fragments.is_empty() || preceded_by_inline_box_start_edges,
@@ -201,8 +193,8 @@ impl LineBoxData {
 
     pub(crate) fn clamp_static_position_markers_to_inline_length(&mut self) {
         for marker in &mut self.static_position_markers {
-            if marker.inline_offset > self.inline_length {
-                marker.inline_offset = self.inline_length;
+            if marker.inline_offset > self.record.inline_length {
+                marker.inline_offset = self.record.inline_length;
             }
         }
     }
@@ -231,7 +223,7 @@ impl LineBoxData {
             whitespace_inline_size += fragment.inline_length;
             trailing_whitespace_inline_size += fragment.inline_length;
             if should_remove {
-                self.inline_length -= fragment.inline_length;
+                self.record.inline_length -= fragment.inline_length;
                 self.fragments.remove(fragment_index);
                 self.clamp_static_position_markers_to_inline_length();
             }
@@ -254,7 +246,7 @@ impl LineBoxData {
             fragment.length_in_code_units -= fragment_trailing_whitespace.length_in_code_units;
             fragment.inline_length -= fragment_trailing_whitespace.inline_size;
             fragment.trailing_whitespace = line_box_fragment::TrailingWhitespace::default();
-            self.inline_length -= fragment_trailing_whitespace.inline_size;
+            self.record.inline_length -= fragment_trailing_whitespace.inline_size;
             self.clamp_static_position_markers_to_inline_length();
         }
 
@@ -282,7 +274,7 @@ impl LineBoxData {
             if whitespace.length_in_code_units == 0 {
                 break;
             }
-            self.inline_length -= whitespace.inline_size;
+            self.record.inline_length -= whitespace.inline_size;
             if whitespace.length_in_code_units == fragment.length_in_code_units {
                 self.fragments.pop();
                 continue;

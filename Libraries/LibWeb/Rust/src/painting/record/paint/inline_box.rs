@@ -28,7 +28,8 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
     let root_position = paintable_geometry::absolute_position(recorder.layout_arena, root);
     let layout_arena = recorder.layout_arena;
     let piece_indices = &layout_arena.paintable_side_data(paintable).piece_indices;
-    let root_pieces = &layout_arena.paintable_side_data(root).inline_box_pieces;
+    let side = layout_arena.paintable_side_data(root);
+    let root_pieces = &side.inline_box_pieces();
     let facts = recorder.base_paint_facts(paintable);
     let self_painting_inline = crate::painting::fragment_ownership::is_self_painting_inline(layout_arena, paintable);
 

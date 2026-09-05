@@ -10,27 +10,31 @@ use crate::painting::paintable_data::{FfiSelectionEntry, SELECTION_STATE_NONE};
 use crate::painting::paintable_rows::PaintableRowsMut;
 use crate::painting::text_fragment;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 pub(crate) struct SelectionRange {
     pub start_offset: usize,
     pub end_offset: usize,
+    pub text_states: std::collections::HashMap<NodeSlotId, u8>,
 }
 
-fn invalidate_block_and_ancestors(layout_arena: &PaintableRowsMut<'_>, block: NodeSlotId) {
-    let mut current = Some(block);
+fn invalidate_text_node(layout_arena: &PaintableRowsMut<'_>, node: NodeSlotId) {
+    let mut current = text_fragment::containing_block_paintable_of_node(layout_arena, node);
     while let Some(slot) = current {
         layout_arena.invalidate_paint_cache(slot);
         current = crate::painting::paint_order::paint_parent(layout_arena, slot);
     }
-}
-
-fn invalidate_self_painting_inline_box(layout_arena: &PaintableRowsMut<'_>, node: NodeSlotId) {
     if let Some(inline_box) = fragment_ownership::nearest_self_painting_inline_box(layout_arena, node) {
         layout_arena.invalidate_paint_cache(inline_box);
     }
 }
 
-fn reset_states(layout_arena: &mut PaintableRowsMut<'_>, viewport: NodeSlotId) {
+pub(crate) fn clear(layout_arena: &mut PaintableRowsMut<'_>, viewport: NodeSlotId) {
+    let previous = layout_arena.paint_state().borrow_mut().selection.take();
+    if let Some(previous) = previous {
+        for node in previous.text_states.keys() {
+            invalidate_text_node(layout_arena, *node);
+        }
+    }
     let mut slots = Vec::new();
     crate::painting::paint_order::for_each_in_paint_subtree(layout_arena, viewport, |slot| {
         slots.push(slot);
@@ -40,40 +44,20 @@ fn reset_states(layout_arena: &mut PaintableRowsMut<'_>, viewport: NodeSlotId) {
             layout_arena.paintable_data_mut(current).selection_state = SELECTION_STATE_NONE;
             layout_arena.invalidate_paint_cache(current);
         }
-        let mut changed_fragment_nodes: Vec<NodeSlotId> = Vec::new();
-        for fragment in &mut layout_arena.paintable_side_data_mut(current).fragments {
-            if fragment.selection_state != SELECTION_STATE_NONE {
-                fragment.selection_state = SELECTION_STATE_NONE;
-                changed_fragment_nodes.push(fragment.layout_node);
-            }
-        }
-        if !changed_fragment_nodes.is_empty() {
-            invalidate_block_and_ancestors(layout_arena, current);
-            for node in changed_fragment_nodes {
-                invalidate_self_painting_inline_box(layout_arena, node);
-            }
-        }
     }
 }
 
-pub(crate) fn apply(layout_arena: &mut PaintableRowsMut<'_>, viewport: NodeSlotId, entries: &[FfiSelectionEntry]) {
-    reset_states(layout_arena, viewport);
+pub(crate) fn apply(
+    layout_arena: &mut PaintableRowsMut<'_>,
+    viewport: NodeSlotId,
+    entries: &[FfiSelectionEntry],
+) -> std::collections::HashMap<NodeSlotId, u8> {
+    clear(layout_arena, viewport);
+    let mut text_states = std::collections::HashMap::new();
     for entry in entries {
         if entry.is_text_node_entry {
-            let Some(block) = text_fragment::containing_block_paintable_of_node(layout_arena, entry.layout_node) else {
-                continue;
-            };
-            let mut changed = false;
-            for fragment in &mut layout_arena.paintable_side_data_mut(block).fragments {
-                if fragment.layout_node == entry.layout_node && fragment.selection_state != entry.state {
-                    fragment.selection_state = entry.state;
-                    changed = true;
-                }
-            }
-            if changed {
-                invalidate_block_and_ancestors(layout_arena, block);
-                invalidate_self_painting_inline_box(layout_arena, entry.layout_node);
-            }
+            text_states.insert(entry.layout_node, entry.state);
+            invalidate_text_node(layout_arena, entry.layout_node);
         } else {
             if !layout_arena.paintable_row_is_populated(entry.layout_node) {
                 continue;
@@ -84,8 +68,5 @@ pub(crate) fn apply(layout_arena: &mut PaintableRowsMut<'_>, viewport: NodeSlotI
             }
         }
     }
-}
-
-pub(crate) fn clear(layout_arena: &mut PaintableRowsMut<'_>, viewport: NodeSlotId) {
-    reset_states(layout_arena, viewport);
+    text_states
 }

@@ -1060,7 +1060,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 let font_box_size = normal_line_height(style);
                 let font_baseline = Self::baseline_for_style(style, font_box_size);
                 let fragment_mut = &mut self.line_mut(line_index).fragments[fragment_index];
-                fragment_mut.block_offset += fragment_mut.baseline - font_baseline;
+                fragment_mut.record.block_offset += fragment_mut.baseline - font_baseline;
                 fragment_mut.baseline = font_baseline;
                 fragment_mut.block_length = font_box_size;
             }

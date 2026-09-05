@@ -293,6 +293,48 @@ pub(crate) struct LineData {
     pub(crate) inline_box_pieces: Vec<inline_formatting_context::InlineBoxPieceData>,
 }
 
+pub(crate) enum LineDataState {
+    Building(LineData),
+    Finished(std::rc::Rc<inline_content::InlineContent>),
+}
+
+impl Default for LineDataState {
+    fn default() -> Self {
+        Self::Building(LineData::default())
+    }
+}
+
+impl LineDataState {
+    pub(crate) fn building(&self) -> &LineData {
+        let Self::Building(data) = self else {
+            panic!("line building accessed finalized inline content")
+        };
+        data
+    }
+
+    pub(crate) fn building_mut(&mut self) -> &mut LineData {
+        let Self::Building(data) = self else {
+            panic!("line building mutated finalized inline content")
+        };
+        data
+    }
+
+    pub(crate) fn lines(&self) -> impl DoubleEndedIterator<Item = inline_content::LineRecord> + '_ {
+        let (building, finished) = match self {
+            Self::Building(data) => (data.line_boxes.as_slice(), &[][..]),
+            Self::Finished(data) => (&[][..], data.lines.as_slice()),
+        };
+        building
+            .iter()
+            .map(line_box::LineBoxData::retained_metrics)
+            .chain(finished.iter().copied())
+    }
+
+    pub(crate) fn last_line(&self) -> Option<inline_content::LineRecord> {
+        self.lines().next_back()
+    }
+}
+
 #[derive(Clone, Default)]
 pub(crate) struct UsedValuesRareData {
     pub(crate) computed_svg_path: Option<std::rc::Rc<libgfx_rust::path::OwnedPath>>,
@@ -417,7 +459,7 @@ pub(crate) struct UsedValues {
     pub depends_on_percentage_block_size: Cell<bool>,
     pub has_descendant_that_depends_on_percentage_block_size: Cell<bool>,
 
-    pub(crate) line_data: LazyRefCell<std::rc::Rc<LineData>>,
+    pub(crate) line_data: LazyRefCell<LineDataState>,
     pub(crate) rare_data: LazyRefCell<UsedValuesRareData>,
 }
 
@@ -469,14 +511,29 @@ impl UsedValues {
         self.rare_data.get_or_init(UsedValuesRareData::default).borrow_mut()
     }
 
-    pub(crate) fn line_data_ref(&self) -> Option<Ref<'_, LineData>> {
-        self.line_data
-            .get()
-            .map(|cell| Ref::map(cell.borrow(), |shared| &**shared))
+    pub(crate) fn line_data_ref(&self) -> Option<Ref<'_, LineDataState>> {
+        self.line_data.get().map(RefCell::borrow)
     }
 
-    pub(crate) fn line_data_cell(&self) -> &RefCell<std::rc::Rc<LineData>> {
-        self.line_data.get_or_init(std::rc::Rc::default)
+    pub(crate) fn line_data_cell(&self) -> &RefCell<LineDataState> {
+        self.line_data.get_or_init(LineDataState::default)
+    }
+
+    pub(crate) fn finish_line_data(
+        &self,
+        callbacks: &FfiLayoutFcCallbacks,
+    ) -> Option<std::rc::Rc<inline_content::InlineContent>> {
+        let mut state = self.line_data.get()?.borrow_mut();
+        let content = match &mut *state {
+            LineDataState::Finished(content) => return Some(content.clone()),
+            LineDataState::Building(data) => std::rc::Rc::new(inline_content::InlineContent::finish(
+                std::mem::take(data),
+                callbacks.arena(),
+                self.content_inline_size.get(),
+            )),
+        };
+        *state = LineDataState::Finished(content.clone());
+        Some(content)
     }
 
     pub(crate) fn content_baselines_from_cells(&self) -> DerivedBaselines {

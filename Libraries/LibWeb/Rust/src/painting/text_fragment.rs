@@ -32,7 +32,14 @@ pub(crate) fn containing_block_paintable(
 }
 
 pub(crate) fn absolute_rect(layout_arena: &impl PaintableRowsRead, fragment: &FragmentRecord) -> CssPixelRect {
-    let mut rect = CssPixelRect::from_location_and_size(fragment.offset.into(), fragment.size.into());
+    let (x, y) = fragment.offset();
+    let (width, height) = fragment.size();
+    let mut rect = CssPixelRect {
+        x: x + fragment.relpos_delta.x,
+        y: y + fragment.relpos_delta.y,
+        width,
+        height,
+    };
     if let Some(block) = containing_block_paintable(layout_arena, fragment) {
         rect = rect.translated_by(paintable_geometry::absolute_position(layout_arena, block));
     }
@@ -44,7 +51,8 @@ pub(crate) fn absolute_line_box_rect(
     owner: NodeSlotId,
     fragment: &FragmentRecord,
 ) -> CssPixelRect {
-    let lines = &layout_arena.paintable_side_data(owner).lines;
+    let side = layout_arena.paintable_side_data(owner);
+    let lines = &side.lines();
     let Some(line) = lines.get(fragment.line_index as usize) else {
         return CssPixelRect::default();
     };
@@ -112,10 +120,7 @@ pub(crate) fn compute_selection_offsets(
     let rendered_offset_for_dom_offset = |dom_offset, boundary| {
         let rendered_offset =
             layout_arena.rendered_text_offset_for_dom_offset(fragment.layout_node, dom_offset, boundary);
-        rendered_offset.clamp(
-            fragment.start_offset,
-            fragment.start_offset + length_with_trailing_whitespace,
-        ) - fragment.start_offset
+        rendered_offset.clamp(fragment.start, fragment.start + length_with_trailing_whitespace) - fragment.start
     };
     match selection_state {
         crate::painting::paintable_data::SELECTION_STATE_NONE => None,
@@ -163,7 +168,7 @@ pub(crate) fn for_each_fragment_of_nodes(
         let Some(block) = containing_block_paintable_of_node(layout_arena, node) else {
             continue;
         };
-        for (index, fragment) in layout_arena.paintable_side_data(block).fragments.iter().enumerate() {
+        for (index, fragment) in layout_arena.paintable_side_data(block).fragments().iter().enumerate() {
             if fragment.layout_node != node {
                 continue;
             }
@@ -217,14 +222,8 @@ pub(crate) fn selection_offsets_for_dom_range(
         crate::layout::RenderedTextBoundary::End,
     );
     Some(SelectionOffsets {
-        start: rendered_start.clamp(
-            fragment.start_offset,
-            fragment.start_offset + length_with_trailing_whitespace,
-        ) - fragment.start_offset,
-        end: rendered_end.clamp(
-            fragment.start_offset,
-            fragment.start_offset + length_with_trailing_whitespace,
-        ) - fragment.start_offset,
+        start: rendered_start.clamp(fragment.start, fragment.start + length_with_trailing_whitespace) - fragment.start,
+        end: rendered_end.clamp(fragment.start, fragment.start + length_with_trailing_whitespace) - fragment.start,
     })
 }
 
@@ -453,8 +452,8 @@ pub(crate) fn index_in_node_for_point(
             fragment.length_in_code_units,
             |cluster_start, cluster_end, cluster_width| {
                 let per_unit_advance = cluster_width / (cluster_end - cluster_start) as f32;
-                let mut grapheme_start = fragment.start_offset + cluster_start;
-                let cluster_absolute_end = fragment.start_offset + cluster_end;
+                let mut grapheme_start = fragment.start + cluster_start;
+                let cluster_absolute_end = fragment.start + cluster_end;
                 while grapheme_start < cluster_absolute_end {
                     let grapheme_end = segmenter
                         .next_boundary(grapheme_start, false)
@@ -494,7 +493,7 @@ pub(crate) fn index_in_node_for_point(
 
     layout_arena.dom_offset_for_rendered_text_offset(
         fragment.layout_node,
-        fragment.start_offset + tracker.resolve(),
+        fragment.start + tracker.resolve(),
         crate::layout::RenderedTextBoundary::End,
     )
 }

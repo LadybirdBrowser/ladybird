@@ -116,7 +116,7 @@ fn dump_fragment(
     out.extend_from_slice(b" from ");
     push_class_name(out, kind);
     out.extend_from_slice(b" start: ");
-    push_usize(out, fragment.start_offset);
+    push_usize(out, fragment.start);
     out.extend_from_slice(b", length: ");
     push_usize(out, fragment.length_in_code_units);
     out.extend_from_slice(b", rect: ");
@@ -131,10 +131,10 @@ fn dump_fragment(
             && let Some(content) = layout_arena.text_content(fragment.layout_node)
         {
             let end = fragment
-                .start_offset
+                .start
                 .saturating_add(fragment.length_in_code_units)
                 .min(content.text.len());
-            let start = fragment.start_offset.min(end);
+            let start = fragment.start.min(end);
             push_text_wtf8(out, &content.text[start..end]);
         }
         out.extend_from_slice(b"\"\n");
@@ -149,7 +149,7 @@ pub(crate) fn dump_block_fragments(
     interactive: bool,
 ) {
     let mut fragment_index = 0usize;
-    for fragment in &layout_arena.paintable_side_data(block).fragments {
+    for fragment in layout_arena.paintable_side_data(block).fragments() {
         if layout_arena.node_kind_if_live(fragment.layout_node).is_some()
             && fragment_ownership::nearest_fragmented_inline_ancestor(layout_arena, fragment.layout_node).is_some()
         {
@@ -172,10 +172,10 @@ pub(crate) fn dump_inline_piece_fragments(
     };
     let root_side = layout_arena.paintable_side_data(root);
     for piece_index in &layout_arena.paintable_side_data(inline_paintable).piece_indices {
-        let piece = &root_side.inline_box_pieces[*piece_index as usize];
+        let piece = &root_side.inline_box_pieces()[*piece_index as usize];
         let mut fragment_index_within_piece = 0usize;
         for fragment_index in piece.first_fragment_index..piece.first_fragment_index + piece.fragment_count {
-            let fragment = &root_side.fragments[fragment_index as usize];
+            let fragment = &root_side.fragments()[fragment_index as usize];
             if layout_arena.node_kind_if_live(fragment.layout_node).is_some()
                 && fragment_ownership::nearest_fragmented_inline_ancestor(layout_arena, fragment.layout_node)
                     != Some(piece.node)

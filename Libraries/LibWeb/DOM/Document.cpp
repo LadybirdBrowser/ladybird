@@ -1991,7 +1991,7 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed, Layout
 
     set_needs_accumulated_visual_contexts_update(true);
 
-    // Selection state lives on committed fragments, which the commit has rebuilt.
+    // A tree update can replace layout nodes referenced by selection state.
     if (auto range = get_selection()->range())
         paint_state().recompute_selection_states(*this, *range);
 
