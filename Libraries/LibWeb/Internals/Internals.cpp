@@ -934,6 +934,11 @@ Utf16String Internals::get_computed_aria_level(DOM::Element& element)
     return MUST(ARIA::state_or_property_to_string_value(ARIA::StateAndProperties::AriaLevel, *aria_data));
 }
 
+void Internals::set_accessibility_focus_target(DOM::Element& element)
+{
+    element.document().set_accessibility_focus_target(&element);
+}
+
 u16 Internals::get_echo_server_port()
 {
     return s_echo_server_port;

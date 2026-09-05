@@ -1,0 +1,9 @@
+document
+  generic focused
+    link name="Home" url="https://example.org/" accesskey="h"
+      text leaf name="Home"
+    button name="Save" accesskey="s"
+      text leaf name="Save"
+    textbox accesskey="n" editable
+    button name="Custom" accesskey="c"
+      text leaf name="Custom"

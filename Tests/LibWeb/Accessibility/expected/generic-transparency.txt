@@ -1,0 +1,20 @@
+document
+  generic focused
+    generic
+      generic
+        generic
+          text leaf name="
+                "
+          link name="Wrapped link" url="file:///link"
+            text leaf name="Wrapped link"
+          text leaf name="
+            "
+    generic
+      generic
+        generic
+          text leaf name="Nested spans"
+    button name="Named div is not generic"
+      text leaf name="Named div is not generic"
+    generic name="Labeled container"
+      paragraph
+        text leaf name="Inside labeled div."

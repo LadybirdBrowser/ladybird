@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/accessibility-focus-ring-moves-between-elements-ref.html">
+<style>
+div {
+    width: 100px;
+    height: 50px;
+    margin: 20px;
+    background: lightgray;
+}
+</style>
+<div id="a"></div>
+<div id="b"></div>
+<script>
+// Regression test for the paint-command cache: put the ring on the first element, force a
+// display-list recording so the ring enters the per-paintable caches, then move the ring to
+// the second element without any intervening relayout. The final rendering must show the
+// ring on the second element only; without cache invalidation, splicing would leave the
+// stale ring on the first element. The load handler runs after the last load-time relayout,
+// so the caches seeded here are the ones the final rendering records from.
+addEventListener("load", () => {
+    internals.setAccessibilityFocusTarget(document.getElementById("a"));
+    internals.asyncScrollingState();
+    internals.setAccessibilityFocusTarget(document.getElementById("b"));
+});
+</script>

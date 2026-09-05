@@ -144,6 +144,7 @@ public:
     Utf16String get_computed_role(DOM::Element& element);
     Utf16String get_computed_label(DOM::Element& element);
     Utf16String get_computed_aria_level(DOM::Element& element);
+    void set_accessibility_focus_target(DOM::Element& element);
 
     static u16 get_echo_server_port();
     static void set_echo_server_port(u16 port);

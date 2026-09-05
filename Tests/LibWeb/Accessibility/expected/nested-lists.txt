@@ -1,0 +1,25 @@
+document
+  generic focused
+    list name="File tree"
+      listitem
+        text leaf name="Documents
+            "
+        list
+          listitem
+            text leaf name="Resume.pdf"
+          listitem
+            text leaf name="Cover letter.pdf"
+      listitem
+        text leaf name="Photos
+            "
+        list
+          listitem
+            text leaf name="Vacation
+                    "
+            list
+              listitem
+                text leaf name="beach.jpg"
+              listitem
+                text leaf name="sunset.jpg"
+          listitem
+            text leaf name="Family"
