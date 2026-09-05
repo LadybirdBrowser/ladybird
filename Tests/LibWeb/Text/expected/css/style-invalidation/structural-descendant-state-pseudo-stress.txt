@@ -10,9 +10,9 @@ PASS: descendant state stress pseudo-warm: document: :has(:disabled) after input
 PASS: descendant state stress pseudo-cold: document: :has(:disabled) after input disabled | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-warm: document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
-PASS: descendant state stress pseudo-warm: document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
+PASS: descendant state stress pseudo-warm: document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
 PASS: descendant state stress pseudo-cold: document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-cold: document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
@@ -40,9 +40,9 @@ PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:dis
 PASS: descendant state stress pseudo-cold: document-styled-use-shadow: :has(:disabled) after input disabled | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: document-styled-use-shadow: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
-PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: document-styled-use-shadow: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
+PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
 PASS: descendant state stress pseudo-cold: document-styled-use-shadow: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=6, elementStyleNoopRecomputations=2
 PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: document-styled-use-shadow: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
@@ -70,9 +70,9 @@ PASS: descendant state stress pseudo-warm: shadow-internal: :has(:disabled) afte
 PASS: descendant state stress pseudo-cold: shadow-internal: :has(:disabled) after input disabled | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-warm: shadow-internal: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: shadow-internal: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=8, elementStyleNoopRecomputations=1
-PASS: descendant state stress pseudo-warm: shadow-internal: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: shadow-internal: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: shadow-internal: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: shadow-internal: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
+PASS: descendant state stress pseudo-warm: shadow-internal: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
 PASS: descendant state stress pseudo-cold: shadow-internal: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=8, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: shadow-internal: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: shadow-internal: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -130,9 +130,9 @@ PASS: descendant state stress pseudo-warm: part-document: :has(:disabled) after 
 PASS: descendant state stress pseudo-cold: part-document: :has(:disabled) after input disabled | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-warm: part-document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=8, elementStyleNoopRecomputations=1
-PASS: descendant state stress pseudo-warm: part-document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: part-document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: part-document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
+PASS: descendant state stress pseudo-warm: part-document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
 PASS: descendant state stress pseudo-cold: part-document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=8, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: part-document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -162,7 +162,7 @@ PASS: descendant state stress pseudo-warm: part-shadow-host-document: :has(:enab
 PASS: descendant state stress pseudo-cold: part-shadow-host-document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=9, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: part-shadow-host-document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-host-document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=8, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: part-shadow-host-document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=6, elementStyleNoopRecomputations=4
+PASS: descendant state stress pseudo-warm: part-shadow-host-document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
 PASS: descendant state stress pseudo-cold: part-shadow-host-document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=9, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: part-shadow-host-document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-host-document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
@@ -190,9 +190,9 @@ PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:disabled)
 PASS: descendant state stress pseudo-cold: part-shadow-internal: :has(:disabled) after input disabled | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-internal: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=8, elementStyleNoopRecomputations=1
-PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-internal: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
+PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
 PASS: descendant state stress pseudo-cold: part-shadow-internal: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=8, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-internal: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -222,7 +222,7 @@ PASS: descendant state stress pseudo-warm: part-shadow-host-internal: :has(:enab
 PASS: descendant state stress pseudo-cold: part-shadow-host-internal: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=9, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: part-shadow-host-internal: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-host-internal: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=8, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: part-shadow-host-internal: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=6, elementStyleNoopRecomputations=4
+PASS: descendant state stress pseudo-warm: part-shadow-host-internal: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
 PASS: descendant state stress pseudo-cold: part-shadow-host-internal: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=9, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: part-shadow-host-internal: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-host-internal: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
@@ -250,9 +250,9 @@ PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:disabled)
 PASS: descendant state stress pseudo-cold: part-shadow-ancestor: :has(:disabled) after input disabled | elementStyleRecomputations=8, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-ancestor: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=9, elementStyleNoopRecomputations=1
-PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-ancestor: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=8, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
+PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
 PASS: descendant state stress pseudo-cold: part-shadow-ancestor: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=9, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-ancestor: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
@@ -282,7 +282,7 @@ PASS: descendant state stress pseudo-warm: part-shadow-host-ancestor: :has(:enab
 PASS: descendant state stress pseudo-cold: part-shadow-host-ancestor: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=10, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: part-shadow-host-ancestor: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-host-ancestor: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=9, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: part-shadow-host-ancestor: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=6, elementStyleNoopRecomputations=4
+PASS: descendant state stress pseudo-warm: part-shadow-host-ancestor: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
 PASS: descendant state stress pseudo-cold: part-shadow-host-ancestor: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=10, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: part-shadow-host-ancestor: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-host-ancestor: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=6, elementStyleNoopRecomputations=0

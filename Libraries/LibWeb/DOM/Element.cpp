@@ -60,6 +60,7 @@
 #include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/VisualViewport.h>
+#include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/DOMTokenList.h>
@@ -2224,7 +2225,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
     return result.invalidation;
 }
 
-CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(bool& did_change_custom_properties, StyleRecomputeMode mode)
+CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(bool& did_change_custom_properties, StyleRecomputeMode mode, PseudoElementInputs pseudo_element_inputs)
 {
     VERIFY(parent());
 
@@ -2256,6 +2257,13 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
         old_state.snapshot();
     }
     RefPtr<CSS::ComputedValues const> new_style;
+    // These flags include reads by the previous pseudo styles. Recomputing just the element
+    // would otherwise lose those dependencies when the flags below are reset.
+    bool const had_style_context_dependencies = m_style_uses_attr_css_function
+        || m_style_uses_var_css_function || m_style_uses_if_css_function
+        || m_style_uses_custom_function || m_style_uses_inherit_css_function
+        || m_style_uses_tree_counting_function || m_style_depends_on_viewport_metrics
+        || m_style_depends_on_size_container_query || m_style_depends_on_style_container_query;
     m_style_uses_attr_css_function = false;
     m_style_uses_var_css_function = false;
     m_style_uses_if_css_function = false;
@@ -2281,11 +2289,54 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     if (style_record_is_unchanged(style_record_delta))
         ++counters.unchanged_style_record_deltas;
 
+    auto pseudo_styles_are_unchanged = [&] {
+        if (pseudo_element_inputs != PseudoElementInputs::Unchanged
+            || !old_computed_values || did_change_custom_properties || root_font_metrics_changed
+            || had_style_context_dependencies
+            || has_associated_animations()
+            || (m_rendered_in_top_layer && !computed_style(CSS::PseudoElement::Backdrop)))
+            return false;
+        auto const* new_payloads = static_cast<void const* const*>(style_computer.style_record_payloads(style_record_delta.new_style_record));
+        if (!new_payloads || old_computed_values->inherited_style_group_identities().span() != ReadonlySpan<void const*> { new_payloads, CSS::ComputedValues::inherited_style_group_count }
+            || old_computed_values->display() != new_style->display())
+            return false;
+        if (style_engine_matches.node == 0 || !style_computer.style_engine().pseudo_cascade_states_are_unchanged(style_engine_matches.node))
+            return false;
+        // An unchanged pseudo cascade can still read a changed non-inherited property from
+        // its originating element. Leave such styles to the full computation.
+        static auto const non_inherited_properties = [] {
+            AK::FixedBitmap<CSS::number_of_longhand_properties> bitmap { false };
+            for (auto property = to_underlying(CSS::first_longhand_property_id); property <= to_underlying(CSS::last_longhand_property_id); ++property) {
+                if (!CSS::is_inherited_property(static_cast<CSS::PropertyID>(property)))
+                    bitmap.set(property - to_underlying(CSS::first_longhand_property_id), true);
+            }
+            return bitmap;
+        }();
+        for (u8 kind = 0; kind <= to_underlying(CSS::last_element_reference_pseudo_element); ++kind) {
+            auto pseudo_record = style_record_identity(static_cast<CSS::PseudoElement>(kind));
+            if (!pseudo_record)
+                continue;
+            auto view = style_computer.style_engine().style_record_view(pseudo_record);
+            if (!view.present || !view.longhand_table || view.animation_overlay_identity != 0)
+                return false;
+            auto const* inheritance = CSS::ComputedValuesFFI::rust_computed_longhand_table_inheritance_bits(static_cast<CSS::ComputedValuesFFI::ComputedLonghandTable const*>(view.longhand_table));
+            for (size_t index = 0; index < non_inherited_properties.size_in_bytes(); ++index) {
+                if (inheritance[index] & non_inherited_properties.bytes()[index])
+                    return false;
+            }
+        }
+        return true;
+    }();
+
     // An exact StyleEngine input record can answer a recomputation with the very style the element
     // already holds. Nothing derived from the originating style needs to be compared or published
     // again in that case. Pseudo-element declarations are a separate cascade projected from the
     // originating element's matches, so they still have to consume that shared match result.
     if (old_computed_values && style_record_is_unchanged(style_record_delta) && !did_change_custom_properties && !root_font_metrics_changed) {
+        if (pseudo_styles_are_unchanged) {
+            counters.element_style_noop_recomputations++;
+            return {};
+        }
         auto invalidation = recompute_pseudo_element_styles(
             did_change_custom_properties,
             old_computed_values->display().is_list_item(),
@@ -2415,7 +2466,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     if (element_computed_style_changed || element_custom_properties_changed)
         counters.element_computed_style_changes++;
 
-    invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, had_list_marker, old_computed_values ? &*old_computed_values : nullptr, reusable_style_engine_matches, &preserved_pseudo_element_styles);
+    if (!pseudo_styles_are_unchanged)
+        invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, had_list_marker, old_computed_values ? &*old_computed_values : nullptr, reusable_style_engine_matches, &preserved_pseudo_element_styles);
 
     // Which custom properties this element or one of its pseudo-elements declares or references
     // decides which `@property` registrations reach it. Pseudo-elements share the originating

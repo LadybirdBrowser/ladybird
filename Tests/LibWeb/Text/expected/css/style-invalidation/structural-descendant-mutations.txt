@@ -471,9 +471,9 @@ PASS: descendant state pseudo-element mutation: document: :has(:disabled) after 
 PASS: descendant state mutation: document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state pseudo-element mutation: document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state mutation: document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
-PASS: descendant state pseudo-element mutation: document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: descendant state pseudo-element mutation: document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state mutation: document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
-PASS: descendant state pseudo-element mutation: document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
+PASS: descendant state pseudo-element mutation: document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
 PASS: descendant state mutation: document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state pseudo-element mutation: document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant state mutation: document: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
@@ -501,9 +501,9 @@ PASS: descendant state pseudo-element mutation: shadow-internal: :has(:disabled)
 PASS: descendant state mutation: shadow-internal: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state pseudo-element mutation: shadow-internal: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state mutation: shadow-internal: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
-PASS: descendant state pseudo-element mutation: shadow-internal: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: descendant state pseudo-element mutation: shadow-internal: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state mutation: shadow-internal: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
-PASS: descendant state pseudo-element mutation: shadow-internal: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
+PASS: descendant state pseudo-element mutation: shadow-internal: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
 PASS: descendant state mutation: shadow-internal: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state pseudo-element mutation: shadow-internal: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state mutation: shadow-internal: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
@@ -591,9 +591,9 @@ PASS: descendant state pseudo-element mutation: part-document: :has(:disabled) a
 PASS: descendant state mutation: part-document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state pseudo-element mutation: part-document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state mutation: part-document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
-PASS: descendant state pseudo-element mutation: part-document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: descendant state pseudo-element mutation: part-document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state mutation: part-document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
-PASS: descendant state pseudo-element mutation: part-document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
+PASS: descendant state pseudo-element mutation: part-document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
 PASS: descendant state mutation: part-document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state pseudo-element mutation: part-document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state mutation: part-document: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
@@ -623,7 +623,7 @@ PASS: descendant state pseudo-element mutation: part-shadow-host-document: :has(
 PASS: descendant state mutation: part-shadow-host-document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=5, elementStyleNoopRecomputations=2
 PASS: descendant state pseudo-element mutation: part-shadow-host-document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state mutation: part-shadow-host-document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=6, elementStyleNoopRecomputations=4
-PASS: descendant state pseudo-element mutation: part-shadow-host-document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=6, elementStyleNoopRecomputations=4
+PASS: descendant state pseudo-element mutation: part-shadow-host-document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
 PASS: descendant state mutation: part-shadow-host-document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
 PASS: descendant state pseudo-element mutation: part-shadow-host-document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state mutation: part-shadow-host-document: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=3
@@ -653,7 +653,7 @@ PASS: descendant state pseudo-element mutation: part-shadow-host-ancestor: :has(
 PASS: descendant state mutation: part-shadow-host-ancestor: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=5, elementStyleNoopRecomputations=2
 PASS: descendant state pseudo-element mutation: part-shadow-host-ancestor: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state mutation: part-shadow-host-ancestor: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=6, elementStyleNoopRecomputations=4
-PASS: descendant state pseudo-element mutation: part-shadow-host-ancestor: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=6, elementStyleNoopRecomputations=4
+PASS: descendant state pseudo-element mutation: part-shadow-host-ancestor: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
 PASS: descendant state mutation: part-shadow-host-ancestor: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
 PASS: descendant state pseudo-element mutation: part-shadow-host-ancestor: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state mutation: part-shadow-host-ancestor: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=3

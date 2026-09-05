@@ -4789,7 +4789,8 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             // Equal values borrowed from another element do not yet certify that every selector
             // reaction continuing below this element has settled. Keep the next comparison
             // conservative until that continuation is represented in the dependency closure.
-            if (auto node = abstract_element.element().style_node_id(); node != 0) {
+            // A pseudo's exact cascade must still witness its style when the values are shared.
+            if (auto node = abstract_element.element().style_node_id(); node != 0 && !abstract_element.pseudo_element().has_value()) {
                 const_cast<StyleComputer&>(*this).style_engine().discard_pending_exact_cascade_state(
                     node,
                     pseudo_element_to_ffi(abstract_element.pseudo_element()));
