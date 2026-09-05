@@ -1,0 +1,6 @@
+recomputes: 1
+full builds: 0
+partial builds: 1
+unrelated longhands skipped: true
+color: rgb(0, 128, 0)
+background-image kept
