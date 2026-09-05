@@ -36,9 +36,11 @@ A focused loop for style work:
 
 The gates are per-mechanism checks that run at their mechanism's site. Some re-derive incremental results through the exact cold evaluator and compare (`LIBWEB_VERIFY_STYLE_ANSWER_PATCH`, `LIBWEB_VERIFY_SELECTOR_TRUTH_DERIVATION`, `LIBWEB_VERIFY_CASCADE_WINNERS`); others assert structural properties (`LIBWEB_VERIFY_STYLE_PLAN_PROVENANCE`, `LIBWEB_VERIFY_PUBLISHED_STYLE_TRANSACTION`), and three C++-side gates cover input reuse, the computed closure, and the style-diff fast path (`LIBWEB_VERIFY_STYLE_INPUT_REUSE`, `LIBWEB_VERIFY_COMPUTED_CLOSURE`, `LIBWEB_VERIFY_STYLE_DIFF_FAST_PATH`).
 
+`LIBWEB_VERIFY_PREFIX_RELATION` compares every live element's maintained prefix memberships with scalar prefix matching after construction and updates. It also verifies retained membership storage accounting, and runs unconditionally in Rust unit tests.
+
 Verification is **observer-only**: structural checks receive an immutable engine view, while checks that need the exact cold evaluator receive a dedicated verifier capability whose only operations perform comparisons. Neither API exposes cache publication or general engine mutation, and every gate returns unit, so a verifier cannot steer engine behavior. A verifier must never disable or bypass the fast path it is checking, and an incomplete comparison is a failure, not a skip.
 
-The five engine-side gates are engine inputs: recordings store their bit set, including bit 4 for `LIBWEB_VERIFY_SELECTOR_TRUTH_DERIVATION`, and replay refuses a capture under a different configuration. The three C++-side gates are outside the recorded surface.
+The six engine-side gates are engine inputs: recordings store their bit set, including bit 4 for `LIBWEB_VERIFY_SELECTOR_TRUTH_DERIVATION` and bit 5 for `LIBWEB_VERIFY_PREFIX_RELATION`, and replay refuses a capture under a different configuration. The three C++-side gates are outside the recorded surface.
 
 ## 2. Record and replay
 

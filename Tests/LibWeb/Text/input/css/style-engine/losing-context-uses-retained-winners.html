@@ -22,7 +22,9 @@
         internals.updateStyle();
         const after = internals.styleEngineCounters();
 
-        println(`losing route rejected: ${after.selectorRoutesRejectedByCascade - before.selectorRoutesRejectedByCascade}`);
+        const losingSelectorsRejected = after.selectorRoutesRejectedByCascade - before.selectorRoutesRejectedByCascade
+            + after.prefixRelationCascadeStops - before.prefixRelationCascadeStops;
+        println(`losing selector rejected: ${losingSelectorsRejected > 0}`);
         println(`only sentinel invalidated: ${after.invalidatedStyleNodes - before.invalidatedStyleNodes === 1}`);
         println(`ordinary item: ${getComputedStyle(root.firstElementChild).color}`);
         println(`sentinel: ${getComputedStyle(root.lastElementChild).outlineColor}`);

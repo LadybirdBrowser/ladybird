@@ -21,11 +21,8 @@
     <div id="host"><span id="light" class="slotted"></span></div>
 </div>
 <script>
-    // Descendant invalidation converges through the top-down prefix states: the plan compares the
-    // old and new state of every changed root and stops descending where the state a child inherits
-    // is the same on both sides. Anything that convergence skips has to be a node whose matches did
-    // not move, so every case here settles incrementally and is then compared against a complete
-    // recompute.
+    // Incremental prefix evaluation must stop propagating unchanged selector state. Every
+    // skipped node must still settle to the same style as a complete recompute.
     const shadow = document.getElementById("host").attachShadow({ mode: "open" });
     shadow.innerHTML = `<style>.guard ::slotted(.slotted) { color: rgb(9, 9, 9) }</style><slot></slot>`;
 
@@ -50,7 +47,8 @@
         internals.updateStyle();
         const after = internals.styleEngineCounters();
         passes += after.prefixConvergencePasses - before.prefixConvergencePasses;
-        stops += after.prefixConvergenceStops - before.prefixConvergenceStops;
+        stops += after.prefixConvergenceStops - before.prefixConvergenceStops
+            + after.prefixRelationStops - before.prefixRelationStops;
         const incremental = snapshot();
         internals.setUserStyle(`/* force complete style ${forced++} */`);
         internals.updateStyle();
@@ -122,6 +120,6 @@
 
         // Without these the cases above would pass whether or not convergence ever ran.
         println(`convergence planned some of these: ${passes > 0}`);
-        println(`and stopped descending somewhere: ${stops > 0}`);
+        println(`and stopped propagation somewhere: ${stops > 0}`);
     });
 </script>

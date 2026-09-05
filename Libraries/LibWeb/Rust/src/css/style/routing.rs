@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::capacity::ShallowCapacityBytes;
 use super::column::advance_epoch;
+use super::sorted_merge::{SortedMergeEntry, merge_sorted_by};
 use super::*;
 
 impl StyleEngine {
@@ -160,6 +162,30 @@ impl StyleEngine {
         };
         let route_liveness = routing.route_liveness(&self.program, &self.programs);
         for key in keys {
+            // A maintained relation already accounts for these selectors' complete changes.
+            // Prove coverage once per input key before expanding its individual routes.
+            if self
+                .transaction_fact_view
+                .as_ref()
+                .is_some_and(|view| view.prefix.is_some())
+                && input
+                    .key
+                    .style_node()
+                    .is_some_and(|node| self.tree.tree_scope(node) == TreeScopeID::DOCUMENT)
+                && let Some((program, dispatch)) = prefix_producer_admission
+                && let Lookup::Known(states) = self.prefix_caches.borrow_mut().states.lookup_mut(*program)
+                && let Some(relation) = states.relation.as_mut()
+            {
+                let covered = relation.handled_routing_keys.entry(key).or_insert_with(|| {
+                    routing
+                        .routes_for(key)
+                        .iter()
+                        .all(|&route| self.route_is_prefix_convergence_eligible(&routing, dispatch, route))
+                });
+                if *covered {
+                    continue;
+                }
+            }
             // The tree delta already puts an arriving element and its subtree in the plan. Its
             // individual facts only have work left to do as possible witnesses of relational
             // selectors whose anchors live outside that subtree, or on the left side of sibling
@@ -2636,6 +2662,195 @@ impl StyleEngine {
         let (scope_program, dispatch) = self.ranked_scope_program(TreeScopeID::DOCUMENT);
         if dispatch.prefixes().is_empty() {
             return PrefixConvergenceOutcome::default();
+        }
+        if matches!(self.prefix_caches.borrow().states.lookup(scope_program), Lookup::Known(states) if states.relation.is_some())
+        {
+            let facts = self.facts.primary();
+            let view = self.transaction_fact_view.as_ref().unwrap();
+            let workspace = MatchEvaluationWorkspace::default();
+            let evaluator = MatchEvaluator::new(&self.tree, facts)
+                .with_transaction_fact_view(view, TransactionFactSide::After)
+                .with_match_workspace(&workspace, MatchEvaluationSide::Current);
+            let old_evaluator = MatchEvaluator::new(&self.tree, facts)
+                .with_transaction_fact_view(view, TransactionFactSide::Before)
+                .with_match_workspace(&workspace, MatchEvaluationSide::OldTree);
+            let evaluation = PrefixEvaluation::new(
+                dispatch.prefixes(),
+                &self.tree,
+                facts,
+                &self.programs,
+                &evaluator,
+                None,
+                None,
+            );
+            let old_evaluation = PrefixEvaluation::new(
+                dispatch.prefixes(),
+                &self.tree,
+                facts,
+                &self.programs,
+                &old_evaluator,
+                None,
+                None,
+            );
+            let mut relation = match self.prefix_caches.borrow_mut().states.lookup_mut(scope_program) {
+                Lookup::Known(states) => states.relation.take().unwrap(),
+                _ => unreachable!(),
+            };
+            {
+                let mut changed = pending_nodes.clone();
+                if tree_relations_changed {
+                    let mut geometry_nodes: Vec<_> = transaction
+                        .inputs
+                        .iter()
+                        .filter_map(|input| {
+                            if let InputKey::TreeRelations(node) = input.key {
+                                Some(node)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    geometry_nodes.extend_from_slice(&sibling_frontier);
+                    geometry_nodes.sort_unstable();
+                    geometry_nodes.dedup();
+                    changed.extend(relation.update_geometry(
+                        dispatch.prefixes(),
+                        &evaluation,
+                        &geometry_nodes,
+                        &mut self.counters,
+                    ));
+                }
+                changed.sort_unstable();
+                changed.dedup();
+                relation.update(
+                    dispatch.prefixes(),
+                    &evaluation,
+                    &old_evaluation,
+                    &changed,
+                    &mut self.counters,
+                );
+            }
+            let mut eligible: Vec<_> = pending
+                .keys()
+                .filter(|key| self.route_is_prefix_convergence_eligible(&routing, &dispatch, key.route))
+                .collect();
+            eligible.sort_unstable();
+            let mut changed_routing_keys = Vec::new();
+            if retained_winners_are_current && !relation.changed_answers.is_empty() {
+                for input in &transaction.inputs {
+                    changed_routing_keys.extend(routing_keys_for_input(input));
+                    if let InputKey::LocalFeature(_, LocalFeatureKey::Attribute(name)) = input.key {
+                        changed_routing_keys
+                            .extend(self.facts.attribute_name_keys(name).map(RoutingKey::AttributeName));
+                    }
+                }
+                changed_routing_keys.sort_unstable();
+                changed_routing_keys.dedup();
+            }
+            let mut cascade_relevance: HashMap<EntryID, Option<bool>> = HashMap::default();
+            let mut scratch_bytes = changed_routing_keys.shallow_capacity_bytes();
+            self.memory
+                .reserve_required(MemoryCategory::BatchScratch, scratch_bytes);
+            let mut cascade_stops = 0;
+            for (node, old, new) in &relation.changed_answers {
+                let mut has_active_change = false;
+                let mut may_change_cascade = false;
+                for difference in merge_sorted_by(old, new, Ord::cmp) {
+                    let entry = match difference {
+                        SortedMergeEntry::Left(&entry) | SortedMergeEntry::Right(&entry) => entry,
+                        SortedMergeEntry::Both(_, _) => continue,
+                    };
+                    let before = cascade_relevance.shallow_capacity_bytes();
+                    let relevance = *cascade_relevance.entry(entry).or_insert_with(|| {
+                        let mut active = false;
+                        for candidate in dispatch.entries_for_identity(entry) {
+                            if !self.program.rule_can_decide(candidate.rule) {
+                                continue;
+                            }
+                            active = true;
+                            if !retained_winners_are_current
+                                || !self.prefix_route_cannot_change_any_retained_winner(
+                                    candidate.rule,
+                                    candidate.program,
+                                    candidate.entry,
+                                    &changed_routing_keys,
+                                )
+                            {
+                                return Some(true);
+                            }
+                        }
+                        if active {
+                            cascade_stops += 1;
+                            Some(false)
+                        } else {
+                            None
+                        }
+                    });
+                    let added_bytes = cascade_relevance.shallow_capacity_bytes() - before;
+                    self.memory.reserve_required(MemoryCategory::BatchScratch, added_bytes);
+                    scratch_bytes += added_bytes;
+                    has_active_change |= relevance.is_some();
+                    may_change_cascade |= relevance == Some(true);
+                    if may_change_cascade {
+                        break;
+                    }
+                }
+                if !has_active_change {
+                    continue;
+                }
+                record_match_set_difference(
+                    &mut self.selector_truth_changes,
+                    self.selector_truth_changes_active,
+                    *node,
+                    old,
+                    new,
+                    &dispatch,
+                    &self.program,
+                );
+                if may_change_cascade {
+                    regions.add(ImpactRegion::Node(*node), &mut self.counters);
+                } else if self.selector_truth_changes_active {
+                    // Keep prefix truth current even when its rule cannot win. Retire an
+                    // unplanned node's exact answer, or repair it if another route plans it.
+                    self.selector_truth_changes.refreshes.push(SelectorTruthRefresh {
+                        node: *node,
+                        rule: None,
+                    });
+                }
+            }
+            self.counters.add(Counter::PrefixRelationCascadeStops, cascade_stops);
+            self.memory.release(MemoryCategory::BatchScratch, scratch_bytes);
+            let mut caches = self.prefix_caches.borrow_mut();
+            let states = caches
+                .states
+                .get_or_insert(scope_program, facts.generation(), facts.row_count());
+            relation.install_answers(states, &mut self.counters);
+            for node in departures {
+                states.forget_transition(node);
+            }
+            states.relation = Some(relation);
+            self.counters.bump(Counter::PrefixConvergencePasses);
+            caches.states.mark_full();
+            caches.states.mark_current();
+            caches.states.settle_memory(&mut self.memory);
+            let mut released_route_bytes = 0;
+            pending.retain(|key, routed_regions| {
+                if eligible.binary_search(&key).is_ok() {
+                    released_route_bytes += (routed_regions.capacity() * size_of::<ImpactRegion>()) as u64;
+                    false
+                } else {
+                    true
+                }
+            });
+            self.memory.release(MemoryCategory::BatchScratch, released_route_bytes);
+            return PrefixConvergenceOutcome {
+                sibling_routes_are_covered: pending.is_empty()
+                    && tree_relations_changed
+                    && dispatch.prefixes().has_sibling_steps(),
+                positional_routes_are_covered: pending.is_empty()
+                    && tree_relations_changed
+                    && !dispatch.prefixes().positional_tests().is_empty(),
+            };
         }
         let mut local_fact_changes = pending_nodes.clone();
         local_fact_changes.sort_unstable();

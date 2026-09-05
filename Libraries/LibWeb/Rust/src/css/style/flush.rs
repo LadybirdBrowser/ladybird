@@ -344,6 +344,28 @@ impl StyleEngine {
         let has_before_sibling_relations = transaction_fact_view.before_sibling_relations_available;
         self.prefix_caches.borrow_mut().states.mark_previous();
         self.transaction_fact_view = Some(transaction_fact_view);
+        // The relation maintains document-scoped prefixes. Incomplete transitions and
+        // tag changes, whose of-type effects extend to siblings, require cold reconstruction.
+        if self.prefix_caches.borrow().states.has_relation()
+            && (self
+                .transaction_fact_view
+                .as_ref()
+                .is_none_or(|view| view.prefix.is_none())
+                || !transaction.inputs.iter().all(|input| {
+                    input
+                        .key
+                        .style_node()
+                        .is_some_and(|node| self.tree.tree_scope(node) == TreeScopeID::DOCUMENT)
+                        && !matches!(
+                            input.key,
+                            InputKey::LocalFeature(_, LocalFeatureKey::TagName | LocalFeatureKey::FoldedTagName)
+                        )
+                }))
+        {
+            let mut caches = self.prefix_caches.borrow_mut();
+            caches.states.release();
+            caches.answers.release(&mut self.match_answers);
+        }
         let fact_view_bytes = self
             .transaction_fact_view
             .as_ref()
@@ -1463,13 +1485,14 @@ impl StyleEngine {
                     self.counters.bump(Counter::EngineComputedRecordBailSubstitution);
                     false
                 } else if previous_answer_was_incomplete
-                    || selector_truth_changes
-                        .deltas_for(node)
-                        .iter()
-                        .any(|delta| !self.program.declarations_are_complete_for(delta.rule))
+                    || selector_truth_changes.deltas_for(node).iter().any(|delta| {
+                        !self
+                            .program
+                            .declarations_are_complete_but_for_custom_properties(delta.rule)
+                    })
                 {
-                    // What a rule declaring past its winners (custom properties, `all`) declares
-                    // is computed in C++, and stays with the record it computed.
+                    // Custom declarations are resolved by the engine's environment computation.
+                    // Other declarations missing from the winner columns still require C++.
                     self.counters.bump(Counter::EngineComputedRecordGateIncompleteAnswer);
                     false
                 } else {

@@ -346,6 +346,7 @@ mod verification {
     static CASCADE_WINNERS: OnceLock<bool> = OnceLock::new();
     static STYLE_PLAN_PROVENANCE: OnceLock<bool> = OnceLock::new();
     static PUBLISHED_STYLE_TRANSACTION: OnceLock<bool> = OnceLock::new();
+    static PREFIX_RELATION: OnceLock<bool> = OnceLock::new();
 
     #[cfg(test)]
     thread_local! {
@@ -449,6 +450,10 @@ mod verification {
         }
     }
 
+    pub(super) fn prefix_relation_is_enabled() -> bool {
+        enabled(&PREFIX_RELATION, "LIBWEB_VERIFY_PREFIX_RELATION")
+    }
+
     pub(super) fn gate_bits() -> u8 {
         u8::from(enabled(&STYLE_ANSWER_PATCH, "LIBWEB_VERIFY_STYLE_ANSWER_PATCH"))
             | (u8::from(enabled(&CASCADE_WINNERS, "LIBWEB_VERIFY_CASCADE_WINNERS")) << 1)
@@ -458,6 +463,7 @@ mod verification {
                 "LIBWEB_VERIFY_PUBLISHED_STYLE_TRANSACTION",
             )) << 3)
             | (u8::from(selector_truth_derivation_is_enabled()) << 4)
+            | (u8::from(prefix_relation_is_enabled()) << 5)
     }
 }
 
