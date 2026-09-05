@@ -995,27 +995,31 @@ void Node::insert_nodes_before(ReadonlySpan<GC::Root<Node>> nodes, GC::Ptr<Node>
     children_changed(metadata);
     invalidate_html_collection_caches_in_ancestors(affects_elements);
 
-    // 10. Let staticNodeList be a list of nodes, initially « ».
-    // NOTE: We collect all nodes before calling the post-connection steps on any one of them, instead of calling the
-    //       post-connection steps while we’re traversing the node tree. This is because the post-connection steps can
-    //       modify the tree’s structure, making live traversal unsafe, possibly leading to the post-connection steps
-    //       being called multiple times on the same node.
-    GC::RootVector<GC::Ref<Node>> static_node_list;
+    // OPTIMIZATION: Disconnected subtrees cannot have post-connection steps to run. If any root is connected,
+    //               collect all nodes, since a callback could connect one of the initially detached subtrees.
+    if (any_of(nodes, [](auto const& node) { return node->is_connected(); })) {
+        // 10. Let staticNodeList be a list of nodes, initially « ».
+        // NOTE: We collect all nodes before calling the post-connection steps on any one of them, instead of calling the
+        //       post-connection steps while we’re traversing the node tree. This is because the post-connection steps can
+        //       modify the tree’s structure, making live traversal unsafe, possibly leading to the post-connection steps
+        //       being called multiple times on the same node.
+        GC::RootVector<GC::Ref<Node>> static_node_list;
 
-    // 11. For each node of nodes, in tree order:
-    for (auto& node : nodes) {
-        // 1. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree
-        //    order: append inclusiveDescendant to staticNodeList.
-        node->for_each_shadow_including_inclusive_descendant([&static_node_list](Node& inclusive_descendant) {
-            static_node_list.append(inclusive_descendant);
-            return TraversalDecision::Continue;
-        });
-    }
+        // 11. For each node of nodes, in tree order:
+        for (auto& node : nodes) {
+            // 1. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree
+            //    order: append inclusiveDescendant to staticNodeList.
+            node->for_each_shadow_including_inclusive_descendant([&static_node_list](Node& inclusive_descendant) {
+                static_node_list.append(inclusive_descendant);
+                return TraversalDecision::Continue;
+            });
+        }
 
-    // 12. For each node of staticNodeList: if node is connected, then run the post-connection steps with node.
-    for (auto& node : static_node_list) {
-        if (node->is_connected())
-            node->post_connection();
+        // 12. For each node of staticNodeList: if node is connected, then run the post-connection steps with node.
+        for (auto& node : static_node_list) {
+            if (node->is_connected())
+                node->post_connection();
+        }
     }
 
     auto is_boxless_style_element = (is_html_style_element() || is_svg_style_element()) && !unsafe_layout_node();
