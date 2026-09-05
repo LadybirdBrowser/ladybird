@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .donor { color: red; background-color: currentcolor; }
+    .restyled { color: green; background-color: white; }
+    .recipient { color: blue; background-color: currentcolor; }
+</style>
+<div id="parent"><div class="donor"></div></div>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        const donor = parent.firstElementChild;
+        println(`donor: ${getComputedStyle(donor).backgroundColor}`);
+        donor.className = "restyled";
+        println(`restyled donor: ${getComputedStyle(donor).backgroundColor}`);
+        const recipient = document.createElement("div");
+        recipient.className = "recipient";
+        parent.appendChild(recipient);
+        println(`recipient: ${getComputedStyle(recipient).backgroundColor}`);
+    });
+</script>

@@ -221,6 +221,7 @@ pub struct SpecifiedWinnerKey {
     pub continuation: CascadeContinuationID,
     /// Animation and transition relevance for this property.
     pub animation_relevance: u32,
+    /// Whether the declaration overrides an animation at this cascade level.
     pub important: bool,
 }
 
@@ -245,6 +246,12 @@ pub struct PropertyWinner {
     pub source: WinnerSource,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum CascadeAttachment {
+    StyleSheet,
+    InlineStyle,
+}
+
 /// The priority stratum removed by a CSS-wide continuation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum CascadeContinuationCeiling {
@@ -258,6 +265,7 @@ pub enum CascadeContinuationCeiling {
         context: u32,
         layer: CascadeLayerID,
         layer_rank: (u64, u64),
+        attachment: CascadeAttachment,
     },
 }
 
@@ -268,7 +276,7 @@ pub struct CascadeContinuation {
     pub winner: Option<PropertyWinner>,
 }
 
-/// The origin, importance, encapsulation context, and layer occupied by one contender.
+/// The origin, importance, encapsulation context, attachment, and layer occupied by one contender.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CascadeStratum {
     origin: u8,
@@ -277,6 +285,7 @@ pub struct CascadeStratum {
     context: u32,
     layer: CascadeLayerID,
     layer_rank: (u64, u64),
+    attachment: CascadeAttachment,
 }
 
 impl CascadeStratum {
@@ -287,6 +296,7 @@ impl CascadeStratum {
         context: u32,
         layer: CascadeLayerID,
         layer_rank: (u64, u64),
+        attachment: CascadeAttachment,
     ) -> Self {
         let origin_group = match origin {
             CascadeOrigin::UserAgent => 0,
@@ -302,10 +312,11 @@ impl CascadeStratum {
             context,
             layer,
             layer_rank,
+            attachment,
         }
     }
 
-    fn ceiling(self, operator: CascadeOperator) -> Option<CascadeContinuationCeiling> {
+    pub(crate) fn ceiling(self, operator: CascadeOperator) -> Option<CascadeContinuationCeiling> {
         match operator {
             CascadeOperator::Revert => Some(CascadeContinuationCeiling::Origin {
                 origin_group: self.origin_group,
@@ -317,12 +328,13 @@ impl CascadeStratum {
                 context: self.context,
                 layer: self.layer,
                 layer_rank: self.layer_rank,
+                attachment: self.attachment,
             }),
             _ => None,
         }
     }
 
-    fn is_below(self, ceiling: CascadeContinuationCeiling) -> bool {
+    pub(crate) fn is_below(self, ceiling: CascadeContinuationCeiling) -> bool {
         match ceiling {
             CascadeContinuationCeiling::Origin {
                 origin_group,
@@ -334,9 +346,15 @@ impl CascadeStratum {
                 context,
                 layer: _,
                 layer_rank,
+                attachment,
             } => {
                 if self.origin != origin || self.context != context {
                     return true;
+                }
+                if attachment == CascadeAttachment::InlineStyle {
+                    // NB: Inline styles occupy a separate cascade step, even though they share
+                    //     the implicit outer layer's rank with unlayered style rules.
+                    return self.attachment != CascadeAttachment::InlineStyle;
                 }
 
                 // https://drafts.csswg.org/css-cascade-5/#revert-layer
@@ -1417,6 +1435,23 @@ impl WinnerGroups {
         CascadeWinnerDelta { properties }
     }
 
+    /// Hash the set of properties represented by a state, deliberately leaving their values out.
+    /// This identifies candidates which can seed a first computation and then be corrected by the
+    /// exact semantic delta.
+    pub(super) fn property_shape_hash(&self, state: CascadeStateID) -> u64 {
+        let mut hasher = fast_hasher();
+        for winner in self.winners_in_state(state) {
+            winner.property.hash(&mut hasher);
+        }
+        hasher.finish()
+    }
+
+    pub(super) fn property_shapes_are_equal(&self, left: CascadeStateID, right: CascadeStateID) -> bool {
+        self.winners_in_state(left)
+            .map(|winner| winner.property)
+            .eq(self.winners_in_state(right).map(|winner| winner.property))
+    }
+
     fn append_group_semantic_delta(
         &self,
         previous: Option<WinnerGroupID>,
@@ -2139,7 +2174,14 @@ mod tests {
         CascadeCandidate {
             winner,
             priority,
-            stratum: CascadeStratum::new(origin, important, 0, layer, (layer_rank, 0)),
+            stratum: CascadeStratum::new(
+                origin,
+                important,
+                0,
+                layer,
+                (layer_rank, 0),
+                CascadeAttachment::StyleSheet,
+            ),
         }
     }
 

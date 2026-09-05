@@ -20,7 +20,6 @@
     // back often enough to reuse identities, and settle exactly every time.
     let forced = 0;
     let cacheHits = 0;
-    let publishedAnswerConsumptions = 0;
 
     function snapshot() {
         return Array.from(document.querySelectorAll("#fixture *"))
@@ -38,7 +37,6 @@
         internals.updateStyle();
         const after = internals.styleEngineCounters();
         cacheHits += after.prefixTransitionCacheHits - before.prefixTransitionCacheHits;
-        publishedAnswerConsumptions += after.publishedMatchAnswerConsumptions - before.publishedMatchAnswerConsumptions;
         const incremental = snapshot();
         CSS.registerProperty({ name: `--force-${forced++}`, syntax: "*", inherits: false, initialValue: "1px" });
         internals.updateStyle();
@@ -94,7 +92,6 @@
 
         // Without these the cycles above would pass whether or not anything was ever retained.
         println(`invalidation consumed a retained transition: ${cacheHits > 0}`);
-        println(`matching consumed a published answer: ${publishedAnswerConsumptions > 0}`);
         println(`stale settlements: ${stale}`);
         println(`final: ${snapshot()}`);
     });

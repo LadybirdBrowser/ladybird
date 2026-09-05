@@ -75,6 +75,17 @@ pub struct DeclaredProperty {
     pub value: SpecifiedValueID,
 }
 
+/// One custom property a declaration block declares. The cascade tracks no winner per custom
+/// property name: an element's custom-property environment cascades these by name when it is
+/// computed, so a block carries them beside its longhand declarations.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct CustomDeclaration {
+    pub name: StyleAtomID,
+    pub important: bool,
+    pub operator: CascadeOperator,
+    pub value: SpecifiedValueID,
+}
+
 define_id! {
     /// Immutable identity of a declaration block, whether it came from a rule or a style node.
     pub struct DeclarationBlockID(pub);
@@ -214,6 +225,10 @@ struct Rule {
     /// rule arrived with them. A consumer computing a value needs the written spelling, which the
     /// canonical identity may have rewritten. Empty when the rule arrived without them.
     written_values: Vec<RetainedStyleValueData>,
+    /// The custom properties the rule declares, in declaration order, and the values they were
+    /// written with, parallel to them: a custom property resolves from its written spelling.
+    custom_declarations: Vec<CustomDeclaration>,
+    custom_written_values: Vec<RetainedStyleValueData>,
     declarations_are_complete: bool,
     semantic_declaration: SemanticDeclarationID,
 }
@@ -227,6 +242,9 @@ struct SemanticDeclarationEntry {
 pub struct StyleSheetProgram {
     sheets: Vec<Sheet>,
     rules: Vec<Rule>,
+    /// How many rules declare a custom property. A document without any resolves no environment
+    /// of its own, and a cascade need not look.
+    rules_declaring_custom_properties: usize,
     rule_versions: Vec<RuleVersion>,
     semantic_declarations: HashMap<u64, Vec<SemanticDeclarationEntry>>,
     next_semantic_declaration_id: u32,
@@ -258,6 +276,10 @@ impl StyleSheetProgram {
                 continue;
             }
             visited += 1;
+            for declaration in &rule.custom_declarations {
+                visited += 1;
+                atoms.insert(declaration.name);
+            }
             let version = self.rule_versions[rule.version_slot as usize];
             if let Some(name) = version.declared_name {
                 atoms.insert(name);
@@ -283,6 +305,7 @@ impl StyleSheetProgram {
         Self {
             sheets: Vec::new(),
             rules: Vec::new(),
+            rules_declaring_custom_properties: 0,
             rule_versions: Vec::new(),
             semantic_declarations: HashMap::default(),
             next_semantic_declaration_id: 1,
@@ -710,6 +733,8 @@ impl StyleSheetProgram {
             gated_by_container_query: false,
             declared_properties: Vec::new(),
             written_values: Vec::new(),
+            custom_declarations: Vec::new(),
+            custom_written_values: Vec::new(),
             declarations_are_complete: false,
             semantic_declaration: SemanticDeclarationID::default(),
         });
@@ -809,8 +834,7 @@ impl StyleSheetProgram {
     pub(crate) fn set_rule_liveness(&mut self, changes: &[(RuleID, bool)]) {
         let mut changed = false;
         for &(rule, _) in changes.iter().filter(|(_, live)| *live) {
-            changed |= !self.rules[rule.0 as usize].live;
-            self.rules[rule.0 as usize].live = true;
+            changed |= self.set_rule_live(rule, true);
         }
 
         let departing: HashSet<RuleID> = changes
@@ -840,8 +864,7 @@ impl StyleSheetProgram {
             let mut removed = Vec::new();
             self.collect_subtree(root, &mut removed);
             for rule in removed {
-                changed |= self.rules[rule.0 as usize].live;
-                self.rules[rule.0 as usize].live = false;
+                changed |= self.set_rule_live(rule, false);
                 let order = self.rules[rule.0 as usize].nested_order;
                 let order_axis = &mut self.sheets[sheet.0 as usize].rule_order;
                 let previous_capacity = order_axis.capacity_bytes();
@@ -863,6 +886,22 @@ impl StyleSheetProgram {
         }
     }
 
+    fn set_rule_live(&mut self, rule: RuleID, live: bool) -> bool {
+        let entry = &mut self.rules[rule.0 as usize];
+        if entry.live == live {
+            return false;
+        }
+        if !entry.custom_declarations.is_empty() {
+            if live {
+                self.rules_declaring_custom_properties += 1;
+            } else {
+                self.rules_declaring_custom_properties -= 1;
+            }
+        }
+        entry.live = live;
+        true
+    }
+
     /// Remove a rule and the subtree rooted at it. Deleting a group rule detaches its whole
     /// subtree; the identities are retired together in one operation rather than one rule at a
     /// time.
@@ -880,7 +919,7 @@ impl StyleSheetProgram {
         let mut removed = Vec::new();
         self.collect_subtree(rule, &mut removed);
         for &id in &removed {
-            self.rules[id.0 as usize].live = false;
+            self.set_rule_live(id, false);
             let order = self.rules[id.0 as usize].nested_order;
             let order_axis = &mut self.sheets[sheet.0 as usize].rule_order;
             let previous_capacity = order_axis.capacity_bytes();
@@ -1096,16 +1135,30 @@ impl StyleSheetProgram {
         rule: RuleID,
         declared: Vec<DeclaredProperty>,
         written_values: Vec<RetainedStyleValueData>,
+        custom_declarations: Vec<CustomDeclaration>,
+        custom_written_values: Vec<RetainedStyleValueData>,
         declarations_are_complete: bool,
     ) {
         debug_assert!(written_values.is_empty() || written_values.len() == declared.len());
+        debug_assert!(custom_written_values.is_empty() || custom_written_values.len() == custom_declarations.len());
         if self.rules[rule.0 as usize].semantic_declaration != SemanticDeclarationID::default() {
             self.invalidate_semantic_declarations();
         }
         let entry = &mut self.rules[rule.0 as usize];
         let previous_capacity = Self::rule_declaration_capacity_bytes(entry);
+        let declared_custom_properties_before = entry.live && !entry.custom_declarations.is_empty();
         entry.declared_properties = declared;
         entry.written_values = written_values;
+        entry.custom_declarations = custom_declarations;
+        match (
+            declared_custom_properties_before,
+            entry.live && !entry.custom_declarations.is_empty(),
+        ) {
+            (false, true) => self.rules_declaring_custom_properties += 1,
+            (true, false) => self.rules_declaring_custom_properties -= 1,
+            _ => {}
+        }
+        entry.custom_written_values = custom_written_values;
         let current_capacity = Self::rule_declaration_capacity_bytes(entry);
         entry.declarations_are_complete = declarations_are_complete;
         self.record_capacity_change(previous_capacity, current_capacity);
@@ -1185,12 +1238,33 @@ impl StyleSheetProgram {
 
     fn rule_declaration_capacity_bytes(entry: &Rule) -> u64 {
         (entry.declared_properties.capacity() * size_of::<DeclaredProperty>()
-            + entry.written_values.capacity() * size_of::<RetainedStyleValueData>()) as u64
+            + entry.written_values.capacity() * size_of::<RetainedStyleValueData>()
+            + entry.custom_declarations.capacity() * size_of::<CustomDeclaration>()
+            + entry.custom_written_values.capacity() * size_of::<RetainedStyleValueData>()) as u64
     }
 
     #[must_use]
     pub fn declared_properties_of(&self, rule: RuleID) -> &[DeclaredProperty] {
         &self.rules[rule.0 as usize].declared_properties
+    }
+
+    /// The custom properties a rule declares, in declaration order.
+    #[must_use]
+    pub fn custom_declarations_of(&self, rule: RuleID) -> &[CustomDeclaration] {
+        &self.rules[rule.0 as usize].custom_declarations
+    }
+
+    /// Whether any rule declares a custom property.
+    #[must_use]
+    pub fn any_rule_declares_custom_properties(&self) -> bool {
+        self.rules_declaring_custom_properties != 0
+    }
+
+    /// The values a rule's custom declarations were written with, parallel to them, or nothing
+    /// when the rule arrived without them.
+    #[must_use]
+    pub fn custom_written_values_of(&self, rule: RuleID) -> &[RetainedStyleValueData] {
+        &self.rules[rule.0 as usize].custom_written_values
     }
 
     #[must_use]
@@ -1234,7 +1308,16 @@ impl StyleSheetProgram {
     }
 
     #[must_use]
+    /// Whether the rule's declarations are all in the winner columns. A rule declaring custom
+    /// properties is not: they never reach the columns.
     pub fn declarations_are_complete_for(&self, rule: RuleID) -> bool {
+        let rule = &self.rules[rule.0 as usize];
+        rule.declarations_are_complete && rule.custom_declarations.is_empty()
+    }
+
+    /// Whether the rule's longhand declarations are all in the winner columns, whatever custom
+    /// properties it declares beside them.
+    pub fn declarations_are_complete_but_for_custom_properties(&self, rule: RuleID) -> bool {
         self.rules[rule.0 as usize].declarations_are_complete
     }
 
@@ -1330,6 +1413,8 @@ impl StyleSheetProgram {
                 rule.children.capacity() * size_of::<RuleID>()
                     + rule.declared_properties.capacity() * size_of::<DeclaredProperty>()
                     + rule.written_values.capacity() * size_of::<RetainedStyleValueData>()
+                    + rule.custom_declarations.capacity() * size_of::<CustomDeclaration>()
+                    + rule.custom_written_values.capacity() * size_of::<RetainedStyleValueData>()
             })
             .sum();
         let orders: u64 = self
@@ -1411,6 +1496,35 @@ mod tests {
     }
 
     #[test]
+    fn custom_property_presence_tracks_live_rules() {
+        let (mut program, sheet) = program_with_sheet();
+        let group = program.append_rule(sheet, None, RuleKind::Media);
+        let rule = program.append_rule(sheet, Some(group), RuleKind::Style);
+        let declarations = || {
+            vec![CustomDeclaration {
+                name: StyleAtomID(1),
+                important: false,
+                operator: CascadeOperator::Initial,
+                value: SpecifiedValueID(1),
+            }]
+        };
+        program.set_rule_declared_properties(rule, vec![], vec![], declarations(), vec![], true);
+        assert!(program.any_rule_declares_custom_properties());
+        program.remove_rule(group);
+        assert!(!program.any_rule_declares_custom_properties());
+
+        let reserved = program.reserve_rule(sheet, None, RuleKind::Style);
+        program.set_rule_declared_properties(reserved, vec![], vec![], declarations(), vec![], true);
+        assert!(!program.any_rule_declares_custom_properties());
+        program.set_rule_liveness(&[(reserved, true), (reserved, true)]);
+        assert!(program.any_rule_declares_custom_properties());
+        program.set_rule_liveness(&[(reserved, false)]);
+        assert!(!program.any_rule_declares_custom_properties());
+        program.set_rule_declared_properties(reserved, vec![], vec![], vec![], vec![], true);
+        assert!(!program.any_rule_declares_custom_properties());
+    }
+
+    #[test]
     fn a_declaration_edit_keeps_the_rule_and_its_selector_program() {
         let (mut program, sheet) = program_with_sheet();
         let rule = program.append_rule(sheet, None, RuleKind::Style);
@@ -1488,9 +1602,9 @@ mod tests {
             value: SpecifiedValueID(value),
         };
 
-        program.set_rule_declared_properties(first, vec![declared(10)], Vec::new(), true);
-        program.set_rule_declared_properties(second, vec![declared(10)], Vec::new(), true);
-        program.set_rule_declared_properties(third, vec![declared(20)], Vec::new(), true);
+        program.set_rule_declared_properties(first, vec![declared(10)], Vec::new(), Vec::new(), Vec::new(), true);
+        program.set_rule_declared_properties(second, vec![declared(10)], Vec::new(), Vec::new(), Vec::new(), true);
+        program.set_rule_declared_properties(third, vec![declared(20)], Vec::new(), Vec::new(), Vec::new(), true);
 
         let first_identity = program.ensure_semantic_declaration(first);
         let second_identity = program.ensure_semantic_declaration(second);
@@ -1499,10 +1613,17 @@ mod tests {
         assert_eq!(first_identity, second_identity);
         assert_ne!(first_identity, third_identity);
 
-        program.set_rule_declared_properties(never_interned, vec![declared(30)], Vec::new(), true);
+        program.set_rule_declared_properties(
+            never_interned,
+            vec![declared(30)],
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            true,
+        );
         assert_eq!(program.ensure_semantic_declaration(first), first_identity);
 
-        program.set_rule_declared_properties(second, vec![declared(10)], Vec::new(), false);
+        program.set_rule_declared_properties(second, vec![declared(10)], Vec::new(), Vec::new(), Vec::new(), false);
         assert_eq!(
             program.ensure_semantic_declaration(second),
             SemanticDeclarationID::default()

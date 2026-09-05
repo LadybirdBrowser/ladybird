@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { width: 5px; }
+    #target.variable { width: var(--introduced, 10px); }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        println(`initial: ${getComputedStyle(target).width}`);
+        target.className = "variable";
+        println(`substituted: ${getComputedStyle(target).width}`);
+        CSS.registerProperty({ name: "--introduced", syntax: "<length>", inherits: false, initialValue: "20px" });
+        println(`registered: ${getComputedStyle(target).width}`);
+    });
+</script>

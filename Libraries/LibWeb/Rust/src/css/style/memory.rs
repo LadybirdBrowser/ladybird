@@ -401,7 +401,6 @@ pub struct MemoryController {
     last_refused_bytes: [u64; MEMORY_CATEGORY_COUNT],
     tier3_period_start_bytes: [u64; TIER3_CATEGORY_COUNT],
     tier3_admitting: [bool; MEMORY_CATEGORY_COUNT],
-    external_tier3_drop_pending: [bool; MEMORY_CATEGORY_COUNT],
     tier3_quota_period_active: bool,
     recording_policy_enabled: bool,
     #[cfg(test)]
@@ -422,7 +421,6 @@ impl MemoryController {
             last_refused_bytes: [0; MEMORY_CATEGORY_COUNT],
             tier3_period_start_bytes: [0; TIER3_CATEGORY_COUNT],
             tier3_admitting: [true; MEMORY_CATEGORY_COUNT],
-            external_tier3_drop_pending: [false; MEMORY_CATEGORY_COUNT],
             tier3_quota_period_active: false,
             recording_policy_enabled: false,
             #[cfg(test)]
@@ -442,7 +440,6 @@ impl MemoryController {
             last_refused_bytes: [0; MEMORY_CATEGORY_COUNT],
             tier3_period_start_bytes: [0; TIER3_CATEGORY_COUNT],
             tier3_admitting: [true; MEMORY_CATEGORY_COUNT],
-            external_tier3_drop_pending: [false; MEMORY_CATEGORY_COUNT],
             tier3_quota_period_active: false,
             recording_policy_enabled: self.recording_policy_enabled,
             #[cfg(test)]
@@ -548,8 +545,6 @@ impl MemoryController {
             }
             if category.is_controller_evictable() {
                 selected[index] = true;
-            } else {
-                self.external_tier3_drop_pending[index] = true;
             }
         }
         selected
@@ -580,18 +575,6 @@ impl MemoryController {
         }
         self.tier3_admitting[index] = false;
         self.last_refused_bytes[index] = overage;
-    }
-
-    #[must_use]
-    pub(super) fn external_tier3_drop_is_pending(&self, category: MemoryCategory) -> bool {
-        debug_assert_eq!(category.tier(), Tier::Acceleration);
-        debug_assert!(!category.is_controller_evictable());
-        self.external_tier3_drop_pending[category as usize]
-    }
-
-    pub(super) fn complete_external_tier3_drop(&mut self, category: MemoryCategory) {
-        debug_assert!(self.external_tier3_drop_is_pending(category));
-        self.external_tier3_drop_pending[category as usize] = false;
     }
 
     /// `min(DeviceCap, BaseAllowance + NodeAllowance * ConnectedElementCount)`.
@@ -852,22 +835,6 @@ mod tests {
 
         assert!(!controller.finish_tier3_quota_period().iter().any(|&selected| selected));
         assert_eq!(controller.bytes_in_category(MemoryCategory::RetainedMatchAnswer), 50);
-    }
-
-    #[test]
-    fn committed_external_state_requests_owner_eviction_after_the_boundary() {
-        let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
-        controller.set_tier3_limit_for_test(0);
-        controller.begin_tier3_quota_period();
-        let mut lease = MemoryLease::new(MemoryCategory::ParsedSubstitutionCache);
-        lease.reconcile_committed(&mut controller, 1);
-        controller.finish_committed_acceleration_growth(MemoryCategory::ParsedSubstitutionCache);
-
-        assert!(!controller.finish_tier3_quota_period().iter().any(|&selected| selected));
-        assert!(controller.external_tier3_drop_is_pending(MemoryCategory::ParsedSubstitutionCache));
-        lease.reconcile_committed(&mut controller, 0);
-        controller.complete_external_tier3_drop(MemoryCategory::ParsedSubstitutionCache);
-        assert_eq!(controller.bytes_in_tier(Tier::Acceleration), 0);
     }
 
     #[test]

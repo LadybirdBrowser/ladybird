@@ -6,7 +6,7 @@ PASS: inserted attribute argument invalidates descendant fanout | elementStyleRe
 PASS: removed attribute argument invalidates descendant fanout | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: inserted tag argument invalidates descendant fanout | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: removed tag argument invalidates descendant fanout | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: inserted nested class argument invalidates descendant fanout | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: inserted nested class argument invalidates descendant fanout | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: inserted fragment class argument invalidates descendant fanout | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: inserted :is class argument invalidates descendant fanout | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: inserted :where attribute argument invalidates descendant fanout | elementStyleRecomputations=1, elementStyleNoopRecomputations=0

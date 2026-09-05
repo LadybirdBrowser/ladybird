@@ -41,9 +41,9 @@ impl StyleEngine {
             #[cfg(feature = "style-recording")]
             recording_id: None,
             memory,
-            parsed_substitution_memory: MemoryLease::new(MemoryCategory::ParsedSubstitutionCache),
             counters: Counters::new(),
             computed_record_verification_counters: None,
+            computed_record_verification_pins: Vec::new(),
             tree,
             program: StyleSheetProgram::new(),
             journal: NormalizationJournal::new(),
@@ -80,6 +80,9 @@ impl StyleEngine {
             specified_values: SpecifiedValues::new(),
             winner_groups: WinnerGroups::new(),
             computed_group_sets: ComputedGroupSets::default(),
+            custom_property_environments: Default::default(),
+            nodes_with_substituted_records: HashSet::default(),
+            custom_property_registrations_changed: false,
             pending_element_style_computation_selections: HashMap::default(),
             pending_pseudo_style_computation_selections: HashMap::default(),
             engine_computed_records_pending: Vec::new(),
@@ -88,6 +91,7 @@ impl StyleEngine {
             parent_inputs_moved_nodes: HashSet::default(),
             engine_pseudo_record_cache: HashMap::default(),
             engine_cold_record_cache: HashMap::default(),
+            engine_cold_record_donors: HashMap::default(),
             engine_computable_states: HashMap::default(),
             computed_group_set_memory: MemoryLease::new(MemoryCategory::ComputedGroupSet),
             custom_property_environment_memory: MemoryLease::new(MemoryCategory::CustomPropertyEnvironment),
@@ -337,6 +341,16 @@ impl StyleEngine {
     /// its local name, and the selector that names a namespace tests only this one.
     pub fn intern_qualified_atom(&mut self, namespace: StyleAtomID, name: StyleAtomID) -> StyleAtomID {
         self.atoms.intern_qualified(namespace, name)
+    }
+
+    /// Record what a custom property's name atom spells, and the fly string it is.
+    ///
+    /// # Safety
+    /// `raw` must be zero or a live `AK::Utf16FlyString` raw representation.
+    pub unsafe fn note_custom_property_name(&mut self, name: StyleAtomID, raw: usize, text: &[u16]) {
+        if unsafe { self.custom_property_environments.note_name(name, raw, text) } {
+            self.counters.bump(Counter::CustomPropertyNamesPublished);
+        }
     }
 
     /// Add a style rule that only applies inside a scope, naming the scope's root selectors.
@@ -617,22 +631,6 @@ impl StyleEngine {
     #[must_use]
     pub fn memory(&self) -> &MemoryController {
         &self.memory
-    }
-
-    pub(crate) fn resize_parsed_substitution_cache(&mut self, bytes: u64) -> bool {
-        let category = MemoryCategory::ParsedSubstitutionCache;
-        if self.memory.external_tier3_drop_is_pending(category) {
-            if bytes != 0 {
-                return false;
-            }
-            self.parsed_substitution_memory.reconcile_committed(&mut self.memory, 0);
-            self.memory.complete_external_tier3_drop(category);
-            return true;
-        }
-        self.parsed_substitution_memory
-            .reconcile_committed(&mut self.memory, bytes);
-        self.memory.finish_committed_acceleration_growth(category);
-        true
     }
 
     /// Mint `out.len()` element identities in one call. Identity allocation is batched because a
@@ -1451,6 +1449,7 @@ impl StyleEngine {
             self.computed_group_sets.remove(node);
             self.pending_element_style_computation_selections.remove(&node);
             self.pending_pseudo_style_computation_selections.remove(&node);
+            self.nodes_with_substituted_records.remove(&node);
             let live_animation_overlays_after = self.computed_group_sets.live_animation_overlay_records();
             self.settle_computed_memory();
             self.counters.add(
@@ -1995,14 +1994,18 @@ impl StyleEngine {
     ///
     /// An element-attached declaration is a cascade component above layers: a style attribute beats
     /// every layered and unlayered rule in its context, whatever layer they are in.
+    #[allow(clippy::too_many_arguments)]
     pub fn set_element_declared_properties(
         &mut self,
         node: StyleNodeID,
         kind: ElementDeclarationKind,
         declared: &[DeclaredProperty],
         written_values: Vec<RetainedStyleValueData>,
+        custom_declarations: Vec<CustomDeclaration>,
+        custom_written_values: Vec<RetainedStyleValueData>,
         declarations_are_complete: bool,
     ) {
+        debug_assert!(custom_declarations.is_empty() || kind == ElementDeclarationKind::InlineStyle);
         if matches!(
             kind,
             ElementDeclarationKind::PresentationalHint | ElementDeclarationKind::SvgPresentationAttribute
@@ -2017,7 +2020,11 @@ impl StyleEngine {
             });
         }
         let (current_declared, current_declarations_are_complete) = self.facts.element_declared_properties(node, kind);
-        if current_declarations_are_complete == declarations_are_complete && current_declared == declared {
+        if current_declarations_are_complete == declarations_are_complete
+            && current_declared == declared
+            && (kind != ElementDeclarationKind::InlineStyle
+                || self.facts.element_custom_declarations(node) == custom_declarations.as_slice())
+        {
             return;
         }
         let repair_inputs = declarations_are_complete
@@ -2043,6 +2050,10 @@ impl StyleEngine {
             written_values,
             declarations_are_complete,
         );
+        if kind == ElementDeclarationKind::InlineStyle {
+            self.facts
+                .set_element_custom_declarations(node, custom_declarations, custom_written_values);
+        }
         let Some(((previous, retained), previous_declared)) = repair_inputs.zip(previous_declared) else {
             return;
         };

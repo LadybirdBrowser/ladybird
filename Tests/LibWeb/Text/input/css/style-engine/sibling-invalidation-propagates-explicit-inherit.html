@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    * { background-color: inherit; }
+    body { background-color: transparent; }
+    .active ~ .sibling { background-color: green; }
+</style>
+<div id="trigger"></div>
+<div class="sibling"><div id="child"></div></div>
+<script>
+    test(() => {
+        println(getComputedStyle(child).backgroundColor);
+        trigger.className = "active";
+        println(getComputedStyle(child).backgroundColor);
+    });
+</script>

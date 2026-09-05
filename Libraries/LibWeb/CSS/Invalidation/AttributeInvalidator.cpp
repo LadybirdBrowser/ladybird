@@ -118,7 +118,10 @@ void invalidate_style_after_attribute_change(
     // declaration input, not a selector one, and StyleEngine reaches the element from it directly.
     if (attribute_name == HTML::AttributeNames::style) {
         record_element_declarations_changed(element, ElementDeclarationKind::InlineStyle, old_value.has_value(), new_value.has_value());
-    } else if (element.is_presentational_hint(attribute_name) || element.style_uses_attr_css_function()) {
+    } else if (element.is_presentational_hint(attribute_name) || element.style_uses_attr_css_function()
+        || (element.supports_dimension_attributes() && attribute_name.is_one_of(HTML::AttributeNames::width, HTML::AttributeNames::height))) {
+        // The width and height attributes of an element that supports them map to hints the way
+        // the presentational hint attributes do.
         record_element_declarations_changed(element, ElementDeclarationKind::PresentationalHint, true, true);
     }
 

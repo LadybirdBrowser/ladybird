@@ -29,7 +29,9 @@ public:
         OrderedHashMap<Utf16FlyString, StyleProperty> own_values,
         RefPtr<CustomPropertyData const> parent,
         // Transfers one strong Rust store reference when non-null.
-        void const* prebuilt_rust_store = nullptr);
+        void const* prebuilt_rust_store = nullptr,
+        // The identity the style engine minted for an environment it resolved; zero mints one here.
+        u64 identity = 0);
     static NonnullRefPtr<CustomPropertyData> create_animation_overlay(
         OrderedHashMap<Utf16FlyString, StyleProperty> animated_values,
         RefPtr<CustomPropertyData const> base);
@@ -116,7 +118,7 @@ public:
     }
 
 private:
-    CustomPropertyData(OrderedHashMap<Utf16FlyString, StyleProperty> own_values, RefPtr<CustomPropertyData const> parent, RefPtr<CustomPropertyData const> inheritance_parent, u8 ancestor_count, size_t declared_count, void const* prebuilt_rust_store);
+    CustomPropertyData(OrderedHashMap<Utf16FlyString, StyleProperty> own_values, RefPtr<CustomPropertyData const> parent, RefPtr<CustomPropertyData const> inheritance_parent, u8 ancestor_count, size_t declared_count, void const* prebuilt_rust_store, u64 identity = 0);
 
     OrderedHashMap<Utf16FlyString, StyleProperty> m_own_values;
     RefPtr<CustomPropertyData const> m_parent;

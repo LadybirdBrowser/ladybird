@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
 <style>
-    .changed { list-style-type: square }
+    .changed { background-color: blue }
 </style>
 <span id="first"></span>
 <span id="second"></span>
@@ -16,7 +16,7 @@
 
         println(`shared initial style: ${before.elementStyleSharedComputations >= 1}`);
         println(`longhand evaluations: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations}`);
-        println(`first list style: ${getComputedStyle(first).listStyleType}`);
-        println(`second list style: ${getComputedStyle(second).listStyleType}`);
+        println(`first background: ${getComputedStyle(first).backgroundColor}`);
+        println(`second background: ${getComputedStyle(second).backgroundColor}`);
     });
 </script>

@@ -21,10 +21,13 @@
             outer.append(child);
         }
         getComputedStyle(outer.lastChild).marginLeft;
-        const before = internals.getStyleInvalidationCounters().elementStyleInputReused;
+        const before = internals.styleEngineCounters();
         outer.style.setProperty("--theme", "2px");
         println("margin after change: " + getComputedStyle(outer.lastChild).marginLeft);
-        const reused = internals.getStyleInvalidationCounters().elementStyleInputReused - before;
-        println("all shared styles reused: " + (reused === 20));
+        println("every child keeps its own margin: " + [...outer.children].every(child => getComputedStyle(child).marginLeft === "2px"));
+        const after = internals.styleEngineCounters();
+        const shared = (after.engineComputedRecordSharedHits ?? 0) + (after.engineComputedRecordCohortHits ?? 0)
+            - (before.engineComputedRecordSharedHits ?? 0) - (before.engineComputedRecordCohortHits ?? 0);
+        println("children reuse a shared style: " + (shared >= outer.children.length - 1));
     });
 </script>

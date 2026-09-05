@@ -225,7 +225,12 @@ pub struct FfiSubstitutionFunctionDefinition {
 }
 
 impl CustomPropertyRegistry {
-    fn parse_context(&self, random_function_index: &mut usize) -> ParseContext {
+    /// Whether any custom property is registered; an unregistered name resolves without a syntax.
+    pub(crate) fn has_registrations(&self) -> bool {
+        !self.registrations.is_empty()
+    }
+
+    pub(crate) fn parse_context(&self, random_function_index: &mut usize) -> ParseContext {
         ParseContext {
             in_quirks_mode: false,
             is_svg_presentation_attribute: false,
@@ -248,7 +253,7 @@ impl CustomPropertyRegistry {
 }
 
 impl CustomPropertyStore {
-    fn get(&self, name_raw: usize) -> Option<&CustomPropertyEntry> {
+    pub(crate) fn get(&self, name_raw: usize) -> Option<&CustomPropertyEntry> {
         self.own_values
             .get(&name_raw)
             .or_else(|| self.parent.as_ref()?.get(name_raw))
@@ -2925,6 +2930,30 @@ pub struct FfiCustomPropertyStoreValue {
     pub token_source_ascii: *const u8,
     pub token_source_utf16: *const u16,
     pub token_source_length: usize,
+}
+
+/// Hands every custom property a store declares itself to `callback`, in declaration order, with
+/// the fly string it is named by and a borrowed value.
+///
+/// # Safety
+/// `store` must be a live store pointer, and `callback` must not retain the value past the call
+/// without retaining it.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_custom_property_store_for_each_own_entry(
+    store: *const c_void,
+    context: *mut c_void,
+    callback: unsafe extern "C" fn(*mut c_void, usize, bool, *const c_void),
+) {
+    let store = unsafe { &*store.cast::<CustomPropertyStore>() };
+    for name_raw in &store.declared_names {
+        let entry = store
+            .own_values
+            .get(name_raw)
+            .expect("declared custom property must be an own value");
+        unsafe {
+            callback(context, *name_raw, entry.important, entry.value.pointer().cast());
+        }
+    }
 }
 
 /// Looks up a custom property through the structurally shared parent chain.

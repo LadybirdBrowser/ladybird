@@ -1,0 +1,9 @@
+layered 0: 1px 200px 30px 9px
+inline 0: 10px 200px 10px 9px
+restored 0: 1px 200px 30px 9px
+layered 1: 1px 200px 30px 9px
+inline 1: 10px 200px 10px 9px
+restored 1: 1px 200px 30px 9px
+layered 2: 1px 200px 30px 9px
+inline 2: 10px 200px 10px 9px
+restored 2: 1px 200px 30px 9px

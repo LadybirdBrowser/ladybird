@@ -26,7 +26,7 @@ PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit) after e
 PASS: stress cold child mutation: document-styled-use-shadow: :has(.hit) after existing child move into parent | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :has(.hit) after existing child move into parent | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(.hit) after existing child move into parent | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: detached child mutation: document-styled-use-shadow: :has(.hit) after existing child move into parent | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
+PASS: detached child mutation: document-styled-use-shadow: :has(.hit) after existing child move into parent | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document-styled-use-shadow: :has(.hit) after existing child move into parent | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit) after nested child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: stress cold child mutation: document-styled-use-shadow: :has(.hit) after nested child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0

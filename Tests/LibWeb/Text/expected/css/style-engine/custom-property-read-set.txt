@@ -2,6 +2,5 @@ changed value: rgb(128, 0, 128)
 fallback value: rgb(128, 0, 128)
 unrelated value: rgb(0, 0, 255)
 refreshed inherited value: rgb(128, 0, 128)
-unrelated styles reused: true
-recomputations bounded: true
+recomputations: 2
 changed binding creates pseudo: "created"

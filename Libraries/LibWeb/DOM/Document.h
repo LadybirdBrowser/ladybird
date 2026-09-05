@@ -825,7 +825,14 @@ public:
     void mark_style_attribute_dirty() { m_has_dirty_style_attributes = true; }
     void synchronize_dirty_style_attributes();
     void flush_deferred_style_change_event();
-    void build_registered_properties_cache_for_style_update() { build_registered_properties_cache(); }
+    // The style engine resolves substitutions against the Rust registry, whose parse context is
+    // set up by the first sync; a document without registrations syncs once for it.
+    void build_registered_properties_cache_for_style_update()
+    {
+        build_registered_properties_cache();
+        if (!m_rust_custom_property_registry_synced)
+            sync_custom_property_registrations_to_rust();
+    }
     void set_needs_registered_properties_cache_update() { m_needs_registered_properties_cache_update = true; }
     void set_needs_container_query_evaluation_after_layout(Element const& query_container);
 
@@ -1145,7 +1152,6 @@ public:
         u64 custom_property_value_computations { 0 };
         u64 custom_property_overlay_hits { 0 };
         u64 custom_property_cycle_participants { 0 };
-        u64 substitution_value_parses { 0 };
         u64 style_cascade_microseconds { 0 };
         u64 style_values_microseconds { 0 };
         u64 scrollable_overflow_recalculations { 0 };
@@ -2030,6 +2036,7 @@ private:
     bool m_needs_registered_properties_cache_update { true };
     size_t m_custom_property_registration_generation { 0 };
     void* m_rust_custom_property_registry { nullptr };
+    bool m_rust_custom_property_registry_synced { false };
 
     CSS::StyleScope m_style_scope;
 

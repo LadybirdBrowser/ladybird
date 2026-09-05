@@ -1351,8 +1351,12 @@ impl StyleEngine {
                 // A record computed from an answer declaring past its winners (custom properties,
                 // `all`) is no function of a winner state: the engine derives nothing from it.
                 let previous_answer_was_incomplete = self.computed_group_sets.node_answer_is_incomplete(node);
+                // Custom properties alone leave an answer complete enough: the engine computes
+                // the environment they decide.
+                let answer_is_incomplete = !answer.cascade_winners_are_complete
+                    && !self.cascade_winners_are_complete_but_for_custom_properties(node);
                 self.computed_group_sets
-                    .set_node_answer_incomplete(node, !answer.cascade_winners_are_complete);
+                    .set_node_answer_incomplete(node, answer_is_incomplete);
                 let direct_inherited_delta = (reaction == transaction::STYLE_REACTION_INHERITED_STYLE)
                     .then(|| self.tree.flat_tree_parent(node))
                     .flatten()
@@ -1394,6 +1398,7 @@ impl StyleEngine {
                                     .binary_search_by_key(&current, |&(style_node, _, _)| style_node)
                                     .is_err()
                                     && engine.winner_delta_is_engine_confined(current)
+                                    && !engine.node_environment_may_move(current)
                             });
                             if !confined {
                                 if !settled || unsettled_between {
@@ -1413,8 +1418,9 @@ impl StyleEngine {
                 // the inherited-style reaction the engine derived for a child of an applied
                 // reaction (a reaction C++ asked for through a recorded input is C++'s), and a
                 // first record takes any published-style reaction.
-                const DERIVABLE_REACTIONS: u8 =
-                    transaction::STYLE_REACTION_RECOMPUTE_STYLE | transaction::STYLE_REACTION_INHERITED_STYLE;
+                const DERIVABLE_REACTIONS: u8 = transaction::STYLE_REACTION_RECOMPUTE_STYLE
+                    | transaction::STYLE_REACTION_INHERITED_STYLE
+                    | transaction::STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES;
                 let reaction_is_settleable =
                     reaction & !(transaction::STYLE_REACTION_PUBLISHED_STYLE | DERIVABLE_REACTIONS) == 0
                         && !(reaction & DERIVABLE_REACTIONS != 0 && style_input_nodes_for_cpp.contains(&node));
@@ -1422,6 +1428,7 @@ impl StyleEngine {
                     inherited_style: reaction & transaction::STYLE_REACTION_INHERITED_STYLE != 0,
                     display: parent_inputs_moved_nodes.contains(&node),
                 };
+                let mut retry_after_ancestor = false;
                 let engine_computed_gate_passes = if direct_inherited_delta.is_some() {
                     false
                 } else if !(reaction_is_settleable
@@ -1431,6 +1438,9 @@ impl StyleEngine {
                     false
                 } else if nodes_with_declaration_changes.binary_search(&node).is_ok() {
                     self.counters.bump(Counter::EngineComputedRecordGateDeclarations);
+                    false
+                } else if self.custom_property_registrations_changed && self.node_style_reads_custom_properties(node) {
+                    self.counters.bump(Counter::EngineComputedRecordBailSubstitution);
                     false
                 } else if previous_answer_was_incomplete
                     || selector_truth_changes
@@ -1450,6 +1460,9 @@ impl StyleEngine {
                     ) {
                         None => {
                             self.counters.bump(Counter::EngineComputedRecordGateAncestors);
+                            retry_after_ancestor = self.tree.tree_scope(node) == TreeScopeID::DOCUMENT
+                                && (answer.cascade_winners_are_complete
+                                    || self.cascade_winners_are_complete_but_for_custom_properties(node));
                             false
                         }
                         Some(relied_on_settled_ancestor) => {
@@ -1503,8 +1516,10 @@ impl StyleEngine {
                         && self.computed_group_sets.adjustment_facts(node)
                             & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT
                             != 0
+                        && self.refresh_root_font_metrics_from_record(new_style_record)
                     {
-                        self.refresh_root_font_metrics_from_record(new_style_record);
+                        engine_computed_record_scratch.cold_cohorts.clear();
+                        engine_computed_record_scratch.pseudo_cohorts.clear();
                     }
                 } else if reaction == transaction::STYLE_REACTION_INHERITED_STYLE {
                     let index =
@@ -1532,9 +1547,25 @@ impl StyleEngine {
                             old_style_record,
                             0,
                             FfiStyleDeltaDamage::None,
-                            FfiStyleDeltaGap::Materialize,
+                            if retry_after_ancestor {
+                                FfiStyleDeltaGap::RetryAfterAncestor
+                            } else {
+                                FfiStyleDeltaGap::Materialize
+                            },
                         ),
                     };
+                // A moved inherited environment the engine leaves to C++ reaches what the node's
+                // custom declarations and substitutions read: C++ recomputes such a node, which
+                // it cannot tell from an engine-computed record.
+                let reaction = if gap == FfiStyleDeltaGap::Materialize
+                    && reaction & transaction::STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES != 0
+                    && reaction & transaction::STYLE_REACTION_RECOMPUTE_STYLE == 0
+                    && self.node_style_reads_custom_properties(node)
+                {
+                    reaction | transaction::STYLE_REACTION_RECOMPUTE_STYLE
+                } else {
+                    reaction
+                };
                 let style_delta = PublishedStyleDeltaRecord {
                     style_node: node.raw(),
                     match_answer: answer.cascade_input.map_or(0, |cascade_input| cascade_input.0),

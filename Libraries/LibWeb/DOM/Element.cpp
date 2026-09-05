@@ -1991,11 +1991,6 @@ OwnPtr<CSS::StyleInputRecord> Element::take_style_input_record()
     return move(m_style_input_record);
 }
 
-void Element::record_style_custom_property_reference(Utf16FlyString const& name)
-{
-    document().style_computer().record_style_custom_property_reference(*this, name);
-}
-
 void Element::record_style_query_custom_property_reference(Optional<CSS::PseudoElement> pseudo_element, Utf16FlyString const& name)
 {
     auto& rare_data = ensure_element_rare_data();
@@ -2020,7 +2015,7 @@ void Element::record_style_query_custom_property_reference(Optional<CSS::PseudoE
     consumer_data.style_query_references.append(name);
 }
 
-void Element::finish_recording_style_custom_property_references()
+void Element::finish_recording_style_dependencies()
 {
     if (!m_style_input_record)
         return;
@@ -2033,14 +2028,6 @@ void Element::finish_recording_style_custom_property_references()
     m_style_input_record->style_depends_on_viewport_metrics = m_style_depends_on_viewport_metrics;
     m_style_input_record->style_depends_on_size_container_query = m_style_depends_on_size_container_query;
     m_style_input_record->style_depends_on_style_container_query = m_style_depends_on_style_container_query;
-    auto& references = m_style_input_record->custom_property_references;
-    if (references.size() > 1) {
-        HashTable<Utf16FlyString> seen;
-        seen.ensure_capacity(references.size());
-        references.remove_all_matching([&](auto const& name) {
-            return seen.set(name) != HashSetResult::InsertedNewEntry;
-        });
-    }
 }
 
 void Element::publish_custom_property_names()
@@ -2107,6 +2094,23 @@ static bool unregister_current_anchor_names(Element& element, Node& tree_root)
     return true;
 }
 
+RefPtr<CSS::CustomPropertyData const> Element::custom_property_environment_of_engine_record(CSS::StyleRecordID style_record, bool& installable) const
+{
+    auto& style_computer = document().style_computer();
+    RefPtr<CSS::CustomPropertyData const> inherited_data;
+    if (auto parent = DOM::AbstractElement { const_cast<Element&>(*this) }.element_to_inherit_style_from(); parent.has_value()) {
+        if (auto parent_data = parent->custom_property_data())
+            inherited_data = parent_data->inheritable(document());
+    }
+    auto identity = style_computer.style_engine().style_record_custom_property_environment(style_record);
+    installable = true;
+    if (identity == (inherited_data ? inherited_data->identity() : 0))
+        return inherited_data;
+    auto data = style_computer.engine_custom_property_environment(identity, inherited_data);
+    installable = data != nullptr;
+    return data;
+}
+
 CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const& pseudo_element_records, bool& did_change_custom_properties)
 {
     VERIFY(parent());
@@ -2119,41 +2123,49 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
     };
     ++counters.engine_computed_style_records;
 
+    // The engine substituted custom properties into the record's winners the way a C++
+    // computation notes it read them, even if the custom-property environment stayed the same.
+    if (style_computer.style_engine().node_style_uses_substitution(style_node_id()))
+        m_style_uses_var_css_function = true;
+
+    // The environment the record was published with: what the element inherits, or what the
+    // engine resolved its own custom declarations to over that.
+    auto install_custom_property_environment = [&] {
+        bool installable = false;
+        auto data = custom_property_environment_of_engine_record(new_style_record, installable);
+        VERIFY(installable);
+        set_custom_property_data({}, data);
+    };
     auto old_computed_values = computed_style();
     if (!old_computed_values) {
         // The element's first style: what a C++ first computation installs beside the record,
         // with the pseudo-element styles it still computes.
-        DOM::AbstractElement abstract_element { *this };
-        RefPtr<CSS::CustomPropertyData const> inherited_data;
-        if (auto parent = abstract_element.element_to_inherit_style_from(); parent.has_value()) {
-            if (auto parent_data = parent->custom_property_data())
-                inherited_data = parent_data->inheritable(document());
-        }
-        set_custom_property_data({}, inherited_data);
-        PublishedCustomPropertyNames published_names {
-            .data = custom_property_data({}),
-            .uses_var_css_function = false,
-            .uses_custom_function = false,
-        };
-        if (published_names != m_published_custom_property_names) {
-            CSS::record_element_custom_property_names(*this, published_names.data.ptr(), false, false);
-            m_published_custom_property_names = move(published_names);
-        }
+        install_custom_property_environment();
         set_computed_style({}, new_style_record);
         if (is_html_html_element())
             style_computer.update_root_element_font_metrics(*computed_style());
         counters.element_computed_style_changes++;
         auto invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
         invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, false, nullptr, nullptr, nullptr, &pseudo_element_records);
+        publish_custom_property_names();
         apply_computed_style_to_layout_node_if_needed(invalidation);
         return invalidation;
     }
-    // The engine derives records this way only when the element's custom properties, anchor names
-    // and animation names are exactly what they were; what is left to decide is what the layout
-    // tree and paint need. The record itself may be the one the element holds, when the reaction
-    // moved only its pseudo-elements.
+    // The engine derives records this way only when the element's anchor names and animation names
+    // are exactly what they were; what is left to decide is what the layout tree and paint need.
+    // The record itself may be the one the element holds, when the reaction moved only its
+    // pseudo-elements. Its custom properties may have moved with it: the engine resolves the
+    // element's own declarations, and a moved environment is what its descendants react to.
     CSS::StyleComputer::ComputedStyleInvalidation result;
     if (new_style_record != old_style_record) {
+        auto current_environment = custom_property_data({});
+        if (current_environment && current_environment->is_animation_overlay())
+            current_environment = current_environment->parent();
+        auto const current_identity = current_environment ? current_environment->identity() : 0;
+        if (current_identity != style_computer.style_engine().style_record_custom_property_environment(new_style_record)) {
+            install_custom_property_environment();
+            did_change_custom_properties = true;
+        }
         auto new_computed_values = style_computer.computed_style_record_view(new_style_record);
         VERIFY(new_computed_values);
         ElementDependentInvalidationState old_state {
@@ -2205,11 +2217,14 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
     }
     // The pseudo-element records the engine settled beside this one install with it.
     result.invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, old_computed_values->display().is_list_item(), &*old_computed_values, nullptr, nullptr, &pseudo_element_records);
+    publish_custom_property_names();
+    if (new_style_record != old_style_record || did_change_custom_properties)
+        invalidate_descendant_styles_depending_on_style_container_query();
     apply_computed_style_to_layout_node_if_needed(result.invalidation);
     return result.invalidation;
 }
 
-CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(bool& did_change_custom_properties)
+CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(bool& did_change_custom_properties, StyleRecomputeMode mode)
 {
     VERIFY(parent());
 
@@ -2220,8 +2235,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     ScopeGuard record_recompute_time = [&] {
         counters.style_recompute_microseconds += (MonotonicTime::now() - recompute_started_at).to_microseconds();
     };
-    ScopeGuard finish_custom_property_references = [&] {
-        finish_recording_style_custom_property_references();
+    ScopeGuard finish_style_dependencies = [&] {
+        finish_recording_style_dependencies();
     };
 
     CSS::StyleEngineMatchResult style_engine_matches;
@@ -2253,7 +2268,12 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     if (auto* rare_data = element_rare_data(); rare_data && rare_data->custom_property_consumer_data)
         rare_data->custom_property_consumer_data->style_query_references.clear_with_capacity();
     reusable_style_engine_matches = &style_engine_matches;
-    new_style = style_computer.materialize_style_record({ *this }, did_change_custom_properties, reusable_style_engine_matches, style_record_delta);
+    auto style_sharing_mode = mode == StyleRecomputeMode::Verification
+        ? CSS::StyleComputer::StyleSharingMode::Disabled
+        : CSS::StyleComputer::StyleSharingMode::Enabled;
+    new_style = style_computer.materialize_style_record({ *this }, did_change_custom_properties, reusable_style_engine_matches, style_record_delta, style_sharing_mode);
+    if (mode == StyleRecomputeMode::Verification)
+        did_change_custom_properties = false;
     style_record_delta.old_style_record = old_style_record;
     bool root_font_metrics_changed = is_html_html_element()
         && (root_font_metrics_before_recompute != style_computer.root_element_font_metrics()
@@ -5236,6 +5256,18 @@ bool Element::refresh_inherited_custom_property_data()
         return false;
     m_custom_property_data = move(parent_data);
     return true;
+}
+
+void Element::republish_style_record_environment()
+{
+    if (!has_style() || style_node_id() == 0)
+        return;
+    auto data = custom_property_data({});
+    if (data && data->is_animation_overlay())
+        data = data->parent();
+    auto new_style_record = document().style_computer().style_engine().republish_record_environment(style_node_id(), data ? data->identity() : 0, data ? data->rust_store() : nullptr);
+    if (!!new_style_record && new_style_record != style_record_identity())
+        refresh_computed_style({}, new_style_record);
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scroll

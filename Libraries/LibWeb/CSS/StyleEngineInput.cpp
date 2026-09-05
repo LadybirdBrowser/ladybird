@@ -375,20 +375,28 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
 // Whether the element's cascade may include presentational hints. The hints themselves are
 // collected during the C++ computation, and a table cell's read the table's computed style, so
 // this decides from the element kind and its attributes alone, conservatively.
-static bool element_may_have_presentational_hints(DOM::Element const& element)
+// Hints mapped from another element's attributes, which move without the element's own moving.
+static bool element_may_have_derived_presentational_hints(DOM::Element const& element)
 {
     // A table cell's hints also come from its table's attributes, and an image's from the
     // <source> its <picture> selected.
     if (element.namespace_uri() == Namespace::HTML && first_is_one_of(element.local_name(), HTML::TagNames::td, HTML::TagNames::th, HTML::TagNames::img))
         return true;
-    // The cascade also reads the width and height attributes of an element that supports them.
-    if (element.supports_dimension_attributes()
-        && (element.has_attribute(HTML::AttributeNames::width) || element.has_attribute(HTML::AttributeNames::height)))
-        return true;
     // A body's link, vlink and alink attributes are presentational hints on every link, by the
     // link's :link, :visited and :active state.
     if ((element.matches_link_pseudo_class() || element.matches_visited_pseudo_class())
         && (element.document().normal_link_color().has_value() || element.document().visited_link_color().has_value() || element.document().active_link_color().has_value()))
+        return true;
+    return false;
+}
+
+static bool element_may_have_presentational_hints(DOM::Element const& element)
+{
+    if (element_may_have_derived_presentational_hints(element))
+        return true;
+    // The cascade also reads the width and height attributes of an element that supports them.
+    if (element.supports_dimension_attributes()
+        && (element.has_attribute(HTML::AttributeNames::width) || element.has_attribute(HTML::AttributeNames::height)))
         return true;
     bool has_presentational_hint = false;
     element.for_each_attribute([&](Utf16FlyString const& name, Utf16View) {
@@ -469,6 +477,8 @@ u32 element_style_adjustment_facts(DOM::Element const& element)
     // which its timeline can make it after the element's arrival.
     set(element.has_relevant_animations() || element.has_associated_animations(), ElementStyleAdjustmentFact::HasAnimations);
     set(element_may_have_presentational_hints(element), ElementStyleAdjustmentFact::HasPresentationalHints);
+    set(element.associated_shadow_host_pseudo_element().has_value(), ElementStyleAdjustmentFact::IsShadowHostPseudoElement);
+    set(element_may_have_derived_presentational_hints(element), ElementStyleAdjustmentFact::HasDerivedPresentationalHints);
     return facts;
 }
 
@@ -1084,7 +1094,11 @@ struct DeclaredPropertyColumns {
         auto value = canonical_specified_value(*property.value);
         if (property.property_id == PropertyID::All)
             declarations_are_complete = false;
-        if (expand_shorthands == ExpandShorthands::Yes && property_is_shorthand(property.property_id)) {
+        if (property_is_shorthand(property.property_id) && property.value->is_unresolved())
+            unresolved_shorthands.append(property.property_id);
+        // A shorthand written with a substitution is kept whole: the longhands it pends are
+        // declared beside it, and each takes its part once the shorthand substitutes.
+        if (expand_shorthands == ExpandShorthands::Yes && property_is_shorthand(property.property_id) && !property.value->is_unresolved()) {
             for (auto longhand : expanded_longhands_for_shorthand(property.property_id)) {
                 properties.append(to_underlying(longhand));
                 important.append(is_important);
@@ -1102,12 +1116,41 @@ struct DeclaredPropertyColumns {
         retained_values.append(move(value));
     }
 
+    void finalize_completeness()
+    {
+        for (auto shorthand : unresolved_shorthands) {
+            if (any_of(expanded_longhands_for_shorthand(shorthand), [&](auto longhand) { return !properties.contains_slow(to_underlying(longhand)); })) {
+                declarations_are_complete = false;
+                return;
+            }
+        }
+    }
+
+    // A custom property the block declares, named by the engine's atom for its name. The cascade
+    // tracks no winner per custom property: the element's environment cascades these by name.
+    void append_custom(StyleEngine& style_engine, Utf16FlyString const& name, StyleProperty const& property)
+    {
+        auto atom = style_engine.intern_atom(name);
+        style_engine.note_custom_property_name(atom, name);
+        custom_names.append(atom);
+        custom_important.append(property.important == Important::Yes);
+        custom_operators.append(cascade_operator_for(*property.value));
+        custom_values.append(property.value->rust_style_value_data());
+        custom_original_values.append(property.value->rust_style_value_data());
+    }
+
     Vector<u16> properties;
     Vector<bool> important;
     Vector<StyleEngineFFI::FfiCascadeOperator> operators;
     Vector<void const*> values;
     Vector<void const*> original_values;
     Vector<ValueComparingNonnullRefPtr<StyleValue const>> retained_values;
+    Vector<StyleAtomID> custom_names;
+    Vector<bool> custom_important;
+    Vector<StyleEngineFFI::FfiCascadeOperator> custom_operators;
+    Vector<void const*> custom_values;
+    Vector<void const*> custom_original_values;
+    Vector<PropertyID> unresolved_shorthands;
     bool declarations_are_complete;
 };
 
@@ -1121,7 +1164,7 @@ bool property_defines_a_css_transition(PropertyID property_id)
         || property_id == PropertyID::TransitionTimingFunction;
 }
 
-static bool publish_element_declared_properties(DOM::Element& element, StyleEngineFFI::FfiElementDeclarationKind kind, ReadonlySpan<StyleProperty> style_properties, bool declarations_are_complete = true)
+static bool publish_element_declared_properties(DOM::Element& element, StyleEngineFFI::FfiElementDeclarationKind kind, ReadonlySpan<StyleProperty> style_properties, OrderedHashMap<Utf16FlyString, StyleProperty> const* custom_properties = nullptr, bool declarations_are_complete = true)
 {
     auto* style_engine = style_engine_for(element);
     if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))
@@ -1136,7 +1179,12 @@ static bool publish_element_declared_properties(DOM::Element& element, StyleEngi
         // a shorthand left whole here would name a property nothing ever wins.
         columns.append(property, ExpandShorthands::Yes);
     }
-    style_engine->set_element_declared_properties(element.style_node_id(), kind, columns.properties, columns.important, columns.operators, columns.values, columns.original_values, columns.declarations_are_complete);
+    if (custom_properties) {
+        for (auto const& [name, property] : *custom_properties)
+            columns.append_custom(*style_engine, name, property);
+    }
+    columns.finalize_completeness();
+    style_engine->set_element_declared_properties(element.style_node_id(), kind, columns.properties, columns.important, columns.operators, columns.values, columns.original_values, columns.custom_names, columns.custom_important, columns.custom_operators, columns.custom_values, columns.custom_original_values, columns.declarations_are_complete);
     return true;
 }
 
@@ -1149,7 +1197,7 @@ static void record_element_inline_style_properties(DOM::Element& element)
         element,
         StyleEngineFFI::FfiElementDeclarationKind::InlineStyle,
         inline_style ? inline_style->properties().span() : ReadonlySpan<StyleProperty> {},
-        !inline_style || inline_style->custom_properties().is_empty());
+        inline_style ? &inline_style->custom_properties() : nullptr);
 }
 
 // The hints an element's attributes map to are published from where the cascade collects them
@@ -1354,13 +1402,16 @@ static void record_rule_declared_properties(StyleEngine& style_engine, StyleEngi
     if (!declaration)
         return;
 
-    DeclaredPropertyColumns columns(declaration->properties().size(), declaration->custom_properties().is_empty());
+    DeclaredPropertyColumns columns(declaration->properties().size(), true);
     for (auto const& property : declaration->properties()) {
         if (property_defines_a_css_transition(property.property_id))
             style_engine.note_css_transitions_may_observe_style_changes();
         columns.append(property, ExpandShorthands::No);
     }
-    style_engine.set_rule_declared_properties(rule_id, columns.properties, columns.important, columns.operators, columns.values, columns.original_values, columns.declarations_are_complete);
+    for (auto const& [name, property] : declaration->custom_properties())
+        columns.append_custom(style_engine, name, property);
+    columns.finalize_completeness();
+    style_engine.set_rule_declared_properties(rule_id, columns.properties, columns.important, columns.operators, columns.values, columns.original_values, columns.custom_names, columns.custom_important, columns.custom_operators, columns.custom_values, columns.custom_original_values, columns.declarations_are_complete);
 }
 
 // Where a compiled rule's identity is written. Author rules carry theirs on the rule object; the
@@ -1937,7 +1988,6 @@ void record_style_rule_removed(CSSStyleSheet& sheet_it_left, CSSRule& rule)
                 document.style_scope().publish_cascade_layer_order();
             }
             if (auto rule_id = style_computer.style_engine_rule_id_for(entry); rule_id != 0) {
-                style_computer.invalidate_parsed_substitutions_for_rule(rule_id);
                 style_engine.remove_rule(rule_id);
                 style_computer.non_author_rule_ids().remove(entry.ptr());
                 style_computer.constructed_rule_ids().remove(entry.ptr());
@@ -2048,7 +2098,6 @@ void record_style_rule_declarations_changed(CSSRule& rule)
         document.bump_style_environment_version();
 
         auto& style_engine = style_computer.style_engine();
-        style_computer.invalidate_parsed_substitutions_for_rule(rule_id);
         style_engine.record_rule_declarations_changed(rule_id, style_engine.next_declaration_block_version());
         // Which properties the rule declares is part of what changed: an edit that adds or drops one
         // changes which properties it can win.

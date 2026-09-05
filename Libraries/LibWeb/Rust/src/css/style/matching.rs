@@ -1072,6 +1072,8 @@ impl StyleEngine {
                 self.cascade_priority_of(candidate.rule, scope, entry.specificity, u32::MAX, false)
             });
         }
+        // A rule declaring custom properties beside its longhands contributes those longhands
+        // as any rule does: the environment its custom properties decide is computed apart.
         dispatch.assign_cascade_properties(
             |candidate| {
                 self.program.rule_is_gated_by_container_query(candidate.rule)
@@ -2283,11 +2285,18 @@ impl StyleEngine {
                 .flat_map(|change| change.old_properties.iter().chain(&change.new_properties).copied()),
         );
         cascade_update_rules.extend(transaction.rule_declaration_changes.iter().map(|change| change.rule));
+        let custom_changed_rules: Vec<RuleID> = transaction
+            .rule_declaration_changes
+            .iter()
+            .filter(|change| change.custom_declarations_changed)
+            .map(|change| change.rule)
+            .collect();
         Some(RetainedAnswerPatchSelection {
             affected: merged,
             always_emit,
             orders_shifted,
             requires_full_match,
+            custom_changed_rules,
             cascade_update_properties,
             cascade_update_rules,
             program_base_version: transaction.program_base_version,
@@ -2321,6 +2330,9 @@ impl StyleEngine {
         let mut cascade_update_rules = selection.cascade_update_rules;
         cascade_update_rules.sort_unstable();
         cascade_update_rules.dedup();
+        let mut custom_changed_rules = selection.custom_changed_rules;
+        custom_changed_rules.sort_unstable();
+        custom_changed_rules.dedup();
         RetainedAnswerPatch {
             rules,
             rule_keys,
@@ -2334,6 +2346,7 @@ impl StyleEngine {
             requires_full_match: selection.requires_full_match,
             cascade_update_properties,
             cascade_update_rules,
+            custom_changed_rules,
             cascade_candidates: Vec::new(),
             cascade_compaction_workspace: ordering::CascadeCompactionWorkspace::default(),
             program_base_version: selection.program_base_version,
@@ -2423,7 +2436,12 @@ impl StyleEngine {
             self.counters.bump(Counter::MatchAnswerChanges);
         }
         self.publish_cascade_input(node, new_cascade_input);
-        let emit = !delta.is_empty();
+        // An edit to a matched rule's custom declarations moves no winner; the node reacts to it
+        // all the same, since its environment is computed from those declarations.
+        let emit = !delta.is_empty()
+            || exact_answer.iter().any(|entry| {
+                entry.pseudo_element.is_none() && patch.custom_changed_rules.binary_search(&entry.rule).is_ok()
+            });
         if !emit {
             self.counters.bump(Counter::RetainedMatchAnswerPatchStops);
         }

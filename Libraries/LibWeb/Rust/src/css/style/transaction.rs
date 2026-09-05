@@ -341,6 +341,8 @@ pub struct RuleDeclarationChange {
     pub rule: RuleID,
     pub old_properties: Vec<u16>,
     pub new_properties: Vec<u16>,
+    /// Whether the custom properties the rule declares moved, which no winner shows.
+    pub custom_declarations_changed: bool,
 }
 
 /// The normalized result of one transaction boundary, in deterministic key order.

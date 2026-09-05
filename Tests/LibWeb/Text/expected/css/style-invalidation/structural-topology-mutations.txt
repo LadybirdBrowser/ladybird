@@ -1,75 +1,75 @@
 PASS: target topology warm: ancestor class begins matching descendant selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: target topology cold: ancestor class begins matching descendant selector | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: target topology cold: ancestor class begins matching descendant selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology detached: ancestor class begins matching descendant selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: target topology detached-cold: ancestor class begins matching descendant selector | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: target topology detached-cold: ancestor class begins matching descendant selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology warm: ancestor attribute begins matching descendant selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: target topology cold: ancestor attribute begins matching descendant selector | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: target topology detached: ancestor attribute begins matching descendant selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: target topology detached-cold: ancestor attribute begins matching descendant selector | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: target topology cold: ancestor attribute begins matching descendant selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: target topology detached: ancestor attribute begins matching descendant selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: target topology detached-cold: ancestor attribute begins matching descendant selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology warm: ancestor id begins matching descendant selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: target topology cold: ancestor id begins matching descendant selector | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: target topology detached: ancestor id begins matching descendant selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: target topology detached-cold: ancestor id begins matching descendant selector | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: target topology cold: ancestor id begins matching descendant selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: target topology detached: ancestor id begins matching descendant selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: target topology detached-cold: ancestor id begins matching descendant selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology warm: matching ancestor is inserted around target | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: target topology cold: matching ancestor is inserted around target | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: target topology cold: matching ancestor is inserted around target | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology detached: matching ancestor is inserted around target | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: target topology detached-cold: matching ancestor is inserted around target | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology warm: matching ancestor is removed from around target | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: target topology cold: matching ancestor is removed from around target | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: target topology detached: matching ancestor is removed from around target | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: target topology detached-cold: matching ancestor is removed from around target | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: target topology cold: matching ancestor is removed from around target | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: target topology detached: matching ancestor is removed from around target | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: target topology detached-cold: matching ancestor is removed from around target | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: target topology warm: target is reparented into matching ancestor | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: target topology cold: target is reparented into matching ancestor | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
+PASS: target topology cold: target is reparented into matching ancestor | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology detached: target is reparented into matching ancestor | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: target topology detached-cold: target is reparented into matching ancestor | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
+PASS: target topology detached-cold: target is reparented into matching ancestor | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology warm: target is reparented out of matching ancestor | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: target topology cold: target is reparented out of matching ancestor | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: target topology detached: target is reparented out of matching ancestor | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: target topology detached-cold: target is reparented out of matching ancestor | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
+PASS: target topology cold: target is reparented out of matching ancestor | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: target topology detached: target is reparented out of matching ancestor | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: target topology detached-cold: target is reparented out of matching ancestor | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: target topology warm: adjacent previous sibling is inserted | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: target topology cold: adjacent previous sibling is inserted | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: target topology detached: adjacent previous sibling is inserted | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: target topology cold: adjacent previous sibling is inserted | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: target topology detached: adjacent previous sibling is inserted | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: target topology detached-cold: adjacent previous sibling is inserted | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology warm: adjacent previous sibling class begins matching | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: target topology cold: adjacent previous sibling class begins matching | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: target topology detached: adjacent previous sibling class begins matching | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: target topology detached-cold: adjacent previous sibling class begins matching | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: target topology cold: adjacent previous sibling class begins matching | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: target topology detached: adjacent previous sibling class begins matching | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: target topology detached-cold: adjacent previous sibling class begins matching | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology warm: adjacent combinator begins matching after middle sibling removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: target topology cold: adjacent combinator begins matching after middle sibling removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: target topology detached: adjacent combinator begins matching after middle sibling removal | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: target topology detached-cold: adjacent combinator begins matching after middle sibling removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: target topology cold: adjacent combinator begins matching after middle sibling removal | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: target topology detached: adjacent combinator begins matching after middle sibling removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: target topology detached-cold: adjacent combinator begins matching after middle sibling removal | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology warm: general sibling begins matching after target move | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: target topology cold: general sibling begins matching after target move | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: target topology cold: general sibling begins matching after target move | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology detached: general sibling begins matching after target move | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: target topology detached-cold: general sibling begins matching after target move | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: target topology detached-cold: general sibling begins matching after target move | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology warm: nth-child begins matching after prepend | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: target topology cold: nth-child begins matching after prepend | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: target topology cold: nth-child begins matching after prepend | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology detached: nth-child begins matching after prepend | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: target topology detached-cold: nth-child begins matching after prepend | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology warm: nth-last-child begins matching after append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: target topology cold: nth-last-child begins matching after append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: target topology cold: nth-last-child begins matching after append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology detached: nth-last-child begins matching after append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: target topology detached-cold: nth-last-child begins matching after append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology warm: only-child stops matching after sibling append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: target topology cold: only-child stops matching after sibling append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: target topology cold: only-child stops matching after sibling append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: target topology detached: only-child stops matching after sibling append | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: target topology detached-cold: only-child stops matching after sibling append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: target topology warm: inherited direction changes through ancestor | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: target topology cold: inherited direction changes through ancestor | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: target topology detached: inherited direction changes through ancestor | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: target topology detached-cold: inherited direction changes through ancestor | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: target topology cold: inherited direction changes through ancestor | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: target topology detached: inherited direction changes through ancestor | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: target topology detached-cold: inherited direction changes through ancestor | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology warm: inherited language changes through ancestor | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: target topology cold: inherited language changes through ancestor | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: target topology detached: inherited language changes through ancestor | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: target topology detached-cold: inherited language changes through ancestor | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: target topology cold: inherited language changes through ancestor | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: target topology detached: inherited language changes through ancestor | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: target topology detached-cold: inherited language changes through ancestor | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology warm: custom property changes through ancestor | elementStyleRecomputations=2, elementStyleNoopRecomputations=2
-PASS: target topology cold: custom property changes through ancestor | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: target topology detached: custom property changes through ancestor | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: target topology detached-cold: custom property changes through ancestor | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: target topology cold: custom property changes through ancestor | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: target topology detached: custom property changes through ancestor | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: target topology detached-cold: custom property changes through ancestor | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: target topology warm: display contents ancestor class begins matching | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: target topology cold: display contents ancestor class begins matching | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: target topology detached: display contents ancestor class begins matching | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: target topology detached-cold: display contents ancestor class begins matching | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: target topology cold: display contents ancestor class begins matching | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: target topology detached: display contents ancestor class begins matching | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: target topology detached-cold: display contents ancestor class begins matching | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology warm: shadow host class changes shadow descendant style | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: target topology cold: shadow host class changes shadow descendant style | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: target topology detached: shadow host class changes shadow descendant style | elementStyleRecomputations=3, elementStyleNoopRecomputations=0

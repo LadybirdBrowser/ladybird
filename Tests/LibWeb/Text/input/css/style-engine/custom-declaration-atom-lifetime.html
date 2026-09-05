@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const sheet = document.createElement("style");
+        sheet.textContent = Array.from({ length: 400 }, (_, i) =>
+            `.late-${i} { --retained-${i}: red; color: var(--retained-${i}, green); }`).join("\n");
+        document.head.appendChild(sheet);
+        internals.updateStyle();
+        document.body.className = "settle-declarations";
+        internals.updateStyle();
+
+        const churn = document.createElement("div");
+        for (let i = 0; i < 200; ++i)
+            churn.style.setProperty(`--new-${i}`, "blue");
+        document.body.appendChild(churn);
+        internals.updateStyle();
+
+        const targets = Array.from({ length: 400 }, (_, i) => {
+            const target = document.createElement("div");
+            target.className = `late-${i}`;
+            document.body.appendChild(target);
+            return target;
+        });
+        println(`retained declarations: ${targets.filter(target => getComputedStyle(target).color === "rgb(255, 0, 0)").length}`);
+    });
+</script>

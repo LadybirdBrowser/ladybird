@@ -13,48 +13,42 @@
 <script>
     test(() => {
         internals.updateStyle();
-        internals.resetStyleFfiCounters();
-        internals.resetStyleInvalidationCounters();
+        let last = internals.styleEngineCounters();
+        const substitutions = () => {
+            const counters = internals.styleEngineCounters();
+            const resolved = (counters.engineComputedRecordSubstitutions ?? 0) - (last.engineComputedRecordSubstitutions ?? 0);
+            const memoHits = (counters.engineComputedRecordSubstitutionMemoHits ?? 0) - (last.engineComputedRecordSubstitutionMemoHits ?? 0);
+            const result = `${resolved} resolved, memoized: ${memoHits > 0}`;
+            last = counters;
+            return result;
+        };
 
         const host = document.getElementById("host");
         for (let index = 0; index < 50; ++index) {
             const item = document.createElement("div");
             item.className = "item";
-            // Keep style sharing from hiding repeated cascade work while leaving every item on
+            // Keep record sharing from hiding repeated substitution while leaving every item on
             // the same inherited custom-property environment.
             item.style.zIndex = index;
             host.appendChild(item);
         }
         internals.updateStyle();
-
-        println(`shared environment value parses: ${internals.getStyleInvalidationCounters().substitutionValueParses}`);
+        // One declaration under one environment substitutes once; later substitutions take it
+        // from the memo. Record donors can avoid some of those substitutions entirely.
+        println(`shared environment: ${substitutions()}`);
         println(`shared value: ${getComputedStyle(host.lastElementChild).paddingLeft}`);
 
-        internals.resetStyleFfiCounters();
-        internals.resetStyleInvalidationCounters();
         host.lastElementChild.style.zIndex = 100;
         internals.updateStyle();
-        println(`later transaction value parses: ${internals.getStyleInvalidationCounters().substitutionValueParses}`);
+        println(`later transaction: ${substitutions()}`);
         println(`later transaction value: ${getComputedStyle(host.lastElementChild).paddingLeft}`);
 
-        internals.resetStyleFfiCounters();
-        internals.resetStyleInvalidationCounters();
-        CSS.registerProperty({
-            name: "--unrelated-registration",
-            syntax: "<length>",
-            inherits: false,
-            initialValue: "0px",
-        });
+        // A moved environment substitutes the declaration again, once, and every item takes the
+        // new value from the memo.
+        document.styleSheets[0].cssRules[0].style.setProperty("--spacing", "9px");
         internals.updateStyle();
-        println(`registration change value parses: ${internals.getStyleInvalidationCounters().substitutionValueParses}`);
-        println(`registration change value: ${getComputedStyle(host.lastElementChild).paddingLeft}`);
-
-        internals.resetStyleFfiCounters();
-        internals.resetStyleInvalidationCounters();
-        host.firstElementChild.style.setProperty("--spacing", "9px");
-        internals.updateStyle();
-        println(`different environment value parses: ${internals.getStyleInvalidationCounters().substitutionValueParses}`);
-        println(`changed value: ${getComputedStyle(host.firstElementChild).paddingLeft}`);
-        println(`unchanged neighbour: ${getComputedStyle(host.lastElementChild).paddingLeft}`);
+        println(`moved environment: ${substitutions()}`);
+        println(`moved value: ${getComputedStyle(host.firstElementChild).paddingLeft}`);
+        println(`moved neighbour: ${getComputedStyle(host.lastElementChild).paddingLeft}`);
     });
 </script>

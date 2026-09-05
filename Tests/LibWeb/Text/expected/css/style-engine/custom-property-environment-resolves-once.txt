@@ -1,5 +1,5 @@
-elements resolving custom properties: 1
-custom property resolutions: 10
+environments resolved: 1
+environment memo hits: 49
 padding: 1px
 changed padding: 9px
 neighbour padding: 1px

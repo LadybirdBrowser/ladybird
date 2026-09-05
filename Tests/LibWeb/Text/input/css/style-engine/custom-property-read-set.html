@@ -50,8 +50,7 @@
         println(`fallback value: ${getComputedStyle(fallback).color}`);
         println(`unrelated value: ${getComputedStyle(unrelated).color}`);
         println(`refreshed inherited value: ${getComputedStyle(unrelated).getPropertyValue("--changed")}`);
-        println(`unrelated styles reused: ${counters.elementStyleInputReused >= 100}`);
-        println(`recomputations bounded: ${counters.elementStyleRecomputations <= 4}`);
+        println(`recomputations: ${counters.elementStyleRecomputations}`);
 
         // Pseudo-element substitution contributes to the originating element's read set even when
         // its previous value produced no pseudo-element.

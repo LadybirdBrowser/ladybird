@@ -30,7 +30,7 @@ use std::sync::Mutex;
 use std::sync::OnceLock;
 
 const MAGIC: [u8; 8] = *b"SGREPLAY";
-const FORMAT_VERSION: u64 = 12;
+const FORMAT_VERSION: u64 = 15;
 const EVENT_HEADER_SIZE: usize = 3 * size_of::<u64>();
 const PAYLOAD_ALIGNMENT: usize = 8;
 
@@ -142,6 +142,7 @@ impl<W: Write> LogWriter<W> {
 
 pub struct LogReader<R> {
     input: R,
+    version: u64,
     #[cfg(test)]
     payload: Vec<u8>,
     verify_checksums: bool,
@@ -157,7 +158,7 @@ impl<R: Read> LogReader<R> {
         let mut version_bytes = [0; size_of::<u64>()];
         input.read_exact(&mut version_bytes)?;
         let version = u64::from_le_bytes(version_bytes);
-        if version != FORMAT_VERSION {
+        if !(11..=FORMAT_VERSION).contains(&version) {
             // NB: Format 1 wrote its version as a u32, so this u64 read swallows part of the first
             //     event header; masking recovers the real number for the error message.
             let reported = if version >> 32 != 0 {
@@ -169,6 +170,7 @@ impl<R: Read> LogReader<R> {
         }
         Ok(Self {
             input,
+            version,
             #[cfg(test)]
             payload: Vec::new(),
             verify_checksums: true,
@@ -179,6 +181,10 @@ impl<R: Read> LogReader<R> {
     /// timing-focused replays skip it; correctness-focused replays keep the default.
     pub fn set_verify_checksums(&mut self, verify: bool) {
         self.verify_checksums = verify;
+    }
+
+    pub fn version(&self) -> u64 {
+        self.version
     }
 
     /// Reads the next event. The returned event's payload borrows this reader's scratch buffer,
@@ -781,6 +787,17 @@ mod tests {
         );
         event.payload.finish().unwrap();
         assert!(reader.read_event().unwrap().is_none());
+    }
+
+    #[test]
+    fn previous_format_version_remains_readable() {
+        let mut output = Vec::new();
+        let mut writer = LogWriter::new(&mut output).unwrap();
+        writer.flush().unwrap();
+        output[MAGIC.len()..MAGIC.len() + size_of::<u64>()].copy_from_slice(&11_u64.to_le_bytes());
+
+        let reader = LogReader::new(Cursor::new(output)).unwrap();
+        assert_eq!(reader.version(), 11);
     }
 
     #[test]

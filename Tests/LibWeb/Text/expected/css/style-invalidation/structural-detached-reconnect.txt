@@ -54,11 +54,11 @@ PASS: precomputed detached insertion stress append: mixed-case ancestor id selec
 PASS: precomputed detached insertion stress prepend: mixed-case ancestor id selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: precomputed detached insertion stress replaceChildren: mixed-case ancestor id selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: precomputed detached insertion stress fragment: mixed-case ancestor id selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion: mixed-case ancestor id selector rejects lowercase id | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress append: mixed-case ancestor id selector rejects lowercase id | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress prepend: mixed-case ancestor id selector rejects lowercase id | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress replaceChildren: mixed-case ancestor id selector rejects lowercase id | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress fragment: mixed-case ancestor id selector rejects lowercase id | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion: mixed-case ancestor id selector rejects lowercase id | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress append: mixed-case ancestor id selector rejects lowercase id | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress prepend: mixed-case ancestor id selector rejects lowercase id | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress replaceChildren: mixed-case ancestor id selector rejects lowercase id | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress fragment: mixed-case ancestor id selector rejects lowercase id | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: precomputed detached insertion: mixed-case ancestor id selector inside selector list | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: precomputed detached insertion stress append: mixed-case ancestor id selector inside selector list | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: precomputed detached insertion stress prepend: mixed-case ancestor id selector inside selector list | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
@@ -69,31 +69,31 @@ PASS: precomputed detached insertion stress append: attribute selector | element
 PASS: precomputed detached insertion stress prepend: attribute selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: precomputed detached insertion stress replaceChildren: attribute selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: precomputed detached insertion stress fragment: attribute selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion: adjacent sibling selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress append: adjacent sibling selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress prepend: adjacent sibling selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress replaceChildren: adjacent sibling selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress fragment: adjacent sibling selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion: subsequent sibling selector | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress append: subsequent sibling selector | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress prepend: subsequent sibling selector | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress replaceChildren: subsequent sibling selector | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress fragment: subsequent sibling selector | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion: positional selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress append: positional selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress prepend: positional selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress replaceChildren: positional selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress fragment: positional selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion: inherited custom-property probe | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress append: inherited custom-property probe | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress prepend: inherited custom-property probe | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress replaceChildren: inherited custom-property probe | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress fragment: inherited custom-property probe | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion: custom property inheritance | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress append: custom property inheritance | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress prepend: custom property inheritance | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress replaceChildren: custom property inheritance | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: precomputed detached insertion stress fragment: custom property inheritance | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion: adjacent sibling selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress append: adjacent sibling selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress prepend: adjacent sibling selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress replaceChildren: adjacent sibling selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress fragment: adjacent sibling selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion: subsequent sibling selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress append: subsequent sibling selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress prepend: subsequent sibling selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress replaceChildren: subsequent sibling selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress fragment: subsequent sibling selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion: positional selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress append: positional selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress prepend: positional selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress replaceChildren: positional selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress fragment: positional selector | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion: inherited custom-property probe | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress append: inherited custom-property probe | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress prepend: inherited custom-property probe | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress replaceChildren: inherited custom-property probe | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress fragment: inherited custom-property probe | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion: custom property inheritance | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress append: custom property inheritance | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress prepend: custom property inheritance | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress replaceChildren: custom property inheritance | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: precomputed detached insertion stress fragment: custom property inheritance | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: precomputed detached insertion: selector list | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: precomputed detached insertion stress append: selector list | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: precomputed detached insertion stress prepend: selector list | elementStyleRecomputations=1, elementStyleNoopRecomputations=0

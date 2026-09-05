@@ -32,16 +32,16 @@
         const after = internals.styleEngineCounters();
 
         println(`computed group handles cover the elements: ${after.computedGroupNodeHandlesPublished - before.computedGroupNodeHandlesPublished >= 100}`);
-        println(`computed group sets are shared: ${after.computedGroupSetsReused - before.computedGroupSetsReused >= 98}`);
-        println(`computed groups are shared: ${after.computedGroupsReused - before.computedGroupsReused >= 99}`);
+        println(`computed group sets are shared: ${after.computedGroupSetsReused - before.computedGroupSetsReused}`);
+        println(`computed groups are shared: ${after.computedGroupsReused - before.computedGroupsReused}`);
         println(`inherited group handles cover the elements: ${after.inheritedGroupNodeHandlesPublished - before.inheritedGroupNodeHandlesPublished >= 100}`);
-        println(`inherited group sets are shared: ${after.inheritedGroupSetsReused - before.inheritedGroupSetsReused >= 99}`);
+        println(`inherited group sets are shared: ${after.inheritedGroupSetsReused - before.inheritedGroupSetsReused}`);
         println(`custom property handles cover the elements: ${after.customPropertyEnvironmentNodeHandlesPublished - before.customPropertyEnvironmentNodeHandlesPublished >= 100}`);
-        println(`custom property environments are shared: ${after.customPropertyEnvironmentsReused - before.customPropertyEnvironmentsReused >= 98}`);
+        println(`custom property environments are shared: ${after.customPropertyEnvironmentsReused - before.customPropertyEnvironmentsReused}`);
         println(`computed fixed metadata handles cover the elements: ${after.computedFixedMetadataNodeHandlesPublished - before.computedFixedMetadataNodeHandlesPublished >= 100}`);
-        println(`computed fixed metadata tuples are shared: ${after.computedFixedMetadataReused - before.computedFixedMetadataReused >= 98}`);
+        println(`computed fixed metadata tuples are shared: ${after.computedFixedMetadataReused - before.computedFixedMetadataReused >= 148}`);
         println(`base style record handles cover the elements: ${after.styleRecordNodeHandlesPublished - before.styleRecordNodeHandlesPublished >= 100}`);
-        println(`base style records are shared: ${after.styleRecordsReused - before.styleRecordsReused >= 98}`);
+        println(`base style records are shared: ${after.styleRecordsReused - before.styleRecordsReused}`);
         println(`pseudo assignments are published sparsely: ${after.computedPseudoAssignmentsPublished - before.computedPseudoAssignmentsPublished >= 50}`);
 
         const laterItem = document.createElement("div");

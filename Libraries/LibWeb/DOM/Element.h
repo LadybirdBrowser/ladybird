@@ -332,13 +332,20 @@ public:
 
     void run_attribute_change_steps(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_);
 
-    CSS::RequiredInvalidationAfterStyleChange apply_style_engine_reaction(bool& did_change_custom_properties);
+    enum class StyleRecomputeMode {
+        Normal,
+        Verification,
+    };
+    CSS::RequiredInvalidationAfterStyleChange apply_style_engine_reaction(bool& did_change_custom_properties, StyleRecomputeMode = StyleRecomputeMode::Normal);
     // Apply a base style record the style engine computed itself from this element's moved cascade
     // winners: no style computation runs here, only the diff against the old record and its effects.
     // The synthetic pseudo-element records the style engine settled beside an engine-computed record: a kind it
     // decided holds the record, or none when the pseudo-element is not generated; a kind it left alone is unchanged.
     using EnginePseudoElementRecords = Array<Optional<CSS::StyleRecordID>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount)>;
     CSS::RequiredInvalidationAfterStyleChange apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const&, bool& did_change_custom_properties);
+    // The custom-property environment an engine-computed record was published with: the one the
+    // element inherits, or one the engine resolved over it. Nothing when it cannot be installed.
+    [[nodiscard]] RefPtr<CSS::CustomPropertyData const> custom_property_environment_of_engine_record(CSS::StyleRecordID, bool& installable) const;
     CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles_after_animation_update(Badge<Web::Animations::AnimationUpdateContext>);
 
     void set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason, CSS::LayoutTreeRebuildRoot);
@@ -500,6 +507,9 @@ public:
     [[nodiscard]] RefPtr<CSS::CustomPropertyData const> custom_property_data(Optional<CSS::PseudoElement>) const;
 
     [[nodiscard]] bool refresh_inherited_custom_property_data();
+    // Publish the environment a refresh moved the element's custom-property data to on its record,
+    // so the engine reads the environment the element holds.
+    void republish_style_record_environment();
 
     // What the element's last computation was allowed to read, so a later one can ask whether any of
     // it moved before deriving a style that would be identical. Retired by anything that moves what
@@ -523,9 +533,8 @@ public:
     void set_style_input_record(OwnPtr<CSS::StyleInputRecord>);
     void retire_style_input_record();
     [[nodiscard]] OwnPtr<CSS::StyleInputRecord> take_style_input_record();
-    void record_style_custom_property_reference(Utf16FlyString const&);
     void record_style_query_custom_property_reference(Optional<CSS::PseudoElement>, Utf16FlyString const&);
-    void finish_recording_style_custom_property_references();
+    void finish_recording_style_dependencies();
 
     bool style_uses_attr_css_function() const { return m_style_uses_attr_css_function; }
     void set_style_uses_attr_css_function() { m_style_uses_attr_css_function = true; }

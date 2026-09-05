@@ -944,6 +944,9 @@ pub(super) struct RetainedAnswerPatch {
     pub(super) requires_full_match: bool,
     pub(super) cascade_update_properties: Vec<u16>,
     pub(super) cascade_update_rules: Vec<RuleID>,
+    /// Edited rules whose custom declarations moved, sorted: a node matching one reacts even
+    /// when the patch moves none of its winners.
+    pub(super) custom_changed_rules: Vec<RuleID>,
     pub(super) cascade_candidates: Vec<OrderedCascadeCandidate>,
     pub(super) cascade_compaction_workspace: ordering::CascadeCompactionWorkspace,
     pub(super) program_base_version: Option<ProgramVersion>,
@@ -1014,6 +1017,7 @@ impl RetainedAnswerPatch {
                 self.rules,
                 self.cascade_update_properties,
                 self.cascade_update_rules,
+                self.custom_changed_rules,
                 self.cascade_candidates,
                 self.delta_memo,
             ];
@@ -1039,6 +1043,7 @@ pub(super) struct RetainedAnswerPatchSelection {
     pub(super) requires_full_match: bool,
     pub(super) cascade_update_properties: Vec<u16>,
     pub(super) cascade_update_rules: Vec<RuleID>,
+    pub(super) custom_changed_rules: Vec<RuleID>,
     pub(super) program_base_version: Option<ProgramVersion>,
 }
 
@@ -1553,12 +1558,17 @@ pub(super) struct PendingRuleDeclarationChange {
     pub(super) rule: RuleID,
     pub(super) old_properties: Vec<u16>,
     pub(super) new_properties: Vec<u16>,
+    /// Whether the custom properties the rule declares moved. No winner column holds them, so
+    /// no winner delta can show the edit; every node the rule matches reacts to it.
+    pub(super) custom_declarations_changed: bool,
 }
 
 #[derive(Clone)]
 pub(super) struct PendingRuleDeclarations {
     pub(super) declared: Vec<DeclaredProperty>,
     pub(super) written_values: Vec<crate::css::style_value::RetainedStyleValueData>,
+    pub(super) custom_declarations: Vec<super::program::CustomDeclaration>,
+    pub(super) custom_written_values: Vec<crate::css::style_value::RetainedStyleValueData>,
     pub(super) complete: bool,
 }
 

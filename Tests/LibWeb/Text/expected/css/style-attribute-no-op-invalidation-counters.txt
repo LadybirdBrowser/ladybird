@@ -1,4 +1,4 @@
 setting identical style text: 0 recomputations
 setting changed style text: 1 recomputations
 setting identical custom property: 0 recomputations
-setting changed custom property: 2 recomputations
+setting changed custom property: 1 recomputations

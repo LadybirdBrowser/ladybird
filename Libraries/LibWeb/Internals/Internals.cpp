@@ -2079,7 +2079,6 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     object->define_direct_property("customPropertyValueComputations"_utf16_fly_string, JS::Value(counters.custom_property_value_computations), JS::default_attributes);
     object->define_direct_property("customPropertyOverlayHits"_utf16_fly_string, JS::Value(counters.custom_property_overlay_hits), JS::default_attributes);
     object->define_direct_property("customPropertyCycleParticipants"_utf16_fly_string, JS::Value(counters.custom_property_cycle_participants), JS::default_attributes);
-    object->define_direct_property("substitutionValueParses"_utf16_fly_string, JS::Value(counters.substitution_value_parses), JS::default_attributes);
     object->define_direct_property("styleCascadeMicroseconds"_utf16_fly_string, JS::Value(counters.style_cascade_microseconds), JS::default_attributes);
     object->define_direct_property("styleValuesMicroseconds"_utf16_fly_string, JS::Value(counters.style_values_microseconds), JS::default_attributes);
     object->define_direct_property("scrollableOverflowRecalculations"_utf16_fly_string, JS::Value(counters.scrollable_overflow_recalculations), JS::default_attributes);
