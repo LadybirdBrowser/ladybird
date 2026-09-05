@@ -19,11 +19,10 @@
 namespace Web::Layout {
 
 class GeneratedTextNode;
-class TextSliceNode;
 
 class TextNode : public Node {
 public:
-    TextNode(DOM::Document&, DOM::Text&);
+    TextNode(DOM::Document&, DOM::Text&, AttachToDOMNode = AttachToDOMNode::Yes);
     virtual ~TextNode() override;
 
     DOM::Text const& dom_node() const { return static_cast<DOM::Text const&>(*Node::dom_node()); }
@@ -45,7 +44,6 @@ public:
     bool update_produces_line_box_fragment_when_empty_flag();
 
 protected:
-    TextNode(DOM::Document&, DOM::Text&, AttachToDOMNode, RustFFI::NodeKind = RustFFI::NodeKind::TextNode);
     TextNode(DOM::Document&, RustFFI::NodeKind);
 
     virtual GC::Ptr<DOM::Element const> parent_element_for_text_transform() const;
@@ -70,15 +68,6 @@ private:
     Utf16String m_text;
 };
 
-class TextSliceNode final : public TextNode {
-public:
-    TextSliceNode(DOM::Document&, DOM::Text&, AttachToDOMNode);
-    virtual ~TextSliceNode() override;
-
-private:
-    virtual bool is_text_slice_node() const override { return true; }
-};
-
 // Classifies a code point for direction-run splitting during text chunking:
 // strong LTR/RTL, direction-neutral Common, or ContextDependent (resolved
 // from surrounding runs).
@@ -86,8 +75,5 @@ Gfx::GlyphRun::TextType text_type_for_code_point(u32 code_point);
 
 template<>
 inline bool Node::fast_is<TextNode>() const { return is_text_node(); }
-
-template<>
-inline bool Node::fast_is<TextSliceNode>() const { return is_text_slice_node(); }
 
 }

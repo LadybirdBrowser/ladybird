@@ -2021,8 +2021,8 @@ impl LayoutNodeArena {
         source_length: usize,
     ) {
         assert_ne!(first_letter, remainder);
-        assert_eq!(self.data(first_letter).kind.get(), NodeKind::TextSliceNode);
-        assert_eq!(self.data(remainder).kind.get(), NodeKind::TextSliceNode);
+        assert_eq!(self.data(first_letter).kind.get(), NodeKind::TextNode);
+        assert_eq!(self.data(remainder).kind.get(), NodeKind::TextNode);
         assert!(letter_end <= source_length);
         self.text_node_state_mut(first_letter).source_range = Some(FfiTextSourceRange {
             start: 0,
@@ -2046,6 +2046,11 @@ impl LayoutNodeArena {
                 start: 0,
                 length: source_length,
             })
+    }
+
+    pub(super) fn text_has_source_range(&self, id: NodeSlotId) -> bool {
+        self.text_node_state(id)
+            .is_some_and(|state| state.source_range.is_some())
     }
 
     pub(crate) fn text_fragments(&self, primary: NodeSlotId) -> TextFragments {

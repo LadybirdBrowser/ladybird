@@ -18,15 +18,8 @@
 
 namespace Web::Layout {
 
-TextNode::TextNode(DOM::Document& document, DOM::Text& text)
-    : Node(document, &text, RustFFI::NodeKind::TextNode)
-{
-    invalidate_text_for_rendering();
-    update_produces_line_box_fragment_when_empty_flag();
-}
-
-TextNode::TextNode(DOM::Document& document, DOM::Text& text, AttachToDOMNode attach_to_dom_node, RustFFI::NodeKind kind)
-    : Node(document, &text, kind, attach_to_dom_node)
+TextNode::TextNode(DOM::Document& document, DOM::Text& text, AttachToDOMNode attach_to_dom_node)
+    : Node(document, &text, RustFFI::NodeKind::TextNode, attach_to_dom_node)
 {
     invalidate_text_for_rendering();
     update_produces_line_box_fragment_when_empty_flag();
@@ -88,13 +81,6 @@ GC::Ptr<DOM::Element const> GeneratedTextNode::parent_element_for_text_transform
         return parent->pseudo_element_generator();
     return nullptr;
 }
-
-TextSliceNode::TextSliceNode(DOM::Document& document, DOM::Text& text, AttachToDOMNode attach_to_dom_node)
-    : TextNode(document, text, attach_to_dom_node, RustFFI::NodeKind::TextSliceNode)
-{
-}
-
-TextSliceNode::~TextSliceNode() = default;
 
 Utf16String TextNode::rendered_text_for_dom(bool collapse_whitespace) const
 {

@@ -135,7 +135,6 @@ StringView Node::class_name() const
         LAYOUT_NODE_KIND_NAME_CASE(TextAreaBox)
         LAYOUT_NODE_KIND_NAME_CASE(TextInputBox)
         LAYOUT_NODE_KIND_NAME_CASE(TextNode)
-        LAYOUT_NODE_KIND_NAME_CASE(TextSliceNode)
         LAYOUT_NODE_KIND_NAME_CASE(VideoBox)
         LAYOUT_NODE_KIND_NAME_CASE(Viewport)
     case RustFFI::NodeKind::Unset:

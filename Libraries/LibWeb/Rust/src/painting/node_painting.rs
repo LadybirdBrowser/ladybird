@@ -17,7 +17,6 @@ pub(crate) const fn has_paintable(kind: NodeKind) -> bool {
             | NodeKind::Node
             | NodeKind::NodeWithStyle
             | NodeKind::TextNode
-            | NodeKind::TextSliceNode
     )
 }
 
