@@ -102,6 +102,9 @@ impl StyleEngine {
                 .flatten()
                 .filter(|flip| flip.pseudo_kind.is_some()),
         );
+        if parent_inputs_moved.inherited_style && !self.engine_marker_font_supported(node) {
+            return None;
+        }
         if !self.engine_pseudo_inputs_available(node, self.computed_group_sets.assigned_style_record(node)) {
             return None;
         }
@@ -1546,7 +1549,7 @@ impl StyleEngine {
     }
 
     fn state_explicitly_inherits_non_inherited_property(&self, node: StyleNodeID, state: CascadeStateID) -> bool {
-        let is_inherit_keyword = |value: Option<crate::css::style_value::RetainedStyleValueData>| {
+        let is_inherit_keyword = |value: Option<&crate::css::style_value::RetainedStyleValueData>| {
             value.is_none_or(|value| {
                 matches!(value.data(), crate::css::style_value::StyleValueData::Keyword { keyword }
                     if *keyword == crate::css::style_compute::keyword::INHERIT)
@@ -1574,11 +1577,7 @@ impl StyleEngine {
                             && declared.important == winner.important
                             && declared.value == winner.key.value
                     });
-                    is_inherit_keyword(
-                        index
-                            .and_then(|index| written.get(index))
-                            .map(|value| value.clone_retained()),
-                    )
+                    is_inherit_keyword(index.and_then(|index| written.get(index)))
                 }
                 WinnerSource::ExactCascade => true,
             }
@@ -1673,10 +1672,10 @@ impl StyleEngine {
         winner: &PropertyWinner,
     ) -> Option<(usize, crate::css::style_value::RetainedStyleValueData)> {
         match winner.source {
-            WinnerSource::Rule(rule) => {
-                self.program
-                    .written_winner_declaration(rule, winner.property, winner.important, winner.key.value)
-            }
+            WinnerSource::Rule(rule) => self
+                .program
+                .written_winner_declaration(rule, winner.property, winner.important, winner.key.value)
+                .map(|(index, value)| (index, value.clone_retained())),
             WinnerSource::Element(kind) => {
                 let (declared, _) = self.facts.element_declared_properties(node, kind);
                 let complete = self
@@ -1726,7 +1725,7 @@ impl StyleEngine {
                             && declared.important == winner.important
                             && declared.value == winner.key.value
                     })
-                    .map(|index| written[index].clone_retained())
+                    .map(|index| &written[index])
             }
             WinnerSource::ExactCascade => None,
         };
@@ -1776,16 +1775,34 @@ impl StyleEngine {
 
     /// Whether any winner of a state was written with a substitution, so the record computed
     /// from it reads the node's custom-property environment.
-    pub(super) fn state_has_substitutions(&mut self, node: StyleNodeID, state: CascadeStateID) -> bool {
-        let winners: Vec<PropertyWinner> = self.winner_groups.winners_in_state(state).collect();
-        winners.into_iter().any(|winner| {
+    pub(super) fn state_has_substitutions(&self, node: StyleNodeID, state: CascadeStateID) -> bool {
+        self.winner_groups.winners_in_state(state).any(|winner| {
             let Some(winner) = self.winner_groups.resolved_winner(winner) else {
                 return false;
             };
             if winner.property < crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID {
                 return false;
             }
-            self.written_winner_value(node, &winner).is_some_and(|(_, value)| {
+            let value = match winner.source {
+                WinnerSource::Rule(rule) => {
+                    self.program
+                        .written_winner_value(rule, winner.property, winner.important, winner.key.value)
+                }
+                WinnerSource::Element(kind) => {
+                    let (declared, _) = self.facts.element_declared_properties(node, kind);
+                    let written = self.facts.element_written_declared_values(node, kind);
+                    declared
+                        .iter()
+                        .rposition(|declared| {
+                            declared.property == winner.property
+                                && declared.important == winner.important
+                                && declared.value == winner.key.value
+                        })
+                        .and_then(|index| written.get(index))
+                }
+                WinnerSource::ExactCascade => None,
+            };
+            value.is_some_and(|value| {
                 matches!(
                     value.data(),
                     crate::css::style_value::StyleValueData::Unresolved { .. }

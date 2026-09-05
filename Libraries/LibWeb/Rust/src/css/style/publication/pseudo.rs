@@ -64,6 +64,32 @@ impl StyleEngine {
         true
     }
 
+    pub(super) fn engine_marker_font_supported(&mut self, node: StyleNodeID) -> bool {
+        // Reject unsupported existing marker fonts before computing the originating element.
+        // A later change to supported settings still computes correctly through C++ and makes
+        // the next attempt eligible. The default marker's tabular numerals are not supported by
+        // the engine font resolver yet.
+        if let Some(marker) = self.computed_group_sets.pseudo_style_record(node, pseudo_kind::MARKER)
+            && let Some(view) = self.computed_group_sets.style_record_view(marker.raw())
+            && let Some(table) = unsafe { view.longhand_table.as_ref() }
+        {
+            let value = table
+                .effective_value(
+                    None,
+                    crate::css::property_metadata::property_id::FONT_VARIANT_NUMERIC,
+                    true,
+                )
+                .value;
+            if !matches!(unsafe { value.cast::<StyleValueData>().as_ref() },
+                Some(StyleValueData::Keyword { keyword }) if *keyword == crate::css::style_compute::keyword::NORMAL)
+            {
+                self.counters.bump(Counter::EngineComputedRecordBailFontPhase);
+                return false;
+            }
+        }
+        true
+    }
+
     /// Settle the synthetic pseudo-elements of an element the engine derived a record for, the
     /// way the C++ computation refreshes them after the element's own: each kind the element has
     /// rules for, and the marker a list item generates, is driven against the element's new

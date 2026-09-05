@@ -1,0 +1,4 @@
+discarded records: 0
+font size: 24px
+font family: serif
+marker numerals: tabular-nums

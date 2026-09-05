@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #host { --accent: red; }
+    .item { color: var(--accent); }
+    .item::before { content: "x"; color: inherit; }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        for (let index = 0; index < 20; ++index) {
+            const item = document.createElement("div");
+            item.className = "item";
+            host.appendChild(item);
+        }
+        internals.updateStyle();
+        host.style.setProperty("--accent", "green");
+        internals.updateStyle();
+        const before = internals.styleEngineCounters();
+        host.style.setProperty("--accent", "blue");
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+        println(`color: ${getComputedStyle(host.lastChild).color}`);
+        println(`pseudo color: ${getComputedStyle(host.lastChild, "::before").color}`);
+        println(`cascade matches: ${after.cascadeMatchesBeforeCompaction - before.cascadeMatchesBeforeCompaction}`);
+    });
+</script>

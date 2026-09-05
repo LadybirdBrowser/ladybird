@@ -1282,7 +1282,7 @@ impl StyleSheetProgram {
         property: u16,
         important: bool,
         value: SpecifiedValueID,
-    ) -> Option<RetainedStyleValueData> {
+    ) -> Option<&RetainedStyleValueData> {
         self.written_winner_declaration(rule, property, important, value)
             .map(|(_, value)| value)
     }
@@ -1296,7 +1296,7 @@ impl StyleSheetProgram {
         property: u16,
         important: bool,
         value: SpecifiedValueID,
-    ) -> Option<(usize, RetainedStyleValueData)> {
+    ) -> Option<(usize, &RetainedStyleValueData)> {
         let entry = &self.rules[rule.0 as usize];
         if entry.written_values.len() != entry.declared_properties.len() {
             return None;
@@ -1304,7 +1304,7 @@ impl StyleSheetProgram {
         let index = entry.declared_properties.iter().rposition(|declared| {
             declared.property == property && declared.important == important && declared.value == value
         })?;
-        Some((index, entry.written_values[index].clone_retained()))
+        Some((index, &entry.written_values[index]))
     }
 
     #[must_use]
