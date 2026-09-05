@@ -46,6 +46,77 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_cached_property_value(VM& vm, Value v
     return TRY(call(vm, *getter, this_value));
 }
 
+ALWAYS_INLINE ThrowCompletionOr<Value> get_by_value_with_keyed_cache(VM& vm, Object& base_object, Value this_value, PropertyKey const& property_key)
+{
+    if (!property_key.is_string())
+        return base_object.internal_get(property_key, this_value);
+
+    auto const& property_name = property_key.as_string();
+    auto& shape = base_object.shape();
+    auto& entry = vm.keyed_property_lookup_cache().entry_for(shape, property_name);
+    if (entry.shape.ptr() == &shape && entry.property_name == property_name
+        && (!shape.is_dictionary() || shape.dictionary_generation() == entry.shape_dictionary_generation)) {
+        switch (entry.type) {
+        case PropertyLookupCache::Entry::Type::GetOwnProperty:
+            return get_cached_property_value(vm, base_object.get_direct(entry.property_offset), this_value);
+        case PropertyLookupCache::Entry::Type::GetPropertyInPrototypeChain:
+            if (auto* prototype_chain_validity = entry.prototype_chain_validity.ptr(); prototype_chain_validity && prototype_chain_validity->is_valid())
+                return get_cached_property_value(vm, entry.prototype->get_direct(entry.property_offset), this_value);
+            break;
+        case PropertyLookupCache::Entry::Type::GetMissingProperty:
+            if (base_object.is_cacheable_for_property_absence()) {
+                if (!shape.prototype())
+                    return js_undefined();
+                if (auto* prototype_chain_validity = entry.prototype_chain_validity.ptr(); prototype_chain_validity && prototype_chain_validity->is_valid())
+                    return js_undefined();
+            }
+            break;
+        default:
+            break;
+        }
+    }
+
+    GC::Ptr<PrototypeChainValidity> prototype_chain_validity;
+    if (shape.prototype())
+        prototype_chain_validity = shape.prototype()->shape().prototype_chain_validity();
+
+    auto dictionary_generation = shape.dictionary_generation();
+    CacheableGetPropertyMetadata cacheable_metadata;
+    cacheable_metadata.property_absence_is_cacheable = base_object.is_cacheable_for_property_absence();
+    auto value = TRY(base_object.internal_get(property_key, this_value, &cacheable_metadata));
+
+    // A getter may have changed the object's shape or the property storage of a dictionary shape, which
+    // leaves the metadata describing a lookup that no longer applies.
+    if (&shape != &base_object.shape() || shape.dictionary_generation() != dictionary_generation
+        || cacheable_metadata.type == CacheableGetPropertyMetadata::Type::NotCacheable)
+        return value;
+
+    entry = {};
+    entry.shape = &shape;
+    entry.property_name = property_name;
+    if (shape.is_dictionary())
+        entry.shape_dictionary_generation = shape.dictionary_generation();
+    switch (cacheable_metadata.type) {
+    case CacheableGetPropertyMetadata::Type::GetOwnProperty:
+        entry.type = PropertyLookupCache::Entry::Type::GetOwnProperty;
+        entry.property_offset = cacheable_metadata.property_offset.value();
+        break;
+    case CacheableGetPropertyMetadata::Type::GetPropertyInPrototypeChain:
+        entry.type = PropertyLookupCache::Entry::Type::GetPropertyInPrototypeChain;
+        entry.property_offset = cacheable_metadata.property_offset.value();
+        entry.prototype = const_cast<Object*>(cacheable_metadata.prototype.ptr());
+        entry.prototype_chain_validity = prototype_chain_validity;
+        break;
+    case CacheableGetPropertyMetadata::Type::GetMissingProperty:
+        entry.type = PropertyLookupCache::Entry::Type::GetMissingProperty;
+        entry.prototype_chain_validity = prototype_chain_validity;
+        break;
+    case CacheableGetPropertyMetadata::Type::NotCacheable:
+        VERIFY_NOT_REACHED();
+    }
+    return value;
+}
+
 // Non-standard
 ALWAYS_INLINE Value get_own_property_without_side_effects(Object& object, PropertyKey const& property_key, StaticPropertyLookupCache& cache)
 {
@@ -215,14 +286,16 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
     if (shape.prototype())
         prototype_chain_validity = shape.prototype()->shape().prototype_chain_validity();
 
+    auto dictionary_generation = shape.dictionary_generation();
     CacheableGetPropertyMetadata cacheable_metadata;
     cacheable_metadata.property_absence_is_cacheable = base_obj->is_cacheable_for_property_absence();
     auto value = TRY(base_obj->internal_get(property_name, this_value, &cacheable_metadata));
 
     // If internal_get() caused object's shape change, we can no longer be sure
     // that collected metadata is valid, e.g. if getter in prototype chain added
-    // property with the same name into the object itself.
-    if (&shape == &base_obj->shape()) {
+    // property with the same name into the object itself. The same applies when
+    // a getter changed the property storage of a dictionary shape.
+    if (&shape == &base_obj->shape() && shape.dictionary_generation() == dictionary_generation) {
         if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetOwnProperty) {
             cache.update(PropertyLookupCache::Entry::Type::GetOwnProperty, [&](auto& entry) {
                 entry.shape = shape;
@@ -314,6 +387,7 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
     case PutKind::Normal: {
         auto this_value_object = MUST(this_value.to_object(vm));
         auto& from_shape = this_value_object->shape();
+        auto from_shape_dictionary_generation = from_shape.dictionary_generation();
         if (caches) [[likely]] {
             for (auto& cache : caches->entries_for_shape(object->shape())) {
                 switch (cache.type) {
@@ -429,8 +503,9 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
 
         // If internal_set() caused object's shape change, we can no longer be sure
         // that collected metadata is valid, e.g. if setter in prototype chain added
-        // property with the same name into the object itself.
-        if (succeeded && caches && &from_shape == &object->shape()) {
+        // property with the same name into the object itself. The same applies when
+        // a setter changed the property storage of a dictionary shape.
+        if (succeeded && caches && &from_shape == &object->shape() && from_shape.dictionary_generation() == from_shape_dictionary_generation) {
             switch (cacheable_metadata.type) {
             case CacheableSetPropertyMetadata::Type::AddOwnProperty:
                 // Something went wrong if we ended up here, because cacheable addition of a new property should've changed the shape.

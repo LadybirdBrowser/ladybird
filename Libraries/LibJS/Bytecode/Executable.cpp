@@ -5,6 +5,7 @@
  */
 
 #include <AK/BinarySearch.h>
+#include <AK/HashFunctions.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
 #include <AK/StdLibExtras.h>
@@ -643,6 +644,25 @@ void StaticPropertyLookupCache::sweep_all()
 {
     for (auto* cache : static_property_lookup_caches())
         cache->remove_dead_entries();
+}
+
+KeyedPropertyLookupCache::Entry& KeyedPropertyLookupCache::entry_for(Shape const& shape, Utf16FlyString const& property_name)
+{
+    auto hash = pair_int_hash(ptr_hash(&shape), property_name.hash());
+    return m_entries[hash & (number_of_entries - 1)];
+}
+
+void KeyedPropertyLookupCache::remove_dead_entries()
+{
+    for (auto& entry : m_entries) {
+        if (entry.type == PropertyLookupCache::Entry::Type::Empty)
+            continue;
+        if ((entry.shape && cell_is_dead(entry.shape.ptr()))
+            || (entry.prototype && cell_is_dead(entry.prototype.ptr()))
+            || (entry.prototype_chain_validity && cell_is_dead(entry.prototype_chain_validity.ptr()))) {
+            entry = {};
+        }
+    }
 }
 
 void Executable::remove_dead_cells(Badge<GC::Heap>)

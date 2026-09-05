@@ -92,8 +92,10 @@ VM::VM(ErrorMessages error_messages)
     m_heap_region_base = GC::BlockAllocator::heap_region_start();
     VERIFY(m_heap_region_base != 0);
 
-    m_heap.register_sweep_callback([] {
+    m_keyed_property_lookup_cache = make<Bytecode::KeyedPropertyLookupCache>();
+    m_heap.register_sweep_callback([this] {
         Bytecode::StaticPropertyLookupCache::sweep_all();
+        m_keyed_property_lookup_cache->remove_dead_entries();
     });
 
     m_empty_string = m_heap.allocate<PrimitiveString>(Utf16String {});

@@ -1,0 +1,11 @@
+absent: undefined
+own: own
+deleted: undefined
+prototype: prototype
+prototype deleted: undefined
+form before: undefined
+form after: true
+window before: undefined
+window after: true
+document collection: 0
+style: red
