@@ -41,6 +41,7 @@ public:
     virtual bool is_top_level_traversable() const { return false; }
     virtual Optional<URL::URL> active_document_url() const = 0;
     virtual Optional<URL::Origin> active_document_origin() const = 0;
+    virtual bool active_document_is_fully_active() const = 0;
 
     WebIDL::ExceptionOr<void> navigate(NavigateParams);
 
