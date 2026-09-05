@@ -27,13 +27,6 @@ pub(super) fn routing_keys_for_input(input: &NormalizedInput) -> Vec<RoutingKey>
     keys
 }
 
-#[must_use]
-pub(super) fn input_routes_on_key(input: &NormalizedInput, required: RoutingKey) -> bool {
-    let mut routes = false;
-    for_each_routing_key(input, |key| routes |= key == required);
-    routes
-}
-
 fn for_each_routing_key(input: &NormalizedInput, mut publish: impl FnMut(RoutingKey)) {
     match input.key {
         InputKey::LocalFeature(_, feature) => for_each_feature_routing_key(feature, input.old, input.new, publish),

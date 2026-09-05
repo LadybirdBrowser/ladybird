@@ -224,7 +224,6 @@ use index::PostingKey;
 use index::RuleDispatch;
 use index::StyleAtomID;
 use index::StyleNodeFacts;
-use input_routing::input_routes_on_key;
 use input_routing::routing_keys_for_input;
 use memory::BudgetInputs;
 use memory::DeviceClass;

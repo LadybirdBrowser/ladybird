@@ -2795,6 +2795,18 @@ impl StyleEngine {
         }
 
         if retained_winners_are_current {
+            let mut changed_routing_keys = Vec::new();
+            for input in &transaction.inputs {
+                changed_routing_keys.extend(routing_keys_for_input(input));
+                if let InputKey::LocalFeature(_, LocalFeatureKey::Attribute(name)) = input.key {
+                    changed_routing_keys.extend(self.facts.attribute_name_keys(name).map(RoutingKey::AttributeName));
+                }
+            }
+            changed_routing_keys.sort_unstable();
+            changed_routing_keys.dedup();
+            let changed_key_bytes = (changed_routing_keys.capacity() * size_of::<RoutingKey>()) as u64;
+            self.memory
+                .reserve_required(MemoryCategory::BatchScratch, changed_key_bytes);
             let before = pending.len();
             let mut released_route_bytes = 0;
             let mut inexact_answer_regions = Vec::new();
@@ -2805,7 +2817,7 @@ impl StyleEngine {
                     routing.rule_of(key.route),
                     program,
                     entry,
-                    transaction,
+                    &changed_routing_keys,
                 );
                 if !keep {
                     released_route_bytes += (routed_regions.capacity() * size_of::<ImpactRegion>()) as u64;
@@ -2813,6 +2825,7 @@ impl StyleEngine {
                 }
                 keep
             });
+            self.memory.release(MemoryCategory::BatchScratch, changed_key_bytes);
             self.memory.release(MemoryCategory::BatchScratch, released_route_bytes);
             let inexact_answer_region_bytes = (inexact_answer_regions.capacity() * size_of::<ImpactRegion>()) as u64;
             self.memory
@@ -3305,7 +3318,7 @@ impl StyleEngine {
         rule: RuleID,
         program: SelectorProgramID,
         entry_index: u32,
-        transaction: &StyleTransaction,
+        changed_routing_keys: &[RoutingKey],
     ) -> bool {
         let winner_program_version = self.program.version();
         if !matches!(
@@ -3325,6 +3338,80 @@ impl StyleEngine {
         let dispatch_key = compiled.dispatch_key(entry);
         if !dispatch_key.has_selector_posting() {
             return false;
+        }
+        // The proof has a cheap half and an expensive half. The cheap half compares the changed
+        // rule against the exact retained priority; only when it can not win is the expensive half
+        // needed, which walks the winner's transpose sites to prove the transaction does not touch
+        // that winner. Ask the cheap question first.
+        let retained_winner_program = |previous: PropertyWinner, property| {
+            let WinnerSource::Rule(winner_rule) = previous.source else {
+                return None;
+            };
+            if !self
+                .program
+                .declared_properties_of(winner_rule)
+                .iter()
+                .any(|declaration| declaration.property == property)
+            {
+                return None;
+            }
+            let program = self.program.rule_version(winner_rule).selector_program?;
+            let compiled = self.programs.get(program);
+            if compiled.can_leave_its_scope() || compiled.entries().iter().any(|entry| entry.scope_root.is_some()) {
+                return None;
+            }
+
+            Some(program)
+        };
+        let retained_winner_ignores_transaction = |program: SelectorProgramID| {
+            let compiled = self.programs.get(program);
+            for (entry_index, entry) in compiled.entries().iter().enumerate() {
+                if entry.pseudo_element.is_some() {
+                    continue;
+                }
+                let mut reads_changed_input = false;
+                compiled.collect_transpose_entry_points(entry_index, |site| {
+                    reads_changed_input |= changed_routing_keys.binary_search(&site.key).is_ok();
+                });
+                if reads_changed_input {
+                    return false;
+                }
+            }
+            true
+        };
+        let state_is_unaffected = |state| {
+            self.program.declared_properties_of(rule).iter().all(|declaration| {
+                let Some(previous) = self.winner_groups.winner_in_state(state, declaration.property) else {
+                    return false;
+                };
+                let changed_priority = self.cascade_priority_of(
+                    rule,
+                    TreeScopeID::DOCUMENT,
+                    entry.specificity,
+                    u32::MAX,
+                    declaration.important,
+                );
+                let Some(previous_program) = retained_winner_program(previous, declaration.property) else {
+                    return false;
+                };
+                changed_priority <= previous.priority && retained_winner_ignores_transaction(previous_program)
+            })
+        };
+
+        // A single affected candidate disproves the route-wide claim. Ask before collecting
+        // every distinct winner state, since a failed proof needs none of that collection.
+        if let Lookup::Known(posting) = self.facts.postings().lookup(dispatch_key)
+            && let Some(node) = posting.candidates().next()
+        {
+            let Lookup::Known(&(state, _)) = self
+                .winner_groups
+                .lookup(WinnerGroupKey::current(node, winner_program_version))
+            else {
+                return false;
+            };
+            if !state_is_unaffected(state) {
+                return false;
+            }
         }
         // Rules dispatched under one key all walk the same posting, and the winner column is
         // stable for the routing pass, so the distinct-state collection is shared through a
@@ -3392,82 +3479,7 @@ impl StyleEngine {
         }
         let states = states_with_moved_features.as_deref().unwrap_or(posting_states.as_ref());
 
-        // The proof has a cheap half and an expensive half. The cheap half compares the changed
-        // rule against the exact retained priority; only when it can not win is the expensive half
-        // needed, which walks the winner's transpose sites to prove the transaction does not touch
-        // that winner. Ask the cheap question first.
-        let retained_winner_program = |previous: PropertyWinner, property| {
-            let WinnerSource::Rule(winner_rule) = previous.source else {
-                return None;
-            };
-            if !self
-                .program
-                .declared_properties_of(winner_rule)
-                .iter()
-                .any(|declaration| declaration.property == property)
-            {
-                return None;
-            }
-            let program = self.program.rule_version(winner_rule).selector_program?;
-            let compiled = self.programs.get(program);
-            if compiled.can_leave_its_scope() || compiled.entries().iter().any(|entry| entry.scope_root.is_some()) {
-                return None;
-            }
-
-            Some(program)
-        };
-        let retained_winner_ignores_transaction = |program: SelectorProgramID| {
-            let compiled = self.programs.get(program);
-            for (entry_index, entry) in compiled.entries().iter().enumerate() {
-                if entry.pseudo_element.is_some() {
-                    continue;
-                }
-                let mut reads_changed_input = false;
-                compiled.collect_transpose_entry_points(entry_index, |site| {
-                    reads_changed_input |= self.transaction_changes_routing_key(transaction, site.key);
-                });
-                if reads_changed_input {
-                    return false;
-                }
-            }
-            true
-        };
-        states.iter().all(|&state| {
-            self.program.declared_properties_of(rule).iter().all(|declaration| {
-                let Some(previous) = self.winner_groups.winner_in_state(state, declaration.property) else {
-                    return false;
-                };
-                let changed_priority = self.cascade_priority_of(
-                    rule,
-                    TreeScopeID::DOCUMENT,
-                    entry.specificity,
-                    u32::MAX,
-                    declaration.important,
-                );
-                let Some(previous_program) = retained_winner_program(previous, declaration.property) else {
-                    return false;
-                };
-                changed_priority <= previous.priority && retained_winner_ignores_transaction(previous_program)
-            })
-        })
-    }
-
-    #[must_use]
-    pub(super) fn transaction_changes_routing_key(&self, transaction: &StyleTransaction, key: RoutingKey) -> bool {
-        transaction.inputs.iter().any(|input| {
-            if input_routes_on_key(input, key) {
-                return true;
-            }
-            let InputKey::LocalFeature(_, LocalFeatureKey::Attribute(changed)) = input.key else {
-                return false;
-            };
-            let RoutingKey::AttributeName(required) = key else {
-                return false;
-            };
-            self.facts
-                .attribute_name_keys(changed)
-                .any(|candidate| candidate == required)
-        })
+        states.iter().copied().all(state_is_unaffected)
     }
 
     /// Finish local routes after all normalized inputs have contributed their regions.
