@@ -9,6 +9,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/History.h>
+#include <LibWeb/HTML/HistoryExecutor.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -99,7 +100,7 @@ WebIDL::ExceptionOr<void> History::delta_traverse(WebIDL::Long delta)
 
     // 4. Traverse the history by a delta given document's node navigable's traversable navigable, delta, and with
     //    sourceDocument set to document.
-    document.navigable()->traversable_navigable()->traverse_the_history_by_delta(delta, document);
+    document.page().history_executor().traverse_the_history_by_delta(*document.navigable()->traversable_navigable(), delta, document);
 
     return {};
 }

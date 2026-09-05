@@ -44,8 +44,6 @@ public:
 
     void run_ui_history_step_unload_cancelation_job(CrossProcessId operation_id, SessionHistoryEntryDescriptor target_entry, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult, UnloadPromptShown)>>);
 
-    void finalize_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement, Optional<SessionHistoryEntryPersistedState> previous_entry_persisted_state);
-    void traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document = {});
     void reset_session_history_for_testing();
 
     enum class PromptToUnload : bool {

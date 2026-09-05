@@ -3542,12 +3542,10 @@ void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandling
     active_document()->scroll_to_the_fragment();
 
     // 16. Let traversable be navigable's traversable navigable.
-    auto traversable = traversable_navigable();
-
     // 17. Append the following session history synchronous navigation steps involving navigable to traversable:
     // 1. Finalize a same-document navigation given traversable, navigable, historyEntry, entryToReplace,
     //    historyHandling, and userInvolvement.
-    traversable->finalize_same_document_navigation(*this, history_entry, entry_to_replace, history_handling, user_involvement, move(previous_entry_persisted_state));
+    page().history_executor().finalize_same_document_navigation(*this, history_entry, entry_to_replace, history_handling, user_involvement, move(previous_entry_persisted_state));
 
     // FIXME: Invoke WebDriver BiDi fragment navigated with navigable and a new WebDriver BiDi navigation status whose
     //        id is navigationId, url is url, and status is "complete".
@@ -4229,12 +4227,10 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     relevant_global_object.navigation()->update_the_navigation_api_entries_for_a_same_document_navigation(new_entry, navigation_type);
 
     // 12. Let traversable be navigable's traversable navigable.
-    auto traversable = navigable->traversable_navigable();
-
     // 13. Append the following session history synchronous navigation steps involving navigable to traversable:
     // 1. Finalize a same-document navigation given traversable, navigable, newEntry, entryToReplace,
     //    historyHandling, and "none".
-    traversable->finalize_same_document_navigation(*navigable, new_entry, entry_to_replace, history_handling, UserNavigationInvolvement::None, move(previous_entry_persisted_state));
+    navigable->page().history_executor().finalize_same_document_navigation(*navigable, new_entry, entry_to_replace, history_handling, UserNavigationInvolvement::None, move(previous_entry_persisted_state));
 
     // FIXME: Invoke WebDriver BiDi history updated with navigable.
 }

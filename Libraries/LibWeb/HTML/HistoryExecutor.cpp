@@ -13,6 +13,7 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/NavigationParamsDescriptor.h>
+#include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SourceSnapshotParams.h>
@@ -165,6 +166,75 @@ void HistoryExecutor::complete_ui_history_operation(CrossProcessId operation_id,
         operation->on_apply_complete->function()(result);
     if (operation->on_complete)
         operation->on_complete->function()(result);
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
+void HistoryExecutor::traverse_the_history_by_delta(Navigable& traversable, int delta, GC::Ptr<DOM::Document> source_document)
+{
+    // 1. Let sourceSnapshotParams and initiatorToCheck be null.
+    GC::Ptr<SourceSnapshotParams> source_snapshot_params = nullptr;
+    GC::Ptr<LocalNavigable> initiator_to_check = nullptr;
+
+    // 2. Let userInvolvement be "browser UI".
+    UserNavigationInvolvement user_involvement = UserNavigationInvolvement::BrowserUI;
+
+    // 3. If sourceDocument is given, then:
+    if (source_document) {
+        // 1. Set sourceSnapshotParams to the result of snapshotting source snapshot params given sourceDocument.
+        source_snapshot_params = snapshot_source_snapshot_params(source_document);
+
+        // 2. Set initiatorToCheck to sourceDocument's node navigable.
+        initiator_to_check = source_document->navigable();
+
+        // 3. Set userInvolvement to "none".
+        user_involvement = UserNavigationInvolvement::None;
+    }
+
+    // 4. Append the following session history traversal steps to traversable:
+    request_history_operation(
+        TraverseByDeltaHistoryOperationParameters {
+            .traversable_id = traversable.id(),
+            .delta = delta,
+            .initiator_to_check = initiator_to_check ? Optional<CrossProcessId> { initiator_to_check->id() } : OptionalNone {},
+            .initiator_source_snapshot = source_snapshot_params
+                ? Optional<Web::InitiatorSourceSnapshot> { { .sandboxing_flags = source_snapshot_params->sandboxing_flags, .has_transient_activation = source_snapshot_params->has_transient_activation } }
+                : OptionalNone {},
+            .user_involvement = user_involvement,
+        },
+        {
+            .source_snapshot_params = source_snapshot_params,
+            .serialized_source_snapshot_params = source_snapshot_params ? Optional<NavigationSourceSnapshot> { create_navigation_source_snapshot(*source_snapshot_params) } : Optional<NavigationSourceSnapshot> {},
+        });
+}
+
+void HistoryExecutor::finalize_same_document_navigation(GC::Ref<LocalNavigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, Optional<SessionHistoryEntryPersistedState> previous_entry_persisted_state)
+{
+    if (target_navigable->has_been_destroyed())
+        return;
+
+    // 2. If targetNavigable's active session history entry is not targetEntry, then return.
+    if (target_navigable->active_session_history_entry() != target_entry)
+        return;
+
+    Optional<SessionHistoryEntryIdentity> entry_to_replace_identity;
+    if (entry_to_replace)
+        entry_to_replace_identity = session_history_entry_identity(*entry_to_replace);
+
+    auto parameters = FinalizeSameDocumentNavigationHistoryOperationParameters {
+        .navigable_id = target_navigable->id(),
+        .target_entry = create_same_document_navigation_entry(target_entry),
+        .entry_to_replace = move(entry_to_replace_identity),
+        .previous_entry_persisted_state = move(previous_entry_persisted_state),
+        .history_handling = history_handling,
+        .user_involvement = user_involvement,
+    };
+
+    request_history_operation(
+        move(parameters),
+        {
+            .local_target_navigable_id = target_navigable->id(),
+            .local_target_entry = target_entry,
+        });
 }
 
 // Fire beforeunload for the documents hosted by this process.

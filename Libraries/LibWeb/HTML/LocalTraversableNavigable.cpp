@@ -208,45 +208,6 @@ void LocalTraversableNavigable::reset_session_history_for_testing()
     active_window()->navigation()->initialize_the_navigation_api_entries_for_reconstructed_session_history(entries_for_navigation_api, active_entry);
 }
 
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
-void LocalTraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document)
-{
-    // 1. Let sourceSnapshotParams and initiatorToCheck be null.
-    GC::Ptr<SourceSnapshotParams> source_snapshot_params = nullptr;
-    GC::Ptr<LocalNavigable> initiator_to_check = nullptr;
-
-    // 2. Let userInvolvement be "browser UI".
-    UserNavigationInvolvement user_involvement = UserNavigationInvolvement::BrowserUI;
-
-    // 3. If sourceDocument is given, then:
-    if (source_document) {
-        // 1. Set sourceSnapshotParams to the result of snapshotting source snapshot params given sourceDocument.
-        source_snapshot_params = snapshot_source_snapshot_params(source_document);
-
-        // 2. Set initiatorToCheck to sourceDocument's node navigable.
-        initiator_to_check = source_document->navigable();
-
-        // 3. Set userInvolvement to "none".
-        user_involvement = UserNavigationInvolvement::None;
-    }
-
-    // 4. Append the following session history traversal steps to traversable:
-    page().history_executor().request_history_operation(
-        TraverseByDeltaHistoryOperationParameters {
-            .traversable_id = id(),
-            .delta = delta,
-            .initiator_to_check = initiator_to_check ? Optional<CrossProcessId> { initiator_to_check->id() } : OptionalNone {},
-            .initiator_source_snapshot = source_snapshot_params
-                ? Optional<Web::InitiatorSourceSnapshot> { { .sandboxing_flags = source_snapshot_params->sandboxing_flags, .has_transient_activation = source_snapshot_params->has_transient_activation } }
-                : OptionalNone {},
-            .user_involvement = user_involvement,
-        },
-        {
-            .source_snapshot_params = source_snapshot_params,
-            .serialized_source_snapshot_params = source_snapshot_params ? Optional<NavigationSourceSnapshot> { create_navigation_source_snapshot(*source_snapshot_params) } : Optional<NavigationSourceSnapshot> {},
-        });
-}
-
 void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(CrossProcessId operation_id, SessionHistoryEntryDescriptor target_entry_descriptor, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement user_involvement, GC::Ref<GC::Function<void(HistoryStepResult, UnloadPromptShown)>> on_complete)
 {
     (void)operation_id;
@@ -293,36 +254,6 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(Cross
             }
             VERIFY_NOT_REACHED();
         }));
-}
-
-void LocalTraversableNavigable::finalize_same_document_navigation(GC::Ref<LocalNavigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, Optional<SessionHistoryEntryPersistedState> previous_entry_persisted_state)
-{
-    if (target_navigable->has_been_destroyed())
-        return;
-
-    // 2. If targetNavigable's active session history entry is not targetEntry, then return.
-    if (target_navigable->active_session_history_entry() != target_entry)
-        return;
-
-    Optional<SessionHistoryEntryIdentity> entry_to_replace_identity;
-    if (entry_to_replace)
-        entry_to_replace_identity = session_history_entry_identity(*entry_to_replace);
-
-    auto parameters = FinalizeSameDocumentNavigationHistoryOperationParameters {
-        .navigable_id = target_navigable->id(),
-        .target_entry = create_same_document_navigation_entry(target_entry),
-        .entry_to_replace = move(entry_to_replace_identity),
-        .previous_entry_persisted_state = move(previous_entry_persisted_state),
-        .history_handling = history_handling,
-        .user_involvement = user_involvement,
-    };
-
-    page().history_executor().request_history_operation(
-        move(parameters),
-        {
-            .local_target_navigable_id = target_navigable->id(),
-            .local_target_entry = target_entry,
-        });
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#close-a-top-level-traversable
