@@ -34,7 +34,7 @@ impl<'arena> LayoutPass<'arena> {
         self.arena().data(node)
     }
 
-    pub(crate) fn text_content(&self, node: Node) -> &'arena super::layout_node_arena::TextContent {
+    pub(crate) fn text_content(&self, node: Node) -> &'arena super::rendered_text::TextContent {
         self.arena
             .text_content(node)
             .expect("text node content must be synced to the arena before layout")

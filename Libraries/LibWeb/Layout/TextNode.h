@@ -13,7 +13,6 @@
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <LibGfx/TextLayout.h>
-#include <LibUnicode/Segmenter.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Layout/Box.h>
@@ -25,11 +24,6 @@ class TextSliceNode;
 
 class TextNode : public Node {
 public:
-    enum class RenderedTextBoundary {
-        Start,
-        End,
-    };
-
     TextNode(DOM::Document&, DOM::Text&);
     virtual ~TextNode() override;
 
@@ -42,18 +36,12 @@ public:
 
     virtual Utf16String const& text() const { return dom_node().data(); }
 
-    Utf16String const& text_for_rendering() const;
-    // When an offset falls inside a length-changing span, the boundary selects its DOM start or end.
-    size_t dom_offset_for_rendered_text_offset(size_t, RenderedTextBoundary) const;
-    // When an offset falls inside a length-changing span, the boundary selects its rendered start or end.
-    size_t rendered_text_offset_for_dom_offset(size_t, RenderedTextBoundary) const;
-
+    // Borrows the arena's rendered text until this node's content is republished or freed.
+    Utf16View text_for_rendering() const;
     void invalidate_text_for_rendering();
 
     void enroll_for_arena_text_content_sync() const;
-    bool sync_text_content_to_arena() const;
-
-    Unicode::Segmenter& grapheme_segmenter() const;
+    void sync_text_content_to_arena() const;
 
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes) const;
 
@@ -69,14 +57,7 @@ protected:
 private:
     virtual bool is_text_node() const final { return true; }
 
-    // Length-preserving regions have an implicit one-to-one mapping. Each edit records only a
-    // source span whose rendered length differs, keeping the common identity mapping allocation-free.
-    struct RenderedTextEdit {
-        size_t dom_start_offset { 0 };
-        size_t dom_length_in_code_units { 0 };
-        size_t rendered_start_offset { 0 };
-        size_t rendered_length_in_code_units { 0 };
-    };
+    using RenderedTextEdit = RustFFI::RenderedTextEdit;
 
     struct TextForRenderingCacheKey {
         CSS::TextTransform text_transform { CSS::TextTransform::None };
@@ -89,26 +70,17 @@ private:
         bool operator==(TextForRenderingCacheKey const&) const = default;
     };
 
-    struct TextDependentCache {
-        TextForRenderingCacheKey key;
-        Utf16String text_for_rendering;
-        Vector<RenderedTextEdit> text_for_rendering_edits;
-        mutable OwnPtr<Unicode::Segmenter> grapheme_segmenter;
-    };
-
     struct TextForRendering {
         Utf16String text;
         Vector<RenderedTextEdit> edits;
     };
 
     static TextForRendering apply_text_transform(Utf16String const&, CSS::TextTransform, Optional<Utf16View> const& locale);
-    static size_t rendered_text_offset_for_dom_offset(ReadonlySpan<RenderedTextEdit>, size_t dom_base_offset, size_t dom_offset, RenderedTextBoundary);
     TextForRenderingCacheKey create_text_for_rendering_cache_key() const;
     TextForRendering compute_text_for_rendering(TextForRenderingCacheKey const&) const;
-    TextDependentCache const& ensure_text_dependent_cache() const;
+    void ensure_text_content() const;
 
-    mutable Optional<TextDependentCache> m_text_dependent_cache;
-    mutable bool m_arena_text_content_in_sync { false };
+    mutable Optional<TextForRenderingCacheKey> m_text_for_rendering_cache_key;
     mutable bool m_enrolled_for_arena_text_content_sync { false };
 };
 

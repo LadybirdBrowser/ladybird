@@ -7,6 +7,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibUnicode/CharacterTypes.h>
+#include <LibUnicode/Segmenter.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/Scripting/Environments.h>

@@ -98,8 +98,7 @@ void Viewport::update_text_blocks()
                 CSS::WhiteSpaceCollapse::Collapse,
                 CSS::WhiteSpaceCollapse::PreserveBreaks);
             auto const dom_start_offset = text_node->dom_start_offset();
-            auto const& text = text_node->text_for_rendering();
-            auto const text_view = text.utf16_view();
+            auto const text_view = text_node->text_for_rendering();
 
             for (size_t i = 0; i < text_view.length_in_code_units(); ++i) {
                 auto const code_unit = text_view.code_unit_at(i);

@@ -3394,13 +3394,15 @@ fn is_tabular_container(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
 }
 
 fn is_ignorable_whitespace(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
-    let data = host.data(node);
-    if node_kind_is_text(data.kind.get())
+    if node_kind_is_text(host.data(node).kind.get())
         && unsafe { (host.callbacks.text_is_ascii_whitespace)(host.callbacks.context, host.shell(node)) }
     {
         return true;
     }
 
+    // The text callback can publish a new rendered snapshot. Borrow node data
+    // again after it returns instead of retaining a reader across publication.
+    let data = host.data(node);
     if node_has_flag(data, NodeFlag::Anonymous)
         && node_kind_is_block_container(data.kind.get())
         && node_has_flag(data, NodeFlag::ChildrenAreInline)

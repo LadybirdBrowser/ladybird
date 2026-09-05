@@ -1,0 +1,6 @@
+before: SSS, first DOM character: 40
+same rendered text: SSS, first DOM character: 20
+expanded second character: 40
+first-letter: SSELLO, first DOM character: 40
+new first-letter: SSSELLO, first DOM character: 20
+expanded remainder character: 40
