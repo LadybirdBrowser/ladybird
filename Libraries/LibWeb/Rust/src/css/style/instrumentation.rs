@@ -285,6 +285,7 @@ define_counters! {
     TransitionProofOperatorOrContinuation => "transitionProofOperatorOrContinuation",
     TransitionProofWinnerGap => "transitionProofWinnerGap",
     TransitionProofPriorityWin => "transitionProofPriorityWin",
+    SharedStyleRecordHits => "sharedStyleRecordHits",
 }
 
 /// The counter set for one document.

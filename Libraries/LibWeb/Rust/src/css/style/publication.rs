@@ -27,6 +27,111 @@ pub(super) struct ExactCascadeContext {
 }
 
 impl StyleEngine {
+    fn shared_style_record_key(
+        &self,
+        node: StyleNodeID,
+        parent_record: u64,
+        environment: u64,
+        shape: [u64; 4],
+    ) -> Option<computed::SharedStyleRecordKey> {
+        if !self.has_no_element_declarations(node) || self.node_declares_custom_properties(node) {
+            return None;
+        }
+        let cascade_input = self.published_match_answers.lookup(node)?.cascade_input?;
+        Some(computed::SharedStyleRecordKey {
+            cascade_input: cascade_input.0,
+            tree_scope: self.tree.tree_scope(node).0,
+            inherited_groups: self
+                .computed_group_sets
+                .inherited_groups_for_shared_style(parent_record)?,
+            environment,
+            shape,
+        })
+    }
+
+    pub(crate) fn lookup_shared_style_record(
+        &mut self,
+        node: StyleNodeID,
+        parent_record: u64,
+        environment: u64,
+        shape: [u64; 4],
+    ) -> Option<u64> {
+        let key = self.shared_style_record_key(node, parent_record, environment, shape)?;
+        let shared = self.computed_group_sets.shared_style_record(key)?;
+        let inherited_group_count = self
+            .computed_group_sets
+            .inherited_group_count_for_shared_style(shared.record)?;
+        self.published_match_answers.mark_observed(node);
+        self.prepare_shared_exact_cascade_state(node);
+        let publication = self.assign_shared_style_record(
+            computed::ComputedStyleTarget::new(node, u8::MAX),
+            shared.record,
+            inherited_group_count,
+            shared.inherited_group_swap_eligible,
+        );
+        let record = publication.style_record_identity.raw();
+        self.computed_group_sets.remember_shared_computation_context(
+            node,
+            computed::SharedComputationContext {
+                parent_record,
+                record,
+                key,
+            },
+        );
+        self.settle_computed_memory();
+        self.counters.bump(Counter::SharedStyleRecordHits);
+        Some(record)
+    }
+
+    pub(crate) fn take_shared_computation_context(
+        &mut self,
+        node: StyleNodeID,
+        parent_record: u64,
+        environment: u64,
+        shape: [u64; 4],
+        pseudo_elements: u64,
+    ) -> Option<u64> {
+        let context = self.computed_group_sets.take_shared_computation_context(node)?;
+        if context.key.environment != environment
+            || context.key.tree_scope != self.tree.tree_scope(node).0
+            || context.key.shape[..3] != shape[..3]
+            || self.computed_group_sets.assigned_style_record(node)?.raw() != context.record
+        {
+            return None;
+        }
+        let previous_inherited = self
+            .computed_group_sets
+            .inherited_groups_for_shared_style(context.parent_record)?;
+        let current_inherited = self
+            .computed_group_sets
+            .inherited_groups_for_shared_style(parent_record)?;
+        if previous_inherited != current_inherited
+            || self
+                .computed_group_sets
+                .style_record_view(context.record)?
+                .pseudo_element_styles
+                != pseudo_elements
+        {
+            return None;
+        }
+        Some(context.record)
+    }
+
+    pub(crate) fn remember_shared_style_record(
+        &mut self,
+        node: StyleNodeID,
+        parent_record: u64,
+        environment: u64,
+        shape: [u64; 4],
+        record: u64,
+    ) {
+        let Some(key) = self.shared_style_record_key(node, parent_record, environment, shape) else {
+            return;
+        };
+        self.computed_group_sets.remember_shared_style_record(node, key, record);
+        self.settle_computed_memory();
+    }
+
     pub(super) fn retained_store_supports_property(target: computed::ComputedStyleTarget, property: u16) -> bool {
         if property > crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID
             || (crate::css::property_metadata::property_id::ANIMATION_COMPOSITION

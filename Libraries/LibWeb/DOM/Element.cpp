@@ -2256,7 +2256,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     if (old_computed_values && old_computed_values->animated_properties()) {
         old_state.snapshot();
     }
-    RefPtr<CSS::ComputedValues const> new_style;
+    RefPtr<CSS::ComputedValues const> materialized_style;
     // These flags include reads by the previous pseudo styles. Recomputing just the element
     // would otherwise lose those dependencies when the flags below are reset.
     bool const had_style_context_dependencies = m_style_uses_attr_css_function
@@ -2279,7 +2279,18 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     auto style_sharing_mode = mode == StyleRecomputeMode::Verification
         ? CSS::StyleComputer::StyleSharingMode::Disabled
         : CSS::StyleComputer::StyleSharingMode::Enabled;
-    new_style = style_computer.materialize_style_record({ *this }, did_change_custom_properties, reusable_style_engine_matches, style_record_delta, style_sharing_mode);
+    auto shared_record = mode == StyleRecomputeMode::Verification
+        ? CSS::StyleRecordID {}
+        : style_computer.try_share_computed_style_record(*this);
+    auto shared_style = style_computer.computed_style_record_view(shared_record);
+    if (shared_style) {
+        style_record_delta.new_style_record = shared_record;
+    } else {
+        materialized_style = style_computer.materialize_style_record({ *this }, did_change_custom_properties, reusable_style_engine_matches, style_record_delta, style_sharing_mode);
+        if (mode != StyleRecomputeMode::Verification)
+            style_computer.remember_shared_computed_style_record(*this, style_record_delta.new_style_record);
+    }
+    auto const* new_style = shared_style ? &*shared_style : materialized_style.ptr();
     if (mode == StyleRecomputeMode::Verification)
         did_change_custom_properties = false;
     style_record_delta.old_style_record = old_style_record;

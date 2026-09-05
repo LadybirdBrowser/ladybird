@@ -118,6 +118,7 @@ pub mod record_replay {
         pub fn write_u32(&mut self, _value: u32) {}
         pub fn write_u32_slice(&mut self, _value: &[u32]) {}
         pub fn write_u64(&mut self, _value: u64) {}
+        pub fn write_u64_slice(&mut self, _value: &[u64]) {}
         pub fn write_native_u16(&mut self, _value: u16) {}
         pub fn write_native_u32(&mut self, _value: u32) {}
         pub fn write_raw_slice<T: RawRecord>(&mut self, _values: &[T]) {}

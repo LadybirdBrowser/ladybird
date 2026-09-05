@@ -356,6 +356,13 @@ impl PayloadWriter {
         }
     }
 
+    pub fn write_u64_slice(&mut self, values: &[u64]) {
+        self.write_length(values.len());
+        for value in values {
+            self.write_u64(*value);
+        }
+    }
+
     /// Writes `values` as their raw in-memory bytes, padded so the array's offset within the
     /// payload is a multiple of the row alignment. Payloads start eight-aligned in the file, so a
     /// replay over a page-aligned mapping reads the array back in place.
@@ -686,6 +693,16 @@ impl<'a> PayloadReader<'a> {
             .collect())
     }
 
+    pub fn read_u64_vec(&mut self) -> Result<Vec<u64>, Error> {
+        let bytes = self.read_fixed_width_slice(size_of::<u64>())?;
+        Ok(bytes
+            .as_chunks::<{ size_of::<u64>() }>()
+            .0
+            .iter()
+            .map(|&chunk| u64::from_le_bytes(chunk))
+            .collect())
+    }
+
     /// Reads a raw row array in place, without copying. The rows are only aligned when this
     /// payload sits in a page-aligned mapping of the log, which the alignment check enforces.
     pub fn read_raw_slice<T: RawRecord>(&mut self) -> Result<&'a [T], Error> {
@@ -761,6 +778,7 @@ mod tests {
         payload.write_bytes(b"StyleEngine");
         payload.write_u16_slice(&[1, 2, 3]);
         payload.write_u32_slice(&[4, 5, 6]);
+        payload.write_u64_slice(&[0, 0x1234_5678_9abc_def0, u64::MAX]);
         payload.write_length(2);
         payload.write_u64(0x0102_0304_0506_0708);
         payload.write_u64(0x1112_1314_1516_1718);
@@ -779,6 +797,10 @@ mod tests {
         assert_eq!(event.payload.read_bytes().unwrap(), b"StyleEngine");
         assert_eq!(event.payload.read_u16_vec().unwrap(), [1, 2, 3]);
         assert_eq!(event.payload.read_u32_vec().unwrap(), [4, 5, 6]);
+        assert_eq!(
+            event.payload.read_u64_vec().unwrap(),
+            [0, 0x1234_5678_9abc_def0, u64::MAX]
+        );
         assert_eq!(
             event.payload.read_fixed_width_slice(size_of::<u64>()).unwrap(),
             [

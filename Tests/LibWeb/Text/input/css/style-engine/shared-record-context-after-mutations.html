@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="rules">
+    #root { color: rgb(10, 20, 30); font-size: 16px; }
+    .item { background-color: rgb(40, 50, 60); }
+    .changed { background-color: currentcolor; }
+    .item::before { content: "before"; color: inherit; }
+</style>
+<div id="root"></div>
+<script>
+    test(() => {
+        const nodes = Array.from({ length: 32 }, () => {
+            const node = document.createElement("div");
+            node.className = "item";
+            root.append(node);
+            return node;
+        });
+        internals.updateStyle();
+        let mismatches = 0;
+        const check = (node, background, color, size, content = '"before"') => {
+            const style = getComputedStyle(node);
+            const pseudo = getComputedStyle(node, "::before");
+            if (style.backgroundColor !== background || style.color !== color
+                || style.fontSize !== size || pseudo.color !== color || pseudo.content !== content)
+                ++mismatches;
+        };
+        for (const node of nodes)
+            check(node, "rgb(40, 50, 60)", "rgb(10, 20, 30)", "16px");
+        for (const node of nodes) {
+            node.classList.add("changed");
+            check(node, "rgb(10, 20, 30)", "rgb(10, 20, 30)", "16px");
+        }
+        root.style.color = "rgb(70, 80, 90)";
+        root.style.fontSize = "21px";
+        for (const node of nodes)
+            check(node, "rgb(70, 80, 90)", "rgb(70, 80, 90)", "21px");
+        rules.sheet.insertRule('.item::before { content: "after"; color: inherit; }', rules.sheet.cssRules.length);
+        for (const node of nodes)
+            check(node, "rgb(70, 80, 90)", "rgb(70, 80, 90)", "21px", '"after"');
+        for (const node of nodes) {
+            node.classList.remove("changed");
+            node.style.backgroundColor = "rgb(100, 110, 120)";
+            check(node, "rgb(100, 110, 120)", "rgb(70, 80, 90)", "21px", '"after"');
+        }
+        println(`mismatches: ${mismatches}`);
+    });
+</script>
