@@ -542,6 +542,7 @@ fn boundary_type_names(kind: &str) -> Result<(&'static str, &'static str, &'stat
         "usize_u64" => Ok(("usize", "size_t", "write_u64", "read_u64")),
         "u16_slice" => Ok(("*const u16", "ReadonlySpan<u16>", "write_u16_slice", "read_u16_vec")),
         "u32_slice" => Ok(("*const u32", "ReadonlySpan<u32>", "write_u32_slice", "read_u32_vec")),
+        "u64_slice" => Ok(("*const u64", "ReadonlySpan<u64>", "write_u64_slice", "read_u64_vec")),
         "style_atom_slice" => Ok((
             "*const u32",
             "ReadonlySpan<StyleAtomID>",

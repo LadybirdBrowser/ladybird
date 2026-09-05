@@ -3777,8 +3777,10 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
     // container unit or query asks about its container, `attr()` about its attributes, a
     // tree-counting function about its place among its siblings, and `if()` about the environment.
     // The monospace font-size recascade reads the whole ancestor chain rather than the inherited
-    // context. `var()` is not among them: what it resolves against is the cascaded custom
-    // properties, which the blocks in the record decide, and the inherited environment, which the
+    // context, and unfixed random values read the element's random cache. Image URLs also need their
+    // declaration's resource context, which retained winner value identities do not distinguish.
+    // `var()` is not among them: what it resolves against is the cascaded custom properties, which
+    // the blocks in the record decide, and the inherited environment, which the
     // parent in the record decides. Neither is an animation or transition: it carries state on the
     // element itself, and its values are published by the animation refresh rather than derived here.
     bool const computation_read_only_the_record = !element.style_uses_attr_css_function()
@@ -3788,7 +3790,7 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
         && !element.style_depends_on_viewport_metrics()
         && !element.style_depends_on_size_container_query()
         && !element.style_depends_on_style_container_query()
-        && !sharing.cascade_font_family_is_monospace;
+        && !sharing.computation_reads_unkeyed_context;
     // The flags are cleared for the next computation, so the record is what has to answer whether
     // that computation can be skipped.
     if (sharing.style_input_recorded) {
@@ -4125,6 +4127,98 @@ static Array<u64, 3> element_shape_style_sharing_key(DOM::AbstractElement abstra
     return { shape_bits, parent_display_bits, static_cast<u64>(element.local_name() == HTML::TagNames::th) };
 }
 
+struct SharedStyleRecordContext {
+    StyleRecordID parent_record;
+    Array<u64, 4> shape;
+};
+
+static Optional<SharedStyleRecordContext> shared_style_record_context(StyleComputer const& style_computer, DOM::Element& element)
+{
+    if (element.is_document_element()
+        || element.associated_shadow_host_pseudo_element().has_value()
+        || element.has_relevant_animations()
+        || element.has_css_defined_animations()
+        || !element.property_ids_with_existing_transitions({}).is_empty()
+        || !element.property_ids_with_matching_transition_property_entry({}).is_empty()
+        || element.custom_property_data({}))
+        return {};
+    DOM::AbstractElement abstract_element { element };
+    auto parent = abstract_element.element_to_inherit_style_from();
+    if (!parent.has_value() || inheritable_custom_property_data(*parent))
+        return {};
+    auto parent_record = parent->style_record_identity();
+    auto parent_style = style_computer.style_engine().style_record_view(parent_record);
+    if (!parent_style.present || parent_style.animated_overlay)
+        return {};
+    auto previous_style = style_computer.style_engine().style_record_view(element.style_record_identity());
+    if (previous_style.animated_overlay)
+        return {};
+    auto const* parent_box = static_cast<ComputedValuesFFI::BoxValues const*>(parent_style.payloads[to_underlying(StyleGroupIndex::BoxValues)]);
+    auto shape = element_shape_style_sharing_key(abstract_element, display_from_ffi_display(parent_box->display));
+    u64 previous_writing_mode = 0;
+    if (previous_style.present) {
+        auto const* inherited_box = static_cast<ComputedValuesFFI::InheritedBoxValues const*>(previous_style.payloads[to_underlying(StyleGroupIndex::InheritedBoxValues)]);
+        previous_writing_mode = inherited_box->writing_mode + 1;
+    }
+    return SharedStyleRecordContext { parent_record, { shape[0], shape[1], shape[2], previous_writing_mode } };
+}
+
+StyleRecordID StyleComputer::try_share_computed_style_record(DOM::Element& element) const
+{
+    auto context = shared_style_record_context(*this, element);
+    if (!context.has_value() || !collect_presentational_hint_properties({ element }).is_empty())
+        return {};
+    auto record = StyleRecordID { const_cast<StyleComputer&>(*this).style_engine().lookup_shared_style_record(
+        element.style_node_id(), context->parent_record, document().style_environment_version(), context->shape) };
+    if (record.value() != 0) {
+        static bool const verify_reuse = getenv("LIBWEB_VERIFY_STYLE_INPUT_REUSE") != nullptr;
+        if (verify_reuse) {
+            DOM::AbstractElement abstract_element { element };
+            auto counters = document().style_invalidation_counters();
+            auto cascade_input = style_engine_cascade_input(abstract_element, nullptr);
+            VERIFY(cascade_input);
+            auto cascaded = compute_cascaded_values(abstract_element, *cascade_input, IncludeInlineStyle::Yes);
+            auto properties = compute_properties(abstract_element, cascaded, cascade_input->matching_pseudo_element_styles, nullptr);
+            auto derived = build_computed_values(*properties, abstract_element, element.style_scope());
+            auto shared = computed_style_record_view(record);
+            auto derived_longhands = derived->computed_longhand_values();
+            auto shared_longhands = shared->computed_longhand_values();
+            VERIFY(derived_longhands.size() == shared_longhands.size());
+            for (size_t index = 0; index < derived_longhands.size(); ++index) {
+                auto const* derived_value = static_cast<StyleValueFFI::StyleValueData const*>(derived_longhands[index]);
+                auto const* shared_value = static_cast<StyleValueFFI::StyleValueData const*>(shared_longhands[index]);
+                if (derived_value == shared_value)
+                    continue;
+                if (!derived_value || !shared_value || !StyleValueFFI::rust_style_value_equals(derived_value, shared_value)) {
+                    dbgln("early shared style differs on {} for {}", string_from_property_id(static_cast<PropertyID>(index + to_underlying(first_longhand_property_id))), element.tag_name());
+                    VERIFY_NOT_REACHED();
+                }
+            }
+            document().style_invalidation_counters() = counters;
+        }
+        // The engine retains the fixed computation context for a later partial drive.
+        element.retire_style_input_record();
+        ++document().style_invalidation_counters().element_style_shared_computations;
+    }
+    return record;
+}
+
+void StyleComputer::remember_shared_computed_style_record(DOM::Element& element, StyleRecordID style_record) const
+{
+    auto const* input = element.style_input_record();
+    if (!input || input->read_beyond_the_record
+        || input->cascade_reads_custom_properties
+        || input->style_uses_var_css_function
+        || input->style_uses_inherit_css_function
+        || input->explicitly_inherited_non_inherited_style_groups != 0)
+        return;
+    auto context = shared_style_record_context(*this, element);
+    if (!context.has_value())
+        return;
+    const_cast<StyleComputer&>(*this).style_engine().remember_shared_style_record(
+        element.style_node_id(), context->parent_record, document().style_environment_version(), context->shape, style_record);
+}
+
 static StyleInputRecord::Difference compare_style_input_records(StyleInputRecord const& previous, StyleInputRecord const& current)
 {
     auto const differing_index = [&]() -> Optional<size_t> {
@@ -4417,6 +4511,18 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                     .explicitly_inherited_non_inherited_style_groups = previous->explicitly_inherited_non_inherited_style_groups,
                 };
                 break;
+            }
+        }
+        if (sharing->may_reuse_or_publish_shared_style && !element.style_input_record() && previous_style_record.present) {
+            auto const& shape = *element_shape_key;
+            Array<u64, 4> context_shape { shape[0], shape[1], shape[2], 0 };
+            auto context_record = StyleRecordID { const_cast<StyleComputer&>(*this).style_engine().take_shared_computation_context(
+                element.style_node_id(), inheritance_parent_style_record_identity, document().style_environment_version(),
+                context_shape, cascade_input.matching_pseudo_element_styles) };
+            if (context_record.value() != 0 && context_record == previous_style_record_identity) {
+                only_declarations_changed = true;
+                previous_computation = PreviousComputation { .read_beyond_the_record = false };
+                record->computed_style_record = context_record;
             }
         }
         // The buffer the element gives up becomes the next element's, so a pass over a document
@@ -4827,7 +4933,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         sharing ? &sharing->explicitly_inherited_non_inherited_style_groups : nullptr, previous_computed_style_record,
         sharing && sharing->is_candidate ? sharing->computed_groups_to_rebuild.value_or(ComputedValues::all_style_groups) : ComputedValues::all_style_groups,
         use_retained_style_computation_selection, false, &computed_group_mask,
-        sharing ? &sharing->cascade_font_family_is_monospace : nullptr);
+        sharing ? &sharing->computation_reads_unkeyed_context : nullptr);
     if (new_style_input_record)
         new_style_input_record->bind_next_published_style = true;
     static bool const verify_computed_closure = getenv("LIBWEB_VERIFY_COMPUTED_CLOSURE") != nullptr;
@@ -4990,7 +5096,7 @@ void StyleComputer::ensure_style_metadata_tables_installed()
     (void)installed;
 }
 
-NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::AbstractElement abstract_element, CascadedProperties& cascaded_properties, u64 matching_pseudo_element_styles, u32* explicitly_inherited_non_inherited_style_groups, StyleRecordID previous_style_record, u32 initial_computed_group_mask, bool use_retained_style_computation_selection, bool stop_after_longhand_drive, u32* selected_computed_group_mask, bool* cascade_font_family_is_monospace) const
+NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::AbstractElement abstract_element, CascadedProperties& cascaded_properties, u64 matching_pseudo_element_styles, u32* explicitly_inherited_non_inherited_style_groups, StyleRecordID previous_style_record, u32 initial_computed_group_mask, bool use_retained_style_computation_selection, bool stop_after_longhand_drive, u32* selected_computed_group_mask, bool* computation_reads_unkeyed_context) const
 {
     begin_style_update();
     ScopeGuard end_style_update = [&] { this->end_style_update(); };
@@ -5063,7 +5169,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         u32* explicitly_inherited_non_inherited_style_groups;
         bool stop_after_longhand_drive;
         u32* selected_computed_group_mask;
-        bool* cascade_font_family_is_monospace;
+        bool* computation_reads_unkeyed_context;
         PreparePhaseContext prepare_phase_context;
         OwnPtr<NativeLonghandState> state;
     };
@@ -5133,7 +5239,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         .explicitly_inherited_non_inherited_style_groups = explicitly_inherited_non_inherited_style_groups,
         .stop_after_longhand_drive = stop_after_longhand_drive,
         .selected_computed_group_mask = selected_computed_group_mask,
-        .cascade_font_family_is_monospace = cascade_font_family_is_monospace,
+        .computation_reads_unkeyed_context = computation_reads_unkeyed_context,
         .prepare_phase_context = prepare_phase_context,
         .state = nullptr,
     };
@@ -5160,8 +5266,8 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
             auto computed_group_mask = computation_requirements->computed_group_mask;
             if (context.selected_computed_group_mask)
                 *context.selected_computed_group_mask = computed_group_mask;
-            if (context.cascade_font_family_is_monospace)
-                *context.cascade_font_family_is_monospace = computation_requirements->has_monospace_font_family;
+            if (context.computation_reads_unkeyed_context)
+                *context.computation_reads_unkeyed_context = computation_requirements->computation_reads_unkeyed_context;
             auto const* computed_properties_to_evaluate = computation_requirements->has_computed_property_selection
                 ? computation_requirements->computed_property_words
                 : nullptr;

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="rules">
+    .parent { color: rgb(1, 2, 3); }
+    .parent.changed { color: rgb(4, 5, 6); list-style-position: inside; }
+    .flex { display: flex; }
+    .item { display: inline; background-color: red; }
+    .item.winner { background-color: blue; }
+    .item:nth-child(even)::before { content: "even"; color: inherit; }
+    .custom .item { background-color: var(--background); }
+    .attribute .item { color: attr(data-color type(<color>)); }
+</style>
+<div id="container"></div>
+<script>
+    test(() => {
+        const parents = [];
+        for (let index = 0; index < 4; ++index) {
+            const parent = document.createElement("div");
+            parent.className = index % 2 ? "parent flex" : "parent";
+            for (let childIndex = 0; childIndex < 8; ++childIndex) {
+                const child = document.createElement("span");
+                child.className = "item winner";
+                child.dataset.color = childIndex % 2 ? "green" : "purple";
+                parent.append(child);
+            }
+            parents.push(parent);
+            container.append(parent);
+        }
+        const before = internals.styleEngineCounters();
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+        println(`early sharing used: ${after.sharedStyleRecordHits > before.sharedStyleRecordHits
+            || after.engineComputedRecordSharedHits > before.engineComputedRecordSharedHits
+            || after.engineComputedRecordCohortHits > before.engineComputedRecordCohortHits}`);
+
+        function checkStyles(label, color, background) {
+            let correct = true;
+            for (const parent of parents) {
+                for (const [index, child] of Array.from(parent.children).entries()) {
+                    const style = getComputedStyle(child);
+                    correct &&= style.color === color(index) && style.backgroundColor === background;
+                    correct &&= style.display === (parent.classList.contains("flex") ? "block" : "inline");
+                    if (index % 2)
+                        correct &&= getComputedStyle(child, "::before").color === style.color;
+                }
+            }
+            println(`${label}: ${correct}`);
+        }
+
+        checkStyles("initial context", () => "rgb(1, 2, 3)", "rgb(0, 0, 255)");
+        for (const parent of parents) {
+            parent.classList.add("changed");
+            for (const child of parent.children)
+                child.classList.remove("winner");
+        }
+        checkStyles("changed inheritance and winners", () => "rgb(4, 5, 6)", "rgb(255, 0, 0)");
+        for (const parent of parents) {
+            parent.classList.toggle("flex");
+            parent.classList.add("custom");
+            parent.style.setProperty("--background", "yellow");
+        }
+        checkStyles("custom property and box context", () => "rgb(4, 5, 6)", "rgb(255, 255, 0)");
+        for (const parent of parents) {
+            parent.classList.remove("custom");
+            parent.style.removeProperty("--background");
+            parent.classList.add("attribute");
+        }
+        checkStyles("element-dependent values", index => index % 2 ? "rgb(0, 128, 0)" : "rgb(128, 0, 128)", "rgb(255, 0, 0)");
+        for (const parent of parents)
+            parent.classList.remove("attribute");
+        rules.sheet.insertRule(".item { background-color: lime; }", rules.sheet.cssRules.length);
+        checkStyles("stylesheet revision", () => "rgb(4, 5, 6)", "rgb(0, 255, 0)");
+    });
+</script>

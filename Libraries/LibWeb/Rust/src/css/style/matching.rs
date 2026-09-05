@@ -528,6 +528,7 @@ impl StyleEngine {
     }
 
     pub(super) fn discard_published_match_answers(&mut self) {
+        self.computed_group_sets.clear_shared_style_records();
         let published = std::mem::take(&mut self.published_match_answers);
         verify_published_style_transaction(self, |verifier| {
             assert!(

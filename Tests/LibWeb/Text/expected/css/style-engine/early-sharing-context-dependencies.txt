@@ -1,0 +1,5 @@
+random computations stay element-specific: true
+random values survive inherited changes: true
+shared-random computations share: true
+fixed-random computations share: true
+image declaration contexts agree: true

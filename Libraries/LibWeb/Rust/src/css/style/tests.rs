@@ -9341,3 +9341,103 @@ fn owed_element_style_inputs_fold_into_covering_reactions() {
     engine.consume_element_style_input(node);
     assert!(engine.externally_recorded_style_input_nodes.is_empty());
 }
+
+#[test]
+fn shared_computation_context_checks_fixed_inputs_and_record_liveness() {
+    let publish = |engine: &mut StyleEngine, node, pseudo_element_styles| {
+        engine
+            .publish_computed_groups(
+                computed::ComputedStyleTarget::new(node, u8::MAX),
+                &[],
+                0,
+                0,
+                computed::ComputedMetadataInput {
+                    pseudo_element_styles,
+                    dependency_flags: 0,
+                    counter_style_environment_identity: 0,
+                    animation_overlay_identity: 0,
+                    animated_overlay: std::ptr::null(),
+                    animation_overlay_payloads: &[],
+                    longhand_table: std::ptr::null(),
+                },
+            )
+            .style_record_identity
+            .raw()
+    };
+    let (mut engine, nodes) = linear_document();
+    discard_transaction(&mut engine);
+    let parent_record = publish(&mut engine, nodes[0], 0);
+    let record = publish(&mut engine, nodes[1], 1);
+    let other_parent_record = publish(&mut engine, nodes[2], 2);
+    engine.begin_style_record_view_epoch();
+    let context = computed::SharedComputationContext {
+        parent_record,
+        record,
+        key: computed::SharedStyleRecordKey {
+            cascade_input: 1,
+            tree_scope: engine.tree.tree_scope(nodes[1]).0,
+            inherited_groups: engine
+                .computed_group_sets
+                .inherited_groups_for_shared_style(parent_record)
+                .unwrap(),
+            environment: 3,
+            shape: [4, 5, 6, 7],
+        },
+    };
+    // The earlier style's writing mode participates in sharing, but is not part of the fixed
+    // context used to admit a partial drive. A new parent with equal inherited groups is also
+    // interchangeable even when its non-inherited record differs.
+    for parent in [parent_record, other_parent_record] {
+        engine
+            .computed_group_sets
+            .remember_shared_computation_context(nodes[1], context);
+        assert_eq!(
+            engine.take_shared_computation_context(nodes[1], parent, 3, [4, 5, 6, 99], 1),
+            Some(record)
+        );
+        assert_eq!(
+            engine.take_shared_computation_context(nodes[1], parent, 3, [4, 5, 6, 99], 1),
+            None
+        );
+    }
+    for (environment, shape, pseudos) in [(4, [4, 5, 6, 7], 1), (3, [4, 9, 6, 7], 1), (3, [4, 5, 6, 7], 2)] {
+        engine
+            .computed_group_sets
+            .remember_shared_computation_context(nodes[1], context);
+        assert_eq!(
+            engine.take_shared_computation_context(nodes[1], parent_record, environment, shape, pseudos),
+            None
+        );
+    }
+    let mut different_scope = context;
+    different_scope.key.tree_scope += 1;
+    engine
+        .computed_group_sets
+        .remember_shared_computation_context(nodes[1], different_scope);
+    assert_eq!(
+        engine.take_shared_computation_context(nodes[1], parent_record, 3, [4, 5, 6, 7], 1),
+        None
+    );
+
+    engine
+        .computed_group_sets
+        .remember_shared_computation_context(nodes[1], context);
+    publish(&mut engine, nodes[1], 2);
+    assert_eq!(
+        engine.take_shared_computation_context(nodes[1], parent_record, 3, [4, 5, 6, 7], 1),
+        None
+    );
+    publish(&mut engine, nodes[1], 1);
+    engine
+        .computed_group_sets
+        .remember_shared_computation_context(nodes[1], context);
+    engine.end_style_record_view_epoch();
+    engine.computed_group_sets.remove(nodes[0]);
+    engine.computed_group_sets.reclaim_unreachable();
+    engine.begin_style_record_view_epoch();
+    assert_eq!(
+        engine.take_shared_computation_context(nodes[1], other_parent_record, 3, [4, 5, 6, 7], 1),
+        None
+    );
+    engine.end_style_record_view_epoch();
+}

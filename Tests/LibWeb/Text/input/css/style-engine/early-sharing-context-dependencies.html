@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .random { width: random(1px, 100px); }
+    .shared-random { width: random(--shared-test element-shared, 1px, 100px); }
+    .fixed-random { width: random(fixed 0.5, 1px, 100px); }
+    .image { background-image: url("context-image.png"); }
+</style>
+<div id="randomRoot"></div>
+<div id="sharedRandomRoot"></div>
+<div id="fixedRandomRoot"></div>
+<div id="imageRoot"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const before = internals.styleEngineCounters().sharedStyleRecordHits;
+        const randomNodes = Array.from({ length: 8 }, () => {
+            const node = document.createElement("div");
+            node.className = "random";
+            randomRoot.append(node);
+            return node;
+        });
+        internals.updateStyle();
+        println(`random computations stay element-specific: ${internals.styleEngineCounters().sharedStyleRecordHits === before}`);
+        const widths = randomNodes.map(node => getComputedStyle(node).width);
+        randomRoot.style.color = "red";
+        println(`random values survive inherited changes: ${randomNodes.every((node, index) => getComputedStyle(node).width === widths[index])}`);
+
+        for (const [holder, className] of [[sharedRandomRoot, "shared-random"], [fixedRandomRoot, "fixed-random"]]) {
+            const beforeSharing = internals.styleEngineCounters();
+            const nodes = Array.from({ length: 8 }, () => {
+                const node = document.createElement("div");
+                node.className = className;
+                holder.append(node);
+                return node;
+            });
+            internals.updateStyle();
+            const width = getComputedStyle(nodes[0]).width;
+            const afterSharing = internals.styleEngineCounters();
+            const shared = afterSharing.sharedStyleRecordHits > beforeSharing.sharedStyleRecordHits
+                || afterSharing.engineComputedRecordSharedHits > beforeSharing.engineComputedRecordSharedHits
+                || afterSharing.engineComputedRecordCohortHits > beforeSharing.engineComputedRecordCohortHits;
+            println(`${className} computations share: ${shared && nodes.every(node => getComputedStyle(node).width === width)}`);
+        }
+
+        const imageNodes = Array.from({ length: 8 }, () => {
+            const node = document.createElement("div");
+            node.className = "image";
+            imageRoot.append(node);
+            return node;
+        });
+        internals.updateStyle();
+        for (const node of imageNodes)
+            node.style.backgroundImage = 'url("context-image.png")';
+        const reference = document.createElement("div");
+        reference.style.backgroundImage = 'url("context-image.png")';
+        imageRoot.append(reference);
+        const expected = getComputedStyle(reference).backgroundImage;
+        println(`image declaration contexts agree: ${imageNodes.every(node => getComputedStyle(node).backgroundImage === expected)}`);
+    });
+</script>

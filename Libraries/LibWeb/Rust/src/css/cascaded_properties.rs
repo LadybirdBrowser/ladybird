@@ -554,6 +554,7 @@ pub struct FfiStyleComputationRequirements {
     pub container_relative_length_unit_mask: u8,
     pub environment_requirements: u8,
     pub has_monospace_font_family: bool,
+    pub computation_reads_unkeyed_context: bool,
     pub computed_group_mask: u32,
     pub has_computed_property_selection: bool,
     pub computed_property_words: *const u64,
@@ -770,8 +771,10 @@ pub(crate) unsafe fn collect_style_computation_requirements(
     let mut container_relative_length_unit_mask = 0;
     let mut environment_requirements = 0;
     let mut sharings = Vec::new();
+    let mut has_resource_context_dependent_values = false;
     for (_, entry) in store.winning_entries() {
         let dependencies = entry.dependencies();
+        has_resource_context_dependent_values |= dependencies.may_need_style_sheet_resource_context;
         uses_tree_counting_function |= dependencies.uses_tree_counting_function;
         container_relative_length_unit_mask |= dependencies.container_relative_length_unit_mask;
         if dependencies.needs_document_base_url {
@@ -807,6 +810,9 @@ pub(crate) unsafe fn collect_style_computation_requirements(
         .into_boxed_slice();
     let (has_monospace_font_family, computed_group_mask, has_computed_property_selection, computed_property_words) =
         unsafe { plan_style_computation(store, plan_input) };
+    let computation_reads_unkeyed_context = has_monospace_font_family
+        || unfixed_random_sharings.iter().any(|sharing| !sharing.element_shared)
+        || has_resource_context_dependent_values;
     let storage = Box::new(StyleComputationRequirementsStorage {
         computed_property_words,
         unfixed_random_sharings,
@@ -820,6 +826,7 @@ pub(crate) unsafe fn collect_style_computation_requirements(
         container_relative_length_unit_mask,
         environment_requirements,
         has_monospace_font_family,
+        computation_reads_unkeyed_context,
         computed_group_mask,
         has_computed_property_selection,
         computed_property_words,
