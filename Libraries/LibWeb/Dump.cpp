@@ -38,7 +38,7 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLTemplateElement.h>
 #include <LibWeb/HTML/ImageRequest.h>
-#include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/NavigationHistoryEntry.h>
@@ -65,10 +65,10 @@ static void dump_session_history_entry(StringBuilder& builder, HTML::SessionHist
     builder.append('\n');
 }
 
-void dump_tree(HTML::LocalTraversableNavigable& traversable)
+void dump_tree(HTML::LocalNavigable& navigable)
 {
     StringBuilder builder;
-    if (auto window = traversable.active_window()) {
+    if (auto window = navigable.active_window()) {
         for (auto const& entry : window->navigation()->entries())
             dump_session_history_entry(builder, entry->session_history_entry());
     }

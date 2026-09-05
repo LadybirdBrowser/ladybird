@@ -16,8 +16,6 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Geolocation/Geolocation.h>
 #include <LibWeb/HTML/ApplyHistoryStep.h>
-#include <LibWeb/HTML/HistoryExecutor.h>
-#include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Page/Page.h>

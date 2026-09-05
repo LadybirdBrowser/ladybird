@@ -735,7 +735,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
         return;
 
     if (request == "dump-session-history") {
-        Web::dump_tree(as<Web::HTML::LocalTraversableNavigable>(*page->page().local_root_navigable()));
+        Web::dump_tree(*page->page().local_root_navigable());
         return;
     }
 
