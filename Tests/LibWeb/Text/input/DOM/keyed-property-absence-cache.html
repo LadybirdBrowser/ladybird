@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<div id="container"></div>
+<form id="form"></form>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function read(object, key) {
+            return object[key];
+        }
+
+        const element = document.createElement("div");
+        for (let i = 0; i < 5; ++i)
+            read(element, "expando");
+        println(`absent: ${read(element, "expando")}`);
+        element.expando = "own";
+        println(`own: ${read(element, "expando")}`);
+        delete element.expando;
+        println(`deleted: ${read(element, "expando")}`);
+        HTMLDivElement.prototype.expando = "prototype";
+        println(`prototype: ${read(element, "expando")}`);
+        delete HTMLDivElement.prototype.expando;
+        println(`prototype deleted: ${read(element, "expando")}`);
+
+        for (let i = 0; i < 5; ++i)
+            read(form, "field");
+        println(`form before: ${read(form, "field")}`);
+        const input = document.createElement("input");
+        input.name = "field";
+        form.append(input);
+        println(`form after: ${read(form, "field") === input}`);
+
+        for (let i = 0; i < 5; ++i)
+            read(window, "named");
+        println(`window before: ${read(window, "named")}`);
+        const named = document.createElement("span");
+        named.id = "named";
+        container.append(named);
+        println(`window after: ${read(window, "named") === named}`);
+
+        for (let i = 0; i < 5; ++i)
+            read(document, "images");
+        println(`document collection: ${read(document, "images").length}`);
+        for (let i = 0; i < 5; ++i)
+            read(element.style, "color");
+        element.style.color = "red";
+        println(`style: ${read(element.style, "color")}`);
+    });
+</script>
