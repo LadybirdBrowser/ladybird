@@ -38,7 +38,8 @@ public:
     Utf16View text_for_rendering() const;
     void invalidate_text_for_rendering();
 
-    void sync_text_content_to_arena() const;
+    // The returned views survive until the next DOM mutation.
+    RustFFI::FfiTextSource text_source() const;
 
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes) const;
 

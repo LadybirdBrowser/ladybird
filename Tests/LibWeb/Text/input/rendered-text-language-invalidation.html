@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #first::first-letter { text-transform: uppercase; }
+    #remainder, #both { text-transform: uppercase; }
+    #remainder::first-letter { text-transform: none; }
+    #both::first-letter { color: blue; }
+    #generated::before { content: "ii"; text-transform: uppercase; }
+    #generated-first::before { content: "ii"; }
+    #generated-first::first-letter { text-transform: uppercase; }
+</style>
+<div id="host" lang="en">
+    <div id="first">ii</div>
+    <div id="remainder">ii</div>
+    <div id="both">ii</div>
+    <div id="generated"></div>
+    <div id="generated-first"></div>
+</div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        for (const language of ["en", "tr", "en"]) {
+            host.lang = language;
+            for (const target of host.children) {
+                let text;
+                if (target.id.startsWith("generated")) {
+                    // innerText omits generated text. Sort the dump's fragments because
+                    // it lists a wrapper's fragments before descending into its children.
+                    const fragments = internals.dumpLayoutTree(target).matchAll(/^\s+"(.*)"$/gm);
+                    text = Array.from(fragments, match => match[1]).sort().join("");
+                } else {
+                    text = target.innerText;
+                }
+                println(`${language} ${target.id}: ${text}`);
+            }
+        }
+    });
+</script>

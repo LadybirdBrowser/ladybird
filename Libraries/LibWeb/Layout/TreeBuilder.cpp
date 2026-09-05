@@ -1420,9 +1420,6 @@ RustFFI::FfiTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_tree_builder_ca
         .prepare_subtree_for_detach = [](void*, void* layout_node_pointer) {
             VERIFY(layout_node_pointer);
             static_cast<Node*>(layout_node_pointer)->prepare_subtree_for_detach_from_layout_tree(); },
-        .text_is_ascii_whitespace = [](void*, void* node_pointer) {
-            VERIFY(node_pointer);
-            return as<TextNode>(*static_cast<Node*>(node_pointer)).text_for_rendering().is_ascii_whitespace(); },
         .prepare_first_letter_text = [](void* builder_pointer, void* node_pointer, RustFFI::FfiFirstLetterTextCallbacks* callbacks) {
             VERIFY(builder_pointer);
             VERIFY(node_pointer);

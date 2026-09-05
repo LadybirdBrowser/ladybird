@@ -709,8 +709,6 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
         bump_fragment_cache_epoch_of_self_and_ancestors();
         RustFFI::layout_arena_reset_cached_intrinsic_sizes_of_self_and_ancestors(arena_handle(), slot_id(this));
     }
-
-    RustFFI::layout_arena_enroll_text_children_for_content_sync(arena_handle(), slot_id(this));
 }
 
 void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_identity)

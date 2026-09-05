@@ -9,7 +9,7 @@ use super::formatting_context::DerivedBaselines;
 use super::formatting_context::LayoutMode;
 use super::geometry::AvailableSize;
 use super::geometry::AvailableSpace;
-use super::rendered_text::{FfiTextFragments, FfiTextSourceRange, RenderedTextBoundary, TextContent};
+use super::rendered_text::{FfiTextFragments, FfiTextSource, FfiTextSourceRange, RenderedTextBoundary, TextContent};
 use super::used_values::SizeConstraint;
 use super::used_values::UsedValues;
 use crate::css::style::fast_hash::{FastMap as HashMap, FastSet as HashSet};
@@ -534,6 +534,7 @@ pub(crate) struct LayoutNodeArena {
     default_scroll_shift_anchors: RefCell<Vec<DefaultScrollShiftAnchorSlot>>,
     any_default_scroll_shift_anchor_ever_stored: Cell<bool>,
     text_nodes: Vec<TextNodeSlot>,
+    pub(super) text_source_callback: Option<unsafe extern "C" fn(*mut c_void) -> FfiTextSource>,
     replaced_content_facts: Vec<ReplacedContentFactsSlot>,
     raw_table_column_spans: HashMap<NodeSlotId, u32>,
     run_used_records: RefCell<Vec<RunRecordSlot>>,
@@ -573,6 +574,7 @@ impl LayoutNodeArena {
             default_scroll_shift_anchors: RefCell::new(Vec::new()),
             any_default_scroll_shift_anchor_ever_stored: Cell::new(false),
             text_nodes: Vec::new(),
+            text_source_callback: None,
             replaced_content_facts: Vec::new(),
             raw_table_column_spans: HashMap::default(),
             run_used_records: RefCell::new(Vec::new()),
@@ -901,6 +903,7 @@ impl LayoutNodeArena {
         let data = self.data(id);
         data.style.set(payloads);
         self.style_records[id.slot_index() as usize].set(style_record);
+        self.enroll_text_children_for_content_sync(id);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(id);
     }
 
@@ -1026,13 +1029,6 @@ impl LayoutNodeArena {
             self.bump_fragment_cache_epoch_of_self_and_ancestors(slot);
             self.reset_cached_intrinsic_sizes_of_self_and_ancestors(slot);
         }
-        let mut child = self.data(slot).first_child.get();
-        while !child.is_invalid() {
-            if super::node_facts::kind_is_text(self.data(child).kind.get()) {
-                self.enroll_text_node_for_content_sync(child);
-            }
-            child = self.data(child).next_sibling.get();
-        }
         let shell = self.data(slot).shell.get();
         if !shell.is_null() {
             let host = self.style_record_host();
@@ -1127,6 +1123,7 @@ impl LayoutNodeArena {
         assert!(derived.record != 0 && !derived.payloads.is_null());
         let previous_style_record = self.style_records[slot.slot_index() as usize].replace(derived.record);
         self.data(slot).style.set(derived.payloads);
+        self.enroll_text_children_for_content_sync(slot);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
         if previous_style_record != derived.record {
             let host = self.style_record_host();
@@ -1952,8 +1949,19 @@ impl LayoutNodeArena {
         self.text_nodes_enrolled_for_content_sync.borrow_mut().remove(&id);
     }
 
-    pub(super) fn take_text_nodes_for_content_sync(&self) -> HashSet<NodeSlotId> {
-        std::mem::take(&mut *self.text_nodes_enrolled_for_content_sync.borrow_mut())
+    pub(super) fn pending_text_nodes_for_content_sync(&self) -> Vec<NodeSlotId> {
+        self.text_nodes_enrolled_for_content_sync
+            .borrow()
+            .iter()
+            .copied()
+            .collect()
+    }
+
+    pub(super) fn text_content_needs_sync(&self, id: NodeSlotId) -> bool {
+        self.text_nodes_enrolled_for_content_sync.borrow().contains(&id)
+            || !self
+                .text_content(id)
+                .is_some_and(|content| content.rendering_key.is_some())
     }
 
     pub(crate) fn set_replaced_content_facts(&mut self, id: NodeSlotId, facts: FfiReplacedContentFacts) -> bool {
@@ -2572,8 +2580,10 @@ pub(crate) struct NodeAllocation {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn layout_arena_create() -> *mut c_void {
-    Box::into_raw(Box::new(LayoutNodeArena::new())).cast()
+pub extern "C" fn layout_arena_create(text_source: unsafe extern "C" fn(*mut c_void) -> FfiTextSource) -> *mut c_void {
+    let mut arena = Box::new(LayoutNodeArena::new());
+    arena.text_source_callback = Some(text_source);
+    Box::into_raw(arena).cast()
 }
 
 #[unsafe(no_mangle)]
@@ -2991,18 +3001,6 @@ pub unsafe extern "C" fn layout_arena_clear_style_record_host_callbacks(arena: *
 
 /// # Safety
 ///
-/// The arena must remain valid for the duration of the call, and `parent` must name a live node
-/// in this arena.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_enroll_text_children_for_content_sync(arena: *mut c_void, parent: NodeSlotId) {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: The C++ wrapper keeps the arena alive for this call and
-    // serializes all access on the document thread.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.enroll_text_children_for_content_sync(parent);
-}
-
-/// # Safety
-///
 /// The arena must remain valid for the duration of the call, and `node` must name a live node
 /// in this arena.
 #[unsafe(no_mangle)]
@@ -3018,41 +3016,30 @@ pub unsafe extern "C" fn layout_arena_enroll_node_for_replaced_content_facts_syn
 /// # Safety
 ///
 /// The arena must remain valid for the duration of the call. The callbacks receive live layout
-/// node shells; the text callback may publish text and re-enter the enroll entry points.
+/// node shells. Source callbacks lend views until the next host callback or DOM mutation.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_sync_enrolled_content_for_layout(
     arena: *mut c_void,
     context: *mut c_void,
-    sync_text_content: unsafe extern "C" fn(*mut c_void, *mut c_void),
     build_replaced_content_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut FfiReplacedContentFacts),
 ) {
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY (for every derive below): the C++ wrapper keeps the arena alive for this call
     // and serializes all access on the document thread; no shared borrow outlives a callback.
-    let enrolled_text_nodes = unsafe { &*arena.cast::<LayoutNodeArena>() }.take_text_nodes_for_content_sync();
-    // A node that is alive but detached keeps its enrollment: it cannot
-    // resolve style-dependent text without a parent, and it may be reinserted
-    // by a later tree update without another enrollment trigger.
-    let mut still_detached_text_nodes = Vec::new();
+    let enrolled_text_nodes = unsafe { &*arena.cast::<LayoutNodeArena>() }.pending_text_nodes_for_content_sync();
     for node in enrolled_text_nodes {
         let shell = unsafe { &*arena.cast::<LayoutNodeArena>() }.shell_if_live(node);
         if shell.is_null() {
             continue;
         }
-        // SAFETY: shell_if_live established a live slot of this generation.
         let parent = unsafe { &*arena.cast::<LayoutNodeArena>() }.data(node).parent.get();
+        // Detached nodes retain enrollment until a parent supplies their style.
         if parent.is_invalid() {
-            still_detached_text_nodes.push(node);
             continue;
         }
-        // SAFETY: The callback receives a live shell. Publishing its text also
-        // invalidates affected layout caches before any pass can read it.
-        unsafe { sync_text_content(context, shell) };
+        // SAFETY: The slot is live, and no arena borrow survives the source callback.
+        unsafe { super::rendered_text::ensure_text_content(arena.cast(), node) };
     }
-    unsafe { &*arena.cast::<LayoutNodeArena>() }
-        .text_nodes_enrolled_for_content_sync
-        .borrow_mut()
-        .extend(still_detached_text_nodes);
 
     let enrolled_replaced_nodes = unsafe { &*arena.cast::<LayoutNodeArena>() }
         .nodes_enrolled_for_replaced_content_facts_sync
