@@ -1112,10 +1112,8 @@ fn analyze_start_position_hint(instructions: &[Instruction], start: usize) -> Op
         }
     }
 
-    // Keep this hint narrowly scoped to `(^|literal)` prefixes. Wider literal
-    // sets require a single-pass scanner; repeated `find_code_unit()` probes
-    // per literal turn miss-heavy inputs quadratic.
-    if hint.includes_input_start && hint.literal_code_units.len() == 1 {
+    // Limit the set to two literals so each candidate needs at most two comparisons.
+    if (1..=2).contains(&hint.literal_code_units.len()) {
         Some(hint)
     } else {
         None
@@ -1124,15 +1122,22 @@ fn analyze_start_position_hint(instructions: &[Instruction], start: usize) -> Op
 
 #[inline(always)]
 fn next_literal_start_from_hint<I: Input>(input: I, start: usize, hint: &StartPositionHint) -> Option<usize> {
-    let [literal] = hint.literal_code_units.as_slice() else {
-        return None;
-    };
-
     if hint.includes_input_start && start == 0 {
         return Some(0);
     }
 
-    input.next_literal_start(start, *literal)
+    match hint.literal_code_units.as_slice() {
+        [literal] => input.next_literal_start(start, *literal),
+        [first, second] => {
+            // Scan once for either literal. Searching the remaining suffix separately
+            // for each literal would repeatedly rescan it when one literal is absent.
+            (start..input.len()).find(|&pos| {
+                let code_unit = input.code_unit(pos);
+                code_unit == *first || code_unit == *second
+            })
+        }
+        _ => None,
+    }
 }
 
 /// Analyze the program to extract optimization hints.

@@ -276,6 +276,97 @@ TEST_CASE(leading_start_or_separator_prefix_preserves_behavior)
     EXPECT_EQ(regex.test(u"a=1; baz=qux"sv, 0), regex::MatchResult::NoMatch);
 }
 
+TEST_CASE(leading_literal_alternatives_preserve_line_endings)
+{
+    auto regex = compile_regex("\\r\\n?|\\n"sv);
+
+    for (auto subject : { Utf16View { "one\r\ntwo\nthree\rfour"sv }, u"one\r\ntwo\nthree\rfour"sv }) {
+        EXPECT_EQ(regex.find_all(subject, 0), 3);
+        EXPECT_EQ(regex.find_all_match(0).start, 3);
+        EXPECT_EQ(regex.find_all_match(0).end, 5);
+        EXPECT_EQ(regex.find_all_match(1).start, 8);
+        EXPECT_EQ(regex.find_all_match(1).end, 9);
+        EXPECT_EQ(regex.find_all_match(2).start, 14);
+        EXPECT_EQ(regex.find_all_match(2).end, 15);
+
+        EXPECT_EQ(regex.exec(subject, 4), regex::MatchResult::Match);
+        EXPECT_EQ(regex.capture_slot(0), 4);
+        EXPECT_EQ(regex.capture_slot(1), 5);
+        EXPECT_EQ(regex.test(subject, subject.length_in_code_units()), regex::MatchResult::NoMatch);
+    }
+
+    EXPECT_EQ(regex.test(u""sv, 0), regex::MatchResult::NoMatch);
+    EXPECT_EQ(regex.test(u"no line endings"sv, 0), regex::MatchResult::NoMatch);
+}
+
+TEST_CASE(leading_literal_alternatives_preserve_captures_and_match_order)
+{
+    auto regex = compile_regex("(abb*)|(acc*)|(dd*)"sv);
+
+    for (auto subject : { Utf16View { "xxazddabbb"sv }, u"xxazddabbb"sv }) {
+        EXPECT_EQ(regex.exec(subject, 0), regex::MatchResult::Match);
+        EXPECT_EQ(regex.capture_slot(0), 4);
+        expect_capture_eq(regex, subject, 0, "dd"sv);
+        expect_capture_unmatched(regex, 1);
+        expect_capture_unmatched(regex, 2);
+        expect_capture_eq(regex, subject, 3, "dd"sv);
+
+        EXPECT_EQ(regex.exec(subject, 6), regex::MatchResult::Match);
+        expect_capture_eq(regex, subject, 1, "abbb"sv);
+        expect_capture_unmatched(regex, 2);
+        expect_capture_unmatched(regex, 3);
+    }
+
+    auto ordered = compile_regex("(ab)|(abb*)|(cc*)"sv);
+    EXPECT_EQ(ordered.exec(u"xxabbb"sv, 0), regex::MatchResult::Match);
+    expect_capture_eq(ordered, u"xxabbb"sv, 1, "ab"sv);
+    expect_capture_unmatched(ordered, 2);
+    expect_capture_unmatched(ordered, 3);
+}
+
+TEST_CASE(leading_literal_alternatives_preserve_assertions_and_flags)
+{
+    struct Test {
+        StringView pattern;
+        Utf16View subject;
+        size_t start;
+        i32 match_start;
+        i32 match_end;
+        regex::ECMAScriptCompileFlags flags {};
+    };
+
+    static constexpr Test tests[] {
+        { "^|aa*|bb*"sv, u"xxbb"sv, 0, 0, 0 },
+        { "^|aa*|bb*"sv, u"xxbb"sv, 1, 2, 4 },
+        { "^|aa*|bb*"sv, u"xx"sv, 2, -1, -1 },
+        { "^x|aa*|bb*"sv, u"zzaabb"sv, 0, 2, 4 },
+        { "aa*|bb*|"sv, u"xx"sv, 0, 0, 0 },
+        { "aa*|bb*|$"sv, u"xx"sv, 0, 2, 2 },
+        { "a*|bb*"sv, u"xx"sv, 0, 0, 0 },
+        { "aa*|bb*"sv, u"xxBB"sv, 0, 2, 4, { .ignore_case = true } },
+        { "(?i:aa*)|bb*"sv, u"xxAA"sv, 0, 2, 4 },
+        { "^x|aa*|bb*"sv, u"zz\nx"sv, 0, 3, 4, { .multiline = true } },
+        { "aa*|bb*"sv, u"xxbb"sv, 0, -1, -1, { .sticky = true } },
+        { "aa*|bb*"sv, u"xxbb"sv, 2, 2, 4, { .sticky = true } },
+        { "\\b(?:aa*|bb*)"sv, u"xa bb"sv, 0, 3, 5 },
+        { "(?<=x)aa*|bb*"sv, u"xxaa"sv, 0, 2, 4 },
+        { "éé*|bb*"sv, u"xxéé"sv, 0, 2, 4 },
+        { "\\uD83D|bb*"sv, u"x😀"sv, 0, 1, 2 },
+        { "\\uD83D|bb*"sv, u"x😀bb"sv, 0, 3, 5, { .unicode = true } },
+        { "aa*|bb*|cc*"sv, u"xxcc"sv, 0, 2, 4 },
+    };
+
+    for (auto const& test : tests) {
+        auto regex = compile_regex(test.pattern, test.flags);
+        auto result = regex.exec(test.subject, test.start);
+        EXPECT_EQ(result, test.match_start < 0 ? regex::MatchResult::NoMatch : regex::MatchResult::Match);
+        if (result == regex::MatchResult::Match) {
+            EXPECT_EQ(regex.capture_slot(0), test.match_start);
+            EXPECT_EQ(regex.capture_slot(1), test.match_end);
+        }
+    }
+}
+
 TEST_CASE(required_literal_prefilter_preserves_assignment_extractors)
 {
     auto regex = MUST(compile_regex_result("(?:^|;)\\s*foo=([^;]*)"sv, {}));
