@@ -125,7 +125,7 @@ impl SpecifiedValues {
             return (id, Lookup::Missing(self.mark_partial()));
         }
         let retained = unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(value)) };
-        self.push_entry(id, retained, value as usize);
+        self.push_entry(id, retained);
         self.settle_memory(memory);
         (id, lookup)
     }
@@ -155,7 +155,7 @@ impl SpecifiedValues {
             self.entries_by_id.insert(id, index);
         } else {
             let retained = unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(value)) };
-            self.push_entry(id, retained, value as usize);
+            self.push_entry(id, retained);
         }
         self.settle_memory(memory);
         true
@@ -179,11 +179,12 @@ impl SpecifiedValues {
             return;
         }
         let retained = unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(value)) };
-        self.push_entry(id, retained, value as usize);
+        self.push_entry(id, retained);
         self.settle_memory(memory);
     }
 
-    fn push_entry(&mut self, id: SpecifiedValueID, value: RetainedStyleValueData, pointer: usize) {
+    fn push_entry(&mut self, id: SpecifiedValueID, value: RetainedStyleValueData) {
+        let pointer = value.pointer() as usize;
         let index = SpecifiedValueEntryIndex(
             u32::try_from(self.entries.len()).expect("specified value table exceeds u32 indexing"),
         );
