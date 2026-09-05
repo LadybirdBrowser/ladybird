@@ -4208,7 +4208,7 @@ StyleRecordID StyleComputer::try_share_computed_style_record(DOM::Element& eleme
             document().style_invalidation_counters() = counters;
         }
         // The engine retains the fixed computation context for a later partial drive.
-        element.retire_style_input_record();
+        element.set_style_input_record(nullptr);
         ++document().style_invalidation_counters().element_style_shared_computations;
     }
     return record;
@@ -4923,8 +4923,11 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             && !(animation_name->is_value_list() && all_of(animation_name->as_value_list().values(), [](auto const& value) {
                    return value->is_keyword() && value->to_keyword() == Keyword::None;
                }));
-        if (declares_animation)
+        if (declares_animation) {
             sharing->is_candidate = false;
+            sharing->computed_groups_to_rebuild = {};
+            use_retained_style_computation_selection = false;
+        }
     }
 
     if (sharing && sharing->is_candidate) {

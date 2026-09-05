@@ -1,0 +1,14 @@
+CSSOM unrelated longhands skipped: true
+CSSOM: 0.5, matrix(1, 0, 0, 1, 10, 0), rgb(0, 128, 0)
+cssText unrelated longhands skipped: true
+cssText: 0.75, matrix(1, 0, 0, 1, 20, 0), rgb(0, 128, 0)
+replace attribute unrelated longhands skipped: true
+replace attribute: 0.25, matrix(1, 0, 0, 1, 30, 0), rgb(0, 128, 0)
+remove property unrelated longhands skipped: true
+remove property: 0.25, matrix(1, 0, 0, 1, 0, 0), rgb(0, 128, 0)
+remove attribute unrelated longhands skipped: true
+remove attribute: 1, matrix(1, 0, 0, 1, 0, 0), rgb(0, 128, 0)
+changed custom property: 0.4
+removed custom property: 1
+changed hint: rgb(0, 0, 255)
+removed hint: rgba(0, 0, 0, 0)

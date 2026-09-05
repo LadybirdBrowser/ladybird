@@ -535,7 +535,6 @@ public:
     [[nodiscard]] CSS::StyleInputRecord const* style_input_record() const { return m_style_input_record.ptr(); }
     [[nodiscard]] CSS::StyleInputRecord* style_input_record() { return m_style_input_record.ptr(); }
     void set_style_input_record(OwnPtr<CSS::StyleInputRecord>);
-    void retire_style_input_record();
     [[nodiscard]] OwnPtr<CSS::StyleInputRecord> take_style_input_record();
     void record_style_query_custom_property_reference(Optional<CSS::PseudoElement>, Utf16FlyString const&);
     void finish_recording_style_dependencies();

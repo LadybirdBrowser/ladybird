@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { font-size: 10px; width: 2em; height: 3em; color: green; animation: fade 1s linear -0.5s both paused; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const initialWidth = getComputedStyle(target).width;
+        document.styleSheets[0].insertRule("@keyframes fade { from { opacity: 0; } to { opacity: 1; } }");
+        target.style.marginLeft = "1px";
+        const animatedOpacity = getComputedStyle(target).opacity;
+        println(`initial width: ${initialWidth}`);
+        println(`animated opacity: ${animatedOpacity}`);
+        println(`animated width: ${getComputedStyle(target).width}`);
+        println(`concurrent declaration: ${getComputedStyle(target).marginLeft}`);
+        println(`animated height: ${getComputedStyle(target).height}`);
+        println(`unaffected color: ${getComputedStyle(target).color}`);
+        target.style.animation = "none";
+        println(`restored width: ${getComputedStyle(target).width}`);
+    });
+</script>

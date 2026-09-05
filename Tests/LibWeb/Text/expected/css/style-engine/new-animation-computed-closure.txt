@@ -1,0 +1,7 @@
+initial width: 20px
+animated opacity: 0.5
+animated width: 20px
+concurrent declaration: 1px
+animated height: 30px
+unaffected color: rgb(0, 128, 0)
+restored width: 20px

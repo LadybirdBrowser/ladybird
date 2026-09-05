@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { color: green; opacity: 1; transform: translateX(0); }
+</style>
+<div id="target"></div>
+<table><tr><td id="cell" bgcolor="red">cell</td></tr></table>
+<script>
+    test(() => {
+        internals.updateStyle();
+        target.style.opacity = "1";
+        internals.updateStyle();
+
+        function mutate(label, mutation) {
+            const before = internals.getStyleInvalidationCounters();
+            mutation();
+            internals.updateStyle();
+            const after = internals.getStyleInvalidationCounters();
+            println(`${label} unrelated longhands skipped: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations < 100}`);
+            const style = getComputedStyle(target);
+            println(`${label}: ${style.opacity}, ${style.transform}, ${style.color}`);
+        }
+
+        mutate("CSSOM", () => {
+            target.style.opacity = "0.5";
+            target.style.transform = "translateX(10px)";
+        });
+        mutate("cssText", () => target.style.cssText = "opacity: 0.75; transform: translateX(20px)");
+        mutate("replace attribute", () => target.setAttribute("style", "opacity: 0.25; transform: translateX(30px)"));
+        mutate("remove property", () => target.style.removeProperty("transform"));
+        mutate("remove attribute", () => target.removeAttribute("style"));
+
+        target.style.cssText = "--opacity: 0.6; opacity: var(--opacity)";
+        internals.updateStyle();
+        target.style.setProperty("--opacity", "0.4");
+        internals.updateStyle();
+        println(`changed custom property: ${getComputedStyle(target).opacity}`);
+        target.style.removeProperty("--opacity");
+        internals.updateStyle();
+        println(`removed custom property: ${getComputedStyle(target).opacity}`);
+
+        cell.bgColor = "blue";
+        internals.updateStyle();
+        println(`changed hint: ${getComputedStyle(cell).backgroundColor}`);
+        cell.removeAttribute("bgcolor");
+        internals.updateStyle();
+        println(`removed hint: ${getComputedStyle(cell).backgroundColor}`);
+    });
+</script>

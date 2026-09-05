@@ -1989,11 +1989,6 @@ void Element::set_style_input_record(OwnPtr<CSS::StyleInputRecord> record)
     m_style_input_record = move(record);
 }
 
-void Element::retire_style_input_record()
-{
-    m_style_input_record = nullptr;
-}
-
 OwnPtr<CSS::StyleInputRecord> Element::take_style_input_record()
 {
     return move(m_style_input_record);
@@ -2192,7 +2187,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
             counters.element_computed_style_changes++;
         // The input record's declaration half described the cascade that produced the old record, so
         // the next computation on this element derives a fresh one.
-        retire_style_input_record();
+        set_style_input_record(nullptr);
         set_computed_style({}, new_style_record);
         if (is_html_html_element()) {
             // Root-relative units read document-global font metrics rather than inherited style.

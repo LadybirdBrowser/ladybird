@@ -1229,10 +1229,6 @@ bool record_element_presentational_hint_properties(DOM::Element& element, Readon
 void record_element_declarations_changed(DOM::Element& element, ElementDeclarationKind kind, bool had_declarations, bool has_declarations)
 {
     element.document().flush_deferred_style_change_event();
-    // A declaration the element itself sources is named in its style input record by its identity,
-    // and this is the write that moves what that identity says without moving the identity.
-    element.retire_style_input_record();
-
     auto* style_engine = style_engine_for(element);
     if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))
         return;
