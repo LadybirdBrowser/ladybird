@@ -1,0 +1,6 @@
+universal: 0.4
+universal-substitution: 0.4
+typed: 1
+typed-substitution: 1
+nested: 0.7
+nested-substitution: 0.7

@@ -1,0 +1,64 @@
+<!doctype html>
+<style>
+    @function --fallback(--value: fallback) {
+        result: var(--value);
+    }
+
+    @function --missing(--required) {
+        /* Guard the recursive call before rejecting its missing argument. */
+        result: --fallback(--missing());
+    }
+
+    @function --excess() {
+        /* Guard the recursive call before rejecting its excess argument. */
+        result: --fallback(--excess(extra));
+    }
+
+    @function --takes-none() {
+        result: unused;
+    }
+
+    @function --substitute-excess() {
+        /* Substitute the recursive argument before rejecting --takes-none's excess argument. */
+        result: --fallback(--takes-none(--substitute-excess()));
+    }
+
+    @function --inherit-result() returns <color> {
+        result: inherit;
+    }
+
+    /* A typed inherit result in an argument default is invalid and must not inherit the outer function's result. */
+    @function --default-result(--value: --inherit-result()) {
+        result: var(--value, green);
+    }
+
+    @function --outer-result() {
+        result: --default-result();
+    }
+
+    #target {
+        --missing-argument: --missing(present);
+        --excess-arguments: --excess();
+        --excess-argument-substitution: --substitute-excess();
+        --noncyclic-missing: --fallback(--missing());
+        --noncyclic-excess: --fallback(--takes-none(extra));
+        --argument-default-result-keyword: --outer-result();
+    }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const style = getComputedStyle(document.getElementById("target"));
+        for (const name of [
+            "missing-argument",
+            "excess-arguments",
+            "excess-argument-substitution",
+            "noncyclic-missing",
+            "noncyclic-excess",
+            "argument-default-result-keyword",
+        ]) {
+            println(`${name}: ${JSON.stringify(style.getPropertyValue(`--${name}`).trim())}`);
+        }
+    });
+</script>
