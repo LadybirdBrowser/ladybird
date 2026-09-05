@@ -580,6 +580,13 @@ bool DecodedAudioProducer::ThreadData::handle_seek()
                     return true;
                 }
 
+                if (current_block.contains_media_time(timestamp)) {
+                    auto locker = take_lock();
+                    resolve_seek(seek_id, moved_position);
+                    queue_block(current_block);
+                    return true;
+                }
+
                 if (current_block.media_time_start() > timestamp) {
                     auto locker = take_lock();
                     resolve_seek(seek_id, moved_position);
