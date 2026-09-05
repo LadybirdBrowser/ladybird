@@ -3785,7 +3785,8 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
     // the blocks in the record decide, and the inherited environment, which the
     // parent in the record decides. Neither is an animation or transition: it carries state on the
     // element itself, and its values are published by the animation refresh rather than derived here.
-    bool const computation_read_only_the_declaration_key = !element.style_uses_attr_css_function()
+    bool const computation_read_only_the_declaration_key = sharing.is_candidate
+        && !element.style_uses_attr_css_function()
         && !element.style_uses_if_css_function()
         && !element.style_uses_custom_function()
         && !element.style_uses_tree_counting_function()

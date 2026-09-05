@@ -1,0 +1,9 @@
+insert environment unchanged: true
+insert stays selective: true
+insert opacity: 0.5
+edit environment unchanged: true
+edit stays selective: true
+edit opacity: 0.25
+delete environment unchanged: true
+delete stays selective: true
+delete opacity: 1

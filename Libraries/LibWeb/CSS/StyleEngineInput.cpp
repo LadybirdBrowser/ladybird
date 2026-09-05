@@ -1938,6 +1938,7 @@ static bool rule_change_needs_style_environment_bump(CSSRule const& rule)
     case CSSRule::Type::NestedDeclarations:
     case CSSRule::Type::Property:
     case CSSRule::Type::LayerStatement:
+    case CSSRule::Type::Keyframes:
         return false;
     default:
         return true;

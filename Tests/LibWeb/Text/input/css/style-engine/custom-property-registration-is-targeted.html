@@ -28,6 +28,7 @@
         document.getElementById("registrations").sheet.insertRule(
             "@property --registered { syntax: '<length>'; inherits: false; initial-value: 0px; }"
         );
+        document.getElementById("registrations").sheet.insertRule(":not(*) { color: red; }");
         internals.updateStyle();
 
         printRegistrationCounters("@property", environmentVersion, graphCounters);
@@ -51,6 +52,7 @@
             inherits: false,
             initialValue: "0px",
         });
+        document.getElementById("registrations").sheet.insertRule(":not(*) { color: green; }");
         internals.updateStyle();
 
         printRegistrationCounters("CSS.registerProperty()", environmentVersion, graphCounters);

@@ -2135,6 +2135,26 @@ impl StyleEngine {
                     return None;
                 }
                 for delta in join_deltas {
+                    let version = self.program.rule_version(delta.rule);
+                    if version.kind == RuleKind::Property {
+                        if let Some(name) = version.declared_name {
+                            match self.custom_property_registration_consumers(name) {
+                                Ok(consumers) => always_emit_nodes.extend(consumers),
+                                Err(_) => always_emit = true,
+                            }
+                        }
+                        continue;
+                    }
+                    if version.kind == RuleKind::Keyframes {
+                        if let Some(name) = version.declared_name {
+                            match self.facts.postings().lookup(DependencyPostingKey::AnimationName(name)) {
+                                Lookup::Known(posting) => always_emit_nodes.extend(posting.candidates()),
+                                Lookup::KnownAbsent => {}
+                                Lookup::Missing(_) => always_emit = true,
+                            }
+                        }
+                        continue;
+                    }
                     match delta.kind {
                         ProgramJoinDeltaKind::Declarations => always_emit = true,
                         ProgramJoinDeltaKind::Priority => {
@@ -2247,8 +2267,11 @@ impl StyleEngine {
                     always_emit_nodes.push(node);
                     continue;
                 }
-                InputKey::CustomPropertyRegistration(..) => {
-                    always_emit = true;
+                InputKey::CustomPropertyRegistration(name) => {
+                    match self.custom_property_registration_consumers(name) {
+                        Ok(consumers) => always_emit_nodes.extend(consumers),
+                        Err(_) => always_emit = true,
+                    }
                     continue;
                 }
                 _ => return None,

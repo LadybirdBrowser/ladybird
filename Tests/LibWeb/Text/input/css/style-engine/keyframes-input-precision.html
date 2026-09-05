@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { animation: arriving 1000s paused both; }
+</style>
+<div id="container"><div id="target"></div></div>
+<script>
+    test(() => {
+        const sheet = document.styleSheets[0];
+        for (let index = 0; index < 64; ++index)
+            container.appendChild(document.createElement("div"));
+        internals.updateStyle();
+
+        function mutate(label, mutation) {
+            const before = internals.getStyleInvalidationCounters();
+            mutation();
+            internals.updateStyle();
+            const after = internals.getStyleInvalidationCounters();
+            println(`${label} environment unchanged: ${after.styleEnvironmentVersion === before.styleEnvironmentVersion}`);
+            println(`${label} stays selective: ${after.elementStyleRecomputations - before.elementStyleRecomputations < 8}`);
+            println(`${label} opacity: ${getComputedStyle(target).opacity}`);
+        }
+
+        mutate("insert", () => {
+            sheet.insertRule("@keyframes arriving { from, to { opacity: 0.5; } }", sheet.cssRules.length);
+            sheet.insertRule(":not(*) { color: red; }", sheet.cssRules.length);
+        });
+        mutate("edit", () => {
+            sheet.cssRules[1].cssRules[0].style.opacity = "0.25";
+            sheet.cssRules[2].selectorText = ":not(*), :not(*)";
+        });
+        mutate("delete", () => {
+            sheet.deleteRule(1);
+            sheet.cssRules[1].selectorText = ":not(*)";
+        });
+    });
+</script>

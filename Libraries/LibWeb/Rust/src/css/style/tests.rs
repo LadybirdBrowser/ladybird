@@ -8289,6 +8289,33 @@ fn element_inputs_force_only_their_own_retained_answer_reactions() {
 }
 
 #[test]
+fn keyframes_force_only_their_named_consumers_retained_answer_reactions() {
+    let (mut engine, nodes) = nested_document();
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let name = StyleAtomID(101);
+    engine.set_element_animation_names(nodes[2], &[name]);
+    discard_transaction(&mut engine);
+    for &node in &nodes {
+        let matches = engine.match_element(node).unwrap();
+        engine.remember_retained_match_answer(node, &matches);
+        engine.remember_cascade_input(node, &matches);
+    }
+    engine.add_keyframes_rule(sheet, None, name);
+    let transaction = engine.take_transaction();
+    let selection = engine.rules_for_retained_answer_patch(&transaction).unwrap();
+    let mut patch = engine.prepare_retained_answer_patch(selection);
+    for &node in &nodes {
+        let outcome = engine
+            .patch_retained_match_answer(node, &mut patch, SelectorTruthPatch::Direct(&[]))
+            .unwrap();
+        assert_eq!(outcome.emit, node == nodes[2]);
+        assert!(outcome.identity_preserved);
+    }
+    engine.release_transaction(transaction);
+}
+
+#[test]
 fn an_element_style_input_publishes_an_exact_reaction_without_matching() {
     let (mut engine, nodes) = nested_document();
     discard_transaction(&mut engine);

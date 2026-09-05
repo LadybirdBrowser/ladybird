@@ -4134,21 +4134,26 @@ impl StyleEngine {
 
     /// Route a custom-property registration to the elements whose cascade declares its name and
     /// those whose substitution dependencies could not be named precisely.
+    pub(super) fn custom_property_registration_consumers(
+        &self,
+        name: StyleAtomID,
+    ) -> Result<Vec<StyleNodeID>, PostingKey> {
+        let mut nodes = self.facts.custom_property_candidates(name)?;
+        match self.facts.postings().lookup(DependencyPostingKey::AnyCustomProperty) {
+            Lookup::Known(posting) => nodes.extend(posting.candidates()),
+            Lookup::KnownAbsent => {}
+            Lookup::Missing(gap) => return Err(gap),
+        }
+        Ok(nodes)
+    }
+
     fn route_custom_property_registration(
         &mut self,
         name: StyleAtomID,
         scopes: Option<&[TreeScopeID]>,
         regions: &mut ImpactRegions,
     ) {
-        let consumers = self.facts.custom_property_candidates(name).and_then(|mut nodes| {
-            match self.facts.postings().lookup(DependencyPostingKey::AnyCustomProperty) {
-                Lookup::Known(posting) => nodes.extend(posting.candidates()),
-                Lookup::KnownAbsent => {}
-                Lookup::Missing(gap) => return Err(gap),
-            }
-            Ok(nodes)
-        });
-        let Ok(mut consumers) = consumers else {
+        let Ok(mut consumers) = self.custom_property_registration_consumers(name) else {
             if let Some(scopes) = scopes
                 && let Some(reachable) = self.regions_reachable_for_named_consumers(scopes)
             {
