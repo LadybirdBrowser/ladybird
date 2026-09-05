@@ -110,8 +110,7 @@ void NavigableContainer::create_new_child_navigable()
 
     set_needs_repaint();
 
-    auto traversable = parent_navigable->traversable_navigable();
-    (void)traversable->adopt_canonical_id_for_child_created_during_history_reconstruction(*parent_navigable, navigable);
+    (void)parent_navigable->adopt_canonical_id_for_child_created_during_history_reconstruction(navigable);
 
     page.client().page_did_create_child_frame(parent_navigable->id(), navigable->id(), navigable->replicated_state());
 
@@ -136,8 +135,7 @@ void NavigableContainer::create_new_child_navigable()
 
                 // 1-6. Append nestedHistory to parentDocState's nested histories.
                 if (reconstructed_child_navigation.has_value()) {
-                    VERIFY(navigable->traversable_navigable()->route_child_created_during_history_reconstruction(
-                        *parent_navigable, *navigable, reconstructed_child_navigation.release_value()));
+                    navigable->route_child_created_during_history_reconstruction(reconstructed_child_navigation.release_value());
                     ready->function()(HistoryStepResult::Applied);
                     return;
                 }

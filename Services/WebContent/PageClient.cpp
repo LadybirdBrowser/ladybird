@@ -265,7 +265,12 @@ void PageClient::navigation_population_failed(Web::HTML::CrossProcessId navigabl
 
 void PageClient::populate_navigation(Web::HTML::NavigationPopulationRequest request, Web::HTML::NavigationPopulationResult result)
 {
-    as<Web::HTML::LocalTraversableNavigable>(*page().local_root_navigable()).continue_navigation_at_population(move(request), move(result));
+    auto navigable = Web::HTML::local_navigable_with_id(request.navigable_id);
+    if (!navigable || &navigable->page() != &page()) {
+        navigation_population_failed(request.navigable_id, request.navigation_id);
+        return;
+    }
+    navigable->continue_navigation_at_population(move(request), move(result));
 }
 
 void PageClient::create_navigation_params(Web::HTML::NavigationPopulationRequest request)

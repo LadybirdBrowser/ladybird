@@ -1490,10 +1490,7 @@ void PageClient::request_navigation_population(HTML::LocalNavigable& navigable, 
 void PageClient::navigation_params_creation_finished(HTML::LocalNavigable& navigable, HTML::NavigationPopulationRequest request, HTML::NavigationPopulationResult result)
 {
     HTML::apply_navigation_population_result(request, result);
-    auto traversable = navigable.traversable_navigable();
-    if (!traversable)
-        return;
-    traversable->continue_navigation_at_population(move(request), move(result));
+    navigable.continue_navigation_at_population(move(request), move(result));
 }
 
 }

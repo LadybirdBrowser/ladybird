@@ -49,9 +49,6 @@ public:
 
     void finalize_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement, Optional<SessionHistoryEntryPersistedState> previous_entry_persisted_state);
     void traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document = {});
-    void continue_navigation_at_population(NavigationPopulationRequest, NavigationPopulationResult);
-    bool adopt_canonical_id_for_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child);
-    bool route_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child, Web::ReconstructedChildNavigation);
     void reset_session_history_for_testing();
 
     enum class PromptToUnload : bool {

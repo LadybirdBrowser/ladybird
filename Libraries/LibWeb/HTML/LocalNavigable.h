@@ -25,6 +25,7 @@
 #include <LibWeb/HTML/ApplyHistoryStep.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
+#include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/HTML/InitialInsertion.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigateParams.h>
@@ -104,6 +105,7 @@ public:
     }
     Optional<CrossProcessId> child_navigable_history_reconstruction_id(size_t index) const;
     void consume_child_navigable_history_reconstruction_id(size_t index);
+    bool adopt_canonical_id_for_child_created_during_history_reconstruction(LocalNavigable& child);
     void prepare_child_navigable_history_reconstruction(SessionHistoryDocumentStateDescriptor const&);
 
     enum class PrepareChildHistoryReconstruction {
@@ -171,6 +173,8 @@ public:
     bool resume_navigation_params_creation(Utf16String const& navigation_id, Optional<NavigationPopulationRequest>);
     void run_navigation_unload_check(Utf16String const& navigation_id, GC::Ref<GC::Function<void(bool)>> completion_steps);
     void request_population_for_reconstructed_history_entry(NavigationPopulationRequest);
+    void route_child_created_during_history_reconstruction(Web::ReconstructedChildNavigation);
+    void continue_navigation_at_population(NavigationPopulationRequest, NavigationPopulationResult);
 
     void populate_session_history_entry_document(
         URL::URL url,
