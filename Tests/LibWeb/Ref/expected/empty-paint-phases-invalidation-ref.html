@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 24px; }
+    .row { display: flex; gap: 24px; margin-bottom: 40px; }
+    .box { width: 80px; height: 60px; box-sizing: border-box; border-radius: 8px; }
+    .paint .background { background: green; }
+    .paint .gradient { background: linear-gradient(green, blue); }
+    .paint .shadow { box-shadow: 4px 4px 4px black; }
+    .paint .border { border: 4px solid blue; }
+    .paint .outline { outline: 4px solid purple; }
+    .paint .inline { background: green; border: 2px solid blue; outline: 2px solid purple; }
+</style>
+<div class="row paint">
+    <div class="box background"></div><div class="box gradient"></div>
+    <div class="box shadow"></div><div class="box border"></div>
+    <div class="box outline"></div><div><span class="inline">inline</span></div>
+</div>
+<div class="row">
+    <div class="box background"></div><div class="box gradient"></div>
+    <div class="box shadow"></div><div class="box border"></div>
+    <div class="box outline"></div><div><span class="inline">inline</span></div>
+</div>

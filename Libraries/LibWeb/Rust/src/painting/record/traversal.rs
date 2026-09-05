@@ -989,6 +989,13 @@ impl PaintRecorder<'_> {
             self.record_async_scrolling_metadata(paintable);
         }
 
+        // A visually empty phase can still contribute hit-test and scrolling metadata.
+        // Only skip command capture, after recording that metadata above.
+        if self.base_paint_facts(paintable).paint_phase_mask & phase.bit() == 0 {
+            self.recorder.set_accumulated_visual_context(ContextRef::default());
+            return;
+        }
+
         // SVG subtrees are recorded outside per-paintable captures, so path-bearing items are never spliced.
         let phase_context = self.recorder.accumulated_visual_context();
         let cached_commands = if skip_phase_capture || is_nested {

@@ -693,27 +693,39 @@ pub(crate) fn resolve_mask_layers<'a>(
     )
 }
 
+pub(crate) fn has_background_to_paint(
+    arena: &impl PaintableRowsRead,
+    paintable: NodeSlotId,
+    root_background_source: FfiRootBackgroundSource,
+) -> bool {
+    if body_background_is_propagated_to_root(arena, paintable, root_background_source) {
+        return false;
+    }
+    if style_queries::node_is_root_element(arena, paintable) {
+        return true;
+    }
+    arena.node_style_if_live(paintable).is_some_and(|style| {
+        libgfx_rust::Color(style.background().background_color).alpha() != 0
+            || arena.node_has_compositor_animation_frame(
+                paintable,
+                crate::layout::node_data::CompositorAnimationFrameKind::BackgroundColor,
+            )
+            || style_queries::background_layers_have_image(style)
+    })
+}
+
 pub(crate) fn resolve_background_for_paint<'a>(
     recorder: &PaintRecorder<'a>,
     paintable: NodeSlotId,
 ) -> Option<BackgroundPaintInputs<'a>> {
+    if !has_background_to_paint(recorder.layout_arena, paintable, recorder.inputs.root_background_source) {
+        return None;
+    }
     let source = background_paint_source_from_style_and_geometry(
         recorder.layout_arena,
         paintable,
         recorder.inputs.root_background_source,
     )?;
-    if !source.is_root_element
-        && source.background_color.alpha() == 0
-        && !recorder.layout_arena.node_has_compositor_animation_frame(
-            paintable,
-            crate::layout::node_data::CompositorAnimationFrameKind::BackgroundColor,
-        )
-        && !source
-            .layers_style_if_live
-            .is_some_and(style_queries::background_layers_have_image)
-    {
-        return None;
-    }
     let mut resolved = match source.layers_style_if_live {
         Some(layers_style) => resolve_background_layers(
             recorder,
