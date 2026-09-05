@@ -79,6 +79,8 @@ public:
 
     virtual bool is_traversable() const { return false; }
 
+    bool is_local_root() const;
+
     bool is_closing() const { return m_closing; }
     void set_closing(bool value) { m_closing = value; }
     bool is_script_closable();

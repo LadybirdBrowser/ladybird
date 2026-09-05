@@ -106,6 +106,10 @@ public:
     Compositor::CompositorHost& compositor_host();
     Compositor::CompositorHost const& compositor_host() const;
 
+    // The root navigable hosted by this Page. Its logical ancestors may belong to other pages or processes.
+    GC::Ref<HTML::LocalNavigable> local_root_navigable() const;
+    bool has_local_root_navigable() const;
+
     void set_top_level_traversable(GC::Ref<HTML::LocalTraversableNavigable>);
 
     // FIXME: This is a hack.

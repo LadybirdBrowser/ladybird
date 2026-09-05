@@ -485,6 +485,16 @@ void Page::update_needs_beforeunload_check()
     client().page_did_change_needs_beforeunload_check(m_needs_beforeunload_check);
 }
 
+GC::Ref<HTML::LocalNavigable> Page::local_root_navigable() const
+{
+    return *m_top_level_traversable;
+}
+
+bool Page::has_local_root_navigable() const
+{
+    return !!m_top_level_traversable;
+}
+
 void Page::set_top_level_traversable(GC::Ref<HTML::LocalTraversableNavigable> navigable)
 {
     VERIFY(!m_top_level_traversable); // Replacement is not allowed!
