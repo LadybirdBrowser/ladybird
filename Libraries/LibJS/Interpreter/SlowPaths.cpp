@@ -1200,9 +1200,11 @@ i64 asm_slow_path_get_global(VM* vm, u32 pc, Op::GetGlobal const* instruction)
     }
 
     if (ASM_TRY(*vm, pc, binding_object.has_property(identifier))) [[likely]] {
+        auto dictionary_generation = shape.dictionary_generation();
         CacheableGetPropertyMetadata cacheable_metadata;
         auto value = ASM_TRY(*vm, pc, binding_object.internal_get(identifier, &binding_object, &cacheable_metadata));
-        if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetOwnProperty) {
+        if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetOwnProperty
+            && &shape == &binding_object.shape() && shape.dictionary_generation() == dictionary_generation) {
             cache.update(PropertyLookupCache::Entry::Type::GetOwnProperty, [&](auto& entry) {
                 entry.shape = shape;
                 entry.property_offset = cacheable_metadata.property_offset.value();
@@ -1303,6 +1305,7 @@ i64 asm_slow_path_set_global(VM* vm, u32 pc, Op::SetGlobal const* instruction)
     }
 
     if (ASM_TRY(*vm, pc, binding_object.has_property(identifier))) {
+        auto dictionary_generation = shape.dictionary_generation();
         CacheableSetPropertyMetadata cacheable_metadata;
         auto success = ASM_TRY(*vm, pc, binding_object.internal_set(identifier, src, &binding_object, &cacheable_metadata));
         if (!success && instruction->strict() == Strict::Yes) [[unlikely]] {
@@ -1317,7 +1320,8 @@ i64 asm_slow_path_set_global(VM* vm, u32 pc, Op::SetGlobal const* instruction)
             auto completion = vm->throw_completion<TypeError>(ErrorType::ObjectSetReturnedFalse);
             return handle_asm_exception(*vm, pc, completion.value());
         }
-        if (cacheable_metadata.type == CacheableSetPropertyMetadata::Type::ChangeOwnProperty) {
+        if (cacheable_metadata.type == CacheableSetPropertyMetadata::Type::ChangeOwnProperty
+            && &shape == &binding_object.shape() && shape.dictionary_generation() == dictionary_generation) {
             cache.update(PropertyLookupCache::Entry::Type::ChangeOwnProperty, [&](auto& entry) {
                 entry.shape = shape;
                 entry.property_offset = cacheable_metadata.property_offset.value();
