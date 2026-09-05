@@ -1096,7 +1096,6 @@ impl StyleEngine {
                                 node,
                                 source,
                                 cascade_input,
-                                retained_answer_dispatch.unwrap(),
                                 cascade_winners_are_complete,
                             )
                         })
