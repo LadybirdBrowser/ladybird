@@ -25,6 +25,8 @@ from Utils.host_platform import HostSystem
 from Utils.host_platform import Platform
 from Utils.utils import run_command
 
+LADYBIRD_SOURCE_DIR = Path(__file__).resolve().parent.parent
+
 
 def main():
     platform = Platform()
@@ -135,7 +137,7 @@ def main():
     # FIXME: The devcontainer installation script (.devcontainer/features/vcpkg-cache/install.sh) currently runs as the
     #        root user. We should set up the vcpkg cache as a non-root user.
     if args.command == "vcpkg":
-        _, _, vcpkg_preset_dir = configure_build_env(platform, args.preset, args.jobs)
+        _, vcpkg_preset_dir = configure_build_env(platform, args.preset, args.jobs)
         build_vcpkg(vcpkg_preset_dir)
         return
 
@@ -200,7 +202,7 @@ def main():
 def configure_main(
     platform: Platform, preset: str, cc: str, cxx: str, jobs: Optional[str], gui: Optional[GUIFramework]
 ) -> Path:
-    ladybird_source_dir, build_preset_dir, vcpkg_preset_dir = configure_build_env(platform, preset, jobs)
+    build_preset_dir, vcpkg_preset_dir = configure_build_env(platform, preset, jobs)
     build_vcpkg(vcpkg_preset_dir)
 
     if build_preset_dir.joinpath("build.ninja").exists() or build_preset_dir.joinpath("ladybird.sln").exists():
@@ -219,7 +221,7 @@ def configure_main(
         "--preset",
         preset,
         "-S",
-        ladybird_source_dir,
+        LADYBIRD_SOURCE_DIR,
         "-B",
         build_preset_dir,
         f"-DCMAKE_C_COMPILER={cc}",
@@ -287,9 +289,9 @@ def configure_skia_jemalloc() -> list[str]:
     return cmake_args
 
 
-def configure_build_env(platform: Platform, preset: str, jobs: Optional[str] = None) -> tuple[Path, Path, Path]:
-    ladybird_source_dir = ensure_ladybird_source_dir()
-    build_root_dir = ladybird_source_dir / "Build"
+def configure_build_env(platform: Platform, preset: str, jobs: Optional[str] = None) -> tuple[Path, Path]:
+    os.environ["LADYBIRD_SOURCE_DIR"] = str(LADYBIRD_SOURCE_DIR)
+    build_root_dir = LADYBIRD_SOURCE_DIR / "Build"
 
     BUILD_PRESETS = {
         "All_Debug": build_root_dir / "alldebug",
@@ -331,7 +333,7 @@ def configure_build_env(platform: Platform, preset: str, jobs: Optional[str] = N
         # Ninja binaries but still downloads, builds and uses its own pinned gn, meson and pkg-config.
         os.environ["VCPKG_FORCE_SYSTEM_BINARIES"] = "1"
 
-    return ladybird_source_dir, build_preset_dir, vcpkg_preset_dir
+    return build_preset_dir, vcpkg_preset_dir
 
 
 def validate_cmake_version():
@@ -352,20 +354,6 @@ def validate_cmake_version():
     if major < 3 or (major == 3 and minor < 30):
         print(f"CMake version {major}.{minor}.{patch} is too old. {cmake_install_message}", file=sys.stderr)
         sys.exit(1)
-
-
-def ensure_ladybird_source_dir() -> Path:
-    ladybird_source_dir = os.environ.get("LADYBIRD_SOURCE_DIR", None)
-    ladybird_source_dir = Path(ladybird_source_dir) if ladybird_source_dir else None
-
-    if not ladybird_source_dir or not ladybird_source_dir.is_dir():
-        root_dir = run_command(["git", "rev-parse", "--show-toplevel"], return_output=True, exit_on_failure=True)
-        assert root_dir
-
-        os.environ["LADYBIRD_SOURCE_DIR"] = root_dir
-        ladybird_source_dir = Path(root_dir)
-
-    return ladybird_source_dir
 
 
 def is_running_under_coding_agent() -> bool:
@@ -467,10 +455,10 @@ def profile_main(host_system: HostSystem, build_dir: Path, target: str, args: li
 
 
 def clean_main(platform: Platform, preset: str):
-    ladybird_source_dir, build_preset_dir, _ = configure_build_env(platform, preset)
+    build_preset_dir, _ = configure_build_env(platform, preset)
     shutil.rmtree(str(build_preset_dir), ignore_errors=True)
 
-    user_vars_cmake_module = ladybird_source_dir.joinpath("Meta", "CMake", "vcpkg", "user-variables.cmake")
+    user_vars_cmake_module = LADYBIRD_SOURCE_DIR.joinpath("Meta", "CMake", "vcpkg", "user-variables.cmake")
     user_vars_cmake_module.unlink(missing_ok=True)
 
 
