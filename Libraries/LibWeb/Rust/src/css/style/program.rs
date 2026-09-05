@@ -1192,6 +1192,15 @@ impl StyleSheetProgram {
         if self.rules[rule_index].semantic_declaration != SemanticDeclarationID::default() {
             return self.rules[rule_index].semantic_declaration;
         }
+        // Image value identities omit the declaration's resource context. Keep the native
+        // declaration identity in sharing keys for these blocks instead of merging them.
+        if self.rules[rule_index].written_values.iter().any(|value| {
+            crate::css::style_compute::value_is_computationally_independent(value.data()).is_none()
+                || crate::css::style_compute::external_value_dependencies(value.data())
+                    .may_need_style_sheet_resource_context
+        }) {
+            return SemanticDeclarationID::default();
+        }
         let hash = super::intern_table::content_hash(&self.rules[rule.0 as usize].declared_properties);
         let previous_map_capacity = self.semantic_declarations.shallow_capacity_bytes();
         let previous_bucket_capacity = self

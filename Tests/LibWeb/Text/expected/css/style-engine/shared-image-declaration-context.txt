@@ -1,0 +1,4 @@
+image styles share within each declaration context: true
+distinct stylesheet base URLs: true
+image contexts survive winner changes: true
+other winners update: true
