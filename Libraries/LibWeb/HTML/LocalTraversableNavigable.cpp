@@ -300,25 +300,6 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(Cross
         }));
 }
 
-// Fire beforeunload for the documents hosted by this process.
-void LocalTraversableNavigable::run_ui_history_step_beforeunload_check(Vector<CrossProcessId> navigable_ids, UnloadPromptShown unload_prompt_shown, GC::Ref<GC::Function<void(HistoryStepResult, UnloadPromptShown)>> on_complete)
-{
-    Vector<GC::Root<LocalNavigable>> navigables;
-    navigables.ensure_capacity(navigable_ids.size());
-    for (auto navigable_id : navigable_ids) {
-        if (auto navigable = local_navigable_with_id(navigable_id); navigable && !navigable->has_been_destroyed())
-            navigables.append(*navigable);
-    }
-    check_if_unloading_is_canceled(move(navigables), {}, {}, {}, unload_prompt_shown,
-        GC::create_function(heap(), [on_complete](CheckIfUnloadingIsCanceledResult result, UnloadPromptShown unload_prompt_shown) {
-            on_complete->function()(
-                result == CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload
-                    ? HistoryStepResult::CanceledByBeforeUnload
-                    : HistoryStepResult::Applied,
-                unload_prompt_shown);
-        }));
-}
-
 void LocalTraversableNavigable::finalize_same_document_navigation(GC::Ref<LocalNavigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, Optional<SessionHistoryEntryPersistedState> previous_entry_persisted_state)
 {
     if (target_navigable->has_been_destroyed())

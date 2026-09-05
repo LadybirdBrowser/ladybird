@@ -472,7 +472,7 @@ void ConnectionFromClient::run_history_step_beforeunload_check(u64 page_id, Web:
         return;
     }
 
-    as<Web::HTML::LocalTraversableNavigable>(*page->page().local_root_navigable()).run_ui_history_step_beforeunload_check(move(navigable_ids), unload_prompt_shown, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id](Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) {
+    page->page().history_executor().run_ui_history_step_beforeunload_check(move(navigable_ids), unload_prompt_shown, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id](Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) {
         async_history_step_beforeunload_check_result(page_id, operation_id, result, unload_prompt_shown);
     }));
 }

@@ -167,6 +167,25 @@ void HistoryExecutor::complete_ui_history_operation(CrossProcessId operation_id,
         operation->on_complete->function()(result);
 }
 
+// Fire beforeunload for the documents hosted by this process.
+void HistoryExecutor::run_ui_history_step_beforeunload_check(Vector<CrossProcessId> navigable_ids, UnloadPromptShown unload_prompt_shown, GC::Ref<GC::Function<void(HistoryStepResult, UnloadPromptShown)>> on_complete)
+{
+    Vector<GC::Root<LocalNavigable>> navigables;
+    navigables.ensure_capacity(navigable_ids.size());
+    for (auto navigable_id : navigable_ids) {
+        if (auto navigable = local_navigable_with_id(navigable_id); navigable && !navigable->has_been_destroyed())
+            navigables.append(*navigable);
+    }
+    check_if_unloading_is_canceled(move(navigables), {}, {}, {}, unload_prompt_shown,
+        GC::create_function(heap(), [on_complete](CheckIfUnloadingIsCanceledResult result, UnloadPromptShown unload_prompt_shown) {
+            on_complete->function()(
+                result == CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload
+                    ? HistoryStepResult::CanceledByBeforeUnload
+                    : HistoryStepResult::Applied,
+                unload_prompt_shown);
+        }));
+}
+
 static bool is_same_document_push_or_replace(Optional<Bindings::NavigationType> navigation_type, SessionHistoryEntry const& target_entry, Optional<UniqueNodeID> displayed_document_id)
 {
     if (navigation_type != Bindings::NavigationType::Push
