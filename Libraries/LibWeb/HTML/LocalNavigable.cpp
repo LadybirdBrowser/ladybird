@@ -1356,6 +1356,11 @@ Optional<URL::Origin> LocalNavigable::active_document_origin() const
     return m_active_document->origin();
 }
 
+bool LocalNavigable::active_document_is_fully_active() const
+{
+    return m_active_document && m_active_document->is_fully_active();
+}
+
 ReplicatedNavigableState LocalNavigable::replicated_state() const
 {
     VERIFY(m_active_document);

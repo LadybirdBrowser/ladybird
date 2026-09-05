@@ -4736,11 +4736,10 @@ bool Document::is_fully_active() const
     if (navigable->is_top_level_traversable())
         return true;
 
-    auto container_document = navigable->container_document();
-    if (container_document && container_document.ptr() != this && container_document->is_fully_active())
-        return true;
-
-    return false;
+    // NB: The container document is the parent navigable's active document. Asking the parent navigable lets a parent
+    //     hosted in another process answer from its replicated state.
+    auto parent = navigable->parent();
+    return parent && parent->active_document_is_fully_active();
 }
 
 bool Document::is_active() const

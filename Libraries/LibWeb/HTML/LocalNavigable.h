@@ -128,6 +128,7 @@ public:
 
     virtual Optional<URL::URL> active_document_url() const override;
     virtual Optional<URL::Origin> active_document_origin() const override;
+    virtual bool active_document_is_fully_active() const override;
     ReplicatedNavigableState replicated_state() const;
 
     void save_persisted_state_to_active_session_history_entry();
