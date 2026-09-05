@@ -54,6 +54,7 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLParagraphElement.h>
 #include <LibWeb/HTML/History.h>
+#include <LibWeb/HTML/HistoryExecutor.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
@@ -1265,6 +1266,16 @@ void LocalNavigable::set_ongoing_navigation_without_informing_navigation_api(Var
     //         its initial session history entry is being installed, so only drain once both gates are open.
     if (was_traversal && !ongoing_navigation.has<Traversal>() && m_has_session_history_entry_and_ready_for_navigation)
         process_pending_navigations();
+}
+
+void LocalNavigable::clear_ongoing_history_traversal()
+{
+    if (has_been_destroyed())
+        return;
+
+    // AD-HOC: Only clear the process-local traversal projection. A newer navigation can already own the navigable.
+    if (m_ongoing_navigation.has<Traversal>())
+        set_ongoing_navigation_without_informing_navigation_api({});
 }
 
 void LocalNavigable::queue_pending_navigation(PreparedNavigation navigation, PendingNavigationBehavior behavior)
@@ -3557,18 +3568,30 @@ void LocalNavigable::reload(Optional<StorageSerializationRecord> navigation_api_
     // 2. Set navigable's active session history entry's document state's reload pending to true.
     active_session_history_entry()->document_state()->set_reload_pending(true);
 
-    // 3. Let traversable be navigable's traversable navigable.
-    auto traversable = traversable_navigable();
-
-    traversable->page().client().page_did_set_session_history_entry_document_state_reload_pending(
+    page().client().page_did_set_session_history_entry_document_state_reload_pending(
         id(), active_session_history_entry()->navigation_api_key(), true);
 
+    // 3. Let traversable be navigable's traversable navigable.
     // 4. Append the following session history traversal steps to traversable:
     // 1. Apply the reload history step to traversable given userInvolvement.
-    traversable->request_history_operation(ReloadHistoryOperationParameters {
-        .navigable_id = id(),
-        .user_involvement = user_involvement,
-    });
+    page().history_executor().request_history_operation(
+        ReloadHistoryOperationParameters {
+            .navigable_id = id(),
+            .user_involvement = user_involvement,
+        },
+        {
+            .on_apply_complete = GC::create_function(heap(), [this](HistoryStepResult result) {
+                if (result == HistoryStepResult::Applied)
+                    return;
+
+                // NB: A reload that did not apply leaves no navigation behind to clear the pending flag.
+                if (auto current_entry = current_session_history_entry(); current_entry && current_entry->document_state()->reload_pending()) {
+                    current_entry->document_state()->set_reload_pending(false);
+                    page().client().page_did_set_session_history_entry_document_state_reload_pending(
+                        id(), current_entry->navigation_api_key(), false);
+                }
+            }),
+        });
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#the-navigation-must-be-a-replace
@@ -3633,8 +3656,7 @@ static Optional<Web::CrossDocumentNavigationFinalizationHostState> prepare_to_fi
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
 void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete)
 {
-    auto traversable = navigable->traversable_navigable();
-    traversable->request_history_operation(
+    navigable->page().history_executor().request_history_operation(
         FinalizeCrossDocumentNavigationHistoryOperationParameters {
             .navigable_id = navigable->id(),
             .history_entry = create_pending_session_history_entry_descriptor(*history_entry),
@@ -3648,7 +3670,7 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             .expected_ongoing_navigation_id = expected_ongoing_navigation_id,
             .local_target_navigable_id = navigable->id(),
             .local_target_entry = history_entry,
-            .pre_steps = GC::create_function(navigable->heap(), [navigable, pending_document, expected_ongoing_navigation_id](Optional<Web::ReconstructedChildNavigation>, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) mutable {
+            .pre_steps = GC::create_function(navigable->heap(), [navigable, pending_document, expected_ongoing_navigation_id](Optional<Web::ReconstructedChildNavigation>, GC::Ref<HistoryExecutor::OnHistoryOperationReady> ready) mutable {
                 auto host_state = prepare_to_finalize_a_cross_document_navigation(navigable, pending_document, expected_ongoing_navigation_id);
                 if (!host_state.has_value()) {
                     ready->function()(HistoryStepResult::Applied);

@@ -67,6 +67,7 @@
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
+#include <LibWeb/HTML/HistoryExecutor.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/MessagePort.h>
@@ -1225,7 +1226,7 @@ GC::Ref<WebIDL::Promise> Internals::flush_session_history_traversal_queue()
         return promise;
     }
 
-    traversable->request_history_operation(
+    navigable->page().history_executor().request_history_operation(
         FlushSessionHistoryTraversalQueueOperationParameters { .traversable_id = traversable->id() },
         {
             .on_complete = GC::create_function(heap(), [&realm, promise](Web::HTML::HistoryStepResult) {

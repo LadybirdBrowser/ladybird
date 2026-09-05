@@ -58,6 +58,7 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/HTML/HistoryExecutor.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
@@ -445,7 +446,7 @@ void ConnectionFromClient::history_operation_started(u64 page_id, Web::HTML::Cro
         return;
     }
 
-    as<Web::HTML::LocalTraversableNavigable>(*page->page().local_root_navigable()).handle_ui_history_operation_started(operation_id, move(reconstructed_child_navigation), GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id](Web::HistoryOperationReadyResult result) {
+    page->page().history_executor().handle_ui_history_operation_started(operation_id, move(reconstructed_child_navigation), GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id](Web::HistoryOperationReadyResult result) {
         async_history_operation_ready(page_id, operation_id, move(result));
     }));
 }
@@ -601,8 +602,13 @@ void ConnectionFromClient::update_nonchanging_navigable_history_state(u64 page_i
 
 void ConnectionFromClient::complete_history_operation(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step, u64 session_history_entry_count)
 {
-    if (auto page = this->page(page_id); page.has_value())
-        as<Web::HTML::LocalTraversableNavigable>(*page->page().local_root_navigable()).complete_ui_history_operation(operation_id, result, committed_step, session_history_entry_count);
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    if (auto* traversable = as_if<Web::HTML::LocalTraversableNavigable>(*page->page().local_root_navigable()))
+        traversable->set_session_history_entry_count(session_history_entry_count);
+    page->page().history_executor().complete_ui_history_operation(operation_id, result, committed_step);
 }
 
 void ConnectionFromClient::reset_session_history_for_testing(u64 page_id)

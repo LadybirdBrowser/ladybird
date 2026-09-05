@@ -764,6 +764,7 @@ class FormAssociatedElement;
 class FormAssociatedTextControlElement;
 class FormDataEvent;
 class History;
+class HistoryExecutor;
 class HTMLAllCollection;
 class HTMLAnchorElement;
 class HTMLAreaElement;

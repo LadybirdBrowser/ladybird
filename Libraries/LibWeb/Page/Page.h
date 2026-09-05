@@ -117,6 +117,8 @@ public:
 
     GC::Ref<HTML::Navigable> top_level_traversable() const;
 
+    HTML::HistoryExecutor& history_executor();
+
     HTML::LocalNavigable& focused_navigable();
     HTML::LocalNavigable const& focused_navigable() const { return const_cast<Page*>(this)->focused_navigable(); }
 
@@ -379,6 +381,8 @@ private:
     GC::Weak<HTML::LocalNavigable> m_mouse_event_tracking_navigable;
 
     GC::Ptr<HTML::LocalNavigable> m_local_root_navigable;
+
+    GC::Ref<HTML::HistoryExecutor> m_history_executor;
 
     struct ScreenshotTask {
         Optional<UniqueNodeID> node_id;

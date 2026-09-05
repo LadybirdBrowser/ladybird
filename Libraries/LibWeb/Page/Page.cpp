@@ -27,6 +27,7 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
+#include <LibWeb/HTML/HistoryExecutor.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigationPopulationRequest.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -51,6 +52,7 @@ GC::Ref<Page> Page::create(GC::Ref<PageClient> page_client)
 
 Page::Page(GC::Ref<PageClient> client)
     : m_client(client)
+    , m_history_executor(GC::Heap::the().allocate<HTML::HistoryExecutor>(*this))
 {
 }
 
@@ -102,6 +104,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     if (m_context_menu_request.has_value())
         visitor.visit(m_context_menu_request->target);
     visitor.visit(m_local_root_navigable);
+    visitor.visit(m_history_executor);
     visitor.visit(m_client);
     visitor.visit(m_window_rect_observer);
     visitor.visit(m_on_pending_dialog_closed);
@@ -511,6 +514,11 @@ HTML::BrowsingContext const& Page::top_level_browsing_context() const
 GC::Ref<HTML::LocalNavigable> Page::local_root_navigable() const
 {
     return *m_local_root_navigable;
+}
+
+HTML::HistoryExecutor& Page::history_executor()
+{
+    return *m_history_executor;
 }
 
 GC::Ref<HTML::Navigable> Page::top_level_traversable() const

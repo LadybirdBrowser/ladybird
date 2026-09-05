@@ -15,6 +15,7 @@
 #include <LibWeb/HTML/ErrorEvent.h>
 #include <LibWeb/HTML/ErrorInformation.h>
 #include <LibWeb/HTML/History.h>
+#include <LibWeb/HTML/HistoryExecutor.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigateEvent.h>
 #include <LibWeb/HTML/Navigation.h>
@@ -698,8 +699,6 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
     auto navigable = document.navigable();
 
     // 10. Let traversable be navigable's traversable navigable.
-    auto traversable = navigable->traversable_navigable();
-
     // 11. Let sourceSnapshotParams be the result of snapshotting source snapshot params given document.
     auto source_snapshot_params = snapshot_source_snapshot_params(document);
 
@@ -756,7 +755,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
 
     // 4. Let result be the result of applying the traverse history step given by targetSHE's step to traversable,
     //    given sourceSnapshotParams, navigable, and "none".
-    traversable->request_history_operation(
+    navigable->page().history_executor().request_history_operation(
         NavigationAPITraverseHistoryOperationParameters {
             .navigable_id = navigable->id(),
             .key = key,
@@ -1327,15 +1326,14 @@ bool Navigation::inner_navigate_event_firing_algorithm(
             auto destination_entry = event->destination()->navigation_history_entry();
             VERIFY(destination_entry);
             auto target_step = destination_entry->session_history_entry().step().get<int>();
-            auto traversable = navigable->traversable_navigable();
-            traversable->request_history_operation(
+            navigable->page().history_executor().request_history_operation(
                 ResumeTraverseHistoryOperationParameters {
                     .navigable_id = navigable->id(),
                     .target_step = target_step,
                     .user_involvement = user_involvement_for_resume,
                 },
                 {
-                    .pre_steps = GC::create_function(heap(), [this, event](Optional<Web::ReconstructedChildNavigation>, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) {
+                    .pre_steps = GC::create_function(heap(), [this, event](Optional<Web::ReconstructedChildNavigation>, GC::Ref<HistoryExecutor::OnHistoryOperationReady> ready) {
                         // NB: This operation can start after a later navigation has aborted the intercepted
                         //     traverse. In that case, the aborted traverse must not be resumed.
                         if (event->abort_controller()->signal()->aborted() || event != m_ongoing_navigate_event) {
