@@ -3247,6 +3247,7 @@ impl StyleEngine {
                                 states.matches_in(old_matches),
                                 states.matches_in(new_matches),
                                 &dispatch,
+                                &self.program,
                             );
                         }
                     }

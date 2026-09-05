@@ -3401,6 +3401,52 @@ fn incremental_winner_repair_ignores_shorthand_declarations() {
 }
 
 #[test]
+fn prefix_match_deltas_only_publish_deciding_rules() {
+    let (mut engine, nodes) = linear_document();
+    let target = StyleAtomID(200);
+    let rule = add_target_rule(&mut engine, StyleSheetObjectID(1), target);
+    discard_transaction(&mut engine);
+    let sheet = engine.program.rule_sheet(rule);
+    let selector = engine.program.rule_version(rule).selector_program.unwrap();
+    let entry = engine.programs.entry_id(selector, 0);
+    let (_, dispatch) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    assert!(dispatch.prefixes().contains_entry(entry));
+
+    // Activation changes preserve selector topology. An exact prefix answer can still name
+    // the selector while its declarations are excluded from the cascade.
+    for (rule_conditions, sheet_conditions, sheet_enabled) in [
+        (false, true, true),
+        (true, false, true),
+        (true, true, false),
+        (true, true, true),
+    ] {
+        engine.program.set_rule_conditions_hold(rule, rule_conditions);
+        engine.program.set_sheet_conditions_hold(sheet, sheet_conditions);
+        engine.program.set_sheet_enabled(sheet, sheet_enabled);
+        for (old, new) in [(&[][..], &[entry][..]), (&[entry][..], &[][..])] {
+            let mut changes = SelectorTruthChanges::default();
+            record_match_set_difference(&mut changes, true, nodes[1], old, new, &dispatch, &engine.program);
+            let deltas = changes.deltas.as_slice();
+            if rule_conditions && sheet_conditions && sheet_enabled {
+                assert_eq!(deltas.len(), 1);
+                assert_eq!(deltas[0].rule, rule);
+                assert_eq!(deltas[0].entry, entry);
+                assert_eq!(
+                    deltas[0].change,
+                    if old.is_empty() {
+                        SetChange::Added
+                    } else {
+                        SetChange::Removed
+                    }
+                );
+            } else {
+                assert!(deltas.is_empty());
+            }
+        }
+    }
+}
+
+#[test]
 fn recycled_selector_entries_keep_delta_answers_canonical() {
     let (mut engine, nodes) = linear_document();
     let discarded = engine.programs.add(test_class_selector_program(
