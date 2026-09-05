@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
 <style>
-    #container { --text-color: green; }
+    @property --local { syntax: "<length>"; inherits: false; initial-value: 0px; }
+    #container { --text-color: green; --local: 10px; }
     #container > div { transition: opacity 1s linear; color: var(--text-color); }
 </style>
 <div id="container"></div>
@@ -13,7 +14,7 @@
         }
         internals.updateStyle();
         const sheet = new CSSStyleSheet();
-        sheet.replaceSync("#container > div { transition: none !important; }");
+        sheet.replaceSync("#container, #container > div { transition: none !important; }");
 
         function mutate(label, mutation) {
             const before = internals.getStyleInvalidationCounters();

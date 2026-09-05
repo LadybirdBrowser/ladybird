@@ -2777,9 +2777,9 @@ static RefPtr<CustomPropertyData const> custom_property_data_keeping_identity(DO
             return computed;
         if (other->value->rust_style_value_data() == property.value->rust_style_value_data())
             continue;
-        // A registration decides what the name's value computes to, so two streams that read alike
-        // are only alike while the name has none.
-        if (document.get_registered_custom_property(name).has_value())
+        // Registered values must agree as typed values as well as in their serialized token
+        // streams, even when recomputation produced different value objects.
+        if (document.get_registered_custom_property(name).has_value() && !other->value->equals(*property.value))
             return computed;
         // A value computed under an earlier registration can serialize like the raw tokens while
         // still being typed. Only values of the same kind are interchangeable by their text.
