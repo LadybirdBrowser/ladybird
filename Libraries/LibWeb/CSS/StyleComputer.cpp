@@ -3779,17 +3779,21 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
     // The monospace font-size recascade reads the whole ancestor chain rather than the inherited
     // context, and unfixed random values read the element's random cache. Image URLs also need their
     // declaration's resource context, which retained winner value identities do not distinguish.
+    // The full declaration key retains source identities for resource-dependent values, so it
+    // can still share their computed styles without enabling winner-only reuse.
     // `var()` is not among them: what it resolves against is the cascaded custom properties, which
     // the blocks in the record decide, and the inherited environment, which the
     // parent in the record decides. Neither is an animation or transition: it carries state on the
     // element itself, and its values are published by the animation refresh rather than derived here.
-    bool const computation_read_only_the_record = !element.style_uses_attr_css_function()
+    bool const computation_read_only_the_declaration_key = !element.style_uses_attr_css_function()
         && !element.style_uses_if_css_function()
         && !element.style_uses_custom_function()
         && !element.style_uses_tree_counting_function()
         && !element.style_depends_on_viewport_metrics()
         && !element.style_depends_on_size_container_query()
         && !element.style_depends_on_style_container_query()
+        && !sharing.computation_reads_element_context;
+    bool const computation_read_only_the_record = computation_read_only_the_declaration_key
         && !sharing.computation_reads_unkeyed_context;
     // The flags are cleared for the next computation, so the record is what has to answer whether
     // that computation can be skipped.
@@ -3804,7 +3808,7 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
     if (sharing.is_candidate && sharing.may_reuse_or_publish_shared_style) {
         // The result answers for another element only if it also holds no animated values: an
         // animation or transition is state of this element that the other element does not have.
-        bool const computation_read_only_the_key = computation_read_only_the_record
+        bool const computation_read_only_the_key = computation_read_only_the_declaration_key
             && !computed_values->animated_properties()
             && !computed_values->has_animated_values();
         if (computation_read_only_the_key) {
@@ -3837,6 +3841,7 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
                 .style_record_identity = {},
                 .style_input_declaration_words = move(style_input_declaration_words),
                 .pinned_style_input_values = move(pinned_style_input_values),
+                .read_beyond_the_record = !computation_read_only_the_record,
                 .style_uses_var_css_function = element.style_uses_var_css_function(),
                 .style_uses_inherit_css_function = element.style_uses_inherit_css_function(),
             });
@@ -4636,12 +4641,12 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                     parent->add_children_explicitly_inherited_non_inherited_style_groups(entry.explicitly_inherited_non_inherited_style_groups);
             }
             compute_transitioned_properties(*sharing->shared_values, abstract_element);
-            // An entry is only published by a computation that read nothing beyond the key, so an
-            // element answered from one is one whose own next computation can be skipped.
+            // The declaration key can distinguish resource contexts that retained cascade winners
+            // cannot. Preserve that restriction for subsequent partial computation.
             if (!abstract_element.pseudo_element().has_value()) {
                 auto* record = abstract_element.element().style_input_record();
                 VERIFY(record);
-                record->read_beyond_the_record = false;
+                record->read_beyond_the_record = entry.read_beyond_the_record;
                 record->style_uses_var_css_function = entry.style_uses_var_css_function;
                 record->style_uses_inherit_css_function = entry.style_uses_inherit_css_function;
                 record->explicitly_inherited_non_inherited_style_groups = entry.explicitly_inherited_non_inherited_style_groups;
@@ -4785,7 +4790,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             if (!bucket.has_value())
                 continue;
             for (auto const& entry : *bucket) {
-                if (!entry.style_record_identity.has_value() || !entry.style_node_id)
+                if (entry.read_beyond_the_record || !entry.style_record_identity.has_value() || !entry.style_node_id)
                     continue;
                 if (!entry.key.equals_without_values(sharing->key))
                     continue;
@@ -4933,7 +4938,8 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         sharing ? &sharing->explicitly_inherited_non_inherited_style_groups : nullptr, previous_computed_style_record,
         sharing && sharing->is_candidate ? sharing->computed_groups_to_rebuild.value_or(ComputedValues::all_style_groups) : ComputedValues::all_style_groups,
         use_retained_style_computation_selection, false, &computed_group_mask,
-        sharing ? &sharing->computation_reads_unkeyed_context : nullptr);
+        sharing ? &sharing->computation_reads_unkeyed_context : nullptr,
+        sharing ? &sharing->computation_reads_element_context : nullptr);
     if (new_style_input_record)
         new_style_input_record->bind_next_published_style = true;
     static bool const verify_computed_closure = getenv("LIBWEB_VERIFY_COMPUTED_CLOSURE") != nullptr;
@@ -5096,7 +5102,7 @@ void StyleComputer::ensure_style_metadata_tables_installed()
     (void)installed;
 }
 
-NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::AbstractElement abstract_element, CascadedProperties& cascaded_properties, u64 matching_pseudo_element_styles, u32* explicitly_inherited_non_inherited_style_groups, StyleRecordID previous_style_record, u32 initial_computed_group_mask, bool use_retained_style_computation_selection, bool stop_after_longhand_drive, u32* selected_computed_group_mask, bool* computation_reads_unkeyed_context) const
+NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::AbstractElement abstract_element, CascadedProperties& cascaded_properties, u64 matching_pseudo_element_styles, u32* explicitly_inherited_non_inherited_style_groups, StyleRecordID previous_style_record, u32 initial_computed_group_mask, bool use_retained_style_computation_selection, bool stop_after_longhand_drive, u32* selected_computed_group_mask, bool* computation_reads_unkeyed_context, bool* computation_reads_element_context) const
 {
     begin_style_update();
     ScopeGuard end_style_update = [&] { this->end_style_update(); };
@@ -5170,6 +5176,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         bool stop_after_longhand_drive;
         u32* selected_computed_group_mask;
         bool* computation_reads_unkeyed_context;
+        bool* computation_reads_element_context;
         PreparePhaseContext prepare_phase_context;
         OwnPtr<NativeLonghandState> state;
     };
@@ -5240,6 +5247,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         .stop_after_longhand_drive = stop_after_longhand_drive,
         .selected_computed_group_mask = selected_computed_group_mask,
         .computation_reads_unkeyed_context = computation_reads_unkeyed_context,
+        .computation_reads_element_context = computation_reads_element_context,
         .prepare_phase_context = prepare_phase_context,
         .state = nullptr,
     };
@@ -5268,6 +5276,11 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                 *context.selected_computed_group_mask = computed_group_mask;
             if (context.computation_reads_unkeyed_context)
                 *context.computation_reads_unkeyed_context = computation_requirements->computation_reads_unkeyed_context;
+            if (context.computation_reads_element_context) {
+                auto random_sharings = ReadonlySpan<ComputedValuesFFI::FfiUnfixedRandomSharing> { computation_requirements->unfixed_random_sharings, computation_requirements->unfixed_random_sharing_count };
+                *context.computation_reads_element_context = computation_requirements->has_monospace_font_family
+                    || any_of(random_sharings, [](auto const& sharing) { return !sharing.element_shared; });
+            }
             auto const* computed_properties_to_evaluate = computation_requirements->has_computed_property_selection
                 ? computation_requirements->computed_property_words
                 : nullptr;

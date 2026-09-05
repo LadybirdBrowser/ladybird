@@ -178,7 +178,7 @@ public:
     // `explicitly_inherited_non_inherited_style_groups` reports the style groups whose values the
     // computation read from the half of the style it inherits from that a child normally cannot
     // see, which decides whether its answer can be offered to another element.
-    [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> compute_properties(DOM::AbstractElement, CascadedProperties&, u64 matching_pseudo_element_styles, u32* explicitly_inherited_non_inherited_style_groups = nullptr, StyleRecordID previous_style_record = {}, u32 initial_computed_group_mask = ComputedValues::all_style_groups, bool use_retained_style_computation_selection = false, bool stop_after_longhand_drive = false, u32* selected_computed_group_mask = nullptr, bool* computation_reads_unkeyed_context = nullptr) const;
+    [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> compute_properties(DOM::AbstractElement, CascadedProperties&, u64 matching_pseudo_element_styles, u32* explicitly_inherited_non_inherited_style_groups = nullptr, StyleRecordID previous_style_record = {}, u32 initial_computed_group_mask = ComputedValues::all_style_groups, bool use_retained_style_computation_selection = false, bool stop_after_longhand_drive = false, u32* selected_computed_group_mask = nullptr, bool* computation_reads_unkeyed_context = nullptr, bool* computation_reads_element_context = nullptr) const;
 
     void process_animation_definitions(ComputedStyleWorkingSet const& computed_properties, CascadedProperties const&, DOM::AbstractElement& abstract_element, ReadonlySpan<AnimationProperties> animation_definitions) const;
 
@@ -281,6 +281,7 @@ public:
         // mint afresh whenever any of them recomputes.
         bool cascade_reads_custom_properties { false };
         bool computation_reads_unkeyed_context { true };
+        bool computation_reads_element_context { true };
         RefPtr<CustomPropertyData const> pinned_parent_custom_property_data;
         // The style groups whose values the computation read from the inherited style's
         // non-inherited half, which the key does not name.
@@ -399,6 +400,7 @@ private:
         Optional<StyleRecordID> style_record_identity;
         Vector<u64> style_input_declaration_words;
         Vector<NonnullRefPtr<StyleValue const>> pinned_style_input_values;
+        bool read_beyond_the_record { false };
         bool style_uses_var_css_function { false };
         bool style_uses_inherit_css_function { false };
     };

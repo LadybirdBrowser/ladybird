@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<link rel="stylesheet" href="support/shared-image-style.css">
+<style>
+    .local { background-image: url("image.svg"); }
+    .changed { color: rgb(1, 2, 3); }
+</style>
+<div id="container"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters().elementStyleSharedComputations;
+        const nodes = [];
+        for (const className of ["local", "imported"]) {
+            for (let index = 0; index < 8; ++index) {
+                const node = document.createElement("div");
+                node.className = className;
+                container.append(node);
+                nodes.push(node);
+            }
+        }
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters().elementStyleSharedComputations;
+        println(`image styles share within each declaration context: ${after - before >= 14}`);
+
+        function checkImages(label) {
+            const correct = nodes.every(node => {
+                const path = node.classList.contains("imported") ? "support/image.svg" : "image.svg";
+                return getComputedStyle(node).backgroundImage === `url("${new URL(path, location.href)}")`;
+            });
+            println(`${label}: ${correct}`);
+        }
+        checkImages("distinct stylesheet base URLs");
+        for (const node of nodes) {
+            node.classList.toggle("local");
+            node.classList.toggle("imported");
+            node.classList.add("changed");
+        }
+        checkImages("image contexts survive winner changes");
+        println(`other winners update: ${nodes.every(node => getComputedStyle(node).color === "rgb(1, 2, 3)")}`);
+    });
+</script>
