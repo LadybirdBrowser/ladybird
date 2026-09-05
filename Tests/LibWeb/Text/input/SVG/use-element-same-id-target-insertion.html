@@ -1,0 +1,40 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const SVG_NS = "http://www.w3.org/2000/svg";
+        const createSVGElement = name => document.createElementNS(SVG_NS, name);
+
+        function createTarget(width) {
+            const target = createSVGElement("g");
+            target.id = "target";
+            const rect = createSVGElement("rect");
+            rect.setAttribute("width", width);
+            rect.setAttribute("height", "10");
+            target.append(rect);
+            return target;
+        }
+
+        window.addEventListener(
+            "load",
+            () => {
+                setTimeout(() => {
+                    const svg = createSVGElement("svg");
+                    svg.style.visibility = "hidden";
+                    const original = createTarget("10");
+                    const use = createSVGElement("use");
+                    use.setAttribute("href", "#target");
+                    svg.append(original, use);
+                    document.body.append(svg);
+
+                    const newTarget = createTarget("20");
+                    svg.insertBefore(newTarget, original);
+                    println(`Same-ID target inserted before original: updated: ${use.getBBox().width === 20}`);
+
+                    done();
+                }, 0);
+            },
+            { once: true }
+        );
+    });
+</script>

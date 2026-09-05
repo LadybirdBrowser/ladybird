@@ -938,11 +938,6 @@ void HTMLElement::inserted()
         // rather than in form_associated_element_was_inserted(), which subclasses override without
         // calling up.
         CSS::Invalidation::invalidate_style_after_validity_change(*this);
-
-        // Whether the placeholder shows is decided by the control's value, which a text control
-        // keeps in the shadow tree that form_associated_element_was_inserted() has just built. The
-        // state published as the element connected was read before that existed.
-        CSS::Invalidation::invalidate_style_after_placeholder_shown_change(*this);
     }
 }
 

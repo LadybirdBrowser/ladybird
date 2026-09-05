@@ -52,7 +52,6 @@ double HTMLMeterElement::value() const
 void HTMLMeterElement::set_value(double value)
 {
     set_attribute_value(HTML::AttributeNames::value, Utf16String::number(value));
-    update_meter_value_element();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#concept-meter-minimum
@@ -69,7 +68,6 @@ double HTMLMeterElement::min() const
 void HTMLMeterElement::set_min(double value)
 {
     set_attribute_value(HTML::AttributeNames::min, Utf16String::number(value));
-    update_meter_value_element();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#concept-meter-maximum
@@ -89,7 +87,6 @@ double HTMLMeterElement::max() const
 void HTMLMeterElement::set_max(double value)
 {
     set_attribute_value(HTML::AttributeNames::max, Utf16String::number(value));
-    update_meter_value_element();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#concept-meter-low
@@ -111,7 +108,6 @@ double HTMLMeterElement::low() const
 void HTMLMeterElement::set_low(double value)
 {
     set_attribute_value(HTML::AttributeNames::low, Utf16String::number(value));
-    update_meter_value_element();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#concept-meter-high
@@ -133,7 +129,6 @@ double HTMLMeterElement::high() const
 void HTMLMeterElement::set_high(double value)
 {
     set_attribute_value(HTML::AttributeNames::high, Utf16String::number(value));
-    update_meter_value_element();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#concept-meter-optimum
@@ -155,13 +150,17 @@ double HTMLMeterElement::optimum() const
 void HTMLMeterElement::set_optimum(double value)
 {
     set_attribute_value(HTML::AttributeNames::optimum, Utf16String::number(value));
-    update_meter_value_element();
 }
 
-void HTMLMeterElement::inserted()
+void HTMLMeterElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
-    Base::inserted();
-    create_shadow_tree_if_needed();
+    Base::attribute_changed(name, old_value, value, namespace_);
+
+    if (namespace_.has_value() || old_value == value)
+        return;
+
+    if (first_is_one_of(name, HTML::AttributeNames::value, HTML::AttributeNames::min, HTML::AttributeNames::max, HTML::AttributeNames::low, HTML::AttributeNames::high, HTML::AttributeNames::optimum))
+        update_meter_value_element();
 }
 
 void HTMLMeterElement::create_shadow_tree_if_needed()

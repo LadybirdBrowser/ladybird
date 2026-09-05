@@ -582,6 +582,8 @@ protected:
     void invalidate_html_collection_caches_in_ancestors(ChildrenChangedMetadata::AffectsElements);
     void invalidate_html_collection_caches_in_ancestors_for_attribute_change(HTMLCollectionCacheRegistration::AttributeInvalidationTypes);
 
+    static Optional<u64> current_insertion_generation();
+
     Node(Document&, NodeType);
 
     void set_document(Document&);

@@ -1,0 +1,202 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const SVG_NS = "http://www.w3.org/2000/svg";
+        const createSVGElement = name => document.createElementNS(SVG_NS, name);
+        const nextTask = () => new Promise(resolve => setTimeout(resolve, 0));
+        let cloneCount = 0;
+
+        customElements.define(
+            "use-clone-counter",
+            class extends HTMLElement {
+                constructor() {
+                    super();
+                    ++cloneCount;
+                }
+            }
+        );
+
+        function createRect(id, x = 0, y = 0, width = 10, height = 10) {
+            const rect = createSVGElement("rect");
+            if (id) rect.id = id;
+            rect.setAttribute("x", x);
+            rect.setAttribute("y", y);
+            rect.setAttribute("width", width);
+            rect.setAttribute("height", height);
+            return rect;
+        }
+
+        function createFixture(id, children = [], withCloneCounter = false) {
+            const svg = createSVGElement("svg");
+            svg.style.visibility = "hidden";
+            const target = createSVGElement("g");
+            target.id = id;
+            if (withCloneCounter) {
+                const foreignObject = createSVGElement("foreignObject");
+                foreignObject.append(document.createElement("use-clone-counter"));
+                target.append(foreignObject);
+            }
+            target.append(...children);
+            const use = createSVGElement("use");
+            use.setAttribute("href", `#${id}`);
+            svg.append(target, use);
+            document.body.append(svg);
+            use.getBBox();
+            return { target, use };
+        }
+
+        function createCloneProbe(name) {
+            const source = document.createElement(name);
+            let count = 0;
+            return {
+                source,
+                define() {
+                    customElements.define(
+                        name,
+                        class extends HTMLElement {
+                            constructor() {
+                                super();
+                                if (this !== source) ++count;
+                            }
+                        }
+                    );
+                },
+                count: () => count,
+            };
+        }
+
+        // SVG and HTML scripts execute during insertion and post-connection steps, respectively.
+        function insertionScript(callback) {
+            const script = createSVGElement("script");
+            globalThis.runInsertionStep = callback;
+            script.textContent = "runInsertionStep()";
+            return script;
+        }
+
+        function postConnectionScript(callback) {
+            const script = document.createElement("script");
+            script.run = callback;
+            script.textContent = "document.currentScript?.run?.()";
+            return script;
+        }
+
+        window.addEventListener(
+            "load",
+            async () => {
+                await nextTask();
+
+                {
+                    const { target, use } = createFixture("insertionGeneration");
+                    const insertionStepProbe = createCloneProbe("use-insertion-step-probe");
+                    const postConnectionProbe = createCloneProbe("use-post-connection-probe");
+                    const foreignObject = createSVGElement("foreignObject");
+                    foreignObject.append(insertionStepProbe.source, postConnectionProbe.source);
+                    let clonesDuringInsertion;
+                    const subtree = createSVGElement("g");
+                    subtree.id = "insertedSubtree";
+                    subtree.append(
+                        foreignObject,
+                        insertionScript(() => {
+                            insertionStepProbe.define();
+                            clonesDuringInsertion = insertionStepProbe.count();
+                        }),
+                        postConnectionScript(() => postConnectionProbe.define()),
+                        createRect("insertedRect")
+                    );
+                    target.append(subtree);
+                    use.getBBox();
+                    await nextTask();
+                    println(
+                        `No clone during insertion steps: ${clonesDuringInsertion === 0}, insertion generation cloned once: ${insertionStepProbe.count() === 1 && postConnectionProbe.count() === 1}, updated: ${use.getBBox().width === 10}`
+                    );
+                }
+
+                {
+                    const { target, use } = createFixture("reentrantInsertion", [], true);
+                    const nestedChild = createRect("insertionStepNestedChild");
+                    const laterChild = createRect("insertionStepLaterChild", 20);
+                    await nextTask();
+                    cloneCount = 0;
+                    target.append(
+                        insertionScript(() => target.append(nestedChild)),
+                        laterChild
+                    );
+                    use.getBBox();
+                    await nextTask();
+                    println(
+                        `Insertion-step reentrancy complete: ${use.getBBox().width === 30}, cloned at most twice: ${cloneCount <= 2}`
+                    );
+                }
+
+                {
+                    const svg = createSVGElement("svg");
+                    svg.style.visibility = "hidden";
+                    const use = createSVGElement("use");
+                    use.setAttribute("href", "#failedInsertionClone");
+                    svg.append(use);
+                    document.body.append(svg);
+
+                    const target = createSVGElement("g");
+                    target.id = "failedInsertionClone";
+                    target.append(
+                        postConnectionScript(() => {
+                            const decoy = document.createElement("div");
+                            decoy.id = target.id;
+                            decoy.append(createRect());
+                            target.before(decoy);
+                            decoy.remove();
+                        }),
+                        createRect("laterInsertionNotification")
+                    );
+                    svg.append(target);
+
+                    println(`Failed insertion clone retried: ${use.getBBox().width === 10}`);
+                }
+
+                {
+                    const { target, use } = createFixture("postConnectionInsertion", [], true);
+                    const nestedChild = createRect("postConnectionNestedChild");
+                    const laterChild = createRect("postConnectionLaterChild", 20);
+                    await nextTask();
+                    cloneCount = 0;
+                    target.append(
+                        postConnectionScript(() => target.append(nestedChild)),
+                        laterChild
+                    );
+                    use.getBBox();
+                    await nextTask();
+                    println(
+                        `Post-connection reentrancy complete: ${use.getBBox().width === 30}, cloned at most twice: ${cloneCount <= 2}`
+                    );
+                }
+
+                {
+                    const source = createRect("reconnectSource");
+                    const { target, use } = createFixture("reconnect", [source], true);
+                    const laterChild = createRect("reconnectLaterChild", 30);
+                    await nextTask();
+                    cloneCount = 0;
+                    target.append(
+                        postConnectionScript(() => {
+                            const parent = use.parentNode;
+                            use.remove();
+                            source.setAttribute("height", "20");
+                            parent.append(use);
+                        }),
+                        laterChild
+                    );
+                    use.getBBox();
+                    await nextTask();
+                    const box = use.getBBox();
+                    println(
+                        `Reconnect during post-connection complete: ${box.width === 40 && box.height === 20}, cloned at most twice: ${cloneCount <= 2}`
+                    );
+                }
+
+                done();
+            },
+            { once: true }
+        );
+    });
+</script>

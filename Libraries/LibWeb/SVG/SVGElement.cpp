@@ -336,24 +336,27 @@ void SVGElement::inserted()
 {
     Base::inserted();
     HTMLOrSVGOrMathMLElement::inserted();
+}
 
-    update_use_elements_that_reference_this();
+void SVGElement::post_connection()
+{
+    Base::post_connection();
+    update_use_elements_that_reference_this(current_insertion_generation());
 }
 
 void SVGElement::children_changed(ChildrenChangedMetadata const& metadata)
 {
     Base::children_changed(metadata);
 
-    update_use_elements_that_reference_this();
+    auto insertion_generation = metadata.type == ChildrenChangedMetadata::Type::Inserted ? current_insertion_generation() : Optional<u64> {};
+    update_use_elements_that_reference_this(insertion_generation);
 }
 
-void SVGElement::update_use_elements_that_reference_this()
+void SVGElement::update_use_elements_that_reference_this(Optional<u64> insertion_generation)
 {
-    if (is<SVGUseElement>(this)
+    if (
         // If this element is in a shadow root, it already represents a clone and is not itself referenced.
-        || is<DOM::ShadowRoot>(this->root())
-        // If this does not have an id it cannot be referenced, no point in notifying use elements.
-        || !id().has_value()
+        is<DOM::ShadowRoot>(this->root())
         // An unconnected node cannot have valid references.
         // This also prevents searches for elements that are in the process of being constructed - as clones.
         || !this->is_connected()) {
@@ -363,9 +366,9 @@ void SVGElement::update_use_elements_that_reference_this()
 
     for (auto& use_element : document().svg_use_elements()) {
         if (document().is_completely_loaded())
-            use_element.svg_element_changed(*this);
+            use_element.svg_element_changed(*this, insertion_generation);
         else
-            use_element.svg_element_changed_before_document_complete(*this);
+            use_element.svg_element_changed_before_document_complete(*this, insertion_generation);
     }
 }
 
