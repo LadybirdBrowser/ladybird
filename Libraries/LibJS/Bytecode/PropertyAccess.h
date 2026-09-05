@@ -215,14 +215,16 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
     if (shape.prototype())
         prototype_chain_validity = shape.prototype()->shape().prototype_chain_validity();
 
+    auto dictionary_generation = shape.dictionary_generation();
     CacheableGetPropertyMetadata cacheable_metadata;
     cacheable_metadata.property_absence_is_cacheable = base_obj->is_cacheable_for_property_absence();
     auto value = TRY(base_obj->internal_get(property_name, this_value, &cacheable_metadata));
 
     // If internal_get() caused object's shape change, we can no longer be sure
     // that collected metadata is valid, e.g. if getter in prototype chain added
-    // property with the same name into the object itself.
-    if (&shape == &base_obj->shape()) {
+    // property with the same name into the object itself. The same applies when
+    // a getter changed the property storage of a dictionary shape.
+    if (&shape == &base_obj->shape() && shape.dictionary_generation() == dictionary_generation) {
         if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetOwnProperty) {
             cache.update(PropertyLookupCache::Entry::Type::GetOwnProperty, [&](auto& entry) {
                 entry.shape = shape;
@@ -314,6 +316,7 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
     case PutKind::Normal: {
         auto this_value_object = MUST(this_value.to_object(vm));
         auto& from_shape = this_value_object->shape();
+        auto from_shape_dictionary_generation = from_shape.dictionary_generation();
         if (caches) [[likely]] {
             for (auto& cache : caches->entries_for_shape(object->shape())) {
                 switch (cache.type) {
@@ -429,8 +432,9 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
 
         // If internal_set() caused object's shape change, we can no longer be sure
         // that collected metadata is valid, e.g. if setter in prototype chain added
-        // property with the same name into the object itself.
-        if (succeeded && caches && &from_shape == &object->shape()) {
+        // property with the same name into the object itself. The same applies when
+        // a setter changed the property storage of a dictionary shape.
+        if (succeeded && caches && &from_shape == &object->shape() && from_shape.dictionary_generation() == from_shape_dictionary_generation) {
             switch (cacheable_metadata.type) {
             case CacheableSetPropertyMetadata::Type::AddOwnProperty:
                 // Something went wrong if we ended up here, because cacheable addition of a new property should've changed the shape.
