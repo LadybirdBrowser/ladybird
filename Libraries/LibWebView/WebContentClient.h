@@ -221,6 +221,7 @@ private:
     virtual void did_finish_network_request(u64 page_id, u64 request_id, u64 body_size, Requests::RequestTimingInfo, Optional<Requests::NetworkError>) override;
     virtual void did_change_favicon(u64 page_id, Gfx::ShareableBitmap) override;
     virtual void did_request_alert(u64 page_id, Utf16String) override;
+    virtual void did_request_before_unload(u64 page_id, String) override;
     virtual void did_request_confirm(u64 page_id, Utf16String) override;
     virtual void did_request_prompt(u64 page_id, Utf16String, Utf16String) override;
     virtual void did_request_set_prompt_text(u64 page_id, Utf16String message) override;

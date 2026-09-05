@@ -14,6 +14,7 @@
 #include <QMouseEvent>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QShortcut>
 #include <QStackedWidget>
 #include <QVBoxLayout>
@@ -88,10 +89,12 @@ void send_key(QWidget& widget, int key)
 TEST_CASE(alert_and_confirm_report_the_expected_results)
 {
     QWidget web_view;
+    web_view.setCursor(Qt::PointingHandCursor);
     web_view.resize(800, 600);
     web_view.show();
 
     Ladybird::JavaScriptDialog dialog(&web_view);
+    EXPECT_EQ(dialog.cursor().shape(), Qt::ArrowCursor);
     Completion completion;
     record_completions(dialog, completion);
 
@@ -172,6 +175,59 @@ TEST_CASE(prompt_supports_defaults_updates_and_keyboard_completion)
     dialog.show_prompt("https://example.com", "Prompt message", "ignored");
     trigger_shortcut(dialog, Qt::Key_Escape);
     EXPECT(completion.type == Ladybird::JavaScriptDialog::Type::Prompt);
+    EXPECT(!completion.accepted);
+}
+
+TEST_CASE(beforeunload_uses_fixed_copy_and_navigation_button_roles)
+{
+    QWidget web_view;
+    web_view.resize(800, 600);
+    web_view.show();
+
+    Ladybird::JavaScriptDialog dialog(&web_view);
+    Completion completion;
+    record_completions(dialog, completion);
+
+    dialog.show_before_unload("https://example.com");
+    QApplication::processEvents();
+    auto* title_label = dialog.findChild<QLabel*>("LadybirdJavaScriptDialogTitle");
+    auto* message_label = dialog.findChild<QLabel*>("LadybirdJavaScriptDialogMessage");
+    auto* message_area = dialog.findChild<QScrollArea*>("LadybirdJavaScriptDialogMessageArea");
+    auto* button_box = dialog.findChild<QDialogButtonBox*>("LadybirdJavaScriptDialogButtons");
+    VERIFY(title_label);
+    VERIFY(message_label);
+    VERIFY(message_area);
+    VERIFY(button_box);
+    auto* leave_button = button_box->button(QDialogButtonBox::Ok);
+    auto* stay_button = button_box->button(QDialogButtonBox::Cancel);
+    VERIFY(leave_button);
+    VERIFY(stay_button);
+    EXPECT(title_label->text() == "https://example.com");
+    EXPECT(message_label->text() == "Leave this page? Your changes may not be saved.");
+    EXPECT(leave_button->text() == "Leave");
+    EXPECT(stay_button->text() == "Stay");
+    EXPECT(leave_button->isDefault());
+    EXPECT(dialog.focusWidget() == leave_button);
+    EXPECT(!message_area->verticalScrollBar()->isVisible());
+    EXPECT(message_area->viewport()->height() >= message_label->heightForWidth(message_area->viewport()->width()));
+
+    send_key(*leave_button, Qt::Key_Return);
+    EXPECT(completion.type == Ladybird::JavaScriptDialog::Type::BeforeUnload);
+    EXPECT(completion.accepted);
+
+    completion = {};
+    dialog.show_before_unload("https://example.com");
+    trigger_shortcut(dialog, Qt::Key_Escape);
+    EXPECT(completion.type == Ladybird::JavaScriptDialog::Type::BeforeUnload);
+    EXPECT(!completion.accepted);
+
+    completion = {};
+    dialog.show_before_unload("https://example.com");
+    stay_button = button_box->button(QDialogButtonBox::Cancel);
+    VERIFY(stay_button);
+    stay_button->setFocus();
+    send_key(*stay_button, Qt::Key_Return);
+    EXPECT(completion.type == Ladybird::JavaScriptDialog::Type::BeforeUnload);
     EXPECT(!completion.accepted);
 }
 

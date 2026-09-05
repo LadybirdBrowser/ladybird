@@ -2458,7 +2458,8 @@ Web::WebDriver::Response WebDriverConnection::send_alert_text(JsonValue payload)
         break;
 
     // -> Otherwise
-    default:
+    case Web::Page::PendingDialog::BeforeUnload:
+    case Web::Page::PendingDialog::None:
         // Return error with error code unsupported operation.
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "Unknown dialog type"sv);
     }

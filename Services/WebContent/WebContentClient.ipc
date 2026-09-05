@@ -100,6 +100,7 @@ endpoint WebContentClient
     did_request_image_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString target, unsigned modifiers, Optional<Gfx::ShareableBitmap> bitmap) =|
     did_request_media_context_menu(u64 page_id, Gfx::IntPoint content_position, ByteString target, unsigned modifiers, Web::Page::MediaContextMenu menu) =|
     did_request_alert(u64 page_id, Utf16String message) =|
+    did_request_before_unload(u64 page_id, String source) =|
     did_request_confirm(u64 page_id, Utf16String message) =|
     did_request_prompt(u64 page_id, Utf16String message, Utf16String default_) =|
     did_request_set_prompt_text(u64 page_id, Utf16String message) =|

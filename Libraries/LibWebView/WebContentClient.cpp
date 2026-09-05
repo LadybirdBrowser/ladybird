@@ -1762,6 +1762,23 @@ void WebContentClient::did_request_alert(u64 page_id, Utf16String message)
     }
 }
 
+void WebContentClient::did_request_before_unload(u64 page_id, String source)
+{
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
+        if (view->on_request_before_unload) {
+            auto weak_this = static_cast<Core::EventReceiver&>(*this).make_weak_ptr();
+            view->on_request_before_unload(source, [weak_this, page_id](bool accepted) {
+                if (!weak_this)
+                    return;
+                static_cast<WebContentClient&>(*weak_this.ptr()).async_before_unload_closed(page_id, accepted);
+            });
+            return;
+        }
+    }
+
+    async_before_unload_closed(page_id, true);
+}
+
 void WebContentClient::did_request_confirm(u64 page_id, Utf16String message)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

@@ -320,10 +320,12 @@ void handle_any_user_prompts(Page& page, GC::Ref<GC::Function<void(Optional<Erro
     // 3. If the current user prompt is an alert dialog, set type to "alert". Otherwise, if the current user prompt is a
     //    beforeunload dialog, set type to "beforeUnload". Otherwise, if the current user prompt is a confirm dialog,
     //    set type to "confirm". Otherwise, if the current user prompt is a prompt dialog, set type to "prompt".
-    // FIXME: Handle beforeunload dialogs when they are implemented.
     switch (page.pending_dialog()) {
     case Page::PendingDialog::Alert:
         type = PromptType::Alert;
+        break;
+    case Page::PendingDialog::BeforeUnload:
+        type = PromptType::BeforeUnload;
         break;
     case Page::PendingDialog::Confirm:
         type = PromptType::Confirm;

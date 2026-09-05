@@ -218,6 +218,7 @@ endpoint WebContentServer
     update_visibility_state(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::VisibilityState visibility_state) =|
 
     alert_closed(u64 page_id) =|
+    before_unload_closed(u64 page_id, bool accepted) =|
     confirm_closed(u64 page_id, bool accepted) =|
     prompt_closed(u64 page_id, Optional<Utf16String> response) =|
     color_picker_update(u64 page_id, Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state) =|

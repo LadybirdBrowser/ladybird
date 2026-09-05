@@ -1521,6 +1521,7 @@ private:
     void after_layout_commit(LayoutTreeChanged, LayoutCommitScope);
 
     void run_unloading_cleanup_steps();
+    bool showing_an_unload_prompt_is_unlikely_to_be_annoying_deceptive_or_pointless() const;
 
     void evaluate_media_rules();
 

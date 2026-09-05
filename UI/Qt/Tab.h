@@ -134,6 +134,7 @@ private:
     void position_downloads_popover();
     void show_private_session_popover();
     void position_private_session_popover();
+    void hide_hover_label();
     void set_loading(bool);
     void update_tab_icon();
     int tab_index();
@@ -191,6 +192,7 @@ private:
     QString m_downloads_button_tooltip;
 
     JavaScriptDialog* m_javascript_dialog { nullptr };
+    Function<void(bool)> m_before_unload_completion;
     QPointer<QColorDialog> m_color_picker_dialog;
     QPointer<QFileDialog> m_file_picker_dialog;
     QPointer<QMessageBox> m_external_url_confirmation_dialog;

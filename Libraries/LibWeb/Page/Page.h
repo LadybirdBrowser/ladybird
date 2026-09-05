@@ -206,6 +206,9 @@ public:
     void did_request_alert(Utf16String const& message);
     void alert_closed();
 
+    bool did_request_before_unload(String const& source, HTML::EventLoop&);
+    void before_unload_closed(bool accepted);
+
     bool did_request_confirm(Utf16String const& message);
     void confirm_closed(bool accepted);
 
@@ -215,6 +218,7 @@ public:
     enum class PendingDialog {
         None,
         Alert,
+        BeforeUnload,
         Confirm,
         Prompt,
     };
@@ -400,6 +404,7 @@ private:
     PendingDialog m_pending_dialog { PendingDialog::None };
     Optional<Utf16String> m_pending_dialog_text;
     Optional<Empty> m_pending_alert_response;
+    Optional<bool> m_pending_before_unload_response;
     Optional<bool> m_pending_confirm_response;
     Optional<Optional<Utf16String>> m_pending_prompt_response;
     GC::Ptr<GC::Function<void()>> m_on_pending_dialog_closed;
@@ -580,6 +585,7 @@ public:
     virtual void page_did_unhover_link() { }
     virtual void page_did_change_favicon(Gfx::Bitmap const&) { }
     virtual void page_did_request_alert(Utf16String const&) { }
+    virtual void page_did_request_before_unload(String const&) { }
     virtual void page_did_request_confirm(Utf16String const&) { }
     virtual void page_did_request_prompt(Utf16String const&, Utf16String const&) { }
     virtual void page_did_request_set_prompt_text(Utf16String const&) { }

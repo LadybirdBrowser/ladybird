@@ -36,6 +36,7 @@ JavaScriptDialog::JavaScriptDialog(QWidget* parent)
     : QWidget(parent)
 {
     setObjectName("LadybirdJavaScriptDialogOverlay");
+    setCursor(Qt::ArrowCursor);
     setAttribute(Qt::WA_StyledBackground);
 #if defined(AK_OS_MACOS) || defined(USE_DIRECTX) || defined(USE_VULKAN_DMABUF_IMAGES)
     // Native rendering surfaces stack above ordinary child widgets. Match their native stacking level so the dialog
@@ -117,6 +118,11 @@ void JavaScriptDialog::show_alert(QString const& title, QString const& message)
     open(Type::Alert, title, message);
 }
 
+void JavaScriptDialog::show_before_unload(QString const& title)
+{
+    open(Type::BeforeUnload, title, "Leave this page? Your changes may not be saved.");
+}
+
 void JavaScriptDialog::show_confirm(QString const& title, QString const& message)
 {
     open(Type::Confirm, title, message);
@@ -154,6 +160,12 @@ void JavaScriptDialog::open(Type type, QString const& title, QString const& mess
     }
     auto* ok_button = m_button_box->button(QDialogButtonBox::Ok);
     auto* cancel_button = m_button_box->button(QDialogButtonBox::Cancel);
+    if (type == Type::BeforeUnload) {
+        VERIFY(ok_button);
+        VERIFY(cancel_button);
+        ok_button->setText("Leave");
+        cancel_button->setText("Stay");
+    }
     if (ok_button)
         ok_button->setDefault(type != Type::Prompt);
 
@@ -344,6 +356,7 @@ void JavaScriptDialog::resizeEvent(QResizeEvent* event)
 void JavaScriptDialog::showEvent(QShowEvent* event)
 {
     QWidget::showEvent(event);
+    update_geometry_constraints();
     raise();
     focus_dialog();
 }
@@ -379,7 +392,8 @@ void JavaScriptDialog::update_geometry_constraints()
     m_panel->setMinimumWidth(min(DIALOG_MIN_WIDTH, available_width));
     m_panel->setMaximumWidth(min(DIALOG_MAX_WIDTH, available_width));
 
-    auto message_width = max(1, min(DIALOG_MAX_WIDTH - PANEL_HORIZONTAL_PADDING * 2, available_width - PANEL_HORIZONTAL_PADDING * 2));
+    auto maximum_message_width = max(1, available_width - PANEL_HORIZONTAL_PADDING * 2);
+    auto message_width = max(1, min(m_message_scroll_area->width(), maximum_message_width));
     auto desired_message_height = max(0, m_message_label->heightForWidth(message_width));
     m_message_label->setMinimumHeight(desired_message_height);
 

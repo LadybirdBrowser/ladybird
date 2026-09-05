@@ -2678,6 +2678,12 @@ void ConnectionFromClient::alert_closed(u64 page_id)
         page->page().alert_closed();
 }
 
+void ConnectionFromClient::before_unload_closed(u64 page_id, bool accepted)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().before_unload_closed(accepted);
+}
+
 void ConnectionFromClient::confirm_closed(u64 page_id, bool accepted)
 {
     if (auto page = this->page(page_id); page.has_value())

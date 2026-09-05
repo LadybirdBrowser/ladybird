@@ -949,14 +949,15 @@ def refresh(webdriver_port, session_id):
     request(webdriver_port, "POST", f"/session/{session_id}/refresh", {})
 
 
-def create_session(webdriver_port, enable_test_hooks=True):
+def create_session(webdriver_port, enable_test_hooks=True, beforeunload_prompt_handler=None):
     always_match = {
         "ladybird:headless": True,
         "pageLoadStrategy": "normal",
-        "unhandledPromptBehavior": {"beforeUnload": "dismiss"},
     }
     if enable_test_hooks:
         always_match["ladybird:enableTestHooks"] = True
+    if beforeunload_prompt_handler is not None:
+        always_match["unhandledPromptBehavior"] = {"beforeUnload": beforeunload_prompt_handler}
 
     created = request(
         webdriver_port,
@@ -1008,6 +1009,53 @@ def perform_pointer_click(webdriver_port, session_id, x, y, log):
         },
     )
     log.append(f"clicked viewport at {x},{y}")
+
+
+def install_cancellable_beforeunload_handler(webdriver_port, session_id, label, log):
+    perform_pointer_click(webdriver_port, session_id, 5, 5, log)
+    setup = execute_script(
+        webdriver_port,
+        session_id,
+        f"""
+localStorage.removeItem({json.dumps(label)});
+window.onbeforeunload = event => {{
+    localStorage.setItem({json.dumps(label)}, "fired");
+    event.preventDefault();
+    event.returnValue = "blocked";
+    return "blocked";
+}};
+return navigator.userActivation.hasBeenActive;
+""",
+    )
+    if setup is not True:
+        raise AssertionError(f"Expected sticky activation before {label}\n" + "\n".join(log))
+
+
+def expect_beforeunload_event_recorded(webdriver_port, session_id, source_url, label, log):
+    request(webdriver_port, "POST", f"/session/{session_id}/url", {"url": source_url})
+    recorded = execute_script(
+        webdriver_port,
+        session_id,
+        f"return localStorage.getItem({json.dumps(label)});",
+    )
+    if recorded != "fired":
+        raise AssertionError(
+            f"Expected beforeunload event from {label} to be recorded, got {recorded}\n" + "\n".join(log)
+        )
+
+
+def expect_no_user_prompt(webdriver_port, session_id, label, log):
+    status, payload, response_body = request_raw(
+        webdriver_port,
+        "GET",
+        f"/session/{session_id}/alert/text",
+    )
+    value = payload.get("value")
+    if status == 404 and isinstance(value, dict) and value.get("error") == "no such alert":
+        return
+    raise AssertionError(
+        f"Expected no user prompt after {label}, got HTTP {status}: {response_body}\n" + "\n".join(log)
+    )
 
 
 def session_history(webdriver_port, session_id):
@@ -1131,43 +1179,6 @@ def wait_for_ui_session_history(
     return wait_for_session_history(webdriver_port, session_id, label, matches_expected_history, log)
 
 
-def expect_beforeunload_cancels_webdriver_navigation(
-    webdriver_port,
-    session_id,
-    url,
-    label,
-    expected_url,
-    previous_beforeunload_count,
-    expected_history_snapshot,
-    log,
-):
-    request(webdriver_port, "POST", f"/session/{session_id}/timeouts", {"pageLoad": 1000})
-    request(webdriver_port, "POST", f"/session/{session_id}/url", {"url": url})
-    request(webdriver_port, "POST", f"/session/{session_id}/timeouts", {"pageLoad": 10000})
-    state = execute_script(
-        webdriver_port,
-        session_id,
-        "return [location.href, window.beforeUnloadCount];",
-    )
-    if state[0] != expected_url or state[1] <= previous_beforeunload_count:
-        raise AssertionError(f"Expected beforeunload to cancel {label}, got {state}\n" + "\n".join(log))
-
-    ui_history = expected_history_snapshot["ui"]
-    expect_ui_session_history(
-        webdriver_port,
-        session_id,
-        f"after blocked {label}",
-        history_entry_urls(ui_history),
-        history_used_steps(ui_history),
-        ui_history["currentUsedStepIndex"],
-        ui_history["backButtonEnabled"],
-        ui_history["forwardButtonEnabled"],
-        log,
-        expect_history_idle=True,
-    )
-    return state
-
-
 def expect_javascript_noop_ui_load_does_not_change_history(
     webdriver_port,
     session_id,
@@ -1231,41 +1242,6 @@ def expect_javascript_noop_webdriver_navigation_does_not_change_history(
         log,
         expect_history_idle=True,
     )
-
-
-def expect_beforeunload_cancels_refresh(
-    webdriver_port,
-    session_id,
-    expected_url,
-    previous_beforeunload_count,
-    log,
-):
-    expect_current_ui_entry_reload_pending(webdriver_port, session_id, "before blocked refresh from /b", False, log)
-    request(webdriver_port, "POST", f"/session/{session_id}/timeouts", {"pageLoad": 1000})
-    try:
-        refresh(webdriver_port, session_id)
-    finally:
-        request(webdriver_port, "POST", f"/session/{session_id}/timeouts", {"pageLoad": 10000})
-
-    def refresh_was_canceled_by_beforeunload(result):
-        return (
-            isinstance(result, list)
-            and len(result) == 2
-            and result[0] == expected_url
-            and isinstance(result[1], int)
-            and result[1] > previous_beforeunload_count
-        )
-
-    state = wait_for_script_result(
-        webdriver_port,
-        session_id,
-        "beforeunload-canceled refresh from /b",
-        "return [location.href, window.beforeUnloadCount];",
-        refresh_was_canceled_by_beforeunload,
-        log,
-    )
-    expect_current_ui_entry_reload_pending(webdriver_port, session_id, "after blocked refresh from /b", False, log)
-    return state
 
 
 def expect_current_top_level_history_url(webdriver_port, session_id, label, expected_url, log):
@@ -1971,6 +1947,160 @@ def run_self_contained_navigation_tests(webdriver_port, page_port, url_a):
         f"http://localhost:{page_port}/webdriver-intercepted-navigation-click",
     )
     run_failed_redirected_navigation_shows_failed_url_test(webdriver_port, page_port, url_a)
+
+
+def run_beforeunload_webdriver_suppression_tests(webdriver_port, page_server, url_a, url_b, url_c, url_d):
+    def run_case(
+        label,
+        expected_url,
+        document_ran_event,
+        start_navigation,
+        expected_entry_urls,
+        expected_current_index,
+        expected_back_enabled,
+        expected_forward_enabled,
+    ):
+        session_id = create_session(webdriver_port, beforeunload_prompt_handler="dismiss")
+        log = [f"{label} initial: {current_url(webdriver_port, session_id)}"]
+        try:
+            page_server.a_document_ran.clear()
+            load_url_from_ui(webdriver_port, session_id, url_a)
+            wait_for_event(page_server.a_document_ran, f"A document before {label}")
+            expect_url(webdriver_port, session_id, f"after {label} setup /a", url_a, log)
+
+            page_server.b_document_ran.clear()
+            load_url_from_ui(webdriver_port, session_id, url_b)
+            wait_for_event(page_server.b_document_ran, f"B document before {label}")
+            expect_url(webdriver_port, session_id, f"after {label} setup /b", url_b, log)
+            expect_ui_session_history(
+                webdriver_port,
+                session_id,
+                f"before {label}",
+                [url_a, url_b],
+                [0, 1],
+                1,
+                True,
+                False,
+                log,
+                expect_history_idle=True,
+            )
+
+            install_cancellable_beforeunload_handler(webdriver_port, session_id, label, log)
+            document_ran_event.clear()
+            start_navigation(session_id)
+            wait_for_event(document_ran_event, f"target document after {label}")
+
+            expect_url(webdriver_port, session_id, f"after {label}", expected_url, log)
+            expect_no_user_prompt(webdriver_port, session_id, label, log)
+            expect_ui_session_history(
+                webdriver_port,
+                session_id,
+                f"after {label}",
+                expected_entry_urls,
+                list(range(len(expected_entry_urls))),
+                expected_current_index,
+                expected_back_enabled,
+                expected_forward_enabled,
+                log,
+                expect_history_idle=True,
+            )
+            expect_beforeunload_event_recorded(webdriver_port, session_id, url_b, label, log)
+        finally:
+            request(webdriver_port, "DELETE", f"/session/{session_id}")
+
+    run_case(
+        "same-site link navigation with beforeunload",
+        url_c,
+        page_server.c_document_ran,
+        lambda session_id: execute_script(
+            webdriver_port,
+            session_id,
+            'document.querySelector("#go").click(); return null;',
+        ),
+        [url_a, url_b, url_c],
+        2,
+        True,
+        False,
+    )
+    run_case(
+        "cross-site link navigation with beforeunload",
+        url_d,
+        page_server.d_document_ran,
+        lambda session_id: execute_script(
+            webdriver_port,
+            session_id,
+            'document.querySelector("#branch").click(); return null;',
+        ),
+        [url_a, url_b, url_d],
+        2,
+        True,
+        False,
+    )
+    run_case(
+        "same-site WebDriver navigation with beforeunload",
+        url_c,
+        page_server.c_document_ran,
+        lambda session_id: request(webdriver_port, "POST", f"/session/{session_id}/url", {"url": url_c}),
+        [url_a, url_b, url_c],
+        2,
+        True,
+        False,
+    )
+    run_case(
+        "cross-site WebDriver navigation with beforeunload",
+        url_d,
+        page_server.d_document_ran,
+        lambda session_id: request(webdriver_port, "POST", f"/session/{session_id}/url", {"url": url_d}),
+        [url_a, url_b, url_d],
+        2,
+        True,
+        False,
+    )
+    run_case(
+        "WebDriver refresh with beforeunload",
+        url_b,
+        page_server.b_document_ran,
+        lambda session_id: refresh(webdriver_port, session_id),
+        [url_a, url_b],
+        1,
+        True,
+        False,
+    )
+    run_case(
+        "browser UI back with beforeunload",
+        url_a,
+        page_server.a_document_ran,
+        lambda session_id: traverse_history_from_ui(
+            webdriver_port,
+            session_id,
+            -1,
+            wait_for_navigation_completion=False,
+        ),
+        [url_a, url_b],
+        0,
+        False,
+        True,
+    )
+    run_case(
+        "WebDriver back with beforeunload",
+        url_a,
+        page_server.a_document_ran,
+        lambda session_id: request(webdriver_port, "POST", f"/session/{session_id}/back", {}),
+        [url_a, url_b],
+        0,
+        False,
+        True,
+    )
+    run_case(
+        "script-initiated history.back() with beforeunload",
+        url_a,
+        page_server.a_document_ran,
+        lambda session_id: execute_script(webdriver_port, session_id, "history.back(); return null;"),
+        [url_a, url_b],
+        0,
+        False,
+        True,
+    )
 
 
 def expect_cross_site_fragment_navigation_from_ui_loads_document(
@@ -2700,6 +2830,7 @@ def run_test(webdriver_binary):
         session_id = None
 
         run_self_contained_navigation_tests(webdriver_port, page_port, url_a)
+        run_beforeunload_webdriver_suppression_tests(webdriver_port, page_server, url_a, url_b, url_c, url_d)
 
         session_id = create_session(webdriver_port)
         log = [f"duplicate URL crash recovery initial: {current_url(webdriver_port, session_id)}"]
@@ -2965,7 +3096,7 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
         request(webdriver_port, "DELETE", f"/session/{session_id}")
         session_id = None
 
-        session_id = create_session(webdriver_port)
+        session_id = create_session(webdriver_port, beforeunload_prompt_handler="dismiss")
         log = [f"blocked process-swap WebDriver back initial: {current_url(webdriver_port, session_id)}"]
         with page_server.process_swap_back_blocked_request_lock:
             page_server.process_swap_back_blocked_request_count = 0
@@ -2990,6 +3121,13 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             1,
             True,
             False,
+            log,
+        )
+        process_swap_beforeunload_label = "process-swap WebDriver back with beforeunload"
+        install_cancellable_beforeunload_handler(
+            webdriver_port,
+            session_id,
+            process_swap_beforeunload_label,
             log,
         )
 
@@ -3019,6 +3157,7 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             url_process_swap_back_blocked,
             log,
         )
+        expect_no_user_prompt(webdriver_port, session_id, process_swap_beforeunload_label, log)
         expect_ui_session_history(
             webdriver_port,
             session_id,
@@ -3030,99 +3169,11 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             True,
             log,
         )
-        request(webdriver_port, "DELETE", f"/session/{session_id}")
-        session_id = None
-
-        session_id = create_session(webdriver_port)
-        log = [f"blocked process-swap WebDriver back beforeunload initial: {current_url(webdriver_port, session_id)}"]
-        with page_server.process_swap_back_blocked_request_lock:
-            page_server.process_swap_back_blocked_request_count = 0
-        page_server.blocked_process_swap_back_requested.clear()
-        page_server.release_blocked_process_swap_back.clear()
-        load_url_from_ui(webdriver_port, session_id, url_process_swap_back_blocked)
-        expect_url(
+        expect_beforeunload_event_recorded(
             webdriver_port,
             session_id,
-            "after blocked process-swap WebDriver beforeunload setup /process-swap-back-blocked",
-            url_process_swap_back_blocked,
-            log,
-        )
-        load_url_from_ui(webdriver_port, session_id, url_b)
-        expect_url(webdriver_port, session_id, "after blocked process-swap WebDriver beforeunload setup /b", url_b, log)
-        before_blocked_process_swap_webdriver_back = expect_session_history_idle(
-            webdriver_port, session_id, "before blocked process-swap WebDriver back from /b", log
-        )
-        beforeunload_setup = execute_script(
-            webdriver_port,
-            session_id,
-            """
-window.beforeUnloadCount = 0;
-window.onbeforeunload = event => {
-    ++window.beforeUnloadCount;
-    event.preventDefault();
-    event.returnValue = "blocked";
-    return "blocked";
-};
-return [location.href, window.beforeUnloadCount];
-""",
-        )
-        if beforeunload_setup != [url_b, 0]:
-            raise AssertionError(
-                f"Expected process-swap WebDriver beforeunload setup on /b to be {[url_b, 0]}, "
-                f"got {beforeunload_setup}\n" + "\n".join(log)
-            )
-        inert_click_point = execute_script(
-            webdriver_port,
-            session_id,
-            """
-const rect = document.querySelector("p").getBoundingClientRect();
-return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.height / 2)];
-""",
-        )
-        perform_pointer_click(webdriver_port, session_id, inert_click_point[0], inert_click_point[1], log)
-
-        webdriver_back_error = []
-
-        def request_blocked_webdriver_back():
-            try:
-                request(webdriver_port, "POST", f"/session/{session_id}/back", {})
-            except Exception as error:
-                webdriver_back_error.append(error)
-
-        webdriver_back_thread = threading.Thread(target=request_blocked_webdriver_back)
-        webdriver_back_thread.start()
-        webdriver_back_thread.join(timeout=EVENT_TIMEOUT_SECONDS)
-        if page_server.blocked_process_swap_back_requested.is_set():
-            page_server.release_blocked_process_swap_back.set()
-            webdriver_back_thread.join(timeout=EVENT_TIMEOUT_SECONDS)
-            raise AssertionError(
-                "Expected beforeunload to cancel process-swap WebDriver back before loading target\n" + "\n".join(log)
-            )
-        if webdriver_back_thread.is_alive():
-            raise AssertionError(
-                "Timed out waiting for blocked process-swap WebDriver back request to finish\n" + "\n".join(log)
-            )
-        if webdriver_back_error:
-            raise webdriver_back_error[0]
-        blocked_process_swap_webdriver_back_state = execute_script(
-            webdriver_port,
-            session_id,
-            "return [location.href, window.beforeUnloadCount];",
-        )
-        if blocked_process_swap_webdriver_back_state != [url_b, 1]:
-            raise AssertionError(
-                f"Expected beforeunload to cancel process-swap WebDriver back from /b, "
-                f"got {blocked_process_swap_webdriver_back_state}\n" + "\n".join(log)
-            )
-        expect_ui_session_history(
-            webdriver_port,
-            session_id,
-            "after blocked process-swap WebDriver back from /b",
-            history_entry_urls(before_blocked_process_swap_webdriver_back["ui"]),
-            history_used_steps(before_blocked_process_swap_webdriver_back["ui"]),
-            before_blocked_process_swap_webdriver_back["ui"]["currentUsedStepIndex"],
-            before_blocked_process_swap_webdriver_back["ui"]["backButtonEnabled"],
-            before_blocked_process_swap_webdriver_back["ui"]["forwardButtonEnabled"],
+            url_b,
+            process_swap_beforeunload_label,
             log,
         )
         request(webdriver_port, "DELETE", f"/session/{session_id}")
@@ -3632,64 +3683,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             )
 
         expect_sandboxed_history_back_to_be_blocked(webdriver_port, session_id, url_a, url_b, log)
-
-        before_script_initiated_blocked_back = after_page_initiated_history_forward_to_b
-        perform_pointer_click(webdriver_port, session_id, 5, 5, log)
-        script_beforeunload_setup = execute_script(
-            webdriver_port,
-            session_id,
-            """
-window.scriptBeforeUnloadCount = 0;
-window.onbeforeunload = event => {
-    ++window.scriptBeforeUnloadCount;
-    event.preventDefault();
-    event.returnValue = "blocked";
-    return "blocked";
-};
-return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.hasBeenActive];
-""",
-        )
-        if script_beforeunload_setup != [url_b, 0, True]:
-            raise AssertionError(
-                f"Expected script beforeunload setup on /b to be {[url_b, 0, True]}, "
-                f"got {script_beforeunload_setup}\n" + "\n".join(log)
-            )
-        execute_script(webdriver_port, session_id, "history.back(); return location.href;")
-
-        def script_back_canceled_by_beforeunload(result):
-            return (
-                isinstance(result, list)
-                and len(result) == 2
-                and result[0] == url_b
-                and isinstance(result[1], int)
-                and result[1] >= 1
-            )
-
-        script_blocked_back_state = wait_for_script_result(
-            webdriver_port,
-            session_id,
-            "blocked script-initiated cross-site history.back() from /b",
-            "return [location.href, window.scriptBeforeUnloadCount];",
-            script_back_canceled_by_beforeunload,
-            log,
-        )
-        if script_blocked_back_state != [url_b, 1]:
-            raise AssertionError(
-                f"Expected beforeunload to cancel script-initiated cross-site history.back(), "
-                f"got {script_blocked_back_state}\n" + "\n".join(log)
-            )
-        expect_ui_session_history(
-            webdriver_port,
-            session_id,
-            "after blocked script-initiated cross-site history.back()",
-            history_entry_urls(before_script_initiated_blocked_back["ui"]),
-            history_used_steps(before_script_initiated_blocked_back["ui"]),
-            before_script_initiated_blocked_back["ui"]["currentUsedStepIndex"],
-            before_script_initiated_blocked_back["ui"]["backButtonEnabled"],
-            before_script_initiated_blocked_back["ui"]["forwardButtonEnabled"],
-            log,
-        )
-        execute_script(webdriver_port, session_id, "window.onbeforeunload = null; return null;")
 
         page_server.a_document_ran.clear()
         traverse_history_from_ui(webdriver_port, session_id, -1, wait_for_navigation_completion=False)
@@ -4673,203 +4666,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             before_blocked_browser_ui_back,
             log,
         )
-
-        beforeunload_setup = execute_script(
-            webdriver_port,
-            session_id,
-            """
-window.beforeUnloadCount = 0;
-window.onbeforeunload = event => {
-    ++window.beforeUnloadCount;
-    event.preventDefault();
-    event.returnValue = "blocked";
-    return "blocked";
-};
-return [location.href, window.beforeUnloadCount];
-""",
-        )
-        if beforeunload_setup != [url_b, 0]:
-            raise AssertionError(
-                f"Expected beforeunload setup on /b to be {[url_b, 0]}, got {beforeunload_setup}\n" + "\n".join(log)
-            )
-        link_click_point = execute_script(
-            webdriver_port,
-            session_id,
-            """
-const rect = document.querySelector("#go").getBoundingClientRect();
-return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.height / 2)];
-""",
-        )
-        perform_pointer_click(webdriver_port, session_id, link_click_point[0], link_click_point[1], log)
-        user_activation = execute_script(webdriver_port, session_id, "return navigator.userActivation.hasBeenActive;")
-        if user_activation is not True:
-            raise AssertionError("Expected pointer click to give /b sticky activation\n" + "\n".join(log))
-
-        blocked_link_navigation_state = execute_script(
-            webdriver_port,
-            session_id,
-            "return [location.href, window.beforeUnloadCount];",
-        )
-        if blocked_link_navigation_state[0] != url_b or blocked_link_navigation_state[1] < 1:
-            raise AssertionError(
-                f"Expected beforeunload to cancel link navigation from /b, got {blocked_link_navigation_state}\n"
-                + "\n".join(log)
-            )
-        expect_ui_session_history(
-            webdriver_port,
-            session_id,
-            "after blocked link navigation from /b",
-            history_entry_urls(before_blocked_browser_ui_back["ui"]),
-            history_used_steps(before_blocked_browser_ui_back["ui"]),
-            before_blocked_browser_ui_back["ui"]["currentUsedStepIndex"],
-            before_blocked_browser_ui_back["ui"]["backButtonEnabled"],
-            before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
-            log,
-        )
-
-        blocked_webdriver_navigate_state = expect_beforeunload_cancels_webdriver_navigation(
-            webdriver_port,
-            session_id,
-            url_c,
-            "WebDriver navigation from /b",
-            url_b,
-            blocked_link_navigation_state[1],
-            before_blocked_browser_ui_back,
-            log,
-        )
-
-        blocked_cross_site_webdriver_navigate_state = expect_beforeunload_cancels_webdriver_navigation(
-            webdriver_port,
-            session_id,
-            url_d,
-            "cross-site WebDriver navigation from /b",
-            url_b,
-            blocked_webdriver_navigate_state[1],
-            before_blocked_browser_ui_back,
-            log,
-        )
-
-        blocked_refresh_state = expect_beforeunload_cancels_refresh(
-            webdriver_port,
-            session_id,
-            url_b,
-            blocked_cross_site_webdriver_navigate_state[1],
-            log,
-        )
-
-        traverse_history_from_ui(webdriver_port, session_id, -1)
-        blocked_beforeunload_state = execute_script(
-            webdriver_port,
-            session_id,
-            "return [location.href, window.beforeUnloadCount];",
-        )
-        if blocked_beforeunload_state[0] != url_b or blocked_beforeunload_state[1] <= blocked_refresh_state[1]:
-            raise AssertionError(
-                f"Expected beforeunload to cancel browser UI back from /b, got {blocked_beforeunload_state}\n"
-                + "\n".join(log)
-            )
-        expect_ui_session_history(
-            webdriver_port,
-            session_id,
-            "after blocked browser UI back from /b",
-            history_entry_urls(before_blocked_browser_ui_back["ui"]),
-            history_used_steps(before_blocked_browser_ui_back["ui"]),
-            before_blocked_browser_ui_back["ui"]["currentUsedStepIndex"],
-            before_blocked_browser_ui_back["ui"]["backButtonEnabled"],
-            before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
-            log,
-        )
-
-        request(webdriver_port, "POST", f"/session/{session_id}/back", {})
-        blocked_webdriver_back_state = execute_script(
-            webdriver_port,
-            session_id,
-            "return [location.href, window.beforeUnloadCount];",
-        )
-        if blocked_webdriver_back_state[0] != url_b or blocked_webdriver_back_state[1] <= blocked_beforeunload_state[1]:
-            raise AssertionError(
-                f"Expected beforeunload to cancel WebDriver back from /b, got {blocked_webdriver_back_state}\n"
-                + "\n".join(log)
-            )
-        expect_ui_session_history(
-            webdriver_port,
-            session_id,
-            "after blocked WebDriver back from /b",
-            history_entry_urls(before_blocked_browser_ui_back["ui"]),
-            history_used_steps(before_blocked_browser_ui_back["ui"]),
-            before_blocked_browser_ui_back["ui"]["currentUsedStepIndex"],
-            before_blocked_browser_ui_back["ui"]["backButtonEnabled"],
-            before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
-            log,
-        )
-
-        traverse_history_from_ui(webdriver_port, session_id, -1, wait_for_navigation_completion=False)
-
-        def browser_back_was_canceled_by_beforeunload(result):
-            return (
-                isinstance(result, list)
-                and len(result) == 2
-                and result[0] == url_b
-                and isinstance(result[1], int)
-                and result[1] > blocked_webdriver_back_state[1]
-            )
-
-        blocked_browser_back_state = wait_for_script_result(
-            webdriver_port,
-            session_id,
-            "beforeunload-canceled browser back from /b",
-            "return [location.href, window.beforeUnloadCount];",
-            browser_back_was_canceled_by_beforeunload,
-            log,
-        )
-        expect_ui_session_history(
-            webdriver_port,
-            session_id,
-            "after blocked browser back from /b",
-            history_entry_urls(before_blocked_browser_ui_back["ui"]),
-            history_used_steps(before_blocked_browser_ui_back["ui"]),
-            before_blocked_browser_ui_back["ui"]["currentUsedStepIndex"],
-            before_blocked_browser_ui_back["ui"]["backButtonEnabled"],
-            before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
-            log,
-        )
-
-        cross_site_link_click_point = execute_script(
-            webdriver_port,
-            session_id,
-            """
-const rect = document.querySelector("#branch").getBoundingClientRect();
-return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.height / 2)];
-""",
-        )
-        perform_pointer_click(
-            webdriver_port, session_id, cross_site_link_click_point[0], cross_site_link_click_point[1], log
-        )
-        blocked_cross_site_link_navigation_state = execute_script(
-            webdriver_port,
-            session_id,
-            "return [location.href, window.beforeUnloadCount];",
-        )
-        if (
-            blocked_cross_site_link_navigation_state[0] != url_b
-            or blocked_cross_site_link_navigation_state[1] <= blocked_browser_back_state[1]
-        ):
-            raise AssertionError(
-                f"Expected beforeunload to cancel cross-site link navigation from /b, got {blocked_cross_site_link_navigation_state}\n"
-                + "\n".join(log)
-            )
-        expect_ui_session_history(
-            webdriver_port,
-            session_id,
-            "after blocked cross-site link navigation from /b",
-            history_entry_urls(before_blocked_browser_ui_back["ui"]),
-            history_used_steps(before_blocked_browser_ui_back["ui"]),
-            before_blocked_browser_ui_back["ui"]["currentUsedStepIndex"],
-            before_blocked_browser_ui_back["ui"]["backButtonEnabled"],
-            before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
-            log,
-        )
-        execute_script(webdriver_port, session_id, "window.onbeforeunload = null; return null;")
 
         page_server.release_blocked_frame_b.clear()
         page_server.blocked_frame_b_requested.clear()

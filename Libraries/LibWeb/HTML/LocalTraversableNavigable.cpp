@@ -1185,6 +1185,10 @@ public:
         , m_callback(callback)
         , m_timeout(Platform::Timer::create_single_shot(heap(), TIMEOUT_MS, GC::create_function(heap(), [this] {
             if (!m_completed) {
+                if (has_pending_before_unload_dialog()) {
+                    m_timeout->restart();
+                    return;
+                }
                 dbgln("FIXME: check_if_unloading_is_canceled timed out");
                 finish(Result::Continue);
             }
@@ -1250,6 +1254,18 @@ public:
     }
 
 private:
+    bool has_pending_before_unload_dialog() const
+    {
+        if (m_traversable) {
+            if (auto active_document = m_traversable->active_document(); active_document && active_document->page().pending_dialog() == Page::PendingDialog::BeforeUnload)
+                return true;
+        }
+
+        return m_phase2_documents.find_if([](auto const& document) {
+            return document->page().pending_dialog() == Page::PendingDialog::BeforeUnload;
+        }) != m_phase2_documents.end();
+    }
+
     void start_phase1()
     {
         // 4. Queue a global task on the navigation and traversal task source given traversable's active window to perform the following steps:

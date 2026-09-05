@@ -220,6 +220,7 @@ private:
     virtual void run_javascript(u64 page_id, String) override;
 
     virtual void alert_closed(u64 page_id) override;
+    virtual void before_unload_closed(u64 page_id, bool accepted) override;
     virtual void confirm_closed(u64 page_id, bool accepted) override;
     virtual void prompt_closed(u64 page_id, Optional<Utf16String> response) override;
     virtual void color_picker_update(u64 page_id, Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state) override;

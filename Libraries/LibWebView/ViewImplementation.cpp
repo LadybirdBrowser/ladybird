@@ -1875,6 +1875,11 @@ void ViewImplementation::alert_closed()
     client().async_alert_closed(page_id());
 }
 
+void ViewImplementation::before_unload_closed(bool accepted)
+{
+    client().async_before_unload_closed(page_id(), accepted);
+}
+
 void ViewImplementation::confirm_closed(bool accepted)
 {
     client().async_confirm_closed(page_id(), accepted);

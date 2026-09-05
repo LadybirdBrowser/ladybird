@@ -461,10 +461,10 @@ void Page::did_complete_window_rect_request(u64 completion_id)
 }
 
 template<typename ResponseType>
-static ResponseType spin_event_loop_until_dialog_closed(PageClient& client, Optional<ResponseType>& response, SourceLocation location = SourceLocation::current())
+static ResponseType spin_event_loop_until_dialog_closed(PageClient& client, Optional<ResponseType>& response, HTML::EventLoop* event_loop = nullptr, SourceLocation location = SourceLocation::current())
 {
-    auto& event_loop = Web::HTML::current_settings_object().responsible_event_loop();
-    auto pause_handle = event_loop.pause();
+    auto& responsible_event_loop = event_loop ? *event_loop : Web::HTML::current_settings_object().responsible_event_loop();
+    auto pause_handle = responsible_event_loop.pause();
 
     Web::Platform::EventLoopPlugin::the().spin_until(GC::create_function(GC::Heap::the(), [&]() {
         return response.has_value() || !client.is_connection_open();
@@ -493,6 +493,22 @@ void Page::alert_closed()
 {
     if (m_pending_dialog == PendingDialog::Alert) {
         m_pending_alert_response = Empty {};
+        on_pending_dialog_closed();
+    }
+}
+
+bool Page::did_request_before_unload(String const& source, HTML::EventLoop& event_loop)
+{
+    m_pending_dialog = PendingDialog::BeforeUnload;
+    m_client->page_did_request_before_unload(source);
+
+    return spin_event_loop_until_dialog_closed(*m_client, m_pending_before_unload_response, &event_loop);
+}
+
+void Page::before_unload_closed(bool accepted)
+{
+    if (m_pending_dialog == PendingDialog::BeforeUnload) {
+        m_pending_before_unload_response = accepted;
         on_pending_dialog_closed();
     }
 }
@@ -545,6 +561,7 @@ void Page::dismiss_dialog(GC::Ref<GC::Function<void()>> on_dialog_closed)
     case PendingDialog::Alert:
         m_client->page_did_request_accept_dialog();
         break;
+    case PendingDialog::BeforeUnload:
     case PendingDialog::Confirm:
     case PendingDialog::Prompt:
         m_client->page_did_request_dismiss_dialog();
@@ -560,6 +577,7 @@ void Page::accept_dialog(GC::Ref<GC::Function<void()>> on_dialog_closed)
     case PendingDialog::None:
         break;
     case PendingDialog::Alert:
+    case PendingDialog::BeforeUnload:
     case PendingDialog::Confirm:
     case PendingDialog::Prompt:
         m_client->page_did_request_accept_dialog();

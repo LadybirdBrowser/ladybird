@@ -1064,6 +1064,14 @@ void PageClient::alert_closed()
     page().alert_closed();
 }
 
+void PageClient::page_did_request_before_unload(String const& source)
+{
+    client().async_did_request_before_unload(m_id, source);
+
+    if (m_webdriver)
+        m_webdriver->page_did_open_dialog({});
+}
+
 void PageClient::page_did_request_confirm(Utf16String const& message)
 {
     client().async_did_request_confirm(m_id, message);

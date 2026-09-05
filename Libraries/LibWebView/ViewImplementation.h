@@ -293,6 +293,7 @@ public:
     Web::ViewportIsFullscreen is_fullscreen() const { return m_is_fullscreen; }
 
     void alert_closed();
+    void before_unload_closed(bool accepted);
     void confirm_closed(bool accepted);
     void prompt_closed(Optional<Utf16String> const& response);
     void color_picker_update(Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state);
@@ -412,6 +413,7 @@ public:
     Function<void(ByteString const&)> on_enter_tooltip_area;
     Function<void()> on_leave_tooltip_area;
     Function<void(Utf16String const& message)> on_request_alert;
+    Function<void(String const& source, Function<void(bool)> on_complete)> on_request_before_unload;
     Function<void(Utf16String const& message)> on_request_confirm;
     Function<void(Utf16String const& message, Utf16String const& default_)> on_request_prompt;
     Function<void(Utf16String const& message)> on_request_set_prompt_text;
