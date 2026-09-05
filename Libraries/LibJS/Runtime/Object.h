@@ -175,6 +175,7 @@ public:
     };
     virtual ThrowCompletionOr<Value> internal_get(PropertyKey const&, Value receiver, CacheableGetPropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty) const;
     virtual bool is_cacheable_for_property_absence() const { return true; }
+    virtual bool is_cacheable_for_inherited_property() const { return true; }
     virtual ThrowCompletionOr<bool> internal_set(PropertyKey const&, Value value, Value receiver, CacheableSetPropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty);
     virtual ThrowCompletionOr<bool> internal_delete(PropertyKey const&);
     virtual ThrowCompletionOr<GC::RootVector<Value>> internal_own_property_keys() const;

@@ -1122,6 +1122,10 @@ ThrowCompletionOr<Value> Object::internal_get(PropertyKey const& property_key, V
             return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
         if (cacheable_metadata && !parent->is_cacheable_for_property_absence())
             cacheable_metadata->property_absence_is_cacheable = false;
+        // NB: An object whose own lookup can start answering for a name at any time cannot vouch for a
+        //     result found further up the prototype chain.
+        if (cacheable_metadata && !is_cacheable_for_inherited_property())
+            cacheable_metadata = nullptr;
         return parent->internal_get(property_key, receiver, cacheable_metadata, PropertyLookupPhase::PrototypeChain);
     }
 
