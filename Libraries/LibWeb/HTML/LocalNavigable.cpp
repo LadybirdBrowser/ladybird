@@ -901,6 +901,37 @@ void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, G
     notify_navigation_observers_navigation_complete();
 }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-history-step
+// The steps queued for one navigable of nonchangingNavigablesThatStillNeedUpdates.
+void LocalNavigable::update_nonchanging_navigable_history_step_state(HistoryObjectLengthAndIndex history_object_length_and_index, GC::Ref<GC::Function<void()>> on_complete)
+{
+    // AD-HOC: The navigable may have been destroyed while the UI process dispatched this job.
+    if (has_been_destroyed() || !active_document()) {
+        on_complete->function()();
+        return;
+    }
+
+    // AD-HOC: Queue with null document instead of using queue_global_task. A document-associated task can become
+    //         unrunnable while the UI process waits for completion, so validate the document when the task runs.
+    queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr, GC::create_function(heap(), [navigable = GC::Ref { *this }, history_object_length_and_index, on_complete] {
+        // 1. Let document be navigable's active document.
+        auto document = navigable->active_document();
+        if (navigable->has_been_destroyed() || !document || !document->is_fully_active()) {
+            on_complete->function()();
+            return;
+        }
+
+        // 2. Set document's history object's index to scriptHistoryIndex.
+        document->history()->m_index = history_object_length_and_index.script_history_index;
+
+        // 3. Set document's history object's length to scriptHistoryLength.
+        document->history()->m_length = history_object_length_and_index.script_history_length;
+
+        // 4. Increment completedNonchangingJobs.
+        on_complete->function()();
+    }));
+}
+
 void LocalNavigable::notify_navigation_observers_navigation_complete()
 {
     if (!m_ongoing_navigation.has<Empty>())

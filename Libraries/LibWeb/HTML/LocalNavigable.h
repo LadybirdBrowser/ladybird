@@ -106,6 +106,7 @@ public:
     void consume_child_navigable_history_reconstruction_id(size_t index);
 
     void activate_history_entry(RefPtr<SessionHistoryEntry>, GC::Ref<DOM::Document>, VisibilityState system_visibility_state);
+    void update_nonchanging_navigable_history_step_state(HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
     void notify_navigation_observers_navigation_complete();
 
     GC::Ptr<DOM::Document> active_document() const;

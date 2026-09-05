@@ -579,12 +579,13 @@ void ConnectionFromClient::run_traversable_close_unload_task(u64 page_id, Web::H
 void ConnectionFromClient::update_nonchanging_navigable_history_state(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index)
 {
     auto page = this->page(page_id);
-    if (!page.has_value()) {
+    auto navigable = Web::HTML::local_navigable_with_id(navigable_id);
+    if (!page.has_value() || !navigable) {
         async_nonchanging_navigable_history_state_updated(page_id, operation_id, navigable_id);
         return;
     }
 
-    as<Web::HTML::LocalTraversableNavigable>(*page->page().local_root_navigable()).update_nonchanging_navigable_history_step_state(navigable_id, { script_history_length, script_history_index }, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id] {
+    navigable->update_nonchanging_navigable_history_step_state({ script_history_length, script_history_index }, GC::create_function(navigable->heap(), [this, page_id, operation_id, navigable_id] {
         async_nonchanging_navigable_history_state_updated(page_id, operation_id, navigable_id);
     }));
 }
