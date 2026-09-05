@@ -217,16 +217,10 @@ impl<P: PagedColumnPage> PagedColumn<P> {
     /// Publish one value and return the previous value and whether this allocated a page.
     #[inline]
     pub(super) fn insert(&mut self, index: usize, value: P::Value) -> (Option<P::Value>, bool) {
-        let page_index = index >> P::SHIFT;
-        if self.pages.len() <= page_index {
-            self.pages.resize_with(page_index + 1, || None);
-        }
-        let page_was_absent = self.pages[page_index].is_none();
-        let page = self.pages[page_index].get_or_insert_with(Box::default);
+        let (page, page_was_absent) = self.page_mut_or_default(index);
         let index = index & ((1 << P::SHIFT) - 1);
         let previous = page.get(index);
         page.insert(index, value);
-        self.page_count += usize::from(page_was_absent);
         (previous, page_was_absent)
     }
 
