@@ -256,20 +256,16 @@ impl MatchAnswerCatalog {
     }
 
     pub(super) fn sweep_unreferenced(&mut self) -> u64 {
-        let unreferenced = self
-            .answers
-            .iter()
-            .enumerate()
-            .filter_map(|(index, entry)| {
-                let entry = entry.as_ref()?;
-                (entry.prefix_references == 0 && entry.cascade_references == 0 && entry.retained_references == 0)
-                    .then_some(MatchAnswerID(index as u32 + 1))
-            })
-            .collect::<Vec<_>>();
-        unreferenced
-            .into_iter()
-            .map(|identity| self.remove_unreferenced(identity))
-            .sum()
+        let mut released_bytes = 0;
+        for index in 0..self.answers.len() {
+            let Some(entry) = self.answers[index].as_ref() else {
+                continue;
+            };
+            if entry.prefix_references == 0 && entry.cascade_references == 0 && entry.retained_references == 0 {
+                released_bytes += self.remove_unreferenced(MatchAnswerID(index as u32 + 1));
+            }
+        }
+        released_bytes
     }
 
     pub(super) fn remove_unreferenced(&mut self, identity: MatchAnswerID) -> u64 {
@@ -373,22 +369,17 @@ impl MatchAnswerCatalog {
     }
 
     pub(super) fn evict_retained(&mut self) {
-        let retained = self
-            .answers
-            .iter_mut()
-            .enumerate()
-            .filter_map(|(index, entry)| {
-                let entry = entry.as_mut()?;
-                if entry.retained_references == 0 {
-                    return None;
-                }
-                entry.retained_references = 0;
-                (entry.prefix_references == 0 && entry.cascade_references == 0)
-                    .then_some(MatchAnswerID(index as u32 + 1))
-            })
-            .collect::<Vec<_>>();
-        for identity in retained {
-            self.remove_unreferenced(identity);
+        for index in 0..self.answers.len() {
+            let Some(entry) = self.answers[index].as_mut() else {
+                continue;
+            };
+            if entry.retained_references == 0 {
+                continue;
+            }
+            entry.retained_references = 0;
+            if entry.prefix_references == 0 && entry.cascade_references == 0 {
+                self.remove_unreferenced(MatchAnswerID(index as u32 + 1));
+            }
         }
         self.retained_payload_bytes = 0;
         self.retained_answer_count = 0;
