@@ -114,7 +114,9 @@ impl StyleEngine {
         let display_changed = has(fact::DISPLAY_CHANGED);
         for child in light_children {
             let (light_reaction, light_groups) = child_reaction(
-                has(fact::CHILDREN_EXPLICITLY_INHERIT) || self.node_explicitly_inherits_non_inherited_property(child),
+                !invalidation_is_none
+                    && (has(fact::CHILDREN_EXPLICITLY_INHERIT)
+                        || self.node_explicitly_inherits_non_inherited_property(child)),
             );
             self.record_derived_element_style_input(child, light_reaction, light_groups);
             if display_changed {
@@ -123,8 +125,9 @@ impl StyleEngine {
         }
         for child in shadow_children {
             let (shadow_reaction, shadow_groups) = child_reaction(
-                has(fact::SHADOW_CHILDREN_EXPLICITLY_INHERIT)
-                    || self.node_explicitly_inherits_non_inherited_property(child),
+                !invalidation_is_none
+                    && (has(fact::SHADOW_CHILDREN_EXPLICITLY_INHERIT)
+                        || self.node_explicitly_inherits_non_inherited_property(child)),
             );
             self.record_derived_element_style_input(child, shadow_reaction, shadow_groups);
             if display_changed {

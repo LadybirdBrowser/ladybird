@@ -1122,6 +1122,13 @@ impl StyleEngine {
                             }
                         })
                         .or_else(|| {
+                            if self.last_transaction_only_derived_child_reactions {
+                                self.reuse_published_match_answer(node)
+                            } else {
+                                None
+                            }
+                        })
+                        .or_else(|| {
                             if completed_retained_answers.is_empty() {
                                 return None;
                             }
@@ -1430,6 +1437,13 @@ impl StyleEngine {
                 };
                 let mut retry_after_ancestor = false;
                 let engine_computed_gate_passes = if direct_inherited_delta.is_some() {
+                    false
+                } else if reaction == transaction::STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES
+                    && !parent_inputs_moved.display
+                    && !self.node_style_reads_custom_properties(node)
+                {
+                    // C++ only refreshes the inherited environment for a non-consumer. There
+                    // is no element record to recompute or compare against the parent's groups.
                     false
                 } else if !(reaction_is_settleable
                     || (old_style_record == 0 && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))

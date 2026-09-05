@@ -3248,6 +3248,42 @@ impl StyleEngine {
         })
     }
 
+    /// An inherited-input-only transaction changes no selector or declaration. Keep the exact
+    /// cascade input and current winner rows instead of compacting the same matches again.
+    pub(super) fn reuse_published_match_answer(&mut self, node: StyleNodeID) -> Option<PublishedMatchAnswer> {
+        self.winner_groups
+            .token_for(WinnerGroupKey::current(node, self.program.version()))
+            .sparse()
+            .ok()?;
+        if self
+            .winner_groups
+            .pseudo_states(node)
+            .any(|(_, version, _, current)| version != self.program.version() || !current)
+        {
+            return None;
+        }
+        let cascade_input = *self.retained_match_answers.cascade_input_lookup(node).sparse().ok()?;
+        self.match_answers.answer(cascade_input)?;
+        let retained = self.retained_match_answer(node).sparse().ok()?;
+        let cascade_winners_are_complete = self.tree.tree_scope(node) == TreeScopeID::DOCUMENT
+            && retained.iter().all(|entry| {
+                entry.tree_scope == TreeScopeID::DOCUMENT
+                    && !self.program.rule_is_gated_by_container_query(entry.rule)
+                    && self.program.declarations_are_complete_for(entry.rule)
+            })
+            && ElementDeclarationKind::ALL
+                .iter()
+                .all(|&kind| self.facts.element_declared_properties(node, kind).1);
+        self.counters.bump(Counter::RetainedMatchAnswerReuses);
+        Some(PublishedMatchAnswer {
+            node,
+            cascade_input: Some(cascade_input),
+            matches: None,
+            cascade_winners_are_complete,
+            observed: false,
+        })
+    }
+
     /// Complete a node from a matching node's already compacted cascade input and winner rows.
     pub(super) fn complete_published_match_answer_from_cascade_input(
         &mut self,

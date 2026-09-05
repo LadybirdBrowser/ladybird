@@ -1,0 +1,3 @@
+color: rgb(0, 0, 255)
+pseudo color: rgb(0, 0, 255)
+cascade matches: 6

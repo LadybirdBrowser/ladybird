@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    li { font-size: 24px; }
+</style>
+<ul id="host"></ul>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        for (let index = 0; index < 20; ++index)
+            host.appendChild(document.createElement("li"));
+        internals.updateStyle();
+        const before = internals.styleEngineCounters();
+        host.style.fontSize = "18px";
+        internals.updateStyle();
+        host.style.fontFamily = "serif";
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+        println(`discarded records: ${after.engineComputedRecordsAbandoned - before.engineComputedRecordsAbandoned}`);
+        println(`font size: ${getComputedStyle(host.lastChild).fontSize}`);
+        println(`font family: ${getComputedStyle(host.lastChild).fontFamily}`);
+        println(`marker numerals: ${getComputedStyle(host.lastChild, "::marker").fontVariantNumeric}`);
+    });
+</script>
