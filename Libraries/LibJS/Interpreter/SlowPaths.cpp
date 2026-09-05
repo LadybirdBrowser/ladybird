@@ -1047,7 +1047,7 @@ i64 asm_slow_path_get_by_value(VM* vm, u32 pc, Op::GetByValue const* instruction
             return static_cast<i64>(pc + sizeof(Op::GetByValue));
         }
     }
-    vm->set(instruction->dst(), ASM_TRY(*vm, pc, object->internal_get(property_key, base_value)));
+    vm->set(instruction->dst(), ASM_TRY(*vm, pc, get_by_value_with_keyed_cache(*vm, *object, base_value, property_key)));
     return static_cast<i64>(pc + sizeof(Op::GetByValue));
 }
 
@@ -1056,7 +1056,7 @@ i64 asm_slow_path_get_by_value_with_this(VM* vm, u32 pc, Op::GetByValueWithThis 
     auto property_key_value = vm->get(instruction->property());
     auto object = ASM_TRY(*vm, pc, vm->get(instruction->base()).to_object(*vm));
     auto property_key = ASM_TRY(*vm, pc, property_key_value.to_property_key(*vm));
-    auto value = ASM_TRY(*vm, pc, object->internal_get(property_key, vm->get(instruction->this_value())));
+    auto value = ASM_TRY(*vm, pc, get_by_value_with_keyed_cache(*vm, *object, vm->get(instruction->this_value()), property_key));
     vm->set(instruction->dst(), value);
     return static_cast<i64>(pc + sizeof(Op::GetByValueWithThis));
 }

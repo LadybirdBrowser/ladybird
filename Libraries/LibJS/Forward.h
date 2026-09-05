@@ -321,6 +321,7 @@ class Executable;
 class Generator;
 class Instruction;
 class Operand;
+struct KeyedPropertyLookupCache;
 struct PropertyLookupCache;
 struct StaticPropertyLookupCache;
 class RegexTable;
