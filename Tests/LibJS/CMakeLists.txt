@@ -26,4 +26,13 @@ if (NOT WIN32)
     )
     add_test(NAME test-js-ast COMMAND "${CMAKE_BINARY_DIR}/bin/test-js-ast")
     set_tests_properties(test-js-ast PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
+
+    add_custom_target(test-js-debugger ALL DEPENDS js "${CMAKE_BINARY_DIR}/bin/test-js-debugger")
+    add_custom_command(
+        OUTPUT "${CMAKE_BINARY_DIR}/bin/test-js-debugger"
+        COMMAND "${CMAKE_COMMAND}" -E copy "${ladybird_SOURCE_DIR}/Tests/LibJS/test-js-debugger.py" "${CMAKE_BINARY_DIR}/bin/test-js-debugger"
+        DEPENDS "${ladybird_SOURCE_DIR}/Tests/LibJS/test-js-debugger.py"
+    )
+    add_test(NAME test-js-debugger COMMAND "${CMAKE_BINARY_DIR}/bin/test-js-debugger")
+    set_tests_properties(test-js-debugger PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
 endif()
