@@ -51,7 +51,7 @@ This error typically arises when CLion is not configured to use the correct buil
 Navigate to `Settings -> Build, Execution, Deployment -> CMake` and in your selected profile, set the `Build directory` according to the profile:
 - Default -> "`Build/release`"
 - Debug -> "`Build/debug`"
-- Sanitizer -> "`Build/sanitizers`"
+- Sanitizer -> "`Build/sanitizer`"
 
 
 ## Notes for WSL Users

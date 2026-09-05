@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # Copyright (c) 2024, pheonixfirewingz <luke.a.shore@proton.me>
 # Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
 #
@@ -20,7 +18,7 @@ from Utils.host_platform import HostSystem  # noqa: E402
 from Utils.host_platform import Platform  # noqa: E402
 
 
-def build_vcpkg():
+def build_vcpkg(vcpkg_checkout: pathlib.Path):
     platform = Platform()
 
     with open(LADYBIRD_SOURCE_DIR / "vcpkg.json", "r") as vcpkg_json_file:
@@ -31,10 +29,9 @@ def build_vcpkg():
 
     build_dir = LADYBIRD_SOURCE_DIR / "Build"
     build_dir.mkdir(parents=True, exist_ok=True)
-    vcpkg_checkout = build_dir / "vcpkg"
 
     if not vcpkg_checkout.is_dir():
-        subprocess.check_call(args=["git", "clone", git_repo], cwd=build_dir)
+        subprocess.check_call(args=["git", "clone", git_repo, vcpkg_checkout], cwd=build_dir)
     else:
         bootstrapped_vcpkg_version = (
             subprocess.check_output(["git", "-C", vcpkg_checkout, "rev-parse", "HEAD"]).strip().decode()
@@ -68,11 +65,3 @@ def build_vcpkg():
                 file=sys.stderr,
             )
             time.sleep(delay_seconds)
-
-
-def main():
-    build_vcpkg()
-
-
-if __name__ == "__main__":
-    main()

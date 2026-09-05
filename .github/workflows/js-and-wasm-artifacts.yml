@@ -13,7 +13,6 @@ on:
 env:
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
   CCACHE_DIR: ${{ github.workspace }}/.ccache
-  VCPKG_ROOT: ${{ github.workspace }}/Build/vcpkg
 
 jobs:
   build-and-package:
@@ -72,6 +71,7 @@ jobs:
         with:
           os: ${{ matrix.os_name }}
           arch: ${{ matrix.arch }}
+          build_preset: 'Distribution'
 
       - name: Restore Caches
         uses: ./.github/actions/cache-restore

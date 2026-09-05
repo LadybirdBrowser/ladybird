@@ -12,7 +12,6 @@ concurrency:
 env:
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
   CCACHE_DIR: ${{ github.workspace }}/.ccache
-  VCPKG_ROOT: ${{ github.workspace }}/Build/vcpkg
 
 jobs:
   run_and_update_results:
@@ -58,6 +57,7 @@ jobs:
           os: 'Linux'
           arch: 'x86_64'
           toolchain: 'Clang'
+          build_preset: 'Release'
 
       - name: Install Python dependencies
         run: |
