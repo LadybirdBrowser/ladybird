@@ -24,6 +24,26 @@
     test(() => {
         const guard = document.getElementById("guard");
         const item = document.getElementById("item");
+        const bare = document.getElementById("bare");
+        const colors = () => [item, bare].map(element => getComputedStyle(element).color).join(" / ");
+        for (const [mode, expected] of [
+            ["light", "rgb(0, 128, 0) / rgb(0, 128, 0)"],
+            ["dark", "rgb(0, 0, 255) / rgb(0, 128, 0)"],
+            [null, "rgb(0, 128, 0) / rgb(0, 0, 0)"],
+        ]) {
+            if (mode === null)
+                guard.removeAttribute("data-mode");
+            else
+                guard.setAttribute("data-mode", mode);
+            internals.updateStyle();
+            if (colors() !== expected)
+                throw new Error(`Incorrect incremental colors for ${mode}: ${colors()}`);
+            internals.setUserStyle(`/* complete style for ${mode} */`);
+            internals.updateStyle();
+            if (colors() !== expected)
+                throw new Error(`Incorrect complete colors for ${mode}: ${colors()}`);
+            internals.setUserStyle("");
+        }
 
         // A class the guard gains reaches the .item elements under it, and no further: #far is an
         // .item too, but it is not under the guard.

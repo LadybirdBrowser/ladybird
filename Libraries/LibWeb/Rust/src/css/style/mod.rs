@@ -496,8 +496,10 @@ fn anchor_region_for(axis: RelativeAxis) -> Option<fn(StyleNodeID) -> ImpactRegi
 /// Which way a child sequence changed for one element.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SequenceSide {
-    /// The element joined the sequence.
+    /// The element joined the sequence and publishes its arriving facts.
     Arrived,
+    /// An already connected element joined from another parent without republishing its facts.
+    Reparented,
     /// The element left it, taking with it any witness it was.
     Departed,
     /// The element stayed in the sequence and moved within it.
