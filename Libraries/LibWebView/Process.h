@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/RefPtr.h>
 #include <AK/Utf16String.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/File.h>
@@ -42,7 +43,7 @@ public:
     void set_title(Optional<Utf16String> title) { m_title = move(title); }
 
     template<typename ConnectionFromClient>
-    Optional<ConnectionFromClient&> client()
+    RefPtr<ConnectionFromClient> client()
     {
         if (auto strong_connection = m_connection.strong_ref())
             return as<ConnectionFromClient>(*strong_connection);

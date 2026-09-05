@@ -36,8 +36,9 @@ Process::Process(ProcessType type, RefPtr<IPC::ConnectionBase> connection, Core:
 
 Process::~Process()
 {
-    if (m_connection)
-        m_connection->shutdown();
+    // shutdown() can release the connection's last owner while dispatching die().
+    if (auto connection = m_connection.strong_ref())
+        connection->shutdown();
 }
 
 ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(Core::ProcessSpawnOptions const& options, bool capture_output)
