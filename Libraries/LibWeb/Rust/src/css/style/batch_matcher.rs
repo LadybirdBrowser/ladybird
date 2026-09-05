@@ -1822,7 +1822,15 @@ mod tests {
         assert_eq!(rows.iter().filter(|row| row.prefix_matched).count(), 1);
 
         let mut changes = SelectorTruthChanges::default();
-        record_match_set_difference(&mut changes, true, document.nodes[0], &[], &[entry], &dispatch);
+        record_match_set_difference(
+            &mut changes,
+            true,
+            document.nodes[0],
+            &[],
+            &[entry],
+            &dispatch,
+            &document.program,
+        );
         let mut changed_rules: Vec<_> = changes.deltas.as_slice().iter().map(|delta| delta.rule).collect();
         changed_rules.sort_unstable();
         assert_eq!(changed_rules, vec![user_agent_rule, author_rule]);

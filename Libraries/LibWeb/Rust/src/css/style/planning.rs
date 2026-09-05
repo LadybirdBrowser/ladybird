@@ -341,6 +341,7 @@ pub(super) fn record_match_set_difference(
     old_matches: &[EntryID],
     new_matches: &[EntryID],
     dispatch: &RuleDispatch,
+    program: &StyleSheetProgram,
 ) {
     if !active {
         return;
@@ -348,6 +349,11 @@ pub(super) fn record_match_set_difference(
     let mut record = |entry: EntryID, kind| {
         let mut previous_rule = None;
         for candidate in dispatch.entries_for_identity(entry) {
+            // Prefix truth is independent of activation. Only deciding rules belong in an
+            // exact cascade answer, just as when ordinary matching consumes these identities.
+            if !program.rule_can_decide(candidate.rule) {
+                continue;
+            }
             if previous_rule == Some(candidate.rule) {
                 continue;
             }
