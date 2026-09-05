@@ -10,10 +10,10 @@
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleSystemStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
-#include <LibWeb/DOM/Node.h>
 
 namespace Web::CSS {
 
@@ -348,8 +348,8 @@ void CSSCounterStyleRule::clear_caches()
 
     parent_style_sheet->for_each_owning_style_scope([&](StyleScope& style_scope) {
         style_scope.invalidate_counter_style_cache();
-        style_scope.node().record_style_environment_change();
     });
+    record_style_rule_declarations_changed(*this);
 }
 
 }

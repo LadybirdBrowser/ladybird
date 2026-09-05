@@ -3599,6 +3599,14 @@ static bool computed_content_depends_on_counter_style_environment(StyleValue con
         || (content_value.alt_text() && any_of(content_value.alt_text()->values(), item_depends_on_counter_style_environment));
 }
 
+static bool computed_style_depends_on_counter_style_environment(ComputedValues const& values, bool is_pseudo)
+{
+    auto const& base = values.base_values();
+    return computed_content_depends_on_counter_style_environment(base.computed_content())
+        || (base.list_style_type_depends_on_counter_style_environment()
+            && (is_pseudo || !base.list_style_type_uses_non_overridable_counter_style()));
+}
+
 StyleEngine::StyleRecordDelta StyleComputer::publish_computed_style_inputs(DOM::AbstractElement abstract_element, ComputedValues const& values) const
 {
     auto publication = record_computed_style_inputs(Optional<DOM::AbstractElement> { abstract_element }, values, abstract_element.element().style_node_id());
@@ -3664,12 +3672,8 @@ StyleEngine::StyleRecordDelta StyleComputer::record_computed_style_inputs(Option
             && element.property_ids_with_matching_transition_property_entry({}).is_empty();
     }
     u64 counter_style_environment_identity = 0;
-    bool const is_pseudo = abstract_element.has_value() && abstract_element->pseudo_element().has_value();
-    bool const list_style_type_depends_on_counter_style_environment = base.list_style_type_depends_on_counter_style_environment()
-        && (is_pseudo || !base.list_style_type_uses_non_overridable_counter_style());
     if (abstract_element.has_value()
-        && (computed_content_depends_on_counter_style_environment(base.computed_content())
-            || list_style_type_depends_on_counter_style_environment))
+        && computed_style_depends_on_counter_style_environment(values, abstract_element->pseudo_element().has_value()))
         counter_style_environment_identity = abstract_element->style_scope().counter_style_environment_identity();
     auto animated_properties = style_node_id != 0 ? values.animated_properties() : nullptr;
     u64 animation_overlay_identity = animated_properties ? animated_properties->identity() : 0;
@@ -4651,7 +4655,8 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             else if (has_complete_sharing_key)
                 abstract_element.set_custom_property_data(inheritance_parent.has_value() ? inheritable_custom_property_data(*inheritance_parent) : nullptr);
             if (entry.style_record_identity.has_value()
-                && abstract_element.custom_property_data().ptr() == entry.custom_property_data.ptr())
+                && abstract_element.custom_property_data().ptr() == entry.custom_property_data.ptr()
+                && !computed_style_depends_on_counter_style_environment(*entry.values, abstract_element.pseudo_element().has_value()))
                 sharing->shared_style_record_identity = entry.style_record_identity;
             if (entry.style_uses_var_css_function)
                 abstract_element.element().set_style_uses_var_css_function();

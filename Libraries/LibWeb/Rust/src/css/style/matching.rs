@@ -2162,9 +2162,29 @@ impl StyleEngine {
                         }
                         continue;
                     }
+                    if version.kind == RuleKind::Function {
+                        match self.facts.postings().lookup(DependencyPostingKey::AnyCustomFunction) {
+                            Lookup::Known(posting) => always_emit_nodes.extend(posting.candidates()),
+                            Lookup::KnownAbsent => {}
+                            Lookup::Missing(_) => {
+                                always_emit = true;
+                                has_non_selector_inputs = true;
+                            }
+                        }
+                        continue;
+                    }
                     match delta.kind {
-                        ProgramJoinDeltaKind::Declarations => always_emit = true,
+                        ProgramJoinDeltaKind::Declarations => {
+                            always_emit = true;
+                            has_non_selector_inputs |= !version.kind.matches_elements();
+                        }
                         ProgramJoinDeltaKind::Priority => {
+                            // NB: Named rules have no retained selector matches, but changing
+                            //     their priority can still change the definition consumers use.
+                            if !version.kind.matches_elements() {
+                                always_emit = true;
+                                has_non_selector_inputs = true;
+                            }
                             orders_shifted = true;
                             cascade_update_rules.push(delta.rule);
                             cascade_update_properties.extend(
@@ -2504,6 +2524,7 @@ impl StyleEngine {
         // An edit to a matched rule's custom declarations moves no winner; the node reacts to it
         // all the same, since its environment is computed from those declarations.
         let emit = !delta.is_empty()
+            || patch.has_non_selector_inputs
             || patch.always_emit_nodes.binary_search(&node).is_ok()
             || exact_answer.iter().any(|entry| {
                 entry.pseudo_element.is_none() && patch.custom_changed_rules.binary_search(&entry.rule).is_ok()

@@ -37,3 +37,9 @@ insert nested rules colors: rgb(165, 42, 42), rgb(165, 42, 42)
 delete nested rules environment changed: false
 delete nested rules topology changed: false
 delete nested rules colors: rgb(0, 0, 255), rgb(0, 0, 255)
+insert font feature values environment changed: false
+insert font feature values topology changed: false
+insert font feature values colors: rgb(0, 0, 255), rgb(0, 0, 255)
+delete font feature values environment changed: false
+delete font feature values topology changed: false
+delete font feature values colors: rgb(0, 0, 255), rgb(0, 0, 255)

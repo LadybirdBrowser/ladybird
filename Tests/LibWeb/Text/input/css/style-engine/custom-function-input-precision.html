@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="definitions">@function --size() { result: 10px; }</style>
+<style>#target { width: --size(); }</style>
+<div id="container" style="width: 100px"><div id="target"></div></div>
+<script>
+    test(() => {
+        for (let index = 0; index < 64; ++index)
+            container.appendChild(document.createElement("div"));
+        internals.updateStyle();
+        println(`initial width: ${getComputedStyle(target).width}`);
+        const sheet = definitions.sheet;
+
+        function change(label, callback) {
+            const before = internals.getStyleInvalidationCounters();
+            callback();
+            internals.updateStyle();
+            const after = internals.getStyleInvalidationCounters();
+            println(`${label} environment unchanged: ${after.styleEnvironmentVersion === before.styleEnvironmentVersion}`);
+            println(`${label} stays selective: ${after.elementStyleRecomputations - before.elementStyleRecomputations < 16}`);
+            println(`${label} width: ${getComputedStyle(target).width}`);
+        }
+
+        change("delete", () => sheet.deleteRule(0));
+        change("restore", () => sheet.insertRule("@function --size() { result: 30px; }"));
+        change("grouped replacement", () => {
+            sheet.deleteRule(0);
+            sheet.insertRule("@media all { @function --size() { result: 40px; } }");
+        });
+        change("remove grouped definition", () => sheet.deleteRule(0));
+        change("unused definition", () => sheet.insertRule("@function --unused() { result: 50px; }"));
+        change("mixed broad rule", () => {
+            sheet.insertRule("@function --size() { result: 60px; }");
+            sheet.insertRule(":not(*) { color: red; }");
+        });
+    });
+</script>

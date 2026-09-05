@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/font-feature-values-map-cache-invalidation-ref.html">
+<style>
+    @font-face {
+        font-family: FeatureFont;
+        src: url("wpt-import/css/css-fonts/support/fonts/FontWithFancyFeatures.otf");
+    }
+
+    @font-feature-values FeatureFont {
+        @stylistic { fancy: 1; }
+    }
+
+    p {
+        font-family: FeatureFont;
+        font-size: 2em;
+        font-variant-alternates: stylistic(fancy);
+    }
+</style>
+<p id="target">Xnophijklmqrstuvwxyz</p>
+<script>
+    document.fonts.ready.then(() => {
+        target.getBoundingClientRect();
+        const sheet = document.styleSheets[0];
+        sheet.deleteRule(1);
+        sheet.insertRule("@font-feature-values FeatureFont { @stylistic { fancy: 2; } }", 1);
+        target.getBoundingClientRect();
+        document.documentElement.classList.remove("reftest-wait");
+    });
+</script>

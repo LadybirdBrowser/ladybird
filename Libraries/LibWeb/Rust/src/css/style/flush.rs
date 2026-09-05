@@ -701,8 +701,15 @@ impl StyleEngine {
             .inputs
             .iter()
             .any(|input| matches!(input.key, InputKey::RuleField(_, RuleField::Declarations)));
+        let named_rule_context_changed = transaction.program_joins.iter().any(|delta| {
+            matches!(
+                self.program.rule_version(delta.rule).kind,
+                RuleKind::CounterStyle | RuleKind::FontFeatureValues | RuleKind::Function
+            )
+        });
         let pseudo_inputs_may_have_changed = environment_changed
             || rule_declarations_edited
+            || named_rule_context_changed
             || transaction.inputs.iter().any(|input| {
                 matches!(
                     input.key,
@@ -1510,8 +1517,9 @@ impl StyleEngine {
                     // C++ only refreshes the inherited environment for a non-consumer. There
                     // is no element record to recompute or compare against the parent's groups.
                     false
-                } else if !(reaction_is_settleable
-                    || (old_style_record == 0 && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
+                } else if (named_rule_context_changed && old_style_record != 0)
+                    || !(reaction_is_settleable
+                        || (old_style_record == 0 && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
                 {
                     self.counters.bump(Counter::EngineComputedRecordGateReaction);
                     false

@@ -1,0 +1,19 @@
+initial width: 10px
+delete environment unchanged: true
+delete stays selective: true
+delete width: 100px
+restore environment unchanged: true
+restore stays selective: true
+restore width: 30px
+grouped replacement environment unchanged: true
+grouped replacement stays selective: true
+grouped replacement width: 40px
+remove grouped definition environment unchanged: true
+remove grouped definition stays selective: true
+remove grouped definition width: 100px
+unused definition environment unchanged: true
+unused definition stays selective: true
+unused definition width: 100px
+mixed broad rule environment unchanged: true
+mixed broad rule stays selective: true
+mixed broad rule width: 60px

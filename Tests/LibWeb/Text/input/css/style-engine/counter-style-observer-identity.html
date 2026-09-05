@@ -17,6 +17,7 @@
         internals.updateStyle();
         const contentBefore = getComputedStyle(target, "::before").content;
         const before = internals.styleEngineCounters();
+        const environmentBefore = internals.getStyleInvalidationCounters().styleEnvironmentVersion;
 
         const sheet = document.styleSheets[0];
         sheet.deleteRule(0);
@@ -25,6 +26,7 @@
 
         const after = internals.styleEngineCounters();
         const contentAfter = getComputedStyle(target, "::before").content;
+        println(`environment unchanged: ${internals.getStyleInvalidationCounters().styleEnvironmentVersion === environmentBefore}`);
         println(`computed content stayed equal: ${contentAfter === contentBefore}`);
         println(`observer metadata changed: ${after.computedFixedMetadataNodeHandlesPublished > before.computedFixedMetadataNodeHandlesPublished}`);
         println(`style record changed: ${after.styleRecordNodeHandlesPublished > before.styleRecordNodeHandlesPublished}`);

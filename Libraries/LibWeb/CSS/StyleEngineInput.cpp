@@ -1940,6 +1940,9 @@ static bool rule_change_needs_style_environment_bump(CSSRule const& rule)
     case CSSRule::Type::LayerStatement:
     case CSSRule::Type::Keyframes:
     case CSSRule::Type::FontFace:
+    case CSSRule::Type::Function:
+    case CSSRule::Type::CounterStyle:
+    case CSSRule::Type::FontFeatureValues:
         return false;
     default:
         return true;

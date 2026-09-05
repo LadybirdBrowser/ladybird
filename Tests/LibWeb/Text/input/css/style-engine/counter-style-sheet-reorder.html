@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target {
+        display: inline-block;
+        counter-reset: item 1;
+    }
+    #target::before { content: counter(item, marker); }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const shortSheet = new CSSStyleSheet();
+        shortSheet.replaceSync('@counter-style marker { system: cyclic; symbols: "A"; }');
+        const longSheet = new CSSStyleSheet();
+        longSheet.replaceSync('@counter-style marker { system: cyclic; symbols: "BBBBBBBB"; }');
+        document.adoptedStyleSheets = [longSheet, shortSheet];
+        const initialWidth = target.getBoundingClientRect().width;
+
+        document.adoptedStyleSheets = [shortSheet, longSheet];
+        const reorderedWidth = target.getBoundingClientRect().width;
+        println(`reorder changes generated counter: ${reorderedWidth > initialWidth}`);
+
+        document.adoptedStyleSheets = [longSheet, shortSheet];
+        println(`restoring order restores generated counter: ${target.getBoundingClientRect().width === initialWidth}`);
+    });
+</script>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @counter-style marker { system: cyclic; symbols: "A"; }
+    #container > div {
+        display: list-item;
+        list-style: marker inside;
+        width: max-content;
+    }
+</style>
+<div id="container"></div>
+<script>
+    test(() => {
+        for (let index = 0; index < 16; ++index)
+            container.appendChild(document.createElement("div"));
+        const targets = [...container.children];
+        const initialWidths = targets.map(target => target.getBoundingClientRect().width);
+        const before = internals.styleEngineCounters();
+        document.styleSheets[0].cssRules[0].symbols = '"BBBBBBBB"';
+        println(`all shared consumers update: ${targets.every((target, index) => target.getBoundingClientRect().width > initialWidths[index])}`);
+        const after = internals.styleEngineCounters();
+        println(`records were shared: ${after.sharedStyleRecordHits > before.sharedStyleRecordHits}`);
+        document.styleSheets[0].cssRules[0].symbols = '"A"';
+        println(`all shared consumers restore: ${targets.every((target, index) => target.getBoundingClientRect().width === initialWidths[index])}`);
+    });
+</script>
