@@ -2658,7 +2658,7 @@ mod tests {
                 instruction!(Operation::Move(IntegerWidth::U64), register("dividend"), immediate(1)),
                 instruction!(Operation::Move(IntegerWidth::U64), register("divisor"), immediate(2)),
                 instruction!(
-                    Operation::Modulo,
+                    Operation::Modulo(IntegerWidth::U32),
                     register("rem"),
                     register("dividend"),
                     register("divisor")
@@ -2669,7 +2669,7 @@ mod tests {
             ],
             Architecture::X86_64,
         );
-        let names = find_operation(&out, Operation::Modulo)
+        let names = find_operation(&out, Operation::Modulo(IntegerWidth::U32))
             .operands
             .iter()
             .map(|operand| operand.register_name().unwrap_or("<non-reg>"))

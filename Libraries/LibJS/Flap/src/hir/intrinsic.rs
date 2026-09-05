@@ -116,6 +116,7 @@ fn intrinsic_value_type(ty: IntrinsicValueType) -> Type {
         IntrinsicValueType::F64 => Type::F64,
         IntrinsicValueType::FunctionSymbol => Type::FunctionSymbol,
         IntrinsicValueType::I32 => Type::I32,
+        IntrinsicValueType::I64 => Type::I64,
         IntrinsicValueType::Label => Type::label(),
         IntrinsicValueType::Memory => Type::Memory,
         IntrinsicValueType::Operand => Type::Operand,

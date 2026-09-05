@@ -850,6 +850,16 @@ impl Backend for X86_64Backend {
         failure: &Label,
     ) {
         match (operation, scratches) {
+            (FloatingPointOperation::Convert(FloatConversion::Float64ToInt64), [fpr_scratch]) => {
+                use super::{Condition, FloatConversion};
+                emit!(emit.output, X86_64;
+                    Opcode::FloatConversion(FloatConversion::DoubleToSigned64Truncate) => [register destination, register source];
+                    Opcode::FloatConversion(FloatConversion::Signed64ToDouble) => [register verified_register(fpr_scratch), register destination];
+                    Opcode::CompareDouble => [register source, register verified_register(fpr_scratch)];
+                    Opcode::JumpParity => [label failure.clone()];
+                    Opcode::JumpCondition(Condition::NotEqual) => [label failure.clone()];
+                );
+            }
             (FloatingPointOperation::Convert(FloatConversion::Float64ToInt32), [gpr_scratch, fpr_scratch]) => {
                 double_to_int32(
                     emit,
@@ -1768,13 +1778,26 @@ impl Backend for X86_64Backend {
         }
     }
 
-    fn finalize_divide(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) {
+    fn finalize_divide(&self, emit: &mut Emit<'_>, width: IntegerWidth, operands: &[AllocatedOperand]) {
         let [_, dividend, divisor, accumulator] = operands.physical_registers();
 
+        let (move_dividend, sign_extend, divide) = match width {
+            IntegerWidth::U32 => (
+                Opcode::Move32Register,
+                Opcode::SignExtendEaxToEdx,
+                Opcode::SignedDivide32Register,
+            ),
+            IntegerWidth::U64 => (
+                Opcode::Move64Register,
+                Opcode::SignExtendRaxToRdx,
+                Opcode::SignedDivide64Register,
+            ),
+            _ => unreachable!("remainder requires a 32-bit or 64-bit width"),
+        };
         emit!(emit.output, X86_64;
-            Opcode::Move32Register => [register accumulator, register dividend];
-            Opcode::SignExtendEaxToEdx => [];
-            Opcode::SignedDivide32Register => [register divisor];
+            move_dividend => [register accumulator, register dividend];
+            sign_extend => [];
+            divide => [register divisor];
         );
     }
 }

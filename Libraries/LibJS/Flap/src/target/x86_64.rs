@@ -305,6 +305,8 @@ define_machine_opcodes! {
         immediate(1).is_some_and(|value| (0..64).contains(&value))
     } printing simple!("btr"; native(0), SimpleOperand::Immediate(1));
     [SignExtendEaxToEdx] => Self::SignExtendEaxToEdx => [[]] printing simple!("cdq");
+    [SignExtendRaxToRdx] => Self::SignExtendRaxToRdx => [[]] printing simple!("cqo");
+    [SignedDivide64Register] => Self::SignedDivide64Register => [[R]] printing simple!("idiv"; native(0));
     [SignedDivide32Register] => Self::SignedDivide32Register => [[R]] printing simple!("idiv"; integer(0, IntegerWidth::U32));
 }
 
@@ -399,9 +401,9 @@ impl Opcode {
                 FloatingPointOperation::Convert(IntrinsicFloatConversion::Int32ToFloat64) => {
                     Self::FloatConversion(FloatConversion::Signed32ToDouble)
                 }
-                FloatingPointOperation::Convert(IntrinsicFloatConversion::Uint32ToFloat64) => {
-                    Self::FloatConversion(FloatConversion::Signed64ToDouble)
-                }
+                FloatingPointOperation::Convert(
+                    IntrinsicFloatConversion::Uint32ToFloat64 | IntrinsicFloatConversion::Int64ToFloat64,
+                ) => Self::FloatConversion(FloatConversion::Signed64ToDouble),
                 FloatingPointOperation::Convert(IntrinsicFloatConversion::Float32ToFloat64) => {
                     Self::FloatConversion(FloatConversion::FloatToDouble)
                 }
@@ -409,7 +411,9 @@ impl Opcode {
                     Self::FloatConversion(FloatConversion::DoubleToFloat)
                 }
                 FloatingPointOperation::Convert(
-                    IntrinsicFloatConversion::Float64ToInt32 | IntrinsicFloatConversion::JavaScriptToInt32,
+                    IntrinsicFloatConversion::Float64ToInt32
+                    | IntrinsicFloatConversion::Float64ToInt64
+                    | IntrinsicFloatConversion::JavaScriptToInt32,
                 )
                 | FloatingPointOperation::CanonicalizeNan => Self::Pseudo,
             },

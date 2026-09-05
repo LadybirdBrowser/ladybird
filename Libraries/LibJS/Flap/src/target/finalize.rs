@@ -206,7 +206,9 @@ fn finalize_float_operation(
 ) {
     if !matches!(
         operation,
-        FloatingPointOperation::Convert(FloatConversion::Float64ToInt32 | FloatConversion::JavaScriptToInt32)
+        FloatingPointOperation::Convert(
+            FloatConversion::Float64ToInt32 | FloatConversion::Float64ToInt64 | FloatConversion::JavaScriptToInt32
+        )
     ) {
         backend.float_operation(emit, opcode, operation, operands);
         return;
@@ -404,7 +406,7 @@ fn finalize_instruction(
         Operation::Cold => {
             return emit.error("operation Cold was not expanded into legal machine instructions");
         }
-        Operation::Modulo => backend.finalize_divide(emit, operands),
+        Operation::Modulo(width) => backend.finalize_divide(emit, width, operands),
         _ => emit.output.push(MachineInstruction {
             opcode,
             operands: instruction.operands,

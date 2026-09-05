@@ -163,7 +163,7 @@ pub(crate) enum Operation {
     Or32Branch(SignCondition),
     Negate,
     Not(IntegerWidth),
-    Modulo,
+    Modulo(IntegerWidth),
     Overflow(OverflowOperation),
     ExtractTag,
     UnboxInt32,
@@ -948,7 +948,7 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
                     .coalesces(&[(0, 1)])
             }
         }
-        Operation::Modulo => {
+        Operation::Modulo(_) => {
             &const {
                 plain(&[GprOut, GprIn, GprIn])
                     .x86_64(spec().outputs(&[RDX]).fixed(&[(0, RDX)]).scratches(&[RAX]))
@@ -992,8 +992,11 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
             }
         }
         Operation::Float(FloatingPointOperation::Convert(
-            FloatConversion::Int32ToFloat64 | FloatConversion::Uint32ToFloat64,
+            FloatConversion::Int32ToFloat64 | FloatConversion::Int64ToFloat64 | FloatConversion::Uint32ToFloat64,
         )) => &const { plain(&[FprOut, GprIn]) },
+        Operation::Float(FloatingPointOperation::Convert(FloatConversion::Float64ToInt64)) => {
+            &const { plain(&[GprOut, FprIn, Label]).scratches(&[XMM3], &[D16]) }
+        }
         Operation::Float(FloatingPointOperation::Convert(FloatConversion::Float64ToInt32)) => {
             &const { plain(&[GprOut, FprIn, Label]).scratches(&[RCX, XMM3], &[D16]) }
         }

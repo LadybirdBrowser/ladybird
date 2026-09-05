@@ -2502,7 +2502,7 @@ fn lower_instruction(
                     .map(|(_, source)| value_operand(function, source))
                     .unwrap_or_else(|| value_operand(function, *rhs))?;
                 output.push(machine_instruction(
-                    MachineOperation::Modulo,
+                    MachineOperation::Modulo(IntegerWidth::U32),
                     vec![remainder.clone(), lhs, rhs],
                 ));
             } else {
@@ -3353,7 +3353,9 @@ fn value_machine_operation(operation: ValueOperation) -> Option<MachineOperation
         | ValueOperation::ReinterpretUint64AsValue => MachineOperation::Move(IntegerWidth::U64),
         ValueOperation::BoxInt32 { clean } => MachineOperation::BoxInt32 { clean },
         ValueOperation::BoxFloat64 | ValueOperation::ValueToFloat64 => MachineOperation::FloatMove,
-        ValueOperation::UnboxInt32 { .. } | ValueOperation::UnboxBoolean => MachineOperation::UnboxInt32,
+        ValueOperation::UnboxInt32 { .. } | ValueOperation::UnboxBoolean | ValueOperation::Int32ToInt64 => {
+            MachineOperation::UnboxInt32
+        }
         ValueOperation::ExtractTag { .. } => MachineOperation::ExtractTag,
         ValueOperation::ToInt32 | ValueOperation::ToUint32 => MachineOperation::Move(IntegerWidth::U32),
         ValueOperation::UnboxObject => MachineOperation::UnboxObject,
@@ -3364,7 +3366,8 @@ fn value_machine_operation(operation: ValueOperation) -> Option<MachineOperation
 fn low_level_machine_operation(operation: LowLevelOperation) -> MachineOperation {
     match operation {
         LowLevelOperation::LoadLabel => MachineOperation::LoadLabel,
-        LowLevelOperation::DivideModulo => MachineOperation::Modulo,
+        LowLevelOperation::DivideModulo => MachineOperation::Modulo(IntegerWidth::U32),
+        LowLevelOperation::Modulo64 => MachineOperation::Modulo(IntegerWidth::U64),
         LowLevelOperation::Move => MachineOperation::Move(IntegerWidth::U64),
         LowLevelOperation::LoadEffectiveAddress => MachineOperation::LoadEffectiveAddress,
         LowLevelOperation::LoadVm => MachineOperation::LoadVm,

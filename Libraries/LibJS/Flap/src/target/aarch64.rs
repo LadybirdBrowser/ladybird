@@ -136,6 +136,7 @@ pub(crate) enum FloatConversion {
     FloatToDouble,
     DoubleToFloat,
     DoubleToSigned32Truncate,
+    DoubleToSigned64Truncate,
     JavaScriptToSigned32,
 }
 
@@ -331,13 +332,14 @@ define_machine_opcodes! {
         match conversion {
             FloatConversion::Signed64ToDouble | FloatConversion::Signed32ToDouble => operands_match(operands, &[FR, R]),
             FloatConversion::FloatToDouble | FloatConversion::DoubleToFloat => operands_match(operands, &[FR, FR]),
-            FloatConversion::DoubleToSigned32Truncate | FloatConversion::JavaScriptToSigned32 => operands_match(operands, &[R, FR]),
+            FloatConversion::DoubleToSigned32Truncate | FloatConversion::DoubleToSigned64Truncate | FloatConversion::JavaScriptToSigned32 => operands_match(operands, &[R, FR]),
         }
     } printing match conversion {
         FloatConversion::Signed64ToDouble => simple!("scvtf"; native(0), native(1)),
         FloatConversion::Signed32ToDouble => simple!("scvtf"; native(0), word(1)),
         FloatConversion::FloatToDouble => simple!("fcvt"; native(0), single(1)),
         FloatConversion::DoubleToFloat => simple!("fcvt"; single(0), native(1)),
+        FloatConversion::DoubleToSigned64Truncate => simple!("fcvtzs"; native(0), native(1)),
         FloatConversion::DoubleToSigned32Truncate => simple!("fcvtzs"; word(0), native(1)),
         FloatConversion::JavaScriptToSigned32 => simple!("fjcvtzs"; word(0), native(1)),
     };
@@ -397,6 +399,8 @@ define_machine_opcodes! {
     [BitClear64Immediate] => Self::BitClear64Immediate => [[R, I]] encoding {
         immediate(1).is_some_and(|value| is_logical_immediate(IntegerWidth::U64, value as u64))
     } printing simple!("bic"; native(0), native(0), SimpleOperand::HashImmediate(1, true));
+    [SignedDivide64] => Self::SignedDivide64 => [[R, R, R]] printing simple!("sdiv"; native(0), native(1), native(2));
+    [MultiplySubtract64] => Self::MultiplySubtract64 => [[R, R, R, R]] printing simple!("msub"; native(0), native(1), native(2), native(3));
     [SignedDivide32] => Self::SignedDivide32 => [[R, R, R]] printing simple!("sdiv"; word(0), word(1), word(2));
     [MultiplySubtract32] => Self::MultiplySubtract32 => [[R, R, R, R]] printing simple!("msub"; word(0), word(1), word(2), word(3));
 }
@@ -631,9 +635,9 @@ impl Opcode {
                 FloatingPointOperation::Convert(IntrinsicFloatConversion::Int32ToFloat64) => {
                     Self::FloatConversion(FloatConversion::Signed32ToDouble)
                 }
-                FloatingPointOperation::Convert(IntrinsicFloatConversion::Uint32ToFloat64) => {
-                    Self::FloatConversion(FloatConversion::Signed64ToDouble)
-                }
+                FloatingPointOperation::Convert(
+                    IntrinsicFloatConversion::Uint32ToFloat64 | IntrinsicFloatConversion::Int64ToFloat64,
+                ) => Self::FloatConversion(FloatConversion::Signed64ToDouble),
                 FloatingPointOperation::Convert(IntrinsicFloatConversion::Float32ToFloat64) => {
                     Self::FloatConversion(FloatConversion::FloatToDouble)
                 }
@@ -641,7 +645,9 @@ impl Opcode {
                     Self::FloatConversion(FloatConversion::DoubleToFloat)
                 }
                 FloatingPointOperation::Convert(
-                    IntrinsicFloatConversion::Float64ToInt32 | IntrinsicFloatConversion::JavaScriptToInt32,
+                    IntrinsicFloatConversion::Float64ToInt32
+                    | IntrinsicFloatConversion::Float64ToInt64
+                    | IntrinsicFloatConversion::JavaScriptToInt32,
                 )
                 | FloatingPointOperation::CanonicalizeNan => Self::Pseudo,
             },

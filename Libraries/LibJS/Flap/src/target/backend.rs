@@ -268,7 +268,7 @@ pub(crate) trait Backend: Sync {
         operands: &[AllocatedOperand],
     );
 
-    fn finalize_divide(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]);
+    fn finalize_divide(&self, emit: &mut Emit<'_>, width: IntegerWidth, operands: &[AllocatedOperand]);
 }
 
 pub(crate) struct X86_64Backend;

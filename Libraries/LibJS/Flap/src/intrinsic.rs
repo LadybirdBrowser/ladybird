@@ -561,6 +561,7 @@ pub(crate) enum ValueOperation {
     UnboxBoolean,
     ExtractTag { rematerialized: bool },
     ToInt32,
+    Int32ToInt64,
     ToUint32,
     LogicalNot,
     UnboxObject,
@@ -592,6 +593,7 @@ intrinsic_names!(ValueOperation {
     Self::UnboxBoolean => "unbox_bool";
     Self::ExtractTag { rematerialized: false } => "extract_tag" signatures [signature!([In Value] -> ValueTag), signature!([Out ValueTag, In Value])];
     Self::ExtractTag { rematerialized: true } => "rematerialize_extract_tag" from [];
+    Self::Int32ToInt64 => "i64" signatures [signature!([In I32] -> I64)];
     Self::ToInt32 => "i32" signatures [signature!([In AnyGpr] -> I32)];
     Self::ToUint32 => "u32" signatures [signature!([In AnyGpr] -> U32)];
     Self::LogicalNot => "not_bool";
@@ -602,6 +604,7 @@ define_named_intrinsic_enum! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub(crate) enum LowLevelOperation {
         LoadLabel => "load_label" signatures [signature!([Out BytecodeOffset, In BytecodeOffset])];
+        Modulo64 => "mod_i64" signatures [signature!([In I64, In I64] -> I64)];
         DivideModulo => "divmod" signatures [signature!([In I32, In I32] -> (I32, I32)), signature!([Out I32, Out I32, In I32, In I32])];
         Move => "mov" signatures [signature!([Out AnyGpr, In AnyGpr])];
         LoadEffectiveAddress => "lea" signatures [signature!([Out AnyGpr, In Memory])];
@@ -724,10 +727,12 @@ pub(crate) enum FloatUnaryOperation {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum FloatConversion {
     Int32ToFloat64,
+    Int64ToFloat64,
     Uint32ToFloat64,
     Float32ToFloat64,
     Float64ToFloat32,
     Float64ToInt32,
+    Float64ToInt64,
     JavaScriptToInt32,
 }
 
@@ -743,7 +748,9 @@ impl FloatingPointOperation {
     pub(crate) fn is_fallible(self) -> bool {
         matches!(
             self,
-            Self::Convert(FloatConversion::Float64ToInt32 | FloatConversion::JavaScriptToInt32)
+            Self::Convert(
+                FloatConversion::Float64ToInt32 | FloatConversion::Float64ToInt64 | FloatConversion::JavaScriptToInt32
+            )
         )
     }
 }
@@ -756,6 +763,8 @@ intrinsic_names!(FloatingPointOperation {
     Self::Unary(FloatUnaryOperation::Floor) => "fp_floor" signatures [signature!([In F64] -> F64), signature!([Out F64, In F64])];
     Self::Unary(FloatUnaryOperation::Ceil) => "fp_ceil" signatures [signature!([In F64] -> F64), signature!([Out F64, In F64])];
     Self::Unary(FloatUnaryOperation::SquareRoot) => "fp_sqrt" signatures [signature!([In F64] -> F64), signature!([Out F64, In F64])];
+    Self::Convert(FloatConversion::Int64ToFloat64) => "i64_to_f64" signatures [signature!([In I64] -> F64)];
+    Self::Convert(FloatConversion::Float64ToInt64) => "double_to_int64" signatures [signature!(fallible [In F64] -> I64)];
     Self::Convert(FloatConversion::Int32ToFloat64) => "to_f64" signatures [signature!([In I32] -> F64)];
     Self::Convert(FloatConversion::Uint32ToFloat64) => "u32_to_f64" signatures [signature!([In U32] -> F64), signature!([Out F64, In U32])];
     Self::Convert(FloatConversion::Float32ToFloat64) => "float_to_double" signatures [signature!([In F32] -> F64), signature!([Out F64, In F32])];
@@ -990,6 +999,7 @@ pub(crate) enum IntrinsicValueType {
     F64,
     FunctionSymbol,
     I32,
+    I64,
     Label,
     Memory,
     Operand,

@@ -679,6 +679,59 @@ handler Nop() { dispatch_next; }
     }
 
     #[test]
+    fn compiles_checked_int64_conversion_and_remainder_for_each_target() {
+        let source = r#"
+handler Mod(dst: out Operand, lhs: in Operand, rhs: in Operand) {
+    let failure = || @cold { dispatch_next; };
+    guard let Value<f64>(lhs_number) = load(lhs) else failure;
+    guard let Value<f64>(rhs_number) = load(rhs) else failure;
+    guard let lhs_integer = double_to_int64(lhs_number) else failure;
+    guard let rhs_integer = double_to_int64(rhs_number) else failure;
+    guard rhs_integer != 0 else failure;
+    let zero: i64 = 0;
+    let negative_one = zero - 1;
+    guard rhs_integer != negative_one else failure;
+    let remainder = mod_i64(lhs_integer, rhs_integer);
+    store(dst, box_f64(i64_to_f64(remainder)));
+    dispatch_next;
+}
+handler Widen(dst: out Operand, src: in Operand) {
+    let failure = || @cold { dispatch_next; };
+    guard let Value<f64>(number) = load(src) else failure;
+    guard let integer = double_to_int64(number) else failure;
+    store(dst, box_f64(i64_to_f64(i64(i32(integer)))));
+    dispatch_next;
+}
+
+"#;
+        for architecture in [Architecture::X86_64, Architecture::Aarch64] {
+            let assembly = compiler(architecture).compile(unit(source)).unwrap();
+            let assembly = assembly.as_str();
+            match architecture {
+                Architecture::X86_64 => {
+                    assert!(assembly.contains("cvttsd2si r"));
+                    assert!(assembly.contains("cvtsi2sd xmm"));
+                    assert!(assembly.contains("ucomisd"));
+                    assert!(assembly.contains("jp "));
+                    assert!(assembly.contains("movsxd"));
+                    assert!(assembly.contains("cqo"));
+                    assert!(assembly.contains("idiv r"));
+                }
+                Architecture::Aarch64 => {
+                    assert!(assembly.contains("fcvtzs x"));
+                    assert!(assembly.contains("scvtf d"));
+                    assert!(assembly.contains("cmn x"));
+                    assert!(assembly.contains("b.vs "));
+                    assert!(assembly.contains("fcmp d"));
+                    assert!(assembly.contains("sxtw x"));
+                    assert!(assembly.contains("sdiv x"));
+                    assert!(assembly.contains("msub x"));
+                }
+            }
+        }
+    }
+
+    #[test]
     fn compiles_from_in_memory_sources_for_each_target() {
         for architecture in [Architecture::X86_64, Architecture::Aarch64] {
             let assembly = compiler(architecture)

@@ -1156,6 +1156,18 @@ impl Backend for Aarch64Backend {
             emit!(emit.output, Aarch64; Opcode::FloatConversion(FloatConversion::JavaScriptToSigned32) => [register destination, register source];);
             return;
         }
+        if operation == FloatingPointOperation::Convert(IntrinsicFloatConversion::Float64ToInt64) {
+            emit!(emit.output, Aarch64;
+                Opcode::FloatConversion(FloatConversion::DoubleToSigned64Truncate) => [register destination, register source];
+                // Reject saturation to i64::MAX, which rounds back to +2^63 as a double.
+                Opcode::CompareNegativeImmediate(IntegerWidth::U64) => [register destination, immediate 1];
+                Opcode::BranchOverflow => [label failure.clone()];
+                Opcode::FloatConversion(FloatConversion::Signed64ToDouble) => [register fpr_scratch, register destination];
+                Opcode::CompareDouble => [register source, register fpr_scratch];
+                Opcode::BranchCondition(Condition::NotEqual) => [label failure];
+            );
+            return;
+        }
         emit!(emit.output, Aarch64;
             Opcode::FloatConversion(FloatConversion::DoubleToSigned32Truncate) => [register destination, register source];
             Opcode::FloatConversion(FloatConversion::Signed32ToDouble) => [register fpr_scratch, register destination];
@@ -2156,9 +2168,14 @@ impl Backend for Aarch64Backend {
         }
     }
 
-    fn finalize_divide(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) {
+    fn finalize_divide(&self, emit: &mut Emit<'_>, width: IntegerWidth, operands: &[AllocatedOperand]) {
         let [remainder, dividend, divisor, scratch] = operands.physical_registers();
-        emit!(emit.output, Aarch64; Opcode::SignedDivide32 => [register scratch, register dividend, register divisor];);
-        emit!(emit.output, Aarch64; Opcode::MultiplySubtract32 => [register remainder, register scratch, register divisor, register dividend];);
+        let (divide, multiply_subtract) = match width {
+            IntegerWidth::U32 => (Opcode::SignedDivide32, Opcode::MultiplySubtract32),
+            IntegerWidth::U64 => (Opcode::SignedDivide64, Opcode::MultiplySubtract64),
+            _ => unreachable!("remainder requires a 32-bit or 64-bit width"),
+        };
+        emit!(emit.output, Aarch64; divide => [register scratch, register dividend, register divisor];);
+        emit!(emit.output, Aarch64; multiply_subtract => [register remainder, register scratch, register divisor, register dividend];);
     }
 }
