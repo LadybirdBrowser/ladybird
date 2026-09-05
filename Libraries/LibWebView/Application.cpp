@@ -1829,13 +1829,13 @@ void Application::process_did_exit(Process&& process, Optional<int> exit_status)
 
     switch (process.type()) {
     case ProcessType::Compositor:
-        if (auto client = process.client<CompositorClient>(); client.has_value()) {
+        if (auto client = process.client<CompositorClient>()) {
             if (auto on_death = move(client->on_death))
                 on_death();
         }
         break;
     case ProcessType::ImageDecoder:
-        if (auto client = process.client<ImageDecoderClient::Client>(); client.has_value()) {
+        if (auto client = process.client<ImageDecoderClient::Client>()) {
             dbgln_if(WEBVIEW_PROCESS_DEBUG, "Restart ImageDecoder process");
             if (auto on_death = move(client->on_death)) {
                 on_death();
@@ -1843,7 +1843,7 @@ void Application::process_did_exit(Process&& process, Optional<int> exit_status)
         }
         break;
     case ProcessType::RequestServer:
-        if (auto client = process.client<Requests::RequestClient>(); client.has_value()) {
+        if (auto client = process.client<Requests::RequestClient>()) {
             dbgln_if(WEBVIEW_PROCESS_DEBUG, "Restart request server");
             if (auto on_request_server_died = move(client->on_request_server_died))
                 on_request_server_died();
@@ -1851,7 +1851,7 @@ void Application::process_did_exit(Process&& process, Optional<int> exit_status)
         break;
     case ProcessType::WasmCompiler:
 #if defined(HAVE_WASM_COMPILER_SERVICE)
-        if (auto client = process.client<WasmCompilerClient::Client>(); client.has_value()) {
+        if (auto client = process.client<WasmCompilerClient::Client>()) {
             dbgln_if(WEBVIEW_PROCESS_DEBUG, "Restart WebAssembly compiler");
             if (auto on_death = move(client->on_death))
                 on_death();
@@ -1859,7 +1859,7 @@ void Application::process_did_exit(Process&& process, Optional<int> exit_status)
 #endif
         break;
     case ProcessType::WebContent:
-        if (auto client = process.client<WebContentClient>(); client.has_value()) {
+        if (auto client = process.client<WebContentClient>()) {
 #if !defined(AK_OS_WINDOWS)
             if (exit_status.has_value() && WIFEXITED(*exit_status) && WEXITSTATUS(*exit_status) == 0 && !client->has_views())
                 break;
