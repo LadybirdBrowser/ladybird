@@ -110,6 +110,7 @@ endpoint WebContentServer
     get_source(u64 page_id) =|
     inspect_dom_tree(u64 page_id) =|
     inspect_storage(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, u64 request_id) =|
+    storage_changed_externally(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) =|
     set_session_storage_item(u64 page_id, Utf16String key, Utf16String value) => (Optional<WebView::StorageSetResult> result)
     remove_session_storage_item(u64 page_id, Utf16String key) => (Optional<Utf16String> old_value)
     clear_session_storage(u64 page_id) => (bool did_clear)

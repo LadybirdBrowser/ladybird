@@ -1921,18 +1921,37 @@ Messages::WebContentClient::DidRequestStorageItemResponse WebContentClient::did_
     return storage_jar->get_item(storage_endpoint, storage_key, bottle_key);
 }
 
-Messages::WebContentClient::DidSetStorageItemResponse WebContentClient::did_set_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key, Utf16String value)
+void WebContentClient::notify_other_clients_of_storage_change(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key)
 {
-    auto* storage_jar = storage_jar_for_page(page_id, storage_endpoint);
-    if (!storage_jar)
-        return WebView::StorageOperationError::QuotaExceededError;
-    return storage_jar->set_item(storage_endpoint, storage_key, bottle_key, value);
+    // Every other process that has this map cached is now holding a stale copy. Tell them to forget it; the process
+    // that made the change already applied it to its own cache.
+    WebContentClient::for_each_client([&](auto& client) {
+        if (&client == this)
+            return IterationDecision::Continue;
+        if (client.is_private() != m_is_private)
+            return IterationDecision::Continue;
+        client.async_storage_changed_externally(storage_endpoint, storage_key);
+        return IterationDecision::Continue;
+    });
+}
+
+void WebContentClient::did_set_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key, Utf16String value)
+{
+    if (auto* storage_jar = storage_jar_for_page(page_id, storage_endpoint)) {
+        auto result = storage_jar->set_item(storage_endpoint, storage_key, bottle_key, value);
+        // The write didn't land. Whoever made it applied it to their own cache before sending it, and the broadcast
+        // below leaves that process out — so, tell that process by itself.
+        if (result.has<WebView::StorageOperationError>())
+            async_storage_changed_externally(storage_endpoint, storage_key);
+    }
+    notify_other_clients_of_storage_change(storage_endpoint, storage_key);
 }
 
 void WebContentClient::did_remove_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key)
 {
     if (auto* storage_jar = storage_jar_for_page(page_id, storage_endpoint))
         storage_jar->remove_item(storage_endpoint, storage_key, bottle_key);
+    notify_other_clients_of_storage_change(storage_endpoint, storage_key);
 }
 
 Messages::WebContentClient::DidRequestStorageKeysResponse WebContentClient::did_request_storage_keys(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key)
@@ -1943,10 +1962,28 @@ Messages::WebContentClient::DidRequestStorageKeysResponse WebContentClient::did_
     return storage_jar->get_all_keys(storage_endpoint, storage_key);
 }
 
+Messages::WebContentClient::DidRequestStorageEntriesResponse WebContentClient::did_request_storage_entries(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key)
+{
+    Vector<Utf16String> keys;
+    Vector<Utf16String> values;
+
+    auto* storage_jar = storage_jar_for_page(page_id, storage_endpoint);
+    if (!storage_jar)
+        return { move(keys), move(values) };
+
+    keys = storage_jar->get_all_keys(storage_endpoint, storage_key);
+    values.ensure_capacity(keys.size());
+    for (auto const& key : keys)
+        values.unchecked_append(storage_jar->get_item(storage_endpoint, storage_key, key).value_or({}));
+
+    return { move(keys), move(values) };
+}
+
 void WebContentClient::did_clear_storage(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key)
 {
     if (auto* storage_jar = storage_jar_for_page(page_id, storage_endpoint))
         storage_jar->clear_storage_key(storage_endpoint, storage_key);
+    notify_other_clients_of_storage_change(storage_endpoint, storage_key);
 }
 
 Messages::WebContentClient::DidRequestStorageUsageResponse WebContentClient::did_request_storage_usage(u64, String storage_key)

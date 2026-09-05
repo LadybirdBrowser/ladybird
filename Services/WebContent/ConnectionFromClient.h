@@ -137,6 +137,7 @@ private:
     virtual void get_source(u64 page_id) override;
     virtual void inspect_dom_tree(u64 page_id) override;
     virtual void inspect_storage(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, u64 request_id) override;
+    virtual void storage_changed_externally(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) override;
     virtual Messages::WebContentServer::SetSessionStorageItemResponse set_session_storage_item(u64 page_id, Utf16String key, Utf16String value) override;
     virtual Messages::WebContentServer::RemoveSessionStorageItemResponse remove_session_storage_item(u64 page_id, Utf16String key) override;
     virtual Messages::WebContentServer::ClearSessionStorageResponse clear_session_storage(u64 page_id) override;

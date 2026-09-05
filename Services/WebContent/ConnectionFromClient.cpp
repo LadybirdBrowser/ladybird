@@ -953,6 +953,13 @@ void ConnectionFromClient::inspect_dom_tree(u64 page_id)
     }
 }
 
+void ConnectionFromClient::storage_changed_externally(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key)
+{
+    // Another process changed a map this one may have cached. Drop it, rather than patching it: The next read primes it
+    // again — and a dropped map can't disagree with the owner.
+    Web::StorageAPI::invalidate_cached_storage_maps(storage_endpoint, storage_key);
+}
+
 void ConnectionFromClient::inspect_storage(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, u64 request_id)
 {
     auto page = this->page(page_id);

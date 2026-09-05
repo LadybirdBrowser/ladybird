@@ -1289,23 +1289,25 @@ Optional<Utf16String> PageClient::page_did_request_storage_item(Web::StorageAPI:
     return response->take_value();
 }
 
-WebView::StorageSetResult PageClient::page_did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, Utf16String const& bottle_key, Utf16String const& value)
+void PageClient::page_did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, Utf16String const& bottle_key, Utf16String const& value)
 {
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidSetStorageItem>(m_id, storage_endpoint, storage_key, bottle_key, value);
-    if (!response) {
-        dbgln("WebContent client disconnected during DidSetStorageItem. Exiting peacefully.");
-        Core::Process::terminate_immediately(0);
-    }
-    return response->result();
+    client().async_did_set_storage_item(m_id, storage_endpoint, storage_key, bottle_key, value);
 }
 
 void PageClient::page_did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, Utf16String const& bottle_key)
 {
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRemoveStorageItem>(m_id, storage_endpoint, storage_key, bottle_key);
+    client().async_did_remove_storage_item(m_id, storage_endpoint, storage_key, bottle_key);
+}
+
+void PageClient::page_did_request_storage_entries(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, Vector<Utf16String>& keys, Vector<Utf16String>& values)
+{
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestStorageEntries>(m_id, storage_endpoint, storage_key);
     if (!response) {
-        dbgln("WebContent client disconnected during DidRemoveStorageItem. Exiting peacefully.");
+        dbgln("WebContent client disconnected during DidRequestStorageEntries. Exiting peacefully.");
         Core::Process::terminate_immediately(0);
     }
+    keys = response->take_keys();
+    values = response->take_values();
 }
 
 Vector<Utf16String> PageClient::page_did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key)
@@ -1330,11 +1332,7 @@ u64 PageClient::page_did_request_storage_usage(String const& storage_key)
 
 void PageClient::page_did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key)
 {
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidClearStorage>(m_id, storage_endpoint, storage_key);
-    if (!response) {
-        dbgln("WebContent client disconnected during DidClearStorage. Exiting peacefully.");
-        Core::Process::terminate_immediately(0);
-    }
+    client().async_did_clear_storage(m_id, storage_endpoint, storage_key);
 }
 
 void PageClient::page_did_broadcast_storage_change(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& url, Optional<Utf16String> const& key, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value)
