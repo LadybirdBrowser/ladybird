@@ -61,6 +61,7 @@ define_counters! {
     AtomSweepPinReleasesSkipped => "atomSweepPinReleasesSkipped",
     StyleAtomsReclaimed => "styleAtomsReclaimed",
     LanguageTextsPublished => "languageTextsPublished",
+    CustomPropertyNamesPublished => "customPropertyNamesPublished",
 
     // Stylesheet program.
     StyleRulesCompiled => "styleRulesCompiled",
@@ -132,6 +133,13 @@ define_counters! {
     EngineComputedRecordBailWinnerElement => "engineComputedRecordBailWinnerElement",
     EngineComputedRecordBailWinnerAnimated => "engineComputedRecordBailWinnerAnimated",
     EngineComputedRecordBailNoEnvironment => "engineComputedRecordBailNoEnvironment",
+    EngineComputedRecordBailCustomProperties => "engineComputedRecordBailCustomProperties",
+    EngineComputedRecordBailSubstitution => "engineComputedRecordBailSubstitution",
+    EngineComputedRecordSubstitutions => "engineComputedRecordSubstitutions",
+    EngineComputedRecordSubstitutionMemoHits => "engineComputedRecordSubstitutionMemoHits",
+    EngineCustomPropertyEnvironmentsResolved => "engineCustomPropertyEnvironmentsResolved",
+    EngineCustomPropertyEnvironmentMemoHits => "engineCustomPropertyEnvironmentMemoHits",
+    EngineCustomPropertyEnvironmentBails => "engineCustomPropertyEnvironmentBails",
     EngineComputedRecordBailFontPhase => "engineComputedRecordBailFontPhase",
     EngineComputedRecordBailRecordParent => "engineComputedRecordBailRecordParent",
     EngineComputedRecordBailDrive => "engineComputedRecordBailDrive",

@@ -1,2 +1,3 @@
 margin after change: 2px
-all shared styles reused: true
+every child keeps its own margin: true
+children reuse a shared style: true

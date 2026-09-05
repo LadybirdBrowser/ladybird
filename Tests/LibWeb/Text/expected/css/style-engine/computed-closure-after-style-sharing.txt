@@ -1,4 +1,4 @@
 shared initial style: true
-longhand evaluations: 338
-first list style: disc
-second list style: square
+longhand evaluations: 0
+first background: rgba(0, 0, 0, 0)
+second background: rgb(0, 0, 255)

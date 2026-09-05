@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        for (const count of [2000, 4000, 8000]) {
+            const sheet = document.createElement("style");
+            const declarations = Array.from({ length: count }, (_, index) => `--item-${index}: ${index}px;`).join("");
+            sheet.textContent = `.inventory { ${declarations} width: var(--item-${count - 1}); }`;
+            document.head.appendChild(sheet);
+            internals.updateStyle();
+            const container = document.createElement("div");
+            container.innerHTML = '<div class="inventory"></div>'.repeat(10);
+            document.body.appendChild(container);
+            internals.updateStyle();
+            let correct = 0;
+            for (const child of container.children) {
+                const style = getComputedStyle(child);
+                if (style.width === `${count - 1}px`
+                    && Array.from({ length: count }, (_, index) => index).every(index =>
+                        style.getPropertyValue(`--item-${index}`).trim() === `${index}px`))
+                    ++correct;
+            }
+            println(`${count} properties: ${correct} correct elements`);
+            container.remove();
+            sheet.remove();
+            internals.updateStyle();
+        }
+    });
+</script>

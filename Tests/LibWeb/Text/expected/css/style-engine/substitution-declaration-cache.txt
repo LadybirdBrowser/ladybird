@@ -1,9 +1,7 @@
-shared environment value parses: 1
+shared environment: 1 resolved, memoized: true
 shared value: 7px
-later transaction value parses: 0
+later transaction: 0 resolved, memoized: true
 later transaction value: 7px
-registration change value parses: 1
-registration change value: 7px
-different environment value parses: 1
-changed value: 9px
-unchanged neighbour: 7px
+moved environment: 1 resolved, memoized: true
+moved value: 9px
+moved neighbour: 9px

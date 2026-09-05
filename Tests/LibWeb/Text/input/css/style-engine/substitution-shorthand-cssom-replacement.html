@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>:root { --spacing: 5px }</style>
+<div id="target" style="margin: 1px 2px 3px 4px"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        internals.updateStyle();
+
+        target.style.margin = "var(--missing)";
+        internals.updateStyle();
+        let style = getComputedStyle(target);
+        println(`missing substitution clears every longhand: ${style.marginTop === "0px" && style.marginRight === "0px" && style.marginBottom === "0px" && style.marginLeft === "0px"}`);
+
+        const countersBefore = internals.styleEngineCounters();
+        target.style.margin = "var(--spacing) 6px 7px 8px";
+        internals.updateStyle();
+        style = getComputedStyle(target);
+        const countersAfter = internals.styleEngineCounters();
+        println(`engine substituted shorthand replacements: ${countersAfter.engineComputedRecordSubstitutions > countersBefore.engineComputedRecordSubstitutions}`);
+        println(`replacement updates every longhand: ${style.marginTop === "5px" && style.marginRight === "6px" && style.marginBottom === "7px" && style.marginLeft === "8px"}`);
+    });
+</script>

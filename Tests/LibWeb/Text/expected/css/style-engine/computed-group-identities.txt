@@ -1,14 +1,14 @@
 computed group handles cover the elements: true
-computed group sets are shared: true
-computed groups are shared: true
+computed group sets are shared: 147
+computed groups are shared: 3435
 inherited group handles cover the elements: true
-inherited group sets are shared: true
+inherited group sets are shared: 148
 custom property handles cover the elements: true
-custom property environments are shared: true
+custom property environments are shared: 148
 computed fixed metadata handles cover the elements: true
 computed fixed metadata tuples are shared: true
 base style record handles cover the elements: true
-base style records are shared: true
+base style records are shared: 147
 pseudo assignments are published sparsely: true
 custom property environments survive transaction boundaries: true
 pseudo assignments are removed sparsely: true

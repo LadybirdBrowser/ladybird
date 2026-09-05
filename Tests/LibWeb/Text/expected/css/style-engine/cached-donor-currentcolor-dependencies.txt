@@ -1,0 +1,3 @@
+donor: rgb(255, 0, 0)
+restyled donor: rgb(255, 255, 255)
+recipient: rgb(0, 0, 255)

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="rules">
+    .card { --brand: red; }
+    .card { color: var(--brand); }
+</style>
+<div class="card" id="card">card</div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        rules.sheet.insertRule(".unrelated { color: blue; }");
+        internals.updateStyle();
+        println(getComputedStyle(card).color);
+    });
+</script>

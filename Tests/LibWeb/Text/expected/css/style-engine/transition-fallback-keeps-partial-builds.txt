@@ -1,0 +1,3 @@
+partial builds: 12
+full builds: 0
+color: rgb(0, 0, 255)

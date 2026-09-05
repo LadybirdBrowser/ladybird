@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        iframe.style.width = "200px";
+        iframe.srcdoc = `
+            <!DOCTYPE html>
+            <style>
+                .target { width: 50vw }
+                .target::before { content: ""; display: block; width: 50vw }
+            </style>
+            <div class="target"></div>
+        `;
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        document.body.appendChild(iframe);
+        await loaded;
+
+        const child = iframe.contentWindow;
+        child.getComputedStyle(child.document.querySelector(".target"), "::before").width;
+        iframe.style.width = "400px";
+        document.body.offsetWidth;
+
+        const target = child.document.createElement("div");
+        target.className = "target";
+        child.document.body.appendChild(target);
+        println(`element: ${child.getComputedStyle(target).width}`);
+        println(`pseudo: ${child.getComputedStyle(target, "::before").width}`);
+    });
+</script>

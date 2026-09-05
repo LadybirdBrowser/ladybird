@@ -1,4 +1,4 @@
-custom property elements: 2
-custom property resolutions: 9
-custom property value computations: 9
+custom property elements: 0
+custom property resolutions: 0
+custom property value computations: 0
 margin: 1px

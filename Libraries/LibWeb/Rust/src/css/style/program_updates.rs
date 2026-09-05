@@ -69,8 +69,15 @@ impl StyleEngine {
                 value: SpecifiedValueID((u64::from(block) << 32) ^ (u64::from(rule.0) << 16) ^ u64::from(property)),
             })
             .collect();
-        self.record_rule_declaration_change(rule, &declared);
-        self.stage_rule_declared_properties(rule, declared, Vec::new(), declarations_are_complete);
+        self.record_rule_declaration_change(rule, &declared, &[]);
+        self.stage_rule_declared_properties(
+            rule,
+            declared,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            declarations_are_complete,
+        );
     }
 
     /// Record the canonical specified value beside every declared longhand.
@@ -90,8 +97,15 @@ impl StyleEngine {
                 value,
             })
             .collect();
-        self.record_rule_declaration_change(rule, &declared);
-        self.stage_rule_declared_properties(rule, declared, Vec::new(), declarations_are_complete);
+        self.record_rule_declaration_change(rule, &declared, &[]);
+        self.stage_rule_declared_properties(
+            rule,
+            declared,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            declarations_are_complete,
+        );
     }
 
     /// Record already decoded cascade operators beside canonical specified values.
@@ -101,7 +115,14 @@ impl StyleEngine {
         declared: &[DeclaredProperty],
         declarations_are_complete: bool,
     ) {
-        self.set_rule_declared_properties_with_written_values(rule, declared, Vec::new(), declarations_are_complete);
+        self.set_rule_declared_properties_with_written_values(
+            rule,
+            declared,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            declarations_are_complete,
+        );
     }
 
     /// Set a rule's declarations together with the values they were written with, parallel to
@@ -111,10 +132,19 @@ impl StyleEngine {
         rule: RuleID,
         declared: &[DeclaredProperty],
         written_values: Vec<RetainedStyleValueData>,
+        custom_declarations: Vec<CustomDeclaration>,
+        custom_written_values: Vec<RetainedStyleValueData>,
         declarations_are_complete: bool,
     ) {
-        self.record_rule_declaration_change(rule, declared);
-        self.stage_rule_declared_properties(rule, declared.to_vec(), written_values, declarations_are_complete);
+        self.record_rule_declaration_change(rule, declared, &custom_declarations);
+        self.stage_rule_declared_properties(
+            rule,
+            declared.to_vec(),
+            written_values,
+            custom_declarations,
+            custom_written_values,
+            declarations_are_complete,
+        );
     }
 
     pub(super) fn stage_rule_declared_properties(
@@ -122,6 +152,8 @@ impl StyleEngine {
         rule: RuleID,
         declared: Vec<DeclaredProperty>,
         written_values: Vec<RetainedStyleValueData>,
+        custom_declarations: Vec<CustomDeclaration>,
+        custom_written_values: Vec<RetainedStyleValueData>,
         complete: bool,
     ) {
         if !self.staged_rule_is_arriving(rule) {
@@ -133,11 +165,15 @@ impl StyleEngine {
             PendingRuleDeclarations {
                 declared: self.program.declared_properties_of(rule).to_vec(),
                 written_values: self.program.written_values_of(rule).to_vec(),
+                custom_declarations: self.program.custom_declarations_of(rule).to_vec(),
+                custom_written_values: self.program.custom_written_values_of(rule).to_vec(),
                 complete: self.program.declarations_are_complete_for(rule),
             },
             PendingRuleDeclarations {
                 declared,
                 written_values,
+                custom_declarations,
+                custom_written_values,
                 complete,
             },
         );
@@ -151,20 +187,34 @@ impl StyleEngine {
             .unwrap_or_else(|| self.program.declared_properties_of(rule))
     }
 
+    pub(super) fn current_custom_declarations_of(&self, rule: RuleID) -> &[CustomDeclaration] {
+        self.program_staging
+            .rule_declarations
+            .after(rule)
+            .map(|pending| pending.custom_declarations.as_slice())
+            .unwrap_or_else(|| self.program.custom_declarations_of(rule))
+    }
+
     pub(super) fn current_declarations_are_complete_for(&self, rule: RuleID) -> bool {
         self.program_staging
             .rule_declarations
             .after(rule)
-            .map(|pending| pending.complete)
+            .map(|pending| pending.complete && pending.custom_declarations.is_empty())
             .unwrap_or_else(|| self.program.declarations_are_complete_for(rule))
     }
 
     /// Preserve the property range of a declaration edit until its block identity is journaled.
-    pub(super) fn record_rule_declaration_change(&mut self, rule: RuleID, declared: &[DeclaredProperty]) {
+    pub(super) fn record_rule_declaration_change(
+        &mut self,
+        rule: RuleID,
+        declared: &[DeclaredProperty],
+        custom_declarations: &[CustomDeclaration],
+    ) {
         let replacement = self.replacement_rule(rule);
         if replacement.is_none() && self.current_rule_version(rule).declaration_block.is_none() {
             return;
         }
+        let custom_declarations_changed = self.current_custom_declarations_of(rule) != custom_declarations;
         let previous = replacement
             .map(|replacement| replacement.declared.as_slice())
             .unwrap_or_else(|| self.current_declared_properties_of(rule));
@@ -181,6 +231,7 @@ impl StyleEngine {
             .find(|change| change.rule == rule)
         {
             change.new_properties = new_properties;
+            change.custom_declarations_changed |= custom_declarations_changed;
             return;
         }
         // An incomplete inventory can hold custom properties, and those never reach the winner
@@ -195,6 +246,7 @@ impl StyleEngine {
                 rule,
                 old_properties,
                 new_properties,
+                custom_declarations_changed,
             });
     }
 
@@ -459,7 +511,7 @@ impl StyleEngine {
         replacement.reused += 1;
 
         self.set_rule_conditions_hold(rule, true);
-        self.stage_rule_declared_properties(rule, Vec::new(), Vec::new(), false);
+        self.stage_rule_declared_properties(rule, Vec::new(), Vec::new(), Vec::new(), Vec::new(), false);
         self.stage_rule_in_a_layer(rule, false);
         self.stage_rule_gated_by_container_query(rule, false);
         let mut version = RuleVersion::new(rule, RuleKind::Style);
@@ -607,8 +659,14 @@ impl StyleEngine {
 
         let declarations = self.program_staging.rule_declarations.take_dirty();
         for (rule, pending) in declarations {
-            self.program
-                .set_rule_declared_properties(rule, pending.declared, pending.written_values, pending.complete);
+            self.program.set_rule_declared_properties(
+                rule,
+                pending.declared,
+                pending.written_values,
+                pending.custom_declarations,
+                pending.custom_written_values,
+                pending.complete,
+            );
         }
 
         let mut versions = self.program_staging.rule_versions.take_dirty();

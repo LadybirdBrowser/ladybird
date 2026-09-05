@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .item { color: red; background-color: white; transition: color 1s; }
+    .changed { color: blue; }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        for (let index = 0; index < 12; ++index) {
+            const item = document.createElement("div");
+            item.className = "item";
+            host.appendChild(item);
+            internals.updateStyle();
+        }
+        internals.updateStyle();
+        internals.resetStyleInvalidationCounters();
+        for (const item of host.children) {
+            item.classList.add("changed");
+            internals.updateStyle();
+        }
+        const counters = internals.getStyleInvalidationCounters();
+        println(`partial builds: ${counters.baseStylePartialBuilds}`);
+        println(`full builds: ${counters.baseStyleFullBuilds}`);
+        for (const animation of document.getAnimations())
+            animation.finish();
+        internals.updateStyle();
+        println(`color: ${getComputedStyle(host.lastElementChild).color}`);
+    });
+</script>

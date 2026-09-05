@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::cascade::Top1Winner;
+use super::cascade::{CascadeAttachment, Top1Winner};
 use super::*;
 
 #[derive(Clone, Copy)]
@@ -86,6 +86,21 @@ impl CascadeCompactionWorkspace {
     pub(super) fn capacity_bytes(&self) -> u64 {
         self.top_1.capacity_bytes() as u64 + self.element_top_1.capacity_bytes()
     }
+}
+
+/// Whether a declared property names a longhand column; a shorthand declared whole does not.
+fn property_is_longhand(property: u16) -> bool {
+    // Style-engine unit tests use small synthetic property IDs to keep their cascade fixtures
+    // independent of the generated property table.
+    #[cfg(test)]
+    if property != crate::css::property_metadata::property_id::CUSTOM
+        && property < crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
+    {
+        return true;
+    }
+    (crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
+        ..=crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID)
+        .contains(&property)
 }
 
 impl StyleEngine {
@@ -171,6 +186,7 @@ impl StyleEngine {
             self.tree_scope_depth(context_scope),
             layer,
             self.program.layer_rank(context_scope, layer),
+            CascadeAttachment::StyleSheet,
         )
     }
 
@@ -193,6 +209,11 @@ impl StyleEngine {
             self.tree_scope_depth(tree_scope),
             CascadeLayerID::UNLAYERED,
             self.program.layer_rank(tree_scope, CascadeLayerID::UNLAYERED),
+            if kind == ElementDeclarationKind::InlineStyle {
+                CascadeAttachment::InlineStyle
+            } else {
+                CascadeAttachment::StyleSheet
+            },
         )
     }
 
@@ -218,7 +239,9 @@ impl StyleEngine {
         candidates.clear();
         for entry in matches.iter().filter(|entry| entry.pseudo_element == pseudo) {
             for &declared in self.program.declared_properties_of(entry.rule) {
-                if !wants(declared.property) {
+                // A shorthand written with a substitution is declared whole beside the longhands
+                // it pends; the longhands are the winners, the shorthand names no column.
+                if !wants(declared.property) || !property_is_longhand(declared.property) {
                     continue;
                 }
                 let priority = self.cascade_priority_of(
@@ -243,13 +266,17 @@ impl StyleEngine {
         }
         if pseudo.is_none() {
             for kind in ElementDeclarationKind::ALL {
-                let (declared_properties, declarations_are_complete) =
-                    self.facts.element_declared_properties(node, kind);
-                if !declarations_are_complete {
+                // Custom properties an inline style declares beside its longhands leave those
+                // longhands as complete as any; the environment they decide is computed apart.
+                let (declared_properties, _) = self.facts.element_declared_properties(node, kind);
+                if !self
+                    .facts
+                    .element_declarations_are_complete_but_for_custom_properties(node, kind)
+                {
                     continue;
                 }
                 for &declared in declared_properties {
-                    if !wants(declared.property) {
+                    if !wants(declared.property) || !property_is_longhand(declared.property) {
                         continue;
                     }
                     let priority = self.element_cascade_priority(node, kind, declared.important);
@@ -399,7 +426,9 @@ impl StyleEngine {
             if compaction_blocked
                 && (entry.tree_scope != TreeScopeID::DOCUMENT
                     || self.program.rule_is_gated_by_container_query(entry.rule)
-                    || !self.program.declarations_are_complete_for(entry.rule))
+                    || !self
+                        .program
+                        .declarations_are_complete_but_for_custom_properties(entry.rule))
             {
                 continue;
             }
@@ -413,6 +442,9 @@ impl StyleEngine {
             );
             let mut important_priority = None;
             for declared in declared_properties {
+                if !property_is_longhand(declared.property) {
+                    continue;
+                }
                 let priority = match declared.important {
                     true => *important_priority.get_or_insert_with(|| {
                         self.cascade_priority_of(
@@ -441,12 +473,17 @@ impl StyleEngine {
         }
         if let Some(node) = publish_winners_for {
             for kind in ElementDeclarationKind::ALL {
-                let (declared_properties, declarations_are_complete) =
-                    self.facts.element_declared_properties(node, kind);
-                if !declarations_are_complete {
+                let (declared_properties, _) = self.facts.element_declared_properties(node, kind);
+                if !self
+                    .facts
+                    .element_declarations_are_complete_but_for_custom_properties(node, kind)
+                {
                     continue;
                 }
                 for &declared in declared_properties {
+                    if !property_is_longhand(declared.property) {
+                        continue;
+                    }
                     element_top_1.consider(
                         declared.property,
                         self.element_cascade_priority(node, kind, declared.important),
@@ -793,6 +830,9 @@ impl StyleEngine {
                 continue;
             }
             for &declared in self.program.declared_properties_of(delta.rule) {
+                if !property_is_longhand(declared.property) {
+                    continue;
+                }
                 let retained_winner_has_continuation = self
                     .winner_groups
                     .winner_in_state(previous, declared.property)
@@ -1205,6 +1245,7 @@ impl StyleEngine {
                     rule: change.rule,
                     old_properties: change.old_properties,
                     new_properties: change.new_properties,
+                    custom_declarations_changed: change.custom_declarations_changed,
                 })
                 .collect(),
             &mut self.memory,
@@ -1364,6 +1405,7 @@ impl StyleEngine {
             reclaimable = recorded;
         }
         self.facts.forget_atoms(&reclaimable);
+        self.custom_property_environments.forget_names(&reclaimable);
         let requirement_count = self.attribute_value_text_names.len();
         self.attribute_value_text_names
             .retain(|atom| !reclaimable.contains(atom));

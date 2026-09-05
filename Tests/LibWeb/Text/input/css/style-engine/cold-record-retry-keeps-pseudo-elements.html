@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .unsupported { list-style-type: square; }
+    .target::before { content: "before"; }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        host.innerHTML = `<div class="unsupported"><div class="target">after</div></div>`;
+        internals.updateStyle();
+        println(getComputedStyle(host.querySelector(".target"), "::before").content);
+    });
+</script>

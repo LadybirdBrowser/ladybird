@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #parent { --gone: 9px; }
+    @layer base, middle, top;
+    @layer base {
+        .target { --z: 1px; --a: 2px; --m: 3px; --gone: 4px; }
+    }
+    @layer middle {
+        .target { --a: 20px; --gone: revert; --z: revert-layer; --m: revert; }
+    }
+    @layer top {
+        .target { --m: 30px; --z: revert-layer; --a: 200px; --gone: revert-layer; }
+    }
+    .target { margin: var(--z) var(--a) var(--m) var(--gone); }
+</style>
+<div id="parent"></div>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        for (let index = 0; index < 3; ++index) {
+            const child = document.createElement("div");
+            child.className = "target";
+            parent.appendChild(child);
+            println(`layered ${index}: ${getComputedStyle(child).margin}`);
+            child.style.cssText = "--a: revert-layer; --z: 10px; --m: var(--z); --gone: revert;";
+            println(`inline ${index}: ${getComputedStyle(child).margin}`);
+            child.style.cssText = "";
+            println(`restored ${index}: ${getComputedStyle(child).margin}`);
+        }
+    });
+</script>

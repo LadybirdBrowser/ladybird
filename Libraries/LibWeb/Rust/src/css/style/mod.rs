@@ -60,6 +60,8 @@ mod child_reactions;
 mod column;
 pub mod compiler;
 mod computed;
+mod custom_property_cascade;
+mod custom_property_environments;
 #[cfg(test)]
 mod differential_tests;
 pub mod exact_matcher;
@@ -243,6 +245,7 @@ use prefix::PrefixStateCache;
 use prefix::PrefixStates;
 use prefix::PrefixTransitionLookup;
 use program::CascadeLayerID;
+use program::CustomDeclaration;
 use program::DeclarationBlockID;
 use program::DeclaredProperty;
 use program::EntryID;
@@ -748,10 +751,10 @@ pub struct StyleEngine {
     #[cfg(feature = "style-recording")]
     recording_id: Option<u64>,
     memory: MemoryController,
-    parsed_substitution_memory: MemoryLease,
     counters: Counters,
     /// The instrumentation state to restore after C++ materializes a record for verification.
-    computed_record_verification_counters: Option<Counters>,
+    computed_record_verification_counters: Option<Box<Counters>>,
+    computed_record_verification_pins: Vec<u64>,
     tree: StyleNodeTree,
     program: StyleSheetProgram,
     journal: NormalizationJournal,
@@ -834,6 +837,15 @@ pub struct StyleEngine {
     /// computed half of the eventual base style record; custom properties and metadata remain
     /// separate inputs until that record is complete.
     computed_group_sets: ComputedGroupSets,
+    /// The stores behind the custom-property environments live records are published with.
+    custom_property_environments: custom_property_environments::CustomPropertyEnvironments,
+    /// The nodes whose engine-computed record substituted a custom property into a winner: what
+    /// C++ notes as reading custom properties when it installs the record.
+    nodes_with_substituted_records: HashSet<StyleNodeID>,
+    /// Whether the registrations used by this transaction differ from the preceding one. A
+    /// previously substituted record must then be recomputed by C++, which implements registered
+    /// custom properties, even when its cascade winners did not move.
+    custom_property_registrations_changed: bool,
     /// Pending selections for elements, and separately for the few pseudo-elements that hold one.
     /// Both are keyed by the element so that retiring it releases every selection by key.
     pending_element_style_computation_selections: HashMap<StyleNodeID, StyleComputationSelection>,
@@ -856,8 +868,9 @@ pub struct StyleEngine {
     parent_inputs_moved_nodes: HashSet<StyleNodeID>,
     engine_pseudo_record_cache: HashMap<publication::PseudoCohortKey, computed::FinalStyleRecordID>,
     engine_cold_record_cache: HashMap<publication::ColdRecordKey, publication::ColdRecord>,
+    engine_cold_record_donors: HashMap<publication::ColdRecordDonorKey, Vec<publication::ColdRecordDonor>>,
     /// Which winner states the engine can compute records from, decided once per state.
-    engine_computable_states: HashMap<(u64, CascadeStateID), bool>,
+    engine_computable_states: HashMap<(u64, CascadeStateID, u64, u64), bool>,
     computed_group_set_memory: MemoryLease,
     custom_property_environment_memory: MemoryLease,
     computed_fixed_metadata_memory: MemoryLease,

@@ -6617,6 +6617,8 @@ pub unsafe extern "C" fn rust_compute_font_weight(
 // stubbed out here.
 #[cfg(test)]
 mod ffi_test_stubs {
+    use std::ffi::c_void;
+
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_utf16_fly_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]
@@ -6627,6 +6629,21 @@ mod ffi_test_stubs {
     extern "C" fn ladybird_gfx_font_cascade_list_unref(_raw: *const std::ffi::c_void) {}
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_font_unref(_raw: *const std::ffi::c_void) {}
+    #[unsafe(no_mangle)]
+    unsafe extern "C" fn unicode_rust_idna_to_ascii(
+        domain: *const u8,
+        domain_length: usize,
+        _options: *const c_void,
+        context: *mut c_void,
+        on_success: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+    ) {
+        // The style tests only need ASCII URL hosts. The production build uses LibUnicode's C++
+        // implementation for the full IDNA algorithm.
+        let domain = unsafe { std::slice::from_raw_parts(domain, domain_length) };
+        if domain.is_ascii() {
+            unsafe { on_success(context, domain.as_ptr(), domain.len()) };
+        }
+    }
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_path_destroy(path: *mut std::ffi::c_void) {
         if !path.is_null() {

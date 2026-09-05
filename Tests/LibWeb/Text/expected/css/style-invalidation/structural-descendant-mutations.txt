@@ -19,7 +19,7 @@ PASS: descendant attribute mutation: document: :has([data-hit*='e']) after desce
 PASS: descendant attribute mutation: document: :has([data-hit~='yes']) after descendant word attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant attribute mutation: document: :has([data-hit|='yes']) after descendant dash attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant attribute mutation: document: :has([data-hit='yes']) becomes false after descendant value change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant attribute mutation: document: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: descendant attribute mutation: document: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant attribute mutation: document: :has(:is(.hit, [data-hit])) after descendant attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant attribute mutation: document: :has(:where(.hit, [data-hit])) after descendant class change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant attribute mutation: document: :has(.hit:not([data-miss])) after descendant class change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
@@ -191,7 +191,7 @@ PASS: descendant attribute mutation: slotted-default: :has([data-hit*='e']) afte
 PASS: descendant attribute mutation: slotted-default: :has([data-hit~='yes']) after descendant word attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant attribute mutation: slotted-default: :has([data-hit|='yes']) after descendant dash attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant attribute mutation: slotted-default: :has([data-hit='yes']) becomes false after descendant value change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant attribute mutation: slotted-default: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: descendant attribute mutation: slotted-default: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant attribute mutation: slotted-default: :has(:is(.hit, [data-hit])) after descendant attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant attribute mutation: slotted-default: :has(:where(.hit, [data-hit])) after descendant class change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant attribute mutation: slotted-default: :has(.hit:not([data-miss])) after descendant class change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
@@ -234,7 +234,7 @@ PASS: descendant attribute mutation: slotted-named: :has([data-hit*='e']) after 
 PASS: descendant attribute mutation: slotted-named: :has([data-hit~='yes']) after descendant word attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant attribute mutation: slotted-named: :has([data-hit|='yes']) after descendant dash attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant attribute mutation: slotted-named: :has([data-hit='yes']) becomes false after descendant value change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant attribute mutation: slotted-named: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: descendant attribute mutation: slotted-named: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant attribute mutation: slotted-named: :has(:is(.hit, [data-hit])) after descendant attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant attribute mutation: slotted-named: :has(:where(.hit, [data-hit])) after descendant class change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant attribute mutation: slotted-named: :has(.hit:not([data-miss])) after descendant class change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
@@ -342,26 +342,26 @@ PASS: descendant text mutation: slotted-shadow-host-named: :has(.hit:not(:empty)
 PASS: descendant text mutation: slotted-shadow-host-named: :has(:empty:first-child) becomes false after descendant text insert | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
 PASS: descendant text mutation: slotted-shadow-host-named: :has(:not(:empty):first-child) becomes true after descendant text insert | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
 PASS: descendant text mutation: slotted-shadow-host-named: :not(:has(:not(:empty))) becomes false after descendant text insert | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
-PASS: descendant direction mutation: document: :has(:dir(rtl)) after descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: descendant direction mutation: document: :has(:dir(ltr)) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: descendant direction mutation: document: :has(:dir(rtl):first-child) after first descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: descendant direction mutation: document: :not(:has(:dir(rtl))) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: descendant direction mutation: document: :has(:dir(rtl)) after descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant direction mutation: document: :has(:dir(ltr)) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant direction mutation: document: :has(:dir(rtl):first-child) after first descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant direction mutation: document: :not(:has(:dir(rtl))) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant language mutation: document: :has(:lang(he)) after descendant lang attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant language mutation: document: :has(:lang(en)) becomes false after descendant lang attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant language mutation: document: :has(:lang(he):first-child) after first descendant lang attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant language mutation: document: :not(:has(:lang(he))) becomes false after descendant lang attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: inherited language mutation: document: :has(:lang(he)) after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: inherited language pseudo-element mutation: document: :has(:lang(he)) after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: inherited language pseudo-element mutation: document: :has(:lang(he)) after ancestor lang change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: inherited language mutation: document: :has(:lang(en)) becomes false after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: inherited language pseudo-element mutation: document: :has(:lang(en)) becomes false after ancestor lang change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: inherited language mutation: document: :not(:has(:lang(he))) becomes false after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: inherited language pseudo-element mutation: document: :not(:has(:lang(he))) becomes false after ancestor lang change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: inherited language mutation: document: :has(:lang(he):first-child) after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: inherited language pseudo-element mutation: document: :has(:lang(he):first-child) after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: inherited language pseudo-element mutation: document: :has(:lang(he):first-child) after ancestor lang change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: inherited language mutation: document: :has(:is(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: inherited language pseudo-element mutation: document: :has(:is(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: inherited language pseudo-element mutation: document: :has(:is(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: inherited language mutation: document: :has(:where(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: inherited language pseudo-element mutation: document: :has(:where(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: inherited language pseudo-element mutation: document: :has(:where(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant direction mutation: shadow-internal: :has(:dir(rtl)) after descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: descendant direction mutation: shadow-internal: :has(:dir(ltr)) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: descendant direction mutation: shadow-internal: :has(:dir(rtl):first-child) after first descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
@@ -402,10 +402,10 @@ PASS: inherited language mutation: shadow-host: :has(:is(:lang(he), .fallback)) 
 PASS: inherited language pseudo-element mutation: shadow-host: :has(:is(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
 PASS: inherited language mutation: shadow-host: :has(:where(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=4, elementStyleNoopRecomputations=3
 PASS: inherited language pseudo-element mutation: shadow-host: :has(:where(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
-PASS: descendant direction mutation: slotted-default: :has(:dir(rtl)) after descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: descendant direction mutation: slotted-default: :has(:dir(ltr)) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: descendant direction mutation: slotted-default: :has(:dir(rtl):first-child) after first descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: descendant direction mutation: slotted-default: :not(:has(:dir(rtl))) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: descendant direction mutation: slotted-default: :has(:dir(rtl)) after descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant direction mutation: slotted-default: :has(:dir(ltr)) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant direction mutation: slotted-default: :has(:dir(rtl):first-child) after first descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant direction mutation: slotted-default: :not(:has(:dir(rtl))) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant language mutation: slotted-default: :has(:lang(he)) after descendant lang attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant language mutation: slotted-default: :has(:lang(en)) becomes false after descendant lang attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant language mutation: slotted-default: :has(:lang(he):first-child) after first descendant lang attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
@@ -416,10 +416,10 @@ PASS: inherited language mutation: slotted-default: :not(:has(:lang(he))) become
 PASS: inherited language mutation: slotted-default: :has(:lang(he):first-child) after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: inherited language mutation: slotted-default: :has(:is(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: inherited language mutation: slotted-default: :has(:where(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant direction mutation: slotted-named: :has(:dir(rtl)) after descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: descendant direction mutation: slotted-named: :has(:dir(ltr)) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: descendant direction mutation: slotted-named: :has(:dir(rtl):first-child) after first descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: descendant direction mutation: slotted-named: :not(:has(:dir(rtl))) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: descendant direction mutation: slotted-named: :has(:dir(rtl)) after descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant direction mutation: slotted-named: :has(:dir(ltr)) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant direction mutation: slotted-named: :has(:dir(rtl):first-child) after first descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant direction mutation: slotted-named: :not(:has(:dir(rtl))) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant language mutation: slotted-named: :has(:lang(he)) after descendant lang attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant language mutation: slotted-named: :has(:lang(en)) becomes false after descendant lang attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant language mutation: slotted-named: :has(:lang(he):first-child) after first descendant lang attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
@@ -459,7 +459,7 @@ PASS: inherited language mutation: slotted-shadow-host-named: :has(:lang(he):fir
 PASS: inherited language mutation: slotted-shadow-host-named: :has(:is(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
 PASS: inherited language mutation: slotted-shadow-host-named: :has(:where(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
 PASS: descendant state mutation: document: :has(:checked) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant state pseudo-element mutation: document: :has(:checked) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: descendant state pseudo-element mutation: document: :has(:checked) after checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant state mutation: document: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state pseudo-element mutation: document: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant state mutation: document: :has(:required) after input required | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
@@ -475,19 +475,19 @@ PASS: descendant state pseudo-element mutation: document: :has(:placeholder-show
 PASS: descendant state mutation: document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
 PASS: descendant state pseudo-element mutation: document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
 PASS: descendant state mutation: document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant state pseudo-element mutation: document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: descendant state pseudo-element mutation: document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant state mutation: document: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
-PASS: descendant state pseudo-element mutation: document: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
+PASS: descendant state pseudo-element mutation: document: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant state mutation: document: :has(:checked + .after) after checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
-PASS: descendant state pseudo-element mutation: document: :has(:checked + .after) after checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
+PASS: descendant state pseudo-element mutation: document: :has(:checked + .after) after checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant state mutation: document: :has(:checked ~ .after) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=3
-PASS: descendant state pseudo-element mutation: document: :has(:checked ~ .after) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=3
+PASS: descendant state pseudo-element mutation: document: :has(:checked ~ .after) after checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant state mutation: document: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state pseudo-element mutation: document: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant state mutation: document: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant state pseudo-element mutation: document: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: descendant state pseudo-element mutation: document: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant state mutation: document: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
-PASS: descendant state pseudo-element mutation: document: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
+PASS: descendant state pseudo-element mutation: document: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state mutation: shadow-internal: :has(:checked) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state pseudo-element mutation: shadow-internal: :has(:checked) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state mutation: shadow-internal: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
@@ -670,7 +670,7 @@ PASS: descendant state mutation: part-shadow-host-ancestor: :has(:checked):has(:
 PASS: descendant state pseudo-element mutation: part-shadow-host-ancestor: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: form child mutation: document: :invalid after required input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: form child mutation: document: :valid after required input removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: form child mutation: document: :invalid after required fieldset input append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
+PASS: form child mutation: document: :invalid after required fieldset input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: form child mutation: document: :has(:invalid) after required input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: form child mutation: document: :has(:valid) after optional input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: form child mutation: document: :has(:invalid) becomes false after required input removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=0

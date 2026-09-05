@@ -1,33 +1,33 @@
-PASS: descendant state stress detached-pseudo: document: :has(:checked) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: descendant state stress detached-pseudo-cold: document: :has(:checked) after checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: descendant state stress detached-pseudo: document: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
-PASS: descendant state stress detached-pseudo-cold: document: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: descendant state stress detached-pseudo: document: :has(:checked) after checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant state stress detached-pseudo-cold: document: :has(:checked) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: descendant state stress detached-pseudo: document: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
+PASS: descendant state stress detached-pseudo-cold: document: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress detached-pseudo: document: :has(:required) after input required | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: descendant state stress detached-pseudo-cold: document: :has(:required) after input required | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
-PASS: descendant state stress detached-pseudo: document: :has(:optional) becomes false after input required | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
-PASS: descendant state stress detached-pseudo-cold: document: :has(:optional) becomes false after input required | elementStyleRecomputations=7, elementStyleNoopRecomputations=1
+PASS: descendant state stress detached-pseudo: document: :has(:optional) becomes false after input required | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: descendant state stress detached-pseudo-cold: document: :has(:optional) becomes false after input required | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
 PASS: descendant state stress detached-pseudo: document: :has(:disabled) after input disabled | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: descendant state stress detached-pseudo-cold: document: :has(:disabled) after input disabled | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
-PASS: descendant state stress detached-pseudo: document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
-PASS: descendant state stress detached-pseudo-cold: document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=7, elementStyleNoopRecomputations=1
+PASS: descendant state stress detached-pseudo: document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: descendant state stress detached-pseudo-cold: document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
 PASS: descendant state stress detached-pseudo: document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: descendant state stress detached-pseudo-cold: document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
-PASS: descendant state stress detached-pseudo: document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
-PASS: descendant state stress detached-pseudo-cold: document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=7, elementStyleNoopRecomputations=1
-PASS: descendant state stress detached-pseudo: document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: descendant state stress detached-pseudo-cold: document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: descendant state stress detached-pseudo: document: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: descendant state stress detached-pseudo-cold: document: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: descendant state stress detached-pseudo: document: :has(:checked + .after) after checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: descendant state stress detached-pseudo-cold: document: :has(:checked + .after) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: descendant state stress detached-pseudo: document: :has(:checked ~ .after) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: descendant state stress detached-pseudo-cold: document: :has(:checked ~ .after) after checkbox checked | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: descendant state stress detached-pseudo: document: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
-PASS: descendant state stress detached-pseudo-cold: document: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
-PASS: descendant state stress detached-pseudo: document: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: descendant state stress detached-pseudo-cold: document: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: descendant state stress detached-pseudo: document: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
-PASS: descendant state stress detached-pseudo-cold: document: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
+PASS: descendant state stress detached-pseudo: document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: descendant state stress detached-pseudo-cold: document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
+PASS: descendant state stress detached-pseudo: document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant state stress detached-pseudo-cold: document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: descendant state stress detached-pseudo: document: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant state stress detached-pseudo-cold: document: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: descendant state stress detached-pseudo: document: :has(:checked + .after) after checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant state stress detached-pseudo-cold: document: :has(:checked + .after) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: descendant state stress detached-pseudo: document: :has(:checked ~ .after) after checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant state stress detached-pseudo-cold: document: :has(:checked ~ .after) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: descendant state stress detached-pseudo: document: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
+PASS: descendant state stress detached-pseudo-cold: document: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: descendant state stress detached-pseudo: document: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant state stress detached-pseudo-cold: document: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: descendant state stress detached-pseudo: document: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
+PASS: descendant state stress detached-pseudo-cold: document: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: descendant state stress detached-pseudo: document-styled-use-shadow: :has(:checked) after checkbox checked | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: descendant state stress detached-pseudo-cold: document-styled-use-shadow: :has(:checked) after checkbox checked | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: descendant state stress detached-pseudo: document-styled-use-shadow: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=7, elementStyleNoopRecomputations=1

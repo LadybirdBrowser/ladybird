@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="rules">.declared { color: red; }</style>
+<div style="color: blue"><span class="declared">one</span></div>
+<div style="color: green"><span class="declared">two</span></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        rules.remove();
+        internals.updateStyle();
+        for (const span of document.querySelectorAll("span"))
+            println(getComputedStyle(span).color);
+    });
+</script>

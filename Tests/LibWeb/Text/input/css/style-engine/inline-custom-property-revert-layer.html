@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .target { --c: green; color: var(--c, red); }
+</style>
+<script>
+    test(() => {
+        for (const important of ["", " !important"]) {
+            for (let index = 0; index < 3; ++index) {
+                const child = document.createElement("div");
+                child.className = "target";
+                child.style.cssText = `--c: revert-layer${important}`;
+                document.body.appendChild(child);
+                println(`initial${important}: ${getComputedStyle(child).color}`);
+                child.style.cssText = `--c: blue${important}`;
+                println(`changed${important}: ${getComputedStyle(child).color}`);
+                child.style.cssText = `--c: revert-layer${important}`;
+                println(`restored${important}: ${getComputedStyle(child).color}`);
+            }
+        }
+    });
+</script>

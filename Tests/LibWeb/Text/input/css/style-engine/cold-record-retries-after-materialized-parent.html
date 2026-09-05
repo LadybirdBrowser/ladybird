@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .unsupported { list-style-type: square; }
+    .red { color: red; }
+    .large { font-size: 20px; }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+        host.innerHTML = `<div class="unsupported"><div class="red"><span class="large">text</span></div></div>`;
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`engine records: ${after.engineComputedStyleRecords - before.engineComputedStyleRecords}`);
+        println(`C++ recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+        println(`color: ${getComputedStyle(host.querySelector("span")).color}`);
+        println(`font size: ${getComputedStyle(host.querySelector("span")).fontSize}`);
+    });
+</script>

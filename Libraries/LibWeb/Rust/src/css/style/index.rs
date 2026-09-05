@@ -43,6 +43,7 @@ use super::memory::MemoryLease;
 use super::memory::Tier;
 use super::partial_view::Lookup;
 use super::prefix::PrefixAutomaton;
+use super::program::CustomDeclaration;
 use super::program::DeclaredProperty;
 use super::program::EntryID;
 use super::program::RuleID;
@@ -3184,6 +3185,11 @@ struct ElementDeclarationRow {
     /// publication carried them; a consumer computing from the declarations reads the spelling.
     written_by_kind: [Option<Box<[RetainedStyleValueData]>>; ElementDeclarationKind::COUNT],
     complete: [bool; ElementDeclarationKind::COUNT],
+    /// The custom properties the inline style declares, in declaration order. Only the `style`
+    /// attribute declares custom properties.
+    custom_declarations: Option<Box<[CustomDeclaration]>>,
+    /// The values the custom declarations were written with, parallel to them.
+    custom_written_values: Option<Box<[RetainedStyleValueData]>>,
 }
 
 impl Default for ElementDeclarationRow {
@@ -3192,6 +3198,8 @@ impl Default for ElementDeclarationRow {
             by_kind: Default::default(),
             written_by_kind: Default::default(),
             complete: [true; ElementDeclarationKind::COUNT],
+            custom_declarations: None,
+            custom_written_values: None,
         }
     }
 }
@@ -3210,11 +3218,21 @@ impl ElementDeclarationRow {
                 .iter()
                 .flatten()
                 .map(|written| size_of_val(written.as_ref()))
-                .sum::<usize>()) as u64
+                .sum::<usize>()
+            + self
+                .custom_declarations
+                .as_ref()
+                .map_or(0, |custom| size_of_val(custom.as_ref()))
+            + self
+                .custom_written_values
+                .as_ref()
+                .map_or(0, |written| size_of_val(written.as_ref()))) as u64
     }
 
     fn is_empty(&self) -> bool {
-        self.by_kind.iter().all(Option::is_none) && self.complete.iter().all(|&complete| complete)
+        self.by_kind.iter().all(Option::is_none)
+            && self.complete.iter().all(|&complete| complete)
+            && self.custom_declarations.is_none()
     }
 }
 
@@ -3226,6 +3244,8 @@ impl ElementDeclarationRow {
 struct ElementDeclarationRows {
     rows: Column<Option<Box<ElementDeclarationRow>>>,
     payload_bytes: u64,
+    /// How many rows hold custom declarations: none means no inline style declares one.
+    rows_with_custom_declarations: usize,
 }
 
 impl ElementDeclarationRows {
@@ -3238,8 +3258,21 @@ impl ElementDeclarationRows {
         };
         (
             row.by_kind[kind.index()].as_deref().unwrap_or(&[]),
-            row.complete[kind.index()],
+            row.complete[kind.index()]
+                && (kind != ElementDeclarationKind::InlineStyle || row.custom_declarations.is_none()),
         )
+    }
+
+    /// Whether the longhand declarations of one kind are all published, whatever custom
+    /// properties the inline style declares beside them.
+    fn complete_but_for_custom(&self, node: StyleNodeID, kind: ElementDeclarationKind) -> bool {
+        let Some(index) = node.element_index().map(|index| index as usize) else {
+            return true;
+        };
+        let Some(row) = self.rows.get(index).and_then(Option::as_ref) else {
+            return true;
+        };
+        row.complete[kind.index()]
     }
 
     /// The values the declarations of one kind were written with, parallel to `get`, or nothing
@@ -3278,6 +3311,71 @@ impl ElementDeclarationRows {
         self.payload_bytes = self.payload_bytes - before + after;
     }
 
+    /// The custom properties the node's inline style declares.
+    fn get_custom(&self, node: StyleNodeID) -> &[CustomDeclaration] {
+        let Some(index) = node.element_index().map(|index| index as usize) else {
+            return &[];
+        };
+        let Some(row) = self.rows.get(index).and_then(Option::as_ref) else {
+            return &[];
+        };
+        row.custom_declarations.as_deref().unwrap_or(&[])
+    }
+
+    /// The values the node's inline custom declarations were written with, parallel to them, or
+    /// nothing when their publication carried none.
+    fn get_custom_written(&self, node: StyleNodeID) -> &[RetainedStyleValueData] {
+        let Some(index) = node.element_index().map(|index| index as usize) else {
+            return &[];
+        };
+        let Some(row) = self.rows.get(index).and_then(Option::as_ref) else {
+            return &[];
+        };
+        row.custom_written_values.as_deref().unwrap_or(&[])
+    }
+
+    fn set_custom(
+        &mut self,
+        node: StyleNodeID,
+        custom_declarations: Vec<CustomDeclaration>,
+        custom_written_values: Vec<RetainedStyleValueData>,
+    ) {
+        let index = node.element_index().expect("only elements carry element declarations") as usize;
+        if custom_declarations.is_empty() {
+            let Some(row) = self.rows.get_mut(index).and_then(Option::as_mut) else {
+                return;
+            };
+            let before = row.storage_bytes();
+            if row.custom_declarations.take().is_some() {
+                self.rows_with_custom_declarations -= 1;
+            }
+            row.custom_written_values = None;
+            let after = match row.is_empty() {
+                true => 0,
+                false => row.storage_bytes(),
+            };
+            if after == 0 {
+                self.rows[index] = None;
+            }
+            self.payload_bytes = self.payload_bytes - before + after;
+            return;
+        }
+        let row = self.rows.entry(index);
+        let before = row.as_ref().map_or(0, |row| row.storage_bytes());
+        let row = row.get_or_insert_with(Box::default);
+        row.custom_written_values = (custom_written_values.len() == custom_declarations.len())
+            .then(|| custom_written_values.into_boxed_slice());
+        if row
+            .custom_declarations
+            .replace(custom_declarations.into_boxed_slice())
+            .is_none()
+        {
+            self.rows_with_custom_declarations += 1;
+        }
+        let after = row.storage_bytes();
+        self.payload_bytes = self.payload_bytes - before + after;
+    }
+
     fn remove_kind(&mut self, node: StyleNodeID, kind: ElementDeclarationKind) {
         let Some(index) = node.element_index().map(|index| index as usize) else {
             return;
@@ -3289,6 +3387,12 @@ impl ElementDeclarationRows {
         row.by_kind[kind.index()] = None;
         row.written_by_kind[kind.index()] = None;
         row.complete[kind.index()] = true;
+        if kind == ElementDeclarationKind::InlineStyle {
+            if row.custom_declarations.take().is_some() {
+                self.rows_with_custom_declarations -= 1;
+            }
+            row.custom_written_values = None;
+        }
         let after = match row.is_empty() {
             true => 0,
             false => row.storage_bytes(),
@@ -3306,6 +3410,9 @@ impl ElementDeclarationRows {
         let Some(row) = self.rows.get_mut(index).and_then(Option::take) else {
             return;
         };
+        if row.custom_declarations.is_some() {
+            self.rows_with_custom_declarations -= 1;
+        }
         self.payload_bytes -= row.storage_bytes();
     }
 
@@ -3857,6 +3964,13 @@ impl ElementFactStore {
 
     pub(super) fn collect_atoms(&self, atoms: &mut HashSet<StyleAtomID>) -> u64 {
         let mut visited = 0_u64;
+        for row in self.element_declared_properties.rows.iter().flatten() {
+            visited += 1;
+            for declaration in row.custom_declarations.iter().flatten() {
+                visited += 1;
+                atoms.insert(declaration.name);
+            }
+        }
         for (index, count) in self.atom_live_counts.indexed_iter() {
             visited += 1;
             if count != 0 {
@@ -4734,6 +4848,49 @@ impl ElementFactStore {
         self.memory_dirty = true;
         self.element_declared_properties
             .set(node, kind, declared, written_values, declarations_are_complete);
+    }
+
+    /// Record the custom properties the node's inline style declares, with the values they were
+    /// written with.
+    pub fn set_element_custom_declarations(
+        &mut self,
+        node: StyleNodeID,
+        custom_declarations: Vec<CustomDeclaration>,
+        custom_written_values: Vec<RetainedStyleValueData>,
+    ) {
+        self.memory_dirty = true;
+        self.element_declared_properties
+            .set_custom(node, custom_declarations, custom_written_values);
+    }
+
+    /// The custom properties the node's inline style declares, in declaration order.
+    #[must_use]
+    pub fn element_custom_declarations(&self, node: StyleNodeID) -> &[CustomDeclaration] {
+        self.element_declared_properties.get_custom(node)
+    }
+
+    /// The values the node's inline custom declarations were written with, parallel to them, or
+    /// nothing when their publication carried none.
+    #[must_use]
+    pub fn element_custom_written_values(&self, node: StyleNodeID) -> &[RetainedStyleValueData] {
+        self.element_declared_properties.get_custom_written(node)
+    }
+
+    /// Whether any inline style declares a custom property.
+    #[must_use]
+    pub fn any_element_declares_custom_properties(&self) -> bool {
+        self.element_declared_properties.rows_with_custom_declarations != 0
+    }
+
+    /// Whether one kind of the node's element declarations is complete once the custom properties
+    /// the inline style declares are set aside.
+    #[must_use]
+    pub fn element_declarations_are_complete_but_for_custom_properties(
+        &self,
+        node: StyleNodeID,
+        kind: ElementDeclarationKind,
+    ) -> bool {
+        self.element_declared_properties.complete_but_for_custom(node, kind)
     }
 
     /// The values one kind of the node's element declarations were written with, parallel to

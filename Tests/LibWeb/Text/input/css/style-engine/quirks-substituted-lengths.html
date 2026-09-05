@@ -1,0 +1,21 @@
+<!DOCTYPE quirks>
+<script src="../../include.js"></script>
+<style>
+    .target { --w: 100; width: var(--w); margin: var(--w); }
+    .changed { --w: 200; }
+</style>
+<script>
+    test(() => {
+        println(document.compatMode);
+        for (let index = 0; index < 3; ++index) {
+            const child = document.createElement("div");
+            child.className = "target";
+            document.body.appendChild(child);
+            for (const className of ["target", "target changed", "target"]) {
+                child.className = className;
+                const style = getComputedStyle(child);
+                println(`${index} ${className}: ${style.width} / ${style.marginTop}`);
+            }
+        }
+    });
+</script>

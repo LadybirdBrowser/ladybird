@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .item { display: list-item; list-style: none; }
+    .visible .item { display: block; color: blue; }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        internals.updateStyle();
+        // Once the first item's C++ computation retains the display winner, later items
+        // should reject the missing marker cascade before deriving and discarding a record.
+        const before = internals.styleEngineCounters();
+        for (let index = 0; index < 12; ++index) {
+            const item = document.createElement("li");
+            item.className = "item";
+            host.appendChild(item);
+            internals.updateStyle();
+        }
+        const after = internals.styleEngineCounters();
+        println(`discarded engine records: ${after.engineComputedRecordsAbandoned - before.engineComputedRecordsAbandoned}`);
+        host.className = "visible";
+        internals.updateStyle();
+        println(`display: ${getComputedStyle(host.lastElementChild).display}`);
+        println(`color: ${getComputedStyle(host.lastElementChild).color}`);
+    });
+</script>

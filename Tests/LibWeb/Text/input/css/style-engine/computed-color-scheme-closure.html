@@ -4,7 +4,8 @@
     .before { color-scheme: light; background-color: light-dark(white, black) }
     .after { color-scheme: dark; background-color: light-dark(white, black) }
 </style>
-<div id="target" class="before"></div>
+<div id="target" class="before"><span id="child"></span></div>
+<style>#child { background-color: light-dark(white, black) }</style>
 <script>
     test(() => {
         internals.updateStyle();
@@ -16,5 +17,6 @@
         const after = internals.getStyleInvalidationCounters();
         println(`color scheme longhand evaluations: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations}`);
         println(`background: ${getComputedStyle(target).backgroundColor}`);
+        println(`inherited background: ${getComputedStyle(child).backgroundColor}`);
     });
 </script>

@@ -74,7 +74,6 @@ public:
     void mark_style_node_preallocated(StyleNodeID style_node, TreeScopeID tree_scope) { m_preallocated_style_nodes.set(style_node, tree_scope); }
     Optional<TreeScopeID> consume_preallocated_style_node(StyleNodeID style_node) { return m_preallocated_style_nodes.take(style_node); }
     void cancel_preallocated_style_node(StyleNodeID style_node) { m_preallocated_style_nodes.remove(style_node); }
-    [[nodiscard]] bool resize_parsed_substitution_cache(u64 bytes);
 
     void set_element_parts(StyleNodeID node, ReadonlySpan<StyleAtomID> names, ReadonlySpan<StyleNodeID> hosts);
     void set_element_language(StyleNodeID node, StyleAtomID language, Utf16View tag);
@@ -82,11 +81,11 @@ public:
     // specified values and their authored aliases, and whether that inventory describes everything
     // the block can contribute.
     // Only a property some rule declares can be a candidate for a winner change.
-    void set_rule_declared_properties(StyleEngineRuleID rule, ReadonlySpan<u16> properties, ReadonlySpan<bool> important, ReadonlySpan<StyleEngineFFI::FfiCascadeOperator> operators, ReadonlySpan<void const*> values, ReadonlySpan<void const*> original_values, bool declarations_are_complete);
+    void set_rule_declared_properties(StyleEngineRuleID rule, ReadonlySpan<u16> properties, ReadonlySpan<bool> important, ReadonlySpan<StyleEngineFFI::FfiCascadeOperator> operators, ReadonlySpan<void const*> values, ReadonlySpan<void const*> original_values, ReadonlySpan<StyleAtomID> custom_names, ReadonlySpan<bool> custom_important, ReadonlySpan<StyleEngineFFI::FfiCascadeOperator> custom_operators, ReadonlySpan<void const*> custom_values, ReadonlySpan<void const*> custom_original_values, bool declarations_are_complete);
     // Which longhand properties one of an element's own declarations covers, their canonical
     // specified values and their authored aliases, and whether the inventory has complete
     // continuation semantics.
-    void set_element_declared_properties(StyleNodeID node, StyleEngineFFI::FfiElementDeclarationKind, ReadonlySpan<u16> properties, ReadonlySpan<bool> important, ReadonlySpan<StyleEngineFFI::FfiCascadeOperator> operators, ReadonlySpan<void const*> values, ReadonlySpan<void const*> original_values, bool declarations_are_complete);
+    void set_element_declared_properties(StyleNodeID node, StyleEngineFFI::FfiElementDeclarationKind, ReadonlySpan<u16> properties, ReadonlySpan<bool> important, ReadonlySpan<StyleEngineFFI::FfiCascadeOperator> operators, ReadonlySpan<void const*> values, ReadonlySpan<void const*> original_values, ReadonlySpan<StyleAtomID> custom_names, ReadonlySpan<bool> custom_important, ReadonlySpan<StyleEngineFFI::FfiCascadeOperator> custom_operators, ReadonlySpan<void const*> custom_values, ReadonlySpan<void const*> custom_original_values, bool declarations_are_complete);
     struct StyleRecordDelta {
         StyleRecordID old_style_record;
         StyleRecordID new_style_record;
@@ -101,7 +100,7 @@ public:
     // Publish the immutable input identities of an element or pseudo-element's base style and
     // return its previous and current StyleRecordID assignments. A zero node interns an unassigned
     // record for a style target which is not registered in the engine.
-    [[nodiscard]] StyleRecordDelta publish_computed_groups(StyleNodeID node, u8 pseudo_kind, ReadonlySpan<void const*> payloads, size_t inherited_group_count, u64 custom_property_environment, bool inherited_group_swap_candidate, u64 counter_style_environment_identity, u64 animation_overlay_identity, void const* animated_overlay, ReadonlySpan<void const*> animation_overlay_payloads, void const* computed_longhand_table);
+    [[nodiscard]] StyleRecordDelta publish_computed_groups(StyleNodeID node, u8 pseudo_kind, ReadonlySpan<void const*> payloads, size_t inherited_group_count, u64 custom_property_environment, bool inherited_group_swap_candidate, u64 counter_style_environment_identity, u64 animation_overlay_identity, void const* animated_overlay, ReadonlySpan<void const*> animation_overlay_payloads, void const* computed_longhand_table, void const* custom_property_store);
     [[nodiscard]] Optional<StyleRecordDelta> publish_animation_overlay(StyleNodeID node, u8 pseudo_kind, u64 animation_overlay_identity, void const* animated_overlay, ReadonlySpan<void const*> payloads);
     [[nodiscard]] StyleRecordDelta assign_shared_style_record(StyleNodeID node, u8 pseudo_kind, StyleRecordID style_record, bool inherited_group_swap_eligible);
     // The borrowed payload array is stable while a base record exists or an animation-overlay
@@ -111,6 +110,7 @@ public:
     [[nodiscard]] u64 style_record_custom_property_environment(StyleRecordID style_record) const;
     void begin_computed_record_verification();
     void end_computed_record_verification();
+    [[nodiscard]] bool style_records_match_for_verification(StyleNodeID, u8 pseudo_kind, StyleRecordID, StyleRecordID) const;
     [[nodiscard]] u32 compare_style_records(StyleRecordID old_style_record, StyleRecordID new_style_record, bool font_lists_equal, bool element_folds_transform_into_layout) const;
     [[nodiscard]] bool animation_overlay_changed(StyleRecordID old_style_record, void const* animated_overlay) const;
     [[nodiscard]] StyleEngineFFI::FfiAnimationInvalidation compare_animation_overlay(StyleRecordID old_style_record, void const* animated_overlay, ReadonlySpan<void const*> payloads, bool is_document_element) const;
@@ -158,6 +158,19 @@ public:
     // lookup on that word plus one reference to keep the name alive. No string is copied, and
     // neither side pays an ASCII or UTF-16 conversion for a fact a u32 comparison answers.
     StyleAtomID intern_atom(Utf16FlyString const&);
+    // The engine keeps what a custom property's name spells, once per name, for the environments
+    // it computes.
+    void note_custom_property_name(StyleAtomID, Utf16FlyString const&);
+    // The store of an environment the engine resolved, with one strong reference transferred, and
+    // the environment it was resolved over; null for one C++ published.
+    [[nodiscard]] void const* borrow_engine_custom_property_environment(u64 identity, u64& parent_identity) const;
+    // Moves a node's record to the environment its inherited custom-property data was refreshed
+    // to; the new record's identity, or zero when nothing moved.
+    [[nodiscard]] StyleRecordID republish_record_environment(StyleNodeID, u64 environment, void const* store);
+    // Whether the node's engine-computed record substituted a custom property into a winner.
+    [[nodiscard]] bool node_style_uses_substitution(StyleNodeID) const;
+    // Whether an environment identity is one the engine minted for an environment it resolved.
+    [[nodiscard]] static bool is_engine_custom_property_environment(u64 identity) { return (identity & (1ull << 62)) != 0; }
     [[nodiscard]] u64 atom_generation() const { return m_atom_generation; }
     // The namespace `[*|x]` names, which is any of them. No interned namespace is zero, so this
     // keys a form of its own in the same table.
@@ -303,6 +316,7 @@ private:
 
     HashMap<FlatPtr, StyleAtomID> m_atoms;
     HashTable<StyleAtomID> m_published_language_atoms;
+    HashTable<StyleAtomID> m_published_custom_property_names;
     HashMap<StyleAtomID, HashMap<StyleAtomID, StyleAtomID>> m_attribute_name_atoms;
     HashMap<StyleAtomID, bool> m_attribute_names_requiring_value_text;
     u64 m_atom_generation { 1 };

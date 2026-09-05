@@ -13,7 +13,7 @@ PASS: stress cold child mutation: part-shadow-internal: :has(.hit) after direct 
 PASS: stress warm child mutation: part-shadow-internal: :has(.hit) after DocumentFragment append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: stress cold child mutation: part-shadow-internal: :has(.hit) after DocumentFragment append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: stress warm child mutation: part-shadow-internal: :has(.hit) after existing child move into parent | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: stress cold child mutation: part-shadow-internal: :has(.hit) after existing child move into parent | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
+PASS: stress cold child mutation: part-shadow-internal: :has(.hit) after existing child move into parent | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: stress warm child mutation: part-shadow-internal: :has(.hit) after nested child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: stress cold child mutation: part-shadow-internal: :has(.hit) after nested child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: stress warm child mutation: part-shadow-internal: :has(> .hit) after direct child append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
@@ -205,7 +205,7 @@ PASS: stress cold child mutation: part-shadow-host-internal: :has(.hit) after di
 PASS: stress warm child mutation: part-shadow-host-internal: :has(.hit) after DocumentFragment append | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: stress cold child mutation: part-shadow-host-internal: :has(.hit) after DocumentFragment append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: stress warm child mutation: part-shadow-host-internal: :has(.hit) after existing child move into parent | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
-PASS: stress cold child mutation: part-shadow-host-internal: :has(.hit) after existing child move into parent | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
+PASS: stress cold child mutation: part-shadow-host-internal: :has(.hit) after existing child move into parent | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: stress warm child mutation: part-shadow-host-internal: :has(.hit) after nested child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
 PASS: stress cold child mutation: part-shadow-host-internal: :has(.hit) after nested child append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: stress warm child mutation: part-shadow-host-internal: :has(> .hit) after direct child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
@@ -397,7 +397,7 @@ PASS: stress cold child mutation: part-shadow-ancestor: :has(.hit) after direct 
 PASS: stress warm child mutation: part-shadow-ancestor: :has(.hit) after DocumentFragment append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: stress cold child mutation: part-shadow-ancestor: :has(.hit) after DocumentFragment append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: stress warm child mutation: part-shadow-ancestor: :has(.hit) after existing child move into parent | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: stress cold child mutation: part-shadow-ancestor: :has(.hit) after existing child move into parent | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
+PASS: stress cold child mutation: part-shadow-ancestor: :has(.hit) after existing child move into parent | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: stress warm child mutation: part-shadow-ancestor: :has(.hit) after nested child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: stress cold child mutation: part-shadow-ancestor: :has(.hit) after nested child append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: stress warm child mutation: part-shadow-ancestor: :has(> .hit) after direct child append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
@@ -589,7 +589,7 @@ PASS: stress cold child mutation: part-shadow-host-ancestor: :has(.hit) after di
 PASS: stress warm child mutation: part-shadow-host-ancestor: :has(.hit) after DocumentFragment append | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: stress cold child mutation: part-shadow-host-ancestor: :has(.hit) after DocumentFragment append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: stress warm child mutation: part-shadow-host-ancestor: :has(.hit) after existing child move into parent | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
-PASS: stress cold child mutation: part-shadow-host-ancestor: :has(.hit) after existing child move into parent | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
+PASS: stress cold child mutation: part-shadow-host-ancestor: :has(.hit) after existing child move into parent | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: stress warm child mutation: part-shadow-host-ancestor: :has(.hit) after nested child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
 PASS: stress cold child mutation: part-shadow-host-ancestor: :has(.hit) after nested child append | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
 PASS: stress warm child mutation: part-shadow-host-ancestor: :has(> .hit) after direct child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=1

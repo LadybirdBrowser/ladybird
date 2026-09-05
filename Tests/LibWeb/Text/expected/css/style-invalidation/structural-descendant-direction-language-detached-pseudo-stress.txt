@@ -1,31 +1,31 @@
-PASS: descendant direction stress detached-pseudo: document: :has(:dir(rtl)) after descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: descendant direction stress detached-pseudo-cold: document: :has(:dir(rtl)) after descendant dir=auto text mutation | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: descendant direction stress detached-pseudo: document: :has(:dir(ltr)) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
-PASS: descendant direction stress detached-pseudo-cold: document: :has(:dir(ltr)) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
-PASS: descendant direction stress detached-pseudo: document: :has(:dir(rtl):first-child) after first descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: descendant direction stress detached-pseudo-cold: document: :has(:dir(rtl):first-child) after first descendant dir=auto text mutation | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: descendant direction stress detached-pseudo: document: :not(:has(:dir(rtl))) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
-PASS: descendant direction stress detached-pseudo-cold: document: :not(:has(:dir(rtl))) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
-PASS: descendant language stress detached-pseudo: document: :has(:lang(he)) after descendant lang attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: descendant language stress detached-pseudo-cold: document: :has(:lang(he)) after descendant lang attribute change | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: descendant language stress detached-pseudo: document: :has(:lang(en)) becomes false after descendant lang attribute change | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
-PASS: descendant language stress detached-pseudo-cold: document: :has(:lang(en)) becomes false after descendant lang attribute change | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
-PASS: descendant language stress detached-pseudo: document: :has(:lang(he):first-child) after first descendant lang attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: descendant language stress detached-pseudo-cold: document: :has(:lang(he):first-child) after first descendant lang attribute change | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: descendant language stress detached-pseudo: document: :not(:has(:lang(he))) becomes false after descendant lang attribute change | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
-PASS: descendant language stress detached-pseudo-cold: document: :not(:has(:lang(he))) becomes false after descendant lang attribute change | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
-PASS: inherited language stress detached-pseudo: document: :has(:lang(he)) after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: inherited language stress detached-pseudo-cold: document: :has(:lang(he)) after ancestor lang change | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: inherited language stress detached-pseudo: document: :has(:lang(en)) becomes false after ancestor lang change | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
-PASS: inherited language stress detached-pseudo-cold: document: :has(:lang(en)) becomes false after ancestor lang change | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
-PASS: inherited language stress detached-pseudo: document: :not(:has(:lang(he))) becomes false after ancestor lang change | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
-PASS: inherited language stress detached-pseudo-cold: document: :not(:has(:lang(he))) becomes false after ancestor lang change | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
-PASS: inherited language stress detached-pseudo: document: :has(:lang(he):first-child) after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: inherited language stress detached-pseudo-cold: document: :has(:lang(he):first-child) after ancestor lang change | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: inherited language stress detached-pseudo: document: :has(:is(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: inherited language stress detached-pseudo-cold: document: :has(:is(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: inherited language stress detached-pseudo: document: :has(:where(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: inherited language stress detached-pseudo-cold: document: :has(:where(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: descendant direction stress detached-pseudo: document: :has(:dir(rtl)) after descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant direction stress detached-pseudo-cold: document: :has(:dir(rtl)) after descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: descendant direction stress detached-pseudo: document: :has(:dir(ltr)) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
+PASS: descendant direction stress detached-pseudo-cold: document: :has(:dir(ltr)) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: descendant direction stress detached-pseudo: document: :has(:dir(rtl):first-child) after first descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant direction stress detached-pseudo-cold: document: :has(:dir(rtl):first-child) after first descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: descendant direction stress detached-pseudo: document: :not(:has(:dir(rtl))) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
+PASS: descendant direction stress detached-pseudo-cold: document: :not(:has(:dir(rtl))) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: descendant language stress detached-pseudo: document: :has(:lang(he)) after descendant lang attribute change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant language stress detached-pseudo-cold: document: :has(:lang(he)) after descendant lang attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: descendant language stress detached-pseudo: document: :has(:lang(en)) becomes false after descendant lang attribute change | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
+PASS: descendant language stress detached-pseudo-cold: document: :has(:lang(en)) becomes false after descendant lang attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: descendant language stress detached-pseudo: document: :has(:lang(he):first-child) after first descendant lang attribute change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant language stress detached-pseudo-cold: document: :has(:lang(he):first-child) after first descendant lang attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: descendant language stress detached-pseudo: document: :not(:has(:lang(he))) becomes false after descendant lang attribute change | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
+PASS: descendant language stress detached-pseudo-cold: document: :not(:has(:lang(he))) becomes false after descendant lang attribute change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: inherited language stress detached-pseudo: document: :has(:lang(he)) after ancestor lang change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: inherited language stress detached-pseudo-cold: document: :has(:lang(he)) after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: inherited language stress detached-pseudo: document: :has(:lang(en)) becomes false after ancestor lang change | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
+PASS: inherited language stress detached-pseudo-cold: document: :has(:lang(en)) becomes false after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: inherited language stress detached-pseudo: document: :not(:has(:lang(he))) becomes false after ancestor lang change | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
+PASS: inherited language stress detached-pseudo-cold: document: :not(:has(:lang(he))) becomes false after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: inherited language stress detached-pseudo: document: :has(:lang(he):first-child) after ancestor lang change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: inherited language stress detached-pseudo-cold: document: :has(:lang(he):first-child) after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: inherited language stress detached-pseudo: document: :has(:is(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: inherited language stress detached-pseudo-cold: document: :has(:is(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: inherited language stress detached-pseudo: document: :has(:where(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: inherited language stress detached-pseudo-cold: document: :has(:where(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: descendant direction stress detached-pseudo: shadow-internal: :has(:dir(rtl)) after descendant dir=auto text mutation | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant direction stress detached-pseudo-cold: shadow-internal: :has(:dir(rtl)) after descendant dir=auto text mutation | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant direction stress detached-pseudo: shadow-internal: :has(:dir(ltr)) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=5, elementStyleNoopRecomputations=1

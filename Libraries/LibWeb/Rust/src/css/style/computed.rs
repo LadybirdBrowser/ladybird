@@ -1039,7 +1039,10 @@ impl ComputedGroupSets {
         let old_record = *self.style_records.get_index(old_style_record.index())?;
         // An element animating, or declaring transitions a moved inherited value may start,
         // composes its style in C++.
-        if self.adjustment_facts(node) & super::bridge::element_adjustment_fact::HAS_ANIMATIONS != 0
+        if self.adjustment_facts(node)
+            & (super::bridge::element_adjustment_fact::HAS_ANIMATIONS
+                | super::bridge::element_adjustment_fact::IS_SHADOW_HOST_PSEUDO_ELEMENT)
+            != 0
             || old_record
                 .longhand_table
                 .and_then(|table| self.computed_longhand_tables.get_index(table.index()))
@@ -1210,7 +1213,7 @@ impl ComputedGroupSets {
     }
 
     /// Assemble a new base record for `node` from a longhand table the engine drove itself. The
-    /// table began as a copy of the node's current one, so its hash adjusts slot by slot; the
+    /// table began as a copy of `base_style_record`, so its hash adjusts slot by slot; the
     /// groups `groups_to_rebuild` names are rebuilt from it, and the record's fixed metadata
     /// follows the table's dependency flags. The font group is never rebuilt here: it needs
     /// platform font resources the table does not hold.
@@ -1224,11 +1227,14 @@ impl ComputedGroupSets {
     pub(super) fn replace_engine_computed_table(
         &mut self,
         node: StyleNodeID,
+        base_style_record: FinalStyleRecordID,
+        previous_style_record: FinalStyleRecordID,
         mut table: ComputedLonghandTable,
         groups_to_rebuild: u32,
         length: &crate::css::style_compute::FfiLengthResolutionContext,
         font: Option<&crate::css::table_group_builder::FfiFontGroupBuildInputs>,
         parent_in_display_none_subtree: bool,
+        environment: Option<u64>,
     ) -> Option<EngineComputedAssembly> {
         use crate::css::computed_value_types::STYLE_GROUP_INDEX_FONT;
         if groups_to_rebuild == 0 || (groups_to_rebuild & (1 << STYLE_GROUP_INDEX_FONT) != 0 && font.is_none()) {
@@ -1238,8 +1244,11 @@ impl ComputedGroupSets {
         if self.columns.animation_overlay_slot(index).is_some() {
             return None;
         }
-        let old_style_record = *self.style_record_column.get(index)?.as_ref()?;
-        let old_record = *self.style_records.get_index(old_style_record.index())?;
+        let base_style_record_identity = base_style_record.base_record()?;
+        if !self.style_record_generation_is_live(base_style_record_identity, base_style_record.base_generation()) {
+            return None;
+        }
+        let old_record = *self.style_records.get_index(base_style_record_identity.index())?;
         let old_table = old_record.longhand_table?;
         let old_group_set = self.sets.get_index(old_record.groups.0 as usize)?;
         let old_payloads = old_group_set.payloads.to_vec();
@@ -1248,10 +1257,8 @@ impl ComputedGroupSets {
         {
             return None;
         }
-        let used_color_scheme = unsafe {
-            let inherited_ui = &*old_payloads[crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_UI]
-                .cast::<crate::css::computed_value_types::InheritedUIValues>();
-            inherited_ui.color_scheme
+        let Ok(used_color_scheme) = u8::try_from(table.effective_color_scheme()) else {
+            return None;
         };
         // The builders take the element's own color from the caller, so it is resolved from the
         // driven table before any group reads it.
@@ -1393,27 +1400,42 @@ impl ComputedGroupSets {
         };
         let longhand_table = self.intern_longhand_table_with_slot_hash_sum(unsafe { &*table }, slot_hash_sum);
         release_table(table);
+        // The environment moves with the record when the node's custom declarations resolved to
+        // another; a record keeps its environment otherwise.
+        let custom_properties = match environment {
+            Some(environment) => self.intern_custom_property_environment(environment).0,
+            None => old_record.custom_properties,
+        };
         let inherited_identity = self
             .intern_inherited_group_set(&groups[..ENGINE_INHERITED_GROUP_COUNT])
             .0;
         let new_record = StyleRecord {
             groups: group_set,
             inherited_groups: inherited_identity,
-            custom_properties: old_record.custom_properties,
+            custom_properties,
             fixed_metadata,
             longhand_table: Some(longhand_table),
         };
         let new_style_record = self.intern_style_record(new_record).0;
         // Descendant swaps read the node's inherited groups from their own column.
-        self.columns.groups[index] = group_set.0;
-        self.columns.inherited_groups[index] = inherited_identity.0;
-        self.columns.set_inherited_group_swap_eligible(index, swap_eligible);
+        self.columns.publish(
+            index,
+            PublishedComputedInputs {
+                groups: group_set,
+                inherited_groups: inherited_identity,
+                custom_properties,
+                fixed_metadata,
+                style_record: new_style_record,
+                animation_overlay_slot: None,
+            },
+            swap_eligible,
+        );
+        if self.style_record_column.len() <= index {
+            self.style_record_column.resize(index + 1, None);
+        }
         self.style_record_column[index] = Some(new_style_record);
         Some(EngineComputedAssembly {
-            delta: (
-                self.final_base_style_record(old_style_record),
-                self.final_base_style_record(new_style_record),
-            ),
+            delta: (previous_style_record, self.final_base_style_record(new_style_record)),
             canonicalized_groups,
             group_set_unchanged: group_set == old_record.groups,
         })
@@ -1453,6 +1475,7 @@ impl ComputedGroupSets {
             .0;
         self.columns.groups[index] = record.groups.0;
         self.columns.inherited_groups[index] = inherited_identity.0;
+        self.columns.custom_properties[index] = record.custom_properties.0;
         self.style_record_column[index] = Some(previous_base);
     }
 
@@ -1503,6 +1526,7 @@ impl ComputedGroupSets {
             .0;
         self.columns.groups[index] = new_record.groups.0;
         self.columns.inherited_groups[index] = inherited_identity.0;
+        self.columns.custom_properties[index] = new_record.custom_properties.0;
         self.columns.set_inherited_group_swap_eligible(index, swap_eligible);
         self.style_record_column[index] = Some(new_base_record);
         Some((old_style_record, new_style_record))
@@ -1862,31 +1886,8 @@ impl ComputedGroupSets {
         let (inherited_identity, new_inherited_group_set) =
             self.intern_inherited_group_set(&groups[..inherited_group_count]);
 
-        let custom_property_environment_hash = content_hash(custom_property_environment);
-        let (custom_property_environment_identity, new_custom_property_environment) = match self
-            .custom_property_environments
-            .find(custom_property_environment_hash, |_identity, candidate| {
-                *candidate == custom_property_environment
-            }) {
-            Some(identity) => (identity, false),
-            None => {
-                let identity = self
-                    .custom_property_environments
-                    .take_free_identity()
-                    .unwrap_or_else(|| {
-                        CustomPropertyEnvironmentID(
-                            u32::try_from(self.custom_property_environments.len())
-                                .expect("custom-property environment identity space exhausted"),
-                        )
-                    });
-                self.custom_property_environments.insert(
-                    custom_property_environment_hash,
-                    identity,
-                    custom_property_environment,
-                );
-                (identity, true)
-            }
-        };
+        let (custom_property_environment_identity, new_custom_property_environment) =
+            self.intern_custom_property_environment(custom_property_environment);
 
         let metadata = ComputedFixedMetadata {
             pseudo_element_styles,
@@ -2066,13 +2067,11 @@ impl ComputedGroupSets {
         }
     }
 
-    pub fn assign_shared_style_record(
-        &mut self,
+    pub(super) fn style_record_for_shared_assignment(
+        &self,
         target: ComputedStyleTarget,
         raw_style_record: u64,
-        inherited_group_count: usize,
-        inherited_group_swap_eligible: bool,
-    ) -> Option<ComputedGroupPublication> {
+    ) -> Option<FinalStyleRecordID> {
         let final_style_record = FinalStyleRecordID(raw_style_record);
         let requested_style_record_identity = final_style_record.base_record()?;
         assert!(
@@ -2098,6 +2097,20 @@ impl ComputedGroupSets {
         let style_record_identity = previous_base_style_record_identity
             .filter(|&previous| self.style_records_equal_by_value(previous, requested_style_record_identity))
             .unwrap_or(requested_style_record_identity);
+        Some(self.final_base_style_record(style_record_identity))
+    }
+
+    pub fn assign_shared_style_record(
+        &mut self,
+        target: ComputedStyleTarget,
+        raw_style_record: u64,
+        inherited_group_count: usize,
+        inherited_group_swap_eligible: bool,
+    ) -> Option<ComputedGroupPublication> {
+        let style_record_identity = self
+            .style_record_for_shared_assignment(target, raw_style_record)?
+            .base_record()
+            .expect("a shared style record must be a base record");
         let record = *self.style_records.get_index(style_record_identity.index())?;
         // The inherited subset is immutable along with the complete style record. Sharing a
         // record must not reconstruct its group identities and intern the same subset again.
@@ -2397,31 +2410,24 @@ impl ComputedGroupSets {
     }
 
     fn specified_value_dependency_mask(
-        &self,
-        target: ComputedStyleTarget,
+        table: &ComputedLonghandTable,
         depends_on_input: impl Fn(&RetainedStyleValueData) -> bool,
-    ) -> Option<u32> {
-        let mask = self
-            .longhand_table_for_target(target)?
+    ) -> u32 {
+        table
             .retained_inheritance_dependent_values()
             .filter(|(_, value)| depends_on_input(value))
             // Logical aliases retain their specified values but own no output payload. Their
             // resolved physical longhands are recorded separately and name the actual group.
             .filter_map(|(property, _)| computed_group_output_mask(property))
-            .fold(0, |mask, groups| mask | groups);
-        Some(mask)
+            .fold(0, |mask, groups| mask | groups)
     }
 
     fn specified_value_dependency_properties(
-        &self,
-        target: ComputedStyleTarget,
+        table: &ComputedLonghandTable,
         depends_on_input: impl Fn(&RetainedStyleValueData) -> bool,
     ) -> Option<[u64; 6]> {
         let mut properties = [0u64; 6];
-        for (property, value) in self
-            .longhand_table_for_target(target)?
-            .retained_inheritance_dependent_values()
-        {
+        for (property, value) in table.retained_inheritance_dependent_values() {
             if !depends_on_input(value) {
                 continue;
             }
@@ -2438,37 +2444,65 @@ impl ComputedGroupSets {
     /// Missing dependency coverage stays typed so a color winner change can widen safely.
     #[must_use]
     pub fn current_color_dependency_mask(&self, target: ComputedStyleTarget) -> Option<u32> {
-        self.specified_value_dependency_mask(target, retained_value_depends_on_current_color)
+        Some(Self::specified_value_dependency_mask(
+            self.longhand_table_for_target(target)?,
+            retained_value_depends_on_current_color,
+        ))
     }
 
     /// The longhands whose previous specified values actually read `currentColor`.
     #[must_use]
     pub fn current_color_dependency_properties(&self, target: ComputedStyleTarget) -> Option<[u64; 6]> {
-        self.specified_value_dependency_properties(target, retained_value_depends_on_current_color)
+        Self::specified_value_dependency_properties(
+            self.longhand_table_for_target(target)?,
+            retained_value_depends_on_current_color,
+        )
+    }
+
+    /// Read dependencies from a retained record even if its original node has been restyled.
+    pub(crate) fn record_current_color_dependencies(&self, record: FinalStyleRecordID) -> Option<(u32, [u64; 6])> {
+        let view = self.style_record_view(record.raw())?;
+        let table = unsafe { view.longhand_table.as_ref()? };
+        Some((
+            Self::specified_value_dependency_mask(table, retained_value_depends_on_current_color),
+            Self::specified_value_dependency_properties(table, retained_value_depends_on_current_color)?,
+        ))
     }
 
     /// The groups whose previous specified values read the effective color scheme.
     #[must_use]
     pub fn color_scheme_dependency_mask(&self, target: ComputedStyleTarget) -> Option<u32> {
-        self.specified_value_dependency_mask(target, retained_value_depends_on_color_scheme)
+        Some(Self::specified_value_dependency_mask(
+            self.longhand_table_for_target(target)?,
+            retained_value_depends_on_color_scheme,
+        ))
     }
 
     /// The longhands whose previous specified values read the effective color scheme.
     #[must_use]
     pub fn color_scheme_dependency_properties(&self, target: ComputedStyleTarget) -> Option<[u64; 6]> {
-        self.specified_value_dependency_properties(target, retained_value_depends_on_color_scheme)
+        Self::specified_value_dependency_properties(
+            self.longhand_table_for_target(target)?,
+            retained_value_depends_on_color_scheme,
+        )
     }
 
     /// The groups whose previous specified values may read font metrics.
     #[must_use]
     pub fn font_dependency_mask(&self, target: ComputedStyleTarget) -> Option<u32> {
-        self.specified_value_dependency_mask(target, retained_value_may_depend_on_font_metrics)
+        Some(Self::specified_value_dependency_mask(
+            self.longhand_table_for_target(target)?,
+            retained_value_may_depend_on_font_metrics,
+        ))
     }
 
     /// The longhands whose previous specified values may read font metrics.
     #[must_use]
     pub fn font_dependency_properties(&self, target: ComputedStyleTarget) -> Option<[u64; 6]> {
-        self.specified_value_dependency_properties(target, retained_value_may_depend_on_font_metrics)
+        Self::specified_value_dependency_properties(
+            self.longhand_table_for_target(target)?,
+            retained_value_may_depend_on_font_metrics,
+        )
     }
 
     /// Whether a raw final record identity still names a live base record.
@@ -2484,6 +2518,77 @@ impl ComputedGroupSets {
         let index = node.element_index()? as usize;
         let identity = self.columns.custom_properties(index)?;
         Some(self.custom_property_environments[identity])
+    }
+
+    /// The dense identity of a raw custom-property environment identity, and whether it is new.
+    fn intern_custom_property_environment(
+        &mut self,
+        custom_property_environment: u64,
+    ) -> (CustomPropertyEnvironmentID, bool) {
+        let custom_property_environment_hash = content_hash(custom_property_environment);
+        match self
+            .custom_property_environments
+            .find(custom_property_environment_hash, |_identity, candidate| {
+                *candidate == custom_property_environment
+            }) {
+            Some(identity) => (identity, false),
+            None => {
+                let identity = self
+                    .custom_property_environments
+                    .take_free_identity()
+                    .unwrap_or_else(|| {
+                        CustomPropertyEnvironmentID(
+                            u32::try_from(self.custom_property_environments.len())
+                                .expect("custom-property environment identity space exhausted"),
+                        )
+                    });
+                self.custom_property_environments.insert(
+                    custom_property_environment_hash,
+                    identity,
+                    custom_property_environment,
+                );
+                (identity, true)
+            }
+        }
+    }
+
+    /// Move a node's engine-computed record to another custom-property environment, keeping
+    /// everything else it holds: the record a warm delta publishes when only the environment
+    /// its custom declarations resolve to moved.
+    pub(super) fn republish_engine_record_with_environment(
+        &mut self,
+        node: StyleNodeID,
+        environment: u64,
+    ) -> Option<(FinalStyleRecordID, FinalStyleRecordID)> {
+        let index = node.element_index()? as usize;
+        if self.columns.animation_overlay_slot(index).is_some() {
+            return None;
+        }
+        let old_style_record = *self.style_record_column.get(index)?.as_ref()?;
+        let old_record = *self.style_records.get_index(old_style_record.index())?;
+        let custom_properties = self.intern_custom_property_environment(environment).0;
+        if custom_properties == old_record.custom_properties {
+            let record = self.final_base_style_record(old_style_record);
+            return Some((record, record));
+        }
+        let new_record = StyleRecord {
+            custom_properties,
+            ..old_record
+        };
+        let new_style_record = self.intern_style_record(new_record).0;
+        self.columns.custom_properties[index] = custom_properties.0;
+        self.style_record_column[index] = Some(new_style_record);
+        Some((
+            self.final_base_style_record(old_style_record),
+            self.final_base_style_record(new_style_record),
+        ))
+    }
+
+    /// Every raw custom-property environment identity a live record was published with.
+    pub fn live_custom_property_environments(&self) -> impl Iterator<Item = u64> + '_ {
+        self.custom_property_environments
+            .live_identities()
+            .map(|identity| *self.custom_property_environments.get(identity))
     }
 
     /// The raw custom-property environment identity a record was published with.
@@ -3095,6 +3200,135 @@ impl ComputedGroupSets {
             animation_overlay_identity,
             dependency_flags: fixed_metadata.dependency_flags,
         })
+    }
+
+    pub(crate) fn style_records_match_for_verification(
+        &self,
+        target: ComputedStyleTarget,
+        first: u64,
+        second: u64,
+    ) -> bool {
+        let Some(first) = self.style_record_view(first) else {
+            return false;
+        };
+        let Some(second) = self.style_record_view(second) else {
+            return false;
+        };
+        let svg_reset = 1 << crate::css::computed_value_types::STYLE_GROUP_INDEX_SVG_RESET;
+        let svg_reset_reads_current_color = self
+            .current_color_dependency_mask(target)
+            .filter(|dependencies| dependencies & svg_reset != 0)
+            .is_some();
+        fn repeatable_list_values_equal(
+            first: &crate::css::computed_value_types::ComputedStyleValueHandle,
+            second: &crate::css::computed_value_types::ComputedStyleValueHandle,
+        ) -> bool {
+            fn list(
+                value: &crate::css::computed_value_types::ComputedStyleValueHandle,
+            ) -> Option<&[crate::css::style_value::RetainedStyleValueData]> {
+                match value.data()? {
+                    crate::css::style_value::StyleValueData::ValueList {
+                        values, separator: 1, ..
+                    } => Some(values.as_slice()),
+                    _ => None,
+                }
+            }
+            let first_list = list(first);
+            let second_list = list(second);
+            let first_length = first_list.map_or(1, <[_]>::len);
+            let second_length = second_list.map_or(1, <[_]>::len);
+            let length = first_length.max(second_length);
+            (0..length).all(|index| {
+                let first = first_list.map_or_else(|| first.data(), |values| Some(values[index % first_length].data()));
+                let second =
+                    second_list.map_or_else(|| second.data(), |values| Some(values[index % second_length].data()));
+                first == second
+            })
+        }
+        first.payloads.len() == second.payloads.len()
+            && first
+                .payloads
+                .iter()
+                .zip(second.payloads)
+                .enumerate()
+                .all(|(index, (&first, &second))| {
+                    if first == second || style_group_payloads_equal(index, first, second) {
+                        return true;
+                    }
+                    if index == crate::css::computed_value_types::STYLE_GROUP_INDEX_BACKGROUND {
+                        let first_background =
+                            unsafe { &*first.cast::<crate::css::computed_value_types::BackgroundValues>() };
+                        let second_background =
+                            unsafe { &*second.cast::<crate::css::computed_value_types::BackgroundValues>() };
+                        // Engine records retain the canonical background longhands. Legacy records
+                        // expand their repeatable lists to the background-image layer count while
+                        // building the payload, so compare those lists modulo repetition and the
+                        // scalar fields directly.
+                        if first_background.background_color == second_background.background_color
+                            && first_background.background_color_style_value
+                                == second_background.background_color_style_value
+                            && first_background.background_color_clip == second_background.background_color_clip
+                            && repeatable_list_values_equal(
+                                &first_background.background_image,
+                                &second_background.background_image,
+                            )
+                            && repeatable_list_values_equal(
+                                &first_background.background_attachment,
+                                &second_background.background_attachment,
+                            )
+                            && repeatable_list_values_equal(
+                                &first_background.background_blend_mode,
+                                &second_background.background_blend_mode,
+                            )
+                            && repeatable_list_values_equal(
+                                &first_background.background_clip,
+                                &second_background.background_clip,
+                            )
+                            && repeatable_list_values_equal(
+                                &first_background.background_origin,
+                                &second_background.background_origin,
+                            )
+                            && repeatable_list_values_equal(
+                                &first_background.background_position_x,
+                                &second_background.background_position_x,
+                            )
+                            && repeatable_list_values_equal(
+                                &first_background.background_position_y,
+                                &second_background.background_position_y,
+                            )
+                            && repeatable_list_values_equal(
+                                &first_background.background_repeat,
+                                &second_background.background_repeat,
+                            )
+                            && repeatable_list_values_equal(
+                                &first_background.background_size,
+                                &second_background.background_size,
+                            )
+                        {
+                            return true;
+                        }
+                    }
+                    if index != crate::css::computed_value_types::STYLE_GROUP_INDEX_SVG_RESET
+                        || !svg_reset_reads_current_color
+                    {
+                        return false;
+                    }
+                    // The engine and legacy builders may encode currentcolor differently in the
+                    // two color fields. Every other field in the group must still agree.
+                    let first = unsafe { &*first.cast::<crate::css::computed_value_types::SVGResetValues>() };
+                    let second = unsafe { &*second.cast::<crate::css::computed_value_types::SVGResetValues>() };
+                    first.cx == second.cx
+                        && first.cy == second.cy
+                        && first.d == second.d
+                        && first.r == second.r
+                        && first.rx == second.rx
+                        && first.ry == second.ry
+                        && first.x == second.x
+                        && first.y == second.y
+                        && first.stop_opacity == second.stop_opacity
+                        && first.flood_opacity == second.flood_opacity
+                        && first.vector_effect == second.vector_effect
+                })
     }
 
     pub fn pin_style_record(&mut self, raw_style_record: u64) {

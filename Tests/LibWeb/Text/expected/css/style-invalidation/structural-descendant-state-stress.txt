@@ -1,33 +1,33 @@
 PASS: descendant state stress warm: document: :has(:checked) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant state stress cold: document: :has(:checked) after checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: document: :has(:checked) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: document: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant state stress cold: document: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: document: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: document: :has(:required) after input required | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress cold: document: :has(:required) after input required | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: document: :has(:optional) becomes false after input required | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
-PASS: descendant state stress cold: document: :has(:optional) becomes false after input required | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: document: :has(:optional) becomes false after input required | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: document: :has(:disabled) after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress cold: document: :has(:disabled) after input disabled | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
-PASS: descendant state stress cold: document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
 PASS: descendant state stress cold: document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
-PASS: descendant state stress cold: document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant state stress cold: document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: document: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
-PASS: descendant state stress cold: document: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: document: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: document: :has(:checked + .after) after checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
-PASS: descendant state stress cold: document: :has(:checked + .after) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: document: :has(:checked + .after) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: document: :has(:checked ~ .after) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=3
-PASS: descendant state stress cold: document: :has(:checked ~ .after) after checkbox checked | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: document: :has(:checked ~ .after) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: document: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant state stress cold: document: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: document: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: document: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant state stress cold: document: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: document: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: document: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
-PASS: descendant state stress cold: document: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: document: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: document-styled-use-shadow: :has(:checked) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress cold: document-styled-use-shadow: :has(:checked) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: document-styled-use-shadow: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
@@ -119,9 +119,9 @@ PASS: descendant state stress cold: shadow-host: :has(:is(:checked, .fallback)) 
 PASS: descendant state stress warm: shadow-host: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=6, elementStyleNoopRecomputations=4
 PASS: descendant state stress cold: shadow-host: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=8, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-default: :has(:checked) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant state stress cold: slotted-default: :has(:checked) after checkbox checked | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: slotted-default: :has(:checked) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-default: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant state stress cold: slotted-default: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: slotted-default: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-default: :has(:required) after input required | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress cold: slotted-default: :has(:required) after input required | elementStyleRecomputations=8, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-default: :has(:optional) becomes false after input required | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
@@ -135,23 +135,23 @@ PASS: descendant state stress cold: slotted-default: :has(:placeholder-shown) af
 PASS: descendant state stress warm: slotted-default: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
 PASS: descendant state stress cold: slotted-default: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=8, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-default: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant state stress cold: slotted-default: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: slotted-default: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-default: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
-PASS: descendant state stress cold: slotted-default: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: slotted-default: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-default: :has(:checked + .after) after checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
-PASS: descendant state stress cold: slotted-default: :has(:checked + .after) after checkbox checked | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: slotted-default: :has(:checked + .after) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-default: :has(:checked ~ .after) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=3
-PASS: descendant state stress cold: slotted-default: :has(:checked ~ .after) after checkbox checked | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: slotted-default: :has(:checked ~ .after) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-default: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant state stress cold: slotted-default: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: slotted-default: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-default: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant state stress cold: slotted-default: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: slotted-default: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-default: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
-PASS: descendant state stress cold: slotted-default: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=9, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: slotted-default: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=8, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-named: :has(:checked) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant state stress cold: slotted-named: :has(:checked) after checkbox checked | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: slotted-named: :has(:checked) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-named: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant state stress cold: slotted-named: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: slotted-named: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-named: :has(:required) after input required | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress cold: slotted-named: :has(:required) after input required | elementStyleRecomputations=8, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-named: :has(:optional) becomes false after input required | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
@@ -165,19 +165,19 @@ PASS: descendant state stress cold: slotted-named: :has(:placeholder-shown) afte
 PASS: descendant state stress warm: slotted-named: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
 PASS: descendant state stress cold: slotted-named: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=8, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-named: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant state stress cold: slotted-named: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: slotted-named: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-named: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
-PASS: descendant state stress cold: slotted-named: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: slotted-named: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-named: :has(:checked + .after) after checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
-PASS: descendant state stress cold: slotted-named: :has(:checked + .after) after checkbox checked | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: slotted-named: :has(:checked + .after) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-named: :has(:checked ~ .after) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=3
-PASS: descendant state stress cold: slotted-named: :has(:checked ~ .after) after checkbox checked | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: slotted-named: :has(:checked ~ .after) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-named: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant state stress cold: slotted-named: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: slotted-named: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-named: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant state stress cold: slotted-named: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: slotted-named: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-named: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
-PASS: descendant state stress cold: slotted-named: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=9, elementStyleNoopRecomputations=0
+PASS: descendant state stress cold: slotted-named: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=8, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-shadow-host-default: :has(:checked) after checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
 PASS: descendant state stress cold: slotted-shadow-host-default: :has(:checked) after checkbox checked | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: descendant state stress warm: slotted-shadow-host-default: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=3, elementStyleNoopRecomputations=2

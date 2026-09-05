@@ -1,0 +1,34 @@
+<!doctype html>
+<style>
+    :root {
+        --revert-value: green;
+        --revert-layer-value: green;
+    }
+
+    .revert {
+        --revert-value: red;
+        --revert-value: revert;
+    }
+
+    @layer A {
+        .revert-layer {
+            --revert-layer-value: red;
+        }
+
+        .revert-layer {
+            --revert-layer-value: revert-layer;
+        }
+    }
+</style>
+<div class="revert"></div>
+<div class="revert-layer"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const revert = getComputedStyle(document.querySelector(".revert"));
+        println(`revert continues below the author origin: ${revert.getPropertyValue("--revert-value")}`);
+
+        const revertLayer = getComputedStyle(document.querySelector(".revert-layer"));
+        println(`revert-layer continues below the current layer: ${revertLayer.getPropertyValue("--revert-layer-value")}`);
+    });
+</script>

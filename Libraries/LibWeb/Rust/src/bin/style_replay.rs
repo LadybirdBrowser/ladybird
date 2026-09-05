@@ -41,18 +41,38 @@ use libweb_rust::css::style::bridge::RecordedExactCascadeWinner;
 use libweb_rust::css::style::cascade::CascadeOperator;
 use libweb_rust::css::style::cascade::SpecifiedValueID;
 use libweb_rust::css::style::fast_hash::FastMap;
+use libweb_rust::css::style::index::StyleAtomID;
 use libweb_rust::css::style::memory::MEMORY_CATEGORIES;
 #[cfg(test)]
 use libweb_rust::css::style::memory::MemoryCategory;
 use libweb_rust::css::style::memory::TIER_COUNT;
 use libweb_rust::css::style::memory::TIER3_REFUSAL_CATEGORIES;
 use libweb_rust::css::style::memory::Tier;
+use libweb_rust::css::style::program::CustomDeclaration;
 use libweb_rust::css::style::program::DeclaredProperty;
 use libweb_rust::css::style::record_replay::EventKind;
 use libweb_rust::css::style::record_replay::LogReader;
 use libweb_rust::css::style::record_replay::PayloadReader;
 use libweb_rust::css::style::record_replay::PayloadWriter;
 use libweb_rust::css::style::selector::SelectorProgram;
+
+struct ReplayCustomPropertyRegistry(*mut c_void);
+
+impl ReplayCustomPropertyRegistry {
+    fn new() -> Self {
+        Self(libweb_rust::css::custom_properties::rust_custom_property_registry_create())
+    }
+
+    fn pointer(&self) -> *const c_void {
+        self.0
+    }
+}
+
+impl Drop for ReplayCustomPropertyRegistry {
+    fn drop(&mut self) {
+        unsafe { libweb_rust::css::custom_properties::rust_custom_property_registry_destroy(self.0) };
+    }
+}
 
 include!(concat!(env!("OUT_DIR"), "/style_engine_replay_generated.rs"));
 
@@ -78,6 +98,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     for path in &options.paths {
         let mapping = mapped_log::MappedLog::open(path)?;
         let mut reader = LogReader::new(mapping.bytes())?;
+        let format_version = reader.version();
+        let replay_custom_property_registry = ReplayCustomPropertyRegistry::new();
         reader.set_verify_checksums(options.assert_digests);
         // Engine IDs and style-record tokens are sequential counters in the recorder, so lookups
         // that run once per event index dense arrays instead of hashing. Replay is short-lived;
@@ -325,23 +347,48 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let kind = read_declaration_kind(&mut event.payload)?;
                     let declarations_are_complete = event.payload.read_bool()?;
                     let declared = read_declared_properties(&mut event.payload)?;
+                    let custom_declarations = read_custom_declarations(&mut event.payload)?;
                     unsafe {
                         bridge::replay_set_element_declared_properties(
                             engine,
                             node,
                             kind,
                             &declared,
+                            &custom_declarations,
                             declarations_are_complete,
                         );
                     };
+                }
+                EventKind::RepublishRecordEnvironment => {
+                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    let node = event.payload.read_u32()?;
+                    let environment = event.payload.read_u64()?;
+                    let expected = event.payload.read_u64()?;
+                    let actual = unsafe { bridge::replay_republish_record_environment(engine, node, environment) };
+                    if actual != expected {
+                        return Err(format!("republished record environment diverged: {actual} != {expected}").into());
+                    }
+                }
+                EventKind::NoteCustomPropertyName => {
+                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    let name = event.payload.read_u32()?;
+                    let text = event.payload.read_u16_vec()?;
+                    unsafe { bridge::replay_note_custom_property_name(engine, name, &text) };
                 }
                 EventKind::SetRuleDeclaredProperties => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let rule = event.payload.read_u32()?;
                     let declarations_are_complete = event.payload.read_bool()?;
                     let declared = read_declared_properties(&mut event.payload)?;
+                    let custom_declarations = read_custom_declarations(&mut event.payload)?;
                     unsafe {
-                        bridge::replay_set_rule_declared_properties(engine, rule, &declared, declarations_are_complete);
+                        bridge::replay_set_rule_declared_properties(
+                            engine,
+                            rule,
+                            &declared,
+                            &custom_declarations,
+                            declarations_are_complete,
+                        );
                     };
                 }
                 EventKind::TakeStyleTransaction => {
@@ -350,24 +397,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 EventKind::StyleDeltaBatch => {
                     let (engine_index, engine) = read_engine_indexed(&mut event.payload, &live_engines)?;
                     let root = event.payload.read_u32()?;
-                    let computation_inputs = bridge::FfiDocumentStyleComputationInputs {
-                        viewport_width: f64::from_bits(event.payload.read_u64()?),
-                        viewport_height: f64::from_bits(event.payload.read_u64()?),
-                        root_font_size: f64::from_bits(event.payload.read_u64()?),
-                        root_font_x_height: f64::from_bits(event.payload.read_u64()?),
-                        root_font_cap_height: f64::from_bits(event.payload.read_u64()?),
-                        root_font_zero_advance: f64::from_bits(event.payload.read_u64()?),
-                        root_line_height: f64::from_bits(event.payload.read_u64()?),
-                        root_font_metrics_depend_on_viewport_metrics: event.payload.read_bool()?,
-                        initial_font_size: f64::from_bits(event.payload.read_u64()?),
-                        initial_font_x_height: f64::from_bits(event.payload.read_u64()?),
-                        initial_font_cap_height: f64::from_bits(event.payload.read_u64()?),
-                        initial_font_zero_advance: f64::from_bits(event.payload.read_u64()?),
-                        initial_font_size_raw: event.payload.read_i32()?,
-                        default_font_size_raw: event.payload.read_i32()?,
-                        device_pixels_per_css_pixel: f64::from_bits(event.payload.read_u64()?),
-                        font_environment_generation: event.payload.read_u64()?,
-                    };
+                    let computation_inputs = read_document_style_computation_inputs(
+                        &mut event.payload,
+                        format_version,
+                        replay_custom_property_registry.pointer(),
+                    )?;
                     let output_bytes = event.payload.read_bytes()?;
                     let expected_digest = event.payload.read_u64()?;
                     let expected = read_style_transaction_outputs(PayloadReader::new(output_bytes))?;
@@ -715,6 +749,18 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         &mut phase_times,
                     );
                 }
+                EventKind::RetryEngineRecordAfterAncestor => {
+                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    let node = event.payload.read_u32()?;
+                    let expected = event.payload.read_u64()?;
+                    let actual = unsafe { bridge::style_engine_retry_engine_record_after_ancestor(engine, node) };
+                    if actual != expected {
+                        return Err(format!(
+                            "retried cold style record diverged for node {node}: expected {expected}, got {actual}"
+                        )
+                        .into());
+                    }
+                }
                 EventKind::RemoveComputedPseudo => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let node = event.payload.read_u32()?;
@@ -979,6 +1025,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                             animation_overlay_payloads.as_ptr(),
                             animation_overlay_payloads.len(),
                             publication_longhand_table.cast_const().cast(),
+                            std::ptr::null(),
                         )
                     };
                     if !publication_longhand_table.is_null() {
@@ -1096,7 +1143,54 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let _name = event.payload.read_u32()?;
                     let _recorded_result = event.payload.read_bool()?;
                 }
-                _ => unreachable!("all boundary events are generated or handled explicitly"),
+                EventKind::HasDeferredGeometryTransaction => {
+                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    let expected = event.payload.read_bool()?;
+                    let actual = unsafe { bridge::style_engine_has_deferred_geometry_transaction(engine) };
+                    if actual != expected {
+                        return Err(format!(
+                            "deferred geometry transaction presence diverged: expected {expected}, got {actual}"
+                        )
+                        .into());
+                    }
+                }
+                EventKind::PendingTransactionMayAffectLayoutGeometry => {
+                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    let expected = event.payload.read_bool()?;
+                    let actual = unsafe { bridge::style_engine_pending_transaction_may_affect_layout_geometry(engine) };
+                    if actual != expected {
+                        return Err(
+                            format!("pending geometry effect diverged: expected {expected}, got {actual}").into(),
+                        );
+                    }
+                }
+                EventKind::DeferPendingTransactionForGeometryRead => {
+                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    let expected = event.payload.read_bool()?;
+                    let actual = unsafe { bridge::style_engine_defer_pending_transaction_for_geometry_read(engine) };
+                    if actual != expected {
+                        return Err(format!(
+                            "geometry transaction deferral diverged: expected {expected}, got {actual}"
+                        )
+                        .into());
+                    }
+                }
+                EventKind::BeginDeferredGeometryTransactionFlush => {
+                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    let expected = event.payload.read_bool()?;
+                    let actual = unsafe { bridge::style_engine_begin_deferred_geometry_transaction_flush(engine) };
+                    if actual != expected {
+                        return Err(format!(
+                            "deferred geometry flush start diverged: expected {expected}, got {actual}"
+                        )
+                        .into());
+                    }
+                }
+                EventKind::EndDeferredGeometryTransactionFlush => {
+                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    unsafe { bridge::style_engine_end_deferred_geometry_transaction_flush(engine) };
+                }
+                kind => return Err(format!("unhandled StyleEngine replay event {kind:?}").into()),
             }
             event.payload.finish()?;
         }
@@ -1812,6 +1906,72 @@ fn print_memory_pressure(label: &str, snapshot: FfiMemoryPressureSnapshot) {
     );
 }
 
+fn read_document_style_computation_inputs(
+    payload: &mut PayloadReader,
+    format_version: u64,
+    registry: *const c_void,
+) -> Result<bridge::FfiDocumentStyleComputationInputs, Box<dyn std::error::Error>> {
+    Ok(bridge::FfiDocumentStyleComputationInputs {
+        viewport_width: f64::from_bits(payload.read_u64()?),
+        viewport_height: f64::from_bits(payload.read_u64()?),
+        root_font_size: f64::from_bits(payload.read_u64()?),
+        root_font_x_height: f64::from_bits(payload.read_u64()?),
+        root_font_cap_height: f64::from_bits(payload.read_u64()?),
+        root_font_zero_advance: f64::from_bits(payload.read_u64()?),
+        root_line_height: f64::from_bits(payload.read_u64()?),
+        root_font_metrics_depend_on_viewport_metrics: payload.read_bool()?,
+        initial_font_size: if format_version >= 12 {
+            f64::from_bits(payload.read_u64()?)
+        } else {
+            0.0
+        },
+        initial_font_x_height: if format_version >= 12 {
+            f64::from_bits(payload.read_u64()?)
+        } else {
+            0.0
+        },
+        initial_font_cap_height: if format_version >= 12 {
+            f64::from_bits(payload.read_u64()?)
+        } else {
+            0.0
+        },
+        initial_font_zero_advance: if format_version >= 12 {
+            f64::from_bits(payload.read_u64()?)
+        } else {
+            0.0
+        },
+        initial_font_size_raw: payload.read_i32()?,
+        default_font_size_raw: payload.read_i32()?,
+        device_pixels_per_css_pixel: f64::from_bits(payload.read_u64()?),
+        font_environment_generation: payload.read_u64()?,
+        preferred_color_scheme: if format_version >= 12 { payload.read_u8()? } else { 0 },
+        has_document_supported_schemes: if format_version >= 12 {
+            payload.read_bool()?
+        } else {
+            false
+        },
+        document_supported_scheme_count: if format_version >= 12 { payload.read_u8()? } else { 0 },
+        document_supported_scheme_codes: if format_version >= 12 {
+            [
+                payload.read_u8()?,
+                payload.read_u8()?,
+                payload.read_u8()?,
+                payload.read_u8()?,
+            ]
+        } else {
+            [0; 4]
+        },
+        custom_property_registry: if format_version >= 13 && payload.read_bool()? {
+            registry
+        } else {
+            std::ptr::null()
+        },
+        custom_property_registration_generation: if format_version >= 13 { payload.read_u64()? } else { 0 },
+        in_quirks_mode: format_version >= 15 && payload.read_bool()?,
+        ..Default::default()
+    })
+}
+
 #[inline]
 fn read_engine_indexed(
     payload: &mut PayloadReader,
@@ -2049,6 +2209,8 @@ fn read_style_transaction_outputs(
                 gap: match payload.read_u8()? {
                     0 => FfiStyleDeltaGap::None,
                     1 => FfiStyleDeltaGap::Materialize,
+                    2 => FfiStyleDeltaGap::Computed,
+                    3 => FfiStyleDeltaGap::RetryAfterAncestor,
                     tag => return Err(format!("unknown style delta gap tag {tag}").into()),
                 },
             });
@@ -2128,6 +2290,20 @@ fn read_declared_properties(payload: &mut PayloadReader) -> Result<Vec<DeclaredP
     for _ in 0..count {
         declared.push(DeclaredProperty {
             property: payload.read_u16()?,
+            important: payload.read_bool()?,
+            operator: read_cascade_operator(payload)?,
+            value: SpecifiedValueID(payload.read_u64()?),
+        });
+    }
+    Ok(declared)
+}
+
+fn read_custom_declarations(payload: &mut PayloadReader) -> Result<Vec<CustomDeclaration>, Box<dyn std::error::Error>> {
+    let count = payload.read_length()?;
+    let mut declared = Vec::with_capacity(count);
+    for _ in 0..count {
+        declared.push(CustomDeclaration {
+            name: StyleAtomID(payload.read_u32()?),
             important: payload.read_bool()?,
             operator: read_cascade_operator(payload)?,
             value: SpecifiedValueID(payload.read_u64()?),
@@ -2601,9 +2777,99 @@ extern "C" fn ladybird_string_unref(_raw: usize) {}
 #[unsafe(no_mangle)]
 extern "C" fn ladybird_utf16_fly_string_unref(_raw: usize) {}
 
+#[unsafe(no_mangle)]
+unsafe extern "C" fn unicode_rust_idna_to_ascii(
+    domain: *const u8,
+    domain_length: usize,
+    _options: *const c_void,
+    context: *mut c_void,
+    on_success: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+) {
+    // Replays only need the ASCII hosts serialized by the style recorder. The browser uses
+    // LibUnicode's C++ implementation for the full IDNA algorithm.
+    let domain = unsafe { std::slice::from_raw_parts(domain, domain_length) };
+    if domain.is_ascii() {
+        unsafe { on_success(context, domain.as_ptr(), domain.len()) };
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn computation_inputs_preserve_payload_alignment_across_versions() {
+        for version in 11..=16 {
+            let mut payload = PayloadWriter::default();
+            for value in [800.0_f64, 600.0, 16.0, 8.0, 12.0, 9.0, 20.0] {
+                payload.write_u64(value.to_bits());
+            }
+            payload.write_bool(true);
+            if version >= 12 {
+                for value in [15.0_f64, 7.0, 11.0, 8.0] {
+                    payload.write_u64(value.to_bits());
+                }
+            }
+            payload.write_i32(960);
+            payload.write_i32(1024);
+            payload.write_u64(2.0_f64.to_bits());
+            payload.write_u64(123);
+            if version >= 12 {
+                payload.write_u8(2);
+                payload.write_bool(true);
+                payload.write_u8(2);
+                for code in [1, 2, 0, 0] {
+                    payload.write_u8(code);
+                }
+            }
+            if version >= 13 {
+                payload.write_bool(true);
+                payload.write_u64(456);
+            }
+            if version >= 15 {
+                payload.write_bool(true);
+            }
+            payload.write_bytes(b"following transaction output");
+            let registry = ReplayCustomPropertyRegistry::new();
+            let mut reader = PayloadReader::new(payload.as_bytes());
+            let inputs = read_document_style_computation_inputs(&mut reader, version, registry.pointer()).unwrap();
+            assert_eq!(inputs.viewport_width, 800.0);
+            assert_eq!(inputs.root_line_height, 20.0);
+            assert!(inputs.root_font_metrics_depend_on_viewport_metrics);
+            assert_eq!(inputs.initial_font_size, if version >= 12 { 15.0 } else { 0.0 });
+            assert_eq!(inputs.initial_font_x_height, if version >= 12 { 7.0 } else { 0.0 });
+            assert_eq!(inputs.initial_font_cap_height, if version >= 12 { 11.0 } else { 0.0 });
+            assert_eq!(inputs.initial_font_zero_advance, if version >= 12 { 8.0 } else { 0.0 });
+            assert_eq!(inputs.initial_font_size_raw, 960);
+            assert_eq!(inputs.default_font_size_raw, 1024);
+            assert_eq!(inputs.device_pixels_per_css_pixel, 2.0);
+            assert_eq!(inputs.font_environment_generation, 123);
+            assert_eq!(inputs.preferred_color_scheme, if version >= 12 { 2 } else { 0 });
+            assert_eq!(inputs.has_document_supported_schemes, version >= 12);
+            assert_eq!(
+                inputs.document_supported_scheme_count,
+                if version >= 12 { 2 } else { 0 }
+            );
+            assert_eq!(
+                inputs.document_supported_scheme_codes,
+                if version >= 12 { [1, 2, 0, 0] } else { [0; 4] }
+            );
+            assert_eq!(
+                inputs.custom_property_registry,
+                if version >= 13 {
+                    registry.pointer()
+                } else {
+                    std::ptr::null()
+                }
+            );
+            assert_eq!(
+                inputs.custom_property_registration_generation,
+                if version >= 13 { 456 } else { 0 }
+            );
+            assert_eq!(inputs.in_quirks_mode, version >= 15);
+            assert_eq!(reader.read_bytes().unwrap(), b"following transaction output");
+        }
+    }
 
     #[test]
     fn presence_degraded_publications_compare_every_non_mask_field() {

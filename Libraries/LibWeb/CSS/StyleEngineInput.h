@@ -101,6 +101,13 @@ enum ElementStyleAdjustmentFact : u32 {
     IsDocumentElement = 1 << 16,
     HasAnimations = 1 << 17,
     HasPresentationalHints = 1 << 18,
+    // The element stands for an element-reference pseudo-element of its shadow host, whose style
+    // it takes.
+    IsShadowHostPseudoElement = 1 << 19,
+    // The element's presentational hints are mapped from another element's attributes: a table
+    // cell's from its table's, an image's from its picture's source, a link's from the body's link
+    // colors. They move without any attribute of the element moving.
+    HasDerivedPresentationalHints = 1 << 20,
 };
 WEB_API u32 element_style_adjustment_facts(DOM::Element const&);
 WEB_API void record_element_adjustment_facts(DOM::Element&);

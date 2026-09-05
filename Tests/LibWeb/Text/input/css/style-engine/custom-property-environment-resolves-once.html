@@ -14,11 +14,12 @@
         // Fifty elements are handed the same ten declarations against the same inherited
         // environment, so there is one environment between them and it resolves once.
         host.innerHTML = '<div class="themed">x</div>'.repeat(50);
+        const before = internals.styleEngineCounters();
         internals.updateStyle();
 
-        const counters = internals.getStyleInvalidationCounters();
-        println(`elements resolving custom properties: ${counters.customPropertyElements}`);
-        println(`custom property resolutions: ${counters.customPropertyResolutions}`);
+        const counters = internals.styleEngineCounters();
+        println(`environments resolved: ${(counters.engineCustomPropertyEnvironmentsResolved ?? 0) - (before.engineCustomPropertyEnvironmentsResolved ?? 0)}`);
+        println(`environment memo hits: ${(counters.engineCustomPropertyEnvironmentMemoHits ?? 0) - (before.engineCustomPropertyEnvironmentMemoHits ?? 0)}`);
         println(`padding: ${getComputedStyle(host.firstElementChild).paddingTop}`);
 
         // An element whose values differ resolves an environment of its own, and its neighbours

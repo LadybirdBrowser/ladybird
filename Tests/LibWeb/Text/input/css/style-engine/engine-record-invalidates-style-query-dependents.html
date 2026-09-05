@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @property --state {
+        syntax: "<custom-ident>";
+        inherits: false;
+        initial-value: off;
+    }
+    #container { --state: off; }
+    #container.on { --state: on; }
+    #target { color: red; }
+    @container style(--state: on) {
+        #target { color: green; }
+    }
+</style>
+<div id="container"><span id="target">target</span></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        println(getComputedStyle(target).color);
+        container.className = "on";
+        internals.updateStyle();
+        println(getComputedStyle(target).color);
+    });
+</script>

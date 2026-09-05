@@ -1,0 +1,3 @@
+initial: 5px
+substituted: 10px
+registered: 20px

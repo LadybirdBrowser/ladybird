@@ -861,6 +861,7 @@ fn resolve_animation_declarations(
         .map(|source| {
             let StyleValueData::RandomValueSharing {
                 has_name,
+                is_auto,
                 name,
                 element_shared,
                 ..
@@ -871,7 +872,7 @@ fn resolve_animation_declarations(
             FfiAnimationUnfixedRandomSharing {
                 source,
                 name: if *has_name { name.raw() } else { 0 },
-                element_shared: *element_shared,
+                element_shared: *element_shared || !*is_auto,
             }
         })
         .collect();

@@ -1,2 +1,3 @@
 color scheme longhand evaluations: 0
 background: rgb(0, 0, 0)
+inherited background: rgb(0, 0, 0)

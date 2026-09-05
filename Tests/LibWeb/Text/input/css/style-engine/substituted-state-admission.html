@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #host { --width: 10px; }
+    .item { width: var(--width); transition: opacity 1s; }
+</style>
+<div id="host"><div class="item"></div></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        internals.updateStyle();
+        const before = internals.styleEngineCounters();
+        for (let index = 0; index < 12; ++index) {
+            const item = document.createElement("div");
+            item.className = "item";
+            host.appendChild(item);
+            internals.updateStyle();
+        }
+        const after = internals.styleEngineCounters();
+        println(`substitution memo hits: ${after.engineComputedRecordSubstitutionMemoHits - before.engineComputedRecordSubstitutionMemoHits}`);
+        println(`width: ${getComputedStyle(host.lastChild).width}`);
+        host.style.setProperty("--width", "20px");
+        internals.updateStyle();
+        println(`updated width: ${getComputedStyle(host.lastChild).width}`);
+        CSS.registerProperty({ name: "--width", syntax: "<length>", inherits: false, initialValue: "30px" });
+        internals.updateStyle();
+        println(`registered width: ${getComputedStyle(host.lastChild).width}`);
+    });
+</script>

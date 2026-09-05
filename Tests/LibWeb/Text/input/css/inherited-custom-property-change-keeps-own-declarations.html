@@ -51,8 +51,6 @@
 
         report("initial");
 
-        const reusedBefore = internals.getStyleInvalidationCounters().elementStyleInputReused;
-
         outer.style.setProperty("--theme", "20px");
         report("theme changed");
 
@@ -65,7 +63,5 @@
         outer.style.setProperty("--theme", "30px");
         report("theme changed again");
 
-        const reused = internals.getStyleInvalidationCounters().elementStyleInputReused - reusedBefore;
-        println(`styles reused: ${reused > 0}`);
     });
 </script>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    :root { --base: 1px }
+    .target { width: calc(var(--base) + 0px) }
+    .distinct { height: 1px }
+</style>
+<div class="target" id="target"></div>
+<div class="target distinct" id="distinct"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const distinct = document.getElementById("distinct");
+        const declaration = document.styleSheets[0].cssRules[1].style;
+        let allValuesUpdated = true;
+        const countersBefore = internals.styleEngineCounters();
+
+        for (let index = 0; index < 256; ++index) {
+            declaration.setProperty("width", `calc(var(--base) + ${index}px)`);
+            internals.updateStyle();
+            if (getComputedStyle(target).width !== `${index + 1}px`
+                || getComputedStyle(distinct).width !== `${index + 1}px`) {
+                allValuesUpdated = false;
+                break;
+            }
+        }
+
+        const countersAfter = internals.styleEngineCounters();
+        const usedSubstitutions = countersAfter.engineComputedRecordSubstitutions > countersBefore.engineComputedRecordSubstitutions;
+        const reusedSubstitutions = countersAfter.engineComputedRecordSubstitutionMemoHits > countersBefore.engineComputedRecordSubstitutionMemoHits;
+        println(`engine substitutions used: ${usedSubstitutions}`);
+        println(`memo reused substitutions: ${reusedSubstitutions}`);
+        println(`replaced declarations use their own written value: ${allValuesUpdated}`);
+    });
+</script>

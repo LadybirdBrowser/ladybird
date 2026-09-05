@@ -34,11 +34,6 @@ struct StyleInputRecord {
     // A computation that produced its own property result binds the publication that follows. An
     // answer shared from another element keeps the old identity and is recomputed in full next time.
     bool bind_next_published_style { false };
-    // The inherited custom-property bindings the computation actually read. The parent environment
-    // can change identity without moving any of these, in which case the computed style still stands.
-    Vector<Utf16FlyString> custom_property_references;
-    Optional<Vector<Utf16FlyString>> declared_custom_property_names;
-
     // Whether the computation this record describes read something the record does not name - its
     // container, its attributes, its place among its siblings, the environment an `if()` asks about.
     // Such a computation cannot be answered from the record, because what it read can move without
@@ -58,7 +53,6 @@ struct StyleInputRecord {
     bool style_depends_on_style_container_query { false };
     u32 explicitly_inherited_non_inherited_style_groups { 0 };
     bool cascade_reads_custom_properties { false };
-    bool cascade_declares_custom_properties { false };
 
     // Which half of the record differs first, which is what says why a recomputation could not be
     // answered from what its last one read.
