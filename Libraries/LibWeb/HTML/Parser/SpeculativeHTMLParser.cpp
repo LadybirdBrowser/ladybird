@@ -160,11 +160,14 @@ bool media_attribute_matches_environment(DOM::Document const& document, RustFfiP
     return false;
 }
 
-void issue_speculative_modulepreload_fetch(DOM::Document& document, URL::URL const& url, RustFfiPreloadScannerEntry const& entry)
+// Speculatively fetches url the way "fetch a single module script" would for a module script element or a modulepreload
+// link (a CORS-mode request carrying the script fetch options the element's attributes give) — so, the response is the
+// one the real fetch later finds in the HTTP cache. A potential-CORS request won't work here; a module script is always
+// fetched in CORS mode, and a server that only sends Access-Control-Allow-Origin in reply to an Origin header answers
+// a no-cors request without it. So the real fetch, served that response from the cache, fails its CORS check.
+// https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-single-module-script
+void issue_speculative_module_fetch(DOM::Document& document, URL::URL const& url, RustFfiPreloadScannerEntry const& entry, Fetch::Infrastructure::Request::Destination destination, Fetch::Infrastructure::Request::ParserMetadata parser_metadata)
 {
-    auto destination = destination_from_preload_scanner(entry.destination);
-    VERIFY(destination.has_value());
-
     auto& settings_object = document.relevant_settings_object();
     auto integrity_metadata = entry.integrity_present
         ? utf16_string_from_preload_scanner(entry.integrity_ptr, entry.integrity_len)
@@ -172,7 +175,7 @@ void issue_speculative_modulepreload_fetch(DOM::Document& document, URL::URL con
     ScriptFetchOptions options {
         .cryptographic_nonce = utf16_string_from_preload_scanner(entry.nonce_ptr, entry.nonce_len),
         .integrity_metadata = move(integrity_metadata),
-        .parser_metadata = Fetch::Infrastructure::Request::ParserMetadata::NotParserInserted,
+        .parser_metadata = parser_metadata,
         .credentials_mode = cors_settings_attribute_credentials_mode(cors_setting_from_preload_scanner(entry.cors_setting)),
         .referrer_policy = ReferrerPolicy::from_string(utf16_string_from_preload_scanner(entry.referrer_policy_ptr, entry.referrer_policy_len)).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString),
         .fetch_priority = Fetch::Infrastructure::request_priority_from_string(utf16_string_from_preload_scanner(entry.fetch_priority_ptr, entry.fetch_priority_len)).value_or(Fetch::Infrastructure::Request::Priority::Auto),
@@ -186,8 +189,8 @@ void issue_speculative_modulepreload_fetch(DOM::Document& document, URL::URL con
     request->set_mode(Fetch::Infrastructure::Request::Mode::CORS);
     request->set_referrer(Fetch::Infrastructure::Request::Referrer::Client);
     request->set_client(&settings_object);
-    request->set_destination(*destination);
-    if (first_is_one_of(*destination,
+    request->set_destination(destination);
+    if (first_is_one_of(destination,
             Fetch::Infrastructure::Request::Destination::Worker,
             Fetch::Infrastructure::Request::Destination::SharedWorker,
             Fetch::Infrastructure::Request::Destination::ServiceWorker))
@@ -198,6 +201,25 @@ void issue_speculative_modulepreload_fetch(DOM::Document& document, URL::URL con
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
     auto algorithms = Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input));
     (void)Fetch::Fetching::fetch(settings_object.realm(), request, algorithms);
+}
+
+// https://html.spec.whatwg.org/multipage/links.html#link-type-modulepreload
+void issue_speculative_modulepreload_fetch(DOM::Document& document, URL::URL const& url, RustFfiPreloadScannerEntry const& entry)
+{
+    auto destination = destination_from_preload_scanner(entry.destination);
+    VERIFY(destination.has_value());
+
+    // The link's script fetch options have parser metadata "not-parser-inserted".
+    issue_speculative_module_fetch(document, url, entry, *destination, Fetch::Infrastructure::Request::ParserMetadata::NotParserInserted);
+}
+
+// https://html.spec.whatwg.org/multipage/scripting.html#prepare-the-script-element
+// A module script element's src is fetched as an external module script graph, whose root request "fetch a single
+// module script" builds with destination "script" — and with parser metadata "parser-inserted", since the parser
+// inserts the element the speculative parser found.
+void issue_speculative_module_script_fetch(DOM::Document& document, URL::URL const& url, RustFfiPreloadScannerEntry const& entry)
+{
+    issue_speculative_module_fetch(document, url, entry, Fetch::Infrastructure::Request::Destination::Script, Fetch::Infrastructure::Request::ParserMetadata::ParserInserted);
 }
 
 }
@@ -219,6 +241,7 @@ void SpeculativeHTMLParser::process_preload_scanner_entry(RustFfiPreloadScannerE
         return;
 
     case RustFfiPreloadScannerAction::Fetch:
+    case RustFfiPreloadScannerAction::ModuleScript:
         break;
     case RustFfiPreloadScannerAction::ModulePreload:
         if (!media_attribute_matches_environment(*m_document, entry))
@@ -248,6 +271,8 @@ void SpeculativeHTMLParser::process_preload_scanner_entry(RustFfiPreloadScannerE
     m_document->add_speculative_fetch_url(*url);
     if (entry.action == RustFfiPreloadScannerAction::ModulePreload)
         issue_speculative_modulepreload_fetch(*m_document, *url, entry);
+    else if (entry.action == RustFfiPreloadScannerAction::ModuleScript)
+        issue_speculative_module_script_fetch(*m_document, *url, entry);
     else
         issue_speculative_fetch(m_document->relevant_settings_object().realm(), *m_document, *url, destination_from_preload_scanner(entry.destination), cors_setting_from_preload_scanner(entry.cors_setting));
 }
