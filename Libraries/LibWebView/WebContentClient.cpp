@@ -476,6 +476,9 @@ void WebContentClient::notify_compositor_process_reconnected(Badge<Application>)
 
 void WebContentClient::notify_all_views_of_crash()
 {
+    // Removing remote pages can release the last reference to this client.
+    RefPtr self = this;
+
     // Every page must read as closed before pending history work resolves against this endpoint.
     m_process_lost = true;
 
