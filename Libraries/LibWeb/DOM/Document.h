@@ -822,7 +822,7 @@ public:
 
     bool has_completed_style_update() const { return m_has_completed_style_update; }
     void set_has_completed_style_update() { m_has_completed_style_update = true; }
-    void mark_style_attribute_dirty() { m_has_dirty_style_attributes = true; }
+    void mark_style_attribute_dirty(Element&);
     void synchronize_dirty_style_attributes();
     void flush_deferred_style_change_event();
     // The style engine resolves substitutions against the Rust registry, whose parse context is
@@ -1726,7 +1726,7 @@ private:
     Vector<GC::Weak<CSS::MediaQueryList>> m_media_query_lists;
 
     bool m_has_completed_style_update { false };
-    bool m_has_dirty_style_attributes { false };
+    GC::WeakHashSet<Element> m_elements_with_dirty_style_attributes;
     bool m_suppresses_attribute_style_invalidation { false };
     HashTable<GC::Ref<Element>> m_query_containers_needing_container_query_evaluation_after_layout;
     bool m_needs_full_layout_tree_update { false };

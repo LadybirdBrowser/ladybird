@@ -627,17 +627,19 @@ Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target
 
 Document::~Document() = default;
 
+void Document::mark_style_attribute_dirty(Element& element)
+{
+    if (element.is_connected())
+        m_elements_with_dirty_style_attributes.set(element);
+}
+
 void Document::synchronize_dirty_style_attributes()
 {
-    if (!m_has_dirty_style_attributes)
-        return;
-
-    m_has_dirty_style_attributes = false;
-    for_each_shadow_including_descendant([](Node& node) {
-        if (auto* element = as_if<Element>(node))
-            element->synchronize_all_attributes();
-        return TraversalDecision::Continue;
-    });
+    auto elements = move(m_elements_with_dirty_style_attributes);
+    for (auto& element : elements) {
+        if (element.is_connected() && &element.document() == this)
+            element.synchronize_all_attributes();
+    }
 }
 
 Layout::NodeArena& Document::layout_node_arena()
@@ -2101,7 +2103,7 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
         auto document_is_clean_for_layout_geometry_read = [](Document const& document) {
             return document.m_has_completed_style_update
                 && document.layout_is_up_to_date()
-                && !document.m_has_dirty_style_attributes
+                && document.m_elements_with_dirty_style_attributes.is_empty()
                 && !document.style_computer().style_engine().has_pending_transaction()
                 && !document.m_needs_media_rule_evaluation
                 && !document.m_needs_animated_style_update

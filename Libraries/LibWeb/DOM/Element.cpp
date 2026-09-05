@@ -2924,8 +2924,9 @@ void Element::did_update_inline_style()
     if (auto history = document().editing_history_if_exists())
         history->notify_dom_mutation();
 
+    if (!m_style_attribute_is_dirty)
+        document().mark_style_attribute_dirty(*this);
     m_style_attribute_is_dirty = true;
-    document().mark_style_attribute_dirty();
     queue_mutation_record(MutationType::attributes, HTML::AttributeNames::style, {}, old_value, {}, {}, nullptr, nullptr);
 
     if (!document().suppresses_attribute_style_invalidation())
@@ -3162,6 +3163,8 @@ void Element::inserted()
     Base::inserted();
 
     if (is_connected()) {
+        if (m_style_attribute_is_dirty)
+            document().mark_style_attribute_dirty(*this);
         // The MathML and SVG user-agent sheets decide only for elements in their own namespaces, so
         // the first such element to connect is what brings them into the document's user-agent
         // origin. Asking here rather than at style time keeps a page without either from ever

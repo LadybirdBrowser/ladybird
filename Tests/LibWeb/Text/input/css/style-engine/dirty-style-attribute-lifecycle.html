@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    [style*="red"] { background-color: rgb(10, 20, 30); }
+    [style*="blue"] { background-color: rgb(40, 50, 60); }
+</style>
+<div id="container"></div>
+<script>
+    asyncTest(async done => {
+        for (let index = 0; index < 64; ++index)
+            container.appendChild(document.createElement("div"));
+        const target = container.firstElementChild;
+        target.style.color = "red";
+        target.style.color = "blue";
+        target.style.color = "red";
+        internals.updateStyle();
+        println(`coalesced writes: ${getComputedStyle(target).backgroundColor}`);
+
+        target.style.color = "blue";
+        println(`explicit read: ${target.getAttribute("style")}`);
+        target.style.color = "red";
+        internals.updateStyle();
+        println(`write after read: ${getComputedStyle(target).backgroundColor}`);
+
+        target.style.color = "blue";
+        target.remove();
+        internals.updateStyle();
+        container.appendChild(target);
+        println(`reinserted dirty element: ${getComputedStyle(target).backgroundColor}`);
+
+        const detached = document.createElement("div");
+        detached.style.color = "red";
+        internals.updateStyle();
+        container.appendChild(detached);
+        println(`initially detached element: ${getComputedStyle(detached).backgroundColor}`);
+
+        const host = container.appendChild(document.createElement("div"));
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = '<style>[style*="blue"] { background-color: rgb(70, 80, 90); }</style><div></div>';
+        const shadowTarget = shadow.lastElementChild;
+        shadowTarget.style.color = "blue";
+        internals.updateStyle();
+        println(`shadow element: ${getComputedStyle(shadowTarget).backgroundColor}`);
+
+        const frame = document.createElement("iframe");
+        const loaded = new Promise(resolve => frame.onload = resolve);
+        frame.srcdoc = '<style>[style*="blue"] { background-color: rgb(100, 110, 120); }</style>';
+        document.body.appendChild(frame);
+        await loaded;
+        target.style.color = "red";
+        frame.contentDocument.body.appendChild(frame.contentDocument.adoptNode(target));
+        target.style.color = "blue";
+        internals.updateStyle();
+        println(`adopted element: ${frame.contentWindow.getComputedStyle(target).backgroundColor}`);
+        target.style.color = "red";
+        container.appendChild(document.adoptNode(target));
+        println(`adopted back: ${getComputedStyle(target).backgroundColor}`);
+
+        const observer = new MutationObserver(() => {});
+        observer.observe(target, { attributes: true, attributeOldValue: true });
+        target.style.color = "blue";
+        target.style.color = "red";
+        internals.updateStyle();
+        const records = observer.takeRecords();
+        println(`mutation records: ${records.length}`);
+        println(`old values: ${records.map(record => record.oldValue).join(" / ")}`);
+        observer.disconnect();
+
+        function discardDirtyElement() {
+            const element = container.appendChild(document.createElement("div"));
+            element.style.color = "blue";
+            element.remove();
+        }
+        discardDirtyElement();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        internals.gc();
+        internals.updateStyle();
+        println(`after garbage collection: ${getComputedStyle(target).backgroundColor}`);
+        done();
+    });
+</script>

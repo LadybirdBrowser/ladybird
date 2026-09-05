@@ -1,0 +1,11 @@
+coalesced writes: rgb(10, 20, 30)
+explicit read: color: blue;
+write after read: rgb(10, 20, 30)
+reinserted dirty element: rgb(40, 50, 60)
+initially detached element: rgb(10, 20, 30)
+shadow element: rgb(70, 80, 90)
+adopted element: rgb(100, 110, 120)
+adopted back: rgb(10, 20, 30)
+mutation records: 2
+old values: color: red; / color: blue;
+after garbage collection: rgb(10, 20, 30)
