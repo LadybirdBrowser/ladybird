@@ -4268,15 +4268,14 @@ impl PrefixStateCache {
         generation: u64,
         row_count: usize,
     ) -> &mut PrefixStates {
-        let index = program.0 as usize;
-        self.by_program.ensure(index);
-        if self.by_program[index].is_none() {
-            self.by_program[index] = Some(Box::new(PrefixStates::new(row_count)));
-        } else {
-            let states = self.by_program[index].as_mut().expect("program entry just checked");
-            states.prepare_rows(generation, row_count);
+        let entry = self.by_program.entry(program.0 as usize);
+        match entry {
+            Some(states) => {
+                states.prepare_rows(generation, row_count);
+                states
+            }
+            None => entry.insert(Box::new(PrefixStates::new(row_count))),
         }
-        self.by_program[index].as_mut().expect("program entry just inserted")
     }
 
     pub(super) fn lookup_mut(&mut self, program: ScopeProgramID) -> Lookup<&mut PrefixStates, PrefixStateCacheGap> {
