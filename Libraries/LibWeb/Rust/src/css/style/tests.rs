@@ -2307,6 +2307,64 @@ fn a_departed_subtree_routes_sibling_subtree_anchors_above_its_parent() {
 }
 
 #[test]
+fn reparented_witnesses_reach_the_destination_without_fact_changes() {
+    for axis in [RelativeAxis::Descendant, RelativeAxis::Child] {
+        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut raw = [0_u32; 4];
+        engine.allocate_style_nodes(&mut raw);
+        let nodes: Vec<_> = raw.iter().map(|&raw| StyleNodeID::from_raw(raw).unwrap()).collect();
+        let card = StyleAtomID(200);
+        let error = StyleAtomID(201);
+        let mut builder = selector::SelectorProgramBuilder::new();
+        let witness_test = builder.push_feature(selector::FeatureTest::Class(error));
+        let has_witness = builder.push_relative_exists(relative_selector::RelativeQuery {
+            axis,
+            compound: witness_test,
+            driving_feature: Some(LocalFeatureKey::Class(error)),
+            simple: true,
+            witness_is_below_the_axis: false,
+            match_in_shadow_tree: false,
+        });
+        let anchor_test = builder.push_feature(selector::FeatureTest::Class(card));
+        let compound = builder.push_compound(&[anchor_test, has_witness]);
+        builder.push_entry(compound);
+        let program = engine.programs.add(builder.finish());
+        let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+        engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+        let rule = engine.append_rule(sheet, None, RuleKind::Style);
+        engine.add_routing_rule(rule, program);
+        let mut version = engine.program.rule_version(rule);
+        version.selector_program = Some(program);
+        version.declaration_block = Some(DeclarationBlockID(1));
+        engine.replace_rule_version(rule, version);
+
+        // Two sibling cards, with the witness initially in the first. No other rule can
+        // accidentally include the destination in a conservative refresh.
+        engine.record_tree_delta(nodes[0], None, Some(relations(None, None, None)));
+        engine.record_tree_delta(nodes[1], None, Some(relations(Some(raw[0]), None, Some(raw[2]))));
+        engine.record_tree_delta(nodes[2], None, Some(relations(Some(raw[0]), Some(raw[1]), None)));
+        engine.record_tree_delta(nodes[3], None, Some(relations(Some(raw[1]), None, None)));
+        for node in [nodes[1], nodes[2]] {
+            add_feature(&mut engine, node, LocalFeatureKey::Class(card));
+        }
+        add_feature(&mut engine, nodes[3], LocalFeatureKey::Class(error));
+        discard_transaction(&mut engine);
+        engine.record_tree_delta(
+            nodes[3],
+            Some(relations(Some(raw[1]), None, None)),
+            Some(relations(Some(raw[2]), None, None)),
+        );
+        let mut planned = Vec::new();
+        assert!(engine.take_style_transaction_nodes(nodes[0], |nodes| planned.extend_from_slice(nodes)));
+        assert!(planned.contains(&raw[1]), "{axis:?}: the old anchor lost its witness");
+        assert!(
+            planned.contains(&raw[2]),
+            "{axis:?}: the destination gained a witness without a fact change"
+        );
+    }
+}
+
+#[test]
 fn a_retained_witness_carries_an_anchor_through_its_lifecycle() {
     let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
     let mut raw = [0_u32; 4];
@@ -3801,6 +3859,41 @@ fn retained_answer_repair_returns_signed_selector_truth() {
 }
 
 #[test]
+fn patch_attributions_preserve_the_same_coverage_without_preorder_coordinates() {
+    let (mut engine, nodes) = nested_document();
+    discard_transaction(&mut engine);
+    let first = (RuleID(1), EntryID(1));
+    let second = (RuleID(2), EntryID(2));
+    for indexed in [false, true] {
+        let mut regions = if indexed {
+            ImpactRegions::with_topology(&engine.tree, nodes[0])
+        } else {
+            ImpactRegions::new()
+        };
+        regions.add_attributed(ImpactRegion::Subtree(nodes[1]), first, &mut engine.counters);
+        regions.add_attributed(ImpactRegion::Children(nodes[1]), second, &mut engine.counters);
+        regions.add_attributed(ImpactRegion::Node(nodes[3]), second, &mut engine.counters);
+        regions.attribute_extent(ImpactRegion::Node(nodes[3]), first, &mut engine.counters);
+        let cover = regions.compile_patch_cover(&engine.tree, Some(nodes[0]));
+        let mut sweep = AttributionSweep::default();
+        let mut covering = Vec::new();
+        // Visit out of order and overlap extents, exercising both the indexed stab and the
+        // direct relation walk. Precise attribution never becomes a full refresh request.
+        for (index, expected) in [
+            (3, vec![first, second]),
+            (0, vec![]),
+            (2, vec![first, second]),
+            (1, vec![first]),
+        ] {
+            let node = nodes[index];
+            assert!(!regions.batch_contains_node(&cover.full, node));
+            assert!(regions.covering_attributions(&cover, &engine.tree, &mut sweep, node, &mut covering));
+            assert_eq!(covering, expected);
+        }
+    }
+}
+
+#[test]
 fn already_planned_routes_attribute_their_extent() {
     let (mut engine, nodes) = nested_document();
     let guard = StyleAtomID(200);
@@ -3845,7 +3938,7 @@ fn already_planned_routes_attribute_their_extent() {
     let cover = regions.compile_patch_cover(&engine.tree, Some(nodes[0]));
     let mut sweep = AttributionSweep::default();
     let mut covering = Vec::new();
-    assert!(regions.covering_attributions(&cover, &mut sweep, nodes[3], &mut covering));
+    assert!(regions.covering_attributions(&cover, &engine.tree, &mut sweep, nodes[3], &mut covering));
     assert_eq!(covering, vec![(rule, engine.programs.entry_id(program, 0))]);
 
     engine.selector_truth_changes = SelectorTruthChanges::default();
@@ -3897,7 +3990,7 @@ fn routes_covered_by_an_attributed_subtree_still_attribute_their_extent() {
     assert!(!regions.batch_contains_node(&cover.full, nodes[3]));
     let mut sweep = AttributionSweep::default();
     let mut covering = Vec::new();
-    assert!(regions.covering_attributions(&cover, &mut sweep, nodes[3], &mut covering));
+    assert!(regions.covering_attributions(&cover, &engine.tree, &mut sweep, nodes[3], &mut covering));
     assert_eq!(
         covering,
         vec![

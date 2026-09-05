@@ -874,7 +874,13 @@ impl StyleEngine {
                     // `false` means the node's coverage cannot be proven, which only full
                     // re-derivation answers soundly.
                     let attribution_known = patch_cover.as_ref().is_none_or(|cover| {
-                        regions.covering_attributions(cover, &mut attribution_sweep, node, &mut attribution_scratch)
+                        regions.covering_attributions(
+                            cover,
+                            &self.tree,
+                            &mut attribution_sweep,
+                            node,
+                            &mut attribution_scratch,
+                        )
                     });
                     let node_deltas = selector_truth_changes.deltas_for(node);
                     let refreshes = selector_truth_changes.refreshes_for(node);

@@ -470,7 +470,7 @@ impl StyleEngine {
                     let relational = match (relational_routes_exist, relocated, side == new) {
                         (false, ..) => None,
                         (true, true, true) => Some(if crossed_a_parent {
-                            SequenceSide::Arrived
+                            SequenceSide::Reparented
                         } else {
                             SequenceSide::Moved
                         }),
@@ -565,6 +565,7 @@ impl StyleEngine {
             false => (at as usize).min(children.len()),
         };
         let mut any_arrived = false;
+        let mut any_reparented = false;
         let mut any_departed = false;
         let mut max_any = 0usize;
         let mut max_departed = 0usize;
@@ -573,8 +574,9 @@ impl StyleEngine {
             let at = clamp(at);
             max_any = max_any.max(at);
             match side {
-                SequenceSide::Arrived => {
+                SequenceSide::Arrived | SequenceSide::Reparented => {
                     any_arrived = true;
+                    any_reparented |= side == SequenceSide::Reparented;
                     max_arrived = max_arrived.max(at);
                 }
                 SequenceSide::Departed => {
@@ -599,11 +601,10 @@ impl StyleEngine {
                 .anchor_dispatch
                 .has_selector_posting()
                 .then_some(anchor.anchor_dispatch);
-            // An element publishes every fact that holds on it as it connects, so a query resting
-            // on one is reached from that fact and not from here. Only a query resting on none - a
-            // negation, `*` - is invisible to an arrival, and only then are the anchors around an
-            // arriving element asked whether it became their witness.
-            let witnessing_arrival = any_arrived && anchor.witness_is_featureless;
+            // A connecting element publishes its facts, which route feature-bearing witnesses.
+            // A reparented element keeps its facts, so every query must also check the new
+            // sequence for a witness. Featureless witnesses always need this sequence route.
+            let witnessing_arrival = any_reparented || (any_arrived && anchor.witness_is_featureless);
 
             // An in-shadow-tree query anchors on the host of the tree the change happened in. A
             // child query's anchor hosts the tree the parent belongs to and a descendant query's
@@ -706,7 +707,7 @@ impl StyleEngine {
                         let seam_only = match side {
                             SequenceSide::Moved => true,
                             SequenceSide::Arrived => !anchor.witness_is_featureless,
-                            SequenceSide::Departed => false,
+                            SequenceSide::Departed | SequenceSide::Reparented => false,
                         };
                         if !seam_only {
                             continue;

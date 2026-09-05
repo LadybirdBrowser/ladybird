@@ -904,6 +904,7 @@ pub(super) struct PatchCover {
     /// Running maximum interval end per sorted prefix, bounding the leftward stab walk.
     prefix_max_end: Vec<u32>,
     keys: Vec<(RuleID, EntryID)>,
+    unindexed: Vec<(ImpactRegion, (RuleID, EntryID))>,
 }
 
 /// The normalized impact plan for one transaction.
@@ -1405,19 +1406,19 @@ impl ImpactRegions {
     #[must_use]
     /// Compile the transaction's patch coverage: the unattributed regions as the full
     /// re-derivation trigger, and the attributed emissions as stabbable preorder intervals
-    /// carrying rule keys. Attributed regions the topology cannot canonicalize demote to the
-    /// full trigger, which is always sound.
+    /// carrying rule keys. Extents without preorder coordinates retain their rule attribution
+    /// and are queried through tree relationships.
     pub(super) fn compile_patch_cover(&self, tree: &StyleNodeTree, document_root: Option<StyleNodeID>) -> PatchCover {
         let mut keys: Vec<(RuleID, EntryID)> = Vec::new();
         let mut key_indices: super::HashMap<(RuleID, EntryID), u32> = super::HashMap::default();
         let mut intervals: Vec<(u32, u32, u32)> = Vec::new();
-        let mut demoted: Vec<ImpactRegion> = Vec::new();
+        let mut unindexed = Vec::new();
         let mut scratch: Vec<PreorderInterval> = Vec::new();
         if let Some(topology) = &self.topology {
             for &(region, key) in &self.attributions {
                 scratch.clear();
                 if !topology.collect_region_intervals(region, tree, document_root, &mut scratch) {
-                    demoted.push(region);
+                    unindexed.push((region, key));
                     continue;
                 }
                 let key_index = match key_indices.get(&key).copied() {
@@ -1434,7 +1435,7 @@ impl ImpactRegions {
                 }
             }
         } else {
-            demoted.extend(self.attributions.iter().map(|&(region, _)| region));
+            unindexed.extend_from_slice(&self.attributions);
         }
         intervals.sort_unstable();
         intervals.dedup();
@@ -1444,12 +1445,12 @@ impl ImpactRegions {
             max_end = max_end.max(end);
             prefix_max_end.push(max_end);
         }
-        let full_regions: Vec<ImpactRegion> = self.unattributed.iter().chain(demoted.iter()).copied().collect();
         PatchCover {
-            full: self.compile_union(&full_regions, tree, document_root),
+            full: self.compile_union(&self.unattributed, tree, document_root),
             intervals,
             prefix_max_end,
             keys,
+            unindexed,
         }
     }
 
@@ -1465,12 +1466,21 @@ impl ImpactRegions {
     pub(super) fn covering_attributions(
         &self,
         cover: &PatchCover,
+        tree: &StyleNodeTree,
         sweep: &mut AttributionSweep,
         node: StyleNodeID,
         out: &mut Vec<(RuleID, EntryID)>,
     ) -> bool {
         out.clear();
+        out.extend(
+            cover
+                .unindexed
+                .iter()
+                .filter_map(|&(region, key)| self.region_contains_node(region, node, tree).then_some(key)),
+        );
         if cover.intervals.is_empty() {
+            out.sort_unstable();
+            out.dedup();
             return true;
         }
         let Some(topology) = &self.topology else {
