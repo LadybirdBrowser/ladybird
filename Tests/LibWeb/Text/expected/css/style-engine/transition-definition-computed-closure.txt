@@ -1,0 +1,7 @@
+disable unrelated longhands skipped: true
+disable transition: 0s
+disable color: rgb(0, 128, 0)
+restore unrelated longhands skipped: true
+restore transition: 1s
+restore color: rgb(0, 128, 0)
+restored transition interpolates: 0.5

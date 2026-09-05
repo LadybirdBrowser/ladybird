@@ -29,7 +29,7 @@ use crate::css::property_metadata::{
     FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, LONGHAND_WORD_COUNT, NUMBER_OF_LONGHAND_PROPERTIES,
     property_is_in_logical_group, property_logical_group,
 };
-use crate::css::style_compute::{expand_shorthands_with, font_family_is_monospace, initial_value_data};
+use crate::css::style_compute::{expand_shorthands_with, font_family_is_monospace};
 use crate::css::style_value::RetainedStyleValueData;
 use crate::css::style_value::RetainedUtf16FlyString;
 use crate::css::style_value::StyleValueData;
@@ -569,10 +569,6 @@ struct StyleComputationRequirementsStorage {
     unfixed_random_sharings: Box<[FfiUnfixedRandomSharing]>,
 }
 
-fn style_values_are_equal(first: &StyleValueData, second: &StyleValueData) -> bool {
-    std::ptr::eq(first, second) || first == second
-}
-
 fn longhand_is_selected(words: &[u64], property_id: u16) -> bool {
     let index = (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize;
     words[index / 64] & (1 << (index % 64)) != 0
@@ -663,6 +659,11 @@ fn property_has_independent_computed_closure(property_id: u16) -> bool {
                 | prop::STROKE
                 | prop::TRANSFORM
                 | prop::TRANSFORM_ORIGIN
+                | prop::TRANSITION_BEHAVIOR
+                | prop::TRANSITION_DELAY
+                | prop::TRANSITION_DURATION
+                | prop::TRANSITION_PROPERTY
+                | prop::TRANSITION_TIMING_FUNCTION
                 | prop::TRANSLATE
                 | prop::VISIBILITY
                 | prop::WILL_CHANGE
@@ -689,42 +690,10 @@ unsafe fn plan_style_computation(
         assert_eq!(previous_values.len(), NUMBER_OF_LONGHAND_PROPERTIES);
     }
     let retained_transition_candidates = input.has_retained_transition_candidates;
-    let transition_properties = [
-        prop::TRANSITION_PROPERTY,
-        prop::TRANSITION_DURATION,
-        prop::TRANSITION_TIMING_FUNCTION,
-        prop::TRANSITION_DELAY,
-        prop::TRANSITION_BEHAVIOR,
-    ];
-    let has_transition_definition = retained_transition_candidates
-        || transition_properties.iter().any(|&property_id| {
-            store.last_entry(property_id).is_some_and(|entry| {
-                let initial = unsafe { &*initial_value_data(property_id) };
-                !style_values_are_equal(entry.value.data(), initial)
-            })
-        });
-    let transition_definition_changed = previous_values.is_some_and(|previous_values| {
-        has_transition_definition
-            && transition_properties.iter().any(|&property_id| {
-                let current = store
-                    .last_entry(property_id)
-                    .map(|entry| entry.value.data())
-                    .unwrap_or_else(|| unsafe { &*initial_value_data(property_id) });
-                let index = (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize;
-                let previous = previous_values[index].cast::<StyleValueData>();
-                let previous = if previous.is_null() {
-                    unsafe { &*initial_value_data(property_id) }
-                } else {
-                    unsafe { &*previous }
-                };
-                !style_values_are_equal(current, previous)
-            })
-    });
     let must_compute_all_properties = previous_values.is_none()
         || has_monospace_font_family
         || input.has_relevant_animations
-        || input.has_css_defined_animations
-        || transition_definition_changed;
+        || input.has_css_defined_animations;
     let mut computed_group_mask = input.initial_computed_group_mask;
     if must_compute_all_properties || retained_transition_candidates {
         computed_group_mask = input.all_computed_groups;

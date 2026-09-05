@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #container { --text-color: green; }
+    #container > div { transition: opacity 1s linear; color: var(--text-color); }
+</style>
+<div id="container"></div>
+<script>
+    test(() => {
+        for (let index = 0; index < 16; ++index) {
+            const child = container.appendChild(document.createElement("div"));
+            child.style.marginLeft = `${index}px`;
+        }
+        internals.updateStyle();
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync("#container > div { transition: none !important; }");
+
+        function mutate(label, mutation) {
+            const before = internals.getStyleInvalidationCounters();
+            mutation();
+            internals.updateStyle();
+            const after = internals.getStyleInvalidationCounters();
+            println(`${label} unrelated longhands skipped: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations < 1200}`);
+            println(`${label} transition: ${getComputedStyle(container.firstElementChild).transitionDuration}`);
+            println(`${label} color: ${getComputedStyle(container.firstElementChild).color}`);
+        }
+
+        mutate("disable", () => document.adoptedStyleSheets = [sheet]);
+        mutate("restore", () => document.adoptedStyleSheets = []);
+        const target = container.firstElementChild;
+        target.style.opacity = "0";
+        internals.updateStyle();
+        const animation = target.getAnimations()[0];
+        animation.pause();
+        animation.currentTime = 500;
+        println(`restored transition interpolates: ${getComputedStyle(target).opacity}`);
+    });
+</script>
