@@ -1,0 +1,5 @@
+[net]
+retry = 10
+
+[http]
+multiplexing = false
