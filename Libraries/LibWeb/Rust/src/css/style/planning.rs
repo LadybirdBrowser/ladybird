@@ -45,10 +45,10 @@ pub(super) struct RemainingPostingDirectory {
 
 impl RemainingPostingDirectory {
     fn entry(&mut self, key: PostingKey) -> Option<&mut RemainingPosting> {
-        if let Some(index) = self.entries.iter().position(|(candidate, _)| *candidate == key) {
-            return Some(&mut self.entries[index].1);
-        }
-        None
+        self.entries
+            .iter_mut()
+            .find(|(candidate, _)| *candidate == key)
+            .map(|(_, posting)| posting)
     }
 
     fn capacity_bytes(&self) -> u64 {
@@ -613,22 +613,22 @@ impl ImpactPlanningWorkspace {
             Lookup::KnownAbsent => return Ok((0, false, 0, 0, 0)),
             Lookup::Missing(gap) => return Err(gap),
         };
-        let was_present = self.remaining_postings.entry(key).is_some();
-        let copied = if !was_present { posting.len() } else { 0 };
-        let remaining = if was_present {
-            self.remaining_postings.entry(key).unwrap()
-        } else {
-            let candidates: Vec<StyleNodeID> = posting.candidates().collect();
-            self.nested_memory
-                .grow_committed((candidates.capacity() * size_of::<StyleNodeID>()) as u64);
-            self.remaining_postings.insert(
-                key,
-                RemainingPosting {
-                    nodes: candidates,
-                    plan_generation: u64::MAX,
-                    pruned_nodes: Vec::new(),
-                },
-            )
+        let (remaining, was_present, copied) = match self.remaining_postings.entry(key) {
+            Some(remaining) => (remaining, true, 0),
+            None => {
+                let candidates: Vec<StyleNodeID> = posting.candidates().collect();
+                self.nested_memory
+                    .grow_committed((candidates.capacity() * size_of::<StyleNodeID>()) as u64);
+                let remaining = self.remaining_postings.insert(
+                    key,
+                    RemainingPosting {
+                        nodes: candidates,
+                        plan_generation: u64::MAX,
+                        pruned_nodes: Vec::new(),
+                    },
+                );
+                (remaining, false, posting.len())
+            }
         };
         let posting = &mut remaining.nodes;
         let mut inspected = 0;
