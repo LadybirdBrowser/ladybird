@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use smallvec::SmallVec;
+
 use super::cascade::{CascadeAttachment, CascadeContinuationID, Top1Winner};
 use super::*;
 
@@ -622,8 +624,7 @@ impl StyleEngine {
             return;
         }
 
-        let compaction_scratch_bytes =
-            (all.len().div_ceil(8) + all.len() * size_of::<tree::PseudoElementTarget>()) as u64;
+        let compaction_scratch_bytes = (all.len() * size_of::<bool>()) as u64;
         self.memory
             .reserve_required(MemoryCategory::BatchScratch, compaction_scratch_bytes);
         scratch_bytes += compaction_scratch_bytes;
@@ -660,7 +661,7 @@ impl StyleEngine {
             }
         }
 
-        let mut retained_pseudo_targets = Vec::with_capacity(all.len());
+        let mut retained_pseudo_targets: SmallVec<[tree::PseudoElementTarget; 2]> = SmallVec::new();
         for (index, entry) in all.iter().enumerate() {
             if keep[index]
                 && let Some(target) = entry.pseudo_element
@@ -678,9 +679,12 @@ impl StyleEngine {
             }
         }
 
-        let actual_scratch_bytes = (keep.capacity().div_ceil(8)
-            + retained_pseudo_targets.capacity() * size_of::<tree::PseudoElementTarget>())
-            as u64;
+        let pseudo_target_scratch_bytes = if retained_pseudo_targets.spilled() {
+            retained_pseudo_targets.capacity() * size_of::<tree::PseudoElementTarget>()
+        } else {
+            0
+        };
+        let actual_scratch_bytes = (keep.capacity() * size_of::<bool>() + pseudo_target_scratch_bytes) as u64;
         if actual_scratch_bytes > scratch_bytes {
             self.memory
                 .reserve_required(MemoryCategory::BatchScratch, actual_scratch_bytes - scratch_bytes);
