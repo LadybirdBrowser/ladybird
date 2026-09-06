@@ -2417,14 +2417,13 @@ impl Drop for SharedSelectorProgram {
             let Ok(mut shared) = shared.try_borrow_mut() else {
                 return;
             };
-            let remove_bucket = if let Some(bucket) = shared.by_hash.get_mut(&self.hash) {
-                bucket.retain(|candidate| candidate.strong_count() != 0);
-                bucket.is_empty()
-            } else {
-                false
+            let std::collections::hash_map::Entry::Occupied(mut entry) = shared.by_hash.entry(self.hash) else {
+                return;
             };
-            if remove_bucket {
-                shared.by_hash.remove(&self.hash);
+            let bucket = entry.get_mut();
+            bucket.retain(|candidate| candidate.strong_count() != 0);
+            if bucket.is_empty() {
+                entry.remove();
             }
         });
     }
