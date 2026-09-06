@@ -5390,7 +5390,14 @@ impl ElementFactStore {
             if let Some(snapshot) = pair.before {
                 before.push_row_from_primary_snapshot(node, &self.rows, snapshot);
             } else {
-                append_fact_row(node, &StagedFactRow::default(), &mut before);
+                before.push_row(
+                    node,
+                    StyleAtomID::NONE,
+                    StyleAtomID::NONE,
+                    StateSet::default(),
+                    &[],
+                    &[],
+                );
             }
         }
         before
@@ -5408,33 +5415,6 @@ impl ElementFactStore {
         self.memory.resize_required_to(memory, current);
         self.settled_non_apply_capacity_bytes = current - self.apply_capacity_bytes();
     }
-}
-
-fn append_fact_row(node: StyleNodeID, facts: &StagedFactRow, batch: &mut StyleNodeFacts) {
-    let attributes: Vec<AttributeFact> = facts
-        .attributes
-        .iter()
-        .map(|&(name, value)| AttributeFact {
-            name,
-            value,
-            text_offset: u32::MAX,
-            text_length: 0,
-        })
-        .collect();
-    batch.push_row(node, facts.tag, facts.id, facts.states, &facts.classes, &attributes);
-    batch.set_row_folded_tag(facts.folded_tag);
-    batch.set_row_namespace(facts.namespace);
-    batch.set_row_part_exposure(facts.part_exposure);
-    batch.set_row_has_text_content(facts.has_text_content);
-    let row = u32::try_from(batch.row_count() - 1).expect("fact batch row space exhausted");
-    batch.set_row_parameters(
-        row,
-        facts.directionality,
-        facts.language,
-        facts.heading_level,
-        &facts.custom_states,
-        &facts.parts,
-    );
 }
 
 #[cfg(test)]
