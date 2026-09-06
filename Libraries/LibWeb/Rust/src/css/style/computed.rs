@@ -2987,35 +2987,43 @@ impl ComputedGroupSets {
                 .shrink_committed(size_of_val(set.payloads.as_ref()) as u64);
             self.sets.retire_identity(set.identity_hash, identity);
         }
-        for identity in self.inherited_sets.live_identities().collect::<Vec<_>>() {
-            if reachable.inherited_sets[identity.index()] {
-                continue;
-            }
+        for identity in self
+            .inherited_sets
+            .live_identities()
+            .filter(|identity| !reachable.inherited_sets[identity.index()])
+            .collect::<Vec<_>>()
+        {
             let groups = std::mem::take(self.inherited_sets.get_mut(identity));
             self.group_set_nested_memory
                 .shrink_committed(size_of_val(groups.as_ref()) as u64);
             self.inherited_sets.retire_identity(content_hash(&groups), identity);
         }
-        for identity in self.custom_property_environments.live_identities().collect::<Vec<_>>() {
-            if reachable.custom_property_environments[identity.index()] {
-                continue;
-            }
+        for identity in self
+            .custom_property_environments
+            .live_identities()
+            .filter(|identity| !reachable.custom_property_environments[identity.index()])
+            .collect::<Vec<_>>()
+        {
             let environment = *self.custom_property_environments.get(identity);
             self.custom_property_environments
                 .retire_identity(content_hash(environment), identity);
         }
-        for identity in self.computed_fixed_metadata.live_identities().collect::<Vec<_>>() {
-            if reachable.fixed_metadata[identity.index()] {
-                continue;
-            }
+        for identity in self
+            .computed_fixed_metadata
+            .live_identities()
+            .filter(|identity| !reachable.fixed_metadata[identity.index()])
+            .collect::<Vec<_>>()
+        {
             let metadata = *self.computed_fixed_metadata.get(identity);
             self.computed_fixed_metadata
                 .retire_identity(content_hash(metadata), identity);
         }
-        for identity in self.computed_longhand_tables.live_identities().collect::<Vec<_>>() {
-            if reachable.longhand_tables[identity.index()] {
-                continue;
-            }
+        for identity in self
+            .computed_longhand_tables
+            .live_identities()
+            .filter(|identity| !reachable.longhand_tables[identity.index()])
+            .collect::<Vec<_>>()
+        {
             let retained = &self.computed_longhand_tables[identity];
             let hash = longhand_table_hash_with_slot_hash_sum(retained.table(), retained.slot_hash_sum);
             let table = std::mem::replace(
@@ -3029,10 +3037,12 @@ impl ComputedGroupSets {
                 .shrink_committed(size_of_val(table.value_view()) as u64);
             self.computed_longhand_tables.retire_identity(hash, identity);
         }
-        for identity in self.groups.live_identities().collect::<Vec<_>>() {
-            if reachable.groups[identity.index()] {
-                continue;
-            }
+        for identity in self
+            .groups
+            .live_identities()
+            .filter(|identity| !reachable.groups[identity.index()])
+            .collect::<Vec<_>>()
+        {
             let group = std::mem::replace(
                 self.groups.get_mut(identity),
                 ComputedGroup {
