@@ -667,23 +667,18 @@ impl NormalizationJournal {
         // fold both orders to the same arriving-facts key: the tree delta already puts the subtree
         // in the plan, while that one key routes the final facts to relational and sibling
         // selectors outside it.
-        let mut arriving_nodes: Vec<StyleNodeID> = inputs
+        // Tree-relation keys are unique and already sorted by node in the normalized inputs.
+        let arriving_nodes: Vec<StyleNodeID> = inputs
             .iter()
-            .filter_map(|input| {
-                matches!(
-                    (input.key, input.old, input.new),
-                    (
-                        InputKey::TreeRelations(_),
-                        InputValue::TreeRelations(None),
-                        InputValue::TreeRelations(Some(_))
-                    )
-                )
-                .then(|| input.key.style_node())
-                .flatten()
+            .filter_map(|input| match (input.key, input.old, input.new) {
+                (
+                    InputKey::TreeRelations(node),
+                    InputValue::TreeRelations(None),
+                    InputValue::TreeRelations(Some(_)),
+                ) => Some(node),
+                _ => None,
             })
             .collect();
-        arriving_nodes.sort_unstable();
-        arriving_nodes.dedup();
         if !arriving_nodes.is_empty() {
             inputs.retain(|input| {
                 let Some(node) = input.key.style_node() else {
