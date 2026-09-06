@@ -366,8 +366,8 @@ impl<T: Clone + Default> ShallowCapacityBytes for PagedOwnedColumn<T> {
 #[derive(Clone, Default)]
 struct AttributeCatalogs {
     name_forms: PagedCopyColumn<AttributeNameForms>,
-    value_texts: PagedOwnedColumn<Option<Vec<u16>>>,
-    language_texts: PagedOwnedColumn<Option<Vec<u16>>>,
+    value_texts: PagedOwnedColumn<Option<Box<[u16]>>>,
+    language_texts: PagedOwnedColumn<Option<Box<[u16]>>>,
 }
 
 const NO_ROW: u32 = u32::MAX;
@@ -4486,7 +4486,7 @@ impl ElementFactStore {
         self.memory_dirty = true;
         self.attribute_catalogs_mut()
             .language_texts
-            .insert(index, Some(text.to_vec()));
+            .insert(index, Some(text.into()));
     }
 
     pub fn set_language(&mut self, node: StyleNodeID, language: StyleAtomID) {
@@ -4961,7 +4961,7 @@ impl ElementFactStore {
         self.memory_dirty = true;
         self.attribute_catalogs_mut()
             .value_texts
-            .insert(index, Some(text.to_vec()));
+            .insert(index, Some(text.into()));
         self.attribute_value_catalog_version = self
             .attribute_value_catalog_version
             .checked_add(1)
@@ -5251,14 +5251,14 @@ impl ElementFactStore {
             .language_texts
             .iter()
             .flatten()
-            .map(|text| text.capacity() * size_of::<u16>())
+            .map(|text| text.len() * size_of::<u16>())
             .sum::<usize>();
         let attribute_value_payloads = self
             .attribute_catalogs
             .value_texts
             .iter()
             .flatten()
-            .map(|text| text.capacity() * size_of::<u16>())
+            .map(|text| text.len() * size_of::<u16>())
             .sum::<usize>();
 
         capacity_bytes! {
@@ -5822,7 +5822,7 @@ mod tests {
             facts.sweep_auxiliary_catalogs();
             assert_eq!(
                 facts.rows.attribute_catalogs.language_texts.get(language.0 as usize),
-                Some(&Some(vec![index as u16]))
+                Some(&Some(Box::from([index as u16])))
             );
             assert_eq!(
                 facts.rows.attribute_catalogs.name_forms.get(attribute_name.0 as usize),
