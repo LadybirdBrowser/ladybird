@@ -494,6 +494,7 @@ void ConnectionFromClient::queue_navigation_api_state_clear_task(u64 page_id, We
     auto navigable = Web::HTML::local_navigable_with_id(navigable_id);
     if (!page.has_value() || !navigable)
         return;
+    VERIFY(&navigable->page() == &page->page());
 
     navigable->queue_navigation_api_state_clear_task();
 }
@@ -564,6 +565,7 @@ void ConnectionFromClient::run_descendant_unload_task(u64 page_id, Web::HTML::Cr
         async_descendant_unload_task_complete(page_id, unload_id, navigable_id);
         return;
     }
+    VERIFY(&navigable->page() == &page->page());
 
     navigable->run_ui_descendant_unload_task(GC::create_function(navigable->heap(), [this, page_id, unload_id, navigable_id] {
         async_descendant_unload_task_complete(page_id, unload_id, navigable_id);
@@ -576,6 +578,7 @@ void ConnectionFromClient::continue_child_navigable_destruction(u64 page_id, Web
     auto navigable = Web::HTML::local_navigable_with_id(navigable_id);
     if (!page.has_value() || !navigable)
         return;
+    VERIFY(&navigable->page() == &page->page());
 
     navigable->continue_child_navigable_destruction(unload_displayed_document);
 }
@@ -594,6 +597,7 @@ void ConnectionFromClient::update_nonchanging_navigable_history_state(u64 page_i
         async_nonchanging_navigable_history_state_updated(page_id, operation_id, navigable_id);
         return;
     }
+    VERIFY(&navigable->page() == &page->page());
 
     navigable->update_nonchanging_navigable_history_step_state({ script_history_length, script_history_index }, GC::create_function(navigable->heap(), [this, page_id, operation_id, navigable_id] {
         async_nonchanging_navigable_history_state_updated(page_id, operation_id, navigable_id);
