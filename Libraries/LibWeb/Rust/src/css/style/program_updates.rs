@@ -214,19 +214,24 @@ impl StyleEngine {
             return;
         }
         let custom_declarations_changed = self.current_custom_declarations_of(rule) != custom_declarations;
-        let mut new_properties: Vec<u16> = declared.iter().map(|declared| declared.property).collect();
-        new_properties.sort_unstable();
-        new_properties.dedup();
         if let Some(change) = self
             .program_staging
             .rule_declaration_changes
             .iter_mut()
             .find(|change| change.rule == rule)
         {
-            change.new_properties = new_properties;
+            change.new_properties.clear();
+            change
+                .new_properties
+                .extend(declared.iter().map(|declared| declared.property));
+            change.new_properties.sort_unstable();
+            change.new_properties.dedup();
             change.custom_declarations_changed |= custom_declarations_changed;
             return;
         }
+        let mut new_properties: Vec<u16> = declared.iter().map(|declared| declared.property).collect();
+        new_properties.sort_unstable();
+        new_properties.dedup();
         let previous = self
             .replacement_rule(rule)
             .map(|replacement| replacement.declared.as_slice())
