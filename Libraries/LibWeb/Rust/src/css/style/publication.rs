@@ -1551,15 +1551,21 @@ impl StyleEngine {
     /// Whether C++ may publish one record as the answer for another element with this winner
     /// state. Values which read per-element or external context are never shared opaquely.
     fn state_is_opaque_record_shareable(&mut self, node: StyleNodeID, state: CascadeStateID) -> bool {
-        let winners = self
+        for winner in self
             .winner_groups
             .winners_in_state(state)
             .filter_map(|winner| self.winner_groups.resolved_winner(winner))
-            .collect::<Vec<_>>();
-        winners.into_iter().all(|winner| {
-            self.written_winner_value(node, &winner)
-                .is_some_and(|(_, value)| value_computes_without_document_context(value.data()))
-        })
+        {
+            match self.written_winner_value(node, &winner) {
+                Ok(Some((_, value))) if value_computes_without_document_context(value.data()) => {}
+                Err(counter) => {
+                    self.counters.bump(counter);
+                    return false;
+                }
+                _ => return false,
+            }
+        }
+        true
     }
 
     fn remember_state_admission(&mut self, key: (u64, CascadeStateID, u64, u64), admitted: bool) {
@@ -1760,15 +1766,16 @@ impl StyleEngine {
     /// cascade's canonical identity may have rewritten. A rule keeps its written values beside its
     /// declarations, and an element's own declarations keep theirs beside the facts.
     fn written_winner_value(
-        &mut self,
+        &self,
         node: StyleNodeID,
         winner: &PropertyWinner,
-    ) -> Option<(usize, crate::css::style_value::RetainedStyleValueData)> {
+    ) -> Result<Option<(usize, &crate::css::style_value::RetainedStyleValueData)>, Counter> {
         match winner.source {
-            WinnerSource::Rule(rule) => self
-                .program
-                .written_winner_declaration(rule, winner.property, winner.important, winner.key.value)
-                .map(|(index, value)| (index, value.clone_retained())),
+            WinnerSource::Rule(rule) => {
+                Ok(self
+                    .program
+                    .written_winner_declaration(rule, winner.property, winner.important, winner.key.value))
+            }
             WinnerSource::Element(kind) => {
                 let (declared, _) = self.facts.element_declared_properties(node, kind);
                 let complete = self
@@ -1776,22 +1783,18 @@ impl StyleEngine {
                     .element_declarations_are_complete_but_for_custom_properties(node, kind);
                 let written = self.facts.element_written_declared_values(node, kind);
                 if !complete || written.len() != declared.len() {
-                    self.counters.bump(Counter::EngineComputedRecordBailWinnerElement);
-                    return None;
+                    return Err(Counter::EngineComputedRecordBailWinnerElement);
                 }
-                declared
+                Ok(declared
                     .iter()
                     .rposition(|declared| {
                         declared.property == winner.property
                             && declared.important == winner.important
                             && declared.value == winner.key.value
                     })
-                    .map(|index| (index, written[index].clone_retained()))
+                    .map(|index| (index, &written[index])))
             }
-            WinnerSource::ExactCascade => {
-                self.counters.bump(Counter::EngineComputedRecordBailWinnerOperator);
-                None
-            }
+            WinnerSource::ExactCascade => Err(Counter::EngineComputedRecordBailWinnerOperator),
         }
     }
 
@@ -1947,10 +1950,18 @@ impl StyleEngine {
             if winner.property < crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID {
                 continue;
             }
-            let Some((index, value)) = self.written_winner_value(node, &winner) else {
+            let written = match self.written_winner_value(node, &winner) {
+                Ok(written) => written,
+                Err(counter) => {
+                    self.counters.bump(counter);
+                    None
+                }
+            };
+            let Some((index, value)) = written else {
                 self.counters.bump(Counter::EngineComputedRecordBailWinnerSpelling);
                 return None;
             };
+            let value = value.clone_retained();
             // A longhand declared through a shorthand keeps the whole shorthand as its written
             // value; the store takes the longhand's own part of it.
             let value = match value.data() {
