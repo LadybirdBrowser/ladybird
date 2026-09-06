@@ -157,8 +157,13 @@ impl RuleMatches {
         }
     }
 
-    pub(super) fn prepared_selector_truth(&self) -> Option<Vec<super::SelectorTruth>> {
-        let mut truth = self.selector_truth.clone()?;
+    pub(super) fn take_prepared_selector_truth(
+        &mut self,
+        memory: &mut MemoryController,
+    ) -> Option<Vec<super::SelectorTruth>> {
+        self.settle_memory(memory);
+        let mut truth = self.selector_truth.take()?;
+        self.settle_memory(memory);
         truth.sort_unstable();
         truth.dedup();
         Some(truth)

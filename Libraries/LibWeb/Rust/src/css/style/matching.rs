@@ -4143,7 +4143,7 @@ impl StyleEngine {
             let all = match (result, deferred_prefix_matches) {
                 (Ok(()), Some(prefix_matches)) => {
                     if retained_match_answer_is_exact {
-                        retained_selector_truth = matches.prepared_selector_truth();
+                        retained_selector_truth = matches.take_prepared_selector_truth(&mut self.memory);
                     }
                     let (scope_program, dispatch) = self.ranked_scope_program(scope);
                     let non_prefix_matches = self.match_answers.intern(matches.as_slice());
@@ -4479,7 +4479,7 @@ impl StyleEngine {
                 (Ok(()), None) => {
                     if retained_match_answer_is_exact {
                         retained_match_answer = Some(prepare_retained_match_answer(matches.as_slice().iter().copied()));
-                        retained_selector_truth = matches.prepared_selector_truth();
+                        retained_selector_truth = matches.take_prepared_selector_truth(&mut self.memory);
                     }
                     if compact_for_cascade {
                         self.compact_matches_for_cascade_with_scratch(
@@ -4661,11 +4661,8 @@ impl StyleEngine {
                     if retained_match_answer_is_exact {
                         self.order_matches_in_cascade(matches.as_mut_vec(), can_have_scope_duplicates);
                         let retained = prepare_retained_match_answer(matches.as_slice().iter().copied());
-                        self.remember_prepared_retained_match_answer_with_truth(
-                            node,
-                            retained,
-                            matches.prepared_selector_truth(),
-                        );
+                        let truth = matches.take_prepared_selector_truth(&mut self.memory);
+                        self.remember_prepared_retained_match_answer_with_truth(node, retained, truth);
                     } else if compact_for_cascade {
                         // A cascade-only shortcut can answer the current style without proving the
                         // complete selector answer. Do not leave an older exact answer resident.
