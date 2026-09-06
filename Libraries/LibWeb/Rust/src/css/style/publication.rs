@@ -713,31 +713,30 @@ impl StyleEngine {
     /// C++ installed the record the engine derived for `node`: the winner state it was computed
     /// from becomes the node's cascade state, and the answer counts as consumed.
     pub(crate) fn acknowledge_engine_computed_record(&mut self, node: StyleNodeID) {
-        let Some(pending_records) = self.engine_computed_records_pending.remove(&node) else {
-            return;
-        };
-        for pending in pending_records {
-            let target = computed::ComputedStyleTarget::new(node, pending.pseudo_kind);
-            self.remove_pending_style_computation_selection(target);
-            // A pseudo-element settled as gone is removed now that C++ has cleared its style.
-            if pending.pseudo_kind != u8::MAX && pending.new_style_record == computed::FinalStyleRecordID::NONE {
-                self.remove_computed_pseudo(node, pending.pseudo_kind);
-                continue;
+        if let Some(pending_records) = self.engine_computed_records_pending.remove(&node) {
+            for pending in pending_records {
+                let target = computed::ComputedStyleTarget::new(node, pending.pseudo_kind);
+                self.remove_pending_style_computation_selection(target);
+                // A pseudo-element settled as gone is removed now that C++ has cleared its style.
+                if pending.pseudo_kind != u8::MAX && pending.new_style_record == computed::FinalStyleRecordID::NONE {
+                    self.remove_computed_pseudo(node, pending.pseudo_kind);
+                    continue;
+                }
+                self.computed_group_sets.take_pending_cascade_state(target);
+                if let Some(cascade_state) = pending.cascade_state {
+                    self.computed_group_sets.bind_cascade_state(target, cascade_state);
+                }
+                // A pseudo-element's record was computed from this very state, as the retained
+                // cascade would have observed had C++ computed it.
+                if pending.pseudo_kind != u8::MAX {
+                    self.computed_group_sets
+                        .observe_pseudo_retained_cascade_state(target, pending.cascade_state);
+                }
+                self.counters.add(
+                    Counter::EngineComputedLonghandEvaluations,
+                    u64::from(pending.longhand_evaluations),
+                );
             }
-            self.computed_group_sets.take_pending_cascade_state(target);
-            if let Some(cascade_state) = pending.cascade_state {
-                self.computed_group_sets.bind_cascade_state(target, cascade_state);
-            }
-            // A pseudo-element's record was computed from this very state, as the retained
-            // cascade would have observed had C++ computed it.
-            if pending.pseudo_kind != u8::MAX {
-                self.computed_group_sets
-                    .observe_pseudo_retained_cascade_state(target, pending.cascade_state);
-            }
-            self.counters.add(
-                Counter::EngineComputedLonghandEvaluations,
-                u64::from(pending.longhand_evaluations),
-            );
         }
         self.published_match_answers.mark_observed(node);
     }
@@ -3510,6 +3509,36 @@ fn value_computes_without_document_context(value: &StyleValueData) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn acknowledgement_without_pending_records_observes_published_answer() {
+        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut raw_nodes = [0; 2];
+        engine.allocate_style_nodes(&mut raw_nodes);
+        let [first, second] = raw_nodes.map(|node| StyleNodeID::from_raw(node).unwrap());
+        for node in [first, second] {
+            engine.published_match_answers.push(
+                PublishedMatchAnswer {
+                    node,
+                    cascade_input: None,
+                    matches: None,
+                    cascade_winners_are_complete: true,
+                    observed: false,
+                },
+                &mut engine.memory,
+                &mut engine.counters,
+            );
+        }
+        engine.published_match_answers.sort();
+        assert!(engine.engine_computed_records_pending.is_empty());
+
+        engine.acknowledge_engine_computed_record(second);
+        assert!(engine.published_match_answers.lookup(second).unwrap().observed);
+        assert!(!engine.published_match_answers.lookup(first).unwrap().observed);
+        engine.acknowledge_engine_computed_record(second);
+        assert!(engine.published_match_answers.lookup(second).unwrap().observed);
+        assert_eq!(engine.counters.get(Counter::EngineComputedLonghandEvaluations), 0);
+    }
 
     #[test]
     fn pending_records_acknowledge_and_rollback_independently_by_node() {
