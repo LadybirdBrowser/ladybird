@@ -12,6 +12,7 @@
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibWebView/Process.h>
+#include <LibWebView/ProcessManager.h>
 
 #include <fcntl.h>
 
@@ -32,6 +33,15 @@ Process::Process(ProcessType type, RefPtr<IPC::ConnectionBase> connection, Core:
     , m_type(type)
     , m_connection(move(connection))
 {
+}
+
+void Process::save_crash_report(Optional<int> exit_status)
+{
+    if (m_crash_report && exit_status.has_value()) {
+        if (auto result = m_crash_report->save(*exit_status); result.is_error())
+            warnln("Could not save {} crash report: {}", process_name_from_type(m_type), result.error());
+    }
+    m_crash_report = nullptr;
 }
 
 Process::~Process()

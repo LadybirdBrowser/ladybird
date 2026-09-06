@@ -18,6 +18,7 @@ set(SOURCES
     CompositorHostBase.cpp
     ConsoleOutput.cpp
     CookieJar.cpp
+    CrashReport.cpp
     Debugger.cpp
     DictionaryLookup.cpp
     DOMNodeProperties.cpp
@@ -76,8 +77,11 @@ set(SOURCES
 
 if (APPLE)
     list(APPEND SOURCES
+        CrashReportPOSIX.cpp
         PlatformColorsMacOS.cpp
     )
+elseif (LINUX)
+    list(APPEND SOURCES CrashReportPOSIX.cpp)
 endif()
 
 set(GENERATED_SOURCES ${CURRENT_LIB_GENERATED})
@@ -124,7 +128,16 @@ compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebDriver/WebDriverBrowserServer.ipc
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebUIClient.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebUIClientEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebUIServer.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebUIServerEndpoint.h)
 
+add_custom_target(generate_build_information
+    COMMAND ${Python3_EXECUTABLE} ${LADYBIRD_SOURCE_DIR}/Meta/generate-build-information.py
+        ${LADYBIRD_SOURCE_DIR} ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/BuildInformation.h
+        "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}"
+    BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/BuildInformation.h
+    VERBATIM
+)
+
 ladybird_lib(LibWebView webview EXPLICIT_SYMBOL_EXPORT)
+add_dependencies(LibWebView generate_build_information)
 target_link_libraries(LibWebView PRIVATE LibCore LibCrypto LibDatabase LibDevTools LibFileSystem LibGfx LibHTTP LibImageDecoderClient LibIPC LibRequests LibJS LibMedia LibWeb LibUnicode LibURL LibSync LibSyntax LibTextCodec LibThreading)
 
 if (ENABLE_CRANELIFT_JIT)

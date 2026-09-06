@@ -256,7 +256,8 @@ static void install_compiled_fault_handlers()
     s_installed = true;
     struct sigaction action {};
     action.sa_sigaction = compiled_fault_signal_handler;
-    action.sa_flags = SA_SIGINFO;
+    // Preserve alternate-stack crash handling when forwarding non-Wasm faults.
+    action.sa_flags = SA_SIGINFO | SA_ONSTACK;
     sigemptyset(&action.sa_mask);
     sigaction(SIGSEGV, &action, &s_old_sigsegv);
     sigaction(SIGBUS, &action, &s_old_sigbus);

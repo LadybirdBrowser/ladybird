@@ -2,6 +2,7 @@ set(SOURCES
     AddressInfoVector.cpp
     ArgsParser.cpp
     ConfigFile.cpp
+    CrashReportData.cpp
     DirIterator.cpp
     Directory.cpp
     DirectoryEntry.cpp
@@ -135,4 +136,10 @@ endif()
 
 if (ANDROID)
     target_link_libraries(LibCore PRIVATE log)
+endif()
+
+if ((APPLE AND NOT IOS) OR LINUX)
+    target_sources(LibCore PRIVATE CrashHandlerPOSIX.cpp)
+else()
+    target_sources(LibCore PRIVATE CrashHandlerUnimplemented.cpp)
 endif()
