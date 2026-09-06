@@ -195,15 +195,15 @@ void ConnectionFromClient::set_font_catalog(IPC::File file, u64 size, u64 genera
     Web::Platform::FontPlugin::install(*new Web::Platform::FontPlugin(m_enable_test_mode, m_font_provider));
 }
 
-void ConnectionFromClient::initialize(u64 initial_page_id, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::CrossProcessId initial_document_state_id, Web::HTML::VisibilityState system_visibility_state)
+void ConnectionFromClient::initialize(u64 initial_page_id, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state)
 {
-    m_page_host->initialize(initial_page_id, root_navigable_id, cross_process_id_allocator, initial_document_state_id, system_visibility_state);
+    m_page_host->initialize(initial_page_id, root_navigable_id, cross_process_id_allocator, move(initial_history_entry), system_visibility_state);
 }
 
-void ConnectionFromClient::create_embedded_page(u64 page_id, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessId initial_document_state_id, Web::HTML::VisibilityState system_visibility_state)
+void ConnectionFromClient::create_embedded_page(u64 page_id, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state)
 {
     auto& page = m_page_host->create_page(page_id, root_navigable_id);
-    Web::HTML::LocalTraversableNavigable::create_a_fresh_top_level_traversable(page.page(), URL::about_blank(), Empty {}, initial_document_state_id, system_visibility_state);
+    Web::HTML::LocalTraversableNavigable::create_a_fresh_top_level_traversable(page.page(), URL::about_blank(), Empty {}, move(initial_history_entry), system_visibility_state);
 }
 
 void ConnectionFromClient::set_page_parent_context(u64 page_id, Optional<Web::Compositor::CompositorContextId> parent_context_id)

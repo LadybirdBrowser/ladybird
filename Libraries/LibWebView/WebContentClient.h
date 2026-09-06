@@ -84,7 +84,7 @@ public:
     IsPrivate is_private() const { return m_is_private; }
 
     void assign_view(Badge<Application>, ViewImplementation&);
-    bool is_ready_for_view_assignment(Badge<Application>) const { return m_did_create_initial_top_level_traversable; }
+    void set_initial_top_level_history_entry(Badge<Application>, Web::HTML::SessionHistoryEntryDescriptor entry) { m_initial_top_level_history_entry = move(entry); }
     void register_view(u64 page_id, ViewImplementation&);
     void unregister_view(u64 page_id);
 
@@ -248,7 +248,7 @@ private:
     virtual void did_change_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String url, Optional<Utf16String> key, Optional<Utf16String> old_value, Optional<Utf16String> new_value) override;
     virtual void did_update_indexed_database(u64 page_id, String update) override;
     virtual void did_post_broadcast_channel_message(u64 page_id, Web::HTML::BroadcastChannelMessage message) override;
-    virtual Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab, Web::HTML::WebViewHints) override;
+    virtual Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name) override;
     virtual void did_request_activate_tab(u64 page_id) override;
     virtual void did_close_browsing_context(u64 page_id) override;
     virtual void did_change_needs_beforeunload_check(u64 page_id, bool needs_beforeunload_check) override;
@@ -285,7 +285,6 @@ private:
     virtual void did_update_primary_selection(u64 page_id, String) override;
     virtual void did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState) override;
     virtual void did_change_screen_wake_lock_state(u64 page_id, Web::ScreenWakeLockState) override;
-    virtual void did_create_top_level_traversable(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Optional<Web::HTML::CrossProcessId> opener_navigable_id) override;
     virtual void did_update_session_history_entry_navigation_api_state(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Web::HTML::StorageSerializationRecord navigation_api_state) override;
     virtual void did_update_session_history_entry_scroll_restoration_mode(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Web::HTML::ScrollRestorationMode scroll_restoration_mode) override;
     virtual void did_update_session_history_entry_document_state_navigable_target_name(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Utf16String navigable_target_name) override;
@@ -332,8 +331,7 @@ private:
     Optional<i32> m_compositor_connection_id;
     u64 m_initial_page_id { 0 };
     Web::HTML::CrossProcessId m_root_navigable_id;
-    bool m_did_create_initial_top_level_traversable { false };
-    Optional<Web::HTML::SessionHistoryEntryDescriptor> m_initial_top_level_history_entry_awaiting_view;
+    Optional<Web::HTML::SessionHistoryEntryDescriptor> m_initial_top_level_history_entry;
 
     ProcessHandle m_process_handle;
     RefPtr<Core::Timer> m_detached_page_close_timer;

@@ -33,9 +33,9 @@ public:
     {
     }
 
-    bool has_ready_spare_web_content_process() const
+    bool has_spare_web_content_process() const
     {
-        return WebView::Application::has_ready_spare_web_content_process();
+        return WebView::Application::has_spare_web_content_process();
     }
 
     virtual void create_platform_options(WebView::BrowserOptions& browser_options, WebView::RequestServerOptions&, WebView::WebContentOptions& web_content_options) override
@@ -101,7 +101,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Core::EventLoop::current().spin_until([&]() { return loads_finished >= expected_loads; });
 
     // A spare can create its initial traversable before a view adopts it. Preserve that entry across assignment.
-    Core::EventLoop::current().spin_until([&]() { return app->has_ready_spare_web_content_process(); });
+    Core::EventLoop::current().spin_until([&]() { return app->has_spare_web_content_process(); });
     auto spare_view = WebView::HeadlessWebView::create(move(theme), { 800, 600 });
     VERIFY(spare_view->traversable().session_history().current_step() == 0);
     VERIFY(spare_view->traversable().session_history().current_entry());
@@ -200,6 +200,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Core::EventLoop::current().spin_until([&] { return history_boundary_traversal_ready; });
     VERIFY(browser_history_traversals_completed == completed_traversals_before_history_boundary + 1);
 
+    // Reopening a closed tab restores its history into a view whose process is still starting up.
+    auto closed_tab_history = view->session_history_snapshot();
+    VERIFY(closed_tab_history.has_value());
+    auto closed_tab_url = view->url();
+
     // Closing a view may synchronously cause the UI to generate input, geometry, and visibility events while removing
     // the view from its container. Events received after the browsing context closes must be discarded.
     bool did_close = false;
@@ -214,7 +219,23 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     };
     view->request_close();
     Core::EventLoop::current().spin_until([&] { return did_close; });
-    Core::EventLoop::current().spin_until([&] { return app->has_ready_spare_web_content_process(); });
+    Core::EventLoop::current().spin_until([&] { return app->has_spare_web_content_process(); });
+
+    // Take the spare, so the restored view launches a process of its own the way a private window's tab does. A
+    // spare is relaunched from a deferred task, so none is available until the event loop next runs.
+    auto restored_theme = TRY(Gfx::load_system_theme(theme_path.string()));
+    auto spare_consumer = WebView::HeadlessWebView::create(restored_theme, { 800, 600 });
+    VERIFY(!app->has_spare_web_content_process());
+
+    auto restored_view = WebView::HeadlessWebView::create(restored_theme, { 800, 600 });
+    VERIFY(&restored_view->client() != &spare_consumer->client());
+
+    // The restored URL is shown before the traversal runs, so wait for the document behind it to load.
+    size_t restored_view_loads_finished = 0;
+    restored_view->on_load_finish = [&](auto const&) { ++restored_view_loads_finished; };
+    MUST(restored_view->restore_session_history_from_snapshot(closed_tab_history.release_value()));
+    Core::EventLoop::current().spin_until([&] { return restored_view_loads_finished >= 1 && restored_view->url() == closed_tab_url; });
+    VERIFY(restored_view->traversable().session_history().current_entry()->url == closed_tab_url);
 
     outln("PASS: browser history traversal");
     return 0;

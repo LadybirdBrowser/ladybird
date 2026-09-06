@@ -70,10 +70,17 @@ BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable
-GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, Utf16String target_name, Optional<CrossProcessId> initial_document_state_id, VisibilityState system_visibility_state)
+GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, Optional<SessionHistoryEntryDescriptor> initial_history_entry_from_owner, VisibilityState system_visibility_state)
 {
     auto& vm = Bindings::main_thread_vm();
     page->ensure_compositor_host();
+
+    // NB: A traversable with no owning process, such as an SVG image's, mints its own entry
+    auto initial_entry = initial_history_entry_from_owner.has_value()
+        ? initial_history_entry_from_owner.release_value()
+        : create_initial_session_history_entry_descriptor(page->client().allocate_cross_process_id(),
+              opener ? Optional<URL::Origin> { opener->active_document()->origin() } : Optional<URL::Origin> {},
+              opener ? Optional<URL::URL> { opener->active_document()->base_url() } : Optional<URL::URL> {}, {});
 
     // 1. Let document be null.
     GC::Ptr<DOM::Document> document = nullptr;
@@ -89,9 +96,7 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
     }
 
     // 4. Let documentState be a new document state, with
-    if (!initial_document_state_id.has_value())
-        initial_document_state_id = page->client().allocate_cross_process_id();
-    auto document_state = DocumentState::create(*initial_document_state_id);
+    auto document_state = DocumentState::create(initial_entry.document_state.id);
 
     // document: document (now owned by LocalNavigable::m_active_document, not DocumentState)
 
@@ -102,7 +107,7 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
     document_state->set_origin(document->origin());
 
     // navigable target name: targetName
-    document_state->set_navigable_target_name(target_name);
+    document_state->set_navigable_target_name(initial_entry.document_state.navigable_target_name);
 
     // about base URL: document's about base URL
     document_state->set_about_base_url(document->about_base_url());
@@ -120,13 +125,13 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
     // 8. Set initialHistoryEntry's step to 0.
     initial_history_entry->set_step(0);
 
+    // NB: The owner's copy of this entry and this one must be the same entry, so take its identity
+    initial_history_entry->set_navigation_api_key(initial_entry.navigation_api_key);
+    initial_history_entry->set_navigation_api_id(initial_entry.navigation_api_id);
+
     // 9. Append initialHistoryEntry to traversable's session history entries.
-    // NB: The UI process keeps the canonical session history, so report the traversable's creation to it.
+    // NB: A traversable's owner keeps the canonical session history; this entry is the owner's initial entry.
     traversable->set_has_session_history_entry_and_ready_for_navigation();
-    Optional<CrossProcessId> opener_navigable_id;
-    if (opener)
-        opener_navigable_id = opener->active_document()->navigable()->id();
-    page->client().page_did_create_top_level_traversable(traversable->id(), create_session_history_entry_descriptor(*initial_history_entry), opener_navigable_id);
 
     // 10. If opener is non-null, then legacy-clone a traversable storage shed given opener's top-level traversable and traversable. [STORAGE]
     if (opener) {
@@ -142,10 +147,10 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-fresh-top-level-traversable
-GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top_level_traversable(GC::Ref<Page> page, URL::URL const& initial_navigation_url, DocumentResource initial_navigation_post_resource, CrossProcessId initial_document_state_id, VisibilityState system_visibility_state)
+GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top_level_traversable(GC::Ref<Page> page, URL::URL const& initial_navigation_url, DocumentResource initial_navigation_post_resource, SessionHistoryEntryDescriptor initial_history_entry, VisibilityState system_visibility_state)
 {
     // 1. Let traversable be the result of creating a new top-level traversable given null and the empty string.
-    auto traversable = create_a_new_top_level_traversable(page, nullptr, {}, initial_document_state_id, system_visibility_state);
+    auto traversable = create_a_new_top_level_traversable(page, nullptr, move(initial_history_entry), system_visibility_state);
     page->set_local_root_navigable(traversable);
 
     // AD-HOC: Deny geolocation until the UI process sends the browser-wide setting via IPC. This prevents a request

@@ -153,7 +153,7 @@ public:
     ErrorOr<Core::GeolocationProvider::WatchId, Core::GeolocationError> start_watching_geolocation_position(Core::GeolocationProvider::SuccessCallback on_success, Core::GeolocationProvider::ErrorCallback on_error);
     void stop_watching_geolocation_position(Core::GeolocationProvider::WatchId);
 
-    ErrorOr<NonnullRefPtr<WebContentClient>> launch_web_content_process(ViewImplementation&, Optional<Web::HTML::CrossProcessId> root_navigable_id = {}, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {});
+    ErrorOr<NonnullRefPtr<WebContentClient>> launch_web_content_process(ViewImplementation&, Optional<Web::HTML::CrossProcessId> navigable_to_adopt = {}, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {});
     struct ChildFrameWebContentProcess {
         NonnullRefPtr<WebContentClient> client;
         u64 page_id { 0 };
@@ -341,10 +341,11 @@ protected:
     virtual void on_devtools_disabled() const;
 
     Main::Arguments& arguments() { return m_arguments; }
-    bool has_ready_spare_web_content_process() const;
+
+    bool has_spare_web_content_process() const { return m_spare_web_content_process; }
 
 private:
-    ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Optional<ViewImplementation&>, IsPrivate, u64 initial_page_id, Optional<Web::HTML::CrossProcessId> root_navigable_id = {}, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {});
+    ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Optional<ViewImplementation&>, IsPrivate, u64 initial_page_id, Optional<Web::HTML::CrossProcessId> navigable_to_adopt = {}, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {});
     PrivateBrowsingSession& ensure_private_browsing_session();
     ErrorOr<void> launch_services();
     void launch_spare_web_content_process();

@@ -169,14 +169,15 @@ void CanonicalTraversable::prepare_for_reload()
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable
-void CanonicalTraversable::did_create_top_level_traversable(Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Optional<CanonicalNavigable&> opener, WebContentClient& process)
+void CanonicalTraversable::create_a_new_top_level_traversable(Optional<CanonicalNavigable&> opener, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, WebContentClient& process)
 {
-    // NB: A replacement process creates a traversable of its own for this canonical one, which stays as it is.
-    if (!m_session_history.entries().is_empty())
-        return;
+    // A canonical traversable is created once, by the UI process, and hosted by whichever process holds its
+    // active document. A replacement process adopts this one rather than creating another.
+    VERIFY(!has_active_browsing_context());
 
     // 1. Let document be null.
-    // NB: The reporting process created document, which initialHistoryEntry's document state describes.
+    // NB: The process hosting this traversable creates document. Its origin is only inherited from an opener, so
+    //     for a traversable without one this is the opaque origin that keys the UI process's own agent.
     auto document_origin = initial_history_entry.document_state.origin.value_or(URL::Origin::create_opaque());
 
     // 2. If opener is null, then set document to the second return value of creating a new top-level browsing context and document.

@@ -1369,13 +1369,13 @@ void PageClient::page_did_update_resource_count(i32 count_waiting)
     client().async_did_update_resource_count(m_id, count_waiting);
 }
 
-PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints)
+PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String const& target_name)
 {
     // FIXME: Create an abstraction to let this WebContent process know about a new process we create?
     // FIXME: For now, just create a new page in the same process anyway
     // FIXME: Proper agent-cluster separation must also cover same-process
     // COOP/noopener popups before they receive distinct main-world cells.
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestNewWebView>(m_id, activate_tab, hints);
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestNewWebView>(m_id, activate_tab, hints, opener_navigable_id, move(opener_base_url), target_name);
     if (!response) {
         dbgln("WebContent client disconnected during DidRequestNewWebView. Exiting peacefully.");
         Core::Process::terminate_immediately(0);
@@ -1384,9 +1384,10 @@ PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML
     if (!response->new_page_id().has_value())
         return {};
     VERIFY(response->root_navigable_id().has_value());
+    VERIFY(response->initial_history_entry().has_value());
 
     auto& new_client = m_owner.create_page(*response->new_page_id(), *response->root_navigable_id());
-    return { &new_client.page(), response->system_visibility_state(), response->take_handle() };
+    return { &new_client.page(), response->system_visibility_state(), response->take_handle(), response->take_initial_history_entry() };
 }
 
 void PageClient::page_did_request_activate_tab()
@@ -1404,11 +1405,6 @@ void PageClient::page_did_close_top_level_traversable()
     // NOTE: This only removes the strong reference the PageHost has for this PageClient.
     //       It will be GC'd 'later'.
     m_owner.remove_page({}, m_id);
-}
-
-void PageClient::page_did_create_top_level_traversable(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor const& initial_history_entry, Optional<Web::HTML::CrossProcessId> opener_navigable_id)
-{
-    client().async_did_create_top_level_traversable(m_id, navigable_id, initial_history_entry, opener_navigable_id);
 }
 
 void PageClient::page_did_change_needs_beforeunload_check(bool needs_beforeunload_check)

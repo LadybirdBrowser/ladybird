@@ -102,6 +102,7 @@ public:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-bc
     CanonicalBrowsingContext& active_browsing_context() const;
+    bool has_active_browsing_context() const { return m_active_browsing_context; }
     void set_active_browsing_context(NonnullRefPtr<CanonicalBrowsingContext>);
 
     NonnullRefPtr<CanonicalBrowsingContext> obtain_a_browsing_context_to_use_for_a_navigation_response(Web::HTML::OpenerPolicyEnforcementResult const&);

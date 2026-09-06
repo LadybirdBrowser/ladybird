@@ -184,7 +184,9 @@ ErrorOr<SiteIsolationManager::DocumentHost> SiteIsolationManager::obtain_child_d
     u64 page_id;
     if (host) {
         page_id = Application::the().allocate_page_id();
-        host->async_create_embedded_page(page_id, navigable.id(), current_entry->document_state.id, traversable.system_visibility_state());
+        host->async_create_embedded_page(page_id, navigable.id(),
+            Web::HTML::create_initial_session_history_entry_descriptor(current_entry->document_state.id, {}, {}, {}),
+            traversable.system_visibility_state());
     } else {
         auto process = TRY(Application::the().launch_child_frame_web_content_process(navigable.reporting_client().is_private(), navigable.id(), current_entry->document_state.id));
         host = move(process.client);

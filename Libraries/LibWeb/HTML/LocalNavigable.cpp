@@ -1634,10 +1634,52 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
     //    agent's configuration and abilities — it is determined by the rules given for the first applicable option
     //    from the following list:
     if (!chosen) {
+        // NB: Steps 2 to 6 of the "create a new top-level traversable" branch below only read state, and the owner
+        //     needs their result to create the traversable, so they run before the request. Step 1 stays in the
+        //     branch: activation is consumed only once a traversable was created.
+
+        // 2. Set windowType to "new and unrestricted".
+        auto new_window_type = WindowType::NewAndUnrestricted;
+        auto new_no_opener = no_opener;
+        auto new_name = name;
+
+        // 3. Let currentDocument be currentNavigable's active document.
+        // 4. If currentDocument's opener policy's value is "same-origin" or "same-origin-plus-COEP",
+        //    and currentDocument's origin is not same origin with currentDocument's relevant settings object's top-level origin, then:
+        auto current_document_for_opener_policy = active_document();
+        if (current_document_for_opener_policy
+            && (current_document_for_opener_policy->opener_policy().value == OpenerPolicyValue::SameOrigin || current_document_for_opener_policy->opener_policy().value == OpenerPolicyValue::SameOriginPlusCOEP)
+            && !current_document_for_opener_policy->origin().is_same_origin(relevant_settings_object(*current_document_for_opener_policy).top_level_origin.value())) {
+
+            // 1. Set noopener to true.
+            new_no_opener = TokenizedFeature::NoOpener::Yes;
+
+            // 2. Set name to "_blank".
+            new_name = u"_blank"sv;
+
+            // 3. Set windowType to "new with no opener".
+            new_window_type = WindowType::NewWithNoOpener;
+        }
+        // NOTE: In the presence of an opener policy,
+        //       nested documents that are cross-origin with their top-level browsing context's active document always set noopener to true.
+
+        // 5. Let targetName be the empty string.
+        Utf16String new_target_name;
+
+        // 6. If name is not an ASCII case-insensitive match for "_blank", then set targetName to name.
+        if (!new_name.equals_ignoring_ascii_case(u"_blank"sv))
+            new_target_name = Utf16String::from_utf16(new_name);
+
         auto request_new_web_view = [&] {
             TokenizedFeature::Map empty_window_features;
             auto hints = WebViewHints::from_tokenised_features(window_features.has_value() ? *window_features : empty_window_features, traversable_navigable()->page());
-            return traversable_navigable()->page().client().page_did_request_new_web_view(activate_tab, hints);
+            Optional<CrossProcessId> opener_navigable_id;
+            Optional<URL::URL> opener_base_url;
+            if (new_no_opener == TokenizedFeature::NoOpener::No) {
+                opener_navigable_id = id();
+                opener_base_url = active_document()->base_url();
+            }
+            return traversable_navigable()->page().client().page_did_request_new_web_view(activate_tab, hints, opener_navigable_id, move(opener_base_url), new_target_name);
         };
 
         // --> If currentNavigable's active window does not have transient activation and the user agent has been configured to
@@ -1658,38 +1700,13 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
             // 1. Consume user activation of currentNavigable's active window.
             active_window()->consume_user_activation();
 
-            // 2. Set windowType to "new and unrestricted".
-            window_type = WindowType::NewAndUnrestricted;
-
-            // 3. Let currentDocument be currentNavigable's active document.
-            auto current_document = active_document();
-
-            // 4. If currentDocument's opener policy's value is "same-origin" or "same-origin-plus-COEP",
-            //    and currentDocument's origin is not same origin with currentDocument's relevant settings object's top-level origin, then:
-            if ((current_document->opener_policy().value == OpenerPolicyValue::SameOrigin || current_document->opener_policy().value == OpenerPolicyValue::SameOriginPlusCOEP)
-                && !current_document->origin().is_same_origin(relevant_settings_object(*current_document).top_level_origin.value())) {
-
-                // 1. Set noopener to true.
-                no_opener = TokenizedFeature::NoOpener::Yes;
-
-                // 2. Set name to "_blank".
-                name = u"_blank"sv;
-
-                // 3. Set windowType to "new with no opener".
-                window_type = WindowType::NewWithNoOpener;
-            }
-            // NOTE: In the presence of an opener policy,
-            //       nested documents that are cross-origin with their top-level browsing context's active document always set noopener to true.
-
-            // 5. Let targetName be the empty string.
-            Utf16String target_name;
-
-            // 6. If name is not an ASCII case-insensitive match for "_blank", then set targetName to name.
-            if (!name.equals_ignoring_ascii_case(u"_blank"sv))
-                target_name = Utf16String::from_utf16(name);
+            // 2 to 6. Computed above, before the traversable's owner was asked to create it.
+            no_opener = new_no_opener;
+            name = new_name;
+            window_type = new_window_type;
 
             auto create_new_traversable = [&](GC::Ptr<BrowsingContext> opener) -> GC::Ref<LocalTraversableNavigable> {
-                auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*new_web_view.page, opener, target_name, {}, new_web_view.system_visibility_state);
+                auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*new_web_view.page, opener, new_web_view.initial_history_entry.release_value(), new_web_view.system_visibility_state);
                 new_web_view.page->set_local_root_navigable(traversable);
                 traversable->set_window_handle(Utf16String::from_ascii_without_validation(new_web_view.window_handle.bytes()));
                 return traversable;

@@ -2009,13 +2009,6 @@ void ViewImplementation::did_change_screen_wake_lock_state(Badge<WebContentClien
         on_screen_wake_lock_state_changed(m_screen_wake_lock_state);
 }
 
-void ViewImplementation::did_create_top_level_traversable(Badge<WebContentClient>, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Optional<CanonicalNavigable&> opener, WebContentClient& process)
-{
-    m_top_level_traversable.did_create_top_level_traversable(move(initial_history_entry), opener, process);
-    update_navigation_action_state();
-    dump_session_history("created-top-level-traversable"sv);
-}
-
 void ViewImplementation::did_change_needs_beforeunload_check(Badge<WebContentClient>, bool needs_beforeunload_check)
 {
     m_needs_beforeunload_check = needs_beforeunload_check;
@@ -2141,8 +2134,8 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
 
         cancel_all_native_geolocation_requests();
 
-        // Replacing WebContent does not create a new top-level traversable.
-        auto root_navigable_id = m_client_state.client
+        // Only a view's first process creates its traversable. A process replacing another adopts it
+        auto navigable_to_adopt = m_top_level_traversable.has_active_browsing_context()
             ? Optional<Web::HTML::CrossProcessId> { m_top_level_traversable.id() }
             : Optional<Web::HTML::CrossProcessId> {};
         auto client_handle = m_client_state.client_handle;
@@ -2154,7 +2147,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
         m_client_state.hosts_committed_entry = !replaces_existing_client;
 
         // FIXME: Fail to open the tab, rather than crashing the whole application if this fails.
-        auto client_or_error = Application::the().launch_web_content_process(*this, root_navigable_id, initial_document_state_id);
+        auto client_or_error = Application::the().launch_web_content_process(*this, navigable_to_adopt, initial_document_state_id);
         if (client_or_error.is_error())
             warnln("Failed to launch WebContent during process swap: {}", client_or_error.error());
         m_client_state.client = client_or_error.release_value_but_fixme_should_propagate_errors();

@@ -37,7 +37,7 @@ public:
     static NonnullOwnPtr<PageHost> create(ConnectionFromClient& client) { return adopt_own(*new PageHost(client)); }
     virtual ~PageHost();
 
-    void initialize(u64 initial_page_id, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator, Web::HTML::CrossProcessId initial_document_state_id, Web::HTML::VisibilityState system_visibility_state);
+    void initialize(u64 initial_page_id, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state);
     Optional<PageClient&> page(u64 page_id);
     PageClient& create_page(u64 page_id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id = {});
     void remove_page(Badge<PageClient>, u64 page_id);

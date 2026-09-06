@@ -627,11 +627,11 @@ public:
         GC::Ptr<Page> page;
         HTML::VisibilityState system_visibility_state { HTML::VisibilityState::Hidden };
         String window_handle;
+        Optional<HTML::SessionHistoryEntryDescriptor> initial_history_entry;
     };
-    virtual NewWebViewResult page_did_request_new_web_view(HTML::ActivateTab, HTML::WebViewHints) { return {}; }
+    virtual NewWebViewResult page_did_request_new_web_view(HTML::ActivateTab, HTML::WebViewHints, [[maybe_unused]] Optional<HTML::CrossProcessId> opener_navigable_id, [[maybe_unused]] Optional<URL::URL> opener_base_url, [[maybe_unused]] Utf16String const& target_name) { return {}; }
     virtual void page_did_request_activate_tab() { }
     virtual void page_did_close_top_level_traversable() { }
-    virtual void page_did_create_top_level_traversable([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::SessionHistoryEntryDescriptor const& initial_history_entry, [[maybe_unused]] Optional<HTML::CrossProcessId> opener_navigable_id) { }
     virtual void page_did_update_session_history_entry_navigation_api_state([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::SessionHistoryEntryIdentity const& entry_identity, [[maybe_unused]] HTML::StorageSerializationRecord const& navigation_api_state) { }
     virtual void page_did_update_session_history_entry_scroll_restoration_mode([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::SessionHistoryEntryIdentity const& entry_identity, [[maybe_unused]] HTML::ScrollRestorationMode scroll_restoration_mode) { }
     virtual void page_did_update_session_history_entry_document_state_navigable_target_name([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::SessionHistoryEntryIdentity const& entry_identity, [[maybe_unused]] Utf16String const& navigable_target_name) { }

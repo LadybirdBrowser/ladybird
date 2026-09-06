@@ -328,7 +328,6 @@ public:
     void did_change_screen_wake_lock_state(Badge<WebContentClient>, Web::ScreenWakeLockState);
     Web::ScreenWakeLockState screen_wake_lock_state() const { return m_screen_wake_lock_state; }
 
-    void did_create_top_level_traversable(Badge<WebContentClient>, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Optional<CanonicalNavigable&> opener, WebContentClient& process);
     void request_history_operation(Badge<WebContentClient>, WebContentClient&, u64 requesting_page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters);
     void did_receive_history_operation_ready(Badge<WebContentClient>, WebContentClient&, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult);
     void did_receive_history_step_unload_cancelation_result(Badge<WebContentClient>, WebContentClient&, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult, Web::HTML::UnloadPromptShown);

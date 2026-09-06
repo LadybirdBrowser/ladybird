@@ -50,8 +50,8 @@ endpoint WebContentServer
 {
     init_transport(int peer_pid) => (int peer_pid)
     set_font_catalog(IPC::File file, u64 size, u64 generation) =|
-    initialize(u64 initial_page_id, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::CrossProcessId initial_document_state_id, Web::HTML::VisibilityState system_visibility_state) =|
-    create_embedded_page(u64 page_id, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessId initial_document_state_id, Web::HTML::VisibilityState system_visibility_state) =|
+    initialize(u64 initial_page_id, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state) =|
+    create_embedded_page(u64 page_id, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state) =|
     close_server() =|
 
     get_window_handle(u64 page_id) => (String handle)

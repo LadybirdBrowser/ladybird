@@ -216,8 +216,10 @@ void WebContentClient::assign_view(Badge<Application>, ViewImplementation& view)
     view.traversable().set_id(m_root_navigable_id);
     m_views.set(m_initial_page_id, view);
 
-    if (m_initial_top_level_history_entry_awaiting_view.has_value())
-        view.did_create_top_level_traversable({}, m_initial_top_level_history_entry_awaiting_view.release_value(), {}, *this);
+    if (m_initial_top_level_history_entry.has_value()) {
+        view.traversable().create_a_new_top_level_traversable({}, m_initial_top_level_history_entry.release_value(), *this);
+        view.update_navigation_action_state();
+    }
 }
 
 void WebContentClient::set_compositor_connection_id(Badge<Application>, i32 compositor_connection_id)
@@ -1999,8 +2001,17 @@ void WebContentClient::did_post_broadcast_channel_message(u64, Web::HTML::Broadc
     WorkerProcessManager::the().broadcast_channel_message_from_web_content(message, m_is_private);
 }
 
-Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints)
+Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name)
 {
+    // The opener is a navigable the requesting page hosts. A request naming one it does not is refused before the
+    // chrome is asked for a view, so nothing is created for a traversable that never will be.
+    Optional<CanonicalNavigable&> opener;
+    if (opener_navigable_id.has_value()) {
+        opener = hosted_navigable_for_page(page_id, *opener_navigable_id);
+        if (!opener.has_value() || !opener->replicated_state().has_value())
+            return { {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
+    }
+
     auto new_page_id = Application::the().allocate_page_id();
     String handle;
     auto opener_view = owning_view_for_page_id(page_id);
@@ -2011,12 +2022,22 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_r
 
     auto view = view_for_page_id(new_page_id);
     if (!view.has_value())
-        return { {}, {}, Web::HTML::VisibilityState::Hidden, move(handle) };
+        return { {}, {}, {}, Web::HTML::VisibilityState::Hidden, move(handle) };
 
     auto root_navigable_id = Application::the().allocate_ui_process_cross_process_id();
     view->traversable().set_id(root_navigable_id);
 
-    return { new_page_id, root_navigable_id, view->traversable().system_visibility_state(), move(handle) };
+    // An auxiliary traversable's initial about:blank inherits its opener's origin and base URL
+    Optional<URL::Origin> opener_origin;
+    if (opener.has_value())
+        opener_origin = opener->replicated_state()->active_document_origin;
+
+    auto initial_history_entry = Web::HTML::create_initial_session_history_entry_descriptor(
+        Application::the().allocate_ui_process_cross_process_id(), move(opener_origin), move(opener_base_url), move(target_name));
+    view->traversable().create_a_new_top_level_traversable(opener, initial_history_entry, *this);
+    view->update_navigation_action_state();
+
+    return { new_page_id, root_navigable_id, move(initial_history_entry), view->traversable().system_visibility_state(), move(handle) };
 }
 
 void WebContentClient::did_request_activate_tab(u64 page_id)
@@ -2265,33 +2286,6 @@ void WebContentClient::did_change_screen_wake_lock_state(u64 page_id, Web::Scree
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
         view->did_change_screen_wake_lock_state({}, wake_lock_state);
-}
-
-void WebContentClient::did_create_top_level_traversable(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Optional<Web::HTML::CrossProcessId> opener_navigable_id)
-{
-    if (page_id == m_initial_page_id && navigable_id == m_root_navigable_id) {
-        if (m_did_create_initial_top_level_traversable)
-            return;
-        m_did_create_initial_top_level_traversable = true;
-
-        if (m_views.is_empty()) {
-            m_initial_top_level_history_entry_awaiting_view = move(initial_history_entry);
-            return;
-        }
-    }
-
-    auto navigable = hosted_navigable_for_page(page_id, navigable_id);
-    if (!navigable.has_value() || !navigable->is_top_level_traversable())
-        return;
-
-    auto view = ViewImplementation::find_view_for_traversable(navigable->top_level_traversable());
-    if (!view.has_value())
-        return;
-
-    Optional<CanonicalNavigable&> opener;
-    if (opener_navigable_id.has_value())
-        opener = hosted_navigable(*opener_navigable_id);
-    view->did_create_top_level_traversable({}, move(initial_history_entry), opener, *this);
 }
 
 void WebContentClient::did_update_session_history_entry_navigation_api_state(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Web::HTML::StorageSerializationRecord navigation_api_state)

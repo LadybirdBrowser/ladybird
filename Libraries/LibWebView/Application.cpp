@@ -820,7 +820,7 @@ void Application::open_bookmark_in_new_window(String const& bookmark_id, IsPriva
         open_url_in_new_window(bookmark->bookmark().url, is_private);
 }
 
-ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(Optional<ViewImplementation&> view, IsPrivate is_private, u64 initial_page_id, Optional<Web::HTML::CrossProcessId> root_navigable_id, Optional<Web::HTML::CrossProcessId> initial_document_state_id)
+ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(Optional<ViewImplementation&> view, IsPrivate is_private, u64 initial_page_id, Optional<Web::HTML::CrossProcessId> navigable_to_adopt, Optional<Web::HTML::CrossProcessId> initial_document_state_id)
 {
     auto request_server_handle = TRY(connect_new_request_server_client(is_private));
     auto image_decoder_handle = TRY(connect_new_image_decoder_client());
@@ -829,14 +829,20 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
 #endif
 
     auto cross_process_id_allocator = allocate_cross_process_id_allocator();
-    if (!root_navigable_id.has_value())
-        root_navigable_id = cross_process_id_allocator.allocate();
+    auto root_navigable_id = navigable_to_adopt.has_value() ? *navigable_to_adopt : cross_process_id_allocator.allocate();
     if (!initial_document_state_id.has_value())
         initial_document_state_id = cross_process_id_allocator.allocate();
 
-    auto client = TRY(WebView::launch_web_content_process(is_private, initial_page_id, *root_navigable_id));
+    auto client = TRY(WebView::launch_web_content_process(is_private, initial_page_id, root_navigable_id));
     auto system_visibility_state = view.has_value() ? view->traversable().system_visibility_state() : Web::HTML::VisibilityState::Hidden;
-    client->async_initialize(initial_page_id, *root_navigable_id, cross_process_id_allocator, *initial_document_state_id, system_visibility_state);
+
+    // A process replacing another adopts the view's traversable, so this entry only bootstraps its about:blank:
+    // the entry's identity is never observed, and the canonical entry it will host arrives with the traversal.
+    auto initial_history_entry = Web::HTML::create_initial_session_history_entry_descriptor(*initial_document_state_id, {}, {}, {});
+    client->async_initialize(initial_page_id, root_navigable_id, cross_process_id_allocator, initial_history_entry, system_visibility_state);
+
+    if (!navigable_to_adopt.has_value())
+        client->set_initial_top_level_history_entry({}, move(initial_history_entry));
     if (view.has_value())
         client->assign_view({}, *view);
 
@@ -1177,15 +1183,15 @@ void Application::crash_compositor_process()
     m_compositor_client->async_crash();
 }
 
-ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process(ViewImplementation& view, Optional<Web::HTML::CrossProcessId> root_navigable_id, Optional<Web::HTML::CrossProcessId> initial_document_state_id)
+ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process(ViewImplementation& view, Optional<Web::HTML::CrossProcessId> navigable_to_adopt, Optional<Web::HTML::CrossProcessId> initial_document_state_id)
 {
     if (view.is_private() == IsPrivate::Yes)
-        return create_web_content_client(view, IsPrivate::Yes, allocate_page_id(), root_navigable_id, initial_document_state_id);
+        return create_web_content_client(view, IsPrivate::Yes, allocate_page_id(), navigable_to_adopt, initial_document_state_id);
 
-    if (root_navigable_id.has_value() || initial_document_state_id.has_value())
-        return create_web_content_client(view, IsPrivate::No, allocate_page_id(), root_navigable_id, initial_document_state_id);
+    if (navigable_to_adopt.has_value() || initial_document_state_id.has_value())
+        return create_web_content_client(view, IsPrivate::No, allocate_page_id(), navigable_to_adopt, initial_document_state_id);
 
-    if (m_spare_web_content_process && m_spare_web_content_process->is_ready_for_view_assignment({})) {
+    if (m_spare_web_content_process) {
         auto web_content_client = m_spare_web_content_process.release_nonnull();
         launch_spare_web_content_process();
 
@@ -1238,11 +1244,6 @@ void Application::launch_spare_web_content_process()
         if (auto process = find_process(m_spare_web_content_process->pid()); process.has_value())
             process->set_title("(spare)"_utf16);
     });
-}
-
-bool Application::has_ready_spare_web_content_process() const
-{
-    return m_spare_web_content_process && m_spare_web_content_process->is_ready_for_view_assignment({});
 }
 
 ErrorOr<void> Application::launch_services()
