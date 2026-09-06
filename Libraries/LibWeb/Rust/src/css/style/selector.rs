@@ -2478,7 +2478,7 @@ fn share_selector_program(program: SelectorProgram) -> Rc<SharedSelectorProgram>
 }
 
 enum SelectorProgramStorage {
-    Document(SelectorProgram),
+    Document(Box<SelectorProgram>),
     Process(Rc<SharedSelectorProgram>),
 }
 
@@ -2492,7 +2492,7 @@ impl SelectorProgramStorage {
 
     fn document_capacity_bytes(&self) -> u64 {
         match self {
-            Self::Document(program) => program.capacity_bytes(),
+            Self::Document(program) => size_of::<SelectorProgram>() as u64 + program.capacity_bytes(),
             Self::Process(_) => 0,
         }
     }
@@ -2595,12 +2595,10 @@ impl SelectorPrograms {
             SelectorProgramID(u32::try_from(self.programs.len()).expect("selector program space exhausted"))
         });
         let program = match self.scope {
-            SelectorProgramScope::Document => {
-                self.program_memory.grow_committed(program.capacity_bytes());
-                SelectorProgramStorage::Document(program)
-            }
+            SelectorProgramScope::Document => SelectorProgramStorage::Document(Box::new(program)),
             SelectorProgramScope::Process => SelectorProgramStorage::Process(share_selector_program(program)),
         };
+        self.program_memory.grow_committed(program.document_capacity_bytes());
         if id.0 as usize == self.programs.len() {
             self.programs.push(Some(program));
         } else {
