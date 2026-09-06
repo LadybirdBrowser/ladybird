@@ -1371,16 +1371,18 @@ impl WinnerGroups {
         });
         let group = *groups.get(index)?;
         let winners = &self.groups[group.winners];
-        let provenance = &self.provenance_groups[group.provenance];
         winners
             .binary_search_by_key(&property, |winner| winner.property)
             .ok()
-            .map(|index| PropertyWinner {
-                property: winners[index].property,
-                important: provenance[index].important,
-                key: winners[index].key,
-                priority: self.priorities[provenance[index].priority],
-                source: provenance[index].source,
+            .map(|index| {
+                let provenance = &self.provenance_groups[group.provenance][index];
+                PropertyWinner {
+                    property: winners[index].property,
+                    important: provenance.important,
+                    key: winners[index].key,
+                    priority: self.priorities[provenance.priority],
+                    source: provenance.source,
+                }
             })
     }
 
