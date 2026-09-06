@@ -1367,6 +1367,7 @@ RustFFI::FfiTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_tree_builder_ca
         .prepare_subtree_for_detach = [](void*, void* layout_node_pointer) {
             VERIFY(layout_node_pointer);
             static_cast<Node*>(layout_node_pointer)->prepare_subtree_for_detach_from_layout_tree(); },
+        .inline_containing_block_lookup = Node::inline_containing_block_lookup_for_arena,
     };
 }
 

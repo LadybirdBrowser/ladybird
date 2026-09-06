@@ -893,6 +893,10 @@ pub struct FfiLayoutFcCallbacks {
         unsafe extern "C" fn(*mut c_void, *mut c_void, CssPixels, CssPixels) -> svg_formatting_context::FfiFloatRect,
     pub anchor_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void, usize, *const *mut c_void, usize) -> NodeSlotId,
     pub node_unique_id: unsafe extern "C" fn(*mut c_void) -> i64,
+    /// The DOM-ancestry half of containing-block recomputation: receives the shells of an
+    /// absolutely positioned node and its containing block, must not mutate the layout tree or
+    /// its styles, and returns the slot of the intervening inline containing block, if any.
+    pub inline_containing_block_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
 }
 
 pub(crate) struct FormattingContextRun<'pass> {
@@ -2055,8 +2059,11 @@ pub unsafe extern "C" fn rust_layout_run_root_layout(
     // SAFETY: The host keeps the document's layout inputs alive and unchanged
     // while computing fragments. Nested measurements only mutate side caches.
     let arena = unsafe { LayoutNodeArena::from_handle(host.arena) };
-    // A full pass re-derives every fact partial relayout boundary qualification depends on, so
-    // pending changes that escaped classification are accounted for from here on.
+    // Containing blocks follow style facts a layout invalidation can change without a tree
+    // update, so a full pass re-derives them for the whole tree. That walk re-derives every fact
+    // partial relayout boundary qualification depends on, so pending changes that escaped
+    // classification are accounted for from here on.
+    arena.recompute_containing_blocks_in_subtree(root, host.inline_containing_block_lookup);
     arena.clear_partial_relayout_escape();
     let callbacks = LayoutPass::new(arena, host);
     let sink = unsafe { &*sink };
@@ -2218,6 +2225,10 @@ pub unsafe extern "C" fn rust_layout_compute_subtree_layout(
     let arena = unsafe { LayoutNodeArena::from_handle(host.arena) };
     let callbacks = LayoutPass::new(arena, host);
     let sink = unsafe { &*sink };
+    // The boundary can be wider than the rebuilt roots that led to it, and laying it out may
+    // re-enter intrinsic sizing for descendants outside those roots, including anonymous boxes
+    // the incremental tree build created; refresh the containing blocks of the whole subtree.
+    arena.recompute_containing_blocks_in_subtree(root, host.inline_containing_block_lookup);
 
     let pass_fragments = RunRecords::with_unrooted(arena, root, |entry_records| {
         let root_used = used_values::used_values_from_committed_fragment_link(&callbacks, root)
@@ -2314,6 +2325,8 @@ pub unsafe extern "C" fn rust_layout_replay_saved_abspos_layout(
     let arena = unsafe { LayoutNodeArena::from_handle(host.arena) };
     let callbacks = LayoutPass::new(arena, host);
     let sink = unsafe { &*sink };
+    // As for a subtree layout: the replayed box's own subtree is what is about to be laid out.
+    arena.recompute_containing_blocks_in_subtree(box_, host.inline_containing_block_lookup);
     let containing_block = callbacks.containing_block(box_);
     assert!(!containing_block.is_invalid());
     let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(

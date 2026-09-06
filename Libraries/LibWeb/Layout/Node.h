@@ -282,9 +282,10 @@ public:
 
     bool is_flex_item() const { return has_flag(RustFFI::NodeFlag::IsFlexItem); }
 
-    // The containing block is computed inside the Rust arena
-    // (layout_arena_recompute_containing_blocks); the stored slot is always a Box or invalid.
-    // The tolerant resolution yields null when the containing block's slot has been freed.
+    // The containing block is computed inside the Rust arena, by the tree builder for rebuilt
+    // subtrees and by the layout entries for the subtree they lay out; the stored slot is always
+    // a Box or invalid. The tolerant resolution yields null when the containing block's slot has
+    // been freed.
     [[nodiscard]] Box const* containing_block() const;
     [[nodiscard]] Box* containing_block();
 
@@ -293,6 +294,9 @@ public:
     // walking the DOM tree. Invoked from the Rust containing-block recomputation, which owns
     // the layout-tree half of the walk but cannot see DOM ancestry.
     [[nodiscard]] NodeWithStyle const* find_inline_containing_block(Box const& containing_block) const;
+    // The same, in the shape the arena walk calls it with: both arguments are layout node shells.
+    // Shared by the layout and tree builder callback tables.
+    [[nodiscard]] static RustFFI::NodeSlotId inline_containing_block_lookup_for_arena(void* node_shell, void* containing_block_shell);
 
     Gfx::Font const& first_available_font() const;
 

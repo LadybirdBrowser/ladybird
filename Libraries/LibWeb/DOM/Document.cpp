@@ -1869,26 +1869,11 @@ static void relayout_subtree(Layout::Box& subtree_root)
     // the previous commit. The commit sink resolves the committed row to splice out in either
     // path.
     if (subtree_root.is_absolutely_positioned()) {
-        VERIFY(subtree_root.containing_block());
         VERIFY(subtree_root.has_saved_abspos_layout_inputs());
         bridge.replay_saved_abspos_layout(subtree_root);
     } else {
         bridge.compute_subtree_layout(subtree_root);
     }
-}
-
-// Recomputes containing blocks and derives the abspos escape flags for the inclusive subtree
-// inside the Rust arena; the DOM-ancestry half of the inline containing-block workaround stays
-// on the C++ side as the callback.
-static void recompute_containing_blocks_in_inclusive_subtree(Layout::NodeArena& arena, Layout::Node& subtree_root)
-{
-    Layout::RustFFI::layout_arena_recompute_containing_blocks(
-        arena.handle(), Layout::Node::slot_id(&subtree_root),
-        [](void* node_shell, void* containing_block_shell) -> Layout::RustFFI::NodeSlotId {
-            auto const& node = *static_cast<Layout::Node const*>(node_shell);
-            auto const& containing_block = *static_cast<Layout::Box const*>(containing_block_shell);
-            return Layout::Node::slot_id(node.find_inline_containing_block(containing_block));
-        });
 }
 
 // Refreshes every structure derived from committed layout results, shared by the partial and
@@ -2263,12 +2248,6 @@ Document::PartialRelayoutResult Document::try_partial_relayout(Vector<Layout::Ru
         layout_tree_update_escaped_rebuild_roots = tree_build_result.layout_tree_update_escaped_rebuild_roots;
         rebuilt_subtree_roots = move(tree_build_result.rebuilt_subtree_roots);
 
-        // Nodes created by the incremental build have no containing blocks assigned yet, and the
-        // mutation may have moved where existing out-of-flow descendants belong; recompute both so
-        // boundary qualification below reads facts matching the just-built tree.
-        for (auto* rebuilt_root : rebuilt_subtree_roots)
-            recompute_containing_blocks_in_inclusive_subtree(layout_node_arena(), *rebuilt_root);
-
         if constexpr (UPDATE_LAYOUT_DEBUG) {
             dbgln("TREEBUILD {} µs", tree_build_timer.elapsed_time().to_microseconds());
         }
@@ -2298,13 +2277,6 @@ Document::PartialRelayoutResult Document::try_partial_relayout(Vector<Layout::Ru
         auto* root = static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_node_shell_if_live(layout_node_arena().handle(), slot));
         partial_relayout_roots.unchecked_append(&as<Layout::Box>(*root));
     }
-
-    // The final boundary can be wider than the rebuilt roots that led us to it. Replaying such a
-    // boundary may re-enter intrinsic sizing for descendants outside those rebuilt roots, including
-    // anonymous layout nodes created during the incremental tree build, so refresh the metadata for
-    // the whole subtree that is about to be laid out.
-    for (auto* root : partial_relayout_roots)
-        recompute_containing_blocks_in_inclusive_subtree(layout_node_arena(), *root);
 
     layout_node_arena().sync_enrolled_content_for_layout();
     for (auto* root : partial_relayout_roots)
@@ -2435,8 +2407,6 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
                 values.set_overflow_y(CSS::Overflow::Auto);
             });
         }
-
-        recompute_containing_blocks_in_inclusive_subtree(layout_node_arena(), *m_layout_root);
 
         layout_node_arena().sync_enrolled_content_for_layout();
         Layout::LayoutRustBridge bridge;

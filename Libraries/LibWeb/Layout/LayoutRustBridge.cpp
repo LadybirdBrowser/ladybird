@@ -621,6 +621,7 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
             auto const* dom_node = static_cast<Box const*>(node)->dom_node();
             return dom_node ? dom_node->unique_id().value() : -1;
         },
+        .inline_containing_block_lookup = Node::inline_containing_block_lookup_for_arena,
     };
 }
 

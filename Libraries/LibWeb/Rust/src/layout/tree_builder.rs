@@ -1805,26 +1805,44 @@ pub unsafe extern "C" fn rust_build_layout_tree(
     // NB: Called during layout tree construction.
     // SAFETY: The document remains live and any attached layout root is owned by it and the builder.
     let document_layout_node = unsafe { (host.callbacks.document_layout_node)(document) };
+    let rebuilt_subtrees_were_updated_individually = !document_layout_node.is_invalid()
+        && !(entry_facts.document_needs_full_layout_tree_update
+            || !entry_facts.has_layout_node
+            || state.layout_tree_update_escaped_rebuild_roots);
     if !document_layout_node.is_invalid() {
         let layout_host = host.layout();
-        if entry_facts.document_needs_full_layout_tree_update
-            || !entry_facts.has_layout_node
-            || state.layout_tree_update_escaped_rebuild_roots
-        {
-            fixup_tables(&layout_host, document_layout_node);
-        } else {
+        if rebuilt_subtrees_were_updated_individually {
             fixup_tables_in_rebuilt_subtrees(
                 &layout_host,
                 &state.rebuilt_subtree_roots,
                 &state.reused_child_list_update_roots,
                 &state.additional_table_fixup_roots,
             );
+        } else {
+            fixup_tables(&layout_host, document_layout_node);
         }
     }
 
     for &element in &state.layout_tree_rebuild_requests {
         // SAFETY: The builder remains live, and the walk that could clear DOM update flags is complete.
         unsafe { (host.callbacks.request_layout_tree_rebuild)(host.callbacks.builder, element) };
+    }
+
+    if rebuilt_subtrees_were_updated_individually {
+        // Nodes created by the incremental build have no containing blocks assigned yet, and the
+        // mutation may have moved where existing out-of-flow descendants belong; recompute both so
+        // partial relayout boundary qualification reads facts matching the just-built tree. A full
+        // layout pass re-derives them for the whole tree instead.
+        let layout_host = host.layout();
+        for &root in &state.rebuilt_subtree_roots {
+            // A later mutation in the same build can have replaced a rebuilt root's box.
+            if layout_host.arena().node_data_if_live(root).is_none() {
+                continue;
+            }
+            layout_host
+                .arena()
+                .recompute_containing_blocks_in_subtree(root, layout_host.callbacks.inline_containing_block_lookup);
+        }
     }
 
     // SAFETY: The builder remains live and copies the reported shell pointers before returning.
@@ -2254,6 +2272,8 @@ pub struct FfiTreeBuilderCallbacks {
     pub take_fieldset_overflow_for_content_wrapper:
         unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiAnonymousStyleOverrides,
     pub prepare_subtree_for_detach: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    /// The DOM-ancestry half of containing-block recomputation; see the layout callback table.
+    pub inline_containing_block_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

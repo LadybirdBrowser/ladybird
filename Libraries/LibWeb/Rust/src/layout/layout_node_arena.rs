@@ -2751,24 +2751,6 @@ pub unsafe extern "C" fn layout_arena_pre_order_relabel_count(arena: *mut c_void
 
 /// # Safety
 ///
-/// The arena must remain valid for the duration of the call, and `root` must
-/// name the root of a live subtree in this arena. `inline_cb_lookup` is invoked
-/// for each absolutely positioned node with a resolved containing block; it
-/// receives the two nodes' shell pointers, must not mutate the layout tree or
-/// its styles, and must return the slot of the intervening inline containing
-/// block or the invalid slot id.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_recompute_containing_blocks(
-    arena: *mut c_void,
-    root: NodeSlotId,
-    inline_cb_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
-) {
-    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }.recompute_containing_blocks_in_subtree(root, inline_cb_lookup);
-}
-
-/// # Safety
-///
 /// The arena must remain valid for the duration of the call. `id` may be
 /// invalid or stale; null is returned in that case.
 #[unsafe(no_mangle)]

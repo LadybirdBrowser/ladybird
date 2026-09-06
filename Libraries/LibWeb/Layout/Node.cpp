@@ -280,6 +280,13 @@ NodeWithStyle const* Node::find_inline_containing_block(Box const& containing_bl
     return nullptr;
 }
 
+RustFFI::NodeSlotId Node::inline_containing_block_lookup_for_arena(void* node_shell, void* containing_block_shell)
+{
+    auto const& node = *static_cast<Node const*>(node_shell);
+    auto const& containing_block = *static_cast<Box const*>(containing_block_shell);
+    return slot_id(node.find_inline_containing_block(containing_block));
+}
+
 GC::Ptr<HTML::LocalNavigable> Node::navigable() const
 {
     return document().navigable();
