@@ -266,7 +266,6 @@ impl StyleEngine {
     ) -> Option<Vec<(CustomDeclaration, RetainedStyleValueData)>> {
         struct Candidate<'a> {
             priority: CascadePriority,
-            order: usize,
             stratum: CascadeStratum,
             declared: CustomDeclaration,
             written: &'a RetainedStyleValueData,
@@ -286,7 +285,6 @@ impl StyleEngine {
                     self.cascade_priority_of(rule, tree_scope, specificity, scope_proximity, declared.important);
                 candidates.push(Candidate {
                     priority,
-                    order: candidates.len(),
                     stratum: self.cascade_stratum_of(rule, tree_scope, declared.important),
                     declared,
                     written,
@@ -305,13 +303,13 @@ impl StyleEngine {
             let priority = self.element_cascade_priority(node, ElementDeclarationKind::InlineStyle, declared.important);
             candidates.push(Candidate {
                 priority,
-                order: candidates.len(),
                 stratum: self.element_cascade_stratum(node, ElementDeclarationKind::InlineStyle, declared.important),
                 declared,
                 written,
             });
         }
-        candidates.sort_by_key(|candidate| (candidate.priority, candidate.order));
+        // Keep insertion order for declarations with equal cascade priority.
+        candidates.sort_by_key(|candidate| candidate.priority);
         let mut name_indices = HashMap::default();
         let mut candidates_by_name: Vec<Vec<Candidate>> = Vec::new();
         for candidate in candidates {
