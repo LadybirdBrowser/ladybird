@@ -8091,6 +8091,11 @@ void Document::fire_compositor_animation_wakeup_for_testing(Badge<Internals::Int
     service_compositor_animation_wakeup(relevant_settings_object().time_origin() + frame_time_ms);
 }
 
+void Document::force_visual_context_tree_rebuild_on_next_compositor_animation_update_for_testing(Badge<Internals::Internals>)
+{
+    m_force_visual_context_tree_rebuild_on_next_compositor_animation_update_for_testing = true;
+}
+
 void Document::update_compositor_animations()
 {
     struct CompetingPropertyEffects {
@@ -8652,6 +8657,19 @@ void Document::update_compositor_animations()
         CSS::RequiredInvalidationAfterStyleChange invalidation;
         invalidation.ensure_at_least(CSS::InvalidationLevel::Repaint);
         Painting::repaint_after_style_change(*layout_node, invalidation);
+    }
+
+    if (m_force_visual_context_tree_rebuild_on_next_compositor_animation_update_for_testing) {
+        m_force_visual_context_tree_rebuild_on_next_compositor_animation_update_for_testing = false;
+        schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason::ForcedForTesting);
+    }
+
+    // A descriptor must target the tree it is published with. The selection pass above can force
+    // or release animation-only visual context nodes, so redo it after applying those updates.
+    if (m_needs_accumulated_visual_contexts_update) {
+        paint_state().set_visual_animations(*this, {});
+        update_compositor_animations();
+        return;
     }
 
     paint_state().set_visual_animations(*this, move(visual_animations));

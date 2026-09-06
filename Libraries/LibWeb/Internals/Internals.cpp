@@ -1416,6 +1416,11 @@ void Internals::fire_compositor_animation_wakeup_for_testing(double frame_time_m
     window().associated_document().fire_compositor_animation_wakeup_for_testing({}, frame_time_ms);
 }
 
+void Internals::force_visual_context_tree_rebuild_on_next_compositor_animation_update_for_testing()
+{
+    window().associated_document().force_visual_context_tree_rebuild_on_next_compositor_animation_update_for_testing({});
+}
+
 void Internals::request_reentrant_animation_style_flush_for_testing(GC::Ref<DOM::Node> node)
 {
     window().associated_document().request_reentrant_animation_style_flush_for_testing({}, node);
@@ -2022,6 +2027,7 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     size_t compositor_visual_animation_count = 0;
     Optional<double> compositor_visual_animation_local_time_at_anchor;
     bool compositor_visual_animations_share_timing_anchor = true;
+    bool compositor_visual_animation_targets_are_valid = true;
     if (document.has_committed_viewport_box() && document.paint_state().has_visual_context_tree()) {
         auto visual_context_tree = document.paint_state().visual_context_tree(document);
         auto visual_animations = visual_context_tree.visual_animations();
@@ -2032,11 +2038,15 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
                 return animation.monotonic_time_at_anchor_ns == visual_animations.first().monotonic_time_at_anchor_ns
                     && animation.local_time_at_anchor_ms == visual_animations.first().local_time_at_anchor_ms;
             });
+            compositor_visual_animation_targets_are_valid = all_of(visual_animations, [&](auto const& animation) {
+                return visual_context_tree.visual_animation_targets_are_valid(animation);
+            });
         }
     }
     object->define_direct_property("compositorVisualAnimations"_utf16_fly_string, JS::Value(compositor_visual_animation_count), JS::default_attributes);
     object->define_direct_property("compositorVisualAnimationLocalTimeAtAnchor"_utf16_fly_string, compositor_visual_animation_local_time_at_anchor.has_value() ? JS::Value(*compositor_visual_animation_local_time_at_anchor) : JS::js_null(), JS::default_attributes);
     object->define_direct_property("compositorVisualAnimationsShareTimingAnchor"_utf16_fly_string, JS::Value(compositor_visual_animations_share_timing_anchor), JS::default_attributes);
+    object->define_direct_property("compositorVisualAnimationTargetsAreValid"_utf16_fly_string, JS::Value(compositor_visual_animation_targets_are_valid), JS::default_attributes);
     auto document_timeline_current_time = document.timeline()->current_time();
     object->define_direct_property("documentTimelineCurrentTime"_utf16_fly_string, document_timeline_current_time.has_value() ? JS::Value(document_timeline_current_time->value) : JS::js_null(), JS::default_attributes);
     object->define_direct_property("compositorAnimationWakeupTimerActive"_utf16_fly_string, JS::Value(document.compositor_animation_wakeup_timer_is_active()), JS::default_attributes);

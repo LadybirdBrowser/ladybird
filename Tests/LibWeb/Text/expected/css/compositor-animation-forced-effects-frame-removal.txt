@@ -1,0 +1,4 @@
+stale animation creates a forced effects frame: true
+stale forced effects frame is removed: true
+target background-color animation remains published: true
+published animation targets match the rebuilt visual tree: true

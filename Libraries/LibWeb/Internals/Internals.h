@@ -207,6 +207,7 @@ public:
     bool run_empty_animation_style_update_for_testing();
     void arm_compositor_animation_timers_for_testing();
     void fire_compositor_animation_wakeup_for_testing(double frame_time_ms);
+    void force_visual_context_tree_rebuild_on_next_compositor_animation_update_for_testing();
     void request_reentrant_animation_style_flush_for_testing(GC::Ref<DOM::Node>);
     GC::Ref<JS::Object> layout_tree_build_stats();
     GC::Ref<JS::Object> compare_layout_tree_with_full_rebuild();

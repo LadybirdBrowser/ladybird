@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .box {
+        width: 20px;
+        height: 20px;
+    }
+</style>
+<div class="box" id="stale"></div>
+<script>
+    asyncTest(async done => {
+        const stale = document.getElementById("stale");
+        const nextFrame = () => new Promise(requestAnimationFrame);
+
+        for (let i = 0; i < 1051; ++i) {
+            const child = document.createElement("div");
+            child.className = "box";
+            stale.append(child);
+        }
+        const dummy = document.createElement("div");
+        dummy.className = "box";
+        stale.append(dummy);
+        document.elementFromPoint(0, 0);
+
+        const target = stale.children[stale.children.length - 2];
+        const staleChildren = [...stale.children].filter(child => child !== target && child !== dummy);
+        const staleAnimations = staleChildren.map(child => child.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 100000 }));
+        target.animate([{ backgroundColor: "rgb(255, 0, 0)" }, { backgroundColor: "rgb(0, 0, 255)" }], { duration: 100000 });
+
+        await nextFrame();
+        internals.updateCompositorAnimations();
+        document.elementFromPoint(0, 0);
+        internals.updateCompositorAnimations();
+        document.elementFromPoint(0, 0);
+
+        const staleForcedEffectsFrame = staleChildren.every(child => internals.visualContextNodeIndices(child).needsCompositorEffectsLayer);
+        for (const animation of staleAnimations)
+            animation.cancel();
+        internals.resetStyleInvalidationCounters();
+        internals.forceVisualContextTreeRebuildOnNextCompositorAnimationUpdateForTesting();
+        internals.updateCompositorAnimations();
+
+        const counters = internals.getStyleInvalidationCounters();
+        const staleForcedEffectsFrameRemoved = staleChildren.every(child => !internals.visualContextNodeIndices(child).needsCompositorEffectsLayer);
+
+        println(`stale animation creates a forced effects frame: ${staleForcedEffectsFrame}`);
+        println(`stale forced effects frame is removed: ${staleForcedEffectsFrameRemoved}`);
+        println(`target background-color animation remains published: ${counters.compositorVisualAnimations === 1}`);
+        println(`published animation targets match the rebuilt visual tree: ${counters.compositorVisualAnimationTargetsAreValid}`);
+
+        for (const animation of document.getAnimations())
+            animation.cancel();
+        done();
+    });
+</script>

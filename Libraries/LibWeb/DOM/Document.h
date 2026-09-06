@@ -470,6 +470,7 @@ public:
     void stop_compositor_animation_timers();
     void arm_compositor_animation_timers_for_testing(Badge<Internals::Internals>);
     void fire_compositor_animation_wakeup_for_testing(Badge<Internals::Internals>, double frame_time_ms);
+    void force_visual_context_tree_rebuild_on_next_compositor_animation_update_for_testing(Badge<Internals::Internals>);
     void request_reentrant_animation_style_flush_for_testing(Badge<Internals::Internals>, Node const&);
     bool run_empty_animation_style_update_for_testing(Badge<Internals::Internals>);
     bool compositor_animation_wakeup_timer_is_active() const;
@@ -1861,6 +1862,7 @@ private:
     RefPtr<Core::Timer> m_compositor_animation_wakeup_timer;
     Optional<MonotonicTime> m_compositor_animation_wakeup_deadline;
     RefPtr<Core::Timer> m_compositor_animation_observation_timer;
+    bool m_force_visual_context_tree_rebuild_on_next_compositor_animation_update_for_testing { false };
     Vector<WeakPtr<Layout::Node>> m_layout_nodes_with_forced_compositor_effects_layer;
     Vector<WeakPtr<Layout::Node>> m_layout_nodes_with_forced_compositor_background_color_frame;
 
