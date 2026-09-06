@@ -6374,7 +6374,7 @@ impl<'a> MatchEvaluator<'a> {
         if position.of_type {
             let mut type_ids = HashMap::default();
             let mut sibling_types = Vec::with_capacity(siblings.len());
-            let mut type_positions = Vec::<SiblingPositions>::new();
+            let mut type_positions: SmallVec<[SiblingPositions; 1]> = SmallVec::new();
             for &sibling in siblings.iter() {
                 let row = match self.row_of(sibling) {
                     Ok(row) => row,
