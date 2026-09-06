@@ -3631,6 +3631,9 @@ impl PrefixStates {
     }
 
     fn intern_output_matches(&mut self) -> PrefixMatchSetID {
+        if self.output_matches.is_empty() {
+            return PrefixMatchSetID(0);
+        }
         let hash = super::intern_table::content_hash(&self.output_matches);
         if let Some(candidate) = self
             .match_sets_by_hash
@@ -3650,6 +3653,9 @@ impl PrefixStates {
     }
 
     fn intern_output_truth(&mut self) -> PrefixTruthSetID {
+        if self.output_matched_steps.is_empty() {
+            return PrefixTruthSetID(0);
+        }
         let hash = super::intern_table::content_hash(&self.output_matched_steps);
         if let Some(candidate) = self.truth_sets_by_hash.find(hash, |candidate, ()| {
             self.truth_in(candidate) == self.output_matched_steps
