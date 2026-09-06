@@ -269,6 +269,25 @@ pub unsafe extern "C" fn rust_unresolved_style_value_visit_reification(
     visit_reified_unresolved_segments(&segments, context, visit);
 }
 
+/// Visits the name of every custom property a `var()` in an unresolved value refers to, fallbacks
+/// and nested functions included. Returns whether every reference names its property with a plain
+/// identifier; a reference that substitutes its name can read anything.
+///
+/// # Safety
+/// `value` must point at live unresolved style value data, and `visit` must remain callable for
+/// the duration of this function.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_unresolved_style_value_visit_custom_property_references(
+    value: *const c_void,
+    context: *mut c_void,
+    visit: unsafe extern "C" fn(*mut c_void, *const u16, usize),
+) -> bool {
+    let StyleValueData::Unresolved { components, .. } = (unsafe { &*value.cast::<StyleValueData>() }) else {
+        return false;
+    };
+    scan_custom_property_references(components.as_slice(), context, visit)
+}
+
 #[cfg(test)]
 mod unresolved_component_tests {
     use super::*;

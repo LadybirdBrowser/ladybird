@@ -2332,9 +2332,10 @@ bool Document::layout_is_up_to_date() const
 
 void Document::update_style_computer_viewport_rect()
 {
-    // A viewport unit is resolved against this and named by no word of a style input record.
+    // A viewport unit is resolved against this. A style input record names the viewport environment
+    // apart from the rest, so only a computation that read a viewport metric moves with it.
     if (style_computer().viewport_rect_for_style_environment() != viewport_rect())
-        bump_style_environment_version();
+        style_computer().bump_viewport_environment_version();
     style_computer().set_viewport_rect({}, viewport_rect());
 }
 
@@ -7598,7 +7599,7 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
         auto reference_width = target_kind == Compositor::VisualAnimation::TargetKind::Transform ? reference_box_size.width().to_float() : 0;
         auto reference_height = target_kind == Compositor::VisualAnimation::TargetKind::Transform ? reference_box_size.height().to_float() : 0;
         auto target_style_generation = target->element().animation_style_generation();
-        auto style_environment_version = target->document().style_environment_version();
+        auto style_environment_version = target->document().style_computer().style_environment_version_for_sharing();
         if (cached_values.has_value()
             && cached_values->key_frame_set == key_frame_set
             && cached_values->target_style_generation == target_style_generation

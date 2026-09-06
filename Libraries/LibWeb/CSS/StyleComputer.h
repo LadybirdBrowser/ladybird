@@ -120,6 +120,22 @@ public:
     [[nodiscard]] CSSPixelRect const& viewport_rect_for_style_environment() const { return m_viewport_rect; }
     [[nodiscard]] Length::FontMetrics const& root_element_font_metrics() const { return m_root_element_font_metrics; }
     [[nodiscard]] bool root_element_font_metrics_depend_on_viewport_metrics() const { return m_root_element_font_metrics_depend_on_viewport_metrics; }
+    // Whether the last materialization answered with the element's own last style because only the
+    // custom-property environment it inherits moved, and nothing its cascades read moved with it. The
+    // element's pseudo-element styles then stand as well.
+    [[nodiscard]] bool last_materialization_kept_pseudo_element_styles() const { return m_last_materialization_kept_pseudo_element_styles; }
+    // Whether the materialization under way answers a reaction the style engine derived from an
+    // ancestor's application rather than from a published match answer. Everything such a reaction
+    // can change is named by the element's style input record, so a record that still holds
+    // answers with the element's own last style.
+    void set_materializing_for_derived_reaction(bool value) const { m_materializing_for_derived_reaction = value; }
+    // Moves with the viewport rect the environment resolves viewport units against. A style input
+    // record names it apart from the environment version, so that a computation that read no
+    // viewport metric survives a resize.
+    [[nodiscard]] u64 viewport_environment_version() const { return m_viewport_environment_version; }
+    void bump_viewport_environment_version() { ++m_viewport_environment_version; }
+    // The environment as the sharing caches name it: the document's version and the viewport's.
+    [[nodiscard]] u64 style_environment_version_for_sharing() const;
 
     // Drop caches whose keys contain inputs that are stable only within one engine transaction.
     // Style sharing has a self-validating key and survives ordinary transaction boundaries.
@@ -415,6 +431,9 @@ private:
     mutable HashMap<u64, Vector<u64, maximum_style_sharing_donors_per_key>> m_style_sharing_donor_index;
     mutable u64 m_style_sharing_transaction_generation { 0 };
     mutable bool m_materializing_for_targeted_style_update { false };
+    mutable bool m_last_materialization_kept_pseudo_element_styles { false };
+    mutable bool m_materializing_for_derived_reaction { false };
+    u64 m_viewport_environment_version { 0 };
     // The word buffer one element's record gives up, reused by the next element's.
     mutable OwnPtr<StyleInputRecord> m_style_input_record_scratch;
     // Interned custom property environments, keyed by a hash of what decides one: the environment it

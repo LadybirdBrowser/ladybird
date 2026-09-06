@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/OwnPtr.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
@@ -51,6 +52,15 @@ public:
     u64 identity() const { return m_identity; }
     u64 revision() const { return m_revision; }
 
+    // Every custom property a var() in this block's values refers to, and whether each reference
+    // names its property with a plain identifier. A reference that substitutes its name can read
+    // anything, so no list of names stands for it.
+    struct CustomPropertyReferences {
+        Vector<Utf16FlyString> names;
+        bool all_references_visible { true };
+    };
+    CustomPropertyReferences const& custom_property_references() const;
+
     virtual bool has_property(PropertyNameAndID const&) const override;
     bool has_property(PropertyID) const;
 
@@ -90,6 +100,8 @@ private:
     OrderedHashMap<Utf16FlyString, StyleProperty> m_custom_properties;
     u64 m_identity { 0 };
     u64 m_revision { 0 };
+    mutable OwnPtr<CustomPropertyReferences> m_custom_property_references;
+    mutable u64 m_custom_property_references_revision { 0 };
 };
 
 #undef ENUMERATE_GENERATED_CSS_STYLE_PROPERTIES

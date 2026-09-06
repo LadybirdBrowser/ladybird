@@ -1,0 +1,9 @@
+round 0 shown: rgb(1, 2, 3), rgb(1, 2, 3)
+dialog changed: rgb(4, 5, 6), 30px
+popover changed: rgb(4, 5, 6), 30px
+round 1 shown: rgb(1, 2, 3), rgb(1, 2, 3)
+dialog changed: rgb(4, 5, 6), 31px
+popover changed: rgb(4, 5, 6), 31px
+round 2 shown: rgb(1, 2, 3), rgb(1, 2, 3)
+dialog changed: rgb(4, 5, 6), 32px
+popover changed: rgb(4, 5, 6), 32px

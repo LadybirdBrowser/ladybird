@@ -54,6 +54,8 @@ struct StyleInputRecord {
     bool style_depends_on_style_container_query { false };
     u32 explicitly_inherited_non_inherited_style_groups { 0 };
     bool cascade_reads_custom_properties { false };
+    // The viewport environment the computation ran under; compared only when it read a viewport metric.
+    u64 viewport_environment_version { 0 };
 
     // Which half of the record differs first, which is what says why a recomputation could not be
     // answered from what its last one read.

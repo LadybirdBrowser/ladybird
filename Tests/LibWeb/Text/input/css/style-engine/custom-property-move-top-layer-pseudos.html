@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    :root { --stable: 60px; --moving: 10px; }
+    dialog, [popover] { display: block; position: fixed; width: var(--stable); }
+    dialog::backdrop, [popover]::backdrop { background-color: rgb(1, 2, 3); }
+    .changed::before { display: block; content: "before"; width: var(--moving); }
+    .changed::backdrop { background-color: rgb(4, 5, 6); }
+</style>
+<dialog id="dialog">dialog</dialog>
+<div id="popover" popover="manual">popover</div>
+<script>
+    test(() => {
+        const dialog = document.getElementById("dialog");
+        const popover = document.getElementById("popover");
+        internals.updateStyle();
+        for (let round = 0; round < 3; ++round) {
+            document.documentElement.style.setProperty("--moving", `${20 + round}px`);
+            dialog.showModal();
+            popover.showPopover();
+            internals.updateStyle();
+            println(`round ${round} shown: ${getComputedStyle(dialog, "::backdrop").backgroundColor}, ${getComputedStyle(popover, "::backdrop").backgroundColor}`);
+            dialog.classList.add("changed");
+            popover.classList.add("changed");
+            document.documentElement.style.setProperty("--moving", `${30 + round}px`);
+            internals.updateStyle();
+            for (const element of [dialog, popover]) {
+                println(`${element.id} changed: ${getComputedStyle(element, "::backdrop").backgroundColor}, ${getComputedStyle(element, "::before").width}`);
+            }
+            dialog.close();
+            popover.hidePopover();
+            dialog.classList.remove("changed");
+            popover.classList.remove("changed");
+            internals.updateStyle();
+        }
+    });
+</script>
