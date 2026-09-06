@@ -275,6 +275,12 @@ void ConnectionFromClient::cancel_navigation_params_creation(Web::PageId page_id
         page->cancel_navigation_params_creation(navigable_id, navigation_id);
 }
 
+void ConnectionFromClient::navigate_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::PreparedNavigationDescriptor navigation)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->navigate_navigable(navigable_id, move(navigation));
+}
+
 Optional<PageClient&> ConnectionFromClient::page(Web::PageId index, SourceLocation location)
 {
     if (auto page = m_page_host->page(index); page.has_value())

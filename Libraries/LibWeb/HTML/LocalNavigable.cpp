@@ -3252,6 +3252,21 @@ void LocalNavigable::continue_navigation_after_population_dispatch(PreparedNavig
     create_navigation_params_for_navigation(move(population_request), source_snapshot_params, move(navigation_params), Bindings::NavigationTimingType::Navigate);
 }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
+void LocalNavigable::continue_navigation_from_another_process(PreparedNavigationDescriptor descriptor)
+{
+    // 8. If the surrounding agent is equal to navigable's active document's relevant agent, then continue these
+    //    steps. Otherwise, queue a global task on the navigation and traversal task source given navigable's active
+    //    window to continue these steps.
+    // NB: The surrounding agent is the requesting process's, never navigable's active document's relevant agent.
+    auto window = active_window();
+    if (!window)
+        return;
+    queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*window), GC::create_function(heap(), [this, window, descriptor = move(descriptor)] mutable {
+        MUST(continue_navigation_in_active_document_agent(create_prepared_navigation_from_descriptor(relevant_realm(*window), move(descriptor))));
+    }));
+}
+
 // Continue the navigate algorithm at step 9 with the values prepared by steps 1-7 in navigate().
 void LocalNavigable::begin_navigation(PreparedNavigation navigation)
 {

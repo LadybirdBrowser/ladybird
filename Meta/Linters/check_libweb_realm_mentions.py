@@ -53,8 +53,8 @@ ALLOWED_REALM_MENTIONS = {
     "FileAPI": (6, 11, "File/Blob/FileReader algorithms still create streams, buffers, and events in selected realms"),
     "Geometry": (8, 8, "geometry constructors and structured clone still materialize JS-facing geometry objects"),
     "HTML": (
-        68,
-        216,
+        72,
+        221,
         "HTML algorithms still contain structured serialization, including posted-message preparation, canvas, navigation transfer/reconstruction, worker/worklet, and event realm use",
     ),
     "IndexedDB": (
