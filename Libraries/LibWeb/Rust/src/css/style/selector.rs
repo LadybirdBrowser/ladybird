@@ -6174,6 +6174,14 @@ impl<'a> MatchEvaluator<'a> {
             .iter()
             .copied()
             .filter(move |attribute| {
+                if !test.any_namespace {
+                    if attribute.name == test.name {
+                        return true;
+                    }
+                    if !folds {
+                        return false;
+                    }
+                }
                 let forms = row.facts.attribute_name_forms(attribute.name);
                 let (written, folded) = match test.any_namespace {
                     true => (forms.local, forms.folded_local),
