@@ -3212,12 +3212,12 @@ impl SelectorProgram {
             walk.origin_required
                 .sort_unstable_by_key(|&key| dispatch_selectivity(key));
             walk.origin_required.truncate(MAX_REQUIRED_DISPATCH_KEYS);
-            let mut parent_dispatch = Vec::new();
+            walk.parent_dispatch.clear();
             self.dispatch_analysis(
                 enclosing,
                 DispatchRelation::Parent,
                 DispatchQuery::Alternatives,
-                &mut parent_dispatch,
+                &mut walk.parent_dispatch,
             );
             // Steps taken inside a relative argument lead from the anchor to a possible witness,
             // not from the anchor to the entry's subjects. Only the steps already on the stack when
@@ -3259,7 +3259,7 @@ impl SelectorProgram {
                 anchor,
                 origin_dispatch: &walk.origin_dispatch,
                 origin_required: &walk.origin_required,
-                parent_dispatch: &parent_dispatch,
+                parent_dispatch: &walk.parent_dispatch,
                 waypoints: &walk.applied_waypoints,
             });
         };
@@ -3480,6 +3480,7 @@ struct TransposeWalk {
     applied_waypoints: Vec<DispatchKey>,
     origin_dispatch: Vec<DispatchKey>,
     origin_required: Vec<DispatchKey>,
+    parent_dispatch: Vec<DispatchKey>,
 }
 
 /// One semantic input a selector entry mentions, with everything routing needs to transpose it.
