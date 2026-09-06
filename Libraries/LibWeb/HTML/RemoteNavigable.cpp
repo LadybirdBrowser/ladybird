@@ -7,6 +7,7 @@
 #include <AK/NeverDestroyed.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/HTML/PreparedNavigationDescriptor.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/Page/Page.h>
 
@@ -128,11 +129,16 @@ bool RemoteNavigable::delays_the_load_event_of_its_container() const
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<void> RemoteNavigable::continue_navigation_in_active_document_agent(PreparedNavigation)
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
+WebIDL::ExceptionOr<void> RemoteNavigable::continue_navigation_in_active_document_agent(PreparedNavigation navigation)
 {
-    // Navigating a remote navigable is a request to the process hosting its document, routed by the UI process.
-    // Nothing sends that request yet.
-    VERIFY_NOT_REACHED();
+    // 8. If the surrounding agent is equal to navigable's active document's relevant agent, then continue these
+    //    steps. Otherwise, queue a global task on the navigation and traversal task source given navigable's active
+    //    window to continue these steps.
+    // NB: The active window lives in the process hosting the active document, so the task is a request to the UI
+    //     process, which forwards it to that process.
+    page().client().request_navigation_of_remote_navigable(*this, create_prepared_navigation_descriptor(navigation));
+    return {};
 }
 
 }
