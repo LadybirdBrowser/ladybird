@@ -6322,7 +6322,7 @@ impl<'a> MatchEvaluator<'a> {
     ) -> Result<bool, Incomplete> {
         if position.of_selector.is_none()
             && (position.step != 0 || self.positional_index_policy == PositionalIndexPolicy::All)
-            && let Some(index) = self.indexed_sibling_position(position, node, counters)?
+            && let Some(index) = self.indexed_sibling_position(position, node)?
         {
             return Ok(matches_an_plus_b(position.step, position.offset, index));
         }
@@ -6404,7 +6404,6 @@ impl<'a> MatchEvaluator<'a> {
         &self,
         position: NthPosition,
         node: StyleNodeID,
-        _counters: &mut Counters,
     ) -> Result<Option<i64>, Incomplete> {
         let Some((workspace, side)) = self.match_workspace else {
             return Ok(None);

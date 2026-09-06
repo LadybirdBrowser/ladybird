@@ -1431,13 +1431,13 @@ impl StyleEngine {
         let old_count = MatchEvaluator::new(&self.tree, resident_facts)
             .with_transaction_fact_view(view, TransactionFactSide::Before)
             .with_match_workspace(workspace, MatchEvaluationSide::OldTree)
-            .indexed_sibling_position(nth, node, &mut self.counters)
+            .indexed_sibling_position(nth, node)
             .ok()
             .flatten();
         let new_count = MatchEvaluator::new(&self.tree, resident_facts)
             .with_transaction_fact_view(view, TransactionFactSide::After)
             .with_match_workspace(workspace, MatchEvaluationSide::Current)
-            .indexed_sibling_position(nth, node, &mut self.counters)
+            .indexed_sibling_position(nth, node)
             .ok()
             .flatten();
         old_count
