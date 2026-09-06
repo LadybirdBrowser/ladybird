@@ -62,7 +62,7 @@ impl RemainingPostingDirectory {
 }
 
 pub(super) struct ImpactPlanningWorkspace {
-    pub(super) batches: HashMap<Vec<ImpactRegion>, Rc<ImpactRegionBatch>>,
+    pub(super) batches: HashMap<Box<[ImpactRegion]>, Rc<ImpactRegionBatch>>,
     // Fact postings cannot change while one transaction is being planned, and the exact-node plan
     // only grows. Removing planned nodes here is therefore permanent for the lifetime of this
     // workspace: later routes see the posting members that can still contribute, not the same
@@ -574,22 +574,14 @@ impl ImpactPlanningWorkspace {
     }
 
     pub(super) fn insert_batch(&mut self, regions: &[ImpactRegion], batch: Rc<ImpactRegionBatch>) {
-        let previous_batch_bytes = self.batches.get(regions).map_or(0, |previous| previous.storage_bytes());
-        let regions = regions.to_vec();
-        let region_bytes = regions.capacity() * size_of::<ImpactRegion>();
-        let batch_bytes = batch.storage_bytes();
-        let payload_bytes = region_bytes + batch_bytes;
-        if self.batches.insert(regions, batch).is_some() {
-            if batch_bytes >= previous_batch_bytes {
-                self.nested_memory
-                    .grow_committed((batch_bytes - previous_batch_bytes) as u64);
-            } else {
-                self.nested_memory
-                    .shrink_committed((previous_batch_bytes - batch_bytes) as u64);
-            }
-        } else {
-            self.nested_memory.grow_committed(payload_bytes as u64);
-        }
+        let regions: Box<[ImpactRegion]> = regions.into();
+        let payload_bytes = size_of_val(regions.as_ref()) + batch.storage_bytes();
+        let previous = self.batches.insert(regions, batch);
+        assert!(
+            previous.is_none(),
+            "region batches are inserted only after a cache miss"
+        );
+        self.nested_memory.grow_committed(payload_bytes as u64);
     }
 
     pub(super) fn settle_memory(&mut self, memory: &mut MemoryController) {
