@@ -1370,7 +1370,7 @@ impl<'a> BatchMatcher<'a> {
             .ancestor_requirements
             .map(|requirements| requirements.dispatch_facts(row));
         let mut cascade_winners = Top1Cascade::with_capacity(0);
-        let mut matched_pseudo_targets = Vec::new();
+        let mut matched_pseudo_targets: SmallVec<[_; 2]> = SmallVec::new();
         if self.cascade_only {
             for matched in out
                 .matches
@@ -1445,12 +1445,13 @@ impl<'a> BatchMatcher<'a> {
                 let pseudo_target_is_known = entry
                     .pseudo_element
                     .is_none_or(|target| matched_pseudo_targets.contains(&target));
-                let every_property_has_a_winner = properties.iter().all(|&property| {
-                    cascade_winners
-                        .winner(&(entry.pseudo_element, property))
-                        .is_some_and(|winner| winner.priority >= candidate.cascade_order)
-                });
-                if pseudo_target_is_known && every_property_has_a_winner {
+                if pseudo_target_is_known
+                    && properties.iter().all(|&property| {
+                        cascade_winners
+                            .winner(&(entry.pseudo_element, property))
+                            .is_some_and(|winner| winner.priority >= candidate.cascade_order)
+                    })
+                {
                     counters.bump(Counter::CascadeCandidatesRejectedByWinner);
                     if let Some(completed) = completed.as_deref_mut() {
                         completed[candidate_index] = true;
