@@ -1500,13 +1500,23 @@ impl<'pass> TableFormattingContext<'pass> {
         let mut column_index = 0usize;
         for column in self.table_columns() {
             let style = self.style(column);
-            let min_size = style.min_width().to_px(basis);
+            // Only lengths take part in the outer sizes of a column. A percentage width or max-width is the column's
+            // percentage contribution (https://www.w3.org/TR/css-tables-3/#percentage-contribution) and is resolved
+            // against the assignable table inline size during distribution, not against the containing block.
+            let length_or_zero = |size: &ComputedSize| {
+                if size.is_length() {
+                    size.to_px(basis)
+                } else {
+                    CssPixels::default()
+                }
+            };
+            let min_size = length_or_zero(style.min_width());
             let max_size = if style.max_width().is_length() {
                 style.max_width().to_px(basis)
             } else {
                 CssPixels::from_raw(i32::MAX)
             };
-            let size = style.width().to_px(basis);
+            let size = length_or_zero(style.width());
             // The outer min-content inline size of a table-column or table-column-group is max(min-width, width).
             self.columns[column_index].min_size = min_size.max(size);
             // The outer max-content inline size of a table-column or table-column-group is max(min-width, min(max-width, width)).

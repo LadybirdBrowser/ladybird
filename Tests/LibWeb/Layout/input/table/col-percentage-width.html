@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<style>
+    table { width: 400px; border-spacing: 0; }
+    td { padding: 0; height: 10px; }
+    col.pct { width: 25%; }
+    #fixed { table-layout: fixed; }
+</style>
+<!-- A percentage width on a table-column is relative to the table, not to the table's containing block. -->
+<table id="auto"><colgroup><col class="pct"><col></colgroup><tr><td></td><td></td></tr></table>
+<table id="fixed"><colgroup><col class="pct"><col></colgroup><tr><td></td><td></td></tr></table>
