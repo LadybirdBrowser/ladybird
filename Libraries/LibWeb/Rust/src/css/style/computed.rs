@@ -1158,16 +1158,15 @@ impl ComputedGroupSets {
             return None;
         }
         let old_group_set = self.sets.get_index(old_record.groups.0 as usize)?;
-        let old_payloads = old_group_set.payloads.to_vec();
         let parent_inherited = self.columns.inherited_groups(parent_index)?;
-        let parent_groups = self.inherited_sets.get_index(parent_inherited.0 as usize)?.to_vec();
+        let parent_groups = self.inherited_sets.get_index(parent_inherited.0 as usize)?.as_ref();
         if parent_groups.len() != INHERITED_GROUP_COUNT || old_group_set.payloads.len() < INHERITED_GROUP_COUNT {
             return None;
         }
 
         if current_color_dependencies & !INHERITED_GROUP_MASK != 0 {
             let inherited_box = unsafe {
-                &*old_payloads[crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_BOX]
+                &*old_group_set.payloads[crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_BOX]
                     .cast::<crate::css::computed_values::InheritedBoxValues>()
             };
             let dependencies = self.current_color_dependency_properties(target)?;
@@ -1232,7 +1231,7 @@ impl ComputedGroupSets {
         };
 
         let mut groups = self.group_identities(old_record.groups);
-        groups[..INHERITED_GROUP_COUNT].copy_from_slice(&parent_groups);
+        groups[..INHERITED_GROUP_COUNT].copy_from_slice(parent_groups);
         if let Some(table) = swapped_table
             && current_color_dependencies & !INHERITED_GROUP_MASK != 0
         {
@@ -1246,27 +1245,28 @@ impl ComputedGroupSets {
                     .payload
                     .cast::<crate::css::computed_value_types::InheritedUIValues>()
             };
-            for group in INHERITED_GROUP_COUNT..groups.len() {
+            for (group, group_identity) in groups.iter_mut().enumerate().skip(INHERITED_GROUP_COUNT) {
                 if current_color_dependencies & (1 << group) == 0 {
                     continue;
                 }
+                let old_payload = self.groups[*group_identity].payload;
                 let payload = unsafe {
                     crate::css::table_group_builder::rebuild_group_for_inherited_current_color(
                         &*table,
                         group,
-                        old_payloads[group],
+                        old_payload,
                         inherited_text.color,
                         inherited_ui.color_scheme,
                     )
                 }
                 .expect("a supported currentcolor group rebuilds from its computed table");
-                let identity = if payload == old_payloads[group] {
-                    groups[group]
+                let identity = if payload == old_payload {
+                    *group_identity
                 } else {
                     self.intern_group(group, payload).0
                 };
                 release_group_payload(group, payload);
-                groups[group] = identity;
+                *group_identity = identity;
             }
         }
         let group_set = self.intern_group_set(&groups).0;
@@ -1337,9 +1337,8 @@ impl ComputedGroupSets {
         let old_record = *self.style_records.get_index(base_style_record_identity.index())?;
         let old_table = old_record.longhand_table?;
         let old_group_set = self.sets.get_index(old_record.groups.0 as usize)?;
-        let old_payloads = old_group_set.payloads.to_vec();
-        if groups_to_rebuild >> old_payloads.len() != 0
-            || old_payloads.len() <= crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_UI
+        if groups_to_rebuild >> old_group_set.payloads.len() != 0
+            || old_group_set.payloads.len() <= crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_UI
         {
             return None;
         }
@@ -1408,16 +1407,17 @@ impl ComputedGroupSets {
 
         let mut groups = self.group_identities(old_record.groups);
         let mut canonicalized_groups = 0_u32;
-        for group in 0..groups.len() {
+        for (group, group_identity) in groups.iter_mut().enumerate() {
             if groups_to_rebuild & (1 << group) == 0 {
                 continue;
             }
+            let old_payload = self.groups[*group_identity].payload;
             let payload = if group == STYLE_GROUP_INDEX_FONT {
                 unsafe {
                     crate::css::table_group_builder::rebuild_font_group_from_table(
                         &*table,
                         font.expect("a font group rebuild carries the resolved font"),
-                        old_payloads[group],
+                        old_payload,
                     )
                 }
             } else {
@@ -1425,7 +1425,7 @@ impl ComputedGroupSets {
                     crate::css::table_group_builder::rebuild_group_from_table(
                         &*table,
                         group,
-                        old_payloads[group],
+                        old_payload,
                         current_color,
                         used_color_scheme,
                         Some(length),
@@ -1438,15 +1438,14 @@ impl ComputedGroupSets {
             };
             // An equal payload keeps the old identity, as a C++ build adopts its parent's and
             // predecessor's identical payloads.
-            let identity =
-                if payload == old_payloads[group] || style_group_payloads_equal(group, old_payloads[group], payload) {
-                    canonicalized_groups += 1;
-                    groups[group]
-                } else {
-                    self.intern_group(group, payload).0
-                };
+            let identity = if payload == old_payload || style_group_payloads_equal(group, old_payload, payload) {
+                canonicalized_groups += 1;
+                *group_identity
+            } else {
+                self.intern_group(group, payload).0
+            };
             release_group_payload(group, payload);
-            groups[group] = identity;
+            *group_identity = identity;
         }
         let group_set = self.intern_group_set(&groups).0;
         let holds_image_values = self
