@@ -3142,27 +3142,21 @@ impl StyleEngine {
         // Reuse the replacement allocation and append only old entries which survive into the
         // repaired answer. The compact retained slice is the old side for delta derivation below,
         // so no materialized old snapshot is needed.
-        // Both inputs are ordered by (rule, program), so count survivors with one merge walk.
+        // Both inputs are ordered by (rule, program), so find survivors with a merge walk.
         let mut affected_index = 0;
-        let unaffected_count = retained_base
-            .iter()
-            .filter(|entry| {
-                let key = (entry.rule, entry.program);
-                while affected_keys
-                    .get(affected_index)
-                    .is_some_and(|affected| *affected < key)
-                {
-                    affected_index += 1;
-                }
-                affected_keys.get(affected_index) != Some(&key)
-            })
-            .count();
-        let mut patched_answer = replacement;
-        patched_answer.reserve_exact(unaffected_count);
-        for &entry in retained_base {
-            if affected_keys.binary_search(&(entry.rule, entry.program)).is_ok() {
-                continue;
+        let unaffected = retained_base.iter().filter(move |entry| {
+            let key = (entry.rule, entry.program);
+            while affected_keys
+                .get(affected_index)
+                .is_some_and(|affected| *affected < key)
+            {
+                affected_index += 1;
             }
+            affected_keys.get(affected_index) != Some(&key)
+        });
+        let mut patched_answer = replacement;
+        patched_answer.reserve_exact(unaffected.clone().count());
+        for &entry in unaffected {
             let cascade_order = patch
                 .dispatch
                 .cascade_order_for_entry(entry.rule, entry.program, entry.entry)?;
