@@ -4987,18 +4987,19 @@ impl ElementFactStore {
     }
 
     pub fn set_parts(&mut self, node: StyleNodeID, parts: &[StyleAtomID], memory: &mut MemoryController) {
-        let previous = self.parts_of(node).to_vec();
+        let previous = self.edit_staged_row(node, |facts| std::mem::replace(&mut facts.parts, parts.to_vec()));
         for &part in previous.iter().filter(|part| !parts.contains(part)) {
             self.postings.remove(SelectorPostingKey::Part(part), node);
         }
         for &part in parts.iter().filter(|part| !previous.contains(part)) {
             self.postings.insert(SelectorPostingKey::Part(part), node, memory);
         }
-        self.edit_staged_row(node, |facts| facts.parts = parts.to_vec());
     }
 
     pub fn set_custom_states(&mut self, node: StyleNodeID, states: &[StyleAtomID], memory: &mut MemoryController) {
-        let previous = self.custom_states_of(node).to_vec();
+        let previous = self.edit_staged_row(node, |facts| {
+            std::mem::replace(&mut facts.custom_states, states.to_vec())
+        });
         for &state in previous.iter().filter(|state| !states.contains(state)) {
             self.postings.remove(SelectorPostingKey::CustomState(state), node);
         }
@@ -5006,7 +5007,6 @@ impl ElementFactStore {
             self.postings
                 .insert(SelectorPostingKey::CustomState(state), node, memory);
         }
-        self.edit_staged_row(node, |facts| facts.custom_states = states.to_vec());
     }
 
     pub fn forget(&mut self, node: StyleNodeID) {
