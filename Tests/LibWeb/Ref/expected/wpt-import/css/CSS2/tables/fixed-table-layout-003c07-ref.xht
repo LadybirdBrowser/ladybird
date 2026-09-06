@@ -1,0 +1,44 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Reftest Reference</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+
+  <style type="text/css"><![CDATA[
+  div
+  {
+  height: 24px;
+  margin-left: 100px;
+  }
+
+  div#blue-stripe
+  {
+  background-color: blue;
+  border-left: orange solid 32px;
+  border-right: orange solid 88px;
+  width: 80px;
+  }
+
+  div#reference
+  {
+  background-color: black;
+  width: 200px;
+  }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if the 2 orange slivers and blue stripe are as a whole <strong>exactly as wide as</strong> the black stripe.</p>
+
+  <div id="blue-stripe"></div>
+
+  <div id="reference"></div>
+
+ </body>
+</html>
