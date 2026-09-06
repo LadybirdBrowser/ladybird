@@ -816,14 +816,13 @@ impl ComputedGroupSets {
             .expect("computed group-set payload names a live group")
     }
 
-    fn group_identities(&self, set: ComputedGroupSetID) -> Vec<ComputedGroupID> {
+    fn group_identities(&self, set: ComputedGroupSetID) -> impl Iterator<Item = ComputedGroupID> {
         self.sets[set]
             .payloads
             .iter()
             .copied()
             .enumerate()
-            .map(|(index, payload)| self.group_identity(index, payload))
-            .collect()
+            .map(move |(index, payload)| self.group_identity(index, payload))
     }
 
     fn pseudo_rows(&self, node: StyleNodeID) -> &[PseudoComputedRow] {
@@ -1415,7 +1414,8 @@ impl ComputedGroupSets {
             crate::css::computed_longhand_table::rust_computed_longhand_table_release(table.cast_mut());
         };
 
-        let mut groups = self.group_identities(old_record.groups);
+        let mut groups: SmallVec<[_; crate::css::table_group_builder::group_index::COUNT]> =
+            self.group_identities(old_record.groups).collect();
         let mut canonicalized_groups = 0_u32;
         for (group, group_identity) in groups.iter_mut().enumerate() {
             if groups_to_rebuild & (1 << group) == 0 {
@@ -3149,7 +3149,6 @@ impl ComputedGroupSets {
         let record = self.style_records.get_index(base_style_record.index())?;
         Some(
             self.group_identities(record.groups)
-                .into_iter()
                 .map(|identity| identity.0)
                 .collect(),
         )
