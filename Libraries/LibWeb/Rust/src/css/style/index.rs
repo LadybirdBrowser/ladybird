@@ -936,17 +936,18 @@ impl StyleNodeFacts {
         if !attributes_are_unchanged {
             stale_payload_bytes +=
                 old_attribute_handle.map_or(0, |old| size_of_val(old.slice(&self.attributes)) as u64);
-            let attributes: Vec<AttributeFact> = facts
-                .attributes
-                .iter()
-                .map(|&(name, value)| AttributeFact {
+            let offset = u32::try_from(self.attributes.len()).expect("fact payload offset overflow");
+            self.attributes
+                .extend(facts.attributes.iter().map(|&(name, value)| AttributeFact {
                     name,
                     value,
                     text_offset: u32::MAX,
                     text_length: 0,
-                })
-                .collect();
-            self.attribute_handles[row] = PayloadHandle::appended_to(&mut self.attributes, &attributes);
+                }));
+            self.attribute_handles[row] = PayloadHandle {
+                offset,
+                length: u32::try_from(facts.attributes.len()).expect("fact payload length overflow"),
+            };
         }
         self.resident.set(row, true);
         self.dispatch_bloom[row] = self.compute_dispatch_bloom_of(row as u32);
