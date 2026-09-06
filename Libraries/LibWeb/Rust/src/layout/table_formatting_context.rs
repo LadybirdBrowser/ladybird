@@ -2585,6 +2585,12 @@ impl<'pass> TableFormattingContext<'pass> {
                 used.border_left.set(style.border_left_width());
                 used.border_right.set(style.border_right_width());
             }
+            // A cell whose columns all have 'visibility: collapse' is removed from the display along with them, as in
+            // other engines: "This value causes the entire row or column to be removed from the display". It is laid
+            // out like any other cell (with no inline size, see remove_collapsed_columns), and painting skips it.
+            // https://www.w3.org/TR/CSS22/tables.html#dynamic-effects
+            used.hidden_by_collapsed_columns
+                .set(self.visible_spanned_columns(cell) == 0);
             let height = style.height();
             if !self.rows[cell.row_index].is_collapsed && height.is_length() {
                 let offsets = used.border_box_top(collapsed) + used.border_box_bottom(collapsed);

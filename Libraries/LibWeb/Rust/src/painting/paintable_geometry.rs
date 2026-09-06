@@ -90,6 +90,14 @@ pub(crate) fn committed_uses_collapsing_borders_model(arena: &impl PaintableRows
     })
 }
 
+/// For a table cell: whether every column it spans has 'visibility: collapse', which removes the cell from the display
+/// along with the columns (CSS 2.2 §17.5.5).
+pub(crate) fn committed_hidden_by_collapsed_columns(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> bool {
+    arena.with_committed_fragment_link(slot, |link| {
+        link.is_some_and(|link| link.fragment.hidden_by_collapsed_columns)
+    })
+}
+
 /// For a table cell or a table-column(-group) box: the first grid column it occupies and the number of grid columns
 /// it spans.
 pub(crate) fn committed_table_column_range(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> (u32, u32) {

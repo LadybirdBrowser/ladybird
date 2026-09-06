@@ -39,9 +39,13 @@ fn first_paintable_in_layout_siblings(
     while let Some(node) = current {
         let next_sibling = layout_arena.node_next_sibling_if_live(node);
         if layout_arena.paintable_row_is_populated(node) {
+            // A table cell whose columns all have 'visibility: collapse' is removed from the display along with them,
+            // descendants included: "This value causes the entire row or column to be removed from the display".
+            // https://www.w3.org/TR/CSS22/tables.html#dynamic-effects
             if !layout_arena
                 .node_kind_if_live(node)
                 .is_some_and(node_painting::forms_unconnected_subtree)
+                && !crate::painting::paintable_geometry::committed_hidden_by_collapsed_columns(layout_arena, node)
             {
                 return Some(node);
             }

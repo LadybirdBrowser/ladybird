@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/table-collapsed-column-hides-cells-ref.html" />
+<style>
+    table { border-spacing: 4px; }
+    td { padding: 0; width: 50px; height: 50px; background: green; }
+    col.collapsed { visibility: collapse; }
+    td.hidden { background: red; color: red; font: 40px/1 sans-serif; }
+</style>
+<!-- The cells of a column with 'visibility: collapse' are removed from the display: neither their backgrounds nor
+     their contents are painted. -->
+<table>
+    <col /><col class="collapsed" /><col />
+    <tr><td></td><td class="hidden">X</td><td></td></tr>
+    <tr><td></td><td class="hidden"><div style="background: red; height: 50px; width: 50px"></div></td><td></td></tr>
+</table>
