@@ -1,0 +1,62 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Test: caption-side - CSS caption boxes can be positioned above or below a CSS table-cell</title>
+
+  <!--
+  Inspired by http://www.w3.org/Style/Examples/007/figures#top-caption
+  -->
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/tables.html#model" title="17.4 Tables in the visual formatting model" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/tables/caption-position-001-ref.xht" />
+
+  <meta content="image" name="flags" />
+
+  <style type="text/css"><![CDATA[
+  div
+  {
+  border: black solid medium;
+  padding: 1em;
+  margin-top: 1em;
+  width: 98px;
+  }
+
+  p.table-cell {display: table-cell;}
+
+  p.caption-side-top
+  {
+  caption-side: top;
+  display: table-caption;
+  }
+
+  p.caption-side-bottom
+  {
+  caption-side: bottom;
+  display: table-caption;
+  }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if the word ABOVE is above the cat image in both rectangles.</p>
+
+  <div>
+   <p class="table-cell"><img src="support/cat.png" alt="Image download support must be enabled" /></p>
+
+   <p class="caption-side-top">ABOVE</p>
+  </div>
+
+  <div>
+   <p class="caption-side-bottom"><img src="support/cat.png" alt="Image download support must be enabled" /></p>
+
+   <p class="table-cell">ABOVE</p>
+  </div>
+
+ </body>
+</html>
