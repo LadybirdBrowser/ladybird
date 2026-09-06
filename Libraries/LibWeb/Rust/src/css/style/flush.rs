@@ -14,6 +14,10 @@ impl StyleEngine {
         root: StyleNodeID,
         mut emit: impl FnMut(StyleTransactionVersion, ProgramVersion, &[PublishedStyleDeltaRecord]),
     ) -> bool {
+        // The previous transaction's uninstalled records can no longer be consumed. Revert
+        // them before this transaction publishes anything: a later C++ computation can install
+        // the same record, which must not then be mistaken for an unconsumed derivation.
+        self.discard_engine_computed_records();
         self.reclaim_computed_memory_if_needed();
         self.sync_tier3_benefit_observations();
         let tier3_evictions = self.memory.finish_tier3_quota_period();

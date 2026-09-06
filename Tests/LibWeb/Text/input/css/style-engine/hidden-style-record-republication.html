@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .hidden { display: none; }
+    .changed #target { opacity: 0.5; }
+</style>
+<div id="ancestor"><div><div id="target">target</div></div></div>
+<script>
+    test(() => {
+        // Hiding the ancestor skips the target's engine-computed record. The intervening
+        // element is rematerialized and schedules the target in a later transaction.
+        // Repeat with warm records so that rematerialization reuses the skipped record.
+        for (let i = 0; i < 2; ++i) {
+            ancestor.className = "";
+            println(`visible opacity: ${getComputedStyle(target).opacity}`);
+            ancestor.className = "hidden changed";
+            println(`hidden opacity: ${getComputedStyle(target).opacity}`);
+            ancestor.style.colorScheme = i % 2 ? "light" : "dark";
+            println(`color scheme: ${getComputedStyle(target).colorScheme}`);
+        }
+    });
+</script>

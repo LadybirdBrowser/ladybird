@@ -1,0 +1,6 @@
+visible opacity: 1
+hidden opacity: 0.5
+color scheme: dark
+visible opacity: 1
+hidden opacity: 0.5
+color scheme: light
