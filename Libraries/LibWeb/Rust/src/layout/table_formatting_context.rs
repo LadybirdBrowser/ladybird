@@ -320,6 +320,9 @@ pub(crate) struct Column {
     pub(crate) used_inline_size: CssPixels,
     pub(crate) has_intrinsic_percentage: bool,
     pub(crate) intrinsic_percentage: f64,
+    // In fixed mode, the cell intrinsic offsets of the cell whose percentage width the column uses; they are added
+    // to the resolved percentage (see compute_cell_measures).
+    pub(crate) percentage_offsets: CssPixels,
     // Store whether the column is constrained: https://www.w3.org/TR/css-tables-3/#constrainedness
     pub(crate) is_constrained: bool,
     // Store whether the column has originating cells, defined in https://www.w3.org/TR/css-tables-3/#terminology.
@@ -550,9 +553,10 @@ pub(crate) fn distribute_inline_size(columns: &mut [Column], available: CssPixel
     //    - all other columns are assigned their min-content width.
     for (candidate, column) in candidates.iter_mut().zip(columns.iter()) {
         if column.has_intrinsic_percentage {
-            *candidate = column.min_size.max(CssPixels::nearest_value_for(
-                column.intrinsic_percentage / 100.0 * available.to_double(),
-            ));
+            *candidate = column.min_size.max(
+                CssPixels::nearest_value_for(column.intrinsic_percentage / 100.0 * available.to_double())
+                    + column.percentage_offsets,
+            );
         }
     }
     // If the assignable inline size is no larger than the max-content sizing guess, use the linear combination
@@ -1293,7 +1297,7 @@ impl<'pass> TableFormattingContext<'pass> {
         }
     }
 
-    fn use_fixed_mode_layout(&mut self) -> bool {
+    fn use_fixed_mode_layout(&self) -> bool {
         // Implements https://www.w3.org/TR/css-tables-3/#in-fixed-mode.
         // A table-root is said to be laid out in fixed mode whenever the computed value of the table-layout property is equal to fixed, and the
         // specified width of the table root is either a <length-percentage>, min-content or fit-content. When the specified width is not one of
@@ -1302,6 +1306,13 @@ impl<'pass> TableFormattingContext<'pass> {
         let width = style.width();
         style.table_layout() == TABLE_LAYOUT_FIXED
             && (width.is_length() || width.is_percentage() || width.is_min_content() || width.is_fit_content())
+    }
+
+    /// Whether a cell takes part in measuring the tracks of an axis. https://www.w3.org/TR/css-tables-3/#computing-column-measures:
+    /// "For the purpose of measuring a column when laid out in fixed mode, only cells which originate in the first row
+    /// of the table (after reordering the header and footer) will be considered, if any."
+    fn cell_is_measured(&self, cell: TableCell, axis: TrackAxis) -> bool {
+        axis == TrackAxis::Row || cell.row_index == 0 || !self.use_fixed_mode_layout()
     }
 
     fn compute_constrainedness(&mut self) {
@@ -1400,9 +1411,34 @@ impl<'pass> TableFormattingContext<'pass> {
                 CssPixels::from_raw(i32::MAX)
             };
             if style.box_sizing() == box_sizing::BORDER_BOX {
-                min_inline -= inline_offsets;
-                inline_size -= inline_offsets;
-                max_inline -= inline_offsets;
+                // https://www.w3.org/TR/css-sizing-3/#box-sizing: the content box cannot be smaller than zero, so a
+                // border-box size below the padding and borders leaves an empty content box.
+                min_inline = (min_inline - inline_offsets).max(CssPixels::default());
+                inline_size = (inline_size - inline_offsets).max(CssPixels::default());
+                max_inline = (max_inline - inline_offsets).max(CssPixels::default());
+            }
+
+            if fixed && !width.is_length() {
+                // https://www.w3.org/TR/css-tables-3/#width-distribution-in-fixed-mode
+                // "The min-content width of percent-columns and auto-columns is considered to be zero": a cell without a
+                // length width contributes nothing to its column in fixed mode, not even its padding and borders, so
+                // that "any remaining columns equally divide the remaining horizontal table space" (CSS 2 §17.5.2.1)
+                // and the table keeps its specified width.
+                // AD-HOC: The same section says percentage cells ignore their border and padding, but Blink and Gecko
+                //         add the cell intrinsic offsets of a content-box percentage cell to its resolved percentage
+                //         (CSS 2.1's fixed-table-layout-025..031 expect that). The offsets are kept as the outer sizes
+                //         of such a cell and become the column's percentage_offsets in initialize_intrinsic_percentages.
+                let outer = if width.is_percentage() && style.box_sizing() != box_sizing::BORDER_BOX {
+                    inline_offsets
+                } else {
+                    CssPixels::default()
+                };
+                // Rows are never measured in fixed mode here (see run_until_inline_size_calculation), so the block-axis
+                // measures below are not needed.
+                debug_assert!(!include_rows);
+                self.cells[cell_index].outer_min_inline_size = outer;
+                self.cells[cell_index].outer_max_inline_size = outer;
+                continue;
             }
 
             // https://drafts.csswg.org/css-tables-3/#computing-column-measures
@@ -1410,11 +1446,7 @@ impl<'pass> TableFormattingContext<'pass> {
             // of cells is considered zero unless they are directly specified as a length-percentage, in which case they are
             // resolved based on the table width (if it is definite, otherwise use 0).
             let (min_content_inline, max_content_inline) = if fixed {
-                if width.is_length_percentage() {
-                    (inline_size, inline_size)
-                } else {
-                    (CssPixels::default(), CssPixels::default())
-                }
+                (inline_size, inline_size)
             } else {
                 (
                     self.calculate_min_content_inline_size(cell.box_),
@@ -1652,8 +1684,12 @@ impl<'pass> TableFormattingContext<'pass> {
             }
         }
 
+        let fixed = self.use_fixed_mode_layout();
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
+            if !self.cell_is_measured(cell, axis) {
+                continue;
+            }
             let style = self.style(cell.box_);
             let size = match axis {
                 TrackAxis::Row => style.height(),
@@ -1668,12 +1704,14 @@ impl<'pass> TableFormattingContext<'pass> {
                 self.set_track_has_percentage(axis, index, true);
             }
             if span == 1 {
-                self.set_track_percentage(
-                    axis,
-                    start,
-                    self.track_percentage(axis, start)
-                        .max(Self::cell_percentage(style, axis)),
-                );
+                let percentage = Self::cell_percentage(style, axis);
+                if percentage >= self.track_percentage(axis, start) {
+                    self.set_track_percentage(axis, start, percentage);
+                    if axis == TrackAxis::Column && fixed {
+                        // The outer sizes of a percentage cell in fixed mode are its offsets (see compute_cell_measures).
+                        self.columns[start].percentage_offsets = cell.outer_min_inline_size;
+                    }
+                }
             }
         }
     }
@@ -1690,7 +1728,7 @@ impl<'pass> TableFormattingContext<'pass> {
             // https://www.w3.org/TR/css-tables-3/#intrinsic-percentage-width-of-a-column-based-on-cells-of-span-up-to-n-n--1
             for cell_index in 0..self.cells.len() {
                 let cell = self.cells[cell_index];
-                if Self::cell_span(cell, axis) != current_span {
+                if Self::cell_span(cell, axis) != current_span || !self.cell_is_measured(cell, axis) {
                     continue;
                 }
                 let style = self.style(cell.box_);
@@ -1770,9 +1808,8 @@ impl<'pass> TableFormattingContext<'pass> {
             // Implement the following parts of the specification, accounting for fixed layout mode:
             // https://www.w3.org/TR/css-tables-3/#min-content-width-of-a-column-based-on-cells-of-span-up-to-1
             // https://www.w3.org/TR/css-tables-3/#max-content-width-of-a-column-based-on-cells-of-span-up-to-1
-            let fixed = self.use_fixed_mode_layout();
-            for cell in self.cells.iter().copied() {
-                if cell.column_span == 1 && (cell.row_index == 0 || !fixed) {
+            for cell in self.cells.clone() {
+                if cell.column_span == 1 && self.cell_is_measured(cell, axis) {
                     let column = &mut self.columns[cell.column_index];
                     column.min_size = column.min_size.max(cell.outer_min_inline_size);
                     column.max_size = column.max_size.max(cell.outer_max_inline_size);
@@ -1804,8 +1841,8 @@ impl<'pass> TableFormattingContext<'pass> {
                 TrackAxis::Row => self.border_spacing_block(),
                 TrackAxis::Column => self.border_spacing_inline(),
             };
-            for cell in self.cells.iter().copied() {
-                if Self::cell_span(cell, axis) != current_span {
+            for cell in self.cells.clone() {
+                if Self::cell_span(cell, axis) != current_span || !self.cell_is_measured(cell, axis) {
                     continue;
                 }
                 let start = Self::cell_index(cell, axis);
