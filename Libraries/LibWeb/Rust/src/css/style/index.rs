@@ -5830,7 +5830,7 @@ mod tests {
                 Some(name_forms)
             );
             assert!(facts.rows.attribute_catalogs.value_texts.iter().all(Option::is_none));
-            assert!(facts.custom_property_name_sets.index_is_empty());
+            assert!(facts.custom_property_name_sets.live_is_empty());
             assert!(facts.custom_property_set_ids_by_name.iter().all(Vec::is_empty));
         }
 

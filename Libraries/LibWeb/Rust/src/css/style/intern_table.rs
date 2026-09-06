@@ -127,11 +127,6 @@ impl<Identity: InternIdentity, Payload> InternTable<Identity, Payload> {
     pub(super) fn capacity_bytes(&self) -> u64 {
         ShallowCapacityBytes::shallow_capacity_bytes(self)
     }
-
-    #[cfg(test)]
-    pub(super) fn index_is_empty(&self) -> bool {
-        self.identities.is_empty()
-    }
 }
 
 impl<Identity: InternIdentity> InternTable<Identity, ()> {
