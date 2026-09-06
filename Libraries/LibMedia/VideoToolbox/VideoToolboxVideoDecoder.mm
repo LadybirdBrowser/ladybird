@@ -277,6 +277,7 @@ struct H264State {
     Codecs::H264::ParameterSetStore parameter_sets;
     u8 nal_unit_length_size { 4 };
     bool dirty { true };
+    bool access_unit_is_non_reference { false };
 
     DecoderErrorOr<void> apply_nal_unit(ReadonlyBytes nal_unit)
     {
@@ -461,11 +462,20 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFra
         if (auto configuration = coded_frame.new_codec_configuration(); configuration.has_value())
             TRY(m_h264_state->apply_configuration(*configuration));
 
+        auto saw_coded_slice = false;
+        auto every_coded_slice_is_non_reference = true;
         Codecs::NALUnitIterator iterator { coded_frame.data(), m_h264_state->nal_unit_length_size };
-        for (auto nal_unit = iterator.next(); nal_unit.has_value(); nal_unit = iterator.next())
+        for (auto nal_unit = iterator.next(); nal_unit.has_value(); nal_unit = iterator.next()) {
             TRY(m_h264_state->apply_nal_unit(*nal_unit));
+            if (!Codecs::H264::is_coded_slice((*nal_unit)[0]))
+                continue;
+            saw_coded_slice = true;
+            if (Codecs::H264::nal_ref_idc((*nal_unit)[0]) != 0)
+                every_coded_slice_is_non_reference = false;
+        }
         if (iterator.has_error())
             return DecoderError::corrupted("Invalid H.264 NAL unit length"sv);
+        m_h264_state->access_unit_is_non_reference = saw_coded_slice && every_coded_slice_is_non_reference;
 
         if (!m_h264_state->dirty && m_session)
             return {};
@@ -594,6 +604,11 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::receive_coded_data(CodedFrame con
         return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "VideoToolbox has been drained"sv);
 
     TRY(ensure_session_for_frame(coded_frame));
+
+    if (intent == DecodeIntent::Reference) {
+        if (m_h264_state && m_h264_state->access_unit_is_non_reference)
+            return {};
+    }
 
     auto data = coded_frame.data();
 
