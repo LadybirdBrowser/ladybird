@@ -862,6 +862,9 @@ impl StyleEngine {
                     matched.scope_proximity,
                     declared.important,
                 );
+                if previous_winner.is_some_and(|winner| priority < winner.priority) {
+                    continue;
+                }
                 let winner = PropertyWinner {
                     property: declared.property,
                     important: declared.important,
@@ -873,13 +876,6 @@ impl StyleEngine {
                     let pending = update.winner.as_mut().expect("an added declaration carries a winner");
                     if priority >= pending.priority {
                         *pending = winner;
-                    }
-                } else if let Some(previous_winner) = previous_winner {
-                    if priority >= previous_winner.priority {
-                        updates.push(PropertyWinnerUpdate {
-                            property: declared.property,
-                            winner: Some(winner),
-                        });
                     }
                 } else {
                     updates.push(PropertyWinnerUpdate {
