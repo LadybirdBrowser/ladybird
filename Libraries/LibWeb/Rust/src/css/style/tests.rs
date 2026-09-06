@@ -849,7 +849,7 @@ fn an_evicted_prefix_answer_is_a_typed_missing_key() {
         non_prefix_matches: non_prefix,
     };
     answers.remember(&mut catalog, key, &[], None, None, MatchAnswerID(1), true);
-    answers.settle_memory(&catalog, &mut memory);
+    answers.settle_memory(&mut memory);
     assert!(answers.retain(&mut memory));
     assert!(matches!(
         answers.lookup(key),

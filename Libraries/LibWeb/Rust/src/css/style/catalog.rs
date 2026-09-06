@@ -602,9 +602,9 @@ impl PrefixAnswerCache {
         });
     }
 
-    pub(super) fn settle_memory(&mut self, catalog: &MatchAnswerCatalog, memory: &mut MemoryController) {
+    pub(super) fn settle_memory(&mut self, memory: &mut MemoryController) {
         debug_assert!(!self.retained);
-        let current = self.capacity_bytes(catalog);
+        let current = self.capacity_bytes();
         self.scratch_memory.resize_required_to(memory, current);
     }
 
@@ -681,7 +681,7 @@ impl PrefixAnswerCache {
         }
     }
 
-    pub(super) fn capacity_bytes(&self, _catalog: &MatchAnswerCatalog) -> u64 {
+    pub(super) fn capacity_bytes(&self) -> u64 {
         capacity_bytes! {
             shallow [
                 self.prefix_contribution_by_match_set,

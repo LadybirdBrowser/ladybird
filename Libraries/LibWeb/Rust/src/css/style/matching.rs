@@ -4412,10 +4412,7 @@ impl StyleEngine {
                             }
                         }
                     };
-                    prefix_caches
-                        .borrow_mut()
-                        .answers
-                        .settle_memory(&self.match_answers, &mut self.memory);
+                    prefix_caches.borrow_mut().answers.settle_memory(&mut self.memory);
                     Ok(answer)
                 }
                 (Ok(()), None) => {
@@ -4473,10 +4470,7 @@ impl StyleEngine {
                             key,
                             identity,
                         );
-                        prefix_caches
-                            .borrow_mut()
-                            .answers
-                            .settle_memory(&self.match_answers, &mut self.memory);
+                        prefix_caches.borrow_mut().answers.settle_memory(&mut self.memory);
                     }
                 } else if compact_for_cascade && !retained_match_answer_reused {
                     // A cascade-only shortcut can answer the current style without proving the
