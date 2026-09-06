@@ -308,7 +308,6 @@ void DecodedAudioProducer::ThreadData::consume()
     note_consumer_activity_while_locked();
     if (m_queue.is_empty())
         return;
-    m_earliest_available_timestamp = m_queue.head().block.media_time_end();
     m_queue.dequeue();
     wake();
 }
@@ -373,7 +372,6 @@ bool DecodedAudioProducer::ThreadData::handle_auto_suspension()
     VERIFY(!m_auto_suspended);
 
     m_queue.clear();
-    m_latest_available_timestamp = m_earliest_available_timestamp;
     m_decoder.clear();
     m_decoder_needs_keyframe_next_seek = true;
     m_decoder_needs_codec_configuration_next_seek = true;
@@ -412,7 +410,6 @@ void DecodedAudioProducer::ThreadData::queue_block(AudioBlock const& block)
     // FIXME: Specify trailing samples in the demuxer, and drop them here or in the audio decoder implementation.
 
     VERIFY(!block.is_empty());
-    m_latest_available_timestamp = block.media_time_end();
     m_queue.enqueue({ block });
     VERIFY(!m_queue.tail().block.is_empty());
     dispatch_wake_if_needed_while_locked();
