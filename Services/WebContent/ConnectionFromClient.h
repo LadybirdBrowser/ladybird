@@ -108,7 +108,6 @@ private:
     virtual void reload(u64 page_id) override;
     virtual void stop_loading(u64 page_id) override;
     virtual void cancel_download(u64 page_id, u64 download_id) override;
-    virtual void run_iframe_load_event_steps(u64 page_id, Web::HTML::CrossProcessId frame_id) override;
     virtual void run_navigation_unload_check(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) override;
     virtual void create_navigation_params(u64 page_id, Web::HTML::NavigationPopulationRequest) override;
     virtual void cancel_navigation_params_creation(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) override;

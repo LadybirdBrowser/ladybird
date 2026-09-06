@@ -40,7 +40,6 @@
 #include <LibWeb/Geolocation/GeolocationPositionError.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
-#include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigationPopulationRequest.h>
@@ -362,28 +361,6 @@ void PageClient::set_remote_child_frame_compositor_context(Web::HTML::CrossProce
 Optional<Web::Compositor::CompositorContextId> PageClient::compositor_context_id_for_remote_child_frame(Web::HTML::CrossProcessId frame_id) const
 {
     return m_remote_child_frame_compositor_contexts.get(frame_id);
-}
-
-void PageClient::run_iframe_load_event_steps(Web::HTML::CrossProcessId frame_id)
-{
-    auto active_document = page().local_root_navigable()->active_document();
-    if (!active_document)
-        return;
-
-    for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
-        if (navigable->id() != frame_id)
-            continue;
-
-        auto container = GC::make_root(navigable->container());
-        if (!container || !is<Web::HTML::HTMLIFrameElement>(*container))
-            return;
-
-        container->queue_an_element_task(Web::HTML::Task::Source::DOMManipulation, [container] {
-            Web::HTML::run_iframe_load_event_steps(as<Web::HTML::HTMLIFrameElement>(*container));
-        });
-        container->document().schedule_html_parser_end_check();
-        return;
-    }
 }
 
 Gfx::Palette PageClient::palette() const

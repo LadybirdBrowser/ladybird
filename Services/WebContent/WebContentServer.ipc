@@ -77,7 +77,6 @@ endpoint WebContentServer
     reload(u64 page_id) =|
     stop_loading(u64 page_id) =|
     cancel_download(u64 page_id, u64 download_id) =|
-    run_iframe_load_event_steps(u64 page_id, Web::HTML::CrossProcessId frame_id) =|
     run_navigation_unload_check(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) =|
     create_navigation_params(u64 page_id, Web::HTML::NavigationPopulationRequest request) =|
     cancel_navigation_params_creation(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) =|
