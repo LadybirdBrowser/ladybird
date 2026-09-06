@@ -470,10 +470,11 @@ impl StyleEngine {
                         .preorder(context.root)
                         .filter(|&node| context.include_root || node != context.root),
                 );
+            } else {
+                candidates.retain(|&node| {
+                    (context.include_root || node != context.root) && self.tree.is_in_subtree_of(node, context.root)
+                });
             }
-            candidates.retain(|&node| {
-                (context.include_root || node != context.root) && self.tree.is_in_subtree_of(node, context.root)
-            });
             candidates.sort_unstable();
             candidates.dedup();
             self.counters.add(
