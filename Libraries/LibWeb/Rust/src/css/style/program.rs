@@ -991,13 +991,13 @@ impl StyleSheetProgram {
     pub(crate) fn layer_ranks_in_order(layers: &[CascadeLayerID]) -> HashMap<CascadeLayerID, u32> {
         let mut ranks = HashMap::with_capacity_and_hasher(layers.len(), Default::default());
         for &layer in layers {
-            if layer == CascadeLayerID::UNLAYERED || ranks.contains_key(&layer) {
+            if layer == CascadeLayerID::UNLAYERED {
                 continue;
             }
-            ranks.insert(
-                layer,
-                u32::try_from(ranks.len()).expect("cascade layer count exhausted"),
-            );
+            let next_rank = ranks.len();
+            ranks
+                .entry(layer)
+                .or_insert_with(|| u32::try_from(next_rank).expect("cascade layer count exhausted"));
         }
         ranks
     }
