@@ -98,6 +98,11 @@ void ConnectionFromWebContent::rendering_opportunity(Web::Compositor::Compositor
     async_rendering_opportunity(context_id, frame_time_nanoseconds, frame_interval_milliseconds);
 }
 
+void ConnectionFromWebContent::async_scroll_updates(Web::Compositor::CompositorContextId context_id, Web::Compositor::PendingAsyncScrollUpdates const& updates)
+{
+    async_async_scroll_updates(context_id, updates);
+}
+
 void ConnectionFromWebContent::dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const& event)
 {
     async_mouse_event(page_id, event);

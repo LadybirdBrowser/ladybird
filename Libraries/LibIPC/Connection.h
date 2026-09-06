@@ -34,6 +34,11 @@ public:
 
     Transport& transport() const { return *m_transport; }
 
+    // Messages of one kind that have arrived and have not been dispatched yet, in
+    // arrival order. A caller that asked the peer for state synchronously reads what the peer sent ahead of
+    // its answer this way, without dispatching anything else out of turn.
+    Vector<NonnullOwnPtr<Message>> take_unprocessed_messages(u32 endpoint_magic, i32 message_id);
+
 protected:
     explicit ConnectionBase(IPC::Stub&, NonnullOwnPtr<Transport>, u32 local_endpoint_magic);
 
@@ -56,7 +61,8 @@ protected:
 
     NonnullOwnPtr<Transport> m_transport;
 
-    Vector<NonnullOwnPtr<Message>> m_unprocessed_messages;
+    Vector<OwnPtr<Message>> m_unprocessed_messages;
+    Vector<Span<OwnPtr<Message>>> m_dispatching_message_batches;
 
     u32 m_local_endpoint_magic { 0 };
 };

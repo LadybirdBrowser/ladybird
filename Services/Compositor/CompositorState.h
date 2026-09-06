@@ -57,6 +57,7 @@ public:
     virtual void dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const&) = 0;
     virtual void request_rendering_update() = 0;
     virtual void rendering_opportunity(Web::Compositor::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds) = 0;
+    virtual void async_scroll_updates(Web::Compositor::CompositorContextId, Web::Compositor::PendingAsyncScrollUpdates const&) = 0;
     virtual void create_video_edge(Media::VideoSinkHandle) = 0;
     virtual void release_video_edge(Media::VideoSinkHandle) = 0;
 };
@@ -101,7 +102,6 @@ public:
     Web::Compositor::AsyncScrollEnqueueResult smooth_scroll_to(Web::Compositor::CompositorContextId, Web::Compositor::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel, Web::Compositor::ScrollAnimationKind);
     void cancel_smooth_scroll(Web::Compositor::CompositorContextId, Web::Compositor::AsyncScrollNodeStableID);
     bool async_scroll_by(Web::Compositor::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::Compositor::SnapContainerHandling);
-    Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Web::Compositor::CompositorContextId);
     void viewport_size_updated(Web::Compositor::CompositorContextId, Gfx::IntSize, Web::Compositor::WindowResizingInProgress);
     void request_rendering_opportunity(Web::Compositor::CompositorContextId, double maximum_frames_per_second);
     void set_paused_debugger_overlay(Web::Compositor::CompositorContextId, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<WebView::PausedDebuggerOverlayAction> hovered_action);
@@ -132,6 +132,15 @@ private:
     };
 
     ContextState* context_if_present(Web::Compositor::CompositorContextId);
+    // Hands the context's async scroll updates to its WebContent process as soon as they exist,
+    // so a rendering update reads them locally instead of asking for them over a synchronous call.
+    void publish_pending_async_scroll_updates(Web::Compositor::CompositorContextId, ContextState&);
+
+public:
+    // What was not published yet, for a caller that needs the compositor's state as of now.
+    Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Web::Compositor::CompositorContextId);
+
+private:
     ContextState const* context_if_present(Web::Compositor::CompositorContextId) const;
     Optional<u64> display_id_for_context(ContextState const&) const;
     ContextState const* root_context_of(ContextState const&) const;

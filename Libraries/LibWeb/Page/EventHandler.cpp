@@ -747,7 +747,9 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     if (!document->is_fully_active())
         return EventResult::Dropped;
 
-    m_navigable->adopt_pending_async_scroll_offsets();
+    // A wheel step is routed against the offsets the compositor holds now, which a step it just took may
+    // have moved ahead of any rendering update.
+    m_navigable->adopt_pending_async_scroll_offsets(Compositor::AsyncScrollUpdateFreshness::FromCompositor);
     m_navigable->note_user_scroll_gesture_phase(scroll_gesture_phase);
 
     // Wheel activity marks the scroll gesture as still in progress even when it no longer moves any scrolling box.

@@ -24,6 +24,7 @@ struct TestWebContentClient final : public Compositor::CompositorStateWebContent
     virtual void dispatch_mouse_event_to_web_content(u64, Web::MouseEvent const&) override { }
     virtual void request_rendering_update() override { }
     virtual void rendering_opportunity(Web::Compositor::CompositorContextId, i64, double) override { }
+    virtual void async_scroll_updates(Web::Compositor::CompositorContextId, Web::Compositor::PendingAsyncScrollUpdates const&) override { }
     virtual void create_video_edge(Media::VideoSinkHandle) override { }
     virtual void release_video_edge(Media::VideoSinkHandle) override { }
 };
@@ -112,7 +113,7 @@ TEST_CASE(caret_damage_uses_the_sampled_visual_context_tree)
 {
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { 0, client, canvas_surface_registry, false };
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, false };
     Web::Painting::VisualContextTreeTestBuilder builder;
     auto spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
     auto visual_context_tree = builder.finish();
@@ -272,7 +273,7 @@ TEST_CASE(rasterization_clears_damaged_pixels_to_the_canvas_color_in_presentatio
 {
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { 0, client, canvas_surface_registry, false };
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, false };
     Web::Painting::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
     auto visual_context_tree = Web::Painting::VisualContextTreeTestBuilder().finish();
     auto viewport_rect = Gfx::IntRect { 0, 0, 4, 4 };
@@ -305,7 +306,7 @@ TEST_CASE(visual_animations_advance_without_a_web_content_update)
 {
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { 0, client, canvas_surface_registry, false };
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, false };
     Web::Painting::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
     Web::Painting::VisualContextTreeTestBuilder builder;
     auto spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
@@ -392,7 +393,7 @@ TEST_CASE(wheel_hit_testing_uses_the_current_visual_animation_tree)
 {
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { 0, client, canvas_surface_registry, true };
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
     Web::Painting::VisualContextTreeTestBuilder builder;
     auto scroll_node = builder.append_scroll(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
     auto animated_transform = builder.append_transform(scroll_node, Gfx::FloatMatrix4x4::identity());
@@ -432,7 +433,7 @@ TEST_CASE(wheel_hit_testing_ignores_targets_from_a_larger_visual_context_tree)
 {
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { 0, client, canvas_surface_registry, true };
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
     Web::Painting::VisualContextTreeTestBuilder builder;
     auto scroll_node = builder.append_scroll(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
     auto removed_transform = builder.append_transform(scroll_node, Gfx::FloatMatrix4x4::identity());
@@ -463,7 +464,7 @@ TEST_CASE(pinch_zoom_copies_the_visual_context_tree_once_per_update)
 {
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { 0, client, canvas_surface_registry, true };
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
     auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
 
@@ -483,7 +484,7 @@ TEST_CASE(culled_initial_animation_content_becomes_visible)
 {
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { 0, client, canvas_surface_registry, false };
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, false };
     Web::Painting::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
     Web::Compositor::VisualAnimationTransformOperation initial_scale {
         Web::Compositor::VisualAnimationTransformOperationKind::Scale,
@@ -551,7 +552,7 @@ TEST_CASE(background_color_animation_replaces_the_recorded_fill_color)
 {
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { 0, client, canvas_surface_registry, false };
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, false };
     Web::Painting::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
     Web::Painting::VisualContextTreeTestBuilder builder;
     auto spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
@@ -602,7 +603,7 @@ TEST_CASE(filter_animations_replace_their_effects_frame_filters)
 {
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { 0, client, canvas_surface_registry, false };
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, false };
     Web::Painting::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
     Web::Painting::VisualContextTreeTestBuilder builder;
     auto spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
@@ -664,7 +665,7 @@ TEST_CASE(finite_visual_animations_stop_after_their_terminal_sample)
 {
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { 0, client, canvas_surface_registry, false };
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, false };
     Web::Painting::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
     Web::Painting::VisualContextTreeTestBuilder builder;
     auto spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
@@ -710,7 +711,7 @@ TEST_CASE(delayed_visual_animations_remain_dormant_until_active_start)
 {
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { 0, client, canvas_surface_registry, false };
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, false };
     Web::Painting::VisualContextTreeTestBuilder builder;
     auto spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
     auto visual_context_tree = builder.finish();
@@ -763,7 +764,7 @@ TEST_CASE(viewport_scrollbar_collapses_when_drag_is_released_away_from_scrollbar
 {
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { 0, client, canvas_surface_registry, true };
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
     auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
 
@@ -790,7 +791,7 @@ TEST_CASE(viewport_scrollbar_drag_ignores_non_primary_mouse_up)
 {
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { 0, client, canvas_surface_registry, true };
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
     auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
 
@@ -809,7 +810,7 @@ TEST_CASE(context_visibility_and_pending_frame_state)
 {
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { 1, client, canvas_surface_registry, false };
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 1 }, 1, client, canvas_surface_registry, false };
     auto viewport_rect = Gfx::IntRect { 0, 0, 4, 4 };
 
     EXPECT(!context.set_visibility(Web::Compositor::ContextVisibility::Visible));
@@ -864,7 +865,7 @@ TEST_CASE(dragging_a_viewport_scrollbar_reports_a_user_scroll_gesture_until_it_i
 {
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { 0, client, canvas_surface_registry, true };
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
     auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
 
@@ -893,11 +894,51 @@ TEST_CASE(dragging_a_viewport_scrollbar_reports_a_user_scroll_gesture_until_it_i
     EXPECT(!updates.user_scroll_gesture_ended);
 }
 
+struct RecordingWebContentClient final : public Compositor::CompositorStateWebContentClient {
+    virtual void dispatch_mouse_event_to_web_content(u64, Web::MouseEvent const&) override { }
+    virtual void request_rendering_update() override { events.append("request_rendering_update"_string); }
+    virtual void rendering_opportunity(Web::Compositor::CompositorContextId, i64, double) override { }
+    virtual void async_scroll_updates(Web::Compositor::CompositorContextId, Web::Compositor::PendingAsyncScrollUpdates const& updates) override
+    {
+        events.append("async_scroll_updates"_string);
+        pushed_updates.append(updates);
+    }
+    virtual void create_video_edge(Media::VideoSinkHandle) override { }
+    virtual void release_video_edge(Media::VideoSinkHandle) override { }
+
+    String event_sequence() const { return MUST(String::join(","sv, events)); }
+
+    Vector<String> events;
+    Vector<Web::Compositor::PendingAsyncScrollUpdates> pushed_updates;
+};
+
+TEST_CASE(pending_scroll_updates_go_ahead_of_a_rendering_update_request)
+{
+    RecordingWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
+    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
+    context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
+
+    // A rendering update run on the request must find what the compositor had pending at the time, so the pending
+    // updates go out first.
+    EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseDown, 98, 10, Web::UIEvents::MouseButton::Primary)).accepted);
+    context.request_rendering_update();
+    EXPECT_EQ(client.event_sequence(), "async_scroll_updates,request_rendering_update"sv);
+    EXPECT_EQ(client.pushed_updates.size(), 1u);
+    EXPECT(client.pushed_updates.last().user_scroll_gesture_in_progress);
+    EXPECT(!context.has_pending_async_scroll_updates());
+
+    // Nothing pending, nothing pushed.
+    context.request_rendering_update();
+    EXPECT_EQ(client.event_sequence(), "async_scroll_updates,request_rendering_update,request_rendering_update"sv);
+}
+
 TEST_CASE(losing_the_scrollbar_a_drag_holds_ends_its_user_scroll_gesture)
 {
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { 0, client, canvas_surface_registry, true };
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
     auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
 
@@ -914,7 +955,7 @@ TEST_CASE(ui_overlay_uses_the_current_viewport_size)
 {
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { 0, client, canvas_surface_registry, false };
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, false };
 
     context.viewport_size_updated({ 640, 480 }, Web::Compositor::WindowResizingInProgress::No);
     context.did_submit_prepared_frame({ 12, 18, 640, 480 });
@@ -931,7 +972,7 @@ TEST_CASE(ui_overlay_hover_changes_require_repainting)
 {
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { 0, client, canvas_surface_registry, false };
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, false };
 
     EXPECT(context.set_paused_debugger_overlay(true, 1.0, {}, {}));
     EXPECT(!context.set_paused_debugger_overlay(true, 1.0, {}, {}));
@@ -1039,7 +1080,7 @@ struct RasterizingContextFixture {
     Gfx::IntRect viewport_rect;
 
     explicit RasterizingContextFixture(Gfx::IntSize viewport_size = test_viewport_rect.size())
-        : context(1, client, canvas_surface_registry, false)
+        : context(Web::Compositor::CompositorContextId { 1 }, 1, client, canvas_surface_registry, false)
         , viewport_rect({}, viewport_size)
     {
         context.viewport_size_updated(viewport_size, Web::Compositor::WindowResizingInProgress::No);

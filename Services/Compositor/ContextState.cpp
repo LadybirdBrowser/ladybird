@@ -137,9 +137,10 @@ static void clamp_visual_viewport_transform_to_viewport(Web::Painting::Transform
     transform.matrix[1, 3] = clamp(transform.matrix[1, 3], min_y, 0.0f);
 }
 
-ContextState::ContextState(Optional<u64> page_id, CompositorStateWebContentClient& web_content_client, Web::Painting::CanvasSurfaceRegistry const& canvas_surface_registry, bool async_scrolling_enabled, Function<void(Gfx::IntRect)> schedule_caret_repaint)
+ContextState::ContextState(Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, CompositorStateWebContentClient& web_content_client, Web::Painting::CanvasSurfaceRegistry const& canvas_surface_registry, bool async_scrolling_enabled, Function<void(Gfx::IntRect)> schedule_caret_repaint)
     : m_web_content_client(web_content_client)
     , m_canvas_surface_registry(canvas_surface_registry)
+    , m_context_id(context_id)
     , m_page_id(page_id)
     , m_async_scrolling_enabled(async_scrolling_enabled)
     , m_schedule_caret_repaint(move(schedule_caret_repaint))
@@ -165,6 +166,10 @@ bool ContextState::is_owned_by(CompositorStateWebContentClient const& web_conten
 
 void ContextState::request_rendering_update()
 {
+    // The rendering update this asks for adopts the scroll updates it finds pushed by then. What is pending here goes
+    // ahead of the request on the wire, so that an update run on the request never misses it.
+    if (has_pending_async_scroll_updates())
+        m_web_content_client.async_scroll_updates(m_context_id, take_pending_async_scroll_updates());
     m_web_content_client.request_rendering_update();
 }
 
@@ -215,6 +220,7 @@ void ContextState::install_display_list_update(
     update_visual_animation_sampling_state(*m_visual_context_tree, m_visual_animation_sample_time_ns, m_has_active_visual_animations);
     m_scroll_state_snapshot = move(scroll_state_snapshot);
     m_scroll_state_snapshot.set_node_count(m_visual_context_tree->spatial_node_count());
+    retire_reconciled_async_scroll_offsets(m_scroll_state_snapshot.adopted_async_scroll_sequence());
     update_caret_blink_timer();
     if (m_async_visual_viewport_transform.has_value() && visual_viewport_transforms_match(m_visual_context_tree->visual_viewport_transform(), *m_async_visual_viewport_transform))
         m_async_visual_viewport_transform.clear();
@@ -243,8 +249,8 @@ void ContextState::install_display_list_update(
     m_viewport_scrollbar_controller.set_scrollbars(async_scrolling_state.viewport_scrollbars);
     note_user_scroll_gesture_end_if_drag_ended(was_dragging_viewport_scrollbar);
     m_async_scroll_tree.set_state(move(async_scrolling_state));
-    if (!m_pending_async_scroll_offsets.is_empty()) {
-        if (auto viewport_scroll_offset = reapply_pending_async_scroll_offsets(m_pending_async_scroll_offsets); viewport_scroll_offset.has_value())
+    if (auto unreconciled = unreconciled_async_scroll_offsets(); !unreconciled.is_empty()) {
+        if (auto viewport_scroll_offset = reapply_pending_async_scroll_offsets(unreconciled); viewport_scroll_offset.has_value())
             async_scrolling_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
     }
     rebuild_wheel_hit_test_targets();
@@ -343,10 +349,11 @@ void ContextState::update_scroll_state(Web::Painting::ScrollStateSnapshot&& scro
 {
     m_scroll_state_snapshot = move(scroll_state_snapshot);
     m_scroll_state_snapshot.set_node_count(m_visual_context_tree.has_value() ? m_visual_context_tree->spatial_node_count() : 0);
+    retire_reconciled_async_scroll_offsets(m_scroll_state_snapshot.adopted_async_scroll_sequence());
     if (!m_has_async_scrolling_state)
         return;
 
-    auto reconciled_viewport_scroll_offset = reapply_pending_async_scroll_offsets(m_pending_async_scroll_offsets);
+    auto reconciled_viewport_scroll_offset = reapply_pending_async_scroll_offsets(unreconciled_async_scroll_offsets());
     rebuild_wheel_hit_test_targets();
     if (reconciled_viewport_scroll_offset.has_value()) {
         auto reconciled_viewport_rect = m_async_scrolling_viewport_rect;
@@ -733,13 +740,52 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
 Web::Compositor::PendingAsyncScrollUpdates ContextState::take_pending_async_scroll_updates()
 {
     Web::Compositor::PendingAsyncScrollUpdates updates;
+    updates.sequence = ++m_next_async_scroll_update_sequence;
     AK::swap(updates.scroll_offsets, m_pending_async_scroll_offsets);
+    for (auto const& scroll_offset : updates.scroll_offsets) {
+        bool replaced = false;
+        for (auto& unreconciled : m_unreconciled_async_scroll_offsets) {
+            if (unreconciled.offset.stable_node_id != scroll_offset.stable_node_id)
+                continue;
+            unreconciled.sequence = updates.sequence;
+            unreconciled.offset.compositor_scroll_offset = scroll_offset.compositor_scroll_offset;
+            unreconciled.offset.unadopted_scroll_delta.translate_by(scroll_offset.unadopted_scroll_delta);
+            replaced = true;
+            break;
+        }
+        if (!replaced)
+            m_unreconciled_async_scroll_offsets.append({ updates.sequence, scroll_offset });
+    }
     AK::swap(updates.completed_operation_ids, m_completed_async_scroll_operation_ids);
     AK::swap(updates.operation_ids_taken_over_by_user_input, m_async_scroll_operation_ids_taken_over_by_user_input);
     updates.user_scroll_gesture_in_progress = m_viewport_scrollbar_controller.has_captured_scrollbar();
     updates.user_scroll_gesture_ended = m_user_scroll_gesture_ended;
     m_user_scroll_gesture_ended = false;
+    m_published_user_scroll_gesture_in_progress = updates.user_scroll_gesture_in_progress;
     return updates;
+}
+
+void ContextState::retire_reconciled_async_scroll_offsets(u64 adopted_sequence)
+{
+    m_unreconciled_async_scroll_offsets.remove_all_matching([&](auto const& unreconciled) { return unreconciled.sequence <= adopted_sequence; });
+}
+
+Vector<Web::Compositor::AsyncScrollOffset> ContextState::unreconciled_async_scroll_offsets() const
+{
+    Vector<Web::Compositor::AsyncScrollOffset> offsets;
+    offsets.ensure_capacity(m_unreconciled_async_scroll_offsets.size());
+    for (auto const& unreconciled : m_unreconciled_async_scroll_offsets)
+        offsets.unchecked_append(unreconciled.offset);
+    return offsets;
+}
+
+bool ContextState::has_pending_async_scroll_updates() const
+{
+    return !m_pending_async_scroll_offsets.is_empty()
+        || !m_completed_async_scroll_operation_ids.is_empty()
+        || !m_async_scroll_operation_ids_taken_over_by_user_input.is_empty()
+        || m_user_scroll_gesture_ended
+        || m_viewport_scrollbar_controller.has_captured_scrollbar() != m_published_user_scroll_gesture_in_progress;
 }
 
 void ContextState::viewport_size_updated(Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress)

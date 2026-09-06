@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/QuickSort.h>
 #include <LibWebView/CompositorConnection.h>
 
 #include <AK/Debug.h>
@@ -67,6 +68,7 @@ void CompositorConnection::stop_presenting_to_client(Web::Compositor::Compositor
 
 void CompositorConnection::destroy_context(Web::Compositor::CompositorContextId context_id)
 {
+    m_pending_async_scroll_updates.remove(context_id);
     if (!can_send_message_to_compositor())
         return;
     async_destroy_context(context_id);
@@ -225,17 +227,79 @@ void CompositorConnection::cancel_smooth_scroll(Web::Compositor::CompositorConte
     async_cancel_smooth_scroll(context_id, stable_node_id);
 }
 
-Web::Compositor::PendingAsyncScrollUpdates CompositorConnection::take_pending_async_scroll_updates(Web::Compositor::CompositorContextId context_id)
+Web::Compositor::PendingAsyncScrollUpdates CompositorConnection::take_pending_async_scroll_updates(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollUpdateFreshness freshness)
 {
-    if (!can_send_message_to_compositor())
-        return {};
-
-    auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::TakePendingAsyncScrollUpdates>(context_id);
-    if (!response) {
-        did_lose_compositor();
-        return {};
+    // The compositor process pushes its scroll updates as it makes them, in order with the input
+    // events it forwards, so a rendering update finds the latest ones here. A reader that needs the
+    // compositor's state as of this instant asks for what it has not pushed yet, and first merges
+    // the pushes that arrived ahead of that answer but were not dispatched during the wait.
+    if (freshness == Web::Compositor::AsyncScrollUpdateFreshness::FromCompositor && can_send_message_to_compositor()) {
+        auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::TakePendingAsyncScrollUpdates>(context_id);
+        // The pushes that arrived ahead of the answer and the answer itself are publications of the
+        // same queue; they merge in the order the compositor published them, whatever order the
+        // transport handed them over in, so a gesture state settles as the newest publication says.
+        struct Arrival {
+            Web::Compositor::CompositorContextId context_id;
+            Web::Compositor::PendingAsyncScrollUpdates updates;
+        };
+        Vector<Arrival> arrivals;
+        for (auto& message : take_unprocessed_messages(Messages::CompositorWebContentClient::AsyncScrollUpdates::ENDPOINT_MAGIC, Messages::CompositorWebContentClient::AsyncScrollUpdates::static_message_id())) {
+            auto& pushed = static_cast<Messages::CompositorWebContentClient::AsyncScrollUpdates&>(*message);
+            arrivals.append({ pushed.context_id(), pushed.updates() });
+        }
+        if (!response)
+            did_lose_compositor();
+        else
+            arrivals.append({ context_id, response->take_updates() });
+        quick_sort(arrivals, [](auto const& a, auto const& b) { return a.updates.sequence < b.updates.sequence; });
+        for (auto& arrival : arrivals)
+            merge_async_scroll_updates(arrival.context_id, move(arrival.updates));
     }
-    return response->take_updates();
+
+    auto pending = m_pending_async_scroll_updates.get(context_id);
+    if (!pending.has_value())
+        return {};
+    Web::Compositor::PendingAsyncScrollUpdates updates;
+    updates.sequence = pending->sequence;
+    updates.scroll_offsets = move(pending->scroll_offsets);
+    updates.completed_operation_ids = move(pending->completed_operation_ids);
+    updates.operation_ids_taken_over_by_user_input = move(pending->operation_ids_taken_over_by_user_input);
+    updates.user_scroll_gesture_in_progress = pending->user_scroll_gesture_in_progress;
+    updates.user_scroll_gesture_ended = pending->user_scroll_gesture_ended;
+    // Whether a gesture is in progress is a state the compositor process keeps current; the rest
+    // was consumed here.
+    pending->scroll_offsets.clear();
+    pending->completed_operation_ids.clear();
+    pending->operation_ids_taken_over_by_user_input.clear();
+    pending->user_scroll_gesture_ended = false;
+    return updates;
+}
+
+void CompositorConnection::async_scroll_updates(Web::Compositor::CompositorContextId context_id, Web::Compositor::PendingAsyncScrollUpdates updates)
+{
+    merge_async_scroll_updates(context_id, move(updates));
+}
+
+void CompositorConnection::merge_async_scroll_updates(Web::Compositor::CompositorContextId context_id, Web::Compositor::PendingAsyncScrollUpdates updates)
+{
+    auto& pending = m_pending_async_scroll_updates.ensure(context_id);
+    // Whether a gesture is in progress is a state, not an event: the newest publication decides it.
+    bool const is_newest = updates.sequence >= pending.sequence;
+    pending.sequence = max(pending.sequence, updates.sequence);
+    for (auto const& scroll_offset : updates.scroll_offsets) {
+        auto existing = pending.scroll_offsets.find_if([&](auto const& existing) { return existing.stable_node_id == scroll_offset.stable_node_id; });
+        if (existing != pending.scroll_offsets.end()) {
+            existing->compositor_scroll_offset = scroll_offset.compositor_scroll_offset;
+            existing->unadopted_scroll_delta.translate_by(scroll_offset.unadopted_scroll_delta);
+        } else {
+            pending.scroll_offsets.append(scroll_offset);
+        }
+    }
+    pending.completed_operation_ids.extend(move(updates.completed_operation_ids));
+    pending.operation_ids_taken_over_by_user_input.extend(move(updates.operation_ids_taken_over_by_user_input));
+    if (is_newest)
+        pending.user_scroll_gesture_in_progress = updates.user_scroll_gesture_in_progress;
+    pending.user_scroll_gesture_ended |= updates.user_scroll_gesture_ended;
 }
 
 void CompositorConnection::viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress)

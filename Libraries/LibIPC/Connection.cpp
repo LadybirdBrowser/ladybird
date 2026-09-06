@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <AK/Vector.h>
 #include <LibIPC/Connection.h>
 #include <LibIPC/Message.h>
@@ -62,18 +63,44 @@ void ConnectionBase::shutdown_with_error(Error const& error)
     shutdown();
 }
 
+Vector<NonnullOwnPtr<Message>> ConnectionBase::take_unprocessed_messages(u32 endpoint_magic, i32 message_id)
+{
+    VERIFY(m_owner_thread_id.is_current_thread());
+    Vector<NonnullOwnPtr<Message>> taken;
+    // A handler can make a synchronous request while older messages still await dispatch
+    // in its batch. Take those first, including batches suspended by nested event loops.
+    for (auto batch : m_dispatching_message_batches) {
+        for (auto& message : batch) {
+            if (message && message->endpoint_magic() == endpoint_magic && message->message_id() == message_id)
+                taken.append(message.release_nonnull());
+        }
+    }
+    m_unprocessed_messages.remove_all_matching([&](auto& message) {
+        if (message->endpoint_magic() != endpoint_magic || message->message_id() != message_id)
+            return false;
+        taken.append(message.release_nonnull());
+        return true;
+    });
+    return taken;
+}
+
 void ConnectionBase::handle_messages()
 {
     VERIFY(m_owner_thread_id.is_current_thread());
     auto messages = move(m_unprocessed_messages);
+    m_dispatching_message_batches.append(messages.span());
+    ScopeGuard remove_batch = [&] { m_dispatching_message_batches.take_last(); };
     for (auto& message : messages) {
-        if (message->endpoint_magic() != m_local_endpoint_magic)
+        if (!message)
+            continue;
+        auto current_message = message.release_nonnull();
+        if (current_message->endpoint_magic() != m_local_endpoint_magic)
             continue;
 
         if (!is_open())
-            dbgln("Handling message while connection closed: {}", message->message_name());
+            dbgln("Handling message while connection closed: {}", current_message->message_name());
 
-        auto handler_result = m_local_stub.handle(move(message));
+        auto handler_result = m_local_stub.handle(move(current_message));
         if (handler_result.is_error()) {
             dbgln("IPC::ConnectionBase::handle_messages: {}", handler_result.error());
             continue;

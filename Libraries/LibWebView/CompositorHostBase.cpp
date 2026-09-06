@@ -276,10 +276,10 @@ void CompositorHostBase::cancel_smooth_scroll(Web::Compositor::CompositorContext
         connection->cancel_smooth_scroll(context_id, stable_node_id);
 }
 
-Web::Compositor::PendingAsyncScrollUpdates CompositorHostBase::take_pending_async_scroll_updates(Web::Compositor::CompositorContextId context_id)
+Web::Compositor::PendingAsyncScrollUpdates CompositorHostBase::take_pending_async_scroll_updates(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollUpdateFreshness freshness)
 {
     if (auto* connection = compositor_connection())
-        return connection->take_pending_async_scroll_updates(context_id);
+        return connection->take_pending_async_scroll_updates(context_id, freshness);
     return {};
 }
 

@@ -5141,14 +5141,15 @@ static bool adopt_async_viewport_scroll_delta(LocalNavigable& navigable, CSSPixe
         || navigable.viewport_scroll_offset() != viewport_scroll_offset;
 }
 
-void LocalNavigable::adopt_pending_async_scroll_offsets()
+void LocalNavigable::adopt_pending_async_scroll_offsets(Compositor::AsyncScrollUpdateFreshness freshness)
 {
     if (!page().async_scrolling_enabled() || !has_compositor_context())
         return;
 
     // The compositor process may have already presented newer scroll offsets. Adopt the latest ones before running
     // rendering-update observers so they see the same scroll positions as the user.
-    auto async_scroll_updates = compositor_context().take_pending_async_scroll_updates();
+    auto async_scroll_updates = compositor_context().take_pending_async_scroll_updates(freshness);
+    m_adopted_async_scroll_sequence = max(m_adopted_async_scroll_sequence, async_scroll_updates.sequence);
 
     // A gesture that both began and ended since the previous update is held for the length of this one, so that it
     // settles here rather than once its input deadline passes.
@@ -5907,6 +5908,9 @@ void LocalNavigable::destroy_compositor_context()
 void LocalNavigable::repaint_after_compositor_process_reconnect()
 {
     resolve_all_pending_async_scroll_operations();
+    // A new compositor process publishes its scroll updates from a fresh sequence; what this navigable
+    // adopted from the old one acknowledges nothing of it.
+    m_adopted_async_scroll_sequence = 0;
 
     if (has_compositor_context()) {
         if (auto parent = this->parent()) {
@@ -6111,6 +6115,7 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
     document_paint_state.refresh_scroll_state(*document);
 
     Painting::ScrollStateSnapshot scroll_state_snapshot { document_paint_state.scroll_state_snapshot() };
+    scroll_state_snapshot.set_adopted_async_scroll_sequence(m_adopted_async_scroll_sequence);
     if (should_record_display_list && !compositor_display_list_is_unchanged) {
         m_compositor_display_list_visual_context_tree_structural_epoch = display_list->compatible_visual_context_tree_structural_epoch();
         compositor_context().update_display_list(*display_list, visual_context_tree.release_value(), move(resource_transaction), move(scroll_state_snapshot));
@@ -6318,7 +6323,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
     if (has_compositor_context()) {
         // NB: The compositor rejected the replacement, so consume its last
         //     offset before falling back to a main-thread animation.
-        adopt_pending_async_scroll_offsets();
+        adopt_pending_async_scroll_offsets(Compositor::AsyncScrollUpdateFreshness::FromCompositor);
         initial_scroll_offset = scroll_offset_for(stable_node_id);
         if (!initial_scroll_offset.has_value()) {
             WebIDL::resolve_promise(scroll_promise);

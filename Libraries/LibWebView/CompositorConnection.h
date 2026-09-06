@@ -57,7 +57,7 @@ public:
     Web::Compositor::AsyncScrollEnqueueResult async_scroll_by(Web::Compositor::CompositorContextId, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::Compositor::SnapContainerHandling, Web::Compositor::AsyncScrollOperationTracking);
     Web::Compositor::AsyncScrollEnqueueResult smooth_scroll_to(Web::Compositor::CompositorContextId, Web::Compositor::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel, Web::Compositor::ScrollAnimationKind);
     void cancel_smooth_scroll(Web::Compositor::CompositorContextId, Web::Compositor::AsyncScrollNodeStableID);
-    Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Web::Compositor::CompositorContextId);
+    Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Web::Compositor::CompositorContextId, Web::Compositor::AsyncScrollUpdateFreshness);
     void viewport_size_updated(Web::Compositor::CompositorContextId, Gfx::IntSize, Web::Compositor::WindowResizingInProgress);
     bool request_rendering_opportunity(Web::Compositor::CompositorContextId, double maximum_frames_per_second);
     void present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect viewport_rect);
@@ -90,15 +90,19 @@ private:
     virtual void mouse_event(u64 page_id, Web::MouseEvent) override;
     virtual void request_rendering_update() override;
     virtual void rendering_opportunity(Web::Compositor::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds) override;
+    virtual void async_scroll_updates(Web::Compositor::CompositorContextId, Web::Compositor::PendingAsyncScrollUpdates) override;
     virtual void did_complete_screenshot(Web::Compositor::ScreenshotRequestId) override;
     virtual void did_fail_screenshot(Web::Compositor::ScreenshotRequestId) override;
     virtual void did_lose_compositor() override;
 
     bool can_send_message_to_compositor() const;
+    void merge_async_scroll_updates(Web::Compositor::CompositorContextId, Web::Compositor::PendingAsyncScrollUpdates);
     bool post_image_frame_resources_in_batches(Web::Compositor::CompositorContextId, Vector<Web::Painting::DisplayListImageFrameResource>);
     Optional<PendingScreenshot> take_screenshot(Web::Compositor::ScreenshotRequestId);
 
     HashMap<Web::Compositor::ScreenshotRequestId, PendingScreenshot> m_screenshots;
+    // What the compositor process scrolled since the last rendering update adopted it, per context.
+    HashMap<Web::Compositor::CompositorContextId, Web::Compositor::PendingAsyncScrollUpdates> m_pending_async_scroll_updates;
     u64 m_next_screenshot_request_id { 1 };
     bool m_has_lost_compositor { false };
     RefPtr<Media::VideoPresentationServerConnection> m_video_presentation_channel;

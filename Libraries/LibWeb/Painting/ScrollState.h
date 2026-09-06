@@ -34,6 +34,11 @@ class ScrollStateSnapshot {
 public:
     ReadonlySpan<Gfx::FloatPoint> device_offsets() const { return m_device_offsets; }
 
+    // The latest publication of the compositor's async scroll updates that WebContent had adopted
+    // when it took this snapshot; the compositor keeps reapplying its later scrolls over it.
+    u64 adopted_async_scroll_sequence() const { return m_adopted_async_scroll_sequence; }
+    void set_adopted_async_scroll_sequence(u64 sequence) { m_adopted_async_scroll_sequence = sequence; }
+
     Gfx::FloatPoint device_offset_for_index(SpatialNodeIndex index) const
     {
         if (index.value() >= m_device_offsets.size())
@@ -80,6 +85,7 @@ private:
     Vector<Gfx::FloatPoint> m_device_offsets;
     Vector<StagedOffset> m_staged_offsets;
     size_t m_node_count { NumericLimits<size_t>::max() };
+    u64 m_adopted_async_scroll_sequence { 0 };
 };
 
 }

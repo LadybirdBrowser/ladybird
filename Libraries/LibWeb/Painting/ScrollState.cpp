@@ -31,6 +31,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::Painting::ScrollStateSnapshot const&
         TRY(encoder.encode(static_cast<u64>(index)));
         TRY(encoder.encode(device_offsets[index]));
     }
+    TRY(encoder.encode(snapshot.adopted_async_scroll_sequence()));
     return {};
 }
 
@@ -46,6 +47,7 @@ ErrorOr<Web::Painting::ScrollStateSnapshot> decode(Decoder& decoder)
             return Error::from_string_literal("IPC decode: ScrollStateSnapshot index out of range");
         TRY(snapshot.m_staged_offsets.try_append({ static_cast<u32>(index), offset }));
     }
+    snapshot.set_adopted_async_scroll_sequence(TRY(decoder.decode<u64>()));
     return snapshot;
 }
 
