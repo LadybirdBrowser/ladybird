@@ -220,11 +220,10 @@ impl StyleEngine {
     /// complete as any. A pseudo-element's rules keep the strict reading, since a pseudo-element's
     /// environment is still C++'s to compute.
     pub(super) fn cascade_winners_are_complete_but_for_custom_properties(&self, node: StyleNodeID) -> bool {
-        let mut complete = ElementDeclarationKind::ALL.iter().all(|&kind| {
+        if !ElementDeclarationKind::ALL.iter().all(|&kind| {
             self.facts
                 .element_declarations_are_complete_but_for_custom_properties(node, kind)
-        });
-        if !complete {
+        }) {
             return false;
         }
         // A rule deciding from another tree scope orders by its context like any other; the
@@ -240,19 +239,17 @@ impl StyleEngine {
         if let Some(answer) = self.published_match_answers.lookup(node)
             && let Some(matches) = self.published_match_answers.matches_for(answer)
         {
-            for entry in matches {
-                complete &= rule_is_complete(entry.rule, entry.tree_scope, entry.pseudo_element.is_some());
-            }
-            return complete;
+            return matches
+                .iter()
+                .all(|entry| rule_is_complete(entry.rule, entry.tree_scope, entry.pseudo_element.is_some()));
         }
         let Lookup::Known(answer) = self.retained_match_answer(node) else {
             return false;
         };
-        for rule_match in answer.iter() {
+        answer.iter().all(|rule_match| {
             let entry = &self.programs.get(rule_match.program).entries()[rule_match.entry as usize];
-            complete &= rule_is_complete(rule_match.rule, rule_match.tree_scope, entry.pseudo_element.is_some());
-        }
-        complete
+            rule_is_complete(rule_match.rule, rule_match.tree_scope, entry.pseudo_element.is_some())
+        })
     }
 
     /// The custom properties the node's cascade decides, each with its winning declaration and
