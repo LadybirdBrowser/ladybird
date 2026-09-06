@@ -1403,9 +1403,6 @@ impl WinnerGroups {
     /// priority changed.
     #[must_use]
     pub fn semantic_delta(&self, previous: Option<CascadeStateID>, current: CascadeStateID) -> CascadeWinnerDelta {
-        if previous == Some(current) {
-            return CascadeWinnerDelta::default();
-        }
         CascadeWinnerDelta {
             properties: self.semantic_delta_properties(previous, current).collect(),
         }
@@ -1417,8 +1414,14 @@ impl WinnerGroups {
         previous: Option<CascadeStateID>,
         current: CascadeStateID,
     ) -> impl Iterator<Item = PropertyID> {
-        let previous: &[WinnerGroupRef] = previous.map_or(&[], |state| &self.states[state]);
-        let current = &self.states[current];
+        let (previous, current): (&[WinnerGroupRef], &[WinnerGroupRef]) = if previous == Some(current) {
+            (&[], &[])
+        } else {
+            (
+                previous.map_or(&[], |state| self.states[state].as_ref()),
+                self.states[current].as_ref(),
+            )
+        };
         merge_sorted_by(previous, current, move |old, new| {
             self.group_bucket(*old).cmp(&self.group_bucket(*new))
         })
