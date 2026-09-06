@@ -649,23 +649,21 @@ impl<'a> SelectorCompiler<'a> {
             };
             // The names go under the host op rather than beside it, so that one level of
             // `exportparts` forwarding has to answer for both halves at once.
-            let names: Vec<SelectorNodeID> = part
-                .identifier_identities
-                .iter()
-                .map(|identity| {
-                    let atom = (self.intern)(identity.raw(), None);
-                    self.builder.push(SelectorOp::Part(atom))
-                })
-                .collect();
-            if names.is_empty() {
+            operands.clear();
+            for identity in &part.identifier_identities {
+                let atom = (self.intern)(identity.raw(), None);
+                operands.push(self.builder.push(SelectorOp::Part(atom)));
+            }
+            if operands.is_empty() {
                 marker.get_or_insert(CompilationMarker::KnownNeverMatches(
                     CompilationMarkerReason::PseudoElement,
                 ));
             }
-            let parts = self.builder.push_compound(&names);
-            let mut exposed = vec![self.builder.push(SelectorOp::ExposedToHost { host, parts })];
-            exposed.extend(on_the_part);
-            return self.builder.push_compound(&exposed);
+            let parts = self.builder.push_compound(&operands);
+            operands.clear();
+            operands.push(self.builder.push(SelectorOp::ExposedToHost { host, parts }));
+            operands.extend(on_the_part);
+            return self.builder.push_compound(&operands);
         }
 
         if operands.is_empty() {
