@@ -830,20 +830,14 @@ impl StyleEngine {
     /// dependencies are unchanged remain interned for one invalidation generation, preserving the
     /// dispatch and prefix work shared by unaffected scopes.
     pub(super) fn invalidate_scope_programs(&mut self) {
-        let inactive: Vec<_> = self
-            .scope_programs
-            .iter()
-            .enumerate()
-            .filter_map(|(index, program)| {
-                program
-                    .as_ref()
-                    .is_some_and(|program| program.scope_count == 0)
-                    .then_some(ScopeProgramID(
-                        u32::try_from(index).expect("scope program identity space exhausted"),
-                    ))
-            })
-            .collect();
-        for id in inactive {
+        for index in 0..self.scope_programs.len() {
+            if !self.scope_programs[index]
+                .as_ref()
+                .is_some_and(|program| program.scope_count == 0)
+            {
+                continue;
+            }
+            let id = ScopeProgramID(u32::try_from(index).expect("scope program identity space exhausted"));
             let mut caches = self.prefix_caches.borrow_mut();
             caches.states.remove(id);
             caches.answers.remove_program(&mut self.match_answers, id);
