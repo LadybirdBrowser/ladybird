@@ -3,10 +3,10 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 40 0+0+8] children: not-inline
       TableWrapper <(anonymous)> at [8,8] [0+0+0 115.609375 0+0+668.390625] [0+0+0 40 0+0+0] [BFC] children: not-inline
         Box <table> at [9,9] table-box [0+1+0 113.609375 0+1+0] [0+1+0 38 0+1+0] [TFC] children: not-inline
-          BlockContainer <colgroup> (not painted) table-column-group children: not-inline
-            BlockContainer <col> (not painted) children: not-inline
-          BlockContainer <colgroup> (not painted) table-column-group children: not-inline
-            BlockContainer <col.right> (not painted) children: not-inline
+          BlockContainer <colgroup> at [9,9] table-column-group [0+0+0 59.265625 0+0+0] [0+0+0 38 0+0+0] children: not-inline
+            BlockContainer <col> at [9,9] [0+0+0 59.265625 0+0+0] [0+0+0 38 0+0+0] children: not-inline
+          BlockContainer <colgroup> at [68.265625,9] table-column-group [0+0+0 54.34375 0+0+0] [0+0+0 38 0+0+0] children: not-inline
+            BlockContainer <col.right> at [68.265625,9] [0+0+0 54.34375 0+0+0] [0+0+0 38 0+0+0] children: not-inline
           Box <tbody> at [9,9] table-row-group [0+0+0 113.609375 0+0+0] [0+0+0 38 0+0+0] children: not-inline
             Box <tr> at [9,9] table-row [0+0+0 113.609375 0+0+0] [0+0+0 38 0+0+0] children: not-inline
               BlockContainer <td> at [30,20] table-cell [0+1+20 14.265625 20+8+0] [0+1+10 16 10+1+0] [BFC] children: inline

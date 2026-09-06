@@ -443,9 +443,37 @@ impl PaintRecorder<'_> {
     }
 
     fn paint_descendants(&mut self, paintable: NodeSlotId, phase: StackingContextPaintPhase) {
+        // CSS 2.2 §17.5.1 stacks the backgrounds of a table's parts in layers: the table, then the column groups,
+        // the columns, the row groups, the rows and the cells. Column boxes may come after the row groups in the
+        // tree (the HTML parser puts a <colgroup> that follows a row after it), so a table box paints its column
+        // groups and columns before its other children. https://www.w3.org/TR/CSS22/tables.html#table-layers
+        let is_column_box = |this: &Self, child: NodeSlotId| {
+            let display = this.display(child);
+            display.is_table_column_group() || display.is_table_column()
+        };
+        let paints_columns_first = phase == StackingContextPaintPhase::BackgroundAndBorders
+            && self.layout_kind(paintable) == Some(NodeKind::Box)
+            && self.display(paintable).is_table_inside();
+        if paints_columns_first {
+            self.paint_descendants_matching(paintable, phase, |this, child| is_column_box(this, child));
+            self.paint_descendants_matching(paintable, phase, |this, child| !is_column_box(this, child));
+        } else {
+            self.paint_descendants_matching(paintable, phase, |_, _| true);
+        }
+    }
+
+    fn paint_descendants_matching(
+        &mut self,
+        paintable: NodeSlotId,
+        phase: StackingContextPaintPhase,
+        matches: impl Fn(&Self, NodeSlotId) -> bool,
+    ) {
         let mut next_child = crate::painting::paint_order::first_paint_child(self.layout_arena, paintable);
         while let Some(child) = next_child {
             next_child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, child);
+            if !matches(self, child) {
+                continue;
+            }
             let site = CaptureSite {
                 paintable: child,
                 kind: CaptureKind::DescendantSubtreePhase(phase),

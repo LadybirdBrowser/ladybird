@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/table-column-background-below-cells-ref.html" />
+<style>
+    table {
+        border-spacing: 0;
+    }
+    td {
+        width: 50px;
+        height: 50px;
+        padding: 0;
+    }
+</style>
+<!-- The HTML parser appends the colgroup after the tbody: the column background must still paint below the cells,
+     so it only shows through the cell without a background of its own. -->
+<table>
+    <tr>
+        <td style="background: blue"></td>
+        <td></td>
+    </tr>
+    <colgroup style="background: red">
+        <col>
+        <col>
+    </colgroup>
+</table>

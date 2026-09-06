@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<style>
+    table {
+        border-spacing: 4px 2px;
+    }
+    td {
+        width: 30px;
+        height: 10px;
+        padding: 0;
+    }
+</style>
+<!-- Column boxes span the cells of their columns: a column group covers the spacing between its columns but not
+     the spacing around them, a spanning column covers all of its columns, and all of them extend over every row. -->
+<table>
+    <colgroup>
+        <col>
+        <col>
+    </colgroup>
+    <col span="2">
+    <colgroup></colgroup>
+    <thead>
+        <tr><td></td><td></td><td></td><td></td></tr>
+    </thead>
+    <tbody>
+        <tr><td></td><td></td><td></td><td></td></tr>
+    </tbody>
+    <tfoot>
+        <tr><td></td><td></td><td></td><td></td></tr>
+    </tfoot>
+</table>
