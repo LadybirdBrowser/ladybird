@@ -633,12 +633,12 @@ impl StyleEngine {
                 keep[index] = true;
             }
         }
-        for winner in top_1.winners() {
+        for winner in top_1.unordered_winners() {
             if let CascadeCompactionCandidate::Rule(match_index) = winner.payload {
                 keep[match_index] = true;
             }
         }
-        for winner in element_top_1.winners() {
+        for winner in &element_top_1.winners {
             if let CascadeCompactionCandidate::Rule(match_index) = winner.payload {
                 keep[match_index] = true;
             }

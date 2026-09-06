@@ -462,6 +462,10 @@ where
         self.winner_by_key.get(key).map(|&index| &self.winners[index])
     }
 
+    pub(super) fn unordered_winners(&self) -> impl Iterator<Item = &Top1Winner<Key, Priority, Payload>> {
+        self.winners.iter()
+    }
+
     pub(super) fn winners(&mut self) -> impl Iterator<Item = &Top1Winner<Key, Priority, Payload>> {
         if !self.sorted {
             self.winners.sort_unstable_by_key(|winner| winner.key);
