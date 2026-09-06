@@ -52,6 +52,7 @@
 #include <QPainterPathStroker>
 #include <QPalette>
 #include <QPixmap>
+#include <QPointer>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QShortcut>
@@ -1088,8 +1089,20 @@ void WebContentView::resizeEvent(QResizeEvent* event)
 #ifdef LADYBIRD_QT_USE_VULKAN_WINDOW
     update_vulkan_window_geometry();
 #endif
-    update_viewport_size();
-    handle_resize();
+    // One window resize reaches the view as several resize events in one turn of the event loop
+    // (the chrome around it settles after it). The page gets one viewport size per turn: the size
+    // the view has when the turn ends, pushed once.
+    if (m_viewport_push_pending)
+        return;
+    m_viewport_push_pending = true;
+    Core::deferred_invoke([self = QPointer<WebContentView>(this)] {
+        if (!self)
+            return;
+        self->m_viewport_push_pending = false;
+        if (!self->m_client_state.client)
+            return;
+        self->update_viewport_size();
+    });
 }
 
 void WebContentView::set_viewport_rect(Gfx::IntRect rect)
@@ -1111,7 +1124,6 @@ void WebContentView::set_device_pixel_ratio(double device_pixel_ratio)
 {
     m_device_pixel_ratio = device_pixel_ratio;
     update_viewport_size();
-    handle_resize();
 }
 
 void WebContentView::set_vertical_tab_overlay_insets([[maybe_unused]] int left, [[maybe_unused]] int right)
