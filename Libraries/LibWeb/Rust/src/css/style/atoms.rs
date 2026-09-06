@@ -9,6 +9,7 @@ use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::collections::hash_map::Entry;
 use std::hash::BuildHasher;
 use std::rc::Rc;
 use std::sync::Mutex;
@@ -196,7 +197,7 @@ pub(super) struct DocumentAtoms {
 }
 
 pub(super) struct PinnedAtoms {
-    atoms: Vec<StyleAtomID>,
+    atoms: Box<[StyleAtomID]>,
     pins: Rc<AtomPins>,
 }
 
@@ -223,10 +224,13 @@ impl Drop for PinnedAtoms {
     fn drop(&mut self) {
         let mut pinned = self.pins.counts.borrow_mut();
         for atom in &self.atoms {
-            let count = pinned.get_mut(atom).expect("a pinned atom must have a live count");
+            let Entry::Occupied(mut entry) = pinned.entry(*atom) else {
+                unreachable!("a pinned atom must have a live count");
+            };
+            let count = entry.get_mut();
             *count = count.checked_sub(1).expect("pinned atom count underflow");
             if *count == 0 {
-                pinned.remove(atom);
+                entry.remove();
             }
         }
         if !self.atoms.is_empty() {
@@ -318,7 +322,7 @@ impl DocumentAtoms {
     }
 
     pub(super) fn pin(&self, atoms: impl IntoIterator<Item = StyleAtomID>) -> PinnedAtoms {
-        let atoms = atoms.into_iter().filter(|atom| !atom.is_none()).collect::<Vec<_>>();
+        let atoms = atoms.into_iter().filter(|atom| !atom.is_none()).collect::<Box<[_]>>();
         let mut pinned = self.pins.counts.borrow_mut();
         for &atom in &atoms {
             *pinned.entry(atom).or_default() += 1;
