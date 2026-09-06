@@ -1281,6 +1281,7 @@ impl<'pass> TableFormattingContext<'pass> {
         table_used.padding_bottom.set(CssPixels::default());
         table_used.padding_left.set(CssPixels::default());
         table_used.uses_collapsing_borders_model.set(true);
+        table_used.is_collapsed_borders_table_box.set(true);
         self.table_box_content_block_offset_in_wrapper += table_used.border_box_top(true) - old_border_box_top;
         let freed_inline = old_inline_borders - (table_used.border_box_left(true) + table_used.border_box_right(true));
         if let AvailableSize::Definite(available) = self.available_space.inline_size {
@@ -2694,7 +2695,8 @@ impl<'pass> TableFormattingContext<'pass> {
             } else {
                 &used.border_right
             };
-            // In the collapsing border model the cell's share of a border is half its used width, rounded.
+            // In the collapsing border model the cell's share of a border is the part of it on its side of the grid
+            // line (see UsedValues::border_left_collapsed).
             let share = |used: &UsedValues| {
                 if is_start_side {
                     used.border_left_collapsed(collapsed)
@@ -2705,7 +2707,7 @@ impl<'pass> TableFormattingContext<'pass> {
             let allowed = (share(used) - remaining).max(CssPixels::default());
             let mut width = if collapsed { allowed * 2usize } else { allowed };
             border.set(width);
-            // Rounding of the half can leave the share above the allowed size by up to half a pixel.
+            // The whole-pixel split can leave the share above the allowed size by up to a pixel.
             while share(used) > allowed && width > CssPixels::default() {
                 width = (width - CssPixels::from_integer(1)).max(CssPixels::default());
                 border.set(width);

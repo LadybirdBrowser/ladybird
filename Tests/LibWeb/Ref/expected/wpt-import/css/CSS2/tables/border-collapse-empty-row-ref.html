@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<link rel="author" title="David Shin" href="mailto:dshin@mozilla.com">
+<link rel="help" href="http://www.w3.org/TR/CSS21/tables.html#collapsing-borders">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1819266">
+<meta name="assert" content="This test checks that collapsed border does not paint outside of its expected area.">
+<style>
+table {
+  display: inline-table;
+  border-collapse: collapse;
+}
+
+td {
+  border: 10px solid black;
+  line-height: 0;
+  padding: 0;
+}
+
+span {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background: grey;
+}
+
+.spacer-1 tr:not(:last-child) td {
+  border-bottom: 12px solid black;
+}
+
+.spacer-2 tr:not(:last-child) td {
+  border-bottom: 15px solid black;
+}
+
+.spacer-3 tr:not(:last-child) td {
+  border-bottom: 20px solid black;
+}
+
+</style>
+<table>
+<tr><td><span></span></td><td><span></span></td></tr>
+<tr><td><span></span></td><td><span></span></td></tr>
+<tr><td><span></span></td><td><span></span></td></tr>
+<tr><td><span></span></td><td><span></span></td></tr>
+<tr><td><span></span></td><td><span></span></td></tr>
+<tr><td><span></span></td><td><span></span></td></tr>
+</table>
+<table class="spacer-1">
+<tr><td><span></span></td><td><span></span></td></tr>
+<tr><td><span></span></td><td><span></span></td></tr>
+<tr><td><span></span></td><td><span></span></td></tr>
+<tr><td><span></span></td><td><span></span></td></tr>
+<tr><td><span></span></td><td><span></span></td></tr>
+<tr><td><span></span></td><td><span></span></td></tr>
+</table>
+<table class="spacer-2">
+<tr><td><span></span></td><td><span></span></td></tr>
+<tr><td><span></span></td><td><span></span></td></tr>
+<tr><td><span></span></td><td><span></span></td></tr>
+<tr><td><span></span></td><td><span></span></td></tr>
+<tr><td><span></span></td><td><span></span></td></tr>
+<tr><td><span></span></td><td><span></span></td></tr>
+</table>
+<table class="spacer-3">
+<tr><td><span></span></td><td><span></span></td></tr>
+<tr><td><span></span></td><td><span></span></td></tr>
+<tr><td><span></span></td><td><span></span></td></tr>
+<tr><td><span></span></td><td><span></span></td></tr>
+<tr><td><span></span></td><td><span></span></td></tr>
+<tr><td><span></span></td><td><span></span></td></tr>
+</table>

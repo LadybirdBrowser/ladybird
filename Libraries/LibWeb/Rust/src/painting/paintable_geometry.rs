@@ -245,21 +245,37 @@ pub(crate) fn absolute_padding_box_rect(arena: &impl PaintableRowsRead, slot: No
 }
 
 /// The border widths that lie within the box's border box. In the collapsing borders model, a collapsed border is
-/// centered on the grid line between two boxes, so only half of it belongs to each: "the border-box of the table
+/// centered on the grid line between two boxes, so only a part of it belongs to each: "the border-box of the table
 /// includes half of the table border" and, for cells, "half the width of the collapsed border on each side".
 /// https://www.w3.org/TR/CSS22/tables.html#collapsing-borders
-/// The half is rounded the same way layout rounds it when placing the cells (`UsedValues::rounded_half_border`).
+/// The border is split the same way layout splits it when placing the boxes (`UsedValues::border_left_collapsed`):
+/// the part before the grid line goes to the box before the line, the part after it to the box after the line.
 pub(crate) fn committed_border_box_edges(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> FfiPixelBox {
     let border = committed_border(arena, slot);
-    if !committed_uses_collapsing_borders_model(arena, slot) {
+    let Some(is_table_box) = arena.with_committed_fragment_link(slot, |link| {
+        link.filter(|link| link.fragment.uses_collapsing_borders_model)
+            .map(|link| link.fragment.is_collapsed_borders_table_box)
+    }) else {
         return border;
-    }
-    let two = CssPixels::from_integer(2);
+    };
+    // A cell lies inside its grid lines; the table box lies around them.
+    let (part_at_start_edges, part_at_end_edges): (fn(CssPixels) -> CssPixels, fn(CssPixels) -> CssPixels) =
+        if is_table_box {
+            (
+                used_values::collapsed_border_part_before_line,
+                used_values::collapsed_border_part_after_line,
+            )
+        } else {
+            (
+                used_values::collapsed_border_part_after_line,
+                used_values::collapsed_border_part_before_line,
+            )
+        };
     FfiPixelBox {
-        top: border.top.div_as_fraction(two).round(),
-        right: border.right.div_as_fraction(two).round(),
-        bottom: border.bottom.div_as_fraction(two).round(),
-        left: border.left.div_as_fraction(two).round(),
+        top: part_at_start_edges(border.top),
+        right: part_at_end_edges(border.right),
+        bottom: part_at_end_edges(border.bottom),
+        left: part_at_start_edges(border.left),
     }
 }
 
