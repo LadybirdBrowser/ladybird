@@ -6476,19 +6476,22 @@ fn matches_an_plus_b(step: i32, offset: i32, index: i64) -> bool {
     difference % step == 0 && difference / step >= 0
 }
 
-fn fold(unit: u16, insensitive: bool) -> u16 {
-    if insensitive && (u16::from(b'A')..=u16::from(b'Z')).contains(&unit) {
+fn fold(unit: u16) -> u16 {
+    if (u16::from(b'A')..=u16::from(b'Z')).contains(&unit) {
         return unit + u16::from(b'a' - b'A');
     }
     unit
 }
 
 fn equals(value: &[u16], literal: &[u16], insensitive: bool) -> bool {
+    if !insensitive {
+        return value == literal;
+    }
     value.len() == literal.len()
         && value
             .iter()
             .zip(literal)
-            .all(|(&left, &right)| fold(left, insensitive) == fold(right, insensitive))
+            .all(|(&left, &right)| fold(left) == fold(right))
 }
 
 fn starts_with(value: &[u16], literal: &[u16], insensitive: bool) -> bool {
