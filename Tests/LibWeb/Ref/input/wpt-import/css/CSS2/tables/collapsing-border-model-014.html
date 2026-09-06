@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<title>CSS Test: Tables under the collapsing borders model don't have padding</title>
+<link rel="author" title="Oriol Brufau" href="obrufau@igalia.com">
+<link rel="help" href="http://www.w3.org/TR/CSS21/tables.html#collapsing-borders">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/tables/../../reference/ref-filled-green-100px-square-only.html">
+<style>
+div {
+  float: left;
+  background: green;
+}
+table {
+  border-collapse: collapse;
+  box-sizing: border-box;
+  width: 100px;
+  height: 100px;
+  padding: 100px;
+}
+</style>
+<p>Test passes if there is a filled green square.</p>
+<div>
+  <table></table>
+</div>

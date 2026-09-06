@@ -1,0 +1,40 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Tables under the collapsing borders model don't have padding</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/tables.html#collapsing-borders" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/tables/collapsing-border-model-001-ref.html" />
+        <meta name="assert" content="Padding doesn't apply to a table under the collapsing border model." />
+        <style type="text/css">
+            table
+            {
+                border: 25px solid red;
+                border-collapse: collapse;
+                padding: 10px;
+            }
+            td
+            {
+                background: blue;
+                border: 50px solid blue;
+                padding: 10px;
+                width: 100px;
+            }
+            #div1
+            {
+                background: orange;
+                height: 120px;
+                width: 220px;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if the orange and blue boxes below are the same width.</p>
+        <div id="div1"></div>
+        <table>
+            <tr>
+                <td></td>
+            </tr>
+        </table>
+    </body>
+</html>
