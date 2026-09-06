@@ -7,7 +7,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
       TableWrapper <(anonymous)> at [8,8] [0+0+0 1200 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
         Box <div.aligncenter.block-image> at [8,8] table-box [0+0+0 1200 0+0+0] [0+0+0 600 0+0+0] [TFC] children: inline
-          Box <(anonymous)> at [8,8] table-row [0+0+0 1200 0+0+0] [0+0+0 600 0+0+0] children: inline
+          Box <(anonymous)> at [8,8] table-row [0+0+0 1200 0+0+0] [0+0+0 600 0+0+0] children: not-inline
             BlockContainer <(anonymous)> at [8,8] table-cell [0+0+0 1200 0+0+0] [0+0+0 600 0+0+0] [BFC] children: inline
               TextNode <#text> (not painted)
               InlineNode <a> at [8,8] [0+0+0 1200 0+0+0] [0+0+0 600 0+0+0]
