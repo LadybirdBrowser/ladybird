@@ -817,7 +817,8 @@ pub(super) struct RetainedMatchAnswers {
 /// exact selector truth without evaluating the selector again. It is Tier-3 state: incomplete
 /// retained coverage or closed admission simply leaves program routing on its cold path.
 pub(super) struct RetainedSelectorIncidences {
-    pub(super) by_program: Vec<Option<Rc<[RetainedSelectorIncidence]>>>,
+    by_program: Vec<Option<Rc<[RetainedSelectorIncidence]>>>,
+    nested_capacity_bytes: u64,
     pub(super) residency: MemoryLease,
 }
 
@@ -831,6 +832,7 @@ impl Default for RetainedSelectorIncidences {
     fn default() -> Self {
         Self {
             by_program: Vec::new(),
+            nested_capacity_bytes: 0,
             residency: MemoryLease::new(MemoryCategory::RetainedSelectorIncidence),
         }
     }
@@ -844,13 +846,8 @@ impl RetainedSelectorIncidences {
     pub(super) fn capacity_bytes(&self) -> u64 {
         capacity_bytes! {
             shallow [self.by_program];
-            cached [];
-            nested [self
-                .by_program
-                .iter()
-                .flatten()
-                .map(|incidences| incidences.len() * size_of::<RetainedSelectorIncidence>())
-                .sum::<usize>()];
+            cached [self.nested_capacity_bytes];
+            nested [];
             skip [self.residency];
         }
     }
@@ -871,7 +868,10 @@ impl RetainedSelectorIncidences {
         if self.by_program.len() < required_len {
             self.by_program.resize(required_len, None);
         }
-        self.by_program[program.0 as usize] = Some(Rc::clone(&incidences));
+        if let Some(previous) = self.by_program[program.0 as usize].replace(Rc::clone(&incidences)) {
+            self.nested_capacity_bytes -= size_of_val(previous.as_ref()) as u64;
+        }
+        self.nested_capacity_bytes += size_of_val(incidences.as_ref()) as u64;
         let bytes = self.capacity_bytes();
         self.residency.reconcile_committed(memory, bytes);
         memory.finish_committed_acceleration_growth(MemoryCategory::RetainedSelectorIncidence);
@@ -880,6 +880,7 @@ impl RetainedSelectorIncidences {
 
     pub(super) fn clear(&mut self) {
         self.by_program = Vec::new();
+        self.nested_capacity_bytes = 0;
         self.residency.release();
     }
 }
