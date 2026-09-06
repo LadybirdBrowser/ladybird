@@ -850,7 +850,7 @@ impl StyleNodeTree {
         if pairs.is_empty() {
             shadow.part_hosts.remove(&node);
         } else {
-            shadow.part_hosts.insert(node, pairs.to_vec());
+            pairs.clone_into(shadow.part_hosts.entry(node).or_default());
         }
         let current = self.shadow_capacity_bytes();
         self.record_capacity_change(memory, before, current);
