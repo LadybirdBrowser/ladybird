@@ -1,0 +1,40 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Reftest Reference</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+
+  <style type="text/css"><![CDATA[
+  body
+  {
+  margin: 8px;
+  width: 640px;
+  }
+
+  div
+  {
+  font: 22px/26px serif;
+  margin-top: 20px;
+  }
+
+  img {vertical-align: top;}
+
+  img.reference1st {margin-left: 29px;}
+
+  img.reference2nd, img.reference3rd, img.reference4th {margin-left: 18px;}
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if the colored (fuchsia, olive, orange and lime) stripes have respectively the same widths and the same horizontal positions.</p>
+
+  <div><img class="reference1st" src="../support/swatch-fuchsia.png" width="52" height="22" alt="Image download support must be enabled" /><img class="reference2nd" src="../support/swatch-olive.png" width="100" height="22" alt="Image download support must be enabled" /><img class="reference3rd" src="../support/swatch-orange.png" width="124" height="22" alt="Image download support must be enabled" /><img class="reference4th" src="../support/swatch-lime.png" width="124" height="22" alt="Image download support must be enabled" /><br /><img class="reference1st" src="../support/swatch-fuchsia.png" width="52" height="22" alt="Image download support must be enabled" /><img class="reference2nd" src="../support/swatch-olive.png" width="100" height="22" alt="Image download support must be enabled" /><img class="reference3rd" src="../support/swatch-orange.png" width="124" height="22" alt="Image download support must be enabled" /><img class="reference4th" src="../support/swatch-lime.png" width="124" height="22" alt="Image download support must be enabled" /></div>
+
+ </body>
+</html>

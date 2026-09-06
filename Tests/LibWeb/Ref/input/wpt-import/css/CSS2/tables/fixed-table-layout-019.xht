@@ -1,0 +1,90 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Test: table-layout fixed - columns with percentage width</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/tables.html#fixed-table-layout" title="17.5.2.1 Fixed table layout" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/tables/fixed-table-layout-017-ref.xht" />
+  <link rel="stylesheet" type="text/css" href="../../../../../../Text/input/wpt-import/fonts/ahem.css" />
+
+  <meta content="A column with a percentage width in a 'table-layout: fixed' table can be calculated and predicted when in 'border-collapse: separate' model." name="assert" />
+
+  <style type="text/css"><![CDATA[
+  table, div {font: 1.25em/1 Ahem;}
+
+  table
+  {
+  border: white solid;
+  border-width: 0px 6px;
+  border-collapse: separate;
+  border-spacing: 2px 4px;
+  table-layout: fixed;
+  width: 422px;
+  }
+
+  col#test
+  {
+  background-color: orange;
+  width: 40%;
+  }
+
+  td#third-cell {color: orange;}
+
+  div, td {padding: 1px 0px;}
+
+  div#reference
+  {
+  background-color: blue;
+  color: blue;
+  left: 172px;
+  position: relative;
+  width: 160px;
+
+  /*
+
+    422px : total width of table
+  -
+     12px : total width of horizontal borders of table
+  -
+     10px : 5 times horizontal border-spacing
+   ========
+    400px
+   mult by
+     40%
+   ========
+    160px
+
+  */
+  }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if the orange stripe is exactly as wide as the blue stripe and is horizontally positioned the same.</p>
+
+  <table>
+
+    <col></col>
+    <col></col>
+    <col id="test"></col>
+    <col></col>
+
+    <tr>
+      <td></td>
+      <td></td>
+      <td id="third-cell">col</td>
+      <td></td>
+    </tr>
+
+  </table>
+
+  <div id="reference">ref</div>
+
+ </body>
+</html>
