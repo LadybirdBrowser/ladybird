@@ -208,6 +208,7 @@ void CanonicalTraversable::create_a_new_top_level_traversable(Optional<Canonical
         .top_level_creation_url = initial_history_entry.url,
         .top_level_origin = document_origin,
         .has_cross_site_ancestor = false,
+        .opener_policy = {},
     });
 
     // 7. Let initialHistoryEntry be traversable's active session history entry.

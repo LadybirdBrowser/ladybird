@@ -6,6 +6,7 @@
 
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
+#include <LibWeb/HTML/NavigationParamsDescriptor.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 
 namespace IPC {
@@ -21,6 +22,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::ReplicatedNavigableState const
     TRY(encoder.encode(state.top_level_creation_url));
     TRY(encoder.encode(state.top_level_origin));
     TRY(encoder.encode(state.has_cross_site_ancestor));
+    TRY(encoder.encode(state.opener_policy));
     return {};
 }
 
@@ -36,6 +38,7 @@ ErrorOr<Web::HTML::ReplicatedNavigableState> decode(Decoder& decoder)
         .top_level_creation_url = TRY(decoder.decode<URL::URL>()),
         .top_level_origin = TRY(decoder.decode<URL::Origin>()),
         .has_cross_site_ancestor = TRY(decoder.decode<bool>()),
+        .opener_policy = TRY(decoder.decode<Web::HTML::OpenerPolicy>()),
     };
 }
 

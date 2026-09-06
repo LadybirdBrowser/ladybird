@@ -38,6 +38,7 @@ public:
     virtual Optional<URL::URL> active_document_top_level_creation_url() const override { return m_replicated_state.top_level_creation_url; }
     virtual Optional<URL::Origin> active_document_top_level_origin() const override { return m_replicated_state.top_level_origin; }
     virtual bool active_document_has_cross_site_ancestor() const override { return m_replicated_state.has_cross_site_ancestor; }
+    virtual OpenerPolicy const& active_document_opener_policy() const override { return m_replicated_state.opener_policy; }
 
     virtual bool has_session_history_entry_and_ready_for_navigation() const override;
     virtual bool delays_the_load_event_of_its_container() const override;

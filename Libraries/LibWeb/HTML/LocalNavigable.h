@@ -135,6 +135,7 @@ public:
     virtual Optional<URL::URL> active_document_top_level_creation_url() const override;
     virtual Optional<URL::Origin> active_document_top_level_origin() const override;
     virtual bool active_document_has_cross_site_ancestor() const override;
+    virtual OpenerPolicy const& active_document_opener_policy() const override;
     ReplicatedNavigableState replicated_state() const;
 
     void save_persisted_state_to_active_session_history_entry();

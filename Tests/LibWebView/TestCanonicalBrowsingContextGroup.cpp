@@ -113,6 +113,7 @@ TEST_CASE(response_browsing_context_is_activated_only_at_commit)
                                           .top_level_creation_url = destination_url,
                                           .top_level_origin = destination_url.origin(),
                                           .has_cross_site_ancestor = false,
+                                          .opener_policy = {},
                                       },
         navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes);
     EXPECT_EQ(&traversable.active_browsing_context(), destination_context.ptr());
@@ -142,6 +143,7 @@ TEST_CASE(populated_document_replaces_tracked_load_when_document_state_is_reused
                                           .top_level_creation_url = destination_url,
                                           .top_level_origin = destination_url.origin(),
                                           .has_cross_site_ancestor = false,
+                                          .opener_policy = {},
                                       },
         navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes);
 
