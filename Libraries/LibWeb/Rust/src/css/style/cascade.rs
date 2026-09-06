@@ -1164,6 +1164,8 @@ impl WinnerGroups {
 
         let mut groups = self.states[previous].to_vec();
         let mut changed_properties = Vec::new();
+        let mut old_winners = Vec::new();
+        let mut winners = Vec::new();
         let mut update_start = 0;
         while update_start < updates.len() {
             let bucket = updates[update_start].property / WINNER_GROUP_PROPERTY_COUNT;
@@ -1175,11 +1177,13 @@ impl WinnerGroups {
                 .get(group_index)
                 .copied()
                 .filter(|&group| self.group_bucket(group) == bucket);
-            let old_winners: Vec<PropertyWinner> = old_group
-                .map(|group| self.group_winners(group).collect())
-                .unwrap_or_default();
+            old_winners.clear();
+            if let Some(group) = old_group {
+                old_winners.extend(self.group_winners(group));
+            }
             let bucket_updates = &updates[update_start..update_end];
-            let mut winners = Vec::with_capacity(old_winners.len() + bucket_updates.len());
+            winners.clear();
+            winners.reserve(old_winners.len() + bucket_updates.len());
             for entry in merge_sorted_by(&old_winners, bucket_updates, |old, update| {
                 old.property.cmp(&update.property)
             }) {
