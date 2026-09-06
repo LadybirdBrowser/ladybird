@@ -1821,8 +1821,8 @@ impl FeaturePostings {
 
     fn update_selector_posting_limit(&mut self, live_element_count: usize) {
         self.set_selector_posting_limit((live_element_count / 4).max(4096));
-        let grown: Vec<_> = self.grown_selector_postings.drain().collect();
-        for key in grown {
+        let mut grown = std::mem::take(&mut self.grown_selector_postings);
+        for key in grown.drain() {
             if self
                 .postings
                 .get(&key)
@@ -1832,6 +1832,7 @@ impl FeaturePostings {
                 self.remember_cardinality_limited(key);
             }
         }
+        self.grown_selector_postings = grown;
     }
 
     /// Discard every posting. Memory pressure reduces retained acceleration, never correctness.
