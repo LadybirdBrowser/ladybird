@@ -3917,14 +3917,33 @@ impl ElementFactStore {
         }
     }
 
-    fn remove_row_catalog_references(&mut self, facts: &StagedFactRow) {
-        Self::for_each_row_atom(facts, |atom| {
+    fn remove_row_catalog_references(&mut self, row: u32) {
+        for atom in [
+            self.rows.tag_of(row),
+            self.rows.folded_tag_of(row),
+            self.rows.id_of(row),
+            self.rows.language_of(row),
+            self.rows.namespace_of(row),
+            self.rows.part_exposure_of(row),
+            self.rows.directionality_of(row),
+        ] {
             Self::decrement_atom_count(&mut self.atom_live_counts, atom);
-        });
-        Self::decrement_atom_count(&mut self.language_live_counts, facts.language);
-        for &(name, value) in &facts.attributes {
-            Self::decrement_atom_count(&mut self.attribute_name_live_counts, name);
-            Self::decrement_atom_count(&mut self.attribute_value_live_counts, value);
+        }
+        for atoms in [
+            self.rows.custom_states_of(row),
+            self.rows.parts_of(row),
+            self.rows.classes_of(row),
+        ] {
+            for &atom in atoms {
+                Self::decrement_atom_count(&mut self.atom_live_counts, atom);
+            }
+        }
+        Self::decrement_atom_count(&mut self.language_live_counts, self.rows.language_of(row));
+        for attribute in self.rows.attributes_of(row) {
+            Self::decrement_atom_count(&mut self.atom_live_counts, attribute.name);
+            Self::decrement_atom_count(&mut self.atom_live_counts, attribute.value);
+            Self::decrement_atom_count(&mut self.attribute_name_live_counts, attribute.name);
+            Self::decrement_atom_count(&mut self.attribute_value_live_counts, attribute.value);
         }
     }
 
@@ -4997,7 +5016,7 @@ impl ElementFactStore {
         let row_bytes = self.rows.logical_bytes_of_row(row);
         let payload_bytes = self.rows.payload_bytes_of_row(row);
         let facts = self.snapshot_row(node);
-        self.remove_row_catalog_references(&facts);
+        self.remove_row_catalog_references(row);
         Rc::get_mut(&mut self.rows)
             .expect("forgetting a fact row requires unique primary rows")
             .forget_row(node);
@@ -5311,16 +5330,10 @@ impl ElementFactStore {
         self.sync_attribute_catalogs();
         let mut staging = std::mem::take(&mut self.staging);
         for (node, facts) in staging.dirty_rows() {
-            let previous = self.rows.row_of(node).map(|_| self.snapshot_row(node));
-            let replaced_bytes = self
-                .rows
-                .row_of(node)
-                .map_or(0, |row| self.rows.logical_bytes_of_row(row));
-            let replaced_payload_bytes = self
-                .rows
-                .row_of(node)
-                .map_or(0, |row| self.rows.payload_bytes_of_row(row));
-            if let Some(previous) = &previous {
+            let previous = self.rows.row_of(node);
+            let replaced_bytes = previous.map_or(0, |row| self.rows.logical_bytes_of_row(row));
+            let replaced_payload_bytes = previous.map_or(0, |row| self.rows.payload_bytes_of_row(row));
+            if let Some(previous) = previous {
                 self.remove_row_catalog_references(previous);
             }
             self.add_row_catalog_references(facts);
