@@ -951,7 +951,7 @@ AnimationUpdateContext::~AnimationUpdateContext()
         }
 
         if (invalidation.changes_containing_block_establishment)
-            target->document().partial_relayout_invalidation().record_escape(DOM::PartialRelayoutEscapeReason::ContainingBlockEstablishmentChangedByKeyframeEffect);
+            target->document().record_partial_relayout_escape(DOM::PartialRelayoutEscapeReason::ContainingBlockEstablishmentChangedByKeyframeEffect);
 
         if (invalidation.needs_relayout())
             target->set_needs_layout_update(DOM::SetNeedsLayoutReason::KeyframeEffect);

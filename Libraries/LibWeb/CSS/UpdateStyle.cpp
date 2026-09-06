@@ -58,7 +58,7 @@ static void apply_element_style_invalidation_after_style_change(DOM::Element& el
         element.document().schedule_scroll_container_resnap();
 
     if (invalidation.changes_containing_block_establishment)
-        element.document().partial_relayout_invalidation().record_escape(DOM::PartialRelayoutEscapeReason::ContainingBlockEstablishmentChangedByStyleChange);
+        element.document().record_partial_relayout_escape(DOM::PartialRelayoutEscapeReason::ContainingBlockEstablishmentChangedByStyleChange);
 
     if (invalidation.needs_relayout()) {
         // A relayout-only style change on an absolutely positioned partial relayout boundary

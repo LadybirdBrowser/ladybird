@@ -12,7 +12,6 @@ use std::ffi::c_void;
 
 #[repr(C)]
 pub struct FfiLayoutTreeUpdateClassification {
-    pub layout_node_is_detached_from_tree: bool,
     pub marks_partial_relayout_boundary_self_only: bool,
     pub nearest_non_anonymous_ancestor_when_parent_is_anonymous: NodeSlotId,
 }
@@ -31,6 +30,12 @@ impl LayoutNodeArena {
     ) -> FfiLayoutTreeUpdateClassification {
         let data = self.data(node);
         let (kind, parent) = (data.kind.get(), data.parent.get());
+
+        // A dirty DOM node whose box is outside the layout tree cannot attribute its update to
+        // any boundary.
+        if parent.is_invalid() && kind != NodeKind::Viewport {
+            self.record_partial_relayout_escape();
+        }
 
         let marks_boundary_self_only = node_facts::kind_is_box(kind)
             && reason_is_structural_boundary_self_rebuild
@@ -57,7 +62,6 @@ impl LayoutNodeArena {
         }
 
         FfiLayoutTreeUpdateClassification {
-            layout_node_is_detached_from_tree: parent.is_invalid() && kind != NodeKind::Viewport,
             marks_partial_relayout_boundary_self_only: marks_boundary_self_only,
             nearest_non_anonymous_ancestor_when_parent_is_anonymous: nearest_non_anonymous_ancestor,
         }
@@ -166,6 +170,55 @@ impl LayoutNodeArena {
 
     pub(crate) fn take_partial_relayout_boundary_roots(&self) -> Vec<NodeSlotId> {
         std::mem::take(&mut *self.partial_relayout_boundary_roots.borrow_mut())
+    }
+
+    pub(crate) fn record_partial_relayout_escape(&self) {
+        self.pending_updates_escape_partial_relayout.set(true);
+    }
+
+    pub(crate) fn clear_partial_relayout_escape(&self) {
+        self.pending_updates_escape_partial_relayout.set(false);
+    }
+
+    fn node_needs_layout_update(&self, node: NodeSlotId) -> bool {
+        node_facts::has_flag(self.data(node), NodeFlag::NeedsLayoutUpdate)
+    }
+
+    /// Whether the pending update may be satisfied by re-laying out only registered boundary
+    /// subtrees. Decided before the layout tree build, so an ineligible update takes the full
+    /// layout path's build instead. `root` may be the invalid slot when no tree exists yet.
+    pub(crate) fn partial_relayout_may_be_attempted(
+        &self,
+        root: NodeSlotId,
+        registered_root_slots: &[NodeSlotId],
+        facts: FfiPartialRelayoutHostFacts,
+    ) -> bool {
+        !(root.is_invalid()
+            || facts.document_needs_full_layout_tree_update
+            || self.pending_updates_escape_partial_relayout.get()
+            || registered_root_slots.is_empty()
+            || self.node_needs_layout_update(root)
+            || facts.container_query_evaluation_is_pending
+            || facts.should_collect_devtools_layout_data
+            || facts.any_anchor_names_are_registered)
+    }
+
+    /// Selects the boundary subtrees to relay out after the layout tree build. Consumes the
+    /// escape bit either way: a refusal here is followed by a full layout pass in the same
+    /// update, which re-derives every fact the bit stands in for.
+    pub(crate) fn plan_partial_relayout(
+        &self,
+        root: NodeSlotId,
+        registered_root_slots: &[NodeSlotId],
+        rebuilt_subtree_root_slots: &[NodeSlotId],
+        layout_tree_update_escaped_rebuild_roots: bool,
+    ) -> Option<Vec<NodeSlotId>> {
+        let pending_updates_escaped =
+            self.pending_updates_escape_partial_relayout.replace(false) || layout_tree_update_escaped_rebuild_roots;
+        if self.node_needs_layout_update(root) || pending_updates_escaped {
+            return None;
+        }
+        self.collect_partial_relayout_roots(registered_root_slots, rebuilt_subtree_root_slots)
     }
 
     fn nearest_inclusive_partial_relayout_boundary(&self, node: NodeSlotId) -> Option<NodeSlotId> {
@@ -455,36 +508,77 @@ pub unsafe extern "C" fn layout_arena_take_partial_relayout_boundary_roots(
     }
 }
 
+/// The facts the host owns that take an update off the partial relayout path.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiPartialRelayoutHostFacts {
+    pub document_needs_full_layout_tree_update: bool,
+    pub container_query_evaluation_is_pending: bool,
+    pub should_collect_devtools_layout_data: bool,
+    pub any_anchor_names_are_registered: bool,
+}
+
+/// # Safety
+///
+/// `slots` must be valid for `count` elements whenever `count` is nonzero.
+unsafe fn slot_slice<'a>(slots: *const NodeSlotId, count: usize) -> &'a [NodeSlotId] {
+    if count == 0 {
+        &[]
+    } else {
+        // SAFETY: A nonzero count implies a valid array of that length.
+        unsafe { std::slice::from_raw_parts(slots, count) }
+    }
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_record_partial_relayout_escape(arena: *mut c_void) {
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }.record_partial_relayout_escape();
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call, and the slot array must be valid
+/// for its count; its slots may be stale. `root` may be the invalid slot id.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_partial_relayout_may_be_attempted(
+    arena: *mut c_void,
+    root: NodeSlotId,
+    registered_root_slots: *const NodeSlotId,
+    registered_root_count: usize,
+    facts: FfiPartialRelayoutHostFacts,
+) -> bool {
+    // SAFETY: The C++ caller keeps the arena and the slot array alive for this call.
+    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
+    let registered = unsafe { slot_slice(registered_root_slots, registered_root_count) };
+    arena.partial_relayout_may_be_attempted(root, registered, facts)
+}
+
 /// # Safety
 ///
 /// The arena must remain valid for the duration of the call, and both slot arrays must be
 /// valid for their counts. Slots in `registered_root_slots` may be stale; slots in
-/// `rebuilt_subtree_root_slots` must name live nodes in this arena.
+/// `rebuilt_subtree_root_slots` and `root` must name live nodes in this arena.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_collect_partial_relayout_roots(
+pub unsafe extern "C" fn layout_arena_plan_partial_relayout(
     arena: *mut c_void,
+    root: NodeSlotId,
     registered_root_slots: *const NodeSlotId,
     registered_root_count: usize,
     rebuilt_subtree_root_slots: *const NodeSlotId,
     rebuilt_subtree_root_count: usize,
+    layout_tree_update_escaped_rebuild_roots: bool,
     context: *mut c_void,
     push_root: unsafe extern "C" fn(*mut c_void, NodeSlotId),
 ) -> bool {
     // SAFETY: The C++ caller keeps the arena and both slot arrays alive for this call.
     let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-    let registered = if registered_root_count == 0 {
-        &[]
-    } else {
-        // SAFETY: A nonzero count implies a valid array of that length.
-        unsafe { std::slice::from_raw_parts(registered_root_slots, registered_root_count) }
-    };
-    let rebuilt = if rebuilt_subtree_root_count == 0 {
-        &[]
-    } else {
-        // SAFETY: A nonzero count implies a valid array of that length.
-        unsafe { std::slice::from_raw_parts(rebuilt_subtree_root_slots, rebuilt_subtree_root_count) }
-    };
-    match arena.collect_partial_relayout_roots(registered, rebuilt) {
+    let registered = unsafe { slot_slice(registered_root_slots, registered_root_count) };
+    let rebuilt = unsafe { slot_slice(rebuilt_subtree_root_slots, rebuilt_subtree_root_count) };
+    match arena.plan_partial_relayout(root, registered, rebuilt, layout_tree_update_escaped_rebuild_roots) {
         Some(roots) => {
             for root in roots {
                 // SAFETY: The C++ callback appends the slot id to a caller-owned collection.
@@ -540,6 +634,7 @@ pub unsafe extern "C" fn layout_arena_set_needs_layout_update(
 
 #[cfg(test)]
 mod tests {
+    use super::FfiPartialRelayoutHostFacts;
     use crate::layout::layout_node_arena::{LayoutNodeArena, NodeAllocation};
     use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 
@@ -726,7 +821,7 @@ mod tests {
         arena.insert_child(anonymous_parent.slot, child.slot, NodeSlotId::INVALID);
 
         let classification = arena.classify_layout_tree_update(child.slot, false);
-        assert!(!classification.layout_node_is_detached_from_tree);
+        assert!(!arena.pending_updates_escape_partial_relayout.get());
         assert!(!classification.marks_partial_relayout_boundary_self_only);
         assert_eq!(
             classification.nearest_non_anonymous_ancestor_when_parent_is_anonymous,
@@ -739,9 +834,98 @@ mod tests {
             NodeSlotId::INVALID
         );
 
-        let detached_classification = arena.classify_layout_tree_update(grandparent.slot, false);
-        assert!(detached_classification.layout_node_is_detached_from_tree);
+        arena.classify_layout_tree_update(grandparent.slot, false);
+        assert!(arena.pending_updates_escape_partial_relayout.get());
         free_node(&mut arena, &grandparent);
+    }
+
+    fn host_facts_permitting_partial_relayout() -> FfiPartialRelayoutHostFacts {
+        FfiPartialRelayoutHostFacts {
+            document_needs_full_layout_tree_update: false,
+            container_query_evaluation_is_pending: false,
+            should_collect_devtools_layout_data: false,
+            any_anchor_names_are_registered: false,
+        }
+    }
+
+    // A parent box with one child registered as a boundary root, drained like a pass would.
+    fn arena_with_a_registered_child_root() -> (LayoutNodeArena, NodeAllocation, Vec<NodeSlotId>) {
+        let mut arena = LayoutNodeArena::new();
+        let parent = allocate_box_with_a_dummy_shell(&mut arena);
+        let child = allocate_box_with_a_dummy_shell(&mut arena);
+        arena.insert_child(parent.slot, child.slot, NodeSlotId::INVALID);
+        arena.set_needs_layout_update(child.slot, false);
+        let registered = arena.take_partial_relayout_boundary_roots();
+        assert_eq!(registered, vec![child.slot]);
+        (arena, parent, registered)
+    }
+
+    #[test]
+    fn a_recorded_escape_refuses_the_precheck_until_a_plan_consumes_it() {
+        let (mut arena, parent, registered) = arena_with_a_registered_child_root();
+        let facts = host_facts_permitting_partial_relayout();
+
+        assert!(arena.partial_relayout_may_be_attempted(parent.slot, &registered, facts));
+        arena.record_partial_relayout_escape();
+        assert!(!arena.partial_relayout_may_be_attempted(parent.slot, &registered, facts));
+
+        assert_eq!(arena.plan_partial_relayout(parent.slot, &registered, &[], false), None);
+        assert!(!arena.pending_updates_escape_partial_relayout.get());
+        assert!(arena.partial_relayout_may_be_attempted(parent.slot, &registered, facts));
+        free_node(&mut arena, &parent);
+    }
+
+    #[test]
+    fn planning_refuses_when_the_build_escaped_its_rebuild_roots() {
+        let (mut arena, parent, registered) = arena_with_a_registered_child_root();
+        assert_eq!(arena.plan_partial_relayout(parent.slot, &registered, &[], true), None);
+        assert!(!arena.pending_updates_escape_partial_relayout.get());
+        free_node(&mut arena, &parent);
+    }
+
+    #[test]
+    fn a_dirty_root_refuses_both_the_precheck_and_the_plan() {
+        let (mut arena, parent, registered) = arena_with_a_registered_child_root();
+        arena.set_node_flag(parent.slot, NodeFlag::NeedsLayoutUpdate, true);
+        assert!(!arena.partial_relayout_may_be_attempted(
+            parent.slot,
+            &registered,
+            host_facts_permitting_partial_relayout()
+        ));
+        assert_eq!(arena.plan_partial_relayout(parent.slot, &registered, &[], false), None);
+        free_node(&mut arena, &parent);
+    }
+
+    #[test]
+    fn the_precheck_refuses_a_missing_root_an_empty_root_set_and_every_host_fact() {
+        let (mut arena, parent, registered) = arena_with_a_registered_child_root();
+        let permitted = host_facts_permitting_partial_relayout();
+
+        assert!(!arena.partial_relayout_may_be_attempted(NodeSlotId::INVALID, &registered, permitted));
+        assert!(!arena.partial_relayout_may_be_attempted(parent.slot, &[], permitted));
+
+        let refusing_facts = [
+            FfiPartialRelayoutHostFacts {
+                document_needs_full_layout_tree_update: true,
+                ..permitted
+            },
+            FfiPartialRelayoutHostFacts {
+                container_query_evaluation_is_pending: true,
+                ..permitted
+            },
+            FfiPartialRelayoutHostFacts {
+                should_collect_devtools_layout_data: true,
+                ..permitted
+            },
+            FfiPartialRelayoutHostFacts {
+                any_anchor_names_are_registered: true,
+                ..permitted
+            },
+        ];
+        for facts in refusing_facts {
+            assert!(!arena.partial_relayout_may_be_attempted(parent.slot, &registered, facts));
+        }
+        free_node(&mut arena, &parent);
     }
 
     #[test]

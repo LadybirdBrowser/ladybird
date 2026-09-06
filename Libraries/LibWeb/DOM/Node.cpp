@@ -2342,9 +2342,6 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
                 layout_node->arena_handle(), Layout::Node::slot_id(layout_node),
                 is_structural_boundary_self_rebuild_reason(reason));
 
-            if (classification.layout_node_is_detached_from_tree)
-                document().partial_relayout_invalidation().record_escape(PartialRelayoutEscapeReason::DirtyDomNodeHasDetachedLayoutNode);
-
             layout_node->set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate,
                 classification.marks_partial_relayout_boundary_self_only
                     ? Layout::LayoutUpdatePropagation::BoundarySelfOnly

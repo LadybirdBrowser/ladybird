@@ -1770,17 +1770,13 @@ void Document::invalidate_layout_tree(InvalidateLayoutTreeReason reason)
     tear_down_layout_tree();
 }
 
-void Document::PartialRelayoutInvalidation::record_escape(PartialRelayoutEscapeReason reason)
+void Document::record_partial_relayout_escape(PartialRelayoutEscapeReason reason)
 {
     dbgln_if(UPDATE_LAYOUT_DEBUG, "Pending updates escape partial relayout boundaries ({})", to_string(reason));
-    m_escapes = true;
-}
-
-void Document::PartialRelayoutInvalidation::clear_escape(PartialRelayoutEscapeClearReason reason)
-{
-    if (m_escapes)
-        dbgln_if(UPDATE_LAYOUT_DEBUG, "Pending updates no longer escape partial relayout boundaries ({})", to_string(reason));
-    m_escapes = false;
+    // A document without an arena has no layout root either, and the full pass that builds one
+    // clears the bit before any boundary can be registered.
+    if (m_layout_node_arena)
+        Layout::RustFFI::layout_arena_record_partial_relayout_escape(m_layout_node_arena->handle());
 }
 
 // Anchor names publish geometry that anchor() functions on positioned boxes anywhere in the
@@ -2240,18 +2236,20 @@ bool Document::needs_style_update_after_layout()
 // the full layout path without rebuilding again.
 Document::PartialRelayoutResult Document::try_partial_relayout(Vector<Layout::RustFFI::NodeSlotId> registered_partial_relayout_root_slots, bool& needs_layout_tree_rebuild, bool should_collect_devtools_layout_data)
 {
-    if (!m_layout_root
-        || needs_full_layout_tree_update()
-        || m_partial_relayout_invalidation.escapes()
-        || registered_partial_relayout_root_slots.is_empty()
-        || m_layout_root->needs_layout_update()
-        || !m_query_containers_needing_container_query_evaluation_after_layout.is_empty()
-        || should_collect_devtools_layout_data
-        || any_anchor_names_are_registered())
+    Layout::RustFFI::FfiPartialRelayoutHostFacts host_facts {
+        .document_needs_full_layout_tree_update = needs_full_layout_tree_update(),
+        .container_query_evaluation_is_pending = !m_query_containers_needing_container_query_evaluation_after_layout.is_empty(),
+        .should_collect_devtools_layout_data = should_collect_devtools_layout_data,
+        .any_anchor_names_are_registered = any_anchor_names_are_registered(),
+    };
+    if (!Layout::RustFFI::layout_arena_partial_relayout_may_be_attempted(
+            layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root),
+            registered_partial_relayout_root_slots.data(), registered_partial_relayout_root_slots.size(),
+            host_facts))
         return PartialRelayoutResult::NotEligible;
 
     bool layout_tree_was_built_in_partial_branch = false;
-    bool pending_updates_escaped_during_partial_build = false;
+    bool layout_tree_update_escaped_rebuild_roots = false;
     Vector<Layout::Node*> rebuilt_subtree_roots;
     if (needs_layout_tree_rebuild) {
         auto tree_build_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
@@ -2262,24 +2260,19 @@ Document::PartialRelayoutResult Document::try_partial_relayout(Vector<Layout::Ru
         if (reconcile_stale_list_item_counters_after_tree_build(tree_build_result.rebuilt_subtree_roots) || tree_build_result.needs_another_build_pass)
             return PartialRelayoutResult::NeedsAnotherLayoutPass;
         layout_tree_was_built_in_partial_branch = true;
-        pending_updates_escaped_during_partial_build = m_partial_relayout_invalidation.escapes()
-            || tree_build_result.layout_tree_update_escaped_rebuild_roots;
-        m_partial_relayout_invalidation.clear_escape(PartialRelayoutEscapeClearReason::PartialLayoutTreeBuild);
+        layout_tree_update_escaped_rebuild_roots = tree_build_result.layout_tree_update_escaped_rebuild_roots;
         rebuilt_subtree_roots = move(tree_build_result.rebuilt_subtree_roots);
+
+        // Nodes created by the incremental build have no containing blocks assigned yet, and the
+        // mutation may have moved where existing out-of-flow descendants belong; recompute both so
+        // boundary qualification below reads facts matching the just-built tree.
+        for (auto* rebuilt_root : rebuilt_subtree_roots)
+            recompute_containing_blocks_in_inclusive_subtree(layout_node_arena(), *rebuilt_root);
 
         if constexpr (UPDATE_LAYOUT_DEBUG) {
             dbgln("TREEBUILD {} µs", tree_build_timer.elapsed_time().to_microseconds());
         }
     }
-
-    if (m_layout_root->needs_layout_update() || pending_updates_escaped_during_partial_build)
-        return PartialRelayoutResult::NotEligible;
-
-    // Nodes created by the incremental build have no containing blocks assigned yet, and the
-    // mutation may have moved where existing out-of-flow descendants belong; recompute both so
-    // boundary qualification below reads facts matching the just-built tree.
-    for (auto* rebuilt_root : rebuilt_subtree_roots)
-        recompute_containing_blocks_in_inclusive_subtree(layout_node_arena(), *rebuilt_root);
 
     Vector<Layout::RustFFI::NodeSlotId> rebuilt_subtree_root_slots;
     rebuilt_subtree_root_slots.ensure_capacity(rebuilt_subtree_roots.size());
@@ -2287,10 +2280,11 @@ Document::PartialRelayoutResult Document::try_partial_relayout(Vector<Layout::Ru
         rebuilt_subtree_root_slots.unchecked_append(Layout::Node::slot_id(rebuilt_root));
 
     Vector<Layout::RustFFI::NodeSlotId> partial_relayout_root_slots;
-    bool boundary_set_supports_partial_relayout = Layout::RustFFI::layout_arena_collect_partial_relayout_roots(
-        layout_node_arena().handle(),
+    bool boundary_set_supports_partial_relayout = Layout::RustFFI::layout_arena_plan_partial_relayout(
+        layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root),
         registered_partial_relayout_root_slots.data(), registered_partial_relayout_root_slots.size(),
         rebuilt_subtree_root_slots.data(), rebuilt_subtree_root_slots.size(),
+        layout_tree_update_escaped_rebuild_roots,
         &partial_relayout_root_slots,
         [](void* context, Layout::RustFFI::NodeSlotId root) {
             static_cast<Vector<Layout::RustFFI::NodeSlotId>*>(context)->append(root);
@@ -2443,10 +2437,6 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
         }
 
         recompute_containing_blocks_in_inclusive_subtree(layout_node_arena(), *m_layout_root);
-
-        // The walk above re-derived every fact partial relayout boundary qualification depends
-        // on, so pending changes that escaped classification are accounted for from here on.
-        m_partial_relayout_invalidation.clear_escape(PartialRelayoutEscapeClearReason::FullLayoutPass);
 
         layout_node_arena().sync_enrolled_content_for_layout();
         Layout::LayoutRustBridge bridge;
@@ -11344,18 +11334,6 @@ Utf16View to_string(PartialRelayoutEscapeReason reason)
         return #e##sv;
         ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_REASONS(ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_REASON)
 #undef ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_REASON
-    }
-    VERIFY_NOT_REACHED();
-}
-
-Utf16View to_string(PartialRelayoutEscapeClearReason reason)
-{
-    switch (reason) {
-#define ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_CLEAR_REASON(e) \
-    case PartialRelayoutEscapeClearReason::e:             \
-        return #e##sv;
-        ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_CLEAR_REASONS(ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_CLEAR_REASON)
-#undef ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_CLEAR_REASON
     }
     VERIFY_NOT_REACHED();
 }

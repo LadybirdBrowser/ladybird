@@ -545,6 +545,11 @@ pub(crate) struct LayoutNodeArena {
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
     svg_pattern_referencing_nodes: RefCell<Vec<NodeSlotId>>,
     pub(crate) partial_relayout_boundary_roots: RefCell<Vec<NodeSlotId>>,
+    /// Attribution of pending updates for partial relayout. Invariant: every update recorded
+    /// since the last layout pass is either attributed to a boundary in the root set above, or
+    /// this escape bit is set. Partial relayout may only run while the bit is clear; a full
+    /// layout pass re-derives every fact boundary qualification depends on, so it clears the bit.
+    pub(crate) pending_updates_escape_partial_relayout: Cell<bool>,
     pub(crate) boxes_needing_scrollable_overflow_recalculation: RefCell<Vec<NodeSlotId>>,
     pub(crate) needs_full_scrollable_overflow_recalculation: Cell<bool>,
     text_nodes_enrolled_for_content_sync: RefCell<HashSet<NodeSlotId>>,
@@ -586,6 +591,7 @@ impl LayoutNodeArena {
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
             svg_pattern_referencing_nodes: RefCell::new(Vec::new()),
             partial_relayout_boundary_roots: RefCell::new(Vec::new()),
+            pending_updates_escape_partial_relayout: Cell::new(false),
             boxes_needing_scrollable_overflow_recalculation: RefCell::new(Vec::new()),
             needs_full_scrollable_overflow_recalculation: Cell::new(false),
             text_nodes_enrolled_for_content_sync: RefCell::new(HashSet::default()),

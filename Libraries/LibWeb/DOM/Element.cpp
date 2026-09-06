@@ -2414,7 +2414,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
         // live anchor-name maps, while positioned boxes anywhere may hold geometry resolved
         // against them; names still registered keep that check refusing partial relayout.
         if (element_had_registered_anchor_names && !element_has_anchor_names)
-            document().partial_relayout_invalidation().record_escape(PartialRelayoutEscapeReason::AnchorNamesUnregisteredByStyleChange);
+            document().record_partial_relayout_escape(PartialRelayoutEscapeReason::AnchorNamesUnregisteredByStyleChange);
     }
 
     // Which animations an element references is an index StyleEngine keeps, in the same shape as the
@@ -2513,7 +2513,7 @@ void Element::clear_computed_styles_from_display_none_descendants()
         // Anchor names are registered outside the style record, so unregister them before discarding the only record
         // that identifies them. Rematerializing the element's style will register its current names again.
         if (element->is_connected() && unregister_current_anchor_names(*element, element->root()))
-            element->document().partial_relayout_invalidation().record_escape(PartialRelayoutEscapeReason::AnchorNamesUnregisteredByStyleChange);
+            element->document().record_partial_relayout_escape(PartialRelayoutEscapeReason::AnchorNamesUnregisteredByStyleChange);
 
         // The layout tree is torn down after the style transaction. Keep its style alive until then without
         // retaining the record as the descendant's current computed style.
@@ -3197,7 +3197,7 @@ void Element::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, No
         if (unregister_current_anchor_names(*this, old_root)) {
             // Positioned boxes anywhere may hold geometry resolved against these names, which
             // the dispatch-time check of the live anchor-name maps can no longer see.
-            document().partial_relayout_invalidation().record_escape(PartialRelayoutEscapeReason::AnchorNamesUnregisteredByElementRemoval);
+            document().record_partial_relayout_escape(PartialRelayoutEscapeReason::AnchorNamesUnregisteredByElementRemoval);
         }
     }
 

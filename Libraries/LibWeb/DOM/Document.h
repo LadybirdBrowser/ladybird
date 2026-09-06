@@ -186,8 +186,7 @@ enum class UpdateLayoutReason {
     X(AnchorNamesUnregisteredByElementRemoval)             \
     X(AnchorNamesUnregisteredByStyleChange)                \
     X(ContainingBlockEstablishmentChangedByKeyframeEffect) \
-    X(ContainingBlockEstablishmentChangedByStyleChange)    \
-    X(DirtyDomNodeHasDetachedLayoutNode)
+    X(ContainingBlockEstablishmentChangedByStyleChange)
 
 enum class PartialRelayoutEscapeReason {
 #define ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_REASON(e) e,
@@ -196,18 +195,6 @@ enum class PartialRelayoutEscapeReason {
 };
 
 [[nodiscard]] Utf16View to_string(PartialRelayoutEscapeReason);
-
-#define ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_CLEAR_REASONS(X) \
-    X(FullLayoutPass)                                      \
-    X(PartialLayoutTreeBuild)
-
-enum class PartialRelayoutEscapeClearReason {
-#define ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_CLEAR_REASON(e) e,
-    ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_CLEAR_REASONS(ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_CLEAR_REASON)
-#undef ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_CLEAR_REASON
-};
-
-[[nodiscard]] Utf16View to_string(PartialRelayoutEscapeClearReason);
 
 // https://html.spec.whatwg.org/multipage/dom.html#document-load-timing-info
 struct DocumentLoadTimingInfo {
@@ -843,21 +830,9 @@ public:
     Painting::ChromeWidgetRegistry& chrome_widget_registry() { return *m_chrome_widget_registry; }
     Painting::ChromeWidgetRegistry const& chrome_widget_registry() const { return *m_chrome_widget_registry; }
 
-    // Attribution of pending updates for partial relayout. Invariant: every update recorded
-    // since the last layout pass is either attributed to a boundary in the root set the
-    // layout node arena keeps, or the escape bit is set. The dispatch may only run partial
-    // relayout while the escape bit is clear; a full layout pass re-derives every fact
-    // boundary qualification depends on, so it clears the bit.
-    class PartialRelayoutInvalidation {
-    public:
-        void record_escape(PartialRelayoutEscapeReason);
-        void clear_escape(PartialRelayoutEscapeClearReason);
-        [[nodiscard]] bool escapes() const { return m_escapes; }
-
-    private:
-        bool m_escapes { false };
-    };
-    [[nodiscard]] PartialRelayoutInvalidation& partial_relayout_invalidation() { return m_partial_relayout_invalidation; }
+    // Records that a pending update cannot be attributed to any boundary in the partial relayout
+    // root set; the layout node arena keeps the escape bit next to those roots.
+    void record_partial_relayout_escape(PartialRelayoutEscapeReason);
 
     void set_needs_to_refresh_scroll_state(bool b);
 
@@ -1734,8 +1709,6 @@ private:
     bool m_is_decoded_svg { false };
 
     bool m_is_running_update_layout { false };
-
-    PartialRelayoutInvalidation m_partial_relayout_invalidation;
 
     u64 m_partial_layout_count { 0 };
     u64 m_full_layout_count { 0 };

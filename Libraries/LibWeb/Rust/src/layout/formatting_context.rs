@@ -2055,6 +2055,9 @@ pub unsafe extern "C" fn rust_layout_run_root_layout(
     // SAFETY: The host keeps the document's layout inputs alive and unchanged
     // while computing fragments. Nested measurements only mutate side caches.
     let arena = unsafe { LayoutNodeArena::from_handle(host.arena) };
+    // A full pass re-derives every fact partial relayout boundary qualification depends on, so
+    // pending changes that escaped classification are accounted for from here on.
+    arena.clear_partial_relayout_escape();
     let callbacks = LayoutPass::new(arena, host);
     let sink = unsafe { &*sink };
     let viewport_inline_size = CssPixels::from_raw(viewport_inline_size_raw);
