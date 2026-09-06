@@ -764,16 +764,15 @@ impl StyleEngine {
             candidates,
         );
 
+        // Winners are an ordered subset of the requested properties.
+        let mut winners = winners.into_iter().peekable();
         Some(
             properties
                 .iter()
                 .copied()
                 .map(|property| PropertyWinnerUpdate {
                     property,
-                    winner: winners
-                        .binary_search_by_key(&property, |winner| winner.property)
-                        .ok()
-                        .map(|index| winners[index]),
+                    winner: winners.next_if(|winner| winner.property == property),
                 })
                 .collect(),
         )
