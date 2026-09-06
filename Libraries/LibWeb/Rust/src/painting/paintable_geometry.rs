@@ -90,6 +90,16 @@ pub(crate) fn committed_uses_collapsing_borders_model(arena: &LayoutNodeArena, s
     })
 }
 
+/// For a table cell or a table-column(-group) box: the first grid column it occupies and the number of grid columns
+/// it spans.
+pub(crate) fn committed_table_column_range(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> (u32, u32) {
+    arena.with_committed_fragment_link(slot, |link| {
+        link.map_or((0, 0), |link| {
+            (link.fragment.table_column_index, link.fragment.table_column_span)
+        })
+    })
+}
+
 pub(crate) fn committed_grid_layout_data(
     arena: &LayoutNodeArena,
     slot: NodeSlotId,
