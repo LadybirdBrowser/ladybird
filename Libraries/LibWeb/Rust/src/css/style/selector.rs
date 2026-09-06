@@ -40,6 +40,7 @@ use super::index::StyleNodeFacts;
 use super::index::dispatch_bloom_bit;
 use super::instrumentation::Counter;
 use super::instrumentation::Counters;
+use smallvec::SmallVec;
 use std::cell::Cell;
 use std::cell::Ref;
 use std::cell::RefCell;
@@ -5621,12 +5622,12 @@ impl<'a> MatchEvaluator<'a> {
     /// One per level of `exportparts` forwarding. An element that carries a part name and is
     /// forwarded nowhere has no recorded pairing at all, so the host of the tree it stands in is the
     /// only level it has - which is every part in a document using no `exportparts`.
-    fn part_exposure_hosts(&self, node: StyleNodeID) -> Vec<StyleNodeID> {
+    fn part_exposure_hosts(&self, node: StyleNodeID) -> SmallVec<[StyleNodeID; 1]> {
         let pairs = self.tree.part_hosts_of(node);
         if pairs.is_empty() {
             return self.tree.shadow_host_of(node).into_iter().collect();
         }
-        let mut hosts: Vec<StyleNodeID> = Vec::with_capacity(pairs.len());
+        let mut hosts = SmallVec::new();
         for &(_, host) in pairs {
             if !hosts.contains(&host) {
                 hosts.push(host);
