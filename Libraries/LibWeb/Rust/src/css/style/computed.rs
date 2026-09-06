@@ -839,46 +839,34 @@ impl ComputedGroupSets {
     }
 
     fn ensure_pseudo_row(&mut self, node: StyleNodeID, kind: u8) -> &mut PseudoComputedRow {
-        let row_index = self
-            .pseudo_rows_by_node
-            .get(&node)
-            .and_then(|rows| rows.iter().position(|row| row.kind == kind));
-        let row_index = row_index.unwrap_or_else(|| {
-            let mut rows = self
-                .pseudo_rows_by_node
-                .remove(&node)
-                .map_or_else(Vec::new, |rows| rows.into_vec());
-            rows.push(PseudoComputedRow::new(kind));
+        let rows = self.pseudo_rows_by_node.entry(node).or_default();
+        let row_index = rows.iter().position(|row| row.kind == kind).unwrap_or_else(|| {
+            let mut extended = std::mem::take(rows).into_vec();
+            let row_index = extended.len();
+            extended.push(PseudoComputedRow::new(kind));
+            *rows = extended.into_boxed_slice();
             self.pseudo_assignment_nested_memory
                 .grow_committed(size_of::<PseudoComputedRow>() as u64);
-            let row_index = rows.len() - 1;
-            self.pseudo_rows_by_node.insert(node, rows.into_boxed_slice());
             row_index
         });
-        &mut self
-            .pseudo_rows_by_node
-            .get_mut(&node)
-            .expect("pseudo row entry is live")[row_index]
+        &mut rows[row_index]
     }
 
     fn remove_empty_pseudo_row(&mut self, node: StyleNodeID, kind: u8) {
-        let Some(row_index) = self
-            .pseudo_rows_by_node
-            .get(&node)
-            .and_then(|rows| rows.iter().position(|row| row.kind == kind && row.is_empty()))
-        else {
+        let std::collections::hash_map::Entry::Occupied(mut entry) = self.pseudo_rows_by_node.entry(node) else {
             return;
         };
-        let mut rows = self
-            .pseudo_rows_by_node
-            .remove(&node)
-            .expect("pseudo row entry is live")
-            .into_vec();
+        let Some(row_index) = entry.get().iter().position(|row| row.kind == kind && row.is_empty()) else {
+            return;
+        };
+        let mut rows = std::mem::take(entry.get_mut()).into_vec();
         rows.remove(row_index);
         self.pseudo_assignment_nested_memory
             .shrink_committed(size_of::<PseudoComputedRow>() as u64);
-        if !rows.is_empty() {
-            self.pseudo_rows_by_node.insert(node, rows.into_boxed_slice());
+        if rows.is_empty() {
+            entry.remove();
+        } else {
+            entry.insert(rows.into_boxed_slice());
         }
     }
 
