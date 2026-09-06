@@ -779,12 +779,14 @@ impl ComputedGroupSets {
             return;
         };
         if self.style_record_generation_is_live(record, final_record.base_generation()) {
-            self.shared_style_records.entry(key).or_insert(SharedStyleRecord {
-                record: raw_record,
-                inherited_group_swap_eligible: node
-                    .element_index()
-                    .is_some_and(|index| self.columns.inherited_group_swap_eligible(index as usize)),
-            });
+            self.shared_style_records
+                .entry(key)
+                .or_insert_with(|| SharedStyleRecord {
+                    record: raw_record,
+                    inherited_group_swap_eligible: node
+                        .element_index()
+                        .is_some_and(|index| self.columns.inherited_group_swap_eligible(index as usize)),
+                });
         }
     }
 
