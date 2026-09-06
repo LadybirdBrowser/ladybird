@@ -450,7 +450,7 @@ static void show_the_picker_if_applicable(HTMLInputElement& element)
             auto weak_element = GC::Weak<HTMLInputElement> { element };
 
             element.set_is_open(true);
-            element.document().browsing_context()->top_level_browsing_context()->page().did_request_file_picker(weak_element, accepted_file_types, allow_multiple_files);
+            element.document().page().did_request_file_picker(weak_element, accepted_file_types, allow_multiple_files);
         }
         // 4. If dismissed is true or if the user dismissed the prompt without changing their selection,
         //    then queue an element task on the user interaction task source given element to fire an event named cancel at element,
@@ -473,7 +473,7 @@ static void show_the_picker_if_applicable(HTMLInputElement& element)
         if (element.type_state() == HTMLInputElement::TypeAttributeState::Color) {
             auto weak_element = GC::Weak<HTMLInputElement> { element };
             element.set_is_open(true);
-            element.document().browsing_context()->top_level_browsing_context()->page().did_request_color_picker(weak_element, Color::from_utf16_string(element.value()).value_or(Color(0, 0, 0)));
+            element.document().page().did_request_color_picker(weak_element, Color::from_utf16_string(element.value()).value_or(Color(0, 0, 0)));
         }
     }
 }
