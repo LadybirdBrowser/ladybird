@@ -28,11 +28,11 @@ fn environment_memo_retains_its_written_value_keys() {
     let inputs = custom_property_environments::EnvironmentInputs {
         parent: 0,
         registration_generation: 0,
-        cascaded: vec![custom_property_environments::CascadedCustomProperty {
+        cascaded: Box::new([custom_property_environments::CascadedCustomProperty {
             name: StyleAtomID(1),
             important: false,
             written_value: written_pointer as usize,
-        }],
+        }]),
     };
     environments.remember(inputs, 1, vec![written.clone_retained()]);
 

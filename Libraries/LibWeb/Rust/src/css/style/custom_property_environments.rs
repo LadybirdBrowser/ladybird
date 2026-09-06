@@ -46,7 +46,7 @@ pub(super) struct CascadedCustomProperty {
 pub(super) struct EnvironmentInputs {
     pub(super) parent: u64,
     pub(super) registration_generation: u64,
-    pub(super) cascaded: Vec<CascadedCustomProperty>,
+    pub(super) cascaded: Box<[CascadedCustomProperty]>,
 }
 
 /// An environment the engine resolved: its store, and the environment it was resolved over.
@@ -215,8 +215,7 @@ impl CustomPropertyEnvironments {
                 entry.insert(environment);
             }
             Entry::Vacant(entry) => {
-                self.nested_capacity_bytes +=
-                    (entry.key().cascaded.capacity() * size_of::<CascadedCustomProperty>()) as u64;
+                self.nested_capacity_bytes += size_of_val(entry.key().cascaded.as_ref()) as u64;
                 entry.insert(environment);
             }
         }
@@ -280,9 +279,8 @@ impl CustomPropertyEnvironments {
         self.memo.retain(|inputs, environment| {
             let retain = is_live(environment.identity) && (inputs.parent == 0 || is_live(inputs.parent));
             if !retain {
-                self.nested_capacity_bytes -= (inputs.cascaded.capacity() * size_of::<CascadedCustomProperty>()
-                    + size_of_val(environment.written_values.as_ref()))
-                    as u64;
+                self.nested_capacity_bytes -=
+                    (size_of_val(inputs.cascaded.as_ref()) + size_of_val(environment.written_values.as_ref())) as u64;
             }
             retain
         });
@@ -314,8 +312,7 @@ mod tests {
                 .memo
                 .iter()
                 .map(|(inputs, environment)| {
-                    inputs.cascaded.capacity() * size_of::<CascadedCustomProperty>()
-                        + size_of_val(environment.written_values.as_ref())
+                    size_of_val(inputs.cascaded.as_ref()) + size_of_val(environment.written_values.as_ref())
                 })
                 .sum::<usize>();
         assert_eq!(environments.nested_capacity_bytes, expected as u64);
@@ -330,15 +327,19 @@ mod tests {
             assert!(!environments.note_name(StyleAtomID(1), 0, &[45, 45, 120]));
         }
         assert_nested_capacity(&environments);
-        let inputs = |capacity| EnvironmentInputs {
+        let inputs = || EnvironmentInputs {
             parent: 0,
             registration_generation: 1,
-            cascaded: Vec::with_capacity(capacity),
+            cascaded: Box::new([CascadedCustomProperty {
+                name: StyleAtomID(1),
+                important: false,
+                written_value: 0,
+            }]),
         };
-        environments.remember(inputs(3), 1, Vec::with_capacity(2));
+        environments.remember(inputs(), 1, Vec::with_capacity(2));
         assert_nested_capacity(&environments);
         // Equal keys retain the original key's allocation when replacing the value.
-        environments.remember(inputs(7), 2, Vec::with_capacity(5));
+        environments.remember(inputs(), 2, Vec::with_capacity(5));
         assert_nested_capacity(&environments);
         environments.forget_names(&[StyleAtomID(1), StyleAtomID(1)]);
         assert_nested_capacity(&environments);
