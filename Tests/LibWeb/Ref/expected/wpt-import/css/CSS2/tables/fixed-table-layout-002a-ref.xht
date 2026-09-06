@@ -1,0 +1,44 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Reftest Reference</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+
+  <style type="text/css"><![CDATA[
+  body
+  {
+  font: 1em/1.25 serif;
+  margin: 8px;
+  }
+
+  strong {line-height: 1;}
+
+  div#lime-line
+  {
+  background-color: lime;
+  border-right: white solid 334px;
+  height: 100px;
+  margin-left: 423px;
+  margin-top: 36px;
+  width: 1px;
+  }
+
+  div#reference {margin-left: 23px;}
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if there is a thin green vertical line <strong>at exactly 400px</strong>.</p>
+
+  <div id="lime-line"></div>
+
+  <div id="reference"><img src="../support/ruler-h-200px-400px.png" width="700" height="18" alt="FAIL: Image download support must be enabled" /></div>
+
+ </body>
+</html>
