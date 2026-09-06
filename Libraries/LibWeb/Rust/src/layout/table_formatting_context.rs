@@ -706,8 +706,18 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node) -> Table
     let mut row_count = 0usize;
     let mut current_row = 0usize;
 
-    for column_group in matching_children(tree, table, |display| display.is_table_column_group()) {
-        column_count = column_count.saturating_add(count_columns_in_subtree(tree, column_group));
+    for child in matching_children(tree, table, |display| {
+        display.is_table_column_group() || display.is_table_column()
+    }) {
+        // A table-column box is a child of a table-column-group, or a direct child of the table root: the fixup
+        // algorithm leaves the latter in place, as "A table-column box is misparented if its parent is neither a
+        // table-column-group box nor a table-root box": https://www.w3.org/TR/css-tables-3/#fixup-algorithm
+        let columns_in_child = if tree.display(child).is_table_column() {
+            tree.table_column_span(child)
+        } else {
+            count_columns_in_subtree(tree, child)
+        };
+        column_count = column_count.saturating_add(columns_in_child);
     }
 
     let process_row = |tree: &T,
@@ -1020,6 +1030,24 @@ impl<'pass> TableFormattingContext<'pass> {
         children
     }
 
+    /// The table-column boxes of the table in grid order. A table-column box is a child of a table-column-group, or
+    /// a direct child of the table root: the fixup algorithm leaves the latter in place, as "A table-column box is
+    /// misparented if its parent is neither a table-column-group box nor a table-root box":
+    /// https://www.w3.org/TR/css-tables-3/#fixup-algorithm
+    fn table_columns(&mut self) -> Vec<Node> {
+        let mut columns = Vec::new();
+        for child in self.matching_children(self.table_box, |facts| {
+            facts.is_table_column_group() || facts.is_table_column()
+        }) {
+            if self.node_facts(child).is_table_column() {
+                columns.push(child);
+            } else {
+                columns.extend(self.matching_children(child, |facts| facts.is_table_column()));
+            }
+        }
+        columns
+    }
+
     #[track_caller]
     fn used_values(&self, node: Node) -> std::rc::Rc<UsedValues> {
         self.records.used_values(node)
@@ -1147,12 +1175,20 @@ impl<'pass> TableFormattingContext<'pass> {
             grid.apply_borders(borders, start, row_index, 0, column_count, take_source_order());
         }
 
-        // Column (<col>) elements.
+        // Column (<col>) elements, inside a column group or directly under the table root (see table_columns()).
         let mut column_index = 0usize;
         let mut column_group_ranges = Vec::new();
-        for column_group in self.matching_children(self.table_box, |facts| facts.is_table_column_group()) {
+        for child in self.matching_children(self.table_box, |facts| {
+            facts.is_table_column_group() || facts.is_table_column()
+        }) {
+            let is_column_group = self.node_facts(child).is_table_column_group();
             let group_start = column_index;
-            for column in self.matching_children(column_group, |facts| facts.is_table_column()) {
+            let columns = if is_column_group {
+                self.matching_children(child, |facts| facts.is_table_column())
+            } else {
+                vec![child]
+            };
+            for column in columns {
                 let span = self.table_column_span(column);
                 let end = (column_index + span).min(column_count);
                 let borders = self.element_borders(column);
@@ -1162,7 +1198,9 @@ impl<'pass> TableFormattingContext<'pass> {
                     column_index += 1;
                 }
             }
-            column_group_ranges.push((column_group, group_start, column_index));
+            if is_column_group {
+                column_group_ranges.push((child, group_start, column_index));
+            }
         }
         for (column_group, group_start, group_end) in column_group_ranges {
             if group_start < group_end {
@@ -1271,13 +1309,11 @@ impl<'pass> TableFormattingContext<'pass> {
         // NB: The definition uses https://www.w3.org/TR/CSS21/visudet.html#propdef-width for width, which doesn't include
         //     keyword values. The remaining checks can be simplified to checking whether the size is a length.
         let mut column_index = 0usize;
-        for group in self.matching_children(self.table_box, |facts| facts.is_table_column_group()) {
-            for column in self.matching_children(group, |facts| facts.is_table_column()) {
-                if self.style(column).width().is_length() {
-                    self.columns[column_index].is_constrained = true;
-                }
-                column_index += self.raw_column_span(column);
+        for column in self.table_columns() {
+            if self.style(column).width().is_length() {
+                self.columns[column_index].is_constrained = true;
             }
+            column_index += self.raw_column_span(column);
         }
         for row_index in 0..self.rows.len() {
             let row_box = self.rows[row_index].box_;
@@ -1462,22 +1498,20 @@ impl<'pass> TableFormattingContext<'pass> {
     fn compute_outer_content_sizes(&mut self) {
         let basis = self.table_constraints.inline_basis();
         let mut column_index = 0usize;
-        for group in self.matching_children(self.table_box, |facts| facts.is_table_column_group()) {
-            for column in self.matching_children(group, |facts| facts.is_table_column()) {
-                let style = self.style(column);
-                let min_size = style.min_width().to_px(basis);
-                let max_size = if style.max_width().is_length() {
-                    style.max_width().to_px(basis)
-                } else {
-                    CssPixels::from_raw(i32::MAX)
-                };
-                let size = style.width().to_px(basis);
-                // The outer min-content inline size of a table-column or table-column-group is max(min-width, width).
-                self.columns[column_index].min_size = min_size.max(size);
-                // The outer max-content inline size of a table-column or table-column-group is max(min-width, min(max-width, width)).
-                self.columns[column_index].max_size = min_size.max(max_size.min(size));
-                column_index += self.raw_column_span(column);
-            }
+        for column in self.table_columns() {
+            let style = self.style(column);
+            let min_size = style.min_width().to_px(basis);
+            let max_size = if style.max_width().is_length() {
+                style.max_width().to_px(basis)
+            } else {
+                CssPixels::from_raw(i32::MAX)
+            };
+            let size = style.width().to_px(basis);
+            // The outer min-content inline size of a table-column or table-column-group is max(min-width, width).
+            self.columns[column_index].min_size = min_size.max(size);
+            // The outer max-content inline size of a table-column or table-column-group is max(min-width, min(max-width, width)).
+            self.columns[column_index].max_size = min_size.max(max_size.min(size));
+            column_index += self.raw_column_span(column);
         }
         self.initialize_row_content_sizes();
     }
@@ -1598,15 +1632,13 @@ impl<'pass> TableFormattingContext<'pass> {
             }
         } else {
             let mut column_index = 0usize;
-            for group in self.matching_children(self.table_box, |facts| facts.is_table_column_group()) {
-                for column in self.matching_children(group, |facts| facts.is_table_column()) {
-                    let style = self.style(column);
-                    // Definition of percentage contribution: https://www.w3.org/TR/css-tables-3/#percentage-contribution
-                    self.columns[column_index].has_intrinsic_percentage =
-                        style.max_width().is_percentage() || style.width().is_percentage();
-                    self.columns[column_index].intrinsic_percentage = Self::cell_percentage(style, axis);
-                    column_index += self.raw_column_span(column);
-                }
+            for column in self.table_columns() {
+                let style = self.style(column);
+                // Definition of percentage contribution: https://www.w3.org/TR/css-tables-3/#percentage-contribution
+                self.columns[column_index].has_intrinsic_percentage =
+                    style.max_width().is_percentage() || style.width().is_percentage();
+                self.columns[column_index].intrinsic_percentage = Self::cell_percentage(style, axis);
+                column_index += self.raw_column_span(column);
             }
         }
 

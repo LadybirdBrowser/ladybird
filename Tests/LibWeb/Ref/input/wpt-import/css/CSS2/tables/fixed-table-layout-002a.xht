@@ -1,0 +1,119 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Test: table-layout: fixed - specified column width must include padding and border applied on its cells</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="bookmark" href="http://lists.w3.org/Archives/Public/www-style/2011Apr/0743.html" title="[css21] Section 17.5.2.1 should be clarified" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/tables.html#fixed-table-layout" title=
+  "Section 17.5.2.1 Fixed table layout" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/tables/fixed-table-layout-002a-ref.xht" />
+
+  <meta content="image" name="flags" />
+  <meta content="In the fixed table layout algorithm, the horizontal layout of the table only depends on the table's width, the width of the columns, table borders and any non-zero horizontal border-spacing if 'border-collapse: separate' applies to such table, like in this test. The specified width of columns must include the non-zero horizontal padding and/or non-zero horizontal borders which may be applying to the cells contained in such columns." name="assert" />
+
+  <style type="text/css"><![CDATA[
+  body
+  {
+  font: 1em/1.25 serif;
+  margin: 8px;
+  }
+
+  strong {line-height: 1;}
+
+  table
+  {
+  border-collapse: separate;
+  border-left: white solid 23px;
+  border-right: white solid 34px;
+  border-spacing: 19px 0px;
+  color: white;
+  height: 100px;
+  table-layout: fixed;
+  width: 758px;
+  }
+
+  col#first-column {width: 382px;}
+
+  col#second-column {width: 262px;}
+
+  td {padding: 0px 127px;}
+
+  td#FirstTestedCell {border-right: lime solid 1px;}
+
+  /*
+  Width of table
+
+  From left to right
+  ------------------
+
+    23px (left border of table)
+ +
+    19px (left-most border-spacing)
+ +
+   382px (specified width of first column)
+ +
+    19px (border-spacing separating the 2 cells)
+ +
+   262px (specified width of second column)
+ +
+    19px (right-most border-spacing)
+ +
+    34px (right border of table)
+ ========
+   758px
+
+  So, here, the specified width of the table is not greater
+  than the sum of the column widths (plus cell spacing or borders).
+  So, the table's width in 'border-collapse: separate' remains as specified.
+
+  The col#first-column specified width of 382px should include
+  the horizontal padding of 127px and the solid lime 1px border-right.
+
+  So, such 1px solid lime border-right should appear at
+    23px (left border of table)
+ +
+    19px (left-most border-spacing)
+ +
+   382px (specified width of first column)
+ ========
+   424px inside document body's content box.
+  */
+
+  div#reference {margin-left: 23px;}
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if there is a thin green vertical line <strong>at exactly 400px</strong>.</p>
+
+  <table>
+
+    <caption>caption</caption>
+
+    <col id="first-column" />
+    <col id="second-column" />
+
+    <tr>
+      <td id="FirstTestedCell">first cell here</td>
+
+      <td>second cell here</td>
+    </tr>
+
+  </table>
+
+  <div id="reference"><img src="support/ruler-h-200px-400px.png" width="700" height="18" alt="FAIL: Image download support must be enabled" /></div>
+
+  <!--
+  Nota bene: the presence of the caption element in the test
+  is absolutely necesssary to this test. It may seem to be
+  an extraneous element but it is not.
+  -->
+
+ </body>
+</html>
