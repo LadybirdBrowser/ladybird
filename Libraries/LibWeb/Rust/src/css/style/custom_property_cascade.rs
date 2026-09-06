@@ -326,7 +326,7 @@ impl StyleEngine {
             });
             candidates_by_name[index].push(candidate);
         }
-        let mut cascaded: Vec<(CustomDeclaration, RetainedStyleValueData)> = Vec::new();
+        let mut cascaded = Vec::with_capacity(candidates_by_name.len());
         let mut ceilings = Vec::new();
         for candidates in candidates_by_name {
             ceilings.clear();
