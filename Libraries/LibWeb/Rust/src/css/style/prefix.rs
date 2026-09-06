@@ -21,6 +21,7 @@
 use super::capacity::capacity_bytes;
 use super::fast_hash::FastMap as HashMap;
 use super::fast_hash::fast_hasher;
+use std::collections::hash_map::Entry;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::mem::size_of;
@@ -445,14 +446,14 @@ impl PrefixAutomaton {
                     local: chain_step.local,
                 },
             };
-            let compound = match self.compound_ids.get(&predicate).copied() {
-                Some(compound) => compound,
-                None => {
+            let compound = match self.compound_ids.entry(predicate) {
+                Entry::Occupied(entry) => *entry.get(),
+                Entry::Vacant(entry) => {
                     let compound = PrefixCompoundID(
                         u32::try_from(self.compounds.len()).expect("selector prefix compound space exhausted"),
                     );
                     let dispatch_key = program.prefix_dispatch_key(chain_step.local);
-                    let runtime_predicate = match &predicate {
+                    let runtime_predicate = match entry.key() {
                         PrefixPredicateKey::Features {
                             features,
                             required_positional_bits,
@@ -477,7 +478,7 @@ impl PrefixAutomaton {
                         dispatch_key,
                     });
                     self.buckets.entry(dispatch_key).or_default();
-                    self.compound_ids.insert(predicate, compound);
+                    entry.insert(compound);
                     compound
                 }
             };
@@ -486,9 +487,9 @@ impl PrefixAutomaton {
                 predecessor,
                 axis: chain_step.axis,
             };
-            let step = match self.step_ids.get(&key).copied() {
-                Some(step) => step,
-                None => {
+            let step = match self.step_ids.entry(key) {
+                Entry::Occupied(entry) => *entry.get(),
+                Entry::Vacant(entry) => {
                     let step =
                         PrefixStepID(u32::try_from(self.steps.len()).expect("selector prefix step space exhausted"));
                     self.steps.push(PrefixStep {
@@ -498,7 +499,7 @@ impl PrefixAutomaton {
                     });
                     self.step_predecessors.push(predecessor.map_or(u32::MAX, |step| step.0));
                     self.step_output_builders.push(PrefixStepOutputBuilder::default());
-                    self.step_ids.insert(key, step);
+                    entry.insert(step);
                     // Only root steps dispatch through buckets: a continuation step is reachable
                     // exactly when its predecessor put it in the parent state, so transitions find
                     // it by walking the (small) active set and asking whether the row carries its
