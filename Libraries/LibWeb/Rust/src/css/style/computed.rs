@@ -1356,7 +1356,7 @@ impl ComputedGroupSets {
             let specified = table
                 .retained_inheritance_dependent_values()
                 .find(|(candidate, value)| *candidate == property && retained_value_depends_on_current_color(value))
-                .map(|(_, value)| value.clone_retained());
+                .map(|(_, value)| value);
             let Some(specified) = specified else {
                 continue;
             };

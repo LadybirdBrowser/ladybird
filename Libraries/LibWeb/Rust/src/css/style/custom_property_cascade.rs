@@ -395,7 +395,7 @@ impl StyleEngine {
             &cascaded,
         );
         if self.custom_property_environments.memoized(&key).is_none() {
-            let written_values = cascaded.iter().map(|(_, written)| written.clone_retained()).collect();
+            let written_values = cascaded.into_iter().map(|(_, written)| written).collect();
             self.custom_property_environments
                 .remember(key, environment, written_values);
         }
@@ -470,7 +470,7 @@ impl StyleEngine {
             ));
         }
         if values.is_empty() {
-            let written_values = cascaded.iter().map(|(_, written)| written.clone_retained()).collect();
+            let written_values = cascaded.into_iter().map(|(_, written)| written).collect();
             self.custom_property_environments
                 .remember(key, parent_environment, written_values);
             return Some(parent_environment);
@@ -512,7 +512,7 @@ impl StyleEngine {
                     .adopt_engine_environment(resolved.rust_store, parent_environment)
             }
         };
-        let written_values = cascaded.iter().map(|(_, written)| written.clone_retained()).collect();
+        let written_values = cascaded.into_iter().map(|(_, written)| written).collect();
         self.custom_property_environments
             .remember(key, identity, written_values);
         Some(identity)
