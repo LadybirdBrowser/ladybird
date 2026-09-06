@@ -1345,6 +1345,7 @@ impl<'pass> GridFormattingContext<'pass> {
     fn automatic_repeat_count(
         &self,
         source: TrackListSource<'pass>,
+        list: ComputedGridTrackList,
         entry: &crate::layout::ComputedGridTrackEntry,
         axis: Axis,
     ) -> usize {
@@ -1360,7 +1361,6 @@ impl<'pass> GridFormattingContext<'pass> {
         // content box of its grid container taking gap into account; if any number of repetitions would
         // overflow, then 1 repetition.
         let available = self.axis_available(axis);
-        let resolution_available = self.available_space.unwrap().inline_size;
         // For this purpose, each track is treated as its max track sizing function if that is definite or
         // else its min track sizing function if that is definite. If both are definite, floor the max track
         // sizing function by the min track sizing function. If neither are definite, the number of
@@ -1371,14 +1371,14 @@ impl<'pass> GridFormattingContext<'pass> {
             let min = TrackSizingFunction::from_breadth(definition.min);
             let max = TrackSizingFunction::from_breadth(definition.max);
             let size = if matches!(max, TrackSizingFunction::Fixed(_)) {
-                max.resolve(resolution_available)
+                max.resolve(available)
                     .max(if matches!(min, TrackSizingFunction::Fixed(_)) {
-                        min.resolve(resolution_available)
+                        min.resolve(available)
                     } else {
                         CssPixels::default()
                     })
             } else if matches!(min, TrackSizingFunction::Fixed(_)) {
-                min.resolve(resolution_available)
+                min.resolve(available)
             } else {
                 return 1;
             };
@@ -1392,9 +1392,32 @@ impl<'pass> GridFormattingContext<'pass> {
         if let AvailableSize::Definite(available_size) = available
             && denominator > CssPixels::default()
         {
+            // The repetitions must not cause the grid to overflow, so the definite contribution of
+            // the tracks outside the auto repeat is subtracted first. Expanding the template with
+            // zero auto repetitions expands fixed repeat(N, ...) entries fully while the auto
+            // repeat itself contributes nothing.
+            let rest = expand_standalone(source, list, |_index, _entry| 0);
+            let mut rest_size = CssPixels::default();
+            for definition in &rest.tracks {
+                let min = TrackSizingFunction::from_breadth(definition.min);
+                let max = TrackSizingFunction::from_breadth(definition.max);
+                if matches!(max, TrackSizingFunction::Fixed(_)) {
+                    rest_size += max
+                        .resolve(available)
+                        .max(if matches!(min, TrackSizingFunction::Fixed(_)) {
+                            min.resolve(available)
+                        } else {
+                            CssPixels::default()
+                        });
+                } else if matches!(min, TrackSizingFunction::Fixed(_)) {
+                    rest_size += min.resolve(available);
+                }
+                // NB: Tracks with no definite breadth contribute nothing to the estimate.
+            }
             // NOTE: Gap size is added to free space to compensate for the fact that the last track does not have a gap
             // If any number of repetitions would overflow, then 1 repetition.
-            return (((available_size + gap).raw_value() as i64 / denominator.raw_value() as i64).max(1)) as usize;
+            let leftover = available_size + gap - rest_size - gap * rest.tracks.len();
+            return ((leftover.raw_value() as i64 / denominator.raw_value() as i64).max(1)) as usize;
         }
         // FIXME: Otherwise, if the grid container has a definite minimum size in the relevant axis, the number of
         //        repetitions is the smallest possible positive integer that fulfills that minimum requirement.
@@ -1425,7 +1448,7 @@ impl<'pass> GridFormattingContext<'pass> {
             return expand_subgrid(source, list, track_count, &inherited);
         }
         expand_standalone(source, list, |_index, entry| {
-            self.automatic_repeat_count(source, entry, axis)
+            self.automatic_repeat_count(source, list, entry, axis)
         })
     }
 
