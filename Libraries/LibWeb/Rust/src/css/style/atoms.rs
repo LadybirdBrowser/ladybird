@@ -222,6 +222,9 @@ pub(super) const PIN_RELEASES_PER_SWEEP: u64 = 256;
 
 impl Drop for PinnedAtoms {
     fn drop(&mut self) {
+        if self.atoms.is_empty() {
+            return;
+        }
         let mut pinned = self.pins.counts.borrow_mut();
         for atom in &self.atoms {
             let Entry::Occupied(mut entry) = pinned.entry(*atom) else {
@@ -233,15 +236,13 @@ impl Drop for PinnedAtoms {
                 entry.remove();
             }
         }
-        if !self.atoms.is_empty() {
-            self.pins.releases.set(
-                self.pins
-                    .releases
-                    .get()
-                    .checked_add(1)
-                    .expect("atom pin release count overflow"),
-            );
-        }
+        self.pins.releases.set(
+            self.pins
+                .releases
+                .get()
+                .checked_add(1)
+                .expect("atom pin release count overflow"),
+        );
     }
 }
 
