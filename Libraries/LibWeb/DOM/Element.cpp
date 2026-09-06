@@ -2069,6 +2069,16 @@ void Element::publish_custom_property_names()
         : published_pseudo_element_data.is_empty() && published_references.is_empty();
     if (published_names == m_published_custom_property_names && published_extra_names_match)
         return;
+    // An environment that declares the same names as the published one, with other values, is the
+    // same index entry: a root whose declarations moved value hands out its names again otherwise.
+    if (published_extra_names_match
+        && published_names.data && m_published_custom_property_names.data
+        && published_names.uses_var_css_function == m_published_custom_property_names.uses_var_css_function
+        && published_names.uses_custom_function == m_published_custom_property_names.uses_custom_function
+        && published_names.data->declares_same_names(*m_published_custom_property_names.data)) {
+        m_published_custom_property_names = move(published_names);
+        return;
+    }
     CSS::record_element_custom_property_names(*this, published_names.data.ptr(), published_pseudo_element_data, published_references, m_style_uses_var_css_function, m_style_uses_custom_function);
     m_published_custom_property_names = move(published_names);
     if (!published_pseudo_element_data.is_empty() || !published_references.is_empty()) {

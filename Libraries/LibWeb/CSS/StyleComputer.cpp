@@ -173,8 +173,26 @@ struct SubstitutionData {
     {
         auto& document = element.document();
         if (collect_attributes) {
-            document_url = document.url().serialize();
-            document_base_url = document.base_url().serialize();
+            // The document's URLs serialize the same way for every element computed under them;
+            // they are serialized again only when one of them is another URL.
+            struct SerializedDocumentURLs {
+                FlatPtr document { 0 };
+                ::URL::URL url;
+                ::URL::URL base_url;
+                String serialized_url;
+                String serialized_base_url;
+            };
+            static NeverDestroyed<SerializedDocumentURLs> serialized_document_urls;
+            auto& cache = *serialized_document_urls;
+            if (cache.document != bit_cast<FlatPtr>(&document) || cache.url != document.url() || cache.base_url != document.base_url()) {
+                cache.document = bit_cast<FlatPtr>(&document);
+                cache.url = document.url();
+                cache.base_url = document.base_url();
+                cache.serialized_url = cache.url.serialize();
+                cache.serialized_base_url = cache.base_url.serialize();
+            }
+            document_url = cache.serialized_url;
+            document_base_url = cache.serialized_base_url;
         }
         parse_context = {
             .in_quirks_mode = document.in_quirks_mode(),
@@ -3584,8 +3602,28 @@ static void report_custom_property_change(DOM::AbstractElement abstract_element,
     static NeverDestroyed<OrderedHashMap<Utf16FlyString, StyleProperty>> empty_own_values;
     auto const& old_own = old_custom_property_data ? old_custom_property_data->own_values() : *empty_own_values;
     auto const& new_own = new_custom_property_data ? new_custom_property_data->own_values() : *empty_own_values;
-    if (old_own != new_own)
+    if (old_own.size() != new_own.size()) {
         *did_change_custom_properties = true;
+        return;
+    }
+    // A cascade hands out the very value objects the declarations hold, so two environments built
+    // from the same declarations share their values: compare by identity before comparing text.
+    auto old_iterator = old_own.begin();
+    auto new_iterator = new_own.begin();
+    for (; old_iterator != old_own.end(); ++old_iterator, ++new_iterator) {
+        if (old_iterator->key != new_iterator->key || old_iterator->value.important != new_iterator->value.important) {
+            *did_change_custom_properties = true;
+            return;
+        }
+        auto const& old_value = *old_iterator->value.value;
+        auto const& new_value = *new_iterator->value.value;
+        if (&old_value == &new_value || old_value.rust_style_value_data() == new_value.rust_style_value_data())
+            continue;
+        if (!old_value.equals(new_value)) {
+            *did_change_custom_properties = true;
+            return;
+        }
+    }
 }
 
 // A shared style installs the current inheritance parent's environment directly. Unlike a normal
