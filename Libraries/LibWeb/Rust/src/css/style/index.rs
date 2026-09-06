@@ -104,8 +104,8 @@ fn attribute_value_may_match(value: &[u16], literal: &[u16], operator: Attribute
         AttributeOperator::DashMatch => {
             attribute_value_equals(value, literal, insensitive)
                 || (value.len() > literal.len()
-                    && attribute_value_starts_with(value, literal, insensitive)
-                    && value[literal.len()] == u16::from(b'-'))
+                    && value[literal.len()] == u16::from(b'-')
+                    && attribute_value_starts_with(value, literal, insensitive))
         }
         AttributeOperator::Prefix => !literal.is_empty() && attribute_value_starts_with(value, literal, insensitive),
         AttributeOperator::Suffix => {

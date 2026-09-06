@@ -6213,8 +6213,8 @@ impl<'a> MatchEvaluator<'a> {
             AttributeOperator::DashMatch => {
                 equals(value, literal, insensitive)
                     || (value.len() > literal.len()
-                        && starts_with(value, literal, insensitive)
-                        && value[literal.len()] == u16::from(b'-'))
+                        && value[literal.len()] == u16::from(b'-')
+                        && starts_with(value, literal, insensitive))
             }
             AttributeOperator::Prefix => !literal.is_empty() && starts_with(value, literal, insensitive),
             AttributeOperator::Suffix => {
