@@ -242,6 +242,9 @@ interface Internals {
     undefined setSystemVisibilityState(DOMString state);
     // Overrides the interval between the wake-ups a hidden document holds its delayed timers back to (1000 ms by default).
     undefined setHiddenDocumentTimerWakeUpInterval(double milliseconds);
+    // Overrides the interval between the wake-ups a hidden document holds its chained timers back to once it has been
+    // hidden for the grace period, and that grace period, both in milliseconds (60000 ms and 300000 ms by default).
+    undefined setHiddenDocumentIntensiveTimerThrottling(double wakeUpInterval, double gracePeriodOnceLoaded, double gracePeriodWhileLoading);
     DOMString canvasColorScheme();
     // Returns the selector-insight cache state for stylesheet invalidation tests.
     object imageAnimationStateForURL(USVString url);

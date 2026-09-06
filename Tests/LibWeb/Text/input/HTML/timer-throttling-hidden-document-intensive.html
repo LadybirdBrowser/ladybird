@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Once a document has been hidden for a grace period, a chained timer — a setTimeout past nesting level 5, an idle
+    // callback's timeout, an AbortSignal's timeout — runs only at an intensive wake-up, several base wake-ups apart,
+    // unless no chained timer has run for an intensive interval, in which case the next base wake-up will do. A delayed
+    // timer keeps its base wake-ups throughout. The intervals are shortened here to keep the test quick.
+    asyncTest(async done => {
+        const wakeUpInterval = 400;
+        const intensiveWakeUpInterval = 1600;
+        const gracePeriod = 1200;
+        internals.setHiddenDocumentTimerWakeUpInterval(wakeUpInterval);
+        // The grace period for a document that was still loading when it hid is long enough to time the test out
+        // if it were the one applied; the document is made to finish loading before it hides.
+        internals.setHiddenDocumentIntensiveTimerThrottling(intensiveWakeUpInterval, gracePeriod, 60_000);
+
+        // performance.now() is coarsened down to a tenth of a millisecond, so a timer that fires right at a wake-up
+        // can read a hair less than it.
+        const coarsening = 0.1;
+        const wakeUpAtOrAfter = (time, interval) => Math.ceil(time / interval) * interval;
+        const firedIn = (time, wakeUp, interval) => time >= wakeUp - coarsening && time < wakeUp + interval;
+        // Where a chained timer with the given deadline runs once the intensive tier applies: at the next intensive
+        // wake-up, or at the next base wake-up if that's at least an intensive interval past the last chained wake-up.
+        const intensiveWakeUpAtOrAfter = (deadline, lastChainedWakeUp) => Math.min(
+            wakeUpAtOrAfter(deadline, intensiveWakeUpInterval),
+            wakeUpAtOrAfter(Math.max(deadline, lastChainedWakeUp + intensiveWakeUpInterval), wakeUpInterval));
+        // Gets near the next boundary of the grid with a timer, then spins the rest of the way, so that the current
+        // time sits early in an interval of that grid and a short timer's deadline lies well before its next wake-up.
+        const waitForEarlyPhase = async interval => {
+            const phase = performance.now() % interval;
+            if (phase >= 60)
+                await timeout(interval - phase);
+            while (performance.now() % interval >= 60)
+                ;
+        };
+        const chainedFireTime = delay => new Promise(resolve =>
+            requestIdleCallback(() => resolve(performance.now()), { timeout: delay }));
+        const delayedFireTime = delay => new Promise(resolve => setTimeout(() => resolve(performance.now()), delay));
+        // A timer registered from the sixth nested setTimeout callback, i.e. at nesting level 6 — past the level
+        // where the 4 ms clamp starts.
+        const nestedFireTimes = delay => new Promise(resolve => {
+            let armedAt;
+            const nest = depth => {
+                if (depth === 0) {
+                    armedAt = performance.now();
+                    setTimeout(() => resolve({ armedAt, firedAt: performance.now() }), delay);
+                } else {
+                    setTimeout(() => nest(depth - 1), 0);
+                }
+            };
+            nest(6);
+        });
+        const report = (what, ok, details) => {
+            println(`${what}: ${ok}`);
+            if (!ok)
+                println(`    ${JSON.stringify(details)}`);
+        };
+
+        if (document.readyState !== "complete")
+            await new Promise(resolve => addEventListener("load", resolve, { once: true }));
+        // Line the hide up with the intensive grid, so that every wake-up below falls where the arithmetic says.
+        await waitForEarlyPhase(intensiveWakeUpInterval);
+        await setSystemVisibilityState("hidden");
+        try {
+            let armedAt = performance.now();
+            let wakeUp = wakeUpAtOrAfter(armedAt + 10, wakeUpInterval);
+            let chained = await chainedFireTime(10);
+            report("before the grace period ends, a chained timer takes the next base wake-up",
+                firedIn(chained, wakeUp, wakeUpInterval), { armedAt, wakeUp, chained });
+            let lastChainedWakeUp = chained;
+
+            // Armed before the grace period ends, due after it: the timer is moved off its base wake-up when the
+            // grace period ends.
+            armedAt = performance.now();
+            wakeUp = intensiveWakeUpAtOrAfter(armedAt + 1300, lastChainedWakeUp);
+            chained = await chainedFireTime(1300);
+            report("a chained timer already armed when the grace period ends is re-armed for the intensive tier",
+                firedIn(chained, wakeUp, wakeUpInterval), { armedAt, wakeUp, chained, lastChainedWakeUp });
+            lastChainedWakeUp = chained;
+
+            armedAt = performance.now();
+            wakeUp = intensiveWakeUpAtOrAfter(armedAt + 10, lastChainedWakeUp);
+            const baseWakeUp = wakeUpAtOrAfter(armedAt + 10, wakeUpInterval);
+            const [chainedAgain, nested, delayed] = await Promise.all([chainedFireTime(10), nestedFireTimes(10), delayedFireTime(10)]);
+            report("after the grace period, a chained timer right after a chained wake-up waits for the intensive wake-up",
+                firedIn(chainedAgain, wakeUp, wakeUpInterval), { armedAt, wakeUp, chainedAgain, lastChainedWakeUp });
+            report("a timer nested past level 5 counts as chained",
+                firedIn(nested.firedAt, intensiveWakeUpAtOrAfter(nested.armedAt + 10, lastChainedWakeUp), wakeUpInterval),
+                { nested, lastChainedWakeUp });
+            report("a delayed timer keeps taking the next base wake-up", firedIn(delayed, baseWakeUp, wakeUpInterval),
+                { armedAt, baseWakeUp, delayed });
+            lastChainedWakeUp = Math.max(chainedAgain, nested.firedAt);
+
+            // Let an intensive interval pass with no chained timer running.
+            while (performance.now() < lastChainedWakeUp + intensiveWakeUpInterval + 60)
+                await timeout(50);
+            armedAt = performance.now();
+            wakeUp = wakeUpAtOrAfter(armedAt + 10, wakeUpInterval);
+            chained = await chainedFireTime(10);
+            report("a chained timer runs at the next base wake-up once no chained timer has run for an intensive interval",
+                firedIn(chained, wakeUp, wakeUpInterval) && wakeUp === intensiveWakeUpAtOrAfter(armedAt + 10, lastChainedWakeUp),
+                { armedAt, wakeUp, chained, lastChainedWakeUp });
+
+            // Showing the document ends its grace period; hiding it again starts a fresh one.
+            await setSystemVisibilityState("visible");
+            await waitForEarlyPhase(intensiveWakeUpInterval);
+            await setSystemVisibilityState("hidden");
+            await chainedFireTime(10);
+            armedAt = performance.now();
+            wakeUp = wakeUpAtOrAfter(armedAt + 10, wakeUpInterval);
+            chained = await chainedFireTime(10);
+            report("hiding the document again starts a new grace period", firedIn(chained, wakeUp, wakeUpInterval),
+                { armedAt, wakeUp, chained });
+        } finally {
+            await setSystemVisibilityState("visible");
+        }
+        done();
+    });
+</script>

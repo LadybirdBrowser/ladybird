@@ -1,0 +1,4 @@
+the document has loaded and the frame is still loading when the page hides: true
+the loaded document's chained timers move to the intensive tier once the shorter grace period ends: true
+the frame that was still loading keeps its base wake-ups past the shorter grace period, even once it has finished loading: true
+the frame's chained timers move to the intensive tier once the longer grace period ends: true

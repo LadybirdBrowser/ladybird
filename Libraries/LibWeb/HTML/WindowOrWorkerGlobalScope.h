@@ -14,6 +14,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <AK/Variant.h>
+#include <LibCore/Forward.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -103,6 +104,13 @@ public:
         VERIFY(milliseconds > 0);
         m_hidden_document_timer_wake_up_interval = milliseconds;
     }
+    void set_hidden_document_intensive_timer_throttling(Badge<Internals::Internals>, double wake_up_interval, double grace_period_once_loaded, double grace_period_while_loading)
+    {
+        VERIFY(wake_up_interval > 0 && grace_period_once_loaded >= 0 && grace_period_while_loading >= 0);
+        m_intensive_timer_wake_up_interval = wake_up_interval;
+        m_intensive_timer_throttling_grace_period_once_loaded = grace_period_once_loaded;
+        m_intensive_timer_throttling_grace_period_while_loading = grace_period_while_loading;
+    }
 
     void report_error(JS::Value e);
 
@@ -151,7 +159,9 @@ private:
     };
     i32 run_timer_initialization_steps(TimerHandler handler, i32 timeout, GC::RootVector<JS::Value> arguments, Repeat repeat, Optional<i32> previous_id = {});
     void run_steps_after_a_timeout_impl(i32 timeout, TimerThrottlingClass, Function<void()> completion_step, Optional<i32> timer_key, Repeat repeat = Repeat::No);
+    bool document_is_hidden() const;
     Optional<i32> throttled_timer_delay(TimerThrottlingClass, double deadline) const;
+    void realign_timers();
 
     void create_image_bitmap_impl(JS::Realm&, GC::Ref<WebIDL::Promise>, ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, ImageBitmapOptions options) const;
 
@@ -165,6 +175,16 @@ private:
 
     // The interval between the wake-ups a hidden document holds its delayed timers back to; a test can shorten it.
     double m_hidden_document_timer_wake_up_interval { 1000 };
+    // The rarer wake-ups a hidden document holds its chained timers back to once it has been hidden for the grace
+    // period — a minute for a document that had finished loading when it hid, five for one that was still loading,
+    // which are Chrome's values; a test can shorten all three.
+    double m_intensive_timer_wake_up_interval { 60'000 };
+    double m_intensive_timer_throttling_grace_period_once_loaded { 60'000 };
+    double m_intensive_timer_throttling_grace_period_while_loading { 300'000 };
+    RefPtr<Core::Timer> m_intensive_timer_throttling_grace_timer;
+    bool m_chained_timers_intensively_throttled { false };
+    // When a chained timer last ran while the document was hidden (see throttled_timer_delay()).
+    Optional<double> m_last_chained_timer_wake_up;
 
     // https://www.w3.org/TR/performance-timeline/#performance-timeline
     // Each global object has:

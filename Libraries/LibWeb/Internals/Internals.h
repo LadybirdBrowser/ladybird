@@ -233,6 +233,7 @@ public:
     void set_page_focus(bool has_focus);
     void set_system_visibility_state(Utf16String const& state);
     void set_hidden_document_timer_wake_up_interval(double milliseconds);
+    void set_hidden_document_intensive_timer_throttling(double wake_up_interval, double grace_period_once_loaded, double grace_period_while_loading);
     Utf16String canvas_color_scheme();
     WebIDL::ExceptionOr<GC::Ref<JS::Object>> image_animation_state_for_url(Utf16String const& url);
     bool media_element_is_fetching(HTML::HTMLMediaElement&);

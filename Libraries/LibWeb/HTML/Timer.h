@@ -17,11 +17,13 @@
 
 namespace Web::HTML {
 
-// How a hidden document treats the timer: it leaves an immediate one alone, and holds a delayed one back until the
-// next of the wake-ups it lets its timers run at.
+// How a hidden document treats the timer: it leaves an immediate one alone, holds a delayed one back until the next of
+// the wake-ups it lets its timers run at, and holds a chained one — a timer the page re-armed from a timer callback,
+// or a timeout another specification waits on — back to a much rarer wake-up once it has been hidden for a while.
 enum class TimerThrottlingClass : u8 {
     Immediate,
     Delayed,
+    Chained,
 };
 
 class Timer final : public JS::Cell {

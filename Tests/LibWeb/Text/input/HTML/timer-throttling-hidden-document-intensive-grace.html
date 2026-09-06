@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The grace period before a hidden document's chained timers move to the intensive tier depends on whether the
+    // document had finished loading when it hid: a shorter one if it had, a longer one if it was still loading. That's
+    // judged once, as the document hides — a document that finishes loading while hidden keeps the longer period. Here
+    // the document has loaded when the page hides, and a frame's document is still loading, held open with
+    // document.open(). The intervals are shortened to keep the test quick.
+    asyncTest(async done => {
+        const wakeUpInterval = 400;
+        const intensiveWakeUpInterval = 1600;
+        const gracePeriodOnceLoaded = 1200;
+        // Long enough that, by the time it ends, an intensive interval has passed since the frame's last chained
+        // wake-up below — so the wake-ups of the last check fall where the arithmetic says, whichever side of
+        // a boundary that wake-up was read on.
+        const gracePeriodWhileLoading = 4400;
+        internals.setHiddenDocumentTimerWakeUpInterval(wakeUpInterval);
+        internals.setHiddenDocumentIntensiveTimerThrottling(intensiveWakeUpInterval, gracePeriodOnceLoaded, gracePeriodWhileLoading);
+
+        // performance.now() is coarsened down to a tenth of a millisecond, so a timer that fires right at a wake-up
+        // can read a hair less than it.
+        const coarsening = 0.1;
+        const wakeUpAtOrAfter = (time, interval) => Math.ceil(time / interval) * interval;
+        const firedIn = (time, wakeUp, interval) => time >= wakeUp - coarsening && time < wakeUp + interval;
+        // Where a chained timer with the given deadline runs once the intensive tier applies: at the next intensive
+        // wake-up, or at the next base wake-up if that's at least an intensive interval past the last chained wake-up.
+        const intensiveWakeUpAtOrAfter = (deadline, lastChainedWakeUp) => Math.min(
+            wakeUpAtOrAfter(deadline, intensiveWakeUpInterval),
+            wakeUpAtOrAfter(Math.max(deadline, lastChainedWakeUp + intensiveWakeUpInterval), wakeUpInterval));
+        // Gets near the next boundary of the grid with a timer, then spins the rest of the way, so that the current
+        // time sits early in an interval of that grid and a short timer's deadline lies well before its next wake-up.
+        const waitForEarlyPhase = async interval => {
+            const phase = performance.now() % interval;
+            if (phase >= 60)
+                await timeout(interval - phase);
+            while (performance.now() % interval >= 60)
+                ;
+        };
+        // One delayed timer, so as not to nest timers past the level where they'd count as chained; it fires at the
+        // first base wake-up at or after the given time.
+        const waitUntil = async time => {
+            if (performance.now() < time)
+                await timeout(time - performance.now());
+        };
+        // A chained timer in the given window: an idle callback's timeout. The time is read from this document's
+        // clock, which is the one the page's wake-up grid is aligned to.
+        const chainedFireTime = (window, delay) => new Promise(resolve =>
+            window.requestIdleCallback(() => resolve(performance.now()), { timeout: delay }));
+        // A chained wake-up followed by a chained timer armed right after it: where the second one fires tells which
+        // tier the window is in.
+        const chainedWakeUpThenFireTime = async window => {
+            const lastChainedWakeUp = await chainedFireTime(window, 10);
+            const armedAt = performance.now();
+            const firedAt = await chainedFireTime(window, 10);
+            return { lastChainedWakeUp, armedAt, firedAt };
+        };
+        const report = (what, ok, details) => {
+            println(`${what}: ${ok}`);
+            if (!ok)
+                println(`    ${JSON.stringify(details)}`);
+        };
+
+        if (document.readyState !== "complete")
+            await new Promise(resolve => addEventListener("load", resolve, { once: true }));
+        const frame = document.createElement("iframe");
+        document.body.append(frame);
+        const frameDocument = frame.contentDocument;
+        frameDocument.open();
+        frameDocument.write("<!DOCTYPE html><p>still loading</p>");
+        // The intervals are per-window; the frame's window has its own.
+        frame.contentWindow.internals.setHiddenDocumentTimerWakeUpInterval(wakeUpInterval);
+        frame.contentWindow.internals.setHiddenDocumentIntensiveTimerThrottling(intensiveWakeUpInterval, gracePeriodOnceLoaded, gracePeriodWhileLoading);
+
+        // Line the hide up with the intensive grid, so that every wake-up below falls where the arithmetic says.
+        await waitForEarlyPhase(intensiveWakeUpInterval);
+        await setSystemVisibilityState("hidden");
+        const hiddenAt = performance.now();
+        try {
+            report("the document has loaded and the frame is still loading when the page hides",
+                document.readyState === "complete" && frameDocument.readyState === "loading",
+                { document: document.readyState, frame: frameDocument.readyState });
+
+            // Past the shorter grace period, short of the longer one: the document's chained timers are in the
+            // intensive tier, the frame's are not — even once the frame finishes loading, since that was judged as
+            // the page hid.
+            await waitUntil(hiddenAt + gracePeriodOnceLoaded + 100);
+            frameDocument.close();
+            const [top, inFrame] = await Promise.all([chainedWakeUpThenFireTime(window), chainedWakeUpThenFireTime(frame.contentWindow)]);
+            let wakeUp = intensiveWakeUpAtOrAfter(top.armedAt + 10, top.lastChainedWakeUp);
+            let baseWakeUp = wakeUpAtOrAfter(top.armedAt + 10, wakeUpInterval);
+            report("the loaded document's chained timers move to the intensive tier once the shorter grace period ends",
+                firedIn(top.firedAt, wakeUp, wakeUpInterval) && wakeUp !== baseWakeUp, { ...top, wakeUp, baseWakeUp });
+            wakeUp = wakeUpAtOrAfter(inFrame.armedAt + 10, wakeUpInterval);
+            const intensiveWakeUp = intensiveWakeUpAtOrAfter(inFrame.armedAt + 10, inFrame.lastChainedWakeUp);
+            report("the frame that was still loading keeps its base wake-ups past the shorter grace period, even once it has finished loading",
+                firedIn(inFrame.firedAt, wakeUp, wakeUpInterval) && wakeUp !== intensiveWakeUp, { ...inFrame, wakeUp, intensiveWakeUp });
+
+            // Past the longer grace period, the frame's chained timers are in the intensive tier too.
+            await waitUntil(hiddenAt + gracePeriodWhileLoading + 100);
+            const later = await chainedWakeUpThenFireTime(frame.contentWindow);
+            wakeUp = intensiveWakeUpAtOrAfter(later.armedAt + 10, later.lastChainedWakeUp);
+            baseWakeUp = wakeUpAtOrAfter(later.armedAt + 10, wakeUpInterval);
+            report("the frame's chained timers move to the intensive tier once the longer grace period ends",
+                firedIn(later.firedAt, wakeUp, wakeUpInterval) && wakeUp !== baseWakeUp, { ...later, wakeUp, baseWakeUp });
+        } finally {
+            await setSystemVisibilityState("visible");
+        }
+        done();
+    });
+</script>

@@ -1,0 +1,7 @@
+before the grace period ends, a chained timer takes the next base wake-up: true
+a chained timer already armed when the grace period ends is re-armed for the intensive tier: true
+after the grace period, a chained timer right after a chained wake-up waits for the intensive wake-up: true
+a timer nested past level 5 counts as chained: true
+a delayed timer keeps taking the next base wake-up: true
+a chained timer runs at the next base wake-up once no chained timer has run for an intensive interval: true
+hiding the document again starts a new grace period: true
