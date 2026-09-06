@@ -5484,18 +5484,14 @@ impl<'a> MatchEvaluator<'a> {
         self.matches_node(program, id, node, counters)
     }
 
-    fn matches_transitive_relation(
+    fn matches_descendant_relation(
         &self,
         program: &SelectorProgram,
         relation: SelectorNodeID,
         inner: SelectorNodeID,
         node: StyleNodeID,
-        preceding_sibling: bool,
         counters: &mut Counters,
     ) -> Result<bool, Incomplete> {
-        if preceding_sibling {
-            return self.matches_preceding_sibling_prefix(program, relation, inner, node, counters);
-        }
         let (workspace, side) = self.match_workspace.unwrap();
         let cache = workspace.relations(side);
         let program_id = self.transitive_relation_program.get().unwrap();
@@ -5510,11 +5506,7 @@ impl<'a> MatchEvaluator<'a> {
         let mut incomplete = None;
         let answer = loop {
             traversed.push(current);
-            let adjacent = match preceding_sibling {
-                true => self.previous_sibling_of(current),
-                false => self.parent_of(current),
-            };
-            let Some(adjacent) = adjacent else {
+            let Some(adjacent) = self.parent_of(current) else {
                 break false;
             };
             counters.bump(Counter::CombinatorSteps);
@@ -5758,7 +5750,7 @@ impl<'a> MatchEvaluator<'a> {
                     && self.relative_anchor.get().is_none()
                     && self.scope_shadow_root.is_none()
                 {
-                    return self.matches_transitive_relation(program, id, inner, node, false, counters);
+                    return self.matches_descendant_relation(program, id, inner, node, counters);
                 }
                 let mut ancestor = self.parent_of(node);
                 while let Some(current) = ancestor {
@@ -5786,7 +5778,7 @@ impl<'a> MatchEvaluator<'a> {
                     && self.relative_anchor.get().is_none()
                     && self.scope_shadow_root.is_none()
                 {
-                    return self.matches_transitive_relation(program, id, inner, node, true, counters);
+                    return self.matches_preceding_sibling_prefix(program, id, inner, node, counters);
                 }
                 let Some(parent) = self.parent_of(node) else {
                     return Ok(false);
