@@ -1678,7 +1678,7 @@ impl FeaturePostings {
         if self.missing.contains(&key) || self.cardinality_limited.contains(&key) {
             return false;
         }
-        if !self.postings.contains_key(&key) && !memory.is_tier3_admitting(MemoryCategory::FeaturePosting) {
+        if !memory.is_tier3_admitting(MemoryCategory::FeaturePosting) && !self.postings.contains_key(&key) {
             self.remember_missing(key);
             return false;
         }
