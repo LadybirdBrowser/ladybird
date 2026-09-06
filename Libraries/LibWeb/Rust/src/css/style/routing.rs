@@ -2824,7 +2824,7 @@ impl StyleEngine {
             let states = caches
                 .states
                 .get_or_insert(scope_program, facts.generation(), facts.row_count());
-            relation.install_answers(states, &mut self.counters);
+            relation.install_answers(states);
             for node in departures {
                 states.forget_transition(node);
             }

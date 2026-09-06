@@ -555,12 +555,7 @@ impl StyleEngine {
     }
 
     pub(super) fn retain_prefix_states(&mut self) {
-        if !self
-            .prefix_caches
-            .borrow_mut()
-            .states
-            .retain(&mut self.memory, &mut self.counters)
-        {
+        if !self.prefix_caches.borrow_mut().states.retain(&mut self.memory) {
             self.prefix_caches.borrow_mut().states.release();
         }
     }
@@ -647,7 +642,7 @@ impl StyleEngine {
                             .build_relation(&evaluation, root, &mut self.counters),
                     )
                 });
-                relation.install_answers(states, &mut self.counters);
+                relation.install_answers(states);
                 states.relation = Some(relation);
                 caches.states.settle_memory(&mut self.memory);
             }
@@ -682,7 +677,7 @@ impl StyleEngine {
         {
             let mut caches = self.prefix_caches.borrow_mut();
             caches.states.mark_sparse();
-            if caches.states.retain(&mut self.memory, &mut self.counters) {
+            if caches.states.retain(&mut self.memory) {
                 caches.states.mark_current();
                 if !caches.answers.retain(&mut self.memory) {
                     caches.answers.release(&mut self.match_answers);

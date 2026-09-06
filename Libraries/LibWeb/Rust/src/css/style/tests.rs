@@ -5113,7 +5113,7 @@ fn prefix_relations_propagate_local_changes_over_every_axis() {
         discard_transaction(&mut engine);
         let (dispatch, mut relation) = test_prefix_relation(&mut engine, nodes[0]);
         let mut states = PrefixStates::new(0);
-        relation.install_answers(&mut states, &mut engine.counters);
+        relation.install_answers(&mut states);
         assert_eq!(
             states.retained_matches_for(nodes[target_index]).unwrap().len(),
             1,
@@ -5135,7 +5135,7 @@ fn prefix_relations_propagate_local_changes_over_every_axis() {
         assert_eq!(relation.changed_answers[0].0, nodes[target_index]);
         assert_eq!(relation.changed_answers[0].1.len(), 1);
         assert!(relation.changed_answers[0].2.is_empty());
-        relation.install_answers(&mut states, &mut engine.counters);
+        relation.install_answers(&mut states);
         assert!(states.retained_matches_for(nodes[target_index]).unwrap().is_empty());
 
         let old_facts = engine.facts.primary().clone();
@@ -5365,7 +5365,7 @@ fn prefix_relations_update_adjacency_and_positions_after_sibling_removal() {
     discard_transaction(&mut engine);
     let (dispatch, mut relation) = test_prefix_relation(&mut engine, nodes[0]);
     let mut states = PrefixStates::new(0);
-    relation.install_answers(&mut states, &mut engine.counters);
+    relation.install_answers(&mut states);
     assert!(states.retained_matches_for(nodes[3]).unwrap().is_empty());
 
     let old_facts = engine.facts.primary().clone();

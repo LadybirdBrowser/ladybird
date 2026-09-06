@@ -146,19 +146,19 @@ impl PrefixRelation {
             + self.handled_routing_keys.shallow_capacity_bytes();
     }
 
-    pub(in crate::css::style) fn install_answers(&self, states: &mut PrefixStates, counters: &mut Counters) {
+    pub(in crate::css::style) fn install_answers(&self, states: &mut PrefixStates) {
         if states.relation_answers.is_empty() {
             for (position, (&node, entries)) in self.nodes.iter().zip(&self.answers).enumerate() {
                 if self.live[position] {
-                    states.install_relation_answer(node, entries, counters);
+                    states.install_relation_answer(node, entries);
                 }
             }
         } else {
             for (node, _, entries) in &self.changed_answers {
-                states.install_relation_answer(*node, entries, counters);
+                states.install_relation_answer(*node, entries);
             }
             for &position in &self.arrivals {
-                states.install_relation_answer(self.nodes[position], &self.answers[position], counters);
+                states.install_relation_answer(self.nodes[position], &self.answers[position]);
             }
         }
     }
