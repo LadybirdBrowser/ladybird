@@ -29,6 +29,7 @@
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/Crypto/Crypto.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/BindingsGlue.h>
 #include <LibWeb/Fetch/FetchMethod.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
@@ -38,6 +39,7 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventSource.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
@@ -687,6 +689,10 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
     if (nesting_level > 5 && timeout < 4)
         timeout = 4;
 
+    // A hidden document leaves a timer with no delay alone — the page's own yield points, which Chrome keeps prompt
+    // too — and holds every other one back (see throttled_timer_delay()).
+    auto throttling_class = timeout == 0 ? TimerThrottlingClass::Immediate : TimerThrottlingClass::Delayed;
+
     // 6. Let realm be global's relevant realm.
     auto& realm = relevant_realm(*this);
 
@@ -822,7 +828,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
     // 13. Set uniqueHandle to the result of running steps after a timeout given global, "setTimeout/setInterval",
     //     timeout, and completionStep.
     //     FIXME: run_steps_after_a_timeout() needs to be updated to return a unique internal value that can be used here.
-    run_steps_after_a_timeout_impl(timeout, move(completion_step), id, repeat);
+    run_steps_after_a_timeout_impl(timeout, throttling_class, move(completion_step), id, repeat);
 
     // FIXME: 14. Set global's map of setTimeout and setInterval IDs[id] to uniqueHandle.
 
@@ -1241,14 +1247,21 @@ i32 WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout(i32 timeout, Funct
         m_timers.remove(timer_key);
         completion_step();
     };
-    run_steps_after_a_timeout_impl(timeout, move(remove_timer_and_complete), timer_key);
+    // NB: A timeout another specification waits on — an idle callback's, an AbortSignal's — isn't one of the page's
+    //     own yield points, so a hidden document holds it back like any delayed timer, however short it is.
+    run_steps_after_a_timeout_impl(timeout, TimerThrottlingClass::Delayed, move(remove_timer_and_complete), timer_key);
     return timer_key;
 }
 
-void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout, Function<void()> completion_step, Optional<i32> timer_key, Repeat repeat)
+void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout, TimerThrottlingClass throttling_class, Function<void()> completion_step, Optional<i32> timer_key, Repeat repeat)
 {
     // 1. Assert: if timerKey is given, then the caller of this algorithm is the timer initialization steps. (Other specifications must not pass timerKey.)
     // Note: This is enforced by the caller.
+
+    // NB: A hidden document holds a delayed timer back past its deadline to its next wake-up (see
+    //     throttled_timer_delay()), so the delay the timer is armed with can differ from the one it was asked for.
+    auto deadline = HighResolutionTime::unsafe_shared_current_time() + timeout;
+    auto throttled_delay = throttled_timer_delay(throttling_class, deadline);
 
     // NB: We deviate from the spec here slightly by reusing existing timers if a timer_key is provided.
     GC::Ptr<Timer> existing_timer;
@@ -1257,7 +1270,14 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
         if (result.has_value()) {
             existing_timer = result.value().ptr();
             existing_timer->set_callback(move(completion_step));
-            existing_timer->set_interval(timeout);
+            existing_timer->set_throttling_class(throttling_class);
+            existing_timer->set_deadline(deadline);
+            // A throttled delay runs from now to the wake-up, so the timer restarts on it; unthrottled, a repeating
+            // timer keeps the schedule it's on (see below).
+            if (throttled_delay.has_value())
+                existing_timer->restart(*throttled_delay);
+            else
+                existing_timer->set_interval(timeout);
         }
     } else {
         // 2. If timerKey is not given, then set it to a new unique non-numeric value.
@@ -1271,7 +1291,7 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
     // completed. The task callback still calls run_timer_initialization_steps to update nesting
     // levels and potentially clamp the interval.
     auto repeating = repeat == Repeat::Yes ? Timer::Repeating::Yes : Timer::Repeating::No;
-    auto timer = existing_timer ? GC::Ref { *existing_timer } : Timer::create(timeout, move(completion_step), timer_key.value(), repeating);
+    auto timer = existing_timer ? GC::Ref { *existing_timer } : Timer::create(throttled_delay.value_or(timeout), move(completion_step), timer_key.value(), repeating, throttling_class, deadline);
 
     // FIXME: 4. Set global's map of active timers[timerKey] to startTime plus milliseconds.
     m_timers.set(timer_key.value(), timer);
@@ -1288,6 +1308,59 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
     // restarting it would cause drift (next fire = now + interval instead of previous fire + interval).
     if (!existing_timer)
         timer->start();
+}
+
+// A delay for Core::Timer: whole milliseconds, never negative, and no more than it can hold.
+static i32 timer_delay_from(double milliseconds)
+{
+    return static_cast<i32>(min(ceil(max(milliseconds, 0.0)), static_cast<double>(NumericLimits<i32>::max())));
+}
+
+// A hidden document runs a delayed timer only at a wake-up. The wake-ups are one wake-up interval apart, on a grid
+// aligned to the time origin of the page's local root document — the same grid for every frame of the page, so all
+// of their timers run in one wake-up rather than each frame's in its own — and the timer runs at the first wake-up
+// at or after its deadline. Returns the delay that takes the timer there, or nothing when the timer runs at its
+// deadline as usual: the document is visible, the timer has no delay, or the global isn't a Window at all.
+Optional<i32> WindowOrWorkerGlobalScopeMixin::throttled_timer_delay(TimerThrottlingClass throttling_class, double deadline) const
+{
+    if (throttling_class == TimerThrottlingClass::Immediate)
+        return {};
+    auto const* window = as_if<Window>(this_impl());
+    if (!window)
+        return {};
+    // NB: A document takes its visibility state from its navigable when that activates it; until then — while it's
+    //     still being populated, e.g. — the state is the default, hidden. So only a fully active document is held back.
+    auto& document = window->associated_document();
+    if (!document.is_fully_active() || !document.hidden())
+        return {};
+
+    auto grid_origin = [&] {
+        auto& page = document.page();
+        if (page.has_local_root_navigable()) {
+            if (auto root_document = page.local_root_navigable()->active_document())
+                return relevant_settings_object(*root_document).time_origin();
+        }
+        return relevant_settings_object(document).time_origin();
+    }();
+    auto now = HighResolutionTime::unsafe_shared_current_time();
+    auto interval = m_hidden_document_timer_wake_up_interval;
+    auto wake_up = grid_origin + ceil((max(now, deadline) - grid_origin) / interval) * interval;
+    return timer_delay_from(wake_up - now);
+}
+
+// The page visibility change steps for timers: every timer still on the clock is re-armed for the document's new
+// visibility — a hidden document's delayed timers wait for their wake-up, and a visible document's fire at their own
+// deadlines, right away if those have passed.
+void WindowOrWorkerGlobalScopeMixin::document_visibility_state_changed(Badge<DOM::Document>)
+{
+    auto now = HighResolutionTime::unsafe_shared_current_time();
+    for (auto& [id, timer] : m_timers) {
+        // A timer that has fired and has its task queued is done with the clock.
+        if (!timer->is_active())
+            continue;
+        auto delay = throttled_timer_delay(timer->throttling_class(), timer->deadline());
+        timer->restart(delay.value_or(timer_delay_from(timer->deadline() - now)));
+    }
 }
 
 // https://streams.spec.whatwg.org/#count-queuing-strategy-size-function

@@ -24,6 +24,10 @@
         };
         const bestOfThree = async () => Math.min(await timeBatch(), await timeBatch(), await timeBatch());
 
+        // A hidden document runs a delayed timer only at its next wake-up, so at the default wake-up interval a
+        // batch's time would be the wait for a wake-up rather than the cost of its callbacks' timeouts. Wake the
+        // document up every millisecond instead.
+        internals.setHiddenDocumentTimerWakeUpInterval(1);
         await setSystemVisibilityState("hidden");
         try {
             const baseline = await bestOfThree();
