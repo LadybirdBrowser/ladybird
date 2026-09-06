@@ -2995,12 +2995,10 @@ impl RouteDirectory {
     }
 
     fn flatten(building: HashMap<RoutingKey, Vec<RouteID>>, after_change: bool) -> Self {
-        let mut entries = building.into_iter().collect::<Vec<_>>();
-        entries.sort_unstable_by_key(|(key, _)| *key);
-        let route_count = entries.iter().map(|(_, routes)| routes.len()).sum();
-        let mut ranges = HashMap::with_capacity_and_hasher(entries.len(), Default::default());
+        let route_count = building.values().map(Vec::len).sum();
+        let mut ranges = HashMap::with_capacity_and_hasher(building.len(), Default::default());
         let mut flat_routes = Vec::with_capacity(route_count);
-        for (key, routes) in entries {
+        for (key, routes) in building {
             let offset = u32::try_from(flat_routes.len()).expect("routing directory space exhausted");
             flat_routes.extend_from_slice(&routes);
             ranges.insert(
