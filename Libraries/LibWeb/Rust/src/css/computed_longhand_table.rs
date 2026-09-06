@@ -565,18 +565,18 @@ impl ComputedLonghandTable {
                     && !second.is_null()
                     && unsafe { crate::css::style_value::rust_style_value_equals(first.cast(), second.cast()) })
         };
-        self.value_view
-            .iter()
-            .zip(&other.value_view)
-            .all(|(&first, &second)| values_equal(first, second))
-            && self.evaluated_bits == other.evaluated_bits
-            && self.important_bits == other.important_bits
+        self.important_bits == other.important_bits
             && self.inherited_bits == other.inherited_bits
             && self.publication_sidecars() == other.publication_sidecars()
             && self.publication_dependency_flags() == other.publication_dependency_flags()
             && self.pseudo_element_styles() == other.pseudo_element_styles()
-            && values_equal(self.raw_cascaded_font_size(), other.raw_cascaded_font_size())
             && self.inheritance_dependent.len() == other.inheritance_dependent.len()
+            && self
+                .value_view
+                .iter()
+                .zip(&other.value_view)
+                .all(|(&first, &second)| values_equal(first, second))
+            && values_equal(self.raw_cascaded_font_size(), other.raw_cascaded_font_size())
             && self.inheritance_dependent.iter().all(|(property, value)| {
                 other
                     .inheritance_dependent
