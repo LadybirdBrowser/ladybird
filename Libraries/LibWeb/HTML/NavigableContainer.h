@@ -19,8 +19,6 @@ class WEB_API NavigableContainer : public HTMLElement {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    static GC::Ptr<NavigableContainer> navigable_container_with_content_navigable(GC::Ref<Navigable> navigable);
-
     virtual ~NavigableContainer() override;
 
     static HashTable<NavigableContainer*>& all_instances();

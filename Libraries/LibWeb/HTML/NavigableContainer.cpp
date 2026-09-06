@@ -54,15 +54,6 @@ void NavigableContainer::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_content_navigable);
 }
 
-GC::Ptr<NavigableContainer> NavigableContainer::navigable_container_with_content_navigable(GC::Ref<Navigable> navigable)
-{
-    for (auto* navigable_container : all_instances()) {
-        if (navigable_container->content_navigable() == navigable)
-            return navigable_container;
-    }
-    return nullptr;
-}
-
 // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
 void NavigableContainer::create_new_child_navigable()
 {
