@@ -1470,11 +1470,25 @@ impl WinnerGroups {
     }
 
     pub(super) fn property_shapes_are_equal(&self, left: CascadeStateID, right: CascadeStateID) -> bool {
-        left == right
-            || self
-                .semantic_winners_in_state(left)
-                .map(|winner| winner.property)
-                .eq(self.semantic_winners_in_state(right).map(|winner| winner.property))
+        if left == right {
+            return true;
+        }
+        let left = &self.states[left];
+        let right = &self.states[right];
+        // Each property belongs to a fixed bucket, so equal shapes have corresponding groups.
+        left.len() == right.len()
+            && left.iter().zip(right.iter()).all(|(left, right)| {
+                if left.winners == right.winners {
+                    return true;
+                }
+                let left = &self.groups[left.winners];
+                let right = &self.groups[right.winners];
+                left.len() == right.len()
+                    && left
+                        .iter()
+                        .map(|winner| winner.property)
+                        .eq(right.iter().map(|winner| winner.property))
+            })
     }
 
     fn group_semantic_delta(
