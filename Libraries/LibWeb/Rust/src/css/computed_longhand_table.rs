@@ -280,7 +280,7 @@ impl ComputedLonghandTable {
         self.raw_cascaded_font_size = value;
     }
 
-    fn copy_from(&mut self, source: &ComputedLonghandTable) {
+    fn copy_values_and_metadata_from(&mut self, source: &ComputedLonghandTable) {
         assert!(
             !self.frozen,
             "the computed longhand table is immutable once its style is created"
@@ -292,10 +292,14 @@ impl ComputedLonghandTable {
         self.inherited_bits = source.inherited_bits;
         self.evaluated_bits = source.evaluated_bits;
         self.metadata = source.metadata;
-        self.inheritance_dependent.clone_from(&source.inheritance_dependent);
         self.raw_cascaded_font_size.clone_from(&source.raw_cascaded_font_size);
-        self.rebuild_inheritance_dependent_view();
         self.post_compute_restore_values = None;
+    }
+
+    fn copy_from(&mut self, source: &ComputedLonghandTable) {
+        self.copy_values_and_metadata_from(source);
+        self.inheritance_dependent.clone_from(&source.inheritance_dependent);
+        self.rebuild_inheritance_dependent_view();
     }
 
     /// Take one slot back from `source`: its value, provenance and flags, exactly as stored there.
@@ -319,8 +323,8 @@ impl ComputedLonghandTable {
 
     pub(crate) fn copied_for_drive(source: &ComputedLonghandTable) -> Self {
         let mut table = Self::new();
-        table.copy_from(source);
-        table.clear_seeded_state();
+        table.copy_values_and_metadata_from(source);
+        table.evaluated_bits = [0; LONGHAND_BITMAP_BYTES];
         table
     }
 
