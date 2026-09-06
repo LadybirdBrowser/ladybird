@@ -1,0 +1,37 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Reftest Reference</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+
+  <style type="text/css"><![CDATA[
+  div
+  {
+  height: 1.25em;
+  margin-bottom: 4px;
+  margin-left: 172px;
+  padding: 1px 0px;
+  width: 160px;
+  }
+
+  div#orange-stripe {background-color: orange; margin-top: 20px;}
+
+  div#blue-stripe {background-color: blue; margin-top: 0px;}
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if the orange stripe is exactly as wide as the blue stripe and is horizontally positioned the same.</p>
+
+  <div id="orange-stripe"></div>
+
+  <div id="blue-stripe"></div>
+
+ </body>
+</html>

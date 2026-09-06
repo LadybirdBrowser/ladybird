@@ -1,0 +1,168 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Test: table-layout fixed - columns with percentage width</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/tables.html#fixed-table-layout" title="17.5.2.1 Fixed table layout" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/tables/fixed-table-layout-021-ref.xht" />
+  <link rel="stylesheet" type="text/css" href="../../../../../../Text/input/wpt-import/fonts/ahem.css" />
+
+  <meta content="A column with a percentage width in a 'table-layout: fixed' table can be calculated, predicted, rendered." name="assert" />
+
+  <style type="text/css"><![CDATA[
+  table, div {font: 1.25em/1 Ahem;}
+
+  table
+  {
+  border: white solid;
+  border-width: 0px 29px; /* horizontal table border width is 58px total */
+  border-collapse: separate;
+  border-spacing: 15px 4px; /* horizontal border-spacing width is 75px total */
+  table-layout: fixed;
+  width: 533px;
+
+  /*
+  "With this (fast) algorithm, the horizontal layout of
+  the table does not depend on the contents of the cells;
+  it only depends on the table's width, the width of
+  the columns, and borders or cell spacing."
+  http://www.w3.org/TR/CSS21/tables.html#fixed-table-layout
+
+  So,
+
+    533px : total table width
+  -
+     58px : total horizontal border width
+  -
+     75px : total horizontal border-spacing width
+  ========
+    400px : total to split among the 4 columns
+  */
+
+  }
+
+  col#first
+  {
+  background-color: fuchsia;
+  width: 13%;
+  /* 400px multiplied by 13% = 52px */
+  }
+
+  col#second
+  {
+  background-color: olive;
+  width: 22%;
+  /* 400px multiplied by 22% = 88px */
+  }
+
+  col#third
+  {
+  background-color: orange;
+  width: 31%;
+  /* 400px multiplied by 31% = 124px */
+
+  /*
+  100% - (13% + 22% + 31%) == 34% for last column
+  */
+  }
+
+  td {padding: 1px 10px;}
+
+  td#first-cell {color: fuchsia;}
+
+  td#second-cell {color: olive;}
+
+  td#third-cell {color: orange;}
+
+  div {padding: 1px 0px;}
+
+  div#reference1st
+  {
+  background-color: fuchsia;
+  color: fuchsia;
+  left: 44px; /* 29px border-left of table + 15px border-spacing == 44px */
+  position: relative;
+  width: 52px;
+  }
+
+  div#reference2nd
+  {
+  background-color: olive;
+  bottom: 1.1em;
+  color: olive;
+  left: 111px;
+  /*
+    29px : border-left of table
+  +
+    15px : 1st border-spacing
+  +
+    52px : width of first column
+  +
+    15px : 2nd border-spacing
+  =======
+   111px
+  */
+  position: relative;
+  width: 88px;
+  }
+
+  div#reference3rd
+  {
+  background-color: orange;
+  bottom: 2.2em;
+  color: orange;
+  left: 214px;
+  /*
+    29px : border-left of table
+  +
+    15px : 1st border-spacing
+  +
+    52px : width of first column
+  +
+    15px : 2nd border-spacing
+  +
+    88px : width of second column
+  +
+    15px : 3rd border-spacing
+  =======
+   214px
+  */
+  position: relative;
+  width: 124px;
+  }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if the colored (fuchsia, olive and orange) stripes have respectively the same widths and the same horizontal positions.</p>
+
+  <table>
+
+    <col id="first"></col>
+    <col id="second"></col>
+    <col id="third"></col>
+    <col></col>
+
+    <tr>
+      <td id="first-cell">1</td>
+      <td id="second-cell">2</td>
+      <td id="third-cell">3</td>
+      <td></td>
+    </tr>
+
+  </table>
+
+  <div id="reference1st">r</div>
+
+  <div id="reference2nd">r</div>
+
+  <div id="reference3rd">r</div>
+
+ </body>
+</html>
