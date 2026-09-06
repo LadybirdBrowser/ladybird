@@ -43,12 +43,7 @@ pub enum ScalingMode {
 
 impl ScalingMode {
     pub fn from_raw(value: i32) -> Self {
-        if (0..=Self::NearestNeighbor as i32).contains(&value) {
-            // SAFETY: the enum is a dense i32 range starting at zero.
-            unsafe { std::mem::transmute::<i32, Self>(value) }
-        } else {
-            Self::default()
-        }
+        Self::from_i32(value).unwrap_or_default()
     }
 }
 
@@ -251,4 +246,36 @@ pub enum ColorFilterType {
     Opacity,
     Saturate,
     Sepia,
+}
+
+impl ScalingMode {
+    pub fn from_i32(value: i32) -> Option<Self> {
+        if (Self::None as i32..=Self::NearestNeighbor as i32).contains(&value) {
+            // SAFETY: the enum is a dense i32 range starting at zero.
+            Some(unsafe { std::mem::transmute::<i32, Self>(value) })
+        } else {
+            None
+        }
+    }
+}
+
+impl InterpolationColorSpace {
+    pub fn from_i32(value: i32) -> Option<Self> {
+        match value {
+            value if value == Self::LinearRGB as i32 => Some(Self::LinearRGB),
+            value if value == Self::SRGB as i32 => Some(Self::SRGB),
+            _ => None,
+        }
+    }
+}
+
+impl ColorFilterType {
+    pub fn from_i32(value: i32) -> Option<Self> {
+        if (Self::Brightness as i32..=Self::Sepia as i32).contains(&value) {
+            // SAFETY: the enum is a dense i32 range starting at zero.
+            Some(unsafe { std::mem::transmute::<i32, Self>(value) })
+        } else {
+            None
+        }
+    }
 }

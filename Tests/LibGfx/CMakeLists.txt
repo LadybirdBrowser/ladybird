@@ -3,6 +3,7 @@ set(TEST_SOURCES
     TestBitmapExport.cpp
     TestColor.cpp
     TestFontCatalog.cpp
+    TestFilter.cpp
     TestFont.cpp
     TestImageDecoder.cpp
     TestImageWriter.cpp

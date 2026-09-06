@@ -11,6 +11,7 @@ mod rust_allocator;
 pub mod bsp_tree;
 pub mod color;
 pub mod corner_radii;
+pub mod filter;
 pub mod font;
 pub mod font_catalog;
 pub mod geometry;
