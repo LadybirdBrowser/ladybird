@@ -15,6 +15,7 @@
 //! elements use dense columns, while actual pseudo-element kinds use sparse assignments. The
 //! complete tuple is interned as the base `StyleRecordID` published for each style target.
 
+use smallvec::SmallVec;
 use std::ffi::c_void;
 use std::hash::Hash;
 use std::hash::Hasher;
@@ -1228,7 +1229,7 @@ impl ComputedGroupSets {
             _ => return None,
         };
 
-        let mut groups: Vec<_> = parent_groups
+        let mut groups: SmallVec<[_; crate::css::table_group_builder::group_index::COUNT]> = parent_groups
             .iter()
             .copied()
             .chain(
