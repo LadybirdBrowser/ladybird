@@ -297,7 +297,7 @@ impl StyleEngine {
     /// Refresh `query_sorted_candidates` for this program's subject keys under `root` — or report
     /// that postings can't name every entry's candidates, and the caller has to walk.
     fn ensure_sorted_query_candidates(&mut self, program: &SelectorProgram, root: StyleNodeID) -> bool {
-        let mut keys: Vec<DispatchKey> = Vec::new();
+        let mut keys: SmallVec<[DispatchKey; 1]> = SmallVec::new();
         for (entry_index, entry) in program.entries().iter().enumerate() {
             if entry.pseudo_element.is_some() {
                 continue;
@@ -322,7 +322,7 @@ impl StyleEngine {
         if let Some(stamp) = &self.query_sorted_candidates_stamp
             && stamp.generation == generation
             && stamp.root == root
-            && stamp.keys == keys
+            && stamp.keys == keys.as_slice()
         {
             return true;
         }
@@ -351,7 +351,11 @@ impl StyleEngine {
         self.query_sorted_candidates.clear();
         self.query_sorted_candidates
             .extend(ranked.into_iter().map(|(_, node)| node));
-        self.query_sorted_candidates_stamp = Some(QuerySortedCandidatesStamp { generation, root, keys });
+        self.query_sorted_candidates_stamp = Some(QuerySortedCandidatesStamp {
+            generation,
+            root,
+            keys: keys.into_vec(),
+        });
         true
     }
 
