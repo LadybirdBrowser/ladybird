@@ -478,13 +478,16 @@ impl StyleEngine {
                 {
                     continue;
                 }
+                let mut priorities = [None; 2];
                 for &declared in declared_properties {
                     if !property_is_longhand(declared.property) {
                         continue;
                     }
+                    let priority = *priorities[declared.important as usize]
+                        .get_or_insert_with(|| self.element_cascade_priority(node, kind, declared.important));
                     element_top_1.consider(
                         declared.property,
-                        self.element_cascade_priority(node, kind, declared.important),
+                        priority,
                         CascadeCompactionCandidate::Element(kind, declared),
                     );
                 }
