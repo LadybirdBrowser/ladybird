@@ -946,22 +946,22 @@ impl SelectorProgramBuilder {
         // Conjunction is associative, and one compound is one node: routing reads a compound's
         // operands to find what the selector says about the subject's parent, and an operand that
         // is itself a conjunction would hide the rest of the compound from the walk that reads it.
-        let mut flattened: Vec<SelectorNodeID> = Vec::with_capacity(operands.len());
+        let first = self.program.operands.len();
+        self.program.operands.reserve(operands.len());
         for &operand in operands {
             match self.program.node(operand) {
                 SelectorOp::And { first, count } => {
-                    flattened.extend_from_slice(self.program.operands(first, count));
+                    let start = first as usize;
+                    self.program.operands.extend_from_within(start..start + count as usize);
                 }
-                _ => flattened.push(operand),
+                _ => self.program.operands.push(operand),
             }
         }
-        let mut sorted = flattened;
-        sorted.sort_by_key(|&operand| self.program.node(operand).cost_rank());
-        let first = u32::try_from(self.program.operands.len()).expect("selector operand space exhausted");
-        self.program.operands.extend_from_slice(&sorted);
+        let nodes = &self.program.nodes;
+        self.program.operands[first..].sort_by_key(|operand| nodes[operand.0 as usize].cost_rank());
         self.push(SelectorOp::And {
-            first,
-            count: u32::try_from(sorted.len()).expect("selector operand space exhausted"),
+            first: u32::try_from(first).expect("selector operand space exhausted"),
+            count: u32::try_from(self.program.operands.len() - first).expect("selector operand space exhausted"),
         })
     }
 
