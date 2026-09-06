@@ -1187,7 +1187,7 @@ impl WinnerGroups {
             }
             let bucket_updates = &updates[update_start..update_end];
             winners.clear();
-            winners.reserve(old_winners.len() + bucket_updates.len());
+            winners.reserve((old_winners.len() + bucket_updates.len()).min(WINNER_GROUP_PROPERTY_COUNT as usize));
             for entry in merge_sorted_by(&old_winners, bucket_updates, |old, update| {
                 old.property.cmp(&update.property)
             }) {
