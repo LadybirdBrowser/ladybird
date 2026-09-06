@@ -464,7 +464,7 @@ impl StyleEngine {
             }
             values.push((
                 name.raw.raw(),
-                name.text.clone(),
+                name.text.to_vec(),
                 declared.important,
                 value.pointer().cast(),
             ));

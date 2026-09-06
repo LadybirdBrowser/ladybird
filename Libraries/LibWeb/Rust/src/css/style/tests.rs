@@ -9983,7 +9983,12 @@ fn engine_atom_reuse_replaces_custom_property_names() {
         engine.note_custom_property_name(new_name, 0, &new_text);
     }
     assert_eq!(
-        engine.custom_property_environments.name(new_name).unwrap().text,
+        engine
+            .custom_property_environments
+            .name(new_name)
+            .unwrap()
+            .text
+            .as_ref(),
         new_text
     );
 }

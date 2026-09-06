@@ -3456,7 +3456,7 @@ pub struct ElementFactStore {
     /// One entry per distinct set of declared custom property names, and the sets each name is in.
     /// A theme is one set however many elements it decides for, which is what keeps the index
     /// proportional to the stylesheet rather than to the document times the stylesheet.
-    custom_property_name_sets: super::intern_table::InternTable<CustomPropertyNameSetID, Vec<StyleAtomID>>,
+    custom_property_name_sets: super::intern_table::InternTable<CustomPropertyNameSetID, Box<[StyleAtomID]>>,
     custom_property_name_set_vacancies: Vec<u32>,
     custom_property_set_ids_by_name: PagedOwnedColumn<Vec<u32>>,
     /// Authoritative semantic references from committed fact rows and per-element metadata. This
@@ -4678,7 +4678,7 @@ impl ElementFactStore {
         let hash = super::intern_table::content_hash(names);
         if let Some(candidate) = self
             .custom_property_name_sets
-            .find(hash, |_identity, candidate| candidate == names)
+            .find(hash, |_identity, candidate| candidate.as_ref() == names)
         {
             return candidate.0;
         }
@@ -4686,7 +4686,7 @@ impl ElementFactStore {
             u32::try_from(self.custom_property_name_sets.len() + 1).expect("custom property name set space exhausted")
         });
         self.custom_property_name_sets
-            .insert(hash, CustomPropertyNameSetID(id), names.to_vec());
+            .insert(hash, CustomPropertyNameSetID(id), names.into());
         for name in names {
             self.custom_property_set_ids_by_name.entry(name.0 as usize).push(id);
         }
@@ -5129,7 +5129,7 @@ impl ElementFactStore {
                 if !self.custom_property_name_sets[identity].is_empty() {
                     let hash = super::intern_table::content_hash(&self.custom_property_name_sets[identity]);
                     self.custom_property_name_sets.remove_identity(hash, identity);
-                    self.custom_property_name_sets[identity] = Vec::new();
+                    self.custom_property_name_sets[identity] = Box::default();
                 }
                 self.custom_property_name_set_vacancies.push(id as u32);
                 continue;
@@ -5239,7 +5239,7 @@ impl ElementFactStore {
         let custom_property_name_payloads = self
             .custom_property_name_sets
             .iter()
-            .map(|names| names.capacity() * size_of::<StyleAtomID>())
+            .map(|names| size_of_val(names.as_ref()))
             .sum::<usize>();
         let custom_property_name_index_payloads = self
             .custom_property_set_ids_by_name

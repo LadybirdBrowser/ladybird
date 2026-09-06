@@ -102,7 +102,7 @@ impl Drop for RetainedCustomPropertyStore {
 /// by the fly string, and a `var()` reference names one by its text.
 pub(super) struct CustomPropertyName {
     pub(super) raw: RetainedUtf16FlyString,
-    pub(super) text: Vec<u16>,
+    pub(super) text: Box<[u16]>,
 }
 
 #[derive(Default)]
@@ -135,8 +135,8 @@ impl CustomPropertyEnvironments {
         let Entry::Vacant(entry) = self.names.entry(name) else {
             return false;
         };
-        let text = text.to_vec();
-        self.nested_capacity_bytes += (text.capacity() * size_of::<u16>()) as u64;
+        let text: Box<[u16]> = text.into();
+        self.nested_capacity_bytes += size_of_val(text.as_ref()) as u64;
         entry.insert(CustomPropertyName {
             raw: unsafe { RetainedUtf16FlyString::from_borrowed_raw(raw) },
             text,
@@ -152,7 +152,7 @@ impl CustomPropertyEnvironments {
     pub(super) fn forget_names(&mut self, names: &[StyleAtomID]) {
         for name in names {
             if let Some(name) = self.names.remove(name) {
-                self.nested_capacity_bytes -= (name.text.capacity() * size_of::<u16>()) as u64;
+                self.nested_capacity_bytes -= size_of_val(name.text.as_ref()) as u64;
             }
         }
     }
@@ -310,7 +310,7 @@ mod tests {
         let expected = environments
             .names
             .values()
-            .map(|name| name.text.capacity() * size_of::<u16>())
+            .map(|name| size_of_val(name.text.as_ref()))
             .sum::<usize>()
             + environments
                 .memo
