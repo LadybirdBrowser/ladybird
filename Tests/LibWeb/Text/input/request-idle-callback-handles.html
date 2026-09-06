@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        const order = [];
+        const idlePeriod = () => new Promise(resolve => requestIdleCallback(resolve));
+
+        // Callbacks run in registration order, and one registered from inside an idle callback waits for a later
+        // idle period instead of joining the current one.
+        const first = requestIdleCallback(() => {
+            order.push("first");
+            requestIdleCallback(() => order.push("registered from first"));
+        });
+        const second = requestIdleCallback(() => order.push("second"));
+        requestIdleCallback(() => order.push("third"));
+        println(`handles increase: ${second > first}`);
+        await idlePeriod();
+        await idlePeriod();
+        println(`order: ${order.join(", ")}`);
+
+        // Canceling a pending callback removes only that one; canceling a handle twice, a handle that already ran,
+        // and handles that never existed are all no-ops.
+        order.length = 0;
+        requestIdleCallback(() => order.push("a"));
+        const b = requestIdleCallback(() => order.push("b"));
+        requestIdleCallback(() => order.push("c"));
+        cancelIdleCallback(b);
+        cancelIdleCallback(b);
+        cancelIdleCallback(first);
+        cancelIdleCallback(0);
+        cancelIdleCallback(1000000);
+        await idlePeriod();
+        println(`after canceling b: ${order.join(", ")}`);
+
+        // A callback can cancel another one that is already on the runnable list of the same idle period.
+        order.length = 0;
+        let zHandle;
+        requestIdleCallback(() => {
+            order.push("x");
+            cancelIdleCallback(zHandle);
+        });
+        requestIdleCallback(() => order.push("y"));
+        zHandle = requestIdleCallback(() => order.push("z"));
+        await idlePeriod();
+        println(`after x cancels z: ${order.join(", ")}`);
+
+        // A callback registered with a timeout that gets to run in an idle period runs exactly once; its timeout
+        // must not invoke it a second time.
+        let runs = 0;
+        requestIdleCallback(() => ++runs, { timeout: 30 });
+        await idlePeriod();
+        await timeout(60);
+        println(`callback with a timeout that ran in an idle period ran ${runs} time(s)`);
+
+        // A callback registered with a timeout and canceled before either fires never runs.
+        order.length = 0;
+        const canceled = requestIdleCallback(() => order.push("canceled"), { timeout: 10 });
+        cancelIdleCallback(canceled);
+        await timeout(40);
+        println(`canceled callback with a timeout ran: ${order.includes("canceled")}`);
+
+        // A callback that outlasts the idle deadline leaves the rest of the runnable list waiting. Keeping the
+        // event loop busy afterwards stops a new idle period from starting, so the timeout of the callback still
+        // on the runnable list is what runs it.
+        order.length = 0;
+        const channel = new MessageChannel();
+        let keepEventLoopBusy = true;
+        channel.port1.onmessage = () => {
+            if (keepEventLoopBusy)
+                channel.port2.postMessage(undefined);
+        };
+        await timeout(0);
+        requestIdleCallback(() => {
+            channel.port2.postMessage(undefined);
+            const end = performance.now() + 80;
+            while (performance.now() < end)
+                ;
+            order.push("busy");
+        });
+        await new Promise(resolve => requestIdleCallback(deadline => {
+            order.push(`timed out on the runnable list: ${deadline.didTimeout}`);
+            keepEventLoopBusy = false;
+            resolve();
+        }, { timeout: 20 }));
+        channel.port1.close();
+        channel.port2.close();
+        println(order.join(", "));
+
+        done();
+    });
+</script>
