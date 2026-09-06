@@ -3674,6 +3674,9 @@ impl PrefixStates {
     }
 
     fn intern_result(&mut self, matches: PrefixMatchSetID, truth: PrefixTruthSetID) -> PrefixResultID {
+        if matches == PrefixMatchSetID(0) && truth == PrefixTruthSetID(0) {
+            return PrefixResultID(0);
+        }
         let hash = super::intern_table::content_hash((matches, truth));
         if let Some(result) = self.result_ids.find(hash, |_result, candidate| {
             candidate.matches == matches && candidate.truth == truth
