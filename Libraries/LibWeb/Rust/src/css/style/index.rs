@@ -1683,13 +1683,12 @@ impl FeaturePostings {
             return false;
         }
         let postings_capacity_before = self.postings_capacity_bytes();
-        self.postings.entry(key).or_default();
-        let postings_growth = self.postings_capacity_bytes() - postings_capacity_before;
-        let posting = self.postings.get_mut(&key).expect("a posting entry was just ensured");
+        let posting = self.postings.entry(key).or_default();
         let Some(posting_growth) = posting.insert(node) else {
             return true;
         };
         let posting_length = posting.length;
+        let postings_growth = self.postings_capacity_bytes() - postings_capacity_before;
         let growth = posting_growth + postings_growth;
         if growth != 0 {
             self.residency
