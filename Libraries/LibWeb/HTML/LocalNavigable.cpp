@@ -1466,10 +1466,29 @@ Optional<URL::Origin> LocalNavigable::active_document_top_level_origin() const
     return relevant_settings_object(*m_active_document).top_level_origin;
 }
 
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-settings-for-window-objects:concept-settings-object-has-cross-site-ancestor
+// NB: Run with this navigable as window's navigable, which is null while a navigation that reuses the Window of an
+//     initial about:blank populates its next document, and once this navigable is destroyed.
 bool LocalNavigable::active_document_has_cross_site_ancestor() const
 {
     VERIFY(m_active_document);
-    return relevant_settings_object(*m_active_document).has_cross_site_ancestor();
+
+    // 1. If window's navigable's parent is null, then return false.
+    auto parent = this->parent();
+    if (!parent)
+        return false;
+
+    // 2. Let parentDocument be window's navigable's parent's active document.
+    // 3. If parentDocument's relevant settings object's has cross-site ancestor is true, then return true.
+    if (parent->active_document_has_cross_site_ancestor())
+        return true;
+
+    // 4. If parentDocument's origin is not same site with window's associated Document's origin, then return true.
+    if (!parent->active_document_origin()->is_same_site(m_active_document->origin()))
+        return true;
+
+    // 5. Return false.
+    return false;
 }
 
 OpenerPolicy const& LocalNavigable::active_document_opener_policy() const
@@ -1491,10 +1510,21 @@ ReplicatedNavigableState LocalNavigable::replicated_state() const
         .active_session_history_entry_identity = session_history_entry_identity(*m_active_session_history_entry),
         .top_level_creation_url = settings.top_level_creation_url.value(),
         .top_level_origin = settings.top_level_origin.value(),
-        .has_cross_site_ancestor = settings.has_cross_site_ancestor(),
+        .has_cross_site_ancestor = active_document_has_cross_site_ancestor(),
         .opener_policy = m_active_document->opener_policy(),
+        .active_document_is_completely_loaded = m_active_document->is_completely_loaded(),
+        .is_closing = m_closing,
+        .container_is_in_document_tree = container() && container()->document().is_ancestor_of(*container()),
         .compositor_context_id = has_compositor_context() ? Optional<Compositor::CompositorContextId> { compositor_context().id() } : Optional<Compositor::CompositorContextId> {},
     };
+}
+
+void LocalNavigable::set_closing(bool value)
+{
+    m_closing = value;
+
+    // The navigable's replicated state carries its closing flag.
+    page().client().page_did_change_replicated_navigable_state(id(), replicated_state());
 }
 
 Optional<UniqueNodeID> LocalNavigable::active_document_id() const

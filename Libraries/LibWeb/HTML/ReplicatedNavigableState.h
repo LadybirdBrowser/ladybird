@@ -30,6 +30,13 @@ struct ReplicatedNavigableState {
 
     OpenerPolicy opener_policy;
 
+    bool active_document_is_completely_loaded { false };
+    bool is_closing { false };
+
+    // Whether the navigable's container is in its node document's tree rather than a shadow tree, which makes the
+    // navigable a document-tree child navigable of that document.
+    bool container_is_in_document_tree { false };
+
     Optional<Compositor::CompositorContextId> compositor_context_id;
 };
 
