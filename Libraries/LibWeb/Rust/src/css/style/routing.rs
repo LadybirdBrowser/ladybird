@@ -4039,13 +4039,14 @@ impl StyleEngine {
                 }
                 self.memory.release(MemoryCategory::BatchScratch, named_bytes);
             } else {
-                let named: Vec<StyleNodeID> = self.tree.children(parent).take(bound).collect();
-                let named_bytes = (named.capacity() * size_of::<StyleNodeID>()) as u64;
-                self.memory.reserve_required(MemoryCategory::BatchScratch, named_bytes);
-                for child in named {
+                let mut next = self.tree.first_element_child(parent);
+                for _ in 0..bound {
+                    let Some(child) = next else {
+                        break;
+                    };
+                    next = self.tree.next_element_sibling(child);
                     self.add_narrowed_region(ImpactRegion::Node(child), &unbounded, regions);
                 }
-                self.memory.release(MemoryCategory::BatchScratch, named_bytes);
             }
             return;
         }
