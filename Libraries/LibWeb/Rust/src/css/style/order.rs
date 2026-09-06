@@ -14,8 +14,6 @@
 //! only reads the order labels imply. Relabeling is therefore invisible to selector truth, cascade
 //! winners, and computed values.
 
-use std::cmp::Ordering;
-
 use super::capacity::capacity_bytes;
 
 define_id! {
@@ -54,11 +52,6 @@ impl OrderMaintenance {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.order.is_empty()
-    }
-
-    #[must_use]
-    pub fn compare(&self, first: OrderToken, second: OrderToken) -> Ordering {
-        self.rank(first).cmp(&self.rank(second))
     }
 
     /// The comparable rank of a position.
@@ -171,9 +164,7 @@ mod tests {
     use super::*;
 
     fn is_sorted(order: &OrderMaintenance, tokens: &[OrderToken]) -> bool {
-        tokens
-            .windows(2)
-            .all(|pair| order.compare(pair[0], pair[1]) == Ordering::Less)
+        tokens.windows(2).all(|pair| order.rank(pair[0]) < order.rank(pair[1]))
     }
 
     #[test]
@@ -229,7 +220,7 @@ mod tests {
 
         for index in (0..tokens.len()).step_by(2) {
             let inserted = order.insert_before(tokens[index]);
-            assert_eq!(order.compare(inserted, tokens[index]), Ordering::Less);
+            assert!(order.rank(inserted) < order.rank(tokens[index]));
         }
         assert_eq!(order.iter().count(), order.len());
     }

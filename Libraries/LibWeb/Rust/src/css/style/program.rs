@@ -957,11 +957,10 @@ impl StyleSheetProgram {
         for &top_level in &self.sheets[sheet.0 as usize].rules {
             self.collect_subtree(top_level, &mut rules);
         }
-        rules.sort_by(|first, second| {
-            self.sheets[sheet.0 as usize].rule_order.compare(
-                self.rules[first.0 as usize].nested_order,
-                self.rules[second.0 as usize].nested_order,
-            )
+        rules.sort_by_key(|rule| {
+            self.sheets[sheet.0 as usize]
+                .rule_order
+                .rank(self.rules[rule.0 as usize].nested_order)
         });
         rules
     }
@@ -985,11 +984,10 @@ impl StyleSheetProgram {
         for &top_level in top_level_rules {
             self.collect_live_subtree(top_level, &mut rules);
         }
-        rules.sort_by(|first, second| {
-            self.sheets[sheet.0 as usize].rule_order.compare(
-                self.rules[first.0 as usize].nested_order,
-                self.rules[second.0 as usize].nested_order,
-            )
+        rules.sort_by_key(|rule| {
+            self.sheets[sheet.0 as usize]
+                .rule_order
+                .rank(self.rules[rule.0 as usize].nested_order)
         });
         rules
     }
