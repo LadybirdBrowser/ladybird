@@ -2705,7 +2705,7 @@ impl StyleEngine {
         if let Some(key) = &memo_key
             && let Some(entry) = patch.delta_memo.get(key)
             && Self::retained_answer_delta_memo_entry_matches(entry, deltas)
-            && let transition = entry.transition.clone()
+            && let transition = &entry.transition
             && self
                 .retained_match_answers
                 .set_interned_identity(node, &mut self.match_answers, transition.new_answer)
@@ -2714,10 +2714,6 @@ impl StyleEngine {
             let stopped = transition.new_cascade_input == old_cascade_input;
             if let Some((state, version)) = transition.winner_state {
                 let _ = self.winner_groups.set(node, state, version);
-                // The pseudo-element rows replay with the winner state, of the same version.
-                for &(pseudo, state) in transition.pseudo_winner_states.iter() {
-                    let _ = self.winner_groups.set_pseudo(node, pseudo, state, version);
-                }
             }
             // Pseudo-element rows are independent of the element's sparse winner row.
             for &(pseudo, state) in transition.pseudo_winner_states.iter() {

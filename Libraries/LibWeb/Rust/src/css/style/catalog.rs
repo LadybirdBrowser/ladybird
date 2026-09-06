@@ -941,7 +941,6 @@ impl RetainedAnswerDeltaMemoEntry {
     }
 }
 
-#[derive(Clone)]
 pub(super) struct RetainedAnswerDeltaTransition {
     pub(super) new_answer: MatchAnswerID,
     /// The compact identity after the transition. Equal to the asker's old identity exactly when
