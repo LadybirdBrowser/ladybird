@@ -884,37 +884,62 @@ impl PrefixAutomaton {
             .iter()
             .map(|&node| evaluation.positional_bits(node, counters).unwrap())
             .collect();
+        // Local predicates read the same facts for every member of a fact cohort. Reuse their
+        // answers while building memberships, as scalar prefix transitions already do. Keep
+        // document-root identity in the key and check positional truth separately per node.
+        let mut local_facts = super::LocalFactInterner::new();
+        let local_fact_keys: Vec<_> = rows
+            .iter()
+            .enumerate()
+            .map(|(position, row)| {
+                let identity = if evaluation.facts_are_composite() {
+                    local_facts.mint_identity()
+                } else {
+                    local_facts.intern(row.facts, row.row, counters)
+                };
+                identity as usize * 2 + usize::from(parents[position] == usize::MAX)
+            })
+            .collect();
+        let mut local_matches = vec![None; local_facts.next_identity as usize * 2];
         let mut compound_matches = Vec::with_capacity(self.compounds.len());
         for compound in &self.compounds {
+            local_matches.fill(None);
             let matched: Vec<_> = candidates[&compound.dispatch_key]
                 .iter()
                 .copied()
                 .filter(|&position| {
-                    counters.bump(Counter::PrefixCompoundsEvaluated);
-                    let row = rows[position];
-                    match &compound.predicate {
-                        PrefixPredicate::Features {
-                            feature_start,
-                            feature_len,
-                            required_positional_bits,
-                        } => {
-                            positional[position] & required_positional_bits == *required_positional_bits
-                                && self
-                                    .features_for(*feature_start, *feature_len)
-                                    .iter()
-                                    .all(|&feature| matches_feature(row.facts, row.row, feature))
-                        }
-                        PrefixPredicate::Program { program, local } => evaluation
-                            .evaluator
-                            .matches_prefix_local(
-                                *program,
-                                evaluation.programs.get(*program),
-                                *local,
-                                nodes[position],
-                                counters,
-                            )
-                            .unwrap(),
+                    if let PrefixPredicate::Features {
+                        required_positional_bits,
+                        ..
+                    } = &compound.predicate
+                        && positional[position] & required_positional_bits != *required_positional_bits
+                    {
+                        return false;
                     }
+                    *local_matches[local_fact_keys[position]].get_or_insert_with(|| {
+                        counters.bump(Counter::PrefixCompoundsEvaluated);
+                        let row = rows[position];
+                        match &compound.predicate {
+                            PrefixPredicate::Features {
+                                feature_start,
+                                feature_len,
+                                ..
+                            } => self
+                                .features_for(*feature_start, *feature_len)
+                                .iter()
+                                .all(|&feature| matches_feature(row.facts, row.row, feature)),
+                            PrefixPredicate::Program { program, local } => evaluation
+                                .evaluator
+                                .matches_prefix_local(
+                                    *program,
+                                    evaluation.programs.get(*program),
+                                    *local,
+                                    nodes[position],
+                                    counters,
+                                )
+                                .unwrap(),
+                        }
+                    })
                 })
                 .collect();
             compound_matches.push(matched);

@@ -5087,6 +5087,172 @@ fn update_test_prefix_relation(
 }
 
 #[test]
+fn prefix_relation_construction_reuses_local_facts_without_sharing_position() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let mut raw = [0; 65];
+    engine.allocate_style_nodes(&mut raw);
+    let nodes: Vec<_> = raw.into_iter().map(|raw| StyleNodeID::from_raw(raw).unwrap()).collect();
+    let class = StyleAtomID(200);
+    engine.record_tree_delta(nodes[0], None, Some(relations(None, None, None)));
+    for index in 1..nodes.len() {
+        engine.record_tree_delta(
+            nodes[index],
+            None,
+            Some(relations(
+                Some(nodes[0].raw()),
+                (index > 1).then(|| nodes[index - 1].raw()),
+                None,
+            )),
+        );
+    }
+    for &node in &nodes {
+        add_feature(&mut engine, node, LocalFeatureKey::Class(class));
+    }
+
+    // The root has the same local facts as its children, but :root and nth-child
+    // still distinguish their positions. :not(:root) uses a program predicate.
+    let mut builder = selector::SelectorProgramBuilder::new();
+    let feature = builder.push_feature(selector::FeatureTest::Class(class));
+    let root = builder.push(selector::SelectorOp::Root);
+    let not_root = builder.push(selector::SelectorOp::Not(root));
+    let compound = builder.push_compound(&[feature, not_root]);
+    builder.push_entry_for_pseudo(compound, None);
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    for selector in [
+        builder.finish(),
+        test_selector_program(".same:nth-child(2n)", &[("same", class)]),
+    ] {
+        let program = engine.programs.add(selector);
+        let rule = engine.append_rule(sheet, None, RuleKind::Style);
+        engine.add_routing_rule(rule, program);
+        let mut version = engine.program.rule_version(rule);
+        version.selector_program = Some(program);
+        version.declaration_block = Some(DeclarationBlockID(1));
+        engine.replace_rule_version(rule, version);
+    }
+    discard_transaction(&mut engine);
+    let before = engine.counters.get(Counter::PrefixCompoundsEvaluated);
+    let (_, relation) = test_prefix_relation(&mut engine, nodes[0]);
+    let evaluations = engine.counters.get(Counter::PrefixCompoundsEvaluated) - before;
+    assert!(
+        evaluations < 16,
+        "repeated local facts required {evaluations} evaluations"
+    );
+    let mut states = PrefixStates::new(0);
+    relation.install_answers(&mut states);
+    assert!(states.retained_matches_for(nodes[0]).unwrap().is_empty());
+    for (index, &node) in nodes.iter().enumerate().skip(1) {
+        assert_eq!(
+            states.retained_matches_for(node).unwrap().len(),
+            1 + usize::from(index % 2 == 0)
+        );
+    }
+}
+
+#[test]
+fn prefix_relation_local_fact_cache_separates_predicates_and_tracks_changes() {
+    for negate in [false, true] {
+        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut raw = [0; 65];
+        engine.allocate_style_nodes(&mut raw);
+        let nodes: Vec<_> = raw.into_iter().map(|raw| StyleNodeID::from_raw(raw).unwrap()).collect();
+        let same = StyleAtomID(200);
+        let selected = StyleAtomID(201);
+        engine.record_tree_delta(nodes[0], None, Some(relations(None, None, None)));
+        for index in 1..nodes.len() {
+            engine.record_tree_delta(
+                nodes[index],
+                None,
+                Some(relations(
+                    Some(nodes[0].raw()),
+                    (index > 1).then(|| nodes[index - 1].raw()),
+                    None,
+                )),
+            );
+        }
+        for (index, &node) in nodes.iter().enumerate() {
+            add_feature(&mut engine, node, LocalFeatureKey::Class(same));
+            if index % 2 == 0 {
+                add_feature(&mut engine, node, LocalFeatureKey::Class(selected));
+            }
+        }
+        let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+        engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+        // Both compounds dispatch on .same, but have different answers. Negation
+        // exercises program predicates, including shared false results.
+        for require_selected in [false, true] {
+            let mut builder = selector::SelectorProgramBuilder::new();
+            let same = builder.push_feature(selector::FeatureTest::Class(same));
+            let mut operands = vec![same];
+            if require_selected {
+                let selected = builder.push_feature(selector::FeatureTest::Class(selected));
+                operands.push(if negate {
+                    builder.push(selector::SelectorOp::Not(selected))
+                } else {
+                    selected
+                });
+            }
+            let compound = builder.push_compound(&operands);
+            builder.push_entry_for_pseudo(compound, None);
+            let program = engine.programs.add(builder.finish());
+            let rule = engine.append_rule(sheet, None, RuleKind::Style);
+            engine.add_routing_rule(rule, program);
+            let mut version = engine.program.rule_version(rule);
+            version.selector_program = Some(program);
+            version.declaration_block = Some(DeclarationBlockID(1));
+            engine.replace_rule_version(rule, version);
+        }
+        discard_transaction(&mut engine);
+        let before = engine.counters.get(Counter::PrefixCompoundsEvaluated);
+        let (dispatch, mut relation) = test_prefix_relation(&mut engine, nodes[0]);
+        let evaluations = engine.counters.get(Counter::PrefixCompoundsEvaluated) - before;
+        assert!(
+            evaluations < 16,
+            "repeated local facts required {evaluations} evaluations"
+        );
+        let mut states = PrefixStates::new(0);
+        relation.install_answers(&mut states);
+        for (index, &node) in nodes.iter().enumerate() {
+            assert_eq!(
+                states.retained_matches_for(node).unwrap().len(),
+                1 + usize::from((index % 2 == 0) != negate)
+            );
+        }
+
+        // Move one element between fact groups in each direction. Other members
+        // must keep their answers, and rebuilding must agree with the update.
+        let old_facts = engine.facts.primary().clone();
+        add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(selected));
+        remove_feature(&mut engine, nodes[2], LocalFeatureKey::Class(selected));
+        discard_transaction(&mut engine);
+        update_test_prefix_relation(
+            &engine,
+            &dispatch,
+            &mut relation,
+            &old_facts,
+            &[nodes[1], nodes[2]],
+            None,
+        );
+        assert_eq!(relation.changed_answers.len(), 2);
+        relation.install_answers(&mut states);
+        let (_, rebuilt) = test_prefix_relation(&mut engine, nodes[0]);
+        let mut rebuilt_states = PrefixStates::new(0);
+        rebuilt.install_answers(&mut rebuilt_states);
+        for (index, &node) in nodes.iter().enumerate() {
+            let selected = match index {
+                1 => true,
+                2 => false,
+                _ => index % 2 == 0,
+            };
+            let matches = states.retained_matches_for(node).unwrap();
+            assert_eq!(matches.len(), 1 + usize::from(selected != negate));
+            assert_eq!(matches, rebuilt_states.retained_matches_for(node).unwrap());
+        }
+    }
+}
+
+#[test]
 fn prefix_relations_propagate_local_changes_over_every_axis() {
     for (selector, nested, guard_index, target_index) in [
         (".guard > .target", true, 2, 3),
