@@ -571,6 +571,12 @@ pub(crate) fn box_baseline_with_content_baselines(
     if display.is_inline_outside() && is_flex_or_grid_container {
         baseline_set = BaselineSet::First;
     }
+    // https://www.w3.org/TR/CSS22/tables.html#height-layout
+    // "The baseline of an 'inline-table' is the baseline of the first row of the table." The table wrapper box of an
+    // inline-table is displayed like an inline-block, but is not one.
+    if display.is_inline_outside() && facts.is_table_wrapper() {
+        baseline_set = BaselineSet::First;
+    }
 
     // https://drafts.csswg.org/css2/#propdef-vertical-align
     // The baseline of an 'inline-block' is the baseline of its last line box in the normal flow, unless it has either
@@ -700,6 +706,12 @@ pub(crate) fn derive_baselines(
                 continue;
             }
             if !table_formatting_context::child_participates_in_table_run(container_display, &child_facts) {
+                continue;
+            }
+            // A table wrapper box has the baselines of its table box, not of a caption above it: "The baseline of an
+            // 'inline-table' is the baseline of the first row of the table."
+            // https://www.w3.org/TR/CSS22/tables.html#height-layout
+            if facts.is_table_wrapper() && !child_facts.display().is_table_inside() {
                 continue;
             }
             if container_skips_anonymous_whitespace_runs && callbacks.can_skip_is_anonymous_text_run(child) {

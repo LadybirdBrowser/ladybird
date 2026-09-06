@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Test: Test for baseline alignment of table cells</title>
+  <link rel="author" title="Oriol Brufau" href="obrufau@igalia.com" />
+  <link rel="help" href="https://github.com/servo/servo/issues/31651" />
+  <link rel="help" href="https://drafts.csswg.org/css2/#height-layout" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/tables/../reference/ref-filled-green-100px-square.xht" />
+  <meta name="assert" content="The baseline of the table should be aligned with the baseline of the cell in the first row." />
+  <link rel="stylesheet" type="text/css" href="../../../../../../Text/input/wpt-import/fonts/ahem.css" />
+  <style><![CDATA[
+    span {
+      font: 50px/1 Ahem;
+      color: green;
+    }
+  ]]></style>
+ </head>
+ <body>
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+  <div style="float: left; position: relative; font-size: 0; background: red">
+    <span style="position: absolute; left: 0; bottom: 0">X</span>
+    <span>X</span>
+    <span style="display: inline-table">
+      <span style="display: table-row">X</span>
+      <span style="display: table-row">X</span>
+    </span>
+  </div>
+ </body>
+</html>
