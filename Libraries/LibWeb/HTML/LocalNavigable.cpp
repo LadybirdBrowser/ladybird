@@ -1397,6 +1397,11 @@ bool LocalNavigable::active_document_is_fully_active() const
     return m_active_document && m_active_document->is_fully_active();
 }
 
+bool LocalNavigable::active_document_is(DOM::Document const& document) const
+{
+    return m_active_document.ptr() == &document;
+}
+
 ReplicatedNavigableState LocalNavigable::replicated_state() const
 {
     VERIFY(m_active_document);
