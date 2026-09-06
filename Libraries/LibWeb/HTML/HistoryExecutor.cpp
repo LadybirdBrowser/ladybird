@@ -169,7 +169,7 @@ void HistoryExecutor::complete_ui_history_operation(CrossProcessId operation_id,
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
-void HistoryExecutor::traverse_the_history_by_delta(Navigable& traversable, int delta, GC::Ptr<DOM::Document> source_document)
+void HistoryExecutor::traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document)
 {
     // 1. Let sourceSnapshotParams and initiatorToCheck be null.
     GC::Ptr<SourceSnapshotParams> source_snapshot_params = nullptr;
@@ -193,7 +193,6 @@ void HistoryExecutor::traverse_the_history_by_delta(Navigable& traversable, int 
     // 4. Append the following session history traversal steps to traversable:
     request_history_operation(
         TraverseByDeltaHistoryOperationParameters {
-            .traversable_id = traversable.id(),
             .delta = delta,
             .initiator_to_check = initiator_to_check ? Optional<CrossProcessId> { initiator_to_check->id() } : OptionalNone {},
             .initiator_source_snapshot = source_snapshot_params

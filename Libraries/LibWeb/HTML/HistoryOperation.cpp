@@ -87,7 +87,6 @@ ErrorOr<Web::ReloadHistoryOperationParameters> IPC::decode(Decoder& decoder)
 template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, Web::TraverseByDeltaHistoryOperationParameters const& parameters)
 {
-    TRY(encoder.encode(parameters.traversable_id));
     TRY(encoder.encode(parameters.delta));
     TRY(encoder.encode(parameters.initiator_to_check));
     TRY(encoder.encode(parameters.initiator_source_snapshot));
@@ -99,7 +98,6 @@ template<>
 ErrorOr<Web::TraverseByDeltaHistoryOperationParameters> IPC::decode(Decoder& decoder)
 {
     return Web::TraverseByDeltaHistoryOperationParameters {
-        .traversable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
         .delta = TRY(decoder.decode<i32>()),
         .initiator_to_check = TRY(decoder.decode<Optional<Web::HTML::CrossProcessId>>()),
         .initiator_source_snapshot = TRY(decoder.decode<Optional<Web::InitiatorSourceSnapshot>>()),
@@ -127,7 +125,6 @@ ErrorOr<Web::InitiatorSourceSnapshot> IPC::decode(Decoder& decoder)
 template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, Web::TraverseToStepHistoryOperationParameters const& parameters)
 {
-    TRY(encoder.encode(parameters.traversable_id));
     TRY(encoder.encode(parameters.target_step));
     TRY(encoder.encode(parameters.user_involvement));
     return {};
@@ -137,7 +134,6 @@ template<>
 ErrorOr<Web::TraverseToStepHistoryOperationParameters> IPC::decode(Decoder& decoder)
 {
     return Web::TraverseToStepHistoryOperationParameters {
-        .traversable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
         .target_step = TRY(decoder.decode<i32>()),
         .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
     };
@@ -247,29 +243,25 @@ ErrorOr<Web::FinalizeSameDocumentNavigationHistoryOperationParameters> IPC::deco
 }
 
 template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::CloseTopLevelTraversableHistoryOperationParameters const& parameters)
+ErrorOr<void> IPC::encode(Encoder&, Web::CloseTopLevelTraversableHistoryOperationParameters const&)
 {
-    return encoder.encode(parameters.traversable_id);
+    return {};
 }
 
 template<>
-ErrorOr<Web::CloseTopLevelTraversableHistoryOperationParameters> IPC::decode(Decoder& decoder)
+ErrorOr<Web::CloseTopLevelTraversableHistoryOperationParameters> IPC::decode(Decoder&)
 {
-    return Web::CloseTopLevelTraversableHistoryOperationParameters {
-        .traversable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
-    };
+    return Web::CloseTopLevelTraversableHistoryOperationParameters {};
 }
 
 template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::FlushSessionHistoryTraversalQueueOperationParameters const& parameters)
+ErrorOr<void> IPC::encode(Encoder&, Web::FlushSessionHistoryTraversalQueueOperationParameters const&)
 {
-    return encoder.encode(parameters.traversable_id);
+    return {};
 }
 
 template<>
-ErrorOr<Web::FlushSessionHistoryTraversalQueueOperationParameters> IPC::decode(Decoder& decoder)
+ErrorOr<Web::FlushSessionHistoryTraversalQueueOperationParameters> IPC::decode(Decoder&)
 {
-    return Web::FlushSessionHistoryTraversalQueueOperationParameters {
-        .traversable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
-    };
+    return Web::FlushSessionHistoryTraversalQueueOperationParameters {};
 }

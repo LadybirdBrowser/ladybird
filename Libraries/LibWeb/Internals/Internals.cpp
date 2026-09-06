@@ -1220,14 +1220,8 @@ GC::Ref<WebIDL::Promise> Internals::flush_session_history_traversal_queue()
         return promise;
     }
 
-    auto traversable = navigable->traversable_navigable();
-    if (!traversable) {
-        WebIDL::resolve_promise(promise);
-        return promise;
-    }
-
     navigable->page().history_executor().request_history_operation(
-        FlushSessionHistoryTraversalQueueOperationParameters { .traversable_id = traversable->id() },
+        FlushSessionHistoryTraversalQueueOperationParameters {},
         {
             .on_complete = GC::create_function(heap(), [&realm, promise](Web::HTML::HistoryStepResult) {
                 HTML::TemporaryExecutionContext execution_context { realm };

@@ -100,7 +100,8 @@ WebIDL::ExceptionOr<void> History::delta_traverse(WebIDL::Long delta)
 
     // 4. Traverse the history by a delta given document's node navigable's traversable navigable, delta, and with
     //    sourceDocument set to document.
-    document.page().history_executor().traverse_the_history_by_delta(*document.navigable()->traversable_navigable(), delta, document);
+    // NB: The UI process queues the operation on the traversable that hosts this page.
+    document.page().history_executor().traverse_the_history_by_delta(delta, document);
 
     return {};
 }

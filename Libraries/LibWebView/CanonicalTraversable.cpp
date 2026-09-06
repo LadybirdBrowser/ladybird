@@ -398,7 +398,6 @@ void CanonicalTraversable::traverse_the_history(TraversableSessionHistory::Trave
 {
     run_browser_history_traversal_at_queue_position(
         Web::TraverseToStepHistoryOperationParameters {
-            .traversable_id = id(),
             .target_step = target.target_step,
             .user_involvement = Web::HTML::UserNavigationInvolvement::BrowserUI,
         },
@@ -782,7 +781,6 @@ void CanonicalTraversable::run_pending_browser_history_traversal(TraversableSess
     auto on_ready = take_pending_browser_history_traversal_on_ready();
     run_browser_history_traversal_at_queue_position(
         Web::TraverseToStepHistoryOperationParameters {
-            .traversable_id = id(),
             .target_step = target.target_step,
             .user_involvement = Web::HTML::UserNavigationInvolvement::BrowserUI,
         },
@@ -997,7 +995,6 @@ void CanonicalTraversable::recover_from_web_content_process_crash(Optional<Histo
     set_current_session_history_entry_identity({});
     enqueue_browser_history_traversal(
         Web::TraverseToStepHistoryOperationParameters {
-            .traversable_id = id(),
             .target_step = *current_step,
             .user_involvement = Web::HTML::UserNavigationInvolvement::BrowserUI,
         },

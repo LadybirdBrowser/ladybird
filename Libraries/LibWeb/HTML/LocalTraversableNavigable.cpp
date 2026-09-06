@@ -283,7 +283,7 @@ void LocalTraversableNavigable::definitely_close_top_level_traversable(PromptToU
 
         // 3. Append the following session history traversal steps to traversable:
         page().history_executor().request_history_operation(
-            CloseTopLevelTraversableHistoryOperationParameters { .traversable_id = id() },
+            CloseTopLevelTraversableHistoryOperationParameters {},
             {
                 .on_complete = GC::create_function(heap(), [this](HistoryStepResult result) {
                     // NB: An abandoned close never reached its queue position; do not destroy the traversable for it.

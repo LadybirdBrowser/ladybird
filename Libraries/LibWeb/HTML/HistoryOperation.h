@@ -56,7 +56,6 @@ struct InitiatorSourceSnapshot {
 };
 
 struct TraverseByDeltaHistoryOperationParameters {
-    HTML::CrossProcessId traversable_id;
     i32 delta;
     Optional<HTML::CrossProcessId> initiator_to_check;
     Optional<InitiatorSourceSnapshot> initiator_source_snapshot;
@@ -64,7 +63,6 @@ struct TraverseByDeltaHistoryOperationParameters {
 };
 
 struct TraverseToStepHistoryOperationParameters {
-    HTML::CrossProcessId traversable_id;
     i32 target_step;
     HTML::UserNavigationInvolvement user_involvement;
 };
@@ -104,11 +102,9 @@ struct FinalizeSameDocumentNavigationHistoryOperationParameters {
 };
 
 struct CloseTopLevelTraversableHistoryOperationParameters {
-    HTML::CrossProcessId traversable_id;
 };
 
 struct FlushSessionHistoryTraversalQueueOperationParameters {
-    HTML::CrossProcessId traversable_id;
 };
 
 using HistoryOperationParameters = Variant<
