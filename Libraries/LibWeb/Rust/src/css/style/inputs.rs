@@ -2027,7 +2027,7 @@ impl StyleEngine {
         {
             return;
         }
-        let repair_inputs = declarations_are_complete
+        let repair_inputs = (declarations_are_complete && current_declarations_are_complete)
             .then(|| {
                 let previous = self
                     .winner_groups
@@ -2036,13 +2036,9 @@ impl StyleEngine {
                     .ok()
                     .map(|(_, state)| state)?;
                 let retained = Rc::clone(self.retained_match_answer(node).sparse().ok()?);
-                Some((previous, retained))
+                Some((previous, retained, current_declared.to_vec()))
             })
             .flatten();
-        let previous_declared = repair_inputs.as_ref().and_then(|_| {
-            let (declared, complete) = self.facts.element_declared_properties(node, kind);
-            complete.then(|| declared.to_vec())
-        });
         self.facts.set_element_declared_properties(
             node,
             kind,
@@ -2054,7 +2050,7 @@ impl StyleEngine {
             self.facts
                 .set_element_custom_declarations(node, custom_declarations, custom_written_values);
         }
-        let Some(((previous, retained), previous_declared)) = repair_inputs.zip(previous_declared) else {
+        let Some((previous, retained, previous_declared)) = repair_inputs else {
             return;
         };
         let mut changed_properties: Vec<u16> = previous_declared
