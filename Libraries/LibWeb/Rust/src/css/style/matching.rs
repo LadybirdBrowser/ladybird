@@ -1864,6 +1864,15 @@ impl StyleEngine {
             };
             let subject_required = compiled.subject_required_keys(entry_index);
             let position = compiled.subject_position(entry_index);
+            let prefix_entry = entry
+                .has_prefix_chain()
+                .then(|| {
+                    self.programs.entry_id(
+                        program,
+                        u32::try_from(entry_index).expect("selector entry identity space exhausted"),
+                    )
+                })
+                .filter(|&entry| dispatch.prefixes().contains_entry(entry));
             for node in candidates {
                 if !self.node_is_within_subject_position(node, position) {
                     continue;
@@ -1885,20 +1894,13 @@ impl StyleEngine {
                 if !carries_required {
                     continue;
                 }
-                if entry.has_prefix_chain()
-                    && dispatch.prefixes().contains_entry(self.programs.entry_id(
-                        program,
-                        u32::try_from(entry_index).expect("selector entry identity space exhausted"),
-                    ))
-                {
+                if let Some(prefix_entry) = prefix_entry {
                     let retained_prefix_match = {
                         let caches = self.prefix_caches.borrow();
                         caches.states.lookup(scope_program).sparse().ok().and_then(|states| {
-                            states.retained_matches_for(node).map(|matches| {
-                                matches
-                                    .iter()
-                                    .any(|&matched| matched == self.programs.entry_id(program, entry_index as u32))
-                            })
+                            states
+                                .retained_matches_for(node)
+                                .map(|matches| matches.contains(&prefix_entry))
                         })
                     };
                     if let Some(matches) = retained_prefix_match {
