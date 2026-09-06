@@ -1684,13 +1684,12 @@ impl StyleEngine {
         if !self.sheets_excluded_from_routing.set(sheet.0 as usize, false).0 {
             return;
         }
-        let rules: Vec<(RuleID, SelectorProgramID)> = self
+        let rules = self
             .program
             .rules_in_sheet(sheet)
             .into_iter()
             .filter(|&rule| self.program.rule_is_live(rule))
-            .filter_map(|rule| Some((rule, self.program.rule_version(rule).selector_program?)))
-            .collect();
+            .filter_map(|rule| Some((rule, self.program.rule_version(rule).selector_program?)));
         let programs = &self.programs;
         let routing = Rc::get_mut(&mut self.routing).expect("routing program is shared outside a planning epoch");
         for (rule, program) in rules {
