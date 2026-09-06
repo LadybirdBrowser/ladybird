@@ -4191,7 +4191,7 @@ impl StyleEngine {
     ) -> Result<Vec<StyleNodeID>, PostingKey> {
         let mut nodes = self.facts.custom_property_candidates(name)?;
         match self.facts.postings().lookup(DependencyPostingKey::AnyCustomProperty) {
-            Lookup::Known(posting) => nodes.extend(posting.candidates()),
+            Lookup::Known(posting) => posting.append_candidates_to(&mut nodes),
             Lookup::KnownAbsent => {}
             Lookup::Missing(gap) => return Err(gap),
         }

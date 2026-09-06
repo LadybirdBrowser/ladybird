@@ -332,7 +332,7 @@ impl StyleEngine {
         let mut candidates: Vec<StyleNodeID> = Vec::new();
         for &key in &keys {
             match self.facts.postings().lookup(key) {
-                Lookup::Known(posting) => candidates.extend(posting.candidates()),
+                Lookup::Known(posting) => posting.append_candidates_to(&mut candidates),
                 Lookup::KnownAbsent => {}
                 Lookup::Missing(_) => return false,
             }
@@ -453,7 +453,7 @@ impl StyleEngine {
                     }
                     match self.facts.postings().lookup(key) {
                         Lookup::Known(posting) => {
-                            candidates.extend(posting.candidates());
+                            posting.append_candidates_to(&mut candidates);
                         }
                         Lookup::KnownAbsent => {}
                         Lookup::Missing(_) => {

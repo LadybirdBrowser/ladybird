@@ -1434,6 +1434,13 @@ impl Posting {
         self.chunks.iter().flat_map(|chunk| chunk.iter().copied())
     }
 
+    pub(super) fn append_candidates_to(&self, candidates: &mut Vec<StyleNodeID>) {
+        candidates.reserve(self.length);
+        for chunk in &self.chunks {
+            candidates.extend_from_slice(chunk);
+        }
+    }
+
     #[must_use]
     pub(super) fn len(&self) -> usize {
         self.length
@@ -4717,7 +4724,7 @@ impl ElementFactStore {
         let mut nodes = Vec::new();
         for &set in sets {
             match self.postings.lookup(DependencyPostingKey::CustomPropertySet(set)) {
-                Lookup::Known(posting) => nodes.extend(posting.candidates()),
+                Lookup::Known(posting) => posting.append_candidates_to(&mut nodes),
                 Lookup::KnownAbsent => {}
                 Lookup::Missing(gap) => return Err(gap),
             }
@@ -4809,7 +4816,7 @@ impl ElementFactStore {
         let mut candidates = Vec::new();
         for &value in values {
             match self.postings.lookup(SelectorPostingKey::AttributeValue(value)) {
-                Lookup::Known(posting) => candidates.extend(posting.candidates()),
+                Lookup::Known(posting) => posting.append_candidates_to(&mut candidates),
                 Lookup::KnownAbsent => {}
                 Lookup::Missing(_) => return None,
             }
