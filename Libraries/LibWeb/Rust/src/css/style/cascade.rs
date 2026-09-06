@@ -1019,18 +1019,18 @@ impl WinnerGroups {
         candidates: &[CascadeCandidate],
         ceilings: &mut Vec<CascadeContinuationCeiling>,
     ) -> Option<PropertyWinner> {
-        let candidate = candidates
+        let index = candidates
             .iter()
-            .rev()
-            .copied()
-            .find(|candidate| ceilings.iter().all(|&ceiling| candidate.stratum.is_below(ceiling)))?;
+            .rposition(|candidate| ceilings.iter().all(|&ceiling| candidate.stratum.is_below(ceiling)))?;
+        let candidate = candidates[index];
         let mut winner = candidate.winner;
         winner.priority = candidate.priority;
         let Some(ceiling) = candidate.stratum.ceiling(candidate.winner.key.operator) else {
             return Some(winner);
         };
         ceilings.push(ceiling);
-        let continuation_winner = self.resolve_candidates_below(candidates, ceilings);
+        // Higher candidates already failed a ceiling, and the new ceiling excludes this one.
+        let continuation_winner = self.resolve_candidates_below(&candidates[..index], ceilings);
         ceilings.pop();
         let continuation = self.intern_continuation(CascadeContinuation {
             ceiling,
