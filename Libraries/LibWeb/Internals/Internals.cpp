@@ -1773,6 +1773,11 @@ void Internals::set_hidden_document_timer_wake_up_interval(double milliseconds)
     window().set_hidden_document_timer_wake_up_interval({}, milliseconds);
 }
 
+void Internals::set_hidden_document_intensive_timer_throttling(double wake_up_interval, double grace_period_once_loaded, double grace_period_while_loading)
+{
+    window().set_hidden_document_intensive_timer_throttling({}, wake_up_interval, grace_period_once_loaded, grace_period_while_loading);
+}
+
 Utf16String Internals::canvas_color_scheme()
 {
     auto& document = window().associated_document();

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // Until it aborts, an AbortSignal.timeout() signal is referenced only from the steps its timeout runs, and a
+    // chained timer's task likewise hangs off the steps its timer runs. A garbage collection while those timeouts are
+    // pending mustn't sweep what the steps hold on to. Two collections each time, since the second finishes the
+    // sweep the first one starts.
+    asyncTest(async done => {
+        const collectGarbage = () => {
+            internals.gc();
+            internals.gc();
+        };
+        const timeoutSignalAborts = () => new Promise(resolve => {
+            AbortSignal.timeout(1).addEventListener("abort", event => resolve(event.target.aborted));
+        });
+        // A timer counts as chained past nesting level 5, so arm these from the sixth nested timer callback.
+        const chainedTimersFire = count => new Promise(resolve => {
+            const armAtDepth = depth => {
+                if (depth < 6) {
+                    setTimeout(() => armAtDepth(depth + 1), 0);
+                    return;
+                }
+                let fired = 0;
+                for (let i = 0; i < count; ++i) {
+                    setTimeout(() => {
+                        if (++fired === count)
+                            resolve(true);
+                    }, 1);
+                }
+                collectGarbage();
+            };
+            armAtDepth(0);
+        });
+
+        internals.setHiddenDocumentTimerWakeUpInterval(10);
+        for (const state of ["visible", "hidden"]) {
+            await setSystemVisibilityState(state);
+            const pending = [];
+            for (let i = 0; i < 20; ++i)
+                pending.push(timeoutSignalAborts());
+            pending.push(chainedTimersFire(20));
+            collectGarbage();
+            const outcomes = await Promise.all(pending);
+            const ran = outcomes.filter(Boolean).length;
+            println(`${state}: ${ran} of ${outcomes.length} pending timeouts ran after a garbage collection`);
+        }
+        await setSystemVisibilityState("visible");
+        done();
+    });
+</script>

@@ -1,0 +1,2 @@
+visible: 21 of 21 pending timeouts ran after a garbage collection
+hidden: 21 of 21 pending timeouts ran after a garbage collection

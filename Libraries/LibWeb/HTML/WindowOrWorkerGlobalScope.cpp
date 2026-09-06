@@ -14,6 +14,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
 #include <AK/Vector.h>
+#include <LibCore/Timer.h>
 #include <LibGC/Function.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapVector.h>
@@ -147,6 +148,8 @@ void WindowOrWorkerGlobalScopeMixin::visit_edges(JS::Cell::Visitor& visitor)
 void WindowOrWorkerGlobalScopeMixin::finalize()
 {
     clear_map_of_active_timers();
+    if (m_intensive_timer_throttling_grace_timer)
+        m_intensive_timer_throttling_grace_timer->stop();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#dom-origin
@@ -690,8 +693,13 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
         timeout = 4;
 
     // A hidden document leaves a timer with no delay alone — the page's own yield points, which Chrome keeps prompt
-    // too — and holds every other one back (see throttled_timer_delay()).
-    auto throttling_class = timeout == 0 ? TimerThrottlingClass::Immediate : TimerThrottlingClass::Delayed;
+    // too — and holds every other one back, a timer past nesting level 5 the hardest: a page re-arming timers from
+    // their own callbacks is just what a hidden page shouldn't stay busy with (see throttled_timer_delay()).
+    auto throttling_class = TimerThrottlingClass::Delayed;
+    if (nesting_level > 5)
+        throttling_class = TimerThrottlingClass::Chained;
+    else if (timeout == 0)
+        throttling_class = TimerThrottlingClass::Immediate;
 
     // 6. Let realm be global's relevant realm.
     auto& realm = relevant_realm(*this);
@@ -1248,8 +1256,8 @@ i32 WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout(i32 timeout, Funct
         completion_step();
     };
     // NB: A timeout another specification waits on — an idle callback's, an AbortSignal's — isn't one of the page's
-    //     own yield points, so a hidden document holds it back like any delayed timer, however short it is.
-    run_steps_after_a_timeout_impl(timeout, TimerThrottlingClass::Delayed, move(remove_timer_and_complete), timer_key);
+    //     own yield points, so a hidden document holds it back like a chained timer, however short it is.
+    run_steps_after_a_timeout_impl(timeout, TimerThrottlingClass::Chained, move(remove_timer_and_complete), timer_key);
     return timer_key;
 }
 
@@ -1262,6 +1270,21 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
     //     throttled_timer_delay()), so the delay the timer is armed with can differ from the one it was asked for.
     auto deadline = HighResolutionTime::unsafe_shared_current_time() + timeout;
     auto throttled_delay = throttled_timer_delay(throttling_class, deadline);
+
+    // NB: The intensive tier paces chained timers by their wake-ups (see throttled_timer_delay()), so note when one
+    //     runs while the document is hidden. The step itself goes into a GC::Function rather than into the wrapper's
+    //     captures: Timer::visit_edges() scans only the bytes of the callable the timer holds, and an AK::Function
+    //     nested in there keeps its own captures out of line once they outgrow its inline storage, where that scan
+    //     can't see them. An AbortSignal.timeout() signal lives nowhere else until it aborts, so a collection would
+    //     sweep it. A GC::Function scans its own callable's captures, whatever their size.
+    if (throttling_class == TimerThrottlingClass::Chained) {
+        auto step = GC::create_function(GC::Heap::the(), move(completion_step));
+        completion_step = [this, step] {
+            if (document_is_hidden())
+                m_last_chained_timer_wake_up = HighResolutionTime::unsafe_shared_current_time();
+            step->function()();
+        };
+    }
 
     // NB: We deviate from the spec here slightly by reusing existing timers if a timer_key is provided.
     GC::Ptr<Timer> existing_timer;
@@ -1316,24 +1339,32 @@ static i32 timer_delay_from(double milliseconds)
     return static_cast<i32>(min(ceil(max(milliseconds, 0.0)), static_cast<double>(NumericLimits<i32>::max())));
 }
 
+// Whether the document holds its timers back at all. A document takes its visibility state from its navigable when
+// that activates it; until then — while it's still being populated, e.g. — the state is the default, hidden. So only
+// a fully active document counts as hidden here.
+bool WindowOrWorkerGlobalScopeMixin::document_is_hidden() const
+{
+    auto const* window = as_if<Window>(this_impl());
+    if (!window)
+        return false;
+    auto& document = window->associated_document();
+    return document.is_fully_active() && document.hidden();
+}
+
 // A hidden document runs a delayed timer only at a wake-up. The wake-ups are one wake-up interval apart, on a grid
 // aligned to the time origin of the page's local root document — the same grid for every frame of the page, so all
 // of their timers run in one wake-up rather than each frame's in its own — and the timer runs at the first wake-up
-// at or after its deadline. Returns the delay that takes the timer there, or nothing when the timer runs at its
-// deadline as usual: the document is visible, the timer has no delay, or the global isn't a Window at all.
+// at or after its deadline. Once the document has been hidden for the grace period, a chained timer runs only at an
+// intensive wake-up, an intensive interval apart on the same grid — though the next ordinary wake-up will do when no
+// chained timer has run for an intensive interval, so a page that wakes rarely isn't made to wait a whole one for a
+// single wake-up. That's Chrome's rule too. Returns the delay that takes the timer to its wake-up, or nothing when the
+// timer runs at its deadline as usual: the document is visible, the timer has no delay, or the global isn't a Window.
 Optional<i32> WindowOrWorkerGlobalScopeMixin::throttled_timer_delay(TimerThrottlingClass throttling_class, double deadline) const
 {
-    if (throttling_class == TimerThrottlingClass::Immediate)
-        return {};
-    auto const* window = as_if<Window>(this_impl());
-    if (!window)
-        return {};
-    // NB: A document takes its visibility state from its navigable when that activates it; until then — while it's
-    //     still being populated, e.g. — the state is the default, hidden. So only a fully active document is held back.
-    auto& document = window->associated_document();
-    if (!document.is_fully_active() || !document.hidden())
+    if (throttling_class == TimerThrottlingClass::Immediate || !document_is_hidden())
         return {};
 
+    auto& document = as<Window>(this_impl()).associated_document();
     auto grid_origin = [&] {
         auto& page = document.page();
         if (page.has_local_root_navigable()) {
@@ -1342,16 +1373,24 @@ Optional<i32> WindowOrWorkerGlobalScopeMixin::throttled_timer_delay(TimerThrottl
         }
         return relevant_settings_object(document).time_origin();
     }();
+    auto wake_up_at_or_after = [&](double time, double interval) {
+        return grid_origin + ceil((time - grid_origin) / interval) * interval;
+    };
+
     auto now = HighResolutionTime::unsafe_shared_current_time();
+    auto due = max(now, deadline);
     auto interval = m_hidden_document_timer_wake_up_interval;
-    auto wake_up = grid_origin + ceil((max(now, deadline) - grid_origin) / interval) * interval;
+    auto wake_up = wake_up_at_or_after(due, interval);
+    if (throttling_class == TimerThrottlingClass::Chained && m_chained_timers_intensively_throttled) {
+        auto intensive_interval = m_intensive_timer_wake_up_interval;
+        auto ordinary_wake_up_from = m_last_chained_timer_wake_up.has_value() ? max(due, *m_last_chained_timer_wake_up + intensive_interval) : due;
+        wake_up = min(wake_up_at_or_after(due, intensive_interval), wake_up_at_or_after(ordinary_wake_up_from, interval));
+    }
     return timer_delay_from(wake_up - now);
 }
 
-// The page visibility change steps for timers: every timer still on the clock is re-armed for the document's new
-// visibility — a hidden document's delayed timers wait for their wake-up, and a visible document's fire at their own
-// deadlines, right away if those have passed.
-void WindowOrWorkerGlobalScopeMixin::document_visibility_state_changed(Badge<DOM::Document>)
+// Re-arms every timer still on the clock for the wake-up it's due at now (see throttled_timer_delay()).
+void WindowOrWorkerGlobalScopeMixin::realign_timers()
 {
     auto now = HighResolutionTime::unsafe_shared_current_time();
     for (auto& [id, timer] : m_timers) {
@@ -1361,6 +1400,33 @@ void WindowOrWorkerGlobalScopeMixin::document_visibility_state_changed(Badge<DOM
         auto delay = throttled_timer_delay(timer->throttling_class(), timer->deadline());
         timer->restart(delay.value_or(timer_delay_from(timer->deadline() - now)));
     }
+}
+
+// The page visibility change steps for timers: every timer still on the clock is re-armed for the document's new
+// visibility — a hidden document's delayed timers wait for their wake-up, and a visible document's fire at their own
+// deadlines, right away if those have passed. And the grace period before a hidden document's chained timers move
+// to the intensive tier starts over whenever the document hides, and is off while it's visible. Which grace period
+// applies is decided as the document hides — the shorter one if it had finished loading by then, the longer one if
+// it was still loading — so a document that finishes loading while hidden keeps the longer one, as in Chrome.
+void WindowOrWorkerGlobalScopeMixin::document_visibility_state_changed(Badge<DOM::Document>)
+{
+    m_chained_timers_intensively_throttled = false;
+    if (document_is_hidden()) {
+        if (!m_intensive_timer_throttling_grace_timer) {
+            m_intensive_timer_throttling_grace_timer = Core::Timer::create_single_shot(0, [this] {
+                m_chained_timers_intensively_throttled = true;
+                realign_timers();
+            });
+        }
+        auto& document = as<Window>(this_impl()).associated_document();
+        auto grace_period = document.readiness() == DocumentReadyState::Complete
+            ? m_intensive_timer_throttling_grace_period_once_loaded
+            : m_intensive_timer_throttling_grace_period_while_loading;
+        m_intensive_timer_throttling_grace_timer->restart(timer_delay_from(grace_period));
+    } else if (m_intensive_timer_throttling_grace_timer) {
+        m_intensive_timer_throttling_grace_timer->stop();
+    }
+    realign_timers();
 }
 
 // https://streams.spec.whatwg.org/#count-queuing-strategy-size-function
