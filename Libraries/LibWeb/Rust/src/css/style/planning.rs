@@ -1036,8 +1036,6 @@ impl SequenceChange {
 /// range derived from positions to the whole sequence.
 pub(super) const RELATIONAL_RECORD_UNLOCATED: u32 = u32::MAX;
 
-pub(super) const NO_SEQUENCE_CHANGE: u32 = u32::MAX;
-
 /// What one transaction did to the child sequences it touched, keyed by dense parent identity.
 ///
 /// Direct pages make repeated mutation-time updates constant-time. Entries stay packed and are
@@ -1082,9 +1080,6 @@ impl SequenceChanges {
             change.arriving_nodes.dedup();
         }
         self.entries.sort_unstable_by_key(|&(parent, _)| parent);
-        for page in self.pages.pages_mut() {
-            page.entries.fill(NO_SEQUENCE_CHANGE);
-        }
         for (entry, &(parent, _)) in self.entries.iter().enumerate() {
             let element_index = parent.element_index().unwrap() as usize;
             self.pages.insert(
