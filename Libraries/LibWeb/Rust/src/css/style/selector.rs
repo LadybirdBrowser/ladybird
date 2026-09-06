@@ -5552,6 +5552,11 @@ impl<'a> MatchEvaluator<'a> {
             return Ok(false);
         };
         let (parent_id, cached_prefix) = cache.preceding_sibling_prefix(program_id, relation, parent);
+        if let Some(prefix) = cached_prefix
+            && prefix.next == Some(node)
+        {
+            return Ok(prefix.answer);
+        }
         let mut prefix = cached_prefix.unwrap_or_else(|| PrecedingSiblingPrefix {
             next: self.children_of(parent).next(),
             answer: false,
