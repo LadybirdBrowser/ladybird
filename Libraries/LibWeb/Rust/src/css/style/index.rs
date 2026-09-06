@@ -2699,25 +2699,25 @@ impl RuleDispatch {
     }
 
     fn rebuild_non_prefix_index(&mut self) {
-        let non_prefix_entries: Vec<_> = self.entries.rows.iter().map(|entry| !entry.prefix_matched).collect();
+        let entries = Rc::clone(&self.entries);
         let topology = self.topology_mut();
         topology.non_prefix_bucket_directory = topology
             .bucket_directory
-            .filtered(|row| non_prefix_entries[row.index()]);
+            .filtered(|row| !entries.rows[row.index()].prefix_matched);
         topology.non_prefix_universal_parent_directory = topology
             .universal_parent_directory
-            .filtered(|row| non_prefix_entries[row.index()]);
+            .filtered(|row| !entries.rows[row.index()].prefix_matched);
         topology.non_prefix_universal_without_parent_filter = topology
             .universal_without_parent_filter
             .iter()
             .copied()
-            .filter(|row| non_prefix_entries[row.index()])
+            .filter(|row| !entries.rows[row.index()].prefix_matched)
             .collect();
         topology.non_prefix_universal_with_parent_filter = topology
             .universal_with_parent_filter
             .iter()
             .copied()
-            .filter(|row| non_prefix_entries[row.index()])
+            .filter(|row| !entries.rows[row.index()].prefix_matched)
             .collect();
     }
 
