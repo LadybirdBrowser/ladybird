@@ -1003,19 +1003,17 @@ impl SequenceChange {
     /// the common shape and a scan reaches exactly as far as its place; from the second record on
     /// the sequence is indexed once so a batch of k changes costs O(n + k) rather than O(k * n).
     pub(super) fn position_of(&mut self, child: StyleNodeID) -> Option<usize> {
-        if self.positions.is_none() {
-            if self.located_records <= 1 {
-                return self.children.iter().position(|&candidate| candidate == child);
-            }
-            self.positions = Some(
-                self.children
-                    .iter()
-                    .enumerate()
-                    .map(|(at, &candidate)| (candidate, at as u32))
-                    .collect(),
-            );
+        if self.located_records <= 1 && self.positions.is_none() {
+            return self.children.iter().position(|&candidate| candidate == child);
         }
-        self.positions.as_ref().unwrap().get(&child).map(|&at| at as usize)
+        let positions = self.positions.get_or_insert_with(|| {
+            self.children
+                .iter()
+                .enumerate()
+                .map(|(at, &candidate)| (candidate, at as u32))
+                .collect()
+        });
+        positions.get(&child).map(|&at| at as usize)
     }
 
     pub(super) fn auxiliary_capacity_bytes(&self) -> u64 {
