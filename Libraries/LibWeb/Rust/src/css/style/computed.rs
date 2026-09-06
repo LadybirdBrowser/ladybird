@@ -1537,10 +1537,7 @@ impl ComputedGroupSets {
         let Some(record) = self.style_records.get_index(previous_base.index()).copied() else {
             return;
         };
-        let groups = self.group_identities(record.groups);
-        let inherited_identity = self
-            .intern_inherited_group_set(&groups[..ENGINE_INHERITED_GROUP_COUNT])
-            .0;
+        let inherited_identity = record.inherited_groups;
         self.columns.groups[index] = record.groups.0;
         self.columns.inherited_groups[index] = inherited_identity.0;
         self.columns.custom_properties[index] = record.custom_properties.0;
@@ -1588,10 +1585,7 @@ impl ComputedGroupSets {
             .longhand_table
             .and_then(|table| self.computed_longhand_tables.get_index(table.index()))
             .is_some_and(|retained| table_inherited_group_swap_eligible(retained.table()));
-        let groups = self.group_identities(new_record.groups);
-        let inherited_identity = self
-            .intern_inherited_group_set(&groups[..ENGINE_INHERITED_GROUP_COUNT])
-            .0;
+        let inherited_identity = new_record.inherited_groups;
         self.columns.groups[index] = new_record.groups.0;
         self.columns.inherited_groups[index] = inherited_identity.0;
         self.columns.custom_properties[index] = new_record.custom_properties.0;
@@ -1601,15 +1595,10 @@ impl ComputedGroupSets {
     }
 
     /// The identity of a record's inherited groups, the way a node assigned it would hold them.
-    pub(super) fn style_record_inherited_groups_identity(&mut self, style_record: FinalStyleRecordID) -> Option<u32> {
+    pub(super) fn style_record_inherited_groups_identity(&self, style_record: FinalStyleRecordID) -> Option<u32> {
         let base_record = style_record.base_record()?;
         let record = *self.style_records.get_index(base_record.index())?;
-        let groups = self.group_identities(record.groups);
-        Some(
-            self.intern_inherited_group_set(&groups[..ENGINE_INHERITED_GROUP_COUNT])
-                .0
-                .0,
-        )
+        Some(record.inherited_groups.0)
     }
 
     fn next_animation_overlay_record(&mut self) -> FinalStyleRecordID {
