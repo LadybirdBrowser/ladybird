@@ -63,7 +63,7 @@ pub(super) const ENGINE_INHERITED_GROUP_COUNT: usize = 7;
 pub(super) fn table_inherited_group_swap_eligible(table: &ComputedLonghandTable) -> bool {
     table.property_inheritance_is_standard()
         && !table.display_is_list_item()
-        && crate::css::style_compute::active_transition_properties(table).is_empty()
+        && !crate::css::style_compute::has_active_transition_properties(table)
 }
 
 /// What assembling an engine-computed record produced, for the publication counters.
@@ -1151,9 +1151,7 @@ impl ComputedGroupSets {
             || old_record
                 .longhand_table
                 .and_then(|table| self.computed_longhand_tables.get_index(table.index()))
-                .is_none_or(|retained| {
-                    !crate::css::style_compute::active_transition_properties(retained.table()).is_empty()
-                })
+                .is_none_or(|retained| crate::css::style_compute::has_active_transition_properties(retained.table()))
         {
             return None;
         }
@@ -1214,8 +1212,7 @@ impl ComputedGroupSets {
             .and_then(|record| self.style_records.get_index(record.index()))
             .and_then(|record| record.longhand_table);
         if parent_table.is_some_and(|table| {
-            !crate::css::style_compute::active_transition_properties(self.computed_longhand_tables[table].table())
-                .is_empty()
+            crate::css::style_compute::has_active_transition_properties(self.computed_longhand_tables[table].table())
         }) {
             return None;
         }

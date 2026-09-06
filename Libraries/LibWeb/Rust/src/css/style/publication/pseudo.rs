@@ -224,7 +224,7 @@ impl StyleEngine {
                     return None;
                 };
                 let transitioning = (unsafe { view.longhand_table.as_ref() })
-                    .is_some_and(|table| !crate::css::style_compute::active_transition_properties(table).is_empty());
+                    .is_some_and(crate::css::style_compute::has_active_transition_properties);
                 if !view.animated_overlay.is_null() || transitioning {
                     self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
                     return None;

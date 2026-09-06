@@ -47,7 +47,7 @@ impl StyleEngine {
         // A record under display:none may no longer be the style C++ holds, and a property change
         // on an element with active transitions starts one in the C++ computation.
         if view.dependency_flags & (1 << 2) != 0
-            || !crate::css::style_compute::active_transition_properties(old_table).is_empty()
+            || crate::css::style_compute::has_active_transition_properties(old_table)
         {
             self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return None;
@@ -266,7 +266,7 @@ impl StyleEngine {
                     return None;
                 };
                 if view.dependency_flags & (1 << 2) != 0
-                    || !crate::css::style_compute::active_transition_properties(old_table).is_empty()
+                    || crate::css::style_compute::has_active_transition_properties(old_table)
                 {
                     self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
                     return None;

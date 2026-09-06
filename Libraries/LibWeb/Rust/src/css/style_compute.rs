@@ -4713,26 +4713,45 @@ fn computed_writing_mode_and_direction(table: &ComputedLonghandTable) -> (u8, u8
     (writing_mode, direction)
 }
 
-pub(crate) fn active_transition_properties(table: &ComputedLonghandTable) -> Vec<u16> {
+fn active_transition_property_ids(table: &ComputedLonghandTable) -> impl Iterator<Item = u16> {
     use crate::css::property_metadata::property_id as prop;
 
     let property_values = computed_value_list(table, prop::TRANSITION_PROPERTY);
     let duration_values = computed_value_list(table, prop::TRANSITION_DURATION);
     let delay_values = computed_value_list(table, prop::TRANSITION_DELAY);
+    property_values
+        .iter()
+        .enumerate()
+        .filter_map(move |(index, property_value)| {
+            let duration = time_value_to_milliseconds(duration_values[index % duration_values.len()].data());
+            let delay = time_value_to_milliseconds(delay_values[index % delay_values.len()].data());
+            if duration.max(0.0) + delay <= 0.0 {
+                return None;
+            }
+            let StyleValueData::CustomIdent { custom_ident } = property_value.data() else {
+                return None;
+            };
+            property_id_from_custom_ident(custom_ident)
+        })
+}
+
+pub(crate) fn has_active_transition_properties(table: &ComputedLonghandTable) -> bool {
+    fn has_longhand(property: u16) -> bool {
+        if property_is_shorthand(property) {
+            longhands_for_shorthand(property).iter().copied().any(has_longhand)
+        } else {
+            property != crate::css::property_metadata::property_id::CUSTOM
+        }
+    }
+
+    active_transition_property_ids(table).any(has_longhand)
+}
+
+fn active_transition_properties(table: &ComputedLonghandTable) -> Vec<u16> {
     let (writing_mode, direction) = computed_writing_mode_and_direction(table);
     let mut properties = Vec::new();
-    for (index, property_value) in property_values.iter().enumerate() {
-        let duration = time_value_to_milliseconds(duration_values[index % duration_values.len()].data());
-        let delay = time_value_to_milliseconds(delay_values[index % delay_values.len()].data());
-        if duration.max(0.0) + delay <= 0.0 {
-            continue;
-        }
-        let StyleValueData::CustomIdent { custom_ident } = property_value.data() else {
-            continue;
-        };
-        if let Some(property) = property_id_from_custom_ident(custom_ident) {
-            append_transition_longhands(&mut properties, property, writing_mode, direction);
-        }
+    for property in active_transition_property_ids(table) {
+        append_transition_longhands(&mut properties, property, writing_mode, direction);
     }
     properties
 }

@@ -1080,7 +1080,7 @@ impl StyleEngine {
             .is_none_or(|view| {
                 !view.animated_overlay.is_null()
                     || (unsafe { view.longhand_table.as_ref() })
-                        .is_none_or(|table| !crate::css::style_compute::active_transition_properties(table).is_empty())
+                        .is_none_or(crate::css::style_compute::has_active_transition_properties)
             })
     }
 
@@ -1309,7 +1309,7 @@ impl StyleEngine {
         table.freeze();
         let swap_eligible = table.property_inheritance_is_standard()
             && !table.display_is_list_item()
-            && crate::css::style_compute::active_transition_properties(&table).is_empty();
+            && !crate::css::style_compute::has_active_transition_properties(&table);
         let table = table.into_raw_shared();
         let release_table = |table: *const ComputedLonghandTable| unsafe {
             crate::css::computed_longhand_table::rust_computed_longhand_table_release(table.cast_mut());
