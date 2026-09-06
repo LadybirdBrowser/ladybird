@@ -210,17 +210,10 @@ impl StyleEngine {
         declared: &[DeclaredProperty],
         custom_declarations: &[CustomDeclaration],
     ) {
-        let replacement = self.replacement_rule(rule);
-        if replacement.is_none() && self.current_rule_version(rule).declaration_block.is_none() {
+        if self.replacement_rule(rule).is_none() && self.current_rule_version(rule).declaration_block.is_none() {
             return;
         }
         let custom_declarations_changed = self.current_custom_declarations_of(rule) != custom_declarations;
-        let previous = replacement
-            .map(|replacement| replacement.declared.as_slice())
-            .unwrap_or_else(|| self.current_declared_properties_of(rule));
-        let mut old_properties: Vec<u16> = previous.iter().map(|declared| declared.property).collect();
-        old_properties.sort_unstable();
-        old_properties.dedup();
         let mut new_properties: Vec<u16> = declared.iter().map(|declared| declared.property).collect();
         new_properties.sort_unstable();
         new_properties.dedup();
@@ -234,6 +227,13 @@ impl StyleEngine {
             change.custom_declarations_changed |= custom_declarations_changed;
             return;
         }
+        let previous = self
+            .replacement_rule(rule)
+            .map(|replacement| replacement.declared.as_slice())
+            .unwrap_or_else(|| self.current_declared_properties_of(rule));
+        let mut old_properties: Vec<u16> = previous.iter().map(|declared| declared.property).collect();
+        old_properties.sort_unstable();
+        old_properties.dedup();
         // An incomplete inventory can hold custom properties, and those never reach the winner
         // columns, so nothing downstream can prove such an edit inert. Capture that on the old
         // side only: the first edit in a transaction reads the state every proof compares against.
