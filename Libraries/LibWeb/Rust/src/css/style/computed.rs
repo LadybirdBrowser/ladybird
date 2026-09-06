@@ -2262,16 +2262,20 @@ impl ComputedGroupSets {
         {
             return false;
         }
-        let first_groups = &self.sets[first.groups].payloads;
-        let second_groups = &self.sets[second.groups].payloads;
-        if first_groups.len() != second_groups.len()
-            || first_groups
-                .iter()
-                .zip(second_groups)
-                .enumerate()
-                .any(|(index, (&first, &second))| first != second && !style_group_payloads_equal(index, first, second))
-        {
-            return false;
+        if first.groups != second.groups {
+            let first_groups = &self.sets[first.groups].payloads;
+            let second_groups = &self.sets[second.groups].payloads;
+            if first_groups.len() != second_groups.len()
+                || first_groups
+                    .iter()
+                    .zip(second_groups)
+                    .enumerate()
+                    .any(|(index, (&first, &second))| {
+                        first != second && !style_group_payloads_equal(index, first, second)
+                    })
+            {
+                return false;
+            }
         }
         match (first.longhand_table, second.longhand_table) {
             (None, None) => true,
