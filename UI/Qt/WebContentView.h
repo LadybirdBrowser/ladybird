@@ -185,6 +185,7 @@ private:
     QTimer m_tooltip_hover_timer;
 
     Gfx::IntSize m_viewport_size;
+    bool m_viewport_push_pending { false };
 
     u64 m_last_click_timestamp { 0 };
     QPointF m_last_click_position;
