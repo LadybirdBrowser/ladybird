@@ -290,12 +290,24 @@ impl StyleEngine {
             if written.len() != declared.len() {
                 return ControlFlow::Break(());
             }
+            let mut priority_and_stratum_by_importance = [None; 2];
             for (&declared, written) in declared.iter().zip(written) {
-                let priority =
-                    self.cascade_priority_of(rule, tree_scope, specificity, scope_proximity, declared.important);
+                let (priority, stratum) = *priority_and_stratum_by_importance[declared.important as usize]
+                    .get_or_insert_with(|| {
+                        (
+                            self.cascade_priority_of(
+                                rule,
+                                tree_scope,
+                                specificity,
+                                scope_proximity,
+                                declared.important,
+                            ),
+                            self.cascade_stratum_of(rule, tree_scope, declared.important),
+                        )
+                    });
                 candidates.push(Candidate {
                     priority,
-                    stratum: self.cascade_stratum_of(rule, tree_scope, declared.important),
+                    stratum,
                     declared,
                     written,
                 });
@@ -310,11 +322,18 @@ impl StyleEngine {
         if written.len() != declared.len() {
             return None;
         }
+        let mut priority_and_stratum_by_importance = [None; 2];
         for (&declared, written) in declared.iter().zip(written) {
-            let priority = self.element_cascade_priority(node, ElementDeclarationKind::InlineStyle, declared.important);
+            let (priority, stratum) = *priority_and_stratum_by_importance[declared.important as usize]
+                .get_or_insert_with(|| {
+                    (
+                        self.element_cascade_priority(node, ElementDeclarationKind::InlineStyle, declared.important),
+                        self.element_cascade_stratum(node, ElementDeclarationKind::InlineStyle, declared.important),
+                    )
+                });
             candidates.push(Candidate {
                 priority,
-                stratum: self.element_cascade_stratum(node, ElementDeclarationKind::InlineStyle, declared.important),
+                stratum,
                 declared,
                 written,
             });
