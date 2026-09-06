@@ -3802,10 +3802,11 @@ void LocalNavigable::reload(Optional<StorageSerializationRecord> navigation_api_
         active_session_history_entry()->set_navigation_api_state(navigation_api_state.release_value());
 
     // 2. Set navigable's active session history entry's document state's reload pending to true.
-    active_session_history_entry()->document_state()->set_reload_pending(true);
+    auto reloading_entry = active_session_history_entry();
+    reloading_entry->document_state()->set_reload_pending(true);
 
     page().client().page_did_set_session_history_entry_document_state_reload_pending(
-        id(), active_session_history_entry()->navigation_api_key(), true);
+        id(), reloading_entry->navigation_api_key(), true);
 
     // 3. Let traversable be navigable's traversable navigable.
     // 4. Append the following session history traversal steps to traversable:
@@ -3816,15 +3817,15 @@ void LocalNavigable::reload(Optional<StorageSerializationRecord> navigation_api_
             .user_involvement = user_involvement,
         },
         {
-            .on_apply_complete = GC::create_function(heap(), [this](HistoryStepResult result) {
+            .on_apply_complete = GC::create_function(heap(), [this, reloading_entry](HistoryStepResult result) {
                 if (result == HistoryStepResult::Applied)
                     return;
 
                 // NB: A reload that did not apply leaves no navigation behind to clear the pending flag.
-                if (auto current_entry = current_session_history_entry(); current_entry && current_entry->document_state()->reload_pending()) {
-                    current_entry->document_state()->set_reload_pending(false);
+                if (reloading_entry->document_state()->reload_pending()) {
+                    reloading_entry->document_state()->set_reload_pending(false);
                     page().client().page_did_set_session_history_entry_document_state_reload_pending(
-                        id(), current_entry->navigation_api_key(), false);
+                        id(), reloading_entry->navigation_api_key(), false);
                 }
             }),
         });
