@@ -776,6 +776,14 @@ pub(super) fn prepare_selector_truth_set(
 }
 
 pub(super) fn merge_retained_match_answers(answer: &mut Vec<RetainedRuleMatch>, suffix: &[RetainedRuleMatch]) {
+    if answer
+        .last()
+        .zip(suffix.first())
+        .is_none_or(|(last, first)| last <= first)
+    {
+        answer.extend_from_slice(suffix);
+        return;
+    }
     let mut answer_index = answer.len();
     let mut suffix_index = suffix.len();
     answer.extend_from_slice(suffix);
