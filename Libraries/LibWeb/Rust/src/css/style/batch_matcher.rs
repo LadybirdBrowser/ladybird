@@ -1067,18 +1067,16 @@ impl<'a> BatchMatcher<'a> {
             let compiled = self.programs.get(program);
             for (entry_index, entry) in compiled.entries().iter().enumerate() {
                 let subject_dispatch = compiled.subject_dispatch_keys(entry_index);
-                if !subject_dispatch.is_empty()
-                    && !subject_dispatch
-                        .iter()
-                        .any(|&key| self.facts.carries_dispatch_key(row, key, is_document_root))
-                {
+                let matched_dispatch_key = subject_dispatch
+                    .iter()
+                    .copied()
+                    .find(|&key| self.facts.carries_dispatch_key(row, key, is_document_root));
+                if !subject_dispatch.is_empty() && matched_dispatch_key.is_none() {
                     continue;
                 }
-                if compiled
-                    .subject_required_keys(entry_index)
-                    .iter()
-                    .any(|&key| !self.facts.carries_dispatch_key(row, key, is_document_root))
-                {
+                if compiled.subject_required_keys(entry_index).iter().any(|&key| {
+                    Some(key) != matched_dispatch_key && !self.facts.carries_dispatch_key(row, key, is_document_root)
+                }) {
                     continue;
                 }
                 let entry_index = u32::try_from(entry_index).expect("selector entry space exhausted");
