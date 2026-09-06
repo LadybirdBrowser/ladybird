@@ -4725,49 +4725,27 @@ impl ElementFactStore {
         // foldings of both, which is how `[aB]` reaches an attribute written either way. The extra
         // names are postings rather than facts, so they say only that at least one attribute of the
         // element answers to them.
-        let keys = self.attribute_name_keys(name);
-        let old_value = if let Some(facts) = self.staging.get(node) {
-            facts
-                .attributes
-                .binary_search_by_key(&name, |entry| entry.0)
-                .ok()
-                .map(|index| facts.attributes[index].1)
-        } else if let Some(row) = self.rows.row_of(node) {
-            let attributes = self.rows.attributes_of(row);
-            attributes
-                .binary_search_by_key(&name, |entry| entry.name)
-                .ok()
-                .map(|index| attributes[index].value)
-        } else {
-            None
-        };
-        let changed = self.edit_staged_row(node, |facts| {
+        let (old_value, changed) = self.edit_staged_row(node, |facts| {
             let found = facts.attributes.binary_search_by_key(&name, |entry| entry.0);
             match (present, found) {
-                (true, Ok(index)) => {
-                    facts.attributes[index].1 = value;
-                    false
-                }
+                (true, Ok(index)) => (Some(std::mem::replace(&mut facts.attributes[index].1, value)), false),
                 (true, Err(index)) => {
                     facts.attributes.insert(index, (name, value));
-                    true
+                    (None, true)
                 }
-                (false, Ok(index)) => {
-                    facts.attributes.remove(index);
-                    true
-                }
-                (false, Err(_)) => false,
+                (false, Ok(index)) => (Some(facts.attributes.remove(index).1), true),
+                (false, Err(_)) => (None, false),
             }
         });
         if changed && present {
-            for key in keys {
+            for key in self.attribute_name_keys(name) {
                 self.postings
                     .insert(SelectorPostingKey::AttributeName(key), node, memory);
             }
         } else if changed {
             // A shared name stays true of the element while another of its attributes still
             // answers to it, so only the names nothing implies any more are dropped.
-            for key in keys {
+            for key in self.attribute_name_keys(name) {
                 if key == name || !self.node_answers_to_attribute_name(node, key) {
                     self.postings.remove(SelectorPostingKey::AttributeName(key), node);
                 }
