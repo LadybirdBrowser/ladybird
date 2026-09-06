@@ -967,22 +967,16 @@ impl<'a> SelectorCompiler<'a> {
                 // Both are forgiving, so an argument list whose every selector is invalid parses to
                 // an empty one - and an empty list matches nothing. Compiling it to no constraint
                 // left the compound matching every element instead.
-                let branches = self.compile_argument_list(pseudo_class, marker);
-                if branches.is_empty() {
+                let Some(any_of) = self.compile_argument_list(pseudo_class, marker) else {
                     return Some(self.builder.push_never());
-                }
-                let any_of = self.builder.push_any_of(&branches);
+                };
                 if pseudo_class.pseudo_class == Pc::Where {
                     return Some(self.builder.push(SelectorOp::Where(any_of)));
                 }
                 Some(any_of)
             }
             Pc::Not => {
-                let branches = self.compile_argument_list(pseudo_class, marker);
-                if branches.is_empty() {
-                    return None;
-                }
-                let any_of = self.builder.push_any_of(&branches);
+                let any_of = self.compile_argument_list(pseudo_class, marker)?;
                 Some(self.builder.push(SelectorOp::Not(any_of)))
             }
             Pc::Has => self.compile_has(pseudo_class, marker),
@@ -1045,12 +1039,9 @@ impl<'a> SelectorCompiler<'a> {
 
             // Shadow encapsulation. `:host` with an argument constrains the host itself.
             Pc::Host => {
-                let branches = self.compile_argument_list(pseudo_class, marker);
-                let inner = if branches.is_empty() {
-                    self.builder.push_feature(FeatureTest::AnyElement)
-                } else {
-                    self.builder.push_any_of(&branches)
-                };
+                let inner = self
+                    .compile_argument_list(pseudo_class, marker)
+                    .unwrap_or_else(|| self.builder.push_feature(FeatureTest::AnyElement));
                 Some(self.builder.push(SelectorOp::Host(inner)))
             }
 
@@ -1204,27 +1195,33 @@ impl<'a> SelectorCompiler<'a> {
         &mut self,
         pseudo_class: &PseudoClassSelector,
         marker: &mut Option<CompilationMarker>,
-    ) -> Vec<SelectorNodeID> {
+    ) -> Option<SelectorNodeID> {
+        // A branch that targets a pseudo-element cannot match the originating element, so it
+        // contributes nothing to the disjunction. Compiling it anyway would leave a compound
+        // with no feature left in it, and a disjunction with one such branch distinguishes
+        // nothing at all: `:is(button, ::file-selector-button):hover` would then be reachable
+        // from a hover on any element whatsoever.
+        let mut arguments = pseudo_class
+            .argument_selector_list
+            .iter()
+            .filter(|argument| !argument.compound_selectors.is_empty() && argument.target_pseudo_element.is_none());
+        let first = arguments.next()?;
+        let compounds = &first.compound_selectors;
+        let subject_index = compounds.len() - 1;
+        let subject = &raw const compounds[subject_index];
+        let first = self.compile_chain_with_subject(compounds, subject_index, marker, subject);
+        let Some(second) = arguments.next() else {
+            return Some(first);
+        };
         let mut branches = Vec::with_capacity(pseudo_class.argument_selector_list.len());
-        for argument in &pseudo_class.argument_selector_list {
+        branches.push(first);
+        for argument in std::iter::once(second).chain(arguments) {
             let compounds = &argument.compound_selectors;
-            if compounds.is_empty() {
-                continue;
-            }
-            // A branch that targets a pseudo-element cannot match the originating element, so it
-            // contributes nothing to the disjunction. Compiling it anyway would leave a compound
-            // with no feature left in it, and a disjunction with one such branch distinguishes
-            // nothing at all: `:is(button, ::file-selector-button):hover` would then be reachable
-            // from a hover on any element whatsoever.
-            if argument.target_pseudo_element.is_some() {
-                continue;
-            }
             let subject_index = compounds.len() - 1;
             let subject = &raw const compounds[subject_index];
-            let branch = self.compile_chain_with_subject(compounds, subject_index, marker, subject);
-            branches.push(branch);
+            branches.push(self.compile_chain_with_subject(compounds, subject_index, marker, subject));
         }
-        branches
+        Some(self.builder.push_any_of(&branches))
     }
 
     fn compile_nth_of(
@@ -1237,11 +1234,10 @@ impl<'a> SelectorCompiler<'a> {
         }
         // An `of` list whose every selector names nothing counts an empty sequence, which is not
         // the same as counting every sibling - which is what leaving the filter out would do.
-        let branches = self.compile_argument_list(pseudo_class, marker);
-        if branches.is_empty() {
-            return Some(self.builder.push_never());
-        }
-        Some(self.builder.push_any_of(&branches))
+        Some(
+            self.compile_argument_list(pseudo_class, marker)
+                .unwrap_or_else(|| self.builder.push_never()),
+        )
     }
 
     /// `:has()` compiles to a relative query per argument. A selector list holds when any one of its
