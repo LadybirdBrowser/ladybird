@@ -14,6 +14,7 @@
 //! the environment the element inherits.
 
 use std::ffi::c_void;
+use std::ops::ControlFlow;
 use std::sync::Arc;
 
 use super::*;
@@ -134,36 +135,42 @@ fn custom_property_value_is_engine_resolvable(value: &StyleValueData) -> bool {
 
 impl StyleEngine {
     /// Hand each of a node's element-target matches, with the cascade inputs its priority is
-    /// computed from, to `visit`. `false` when the node has no answer to read.
-    fn for_each_element_match(
+    /// computed from, to `visit`, stopping when it breaks. `None` when the node has no answer to read.
+    fn try_for_each_element_match(
         &self,
         node: StyleNodeID,
-        mut visit: impl FnMut(RuleID, TreeScopeID, Specificity, u32),
-    ) -> bool {
+        mut visit: impl FnMut(RuleID, TreeScopeID, Specificity, u32) -> ControlFlow<()>,
+    ) -> Option<ControlFlow<()>> {
         if let Some(answer) = self.published_match_answers.lookup(node)
             && let Some(matches) = self.published_match_answers.matches_for(answer)
         {
             for entry in matches.iter().filter(|entry| entry.pseudo_element.is_none()) {
-                visit(entry.rule, entry.tree_scope, entry.specificity, entry.scope_proximity);
+                if visit(entry.rule, entry.tree_scope, entry.specificity, entry.scope_proximity).is_break() {
+                    return Some(ControlFlow::Break(()));
+                }
             }
-            return true;
+            return Some(ControlFlow::Continue(()));
         }
         let Lookup::Known(answer) = self.retained_match_answer(node) else {
-            return false;
+            return None;
         };
         for rule_match in answer.iter() {
             let entry = &self.programs.get(rule_match.program).entries()[rule_match.entry as usize];
             if entry.pseudo_element.is_some() {
                 continue;
             }
-            visit(
+            if visit(
                 rule_match.rule,
                 rule_match.tree_scope,
                 entry.specificity,
                 rule_match.scope_proximity,
-            );
+            )
+            .is_break()
+            {
+                return Some(ControlFlow::Break(()));
+            }
         }
-        true
+        Some(ControlFlow::Continue(()))
     }
 
     /// Whether anything in the document declares a custom property. Nothing declaring one means
@@ -179,11 +186,16 @@ impl StyleEngine {
         if !self.facts.element_custom_declarations(node).is_empty() {
             return true;
         }
-        let mut declares = false;
-        self.for_each_element_match(node, |rule, _, _, _| {
-            declares |= !self.program.custom_declarations_of(rule).is_empty();
-        });
-        declares
+        matches!(
+            self.try_for_each_element_match(node, |rule, _, _, _| {
+                if self.program.custom_declarations_of(rule).is_empty() {
+                    ControlFlow::Continue(())
+                } else {
+                    ControlFlow::Break(())
+                }
+            }),
+            Some(ControlFlow::Break(()))
+        )
     }
 
     /// Whether a reaction on the node may move its custom-property environment, which its
@@ -269,13 +281,14 @@ impl StyleEngine {
         }
 
         let mut candidates = Vec::new();
-        let mut written_missing = false;
-        let visited = self.for_each_element_match(node, |rule, tree_scope, specificity, scope_proximity| {
+        let result = self.try_for_each_element_match(node, |rule, tree_scope, specificity, scope_proximity| {
             let declared = self.program.custom_declarations_of(rule);
+            if declared.is_empty() {
+                return ControlFlow::Continue(());
+            }
             let written = self.program.custom_written_values_of(rule);
             if written.len() != declared.len() {
-                written_missing |= !declared.is_empty();
-                return;
+                return ControlFlow::Break(());
             }
             for (&declared, written) in declared.iter().zip(written) {
                 let priority =
@@ -287,8 +300,9 @@ impl StyleEngine {
                     written,
                 });
             }
-        });
-        if !visited || written_missing {
+            ControlFlow::Continue(())
+        })?;
+        if result.is_break() {
             return None;
         }
         let declared = self.facts.element_custom_declarations(node);
