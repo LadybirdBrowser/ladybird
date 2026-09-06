@@ -138,7 +138,7 @@ impl MatchAnswerCatalog {
             if let Some(identity) = self.identity(prepared, hash) {
                 return identity;
             }
-            return self.insert_new(prepared.to_vec(), hash);
+            return self.insert_new(Rc::from(&*prepared), hash);
         }
         let mut prepared: Vec<RetainedRuleMatch> =
             answer.iter().copied().map(RetainedRuleMatch::from_rule_match).collect();
@@ -151,10 +151,10 @@ impl MatchAnswerCatalog {
         if let Some(identity) = self.identity(&answer, hash) {
             return identity;
         }
-        self.insert_new(answer, hash)
+        self.insert_new(answer.into(), hash)
     }
 
-    pub(super) fn insert_new(&mut self, answer: Vec<RetainedRuleMatch>, hash: u64) -> MatchAnswerID {
+    pub(super) fn insert_new(&mut self, answer: Rc<[RetainedRuleMatch]>, hash: u64) -> MatchAnswerID {
         let identity = MatchAnswerID(
             u32::try_from(self.answers.len())
                 .ok()
@@ -165,7 +165,7 @@ impl MatchAnswerCatalog {
             hash,
             identity,
             Some(MatchAnswerCatalogEntry {
-                answer: answer.into(),
+                answer,
                 prefix_references: 0,
                 cascade_references: 0,
                 cascade_payload_accounted: false,
@@ -308,7 +308,7 @@ impl MatchAnswerCatalog {
 
     pub(super) fn insert_retained(&mut self, answer: Vec<RetainedRuleMatch>, hash: u64) -> MatchAnswerID {
         debug_assert!(self.identity(&answer, hash).is_none());
-        let identity = self.insert_new(answer, hash);
+        let identity = self.insert_new(answer.into(), hash);
         self.retain_identity(identity);
         identity
     }
