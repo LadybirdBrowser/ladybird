@@ -581,12 +581,10 @@ fn inheritance_dependent_values_equal(
     old: &crate::css::computed_longhand_table::ComputedLonghandTable,
     new: &crate::css::computed_longhand_table::ComputedLonghandTable,
 ) -> bool {
-    let old = old.inheritance_dependent_values().collect::<Vec<_>>();
-    let new = new.inheritance_dependent_values().collect::<Vec<_>>();
-    old.len() == new.len()
-        && old.iter().all(|(property, old_value)| {
-            new.iter()
-                .find(|(candidate, _)| candidate == property)
+    old.inheritance_dependent_values().count() == new.inheritance_dependent_values().count()
+        && old.inheritance_dependent_values().all(|(property, old_value)| {
+            new.inheritance_dependent_values()
+                .find(|(candidate, _)| *candidate == property)
                 .is_some_and(|(_, new_value)| {
                     old_value == new_value
                         || unsafe { *old_value.cast::<StyleValueData>() == *new_value.cast::<StyleValueData>() }
