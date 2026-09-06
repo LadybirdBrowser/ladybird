@@ -3457,11 +3457,12 @@ impl SelectorProgram {
         // The compound being stepped away from is what a subject reached through this step had to
         // satisfy at this point of the selector. A compound whose set is not a single key describes
         // no requirement that a subject's ancestor walk can check one lookup at a time.
-        let mut keys = Vec::new();
-        let waypoint = match self.dispatch_keys_of(enclosing, &mut keys) && keys.len() == 1 {
-            true => Some(keys[0]),
-            false => None,
-        };
+        walk.origin_dispatch.clear();
+        let waypoint =
+            match self.dispatch_keys_of(enclosing, &mut walk.origin_dispatch) && walk.origin_dispatch.len() == 1 {
+                true => Some(walk.origin_dispatch[0]),
+                false => None,
+            };
         walk.path.push(step);
         walk.waypoints.push(waypoint);
         self.walk_transpose(inner, inner, anchor, walk, visit);
