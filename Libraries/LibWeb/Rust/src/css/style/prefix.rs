@@ -3086,17 +3086,15 @@ impl PrefixStates {
         if self.match_offsets.len() > 2 && self.match_sets_by_hash.is_empty() {
             for matches in 1..self.match_offsets.len() - 1 {
                 let identity = PrefixMatchSetID(matches as u32);
-                let mut hasher = fast_hasher();
-                self.matches_in(identity).hash(&mut hasher);
-                self.match_sets_by_hash.insert_identity(hasher.finish(), identity);
+                let hash = super::intern_table::content_hash(self.matches_in(identity));
+                self.match_sets_by_hash.insert_identity(hash, identity);
             }
         }
         if self.truth_offsets.len() > 2 && self.truth_sets_by_hash.is_empty() {
             for truth in 1..self.truth_offsets.len() - 1 {
                 let identity = PrefixTruthSetID(truth as u32);
-                let mut hasher = fast_hasher();
-                self.truth_in(identity).hash(&mut hasher);
-                self.truth_sets_by_hash.insert_identity(hasher.finish(), identity);
+                let hash = super::intern_table::content_hash(self.truth_in(identity));
+                self.truth_sets_by_hash.insert_identity(hash, identity);
             }
         }
     }
@@ -3630,9 +3628,7 @@ impl PrefixStates {
     }
 
     fn intern_output_matches(&mut self) -> PrefixMatchSetID {
-        let mut hasher = fast_hasher();
-        self.output_matches.hash(&mut hasher);
-        let hash = hasher.finish();
+        let hash = super::intern_table::content_hash(&self.output_matches);
         if let Some(candidate) = self
             .match_sets_by_hash
             .find(hash, |candidate, ()| self.matches_in(candidate) == self.output_matches)
@@ -3651,9 +3647,7 @@ impl PrefixStates {
     }
 
     fn intern_output_truth(&mut self) -> PrefixTruthSetID {
-        let mut hasher = fast_hasher();
-        self.output_matched_steps.hash(&mut hasher);
-        let hash = hasher.finish();
+        let hash = super::intern_table::content_hash(&self.output_matched_steps);
         if let Some(candidate) = self.truth_sets_by_hash.find(hash, |candidate, ()| {
             self.truth_in(candidate) == self.output_matched_steps
         }) {

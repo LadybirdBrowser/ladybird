@@ -32,6 +32,7 @@ use super::fast_hash::FastMap as HashMap;
 use super::fast_hash::fast_hasher;
 use super::intern_table::InternIdentity;
 use super::intern_table::InternTable;
+use super::intern_table::content_hash;
 
 use std::hash::Hash;
 use std::hash::Hasher;
@@ -527,12 +528,6 @@ impl InternIdentity for CascadeStateID {
     fn index(self) -> usize {
         self.0 as usize
     }
-}
-
-fn content_hash(content: impl Hash) -> u64 {
-    let mut hasher = fast_hasher();
-    content.hash(&mut hasher);
-    hasher.finish()
 }
 
 /// Whether a winner-group lookup requires topology-dependent priorities to still be current.

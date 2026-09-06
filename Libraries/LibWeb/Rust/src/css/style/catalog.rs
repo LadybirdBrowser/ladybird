@@ -6,7 +6,7 @@
 
 use super::capacity::capacity_bytes;
 use super::column::Column;
-use super::fast_hash::fast_hasher;
+use super::intern_table::content_hash;
 use super::*;
 
 define_id! { default pub(super) struct MatchAnswerID(pub(super)); }
@@ -39,7 +39,7 @@ pub(super) struct SelectorTruthSetCatalog {
 
 impl SelectorTruthSetCatalog {
     pub(super) fn intern_prepared(&mut self, truth: Vec<SelectorTruth>) -> (SelectorTruthSetID, bool) {
-        let hash = super::intern_table::content_hash(&truth);
+        let hash = content_hash(&truth);
         if let Some(identity) = self
             .sets
             .find(hash, |_identity, candidate| candidate.as_ref() == truth.as_slice())
@@ -134,7 +134,7 @@ impl MatchAnswerCatalog {
             }
             let prepared = &mut prepared[..answer.len()];
             prepared.sort_unstable();
-            let hash = hash_retained_rule_matches(prepared);
+            let hash = content_hash(&*prepared);
             if let Some(identity) = self.identity(prepared, hash) {
                 return identity;
             }
@@ -147,7 +147,7 @@ impl MatchAnswerCatalog {
     }
 
     pub(super) fn intern_prepared(&mut self, answer: Vec<RetainedRuleMatch>) -> MatchAnswerID {
-        let hash = hash_retained_rule_matches(&answer);
+        let hash = content_hash(&answer);
         if let Some(identity) = self.identity(&answer, hash) {
             return identity;
         }
@@ -280,7 +280,7 @@ impl MatchAnswerCatalog {
         } else {
             0
         };
-        let hash = hash_retained_rule_matches(&entry.answer);
+        let hash = content_hash(&entry.answer);
         self.answers.remove_identity(hash, identity);
         self.needs_compaction = true;
         released_cascade_payload_bytes
@@ -705,12 +705,6 @@ impl PrefixAnswerCache {
     }
 }
 
-pub(super) fn hash_retained_rule_matches(matches: &[RetainedRuleMatch]) -> u64 {
-    let mut hasher = fast_hasher();
-    matches.hash(&mut hasher);
-    hasher.finish()
-}
-
 /// Exact selector answers retained as the old side of a later plan.
 ///
 /// Cascade compaction is declaration-dependent, so the answer catalog keeps this stable selector
@@ -1065,7 +1059,7 @@ impl RetainedMatchAnswers {
         let Some(index) = node.element_index().map(|index| index as usize) else {
             return Err(answer);
         };
-        let answer_hash = hash_retained_rule_matches(&answer);
+        let answer_hash = content_hash(&answer);
         let held_identity = catalog.identity(&answer, answer_hash);
         let identity_is_retained = held_identity.is_some_and(|identity| catalog.identity_is_retained(identity));
         let previous_identity = self
