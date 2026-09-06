@@ -844,6 +844,18 @@ impl StyleEngine {
                     continue;
                 }
                 if delta.change == SetChange::Removed
+                    && self
+                        .winner_groups
+                        .winner_in_state(previous, declared.property)
+                        .is_some_and(|winner| {
+                            winner.source != WinnerSource::Rule(delta.rule)
+                                && winner.source != WinnerSource::ExactCascade
+                                && winner.key.continuation == CascadeContinuationID::default()
+                        })
+                {
+                    continue;
+                }
+                if delta.change == SetChange::Removed
                     || matches!(
                         declared.operator,
                         CascadeOperator::Revert | CascadeOperator::RevertLayer
