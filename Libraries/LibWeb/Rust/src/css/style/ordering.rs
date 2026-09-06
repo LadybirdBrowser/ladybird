@@ -1527,13 +1527,12 @@ impl StyleEngine {
     /// left behind here would be read as the next occupant's. Dropping it at the transaction
     /// boundary keeps the row alive for exactly as long as routing needs it.
     pub(super) fn forget_departed_elements(&mut self) {
-        let departed: Vec<_> = self
+        let mut departed = self
             .tree_staging
             .rows()
-            .into_iter()
             .filter_map(|(node, _, after)| after.is_none().then_some(node))
-            .collect();
-        if departed.is_empty() {
+            .peekable();
+        if departed.peek().is_none() {
             return;
         }
         for node in departed {

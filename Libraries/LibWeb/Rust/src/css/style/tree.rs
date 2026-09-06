@@ -283,29 +283,25 @@ impl TreeRelationStaging {
         }
     }
 
-    pub(super) fn rows(&self) -> StagedTreeRows {
-        self.touched_rows
-            .iter()
-            .copied()
-            .map(|node| {
-                let pair = self.rows.get(node).expect("touched tree row must be staged");
-                (node, pair.before, pair.after)
-            })
-            .collect()
+    pub(super) fn rows(
+        &self,
+    ) -> impl Iterator<Item = (StyleNodeID, Option<TreeRelations>, Option<TreeRelations>)> + '_ {
+        self.touched_rows.iter().copied().map(|node| {
+            let pair = self.rows.get(node).expect("touched tree row must be staged");
+            (node, pair.before, pair.after)
+        })
     }
 
-    pub(super) fn first_children(&self) -> StagedFirstChildren {
-        self.touched_first_children
-            .iter()
-            .copied()
-            .map(|parent| {
-                let pair = self
-                    .first_children
-                    .get(parent)
-                    .expect("touched first-child row must be staged");
-                (parent, pair.before, pair.after)
-            })
-            .collect()
+    pub(super) fn first_children(
+        &self,
+    ) -> impl Iterator<Item = (StyleNodeID, Option<StyleNodeID>, Option<StyleNodeID>)> + '_ {
+        self.touched_first_children.iter().copied().map(|parent| {
+            let pair = self
+                .first_children
+                .get(parent)
+                .expect("touched first-child row must be staged");
+            (parent, pair.before, pair.after)
+        })
     }
 
     pub(super) fn dirty_rows(&self) -> StagedTreeRows {
@@ -1257,8 +1253,8 @@ mod tests {
         assert_eq!(staging.before_relations(node, Some(final_after)), before);
         assert_eq!(staging.before_first_child(parent, Some(final_first_child)), None);
         assert!(!staging.is_applied());
-        let rows = staging.rows();
-        let first_children = staging.first_children();
+        let rows: Vec<_> = staging.rows().collect();
+        let first_children: Vec<_> = staging.first_children().collect();
         assert_eq!(rows, vec![(node, before, Some(final_after))]);
         assert_eq!(first_children, vec![(parent, None, Some(final_first_child))]);
         assert!(!staging.is_empty());
