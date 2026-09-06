@@ -5,10 +5,10 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
       TableWrapper <(anonymous)> at [8,8] [0+0+0 53.0625 0+0+730.9375] [0+0+0 18 0+0+0] [BFC] children: not-inline
         Box <table> at [8,8] table-box [0+0+0 53.0625 0+0+0] [0+0+0 18 0+0+0] [TFC] children: not-inline
-          BlockContainer <colgroup> (not painted) table-column-group children: not-inline
-            BlockContainer <col> (not painted) children: not-inline
-            BlockContainer <col> (not painted) children: not-inline
-            BlockContainer <col> (not painted) children: not-inline
+          BlockContainer <colgroup> at [8,8] table-column-group [0+0+0 39.921875 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+            BlockContainer <col> at [8,8] [0+0+0 16.265625 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+            BlockContainer <col> at [24.265625,8] [0+0+0 11.34375 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+            BlockContainer <col> at [35.609375,8] [0+0+0 12.3125 0+0+0] [0+0+0 18 0+0+0] children: not-inline
           Box <tbody> at [8,8] table-row-group [0+0+0 53.0625 0+0+0] [0+0+0 18 0+0+0] children: not-inline
             Box <tr> at [8,8] table-row [0+0+0 53.0625 0+0+0] [0+0+0 18 0+0+0] children: not-inline
               BlockContainer <td> at [9,9] table-cell [0+0+1 14.265625 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline

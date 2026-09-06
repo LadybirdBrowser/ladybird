@@ -440,6 +440,11 @@ pub(crate) struct UsedValues {
     pub has_line_clamp_point: Cell<bool>,
     pub is_invisible_for_line_clamp: Cell<bool>,
 
+    // For table cells and table-column(-group) boxes: the first grid column the box occupies and the number of grid
+    // columns it spans, so painting can find the cells that originate in a column (CSS 2.2 §17.5.1).
+    pub table_column_index: Cell<u32>,
+    pub table_column_span: Cell<u32>,
+
     pub inline_size_constraint: Cell<SizeConstraint>,
     pub block_size_constraint: Cell<SizeConstraint>,
 
@@ -490,6 +495,8 @@ impl Default for UsedValues {
             uses_collapsing_borders_model: Cell::new(false),
             has_line_clamp_point: Cell::new(false),
             is_invisible_for_line_clamp: Cell::new(false),
+            table_column_index: Cell::new(0),
+            table_column_span: Cell::new(0),
             inline_size_constraint: Cell::new(SizeConstraint::None),
             block_size_constraint: Cell::new(SizeConstraint::None),
             has_content_offset: SealableCell::new(false),
@@ -640,6 +647,8 @@ used_values_cell_state! {
     uses_collapsing_borders_model: bool,
     has_line_clamp_point: bool,
     is_invisible_for_line_clamp: bool,
+    table_column_index: u32,
+    table_column_span: u32,
     inline_size_constraint: SizeConstraint,
     block_size_constraint: SizeConstraint,
     has_content_offset: bool,
@@ -1017,6 +1026,8 @@ pub(crate) fn used_values_from_committed_fragment_link(
     used.padding_right.set(fragment.padding_right);
     used.padding_top.set(fragment.padding_top);
     used.padding_bottom.set(fragment.padding_bottom);
+    used.table_column_index.set(fragment.table_column_index);
+    used.table_column_span.set(fragment.table_column_span);
     used.inset_left.set(link.inset_left);
     used.inset_right.set(link.inset_right);
     used.inset_top.set(link.inset_top);

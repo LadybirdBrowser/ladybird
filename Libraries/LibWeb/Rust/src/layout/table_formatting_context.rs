@@ -1077,6 +1077,20 @@ impl<'pass> TableFormattingContext<'pass> {
         columns
     }
 
+    /// The table-column-group boxes and table-column boxes of the table in tree order (see table_columns()).
+    fn column_boxes(&mut self) -> Vec<Node> {
+        let mut boxes = Vec::new();
+        for child in self.matching_children(self.table_box, |facts| {
+            facts.is_table_column_group() || facts.is_table_column()
+        }) {
+            boxes.push(child);
+            if self.node_facts(child).is_table_column_group() {
+                boxes.extend(self.matching_children(child, |facts| facts.is_table_column()));
+            }
+        }
+        boxes
+    }
+
     /// The table-row-group boxes of the table, header and footer groups included, in the order their rows are laid
     /// out: see row_containers_in_layout_order().
     fn row_groups_in_layout_order(&self) -> Vec<Node> {
@@ -1317,9 +1331,13 @@ impl<'pass> TableFormattingContext<'pass> {
     // their dependency is charged here rather than through child runs.
     fn prepare_table_participants(&mut self, preparation: TableParticipantPreparation) {
         let row_groups = self.matching_children(self.table_box, |display| display.is_table_row_group_kind());
+        // Column groups and columns have no content to lay out, but they are painted: their backgrounds cover the
+        // cells of their columns (CSS 2.2 §17.5.1), so they get boxes, positioned by position_column_boxes().
+        let column_boxes = self.column_boxes();
         let create_row_used_values = preparation == TableParticipantPreparation::CreateUsedValues;
         let participants = row_groups
             .into_iter()
+            .chain(column_boxes)
             .chain(self.rows.iter().map(|row| row.box_))
             .map(|participant| (participant, create_row_used_values))
             .chain(self.cells.iter().map(|cell| (cell.box_, true)));
@@ -1334,6 +1352,11 @@ impl<'pass> TableFormattingContext<'pass> {
                     .has_descendant_that_depends_on_percentage_block_size
                     .set(true);
             }
+        }
+        for cell in &self.cells {
+            let used = self.used_values(cell.box_);
+            used.table_column_index.set(cell.column_index as u32);
+            used.table_column_span.set(cell.column_span as u32);
         }
     }
 
@@ -2894,6 +2917,95 @@ impl<'pass> TableFormattingContext<'pass> {
         }
     }
 
+    /// Positions the table-column-group and table-column boxes over the cells of their columns. Their backgrounds
+    /// are painted in the area of those cells but positioned relative to the column or column group box:
+    /// "Each column group extends from the top of the cells in the top row to the bottom of the cells on the bottom
+    /// row and from the left edge of its leftmost column to the right edge of its rightmost column. [...] Each
+    /// column is as tall as the column groups and as wide as a normal (single-column-spanning) cell in the column."
+    /// https://www.w3.org/TR/CSS22/tables.html#table-layers
+    fn position_column_boxes(&mut self) {
+        let table_used = self.used_values(self.table_box);
+        let inline_spacing = self.border_spacing_inline();
+        let block_spacing = self.border_spacing_block();
+        let inline_offset = table_used.border_box_left(table_used.uses_collapsing_borders_model.get()) + inline_spacing;
+
+        // The rows were positioned by position_row_boxes(): the columns extend from the first row to the end of
+        // the last one.
+        let block_start = self
+            .rows
+            .first()
+            .map_or(self.table_box_content_block_offset_in_wrapper + block_spacing, |row| {
+                self.used_values(row.box_).content_offset.get().y
+            });
+        let mut block_end = block_start;
+        for row in &self.rows {
+            if row.is_collapsed {
+                continue;
+            }
+            let used = self.used_values(row.box_);
+            block_end = block_end.max(used.content_offset.get().y + used.border_box_block_size(false));
+        }
+        let block_size = block_end - block_start;
+
+        // The inline offsets of the columns, each followed by the border spacing after it, so that a range of
+        // columns spans the spacing between them but not the spacing around them.
+        let column_count = self.columns.len();
+        let mut column_offsets = Vec::with_capacity(column_count + 1);
+        let mut offset = CssPixels::default();
+        for column in &self.columns {
+            column_offsets.push(offset);
+            offset += column.used_inline_size + inline_spacing;
+        }
+        column_offsets.push(offset);
+
+        // Columns are assigned to grid columns in tree order, like the cells they contain (see table_columns()). A
+        // column group is placed before its columns: a table-column-group box is the containing block of its
+        // columns, so they are positioned relative to it.
+        let mut column_index = 0usize;
+        let mut placements = Vec::new();
+        for child in self.matching_children(self.table_box, |facts| {
+            facts.is_table_column_group() || facts.is_table_column()
+        }) {
+            let group_start = column_index;
+            if self.node_facts(child).is_table_column() {
+                let end = (column_index + self.table_column_span(child)).min(column_count);
+                placements.push((child, column_index, end));
+                column_index = end;
+            } else {
+                let columns = self.matching_children(child, |facts| facts.is_table_column());
+                let mut column_placements = Vec::with_capacity(columns.len());
+                for column in columns {
+                    let end = (column_index + self.table_column_span(column)).min(column_count);
+                    column_placements.push((column, column_index, end));
+                    column_index = end;
+                }
+                placements.push((child, group_start, column_index));
+                placements.extend(column_placements);
+            }
+        }
+        for (node, start, end) in placements {
+            let inline_size = if end > start {
+                column_offsets[end] - column_offsets[start] - inline_spacing
+            } else {
+                CssPixels::default()
+            };
+            let used = self.used_values(node);
+            used.table_column_index.set(start as u32);
+            used.table_column_span.set((end - start) as u32);
+            used.set_content_inline_size(inline_size);
+            used.set_content_block_size(block_size);
+            let mut x = inline_offset + column_offsets[start];
+            let mut y = block_start;
+            let containing_block = self.callbacks.containing_block(node);
+            if self.node_facts(containing_block).is_table_column_group() {
+                let group_offset = self.used_values(containing_block).content_offset.get();
+                x -= group_offset.x;
+                y -= group_offset.y;
+            }
+            self.place_child(node, x, y);
+        }
+    }
+
     fn compute_and_store_baselines(&self, node: Node) {
         let baselines = formatting_context::derive_baselines(self.records, &self.callbacks, node, false);
         if node == self.table_box {
@@ -2947,6 +3059,7 @@ impl<'pass> TableFormattingContext<'pass> {
         self.position_row_boxes();
         self.layout_deferred_cells_inside(run);
         self.position_cell_boxes();
+        self.position_column_boxes();
         self.materialize_collapsed_table_borders();
         table_used.set_content_block_size(self.table_block_size);
         // Derive baselines for the table internals bottom-up (rows, then row groups, then the table box)

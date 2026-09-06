@@ -147,6 +147,12 @@ impl<'a> PaintRecorder<'a> {
             if self.is_anonymous(paintable) && !self.is_generated_for_pseudo_element(paintable) {
                 return;
             }
+            // Column and column group boxes only exist to paint their backgrounds under the cells of their columns;
+            // they are not hit-tested, as in other engines.
+            let display = self.display(paintable);
+            if display.is_table_column() || display.is_table_column_group() {
+                return;
+            }
             let rect = paintable_geometry::absolute_border_box_rect(self.layout_arena, paintable);
             let radii = self.border_radii(paintable);
             let context = self.data(paintable).accumulated_visual_context;

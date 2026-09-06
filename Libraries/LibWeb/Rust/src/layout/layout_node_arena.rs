@@ -3234,6 +3234,8 @@ mod tests {
                 padding_top: CssPixels::default(),
                 padding_bottom: CssPixels::default(),
                 uses_collapsing_borders_model: false,
+                table_column_index: 0,
+                table_column_span: 0,
                 collapsed_table_borders: None,
                 line_data: None,
                 grid_layout_data: None,
