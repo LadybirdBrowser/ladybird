@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <LibGfx/Filter.h>
+#include <AK/Vector.h>
+#include <LibGfx/Forward.h>
 #include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGAnimatedEnumeration.h>
 #include <LibWeb/SVG/SVGElement.h>
@@ -26,7 +27,10 @@ public:
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
-    Optional<Gfx::Filter> gfx_filter(Layout::NodeWithStyle const& referenced_node, Gfx::FloatPoint filter_scale);
+    // Hands every supported child primitive to the Rust filter graph builder behind `sink` as
+    // attribute facts. The frames an feImage draws are collected for the caller to register with
+    // the display list resource storage under the id the facts name them by.
+    void push_primitives(void* sink, Layout::NodeWithStyle const& referenced_node, Vector<Gfx::DecodedImageFrame>& image_frames);
 
     GC::Ref<SVGAnimatedEnumeration> filter_units() const;
     GC::Ref<SVGAnimatedEnumeration> primitive_units() const;

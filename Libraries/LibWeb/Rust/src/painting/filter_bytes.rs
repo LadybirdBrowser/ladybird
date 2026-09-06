@@ -66,12 +66,12 @@ pub(crate) fn serialize_filter_with_resolved_svg(
     if resolved_svg_filter.failed {
         return None;
     }
-    let svg_filter = match resolved_svg_filter.filter_bytes {
-        Some(bytes) => Some(Filter::deserialize(&bytes)?),
-        None => None,
-    };
-    css_filter_with_svg(filter.operations.as_slice(), svg_filter, device_pixels_per_css_pixel)
-        .map(|filter| filter.serialize())
+    css_filter_with_svg(
+        filter.operations.as_slice(),
+        resolved_svg_filter.filter,
+        device_pixels_per_css_pixel,
+    )
+    .map(|filter| filter.serialize())
 }
 
 /// Combines the functions of a filter list with the SVG filter its `url()` references resolved

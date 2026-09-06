@@ -597,10 +597,19 @@ impl FfiPaintHostCallbacks {
         &self,
         layout_node_shell: *mut c_void,
         url_value: &ComputedStyleValueHandle,
+        device_pixels_per_css_pixel: f64,
     ) -> ResolvedSvgFilter {
-        // SAFETY: The C++ host answers synchronously from a live layout node shell and only writes
-        // into the Vec whose pointer it receives.
-        unsafe { ResolvedSvgFilter::from_host(self.resolve_svg_filter, self.context, layout_node_shell, url_value) }
+        // SAFETY: The C++ host answers synchronously from a live layout node shell and only pushes
+        // into the builder whose pointer it receives.
+        unsafe {
+            ResolvedSvgFilter::from_host(
+                self.resolve_svg_filter,
+                self.context,
+                layout_node_shell,
+                url_value,
+                device_pixels_per_css_pixel,
+            )
+        }
     }
     pub(crate) fn svg_image_facts(&self, layout_node_shell: *mut c_void) -> FfiSvgImageFacts {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.

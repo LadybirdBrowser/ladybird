@@ -7,10 +7,16 @@
 use super::*;
 
 use crate::css::computed_value_types::ComputedStyleValueHandle;
+use crate::css::ffi_support::FfiUtf16View;
 use crate::layout::used_values;
 use crate::layout::used_values::OptionalCssPixelRect;
 use crate::painting::display_list::commands::OptionalF32;
-use libgfx_rust::{FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, MaskKind};
+use crate::painting::svg_filter::SvgFilterGraphBuilder;
+use libgfx_rust::filter::Filter;
+use libgfx_rust::{
+    Color, CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, IntRect,
+    InterpolationColorSpace, MaskKind, ScalingMode,
+};
 use std::ffi::c_void;
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -66,14 +72,104 @@ pub struct FfiVisualContextTreeInputs {
     pub viewport_wheel_overflow_y: u8,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiSvgFilterPrimitiveKind {
+    #[default]
+    Blend,
+    ColorMatrix,
+    ComponentTransfer,
+    Composite,
+    DisplacementMap,
+    DropShadow,
+    Flood,
+    GaussianBlur,
+    Image,
+    Merge,
+    Morphology,
+    Offset,
+    Turbulence,
+}
+
+/// The plain-value attribute facts of one primitive of an SVG `<filter>`. Lengths are in the
+/// filtered element's user units; enumerations carry the IDL constant of the attribute. A kind
+/// leaves the fields it has no use for zero.
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct SvgFilterPrimitiveValues {
+    pub kind: FfiSvgFilterPrimitiveKind,
+    /// The `color-interpolation-filters` the primitive operates in.
+    pub operating_color_space: InterpolationColorSpace,
+    /// feColorMatrix: the `type` constant.
+    pub color_matrix_type: u16,
+    /// feComposite: the `operator` constant and the arithmetic coefficients.
+    pub composite_operator: u8,
+    pub k1: f32,
+    pub k2: f32,
+    pub k3: f32,
+    pub k4: f32,
+    /// feBlend.
+    pub blend_mode: CompositingAndBlendingOperator,
+    /// feFlood and feDropShadow.
+    pub flood_color: Color,
+    pub flood_opacity: f32,
+    /// feGaussianBlur and feDropShadow.
+    pub std_deviation_x: f32,
+    pub std_deviation_y: f32,
+    /// feOffset and feDropShadow.
+    pub dx: f32,
+    pub dy: f32,
+    /// feMorphology: the `operator` constant and the radii.
+    pub morphology_operator: u8,
+    pub radius_x: f32,
+    pub radius_y: f32,
+    /// feTurbulence: the `type` constant, the base frequencies per user unit, and the tile to
+    /// stitch, zero-sized when the primitive does not stitch.
+    pub turbulence_type: u16,
+    pub base_frequency_x: f32,
+    pub base_frequency_y: f32,
+    pub num_octaves: i32,
+    pub seed: f32,
+    pub stitch_tile_width: f32,
+    pub stitch_tile_height: f32,
+    /// feDisplacementMap: the scale and the channel selector constants.
+    pub scale: f32,
+    pub x_channel_selector: u16,
+    pub y_channel_selector: u16,
+    /// feImage: the frame under the id it is registered with the display list resource storage by,
+    /// and where it draws, in device pixels.
+    pub image_frame_id: u64,
+    pub image_src_rect: IntRect,
+    pub image_dest_rect: IntRect,
+    pub image_scaling_mode: ScalingMode,
+}
+
+/// One primitive of an SVG `<filter>` as the host flattens it: its values, and the names, lists
+/// and tables it borrows from the element for the duration of one push.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiSvgFilterPrimitive {
+    pub values: SvgFilterPrimitiveValues,
+    pub in1: FfiUtf16View,
+    pub in2: FfiUtf16View,
+    pub result: FfiUtf16View,
+    /// feMerge: the `in` of each feMergeNode child.
+    pub merge_inputs: *const FfiUtf16View,
+    pub merge_input_count: usize,
+    /// feColorMatrix: the parsed `values` list.
+    pub color_matrix_values: *const f32,
+    pub color_matrix_value_count: usize,
+    /// feComponentTransfer: 256-entry lookup tables for A, R, G and B, null where the channel has no
+    /// transfer function.
+    pub component_transfer_tables: [*const u8; 4],
+}
+
 /// What the host made of one `url()` reference in a filter list.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiResolvedSvgFilter {
     /// The reference named nothing usable as an SVG filter, which drops the whole filter list.
     pub failed: bool,
-    /// The host serialized the referenced filter graph, already in device pixels, into the sink.
-    pub has_filter: bool,
     /// The referenced filter's region, in the filtered element's user space.
     pub svg_filter_bounds: OptionalCssPixelRect,
 }
@@ -81,26 +177,30 @@ pub struct FfiResolvedSvgFilter {
 #[derive(Default)]
 pub(crate) struct ResolvedSvgFilter {
     pub failed: bool,
-    pub filter_bytes: Option<Vec<u8>>,
+    /// The referenced filter's graph, already in device pixels; absent when the `<filter>` has no
+    /// primitives.
+    pub filter: Option<Filter>,
     pub svg_filter_bounds: OptionalCssPixelRect,
 }
 
 impl ResolvedSvgFilter {
-    /// Asks the host to resolve one `url()` reference of a layout node's filter list.
+    /// Asks the host to resolve one `url()` reference of a layout node's filter list. The host
+    /// pushes the referenced primitives into the graph builder it is handed as its sink.
     ///
-    /// SAFETY: `resolve` must answer synchronously from a live layout node shell and only write
-    /// into the Vec whose pointer it receives as the sink.
+    /// SAFETY: `resolve` must answer synchronously from a live layout node shell and only push
+    /// into the builder whose pointer it receives as the sink.
     pub(crate) unsafe fn from_host(
         resolve: unsafe extern "C" fn(*mut c_void, *mut c_void, *const c_void, *mut c_void) -> FfiResolvedSvgFilter,
         context: *mut c_void,
         layout_node_shell: *mut c_void,
         url_value: &ComputedStyleValueHandle,
+        device_pixels_per_css_pixel: f64,
     ) -> Self {
-        let mut bytes: Vec<u8> = Vec::new();
-        let resolved = unsafe { resolve(context, layout_node_shell, url_value.pointer, (&raw mut bytes).cast()) };
+        let mut builder = SvgFilterGraphBuilder::new(device_pixels_per_css_pixel);
+        let resolved = unsafe { resolve(context, layout_node_shell, url_value.pointer, (&raw mut builder).cast()) };
         Self {
             failed: resolved.failed,
-            filter_bytes: resolved.has_filter.then_some(bytes),
+            filter: if resolved.failed { None } else { builder.finish() },
             svg_filter_bounds: resolved.svg_filter_bounds,
         }
     }
@@ -151,10 +251,19 @@ impl FfiVisualContextHostCallbacks {
         &self,
         layout_node_shell: *mut c_void,
         url_value: &ComputedStyleValueHandle,
+        device_pixels_per_css_pixel: f64,
     ) -> ResolvedSvgFilter {
-        // SAFETY: The C++ host answers synchronously from a live layout node shell and only writes
-        // into the Vec whose pointer it receives.
-        unsafe { ResolvedSvgFilter::from_host(self.resolve_svg_filter, self.context, layout_node_shell, url_value) }
+        // SAFETY: The C++ host answers synchronously from a live layout node shell and only pushes
+        // into the builder whose pointer it receives.
+        unsafe {
+            ResolvedSvgFilter::from_host(
+                self.resolve_svg_filter,
+                self.context,
+                layout_node_shell,
+                url_value,
+                device_pixels_per_css_pixel,
+            )
+        }
     }
 }
 

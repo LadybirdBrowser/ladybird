@@ -6,13 +6,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Math.h>
-#include <AK/StringConversions.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/DecodedImageData.h>
+#include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/SVG/SVGComponentTransferFunctionElement.h>
@@ -61,19 +60,24 @@ void SVGFilterElement::attribute_changed(Utf16FlyString const& name, Optional<Ut
         m_primitive_units = parse_units(value.value_or({}));
 }
 
-// https://drafts.fxtf.org/filter-effects-1/#ColorInterpolationFiltersProperty
-Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& referenced_node, Gfx::FloatPoint filter_scale)
+namespace {
+
+// A view of a string's code units for the Rust graph builder, valid for as long as the string is.
+Layout::RustFFI::FfiUtf16View view_of(Utf16View view)
 {
-    auto scale_x = filter_scale.x();
-    auto scale_y = filter_scale.y();
-
-    struct FilterResult {
-        Optional<Gfx::Filter> filter;
-        Gfx::InterpolationColorSpace color_space { Gfx::InterpolationColorSpace::SRGB };
+    return {
+        .ascii = view.has_ascii_storage() ? reinterpret_cast<u8 const*>(view.ascii_span().data()) : nullptr,
+        .utf16 = view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(view.utf16_span().data()),
+        .length = view.length_in_code_units(),
     };
+}
 
-    HashMap<Utf16String, FilterResult> result_map;
-    FilterResult root;
+}
+
+// https://drafts.fxtf.org/filter-effects-1/#ColorInterpolationFiltersProperty
+void SVGFilterElement::push_primitives(void* sink, Layout::NodeWithStyle const& referenced_node, Vector<Gfx::DecodedImageFrame>& image_frames)
+{
+    using PrimitiveKind = Layout::RustFFI::FfiSvgFilterPrimitiveKind;
 
     auto operating_color_space = [](DOM::Element const& element) {
         // linearRGB performs color operations in the linear-light sRGB color space; auto and sRGB use gamma-encoded sRGB.
@@ -82,58 +86,37 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
         return CSS::to_interpolation_color_space(color_interpolation_filters);
     };
 
-    auto convert_to_color_space = [](FilterResult input, Gfx::InterpolationColorSpace destination_color_space) -> Optional<Gfx::Filter> {
-        if (input.color_space == destination_color_space)
-            return move(input.filter);
-        return Gfx::Filter::convert_interpolation_color_space(input.color_space, destination_color_space, input.filter);
-    };
-
-    auto update_result_map = [&](auto& filter_primitive) {
-        auto result = filter_primitive.result()->base_val();
-        if (!result.is_empty())
-            result_map.set(result, root);
-    };
-
-    // https://www.w3.org/TR/filter-effects-1/#element-attrdef-filter-primitive-in
-    auto resolve_input = [&](Utf16View name) -> FilterResult {
-        // FIXME: Add missing inputs (BackgroundImage, BackgroundAlpha, FillPaint and StrokePaint).
-        if (name == "SourceGraphic"sv)
-            return { {}, Gfx::InterpolationColorSpace::SRGB };
-        if (name == "SourceAlpha"sv) {
-            float matrix[20] = {
-                0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0,
-                0, 0, 0, 1, 0
-            };
-            return { Gfx::Filter::color_matrix(matrix), Gfx::InterpolationColorSpace::SRGB };
-        }
-
-        if (auto filter_from_map = result_map.get(name); filter_from_map.has_value())
-            return filter_from_map.release_value();
-
-        return root;
-    };
-
-    auto resolve_input_in_color_space = [&](Utf16View name, Gfx::InterpolationColorSpace destination_color_space) {
-        return convert_to_color_space(resolve_input(name), destination_color_space);
-    };
-
     for_each_child_of_type<DOM::Element>([&](auto& node) {
-        auto operating_space = operating_color_space(node);
+        Layout::RustFFI::FfiSvgFilterPrimitive primitive {};
+        auto& values = primitive.values;
+        values.operating_color_space = operating_color_space(node);
+
+        // The builder copies what the primitive's views point at while it is pushed, so this
+        // storage only has to outlive the push.
+        Utf16String in1;
+        Utf16String in2;
+        Utf16String result;
+        Vector<Utf16String> merge_input_names;
+        Vector<Layout::RustFFI::FfiUtf16View> merge_inputs;
+        Vector<float> color_matrix_values;
+
+        auto set_in1 = [&](auto& filter_primitive) { in1 = filter_primitive.in1()->base_val(); };
+        auto set_in2 = [&](auto& filter_primitive) { in2 = filter_primitive.in2()->base_val(); };
+        auto set_result = [&](auto& filter_primitive) { result = filter_primitive.result()->base_val(); };
+
         if (auto* flood_primitive = as_if<SVGFEFloodElement>(node)) {
-            root = { Gfx::Filter::flood(flood_primitive->flood_color(), flood_primitive->flood_opacity()), Gfx::InterpolationColorSpace::SRGB };
-            update_result_map(*flood_primitive);
+            values.kind = PrimitiveKind::Flood;
+            values.flood_color = flood_primitive->flood_color();
+            values.flood_opacity = flood_primitive->flood_opacity();
+            set_result(*flood_primitive);
         } else if (auto* blend_primitive = as_if<SVGFEBlendElement>(node)) {
-            auto foreground = resolve_input_in_color_space(blend_primitive->in1()->base_val(), operating_space);
-            auto background = resolve_input_in_color_space(blend_primitive->in2()->base_val(), operating_space);
-            auto blend_mode = blend_primitive->mode();
-
-            root = { Gfx::Filter::blend(background, foreground, blend_mode), operating_space };
-            update_result_map(*blend_primitive);
+            values.kind = PrimitiveKind::Blend;
+            values.blend_mode = blend_primitive->mode();
+            set_in1(*blend_primitive);
+            set_in2(*blend_primitive);
+            set_result(*blend_primitive);
         } else if (auto* component_transfer = as_if<SVGFEComponentTransferElement>(node)) {
-            auto input = resolve_input_in_color_space(component_transfer->in1()->base_val(), operating_space);
-
+            values.kind = PrimitiveKind::ComponentTransfer;
             // https://drafts.fxtf.org/filter-effects/#feComponentTransferElement
             // * If more than one transfer function element of the same kind is specified, the last occurrence is to be
             //   used.
@@ -151,136 +134,41 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
                     argb_function_elements[3] = func_b;
                 return IterationDecision::Continue;
             });
-
-            root = { Gfx::Filter::color_table(
-                         argb_function_elements[0] ? argb_function_elements[0]->color_table() : Optional<ReadonlyBytes> {},
-                         argb_function_elements[1] ? argb_function_elements[1]->color_table() : Optional<ReadonlyBytes> {},
-                         argb_function_elements[2] ? argb_function_elements[2]->color_table() : Optional<ReadonlyBytes> {},
-                         argb_function_elements[3] ? argb_function_elements[3]->color_table() : Optional<ReadonlyBytes> {},
-                         input),
-                operating_space };
-            update_result_map(*component_transfer);
+            for (size_t channel = 0; channel < argb_function_elements.size(); ++channel) {
+                if (argb_function_elements[channel])
+                    primitive.component_transfer_tables[channel] = argb_function_elements[channel]->color_table().data();
+            }
+            set_in1(*component_transfer);
+            set_result(*component_transfer);
         } else if (auto* composite_primitive = as_if<SVGFECompositeElement>(node)) {
-            auto foreground = resolve_input_in_color_space(composite_primitive->in1()->base_val(), operating_space);
-            auto background = resolve_input_in_color_space(composite_primitive->in2()->base_val(), operating_space);
-            auto operator_ = composite_primitive->operator_();
-            if (operator_ == SVGFECompositeElement::CompositingOperator::Arithmetic) {
-                auto k1 = composite_primitive->k1()->base_val();
-                auto k2 = composite_primitive->k2()->base_val();
-                auto k3 = composite_primitive->k3()->base_val();
-                auto k4 = composite_primitive->k4()->base_val();
-
-                root = { Gfx::Filter::arithmetic(background, foreground, k1, k2, k3, k4), operating_space };
-            } else {
-                auto to_compositing_and_blending_operator = [](SVGFECompositeElement::CompositingOperator operator_) {
-                    switch (operator_) {
-                    case SVGFECompositeElement::CompositingOperator::Over:
-                        return Gfx::CompositingAndBlendingOperator::SourceOver;
-                    case SVGFECompositeElement::CompositingOperator::In:
-                        return Gfx::CompositingAndBlendingOperator::SourceIn;
-                    case SVGFECompositeElement::CompositingOperator::Out:
-                        return Gfx::CompositingAndBlendingOperator::DestinationOut;
-                    case SVGFECompositeElement::CompositingOperator::Atop:
-                        return Gfx::CompositingAndBlendingOperator::SourceATop;
-                    case SVGFECompositeElement::CompositingOperator::Xor:
-                        return Gfx::CompositingAndBlendingOperator::Xor;
-                    case SVGFECompositeElement::CompositingOperator::Lighter:
-                        return Gfx::CompositingAndBlendingOperator::Lighter;
-                    default:
-                        break;
-                    }
-                    return Gfx::CompositingAndBlendingOperator::SourceOver;
-                };
-
-                root = { Gfx::Filter::blend(background, foreground, to_compositing_and_blending_operator(operator_)), operating_space };
-            }
-
-            update_result_map(*composite_primitive);
+            values.kind = PrimitiveKind::Composite;
+            values.composite_operator = to_underlying(composite_primitive->operator_());
+            values.k1 = composite_primitive->k1()->base_val();
+            values.k2 = composite_primitive->k2()->base_val();
+            values.k3 = composite_primitive->k3()->base_val();
+            values.k4 = composite_primitive->k4()->base_val();
+            set_in1(*composite_primitive);
+            set_in2(*composite_primitive);
+            set_result(*composite_primitive);
         } else if (auto* blur_primitive = as_if<SVGFEGaussianBlurElement>(node)) {
-            auto input = resolve_input_in_color_space(blur_primitive->in1()->base_val(), operating_space);
-
-            auto radius_x = blur_primitive->std_deviation_x()->base_val() * scale_x;
-            auto radius_y = blur_primitive->std_deviation_y()->base_val() * scale_y;
-
-            root = { Gfx::Filter::blur(radius_x, radius_y, input), operating_space };
-            update_result_map(*blur_primitive);
+            values.kind = PrimitiveKind::GaussianBlur;
+            values.std_deviation_x = blur_primitive->std_deviation_x()->base_val();
+            values.std_deviation_y = blur_primitive->std_deviation_y()->base_val();
+            set_in1(*blur_primitive);
+            set_result(*blur_primitive);
         } else if (auto* colormatrix_primitive = as_if<SVGFEColorMatrixElement>(node)) {
-            auto in_attr = colormatrix_primitive->in1()->base_val();
-            auto input = resolve_input_in_color_space(in_attr, operating_space);
-
-            auto type_value = colormatrix_primitive->attribute(AttributeNames::type).value_or({});
-            auto values_value = colormatrix_primitive->attribute(AttributeNames::values).value_or({});
-
-            // Default type is "matrix" per spec.
-            if (type_value.is_empty() || type_value.equals_ignoring_ascii_case("matrix"sv)) {
-                // Parse up to 20 numbers; if we don't get a full 4x5, skip applying.
-                float matrix[20] = { 0 };
-                size_t count = 0;
-
-                Utf16View sv = values_value;
-                auto skip_leading_whitespace = [&] {
-                    sv = sv.trim_ascii_whitespace(AK::TrimMode::Left);
-                };
-                auto consume_comma_and_whitespace = [&] {
-                    if (!sv.is_empty() && sv.code_unit_at(0) == ',')
-                        sv = sv.substring_view(1);
-                    skip_leading_whitespace();
-                };
-
-                skip_leading_whitespace();
-                while (!sv.is_empty() && count < 20) {
-                    // Parse the next number without trimming (we already trimmed on the left).
-                    auto result = AK::parse_first_number<float>(sv, AK::TrimWhitespace::No);
-                    if (!result.has_value())
-                        break;
-                    matrix[count++] = result->value;
-                    // Advance exactly past the number just parsed, then consume optional comma + whitespace.
-                    sv = sv.substring_view(result->characters_parsed);
-                    consume_comma_and_whitespace();
-                }
-
-                if (count == 20) {
-                    root = { Gfx::Filter::color_matrix(matrix, input), operating_space };
-                    update_result_map(*colormatrix_primitive);
-                } else {
-                    // If invalid or missing, treat as identity (no-op) if we already have an input.
-                    if (input.has_value()) {
-                        root = { input, operating_space };
-                        update_result_map(*colormatrix_primitive);
-                    }
-                }
-            } else if (type_value.equals_ignoring_ascii_case("saturate"sv)) {
-                // values: single number s (1 = original)
-                float s = 1.0f;
-                if (!values_value.is_empty()) {
-                    if (auto parsed = AK::parse_number<float>(values_value, AK::TrimWhitespace::Yes); parsed.has_value())
-                        s = *parsed;
-                }
-                root = { Gfx::Filter::saturate(s, input), operating_space };
-                update_result_map(*colormatrix_primitive);
-            } else if (type_value.equals_ignoring_ascii_case("hueRotate"sv)) {
-                // values: angle in degrees
-                float angle_degrees = 0.0f;
-                if (!values_value.is_empty()) {
-                    if (auto parsed = AK::parse_number<float>(values_value, AK::TrimWhitespace::Yes); parsed.has_value())
-                        angle_degrees = *parsed;
-                }
-                root = { Gfx::Filter::hue_rotate(angle_degrees, input), operating_space };
-                update_result_map(*colormatrix_primitive);
-            } else if (type_value.equals_ignoring_ascii_case("luminanceToAlpha"sv)) {
-                // values ignored; convert luminance to alpha and zero RGB.
-                float matrix[20] = {
-                    0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0,
-                    0.2126f, 0.7152f, 0.0722f, 0, 0
-                };
-                root = { Gfx::Filter::color_matrix(matrix, input), operating_space };
-                update_result_map(*colormatrix_primitive);
-            } else {
-                // Unknown 'type' value on feColorMatrix; skip creating a filter and log.
-                dbgln("SVGFEColorMatrixElement: Unknown type '{}' — skipping filter primitive", type_value);
+            auto type = colormatrix_primitive->type()->base_val();
+            if (type == SVGFEColorMatrixElement::SVG_FECOLORMATRIX_TYPE_UNKNOWN) {
+                dbgln("SVGFEColorMatrixElement: Unknown type '{}' — skipping filter primitive", colormatrix_primitive->attribute(AttributeNames::type).value_or({}));
+                return IterationDecision::Continue;
             }
+            values.kind = PrimitiveKind::ColorMatrix;
+            values.color_matrix_type = type;
+            color_matrix_values = parse_table_values(colormatrix_primitive->attribute(AttributeNames::values).value_or({}));
+            primitive.color_matrix_values = color_matrix_values.data();
+            primitive.color_matrix_value_count = color_matrix_values.size();
+            set_in1(*colormatrix_primitive);
+            set_result(*colormatrix_primitive);
         } else if (auto* image_primitive = as_if<SVGFEImageElement>(node)) {
             auto image_data = image_primitive->image_data();
             if (!image_data)
@@ -308,167 +196,86 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
                 return IterationDecision::Continue;
 
             auto dest_rect = Gfx::enclosing_int_rect(Painting::absolute_rect(*layout_node).to_type<float>());
-            auto scaling_mode = CSS::to_gfx_scaling_mode(as<Layout::NodeWithStyle>(*layout_node).image_rendering(), src_rect->size(), dest_rect.size());
-            root = { Gfx::Filter::image(*frame, *src_rect, dest_rect, scaling_mode), Gfx::InterpolationColorSpace::SRGB };
-            update_result_map(*image_primitive);
+            values.kind = PrimitiveKind::Image;
+            values.image_frame_id = frame->id();
+            values.image_src_rect = *src_rect;
+            values.image_dest_rect = dest_rect;
+            values.image_scaling_mode = CSS::to_gfx_scaling_mode(as<Layout::NodeWithStyle>(*layout_node).image_rendering(), src_rect->size(), dest_rect.size());
+            image_frames.append(*frame);
+            set_result(*image_primitive);
         } else if (auto* merge_primitive = as_if<SVGFEMergeElement>(node)) {
-            Vector<Optional<Gfx::Filter>> merge_inputs;
+            values.kind = PrimitiveKind::Merge;
             merge_primitive->template for_each_child_of_type<SVGFEMergeNodeElement>([&](auto& merge_node) {
-                merge_inputs.append(resolve_input_in_color_space(merge_node.in1()->base_val(), operating_space));
+                merge_input_names.append(merge_node.in1()->base_val());
                 return IterationDecision::Continue;
             });
-
-            root = { Gfx::Filter::merge(merge_inputs), operating_space };
-            update_result_map(*merge_primitive);
+            for (auto const& merge_input_name : merge_input_names)
+                merge_inputs.append(view_of(merge_input_name));
+            primitive.merge_inputs = merge_inputs.data();
+            primitive.merge_input_count = merge_inputs.size();
+            set_result(*merge_primitive);
         } else if (auto* morphology_primitive = as_if<SVGFEMorphologyElement>(node)) {
-            auto input = resolve_input_in_color_space(morphology_primitive->in1()->base_val(), operating_space);
-
-            auto radius_x = morphology_primitive->radius_x()->base_val() * scale_x;
-            auto radius_y = morphology_primitive->radius_y()->base_val() * scale_y;
             auto morphology_operator = morphology_primitive->morphology_operator();
-            switch (morphology_operator) {
-            case Gfx::MorphologyOperator::Erode:
-                root = { Gfx::Filter::erode(radius_x, radius_y, input), operating_space };
-                break;
-            case Gfx::MorphologyOperator::Dilate:
-                root = { Gfx::Filter::dilate(radius_x, radius_y, input), operating_space };
-                break;
-            case Gfx::MorphologyOperator::Unknown:
-                VERIFY_NOT_REACHED();
+            if (morphology_operator == Gfx::MorphologyOperator::Unknown) {
+                dbgln("SVGFEMorphologyElement: Unknown operator — skipping filter primitive");
+                return IterationDecision::Continue;
             }
-
-            update_result_map(*morphology_primitive);
+            values.kind = PrimitiveKind::Morphology;
+            values.morphology_operator = to_underlying(morphology_operator);
+            values.radius_x = morphology_primitive->radius_x()->base_val();
+            values.radius_y = morphology_primitive->radius_y()->base_val();
+            set_in1(*morphology_primitive);
+            set_result(*morphology_primitive);
         } else if (auto* offset_primitive = as_if<SVGFEOffsetElement>(node)) {
-            auto input = resolve_input(offset_primitive->in1()->base_val());
-
-            auto dx = offset_primitive->dx()->base_val() * scale_x;
-            auto dy = offset_primitive->dy()->base_val() * scale_y;
-
-            root = { Gfx::Filter::offset(dx, dy, input.filter), input.color_space };
-            update_result_map(*offset_primitive);
+            values.kind = PrimitiveKind::Offset;
+            values.dx = offset_primitive->dx()->base_val();
+            values.dy = offset_primitive->dy()->base_val();
+            set_in1(*offset_primitive);
+            set_result(*offset_primitive);
         } else if (auto* drop_shadow = as_if<SVGFEDropShadowElement>(node)) {
-            // https://drafts.csswg.org/filter-effects-1/#elementdef-fedropshadow
-            auto input = resolve_input_in_color_space(drop_shadow->in1()->base_val(), operating_space);
-            // 1. Take the alpha channel of the input to the feDropShadow filter primitive and the stdDeviation on the
-            //    feDropShadow and do processing as if the following feGaussianBlur was applied:
-            //
-            // <feGaussianBlur in="alpha-channel-of-feDropShadow-in" stdDeviation="stdDeviation-of-feDropShadow"/>
-            float alpha_matrix[20] = {
-                0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0,
-                0, 0, 0, 1, 0
-            };
-            auto alpha_input = Gfx::Filter::color_matrix(alpha_matrix, input);
-            auto std_x = drop_shadow->std_deviation_x()->base_val() * scale_x;
-            auto std_y = drop_shadow->std_deviation_y()->base_val() * scale_y;
-            auto blurred = Gfx::Filter::blur(std_x, std_y, alpha_input);
-
-            // 2. Offset the result of step 1 by dx and dy as specified on the feDropShadow element, equivalent to
-            //    applying an feOffset with these parameters:
-            //
-            // <feOffset dx="dx-of-feDropShadow" dy="dy-of-feDropShadow" result="offsetblur"/>
-            auto dx = drop_shadow->dx()->base_val() * scale_x;
-            auto dy = drop_shadow->dy()->base_val() * scale_y;
-            auto offset_blur = Gfx::Filter::offset(dx, dy, blurred);
-
-            // 3. Do processing as if an feFlood element with flood-color and flood-opacity as specified on the
-            //    feDropShadow was applied:
-            //
-            // <feFlood flood-color="flood-color-of-feDropShadow" flood-opacity="flood-opacity-of-feDropShadow"/>
-            // NB: The flood color is specified in the sRGB color space and must be converted to the operating space.
-            auto shadow_color = convert_to_color_space({ Gfx::Filter::flood(drop_shadow->flood_color(), drop_shadow->flood_opacity()), Gfx::InterpolationColorSpace::SRGB }, operating_space);
-
-            // 4. Composite the result of the feFlood in step 3 with the result of the feOffset in step 2 as if an
-            //    feComposite filter primitive with operator="in" was applied:
-            //
-            // <feComposite in2="offsetblur" operator="in"/>
-            auto colored_shadow = Gfx::Filter::blend(offset_blur, shadow_color, Gfx::CompositingAndBlendingOperator::SourceIn);
-
-            // 5. Finally merge the result of the previous step, doing processing as if the following feMerge was performed:
-            //
-            // <feMerge>
-            //   <feMergeNode/>
-            //   <feMergeNode in="in-of-feDropShadow"/>
-            // </feMerge>
-            root = { Gfx::Filter::merge({ colored_shadow, input }), operating_space };
-            update_result_map(*drop_shadow);
+            values.kind = PrimitiveKind::DropShadow;
+            values.std_deviation_x = drop_shadow->std_deviation_x()->base_val();
+            values.std_deviation_y = drop_shadow->std_deviation_y()->base_val();
+            values.dx = drop_shadow->dx()->base_val();
+            values.dy = drop_shadow->dy()->base_val();
+            values.flood_color = drop_shadow->flood_color();
+            values.flood_opacity = drop_shadow->flood_opacity();
+            set_in1(*drop_shadow);
+            set_result(*drop_shadow);
         } else if (auto* turbulence = as_if<SVGFETurbulenceElement>(node)) {
-            auto base_frequency_x = turbulence->base_frequency_x()->base_val() / scale_x;
-            auto base_frequency_y = turbulence->base_frequency_y()->base_val() / scale_y;
-            auto num_octaves = turbulence->num_octaves()->base_val();
-            auto seed = turbulence->seed()->base_val();
-
-            auto type = [turbulence] {
-                auto turbulence_type = turbulence->type()->base_val();
-                switch (turbulence_type) {
-                case to_underlying(SVGFETurbulenceElement::TurbulenceType::Turbulence):
-                    return Gfx::TurbulenceType::Turbulence;
-                case to_underlying(SVGFETurbulenceElement::TurbulenceType::FractalNoise):
-                    return Gfx::TurbulenceType::FractalNoise;
-                default:
-                    VERIFY_NOT_REACHED();
-                }
-            }();
-
-            auto tile_stitch_size = [turbulence, scale_x, scale_y] {
-                auto stitch_tiles = turbulence->stitch_tiles()->base_val();
-                switch (stitch_tiles) {
-                case to_underlying(SVGFETurbulenceElement::StitchType::Stitch): {
-                    // FIXME: Use the correct width and height
-                    auto maybe_width = turbulence->width()->base_val()->value();
-                    auto maybe_height = turbulence->height()->base_val()->value();
-
-                    auto width = maybe_width.is_exception() ? 0 : maybe_width.release_value();
-                    auto height = maybe_height.is_exception() ? 0 : maybe_height.release_value();
-
-                    return Gfx::IntSize { round_to<int>(width * scale_x), round_to<int>(height * scale_y) };
-                }
-                case to_underlying(SVGFETurbulenceElement::StitchType::NoStitch):
-                    return Gfx::IntSize {};
-                default:
-                    VERIFY_NOT_REACHED();
-                }
-            }();
-
-            root = { Gfx::Filter::turbulence(type, base_frequency_x, base_frequency_y, num_octaves, seed, tile_stitch_size), operating_space };
-            update_result_map(*turbulence);
+            values.kind = PrimitiveKind::Turbulence;
+            values.turbulence_type = turbulence->type()->base_val();
+            values.base_frequency_x = turbulence->base_frequency_x()->base_val();
+            values.base_frequency_y = turbulence->base_frequency_y()->base_val();
+            values.num_octaves = turbulence->num_octaves()->base_val();
+            values.seed = turbulence->seed()->base_val();
+            if (turbulence->stitch_tiles()->base_val() == to_underlying(SVGFETurbulenceElement::StitchType::Stitch)) {
+                // FIXME: Use the correct width and height
+                auto maybe_width = turbulence->width()->base_val()->value();
+                auto maybe_height = turbulence->height()->base_val()->value();
+                values.stitch_tile_width = maybe_width.is_exception() ? 0 : maybe_width.release_value();
+                values.stitch_tile_height = maybe_height.is_exception() ? 0 : maybe_height.release_value();
+            }
+            set_result(*turbulence);
         } else if (auto* displacement_map = as_if<SVGFEDisplacementMapElement>(node)) {
-            auto color = resolve_input(displacement_map->in1()->base_val());
-            auto displacement = resolve_input_in_color_space(displacement_map->in2()->base_val(), operating_space);
-            // FIXME: Skia's displacement map takes a single scale factor, so we ignore the vertical scale here,
-            //        applying the horizontal scale only.
-            auto scale = displacement_map->scale()->base_val() * scale_x;
-
-            auto convert_channel_selector = [](u16 channel_selector) {
-                switch (channel_selector) {
-                case to_underlying(SVGFEDisplacementMapElement::ChannelSelector::Red):
-                    return Gfx::ChannelSelector::Red;
-                case to_underlying(SVGFEDisplacementMapElement::ChannelSelector::Green):
-                    return Gfx::ChannelSelector::Green;
-                case to_underlying(SVGFEDisplacementMapElement::ChannelSelector::Blue):
-                    return Gfx::ChannelSelector::Blue;
-                case to_underlying(SVGFEDisplacementMapElement::ChannelSelector::Alpha):
-                    return Gfx::ChannelSelector::Alpha;
-                default:
-                    VERIFY_NOT_REACHED();
-                }
-            };
-
-            auto x_channel_selector = convert_channel_selector(displacement_map->x_channel_selector()->base_val());
-            auto y_channel_selector = convert_channel_selector(displacement_map->y_channel_selector()->base_val());
-
-            root = { Gfx::Filter::displacement_map(color.filter, displacement, scale, x_channel_selector, y_channel_selector), color.color_space };
-            update_result_map(*displacement_map);
+            values.kind = PrimitiveKind::DisplacementMap;
+            values.scale = displacement_map->scale()->base_val();
+            values.x_channel_selector = displacement_map->x_channel_selector()->base_val();
+            values.y_channel_selector = displacement_map->y_channel_selector()->base_val();
+            set_in1(*displacement_map);
+            set_in2(*displacement_map);
+            set_result(*displacement_map);
         } else {
-            dbgln("SVGFilterElement::gfx_filter(): Unknown or unsupported filter element '{}'", node.debug_description());
+            dbgln("SVGFilterElement::push_primitives(): Unknown or unsupported filter element '{}'", node.debug_description());
+            return IterationDecision::Continue;
         }
 
+        primitive.in1 = view_of(in1);
+        primitive.in2 = view_of(in2);
+        primitive.result = view_of(result);
+        Layout::RustFFI::layout_arena_paint_push_svg_filter_primitive(sink, &primitive);
         return IterationDecision::Continue;
     });
-
-    // Convert the final result back to the sRGB color space used for compositing the filter output onto the canvas.
-    return convert_to_color_space(move(root), Gfx::InterpolationColorSpace::SRGB);
 }
 
 // https://drafts.fxtf.org/filter-effects/#element-attrdef-filter-filterunits

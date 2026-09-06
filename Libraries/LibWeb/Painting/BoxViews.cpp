@@ -54,20 +54,11 @@ ResolvedSvgFilter resolve_svg_filter_reference(CSS::ComputedValuesFFI::ComputedS
     ResolvedSvgFilter result;
     auto fragment = CSS::ComputedFilterView::url_fragment(url_value);
     auto referenced_element = fragment.is_empty() ? nullptr : layout_node.document().get_element_by_id(fragment);
-    auto* filter_element = referenced_element ? as_if<SVG::SVGFilterElement>(*referenced_element) : nullptr;
-    if (!filter_element) {
+    result.filter_element = referenced_element ? as_if<SVG::SVGFilterElement>(*referenced_element) : nullptr;
+    if (!result.filter_element) {
         result.failed = true;
         return result;
     }
-    // Filter primitive lengths are specified in the filtered element's user coordinate system, but the
-    // resulting filter operates in device pixels. Compute the user-unit-to-device-pixel scale so the
-    // filter can convert its lengths accordingly.
-    // The replay-time layer maps filter parameters through the accumulated transform,
-    // so only the device pixel ratio — which lives in recorded coordinates, not in the
-    // transform chain — converts here.
-    auto device_pixels_per_css_pixel = layout_node.document().page().client().device_pixels_per_css_pixel();
-    auto filter_scale = Gfx::FloatPoint { device_pixels_per_css_pixel, device_pixels_per_css_pixel };
-    result.filter = filter_element->gfx_filter(layout_node, filter_scale);
     // The bounds live in the filtered element's user space; an element without
     // geometry of its own falls back to the whole enclosing viewport rect there.
     auto bounds = absolute_border_box_rect(layout_node);

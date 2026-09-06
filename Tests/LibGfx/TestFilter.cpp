@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Array.h>
 #include <AK/Hex.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
@@ -12,9 +11,9 @@
 #include <LibGfx/SkiaUtils.h>
 #include <LibTest/TestCase.h>
 
-// The serialized form of every_operation_filter(), with its image frame under id 42. The Rust codec in
-// LibGfx/Rust/src/filter.rs checks the same bytes, so the two sides cannot drift apart without one of the tests
-// noticing.
+// A graph with every filter operation once, drawing an image frame under id 42, as the Rust codec in
+// LibGfx/Rust/src/filter.rs serializes it. That codec checks the same bytes, so a change to the layout on either
+// side fails one of the tests.
 static constexpr StringView EVERY_OPERATION_FILTER_BYTES = "01020103332211ff0000003f010000010e0000c03f000020c0010c2a0000000000000001000000020000000300000004"
                                                            "00000005000000060000000700000008000000010000000000803e0000003f0000403f0000803f130000000d04000000"
                                                            "01050000803f000000400000404000ff007f0106000080400000a0400107020000000000003f00000104011100000000"
@@ -30,44 +29,9 @@ static constexpr StringView EVERY_OPERATION_FILTER_BYTES = "01020103332211ff0000
 
 static constexpr u64 FIXTURE_IMAGE_FRAME_ID = 42;
 
-// Every filter operation once, nested so that each input position is exercised.
-static Gfx::Filter every_operation_filter(Gfx::DecodedImageFrame const& frame)
+static ByteBuffer every_operation_filter_bytes()
 {
-    auto image = Gfx::Filter::image(frame, { 1, 2, 3, 4 }, { 5, 6, 7, 8 }, Gfx::ScalingMode::Bilinear);
-    auto offset = Gfx::Filter::offset(1.5f, -2.5f, image);
-    auto arithmetic = Gfx::Filter::arithmetic({}, offset, 0.25f, 0.5f, 0.75f, 1.0f);
-    auto flood = Gfx::Filter::flood(Gfx::Color(0x11, 0x22, 0x33, 0xff), 0.5f);
-    auto blend = Gfx::Filter::blend(flood, arithmetic, Gfx::CompositingAndBlendingOperator::SourceOver);
-
-    auto color = Gfx::Filter::color(Gfx::ColorFilterType::Grayscale, 0.5f);
-    auto blur = Gfx::Filter::blur(4.0f, 5.0f, color);
-    auto drop_shadow = Gfx::Filter::drop_shadow(1.0f, 2.0f, 3.0f, Gfx::Color(0x00, 0xff, 0x00, 0x7f), blur);
-
-    auto turbulence = Gfx::Filter::turbulence(Gfx::TurbulenceType::FractalNoise, 0.1f, 0.2f, 3, 7.0f, { 16, 8 });
-    auto dilate = Gfx::Filter::dilate(2.0f, 2.0f, {});
-    auto erode = Gfx::Filter::erode(1.0f, 1.0f, dilate);
-    auto displacement_map = Gfx::Filter::displacement_map(turbulence, erode, 10.0f, Gfx::ChannelSelector::Red, Gfx::ChannelSelector::Alpha);
-
-    auto color_space_conversion = Gfx::Filter::convert_interpolation_color_space(Gfx::InterpolationColorSpace::SRGB, Gfx::InterpolationColorSpace::LinearRGB);
-    auto hue_rotate = Gfx::Filter::hue_rotate(90.0f, color_space_conversion);
-    auto saturate = Gfx::Filter::saturate(0.3f, hue_rotate);
-    float matrix[20];
-    for (size_t i = 0; i < 20; ++i)
-        matrix[i] = static_cast<float>(i) * 0.5f;
-    auto color_matrix = Gfx::Filter::color_matrix(matrix, saturate);
-    Array<u8, 256> table;
-    for (size_t i = 0; i < table.size(); ++i)
-        table[i] = static_cast<u8>(255 - i);
-    auto color_table = Gfx::Filter::color_table(table.span(), {}, {}, {}, color_matrix);
-
-    Vector<Optional<Gfx::Filter>> merge_inputs;
-    merge_inputs.append(drop_shadow);
-    merge_inputs.append({});
-    merge_inputs.append(displacement_map);
-    merge_inputs.append(color_table);
-    auto merge = Gfx::Filter::merge(merge_inputs);
-
-    return Gfx::Filter::compose(blend, merge);
+    return MUST(decode_hex(EVERY_OPERATION_FILTER_BYTES));
 }
 
 static Gfx::DecodedImageFrame test_frame()
@@ -76,61 +40,43 @@ static Gfx::DecodedImageFrame test_frame()
     return Gfx::DecodedImageFrame { *bitmap };
 }
 
-// The fixture bytes with their image frame renamed to the id `frame` was handed out at runtime.
-static ByteBuffer expected_bytes_for(Gfx::DecodedImageFrame const& frame)
-{
-    auto bytes = MUST(decode_hex(EVERY_OPERATION_FILTER_BYTES));
-    u64 fixture_id = FIXTURE_IMAGE_FRAME_ID;
-    ReadonlyBytes fixture_id_bytes { &fixture_id, sizeof(fixture_id) };
-    Optional<size_t> id_offset;
-    for (size_t offset = 0; offset + sizeof(fixture_id) <= bytes.size(); ++offset) {
-        if (bytes.bytes().slice(offset, sizeof(fixture_id)) != fixture_id_bytes)
-            continue;
-        VERIFY(!id_offset.has_value());
-        id_offset = offset;
-    }
-    VERIFY(id_offset.has_value());
-    u64 frame_id = frame.id();
-    bytes.overwrite(*id_offset, &frame_id, sizeof(frame_id));
-    return bytes;
-}
-
-TEST_CASE(every_operation_serializes_to_the_shared_bytes)
-{
-    auto frame = test_frame();
-    auto filter = every_operation_filter(frame);
-    auto expected = expected_bytes_for(frame);
-    EXPECT_EQ(filter.serialized_bytes(), expected.bytes());
-    EXPECT_EQ(filter.image_frames().size(), 1u);
-    EXPECT_EQ(filter.image_frames()[0].id, frame.id());
-    EXPECT_EQ(filter.image_frame(frame.id()).id(), frame.id());
-}
-
 TEST_CASE(the_shared_bytes_name_the_image_frames_they_draw)
 {
-    auto frame = test_frame();
-    auto expected = expected_bytes_for(frame);
+    auto bytes = every_operation_filter_bytes();
     Vector<u64> image_frame_ids;
-    Gfx::for_each_filter_image_frame_id(expected.bytes(), [&](u64 id) { image_frame_ids.append(id); });
+    Gfx::for_each_filter_image_frame_id(bytes.bytes(), [&](u64 id) { image_frame_ids.append(id); });
     EXPECT_EQ(image_frame_ids.size(), 1u);
-    EXPECT_EQ(image_frame_ids.first(), frame.id());
+    EXPECT_EQ(image_frame_ids.first(), FIXTURE_IMAGE_FRAME_ID);
 
     image_frame_ids.clear();
-    Gfx::for_each_filter_image_frame_id(expected.bytes().trim(expected.size() - 1), [&](u64 id) { image_frame_ids.append(id); });
+    Gfx::for_each_filter_image_frame_id(bytes.bytes().trim(bytes.size() - 1), [&](u64 id) { image_frame_ids.append(id); });
     EXPECT(image_frame_ids.is_empty());
 }
 
 TEST_CASE(the_shared_bytes_build_a_skia_image_filter)
 {
     auto frame = test_frame();
-    auto expected = expected_bytes_for(frame);
+    auto bytes = every_operation_filter_bytes();
     size_t image_lookups = 0;
-    auto image_filter = Gfx::to_skia_image_filter(expected.bytes(), [&](u64 id) -> Gfx::DecodedImageFrame const& {
-        EXPECT_EQ(id, frame.id());
+    auto image_filter = Gfx::to_skia_image_filter(bytes.bytes(), [&](u64 id) -> Gfx::DecodedImageFrame const& {
+        EXPECT_EQ(id, FIXTURE_IMAGE_FRAME_ID);
         ++image_lookups;
         return frame;
     });
     EXPECT(image_filter != nullptr);
     EXPECT_EQ(image_lookups, 1u);
-    EXPECT(Gfx::to_skia_image_filter(every_operation_filter(frame)) != nullptr);
+}
+
+TEST_CASE(filter_functions_serialize_the_way_the_shared_codec_reads_them)
+{
+    auto sepia = Gfx::Filter::color(Gfx::ColorFilterType::Sepia, 0.5f);
+    auto blur = Gfx::Filter::blur(2.0f, 3.0f, sepia);
+    auto drop_shadow = Gfx::Filter::drop_shadow(1.0f, 2.0f, 3.0f, Gfx::Color(0x00, 0xff, 0x00, 0x7f), blur);
+    auto filter = Gfx::Filter::compose(Gfx::Filter::hue_rotate(90.0f), drop_shadow);
+    EXPECT(filter.image_frames().is_empty());
+    EXPECT(Gfx::to_skia_image_filter(filter) != nullptr);
+
+    Vector<u64> image_frame_ids;
+    Gfx::for_each_filter_image_frame_id(filter.serialized_bytes(), [&](u64 id) { image_frame_ids.append(id); });
+    EXPECT(image_frame_ids.is_empty());
 }

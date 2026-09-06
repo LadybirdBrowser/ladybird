@@ -23,13 +23,6 @@
 
 namespace Gfx {
 
-enum class ChannelSelector {
-    Red,
-    Green,
-    Blue,
-    Alpha,
-};
-
 enum class ColorFilterType {
     Brightness,
     Contrast,
@@ -38,11 +31,6 @@ enum class ColorFilterType {
     Opacity,
     Saturate,
     Sepia
-};
-
-enum class TurbulenceType {
-    FractalNoise,
-    Turbulence,
 };
 
 // A decoded image frame a filter graph draws, under the id the graph's bytes name it by.
@@ -58,25 +46,12 @@ class Filter {
 public:
     Filter(ByteBuffer serialized_bytes, Vector<FilterImageFrame> image_frames);
 
-    static Filter arithmetic(Optional<Filter const&> background, Optional<Filter const&> foreground, float k1, float k2, float k3, float k4);
+    // The filter functions of a CSS filter list. SVG filter primitives are built on the Rust side.
     static Filter compose(Filter const& outer, Filter const& inner);
-    static Filter blend(Optional<Filter const&> background, Optional<Filter const&> foreground, CompositingAndBlendingOperator mode);
-    static Filter flood(Gfx::Color color, float opacity);
-    static Filter displacement_map(Optional<Filter const&> color, Optional<Filter const&> displacement, float scale, ChannelSelector x_channel_selector, ChannelSelector y_channel_selector);
     static Filter drop_shadow(float offset_x, float offset_y, float radius, Gfx::Color color, Optional<Filter const&> input = {});
     static Filter blur(float radius_x, float radius_y, Optional<Filter const&> input = {});
     static Filter color(ColorFilterType type, float amount, Optional<Filter const&> input = {});
-    static Filter color_matrix(float matrix[20], Optional<Filter const&> input = {});
-    static Filter color_table(Optional<ReadonlyBytes> a, Optional<ReadonlyBytes> r, Optional<ReadonlyBytes> g, Optional<ReadonlyBytes> b, Optional<Filter const&> input = {});
-    static Filter saturate(float value, Optional<Filter const&> input = {});
     static Filter hue_rotate(float angle_degrees, Optional<Filter const&> input = {});
-    static Filter image(Gfx::DecodedImageFrame const&, Gfx::IntRect const& src_rect, Gfx::IntRect const& dest_rect, Gfx::ScalingMode scaling_mode);
-    static Filter merge(Vector<Optional<Filter>> const&);
-    static Filter offset(float dx, float dy, Optional<Filter const&> input = {});
-    static Filter erode(float radius_x, float radius_y, Optional<Filter> const& input = {});
-    static Filter dilate(float radius_x, float radius_y, Optional<Filter> const& input = {});
-    static Filter turbulence(TurbulenceType turbulence_type, float base_frequency_x, float base_frequency_y, i32 num_octaves, float seed, Gfx::IntSize const& tile_stitch_size);
-    static Filter convert_interpolation_color_space(InterpolationColorSpace source_color_space, InterpolationColorSpace destination_color_space, Optional<Filter const&> input = {});
 
     ReadonlyBytes serialized_bytes() const { return m_serialized_bytes; }
     ReadonlySpan<FilterImageFrame> image_frames() const { return m_image_frames; }

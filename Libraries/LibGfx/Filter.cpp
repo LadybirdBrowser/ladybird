@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/NumericLimits.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Filter.h>
@@ -44,30 +43,6 @@ public:
         value<u32>(color.value());
     }
 
-    void rect(IntRect const& rect)
-    {
-        value<i32>(rect.x());
-        value<i32>(rect.y());
-        value<i32>(rect.width());
-        value<i32>(rect.height());
-    }
-
-    void size(IntSize const& size)
-    {
-        value<i32>(size.width());
-        value<i32>(size.height());
-    }
-
-    void optional_color_table(Optional<ReadonlyBytes> table)
-    {
-        boolean(table.has_value());
-        if (!table.has_value())
-            return;
-        VERIFY(table->size() == 256);
-        value<u32>(table->size());
-        m_bytes.append(*table);
-    }
-
     void filter(Filter const& filter)
     {
         m_bytes.append(filter.serialized_bytes());
@@ -80,12 +55,6 @@ public:
         boolean(filter.has_value());
         if (filter.has_value())
             this->filter(*filter);
-    }
-
-    void image_frame(DecodedImageFrame const& frame)
-    {
-        value<u64>(frame.id());
-        m_image_frames.append({ frame.id(), frame });
     }
 
     Filter finish()
@@ -115,51 +84,11 @@ DecodedImageFrame const& Filter::image_frame(u64 id) const
     VERIFY_NOT_REACHED();
 }
 
-Filter Filter::arithmetic(Optional<Filter const&> background, Optional<Filter const&> foreground, float k1, float k2, float k3, float k4)
-{
-    FilterWriter writer { FFI::FilterOperationType::Arithmetic };
-    writer.optional_filter(background);
-    writer.optional_filter(foreground);
-    writer.value(k1);
-    writer.value(k2);
-    writer.value(k3);
-    writer.value(k4);
-    return writer.finish();
-}
-
 Filter Filter::compose(Filter const& outer, Filter const& inner)
 {
     FilterWriter writer { FFI::FilterOperationType::Compose };
     writer.filter(outer);
     writer.filter(inner);
-    return writer.finish();
-}
-
-Filter Filter::blend(Optional<Filter const&> background, Optional<Filter const&> foreground, CompositingAndBlendingOperator mode)
-{
-    FilterWriter writer { FFI::FilterOperationType::Blend };
-    writer.optional_filter(background);
-    writer.optional_filter(foreground);
-    writer.value(mode);
-    return writer.finish();
-}
-
-Filter Filter::flood(Gfx::Color color, float opacity)
-{
-    FilterWriter writer { FFI::FilterOperationType::Flood };
-    writer.color(color);
-    writer.value(opacity);
-    return writer.finish();
-}
-
-Filter Filter::displacement_map(Optional<Filter const&> color, Optional<Filter const&> displacement, float scale, ChannelSelector x_channel_selector, ChannelSelector y_channel_selector)
-{
-    FilterWriter writer { FFI::FilterOperationType::DisplacementMap };
-    writer.optional_filter(color);
-    writer.optional_filter(displacement);
-    writer.value(scale);
-    writer.value(x_channel_selector);
-    writer.value(y_channel_selector);
     return writer.finish();
 }
 
@@ -192,106 +121,10 @@ Filter Filter::color(ColorFilterType type, float amount, Optional<Filter const&>
     return writer.finish();
 }
 
-Filter Filter::color_matrix(float matrix[20], Optional<Filter const&> input)
-{
-    FilterWriter writer { FFI::FilterOperationType::ColorMatrix };
-    for (size_t i = 0; i < 20; ++i)
-        writer.value(matrix[i]);
-    writer.optional_filter(input);
-    return writer.finish();
-}
-
-Filter Filter::color_table(Optional<ReadonlyBytes> a, Optional<ReadonlyBytes> r, Optional<ReadonlyBytes> g, Optional<ReadonlyBytes> b, Optional<Filter const&> input)
-{
-    FilterWriter writer { FFI::FilterOperationType::ColorTable };
-    writer.optional_color_table(a);
-    writer.optional_color_table(r);
-    writer.optional_color_table(g);
-    writer.optional_color_table(b);
-    writer.optional_filter(input);
-    return writer.finish();
-}
-
-Filter Filter::saturate(float value, Optional<Filter const&> input)
-{
-    FilterWriter writer { FFI::FilterOperationType::Saturate };
-    writer.value(value);
-    writer.optional_filter(input);
-    return writer.finish();
-}
-
 Filter Filter::hue_rotate(float angle_degrees, Optional<Filter const&> input)
 {
     FilterWriter writer { FFI::FilterOperationType::HueRotate };
     writer.value(angle_degrees);
-    writer.optional_filter(input);
-    return writer.finish();
-}
-
-Filter Filter::image(Gfx::DecodedImageFrame const& frame, Gfx::IntRect const& src_rect, Gfx::IntRect const& dest_rect, Gfx::ScalingMode scaling_mode)
-{
-    FilterWriter writer { FFI::FilterOperationType::Image };
-    writer.image_frame(frame);
-    writer.rect(src_rect);
-    writer.rect(dest_rect);
-    writer.value(scaling_mode);
-    return writer.finish();
-}
-
-Filter Filter::merge(Vector<Optional<Filter>> const& inputs)
-{
-    FilterWriter writer { FFI::FilterOperationType::Merge };
-    VERIFY(inputs.size() <= NumericLimits<u32>::max());
-    writer.value<u32>(inputs.size());
-    for (auto const& input : inputs)
-        writer.optional_filter(input);
-    return writer.finish();
-}
-
-Filter Filter::offset(float dx, float dy, Optional<Filter const&> input)
-{
-    FilterWriter writer { FFI::FilterOperationType::Offset };
-    writer.value(dx);
-    writer.value(dy);
-    writer.optional_filter(input);
-    return writer.finish();
-}
-
-Filter Filter::erode(float radius_x, float radius_y, Optional<Filter> const& input)
-{
-    FilterWriter writer { FFI::FilterOperationType::Erode };
-    writer.value(radius_x);
-    writer.value(radius_y);
-    writer.optional_filter(input);
-    return writer.finish();
-}
-
-Filter Filter::dilate(float radius_x, float radius_y, Optional<Filter> const& input)
-{
-    FilterWriter writer { FFI::FilterOperationType::Dilate };
-    writer.value(radius_x);
-    writer.value(radius_y);
-    writer.optional_filter(input);
-    return writer.finish();
-}
-
-Filter Filter::turbulence(TurbulenceType turbulence_type, float base_frequency_x, float base_frequency_y, i32 num_octaves, float seed, Gfx::IntSize const& tile_stitch_size)
-{
-    FilterWriter writer { FFI::FilterOperationType::Turbulence };
-    writer.value(turbulence_type);
-    writer.value(base_frequency_x);
-    writer.value(base_frequency_y);
-    writer.value(num_octaves);
-    writer.value(seed);
-    writer.size(tile_stitch_size);
-    return writer.finish();
-}
-
-Filter Filter::convert_interpolation_color_space(InterpolationColorSpace source_color_space, InterpolationColorSpace destination_color_space, Optional<Filter const&> input)
-{
-    FilterWriter writer { FFI::FilterOperationType::ColorSpaceConversion };
-    writer.value(source_color_space);
-    writer.value(destination_color_space);
     writer.optional_filter(input);
     return writer.finish();
 }

@@ -5,6 +5,7 @@
  */
 
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
+use crate::css::ffi_support::FfiUtf16View;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::used_values::FfiCssPixelPoint;
@@ -15,10 +16,12 @@ use crate::painting::display_list::commands::FrameNodeIndex;
 use crate::painting::display_list::commands::SpatialNodeIndex;
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::host::FfiRecordedDisplayList;
+use crate::painting::host::visual_context::FfiSvgFilterPrimitive;
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_rows::{PaintableRowsRead, with_inline_pieces};
 use crate::painting::rect_to_viewport_transform::RectToViewportTransform;
 use crate::painting::scroll_chain::ViewportWheelOverflow;
+use crate::painting::svg_filter::{SvgFilterGraphBuilder, SvgFilterPrimitive};
 use std::ffi::c_void;
 use std::rc::Rc;
 
@@ -3863,6 +3866,51 @@ pub unsafe extern "C" fn layout_arena_paint_push_bytes(sink: *mut c_void, bytes:
     if length > 0 {
         vec.extend_from_slice(unsafe { std::slice::from_raw_parts(bytes, length) });
     }
+}
+
+/// # Safety
+///
+/// Every pointer in `primitive` must be readable for the length that accompanies it, each UTF-16
+/// view must satisfy [`FfiUtf16View::units`], and each non-null component transfer table must
+/// hold 256 bytes.
+unsafe fn svg_filter_primitive_from_ffi(primitive: &FfiSvgFilterPrimitive) -> SvgFilterPrimitive {
+    let name = |view: FfiUtf16View| unsafe { view.to_utf16() }.unwrap_or_default();
+    SvgFilterPrimitive {
+        values: primitive.values,
+        in1: name(primitive.in1),
+        in2: name(primitive.in2),
+        result: name(primitive.result),
+        merge_inputs: unsafe { ffi_slice(primitive.merge_inputs, primitive.merge_input_count) }
+            .iter()
+            .map(|view| name(*view))
+            .collect(),
+        color_matrix_values: unsafe { ffi_slice(primitive.color_matrix_values, primitive.color_matrix_value_count) }
+            .to_vec(),
+        component_transfer_tables: primitive.component_transfer_tables.map(|table| {
+            (!table.is_null()).then(|| {
+                let table = unsafe { ffi_slice(table, 256) };
+                Box::new(<[u8; 256]>::try_from(table).expect("a component transfer table holds 256 entries"))
+            })
+        }),
+    }
+}
+
+/// Appends one primitive of an SVG `<filter>` to the graph builder a host callback was handed as
+/// its sink.
+///
+/// # Safety
+///
+/// `sink` must be the pointer handed to the callback, used synchronously; `primitive` must be
+/// readable, with every pointer in it readable for the length that accompanies it, each UTF-16
+/// view satisfying [`FfiUtf16View::units`], and each non-null component transfer table holding
+/// 256 bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paint_push_svg_filter_primitive(
+    sink: *mut c_void,
+    primitive: *const FfiSvgFilterPrimitive,
+) {
+    let builder = unsafe { &mut *sink.cast::<SvgFilterGraphBuilder>() };
+    builder.push(unsafe { svg_filter_primitive_from_ffi(&*primitive) });
 }
 
 /// # Safety

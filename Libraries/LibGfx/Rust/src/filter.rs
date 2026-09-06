@@ -378,12 +378,8 @@ impl Filter {
 
     pub fn serialize(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
-        self.serialize_into(&mut bytes);
+        Writer { bytes: &mut bytes }.filter(self);
         bytes
-    }
-
-    pub fn serialize_into(&self, bytes: &mut Vec<u8>) {
-        Writer { bytes }.filter(self);
     }
 
     /// Reads a filter back from its serialized form. Fails on any malformed input, including bytes

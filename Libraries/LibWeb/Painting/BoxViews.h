@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include <LibGC/Ptr.h>
 #include <LibGfx/AffineTransform.h>
-#include <LibGfx/Filter.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/InvalidateDisplayList.h>
@@ -30,8 +30,7 @@ bool should_paint_viewport_scrollbars();
 struct ResolvedSvgFilter {
     // The reference named nothing usable as an SVG filter, which drops the whole filter list.
     bool failed { false };
-    // The referenced filter graph in device pixels; absent when the <filter> has no primitives.
-    Optional<Gfx::Filter> filter;
+    GC::Ptr<SVG::SVGFilterElement> filter_element;
     // The referenced filter's region, in the filtered element's user space.
     Optional<CSSPixelRect> bounds;
 };

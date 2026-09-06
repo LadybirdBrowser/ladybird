@@ -539,7 +539,7 @@ pub(crate) fn compute_effects_data(
         let layout_node_shell = layout_arena.shell_if_live(slot);
         let resolved_svg_filter =
             crate::painting::filter_bytes::resolve_svg_filter_references(&effects_values.filter, |url_value| {
-                callbacks.resolve_svg_filter(layout_node_shell, url_value)
+                callbacks.resolve_svg_filter(layout_node_shell, url_value, device_pixels_per_css_pixel)
             });
         layout_arena.paintable_side_data(slot).svg_filter_bounds.set(
             resolved_svg_filter

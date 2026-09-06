@@ -11,6 +11,7 @@
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Filter.h>
+#include <LibGfx/InterpolationColorSpace.h>
 #include <LibGfx/SkiaUtils.h>
 #include <RustFFI.h>
 #include <core/SkBitmap.h>
@@ -148,17 +149,17 @@ sk_sp<SkImageFilter> SkiaFilterReader::filter()
         auto color = optional_filter();
         auto displacement = optional_filter();
         auto scale = value<float>();
-        auto x_channel_selector = value<ChannelSelector>();
-        auto y_channel_selector = value<ChannelSelector>();
-        auto convert_channel_selector = [](ChannelSelector channel_selector) {
+        auto x_channel_selector = value<FFI::ChannelSelector>();
+        auto y_channel_selector = value<FFI::ChannelSelector>();
+        auto convert_channel_selector = [](FFI::ChannelSelector channel_selector) {
             switch (channel_selector) {
-            case ChannelSelector::Red:
+            case FFI::ChannelSelector::Red:
                 return SkColorChannel::kR;
-            case ChannelSelector::Green:
+            case FFI::ChannelSelector::Green:
                 return SkColorChannel::kG;
-            case ChannelSelector::Blue:
+            case FFI::ChannelSelector::Blue:
                 return SkColorChannel::kB;
-            case ChannelSelector::Alpha:
+            case FFI::ChannelSelector::Alpha:
                 return SkColorChannel::kA;
             }
             VERIFY_NOT_REACHED();
@@ -364,7 +365,7 @@ sk_sp<SkImageFilter> SkiaFilterReader::filter()
         return SkImageFilters::Dilate(radius_x, radius_y, input);
     }
     case FilterOperationType::Turbulence: {
-        auto turbulence_type = value<TurbulenceType>();
+        auto turbulence_type = value<FFI::TurbulenceType>();
         auto base_frequency_x = value<float>();
         auto base_frequency_y = value<float>();
         auto num_octaves = value<i32>();
@@ -372,9 +373,9 @@ sk_sp<SkImageFilter> SkiaFilterReader::filter()
         auto tile_stitch_size = size();
         sk_sp<SkShader> turbulence_shader = [&] {
             switch (turbulence_type) {
-            case TurbulenceType::Turbulence:
+            case FFI::TurbulenceType::Turbulence:
                 return SkShaders::MakeTurbulence(base_frequency_x, base_frequency_y, num_octaves, seed, &tile_stitch_size);
-            case TurbulenceType::FractalNoise:
+            case FFI::TurbulenceType::FractalNoise:
                 return SkShaders::MakeFractalNoise(base_frequency_x, base_frequency_y, num_octaves, seed, &tile_stitch_size);
             }
             VERIFY_NOT_REACHED();

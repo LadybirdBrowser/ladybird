@@ -13,10 +13,10 @@ sys_includes = ["stdint.h", "stddef.h"]
 usize_is_size_t = true
 namespaces = ["Gfx", "FFI"]
 
-# The byte layout the filter codec writes is defined by this enum, and the C++ reader that builds
-# Skia filters from it decodes it from the same definition.
+# The byte layout the filter codec writes is defined by these enums, and the C++ reader that
+# builds Skia filters from it decodes them from the same definitions.
 [export]
-include = ["FilterOperationType"]
+include = ["FilterOperationType", "ChannelSelector", "TurbulenceType"]
 
 [parse]
 parse_deps = false

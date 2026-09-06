@@ -258,7 +258,11 @@ pub(crate) fn paint_backdrop_filter(
             let layout_node_shell = recorder.layout_node_shell(paintable);
             let resolved_svg_filter =
                 crate::painting::filter_bytes::resolve_svg_filter_references(backdrop_filter, |url_value| {
-                    recorder.paint_host.resolve_svg_filter(layout_node_shell, url_value)
+                    recorder.paint_host.resolve_svg_filter(
+                        layout_node_shell,
+                        url_value,
+                        recorder.inputs.device_pixels_per_css_pixel,
+                    )
                 });
             crate::painting::filter_bytes::serialize_filter_with_resolved_svg(
                 backdrop_filter,
