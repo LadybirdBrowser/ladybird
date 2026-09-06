@@ -105,14 +105,14 @@ impl StyleEngine {
         // else. There is no selector to transpose: the region is the element itself.
         if let InputKey::ElementDeclaration(node, _) = input.key {
             self.record_selector_truth_refresh(node, None);
-            regions.add(ImpactRegion::Node(node), &mut self.counters);
+            regions.add(ImpactRegion::Node(node));
             return;
         }
 
         // Other element-owned style inputs do not change matching at all. Publish the retained
         // answer as an exact reaction without asking the selector evaluator to prove it again.
         if let InputKey::ElementStyleInput(node) = input.key {
-            regions.add(ImpactRegion::Node(node), &mut self.counters);
+            regions.add(ImpactRegion::Node(node));
             return;
         }
 
@@ -121,7 +121,7 @@ impl StyleEngine {
         // transpose: the region is the element whose reach moved.
         if let InputKey::LocalFeature(node, LocalFeatureKey::PartExposure) = input.key {
             self.record_selector_truth_refresh(node, None);
-            regions.add(ImpactRegion::Node(node), &mut self.counters);
+            regions.add(ImpactRegion::Node(node));
             return;
         }
 
@@ -379,7 +379,7 @@ impl StyleEngine {
             && (old.is_none()
                 || old.and_then(|relations| relations.parent) != new.and_then(|relations| relations.parent))
         {
-            regions.add(ImpactRegion::Subtree(node), &mut self.counters);
+            regions.add(ImpactRegion::Subtree(node));
         }
 
         // A slottable's assigned slot is its parent in the flat tree, so a slot name change moves it
@@ -390,10 +390,10 @@ impl StyleEngine {
             && old.assigned_slot != new.assigned_slot
         {
             self.record_selector_truth_refresh(node, None);
-            regions.add(ImpactRegion::Node(node), &mut self.counters);
+            regions.add(ImpactRegion::Node(node));
             for slot in [old.assigned_slot, new.assigned_slot].into_iter().flatten() {
                 for assigned in self.tree.assigned_nodes_of(slot) {
-                    regions.add(ImpactRegion::Node(*assigned), &mut self.counters);
+                    regions.add(ImpactRegion::Node(*assigned));
                 }
             }
         }
@@ -517,7 +517,7 @@ impl StyleEngine {
                 false => relations.previous_element_sibling.or(relations.next_element_sibling),
             };
             if let Some(anchor) = anchor {
-                regions.add(ImpactRegion::SiblingSequence(anchor), &mut self.counters);
+                regions.add(ImpactRegion::SiblingSequence(anchor));
             }
         }
     }
@@ -1349,7 +1349,7 @@ impl StyleEngine {
                     let point = self.routing.route(route);
                     self.record_selector_truth_refresh(parent, Some((self.routing.rule_of(route), point.entry)));
                 }
-                regions.add(ImpactRegion::Node(parent), &mut self.counters);
+                regions.add(ImpactRegion::Node(parent));
             }
             self.add_sequence_region(
                 parent,
@@ -2308,7 +2308,7 @@ impl StyleEngine {
         {
             for candidate in candidates {
                 self.record_selector_truth_refresh(candidate, attributed_rule);
-                regions.add(ImpactRegion::Node(candidate), &mut self.counters);
+                regions.add(ImpactRegion::Node(candidate));
             }
             self.memory.release(MemoryCategory::BatchScratch, charged_bytes);
             return true;
@@ -2319,7 +2319,7 @@ impl StyleEngine {
                 true
             } else {
                 self.record_selector_truth_refresh(candidate, attributed_rule);
-                regions.add(ImpactRegion::Node(candidate), &mut self.counters);
+                regions.add(ImpactRegion::Node(candidate));
                 false
             }
         });
@@ -2334,7 +2334,7 @@ impl StyleEngine {
                 let change = self.candidate_changes_exact_tree(candidate, program, entry, exact_tree_evaluation);
                 if exact_entry_changed(change) {
                     self.record_exact_selector_truth_change(candidate, site, change);
-                    regions.add(ImpactRegion::Node(candidate), &mut self.counters);
+                    regions.add(ImpactRegion::Node(candidate));
                 }
                 continue;
             }
@@ -2342,7 +2342,7 @@ impl StyleEngine {
             let change = self.candidate_changes_exact_entry(candidate, site);
             if exact_entry_changed(change) {
                 self.record_exact_selector_truth_change(candidate, site, change);
-                regions.add(ImpactRegion::Node(candidate), &mut self.counters);
+                regions.add(ImpactRegion::Node(candidate));
             }
         }
         let workspace_after = self.match_workspace.capacity_bytes();
@@ -2510,7 +2510,7 @@ impl StyleEngine {
             match site.attribution() {
                 Some(key) => {
                     for &region in routed_regions {
-                        regions.attribute_extent(region, key, &mut self.counters);
+                        regions.attribute_extent(region, key);
                     }
                 }
                 None => {
@@ -2538,7 +2538,7 @@ impl StyleEngine {
                 let change = self.candidate_changes_exact_entry(candidate, site);
                 if exact_entry_changed(change) {
                     self.record_exact_selector_truth_change(candidate, site, change);
-                    regions.add(ImpactRegion::Node(candidate), &mut self.counters);
+                    regions.add(ImpactRegion::Node(candidate));
                 }
             }
         }
@@ -2584,7 +2584,7 @@ impl StyleEngine {
                 let change = self.candidate_changes_exact_entry(candidate, site);
                 if exact_entry_changed(change) {
                     self.record_exact_selector_truth_change(candidate, site, change);
-                    regions.add(ImpactRegion::Node(candidate), &mut self.counters);
+                    regions.add(ImpactRegion::Node(candidate));
                 }
             }
         }
@@ -2598,7 +2598,7 @@ impl StyleEngine {
         match site.attribution() {
             Some(key) => {
                 for &region in routed_regions {
-                    regions.attribute_extent(region, key, &mut self.counters);
+                    regions.attribute_extent(region, key);
                 }
             }
             None => {
@@ -2808,7 +2808,7 @@ impl StyleEngine {
                     &self.program,
                 );
                 if may_change_cascade {
-                    regions.add(ImpactRegion::Node(*node), &mut self.counters);
+                    regions.add(ImpactRegion::Node(*node));
                 } else if self.selector_truth_changes_active {
                     // Keep prefix truth current even when its rule cannot win. Retire an
                     // unplanned node's exact answer, or repair it if another route plans it.
@@ -3352,7 +3352,7 @@ impl StyleEngine {
                                     .refreshes
                                     .push(SelectorTruthRefresh { node, rule: None });
                             }
-                            regions.add(ImpactRegion::Node(node), &mut self.counters);
+                            regions.add(ImpactRegion::Node(node));
                         } else if difference.matches_changed {
                             changed_nodes.push((node, difference.old_matches, difference.new_matches));
                         }
@@ -3410,7 +3410,7 @@ impl StyleEngine {
                                         },
                                     });
                                 } else {
-                                    regions.add(ImpactRegion::Subtree(child), &mut self.counters);
+                                    regions.add(ImpactRegion::Subtree(child));
                                 }
                             }
                             // Pops must see siblings in document order, or a later sibling would
@@ -3468,7 +3468,7 @@ impl StyleEngine {
                         }
                     }
                     for (node, _, _) in changed_nodes {
-                        regions.add(ImpactRegion::Node(node), &mut self.counters);
+                        regions.add(ImpactRegion::Node(node));
                     }
                     // Subsumption speaks for a route's whole candidate space, so a walk over a
                     // batch-warmed sparse cache keeps every route; the warmth still cut the
@@ -3929,8 +3929,8 @@ impl StyleEngine {
         regions: &mut ImpactRegions,
     ) {
         match site.attribution() {
-            Some(key) => regions.add_attributed(region, key, &mut self.counters),
-            None => regions.add(region, &mut self.counters),
+            Some(key) => regions.add_attributed(region, key),
+            None => regions.add(region),
         }
     }
 
@@ -3951,10 +3951,10 @@ impl StyleEngine {
             return;
         }
         match site.attribution() {
-            Some(key) => regions.attribute_extent(region, key, &mut self.counters),
+            Some(key) => regions.attribute_extent(region, key),
             None => match region {
                 ImpactRegion::Node(node) => self.record_selector_truth_refresh(node, None),
-                _ => regions.add(region, &mut self.counters),
+                _ => regions.add(region),
             },
         }
     }
@@ -4005,7 +4005,7 @@ impl StyleEngine {
         {
             match site.attribution() {
                 Some(key) if self.selector_truth_changes_active => {
-                    regions.attribute_extent(region, key, &mut self.counters);
+                    regions.attribute_extent(region, key);
                 }
                 _ => self.record_already_planned_selector_truth(node, site),
             }
@@ -4149,7 +4149,7 @@ impl StyleEngine {
                 && let Some(reachable) = self.regions_reachable_for_named_consumers(scopes)
             {
                 for region in reachable {
-                    regions.add_if_not_covered(region, &self.tree, &mut self.counters);
+                    regions.add_if_not_covered(region, &self.tree);
                 }
                 return;
             }
@@ -4164,7 +4164,7 @@ impl StyleEngine {
             consumers.retain(|&node| reachable.iter().any(|region| region.contains_node(node, &self.tree)));
         }
         for node in consumers {
-            regions.add_if_not_covered(ImpactRegion::Node(node), &self.tree, &mut self.counters);
+            regions.add_if_not_covered(ImpactRegion::Node(node), &self.tree);
         }
     }
 
@@ -4282,7 +4282,7 @@ impl StyleEngine {
                     match self.regions_reachable_for_named_consumers(&scopes) {
                         Some(reachable) => {
                             for region in reachable {
-                                regions.add_if_not_covered(region, &self.tree, &mut self.counters);
+                                regions.add_if_not_covered(region, &self.tree);
                             }
                             continue;
                         }
@@ -4303,7 +4303,7 @@ impl StyleEngine {
                     consumers.retain(|&node| reachable.iter().any(|region| region.contains_node(node, &self.tree)));
                 }
                 for node in consumers {
-                    regions.add_if_not_covered(ImpactRegion::Node(node), &self.tree, &mut self.counters);
+                    regions.add_if_not_covered(ImpactRegion::Node(node), &self.tree);
                 }
                 continue;
             }
@@ -4322,7 +4322,7 @@ impl StyleEngine {
                         Lookup::Missing(_) => match self.regions_reachable_for_named_consumers(&scopes) {
                             Some(reachable) => {
                                 for region in reachable {
-                                    regions.add_if_not_covered(region, &self.tree, &mut self.counters);
+                                    regions.add_if_not_covered(region, &self.tree);
                                 }
                                 continue;
                             }
@@ -4333,7 +4333,7 @@ impl StyleEngine {
                         },
                     };
                 for node in consumers {
-                    regions.add_if_not_covered(ImpactRegion::Node(node), &self.tree, &mut self.counters);
+                    regions.add_if_not_covered(ImpactRegion::Node(node), &self.tree);
                 }
                 continue;
             }
@@ -4403,7 +4403,7 @@ impl StyleEngine {
                             removed_rules_requiring_refresh.push(rule);
                         }
                         for node in nodes {
-                            regions.add_if_not_covered(ImpactRegion::Node(node), &self.tree, &mut self.counters);
+                            regions.add_if_not_covered(ImpactRegion::Node(node), &self.tree);
                         }
                         continue;
                     }
@@ -4512,7 +4512,7 @@ impl StyleEngine {
                             });
                         }
                     }
-                    regions.add_if_not_covered(ImpactRegion::Node(node), &self.tree, &mut self.counters);
+                    regions.add_if_not_covered(ImpactRegion::Node(node), &self.tree);
                 }
                 first_program_rule = end_program_rule;
                 continue;
@@ -4667,7 +4667,7 @@ impl StyleEngine {
                                     });
                                 }
                             }
-                            regions.add_if_not_covered(ImpactRegion::Node(node), &self.tree, &mut self.counters);
+                            regions.add_if_not_covered(ImpactRegion::Node(node), &self.tree);
                         }
                     }
                     // Nothing to enumerate the subject by. It may still say where its subjects are:
@@ -4684,7 +4684,7 @@ impl StyleEngine {
                             bounded_by_scope.then_some(scopes.as_slice()),
                         ) {
                             for region in narrowed {
-                                regions.add_if_not_covered(region, &self.tree, &mut self.counters);
+                                regions.add_if_not_covered(region, &self.tree);
                             }
                             continue;
                         }
@@ -4695,7 +4695,7 @@ impl StyleEngine {
                         ) {
                             Some(reachable) => {
                                 for region in reachable {
-                                    regions.add_if_not_covered(region, &self.tree, &mut self.counters);
+                                    regions.add_if_not_covered(region, &self.tree);
                                 }
                             }
                             None => {

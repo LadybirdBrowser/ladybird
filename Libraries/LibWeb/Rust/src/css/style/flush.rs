@@ -270,7 +270,7 @@ impl StyleEngine {
         // Establish that envelope before preparing prefix transitions, so wide transactions can
         // classify local changes through the same preorder intervals used by routing.
         for &arrival in &outer_arrivals {
-            regions.add(ImpactRegion::Subtree(arrival), &mut self.counters);
+            regions.add(ImpactRegion::Subtree(arrival));
         }
         // An arriving subtree's own retained answers date from before it detached, and facts can
         // have moved off the journal's books while it was out; they must match cold rather than

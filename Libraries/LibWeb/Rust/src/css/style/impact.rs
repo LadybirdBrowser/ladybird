@@ -1040,38 +1040,36 @@ impl ImpactRegions {
         }
     }
 
-    pub fn add(&mut self, region: ImpactRegion, counters: &mut Counters) {
+    pub fn add(&mut self, region: ImpactRegion) {
         if !matches!(region, ImpactRegion::Empty | ImpactRegion::Node(_)) {
             self.unattributed.push(region);
         }
         if let ImpactRegion::Subtree(root) = region {
             self.insert_full_covered_subtree(root);
         }
-        self.add_recorded(region, counters);
+        self.add_recorded(region);
     }
 
     /// Add a region whose emitting route names the one rule whose truth can move within it.
     /// Recorded in original extent, before merging, so patch narrowing can union the covering
     /// attributions per node; duplicate adds of the same extent by unattributed routes still
     /// force full re-derivation because every unattributed add is recorded independently.
-    pub fn add_attributed(&mut self, region: ImpactRegion, key: (RuleID, EntryID), counters: &mut Counters) {
-        if region != ImpactRegion::Empty {
-            self.attributions.push((region, key));
-        }
-        self.add_recorded(region, counters);
+    pub fn add_attributed(&mut self, region: ImpactRegion, key: (RuleID, EntryID)) {
+        self.attribute_extent(region, key);
+        self.add_recorded(region);
     }
 
     /// Record a rule attribution over a region without planning the region. A route whose
     /// candidates are already planned owes the patch only the fact that its rule may have moved
     /// inside its extent; this carries that fact symbolically, one row per route instead of one
     /// row per (node, rule), and the per-node union is rebuilt lazily by `covering_attributions`.
-    pub fn attribute_extent(&mut self, region: ImpactRegion, key: (RuleID, EntryID), _counters: &mut Counters) {
+    pub fn attribute_extent(&mut self, region: ImpactRegion, key: (RuleID, EntryID)) {
         if region != ImpactRegion::Empty {
             self.attributions.push((region, key));
         }
     }
 
-    fn add_recorded(&mut self, region: ImpactRegion, _counters: &mut Counters) {
+    fn add_recorded(&mut self, region: ImpactRegion) {
         if region == ImpactRegion::Empty {
             return;
         }
@@ -1330,11 +1328,11 @@ impl ImpactRegions {
         Some(nodes)
     }
 
-    pub fn add_if_not_covered(&mut self, region: ImpactRegion, tree: &StyleNodeTree, counters: &mut Counters) {
+    pub fn add_if_not_covered(&mut self, region: ImpactRegion, tree: &StyleNodeTree) {
         if self.is_covered_by_subtree(region, tree) {
             return;
         }
-        self.add(region, counters);
+        self.add(region);
     }
 
     /// Normalize: drop duplicates and regions contained in another. The relation each surviving
@@ -1814,12 +1812,12 @@ mod tests {
 
     #[test]
     fn normalization_absorbs_contained_regions_and_keeps_the_relation() {
-        let mut fixture = Fixture::new();
+        let fixture = Fixture::new();
         let mut regions = ImpactRegions::new();
-        regions.add(ImpactRegion::Subtree(fixture.nodes[1]), &mut fixture.counters);
-        regions.add(ImpactRegion::Node(fixture.nodes[4]), &mut fixture.counters);
-        regions.add(ImpactRegion::Node(fixture.nodes[2]), &mut fixture.counters);
-        regions.add(ImpactRegion::Subtree(fixture.nodes[1]), &mut fixture.counters);
+        regions.add(ImpactRegion::Subtree(fixture.nodes[1]));
+        regions.add(ImpactRegion::Node(fixture.nodes[4]));
+        regions.add(ImpactRegion::Node(fixture.nodes[2]));
+        regions.add(ImpactRegion::Subtree(fixture.nodes[1]));
         regions.normalize(&fixture.tree);
 
         assert_eq!(regions.regions().len(), 2);
@@ -1829,10 +1827,10 @@ mod tests {
 
     #[test]
     fn duplicate_nodes_are_discarded_as_the_plan_is_built() {
-        let mut fixture = Fixture::new();
+        let fixture = Fixture::new();
         let mut regions = ImpactRegions::new();
-        regions.add(ImpactRegion::Node(fixture.nodes[1]), &mut fixture.counters);
-        regions.add(ImpactRegion::Node(fixture.nodes[1]), &mut fixture.counters);
+        regions.add(ImpactRegion::Node(fixture.nodes[1]));
+        regions.add(ImpactRegion::Node(fixture.nodes[1]));
 
         assert_eq!(regions.regions(), &[ImpactRegion::Node(fixture.nodes[1])]);
         assert!(regions.contains_node(fixture.nodes[1]));
@@ -1840,7 +1838,7 @@ mod tests {
 
     #[test]
     fn dense_region_index_distinguishes_region_kinds_for_one_node() {
-        let mut fixture = Fixture::new();
+        let fixture = Fixture::new();
         let mut regions = ImpactRegions::new();
         let node = fixture.nodes[1];
         let node_regions = [
@@ -1858,8 +1856,8 @@ mod tests {
         ];
 
         for region in node_regions {
-            regions.add(region, &mut fixture.counters);
-            regions.add(region, &mut fixture.counters);
+            regions.add(region);
+            regions.add(region);
         }
 
         assert_eq!(regions.regions(), node_regions);
@@ -1883,11 +1881,11 @@ mod tests {
 
     #[test]
     fn a_document_region_absorbs_everything_after_it() {
-        let mut fixture = Fixture::new();
+        let fixture = Fixture::new();
         let mut regions = ImpactRegions::new();
-        regions.add(ImpactRegion::Node(fixture.nodes[4]), &mut fixture.counters);
-        regions.add(ImpactRegion::Document, &mut fixture.counters);
-        regions.add(ImpactRegion::Subtree(fixture.nodes[1]), &mut fixture.counters);
+        regions.add(ImpactRegion::Node(fixture.nodes[4]));
+        regions.add(ImpactRegion::Document);
+        regions.add(ImpactRegion::Subtree(fixture.nodes[1]));
         assert_eq!(regions.regions(), &[ImpactRegion::Document]);
     }
 
@@ -1895,7 +1893,7 @@ mod tests {
     fn widening_replaces_the_plan_rather_than_adding_to_it() {
         let mut fixture = Fixture::new();
         let mut regions = ImpactRegions::new();
-        regions.add(ImpactRegion::Node(fixture.nodes[4]), &mut fixture.counters);
+        regions.add(ImpactRegion::Node(fixture.nodes[4]));
         regions.widen_to_document(&mut fixture.counters);
         assert_eq!(regions.regions(), &[ImpactRegion::Document]);
         assert_eq!(fixture.counters.get(Counter::DocumentWidenings), 1);
@@ -2024,10 +2022,9 @@ mod tests {
     #[test]
     fn transaction_topology_collects_the_complement_of_covered_subtrees() {
         let fixture = Fixture::new();
-        let mut counters = Counters::default();
         let mut regions = ImpactRegions::with_topology(&fixture.tree, fixture.nodes[0]);
-        regions.add(ImpactRegion::Subtree(fixture.nodes[1]), &mut counters);
-        regions.add(ImpactRegion::Subtree(fixture.nodes[7]), &mut counters);
+        regions.add(ImpactRegion::Subtree(fixture.nodes[1]));
+        regions.add(ImpactRegion::Subtree(fixture.nodes[7]));
 
         assert_eq!(
             regions.nodes_outside_covered_subtrees().unwrap(),
@@ -2101,10 +2098,10 @@ mod tests {
 
     #[test]
     fn covered_subtree_queries_use_coalesced_preorder_intervals() {
-        let mut fixture = Fixture::new();
+        let fixture = Fixture::new();
         let mut regions = ImpactRegions::with_topology(&fixture.tree, fixture.nodes[0]);
-        regions.add(ImpactRegion::Subtree(fixture.nodes[1]), &mut fixture.counters);
-        regions.add(ImpactRegion::Subtree(fixture.nodes[4]), &mut fixture.counters);
+        regions.add(ImpactRegion::Subtree(fixture.nodes[1]));
+        regions.add(ImpactRegion::Subtree(fixture.nodes[4]));
 
         assert_eq!(regions.covered_subtrees, [PreorderInterval { start: 1, end: 4 }]);
 

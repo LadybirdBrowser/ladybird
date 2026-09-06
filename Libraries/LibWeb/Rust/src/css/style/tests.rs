@@ -1439,9 +1439,8 @@ fn a_planned_node_never_returns_to_a_remaining_posting() {
     for node in nodes {
         assert!(postings.insert(key, node, &mut memory));
     }
-    let mut counters = Counters::new();
     let mut plan = ImpactRegions::new();
-    plan.add(ImpactRegion::Node(nodes[1]), &mut counters);
+    plan.add(ImpactRegion::Node(nodes[1]));
     let mut workspace = ImpactPlanningWorkspace::default();
     let mut candidates = Vec::new();
 
@@ -1454,7 +1453,7 @@ fn a_planned_node_never_returns_to_a_remaining_posting() {
     assert_eq!(pruned, 1);
     assert_eq!(candidates, [nodes[0], nodes[2]]);
 
-    plan.add(ImpactRegion::Node(nodes[0]), &mut counters);
+    plan.add(ImpactRegion::Node(nodes[0]));
     candidates.clear();
     let (_, reused, copied, inspected, pruned) = workspace
         .extend_remaining_posting(key, &postings, &plan, &mut candidates, None)
@@ -1476,7 +1475,7 @@ fn a_planned_node_never_returns_to_a_remaining_posting() {
     assert_eq!(candidates, [nodes[2]]);
 
     let outside = StyleNodeID::element(4);
-    plan.add(ImpactRegion::Node(outside), &mut counters);
+    plan.add(ImpactRegion::Node(outside));
     candidates.clear();
     let (_, reused, copied, inspected, pruned) = workspace
         .extend_remaining_posting(key, &postings, &plan, &mut candidates, None)
@@ -1487,8 +1486,8 @@ fn a_planned_node_never_returns_to_a_remaining_posting() {
     assert_eq!(pruned, 0);
     assert_eq!(candidates, [nodes[2]]);
 
-    plan.add(ImpactRegion::Node(nodes[2]), &mut counters);
-    plan.add(ImpactRegion::Node(StyleNodeID::element(5)), &mut counters);
+    plan.add(ImpactRegion::Node(nodes[2]));
+    plan.add(ImpactRegion::Node(StyleNodeID::element(5)));
     candidates.clear();
     let (_, reused, copied, inspected, pruned) = workspace
         .extend_remaining_posting(key, &postings, &plan, &mut candidates, None)
@@ -1505,12 +1504,9 @@ fn a_planned_node_never_returns_to_a_remaining_posting() {
     fallback_workspace
         .extend_remaining_posting(key, &postings, &fallback_plan, &mut candidates, None)
         .unwrap();
-    fallback_plan.add(ImpactRegion::Node(nodes[1]), &mut counters);
+    fallback_plan.add(ImpactRegion::Node(nodes[1]));
     for index in 0..MAX_POINT_REMOVED_EXACT_NODES - 1 {
-        fallback_plan.add(
-            ImpactRegion::Node(StyleNodeID::element(100 + index as u32)),
-            &mut counters,
-        );
+        fallback_plan.add(ImpactRegion::Node(StyleNodeID::element(100 + index as u32)));
     }
     candidates.clear();
     let (_, reused, copied, inspected, pruned) = fallback_workspace
@@ -1524,14 +1520,14 @@ fn a_planned_node_never_returns_to_a_remaining_posting() {
 
     let mut reordered_plan = ImpactRegions::new();
     for index in (20..20 + impact::MAX_PAIRWISE_COALESCE as u32).rev() {
-        reordered_plan.add(ImpactRegion::Node(StyleNodeID::element(index)), &mut counters);
+        reordered_plan.add(ImpactRegion::Node(StyleNodeID::element(index)));
     }
     let mut reordered_workspace = ImpactPlanningWorkspace::default();
     candidates.clear();
     reordered_workspace
         .extend_remaining_posting(key, &postings, &reordered_plan, &mut candidates, None)
         .unwrap();
-    reordered_plan.add(ImpactRegion::Node(nodes[1]), &mut counters);
+    reordered_plan.add(ImpactRegion::Node(nodes[1]));
     let tree = StyleNodeTree::new(&mut memory);
     reordered_plan.normalize(&tree);
     candidates.clear();
@@ -3870,10 +3866,10 @@ fn patch_attributions_preserve_the_same_coverage_without_preorder_coordinates() 
         } else {
             ImpactRegions::new()
         };
-        regions.add_attributed(ImpactRegion::Subtree(nodes[1]), first, &mut engine.counters);
-        regions.add_attributed(ImpactRegion::Children(nodes[1]), second, &mut engine.counters);
-        regions.add_attributed(ImpactRegion::Node(nodes[3]), second, &mut engine.counters);
-        regions.attribute_extent(ImpactRegion::Node(nodes[3]), first, &mut engine.counters);
+        regions.add_attributed(ImpactRegion::Subtree(nodes[1]), first);
+        regions.add_attributed(ImpactRegion::Children(nodes[1]), second);
+        regions.add_attributed(ImpactRegion::Node(nodes[3]), second);
+        regions.attribute_extent(ImpactRegion::Node(nodes[3]), first);
         let cover = regions.compile_patch_cover(&engine.tree, Some(nodes[0]));
         let mut sweep = AttributionSweep::default();
         let mut covering = Vec::new();
@@ -3910,7 +3906,7 @@ fn already_planned_routes_attribute_their_extent() {
     remove_feature(&mut engine, nodes[1], LocalFeatureKey::Class(guard));
     let mut transaction = engine.take_transaction();
     let mut regions = ImpactRegions::with_topology(&engine.tree, nodes[0]);
-    regions.add(ImpactRegion::Node(nodes[3]), &mut engine.counters);
+    regions.add(ImpactRegion::Node(nodes[3]));
     engine.transaction_fact_view = Some(engine.transaction_fact_view_for(&mut transaction, nodes[0], &regions));
     engine.selector_truth_changes_active = true;
     let program = engine.program.rule_version(rule).selector_program.unwrap();
@@ -3944,7 +3940,7 @@ fn already_planned_routes_attribute_their_extent() {
     engine.selector_truth_changes = SelectorTruthChanges::default();
     engine.record_already_planned_selector_truth(nodes[3], &site);
     let mut coarse_regions = ImpactRegions::new();
-    coarse_regions.add(ImpactRegion::Subtree(nodes[0]), &mut engine.counters);
+    coarse_regions.add(ImpactRegion::Subtree(nodes[0]));
     let coarse_cover = coarse_regions.compile_union(coarse_regions.regions(), &engine.tree, Some(nodes[0]));
     engine.resolve_already_planned_selector_truth(&coarse_regions, Some(&coarse_cover));
     assert!(engine.selector_truth_changes.deltas.as_slice().is_empty());
@@ -3965,7 +3961,6 @@ fn routes_covered_by_an_attributed_subtree_still_attribute_their_extent() {
     regions.add_attributed(
         ImpactRegion::Subtree(nodes[0]),
         (rule_a, engine.programs.entry_id(program_a, 0)),
-        &mut engine.counters,
     );
     engine.selector_truth_changes_active = true;
 
@@ -4025,7 +4020,7 @@ fn routes_covered_by_an_attributed_subtree_still_attribute_their_extent() {
     // Coverage by an unattributed subtree already forces full re-derivation, so a route
     // dropped for that coverage stays silent: no attribution and no poison.
     let mut full_regions = ImpactRegions::with_topology(&engine.tree, nodes[0]);
-    full_regions.add(ImpactRegion::Subtree(nodes[0]), &mut engine.counters);
+    full_regions.add(ImpactRegion::Subtree(nodes[0]));
     let refreshes_before = engine.selector_truth_changes.refreshes.as_slice().len();
     let mut silent_region = vec![ImpactRegion::Node(nodes[3])];
     engine.discard_regions_covered_by_subtree(&mut silent_region, &unnamed, &mut full_regions);
@@ -5503,7 +5498,7 @@ fn covered_prefix_changes_forget_only_the_covered_subtree() {
     engine
         .memory
         .reserve_required(MemoryCategory::BatchScratch, fact_view_bytes);
-    regions.add(ImpactRegion::Subtree(nodes[1]), &mut engine.counters);
+    regions.add(ImpactRegion::Subtree(nodes[1]));
 
     let route = engine.routing.routes_for(RoutingKey::Class(guard))[0];
     let mut pending = PendingRoutes::new();
@@ -6264,7 +6259,7 @@ fn prefix_transition_uses_arrival_region_coverage() {
 
     let transaction = engine.take_transaction();
     let mut regions = ImpactRegions::with_topology(&engine.tree, nodes[0]);
-    regions.add(ImpactRegion::Subtree(arrival), &mut Counters::default());
+    regions.add(ImpactRegion::Subtree(arrival));
     let transition = engine
         .classify_transaction_facts(&transaction, &regions)
         .prefix
