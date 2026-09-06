@@ -1,0 +1,68 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: CSS Tables: Margin Collapsing</title>
+        <link rel="author" title="Ian Hickson" href="mailto:ian@hixie.ch" />
+        <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2012-12-12 -->
+        <link rel="alternate" href="http://www.hixie.ch/tests/adhoc/css/box/table/016.xml" type="application/xhtml+xml" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/box.html#collapsing-margins" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/tables/reference/table-margin-004-ref.xht" />
+
+        <meta name="flags" content="ahem" />
+
+        <link rel="stylesheet" type="text/css" href="../../../../../../Text/input/wpt-import/fonts/ahem.css" />
+        <style type="text/css">
+            div#wrapper
+            {
+                border: blue solid medium;
+                height: 180px;
+                /*
+                  20px (margin-top) + 20px (content) + max(20px, 20px) 1st div table
+                + 20px (content) + max(20px, 20px)  2nd div table
+                + 20px (content) + max(20px, 20px)  1st p table
+                + 20px (content) + 20px 2nd p table
+                ========================================================
+                180px
+                */
+            }
+
+            .table
+            {
+                border-spacing: 0;
+                display: table;
+                font: 20px/1 Ahem;
+                height: 1em;
+                margin: 1em;
+            }
+
+            div.table-row
+            {
+                display: table-row;
+            }
+
+            div.cell
+            {
+                display: table-cell;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there are 4 black bars which do not overflow a wide blue rectangle. The black bars are evenly distributed (vertically) in the blue rectangle: the gap between the blue border at the top and the first black bar should be equal to the gap between the 4th bar and the blue border at the bottom.</p>
+
+        <div id="wrapper">
+            <div class="table">
+                <div class="table-row">
+                    <div class="cell">Test</div>
+                </div>
+            </div>
+            <div class="table">
+                <div class="table-row">
+                    <div class="cell">Test</div>
+                </div>
+            </div>
+            <p class="table">Test</p>
+            <p class="table">Test</p>
+        </div>
+
+    </body>
+</html>

@@ -1,0 +1,70 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Reftest Reference</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+
+  <style type="text/css"><![CDATA[
+  div
+  {
+  border: black solid medium;
+  padding: 1em;
+  margin-top: 1em;
+  width: 98px;
+  }
+
+  table
+  {
+  border-spacing: 0px;
+  table-layout: fixed;
+  }
+
+  caption {text-align: left;}
+
+  caption#first {margin: 1em 0em;}
+
+  td#second {padding: 1em 0em;}
+
+  td {padding: 0px;}
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if the word ABOVE is above the cat image in both rectangles.</p>
+
+  <div>
+
+    <table>
+
+      <caption id="first">ABOVE</caption>
+
+      <tr>
+        <td><img src="../support/cat.png" alt="Image download support must be enabled" /></td></tr>
+
+    </table>
+
+  </div>
+
+
+  <div>
+
+    <table>
+
+      <caption>ABOVE</caption>
+
+     <tr>
+
+       <td id="second"><img src="../support/cat.png" alt="Image download support must be enabled" /></td></tr>
+
+    </table>
+
+  </div>
+
+ </body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Test: Height of a cell is maximum between its specified 'height' and content minimum height</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/tables.html#height-layout" title="17.5.3 Table height algorithms" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/tables/../reference/ref-filled-green-100px-square.xht" />
+
+  <meta content="ahem" name="flags" />
+  <meta content="The height of a 'table-row' element's box is the maximum of the row's computed 'height', the computed 'height' of each cell in such row and the minimum height required by the content of the cells. The height of a cell is the maximum between its specified 'height' and the minimum height required by its content." name="assert" />
+
+  <link rel="stylesheet" type="text/css" href="../../../../../../Text/input/wpt-import/fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div#overlapped-red-reference
+  {
+  background-color: red;
+  height: 100px;
+  position: absolute;
+  width: 100px;
+  z-index: -1;
+  }
+
+  table#overlapping-green-test
+  {
+  border-spacing: 0px;
+  font: 20px/1 Ahem;
+  }
+
+  td
+  {
+  background-color: green;
+  border: green solid 1em;
+  color: green;
+  height: 3em;
+  padding: 0em;
+  }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+  <div id="overlapped-red-reference"></div>
+
+  <table id="overlapping-green-test">
+    <tr>
+      <td>123</td>
+    </tr>
+  </table>
+
+  <!--
+  Such single cell's box should be 5em wide and 5em tall
+  while its content area should be 3em wide and 3em tall.
+  -->
+
+ </body>
+</html>
