@@ -1087,12 +1087,9 @@ impl<'a> SelectorCompiler<'a> {
                 match pseudo_class.languages.is_empty() {
                     true => Some(self.builder.push_never()),
                     false => {
-                        let ranges: Vec<&[u16]> = pseudo_class
-                            .languages
-                            .iter()
-                            .map(|range| range.value.as_ref())
-                            .collect();
-                        let (first, count) = self.builder.push_language_ranges(&ranges);
+                        let (first, count) = self
+                            .builder
+                            .push_language_ranges(pseudo_class.languages.iter().map(|range| &range.value));
                         Some(self.builder.push(SelectorOp::Language { first, count }))
                     }
                 }

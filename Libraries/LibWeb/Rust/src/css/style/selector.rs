@@ -924,15 +924,15 @@ impl SelectorProgramBuilder {
     }
 
     /// Add the extended language ranges of one `:lang()` and return their range.
-    pub fn push_language_ranges(&mut self, ranges: &[&[u16]]) -> (u32, u32) {
+    pub fn push_language_ranges(&mut self, ranges: impl IntoIterator<Item = impl AsRef<[u16]>>) -> (u32, u32) {
         let first = u32::try_from(self.program.language_ranges.len()).expect("language range space exhausted");
         for range in ranges {
-            let literal = self.push_literal(range);
+            let literal = self.push_literal(range.as_ref());
             self.program.language_ranges.push(literal);
         }
         (
             first,
-            u32::try_from(ranges.len()).expect("language range space exhausted"),
+            u32::try_from(self.program.language_ranges.len() - first as usize).expect("language range space exhausted"),
         )
     }
 
