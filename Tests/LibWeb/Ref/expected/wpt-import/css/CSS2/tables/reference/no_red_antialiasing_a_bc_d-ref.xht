@@ -1,0 +1,32 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+   <title>Reference rendering - no red except antialiasing, a bc d</title>
+   <link rel="author" title="Opera" href="https://www.opera.com/" />
+   <style type="text/css">
+      #outer {
+         position: relative;
+         font-size: 2em;
+      }
+      #inner1, #inner2 {
+         position: absolute;
+         top: 1px;
+         left: 1px;
+      }
+      #inner1 {
+         color: red;
+      }
+      #inner2 {
+         color: green;
+      }
+   </style>
+</head>
+<body>
+   <p>There should be no red below, except for antialiasing issues.</p>
+   <div id="outer">
+      <div id="inner1">a bc d</div>
+      <div id="inner2">a bc d</div>
+   </div>
+</body>
+</html>

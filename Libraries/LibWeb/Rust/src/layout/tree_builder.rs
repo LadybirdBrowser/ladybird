@@ -2666,8 +2666,18 @@ impl TreeBuilderHost<'_> {
         for &node in nodes {
             self.move_child(node, wrapper_slot, NodeSlotId::INVALID);
         }
-        let parent_children_are_inline = node_has_flag(self.data(parent), NodeFlag::ChildrenAreInline);
-        self.set_children_are_inline(wrapper_slot, parent_children_are_inline);
+        // An anonymous table-cell takes over the run of content it is generated around, so it has inline children
+        // exactly when that run is inline-level. Anonymous table-row, table and inline-table boxes only ever own
+        // table-internal boxes (their wrapped children are, or become through the remaining fixup steps, table-internal
+        // boxes), so they never have inline children, not even when they are generated inside an inline box. An
+        // inline-table with inline children would also not derive its baseline from its first row.
+        let children_are_inline = match kind {
+            FfiAnonymousTableBoxKind::TableCell => nodes.iter().any(|&node| node_is_inline_outside(self, node)),
+            FfiAnonymousTableBoxKind::TableRow
+            | FfiAnonymousTableBoxKind::Table
+            | FfiAnonymousTableBoxKind::InlineTable => false,
+        };
+        self.set_children_are_inline(wrapper_slot, children_are_inline);
         self.attach_child(parent, wrapper, nearest_sibling);
     }
 }
