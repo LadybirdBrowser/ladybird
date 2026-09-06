@@ -828,6 +828,7 @@ impl StyleEngine {
             if entry.pseudo_element != pseudo {
                 continue;
             }
+            let mut matched_rule = None;
             for &declared in self.program.declared_properties_of(delta.rule) {
                 if !property_is_longhand(declared.property) {
                     continue;
@@ -845,9 +846,13 @@ impl StyleEngine {
                     repair_properties.push(declared.property);
                     continue;
                 }
-                let Some(matched) = matches.iter().find(|matched| {
-                    matched.rule == delta.rule && self.programs.entry_id(matched.program, matched.entry) == delta.entry
-                }) else {
+                if matched_rule.is_none() {
+                    matched_rule = matches.iter().find(|matched| {
+                        matched.rule == delta.rule
+                            && self.programs.entry_id(matched.program, matched.entry) == delta.entry
+                    });
+                }
+                let Some(matched) = matched_rule else {
                     return false;
                 };
                 let priority = self.cascade_priority_of(
