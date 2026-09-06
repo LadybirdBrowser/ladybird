@@ -4073,8 +4073,8 @@ impl StyleEngine {
             InputKey::CascadeTopology(TopologyAxis::SheetOrder(tree_scope)) => (
                 self.program
                     .sheets_in_scope(tree_scope)
-                    .into_iter()
-                    .flat_map(|sheet| self.program.rules_in_sheet(sheet))
+                    .iter()
+                    .flat_map(|&sheet| self.program.rules_in_sheet(sheet))
                     .collect(),
                 ProgramJoinDeltaKind::Priority,
             ),

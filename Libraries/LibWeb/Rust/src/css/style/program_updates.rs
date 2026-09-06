@@ -766,7 +766,7 @@ impl StyleEngine {
     pub(super) fn current_sheets_in_scope(&self, tree_scope: TreeScopeID) -> Vec<SheetID> {
         self.program_staging
             .sheets_in_scope
-            .current(tree_scope, || self.program.sheets_in_scope(tree_scope))
+            .current(tree_scope, || self.program.sheets_in_scope(tree_scope).to_vec())
     }
 
     pub(super) fn stage_sheets_in_scope(&mut self, tree_scope: TreeScopeID, sheets: Vec<SheetID>) {
@@ -800,9 +800,11 @@ impl StyleEngine {
         } else {
             self.invalidate_concrete_scope_program(tree_scope);
         }
-        self.program_staging
-            .sheets_in_scope
-            .stage(tree_scope, self.program.sheets_in_scope(tree_scope), sheets);
+        self.program_staging.sheets_in_scope.stage(
+            tree_scope,
+            self.program.sheets_in_scope(tree_scope).to_vec(),
+            sheets,
+        );
     }
 
     pub(super) fn record_attachment(&mut self, sheet: SheetID, tree_scope: TreeScopeID, previous: bool, current: bool) {

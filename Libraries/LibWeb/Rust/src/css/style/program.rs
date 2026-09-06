@@ -575,8 +575,8 @@ impl StyleSheetProgram {
     #[must_use]
     pub fn rules_in_a_layer_in_scope(&self, scope: TreeScopeID) -> Vec<RuleID> {
         self.sheets_in_scope(scope)
-            .into_iter()
-            .flat_map(|sheet| self.rules_in_sheet(sheet))
+            .iter()
+            .flat_map(|&sheet| self.rules_in_sheet(sheet))
             .filter(|rule| self.rules[rule.0 as usize].in_a_layer)
             .collect()
     }
@@ -607,11 +607,10 @@ impl StyleSheetProgram {
 
     /// Sheets attached to `tree_scope`, in cascade order.
     #[must_use]
-    pub fn sheets_in_scope(&self, tree_scope: TreeScopeID) -> Vec<SheetID> {
+    pub fn sheets_in_scope(&self, tree_scope: TreeScopeID) -> &[SheetID] {
         self.sheets_by_scope
             .get(tree_scope.0 as usize)
-            .cloned()
-            .unwrap_or_default()
+            .map_or(&[], Vec::as_slice)
     }
 
     pub(crate) fn set_sheets_in_scope(&mut self, tree_scope: TreeScopeID, sheets: &[SheetID]) {

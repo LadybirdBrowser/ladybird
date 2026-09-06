@@ -374,7 +374,7 @@ fn for_each_scope_rule(
     take: SheetsToTake,
     mut callback: impl FnMut(super::program::SheetID, RuleID, SelectorProgramID),
 ) {
-    for sheet in program.sheets_in_scope(tree_scope) {
+    for &sheet in program.sheets_in_scope(tree_scope) {
         if take == SheetsToTake::NonAuthorOnly
             && !matches!(
                 program.sheet_origin(sheet),

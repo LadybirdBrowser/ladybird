@@ -1147,24 +1147,23 @@ impl StyleEngine {
         } else {
             DocumentSheetMode::NonAuthor
         };
-        let mut sheets = self.program.sheets_in_scope(scope);
-        if scope != TreeScopeID::DOCUMENT {
-            sheets.extend(
-                self.program
-                    .sheets_in_scope(TreeScopeID::DOCUMENT)
-                    .into_iter()
-                    .filter(|&sheet| {
-                        document_sheet_mode == DocumentSheetMode::All
-                            || self.program.sheet_origin(sheet) != CascadeOrigin::Author
-                    }),
-            );
-        }
+        let document_sheets = if scope == TreeScopeID::DOCUMENT {
+            &[]
+        } else {
+            self.program.sheets_in_scope(TreeScopeID::DOCUMENT)
+        };
+        let document_sheets = document_sheets.iter().filter(|&&sheet| {
+            document_sheet_mode == DocumentSheetMode::All || self.program.sheet_origin(sheet) != CascadeOrigin::Author
+        });
         ScopeDispatchKey {
             depth: self.tree_scope_depth(scope),
             document_sheet_mode,
-            sheets: sheets
-                .into_iter()
-                .map(|sheet| (sheet, self.program.sheet_dispatch_version(sheet)))
+            sheets: self
+                .program
+                .sheets_in_scope(scope)
+                .iter()
+                .chain(document_sheets)
+                .map(|&sheet| (sheet, self.program.sheet_dispatch_version(sheet)))
                 .collect(),
             layer_order: self.program.layer_order_key(scope),
         }
@@ -2282,8 +2281,8 @@ impl StyleEngine {
             affected.extend(
                 self.program
                     .sheets_in_scope(TreeScopeID::DOCUMENT)
-                    .into_iter()
-                    .flat_map(|sheet| self.program.rules_in_sheet(sheet))
+                    .iter()
+                    .flat_map(|&sheet| self.program.rules_in_sheet(sheet))
                     .filter_map(|current_rule| {
                         (self.program.rule_version(current_rule).selector_program == Some(program)).then_some(
                             RetainedAnswerPatchSelectionRule {

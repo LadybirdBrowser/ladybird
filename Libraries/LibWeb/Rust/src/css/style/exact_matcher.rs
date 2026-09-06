@@ -161,7 +161,7 @@ impl<'a> ExactMatcher<'a> {
         out: &mut Vec<ExactRuleMatch>,
         counters: &mut Counters,
     ) -> Result<(), Incomplete> {
-        for sheet in self.program.sheets_in_scope(sheet_scope) {
+        for &sheet in self.program.sheets_in_scope(sheet_scope) {
             if take == DocumentSheets::NonAuthorOnly
                 && !matches!(
                     self.program.sheet_origin(sheet),
