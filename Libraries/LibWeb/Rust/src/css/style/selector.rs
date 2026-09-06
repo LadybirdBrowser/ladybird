@@ -6376,7 +6376,7 @@ impl<'a> MatchEvaluator<'a> {
         if position.of_type {
             let mut type_ids = HashMap::default();
             let mut sibling_types = Vec::with_capacity(siblings.len());
-            let mut totals = Vec::<u32>::new();
+            let mut type_positions = Vec::<SiblingPositions>::new();
             for &sibling in siblings.iter() {
                 let row = match self.row_of(sibling) {
                     Ok(row) => row,
@@ -6389,27 +6389,22 @@ impl<'a> MatchEvaluator<'a> {
                     Err(incomplete) => return Err(incomplete),
                 };
                 let sibling_type = (row.facts.tag_of(row.row), row.facts.namespace_of(row.row));
-                let next_type_id = u32::try_from(totals.len()).expect("sibling type space exhausted");
+                let next_type_id = u32::try_from(type_positions.len()).expect("sibling type space exhausted");
                 let type_id = *type_ids.entry(sibling_type).or_insert_with(|| {
-                    totals.push(0);
+                    type_positions.push(SiblingPositions {
+                        from_start: 0,
+                        from_end: 0,
+                    });
                     next_type_id
                 });
                 sibling_types.push(type_id);
-                totals[type_id as usize] += 1;
+                type_positions[type_id as usize].from_end += 1;
             }
-            let mut seen = vec![0_u32; totals.len()];
             for (&sibling, type_id) in siblings.iter().zip(sibling_types) {
-                let type_index = type_id as usize;
-                let from_start = &mut seen[type_index];
-                *from_start += 1;
-                workspace.insert_type_position(
-                    sibling,
-                    side,
-                    SiblingPositions {
-                        from_start: *from_start,
-                        from_end: totals[type_index] - *from_start + 1,
-                    },
-                );
+                let position = &mut type_positions[type_id as usize];
+                position.from_start += 1;
+                workspace.insert_type_position(sibling, side, *position);
+                position.from_end -= 1;
             }
         }
 
