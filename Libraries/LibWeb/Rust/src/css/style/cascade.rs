@@ -980,7 +980,7 @@ impl WinnerGroups {
     ) -> bool {
         let key = WinnerGroupKey::current(node, program_version);
         let current_rows_are_equal = match (self.token_for(key), other.token_for(key)) {
-            (Lookup::Known((_, left)), Lookup::Known((_, right))) => other.semantic_delta(Some(left), right).is_empty(),
+            (Lookup::Known((_, left)), Lookup::Known((_, right))) => other.states_are_semantically_equal(left, right),
             (Lookup::Missing(_), Lookup::Missing(_)) => true,
             (Lookup::Known(_), Lookup::Missing(_)) | (Lookup::Missing(_), Lookup::Known(_)) => false,
             (Lookup::KnownAbsent, _) | (_, Lookup::KnownAbsent) => unreachable!("winner groups are sparse"),
@@ -991,6 +991,8 @@ impl WinnerGroups {
 
         let mut left: Vec<_> = self.pseudo_states(node).collect();
         let mut right: Vec<_> = other.pseudo_states(node).collect();
+        // NB: Exact verification can materialize pseudo rows missing from the sparse retained
+        //     cache. Compare the retained rows; additional recomputed rows do not imply a change.
         left.sort_unstable_by_key(|row| row.0);
         right.sort_unstable_by_key(|row| row.0);
         left.iter().all(|&(left_pseudo, _, left_state, left_current)| {
@@ -999,7 +1001,7 @@ impl WinnerGroups {
                 .ok()
                 .is_some_and(|index| {
                     let (_, _, right_state, right_current) = right[index];
-                    left_current == right_current && other.semantic_delta(Some(left_state), right_state).is_empty()
+                    left_current == right_current && other.states_are_semantically_equal(left_state, right_state)
                 })
         })
     }
@@ -1390,6 +1392,20 @@ impl WinnerGroups {
         self.states[state].iter().flat_map(|&group| self.group_winners(group))
     }
 
+    pub(super) fn states_are_semantically_equal(&self, left: CascadeStateID, right: CascadeStateID) -> bool {
+        left == right
+            || self.states[left]
+                .iter()
+                .map(|group| group.winners)
+                .eq(self.states[right].iter().map(|group| group.winners))
+    }
+
+    fn semantic_winners_in_state(&self, state: CascadeStateID) -> impl Iterator<Item = &SemanticPropertyWinner> {
+        self.states[state]
+            .iter()
+            .flat_map(move |group| self.groups[group.winners].winners.iter())
+    }
+
     /// Compare the semantic winners consumed by two computed-style publications.
     ///
     /// Missing retained coverage is not the implicit cascade result. It conservatively reports
@@ -1429,16 +1445,16 @@ impl WinnerGroups {
     /// exact semantic delta.
     pub(super) fn property_shape_hash(&self, state: CascadeStateID) -> u64 {
         let mut hasher = fast_hasher();
-        for winner in self.winners_in_state(state) {
+        for winner in self.semantic_winners_in_state(state) {
             winner.property.hash(&mut hasher);
         }
         hasher.finish()
     }
 
     pub(super) fn property_shapes_are_equal(&self, left: CascadeStateID, right: CascadeStateID) -> bool {
-        self.winners_in_state(left)
+        self.semantic_winners_in_state(left)
             .map(|winner| winner.property)
-            .eq(self.winners_in_state(right).map(|winner| winner.property))
+            .eq(self.semantic_winners_in_state(right).map(|winner| winner.property))
     }
 
     fn append_group_semantic_delta(

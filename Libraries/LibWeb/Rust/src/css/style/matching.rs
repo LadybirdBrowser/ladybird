@@ -3605,7 +3605,7 @@ impl StyleEngine {
             Lookup::Known((current_generation, current)) if current_generation == previous_generation => current,
             Lookup::Known(_) | Lookup::KnownAbsent | Lookup::Missing(_) => return false,
         };
-        self.winner_groups.semantic_delta(Some(previous), current).is_empty()
+        self.winner_groups.states_are_semantically_equal(previous, current)
     }
 
     /// Consume the complete current answer which the immediately preceding style plan retained.
@@ -3800,7 +3800,7 @@ impl StyleEngine {
                     match winner_groups.token_for(WinnerGroupKey::current_pseudo(node, pseudo, self.program.version()))
                     {
                         Lookup::Known((retained_generation, state)) if retained_generation == computed.0 => {
-                            winner_groups.semantic_delta(Some(computed.1), state).is_empty()
+                            winner_groups.states_are_semantically_equal(computed.1, state)
                         }
                         Lookup::Known(_) | Lookup::KnownAbsent | Lookup::Missing(_) => false,
                     }
@@ -3827,7 +3827,7 @@ impl StyleEngine {
                                 .map(|(_, state)| state)
                                 .is_some_and(|computed| {
                                     computed.0 == generation
-                                        && winner_groups.semantic_delta(Some(computed.1), state).is_empty()
+                                        && winner_groups.states_are_semantically_equal(computed.1, state)
                                 })
                         })
                 })

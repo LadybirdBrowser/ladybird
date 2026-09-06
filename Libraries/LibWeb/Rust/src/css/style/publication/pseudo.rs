@@ -291,7 +291,7 @@ impl StyleEngine {
                 let unchanged = match (state, bound) {
                     (Some(state), Some((bound_generation, bound_state))) => {
                         bound_generation == generation
-                            && self.winner_groups.semantic_delta(Some(bound_state), state).is_empty()
+                            && self.winner_groups.states_are_semantically_equal(bound_state, state)
                     }
                     (None, None) => true,
                     _ => false,
