@@ -712,20 +712,13 @@ impl ProgramStaging {
             .sheets
             .extend(self.sheet_enabled.pairs().map(|(sheet, _, _)| sheet));
         for (scope, before, after) in self.sheets_in_scope.pairs() {
-            delta.sheets.extend(
-                before
-                    .iter()
-                    .chain(after)
-                    .copied()
-                    .filter(|sheet| before.contains(sheet) != after.contains(sheet)),
-            );
-            delta.departed_scopes.extend(
-                before
-                    .iter()
-                    .copied()
-                    .filter(|sheet| !after.contains(sheet))
-                    .map(|sheet| (sheet, scope)),
-            );
+            for &sheet in before.iter().filter(|sheet| !after.contains(sheet)) {
+                delta.sheets.push(sheet);
+                delta.departed_scopes.push((sheet, scope));
+            }
+            delta
+                .sheets
+                .extend(after.iter().copied().filter(|sheet| !before.contains(sheet)));
         }
         delta.sheets.sort_unstable();
         delta.sheets.dedup();
