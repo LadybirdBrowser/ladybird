@@ -571,28 +571,30 @@ impl PrefixAutomaton {
         for (order, &step) in step_by_dispatch_order.iter().enumerate() {
             remap[step.0 as usize] = u32::try_from(order).expect("selector prefix step space exhausted");
         }
-        let old_steps = std::mem::take(&mut self.steps);
-        self.steps = step_by_dispatch_order
-            .iter()
-            .map(|step| old_steps[step.0 as usize].clone())
-            .collect();
-        let mut old_builders = std::mem::take(&mut self.step_output_builders);
-        self.step_output_builders = step_by_dispatch_order
-            .iter()
-            .map(|step| std::mem::take(&mut old_builders[step.0 as usize]))
-            .collect();
-        let old_predecessors = std::mem::take(&mut self.step_predecessors);
-        self.step_predecessors = step_by_dispatch_order
-            .iter()
-            .map(|step| {
-                let predecessor = old_predecessors[step.0 as usize];
-                if predecessor == u32::MAX {
-                    u32::MAX
-                } else {
-                    remap[predecessor as usize]
+        // Apply each permutation cycle to the parallel arrays in place. Replacing a visited
+        // source with its own index makes the cycle a no-op when reached again.
+        for start in 0..step_by_dispatch_order.len() {
+            let mut current = start;
+            loop {
+                let next = step_by_dispatch_order[current].0 as usize;
+                step_by_dispatch_order[current] =
+                    PrefixStepID(u32::try_from(current).expect("selector prefix step space exhausted"));
+                if next == start {
+                    break;
                 }
-            })
-            .collect();
+                self.steps.swap(current, next);
+                self.step_output_builders.swap(current, next);
+                self.step_predecessors.swap(current, next);
+                current = next;
+            }
+        }
+        for predecessor in &mut self.step_predecessors {
+            if *predecessor != u32::MAX {
+                *predecessor = remap[*predecessor as usize];
+            }
+        }
+        self.steps.shrink_to_fit();
+        self.step_predecessors.shrink_to_fit();
         let remap_steps = |steps: &mut Vec<PrefixStepID>| {
             for step in steps {
                 step.0 = remap[step.0 as usize];
