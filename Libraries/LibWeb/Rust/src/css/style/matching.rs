@@ -2335,17 +2335,12 @@ impl StyleEngine {
         selection: RetainedAnswerPatchSelection,
     ) -> RetainedAnswerPatch {
         let (scope_program, dispatch) = self.ranked_scope_program(TreeScopeID::DOCUMENT);
-        let rules: Vec<RetainedAnswerPatchRule> = selection
+        let rule_keys = selection
             .affected
             .into_iter()
-            .map(|affected| RetainedAnswerPatchRule {
-                rule: affected.rule,
-                program: affected.program,
-            })
+            .map(|affected| (affected.rule, affected.program))
             .collect();
         let dispatch_workspace = DispatchCandidateWorkspace::with_entry_capacity(dispatch.entry_count());
-        let rule_keys: Vec<(RuleID, SelectorProgramID)> =
-            rules.iter().map(|affected| (affected.rule, affected.program)).collect();
         {
             let mut caches = self.prefix_caches.borrow_mut();
             caches.states.make_scratch(&mut self.memory);
@@ -2361,7 +2356,6 @@ impl StyleEngine {
         custom_changed_rules.sort_unstable();
         custom_changed_rules.dedup();
         RetainedAnswerPatch {
-            rules,
             rule_keys,
             scope_program,
             dispatch,

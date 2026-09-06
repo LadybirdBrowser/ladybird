@@ -890,18 +890,12 @@ impl Default for RetainedMatchAnswers {
     }
 }
 
-pub(super) struct RetainedAnswerPatchRule {
-    pub(super) rule: RuleID,
-    pub(super) program: SelectorProgramID,
-}
-
 pub(super) struct RetainedAnswerPatch {
-    pub(super) rules: Vec<RetainedAnswerPatchRule>,
     /// Whether this transaction can reorder rules relative to each other (layer or sheet order).
     /// An unchanged match set can then still compact to a different winner, so the unchanged
     /// fast path must not conclude anything from set equality.
     pub(super) orders_shifted: bool,
-    /// The (rule, program) identities of `rules`, sorted, as the batch matcher's rule filter.
+    /// The affected (rule, program) identities, sorted, as the batch matcher's rule filter.
     pub(super) rule_keys: Vec<(RuleID, SelectorProgramID)>,
     pub(super) scope_program: ScopeProgramID,
     pub(super) dispatch: Rc<RuleDispatch>,
@@ -987,7 +981,7 @@ impl RetainedAnswerPatch {
     pub(super) fn capacity_bytes(&self) -> u64 {
         capacity_bytes! {
             shallow [
-                self.rules,
+                self.rule_keys,
                 self.cascade_update_properties,
                 self.cascade_update_rules,
                 self.custom_changed_rules,

@@ -936,7 +936,7 @@ impl StyleEngine {
                             refreshes,
                         }
                     } else if !node_deltas.is_empty()
-                        || (patch.always_emit && patch.rules.is_empty())
+                        || (patch.always_emit && patch.rule_keys.is_empty())
                         || !patch.cascade_update_properties.is_empty()
                     {
                         SelectorTruthPatch::Direct(node_deltas)
