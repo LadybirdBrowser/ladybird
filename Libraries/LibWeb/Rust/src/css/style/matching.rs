@@ -965,7 +965,7 @@ impl StyleEngine {
     #[must_use]
     pub(super) fn elements_under(&self, root: StyleNodeID) -> Vec<StyleNodeID> {
         let mut nodes: Vec<StyleNodeID> = Vec::new();
-        let mut roots = vec![root];
+        let mut roots = SmallVec::from_buf([root]);
         while let Some(next) = roots.pop() {
             for node in self.tree.preorder(next) {
                 if self.tree.host_of(node).is_none() {
