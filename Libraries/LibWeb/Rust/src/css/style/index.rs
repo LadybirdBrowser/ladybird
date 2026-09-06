@@ -4238,27 +4238,25 @@ impl ElementFactStore {
         self.metadata.get(node.element_index()? as usize)?.as_ref()
     }
 
-    fn snapshot_row(&self, node: StyleNodeID) -> StagedFactRow {
-        let Some(row) = self.rows.row_of(node) else {
-            return StagedFactRow::default();
-        };
+    fn staged_row_from_primary_snapshot(&self, snapshot: PrimaryFactSnapshot) -> StagedFactRow {
+        let rare_facts = snapshot.rare_facts.unwrap_or_default();
         StagedFactRow {
-            tag: self.rows.tag_of(row),
-            folded_tag: self.rows.folded_tag_of(row),
-            id: self.rows.id_of(row),
-            language: self.rows.language_of(row),
-            namespace: self.rows.namespace_of(row),
-            part_exposure: self.rows.part_exposure_of(row),
-            directionality: self.rows.directionality_of(row),
-            heading_level: self.rows.heading_level_of(row),
-            has_text_content: self.rows.has_text_content_of(row),
-            states: self.rows.states_of(row),
-            custom_states: self.rows.custom_states_of(row).to_vec(),
-            parts: self.rows.parts_of(row).to_vec(),
-            classes: self.rows.classes_of(row).to_vec(),
-            attributes: self
-                .rows
-                .attributes_of(row)
+            tag: snapshot.tag,
+            folded_tag: snapshot.folded_tag,
+            id: snapshot.id,
+            language: snapshot.language,
+            namespace: snapshot.namespace,
+            part_exposure: rare_facts.part_exposure,
+            directionality: snapshot.directionality,
+            heading_level: rare_facts.heading_level,
+            has_text_content: snapshot.has_text_content,
+            states: snapshot.states,
+            custom_states: rare_facts.custom_states.slice(&self.rows.custom_states).to_vec(),
+            parts: rare_facts.parts.slice(&self.rows.parts).to_vec(),
+            classes: snapshot.class_handle.slice(&self.rows.classes).to_vec(),
+            attributes: snapshot
+                .attribute_handle
+                .slice(&self.rows.attributes)
                 .iter()
                 .map(|attribute| (attribute.name, attribute.value))
                 .collect(),
@@ -4269,7 +4267,9 @@ impl ElementFactStore {
         self.memory_dirty = true;
         if !self.staging.contains(node) {
             let before = self.rows.row_of(node).map(|row| self.rows.primary_snapshot(row));
-            let row = self.snapshot_row(node);
+            let row = before.map_or_else(StagedFactRow::default, |snapshot| {
+                self.staged_row_from_primary_snapshot(snapshot)
+            });
             self.staging.insert(node, row, before);
         }
         self.staging.edit(node, edit).unwrap()
