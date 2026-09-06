@@ -327,6 +327,8 @@ pub(crate) struct Column {
     pub(crate) is_constrained: bool,
     // Store whether the column has originating cells, defined in https://www.w3.org/TR/css-tables-3/#terminology.
     pub(crate) has_originating_cells: bool,
+    // Whether the column, or its column group, has 'visibility: collapse' (see remove_collapsed_columns).
+    pub(crate) is_collapsed: bool,
 }
 
 fn total_used(columns: &[Column]) -> CssPixels {
@@ -934,6 +936,51 @@ impl TableTree for TableFormattingContext<'_> {
         // CSS::Visibility::Collapse is pinned to zero in
         // LayoutRustBridge.cpp.
         self.style(row).visibility() == 0 || row_group.is_some_and(|group| self.style(group).visibility() == 0)
+    }
+}
+
+impl TableFormattingContext<'_> {
+    fn column_is_collapsed(&self, column: Node) -> bool {
+        // CSS::Visibility::Collapse is pinned to zero in LayoutRustBridge.cpp.
+        if self.style(column).visibility() == 0 {
+            return true;
+        }
+        let parent = self.parent(column);
+        !parent.is_invalid() && self.node_facts(parent).is_table_column_group() && self.style(parent).visibility() == 0
+    }
+
+    /// The number of columns a cell spans that are not collapsed; the border spacing inside the cell's span is the
+    /// spacing between those.
+    fn visible_spanned_columns(&self, cell: TableCell) -> usize {
+        (cell.column_index..cell.column_index + cell.column_span)
+            .filter(|&index| !self.columns[index].is_collapsed)
+            .count()
+    }
+
+    fn visible_column_count(&self) -> usize {
+        self.columns.iter().filter(|column| !column.is_collapsed).count()
+    }
+
+    /// Removes the columns with 'visibility: collapse' once the table is sized and its inline size distributed as
+    /// if they were visible: "This value causes the entire row or column to be removed from the display, and the
+    /// space normally taken up by the row or column to be made available for other content. [...] The suppression
+    /// of the row or column, however, does not otherwise affect the layout of the table."
+    /// https://www.w3.org/TR/CSS22/tables.html#dynamic-effects
+    /// A collapsed column keeps no inline size and no border spacing, and the table box shrinks by what the column
+    /// took, as in other engines. Its table wrapper keeps the inline size it was given for the table.
+    fn remove_collapsed_columns(&mut self) {
+        let spacing = self.border_spacing_inline();
+        let mut removed = CssPixels::default();
+        for column in &mut self.columns {
+            if column.is_collapsed {
+                removed += column.used_inline_size + spacing;
+                column.used_inline_size = CssPixels::default();
+            }
+        }
+        if removed > CssPixels::default() {
+            let table_used = self.used_values(self.table_box);
+            table_used.set_content_inline_size(table_used.content_inline_size.get() - removed);
+        }
     }
 }
 
@@ -2254,6 +2301,16 @@ impl<'pass> TableFormattingContext<'pass> {
         for cell in &self.cells {
             self.columns[cell.column_index].has_originating_cells = true;
         }
+        let mut column_index = 0usize;
+        for column in self.table_columns() {
+            let end = (column_index + self.table_column_span(column)).min(self.columns.len());
+            if self.column_is_collapsed(column) {
+                for index in column_index..end {
+                    self.columns[index].is_collapsed = true;
+                }
+            }
+            column_index = end;
+        }
 
         // The containing block of every internal table box and caption is the table wrapper;
         // the table's own input carries the wrapper's constraints, and participant percentages
@@ -2509,8 +2566,8 @@ impl<'pass> TableFormattingContext<'pass> {
             // The position of any table cell, track, or track group is defined by the sums of its spanned columns and rows:
             // - the inline/block sizes of all spanned visible columns/rows
             // - the inline/block border spacing times the amount of spanned visible columns/rows minus one
-            // FIXME: Account for visibility.
-            let cell_inline_size = span_inline + inline_spacing * (cell.column_span - 1);
+            // (collapsed columns have no inline size, see remove_collapsed_columns).
+            let cell_inline_size = span_inline + inline_spacing * self.visible_spanned_columns(cell).saturating_sub(1);
             // In fixed mode, columns are sized without regard to the padding and borders of cells that have no
             // specified inline size (https://www.w3.org/TR/css-tables-3/#width-distribution-in-fixed-mode), so a
             // column can be narrower than those. The cell still occupies exactly its columns, with an empty content
@@ -2655,7 +2712,7 @@ impl<'pass> TableFormattingContext<'pass> {
             });
             used.set_content_inline_size(
                 span_inline - used.border_box_left(collapsed) - used.border_box_right(collapsed)
-                    + inline_spacing * (cell.column_span - 1),
+                    + inline_spacing * self.visible_spanned_columns(cell).saturating_sub(1),
             );
             let inner = used.available_inner_space_or_constraints_from(self.available_space);
             self.cell_inside_layout_inputs[cell_index] = inner;
@@ -2782,11 +2839,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 .columns
                 .iter()
                 .fold(CssPixels::default(), |sum, column| sum + column.used_inline_size)
-                + if self.columns.len() >= 2 {
-                    inline_spacing * (self.columns.len() - 1)
-                } else {
-                    CssPixels::default()
-                };
+                + inline_spacing * self.visible_column_count().saturating_sub(1);
             let used = self.used_values(row.box_);
             used.set_content_block_size(row.final_block_size);
             used.set_content_inline_size(inline_size);
@@ -2957,12 +3010,14 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     fn position_cell_boxes(&mut self) {
+        let spacing = self.border_spacing_inline();
         let mut offset = CssPixels::default();
         for column in &mut self.columns {
             column.inline_offset = offset;
-            offset += column.used_inline_size;
+            if !column.is_collapsed {
+                offset += column.used_inline_size + spacing;
+            }
         }
-        let spacing = self.border_spacing_inline();
         let collapsed = self.style(self.table_box).border_collapse() != BORDER_COLLAPSE_SEPARATE;
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
@@ -2972,11 +3027,10 @@ impl<'pass> TableFormattingContext<'pass> {
             // left/top location is the sum of:
             // - for top: the height reserved for top captions (including margins), if any
             // - the padding-left/padding-top and border-left-width/border-top-width of the table
-            // FIXME: Account for visibility.
+            // - the border spacing after each visible column before the cell (in its column's inline_offset)
             let x = row_used.content_offset.get().x
                 + used.border_box_left(collapsed)
-                + self.columns[cell.column_index].inline_offset
-                + spacing * cell.column_index;
+                + self.columns[cell.column_index].inline_offset;
             let y = row_used.content_offset.get().y + used.border_box_top(collapsed);
             self.place_child(cell.box_, x, y);
         }
@@ -3019,7 +3073,9 @@ impl<'pass> TableFormattingContext<'pass> {
         let mut offset = CssPixels::default();
         for column in &self.columns {
             column_offsets.push(offset);
-            offset += column.used_inline_size + inline_spacing;
+            if !column.is_collapsed {
+                offset += column.used_inline_size + inline_spacing;
+            }
         }
         column_offsets.push(offset);
 
@@ -3049,7 +3105,7 @@ impl<'pass> TableFormattingContext<'pass> {
             }
         }
         for (node, start, end) in placements {
-            let inline_size = if end > start {
+            let inline_size = if (start..end).any(|index| !self.columns[index].is_collapsed) {
                 column_offsets[end] - column_offsets[start] - inline_spacing
             } else {
                 CssPixels::default()
@@ -3119,6 +3175,7 @@ impl<'pass> TableFormattingContext<'pass> {
         let fixed = self.use_fixed_mode_layout();
         // Distribute the inline size of the table among columns.
         distribute_inline_size(&mut self.columns, assignable, fixed);
+        self.remove_collapsed_columns();
         self.compute_table_block_size(run);
         self.distribute_block_size_to_rows();
         self.position_row_boxes();
