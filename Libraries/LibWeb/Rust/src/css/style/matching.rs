@@ -2276,24 +2276,26 @@ impl StyleEngine {
                     evaluate: true,
                 }),
         );
-        let removed_programs: Vec<SelectorProgramID> = affected
+        let mut removed_programs: Vec<SelectorProgramID> = affected
             .iter()
             .filter_map(|affected| (!affected.evaluate).then_some(affected.program))
             .collect();
-        for program in removed_programs {
+        if !removed_programs.is_empty() {
+            removed_programs.sort_unstable();
+            removed_programs.dedup();
             affected.extend(
                 self.program
                     .sheets_in_scope(TreeScopeID::DOCUMENT)
                     .iter()
                     .flat_map(|&sheet| self.program.rules_in_sheet(sheet))
                     .filter_map(|current_rule| {
-                        (self.program.rule_version(current_rule).selector_program == Some(program)).then_some(
-                            RetainedAnswerPatchSelectionRule {
-                                rule: current_rule,
-                                program,
-                                evaluate: true,
-                            },
-                        )
+                        let program = self.program.rule_version(current_rule).selector_program?;
+                        removed_programs.binary_search(&program).ok()?;
+                        Some(RetainedAnswerPatchSelectionRule {
+                            rule: current_rule,
+                            program,
+                            evaluate: true,
+                        })
                     }),
             );
         }
