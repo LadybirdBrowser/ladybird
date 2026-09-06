@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibGfx/AffineTransform.h>
+#include <LibGfx/Filter.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/InvalidateDisplayList.h>
@@ -14,7 +15,6 @@
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/BoxModelMetrics.h>
 #include <LibWeb/Painting/PaintableTypes.h>
-#include <LibWeb/Painting/ResolvedCSSFilter.h>
 
 namespace Web::Painting {
 
@@ -25,7 +25,17 @@ struct CaretPaint {
 
 WEB_API void set_paint_viewport_scrollbars(bool enabled);
 bool should_paint_viewport_scrollbars();
-ResolvedCSSFilter resolve_css_filter(CSS::ComputedFilterView, Layout::NodeWithStyle const&);
+
+// One url() reference of a filter list, resolved against the SVG <filter> element it names.
+struct ResolvedSvgFilter {
+    // The reference named nothing usable as an SVG filter, which drops the whole filter list.
+    bool failed { false };
+    // The referenced filter graph in device pixels; absent when the <filter> has no primitives.
+    Optional<Gfx::Filter> filter;
+    // The referenced filter's region, in the filtered element's user space.
+    Optional<CSSPixelRect> bounds;
+};
+ResolvedSvgFilter resolve_svg_filter_reference(CSS::ComputedValuesFFI::ComputedStyleValueHandle const& url_value, Layout::NodeWithStyle const&);
 
 Layout::RustFFI::NodeSlotId committed_row_slot(Layout::Node const&);
 Layout::RustFFI::NodeSlotId viewport_row_slot(DOM::Document const&);

@@ -49,78 +49,35 @@ static bool body_background_is_propagated_to_root(Layout::NodeWithStyle const& l
     return html_element && html_element->unsafe_layout_node() && html_element->should_use_body_background_properties();
 }
 
-ResolvedCSSFilter resolve_css_filter(CSS::ComputedFilterView computed_filter, Layout::NodeWithStyle const& layout_node)
+ResolvedSvgFilter resolve_svg_filter_reference(CSS::ComputedValuesFFI::ComputedStyleValueHandle const& url_value, Layout::NodeWithStyle const& layout_node)
 {
-    ResolvedCSSFilter result;
-    bool failed = false;
-    computed_filter.for_each_operation([&](auto const& operation) {
-        if (failed)
-            return;
-        if (auto const* url = operation.template get_pointer<CSS::Filter::Url>()) {
-            if (url->fragment.is_empty()) {
-                failed = true;
-                return;
-            }
-            auto maybe_filter = layout_node.document().get_element_by_id(url->fragment);
-            if (!maybe_filter) {
-                failed = true;
-                return;
-            }
-            if (auto* filter_element = as_if<SVG::SVGFilterElement>(*maybe_filter)) {
-                // Filter primitive lengths are specified in the filtered element's user coordinate system, but the
-                // resulting filter operates in device pixels. Compute the user-unit-to-device-pixel scale so the
-                // filter can convert its lengths accordingly.
-                // The replay-time layer maps filter parameters through the accumulated transform,
-                // so only the device pixel ratio — which lives in recorded coordinates, not in the
-                // transform chain — converts here.
-                auto device_pixels_per_css_pixel = layout_node.document().page().client().device_pixels_per_css_pixel();
-                auto filter_scale = Gfx::FloatPoint { device_pixels_per_css_pixel, device_pixels_per_css_pixel };
-                result.svg_filter = filter_element->gfx_filter(layout_node, filter_scale);
-                // The bounds live in the filtered element's user space; an element without
-                // geometry of its own falls back to the whole enclosing viewport rect there.
-                auto bounds = absolute_border_box_rect(layout_node);
-                if (bounds.is_empty()) {
-                    auto viewport_rect = Layout::RustFFI::layout_arena_paintable_svg_viewport_user_rect(layout_node.arena_handle(), committed_row_slot(layout_node));
-                    if (viewport_rect.has_value())
-                        result.svg_filter_bounds = viewport_rect.value();
-                }
-                if (!bounds.is_empty())
-                    result.svg_filter_bounds = bounds;
-            } else {
-                failed = true;
-            }
-            return;
-        }
-
-        operation.visit(
-            [&](CSS::Filter::Blur const& blur) {
-                result.operations.empend(ResolvedCSSFilter::Blur {
-                    .radius = CSSPixels::nearest_value_for(blur.resolved_radius),
-                });
-            },
-            [&](CSS::Filter::DropShadow const& drop_shadow) {
-                result.operations.empend(ResolvedCSSFilter::DropShadow {
-                    .offset_x = drop_shadow.offset_x,
-                    .offset_y = drop_shadow.offset_y,
-                    .radius = drop_shadow.radius,
-                    .color = drop_shadow.color,
-                });
-            },
-            [&](CSS::Filter::ColorOperation const& color_operation) {
-                result.operations.empend(ResolvedCSSFilter::Color {
-                    .operation = color_operation.operation,
-                    .amount = color_operation.resolved_amount,
-                });
-            },
-            [&](CSS::Filter::HueRotate const& hue_rotate) {
-                result.operations.empend(ResolvedCSSFilter::HueRotate {
-                    .angle_degrees = hue_rotate.angle_degrees,
-                });
-            },
-            [&](CSS::Filter::Url const&) {});
-    });
-    if (failed)
-        return {};
+    ResolvedSvgFilter result;
+    auto fragment = CSS::ComputedFilterView::url_fragment(url_value);
+    auto referenced_element = fragment.is_empty() ? nullptr : layout_node.document().get_element_by_id(fragment);
+    auto* filter_element = referenced_element ? as_if<SVG::SVGFilterElement>(*referenced_element) : nullptr;
+    if (!filter_element) {
+        result.failed = true;
+        return result;
+    }
+    // Filter primitive lengths are specified in the filtered element's user coordinate system, but the
+    // resulting filter operates in device pixels. Compute the user-unit-to-device-pixel scale so the
+    // filter can convert its lengths accordingly.
+    // The replay-time layer maps filter parameters through the accumulated transform,
+    // so only the device pixel ratio — which lives in recorded coordinates, not in the
+    // transform chain — converts here.
+    auto device_pixels_per_css_pixel = layout_node.document().page().client().device_pixels_per_css_pixel();
+    auto filter_scale = Gfx::FloatPoint { device_pixels_per_css_pixel, device_pixels_per_css_pixel };
+    result.filter = filter_element->gfx_filter(layout_node, filter_scale);
+    // The bounds live in the filtered element's user space; an element without
+    // geometry of its own falls back to the whole enclosing viewport rect there.
+    auto bounds = absolute_border_box_rect(layout_node);
+    if (bounds.is_empty()) {
+        auto viewport_rect = Layout::RustFFI::layout_arena_paintable_svg_viewport_user_rect(layout_node.arena_handle(), committed_row_slot(layout_node));
+        if (viewport_rect.has_value())
+            result.bounds = viewport_rect.value();
+    }
+    if (!bounds.is_empty())
+        result.bounds = bounds;
     return result;
 }
 

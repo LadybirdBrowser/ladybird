@@ -4,13 +4,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Lowers computed CSS `filter` values to the filter graphs painting hands over as bytes.
+//! Lowers CSS filter functions to the filter graphs painting hands over as bytes.
 
 use libgfx_rust::filter::Filter;
 use libgfx_rust::{Color, ColorFilterType};
 
-use crate::css::computed_value_types::{ComputedFilter, ComputedFilterOperation};
+use crate::css::computed_value_types::{ComputedFilter, ComputedFilterOperation, ComputedStyleValueHandle};
 use crate::css::css_pixels::CssPixels;
+use crate::painting::host::visual_context::ResolvedSvgFilter;
 
 const FILTER_KIND_BLUR: u8 = 0;
 const FILTER_KIND_DROP_SHADOW: u8 = 1;
@@ -31,19 +32,68 @@ pub(crate) fn may_affect_output_bounds(bytes: &[u8]) -> bool {
     Filter::serialized_may_affect_output_bounds(bytes)
 }
 
-/// The serialized graph for a filter list without `url()` references, or `None` when the list is
-/// empty or needs the host to resolve an SVG filter.
+/// The serialized graph for a filter list's functions; `None` when the list has none.
 pub(crate) fn serialize_non_url_filter(filter: &ComputedFilter, device_pixels_per_css_pixel: f64) -> Option<Vec<u8>> {
-    if contains_url(filter) {
-        return None;
-    }
     css_filter(filter.operations.as_slice(), device_pixels_per_css_pixel).map(|filter| filter.serialize())
 }
 
-/// Lowers a list of filter functions to one graph that applies each function to the output of the
-/// one before it, so the last function in the list ends up outermost.
+/// Resolves the `url()` references of a filter list through the host, one reference at a time.
+/// The last reference's graph and region are the ones that apply; a reference the host cannot
+/// resolve fails the list as a whole.
+pub(crate) fn resolve_svg_filter_references(
+    filter: &ComputedFilter,
+    mut resolve: impl FnMut(&ComputedStyleValueHandle) -> ResolvedSvgFilter,
+) -> ResolvedSvgFilter {
+    let mut resolved = ResolvedSvgFilter::default();
+    for operation in filter.operations.as_slice() {
+        if operation.kind != FILTER_KIND_URL {
+            continue;
+        }
+        resolved = resolve(&operation.url_value);
+        if resolved.failed {
+            break;
+        }
+    }
+    resolved
+}
+
+/// The serialized graph for a filter list whose `url()` references the host has resolved.
+pub(crate) fn serialize_filter_with_resolved_svg(
+    filter: &ComputedFilter,
+    resolved_svg_filter: ResolvedSvgFilter,
+    device_pixels_per_css_pixel: f64,
+) -> Option<Vec<u8>> {
+    if resolved_svg_filter.failed {
+        return None;
+    }
+    let svg_filter = match resolved_svg_filter.filter_bytes {
+        Some(bytes) => Some(Filter::deserialize(&bytes)?),
+        None => None,
+    };
+    css_filter_with_svg(filter.operations.as_slice(), svg_filter, device_pixels_per_css_pixel)
+        .map(|filter| filter.serialize())
+}
+
+/// Combines the functions of a filter list with the SVG filter its `url()` references resolved
+/// to, which is applied last, after every function.
+fn css_filter_with_svg(
+    operations: &[ComputedFilterOperation],
+    svg_filter: Option<Filter>,
+    device_pixels_per_css_pixel: f64,
+) -> Option<Filter> {
+    match (svg_filter, css_filter(operations, device_pixels_per_css_pixel)) {
+        (Some(svg_filter), Some(css_filter)) => Some(Filter::compose(svg_filter, css_filter)),
+        (Some(filter), None) | (None, Some(filter)) => Some(filter),
+        (None, None) => None,
+    }
+}
+
+/// The graph of a computed filter list's functions, skipping the `url()` references the host
+/// resolves. Each function applies to the output of the one before it, so the last function in
+/// the list ends up outermost.
 pub(crate) fn css_filter(operations: &[ComputedFilterOperation], device_pixels_per_css_pixel: f64) -> Option<Filter> {
-    operations.iter().fold(None, |inner, operation| {
+    let functions = operations.iter().filter(|operation| operation.kind != FILTER_KIND_URL);
+    functions.fold(None, |inner, operation| {
         let outer = css_filter_operation(operation, device_pixels_per_css_pixel);
         Some(match inner {
             Some(inner) => Filter::compose(outer, inner),
@@ -82,7 +132,6 @@ fn css_filter_operation(operation: &ComputedFilterOperation, device_pixels_per_c
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::css::computed_value_types::ComputedStyleValueHandle;
 
     fn operation(kind: u8) -> ComputedFilterOperation {
         ComputedFilterOperation {
@@ -125,6 +174,30 @@ mod tests {
     #[test]
     fn an_empty_list_lowers_to_no_filter() {
         assert_eq!(css_filter(&[], 1.0), None);
+        assert_eq!(css_filter(&[operation(FILTER_KIND_URL)], 1.0), None);
+    }
+
+    #[test]
+    fn a_resolved_svg_filter_wraps_the_filter_functions() {
+        let hue_rotate = || {
+            let mut hue_rotate = operation(FILTER_KIND_HUE_ROTATE);
+            hue_rotate.amount = 90.0;
+            hue_rotate
+        };
+        let svg_filter = Filter::blur(3.0, 3.0, None);
+        assert_eq!(
+            css_filter_with_svg(&[hue_rotate()], Some(svg_filter.clone()), 1.0),
+            Some(Filter::compose(svg_filter.clone(), Filter::hue_rotate(90.0, None)))
+        );
+        assert_eq!(
+            css_filter_with_svg(&[], Some(svg_filter.clone()), 1.0),
+            Some(svg_filter)
+        );
+        assert_eq!(
+            css_filter_with_svg(&[hue_rotate()], None, 1.0),
+            Some(Filter::hue_rotate(90.0, None))
+        );
+        assert_eq!(css_filter_with_svg(&[], None, 1.0), None);
     }
 
     #[test]

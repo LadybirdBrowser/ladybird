@@ -108,6 +108,20 @@ public:
         }
     }
 
+    static Utf16String url_fragment(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
+    {
+        auto value = retained_style_value(handle);
+        VERIFY(value);
+        auto url = value->as_url().url();
+        auto const& url_string = url.url();
+        if (url_string.is_empty() || !url_string.starts_with('#'))
+            return {};
+        auto fragment = url_string.substring_from_byte_offset(1);
+        if (fragment.is_error())
+            return {};
+        return Utf16String::from_utf8(fragment.release_value());
+    }
+
     Filter materialize() const
     {
         if (!has_filters())
@@ -127,20 +141,6 @@ private:
             return nullptr;
         return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
             static_cast<StyleValueFFI::StyleValueData const*>(handle.pointer)));
-    }
-
-    static Utf16String url_fragment(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
-    {
-        auto value = retained_style_value(handle);
-        VERIFY(value);
-        auto url = value->as_url().url();
-        auto const& url_string = url.url();
-        if (url_string.is_empty() || !url_string.starts_with('#'))
-            return {};
-        auto fragment = url_string.substring_from_byte_offset(1);
-        if (fragment.is_error())
-            return {};
-        return Utf16String::from_utf8(fragment.release_value());
     }
 
     ComputedValuesFFI::ComputedFilter const& m_filter;

@@ -6,6 +6,7 @@
 
 use super::*;
 
+use crate::css::computed_value_types::ComputedStyleValueHandle;
 use crate::layout::used_values;
 use crate::layout::used_values::OptionalCssPixelRect;
 use crate::painting::display_list::commands::OptionalF32;
@@ -65,16 +66,44 @@ pub struct FfiVisualContextTreeInputs {
     pub viewport_wheel_overflow_y: u8,
 }
 
+/// What the host made of one `url()` reference in a filter list.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct FfiResolvedEffectsFilter {
+pub struct FfiResolvedSvgFilter {
+    /// The reference named nothing usable as an SVG filter, which drops the whole filter list.
+    pub failed: bool,
+    /// The host serialized the referenced filter graph, already in device pixels, into the sink.
     pub has_filter: bool,
+    /// The referenced filter's region, in the filtered element's user space.
     pub svg_filter_bounds: OptionalCssPixelRect,
 }
 
-pub(crate) struct ResolvedEffectsFilter {
+#[derive(Default)]
+pub(crate) struct ResolvedSvgFilter {
+    pub failed: bool,
     pub filter_bytes: Option<Vec<u8>>,
     pub svg_filter_bounds: OptionalCssPixelRect,
+}
+
+impl ResolvedSvgFilter {
+    /// Asks the host to resolve one `url()` reference of a layout node's filter list.
+    ///
+    /// SAFETY: `resolve` must answer synchronously from a live layout node shell and only write
+    /// into the Vec whose pointer it receives as the sink.
+    pub(crate) unsafe fn from_host(
+        resolve: unsafe extern "C" fn(*mut c_void, *mut c_void, *const c_void, *mut c_void) -> FfiResolvedSvgFilter,
+        context: *mut c_void,
+        layout_node_shell: *mut c_void,
+        url_value: &ComputedStyleValueHandle,
+    ) -> Self {
+        let mut bytes: Vec<u8> = Vec::new();
+        let resolved = unsafe { resolve(context, layout_node_shell, url_value.pointer, (&raw mut bytes).cast()) };
+        Self {
+            failed: resolved.failed,
+            filter_bytes: resolved.has_filter.then_some(bytes),
+            svg_filter_bounds: resolved.svg_filter_bounds,
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -87,7 +116,8 @@ pub struct FfiVisualContextHostCallbacks {
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut libgfx_rust::AffineTransform) -> bool,
     pub root_background_source: unsafe extern "C" fn(*mut c_void) -> FfiRootBackgroundSource,
     pub svg_mask_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiSvgMaskFacts,
-    pub resolve_effects_filter: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiResolvedEffectsFilter,
+    pub resolve_svg_filter:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, *const c_void, *mut c_void) -> FfiResolvedSvgFilter,
 }
 
 impl FfiVisualContextHostCallbacks {
@@ -117,16 +147,14 @@ impl FfiVisualContextHostCallbacks {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
         unsafe { (self.svg_mask_facts)(self.context, layout_node_shell) }
     }
-    pub(crate) fn resolve_effects_filter(&self, layout_node_shell: *mut c_void) -> ResolvedEffectsFilter {
-        let mut bytes: Vec<u8> = Vec::new();
+    pub(crate) fn resolve_svg_filter(
+        &self,
+        layout_node_shell: *mut c_void,
+        url_value: &ComputedStyleValueHandle,
+    ) -> ResolvedSvgFilter {
         // SAFETY: The C++ host answers synchronously from a live layout node shell and only writes
         // into the Vec whose pointer it receives.
-        let resolved =
-            unsafe { (self.resolve_effects_filter)(self.context, layout_node_shell, (&raw mut bytes).cast()) };
-        ResolvedEffectsFilter {
-            filter_bytes: resolved.has_filter.then_some(bytes),
-            svg_filter_bounds: resolved.svg_filter_bounds,
-        }
+        unsafe { ResolvedSvgFilter::from_host(self.resolve_svg_filter, self.context, layout_node_shell, url_value) }
     }
 }
 

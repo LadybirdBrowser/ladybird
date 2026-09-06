@@ -58,7 +58,6 @@
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/PaintingRustFFI.h>
 #include <LibWeb/Painting/ResizeHandle.h>
-#include <LibWeb/Painting/ResolvedCSSFilter.h>
 #include <LibWeb/Painting/ScrollSnap.h>
 #include <LibWeb/Painting/Scrollbar.h>
 #include <LibWeb/Painting/Scrolling.h>
@@ -332,23 +331,36 @@ static DisplayListResourceStorage* visual_context_filter_image_storage(DOM::Docu
     return &navigable->display_list_resource_storage();
 }
 
-static bool push_serialized_css_filter(ResolvedCSSFilter const& resolved_filter, double device_pixels_per_css_pixel, DisplayListResourceStorage* image_storage, void* sink)
+// Resolves one url() reference of a filter list and serializes the referenced <filter>'s graph
+// into the sink the callback was handed. Frames an feImage draws are registered with the display
+// list resource storage under the id the graph names them by.
+static Layout::RustFFI::FfiResolvedSvgFilter push_svg_filter_reference(void const* url_value, Layout::NodeWithStyle const& layout_node, DisplayListResourceStorage* image_storage, void* sink)
 {
-    auto gfx_filter = to_gfx_filter(resolved_filter, device_pixels_per_css_pixel);
-    if (!gfx_filter.has_value())
-        return false;
+    auto resolved_reference = resolve_svg_filter_reference({ .pointer = url_value }, layout_node);
+    Layout::RustFFI::FfiResolvedSvgFilter result {};
+    result.failed = resolved_reference.failed;
+    if (resolved_reference.failed)
+        return result;
+    result.svg_filter_bounds = resolved_reference.bounds;
+    if (!resolved_reference.filter.has_value())
+        return result;
     bool has_unregistered_image = false;
-    auto filter_data = Gfx::serialize_filter(*gfx_filter, [&](Gfx::DecodedImageFrame const& frame) -> u64 {
+    auto filter_data = Gfx::serialize_filter(*resolved_reference.filter, [&](Gfx::DecodedImageFrame const& frame) -> u64 {
         if (!image_storage) {
             has_unregistered_image = true;
             return frame.id();
         }
         return image_storage->add_image_frame(frame).value();
     });
-    if (has_unregistered_image)
-        return false;
+    // A document without a navigable has nowhere to register the frames an feImage draws, so its
+    // filter list is dropped rather than handed over unresolvable; such documents are not painted.
+    if (has_unregistered_image) {
+        result.failed = true;
+        return result;
+    }
     Layout::RustFFI::layout_arena_paint_push_bytes(sink, filter_data.data(), filter_data.size());
-    return true;
+    result.has_filter = true;
+    return result;
 }
 
 struct LayerImage {
@@ -447,18 +459,10 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM
             facts.clip_area = clip_area(layout_node);
             return facts;
         },
-        .resolve_effects_filter = [](void* context, void* layout_node_shell, void* sink) -> Layout::RustFFI::FfiResolvedEffectsFilter {
+        .resolve_svg_filter = [](void* context, void* layout_node_shell, void const* url_value, void* sink) -> Layout::RustFFI::FfiResolvedSvgFilter {
             auto& document = *static_cast<DOM::Document*>(context);
-            auto const& style_source = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
-            Layout::RustFFI::FfiResolvedEffectsFilter result {};
-            ResolvedCSSFilter resolved_filter;
-            if (style_source.filter().has_filters())
-                resolved_filter = resolve_css_filter(style_source.filter(), style_source);
-            result.svg_filter_bounds = resolved_filter.svg_filter_bounds;
-            if (!resolved_filter.has_filters())
-                return result;
-            result.has_filter = push_serialized_css_filter(resolved_filter, document.page().client().device_pixels_per_css_pixel(), visual_context_filter_image_storage(document), sink);
-            return result;
+            auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
+            return push_svg_filter_reference(url_value, layout_node, visual_context_filter_image_storage(document), sink);
         },
     };
 }
@@ -1137,13 +1141,10 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 write_image_paint_facts(*paint, context, facts);
             return facts;
         },
-        .backdrop_filter_bytes = [](void* context_pointer, void* layout_node_shell, void* sink) -> bool {
+        .resolve_svg_filter = [](void* context_pointer, void* layout_node_shell, void const* url_value, void* sink) -> Layout::RustFFI::FfiResolvedSvgFilter {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
-            auto const& backdrop_filter = layout_node.backdrop_filter();
-            if (!backdrop_filter.has_filters())
-                return false;
-            return push_serialized_css_filter(resolve_css_filter(backdrop_filter, layout_node), context.device_pixels_per_css_pixel, &context.resource_storage, sink);
+            return push_svg_filter_reference(url_value, layout_node, &context.resource_storage, sink);
         },
         .svg_image_facts = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiSvgImageFacts {
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);

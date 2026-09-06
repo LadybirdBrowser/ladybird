@@ -536,14 +536,23 @@ pub(crate) fn compute_effects_data(
     let style = layout_arena.node_style_if_live(slot)?;
     let effects_values = style.effects();
     let filter = if crate::painting::filter_bytes::contains_url(&effects_values.filter) {
-        let resolved_filter = callbacks.resolve_effects_filter(layout_arena.shell_if_live(slot));
+        let layout_node_shell = layout_arena.shell_if_live(slot);
+        let resolved_svg_filter =
+            crate::painting::filter_bytes::resolve_svg_filter_references(&effects_values.filter, |url_value| {
+                callbacks.resolve_svg_filter(layout_node_shell, url_value)
+            });
         layout_arena.paintable_side_data(slot).svg_filter_bounds.set(
-            resolved_filter
+            resolved_svg_filter
                 .svg_filter_bounds
                 .has_value
-                .then_some(resolved_filter.svg_filter_bounds.value),
+                .then_some(resolved_svg_filter.svg_filter_bounds.value),
         );
-        resolved_filter.filter_bytes.map(std::rc::Rc::new)
+        crate::painting::filter_bytes::serialize_filter_with_resolved_svg(
+            &effects_values.filter,
+            resolved_svg_filter,
+            device_pixels_per_css_pixel,
+        )
+        .map(std::rc::Rc::new)
     } else {
         layout_arena.paintable_side_data(slot).svg_filter_bounds.set(None);
         crate::painting::filter_bytes::serialize_non_url_filter(&effects_values.filter, device_pixels_per_css_pixel)

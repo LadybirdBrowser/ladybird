@@ -4,10 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::css::computed_value_types::ComputedStyleValueHandle;
 use crate::layout::used_values;
 use crate::painting::display_list::builder::RecordedDisplayList;
 use crate::painting::display_list::commands::{DisplayListCommandRun, DisplayListResourceId, FrameNodeIndex};
 use crate::painting::display_list::commands::{OptionalAffineTransform, OptionalColor};
+use crate::painting::host::visual_context::{FfiResolvedSvgFilter, ResolvedSvgFilter};
 use libgfx_rust::{AffineTransform, Color, FloatMatrix4x4, FloatRect, FloatSize, IntRect, InterpolationColorSpace};
 use std::ffi::c_void;
 
@@ -433,7 +435,8 @@ pub struct FfiPaintHostCallbacks {
     pub replaced_paint_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiReplacedPaintFacts,
     pub replaced_image_paint:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FloatRect, FloatSize) -> FfiImagePaintFacts,
-    pub backdrop_filter_bytes: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> bool,
+    pub resolve_svg_filter:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, *const c_void, *mut c_void) -> FfiResolvedSvgFilter,
     pub svg_image_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiSvgImageFacts,
     pub svg_paint_style: unsafe extern "C" fn(
         *mut c_void,
@@ -590,12 +593,14 @@ impl FfiPaintHostCallbacks {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
         unsafe { (self.replaced_image_paint)(self.context, layout_node_shell, dest, accumulated_scale) }
     }
-    pub(crate) fn backdrop_filter_bytes(&self, layout_node_shell: *mut c_void) -> Option<Vec<u8>> {
-        let mut bytes: Vec<u8> = Vec::new();
-        // SAFETY: The C++ host pushes into the Vec through the exported sink function, synchronously.
-        let has_filter =
-            unsafe { (self.backdrop_filter_bytes)(self.context, layout_node_shell, (&raw mut bytes).cast()) };
-        has_filter.then_some(bytes)
+    pub(crate) fn resolve_svg_filter(
+        &self,
+        layout_node_shell: *mut c_void,
+        url_value: &ComputedStyleValueHandle,
+    ) -> ResolvedSvgFilter {
+        // SAFETY: The C++ host answers synchronously from a live layout node shell and only writes
+        // into the Vec whose pointer it receives.
+        unsafe { ResolvedSvgFilter::from_host(self.resolve_svg_filter, self.context, layout_node_shell, url_value) }
     }
     pub(crate) fn svg_image_facts(&self, layout_node_shell: *mut c_void) -> FfiSvgImageFacts {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.

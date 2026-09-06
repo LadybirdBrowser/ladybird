@@ -861,7 +861,6 @@ set(SOURCES
     Painting/HitTestDisplayList.cpp
     Painting/PaintStyle.cpp
     Painting/PaintingRustBridge.cpp
-    Painting/ResolvedCSSFilter.cpp
     Painting/ResizeHandle.cpp
     Painting/Scrollbar.cpp
     Painting/Scrolling.cpp
