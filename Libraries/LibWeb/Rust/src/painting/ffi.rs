@@ -14,6 +14,7 @@ use crate::layout::used_values::FfiCssPixelSize;
 use crate::layout::{grid_formatting_context, svg_formatting_context, used_values};
 use crate::painting::display_list::commands::FrameNodeIndex;
 use crate::painting::display_list::commands::SpatialNodeIndex;
+use crate::painting::filter_bytes::filter_functions_graph;
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::host::FfiRecordedDisplayList;
 use crate::painting::host::visual_context::FfiSvgFilterPrimitive;
@@ -22,6 +23,7 @@ use crate::painting::paintable_rows::{PaintableRowsRead, with_inline_pieces};
 use crate::painting::rect_to_viewport_transform::RectToViewportTransform;
 use crate::painting::scroll_chain::ViewportWheelOverflow;
 use crate::painting::svg_filter::{SvgFilterGraphBuilder, SvgFilterPrimitive};
+use libgfx_rust::filter::Filter;
 use std::ffi::c_void;
 use std::rc::Rc;
 
@@ -3911,6 +3913,54 @@ pub unsafe extern "C" fn layout_arena_paint_push_svg_filter_primitive(
 ) {
     let builder = unsafe { &mut *sink.cast::<SvgFilterGraphBuilder>() };
     builder.push(unsafe { svg_filter_primitive_from_ffi(&*primitive) });
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiFilterFunctionKind {
+    Blur,
+    DropShadow,
+    Color,
+    HueRotate,
+}
+
+/// One function of a CSS filter list with its lengths already in device pixels, for a host that
+/// builds filter graphs outside the style system: compositor animation samples and canvas filters.
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiFilterFunction {
+    pub kind: FfiFilterFunctionKind,
+    /// The blur radius, drop shadow radius, color operation amount, or hue rotation in degrees.
+    pub amount: f32,
+    /// Drop shadow only.
+    pub offset_x: f32,
+    pub offset_y: f32,
+    pub color: libgfx_rust::Color,
+    /// Color only.
+    pub color_operation: libgfx_rust::ColorFilterType,
+}
+
+/// Serializes the graph a list of filter functions describes and hands the bytes to `append`.
+/// Returns false for an empty list, which appends nothing.
+///
+/// # Safety
+///
+/// `functions` must point to `count` readable functions, and `append` must accept `context` and
+/// the byte range it is handed, synchronously.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_filter_functions_serialize(
+    functions: *const FfiFilterFunction,
+    count: usize,
+    append: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+    context: *mut c_void,
+) -> bool {
+    let functions = unsafe { ffi_slice(functions, count) };
+    let Some(graph) = filter_functions_graph(functions.iter().copied().map(Filter::from)) else {
+        return false;
+    };
+    let bytes = graph.serialize();
+    unsafe { append(context, bytes.as_ptr(), bytes.len()) };
+    true
 }
 
 /// # Safety

@@ -413,8 +413,9 @@ sk_sp<SkImageFilter> to_skia_image_filter(ReadonlyBytes serialized_filter, Funct
 
 sk_sp<SkImageFilter> to_skia_image_filter(Gfx::Filter const& filter)
 {
-    return to_skia_image_filter(filter.serialized_bytes(), [&](u64 image_frame_id) -> DecodedImageFrame const& {
-        return filter.image_frame(image_frame_id);
+    return to_skia_image_filter(filter.serialized_bytes(), [](u64) -> DecodedImageFrame const& {
+        // A graph carried as a Gfx::Filter comes from CSS filter functions, which draw no images.
+        VERIFY_NOT_REACHED();
     });
 }
 

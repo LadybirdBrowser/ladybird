@@ -462,6 +462,21 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM
 
 }
 
+Optional<Gfx::Filter> filter_from_functions(ReadonlySpan<Layout::RustFFI::FfiFilterFunction> functions)
+{
+    ByteBuffer serialized_filter;
+    bool has_filter = Layout::RustFFI::layout_arena_filter_functions_serialize(
+        functions.data(),
+        functions.size(),
+        [](void* context, u8 const* bytes, size_t length) {
+            static_cast<ByteBuffer*>(context)->append(bytes, length);
+        },
+        &serialized_filter);
+    if (!has_filter)
+        return {};
+    return Gfx::Filter { move(serialized_filter) };
+}
+
 static void* layout_arena_handle(DOM::Document const& document)
 {
     return const_cast<DOM::Document&>(document).layout_node_arena().handle();

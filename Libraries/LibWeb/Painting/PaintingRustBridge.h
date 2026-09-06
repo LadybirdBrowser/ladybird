@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Types.h>
+#include <LibGfx/Filter.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -64,6 +65,8 @@ WEB_API RefPtr<DisplayList> record_rust_display_list(DOM::Document&, DisplayList
 WEB_API Utf16String serialize_painting_dump(DOM::Document const&, AccumulatedVisualContextTree const&, DisplayList const&, DisplayListResourceStorage const&);
 
 WEB_API CSS::ColorResolutionContext gradient_stop_color_resolution_context(Layout::NodeWithStyle const&);
+// The graph applying a list of filter functions in order, or nothing for an empty list.
+WEB_API Optional<Gfx::Filter> filter_from_functions(ReadonlySpan<Layout::RustFFI::FfiFilterFunction>);
 WEB_API DisplayListResource record_image_paint_display_list(ImagePaint const&, ImagePaintRequest const&, double device_pixels_per_css_pixel);
 
 }

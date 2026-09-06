@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/EasingFunction.h>
 #include <LibWeb/Compositor/VisualAnimation.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 
 namespace Web::Compositor {
 
@@ -456,25 +457,32 @@ Optional<VisualAnimation::Sample> VisualAnimation::sample(AK::Duration elapsed_s
         [&](Gfx::Color background_color) { sample.background_color = background_color; },
         [&](VisualAnimationFilterList const& filters) {
             sample.samples_filter = true;
-            Optional<Gfx::Filter> composed_filter;
+            Vector<Layout::RustFFI::FfiFilterFunction> functions;
+            functions.ensure_capacity(filters.size());
             for (auto const& operation : filters) {
-                Gfx::Filter filter = [&, operation] {
+                Layout::RustFFI::FfiFilterFunction function {};
+                function.kind = [&] {
                     switch (operation.kind) {
                     case VisualAnimationFilterOperationKind::Blur:
-                        return Gfx::Filter::blur(operation.amount, operation.amount);
+                        return Layout::RustFFI::FfiFilterFunctionKind::Blur;
                     case VisualAnimationFilterOperationKind::DropShadow:
-                        return Gfx::Filter::drop_shadow(operation.offset_x, operation.offset_y, operation.amount, operation.color);
+                        return Layout::RustFFI::FfiFilterFunctionKind::DropShadow;
                     case VisualAnimationFilterOperationKind::Color:
-                        return Gfx::Filter::color(operation.color_operation, operation.amount);
+                        return Layout::RustFFI::FfiFilterFunctionKind::Color;
                     case VisualAnimationFilterOperationKind::HueRotate:
-                        return Gfx::Filter::hue_rotate(operation.amount);
+                        return Layout::RustFFI::FfiFilterFunctionKind::HueRotate;
                     }
                     VERIFY_NOT_REACHED();
                 }();
-                composed_filter = composed_filter.has_value() ? Gfx::Filter::compose(filter, *composed_filter) : move(filter);
+                function.amount = operation.amount;
+                function.offset_x = operation.offset_x;
+                function.offset_y = operation.offset_y;
+                function.color = operation.color;
+                function.color_operation = operation.color_operation;
+                functions.unchecked_append(function);
             }
-            if (composed_filter.has_value())
-                sample.filter_bytes = MUST(ByteBuffer::copy(composed_filter->serialized_bytes()));
+            if (auto filter = Painting::filter_from_functions(functions); filter.has_value())
+                sample.filter_bytes = move(*filter).take_serialized_bytes();
         },
         [&](VisualAnimationTransformList const& transforms) {
             for (auto const& transform : transforms)

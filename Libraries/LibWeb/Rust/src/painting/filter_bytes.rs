@@ -11,6 +11,7 @@ use libgfx_rust::{Color, ColorFilterType};
 
 use crate::css::computed_value_types::{ComputedFilter, ComputedFilterOperation, ComputedStyleValueHandle};
 use crate::css::css_pixels::CssPixels;
+use crate::painting::ffi::{FfiFilterFunction, FfiFilterFunctionKind};
 use crate::painting::host::visual_context::ResolvedSvgFilter;
 
 const FILTER_KIND_BLUR: u8 = 0;
@@ -18,6 +19,34 @@ const FILTER_KIND_DROP_SHADOW: u8 = 1;
 const FILTER_KIND_HUE_ROTATE: u8 = 2;
 const FILTER_KIND_COLOR: u8 = 3;
 const FILTER_KIND_URL: u8 = 4;
+
+impl From<FfiFilterFunction> for Filter {
+    fn from(function: FfiFilterFunction) -> Self {
+        match function.kind {
+            FfiFilterFunctionKind::Blur => Filter::blur(function.amount, function.amount, None),
+            FfiFilterFunctionKind::DropShadow => Filter::drop_shadow(
+                function.offset_x,
+                function.offset_y,
+                function.amount,
+                function.color,
+                None,
+            ),
+            FfiFilterFunctionKind::Color => Filter::color(function.color_operation, function.amount, None),
+            FfiFilterFunctionKind::HueRotate => Filter::hue_rotate(function.amount, None),
+        }
+    }
+}
+
+/// One graph applying each function to the output of the one before it, so the last function in
+/// the list ends up outermost; `None` for an empty list.
+pub(crate) fn filter_functions_graph(functions: impl IntoIterator<Item = Filter>) -> Option<Filter> {
+    functions.into_iter().fold(None, |inner, outer| {
+        Some(match inner {
+            Some(inner) => Filter::compose(outer, inner),
+            None => outer,
+        })
+    })
+}
 
 pub(crate) fn contains_url(filter: &ComputedFilter) -> bool {
     filter
@@ -89,20 +118,17 @@ fn css_filter_with_svg(
 }
 
 /// The graph of a computed filter list's functions, skipping the `url()` references the host
-/// resolves. Each function applies to the output of the one before it, so the last function in
-/// the list ends up outermost.
+/// resolves.
 pub(crate) fn css_filter(operations: &[ComputedFilterOperation], device_pixels_per_css_pixel: f64) -> Option<Filter> {
-    let functions = operations.iter().filter(|operation| operation.kind != FILTER_KIND_URL);
-    functions.fold(None, |inner, operation| {
-        let outer = css_filter_operation(operation, device_pixels_per_css_pixel);
-        Some(match inner {
-            Some(inner) => Filter::compose(outer, inner),
-            None => outer,
-        })
-    })
+    filter_functions_graph(
+        operations
+            .iter()
+            .filter(|operation| operation.kind != FILTER_KIND_URL)
+            .map(|operation| filter_function(operation, device_pixels_per_css_pixel)),
+    )
 }
 
-fn css_filter_operation(operation: &ComputedFilterOperation, device_pixels_per_css_pixel: f64) -> Filter {
+fn filter_function(operation: &ComputedFilterOperation, device_pixels_per_css_pixel: f64) -> Filter {
     match operation.kind {
         FILTER_KIND_BLUR => {
             let radius =
@@ -167,6 +193,34 @@ mod tests {
             Some(Filter::compose(
                 Filter::hue_rotate(90.0, None),
                 Filter::color(ColorFilterType::Saturate, 0.75, None)
+            ))
+        );
+    }
+
+    #[test]
+    fn device_pixel_functions_lower_the_same_way() {
+        let drop_shadow = FfiFilterFunction {
+            kind: FfiFilterFunctionKind::DropShadow,
+            amount: 3.0,
+            offset_x: 1.0,
+            offset_y: 2.0,
+            color: Color(0x7f00ff00),
+            color_operation: ColorFilterType::Brightness,
+        };
+        let invert = FfiFilterFunction {
+            kind: FfiFilterFunctionKind::Color,
+            amount: 1.0,
+            offset_x: 0.0,
+            offset_y: 0.0,
+            color: Color::TRANSPARENT,
+            color_operation: ColorFilterType::Invert,
+        };
+        assert_eq!(filter_functions_graph([]), None);
+        assert_eq!(
+            filter_functions_graph([drop_shadow, invert].map(Filter::from)),
+            Some(Filter::compose(
+                Filter::color(ColorFilterType::Invert, 1.0, None),
+                Filter::drop_shadow(1.0, 2.0, 3.0, Color(0x7f00ff00), None)
             ))
         );
     }

@@ -34,12 +34,6 @@ static ByteBuffer every_operation_filter_bytes()
     return MUST(decode_hex(EVERY_OPERATION_FILTER_BYTES));
 }
 
-static Gfx::DecodedImageFrame test_frame()
-{
-    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, { 1, 1 }));
-    return Gfx::DecodedImageFrame { *bitmap };
-}
-
 TEST_CASE(the_shared_bytes_name_the_image_frames_they_draw)
 {
     auto bytes = every_operation_filter_bytes();
@@ -55,7 +49,8 @@ TEST_CASE(the_shared_bytes_name_the_image_frames_they_draw)
 
 TEST_CASE(the_shared_bytes_build_a_skia_image_filter)
 {
-    auto frame = test_frame();
+    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, { 1, 1 }));
+    Gfx::DecodedImageFrame frame { *bitmap };
     auto bytes = every_operation_filter_bytes();
     size_t image_lookups = 0;
     auto image_filter = Gfx::to_skia_image_filter(bytes.bytes(), [&](u64 id) -> Gfx::DecodedImageFrame const& {
@@ -65,18 +60,4 @@ TEST_CASE(the_shared_bytes_build_a_skia_image_filter)
     });
     EXPECT(image_filter != nullptr);
     EXPECT_EQ(image_lookups, 1u);
-}
-
-TEST_CASE(filter_functions_serialize_the_way_the_shared_codec_reads_them)
-{
-    auto sepia = Gfx::Filter::color(Gfx::ColorFilterType::Sepia, 0.5f);
-    auto blur = Gfx::Filter::blur(2.0f, 3.0f, sepia);
-    auto drop_shadow = Gfx::Filter::drop_shadow(1.0f, 2.0f, 3.0f, Gfx::Color(0x00, 0xff, 0x00, 0x7f), blur);
-    auto filter = Gfx::Filter::compose(Gfx::Filter::hue_rotate(90.0f), drop_shadow);
-    EXPECT(filter.image_frames().is_empty());
-    EXPECT(Gfx::to_skia_image_filter(filter) != nullptr);
-
-    Vector<u64> image_frame_ids;
-    Gfx::for_each_filter_image_frame_id(filter.serialized_bytes(), [&](u64 id) { image_frame_ids.append(id); });
-    EXPECT(image_frame_ids.is_empty());
 }
