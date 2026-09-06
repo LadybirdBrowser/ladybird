@@ -1803,7 +1803,7 @@ impl StyleEngine {
         }
         self.program_staging.scopes_using_document_sheets.stage(
             tree_scope,
-            self.program.scope_uses_document_sheets(tree_scope),
+            || self.program.scope_uses_document_sheets(tree_scope),
             true,
         );
         self.program_staging.base_version.get_or_insert(self.program.version());

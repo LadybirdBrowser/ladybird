@@ -23,7 +23,7 @@ impl StyleEngine {
         self.invalidate_scope_program(scope);
         self.program_staging
             .layer_orders
-            .stage(scope, self.program.layer_ranks(scope), ranks);
+            .stage(scope, || self.program.layer_ranks(scope), ranks);
         if initialized {
             self.record_layer_topology_change(scope);
         }
@@ -162,7 +162,7 @@ impl StyleEngine {
         }
         self.program_staging.rule_declarations.stage(
             rule,
-            PendingRuleDeclarations {
+            || PendingRuleDeclarations {
                 declared: self.program.declared_properties_of(rule).to_vec(),
                 written_values: self.program.written_values_of(rule).to_vec(),
                 custom_declarations: self.program.custom_declarations_of(rule).to_vec(),
@@ -305,7 +305,7 @@ impl StyleEngine {
         self.stage_program_activation();
         self.program_staging
             .rule_conditions
-            .stage(rule, self.program.rule_conditions_hold(rule), conditions_hold);
+            .stage(rule, || self.program.rule_conditions_hold(rule), conditions_hold);
         // While the rule's sheet is still arriving, whether its condition holds is part of what
         // arrives rather than something that moved: routing the attachment reads the activation the
         // rule ends the transaction with, and skips it if it decides nothing.
@@ -329,9 +329,11 @@ impl StyleEngine {
             return;
         }
         self.stage_program_activation();
-        self.program_staging
-            .sheet_conditions
-            .stage(sheet, self.program.sheet_conditions_hold(sheet), conditions_hold);
+        self.program_staging.sheet_conditions.stage(
+            sheet,
+            || self.program.sheet_conditions_hold(sheet),
+            conditions_hold,
+        );
         self.record_input(
             InputKey::SheetActivation(sheet),
             InputValue::Flag(previous),
@@ -351,7 +353,7 @@ impl StyleEngine {
         self.stage_program_activation();
         self.program_staging
             .sheet_enabled
-            .stage(sheet, self.program.sheet_is_enabled(sheet), enabled);
+            .stage(sheet, || self.program.sheet_is_enabled(sheet), enabled);
         self.record_input(
             InputKey::SheetActivation(sheet),
             InputValue::Flag(previous),
@@ -587,7 +589,7 @@ impl StyleEngine {
         }
         self.program_staging
             .rule_versions
-            .stage(rule, self.program.rule_version(rule), contents);
+            .stage(rule, || self.program.rule_version(rule), contents);
     }
 
     pub(super) fn current_rule_is_gated_by_container_query(&self, rule: RuleID) -> bool {
@@ -603,7 +605,7 @@ impl StyleEngine {
         }
         self.program_staging.rule_gated_by_container_query.stage(
             rule,
-            self.program.rule_is_gated_by_container_query(rule),
+            || self.program.rule_is_gated_by_container_query(rule),
             gated,
         );
     }
@@ -615,7 +617,7 @@ impl StyleEngine {
         }
         self.program_staging
             .rule_in_a_layer
-            .stage(rule, self.program.rule_is_in_a_layer(rule), in_a_layer);
+            .stage(rule, || self.program.rule_is_in_a_layer(rule), in_a_layer);
     }
 
     /// A structural program edit cannot be applied while an epoch is reading the program, and it
@@ -760,7 +762,7 @@ impl StyleEngine {
         }
         self.program_staging
             .rule_liveness
-            .stage(rule, self.program.rule_is_live(rule), live);
+            .stage(rule, || self.program.rule_is_live(rule), live);
     }
 
     pub(super) fn current_sheets_in_scope(&self, tree_scope: TreeScopeID) -> Vec<SheetID> {
@@ -802,7 +804,7 @@ impl StyleEngine {
         }
         self.program_staging.sheets_in_scope.stage(
             tree_scope,
-            self.program.sheets_in_scope(tree_scope).to_vec(),
+            || self.program.sheets_in_scope(tree_scope).to_vec(),
             sheets,
         );
     }

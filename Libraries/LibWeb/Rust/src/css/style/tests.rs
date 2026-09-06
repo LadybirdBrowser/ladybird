@@ -62,8 +62,8 @@ fn substitution_memo_retains_its_written_value_key() {
 fn sparse_program_staging_freezes_before_until_release() {
     let rule = RuleID(7);
     let mut staged = StagedField::default();
-    staged.stage(rule, 10_u32, 20);
-    staged.stage(rule, 99, 30);
+    staged.stage(rule, || 10_u32, 20);
+    staged.stage(rule, || panic!("the before value is already frozen"), 30);
 
     assert_eq!(staged.side(rule, TransactionFactSide::Before, || 0), 10);
     assert_eq!(staged.current(rule, || 0), 30);
@@ -72,7 +72,7 @@ fn sparse_program_staging_freezes_before_until_release() {
     assert_eq!(staged.side(rule, TransactionFactSide::Before, || 0), 10);
     assert_eq!(staged.current(rule, || 35), 30);
 
-    staged.stage(rule, 99, 40);
+    staged.stage(rule, || panic!("the before value is already frozen"), 40);
     assert_eq!(staged.side(rule, TransactionFactSide::Before, || 0), 10);
     assert_eq!(staged.take_dirty(), [(rule, 40)]);
     assert_eq!(staged.current(rule, || 50), 40);

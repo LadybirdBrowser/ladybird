@@ -575,7 +575,7 @@ impl<K: Copy + Eq + Hash + Ord, V: Clone> StagedField<K, V> {
         }
     }
 
-    fn stage(&mut self, key: K, before: V, after: V) {
+    fn stage(&mut self, key: K, before: impl FnOnce() -> V, after: V) {
         match self.rows.entry(key) {
             std::collections::hash_map::Entry::Occupied(mut entry) => {
                 let row = entry.get_mut();
@@ -587,7 +587,7 @@ impl<K: Copy + Eq + Hash + Ord, V: Clone> StagedField<K, V> {
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
                 entry.insert(StagedFieldRow {
-                    before,
+                    before: before(),
                     after,
                     dirty: true,
                 });
