@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A hidden document runs its timers only at wake-ups a fixed interval apart, aligned to its time origin, so a
+    // page that keeps re-arming short timers in a background tab costs one wake-up per interval rather than a task
+    // per timer. A timer with no delay is exempt, and a document that becomes visible again puts every timer back on
+    // its own deadline. The interval is shortened here to keep the test quick.
+    asyncTest(async done => {
+        const wakeUpInterval = 500;
+        internals.setHiddenDocumentTimerWakeUpInterval(wakeUpInterval);
+
+        // performance.now() is coarsened down to a tenth of a millisecond, so a timer that fires right at a wake-up
+        // can read a hair less than it.
+        const coarsening = 0.1;
+        const wakeUpAtOrAfter = time => Math.ceil(time / wakeUpInterval) * wakeUpInterval;
+        const firedAtOrAfter = (time, wakeUp) => time >= wakeUp - coarsening;
+        // Spins until the current time sits early in a wake-up interval, so that a short timer's deadline lies well
+        // before the next wake-up and a wait for that wake-up can't be mistaken for the timer's own delay.
+        const waitForEarlyPhase = () => {
+            while (performance.now() % wakeUpInterval >= 60)
+                ;
+        };
+        const fireTime = delay => new Promise(resolve => setTimeout(() => resolve(performance.now()), delay));
+        const report = (what, ok, details) => {
+            println(`${what}: ${ok}`);
+            if (!ok)
+                println(`    ${JSON.stringify(details)}`);
+        };
+
+        await setSystemVisibilityState("hidden");
+        try {
+            waitForEarlyPhase();
+            let armedAt = performance.now();
+            let wakeUp = wakeUpAtOrAfter(armedAt + 10);
+            let firedAt = await fireTime(10);
+            report("a delayed timer waits for the wake-up after its deadline", firedAtOrAfter(firedAt, wakeUp),
+                { armedAt, wakeUp, firedAt });
+
+            waitForEarlyPhase();
+            armedAt = performance.now();
+            wakeUp = wakeUpAtOrAfter(armedAt + 50);
+            const laterWakeUp = wakeUpAtOrAfter(armedAt + wakeUpInterval + 10);
+            const [first, second, third, later] = await Promise.all(
+                [fireTime(10), fireTime(30), fireTime(50), fireTime(wakeUpInterval + 10)]);
+            report("timers due before the same wake-up fire in it",
+                [first, second, third].every(time => firedAtOrAfter(time, wakeUp) && time < wakeUp + wakeUpInterval),
+                { armedAt, wakeUp, first, second, third });
+            report("a timer due after that wake-up waits for the following one", firedAtOrAfter(later, laterWakeUp),
+                { armedAt, laterWakeUp, later });
+
+            waitForEarlyPhase();
+            armedAt = performance.now();
+            wakeUp = wakeUpAtOrAfter(armedAt + 1);
+            firedAt = await fireTime(0);
+            report("a timer with no delay doesn't wait for a wake-up", firedAt < wakeUp, { armedAt, wakeUp, firedAt });
+
+            waitForEarlyPhase();
+            armedAt = performance.now();
+            wakeUp = wakeUpAtOrAfter(armedAt + 130);
+            const intervalFireTimes = await new Promise(resolve => {
+                const times = [];
+                const id = setInterval(() => {
+                    times.push(performance.now());
+                    if (times.length === 3) {
+                        clearInterval(id);
+                        resolve(times);
+                    }
+                }, 130);
+            });
+            report("an interval fires once per wake-up",
+                intervalFireTimes.every((time, i) => firedAtOrAfter(time, wakeUp + i * wakeUpInterval)
+                    && time < wakeUp + (i + 1) * wakeUpInterval),
+                { armedAt, wakeUp, intervalFireTimes });
+
+            waitForEarlyPhase();
+            armedAt = performance.now();
+            wakeUp = wakeUpAtOrAfter(armedAt + 10);
+            const idle = await new Promise(resolve => requestIdleCallback(
+                deadline => resolve({ firedAt: performance.now(), didTimeout: deadline.didTimeout }), { timeout: 10 }));
+            report("an idle callback's timeout waits for the wake-up", idle.didTimeout && firedAtOrAfter(idle.firedAt, wakeUp),
+                { armedAt, wakeUp, idle });
+
+            waitForEarlyPhase();
+            armedAt = performance.now();
+            wakeUp = wakeUpAtOrAfter(armedAt + 10);
+            firedAt = await new Promise(resolve =>
+                AbortSignal.timeout(10).addEventListener("abort", () => resolve(performance.now())));
+            report("AbortSignal.timeout() waits for the wake-up", firedAtOrAfter(firedAt, wakeUp), { armedAt, wakeUp, firedAt });
+
+            waitForEarlyPhase();
+            armedAt = performance.now();
+            wakeUp = wakeUpAtOrAfter(armedAt + 10);
+            const armedHidden = fireTime(10);
+            await setSystemVisibilityState("visible");
+            firedAt = await armedHidden;
+            report("becoming visible puts a timer back on its own deadline",
+                firedAt >= armedAt + 10 - coarsening && firedAt < wakeUp, { armedAt, wakeUp, firedAt });
+
+            waitForEarlyPhase();
+            armedAt = performance.now();
+            wakeUp = wakeUpAtOrAfter(armedAt + 250);
+            const armedVisible = fireTime(250);
+            await setSystemVisibilityState("hidden");
+            firedAt = await armedVisible;
+            report("a timer armed while visible waits for the wake-up once the document hides", firedAtOrAfter(firedAt, wakeUp),
+                { armedAt, wakeUp, firedAt });
+        } finally {
+            await setSystemVisibilityState("visible");
+        }
+        done();
+    });
+</script>

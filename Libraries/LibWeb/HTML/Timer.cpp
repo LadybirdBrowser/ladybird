@@ -12,13 +12,15 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Timer);
 
-GC::Ref<Timer> Timer::create(i32 milliseconds, Function<void()> callback, i32 id, Repeating repeating)
+GC::Ref<Timer> Timer::create(i32 milliseconds, Function<void()> callback, i32 id, Repeating repeating, TimerThrottlingClass throttling_class, double deadline)
 {
-    return GC::Heap::the().allocate<Timer>(milliseconds, move(callback), id, repeating);
+    return GC::Heap::the().allocate<Timer>(milliseconds, move(callback), id, repeating, throttling_class, deadline);
 }
 
-Timer::Timer(i32 milliseconds, Function<void()> callback, i32 id, Repeating repeating)
+Timer::Timer(i32 milliseconds, Function<void()> callback, i32 id, Repeating repeating, TimerThrottlingClass throttling_class, double deadline)
     : m_id(id)
+    , m_throttling_class(throttling_class)
+    , m_deadline(deadline)
 {
     if (repeating == Repeating::Yes)
         m_timer = Core::Timer::create_repeating(milliseconds, move(callback));
@@ -46,6 +48,16 @@ void Timer::start()
 void Timer::stop()
 {
     m_timer->stop();
+}
+
+void Timer::restart(i32 milliseconds)
+{
+    m_timer->restart(milliseconds);
+}
+
+bool Timer::is_active() const
+{
+    return m_timer->is_active();
 }
 
 void Timer::set_callback(Function<void()> callback)

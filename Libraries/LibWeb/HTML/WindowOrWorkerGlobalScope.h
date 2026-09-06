@@ -19,6 +19,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/Scripting/ImportMap.h>
+#include <LibWeb/HTML/Timer.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntry.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntryTuple.h>
 #include <LibWeb/WebSockets/WebSocket.h>
@@ -96,6 +97,13 @@ public:
 
     i32 run_steps_after_a_timeout(i32 timeout, Function<void()> completion_step);
 
+    void document_visibility_state_changed(Badge<DOM::Document>);
+    void set_hidden_document_timer_wake_up_interval(Badge<Internals::Internals>, double milliseconds)
+    {
+        VERIFY(milliseconds > 0);
+        m_hidden_document_timer_wake_up_interval = milliseconds;
+    }
+
     void report_error(JS::Value e);
 
     enum class OmitError {
@@ -142,7 +150,8 @@ private:
         No,
     };
     i32 run_timer_initialization_steps(TimerHandler handler, i32 timeout, GC::RootVector<JS::Value> arguments, Repeat repeat, Optional<i32> previous_id = {});
-    void run_steps_after_a_timeout_impl(i32 timeout, Function<void()> completion_step, Optional<i32> timer_key, Repeat repeat = Repeat::No);
+    void run_steps_after_a_timeout_impl(i32 timeout, TimerThrottlingClass, Function<void()> completion_step, Optional<i32> timer_key, Repeat repeat = Repeat::No);
+    Optional<i32> throttled_timer_delay(TimerThrottlingClass, double deadline) const;
 
     void create_image_bitmap_impl(JS::Realm&, GC::Ref<WebIDL::Promise>, ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, ImageBitmapOptions options) const;
 
@@ -153,6 +162,9 @@ private:
 
     IDAllocator m_timer_id_allocator;
     HashMap<int, GC::Ref<Timer>> m_timers;
+
+    // The interval between the wake-ups a hidden document holds its delayed timers back to; a test can shorten it.
+    double m_hidden_document_timer_wake_up_interval { 1000 };
 
     // https://www.w3.org/TR/performance-timeline/#performance-timeline
     // Each global object has:

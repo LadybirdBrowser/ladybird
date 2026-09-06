@@ -240,6 +240,8 @@ interface Internals {
     undefined setPageFocus(boolean hasFocus);
     // Simulates the page being shown or hidden (e.g. switching to another tab). Accepts "visible" or "hidden".
     undefined setSystemVisibilityState(DOMString state);
+    // Overrides the interval between the wake-ups a hidden document holds its delayed timers back to (1000 ms by default).
+    undefined setHiddenDocumentTimerWakeUpInterval(double milliseconds);
     DOMString canvasColorScheme();
     // Returns the selector-insight cache state for stylesheet invalidation tests.
     object imageAnimationStateForURL(USVString url);

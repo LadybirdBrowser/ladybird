@@ -1768,6 +1768,11 @@ void Internals::set_system_visibility_state(Utf16String const& state)
     page().client().page_did_request_set_system_visibility_state(visibility_state);
 }
 
+void Internals::set_hidden_document_timer_wake_up_interval(double milliseconds)
+{
+    window().set_hidden_document_timer_wake_up_interval({}, milliseconds);
+}
+
 Utf16String Internals::canvas_color_scheme()
 {
     auto& document = window().associated_document();

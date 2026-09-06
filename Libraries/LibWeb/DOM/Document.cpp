@@ -4791,6 +4791,9 @@ void Document::update_the_visibility_state(HTML::VisibilityState visibility_stat
         return document_observer.document_visibility_state_observer();
     },
         m_visibility_state);
+    // The page visibility change steps for timers (see WindowOrWorkerGlobalScopeMixin::document_visibility_state_changed()).
+    if (auto window = this->window(); window && &window->associated_document() == this)
+        window->document_visibility_state_changed({});
 
     // 7. Fire an event named visibilitychange at document, with its bubbles attribute initialized to true.
     auto event = DOM::Event::create(
@@ -6208,6 +6211,10 @@ void Document::set_initial_visibility_state(HTML::VisibilityState visibility_sta
 {
     // 1. Set document's visibility state to visibility state.
     m_visibility_state = visibility_state;
+    // The Window's timers follow the document's visibility from here on (see
+    // WindowOrWorkerGlobalScopeMixin::document_visibility_state_changed()).
+    if (auto window = this->window(); window && &window->associated_document() == this)
+        window->document_visibility_state_changed({});
 
     // TODO: 2. Queue a new VisibilityStateEntry whose visibility state is document's visibility state and whose timestamp is 0.
 

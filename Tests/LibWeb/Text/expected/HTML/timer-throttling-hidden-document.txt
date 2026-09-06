@@ -1,0 +1,9 @@
+a delayed timer waits for the wake-up after its deadline: true
+timers due before the same wake-up fire in it: true
+a timer due after that wake-up waits for the following one: true
+a timer with no delay doesn't wait for a wake-up: true
+an interval fires once per wake-up: true
+an idle callback's timeout waits for the wake-up: true
+AbortSignal.timeout() waits for the wake-up: true
+becoming visible puts a timer back on its own deadline: true
+a timer armed while visible waits for the wake-up once the document hides: true
