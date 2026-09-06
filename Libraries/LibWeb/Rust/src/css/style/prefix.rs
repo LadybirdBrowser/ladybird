@@ -4568,6 +4568,14 @@ fn matches_feature(facts: &StyleNodeFacts, row: u32, feature: FeatureTest) -> bo
                 if !value_matches {
                     return false;
                 }
+                if !test.any_namespace {
+                    if attribute.name == test.name {
+                        return true;
+                    }
+                    if !folds {
+                        return false;
+                    }
+                }
                 let forms = facts.attribute_name_forms(attribute.name);
                 let (written, folded) = match test.any_namespace {
                     true => (forms.local, forms.folded_local),

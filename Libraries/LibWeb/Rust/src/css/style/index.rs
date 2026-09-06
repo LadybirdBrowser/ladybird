@@ -1221,8 +1221,11 @@ impl StyleNodeFacts {
             DispatchKey::Id(id) => self.id_of(row) == id,
             DispatchKey::Class(class) => self.classes_of(row).contains(&class),
             DispatchKey::AttributeName(name) => self.attributes_of(row).iter().any(|attribute| {
+                if attribute.name == name {
+                    return true;
+                }
                 let forms = self.attribute_name_forms(attribute.name);
-                attribute.name == name || forms.local == name || forms.folded_name == name || forms.folded_local == name
+                forms.local == name || forms.folded_name == name || forms.folded_local == name
             }),
             DispatchKey::TagName(tag) => self.tag_of(row) == tag || self.folded_tag_of(row) == tag,
             DispatchKey::Directionality(direction) => self.directionality_of(row) == direction,
