@@ -4391,9 +4391,7 @@ impl StyleEngine {
                             .all(|entry| compiled.dispatch_key(entry).has_selector_posting()))
                     .then(|| {
                         self.winner_groups.winning_nodes(rule).map(|nodes| {
-                            nodes
-                                .filter(|&node| scopes.binary_search(&self.tree.tree_scope(node)).is_ok())
-                                .collect::<Vec<_>>()
+                            nodes.filter(|&node| scopes.binary_search(&self.tree.tree_scope(node)).is_ok())
                         })
                     })
                     .flatten();
