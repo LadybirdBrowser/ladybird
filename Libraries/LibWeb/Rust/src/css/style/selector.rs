@@ -4969,16 +4969,6 @@ impl MatchEvaluationWorkspace {
         }
     }
 
-    fn insert_type_position(&self, node: StyleNodeID, side: MatchEvaluationSide, position: SiblingPositions) -> bool {
-        self.type_positions_by_evaluation_side[side as usize]
-            .borrow_mut()
-            .insert(
-                node.element_index().expect("only elements have sibling positions") as usize,
-                position,
-            )
-            .1
-    }
-
     /// A workspace for the candidates of one selector query: sibling geometry is shared, final
     /// answers are not memoized.
     pub(super) fn for_selector_query() -> Self {
@@ -6409,10 +6399,14 @@ impl<'a> MatchEvaluator<'a> {
                 sibling_types.push(type_id);
                 type_positions[type_id as usize].from_end += 1;
             }
+            let mut positions = workspace.type_positions_by_evaluation_side[side as usize].borrow_mut();
             for (&sibling, type_id) in siblings.iter().zip(sibling_types) {
                 let position = &mut type_positions[type_id as usize];
                 position.from_start += 1;
-                workspace.insert_type_position(sibling, side, *position);
+                positions.insert(
+                    sibling.element_index().expect("only elements have sibling positions") as usize,
+                    *position,
+                );
                 position.from_end -= 1;
             }
         }
@@ -6604,9 +6598,13 @@ mod tests {
             2
         );
 
-        cache.insert_type_position(node, MatchEvaluationSide::Current, position);
+        cache.type_positions_by_evaluation_side[MatchEvaluationSide::Current as usize]
+            .borrow_mut()
+            .insert(node.element_index().unwrap() as usize, position);
         assert_eq!(cache.sibling_position(node, MatchEvaluationSide::OldFacts, true), None);
-        cache.insert_type_position(node, MatchEvaluationSide::OldFacts, position);
+        cache.type_positions_by_evaluation_side[MatchEvaluationSide::OldFacts as usize]
+            .borrow_mut()
+            .insert(node.element_index().unwrap() as usize, position);
         cache.retain_current_for_matching();
         assert_eq!(
             cache.sibling_position(node, MatchEvaluationSide::Current, true),
