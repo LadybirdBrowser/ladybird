@@ -628,6 +628,8 @@ pub(crate) struct Row {
     pub(crate) final_block_size: CssPixels,
     /// The baseline established by the row's baseline-aligned cells, if it has any (see row_baseline).
     pub(crate) baseline: Option<CssPixels>,
+    /// How far below their baseline the row's baseline-aligned cells reach at most (see grow_rows_to_aligned_cells).
+    pub(crate) max_cell_descent: CssPixels,
     /// The smallest bottom padding and border among the row's cells, which puts the bottom content edge of the lowest
     /// cell (see row_baseline).
     pub(crate) smallest_cell_block_end_offset: Option<CssPixels>,
@@ -647,6 +649,7 @@ impl Row {
             reference_block_size: CssPixels::default(),
             final_block_size: CssPixels::default(),
             baseline: None,
+            max_cell_descent: CssPixels::default(),
             smallest_cell_block_end_offset: None,
             min_size: CssPixels::default(),
             max_size: CssPixels::default(),
@@ -2432,17 +2435,24 @@ impl<'pass> TableFormattingContext<'pass> {
             )
     }
 
-    /// Notes what a cell contributes to the baseline of its row (see row_baseline).
+    /// Notes what a cell contributes to the baseline of its row (see row_baseline) and to the row's height (see
+    /// grow_rows_to_aligned_cells).
     fn note_cell_in_row_baseline(&mut self, cell_index: usize, style: &StyleValues<'_>) {
         let cell = self.cells[cell_index];
         let used = self.used_values(cell.box_);
-        let block_end_offset = used.border_box_bottom(used.uses_collapsing_borders_model.get());
+        let collapsed = used.uses_collapsing_borders_model.get();
+        let block_end_offset = used.border_box_bottom(collapsed);
+        let block_size = used.border_box_block_size(collapsed);
         let row = &mut self.rows[cell.row_index];
         if Self::cell_is_baseline_aligned(style) {
             row.baseline = Some(
                 row.baseline
                     .map_or(cell.baseline, |baseline| baseline.max(cell.baseline)),
             );
+            // A cell spanning several rows reaches into the rows below, not below the bottom of this one.
+            if cell.row_span == 1 {
+                row.max_cell_descent = row.max_cell_descent.max(block_size - cell.baseline);
+            }
         }
         row.smallest_cell_block_end_offset = Some(
             row.smallest_cell_block_end_offset
@@ -2651,6 +2661,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 self.note_cell_in_row_baseline(cell_index, &style);
             }
         }
+        self.grow_rows_to_aligned_cells(|row| &mut row.base_block_size);
 
         if self.needs_fixed_mode_row_measurement {
             self.initialize_row_content_sizes();
@@ -2750,6 +2761,26 @@ impl<'pass> TableFormattingContext<'pass> {
                 self.rows[cell.row_index].reference_block_size =
                     self.rows[cell.row_index].reference_block_size.max(border_size);
                 self.note_cell_in_row_baseline(cell_index, &style);
+            }
+        }
+        self.grow_rows_to_aligned_cells(|row| &mut row.reference_block_size);
+    }
+
+    /// Makes each row at least as tall as its baseline-aligned cells reach once they are aligned. A cell whose
+    /// baseline lies above the row's baseline is moved down to it (see cell_intrinsic_block_padding), so the row must
+    /// hold the row's baseline plus the largest descent below it: "First the cells that are aligned on their baseline
+    /// are positioned. This will establish the baseline of the row. [...] The row now has a top, possibly a baseline,
+    /// and a provisional height, which is the distance from the top to the lowest bottom of the cells positioned so
+    /// far." https://www.w3.org/TR/CSS22/tables.html#height-layout
+    fn grow_rows_to_aligned_cells(&mut self, block_size: impl Fn(&mut Row) -> &mut CssPixels) {
+        for row in &mut self.rows {
+            if row.is_collapsed {
+                continue;
+            }
+            if let Some(baseline) = row.baseline {
+                let reach = baseline + row.max_cell_descent;
+                let size = block_size(row);
+                *size = (*size).max(reach);
             }
         }
     }
