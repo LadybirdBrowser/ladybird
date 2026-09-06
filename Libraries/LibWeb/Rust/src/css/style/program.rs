@@ -1184,17 +1184,12 @@ impl StyleSheetProgram {
         }
         let hash = super::intern_table::content_hash(&self.rules[rule.0 as usize].declared_properties);
         let previous_map_capacity = self.semantic_declarations.shallow_capacity_bytes();
-        let previous_bucket_capacity = self
-            .semantic_declarations
-            .get(&hash)
-            .map_or(0, semantic_declaration_bucket_capacity_bytes);
-        let existing = self.semantic_declarations.get(&hash).and_then(|bucket| {
-            bucket.iter().find_map(|entry| {
-                let representative = entry.representative;
-                (self.rules[representative.0 as usize].declared_properties
-                    == self.rules[rule.0 as usize].declared_properties)
-                    .then_some(entry.id)
-            })
+        let bucket = self.semantic_declarations.entry(hash).or_default();
+        let previous_bucket_capacity = semantic_declaration_bucket_capacity_bytes(bucket);
+        let existing = bucket.iter().find_map(|entry| {
+            let representative = entry.representative;
+            (self.rules[representative.0 as usize].declared_properties == self.rules[rule_index].declared_properties)
+                .then_some(entry.id)
         });
         let id = match existing {
             Some(id) => id,
@@ -1204,18 +1199,14 @@ impl StyleSheetProgram {
                     .next_semantic_declaration_id
                     .checked_add(1)
                     .expect("semantic declaration identity space exhausted");
-                self.semantic_declarations
-                    .entry(hash)
-                    .or_default()
-                    .push(SemanticDeclarationEntry {
-                        id,
-                        representative: rule,
-                    });
+                bucket.push(SemanticDeclarationEntry {
+                    id,
+                    representative: rule,
+                });
                 id
             }
         };
-        let current_bucket_capacity =
-            semantic_declaration_bucket_capacity_bytes(self.semantic_declarations.get(&hash).unwrap());
+        let current_bucket_capacity = semantic_declaration_bucket_capacity_bytes(bucket);
         self.record_capacity_change(previous_bucket_capacity, current_bucket_capacity);
         self.record_capacity_change(
             previous_map_capacity,
