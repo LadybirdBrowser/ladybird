@@ -83,6 +83,7 @@ fn commit_subtree(
             link,
             reuses_committed_subtree,
             enclosing_line_root_content_changed,
+            prepared.previous_offset,
         );
         if fragment.line_data.is_some() {
             line_root_content_changed_for_children = replaced.committed_fragment_identity_changed;

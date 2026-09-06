@@ -15,6 +15,7 @@ use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
 pub(crate) struct PreparedPaintable {
     pub(crate) has_paintable_row: bool,
     pub(crate) row_existed_before_this_commit: bool,
+    pub(crate) previous_offset: Option<used_values::FfiCssPixelPoint>,
 }
 
 pub(crate) struct ReplacedCommittedFragmentLink {
@@ -24,7 +25,6 @@ pub(crate) struct ReplacedCommittedFragmentLink {
 
 pub(crate) struct PaintableCommit<'a> {
     arena: &'a mut LayoutNodeArena,
-    committed_offsets_before_recommit_reset: std::collections::HashMap<NodeSlotId, used_values::FfiCssPixelPoint>,
     committed_navigable_container_viewports: Vec<NodeSlotId>,
     row_reset_notifications: Vec<crate::painting::paintable_rows::PaintableRowReset>,
 }
@@ -33,7 +33,6 @@ impl<'a> PaintableCommit<'a> {
     pub(crate) fn new(arena: &'a mut LayoutNodeArena) -> Self {
         Self {
             arena,
-            committed_offsets_before_recommit_reset: std::collections::HashMap::new(),
             committed_navigable_container_viewports: Vec::new(),
             row_reset_notifications: Vec::new(),
         }
@@ -73,6 +72,8 @@ impl<'a> PaintableCommit<'a> {
             )
         };
         let row_existed_before_this_commit = self.arena().paintable_rows().paintable_row_is_populated(node);
+        let previous_offset =
+            row_existed_before_this_commit.then(|| self.arena().paintable_rows().paintable_data(node).offset);
         if !wants_paintable {
             self.arena().clear_committed_fragment_link(node);
             if row_existed_before_this_commit {
@@ -89,6 +90,7 @@ impl<'a> PaintableCommit<'a> {
             return PreparedPaintable {
                 has_paintable_row: false,
                 row_existed_before_this_commit: false,
+                previous_offset: None,
             };
         }
         if node_kind == NodeKind::NavigableContainerViewport {
@@ -99,11 +101,10 @@ impl<'a> PaintableCommit<'a> {
                 row_existed_before_this_commit,
                 "a kept subtree root has no committed row"
             );
-            let offset = self.arena().paintable_rows().paintable_data(node).offset;
-            self.committed_offsets_before_recommit_reset.insert(node, offset);
             return PreparedPaintable {
                 has_paintable_row: true,
                 row_existed_before_this_commit: true,
+                previous_offset,
             };
         }
         if !has_used_values {
@@ -117,14 +118,10 @@ impl<'a> PaintableCommit<'a> {
             }
         }
         if row_existed_before_this_commit {
-            let (offset, notification) = {
-                let paintable_rows = self.arena().paintable_rows();
-                (
-                    paintable_rows.paintable_data(node).offset,
-                    paintable_rows.prepare_paintable_row_recommit_notification(node),
-                )
-            };
-            self.committed_offsets_before_recommit_reset.insert(node, offset);
+            let notification = self
+                .arena()
+                .paintable_rows()
+                .prepare_paintable_row_recommit_notification(node);
             self.row_reset_notifications.push(notification);
         }
         let arena = self.arena_mut();
@@ -140,6 +137,7 @@ impl<'a> PaintableCommit<'a> {
         PreparedPaintable {
             has_paintable_row: true,
             row_existed_before_this_commit,
+            previous_offset,
         }
     }
 
@@ -160,6 +158,7 @@ impl<'a> PaintableCommit<'a> {
         link: &fragment_tree::FragmentLink,
         reuses_committed_subtree: bool,
         enclosing_line_root_content_changed: bool,
+        previous_offset: Option<used_values::FfiCssPixelPoint>,
     ) -> ReplacedCommittedFragmentLink {
         let fragment = &link.fragment;
         let new_content_size = used_values::FfiCssPixelSize {
@@ -196,10 +195,7 @@ impl<'a> PaintableCommit<'a> {
         // fragment is rebuilt with a fresh identity at placement: the reuse contract guarantees
         // identical replayed output, enforced by the content-size assertion above.
         let content_unchanged = reuses_committed_subtree || (old_identity != 0 && !painted_content_changed);
-        let offset_unchanged = self
-            .committed_offsets_before_recommit_reset
-            .get(&node)
-            .is_some_and(|&offset_before_commit| offset_before_commit == link.committed_offset);
+        let offset_unchanged = previous_offset == Some(link.committed_offset);
         if !(content_unchanged && offset_unchanged) {
             self.arena().paintable_rows().mark_paint_cache_self_dirty(node);
         }
