@@ -154,8 +154,11 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
         creator_base_url = creator->base_url();
 
         // 3. Set browsingContext's virtual browsing context group ID to creator's browsing context's top-level browsing context's virtual browsing context group ID.
+        // NB: creator's browsing context took its ID from that top-level browsing context when it was created, and only
+        //     a report-only opener policy switch reassigns it, which is not implemented. Until then the creator's own
+        //     ID is the same value, and it exists in this process when the top-level browsing context does not.
         VERIFY(creator->browsing_context());
-        browsing_context->m_virtual_browsing_context_group_id = creator->browsing_context()->top_level_browsing_context()->m_virtual_browsing_context_group_id;
+        browsing_context->m_virtual_browsing_context_group_id = creator->browsing_context()->m_virtual_browsing_context_group_id;
     }
 
     // 6. Let sandboxFlags be the result of determining the creation sandboxing flags given browsingContext and embedder.
@@ -275,9 +278,10 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
         // 3. If creator's origin is same origin with creator's relevant settings object's top-level origin,
         if (creator->origin().is_same_origin(creator->relevant_settings_object().top_level_origin.value())) {
             // then set document's opener policy to creator's browsing context's top-level browsing context's active document's opener policy.
-            VERIFY(creator->browsing_context());
-            VERIFY(creator->browsing_context()->top_level_browsing_context()->active_document());
-            document->set_opener_policy(creator->browsing_context()->top_level_browsing_context()->active_document()->opener_policy());
+            // NB: That document is the top-level traversable's active document, which the traversable answers for
+            //     a document hosted in another process.
+            VERIFY(creator->navigable());
+            document->set_opener_policy(creator->navigable()->top_level_traversable()->active_document_opener_policy());
         }
     }
 

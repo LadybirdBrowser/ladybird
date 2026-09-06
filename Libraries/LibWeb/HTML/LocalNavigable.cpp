@@ -1435,6 +1435,12 @@ bool LocalNavigable::active_document_has_cross_site_ancestor() const
     return relevant_settings_object(*m_active_document).has_cross_site_ancestor();
 }
 
+OpenerPolicy const& LocalNavigable::active_document_opener_policy() const
+{
+    VERIFY(m_active_document);
+    return m_active_document->opener_policy();
+}
+
 ReplicatedNavigableState LocalNavigable::replicated_state() const
 {
     VERIFY(m_active_document);
@@ -1449,6 +1455,7 @@ ReplicatedNavigableState LocalNavigable::replicated_state() const
         .top_level_creation_url = settings.top_level_creation_url.value(),
         .top_level_origin = settings.top_level_origin.value(),
         .has_cross_site_ancestor = settings.has_cross_site_ancestor(),
+        .opener_policy = m_active_document->opener_policy(),
     };
 }
 

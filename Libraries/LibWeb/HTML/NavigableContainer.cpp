@@ -62,9 +62,8 @@ void NavigableContainer::create_new_child_navigable()
     auto parent_navigable = navigable();
 
     // 2. Let group be element's node document's browsing context's top-level browsing context's group.
-    VERIFY(document().browsing_context());
-    auto group = document().browsing_context()->top_level_browsing_context()->group();
-    VERIFY(group);
+    // NB: The UI process places documents in agents from its canonical browsing context group, so group is not
+    //     resolved here.
 
     // 3. Let browsingContext and document be the result of creating a new browsing context and document given element's node document, element, and group.
     auto& page = document().page();

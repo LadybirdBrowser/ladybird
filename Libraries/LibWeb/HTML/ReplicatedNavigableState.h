@@ -11,6 +11,7 @@
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/SessionHistoryEntryIdentity.h>
 
 namespace Web::HTML {
@@ -24,6 +25,8 @@ struct ReplicatedNavigableState {
     URL::URL top_level_creation_url;
     URL::Origin top_level_origin;
     bool has_cross_site_ancestor { false };
+
+    OpenerPolicy opener_policy;
 };
 
 }
