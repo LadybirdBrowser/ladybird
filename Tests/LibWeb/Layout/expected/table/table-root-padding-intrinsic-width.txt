@@ -2,7 +2,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 42 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 26 0+0+8] children: not-inline
       TableWrapper <(anonymous)> at [8,8] [0+0+0 78.78125 0+0+705.21875] [0+0+0 26 0+0+0] [BFC] children: not-inline
-        Box <div> at [13,13] table-box [0+0+5 68.78125 5+0+0] [0+0+5 16 5+0+0] [TFC] children: inline
+        Box <div> at [13,13] table-box [0+0+5 68.78125 5+0+0] [0+0+5 16 5+0+0] [TFC] children: not-inline
           Box <(anonymous)> at [13,13] table-row [0+0+0 68.78125 0+0+0] [0+0+0 16 0+0+0] children: not-inline
             BlockContainer <(anonymous)> at [13,13] table-cell [0+0+0 68.78125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
               frag 0 from TextNode start: 0, length: 7, rect: [13,13 68.78125x16] baseline: 12.796875

@@ -2679,6 +2679,29 @@ impl TreeBuilderHost<'_> {
         };
         self.set_children_are_inline(wrapper_slot, children_are_inline);
         self.attach_child(parent, wrapper, nearest_sibling);
+        // The wrapper takes the place of the run in its parent. A table-row, table-cell or table box is block-level,
+        // so a parent whose inline content it replaced entirely (a table-row-group or table around text, a table-row
+        // around text or inline boxes) no longer has inline children. A stale flag would make derive_baselines() look
+        // for line boxes the parent does not have, leaving it and every box that derives its baseline from it (a cell
+        // around a nested table, an inline-table in a line) without a baseline. A parent that keeps inline-level
+        // children next to the wrapper (text around an anonymous table generated for out-of-flow row groups, which
+        // the fixup treats as inline-level boxes of zero size) still lays its children out in a line, and inline
+        // boxes keep their inline children: the table-row generated around their cells is wrapped in an inline-level
+        // inline-table next.
+        if !matches!(kind, FfiAnonymousTableBoxKind::InlineTable) && node_kind_is_box(self.data(parent).kind.get()) {
+            let mut has_inline_child = false;
+            let mut child = self.first_child(parent);
+            while !child.is_invalid() {
+                if child != wrapper_slot && node_is_inline_outside(self, child) {
+                    has_inline_child = true;
+                    break;
+                }
+                child = self.next_sibling(child);
+            }
+            if !has_inline_child {
+                self.set_children_are_inline(parent, false);
+            }
+        }
     }
 }
 
