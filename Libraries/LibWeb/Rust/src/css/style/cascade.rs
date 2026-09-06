@@ -839,7 +839,7 @@ pub struct WinnerGroups {
     states: InternTable<CascadeStateID, Box<[WinnerGroupRef]>>,
     state_reference_counts: Vec<u32>,
     state_winning_rules: Vec<Box<[RuleID]>>,
-    groups: InternTable<WinnerGroupID, WinnerGroup>,
+    groups: InternTable<WinnerGroupID, Box<[SemanticPropertyWinner]>>,
     provenance_groups: InternTable<WinnerProvenanceGroupID, Box<[WinnerProvenance]>>,
     priorities: InternTable<CascadePriorityID, CascadePriority>,
     continuations: InternTable<CascadeContinuationID, CascadeContinuation>,
@@ -872,12 +872,6 @@ struct PseudoWinnerRow {
     priority_current: bool,
     /// The flush that published the row's state.
     stamp: u64,
-}
-
-#[derive(Clone)]
-struct WinnerGroup {
-    winners: Box<[SemanticPropertyWinner]>,
-    content_hash: u64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -1266,9 +1260,7 @@ impl WinnerGroups {
         {
             self.group_hash_computations += 1;
         }
-        if let Some(id) = self.groups.find(hash, |_id, group| {
-            group.content_hash == hash && group.winners == semantic
-        }) {
+        if let Some(id) = self.groups.find(hash, |_id, group| *group == semantic) {
             return WinnerGroupRef {
                 winners: id,
                 provenance: self.intern_provenance_group(provenance),
@@ -1278,14 +1270,7 @@ impl WinnerGroups {
         self.winner_entry_count += semantic.len();
         self.nested_residency
             .grow_committed(size_of_val(semantic.as_ref()) as u64);
-        self.groups.insert(
-            hash,
-            id,
-            WinnerGroup {
-                winners: semantic,
-                content_hash: hash,
-            },
-        );
+        self.groups.insert(hash, id, semantic);
         WinnerGroupRef {
             winners: id,
             provenance: self.intern_provenance_group(provenance),
@@ -1325,7 +1310,6 @@ impl WinnerGroups {
 
     fn group_winners(&self, group: WinnerGroupRef) -> impl Iterator<Item = PropertyWinner> + '_ {
         self.groups[group.winners]
-            .winners
             .iter()
             .zip(&self.provenance_groups[group.provenance])
             .map(|(winner, provenance)| PropertyWinner {
@@ -1339,7 +1323,6 @@ impl WinnerGroups {
 
     fn group_bucket(&self, group: WinnerGroupRef) -> PropertyID {
         self.groups[group.winners]
-            .winners
             .first()
             .expect("a winner group is non-empty")
             .property
@@ -1373,12 +1356,11 @@ impl WinnerGroups {
         let groups = &self.states[state];
         let index = groups.partition_point(|group| {
             self.groups[group.winners]
-                .winners
                 .last()
                 .is_some_and(|winner| winner.property < property)
         });
         let group = *groups.get(index)?;
-        let winners = &self.groups[group.winners].winners;
+        let winners = &self.groups[group.winners];
         let provenance = &self.provenance_groups[group.provenance];
         winners
             .binary_search_by_key(&property, |winner| winner.property)
@@ -1407,7 +1389,7 @@ impl WinnerGroups {
     fn semantic_winners_in_state(&self, state: CascadeStateID) -> impl Iterator<Item = &SemanticPropertyWinner> {
         self.states[state]
             .iter()
-            .flat_map(move |group| self.groups[group.winners].winners.iter())
+            .flat_map(move |group| self.groups[group.winners].iter())
     }
 
     /// Compare the semantic winners consumed by two computed-style publications.
@@ -1473,8 +1455,8 @@ impl WinnerGroups {
         previous: Option<WinnerGroupID>,
         current: Option<WinnerGroupID>,
     ) -> impl Iterator<Item = PropertyID> {
-        let previous: &[SemanticPropertyWinner] = previous.map_or(&[], |group| self.groups[group].winners.as_ref());
-        let current: &[SemanticPropertyWinner] = current.map_or(&[], |group| self.groups[group].winners.as_ref());
+        let previous: &[SemanticPropertyWinner] = previous.map_or(&[], |group| self.groups[group].as_ref());
+        let current: &[SemanticPropertyWinner] = current.map_or(&[], |group| self.groups[group].as_ref());
         merge_sorted_by(previous, current, |old, new| old.property.cmp(&new.property)).filter_map(|entry| match entry {
             SortedMergeEntry::Both(old, new) => (old.key != new.key).then_some(old.property),
             SortedMergeEntry::Left(old) => Some(old.property),
