@@ -308,6 +308,13 @@ impl StyleEngine {
                 written,
             });
         }
+        if let [candidate] = candidates.as_slice() {
+            return Some(if candidate.stratum.ceiling(candidate.declared.operator).is_none() {
+                vec![(candidate.declared, candidate.written.clone_retained())]
+            } else {
+                Vec::new()
+            });
+        }
         // Keep insertion order for declarations with equal cascade priority.
         candidates.sort_by_key(|candidate| candidate.priority);
         let mut name_indices = HashMap::default();
