@@ -2853,10 +2853,10 @@ impl RuleDispatch {
     ///
     /// Cascade matching reads this directly while walking candidates. Keeping it in the immutable
     /// dispatch avoids looking the rule up through several program maps for every element.
-    pub fn assign_cascade_properties(
+    pub fn assign_cascade_properties<Properties: ExactSizeIterator<Item = u16>>(
         &mut self,
         mut blocks_pruning: impl FnMut(DispatchEntry) -> bool,
-        mut properties_of: impl FnMut(DispatchEntry) -> Option<Vec<u16>>,
+        mut properties_of: impl FnMut(DispatchEntry) -> Option<Properties>,
     ) {
         self.cascade_properties.clear();
         self.cascade_entries.clear();

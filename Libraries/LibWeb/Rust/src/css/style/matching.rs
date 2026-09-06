@@ -1122,7 +1122,7 @@ impl StyleEngine {
                 if declared.iter().any(|property| property.important) {
                     return None;
                 }
-                Some(declared.iter().map(|property| property.property).collect())
+                Some(declared.iter().map(|property| property.property))
             },
         );
         dispatch.settle_memory(&mut self.memory);
