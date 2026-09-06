@@ -1854,8 +1854,8 @@ impl StyleEngine {
             if !posting_key.has_selector_posting() {
                 return None;
             }
-            let candidates: Vec<_> = match self.facts.postings().lookup(posting_key) {
-                Lookup::Known(posting) => posting.candidates().collect(),
+            let candidates = match self.facts.postings().lookup(posting_key) {
+                Lookup::Known(posting) => posting.candidates(),
                 Lookup::KnownAbsent => continue,
                 Lookup::Missing(_) => return None,
             };
