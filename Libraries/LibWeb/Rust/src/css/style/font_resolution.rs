@@ -8,14 +8,14 @@ use super::HashMap;
 use super::bridge::{FfiFontResolutionRequest, FfiResolvedFont};
 use crate::css::style_value::{RetainedStyleValueData, retain_style_value};
 use std::ffi::c_void;
-use std::hash::{Hash, Hasher};
 
 pub type ResolveFontCallback = unsafe extern "C" fn(*mut c_void, FfiFontResolutionRequest) -> FfiResolvedFont;
 pub type RetainFontCallback = unsafe extern "C" fn(*const c_void);
 pub type ReleaseFontCallback = unsafe extern "C" fn(*const c_void);
 
+#[derive(PartialEq, Eq, Hash)]
 struct FontResolutionKey {
-    font_family: RetainedStyleValueData,
+    font_family: usize,
     font_size_raw: i32,
     font_slope: i32,
     font_weight: u64,
@@ -23,31 +23,9 @@ struct FontResolutionKey {
     font_optical_sizing: u8,
 }
 
-impl PartialEq for FontResolutionKey {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self.font_family.pointer(), other.font_family.pointer())
-            && self.font_size_raw == other.font_size_raw
-            && self.font_slope == other.font_slope
-            && self.font_weight == other.font_weight
-            && self.font_width == other.font_width
-            && self.font_optical_sizing == other.font_optical_sizing
-    }
-}
-
-impl Eq for FontResolutionKey {}
-
-impl Hash for FontResolutionKey {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        (self.font_family.pointer() as usize).hash(state);
-        self.font_size_raw.hash(state);
-        self.font_slope.hash(state);
-        self.font_weight.hash(state);
-        self.font_width.hash(state);
-        self.font_optical_sizing.hash(state);
-    }
-}
-
 struct ResolvedFont {
+    // Keep the family alive for the pointer identity in the cache key.
+    _font_family: RetainedStyleValueData,
     ffi: FfiResolvedFont,
     release: ReleaseFontCallback,
 }
@@ -91,9 +69,7 @@ impl FontResolver {
             self.generation = Some(request.font_environment_generation);
         }
         let key = FontResolutionKey {
-            font_family: unsafe {
-                RetainedStyleValueData::from_retained_pointer(retain_style_value(request.font_family.cast()))
-            },
+            font_family: request.font_family as usize,
             font_size_raw: request.font_size_raw,
             font_slope: request.font_slope,
             font_weight: request.font_weight.to_bits(),
@@ -103,6 +79,8 @@ impl FontResolver {
         if let Some(resolved) = self.cache.get(&key) {
             return Some(resolved.ffi);
         }
+        let font_family =
+            unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(request.font_family.cast())) };
         let resolved = unsafe { (self.resolve)(self.context, request) };
         if resolved.handle.is_null() {
             return None;
@@ -111,6 +89,7 @@ impl FontResolver {
         self.cache.insert(
             key,
             ResolvedFont {
+                _font_family: font_family,
                 ffi,
                 release: self.release,
             },
