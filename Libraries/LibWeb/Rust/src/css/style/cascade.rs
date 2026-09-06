@@ -1448,9 +1448,11 @@ impl WinnerGroups {
     }
 
     pub(super) fn property_shapes_are_equal(&self, left: CascadeStateID, right: CascadeStateID) -> bool {
-        self.semantic_winners_in_state(left)
-            .map(|winner| winner.property)
-            .eq(self.semantic_winners_in_state(right).map(|winner| winner.property))
+        left == right
+            || self
+                .semantic_winners_in_state(left)
+                .map(|winner| winner.property)
+                .eq(self.semantic_winners_in_state(right).map(|winner| winner.property))
     }
 
     fn group_semantic_delta(
