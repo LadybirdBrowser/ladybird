@@ -320,8 +320,9 @@ impl StyleEngine {
             candidates_by_name[index].push(candidate);
         }
         let mut cascaded: Vec<(CustomDeclaration, RetainedStyleValueData)> = Vec::new();
+        let mut ceilings = Vec::new();
         for candidates in candidates_by_name {
-            let mut ceilings = Vec::new();
+            ceilings.clear();
             for candidate in candidates.into_iter().rev() {
                 if !ceilings.iter().all(|&ceiling| candidate.stratum.is_below(ceiling)) {
                     continue;
