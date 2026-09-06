@@ -295,10 +295,14 @@ impl RelationalWitnesses {
     /// Retain `witness` for `key`, returning whether it was stored. A full table sheds the
     /// entries whose anchor or witness identity has been retired before refusing.
     pub fn retain(&mut self, key: RelationalWitnessKey, witness: StyleNodeID, tree: &StyleNodeTree) -> bool {
-        if !self.admitting && !self.entries.contains_key(&key) {
-            return false;
-        }
-        if self.entries.len() >= MAX_RETAINED_WITNESSES && !self.entries.contains_key(&key) {
+        if !self.admitting || self.entries.len() >= MAX_RETAINED_WITNESSES {
+            if let Some(retained) = self.entries.get_mut(&key) {
+                *retained = witness;
+                return true;
+            }
+            if !self.admitting {
+                return false;
+            }
             self.entries
                 .retain(|entry, retained| tree.is_live(entry.anchor) && tree.is_live(*retained));
             if self.entries.len() >= MAX_RETAINED_WITNESSES {
