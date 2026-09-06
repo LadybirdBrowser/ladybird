@@ -1961,7 +1961,6 @@ impl StyleEngine {
                 self.counters.bump(Counter::EngineComputedRecordBailWinnerSpelling);
                 return None;
             };
-            let value = value.clone_retained();
             // A longhand declared through a shorthand keeps the whole shorthand as its written
             // value; the store takes the longhand's own part of it.
             let value = match value.data() {
@@ -1976,6 +1975,7 @@ impl StyleEngine {
                 // C++ cascade substitutes it; a value invalid at computed-value time is unset.
                 crate::css::style_value::StyleValueData::Unresolved { .. } => {
                     *substituted = true;
+                    let value = value.clone_retained();
                     let value = self.substitute_written_value(environment, winner.property, &value)?;
                     invalid_as_unset(value)
                 }
@@ -1997,7 +1997,7 @@ impl StyleEngine {
                         _ => expanded_longhand_value(shorthand, winner.property, &resolved).unwrap_or_else(unset_value),
                     }
                 }
-                _ => value,
+                _ => value.clone_retained(),
             };
             if !value_computes_without_document_context(value.data())
                 || (pseudo_kind.is_some()
