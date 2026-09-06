@@ -2,25 +2,25 @@ Harness status: OK
 
 Found 21 tests
 
-21 Fail
-Fail	e.style['grid-template-rows'] = "repeat(auto-fill, auto)" should set the property value
-Fail	e.style['grid-template-rows'] = "repeat(auto-fit, auto 100px auto)" should set the property value
-Fail	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(30px, 5fr) [two] auto)" should set the property value
-Fail	e.style['grid-template-rows'] = "repeat(auto-fit, [three] auto [four])" should set the property value
-Fail	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(auto, auto))" should set the property value
-Fail	e.style['grid-template-rows'] = "repeat(auto-fill, min-content)" should set the property value
-Fail	e.style['grid-template-rows'] = "repeat(auto-fit, min-content 100px min-content)" should set the property value
-Fail	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(30px, 5fr) [two] min-content)" should set the property value
-Fail	e.style['grid-template-rows'] = "repeat(auto-fit, [three] min-content [four])" should set the property value
-Fail	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(min-content, min-content))" should set the property value
-Fail	e.style['grid-template-rows'] = "repeat(auto-fill, max-content)" should set the property value
-Fail	e.style['grid-template-rows'] = "repeat(auto-fit, max-content 100px max-content)" should set the property value
-Fail	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(30px, 5fr) [two] max-content)" should set the property value
-Fail	e.style['grid-template-rows'] = "repeat(auto-fit, [three] max-content [four])" should set the property value
-Fail	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(max-content, max-content))" should set the property value
-Fail	e.style['grid-template-rows'] = "repeat(auto-fill, fit-content(200px))" should set the property value
-Fail	e.style['grid-template-rows'] = "repeat(auto-fit, fit-content(200px) 100px fit-content(200px))" should set the property value
-Fail	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(30px, 5fr) [two] fit-content(200px))" should set the property value
-Fail	e.style['grid-template-rows'] = "repeat(auto-fit, [three] fit-content(200px) [four])" should set the property value
-Fail	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(auto, min-content))" should set the property value
-Fail	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(min-content, max-content))" should set the property value
+21 Pass
+Pass	e.style['grid-template-rows'] = "repeat(auto-fill, auto)" should set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fit, auto 100px auto)" should set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(30px, 5fr) [two] auto)" should set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fit, [three] auto [four])" should set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(auto, auto))" should set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fill, min-content)" should set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fit, min-content 100px min-content)" should set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(30px, 5fr) [two] min-content)" should set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fit, [three] min-content [four])" should set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(min-content, min-content))" should set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fill, max-content)" should set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fit, max-content 100px max-content)" should set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(30px, 5fr) [two] max-content)" should set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fit, [three] max-content [four])" should set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(max-content, max-content))" should set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fill, fit-content(200px))" should set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fit, fit-content(200px) 100px fit-content(200px))" should set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(30px, 5fr) [two] fit-content(200px))" should set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fit, [three] fit-content(200px) [four])" should set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(auto, min-content))" should set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(min-content, max-content))" should set the property value

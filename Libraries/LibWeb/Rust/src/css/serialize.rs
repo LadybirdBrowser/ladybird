@@ -1922,7 +1922,20 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             is_subgrid,
             preserve_line_name_sets: _,
             entries,
-        } => serialize_grid_track_size_list(sink, *is_subgrid, entries.as_slice(), mode),
+        } => {
+            // Tentatively, an auto-repeat with intrinsic track sizes resolves to none on a box that
+            // is not a laid-out grid container (a grid container serializes its used track list and
+            // never reaches this rule); see the css/css-grid/parsing
+            // grid-template-*-intrinsic-auto-repeat-computed-nogrid.tentative.html WPT tests.
+            if mode == SerializationMode::ResolvedValue
+                && !*is_subgrid
+                && grid_track_list_has_intrinsic_auto_repeat(entries.as_slice())
+            {
+                sink.push_ascii("none");
+                return true;
+            }
+            serialize_grid_track_size_list(sink, *is_subgrid, entries.as_slice(), mode)
+        }
         StyleValueData::BasicShape {
             kind,
             v0,
@@ -3002,6 +3015,34 @@ fn serialize_a_string_sink(sink: &mut TextSink, contents: &TextSink) {
 }
 
 /// Port of GridTrackSizeList::serialize and the ExplicitGridTrack serializers.
+/// Whether any auto-fill/auto-fit repeat in the track list holds a track size that is not a
+/// <fixed-size>: an intrinsic keyword or fit-content() size, or a minmax() where neither breadth is
+/// a <length-percentage>.
+fn grid_track_list_has_intrinsic_auto_repeat(entries: &[crate::css::style_value::RetainedGridTrackEntry]) -> bool {
+    use crate::css::style_value::GridTrackEntryKind;
+
+    let breadth_is_fixed = |value: Option<&StyleValueData>| {
+        matches!(
+            value,
+            Some(StyleValueData::Length { .. } | StyleValueData::Percentage { .. } | StyleValueData::Calculated { .. })
+        )
+    };
+    entries.iter().any(|entry| {
+        // GridRepeatType: AutoFit is 0, AutoFill is 1, Fixed is 2.
+        if entry.kind != GridTrackEntryKind::Repeat || entry.repeat_type > 1 {
+            return false;
+        }
+        entry.repeat_entries().iter().any(|repeated| match repeated.kind {
+            GridTrackEntryKind::Size => !breadth_is_fixed(repeated.size_value.optional_data()),
+            GridTrackEntryKind::MinMax => {
+                !breadth_is_fixed(repeated.min_value.optional_data())
+                    && !breadth_is_fixed(repeated.max_value.optional_data())
+            }
+            _ => false,
+        })
+    })
+}
+
 fn serialize_grid_track_size_list(
     sink: &mut TextSink,
     is_subgrid: bool,

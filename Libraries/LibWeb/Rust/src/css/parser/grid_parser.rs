@@ -144,6 +144,7 @@ fn parse_grid_line_names(
 enum TrackGrammar {
     TrackSize,
     FixedSize,
+    IntrinsicOrFixedSize,
     TrackSizeOrRepeat,
     FixedSizeOrRepeat,
 }
@@ -269,6 +270,69 @@ fn parse_grid_fixed_size(
     Some(RetainedGridTrackEntry::size(value))
 }
 
+// <intrinsic-or-fixed-size> = <fixed-size> | auto | min-content | max-content |
+//                             fit-content( <length-percentage [0,∞]> ) |
+//                             minmax( <inflexible-breadth> , <inflexible-breadth> )
+// The tentative <auto-repeat> track size grammar (see parse_grid_auto_repeat): <fixed-size>
+// widened by the intrinsic sizes, still excluding <flex> in every position.
+fn parse_grid_intrinsic_or_fixed_size(
+    context: &ParseContext,
+    property: u16,
+    tokens: &mut TokenStream<'_>,
+) -> Option<RetainedGridTrackEntry> {
+    let start = tokens.position;
+    tokens.discard_whitespace();
+    if let Some((name, values)) = tokens.next_token().function() {
+        if equals_ascii_case_insensitive(name, b"minmax") {
+            if let Some(value) =
+                parse_grid_minmax(context, property, tokens, BreadthGrammar::Fixed, BreadthGrammar::Track)
+            {
+                return Some(value);
+            }
+            tokens.position = start;
+            if let Some(value) = parse_grid_minmax(
+                context,
+                property,
+                tokens,
+                BreadthGrammar::Inflexible,
+                BreadthGrammar::Fixed,
+            ) {
+                return Some(value);
+            }
+            tokens.position = start;
+            if let Some(value) = parse_grid_minmax(
+                context,
+                property,
+                tokens,
+                BreadthGrammar::Inflexible,
+                BreadthGrammar::Inflexible,
+            ) {
+                return Some(value);
+            }
+            tokens.position = start;
+            return None;
+        }
+        if equals_ascii_case_insensitive(name, b"fit-content") {
+            let mut function_tokens = TokenStream::new(values);
+            let value = parse_grid_fixed_breadth(context, property, &mut function_tokens)?;
+            function_tokens.discard_whitespace();
+            if function_tokens.has_next_token() {
+                tokens.position = start;
+                return None;
+            }
+            let function = StyleValueData::Function {
+                name: retain_fly_string(context, name)?,
+                value: RetainedStyleValueData::from_owned(value),
+            };
+            tokens.discard_a_token();
+            return Some(RetainedGridTrackEntry::size(function));
+        }
+    }
+    tokens.position = start;
+    let value = parse_grid_inflexible_breadth(context, property, tokens)?;
+    Some(RetainedGridTrackEntry::size(value))
+}
+
 fn parse_track_list_impl(
     context: &ParseContext,
     property: u16,
@@ -327,6 +391,7 @@ fn parse_track(
     match grammar {
         TrackGrammar::TrackSize => parse_grid_track_size(context, property, tokens),
         TrackGrammar::FixedSize => parse_grid_fixed_size(context, property, tokens),
+        TrackGrammar::IntrinsicOrFixedSize => parse_grid_intrinsic_or_fixed_size(context, property, tokens),
         TrackGrammar::TrackSizeOrRepeat => parse_grid_track_repeat(context, property, tokens).or_else(|| {
             tokens.position = start;
             parse_grid_track_size(context, property, tokens)
@@ -406,12 +471,15 @@ fn parse_grid_track_repeat(
 
 // https://drafts.csswg.org/css-grid-2/#typedef-auto-repeat
 // <auto-repeat> = repeat( [ auto-fill | auto-fit ] , [ <line-names>? <fixed-size> ]+ <line-names>? )
+// NB: Tentatively relaxed to accept intrinsic sizes, per css-grid-3 "Intrinsic Tracks and repeat()"
+// (https://drafts.csswg.org/css-grid-3/#masonry-intrinsic-repeat) and the WPT
+// css/css-grid/parsing/grid-template-*-repeat-intrinsic-valid.tentative.html tests.
 fn parse_grid_auto_repeat(
     context: &ParseContext,
     property: u16,
     tokens: &mut TokenStream<'_>,
 ) -> Option<RetainedGridTrackEntry> {
-    parse_grid_track_repeat_impl(context, property, tokens, true, TrackGrammar::FixedSize)
+    parse_grid_track_repeat_impl(context, property, tokens, true, TrackGrammar::IntrinsicOrFixedSize)
 }
 
 fn parse_grid_fixed_repeat(
@@ -1438,9 +1506,22 @@ mod tests {
             assert_parsed(property_id::GRID_TEMPLATE_COLUMNS, source);
         }
         for source in [
+            "repeat(auto-fill, auto)",
+            "repeat(auto-fit, [a] min-content 100px max-content [b])",
+            "repeat(auto-fill, minmax(auto, auto))",
+            "repeat(auto-fit, minmax(min-content, max-content))",
+            "repeat(auto-fill, fit-content(200px))",
+        ] {
+            assert_parsed(property_id::GRID_TEMPLATE_COLUMNS, source);
+        }
+        for source in [
             "repeat(0, 1fr)",
             "repeat(auto-fit, 1fr)",
             "subgrid repeat(auto-fit, [a])",
+            "repeat(auto-fill, minmax(fit-content(200px), auto))",
+            "repeat(auto-fit, minmax(min-content, 1fr))",
+            "repeat(auto-fill, fit-content)",
+            "auto repeat(auto-fill, auto) auto",
         ] {
             assert_invalid(property_id::GRID_TEMPLATE_COLUMNS, source);
         }
