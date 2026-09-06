@@ -2221,9 +2221,9 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
                 element.play_or_cancel_animations_after_display_property_change();
                 return TraversalDecision::Continue;
             });
-            // NB: Elements inside a display:none subtree are not recomputed, so discard their materialized
-            //     styles. This makes a CSSOM read rematerialize the requested inheritance path, and the
-            //     caller's typed reactions rematerialize all descendants when the subtree becomes visible again.
+            // NB: Clear hidden descendant styles so they cannot become transition before-change styles.
+            //     Descendants needed by SVG resources are scheduled for recomputation; other descendants
+            //     rematerialize on a CSSOM read or when the subtree becomes visible again.
             if (new_display_is_none)
                 clear_computed_styles_from_display_none_descendants();
         }
@@ -2488,9 +2488,9 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
         });
     }
 
-    // NB: Elements inside a display:none subtree are not recomputed, so discard their materialized styles. This
-    //     makes a CSSOM read rematerialize the requested inheritance path, and the caller's typed reactions
-    //     rematerialize all descendants when the subtree becomes visible again.
+    // NB: Clear hidden descendant styles so they cannot become transition before-change styles.
+    //     Descendants needed by SVG resources are scheduled for recomputation; other descendants
+    //     rematerialize on a CSSOM read or when the subtree becomes visible again.
     auto current_computed_values = computed_style();
     VERIFY(current_computed_values);
     if (old_computed_values && old_computed_values->display().is_none() != current_computed_values->display().is_none()) {
@@ -2544,6 +2544,13 @@ void Element::clear_computed_styles_from_display_none_descendants()
         if (auto* layout_node = element->unsafe_layout_node())
             layout_node->pin_style_record_for_detachment();
         element->m_style_record_identity = 0;
+
+        // NB: SVG resources can still affect rendering when a DOM ancestor has display:none.
+        //     Recompute their styles in this style update, including any missing inheritance
+        //     ancestors, so painting never needs to materialize styles for referenced resources.
+        if (element->is_svg_element())
+            element->document().style_computer().style_engine().record_element_style_input_change(element->style_node_id());
+
         element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
             pseudo_element.clear_computed_style();
         });

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../expected/svg/filter-in-display-none-subtree-ref.html">
+<style>
+    body { margin: 0; }
+    #definitions { position: absolute; color: red; }
+    #target { width: 100px; height: 100px; background: red; filter: url(#flood); }
+</style>
+<div id="definitions">
+    <div>
+        <svg>
+            <filter id="flood">
+                <feFlood flood-color="currentColor" />
+                <feComposite in2="SourceGraphic" operator="in" />
+            </filter>
+        </svg>
+    </div>
+</div>
+<div id="target"></div>
+<script>
+new IntersectionObserver(() => {}).observe(target);
+requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+        definitions.style.display = "none";
+        target.style.width = "101px";
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                definitions.style.color = "green";
+                target.style.width = "102px";
+                document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+});
+</script>
