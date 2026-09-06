@@ -449,6 +449,9 @@ pub(crate) struct UsedValues {
     // columns it spans, so painting can find the cells that originate in a column (CSS 2.2 §17.5.1).
     pub table_column_index: Cell<u32>,
     pub table_column_span: Cell<u32>,
+    // For table cells: whether every column the cell spans has 'visibility: collapse', which removes the cell from
+    // the display along with the columns (CSS 2.2 §17.5.5).
+    pub hidden_by_collapsed_columns: Cell<bool>,
 
     pub inline_size_constraint: Cell<SizeConstraint>,
     pub block_size_constraint: Cell<SizeConstraint>,
@@ -503,6 +506,7 @@ impl Default for UsedValues {
             is_invisible_for_line_clamp: Cell::new(false),
             table_column_index: Cell::new(0),
             table_column_span: Cell::new(0),
+            hidden_by_collapsed_columns: Cell::new(false),
             inline_size_constraint: Cell::new(SizeConstraint::None),
             block_size_constraint: Cell::new(SizeConstraint::None),
             has_content_offset: SealableCell::new(false),
@@ -656,6 +660,7 @@ used_values_cell_state! {
     is_invisible_for_line_clamp: bool,
     table_column_index: u32,
     table_column_span: u32,
+    hidden_by_collapsed_columns: bool,
     inline_size_constraint: SizeConstraint,
     block_size_constraint: SizeConstraint,
     has_content_offset: bool,
@@ -1057,6 +1062,8 @@ pub(crate) fn used_values_from_committed_fragment_link(
     used.padding_bottom.set(fragment.padding_bottom);
     used.table_column_index.set(fragment.table_column_index);
     used.table_column_span.set(fragment.table_column_span);
+    used.hidden_by_collapsed_columns
+        .set(fragment.hidden_by_collapsed_columns);
     used.inset_left.set(link.inset_left);
     used.inset_right.set(link.inset_right);
     used.inset_top.set(link.inset_top);

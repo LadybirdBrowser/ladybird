@@ -3238,6 +3238,7 @@ mod tests {
                 is_collapsed_borders_table_box: false,
                 table_column_index: 0,
                 table_column_span: 0,
+                hidden_by_collapsed_columns: false,
                 collapsed_table_borders: None,
                 line_data: None,
                 grid_layout_data: None,
