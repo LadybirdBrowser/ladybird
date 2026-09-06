@@ -838,6 +838,7 @@ impl StyleEngine {
                 continue;
             }
             let mut matched_rule = None;
+            let mut priorities = [None; 2];
             for &declared in self.program.declared_properties_of(delta.rule) {
                 if !property_is_longhand(declared.property) {
                     continue;
@@ -865,13 +866,15 @@ impl StyleEngine {
                 let Some(matched) = matched_rule else {
                     return false;
                 };
-                let priority = self.cascade_priority_of(
-                    delta.rule,
-                    matched.tree_scope,
-                    entry.specificity,
-                    matched.scope_proximity,
-                    declared.important,
-                );
+                let priority = *priorities[declared.important as usize].get_or_insert_with(|| {
+                    self.cascade_priority_of(
+                        delta.rule,
+                        matched.tree_scope,
+                        entry.specificity,
+                        matched.scope_proximity,
+                        declared.important,
+                    )
+                });
                 if previous_winner.is_some_and(|winner| priority < winner.priority) {
                     continue;
                 }
