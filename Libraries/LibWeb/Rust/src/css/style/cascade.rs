@@ -1218,7 +1218,7 @@ impl WinnerGroups {
                     groups.remove(group_index);
                 }
                 (Some(old_group), false) => {
-                    let new_group = if self.group_matches(old_group, &winners) {
+                    let new_group = if old_winners == winners {
                         old_group
                     } else {
                         self.intern_group(&winners)
