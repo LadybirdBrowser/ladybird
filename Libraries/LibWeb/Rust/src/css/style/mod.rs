@@ -598,6 +598,9 @@ impl<K: Copy + Eq + Hash + Ord, V: Clone> StagedField<K, V> {
     }
 
     fn take_dirty(&mut self) -> Vec<(K, V)> {
+        if self.is_empty() {
+            return Vec::new();
+        }
         let mut dirty = Vec::with_capacity(self.dirty_count);
         for &key in &self.touched {
             let row = self.rows.get_mut(&key).unwrap();
