@@ -264,12 +264,12 @@ impl StyleEngine {
         &self,
         node: StyleNodeID,
     ) -> Option<Vec<(CustomDeclaration, RetainedStyleValueData)>> {
-        struct Candidate {
+        struct Candidate<'a> {
             priority: CascadePriority,
             order: usize,
             stratum: CascadeStratum,
             declared: CustomDeclaration,
-            written: RetainedStyleValueData,
+            written: &'a RetainedStyleValueData,
         }
 
         let mut candidates = Vec::new();
@@ -289,7 +289,7 @@ impl StyleEngine {
                     order: candidates.len(),
                     stratum: self.cascade_stratum_of(rule, tree_scope, declared.important),
                     declared,
-                    written: written.clone_retained(),
+                    written,
                 });
             }
         });
@@ -308,7 +308,7 @@ impl StyleEngine {
                 order: candidates.len(),
                 stratum: self.element_cascade_stratum(node, ElementDeclarationKind::InlineStyle, declared.important),
                 declared,
-                written: written.clone_retained(),
+                written,
             });
         }
         candidates.sort_by_key(|candidate| (candidate.priority, candidate.order));
@@ -329,7 +329,7 @@ impl StyleEngine {
                     continue;
                 }
                 let Some(ceiling) = candidate.stratum.ceiling(candidate.declared.operator) else {
-                    cascaded.push((candidate.declared, candidate.written));
+                    cascaded.push((candidate.declared, candidate.written.clone_retained()));
                     break;
                 };
                 ceilings.push(ceiling);
