@@ -613,15 +613,15 @@ impl StyleSheetProgram {
             .map_or(&[], Vec::as_slice)
     }
 
-    pub(crate) fn set_sheets_in_scope(&mut self, tree_scope: TreeScopeID, sheets: &[SheetID]) {
+    pub(crate) fn set_sheets_in_scope(&mut self, tree_scope: TreeScopeID, sheets: Vec<SheetID>) {
         let index = tree_scope.0 as usize;
         self.capacity_bytes += self.sheet_order.ensure(index);
         self.capacity_bytes += self.sheets_by_scope.ensure(index);
         let previous_scope_capacity = (self.sheets_by_scope[index].capacity() * size_of::<SheetID>()) as u64;
-        let previous_sheets = std::mem::replace(&mut self.sheets_by_scope[index], sheets.to_vec());
+        let previous_sheets = std::mem::replace(&mut self.sheets_by_scope[index], sheets);
         let mut attachment_presence: Vec<_> = previous_sheets
             .iter()
-            .chain(sheets)
+            .chain(&self.sheets_by_scope[index])
             .map(|&sheet| (sheet, self.sheet_is_attached_somewhere(sheet)))
             .collect();
         attachment_presence.sort_unstable_by_key(|&(sheet, _)| sheet);
@@ -634,7 +634,8 @@ impl StyleSheetProgram {
                 .retain(|attachment| attachment.tree_scope != tree_scope);
         }
         let mut order = OrderMaintenance::new();
-        for &sheet in sheets {
+        for position in 0..self.sheets_by_scope[index].len() {
+            let sheet = self.sheets_by_scope[index][position];
             let attachment = Attachment {
                 tree_scope,
                 order: order.insert_last(),
@@ -1686,14 +1687,14 @@ mod tests {
         program.append_rule(second, None, RuleKind::Style);
         let unattached_version = program.routing_liveness_version();
 
-        program.set_sheets_in_scope(TreeScopeID::DOCUMENT, &[first, second]);
+        program.set_sheets_in_scope(TreeScopeID::DOCUMENT, vec![first, second]);
         let attached_version = program.routing_liveness_version();
         assert!(attached_version > unattached_version);
 
-        program.set_sheets_in_scope(TreeScopeID::DOCUMENT, &[second, first]);
+        program.set_sheets_in_scope(TreeScopeID::DOCUMENT, vec![second, first]);
         assert_eq!(program.routing_liveness_version(), attached_version);
 
-        program.set_sheets_in_scope(TreeScopeID::DOCUMENT, &[]);
+        program.set_sheets_in_scope(TreeScopeID::DOCUMENT, Vec::new());
         assert!(program.routing_liveness_version() > attached_version);
     }
 

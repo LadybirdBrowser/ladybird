@@ -723,7 +723,7 @@ impl StyleEngine {
         if !sheet_orders.is_empty() {
             sheet_orders.sort_unstable_by_key(|(scope, _)| *scope);
             for (scope, sheets) in sheet_orders {
-                self.program.set_sheets_in_scope(scope, &sheets);
+                self.program.set_sheets_in_scope(scope, sheets);
             }
             self.settle_program();
         }
