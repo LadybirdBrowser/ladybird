@@ -1244,13 +1244,10 @@ impl WinnerGroups {
     }
 
     fn intern_group(&mut self, winners: &[PropertyWinner]) -> WinnerGroupRef {
-        let semantic: Box<[_]> = winners
-            .iter()
-            .map(|winner| SemanticPropertyWinner {
-                property: winner.property,
-                key: winner.key,
-            })
-            .collect();
+        let semantic = winners.iter().map(|winner| SemanticPropertyWinner {
+            property: winner.property,
+            key: winner.key,
+        });
         let provenance: Box<[_]> = winners
             .iter()
             .map(|winner| WinnerProvenance {
@@ -1259,18 +1256,27 @@ impl WinnerGroups {
                 priority: self.intern_priority(winner.priority),
             })
             .collect();
-        let hash = content_hash(&semantic);
+        let mut hasher = fast_hasher();
+        winners.len().hash(&mut hasher);
+        for winner in semantic.clone() {
+            winner.hash(&mut hasher);
+        }
+        let hash = hasher.finish();
         #[cfg(test)]
         {
             self.group_hash_computations += 1;
         }
-        if let Some(id) = self.groups.find(hash, |_id, group| *group == semantic) {
+        if let Some(id) = self
+            .groups
+            .find(hash, |_id, group| group.iter().copied().eq(semantic.clone()))
+        {
             return WinnerGroupRef {
                 winners: id,
                 provenance: self.intern_provenance_group(provenance),
             };
         }
         let id = WinnerGroupID(u32::try_from(self.groups.len()).expect("winner group space exhausted"));
+        let semantic: Box<[_]> = semantic.collect();
         self.winner_entry_count += semantic.len();
         self.nested_residency
             .grow_committed(size_of_val(semantic.as_ref()) as u64);
