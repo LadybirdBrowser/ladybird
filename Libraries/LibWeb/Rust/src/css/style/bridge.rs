@@ -3435,14 +3435,17 @@ pub unsafe extern "C" fn style_engine_record_benchmark_marker(
     if engine.recording_id().is_none() {
         return;
     }
-    let name = match is_ascii {
-        true => unsafe { borrow(name.cast::<u8>(), length) }
-            .iter()
-            .map(|&code_unit| u16::from(code_unit))
-            .collect::<Vec<_>>(),
-        false => unsafe { borrow(name.cast::<u16>(), length) }.to_vec(),
-    };
-    engine.record_boundary_call(EventKind::BenchmarkMarker, |payload| payload.write_u16_slice(&name));
+    engine.record_boundary_call(EventKind::BenchmarkMarker, |payload| {
+        if is_ascii {
+            let name = unsafe { borrow(name.cast::<u8>(), length) };
+            payload.write_length(name.len());
+            for &code_unit in name {
+                payload.write_u16(u16::from(code_unit));
+            }
+        } else {
+            payload.write_u16_slice(unsafe { borrow(name.cast::<u16>(), length) });
+        }
+    });
 }
 
 unsafe fn borrow<'a, T>(pointer: *const T, count: usize) -> &'a [T] {
