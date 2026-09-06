@@ -576,24 +576,25 @@ impl<K: Copy + Eq + Hash + Ord, V: Clone> StagedField<K, V> {
     }
 
     fn stage(&mut self, key: K, before: V, after: V) {
-        if let Some(row) = self.rows.get_mut(&key) {
-            row.after = after;
-            if !row.dirty {
-                row.dirty = true;
+        match self.rows.entry(key) {
+            std::collections::hash_map::Entry::Occupied(mut entry) => {
+                let row = entry.get_mut();
+                row.after = after;
+                if !row.dirty {
+                    row.dirty = true;
+                    self.dirty_count += 1;
+                }
+            }
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert(StagedFieldRow {
+                    before,
+                    after,
+                    dirty: true,
+                });
+                self.touched.push(key);
                 self.dirty_count += 1;
             }
-            return;
         }
-        self.rows.insert(
-            key,
-            StagedFieldRow {
-                before,
-                after,
-                dirty: true,
-            },
-        );
-        self.touched.push(key);
-        self.dirty_count += 1;
     }
 
     fn take_dirty(&mut self) -> Vec<(K, V)> {
