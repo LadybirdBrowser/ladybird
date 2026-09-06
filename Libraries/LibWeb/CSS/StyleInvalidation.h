@@ -155,7 +155,6 @@ private:
     u8 m_inherited_style_groups_changed { 0 };
 };
 
-RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID, StyleValue const* old_value, StyleValue const* new_value);
 RequiredInvalidationAfterStyleChange decode_style_invalidation(u32 packed);
 
 }
