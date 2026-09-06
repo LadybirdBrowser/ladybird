@@ -11,6 +11,7 @@
 //! output is exact, but its accelerators make it unsuitable as the correctness reference. That role
 //! belongs to [`super::exact_matcher::ExactMatcher`].
 
+use smallvec::SmallVec;
 use std::mem::size_of;
 
 use super::ScopeDispatchShape;
@@ -1353,7 +1354,7 @@ impl<'a> BatchMatcher<'a> {
         // Copies of a multi-key entry share one cascade order; an element carrying two of the
         // entry's branch keys walks past the second copy here. The list stays tiny because only
         // disjunction subjects are multi-key.
-        let mut seen_multi_key_orders: Vec<u32> = Vec::new();
+        let mut seen_multi_key_orders: SmallVec<[u32; 4]> = SmallVec::new();
         let is_document_root = self.tree.parent(node).is_none();
         let parent_facts = match self.tree.parent(node) {
             None => ParentDispatchFacts::NoElementParent,
