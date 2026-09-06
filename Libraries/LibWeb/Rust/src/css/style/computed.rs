@@ -1498,6 +1498,7 @@ impl ComputedGroupSets {
                 dependency_flags,
                 ..old_metadata
             })
+            .0
         };
         let longhand_table = self.intern_longhand_table_with_slot_hash_sum(unsafe { &*table }, slot_hash_sum);
         release_table(table);
@@ -1580,12 +1581,13 @@ impl ComputedGroupSets {
         self.style_record_column[index] = Some(previous_base);
     }
 
-    fn intern_fixed_metadata(&mut self, metadata: ComputedFixedMetadata) -> ComputedFixedMetadataID {
+    fn intern_fixed_metadata(&mut self, metadata: ComputedFixedMetadata) -> (ComputedFixedMetadataID, bool) {
+        let hash = content_hash(metadata);
         if let Some(identity) = self
             .computed_fixed_metadata
-            .find(content_hash(metadata), |_identity, candidate| *candidate == metadata)
+            .find(hash, |_identity, candidate| *candidate == metadata)
         {
-            return identity;
+            return (identity, false);
         }
         let identity = self.computed_fixed_metadata.take_free_identity().unwrap_or_else(|| {
             ComputedFixedMetadataID(
@@ -1593,9 +1595,8 @@ impl ComputedGroupSets {
                     .expect("computed fixed-metadata identity space exhausted"),
             )
         });
-        self.computed_fixed_metadata
-            .insert(content_hash(metadata), identity, metadata);
-        identity
+        self.computed_fixed_metadata.insert(hash, identity, metadata);
+        (identity, true)
     }
 
     /// Assign a node the record another node of its cohort already derived this flush: the same
@@ -1990,28 +1991,12 @@ impl ComputedGroupSets {
         let (custom_property_environment_identity, new_custom_property_environment) =
             self.intern_custom_property_environment(custom_property_environment);
 
-        let metadata = ComputedFixedMetadata {
-            pseudo_element_styles,
-            dependency_flags,
-            counter_style_environment_identity,
-        };
-        let (computed_fixed_metadata_identity, new_computed_fixed_metadata) = match self
-            .computed_fixed_metadata
-            .find(content_hash(metadata), |_identity, candidate| *candidate == metadata)
-        {
-            Some(identity) => (identity, false),
-            None => {
-                let identity = self.computed_fixed_metadata.take_free_identity().unwrap_or_else(|| {
-                    ComputedFixedMetadataID(
-                        u32::try_from(self.computed_fixed_metadata.len())
-                            .expect("computed fixed-metadata identity space exhausted"),
-                    )
-                });
-                self.computed_fixed_metadata
-                    .insert(content_hash(metadata), identity, metadata);
-                (identity, true)
-            }
-        };
+        let (computed_fixed_metadata_identity, new_computed_fixed_metadata) =
+            self.intern_fixed_metadata(ComputedFixedMetadata {
+                pseudo_element_styles,
+                dependency_flags,
+                counter_style_environment_identity,
+            });
 
         // NB: A recompute allocates fresh value data for many longhands even when nothing changed,
         //     so interning by pointer content alone would mint a new table identity - and a new
