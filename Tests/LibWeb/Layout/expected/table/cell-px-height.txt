@@ -1,9 +1,9 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 116 0+0+0] [BFC] children: not-inline
-    TableWrapper <(anonymous)> at [8,8] [8+0+0 102 0+0+690] [8+0+0 100 0+0+8] [BFC] children: not-inline
-      Box <body> at [8,8] table-box [0+0+0 102 0+0+0] [0+0+0 100 0+0+0] [TFC] children: not-inline
-        Box <div.row> at [8,8] table-row [0+0+0 102 0+0+0] [0+0+0 100 0+0+0] children: not-inline
-          BlockContainer <div.cell> at [9,9] table-cell [0+1+0 100 0+1+0] [0+1+0 0 98+1+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 118 0+0+0] [BFC] children: not-inline
+    TableWrapper <(anonymous)> at [8,8] [8+0+0 102 0+0+690] [8+0+0 102 0+0+8] [BFC] children: not-inline
+      Box <body> at [8,8] table-box [0+0+0 102 0+0+0] [0+0+0 102 0+0+0] [TFC] children: not-inline
+        Box <div.row> at [8,8] table-row [0+0+0 102 0+0+0] [0+0+0 102 0+0+0] children: not-inline
+          BlockContainer <div.cell> at [9,9] table-cell [0+1+0 100 0+1+0] [0+1+0 0 100+1+0] [BFC] children: not-inline
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x116] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x118] (z-index: auto)

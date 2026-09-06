@@ -615,6 +615,8 @@ pub(crate) struct TableCell {
     pub(crate) outer_max_inline_size: CssPixels,
     pub(crate) outer_min_block_size: CssPixels,
     pub(crate) outer_max_block_size: CssPixels,
+    // The block size the cell specifies with a length `height`, as an outer size (see cell_specified_outer_block_size).
+    pub(crate) outer_specified_block_size: CssPixels,
 }
 
 pub(crate) struct Row {
@@ -802,6 +804,7 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node) -> Table
                 outer_max_inline_size: CssPixels::default(),
                 outer_min_block_size: CssPixels::default(),
                 outer_max_block_size: CssPixels::default(),
+                outer_specified_block_size: CssPixels::default(),
             });
             current_column += column_span;
         }
@@ -1360,6 +1363,30 @@ impl<'pass> TableFormattingContext<'pass> {
         }
     }
 
+    /// Whether a length or percentage `height` on a cell sizes its border box rather than its content box. CSS 2
+    /// §17.5.3 sizes rows by "the computed 'height' of each cell", which is a content box size unless
+    /// `box-sizing: border-box`; the table cell height box sizing quirk makes it a border box size in quirks mode:
+    /// https://quirks.spec.whatwg.org/#the-table-cell-height-box-sizing-quirk
+    fn cell_specified_block_size_is_border_box(&self, cell_box: Node, style: &StyleValues<'_>) -> bool {
+        style.box_sizing() == box_sizing::BORDER_BOX || self.node_facts(cell_box).document_in_quirks_mode()
+    }
+
+    /// The outer (border box) block size that a `height` resolved to `specified` gives a cell whose padding and
+    /// borders take up `block_offsets`.
+    fn cell_specified_outer_block_size(
+        &self,
+        cell_box: Node,
+        style: &StyleValues<'_>,
+        specified: CssPixels,
+        block_offsets: CssPixels,
+    ) -> CssPixels {
+        if self.cell_specified_block_size_is_border_box(cell_box, style) {
+            specified
+        } else {
+            specified + block_offsets
+        }
+    }
+
     fn use_fixed_mode_layout(&self) -> bool {
         // Implements https://www.w3.org/TR/css-tables-3/#in-fixed-mode.
         // A table-root is said to be laid out in fixed mode whenever the computed value of the table-layout property is equal to fixed, and the
@@ -1522,8 +1549,11 @@ impl<'pass> TableFormattingContext<'pass> {
             if include_rows {
                 let min_content_block = self.calculate_min_content_block_size(cell.box_, max_content_inline);
                 let max_content_block = self.calculate_max_content_block_size(cell.box_, min_content_inline);
-                let min_block = style.min_height().to_px(block_basis);
                 let block_offsets = padding_block_start + padding_block_end + border_block_start + border_block_end;
+                let mut min_block = style.min_height().to_px(block_basis);
+                if style.box_sizing() == box_sizing::BORDER_BOX {
+                    min_block = (min_block - block_offsets).max(CssPixels::default());
+                }
                 // The outer min-content block size of a table cell is its minimum block size adjusted by the cell intrinsic offsets.
                 self.cells[cell_index].outer_min_block_size = min_block.max(min_content_block) + block_offsets;
                 // The tables specification isn't explicit on how to use the height and max-height CSS properties in the outer max-content formulas.
@@ -1531,16 +1561,29 @@ impl<'pass> TableFormattingContext<'pass> {
                 // in the specification give enough clues to pick defaults in a way that makes sense.
                 let height = style.height();
                 let max_height = style.max_height();
+                // The specified block size takes part in the row measures as an outer size (see
+                // initialize_table_measures); a percentage resolves against the basis the table forwards from its
+                // containing block.
+                let specified_outer = if height.is_auto() {
+                    CssPixels::default()
+                } else {
+                    self.cell_specified_outer_block_size(cell.box_, &style, height.to_px(block_basis), block_offsets)
+                };
+                self.cells[cell_index].outer_specified_block_size = specified_outer;
+                // The specified sizes below are content box sizes (see cell_specified_block_size_is_border_box).
                 let block_size = if height.is_length() {
-                    height.to_px(block_basis)
+                    (specified_outer - block_offsets).max(CssPixels::default())
                 } else {
                     CssPixels::default()
                 };
-                let max_block = if max_height.is_length() {
+                let mut max_block = if max_height.is_length() {
                     max_height.to_px(block_basis)
                 } else {
                     CssPixels::from_raw(i32::MAX)
                 };
+                if style.box_sizing() == box_sizing::BORDER_BOX {
+                    max_block = (max_block - block_offsets).max(CssPixels::default());
+                }
                 self.cells[cell_index].outer_max_block_size = if self.rows[cell.row_index].is_constrained {
                     // The outer max-content height of a table-cell in a constrained row is
                     // max(min-height, height, min-content height, min(max-height, height)) adjusted by the cell intrinsic offsets.
@@ -1853,17 +1896,20 @@ impl<'pass> TableFormattingContext<'pass> {
 
     fn initialize_table_measures(&mut self, axis: TrackAxis) {
         if axis == TrackAxis::Row {
-            let basis = self.table_constraints.block_basis();
             for cell_index in 0..self.cells.len() {
                 let cell = self.cells[cell_index];
                 if cell.row_span == 1 {
-                    let specified = self.style(cell.box_).height().to_px(basis);
                     // https://www.w3.org/TR/css-tables-3/#row-layout makes specified cell height part of the initialization formula for row table measures:
                     // This is done by running the same algorithm as the column measurement, with the span=1 value being initialized (for min-content) with
                     // the largest of the resulting height of the previous row layout, the height specified on the corresponding table-row (if any), and
                     // the largest height specified on cells that span this row only (the algorithm starts by considering cells of span 2 on top of that assignment).
+                    // The row measures are outer sizes, so the specified height counts with the cell's padding and
+                    // borders (compute_cell_measures records it; a cell measured in fixed mode has it in its outer
+                    // minimum instead, see compute_table_block_size).
                     let row = &mut self.rows[cell.row_index];
-                    row.min_size = row.min_size.max(cell.outer_min_block_size.max(specified));
+                    row.min_size = row
+                        .min_size
+                        .max(cell.outer_min_block_size.max(cell.outer_specified_block_size));
                     row.max_size = row.max_size.max(cell.outer_max_block_size);
                 }
             }
@@ -2441,10 +2487,14 @@ impl<'pass> TableFormattingContext<'pass> {
             }
             let height = style.height();
             if !self.rows[cell.row_index].is_collapsed && height.is_length() {
-                let cell_size = height.to_px(participant_block_basis);
-                used.set_content_block_size(
-                    cell_size - used.border_box_top(collapsed) - used.border_box_bottom(collapsed),
+                let offsets = used.border_box_top(collapsed) + used.border_box_bottom(collapsed);
+                let cell_size = self.cell_specified_outer_block_size(
+                    cell.box_,
+                    &style,
+                    height.to_px(participant_block_basis),
+                    offsets,
                 );
+                used.set_content_block_size(cell_size - offsets);
                 self.rows[cell.row_index].base_block_size = self.rows[cell.row_index].base_block_size.max(cell_size);
             }
             // Compute cell inline size as specified by https://www.w3.org/TR/css-tables-3/#bounding-box-assignment:
@@ -2578,9 +2628,15 @@ impl<'pass> TableFormattingContext<'pass> {
             if !style.height().is_percentage() {
                 continue;
             }
-            let cell_size = style.height().to_px(self.table_block_size);
             let used = self.used_values(cell.box_);
-            used.set_content_block_size(cell_size - used.border_box_top(collapsed) - used.border_box_bottom(collapsed));
+            let offsets = used.border_box_top(collapsed) + used.border_box_bottom(collapsed);
+            let cell_size = self.cell_specified_outer_block_size(
+                cell.box_,
+                &style,
+                style.height().to_px(self.table_block_size),
+                offsets,
+            );
+            used.set_content_block_size(cell_size - offsets);
             self.cell_pre_layout_content_block_sizes[cell_index] = used.content_block_size.get();
             if !self.rows[cell.row_index].is_collapsed {
                 self.rows[cell.row_index].reference_block_size =
