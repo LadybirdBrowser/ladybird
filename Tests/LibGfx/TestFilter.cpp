@@ -9,10 +9,12 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Filter.h>
+#include <LibGfx/SkiaUtils.h>
 #include <LibTest/TestCase.h>
 
-// The serialized form of every_operation_filter(). The Rust codec in LibGfx/Rust/src/filter.rs checks the same
-// bytes, so the two sides cannot drift apart without one of the tests noticing.
+// The serialized form of every_operation_filter(), with its image frame under id 42. The Rust codec in
+// LibGfx/Rust/src/filter.rs checks the same bytes, so the two sides cannot drift apart without one of the tests
+// noticing.
 static constexpr StringView EVERY_OPERATION_FILTER_BYTES = "01020103332211ff0000003f010000010e0000c03f000020c0010c2a0000000000000001000000020000000300000004"
                                                            "00000005000000060000000700000008000000010000000000803e0000003f0000403f0000803f130000000d04000000"
                                                            "01050000803f000000400000404000ff007f0106000080400000a0400107020000000000003f00000104011100000000"
@@ -26,7 +28,7 @@ static constexpr StringView EVERY_OPERATION_FILTER_BYTES = "01020103332211ff0000
                                                            "3f0000c03f0000004000002040000040400000604000008040000090400000a0400000b0400000c0400000d0400000e0"
                                                            "400000f04000000041000008410000104100001841010a9a99993e010b0000b4420112010000000000000000"sv;
 
-static constexpr u64 IMAGE_FRAME_ID = 42;
+static constexpr u64 FIXTURE_IMAGE_FRAME_ID = 42;
 
 // Every filter operation once, nested so that each input position is exercised.
 static Gfx::Filter every_operation_filter(Gfx::DecodedImageFrame const& frame)
@@ -74,32 +76,61 @@ static Gfx::DecodedImageFrame test_frame()
     return Gfx::DecodedImageFrame { *bitmap };
 }
 
-static ByteBuffer serialize(Gfx::Filter const& filter)
+// The fixture bytes with their image frame renamed to the id `frame` was handed out at runtime.
+static ByteBuffer expected_bytes_for(Gfx::DecodedImageFrame const& frame)
 {
-    return Gfx::serialize_filter(filter, [](Gfx::DecodedImageFrame const&) -> u64 { return IMAGE_FRAME_ID; });
+    auto bytes = MUST(decode_hex(EVERY_OPERATION_FILTER_BYTES));
+    u64 fixture_id = FIXTURE_IMAGE_FRAME_ID;
+    ReadonlyBytes fixture_id_bytes { &fixture_id, sizeof(fixture_id) };
+    Optional<size_t> id_offset;
+    for (size_t offset = 0; offset + sizeof(fixture_id) <= bytes.size(); ++offset) {
+        if (bytes.bytes().slice(offset, sizeof(fixture_id)) != fixture_id_bytes)
+            continue;
+        VERIFY(!id_offset.has_value());
+        id_offset = offset;
+    }
+    VERIFY(id_offset.has_value());
+    u64 frame_id = frame.id();
+    bytes.overwrite(*id_offset, &frame_id, sizeof(frame_id));
+    return bytes;
 }
 
 TEST_CASE(every_operation_serializes_to_the_shared_bytes)
 {
     auto frame = test_frame();
-    auto bytes = serialize(every_operation_filter(frame));
-    auto expected = MUST(decode_hex(EVERY_OPERATION_FILTER_BYTES));
-    if (bytes.bytes() != expected.bytes())
-        warnln("serialized filter bytes: {}", encode_hex(bytes.bytes()));
-    EXPECT_EQ(bytes.bytes(), expected.bytes());
+    auto filter = every_operation_filter(frame);
+    auto expected = expected_bytes_for(frame);
+    EXPECT_EQ(filter.serialized_bytes(), expected.bytes());
+    EXPECT_EQ(filter.image_frames().size(), 1u);
+    EXPECT_EQ(filter.image_frames()[0].id, frame.id());
+    EXPECT_EQ(filter.image_frame(frame.id()).id(), frame.id());
 }
 
-TEST_CASE(every_operation_round_trips_through_the_shared_bytes)
+TEST_CASE(the_shared_bytes_name_the_image_frames_they_draw)
 {
     auto frame = test_frame();
-    auto expected = MUST(decode_hex(EVERY_OPERATION_FILTER_BYTES));
+    auto expected = expected_bytes_for(frame);
+    Vector<u64> image_frame_ids;
+    Gfx::for_each_filter_image_frame_id(expected.bytes(), [&](u64 id) { image_frame_ids.append(id); });
+    EXPECT_EQ(image_frame_ids.size(), 1u);
+    EXPECT_EQ(image_frame_ids.first(), frame.id());
+
+    image_frame_ids.clear();
+    Gfx::for_each_filter_image_frame_id(expected.bytes().trim(expected.size() - 1), [&](u64 id) { image_frame_ids.append(id); });
+    EXPECT(image_frame_ids.is_empty());
+}
+
+TEST_CASE(the_shared_bytes_build_a_skia_image_filter)
+{
+    auto frame = test_frame();
+    auto expected = expected_bytes_for(frame);
     size_t image_lookups = 0;
-    auto filter = Gfx::deserialize_filter(expected.bytes(), [&](u64 image_id) {
-        EXPECT_EQ(image_id, IMAGE_FRAME_ID);
+    auto image_filter = Gfx::to_skia_image_filter(expected.bytes(), [&](u64 id) -> Gfx::DecodedImageFrame const& {
+        EXPECT_EQ(id, frame.id());
         ++image_lookups;
         return frame;
     });
+    EXPECT(image_filter != nullptr);
     EXPECT_EQ(image_lookups, 1u);
-    auto reserialized = serialize(filter);
-    EXPECT_EQ(reserialized.bytes(), expected.bytes());
+    EXPECT(Gfx::to_skia_image_filter(every_operation_filter(frame)) != nullptr);
 }

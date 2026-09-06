@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
 #include <LibGfx/Forward.h>
@@ -15,6 +16,7 @@
 
 class GrDirectContext;
 class SkColorFilter;
+class SkImageFilter;
 class SkPaint;
 template<typename T>
 class sk_sp;
@@ -67,12 +69,18 @@ private:
     void clip_path(Gfx::Path const&, Gfx::WindingRule, bool anti_aliased);
 
     SkPaint paint_style_to_skia_paint(DisplayListPaintStyle const&, Gfx::FloatRect const& bounding_rect);
+    sk_sp<SkImageFilter> layer_image_filter(ReplayLayer const&);
     Gfx::Path path_from_data(DisplayListDataSpan) const;
     ReadonlySpan<Color> gradient_colors(DisplayListGradientColorStops) const;
     ReadonlySpan<float> gradient_positions(DisplayListGradientColorStops) const;
 
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     CompositedContextResolver const* m_composited_context_resolver { nullptr };
+
+    // Layer filters are built from their bytes once per frame node and kept until the visual
+    // context tree's structure changes, so a replayed frame does not rebuild them.
+    struct LayerImageFilterCache;
+    NonnullOwnPtr<LayerImageFilterCache> m_layer_image_filter_cache;
 };
 
 }

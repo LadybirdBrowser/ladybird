@@ -4,673 +4,345 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/HashMap.h>
-#include <AK/MemoryStream.h>
 #include <AK/NumericLimits.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Filter.h>
-#include <LibGfx/FilterImpl.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
+#include <RustFFI.h>
 
 namespace Gfx {
 
-static ErrorOr<Optional<ByteBuffer>> copy_optional_color_table(Optional<ReadonlyBytes> bytes)
-{
-    if (!bytes.has_value())
-        return Optional<ByteBuffer> {};
-    VERIFY(bytes->size() == 256);
-    return Optional<ByteBuffer> { TRY(ByteBuffer::copy(*bytes)) };
-}
-
-Filter::Filter(Filter const& other)
-    : m_impl(other.m_impl->clone())
-{
-}
-
-Filter& Filter::operator=(Filter const& other)
-{
-    if (this != &other)
-        m_impl = other.m_impl->clone();
-    return *this;
-}
-
-Filter::Filter(Filter&&) = default;
-
-Filter& Filter::operator=(Filter&&) = default;
-
-Filter::~Filter() = default;
-
-Filter::Filter(NonnullOwnPtr<FilterImpl>&& impl)
-    : m_impl(move(impl))
-{
-}
-
-FilterImpl const& Filter::impl() const
-{
-    return *m_impl;
-}
-
-Filter Filter::arithmetic(Optional<Filter const&> background, Optional<Filter const&> foreground, float k1, float k2, float k3, float k4)
-{
-    return Filter(FilterImpl::create(FilterImpl::Arithmetic {
-        .background = background.copy(),
-        .foreground = foreground.copy(),
-        .k1 = k1,
-        .k2 = k2,
-        .k3 = k3,
-        .k4 = k4,
-    }));
-}
-
-Filter Filter::compose(Filter const& outer, Filter const& inner)
-{
-    return Filter(FilterImpl::create(FilterImpl::Compose {
-        .outer = outer,
-        .inner = inner,
-    }));
-}
-
-Filter Filter::blend(Optional<Filter const&> background, Optional<Filter const&> foreground, Gfx::CompositingAndBlendingOperator mode)
-{
-    return Filter(FilterImpl::create(FilterImpl::Blend {
-        .background = background.copy(),
-        .foreground = foreground.copy(),
-        .mode = mode,
-    }));
-}
-
-Filter Filter::blur(float radius_x, float radius_y, Optional<Filter const&> input)
-{
-    return Filter(FilterImpl::create(FilterImpl::Blur {
-        .radius_x = radius_x,
-        .radius_y = radius_y,
-        .input = input.copy(),
-    }));
-}
-
-Filter Filter::flood(Gfx::Color color, float opacity)
-{
-    return Filter(FilterImpl::create(FilterImpl::Flood {
-        .color = color,
-        .opacity = opacity,
-    }));
-}
-
-Filter Filter::displacement_map(Optional<Filter const&> color, Optional<Filter const&> displacement, float scale, ChannelSelector x_channel_selector, ChannelSelector y_channel_selector)
-{
-    return Filter(FilterImpl::create(FilterImpl::DisplacementMap {
-        .color = color.copy(),
-        .displacement = displacement.copy(),
-        .scale = scale,
-        .x_channel_selector = x_channel_selector,
-        .y_channel_selector = y_channel_selector,
-    }));
-}
-
-Filter Filter::drop_shadow(float offset_x, float offset_y, float radius, Gfx::Color color, Optional<Filter const&> input)
-{
-    return Filter(FilterImpl::create(FilterImpl::DropShadow {
-        .offset_x = offset_x,
-        .offset_y = offset_y,
-        .radius = radius,
-        .color = color,
-        .input = input.copy(),
-    }));
-}
-
-Filter Filter::color(ColorFilterType type, float amount, Optional<Filter const&> input)
-{
-    return Filter(FilterImpl::create(FilterImpl::ColorFilter {
-        .type = type,
-        .amount = amount,
-        .input = input.copy(),
-    }));
-}
-
-Filter Filter::color_matrix(float matrix[20], Optional<Filter const&> input)
-{
-    Array<float, 20> matrix_values;
-    for (size_t i = 0; i < matrix_values.size(); ++i)
-        matrix_values[i] = matrix[i];
-    return Filter(FilterImpl::create(FilterImpl::ColorMatrix {
-        .matrix = matrix_values,
-        .input = input.copy(),
-    }));
-}
-
-Filter Filter::color_table(Optional<ReadonlyBytes> a, Optional<ReadonlyBytes> r, Optional<ReadonlyBytes> g, Optional<ReadonlyBytes> b, Optional<Filter const&> input)
-{
-    return Filter(FilterImpl::create(FilterImpl::ColorTable {
-        .a = MUST(copy_optional_color_table(a)),
-        .r = MUST(copy_optional_color_table(r)),
-        .g = MUST(copy_optional_color_table(g)),
-        .b = MUST(copy_optional_color_table(b)),
-        .input = input.copy(),
-    }));
-}
-
-Filter Filter::saturate(float value, Optional<Filter const&> input)
-{
-    return Filter(FilterImpl::create(FilterImpl::Saturate {
-        .value = value,
-        .input = input.copy(),
-    }));
-}
-
-Filter Filter::hue_rotate(float angle_degrees, Optional<Filter const&> input)
-{
-    return Filter(FilterImpl::create(FilterImpl::HueRotate {
-        .angle_degrees = angle_degrees,
-        .input = input.copy(),
-    }));
-}
-
-Filter Filter::image(Gfx::DecodedImageFrame const& frame, Gfx::IntRect const& src_rect, Gfx::IntRect const& dest_rect, Gfx::ScalingMode scaling_mode)
-{
-    return Filter(FilterImpl::create(FilterImpl::Image {
-        .frame = frame,
-        .src_rect = src_rect,
-        .dest_rect = dest_rect,
-        .scaling_mode = scaling_mode,
-    }));
-}
-
-Filter Filter::merge(Vector<Optional<Filter>> const& inputs)
-{
-    return Filter(FilterImpl::create(FilterImpl::Merge {
-        .inputs = inputs,
-    }));
-}
-
-Filter Filter::erode(float radius_x, float radius_y, Optional<Filter> const& input)
-{
-    return Filter(FilterImpl::create(FilterImpl::Erode {
-        .radius_x = radius_x,
-        .radius_y = radius_y,
-        .input = input,
-    }));
-}
-
-Filter Filter::dilate(float radius_x, float radius_y, Optional<Filter> const& input)
-{
-    return Filter(FilterImpl::create(FilterImpl::Dilate {
-        .radius_x = radius_x,
-        .radius_y = radius_y,
-        .input = input,
-    }));
-}
-
-Filter Filter::offset(float dx, float dy, Optional<Filter const&> input)
-{
-    return Filter(FilterImpl::create(FilterImpl::Offset {
-        .dx = dx,
-        .dy = dy,
-        .input = input.copy(),
-    }));
-}
-
-Filter Filter::turbulence(TurbulenceType turbulence_type, float base_frequency_x, float base_frequency_y, i32 num_octaves, float seed, Gfx::IntSize const& tile_stitch_size)
-{
-    return Filter(FilterImpl::create(FilterImpl::Turbulence {
-        .turbulence_type = turbulence_type,
-        .base_frequency_x = base_frequency_x,
-        .base_frequency_y = base_frequency_y,
-        .num_octaves = num_octaves,
-        .seed = seed,
-        .tile_stitch_size = tile_stitch_size,
-    }));
-}
-
-Filter Filter::convert_interpolation_color_space(InterpolationColorSpace source_color_space, InterpolationColorSpace destination_color_space, Optional<Filter const&> input)
-{
-    return Filter(FilterImpl::create(FilterImpl::ColorSpaceConversion {
-        .source_color_space = source_color_space,
-        .destination_color_space = destination_color_space,
-        .input = input.copy(),
-    }));
-}
-
 namespace {
 
-using ImageEncoder = Function<u64(Gfx::DecodedImageFrame const&)>;
-using ImageDecoder = Function<Gfx::DecodedImageFrame(u64)>;
+// Writes one node of a filter graph in the layout libgfx_rust's filter codec reads: the operation
+// tag, then the operation's fields in declaration order, with an optional input as a presence byte
+// followed by the input's own bytes.
+class FilterWriter {
+public:
+    explicit FilterWriter(FFI::FilterOperationType type)
+    {
+        m_bytes.append(to_underlying(type));
+    }
 
-static void write_color(Stream& stream, Color color)
-{
-    MUST(stream.write_value<u32>(color.value()));
+    template<typename T>
+    requires(Traits<T>::is_trivially_serializable())
+    void value(T value)
+    {
+        m_bytes.append(&value, sizeof(value));
+    }
+
+    void boolean(bool value)
+    {
+        m_bytes.append(static_cast<u8>(value));
+    }
+
+    void color(Color color)
+    {
+        value<u32>(color.value());
+    }
+
+    void rect(IntRect const& rect)
+    {
+        value<i32>(rect.x());
+        value<i32>(rect.y());
+        value<i32>(rect.width());
+        value<i32>(rect.height());
+    }
+
+    void size(IntSize const& size)
+    {
+        value<i32>(size.width());
+        value<i32>(size.height());
+    }
+
+    void optional_color_table(Optional<ReadonlyBytes> table)
+    {
+        boolean(table.has_value());
+        if (!table.has_value())
+            return;
+        VERIFY(table->size() == 256);
+        value<u32>(table->size());
+        m_bytes.append(*table);
+    }
+
+    void filter(Filter const& filter)
+    {
+        m_bytes.append(filter.serialized_bytes());
+        for (auto const& image_frame : filter.image_frames())
+            m_image_frames.append(image_frame);
+    }
+
+    void optional_filter(Optional<Filter const&> filter)
+    {
+        boolean(filter.has_value());
+        if (filter.has_value())
+            this->filter(*filter);
+    }
+
+    void image_frame(DecodedImageFrame const& frame)
+    {
+        value<u64>(frame.id());
+        m_image_frames.append({ frame.id(), frame });
+    }
+
+    Filter finish()
+    {
+        return Filter { move(m_bytes), move(m_image_frames) };
+    }
+
+private:
+    ByteBuffer m_bytes;
+    Vector<FilterImageFrame> m_image_frames;
+};
+
 }
 
-static Color read_color(Stream& stream)
+Filter::Filter(ByteBuffer serialized_bytes, Vector<FilterImageFrame> image_frames)
+    : m_serialized_bytes(move(serialized_bytes))
+    , m_image_frames(move(image_frames))
 {
-    return Color::from_bgra(MUST(stream.read_value<u32>()));
 }
 
-static void write_int_rect(Stream& stream, Gfx::IntRect const& rect)
+DecodedImageFrame const& Filter::image_frame(u64 id) const
 {
-    MUST(stream.write_value<i32>(rect.x()));
-    MUST(stream.write_value<i32>(rect.y()));
-    MUST(stream.write_value<i32>(rect.width()));
-    MUST(stream.write_value<i32>(rect.height()));
-}
-
-static Gfx::IntRect read_int_rect(Stream& stream)
-{
-    auto x = MUST(stream.read_value<i32>());
-    auto y = MUST(stream.read_value<i32>());
-    auto width = MUST(stream.read_value<i32>());
-    auto height = MUST(stream.read_value<i32>());
-    return Gfx::IntRect { x, y, width, height };
-}
-
-static void write_int_size(Stream& stream, Gfx::IntSize const& size)
-{
-    MUST(stream.write_value<i32>(size.width()));
-    MUST(stream.write_value<i32>(size.height()));
-}
-
-static Gfx::IntSize read_int_size(Stream& stream)
-{
-    auto width = MUST(stream.read_value<i32>());
-    auto height = MUST(stream.read_value<i32>());
-    return Gfx::IntSize { width, height };
-}
-
-static void write_bytes(Stream& stream, ReadonlyBytes bytes)
-{
-    VERIFY(bytes.size() <= NumericLimits<u32>::max());
-    MUST(stream.write_value<u32>(bytes.size()));
-    MUST(stream.write_until_depleted(bytes));
-}
-
-static ByteBuffer read_bytes(Stream& stream)
-{
-    auto size = MUST(stream.read_value<u32>());
-    auto buffer = MUST(ByteBuffer::create_uninitialized(size));
-    MUST(stream.read_until_filled(buffer));
-    return buffer;
-}
-
-static void encode_filter(Stream&, Filter const&, ImageEncoder const&);
-
-template<typename T>
-static void encode_optional_filter(Stream& stream, Optional<T> const& filter, ImageEncoder const& encode_image)
-{
-    MUST(stream.write_value<bool>(filter.has_value()));
-    if (filter.has_value())
-        encode_filter(stream, *filter, encode_image);
-}
-
-static void encode_filter(Stream& stream, Filter const& filter, ImageEncoder const& encode_image)
-{
-    filter.impl().operation.visit(
-        [&](FilterImpl::Arithmetic const& op) {
-            MUST(stream.write_value(FilterImpl::OperationType::Arithmetic));
-            encode_optional_filter(stream, op.background, encode_image);
-            encode_optional_filter(stream, op.foreground, encode_image);
-            MUST(stream.write_value(op.k1));
-            MUST(stream.write_value(op.k2));
-            MUST(stream.write_value(op.k3));
-            MUST(stream.write_value(op.k4));
-        },
-        [&](FilterImpl::Compose const& op) {
-            MUST(stream.write_value(FilterImpl::OperationType::Compose));
-            encode_filter(stream, op.outer, encode_image);
-            encode_filter(stream, op.inner, encode_image);
-        },
-        [&](FilterImpl::Blend const& op) {
-            MUST(stream.write_value(FilterImpl::OperationType::Blend));
-            encode_optional_filter(stream, op.background, encode_image);
-            encode_optional_filter(stream, op.foreground, encode_image);
-            MUST(stream.write_value(op.mode));
-        },
-        [&](FilterImpl::Flood const& op) {
-            MUST(stream.write_value(FilterImpl::OperationType::Flood));
-            write_color(stream, op.color);
-            MUST(stream.write_value(op.opacity));
-        },
-        [&](FilterImpl::DisplacementMap const& op) {
-            MUST(stream.write_value(FilterImpl::OperationType::DisplacementMap));
-            encode_optional_filter(stream, op.color, encode_image);
-            encode_optional_filter(stream, op.displacement, encode_image);
-            MUST(stream.write_value(op.scale));
-            MUST(stream.write_value(op.x_channel_selector));
-            MUST(stream.write_value(op.y_channel_selector));
-        },
-        [&](FilterImpl::DropShadow const& op) {
-            MUST(stream.write_value(FilterImpl::OperationType::DropShadow));
-            MUST(stream.write_value(op.offset_x));
-            MUST(stream.write_value(op.offset_y));
-            MUST(stream.write_value(op.radius));
-            write_color(stream, op.color);
-            encode_optional_filter(stream, op.input, encode_image);
-        },
-        [&](FilterImpl::Blur const& op) {
-            MUST(stream.write_value(FilterImpl::OperationType::Blur));
-            MUST(stream.write_value(op.radius_x));
-            MUST(stream.write_value(op.radius_y));
-            encode_optional_filter(stream, op.input, encode_image);
-        },
-        [&](FilterImpl::ColorFilter const& op) {
-            MUST(stream.write_value(FilterImpl::OperationType::ColorFilter));
-            MUST(stream.write_value(op.type));
-            MUST(stream.write_value(op.amount));
-            encode_optional_filter(stream, op.input, encode_image);
-        },
-        [&](FilterImpl::ColorMatrix const& op) {
-            MUST(stream.write_value(FilterImpl::OperationType::ColorMatrix));
-            for (auto value : op.matrix)
-                MUST(stream.write_value(value));
-            encode_optional_filter(stream, op.input, encode_image);
-        },
-        [&](FilterImpl::ColorTable const& op) {
-            MUST(stream.write_value(FilterImpl::OperationType::ColorTable));
-            auto encode_optional_color_table = [&](Optional<ByteBuffer> const& bytes) {
-                MUST(stream.write_value<bool>(bytes.has_value()));
-                if (bytes.has_value())
-                    write_bytes(stream, *bytes);
-            };
-            encode_optional_color_table(op.a);
-            encode_optional_color_table(op.r);
-            encode_optional_color_table(op.g);
-            encode_optional_color_table(op.b);
-            encode_optional_filter(stream, op.input, encode_image);
-        },
-        [&](FilterImpl::Saturate const& op) {
-            MUST(stream.write_value(FilterImpl::OperationType::Saturate));
-            MUST(stream.write_value(op.value));
-            encode_optional_filter(stream, op.input, encode_image);
-        },
-        [&](FilterImpl::HueRotate const& op) {
-            MUST(stream.write_value(FilterImpl::OperationType::HueRotate));
-            MUST(stream.write_value(op.angle_degrees));
-            encode_optional_filter(stream, op.input, encode_image);
-        },
-        [&](FilterImpl::Image const& op) {
-            MUST(stream.write_value(FilterImpl::OperationType::Image));
-            MUST(stream.write_value<u64>(encode_image(op.frame)));
-            write_int_rect(stream, op.src_rect);
-            write_int_rect(stream, op.dest_rect);
-            MUST(stream.write_value(op.scaling_mode));
-        },
-        [&](FilterImpl::Merge const& op) {
-            MUST(stream.write_value(FilterImpl::OperationType::Merge));
-            VERIFY(op.inputs.size() <= NumericLimits<u32>::max());
-            MUST(stream.write_value<u32>(op.inputs.size()));
-            for (auto const& input : op.inputs)
-                encode_optional_filter(stream, input, encode_image);
-        },
-        [&](FilterImpl::Offset const& op) {
-            MUST(stream.write_value(FilterImpl::OperationType::Offset));
-            MUST(stream.write_value(op.dx));
-            MUST(stream.write_value(op.dy));
-            encode_optional_filter(stream, op.input, encode_image);
-        },
-        [&](FilterImpl::Erode const& op) {
-            MUST(stream.write_value(FilterImpl::OperationType::Erode));
-            MUST(stream.write_value(op.radius_x));
-            MUST(stream.write_value(op.radius_y));
-            encode_optional_filter(stream, op.input, encode_image);
-        },
-        [&](FilterImpl::Dilate const& op) {
-            MUST(stream.write_value(FilterImpl::OperationType::Dilate));
-            MUST(stream.write_value(op.radius_x));
-            MUST(stream.write_value(op.radius_y));
-            encode_optional_filter(stream, op.input, encode_image);
-        },
-        [&](FilterImpl::Turbulence const& op) {
-            MUST(stream.write_value(FilterImpl::OperationType::Turbulence));
-            MUST(stream.write_value(op.turbulence_type));
-            MUST(stream.write_value(op.base_frequency_x));
-            MUST(stream.write_value(op.base_frequency_y));
-            MUST(stream.write_value(op.num_octaves));
-            MUST(stream.write_value(op.seed));
-            write_int_size(stream, op.tile_stitch_size);
-        },
-        [&](FilterImpl::ColorSpaceConversion const& op) {
-            MUST(stream.write_value(FilterImpl::OperationType::ColorSpaceConversion));
-            MUST(stream.write_value(op.source_color_space));
-            MUST(stream.write_value(op.destination_color_space));
-            encode_optional_filter(stream, op.input, encode_image);
-        });
-}
-
-static Optional<Filter> decode_optional_filter(Stream&, ImageDecoder const&);
-
-static Filter decode_filter(Stream& stream, ImageDecoder const& decode_image)
-{
-    auto operation_type = MUST(stream.read_value<FilterImpl::OperationType>());
-    switch (operation_type) {
-    case FilterImpl::OperationType::Arithmetic: {
-        auto background = decode_optional_filter(stream, decode_image);
-        auto foreground = decode_optional_filter(stream, decode_image);
-        auto k1 = MUST(stream.read_value<float>());
-        auto k2 = MUST(stream.read_value<float>());
-        auto k3 = MUST(stream.read_value<float>());
-        auto k4 = MUST(stream.read_value<float>());
-        return Filter::arithmetic(background, foreground, k1, k2, k3, k4);
-    }
-    case FilterImpl::OperationType::Compose: {
-        auto outer = decode_filter(stream, decode_image);
-        auto inner = decode_filter(stream, decode_image);
-        return Filter::compose(outer, inner);
-    }
-    case FilterImpl::OperationType::Blend: {
-        auto background = decode_optional_filter(stream, decode_image);
-        auto foreground = decode_optional_filter(stream, decode_image);
-        auto mode = MUST(stream.read_value<Gfx::CompositingAndBlendingOperator>());
-        return Filter::blend(background, foreground, mode);
-    }
-    case FilterImpl::OperationType::Flood: {
-        auto color = read_color(stream);
-        auto opacity = MUST(stream.read_value<float>());
-        return Filter::flood(color, opacity);
-    }
-    case FilterImpl::OperationType::DisplacementMap: {
-        auto color = decode_optional_filter(stream, decode_image);
-        auto displacement = decode_optional_filter(stream, decode_image);
-        auto scale = MUST(stream.read_value<float>());
-        auto x_channel_selector = MUST(stream.read_value<ChannelSelector>());
-        auto y_channel_selector = MUST(stream.read_value<ChannelSelector>());
-        return Filter::displacement_map(color, displacement, scale, x_channel_selector, y_channel_selector);
-    }
-    case FilterImpl::OperationType::DropShadow: {
-        auto offset_x = MUST(stream.read_value<float>());
-        auto offset_y = MUST(stream.read_value<float>());
-        auto radius = MUST(stream.read_value<float>());
-        auto color = read_color(stream);
-        auto input = decode_optional_filter(stream, decode_image);
-        return Filter::drop_shadow(offset_x, offset_y, radius, color, input);
-    }
-    case FilterImpl::OperationType::Blur: {
-        auto radius_x = MUST(stream.read_value<float>());
-        auto radius_y = MUST(stream.read_value<float>());
-        auto input = decode_optional_filter(stream, decode_image);
-        return Filter::blur(radius_x, radius_y, input);
-    }
-    case FilterImpl::OperationType::ColorFilter: {
-        auto type = MUST(stream.read_value<ColorFilterType>());
-        auto amount = MUST(stream.read_value<float>());
-        auto input = decode_optional_filter(stream, decode_image);
-        return Filter::color(type, amount, input);
-    }
-    case FilterImpl::OperationType::ColorMatrix: {
-        Array<float, 20> matrix_values;
-        for (auto& value : matrix_values)
-            value = MUST(stream.read_value<float>());
-        auto input = decode_optional_filter(stream, decode_image);
-        return Filter::color_matrix(matrix_values.data(), input);
-    }
-    case FilterImpl::OperationType::ColorTable: {
-        auto decode_optional_color_table = [&]() -> Optional<ByteBuffer> {
-            auto has_value = MUST(stream.read_value<bool>());
-            if (!has_value)
-                return {};
-            auto bytes = read_bytes(stream);
-            VERIFY(bytes.size() == 256);
-            return Optional<ByteBuffer> { move(bytes) };
-        };
-        auto a = decode_optional_color_table();
-        auto r = decode_optional_color_table();
-        auto g = decode_optional_color_table();
-        auto b = decode_optional_color_table();
-        auto input = decode_optional_filter(stream, decode_image);
-        return Filter::color_table(a.has_value() ? Optional<ReadonlyBytes>(a->bytes()) : Optional<ReadonlyBytes> {},
-            r.has_value() ? Optional<ReadonlyBytes>(r->bytes()) : Optional<ReadonlyBytes> {},
-            g.has_value() ? Optional<ReadonlyBytes>(g->bytes()) : Optional<ReadonlyBytes> {},
-            b.has_value() ? Optional<ReadonlyBytes>(b->bytes()) : Optional<ReadonlyBytes> {},
-            input);
-    }
-    case FilterImpl::OperationType::Saturate: {
-        auto value = MUST(stream.read_value<float>());
-        auto input = decode_optional_filter(stream, decode_image);
-        return Filter::saturate(value, input);
-    }
-    case FilterImpl::OperationType::HueRotate: {
-        auto angle_degrees = MUST(stream.read_value<float>());
-        auto input = decode_optional_filter(stream, decode_image);
-        return Filter::hue_rotate(angle_degrees, input);
-    }
-    case FilterImpl::OperationType::Image: {
-        auto image_id = MUST(stream.read_value<u64>());
-        auto frame = decode_image(image_id);
-        auto src_rect = read_int_rect(stream);
-        auto dest_rect = read_int_rect(stream);
-        auto scaling_mode = MUST(stream.read_value<Gfx::ScalingMode>());
-        return Filter::image(frame, src_rect, dest_rect, scaling_mode);
-    }
-    case FilterImpl::OperationType::Merge: {
-        Vector<Optional<Filter>> inputs;
-        auto size = MUST(stream.read_value<u32>());
-        inputs.ensure_capacity(size);
-        for (size_t i = 0; i < size; ++i)
-            inputs.unchecked_append(decode_optional_filter(stream, decode_image));
-        return Filter::merge(inputs);
-    }
-    case FilterImpl::OperationType::Offset: {
-        auto dx = MUST(stream.read_value<float>());
-        auto dy = MUST(stream.read_value<float>());
-        auto input = decode_optional_filter(stream, decode_image);
-        return Filter::offset(dx, dy, input);
-    }
-    case FilterImpl::OperationType::Erode: {
-        auto radius_x = MUST(stream.read_value<float>());
-        auto radius_y = MUST(stream.read_value<float>());
-        auto input = decode_optional_filter(stream, decode_image);
-        return Filter::erode(radius_x, radius_y, input);
-    }
-    case FilterImpl::OperationType::Dilate: {
-        auto radius_x = MUST(stream.read_value<float>());
-        auto radius_y = MUST(stream.read_value<float>());
-        auto input = decode_optional_filter(stream, decode_image);
-        return Filter::dilate(radius_x, radius_y, input);
-    }
-    case FilterImpl::OperationType::Turbulence: {
-        auto turbulence_type = MUST(stream.read_value<TurbulenceType>());
-        auto base_frequency_x = MUST(stream.read_value<float>());
-        auto base_frequency_y = MUST(stream.read_value<float>());
-        auto num_octaves = MUST(stream.read_value<i32>());
-        auto seed = MUST(stream.read_value<float>());
-        auto tile_stitch_size = read_int_size(stream);
-        return Filter::turbulence(turbulence_type, base_frequency_x, base_frequency_y, num_octaves, seed, tile_stitch_size);
-    }
-    case FilterImpl::OperationType::ColorSpaceConversion: {
-        auto source_color_space = MUST(stream.read_value<InterpolationColorSpace>());
-        auto destination_color_space = MUST(stream.read_value<InterpolationColorSpace>());
-        auto input = decode_optional_filter(stream, decode_image);
-        return Filter::convert_interpolation_color_space(source_color_space, destination_color_space, input);
-    }
+    for (auto const& image_frame : m_image_frames) {
+        if (image_frame.id == id)
+            return image_frame.frame;
     }
     VERIFY_NOT_REACHED();
 }
 
-static Optional<Filter> decode_optional_filter(Stream& stream, ImageDecoder const& decode_image)
+Filter Filter::arithmetic(Optional<Filter const&> background, Optional<Filter const&> foreground, float k1, float k2, float k3, float k4)
 {
-    auto has_value = MUST(stream.read_value<bool>());
-    if (!has_value)
-        return {};
-    return decode_filter(stream, decode_image);
+    FilterWriter writer { FFI::FilterOperationType::Arithmetic };
+    writer.optional_filter(background);
+    writer.optional_filter(foreground);
+    writer.value(k1);
+    writer.value(k2);
+    writer.value(k3);
+    writer.value(k4);
+    return writer.finish();
 }
 
+Filter Filter::compose(Filter const& outer, Filter const& inner)
+{
+    FilterWriter writer { FFI::FilterOperationType::Compose };
+    writer.filter(outer);
+    writer.filter(inner);
+    return writer.finish();
 }
 
-ByteBuffer serialize_filter(Filter const& filter, Function<u64(Gfx::DecodedImageFrame const&)> const& encode_image)
+Filter Filter::blend(Optional<Filter const&> background, Optional<Filter const&> foreground, CompositingAndBlendingOperator mode)
 {
-    AllocatingMemoryStream stream;
-    encode_filter(stream, filter, encode_image);
-    auto buffer = MUST(ByteBuffer::create_uninitialized(stream.used_buffer_size()));
-    MUST(stream.read_until_filled(buffer));
-    return buffer;
+    FilterWriter writer { FFI::FilterOperationType::Blend };
+    writer.optional_filter(background);
+    writer.optional_filter(foreground);
+    writer.value(mode);
+    return writer.finish();
 }
 
-Filter deserialize_filter(ReadonlyBytes bytes, Function<Gfx::DecodedImageFrame(u64)> const& decode_image)
+Filter Filter::flood(Gfx::Color color, float opacity)
 {
-    FixedMemoryStream stream { bytes };
-    auto filter = decode_filter(stream, decode_image);
-    VERIFY(stream.is_eof());
-    return filter;
+    FilterWriter writer { FFI::FilterOperationType::Flood };
+    writer.color(color);
+    writer.value(opacity);
+    return writer.finish();
+}
+
+Filter Filter::displacement_map(Optional<Filter const&> color, Optional<Filter const&> displacement, float scale, ChannelSelector x_channel_selector, ChannelSelector y_channel_selector)
+{
+    FilterWriter writer { FFI::FilterOperationType::DisplacementMap };
+    writer.optional_filter(color);
+    writer.optional_filter(displacement);
+    writer.value(scale);
+    writer.value(x_channel_selector);
+    writer.value(y_channel_selector);
+    return writer.finish();
+}
+
+Filter Filter::drop_shadow(float offset_x, float offset_y, float radius, Gfx::Color color, Optional<Filter const&> input)
+{
+    FilterWriter writer { FFI::FilterOperationType::DropShadow };
+    writer.value(offset_x);
+    writer.value(offset_y);
+    writer.value(radius);
+    writer.color(color);
+    writer.optional_filter(input);
+    return writer.finish();
+}
+
+Filter Filter::blur(float radius_x, float radius_y, Optional<Filter const&> input)
+{
+    FilterWriter writer { FFI::FilterOperationType::Blur };
+    writer.value(radius_x);
+    writer.value(radius_y);
+    writer.optional_filter(input);
+    return writer.finish();
+}
+
+Filter Filter::color(ColorFilterType type, float amount, Optional<Filter const&> input)
+{
+    FilterWriter writer { FFI::FilterOperationType::ColorFilter };
+    writer.value(type);
+    writer.value(amount);
+    writer.optional_filter(input);
+    return writer.finish();
+}
+
+Filter Filter::color_matrix(float matrix[20], Optional<Filter const&> input)
+{
+    FilterWriter writer { FFI::FilterOperationType::ColorMatrix };
+    for (size_t i = 0; i < 20; ++i)
+        writer.value(matrix[i]);
+    writer.optional_filter(input);
+    return writer.finish();
+}
+
+Filter Filter::color_table(Optional<ReadonlyBytes> a, Optional<ReadonlyBytes> r, Optional<ReadonlyBytes> g, Optional<ReadonlyBytes> b, Optional<Filter const&> input)
+{
+    FilterWriter writer { FFI::FilterOperationType::ColorTable };
+    writer.optional_color_table(a);
+    writer.optional_color_table(r);
+    writer.optional_color_table(g);
+    writer.optional_color_table(b);
+    writer.optional_filter(input);
+    return writer.finish();
+}
+
+Filter Filter::saturate(float value, Optional<Filter const&> input)
+{
+    FilterWriter writer { FFI::FilterOperationType::Saturate };
+    writer.value(value);
+    writer.optional_filter(input);
+    return writer.finish();
+}
+
+Filter Filter::hue_rotate(float angle_degrees, Optional<Filter const&> input)
+{
+    FilterWriter writer { FFI::FilterOperationType::HueRotate };
+    writer.value(angle_degrees);
+    writer.optional_filter(input);
+    return writer.finish();
+}
+
+Filter Filter::image(Gfx::DecodedImageFrame const& frame, Gfx::IntRect const& src_rect, Gfx::IntRect const& dest_rect, Gfx::ScalingMode scaling_mode)
+{
+    FilterWriter writer { FFI::FilterOperationType::Image };
+    writer.image_frame(frame);
+    writer.rect(src_rect);
+    writer.rect(dest_rect);
+    writer.value(scaling_mode);
+    return writer.finish();
+}
+
+Filter Filter::merge(Vector<Optional<Filter>> const& inputs)
+{
+    FilterWriter writer { FFI::FilterOperationType::Merge };
+    VERIFY(inputs.size() <= NumericLimits<u32>::max());
+    writer.value<u32>(inputs.size());
+    for (auto const& input : inputs)
+        writer.optional_filter(input);
+    return writer.finish();
+}
+
+Filter Filter::offset(float dx, float dy, Optional<Filter const&> input)
+{
+    FilterWriter writer { FFI::FilterOperationType::Offset };
+    writer.value(dx);
+    writer.value(dy);
+    writer.optional_filter(input);
+    return writer.finish();
+}
+
+Filter Filter::erode(float radius_x, float radius_y, Optional<Filter> const& input)
+{
+    FilterWriter writer { FFI::FilterOperationType::Erode };
+    writer.value(radius_x);
+    writer.value(radius_y);
+    writer.optional_filter(input);
+    return writer.finish();
+}
+
+Filter Filter::dilate(float radius_x, float radius_y, Optional<Filter> const& input)
+{
+    FilterWriter writer { FFI::FilterOperationType::Dilate };
+    writer.value(radius_x);
+    writer.value(radius_y);
+    writer.optional_filter(input);
+    return writer.finish();
+}
+
+Filter Filter::turbulence(TurbulenceType turbulence_type, float base_frequency_x, float base_frequency_y, i32 num_octaves, float seed, Gfx::IntSize const& tile_stitch_size)
+{
+    FilterWriter writer { FFI::FilterOperationType::Turbulence };
+    writer.value(turbulence_type);
+    writer.value(base_frequency_x);
+    writer.value(base_frequency_y);
+    writer.value(num_octaves);
+    writer.value(seed);
+    writer.size(tile_stitch_size);
+    return writer.finish();
+}
+
+Filter Filter::convert_interpolation_color_space(InterpolationColorSpace source_color_space, InterpolationColorSpace destination_color_space, Optional<Filter const&> input)
+{
+    FilterWriter writer { FFI::FilterOperationType::ColorSpaceConversion };
+    writer.value(source_color_space);
+    writer.value(destination_color_space);
+    writer.optional_filter(input);
+    return writer.finish();
+}
+
+void for_each_filter_image_frame_id(ReadonlyBytes serialized_filter, Function<void(u64)> const& visit)
+{
+    FFI::ladybird_gfx_filter_for_each_image_frame_id(
+        serialized_filter.data(),
+        serialized_filter.size(),
+        [](void const* context, u64 image_frame_id) {
+            (*static_cast<Function<void(u64)> const*>(context))(image_frame_id);
+        },
+        &visit);
 }
 
 }
 
 namespace IPC {
 
-static ErrorOr<void> encode_decoded_image_frame(Encoder& encoder, u64 id, Gfx::DecodedImageFrame const& frame)
-{
-    auto bitmap = frame.bitmap().to_shareable_bitmap();
-    if (!bitmap.is_valid())
-        return Error::from_string_literal("IPC encode: failed to create shareable bitmap for filter image");
-    TRY(encoder.encode(id));
-    TRY(encoder.encode(bitmap));
-    TRY(encoder.encode(frame.color_space()));
-    return {};
-}
-
-static ErrorOr<Gfx::DecodedImageFrame> decode_decoded_image_frame(Decoder& decoder)
-{
-    auto bitmap = TRY(decoder.decode<Gfx::ShareableBitmap>());
-    if (!bitmap.is_valid() || !bitmap.bitmap())
-        return Error::from_string_literal("IPC decode: invalid filter image bitmap");
-    auto color_space = TRY(decoder.decode<Gfx::ColorSpace>());
-    return Gfx::DecodedImageFrame { *bitmap.bitmap(), move(color_space) };
-}
-
 template<>
 ErrorOr<void> encode(Encoder& encoder, Gfx::Filter const& filter)
 {
-    HashMap<u64, Gfx::DecodedImageFrame> images;
-    auto filter_data = Gfx::serialize_filter(filter, [&](Gfx::DecodedImageFrame const& frame) {
-        images.ensure(frame.id(), [&] { return frame; });
-        return frame.id();
-    });
-
-    TRY(encoder.encode(filter_data));
-    TRY(encoder.encode_size(images.size()));
-    for (auto const& image : images)
-        TRY(encode_decoded_image_frame(encoder, image.key, image.value));
+    TRY(encoder.encode(filter.serialized_bytes()));
+    TRY(encoder.encode_size(filter.image_frames().size()));
+    for (auto const& image_frame : filter.image_frames()) {
+        auto bitmap = image_frame.frame.bitmap().to_shareable_bitmap();
+        if (!bitmap.is_valid())
+            return Error::from_string_literal("IPC encode: failed to create shareable bitmap for filter image");
+        TRY(encoder.encode(image_frame.id));
+        TRY(encoder.encode(bitmap));
+        TRY(encoder.encode(image_frame.frame.color_space()));
+    }
     return {};
 }
 
 template<>
 ErrorOr<Gfx::Filter> decode(Decoder& decoder)
 {
-    auto filter_data = TRY(decoder.decode<ByteBuffer>());
-    auto image_count = TRY(decoder.decode_size());
-    HashMap<u64, Gfx::DecodedImageFrame> images;
-    TRY(images.try_ensure_capacity(image_count));
-    for (size_t i = 0; i < image_count; ++i) {
+    auto serialized_bytes = TRY(decoder.decode<ByteBuffer>());
+    auto image_frame_count = TRY(decoder.decode_size());
+    Vector<Gfx::FilterImageFrame> image_frames;
+    TRY(image_frames.try_ensure_capacity(image_frame_count));
+    for (size_t i = 0; i < image_frame_count; ++i) {
         auto id = TRY(decoder.decode<u64>());
-        auto frame = TRY(decode_decoded_image_frame(decoder));
-        TRY(images.try_set(id, move(frame)));
+        auto bitmap = TRY(decoder.decode<Gfx::ShareableBitmap>());
+        if (!bitmap.is_valid() || !bitmap.bitmap())
+            return Error::from_string_literal("IPC decode: invalid filter image bitmap");
+        auto color_space = TRY(decoder.decode<Gfx::ColorSpace>());
+        image_frames.unchecked_append({ id, Gfx::DecodedImageFrame { *bitmap.bitmap(), move(color_space) } });
     }
-
-    return Gfx::deserialize_filter(filter_data.bytes(), [&](u64 image_id) {
-        auto image = images.get(image_id);
-        VERIFY(image.has_value());
-        return image.value();
-    });
+    return Gfx::Filter { move(serialized_bytes), move(image_frames) };
 }
 
 }

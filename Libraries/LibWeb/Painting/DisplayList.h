@@ -15,7 +15,6 @@
 #include <AK/Span.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/Filter.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/TextLayout.h>
@@ -57,7 +56,6 @@ protected:
     }
     void execute_impl(DisplayList const&, ScrollStateSnapshot const& scroll_state);
     void execute_run_commands(DisplayListCommandRun const&, ScrollStateSnapshot const& scroll_state);
-    Gfx::Filter const& layer_filter(ReplayLayer const&);
     void execute_display_list_into_surface(DisplayList const&, AccumulatedVisualContextTree const&, Gfx::PaintingSurface&);
     void execute_nested_display_list(DisplayList const&, AccumulatedVisualContextTree const&, ScrollStateSnapshot const&);
 
@@ -84,13 +82,6 @@ private:
     CanvasSurfaceRegistry const* m_canvas_surface_registry { nullptr };
     RefPtr<Gfx::PaintingSurface> m_surface;
     ReadonlyBytes m_current_command_payload;
-
-    struct CachedLayerFilter {
-        ByteBuffer filter_bytes;
-        Gfx::Filter filter;
-    };
-    HashMap<u64, HashMap<u32, CachedLayerFilter>> m_layer_filters_by_tree_structural_epoch_and_frame;
-    u64 m_layer_filter_cache_tree_structural_epoch { 0 };
 };
 
 class DisplayList : public AtomicRefCounted<DisplayList> {

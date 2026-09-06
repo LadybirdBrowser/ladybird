@@ -6,12 +6,13 @@
 
 #include <AK/Assertions.h>
 #include <AK/Math.h>
+#include <AK/MemoryStream.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Filter.h>
-#include <LibGfx/FilterImpl.h>
 #include <LibGfx/SkiaUtils.h>
+#include <RustFFI.h>
 #include <core/SkBitmap.h>
 #include <core/SkBlender.h>
 #include <core/SkColorFilter.h>
@@ -32,270 +33,388 @@ SkPath to_skia_path(Path const& path)
     return static_cast<PathImplSkia const&>(path.impl()).sk_path();
 }
 
-sk_sp<SkImageFilter> to_skia_image_filter(Gfx::Filter const& filter)
-{
-    auto to_optional_skia_image_filter = [](Optional<Gfx::Filter> const& input) -> sk_sp<SkImageFilter> {
-        if (!input.has_value())
+namespace {
+
+// Reads a serialized filter graph node by node and builds the SkImageFilter tree as it goes. The
+// layout is defined by the filter module of libgfx_rust, whose codec is the other reader of it.
+class SkiaFilterReader {
+public:
+    SkiaFilterReader(ReadonlyBytes bytes, Function<DecodedImageFrame const&(u64)> const& image_frame)
+        : m_bytes(bytes)
+        , m_stream(bytes)
+        , m_image_frame(image_frame)
+    {
+    }
+
+    sk_sp<SkImageFilter> read_graph()
+    {
+        auto image_filter = filter();
+        VERIFY(m_stream.is_eof());
+        return image_filter;
+    }
+
+private:
+    template<typename T>
+    T value()
+    {
+        return MUST(m_stream.read_value<T>());
+    }
+
+    SkColor color()
+    {
+        return to_skia_color(Color::from_bgra(value<u32>()));
+    }
+
+    SkRect rect()
+    {
+        auto x = value<i32>();
+        auto y = value<i32>();
+        auto width = value<i32>();
+        auto height = value<i32>();
+        return to_skia_rect(IntRect { x, y, width, height });
+    }
+
+    SkISize size()
+    {
+        auto width = value<i32>();
+        auto height = value<i32>();
+        return SkISize::Make(width, height);
+    }
+
+    Optional<ReadonlyBytes> optional_color_table()
+    {
+        if (!value<bool>())
+            return {};
+        auto size = value<u32>();
+        VERIFY(size == 256);
+        auto table = m_bytes.slice(m_stream.offset(), size);
+        MUST(m_stream.discard(size));
+        return table;
+    }
+
+    sk_sp<SkImageFilter> optional_filter()
+    {
+        if (!value<bool>())
             return nullptr;
-        return to_skia_image_filter(input.value());
-    };
+        return filter();
+    }
 
-    return filter.impl().operation.visit(
-        [&](FilterImpl::Arithmetic const& op) -> sk_sp<SkImageFilter> {
-            auto background = to_optional_skia_image_filter(op.background);
-            auto foreground = to_optional_skia_image_filter(op.foreground);
-            static constexpr bool enforce_premultiplied_color = true;
-            return SkImageFilters::Arithmetic(
-                SkFloatToScalar(op.k1),
-                SkFloatToScalar(op.k2),
-                SkFloatToScalar(op.k3),
-                SkFloatToScalar(op.k4),
-                enforce_premultiplied_color,
-                move(background),
-                move(foreground));
-        },
-        [&](FilterImpl::Compose const& op) -> sk_sp<SkImageFilter> {
-            auto outer = to_skia_image_filter(op.outer);
-            auto inner = to_skia_image_filter(op.inner);
-            return SkImageFilters::Compose(outer, inner);
-        },
-        [&](FilterImpl::Blend const& op) -> sk_sp<SkImageFilter> {
-            auto background = to_optional_skia_image_filter(op.background);
-            auto foreground = to_optional_skia_image_filter(op.foreground);
-            return SkImageFilters::Blend(to_skia_blender(op.mode), background, foreground);
-        },
-        [&](FilterImpl::Flood const& op) -> sk_sp<SkImageFilter> {
-            auto color = to_skia_color(op.color);
-            color = SkColorSetA(color, static_cast<u8>(op.opacity * 255));
-            return SkImageFilters::Shader(SkShaders::Color(color));
-        },
-        [&](FilterImpl::DisplacementMap const& op) -> sk_sp<SkImageFilter> {
-            auto color = to_optional_skia_image_filter(op.color);
-            auto displacement = to_optional_skia_image_filter(op.displacement);
-            auto convert_channel_selector = [](ChannelSelector channel_selector) {
-                switch (channel_selector) {
-                case ChannelSelector::Red:
-                    return SkColorChannel::kR;
-                case ChannelSelector::Green:
-                    return SkColorChannel::kG;
-                case ChannelSelector::Blue:
-                    return SkColorChannel::kB;
-                case ChannelSelector::Alpha:
-                    return SkColorChannel::kA;
-                }
-                VERIFY_NOT_REACHED();
-            };
-            return SkImageFilters::DisplacementMap(
-                convert_channel_selector(op.x_channel_selector),
-                convert_channel_selector(op.y_channel_selector),
-                op.scale,
-                displacement,
-                color);
-        },
-        [&](FilterImpl::DropShadow const& op) -> sk_sp<SkImageFilter> {
-            auto input = to_optional_skia_image_filter(op.input);
-            return SkImageFilters::DropShadow(op.offset_x, op.offset_y, op.radius, op.radius, to_skia_color(op.color), input);
-        },
-        [&](FilterImpl::Blur const& op) -> sk_sp<SkImageFilter> {
-            auto input = to_optional_skia_image_filter(op.input);
-            return SkImageFilters::Blur(op.radius_x, op.radius_y, input);
-        },
-        [&](FilterImpl::ColorFilter const& op) -> sk_sp<SkImageFilter> {
-            auto input = to_optional_skia_image_filter(op.input);
-            sk_sp<SkColorFilter> color_filter;
+    sk_sp<SkImageFilter> filter();
 
-            // Matrices are taken from https://drafts.fxtf.org/filter-effects-1/#FilterPrimitiveRepresentation
-            switch (op.type) {
-            case ColorFilterType::Grayscale: {
-                auto amount = op.amount;
-                float matrix[20] = {
-                    0.2126f + 0.7874f * (1 - amount), 0.7152f - 0.7152f * (1 - amount),
-                    0.0722f - 0.0722f * (1 - amount), 0, 0,
-                    0.2126f - 0.2126f * (1 - amount), 0.7152f + 0.2848f * (1 - amount),
-                    0.0722f - 0.0722f * (1 - amount), 0, 0,
-                    0.2126f - 0.2126f * (1 - amount), 0.7152f - 0.7152f * (1 - amount),
-                    0.0722f + 0.9278f * (1 - amount), 0, 0,
-                    0, 0, 0, 1, 0
-                };
-                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
-                break;
-            }
-            case Gfx::ColorFilterType::Brightness: {
-                auto amount = op.amount;
-                float matrix[20] = {
-                    amount, 0, 0, 0, 0,
-                    0, amount, 0, 0, 0,
-                    0, 0, amount, 0, 0,
-                    0, 0, 0, 1, 0
-                };
-                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
-                break;
-            }
-            case Gfx::ColorFilterType::Contrast: {
-                auto amount = op.amount;
-                float intercept = -(0.5f * amount) + 0.5f;
-                float matrix[20] = {
-                    amount, 0, 0, 0, intercept,
-                    0, amount, 0, 0, intercept,
-                    0, 0, amount, 0, intercept,
-                    0, 0, 0, 1, 0
-                };
-                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
-                break;
-            }
-            case Gfx::ColorFilterType::Invert: {
-                auto amount = op.amount;
-                float matrix[20] = {
-                    1 - 2 * amount, 0, 0, 0, amount,
-                    0, 1 - 2 * amount, 0, 0, amount,
-                    0, 0, 1 - 2 * amount, 0, amount,
-                    0, 0, 0, 1, 0
-                };
-                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
-                break;
-            }
-            case Gfx::ColorFilterType::Opacity: {
-                auto amount = op.amount;
-                float matrix[20] = {
-                    1, 0, 0, 0, 0,
-                    0, 1, 0, 0, 0,
-                    0, 0, 1, 0, 0,
-                    0, 0, 0, amount, 0
-                };
-                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
-                break;
-            }
-            case Gfx::ColorFilterType::Sepia: {
-                auto amount = op.amount;
-                float matrix[20] = {
-                    0.393f + 0.607f * (1 - amount), 0.769f - 0.769f * (1 - amount), 0.189f - 0.189f * (1 - amount), 0,
-                    0,
-                    0.349f - 0.349f * (1 - amount), 0.686f + 0.314f * (1 - amount), 0.168f - 0.168f * (1 - amount), 0,
-                    0,
-                    0.272f - 0.272f * (1 - amount), 0.534f - 0.534f * (1 - amount), 0.131f + 0.869f * (1 - amount), 0,
-                    0,
-                    0, 0, 0, 1, 0
-                };
-                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
-                break;
-            }
-            case Gfx::ColorFilterType::Saturate: {
-                auto amount = op.amount;
-                float matrix[20] = {
-                    0.213f + 0.787f * amount, 0.715f - 0.715f * amount, 0.072f - 0.072f * amount, 0, 0,
-                    0.213f - 0.213f * amount, 0.715f + 0.285f * amount, 0.072f - 0.072f * amount, 0, 0,
-                    0.213f - 0.213f * amount, 0.715f - 0.715f * amount, 0.072f + 0.928f * amount, 0, 0,
-                    0, 0, 0, 1, 0
-                };
-                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
-                break;
-            }
-            default:
-                VERIFY_NOT_REACHED();
-            }
+    ReadonlyBytes m_bytes;
+    FixedMemoryStream m_stream;
+    Function<DecodedImageFrame const&(u64)> const& m_image_frame;
+};
 
-            return SkImageFilters::ColorFilter(color_filter, input);
-        },
-        [&](FilterImpl::ColorMatrix const& op) -> sk_sp<SkImageFilter> {
-            auto input = to_optional_skia_image_filter(op.input);
-            return SkImageFilters::ColorFilter(SkColorFilters::Matrix(op.matrix.data()), input);
-        },
-        [&](FilterImpl::ColorTable const& op) -> sk_sp<SkImageFilter> {
-            auto input = to_optional_skia_image_filter(op.input);
-            auto* a_table = op.a.has_value() ? op.a->data() : nullptr;
-            auto* r_table = op.r.has_value() ? op.r->data() : nullptr;
-            auto* g_table = op.g.has_value() ? op.g->data() : nullptr;
-            auto* b_table = op.b.has_value() ? op.b->data() : nullptr;
+sk_sp<SkImageFilter> SkiaFilterReader::filter()
+{
+    using FilterOperationType = FFI::FilterOperationType;
+    switch (value<FilterOperationType>()) {
+    case FilterOperationType::Arithmetic: {
+        auto background = optional_filter();
+        auto foreground = optional_filter();
+        auto k1 = value<float>();
+        auto k2 = value<float>();
+        auto k3 = value<float>();
+        auto k4 = value<float>();
+        static constexpr bool enforce_premultiplied_color = true;
+        return SkImageFilters::Arithmetic(
+            SkFloatToScalar(k1),
+            SkFloatToScalar(k2),
+            SkFloatToScalar(k3),
+            SkFloatToScalar(k4),
+            enforce_premultiplied_color,
+            move(background),
+            move(foreground));
+    }
+    case FilterOperationType::Compose: {
+        auto outer = filter();
+        auto inner = filter();
+        return SkImageFilters::Compose(outer, inner);
+    }
+    case FilterOperationType::Blend: {
+        auto background = optional_filter();
+        auto foreground = optional_filter();
+        auto mode = value<CompositingAndBlendingOperator>();
+        return SkImageFilters::Blend(to_skia_blender(mode), background, foreground);
+    }
+    case FilterOperationType::Flood: {
+        auto color = this->color();
+        auto opacity = value<float>();
+        color = SkColorSetA(color, static_cast<u8>(opacity * 255));
+        return SkImageFilters::Shader(SkShaders::Color(color));
+    }
+    case FilterOperationType::DisplacementMap: {
+        auto color = optional_filter();
+        auto displacement = optional_filter();
+        auto scale = value<float>();
+        auto x_channel_selector = value<ChannelSelector>();
+        auto y_channel_selector = value<ChannelSelector>();
+        auto convert_channel_selector = [](ChannelSelector channel_selector) {
+            switch (channel_selector) {
+            case ChannelSelector::Red:
+                return SkColorChannel::kR;
+            case ChannelSelector::Green:
+                return SkColorChannel::kG;
+            case ChannelSelector::Blue:
+                return SkColorChannel::kB;
+            case ChannelSelector::Alpha:
+                return SkColorChannel::kA;
+            }
+            VERIFY_NOT_REACHED();
+        };
+        return SkImageFilters::DisplacementMap(
+            convert_channel_selector(x_channel_selector),
+            convert_channel_selector(y_channel_selector),
+            scale,
+            displacement,
+            color);
+    }
+    case FilterOperationType::DropShadow: {
+        auto offset_x = value<float>();
+        auto offset_y = value<float>();
+        auto radius = value<float>();
+        auto color = this->color();
+        auto input = optional_filter();
+        return SkImageFilters::DropShadow(offset_x, offset_y, radius, radius, color, input);
+    }
+    case FilterOperationType::Blur: {
+        auto radius_x = value<float>();
+        auto radius_y = value<float>();
+        auto input = optional_filter();
+        return SkImageFilters::Blur(radius_x, radius_y, input);
+    }
+    case FilterOperationType::ColorFilter: {
+        auto type = value<ColorFilterType>();
+        auto amount = value<float>();
+        auto input = optional_filter();
+        sk_sp<SkColorFilter> color_filter;
 
-            // NB: The color space in which the table is applied is determined by the color-interpolation-filters
-            //     property and handled by the filter graph, so the table is applied directly here.
-            return SkImageFilters::ColorFilter(SkColorFilters::TableARGB(a_table, r_table, g_table, b_table), input);
-        },
-        [&](FilterImpl::Saturate const& op) -> sk_sp<SkImageFilter> {
-            auto input = to_optional_skia_image_filter(op.input);
-            SkColorMatrix matrix;
-            matrix.setSaturation(op.value);
-            return SkImageFilters::ColorFilter(SkColorFilters::Matrix(matrix), input);
-        },
-        [&](FilterImpl::HueRotate const& op) -> sk_sp<SkImageFilter> {
-            auto input = to_optional_skia_image_filter(op.input);
-            float radians = AK::to_radians(op.angle_degrees);
-            auto cosA = cos(radians);
-            auto sinA = sin(radians);
-
-            auto a00 = 0.213f + cosA * 0.787f - sinA * 0.213f;
-            auto a01 = 0.715f - cosA * 0.715f - sinA * 0.715f;
-            auto a02 = 0.072f - cosA * 0.072f + sinA * 0.928f;
-            auto a10 = 0.213f - cosA * 0.213f + sinA * 0.143f;
-            auto a11 = 0.715f + cosA * 0.285f + sinA * 0.140f;
-            auto a12 = 0.072f - cosA * 0.072f - sinA * 0.283f;
-            auto a20 = 0.213f - cosA * 0.213f - sinA * 0.787f;
-            auto a21 = 0.715f - cosA * 0.715f + sinA * 0.715f;
-            auto a22 = 0.072f + cosA * 0.928f + sinA * 0.072f;
-
+        // Matrices are taken from https://drafts.fxtf.org/filter-effects-1/#FilterPrimitiveRepresentation
+        switch (type) {
+        case ColorFilterType::Grayscale: {
             float matrix[20] = {
-                a00, a01, a02, 0, 0,
-                a10, a11, a12, 0, 0,
-                a20, a21, a22, 0, 0,
+                0.2126f + 0.7874f * (1 - amount), 0.7152f - 0.7152f * (1 - amount),
+                0.0722f - 0.0722f * (1 - amount), 0, 0,
+                0.2126f - 0.2126f * (1 - amount), 0.7152f + 0.2848f * (1 - amount),
+                0.0722f - 0.0722f * (1 - amount), 0, 0,
+                0.2126f - 0.2126f * (1 - amount), 0.7152f - 0.7152f * (1 - amount),
+                0.0722f + 0.9278f * (1 - amount), 0, 0,
                 0, 0, 0, 1, 0
             };
-            return SkImageFilters::ColorFilter(SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo), input);
-        },
-        [&](FilterImpl::Image const& op) -> sk_sp<SkImageFilter> {
-            auto skia_src_rect = to_skia_rect(op.src_rect);
-            auto skia_dest_rect = to_skia_rect(op.dest_rect);
-            auto sampling_options = to_skia_sampling_options(op.scaling_mode);
-            auto image = sk_image_from_bitmap(op.frame.bitmap(), op.frame.color_space());
-            return SkImageFilters::Image(move(image), skia_src_rect, skia_dest_rect, sampling_options);
-        },
-        [&](FilterImpl::Merge const& op) -> sk_sp<SkImageFilter> {
-            Vector<sk_sp<SkImageFilter>> filters;
-            filters.ensure_capacity(op.inputs.size());
-            for (auto const& input : op.inputs)
-                filters.unchecked_append(to_optional_skia_image_filter(input));
-            return SkImageFilters::Merge(filters.data(), filters.size());
-        },
-        [&](FilterImpl::Offset const& op) -> sk_sp<SkImageFilter> {
-            auto input = to_optional_skia_image_filter(op.input);
-            return SkImageFilters::Offset(op.dx, op.dy, input);
-        },
-        [&](FilterImpl::Erode const& op) -> sk_sp<SkImageFilter> {
-            auto input = to_optional_skia_image_filter(op.input);
-            return SkImageFilters::Erode(op.radius_x, op.radius_y, input);
-        },
-        [&](FilterImpl::Dilate const& op) -> sk_sp<SkImageFilter> {
-            auto input = to_optional_skia_image_filter(op.input);
-            return SkImageFilters::Dilate(op.radius_x, op.radius_y, input);
-        },
-        [&](FilterImpl::Turbulence const& op) -> sk_sp<SkImageFilter> {
-            sk_sp<SkShader> turbulence_shader = [&] {
-                auto skia_size = SkISize::Make(op.tile_stitch_size.width(), op.tile_stitch_size.height());
-                switch (op.turbulence_type) {
-                case TurbulenceType::Turbulence:
-                    return SkShaders::MakeTurbulence(op.base_frequency_x, op.base_frequency_y, op.num_octaves, op.seed, &skia_size);
-                case TurbulenceType::FractalNoise:
-                    return SkShaders::MakeFractalNoise(op.base_frequency_x, op.base_frequency_y, op.num_octaves, op.seed, &skia_size);
-                }
-                VERIFY_NOT_REACHED();
-            }();
-            return SkImageFilters::Shader(move(turbulence_shader));
-        },
-        [&](FilterImpl::ColorSpaceConversion const& op) -> sk_sp<SkImageFilter> {
-            auto input = to_optional_skia_image_filter(op.input);
-            if (op.source_color_space == op.destination_color_space)
-                return input;
+            color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
+            break;
+        }
+        case ColorFilterType::Brightness: {
+            float matrix[20] = {
+                amount, 0, 0, 0, 0,
+                0, amount, 0, 0, 0,
+                0, 0, amount, 0, 0,
+                0, 0, 0, 1, 0
+            };
+            color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
+            break;
+        }
+        case ColorFilterType::Contrast: {
+            float intercept = -(0.5f * amount) + 0.5f;
+            float matrix[20] = {
+                amount, 0, 0, 0, intercept,
+                0, amount, 0, 0, intercept,
+                0, 0, amount, 0, intercept,
+                0, 0, 0, 1, 0
+            };
+            color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
+            break;
+        }
+        case ColorFilterType::Invert: {
+            float matrix[20] = {
+                1 - 2 * amount, 0, 0, 0, amount,
+                0, 1 - 2 * amount, 0, 0, amount,
+                0, 0, 1 - 2 * amount, 0, amount,
+                0, 0, 0, 1, 0
+            };
+            color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
+            break;
+        }
+        case ColorFilterType::Opacity: {
+            float matrix[20] = {
+                1, 0, 0, 0, 0,
+                0, 1, 0, 0, 0,
+                0, 0, 1, 0, 0,
+                0, 0, 0, amount, 0
+            };
+            color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
+            break;
+        }
+        case ColorFilterType::Sepia: {
+            float matrix[20] = {
+                0.393f + 0.607f * (1 - amount), 0.769f - 0.769f * (1 - amount), 0.189f - 0.189f * (1 - amount), 0,
+                0,
+                0.349f - 0.349f * (1 - amount), 0.686f + 0.314f * (1 - amount), 0.168f - 0.168f * (1 - amount), 0,
+                0,
+                0.272f - 0.272f * (1 - amount), 0.534f - 0.534f * (1 - amount), 0.131f + 0.869f * (1 - amount), 0,
+                0,
+                0, 0, 0, 1, 0
+            };
+            color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
+            break;
+        }
+        case ColorFilterType::Saturate: {
+            float matrix[20] = {
+                0.213f + 0.787f * amount, 0.715f - 0.715f * amount, 0.072f - 0.072f * amount, 0, 0,
+                0.213f - 0.213f * amount, 0.715f + 0.285f * amount, 0.072f - 0.072f * amount, 0, 0,
+                0.213f - 0.213f * amount, 0.715f - 0.715f * amount, 0.072f + 0.928f * amount, 0, 0,
+                0, 0, 0, 1, 0
+            };
+            color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
+            break;
+        }
+        default:
+            VERIFY_NOT_REACHED();
+        }
 
-            sk_sp<SkColorFilter> color_space_filter;
-            switch (op.destination_color_space) {
-            case InterpolationColorSpace::LinearRGB:
-                color_space_filter = SkColorFilters::SRGBToLinearGamma();
-                break;
-            case InterpolationColorSpace::SRGB:
-                color_space_filter = SkColorFilters::LinearToSRGBGamma();
-                break;
+        return SkImageFilters::ColorFilter(color_filter, input);
+    }
+    case FilterOperationType::ColorMatrix: {
+        float matrix[20];
+        for (auto& entry : matrix)
+            entry = value<float>();
+        auto input = optional_filter();
+        return SkImageFilters::ColorFilter(SkColorFilters::Matrix(matrix), input);
+    }
+    case FilterOperationType::ColorTable: {
+        auto a = optional_color_table();
+        auto r = optional_color_table();
+        auto g = optional_color_table();
+        auto b = optional_color_table();
+        auto input = optional_filter();
+        auto* a_table = a.has_value() ? a->data() : nullptr;
+        auto* r_table = r.has_value() ? r->data() : nullptr;
+        auto* g_table = g.has_value() ? g->data() : nullptr;
+        auto* b_table = b.has_value() ? b->data() : nullptr;
+
+        // NB: The color space in which the table is applied is determined by the color-interpolation-filters
+        //     property and handled by the filter graph, so the table is applied directly here.
+        return SkImageFilters::ColorFilter(SkColorFilters::TableARGB(a_table, r_table, g_table, b_table), input);
+    }
+    case FilterOperationType::Saturate: {
+        auto saturation = value<float>();
+        auto input = optional_filter();
+        SkColorMatrix matrix;
+        matrix.setSaturation(saturation);
+        return SkImageFilters::ColorFilter(SkColorFilters::Matrix(matrix), input);
+    }
+    case FilterOperationType::HueRotate: {
+        auto angle_degrees = value<float>();
+        auto input = optional_filter();
+        float radians = AK::to_radians(angle_degrees);
+        auto cosA = cos(radians);
+        auto sinA = sin(radians);
+
+        auto a00 = 0.213f + cosA * 0.787f - sinA * 0.213f;
+        auto a01 = 0.715f - cosA * 0.715f - sinA * 0.715f;
+        auto a02 = 0.072f - cosA * 0.072f + sinA * 0.928f;
+        auto a10 = 0.213f - cosA * 0.213f + sinA * 0.143f;
+        auto a11 = 0.715f + cosA * 0.285f + sinA * 0.140f;
+        auto a12 = 0.072f - cosA * 0.072f - sinA * 0.283f;
+        auto a20 = 0.213f - cosA * 0.213f - sinA * 0.787f;
+        auto a21 = 0.715f - cosA * 0.715f + sinA * 0.715f;
+        auto a22 = 0.072f + cosA * 0.928f + sinA * 0.072f;
+
+        float matrix[20] = {
+            a00, a01, a02, 0, 0,
+            a10, a11, a12, 0, 0,
+            a20, a21, a22, 0, 0,
+            0, 0, 0, 1, 0
+        };
+        return SkImageFilters::ColorFilter(SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo), input);
+    }
+    case FilterOperationType::Image: {
+        auto const& frame = m_image_frame(value<u64>());
+        auto src_rect = rect();
+        auto dest_rect = rect();
+        auto sampling_options = to_skia_sampling_options(value<ScalingMode>());
+        auto image = sk_image_from_bitmap(frame.bitmap(), frame.color_space());
+        return SkImageFilters::Image(move(image), src_rect, dest_rect, sampling_options);
+    }
+    case FilterOperationType::Merge: {
+        auto count = value<u32>();
+        Vector<sk_sp<SkImageFilter>> filters;
+        filters.ensure_capacity(count);
+        for (u32 i = 0; i < count; ++i)
+            filters.unchecked_append(optional_filter());
+        return SkImageFilters::Merge(filters.data(), filters.size());
+    }
+    case FilterOperationType::Offset: {
+        auto dx = value<float>();
+        auto dy = value<float>();
+        auto input = optional_filter();
+        return SkImageFilters::Offset(dx, dy, input);
+    }
+    case FilterOperationType::Erode: {
+        auto radius_x = value<float>();
+        auto radius_y = value<float>();
+        auto input = optional_filter();
+        return SkImageFilters::Erode(radius_x, radius_y, input);
+    }
+    case FilterOperationType::Dilate: {
+        auto radius_x = value<float>();
+        auto radius_y = value<float>();
+        auto input = optional_filter();
+        return SkImageFilters::Dilate(radius_x, radius_y, input);
+    }
+    case FilterOperationType::Turbulence: {
+        auto turbulence_type = value<TurbulenceType>();
+        auto base_frequency_x = value<float>();
+        auto base_frequency_y = value<float>();
+        auto num_octaves = value<i32>();
+        auto seed = value<float>();
+        auto tile_stitch_size = size();
+        sk_sp<SkShader> turbulence_shader = [&] {
+            switch (turbulence_type) {
+            case TurbulenceType::Turbulence:
+                return SkShaders::MakeTurbulence(base_frequency_x, base_frequency_y, num_octaves, seed, &tile_stitch_size);
+            case TurbulenceType::FractalNoise:
+                return SkShaders::MakeFractalNoise(base_frequency_x, base_frequency_y, num_octaves, seed, &tile_stitch_size);
             }
-            return SkImageFilters::ColorFilter(move(color_space_filter), move(input));
-        });
+            VERIFY_NOT_REACHED();
+        }();
+        return SkImageFilters::Shader(move(turbulence_shader));
+    }
+    case FilterOperationType::ColorSpaceConversion: {
+        auto source_color_space = value<InterpolationColorSpace>();
+        auto destination_color_space = value<InterpolationColorSpace>();
+        auto input = optional_filter();
+        if (source_color_space == destination_color_space)
+            return input;
+
+        sk_sp<SkColorFilter> color_space_filter;
+        switch (destination_color_space) {
+        case InterpolationColorSpace::LinearRGB:
+            color_space_filter = SkColorFilters::SRGBToLinearGamma();
+            break;
+        case InterpolationColorSpace::SRGB:
+            color_space_filter = SkColorFilters::LinearToSRGBGamma();
+            break;
+        }
+        return SkImageFilters::ColorFilter(move(color_space_filter), move(input));
+    }
+    }
+    VERIFY_NOT_REACHED();
+}
+
+}
+
+sk_sp<SkImageFilter> to_skia_image_filter(ReadonlyBytes serialized_filter, Function<DecodedImageFrame const&(u64)> const& image_frame)
+{
+    return SkiaFilterReader { serialized_filter, image_frame }.read_graph();
+}
+
+sk_sp<SkImageFilter> to_skia_image_filter(Gfx::Filter const& filter)
+{
+    return to_skia_image_filter(filter.serialized_bytes(), [&](u64 image_frame_id) -> DecodedImageFrame const& {
+        return filter.image_frame(image_frame_id);
+    });
 }
 
 sk_sp<SkImage> sk_image_from_bitmap(Bitmap const& bitmap, ColorSpace const& color_space)

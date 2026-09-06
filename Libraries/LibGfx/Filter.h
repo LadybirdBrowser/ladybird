@@ -9,8 +9,9 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Error.h>
 #include <AK/Function.h>
-#include <AK/NonnullOwnPtr.h>
+#include <AK/Optional.h>
 #include <AK/Types.h>
+#include <AK/Vector.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/DecodedImageFrame.h>
@@ -44,16 +45,18 @@ enum class TurbulenceType {
     Turbulence,
 };
 
-struct FilterImpl;
+// A decoded image frame a filter graph draws, under the id the graph's bytes name it by.
+struct FilterImageFrame {
+    u64 id { 0 };
+    DecodedImageFrame frame;
+};
 
+// An image filter graph in the serialized form painting hands across the FFI, the display list and
+// IPC. The image frames the graph draws travel alongside the bytes, so a consumer without a display
+// list resource storage can still find their pixels.
 class Filter {
 public:
-    Filter(Filter const&);
-    Filter& operator=(Filter const&);
-    Filter(Filter&&);
-    Filter& operator=(Filter&&);
-
-    ~Filter();
+    Filter(ByteBuffer serialized_bytes, Vector<FilterImageFrame> image_frames);
 
     static Filter arithmetic(Optional<Filter const&> background, Optional<Filter const&> foreground, float k1, float k2, float k3, float k4);
     static Filter compose(Filter const& outer, Filter const& inner);
@@ -75,15 +78,18 @@ public:
     static Filter turbulence(TurbulenceType turbulence_type, float base_frequency_x, float base_frequency_y, i32 num_octaves, float seed, Gfx::IntSize const& tile_stitch_size);
     static Filter convert_interpolation_color_space(InterpolationColorSpace source_color_space, InterpolationColorSpace destination_color_space, Optional<Filter const&> input = {});
 
-    FilterImpl const& impl() const;
+    ReadonlyBytes serialized_bytes() const { return m_serialized_bytes; }
+    ReadonlySpan<FilterImageFrame> image_frames() const { return m_image_frames; }
+    DecodedImageFrame const& image_frame(u64 id) const;
 
 private:
-    Filter(NonnullOwnPtr<FilterImpl>&&);
-    NonnullOwnPtr<FilterImpl> m_impl;
+    ByteBuffer m_serialized_bytes;
+    Vector<FilterImageFrame> m_image_frames;
 };
 
-ByteBuffer serialize_filter(Filter const&, Function<u64(Gfx::DecodedImageFrame const&)> const& encode_image);
-Filter deserialize_filter(ReadonlyBytes, Function<Gfx::DecodedImageFrame(u64)> const& decode_image);
+// Visits the id of every image frame a serialized filter graph draws. Bytes that do not hold a
+// filter graph visit nothing.
+void for_each_filter_image_frame_id(ReadonlyBytes serialized_filter, Function<void(u64)> const&);
 
 }
 

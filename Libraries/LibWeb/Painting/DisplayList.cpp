@@ -108,10 +108,6 @@ void DisplayListPlayer::execute(
     CanvasSurfaceRegistry const* canvas_surface_registry)
 {
     VERIFY(display_list.compatible_visual_context_tree_structural_epoch() == visual_context_tree.structural_epoch());
-    if (m_layer_filter_cache_tree_structural_epoch != visual_context_tree.structural_epoch()) {
-        m_layer_filters_by_tree_structural_epoch_and_frame.clear();
-        m_layer_filter_cache_tree_structural_epoch = visual_context_tree.structural_epoch();
-    }
     m_surface = surface;
     m_active_display_list = &display_list;
     m_active_visual_context_tree = &visual_context_tree;
@@ -146,19 +142,6 @@ void DisplayListPlayer::execute_nested_display_list(
     TemporaryChange visual_context_tree_change { m_active_visual_context_tree, &visual_context_tree };
     VERIFY(m_resource_storage);
     execute_impl(display_list, scroll_state_snapshot);
-}
-
-Gfx::Filter const& DisplayListPlayer::layer_filter(ReplayLayer const& layer)
-{
-    ReadonlyBytes filter_bytes { layer.filter_bytes, layer.filter_bytes_size };
-    auto& filters_by_frame = m_layer_filters_by_tree_structural_epoch_and_frame.ensure(active_visual_context_tree().structural_epoch());
-    if (auto cached = filters_by_frame.get(layer.frame.value()); cached.has_value() && cached->filter_bytes.bytes() == filter_bytes)
-        return cached->filter;
-    auto filter = Gfx::deserialize_filter(filter_bytes, [&](u64 image_id) {
-        return resource_storage().image_frame(ImageFrameResourceId { image_id });
-    });
-    filters_by_frame.set(layer.frame.value(), CachedLayerFilter { MUST(ByteBuffer::copy(filter_bytes)), move(filter) });
-    return filters_by_frame.get(layer.frame.value())->filter;
 }
 
 void DisplayListPlayer::execute_run_commands(DisplayListCommandRun const& run, ScrollStateSnapshot const& scroll_state)

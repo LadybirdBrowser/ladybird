@@ -42,6 +42,15 @@
 
 namespace Web::Painting {
 
+struct DisplayListPlayerSkia::LayerImageFilterCache {
+    struct Entry {
+        ByteBuffer filter_bytes;
+        sk_sp<SkImageFilter> image_filter;
+    };
+    HashMap<u64, HashMap<u32, Entry>> entries_by_tree_structural_epoch_and_frame;
+    u64 tree_structural_epoch { 0 };
+};
+
 DisplayListPlayerSkia::DisplayListPlayerSkia()
     : DisplayListPlayerSkia(Gfx::SkiaBackendContext::the_main_thread_context())
 {
@@ -49,6 +58,7 @@ DisplayListPlayerSkia::DisplayListPlayerSkia()
 
 DisplayListPlayerSkia::DisplayListPlayerSkia(RefPtr<Gfx::SkiaBackendContext> skia_backend_context)
     : m_skia_backend_context(move(skia_backend_context))
+    , m_layer_image_filter_cache(make<LayerImageFilterCache>())
 {
 }
 
@@ -66,6 +76,10 @@ void DisplayListPlayerSkia::execute(
     CompositedContextResolver const* composited_context_resolver)
 {
     TemporaryChange composited_context_resolver_change { m_composited_context_resolver, composited_context_resolver };
+    if (m_layer_image_filter_cache->tree_structural_epoch != visual_context_tree.structural_epoch()) {
+        m_layer_image_filter_cache->entries_by_tree_structural_epoch_and_frame.clear();
+        m_layer_image_filter_cache->tree_structural_epoch = visual_context_tree.structural_epoch();
+    }
     DisplayListPlayer::execute(
         display_list,
         visual_context_tree,
@@ -1004,10 +1018,9 @@ void DisplayListPlayerSkia::play_command(ApplyBackdropFilter const& command)
     ScopeGuard guard = [&] { canvas.restore(); };
 
     if (command.has_backdrop_filter) {
-        auto filter = Gfx::deserialize_filter(inline_data(command.backdrop_filter_data), [&](u64 image_id) {
+        auto image_filter = Gfx::to_skia_image_filter(inline_data(command.backdrop_filter_data), [&](u64 image_id) -> Gfx::DecodedImageFrame const& {
             return resource_storage().image_frame(ImageFrameResourceId { image_id });
         });
-        auto image_filter = to_skia_image_filter(filter);
         canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, nullptr, image_filter.get(), 0));
         canvas.restore();
     }
@@ -1272,9 +1285,22 @@ void DisplayListPlayerSkia::push_layer(ReplayLayer const& layer)
         paint.setBlender(Gfx::to_skia_blender(layer.blend_mode));
 
     if (layer.filter_bytes_size)
-        paint.setImageFilter(to_skia_image_filter(layer_filter(layer)));
+        paint.setImageFilter(layer_image_filter(layer));
 
     canvas.saveLayer(nullptr, &paint);
+}
+
+sk_sp<SkImageFilter> DisplayListPlayerSkia::layer_image_filter(ReplayLayer const& layer)
+{
+    ReadonlyBytes filter_bytes { layer.filter_bytes, layer.filter_bytes_size };
+    auto& entries_by_frame = m_layer_image_filter_cache->entries_by_tree_structural_epoch_and_frame.ensure(active_visual_context_tree().structural_epoch());
+    if (auto cached = entries_by_frame.get(layer.frame.value()); cached.has_value() && cached->filter_bytes.bytes() == filter_bytes)
+        return cached->image_filter;
+    auto image_filter = Gfx::to_skia_image_filter(filter_bytes, [&](u64 image_id) -> Gfx::DecodedImageFrame const& {
+        return resource_storage().image_frame(ImageFrameResourceId { image_id });
+    });
+    entries_by_frame.set(layer.frame.value(), LayerImageFilterCache::Entry { MUST(ByteBuffer::copy(filter_bytes)), image_filter });
+    return image_filter;
 }
 
 void DisplayListPlayerSkia::push_mask(ReplayMask const& mask)

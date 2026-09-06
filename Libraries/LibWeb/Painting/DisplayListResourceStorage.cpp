@@ -640,17 +640,15 @@ void DisplayListResourceStorage::collect_referenced_resources(
             }
             if constexpr (requires { command.backdrop_filter_data; }) {
                 if (command.has_backdrop_filter) {
-                    Gfx::deserialize_filter(inline_data(payload, command.backdrop_filter_data), [&](u64 image_id) {
+                    Gfx::for_each_filter_image_frame_id(inline_data(payload, command.backdrop_filter_data), [&](u64 image_id) {
                         referenced_resources.image_frames.set(ImageFrameResourceId { image_id }, AK::HashSetExistingEntryBehavior::Keep);
-                        return image_frame(ImageFrameResourceId { image_id });
                     });
                 }
             }
             if constexpr (requires { command.filter_data; }) {
                 if (command.has_filter) {
-                    Gfx::deserialize_filter(inline_data(payload, command.filter_data), [&](u64 image_id) {
+                    Gfx::for_each_filter_image_frame_id(inline_data(payload, command.filter_data), [&](u64 image_id) {
                         referenced_resources.image_frames.set(ImageFrameResourceId { image_id }, AK::HashSetExistingEntryBehavior::Keep);
-                        return image_frame(ImageFrameResourceId { image_id });
                     });
                 }
             }
@@ -689,9 +687,8 @@ void DisplayListResourceStorage::collect_referenced_resources(
     DisplayListResourceSet& referenced_resources) const
 {
     visual_context_tree.for_each_effects_filter_bytes([&](ReadonlyBytes filter_bytes) {
-        Gfx::deserialize_filter(filter_bytes, [&](u64 image_id) {
+        Gfx::for_each_filter_image_frame_id(filter_bytes, [&](u64 image_id) {
             referenced_resources.image_frames.set(ImageFrameResourceId { image_id }, AK::HashSetExistingEntryBehavior::Keep);
-            return image_frame(ImageFrameResourceId { image_id });
         });
     });
 }

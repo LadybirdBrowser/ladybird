@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/Assertions.h>
+#include <AK/Function.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/Filter.h>
@@ -138,6 +139,9 @@ constexpr SkSamplingOptions to_skia_sampling_options(ScalingMode scaling_mode)
 }
 
 SkPath to_skia_path(Path const& path);
+// Builds the SkImageFilter tree a serialized filter graph describes; `image_frame` supplies the
+// frames the graph names by id.
+sk_sp<SkImageFilter> to_skia_image_filter(ReadonlyBytes serialized_filter, Function<DecodedImageFrame const&(u64)> const& image_frame);
 sk_sp<SkImageFilter> to_skia_image_filter(Gfx::Filter const& filter);
 sk_sp<SkBlender> to_skia_blender(Gfx::CompositingAndBlendingOperator compositing_and_blending_operator);
 

@@ -16,6 +16,8 @@
 //! type, colors are their ARGB32 value, and a color table is a `u32` length of 256 followed by the
 //! table.
 
+use std::ffi::c_void;
+
 use crate::{
     Color, ColorFilterType, CompositingAndBlendingOperator, IntRect, IntSize, InterpolationColorSpace, ScalingMode,
 };
@@ -803,6 +805,31 @@ impl Reader<'_> {
             },
         };
         Some(filter)
+    }
+}
+
+/// Visits the id of every image frame a serialized filter draws, for a C++ caller that holds only
+/// the bytes. Bytes that do not hold a filter visit nothing.
+///
+/// # Safety
+///
+/// `bytes` must point to `count` readable bytes, and `visit` must accept `context`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ladybird_gfx_filter_for_each_image_frame_id(
+    bytes: *const u8,
+    count: usize,
+    visit: unsafe extern "C" fn(*const c_void, u64),
+    context: *const c_void,
+) {
+    let bytes = if count == 0 {
+        &[]
+    } else {
+        // SAFETY: The caller guarantees `count` readable bytes.
+        unsafe { std::slice::from_raw_parts(bytes, count) }
+    };
+    if let Some(filter) = Filter::deserialize(bytes) {
+        // SAFETY: The caller guarantees `visit` accepts `context`.
+        filter.for_each_image_frame_id(&mut |id| unsafe { visit(context, id) });
     }
 }
 

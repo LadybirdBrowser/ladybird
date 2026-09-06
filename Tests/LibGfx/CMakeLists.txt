@@ -3,7 +3,6 @@ set(TEST_SOURCES
     TestBitmapExport.cpp
     TestColor.cpp
     TestFontCatalog.cpp
-    TestFilter.cpp
     TestFont.cpp
     TestImageDecoder.cpp
     TestImageWriter.cpp
@@ -27,4 +26,5 @@ target_compile_definitions(TestSharedFontProvider PRIVATE LADYBIRD_SOURCE_DIR="$
 
 ladybird_test(TestBitmapSequence.cpp LibGfx LIBS LibGfx LibIPC)
 ladybird_test(TestShareableBitmap.cpp LibGfx LIBS LibGfx LibIPC)
+ladybird_test(TestFilter.cpp LibGfx LIBS LibGfx skia)
 ladybird_test(TestYUVData.cpp LibGfx LIBS LibGfx skia)

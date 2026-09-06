@@ -473,11 +473,8 @@ Optional<VisualAnimation::Sample> VisualAnimation::sample(AK::Duration elapsed_s
                 }();
                 composed_filter = composed_filter.has_value() ? Gfx::Filter::compose(filter, *composed_filter) : move(filter);
             }
-            if (composed_filter.has_value()) {
-                sample.filter_bytes = Gfx::serialize_filter(*composed_filter, [](Gfx::DecodedImageFrame const&) -> u64 {
-                    VERIFY_NOT_REACHED();
-                });
-            }
+            if (composed_filter.has_value())
+                sample.filter_bytes = MUST(ByteBuffer::copy(composed_filter->serialized_bytes()));
         },
         [&](VisualAnimationTransformList const& transforms) {
             for (auto const& transform : transforms)

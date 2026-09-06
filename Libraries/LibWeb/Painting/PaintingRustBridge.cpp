@@ -331,9 +331,9 @@ static DisplayListResourceStorage* visual_context_filter_image_storage(DOM::Docu
     return &navigable->display_list_resource_storage();
 }
 
-// Resolves one url() reference of a filter list and serializes the referenced <filter>'s graph
-// into the sink the callback was handed. Frames an feImage draws are registered with the display
-// list resource storage under the id the graph names them by.
+// Resolves one url() reference of a filter list and hands the referenced <filter>'s graph to the
+// sink the callback was handed. Frames an feImage draws are registered with the display list
+// resource storage under the id the graph names them by.
 static Layout::RustFFI::FfiResolvedSvgFilter push_svg_filter_reference(void const* url_value, Layout::NodeWithStyle const& layout_node, DisplayListResourceStorage* image_storage, void* sink)
 {
     auto resolved_reference = resolve_svg_filter_reference({ .pointer = url_value }, layout_node);
@@ -344,20 +344,19 @@ static Layout::RustFFI::FfiResolvedSvgFilter push_svg_filter_reference(void cons
     result.svg_filter_bounds = resolved_reference.bounds;
     if (!resolved_reference.filter.has_value())
         return result;
-    bool has_unregistered_image = false;
-    auto filter_data = Gfx::serialize_filter(*resolved_reference.filter, [&](Gfx::DecodedImageFrame const& frame) -> u64 {
-        if (!image_storage) {
-            has_unregistered_image = true;
-            return frame.id();
-        }
-        return image_storage->add_image_frame(frame).value();
-    });
+    auto image_frames = resolved_reference.filter->image_frames();
     // A document without a navigable has nowhere to register the frames an feImage draws, so its
     // filter list is dropped rather than handed over unresolvable; such documents are not painted.
-    if (has_unregistered_image) {
+    if (!image_storage && !image_frames.is_empty()) {
         result.failed = true;
         return result;
     }
+    for (auto const& image_frame : image_frames) {
+        // The graph names each frame by the frame's own id, which is also what the storage keys it by.
+        VERIFY(image_frame.id == image_frame.frame.id());
+        image_storage->add_image_frame(image_frame.frame);
+    }
+    auto filter_data = resolved_reference.filter->serialized_bytes();
     Layout::RustFFI::layout_arena_paint_push_bytes(sink, filter_data.data(), filter_data.size());
     result.has_filter = true;
     return result;
