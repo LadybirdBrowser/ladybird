@@ -1059,31 +1059,24 @@ impl SelectorProgramBuilder {
     #[must_use]
     pub fn finish(mut self) -> SelectorProgram {
         self.program.cache_dispatch_metadata();
-        let properties: Vec<SelectorEntryProperties> = self
-            .program
-            .entries
-            .iter()
-            .enumerate()
-            .map(|(index, entry)| {
-                let unified_chain = self.program.dispatch_metadata(index).prefix_chain();
-                SelectorEntryProperties {
-                    monotone_under_arrivals: self.program.entry_is_monotone_under_arrivals(entry.root),
-                    can_use_before_sibling_relations: self.program.entry_can_use_before_sibling_relations(entry.root),
-                    observes_sibling_relation: self.program.entry_observes_sibling_relation(entry.root),
-                    has_prefix_chain: unified_chain.is_some(),
-                    prefix_chain_has_only_local_facts: unified_chain.is_some_and(|chain| {
-                        // A canonical positional step counts as local here: its truth rides the
-                        // positional bits of every transition and completion key, so the retained
-                        // walk answers it exactly like an interned fact.
-                        chain
-                            .iter()
-                            .all(|step| self.program.prefix_local_has_canonical_form(step.local))
-                    }),
-                }
-            })
-            .collect();
-        for (entry, properties) in self.program.entries.iter_mut().zip(properties) {
-            entry.properties = properties;
+        for index in 0..self.program.entries.len() {
+            let entry = &self.program.entries[index];
+            let unified_chain = self.program.dispatch_metadata(index).prefix_chain();
+            let properties = SelectorEntryProperties {
+                monotone_under_arrivals: self.program.entry_is_monotone_under_arrivals(entry.root),
+                can_use_before_sibling_relations: self.program.entry_can_use_before_sibling_relations(entry.root),
+                observes_sibling_relation: self.program.entry_observes_sibling_relation(entry.root),
+                has_prefix_chain: unified_chain.is_some(),
+                prefix_chain_has_only_local_facts: unified_chain.is_some_and(|chain| {
+                    // A canonical positional step counts as local here: its truth rides the
+                    // positional bits of every transition and completion key, so the retained
+                    // walk answers it exactly like an interned fact.
+                    chain
+                        .iter()
+                        .all(|step| self.program.prefix_local_has_canonical_form(step.local))
+                }),
+            };
+            self.program.entries[index].properties = properties;
         }
         self.program.can_leave_scope = self
             .program
