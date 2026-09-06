@@ -1397,16 +1397,17 @@ impl StyleEngine {
         let mut reclaimable = self.atoms.reclaimable_for_sweep(&live);
         if let Some(recorded) = replay_reclaimed {
             assert!(
-                recorded.iter().all(|atom| reclaimable.contains(atom)),
+                recorded.iter().all(|atom| reclaimable.binary_search(atom).is_ok()),
                 "a recorded atom release still has a semantic replay owner"
             );
             reclaimable = recorded;
+            reclaimable.sort_unstable();
         }
         self.facts.forget_atoms(&reclaimable);
         self.custom_property_environments.forget_names(&reclaimable);
         let requirement_count = self.attribute_value_text_names.len();
         self.attribute_value_text_names
-            .retain(|atom| !reclaimable.contains(atom));
+            .retain(|atom| reclaimable.binary_search(atom).is_err());
         if self.attribute_value_text_names.len() != requirement_count {
             self.attribute_value_text_requirements_version += 1;
         }
