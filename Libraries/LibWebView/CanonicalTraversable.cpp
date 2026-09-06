@@ -317,6 +317,9 @@ void CanonicalTraversable::create_a_new_top_level_traversable(Optional<Canonical
         .top_level_origin = document_origin,
         .has_cross_site_ancestor = false,
         .opener_policy = {},
+        .active_document_is_completely_loaded = false,
+        .is_closing = false,
+        .container_is_in_document_tree = false,
         // The process hosting the traversable reports the compositor context it paints through.
         .compositor_context_id = {},
     });
