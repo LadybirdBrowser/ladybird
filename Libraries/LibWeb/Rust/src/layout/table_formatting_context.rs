@@ -1289,15 +1289,22 @@ impl<'pass> TableFormattingContext<'pass> {
 
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
+            let used = self.used_values(cell.box_);
+            used.uses_collapsing_borders_model.set(true);
+            // A missing cell (https://www.w3.org/TR/css-tables-3/#missing-cells-fixup) is an anonymous box without an
+            // element, so no border belongs to it: the borders at its edges are those of its neighbours, and it takes
+            // no share of them. That keeps a row made of missing cells at its specified block size, with the borders
+            // of the rows around it overlapping on the same grid line.
+            if node_facts::has_flag(self.node_data(cell.box_), NodeFlag::IsMissingTableCell) {
+                continue;
+            }
             let row_end = cell.row_index + cell.row_span;
             let column_end = cell.column_index + cell.column_span;
             let widths = grid.resolve_used_widths_for_cell(cell.row_index, row_end, cell.column_index, column_end);
-            let used = self.used_values(cell.box_);
             used.border_top.set(widths.top);
             used.border_right.set(widths.right);
             used.border_bottom.set(widths.bottom);
             used.border_left.set(widths.left);
-            used.uses_collapsing_borders_model.set(true);
         }
         self.collapsed_border_grid = Some(grid);
     }
