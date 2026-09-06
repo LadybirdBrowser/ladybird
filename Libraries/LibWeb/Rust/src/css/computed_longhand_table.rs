@@ -325,10 +325,10 @@ impl ComputedLonghandTable {
     }
 
     pub(crate) fn copied_for_partial_drive(source: &ComputedLonghandTable) -> Self {
-        let mut table = Self::copied_for_drive(source);
-        table.inheritance_dependent.clone_from(&source.inheritance_dependent);
+        let mut table = Self::new();
+        table.copy_from(source);
+        table.evaluated_bits = [0; LONGHAND_BITMAP_BYTES];
         table.inheritance_dependent_is_seeded = true;
-        table.rebuild_inheritance_dependent_view();
         table.set_in_display_none_subtree(false);
         table
     }
