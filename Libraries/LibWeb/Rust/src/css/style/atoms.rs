@@ -133,16 +133,16 @@ impl GlobalAtoms {
     }
 
     fn release_raw(&mut self, raw: usize, expected: StyleAtomID) {
-        let entry = self
-            .raw
-            .get_mut(&raw)
-            .expect("a document must release a live global atom");
+        let Entry::Occupied(mut occupied) = self.raw.entry(raw) else {
+            unreachable!("a document must release a live global atom");
+        };
+        let entry = occupied.get_mut();
         assert_eq!(entry.atom, expected);
         entry.document_references -= 1;
         if entry.document_references != 0 {
             return;
         }
-        let entry = self.raw.remove(&raw).unwrap();
+        let entry = occupied.remove();
         self.available.insert(entry.atom.0);
         if entry.raw_lifetime == Some(RawAtomLifetime::RetainedFlyString) {
             // SAFETY: acquire_raw retained exactly one global reference for this entry.
@@ -154,16 +154,16 @@ impl GlobalAtoms {
     }
 
     fn release_qualified(&mut self, key: (u32, u32), expected: StyleAtomID) {
-        let entry = self
-            .qualified
-            .get_mut(&key)
-            .expect("a document must release a live global qualified atom");
+        let Entry::Occupied(mut occupied) = self.qualified.entry(key) else {
+            unreachable!("a document must release a live global qualified atom");
+        };
+        let entry = occupied.get_mut();
         assert_eq!(entry.atom, expected);
         entry.document_references -= 1;
         if entry.document_references != 0 {
             return;
         }
-        let entry = self.qualified.remove(&key).unwrap();
+        let entry = occupied.remove();
         self.available.insert(entry.atom.0);
     }
 }
