@@ -129,18 +129,18 @@ impl CustomPropertyEnvironments {
     /// # Safety
     /// `raw` must be zero or a live `AK::Utf16FlyString` raw representation.
     pub(super) unsafe fn note_name(&mut self, name: StyleAtomID, raw: usize, text: &[u16]) -> bool {
-        if name.is_none() || self.names.contains_key(&name) {
+        if name.is_none() {
             return false;
         }
+        let Entry::Vacant(entry) = self.names.entry(name) else {
+            return false;
+        };
         let text = text.to_vec();
         self.nested_capacity_bytes += (text.capacity() * size_of::<u16>()) as u64;
-        self.names.insert(
-            name,
-            CustomPropertyName {
-                raw: unsafe { RetainedUtf16FlyString::from_borrowed_raw(raw) },
-                text,
-            },
-        );
+        entry.insert(CustomPropertyName {
+            raw: unsafe { RetainedUtf16FlyString::from_borrowed_raw(raw) },
+            text,
+        });
         true
     }
 
@@ -163,11 +163,12 @@ impl CustomPropertyEnvironments {
     /// # Safety
     /// `store` must be null or a live raw `Arc` pointer to a `CustomPropertyStore`.
     pub(super) unsafe fn retain(&mut self, identity: u64, store: *const c_void) {
-        if identity == 0 || store.is_null() || self.stores.contains_key(&identity) {
+        if identity == 0 || store.is_null() {
             return;
         }
         self.stores
-            .insert(identity, unsafe { RetainedCustomPropertyStore::from_borrowed(store) });
+            .entry(identity)
+            .or_insert_with(|| unsafe { RetainedCustomPropertyStore::from_borrowed(store) });
     }
 
     /// The store behind an environment, whether C++ published it or the engine resolved it.
