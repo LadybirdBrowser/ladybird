@@ -187,7 +187,7 @@ type StagedTreeRows = Vec<(StyleNodeID, Option<TreeRelations>, Option<TreeRelati
 type StagedFirstChildren = Vec<(StyleNodeID, Option<StyleNodeID>, Option<StyleNodeID>)>;
 
 fn radix_sort_style_node_ids(mut nodes: Vec<StyleNodeID>) -> Vec<StyleNodeID> {
-    if nodes.len() < 2 {
+    if nodes.is_sorted() {
         return nodes;
     }
     let mut scratch = vec![nodes[0]; nodes.len()];
