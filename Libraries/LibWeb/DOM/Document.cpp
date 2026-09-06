@@ -1879,9 +1879,6 @@ static void relayout_subtree(Layout::Box& subtree_root)
     } else {
         bridge.compute_subtree_layout(subtree_root);
     }
-
-    Layout::RustFFI::layout_arena_reset_layout_update_flags_in_subtree(
-        subtree_root.arena_handle(), Layout::Node::slot_id(&subtree_root));
 }
 
 // Recomputes containing blocks and derives the abspos escape flags for the inclusive subtree
@@ -2316,12 +2313,8 @@ Document::PartialRelayoutResult Document::try_partial_relayout(Vector<Layout::Ru
         recompute_containing_blocks_in_inclusive_subtree(layout_node_arena(), *root);
 
     layout_node_arena().sync_enrolled_content_for_layout();
-    for (auto* root : partial_relayout_roots) {
+    for (auto* root : partial_relayout_roots)
         relayout_subtree(*root);
-        // NB: The subtree commit reset the root's descendant rows, and the subtree's
-        //     new size may change ancestor scrollable overflow; scheduling the root covers both.
-        schedule_scrollable_overflow_recalculation(*root);
-    }
 
     ++m_partial_layout_count;
 
@@ -2462,18 +2455,11 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
             viewport_rect.width(),
             viewport_rect.height(),
             should_collect_devtools_layout_data);
-        Layout::RustFFI::layout_arena_rebuild_scrollable_overflow_contained_boxes(layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root));
 
         style_invalidation_counters().relayouts_performed++;
-
-        Layout::RustFFI::layout_arena_set_needs_full_scrollable_overflow_recalculation(layout_node_arena().handle());
-
         ++m_full_layout_count;
 
         after_layout_commit(LayoutTreeChanged::Yes, LayoutCommitScope::Full);
-
-        Layout::RustFFI::layout_arena_reset_layout_update_flags_in_subtree(
-            layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root));
 
         if constexpr (UPDATE_LAYOUT_DEBUG) {
             dbgln("LAYOUT {} {} µs", to_string(reason), timer.elapsed_time().to_microseconds());

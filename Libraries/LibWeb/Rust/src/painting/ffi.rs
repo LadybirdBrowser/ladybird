@@ -430,15 +430,6 @@ pub unsafe extern "C" fn layout_arena_needs_full_scrollable_overflow_recalculati
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_needs_full_scrollable_overflow_recalculation(arena: *mut c_void) {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena.needs_full_scrollable_overflow_recalculation.set(true);
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 /// The drained slot ids may name freed slots; the caller resolves liveness before
 /// dereferencing anything.
 #[unsafe(no_mangle)]
@@ -1231,13 +1222,7 @@ pub unsafe extern "C" fn layout_arena_rebuild_scrollable_overflow_contained_boxe
     root: NodeSlotId,
 ) {
     let arena = unsafe { arena_from_handle(arena) };
-    let paintable_rows = arena.paintable_rows();
-    let mut paint_state = arena.paint_state().borrow_mut();
-    crate::painting::scrollable_overflow::refill_contained_boxes_index(
-        &paintable_rows,
-        root,
-        &mut paint_state.scrollable_overflow_contained_boxes,
-    );
+    arena.rebuild_scrollable_overflow_contained_boxes(root);
 }
 
 /// # Safety

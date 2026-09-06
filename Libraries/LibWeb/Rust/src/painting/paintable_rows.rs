@@ -535,6 +535,21 @@ impl LayoutNodeArena {
         }
     }
 
+    pub(crate) fn set_needs_full_scrollable_overflow_recalculation(&self) {
+        self.needs_full_scrollable_overflow_recalculation.set(true);
+    }
+
+    /// Rebuilds the contained-boxes index from the committed rows under `root`.
+    pub(crate) fn rebuild_scrollable_overflow_contained_boxes(&self, root: NodeSlotId) {
+        let paintable_rows = self.paintable_rows();
+        let mut paint_state = self.paint_state().borrow_mut();
+        crate::painting::scrollable_overflow::refill_contained_boxes_index(
+            &paintable_rows,
+            root,
+            &mut paint_state.scrollable_overflow_contained_boxes,
+        );
+    }
+
     pub(crate) fn take_scrollable_overflow_recalculation_state(&self) -> (Vec<NodeSlotId>, bool) {
         (
             std::mem::take(&mut *self.boxes_needing_scrollable_overflow_recalculation.borrow_mut()),
