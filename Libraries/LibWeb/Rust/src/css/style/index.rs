@@ -1182,8 +1182,9 @@ impl StyleNodeFacts {
             // one of them and which one depends on how the selector wrote it.
             visit(DispatchKey::AttributeName(attribute.name), Some(attribute.value));
             let forms = self.attribute_name_forms(attribute.name);
-            for other in [forms.local, forms.folded_name, forms.folded_local] {
-                if !other.is_none() && other != attribute.name {
+            let aliases = [forms.local, forms.folded_name, forms.folded_local];
+            for (index, &other) in aliases.iter().enumerate() {
+                if !other.is_none() && other != attribute.name && !aliases[..index].contains(&other) {
                     visit(DispatchKey::AttributeName(other), Some(attribute.value));
                 }
             }
