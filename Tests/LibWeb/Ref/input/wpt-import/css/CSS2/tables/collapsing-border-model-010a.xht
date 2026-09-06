@@ -1,0 +1,89 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Test: border-collapse - 'border-spacing' does not apply to 'border-collapse: collapse' tables</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/tables.html#collapsing-borders" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/tables/../reference/ref-filled-green-100px-square.xht" />
+
+  <meta name="flags" content="ahem" />
+  <meta name="assert" content="'border-spacing' property only applies to tables applying the 'border-collapse: separate' model. When an HTML/XHTML table applies the 'border-collapse: collapse' model, then any 'border-spacing' declaration is ignored." />
+
+  <link rel="stylesheet" type="text/css" href="../../../../../../Text/input/wpt-import/fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  table
+  {
+  background-color: red;
+  border-collapse: collapse;
+  border-spacing: 50px;
+  color: green;
+  font: 1em/1 Ahem;
+  }
+
+  td
+  {
+  background-color: green;
+  border: 0.5em solid green;
+  padding: 5px;
+  }
+
+  tbody > tr > td, tr > td:first-child {padding: 0px;}
+  ]]></style>
+
+
+ </head>
+
+ <body>
+
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+  <table>
+
+   <thead>
+       <tr>
+           <td>1</td> <td>2</td> <td>3</td>
+       </tr>
+   </thead>
+
+   <tfoot>
+       <tr>
+           <td>7</td> <td>8</td> <td>9</td>
+       </tr>
+   </tfoot>
+
+   <tbody>
+       <tr>
+           <td>4</td> <td>5</td> <td>6</td>
+       </tr>
+   </tbody>
+
+  </table>
+
+  <!--
+
+		  1st col		   2nd col		 3rd col
+
+			 8				 8				 8
+			 0				 5				 5
+	8	0	16	0	8	5	16	5	8	5	16	5	8		thead == 100px
+			 0				 5				 5
+			 8				 8				 8
+			 0				 0				 0
+	8	0	16	0	8	0	16	0	8	0	16	0	8		tbody == 100px
+			 0				 0				 0
+			 8				 8				 8
+  			 0				 5				 5
+	8	0	16	0	8	5	16	5	8	5	16	5	8		tfoot == 100px
+			 0				 5				 5
+			 8				 8				 8
+	====================================================
+			100px			100px			100px
+
+  -->
+
+ </body>
+</html>

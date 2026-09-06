@@ -1,0 +1,134 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Test: Border conflict resolution - adjacent cells with same border-style and border-width</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/tables.html#border-conflict-resolution" title="17.6.2.1 Border conflict resolution" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/tables/border-conflict-element-001d-ref.xht" />
+
+  <meta content="ahem image" name="flags" />
+  <meta content="When two adjacent cells have the same border-width and the same border-style in a 'border-collapse: collapse' table, then the color of the border from the leftmost cell wins (if the table's 'direction' is 'ltr'; right, if it is 'rtl') and the color of the border from the topmost cell wins." name="assert" />
+
+  <link rel="stylesheet" type="text/css" href="../../../../../../Text/input/wpt-import/fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  table
+  {
+  border-collapse: collapse;
+  color: white;
+  font: 1.25em/1 Ahem;
+  margin: auto auto 2em 2em;
+  }
+
+  td {padding: 0px;}
+
+  table#test td
+  {
+  border-style: solid;
+  border-width: 1em;
+  }
+
+  td#one {border-color: blue blue blue blue;}
+  td#two {border-color: yellow yellow yellow red;}
+  td#three {border-color: green green green red;}
+  td#four {border-color: orange orange orange red;}
+
+  td#five {border-color: red yellow yellow yellow;}
+  td#six {border-color: red green green red;}
+  td#seven {border-color: red orange orange red;}
+  td#eight {border-color: red blue blue red;}
+
+  td#nine {border-color: red green green green;}
+  td#ten {border-color: red orange orange red;}
+  td#eleven {border-color: red blue blue red;}
+  td#twelve {border-color: red yellow yellow red;}
+
+  td#thirteen {border-color: red orange orange orange;}
+  td#fourteen {border-color: red blue blue red;}
+  td#fifteen {border-color: red yellow yellow red;}
+  td#sixteen {border-color: red green green red;}
+
+  img
+  {
+  height: 1em;
+  vertical-align: bottom;
+  /*
+  With 'vertical-align: bottom', swatch-[color] images "sit"
+  at the bottom of the cell's line box and not on its baseline
+  */
+  width: 1em;
+  }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if both grids are <strong>perfectly identical</strong>.</p>
+
+  <table id="test">
+
+   <tr>
+    <td id="one">B</td> <td id="two">Y</td> <td id="three">G</td> <td id="four">O</td>
+   </tr>
+
+   <tr>
+     <td id="five">Y</td> <td id="six">G</td> <td id="seven">O</td> <td id="eight">B</td>
+   </tr>
+
+   <tr>
+     <td id="nine">G</td> <td id="ten">O</td> <td id="eleven">B</td> <td id="twelve">Y</td>
+   </tr>
+
+   <tr>
+     <td id="thirteen">O</td> <td id="fourteen">B</td> <td id="fifteen">Y</td> <td id="sixteen">G</td>
+   </tr>
+
+  </table>
+
+
+  <table id="reference">
+
+   <tr>
+    <td><img src="support/swatch-blue.png" alt="Image download support must be enabled" /><img src="support/swatch-blue.png" alt="Image download support must be enabled" /><img src="support/swatch-blue.png" alt="Image download support must be enabled" /><img src="support/swatch-yellow.png" alt="Image download support must be enabled" /><img src="support/swatch-yellow.png" alt="Image download support must be enabled" /><img src="support/swatch-green.png" alt="Image download support must be enabled" /><img src="support/swatch-green.png" alt="Image download support must be enabled" /><img src="support/swatch-orange.png" alt="Image download support must be enabled" /><img src="support/swatch-orange.png" alt="Image download support must be enabled" /></td>
+   </tr>
+
+   <tr>
+    <td><img src="support/swatch-blue.png" alt="Image download support must be enabled" />B<img src="support/swatch-blue.png" alt="Image download support must be enabled" />Y<img src="support/swatch-yellow.png" alt="Image download support must be enabled" />G<img src="support/swatch-green.png" alt="Image download support must be enabled" />O<img src="support/swatch-orange.png" alt="Image download support must be enabled" /></td>
+   </tr>
+
+   <tr>
+    <td><img src="support/swatch-blue.png" alt="Image download support must be enabled" /><img src="support/swatch-blue.png" alt="Image download support must be enabled" /><img src="support/swatch-blue.png" alt="Image download support must be enabled" /><img src="support/swatch-yellow.png" alt="Image download support must be enabled" /><img src="support/swatch-yellow.png" alt="Image download support must be enabled" /><img src="support/swatch-green.png" alt="Image download support must be enabled" /><img src="support/swatch-green.png" alt="Image download support must be enabled" /><img src="support/swatch-orange.png" alt="Image download support must be enabled" /><img src="support/swatch-orange.png" alt="Image download support must be enabled" /></td>
+   </tr>
+
+   <tr>
+    <td><img src="support/swatch-yellow.png" alt="Image download support must be enabled" />Y<img src="support/swatch-yellow.png" alt="Image download support must be enabled" />G<img src="support/swatch-green.png" alt="Image download support must be enabled" />O<img src="support/swatch-orange.png" alt="Image download support must be enabled" />B<img src="support/swatch-blue.png" alt="Image download support must be enabled" /></td>
+   </tr>
+
+   <tr>
+    <td><img src="support/swatch-yellow.png" alt="Image download support must be enabled" /><img src="support/swatch-yellow.png" alt="Image download support must be enabled" /><img src="support/swatch-yellow.png" alt="Image download support must be enabled" /><img src="support/swatch-green.png" alt="Image download support must be enabled" /><img src="support/swatch-green.png" alt="Image download support must be enabled" /><img src="support/swatch-orange.png" alt="Image download support must be enabled" /><img src="support/swatch-orange.png" alt="Image download support must be enabled" /><img src="support/swatch-blue.png" alt="Image download support must be enabled" /><img src="support/swatch-blue.png" alt="Image download support must be enabled" /></td>
+   </tr>
+
+   <tr>
+    <td><img src="support/swatch-green.png" alt="Image download support must be enabled" />G<img src="support/swatch-green.png" alt="Image download support must be enabled" />O<img src="support/swatch-orange.png" alt="Image download support must be enabled" />B<img src="support/swatch-blue.png" alt="Image download support must be enabled" />Y<img src="support/swatch-yellow.png" alt="Image download support must be enabled" /></td>
+   </tr>
+
+   <tr>
+    <td><img src="support/swatch-green.png" alt="Image download support must be enabled" /><img src="support/swatch-green.png" alt="Image download support must be enabled" /><img src="support/swatch-green.png" alt="Image download support must be enabled" /><img src="support/swatch-orange.png" alt="Image download support must be enabled" /><img src="support/swatch-orange.png" alt="Image download support must be enabled" /><img src="support/swatch-blue.png" alt="Image download support must be enabled" /><img src="support/swatch-blue.png" alt="Image download support must be enabled" /><img src="support/swatch-yellow.png" alt="Image download support must be enabled" /><img src="support/swatch-yellow.png" alt="Image download support must be enabled" /></td>
+   </tr>
+
+   <tr>
+    <td><img src="support/swatch-orange.png" alt="Image download support must be enabled" />O<img src="support/swatch-orange.png" alt="Image download support must be enabled" />B<img src="support/swatch-blue.png" alt="Image download support must be enabled" />Y<img src="support/swatch-yellow.png" alt="Image download support must be enabled" />G<img src="support/swatch-green.png" alt="Image download support must be enabled" /></td>
+   </tr>
+
+   <tr>
+    <td><img src="support/swatch-orange.png" alt="Image download support must be enabled" /><img src="support/swatch-orange.png" alt="Image download support must be enabled" /><img src="support/swatch-orange.png" alt="Image download support must be enabled" /><img src="support/swatch-blue.png" alt="Image download support must be enabled" /><img src="support/swatch-blue.png" alt="Image download support must be enabled" /><img src="support/swatch-yellow.png" alt="Image download support must be enabled" /><img src="support/swatch-yellow.png" alt="Image download support must be enabled" /><img src="support/swatch-green.png" alt="Image download support must be enabled" /><img src="support/swatch-green.png" alt="Image download support must be enabled" /></td>
+   </tr>
+
+  </table>
+
+ </body>
+</html>
