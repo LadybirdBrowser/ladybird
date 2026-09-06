@@ -1,6 +1,9 @@
-# This file is based on the vcpkg Android example from here https://github.com/microsoft/vcpkg-docs/blob/06b496c3f24dbe651fb593a26bee50537eeaf4e5/vcpkg/examples/vcpkg_android_example_cmake_script/cmake/vcpkg_android.cmake
-# It was modified to use CMake variables instead of environment variables, because it's not possible to set environment variables in the Android Gradle plugin.
+# This file is based on the vcpkg Android example from here:
+# https://github.com/microsoft/vcpkg-docs/blob/06b496c3f24dbe651fb593a26bee50537eeaf4e5/vcpkg/examples/vcpkg_android_example_cmake_script/cmake/vcpkg_android.cmake
 #
+# It was modified to use CMake variables instead of environment variables where needed, because it's not possible to set
+# environment variables in the Android Gradle plugin.
+
 # vcpkg_android.cmake
 #
 # Helper script when using vcpkg with cmake. It should be triggered via the variable VCPKG_TARGET_ANDROID
@@ -31,8 +34,8 @@ if (VCPKG_TARGET_ANDROID)
     #
     # 2. Check the presence of environment variable VCPKG_ROOT
     #
-    if (NOT DEFINED VCPKG_ROOT)
-        message(FATAL_ERROR "Please set a CMake variable VCPKG_ROOT")
+    if (NOT DEFINED ENV{VCPKG_ROOT} OR "$ENV{VCPKG_ROOT}" STREQUAL "")
+        message(FATAL_ERROR "Please set a non-empty environment variable VCPKG_ROOT")
     endif()
 
     #
@@ -82,15 +85,13 @@ if (VCPKG_TARGET_ANDROID)
     # However, vcpkg provides a way to preload and additional toolchain,
     # with the VCPKG_CHAINLOAD_TOOLCHAIN_FILE option.
     set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE ${ANDROID_NDK}/build/cmake/android.toolchain.cmake)
-    set(CMAKE_TOOLCHAIN_FILE ${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)
+    set(CMAKE_TOOLCHAIN_FILE $ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)
     message("vcpkg_android.cmake: CMAKE_TOOLCHAIN_FILE was set to ${CMAKE_TOOLCHAIN_FILE}")
     message("vcpkg_android.cmake: VCPKG_CHAINLOAD_TOOLCHAIN_FILE was set to ${VCPKG_CHAINLOAD_TOOLCHAIN_FILE}")
 
-    # vcpkg depends on the environment variables ANDROID_NDK_HOME and VCPKG_ROOT being set.
-    # However, we cannot set those through the Android Gradle plugin (we can only set CMake variables).
-    # Therefore, we forward our CMake variables to environment variables.
+    # vcpkg depends on the environment variable ANDROID_NDK_HOME being set. However, we cannot set it through the
+    # Android Gradle plugin (we can only set CMake variables). Forward CMake variables to environment variables here.
     # FIXME: would be nice if vcpkg's android toolchain did not require this...
     set(ENV{ANDROID_NDK_HOME} ${ANDROID_NDK})
-    set(ENV{VCPKG_ROOT} ${VCPKG_ROOT})
 
 endif(VCPKG_TARGET_ANDROID)

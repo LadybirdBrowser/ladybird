@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
+include("Meta/CMake/environment.cmake")
+
 if (VCPKG_TARGET_ANDROID)
     # If we are building for Android, we must load vcpkg_android.cmake before the project() declaration.
     # This ensures that the CMAKE_TOOLCHAIN_FILE is set correctly.

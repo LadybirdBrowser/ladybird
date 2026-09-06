@@ -1,0 +1,18 @@
+if (NOT DEFINED ENV{LADYBIRD_SOURCE_DIR} OR "$ENV{LADYBIRD_SOURCE_DIR}" STREQUAL "")
+    set(ENV{LADYBIRD_SOURCE_DIR} "${CMAKE_SOURCE_DIR}")
+endif()
+
+set(LADYBIRD_CACHE_DIR "$ENV{LADYBIRD_SOURCE_DIR}/Build/caches" CACHE STRING "")
+
+if (DEFINED LADYBIRD_VCPKG_TYPE)
+    if (NOT DEFINED ENV{VCPKG_ROOT} OR "$ENV{VCPKG_ROOT}" STREQUAL "")
+        set(ENV{VCPKG_ROOT} "$ENV{LADYBIRD_SOURCE_DIR}/Build/vcpkg")
+    endif()
+
+    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "" FORCE)
+    set(VCPKG_INSTALL_OPTIONS "--no-print-usage" CACHE STRING "" FORCE)
+    set(VCPKG_OVERLAY_TRIPLETS "$ENV{LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/${LADYBIRD_VCPKG_TYPE}-triplets" CACHE STRING "" FORCE)
+
+    set(ENV{VCPKG_BINARY_SOURCES} "clear;files,${LADYBIRD_CACHE_DIR}/vcpkg-binary-cache,readwrite;$ENV{VCPKG_BINARY_SOURCES}")
+    set(ENV{X_VCPKG_ASSET_SOURCES} "clear;x-azurl,https://vcpkg-cache.app.ladybird.org/ladybird/source-assets/,$ENV{VCPKG_CACHE_SAS},read$ENV{VCPKG_CACHE_MODE}")
+endif()
