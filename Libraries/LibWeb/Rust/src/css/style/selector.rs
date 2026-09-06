@@ -1764,9 +1764,14 @@ impl SelectorProgram {
                         }
                     }
                     out[start..].sort_unstable();
-                    let mut tail = out.split_off(start);
-                    tail.dedup();
-                    out.extend_from_slice(&tail);
+                    let mut unique_end = start;
+                    for read_index in start..out.len() {
+                        if unique_end == start || out[read_index] != out[unique_end - 1] {
+                            out[unique_end] = out[read_index];
+                            unique_end += 1;
+                        }
+                    }
+                    out.truncate(unique_end);
                     true
                 }
                 DispatchQuery::Required => {
