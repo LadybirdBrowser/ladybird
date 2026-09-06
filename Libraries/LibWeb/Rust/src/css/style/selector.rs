@@ -640,7 +640,6 @@ enum DispatchRelation {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum DispatchQuery {
-    Single,
     Alternatives,
     Required,
 }
@@ -1650,10 +1649,6 @@ impl SelectorProgram {
         query: DispatchQuery,
         out: &mut Vec<DispatchKey>,
     ) -> bool {
-        if relation == DispatchRelation::Subject && query == DispatchQuery::Single {
-            out.push(self.single_dispatch_key_of(id));
-            return true;
-        }
         if relation != DispatchRelation::Subject {
             let operands = match self.node(id) {
                 SelectorOp::And { first, count } => self.operands(first, count),
@@ -1717,7 +1712,6 @@ impl SelectorProgram {
             SelectorOp::Feature(test) => {
                 let key = Self::dispatch_key_for_feature(test);
                 match query {
-                    DispatchQuery::Single => out.push(key),
                     DispatchQuery::Alternatives | DispatchQuery::Required if key == DispatchKey::Universal => {
                         return query == DispatchQuery::Required;
                     }
@@ -1730,20 +1724,6 @@ impl SelectorProgram {
                     for &operand in self.operands(first, count) {
                         self.dispatch_analysis(operand, relation, query, out);
                     }
-                    true
-                }
-                DispatchQuery::Single => {
-                    let key = self
-                        .operands(first, count)
-                        .iter()
-                        .map(|&operand| {
-                            let mut candidate = Vec::new();
-                            self.dispatch_analysis(operand, relation, query, &mut candidate);
-                            candidate[0]
-                        })
-                        .min_by_key(|key| dispatch_selectivity(*key))
-                        .unwrap_or(DispatchKey::Universal);
-                    out.push(key);
                     true
                 }
                 DispatchQuery::Alternatives => {
@@ -1772,10 +1752,6 @@ impl SelectorProgram {
                 }
             },
             SelectorOp::Or { first, count } => match query {
-                DispatchQuery::Single => {
-                    out.push(DispatchKey::Universal);
-                    true
-                }
                 DispatchQuery::Alternatives => {
                     let start = out.len();
                     for &operand in self.operands(first, count) {
@@ -1803,15 +1779,7 @@ impl SelectorProgram {
             SelectorOp::Where(inner)
             | SelectorOp::Host(inner)
             | SelectorOp::Slotted(inner)
-            | SelectorOp::ExposedToHost { parts: inner, .. } => {
-                if query == DispatchQuery::Single
-                    && matches!(self.node(id), SelectorOp::Host(_) | SelectorOp::Slotted(_))
-                {
-                    out.push(DispatchKey::Universal);
-                    return true;
-                }
-                self.dispatch_analysis(inner, relation, query, out)
-            }
+            | SelectorOp::ExposedToHost { parts: inner, .. } => self.dispatch_analysis(inner, relation, query, out),
             SelectorOp::InScope { inner, .. } if query != DispatchQuery::Required => {
                 self.dispatch_analysis(inner, relation, query, out)
             }
@@ -1833,42 +1801,22 @@ impl SelectorProgram {
                 out.push(DispatchKey::Directionality(value));
                 true
             }
-            SelectorOp::Root if query == DispatchQuery::Single => {
-                out.push(DispatchKey::Root);
-                true
-            }
-            SelectorOp::State(state) if query == DispatchQuery::Single => {
-                out.push(DispatchKey::State(state));
-                true
-            }
-            SelectorOp::Heading(_) if query == DispatchQuery::Single => {
-                out.push(DispatchKey::Heading);
-                true
-            }
-            _ if query == DispatchQuery::Single => {
-                out.push(DispatchKey::Universal);
-                true
-            }
             _ => query == DispatchQuery::Required,
         }
     }
 
     fn dispatch_key_of(&self, id: SelectorNodeID) -> DispatchKey {
-        self.single_dispatch_key_of(id)
-    }
-
-    fn single_dispatch_key_of(&self, id: SelectorNodeID) -> DispatchKey {
         match self.node(id) {
             SelectorOp::Feature(test) => Self::dispatch_key_for_feature(test),
             SelectorOp::And { first, count } => self
                 .operands(first, count)
                 .iter()
-                .map(|&operand| self.single_dispatch_key_of(operand))
+                .map(|&operand| self.dispatch_key_of(operand))
                 .min_by_key(|&key| dispatch_selectivity(key))
                 .unwrap_or(DispatchKey::Universal),
             SelectorOp::Where(inner)
             | SelectorOp::InScope { inner, .. }
-            | SelectorOp::ExposedToHost { parts: inner, .. } => self.single_dispatch_key_of(inner),
+            | SelectorOp::ExposedToHost { parts: inner, .. } => self.dispatch_key_of(inner),
             SelectorOp::Part(part) => DispatchKey::Part(part),
             SelectorOp::ValueState {
                 kind: ValueStateTestKind::CustomState,
