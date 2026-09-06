@@ -4545,14 +4545,16 @@ impl ElementFactStore {
     /// This arrives from computed style rather than from the DOM, so it is published as a set rather
     /// than one name at a time: an element's `animation-name` is recomputed whole.
     pub fn set_animation_names(&mut self, node: StyleNodeID, names: &[StyleAtomID], memory: &mut MemoryController) {
+        let previous = self
+            .metadata_of(node)
+            .map_or(&[][..], |metadata| &metadata.animation_names);
+        if previous == names {
+            return;
+        }
         let mut sorted: Vec<StyleAtomID> = names.to_vec();
         sorted.sort_unstable_by_key(|name| name.0);
         sorted.dedup();
-        if self
-            .metadata_of(node)
-            .map_or(&[][..], |metadata| &metadata.animation_names)
-            == sorted
-        {
+        if previous == sorted {
             return;
         }
         let previous = std::mem::take(&mut self.metadata_mut(node).animation_names);
