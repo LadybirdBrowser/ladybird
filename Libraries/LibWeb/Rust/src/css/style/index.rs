@@ -3048,7 +3048,7 @@ impl RuleDispatch {
                 }
             });
         }
-        if descending_cascade_order {
+        if descending_cascade_order && workspace.candidates.len() > 1 {
             workspace.cascade_sort.extend(workspace.candidates.iter().map(|&id| {
                 let binding = self.entry_bindings[id.index()];
                 let cascade_order = if binding.cascade_order_index == u32::MAX {
