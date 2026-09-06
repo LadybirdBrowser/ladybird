@@ -1648,7 +1648,7 @@ impl<'context> InlineFormattingContext<'context> {
     pub(crate) fn generate_line_boxes(&mut self, mut iterator: inline_level_iterator::InlineLevelIterator) {
         self.min_content_inline_size_from_max_content_layout =
             self.min_content_inline_size_from_max_content_items(iterator.items());
-        self.fragmented_inlines_in_pre_order = iterator.take_visited_fragmented_inlines();
+        self.fragmented_inlines_in_pre_order = iterator.fragmented_inlines_in_pre_order(self);
         let (reused_lines, reused_item_count) = if self.parent.has_line_clamp() {
             Default::default()
         } else {
@@ -2010,6 +2010,7 @@ impl<'context> InlineFormattingContext<'context> {
             self.automatic_content_inline_size = inline_size;
             self.run.records.note_omitted_line_layout();
             self.callbacks.arena().note_intrinsic_inline_measurement();
+            iterator.stash_for_reuse(self);
         } else {
             self.generate_line_boxes(iterator);
             if self.layout_mode == LayoutMode::Normal && !self.run.purpose.is_measurement() {
