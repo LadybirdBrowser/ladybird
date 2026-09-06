@@ -9,8 +9,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 frag 0 from TextNode start: 0, length: 1, rect: [13,13 14.265625x16] baseline: 12.796875
                     "A"
                 TextNode <#text> (not painted)
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
               BlockContainer <td> at [33.265625,13] table-cell [0+1+1 389.734375 1+1+0] [0+1+1 16 1+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 1, rect: [33.265625,13 9.34375x16] baseline: 12.796875
                     "B"

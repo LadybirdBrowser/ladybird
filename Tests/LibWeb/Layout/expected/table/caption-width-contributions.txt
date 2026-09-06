@@ -9,8 +9,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             frag 1 from TextNode start: 10, length: 4, rect: [38,18 40x10] baseline: 8
                 "CCCC"
             TextNode <#text> (not painted)
-          BlockContainer <(anonymous)> (not painted) children: inline
-            TextNode <#text> (not painted)
           Box <tbody> at [8,28] table-row-group [0+0+0 100 0+0+0] [0+0+0 11 0+0+0] children: not-inline
             Box <tr> at [8,28] table-row [0+0+0 100 0+0+0] [0+0+0 11 0+0+0] children: not-inline
               BlockContainer <td> at [8,28] table-cell [0+0+0 100 0+0+0] [0+0+0 11 0+0+0] [BFC] children: inline
@@ -26,8 +24,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             frag 0 from TextNode start: 0, length: 14, rect: [8,39 140x10] baseline: 8
                 "AAAA BBBB CCCC"
             TextNode <#text> (not painted)
-          BlockContainer <(anonymous)> (not painted) children: inline
-            TextNode <#text> (not painted)
           Box <tbody> at [8,49] table-row-group [0+0+0 140 0+0+0] [0+0+0 11 0+0+0] children: not-inline
             Box <tr> at [8,49] table-row [0+0+0 140 0+0+0] [0+0+0 11 0+0+0] children: not-inline
               BlockContainer <td> at [8,49] table-cell [0+0+0 140 0+0+0] [0+0+0 11 0+0+0] [BFC] children: inline
@@ -42,8 +38,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           BlockContainer <caption> at [28,60] [0+0+20 160 20+0+0] [0+0+0 10 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 4, rect: [88,60 40x10] baseline: 8
                 "AAAA"
-            TextNode <#text> (not painted)
-          BlockContainer <(anonymous)> (not painted) children: inline
             TextNode <#text> (not painted)
           Box <tbody> at [8,70] table-row-group [0+0+0 200 0+0+0] [0+0+0 11 0+0+0] children: not-inline
             Box <tr> at [8,70] table-row [0+0+0 200 0+0+0] [0+0+0 11 0+0+0] children: not-inline

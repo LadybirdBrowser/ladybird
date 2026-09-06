@@ -11,14 +11,10 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 TextNode <#text> (not painted)
               BlockContainer <(anonymous)> at [20.8125,19] table-cell [0+0+0 0 0+0+0] [0+0+9 0 9+0+0] [BFC] children: not-inline
               BlockContainer <(anonymous)> at [22.8125,19] table-cell [0+0+0 11.09375 0+0+0] [0+0+9 0 9+0+0] [BFC] children: not-inline
-            BlockContainer <(anonymous)> (not painted) children: inline
-              TextNode <#text> (not painted)
             Box <tr> at [10,30] table-row [0+0+0 23.90625 0+0+0] [0+0+0 18 0+0+0] children: not-inline
               BlockContainer <td> at [11,31] table-cell [0+0+1 8.8125 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 1, rect: [11,31 8.8125x16] baseline: 12.796875
                     "2"
-                TextNode <#text> (not painted)
-              BlockContainer <(anonymous)> (not painted) children: inline
                 TextNode <#text> (not painted)
               BlockContainer <td> at [23.8125,31] table-cell [0+0+1 9.09375 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 1, rect: [23.8125,31 9.09375x16] baseline: 12.796875

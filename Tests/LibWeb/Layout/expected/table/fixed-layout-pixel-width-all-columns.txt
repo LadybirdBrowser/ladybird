@@ -9,44 +9,30 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 frag 0 from TextNode start: 0, length: 4, rect: [11,11 26.078125x16] baseline: 12.796875
                     "cell"
                 TextNode <#text> (not painted)
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
               BlockContainer <td> at [73.578125,11] table-cell [0+1+1 58.578125 1+1+0] [0+1+1 16 1+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 4, rect: [73.578125,11 26.078125x16] baseline: 12.796875
                     "cell"
-                TextNode <#text> (not painted)
-              BlockContainer <(anonymous)> (not painted) children: inline
                 TextNode <#text> (not painted)
               BlockContainer <td> at [136.15625,11] table-cell [0+1+1 116.53125 1+1+0] [0+1+1 16 1+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 12, rect: [136.15625,11 94.96875x16] baseline: 12.796875
                     "A table cell"
                 TextNode <#text> (not painted)
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
               BlockContainer <td> at [256.6875,11] table-cell [0+1+1 348.3125 1+1+0] [0+1+1 16 1+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 12, rect: [256.6875,11 94.96875x16] baseline: 12.796875
                     "A table cell"
                 TextNode <#text> (not painted)
-            BlockContainer <(anonymous)> (not painted) children: inline
-              TextNode <#text> (not painted)
             Box <tr> at [9,29] table-row [0+0+0 598 0+0+0] [0+0+0 20 0+0+0] children: not-inline
               BlockContainer <td> at [11,31] table-cell [0+1+1 58.578125 1+1+0] [0+1+1 16 1+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 4, rect: [11,31 26.078125x16] baseline: 12.796875
                     "cell"
                 TextNode <#text> (not painted)
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
               BlockContainer <td> at [73.578125,31] table-cell [0+1+1 58.578125 1+1+0] [0+1+1 16 1+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 4, rect: [73.578125,31 26.078125x16] baseline: 12.796875
                     "cell"
                 TextNode <#text> (not painted)
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
               BlockContainer <td> at [136.15625,31] table-cell [0+1+1 116.53125 1+1+0] [0+1+1 16 1+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 12, rect: [136.15625,31 94.96875x16] baseline: 12.796875
                     "A table cell"
-                TextNode <#text> (not painted)
-              BlockContainer <(anonymous)> (not painted) children: inline
                 TextNode <#text> (not painted)
               BlockContainer <td> at [256.6875,31] table-cell [0+1+1 348.3125 1+1+0] [0+1+1 16 1+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 12, rect: [256.6875,31 94.96875x16] baseline: 12.796875
