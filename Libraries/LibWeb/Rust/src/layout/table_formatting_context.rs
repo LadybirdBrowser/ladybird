@@ -702,6 +702,39 @@ fn count_columns_in_subtree<T: TableTree>(tree: &T, root: Node) -> usize {
     count
 }
 
+/// The table-row and table-row-group boxes among the children of a table root, in the order their rows are laid out.
+fn row_containers_in_layout_order<T: TableTree>(tree: &T, table: Node) -> Vec<Node> {
+    // https://www.w3.org/TR/CSS22/tables.html#table-display
+    // table-header-group: Like 'table-row-group', but for visual formatting, the row group is always displayed before
+    // all other rows and row groups and after any top captions. [...] If a table contains multiple elements with
+    // 'display: table-header-group', only the first is rendered as a header; the others are treated as if they had
+    // 'display: table-row-group'.
+    // table-footer-group: Like 'table-row-group', but for visual formatting, the row group is always displayed after
+    // all other rows and row groups and before any bottom captions. [...] If a table contains multiple elements with
+    // 'display: table-footer-group', only the first is rendered as a footer; the others are treated as if they had
+    // 'display: table-row-group'.
+    let children = matching_children(tree, table, |display| {
+        display.is_table_row_group_kind() || display.is_table_row()
+    });
+    let header = children
+        .iter()
+        .position(|&child| tree.display(child).is_table_header_group());
+    let footer = children
+        .iter()
+        .position(|&child| tree.display(child).is_table_footer_group());
+    let mut ordered = Vec::with_capacity(children.len());
+    ordered.extend(header.map(|index| children[index]));
+    ordered.extend(
+        children
+            .iter()
+            .enumerate()
+            .filter(|&(index, _)| Some(index) != header && Some(index) != footer)
+            .map(|(_, &child)| child),
+    );
+    ordered.extend(footer.map(|index| children[index]));
+    ordered
+}
+
 pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node) -> TableGrid {
     let mut cells = Vec::new();
     let mut rows = Vec::new();
@@ -777,15 +810,20 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node) -> Table
         *current_row += 1;
     };
 
-    let mut child = tree.first_child(table);
-    while !child.is_invalid() {
-        let child_is_box = node_facts::kind_is_box(tree.node_data(child).kind.get());
-        let child_display = tree.display(child);
-        if child_is_box
-            && (child_display.is_table_row_group()
-                || child_display.is_table_header_group()
-                || child_display.is_table_footer_group())
-        {
+    for child in row_containers_in_layout_order(tree, table) {
+        if tree.display(child).is_table_row() {
+            process_row(
+                tree,
+                child,
+                None,
+                &mut cells,
+                &mut rows,
+                &mut occupancy,
+                &mut column_count,
+                &mut row_count,
+                &mut current_row,
+            );
+        } else {
             for row in matching_children(tree, child, |display| display.is_table_row()) {
                 process_row(
                     tree,
@@ -799,20 +837,7 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node) -> Table
                     &mut current_row,
                 );
             }
-        } else if child_is_box && child_display.is_table_row() {
-            process_row(
-                tree,
-                child,
-                None,
-                &mut cells,
-                &mut rows,
-                &mut occupancy,
-                &mut column_count,
-                &mut row_count,
-                &mut current_row,
-            );
         }
-        child = tree.next_sibling(child);
     }
 
     for cell in &mut cells {
@@ -1050,6 +1075,15 @@ impl<'pass> TableFormattingContext<'pass> {
             }
         }
         columns
+    }
+
+    /// The table-row-group boxes of the table, header and footer groups included, in the order their rows are laid
+    /// out: see row_containers_in_layout_order().
+    fn row_groups_in_layout_order(&self) -> Vec<Node> {
+        row_containers_in_layout_order(self, self.table_box)
+            .into_iter()
+            .filter(|&child| self.node_facts(child).is_table_row_group_kind())
+            .collect()
     }
 
     #[track_caller]
@@ -2667,7 +2701,7 @@ impl<'pass> TableFormattingContext<'pass> {
         }
 
         let mut group_block_offset = self.table_box_content_block_offset_in_wrapper + block_spacing;
-        for group in self.matching_children(self.table_box, |display| display.is_table_row_group_kind()) {
+        for group in self.row_groups_in_layout_order() {
             let group_rows = self.matching_children(group, |facts| facts.is_table_row());
             let mut block_size = CssPixels::default();
             let mut inline_size = CssPixels::default();
