@@ -2662,8 +2662,11 @@ impl StyleEngine {
         if dispatch.prefixes().is_empty() {
             return PrefixConvergenceOutcome::default();
         }
-        if matches!(self.prefix_caches.borrow().states.lookup(scope_program), Lookup::Known(states) if states.relation.is_some())
-        {
+        let retained_relation = match self.prefix_caches.borrow_mut().states.lookup_mut(scope_program) {
+            Lookup::Known(states) => states.relation.take(),
+            _ => None,
+        };
+        if let Some(mut relation) = retained_relation {
             let facts = self.facts.primary();
             let view = self.transaction_fact_view.as_ref().unwrap();
             let workspace = MatchEvaluationWorkspace::default();
@@ -2691,10 +2694,6 @@ impl StyleEngine {
                 None,
                 None,
             );
-            let mut relation = match self.prefix_caches.borrow_mut().states.lookup_mut(scope_program) {
-                Lookup::Known(states) => states.relation.take().unwrap(),
-                _ => unreachable!(),
-            };
             {
                 let mut changed = pending_nodes.clone();
                 if tree_relations_changed {
