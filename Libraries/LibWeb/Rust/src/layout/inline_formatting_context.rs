@@ -1422,87 +1422,163 @@ impl<'context> InlineFormattingContext<'context> {
         if self.input.available_space.inline_size != AvailableSize::MaxContent {
             return None;
         }
-        if self.facts(self.containing_block).is_scroll_container() {
-            return None;
-        }
-        if self.style(self.containing_block).writing_mode() != writing_mode::HORIZONTAL_TB {
-            return None;
-        }
+        self.intrinsic_inline_size_from_items(items, ItemMeasurement::MinContentFromMaxContentItems)
+    }
 
+    pub(crate) fn intrinsic_inline_size_from_items(
+        &self,
+        items: &[inline_level_iterator::Item],
+        measurement: ItemMeasurement,
+    ) -> Option<CssPixels> {
         let containing_style = self.style(self.containing_block);
         let containing_inline_size = self.input.containing_block_constraints.inline_basis();
-        if containing_style.text_indent().to_px(containing_inline_size) != CssPixels::default() {
+        if !inline_content_is_measurable_from_items(
+            &self.facts(self.containing_block),
+            containing_style,
+            containing_inline_size,
+        ) {
             return None;
         }
+        let container_wraps = containing_style.text_wrap_mode() == text_wrap_mode::WRAP;
 
-        let wraps = containing_style.text_wrap_mode() == text_wrap_mode::WRAP;
-        let mut maximum = CssPixels::default();
-        let mut current = CssPixels::default();
-        let mut line_has_content = false;
-        let finish_line = |maximum: &mut CssPixels, current: &mut CssPixels, line_has_content: &mut bool| {
-            *maximum = (*maximum).max(*current);
-            *current = CssPixels::default();
-            *line_has_content = false;
-        };
-        for item in items {
+        let mut lines = LinesWithoutLineBoxes::new(measurement != ItemMeasurement::MaxContent);
+        let mut leading_margin = CssPixels::default();
+        let mut leading_border = CssPixels::default();
+        let mut leading_padding = CssPixels::default();
+        for (index, item) in items.iter().enumerate() {
+            let remaining_items = &items[index + 1..];
+            let line_is_empty_or_ends_in_whitespace = lines.is_empty_or_ends_in_whitespace();
+            if item.is_collapsible_whitespace && line_is_empty_or_ends_in_whitespace {
+                if lines.breaks_before_next_fragment()
+                    && matches!(
+                        self.text_item_wrap_opportunity(
+                            item,
+                            self.style(self.parent_node(item.node)),
+                            true,
+                            remaining_items,
+                            line_is_empty_or_ends_in_whitespace,
+                            false,
+                        ),
+                        TextItemWrapOpportunity::BeforeWhitespaceSequence(_)
+                    )
+                {
+                    lines.finish();
+                }
+                leading_margin += item.margin_start;
+                leading_border += item.border_start;
+                leading_padding += item.padding_start;
+                continue;
+            }
+            let margin_start = item.margin_start + std::mem::take(&mut leading_margin);
+            let border_start = item.border_start + std::mem::take(&mut leading_border);
+            let padding_start = item.padding_start + std::mem::take(&mut leading_padding);
+            let content_inline_size = match (item.type_, measurement) {
+                (inline_level_iterator::ItemType::Element, ItemMeasurement::MinContentFromMaxContentItems) => {
+                    item.min_content_inline_size?
+                }
+                _ => item.inline_size,
+            };
+            let border_box_inline_size = line_box::inline_advance(
+                margin_start,
+                border_start + padding_start,
+                content_inline_size,
+                item.padding_end + item.border_end,
+                item.margin_end,
+            );
             match item.type_ {
+                inline_level_iterator::ItemType::ForcedBreak => lines.finish(),
                 inline_level_iterator::ItemType::Element => {
-                    if item.has_box_model_metrics() {
-                        return None;
+                    if container_wraps && lines.breaks_before_next_fragment() {
+                        lines.finish();
                     }
-                    if wraps && line_has_content {
-                        finish_line(&mut maximum, &mut current, &mut line_has_content);
-                    }
-                    current += item.min_content_inline_size?;
-                    line_has_content = true;
+                    lines.append(border_box_inline_size, false, CssPixels::default());
+                }
+                // An absolutely positioned box only takes a static position, which the pending inline edges attach to.
+                inline_level_iterator::ItemType::AbsolutelyPositionedElement => {}
+                inline_level_iterator::ItemType::BlockLevelBox | inline_level_iterator::ItemType::FloatingElement => {
+                    return None;
                 }
                 inline_level_iterator::ItemType::Text => {
-                    if item.has_box_model_metrics() || item.contains_tab(self) {
-                        return None;
-                    }
-                    if item.length_in_node == 0 && item.inline_size == CssPixels::default() {
-                        continue;
-                    }
-                    let parent_style = self.style(self.parent_node(item.node));
-                    let wraps = parent_style.text_wrap_mode() == text_wrap_mode::WRAP;
-                    if wraps && breaks_between_graphemes(parent_style) {
-                        return None;
-                    }
-                    if !wraps {
-                        current += item.inline_size;
-                        line_has_content = true;
-                        continue;
-                    }
-                    if item.is_ascii_whitespace(self) {
-                        if !item.is_collapsible_whitespace {
+                    let style = self.style(self.parent_node(item.node));
+                    let collapses_whitespace = matches!(
+                        style.white_space_collapse(),
+                        white_space_collapse::COLLAPSE | white_space_collapse::PRESERVE_BREAKS
+                    );
+                    let trailing_whitespace_inline_size = if collapses_whitespace {
+                        item.trailing_whitespace.inline_size
+                    } else {
+                        CssPixels::default()
+                    };
+                    if style.text_wrap_mode() == text_wrap_mode::WRAP {
+                        let is_whitespace = item.is_collapsible_whitespace || item.is_ascii_whitespace(self);
+                        let opportunity = if lines.breaks_before_next_fragment() {
+                            self.text_item_wrap_opportunity(
+                                item,
+                                style,
+                                is_whitespace,
+                                remaining_items,
+                                line_is_empty_or_ends_in_whitespace,
+                                false,
+                            )
+                        } else {
+                            TextItemWrapOpportunity::None
+                        };
+                        if is_whitespace {
+                            if matches!(opportunity, TextItemWrapOpportunity::BeforeWhitespaceSequence(_)) {
+                                lines.finish();
+                                continue;
+                            }
+                            lines.append(border_box_inline_size, true, trailing_whitespace_inline_size);
+                            continue;
+                        }
+                        if lines.breaks_at_every_opportunity && breaks_between_graphemes(style) {
                             return None;
                         }
-                        if line_has_content {
-                            finish_line(&mut maximum, &mut current, &mut line_has_content);
+                        if opportunity == TextItemWrapOpportunity::BeforeText {
+                            lines.finish();
                         }
-                        continue;
                     }
-                    if item.trailing_whitespace.inline_size != CssPixels::default() {
-                        return None;
-                    }
-                    if item.can_break_before && line_has_content {
-                        finish_line(&mut maximum, &mut current, &mut line_has_content);
-                    }
-                    current += item.inline_size;
-                    line_has_content = true;
-                }
-                inline_level_iterator::ItemType::ForcedBreak => {
-                    finish_line(&mut maximum, &mut current, &mut line_has_content);
-                }
-                inline_level_iterator::ItemType::BlockLevelBox
-                | inline_level_iterator::ItemType::AbsolutelyPositionedElement
-                | inline_level_iterator::ItemType::FloatingElement => {
-                    return None;
+                    lines.append(
+                        border_box_inline_size,
+                        item.ends_in_ascii_space(self),
+                        trailing_whitespace_inline_size,
+                    );
                 }
             }
         }
-        finish_line(&mut maximum, &mut current, &mut line_has_content);
-        Some(maximum)
+        lines.finish();
+        Some(lines.greatest_inline_size)
+    }
+
+    fn text_item_wrap_opportunity(
+        &self,
+        item: &inline_level_iterator::Item,
+        style: StyleValues<'_>,
+        is_whitespace: bool,
+        remaining_items: &[inline_level_iterator::Item],
+        line_ends_in_whitespace: bool,
+        can_break_after_previous_overflow_item: bool,
+    ) -> TextItemWrapOpportunity {
+        if style.text_wrap_mode() != text_wrap_mode::WRAP {
+            return TextItemWrapOpportunity::None;
+        }
+        if is_whitespace {
+            let next_inline_size =
+                inline_level_iterator::sequence_inline_size(self, remaining_items, false).unwrap_or_default();
+            return if next_inline_size > CssPixels::default() {
+                TextItemWrapOpportunity::BeforeWhitespaceSequence(item.border_box_inline_size() + next_inline_size)
+            } else {
+                TextItemWrapOpportunity::None
+            };
+        }
+        if item.can_break_before
+            || (can_break_after_previous_overflow_item && !self.overflow_break_applies_to_style(style))
+            || line_ends_in_whitespace
+        {
+            TextItemWrapOpportunity::BeforeText
+        } else {
+            TextItemWrapOpportunity::None
+        }
     }
 
     pub(crate) fn overflow_break_applies(&self, text_node: Node) -> bool {
@@ -1569,8 +1645,7 @@ impl<'context> InlineFormattingContext<'context> {
         }
     }
 
-    pub(crate) fn generate_line_boxes(&mut self) {
-        let mut iterator = inline_level_iterator::InlineLevelIterator::new(self);
+    pub(crate) fn generate_line_boxes(&mut self, mut iterator: inline_level_iterator::InlineLevelIterator) {
         self.min_content_inline_size_from_max_content_layout =
             self.min_content_inline_size_from_max_content_items(iterator.items());
         self.fragmented_inlines_in_pre_order = iterator.take_visited_fragmented_inlines();
@@ -1717,39 +1792,41 @@ impl<'context> InlineFormattingContext<'context> {
                     if style.text_wrap_mode() == text_wrap_mode::WRAP {
                         let is_whitespace = item.is_collapsible_whitespace || item.is_ascii_whitespace(self);
                         let item_inline_size = item.border_box_inline_size();
-                        let next_inline_size = if is_whitespace {
-                            iterator.next_inline_run_size(self).unwrap_or_default()
-                        } else {
-                            CssPixels::default()
-                        };
-                        if is_whitespace && next_inline_size > CssPixels::default() {
-                            let sequence_inline_size = item_inline_size + next_inline_size;
-                            let broke_line = if iterator.next_non_whitespace_text_allows_overflow_break(self) {
-                                line_builder.break_if_needed_before_overflow_breakable_item(sequence_inline_size)
-                            } else {
-                                line_builder.break_if_needed(sequence_inline_size)
-                            };
-                            if broke_line {
-                                line_builder.set_trailing_whitespace_on_previous_line();
-                                continue;
-                            }
-                        }
-                        let overflow_break_allowed = !is_whitespace && self.overflow_break_applies_to_style(style);
-                        let line_is_empty_or_ends_in_whitespace = self
+                        let line_ends_in_whitespace = self
                             .line_data()
                             .line_boxes
                             .last()
                             .is_some_and(line_box::LineBoxData::is_empty_or_ends_in_whitespace);
-                        let can_break_before_item = item.can_break_before
-                            || (can_break_after_previous_overflow_item && !overflow_break_allowed)
-                            || line_is_empty_or_ends_in_whitespace;
-                        if !is_whitespace && can_break_before_item {
-                            if overflow_break_allowed {
-                                line_builder.break_if_needed_before_overflow_breakable_item(item_inline_size);
-                            } else {
-                                line_builder.break_if_needed(item_inline_size);
+                        let opportunity = self.text_item_wrap_opportunity(
+                            &item,
+                            style,
+                            is_whitespace,
+                            iterator.remaining_items(),
+                            line_ends_in_whitespace,
+                            can_break_after_previous_overflow_item,
+                        );
+                        let overflow_break_allowed = !is_whitespace && self.overflow_break_applies_to_style(style);
+                        match opportunity {
+                            TextItemWrapOpportunity::BeforeWhitespaceSequence(sequence_inline_size) => {
+                                let broke_line = if iterator.next_non_whitespace_text_allows_overflow_break(self) {
+                                    line_builder.break_if_needed_before_overflow_breakable_item(sequence_inline_size)
+                                } else {
+                                    line_builder.break_if_needed(sequence_inline_size)
+                                };
+                                if broke_line {
+                                    line_builder.set_trailing_whitespace_on_previous_line();
+                                    continue;
+                                }
                             }
-                            line_builder.note_soft_wrap_opportunity();
+                            TextItemWrapOpportunity::BeforeText => {
+                                if overflow_break_allowed {
+                                    line_builder.break_if_needed_before_overflow_breakable_item(item_inline_size);
+                                } else {
+                                    line_builder.break_if_needed(item_inline_size);
+                                }
+                                line_builder.note_soft_wrap_opportunity();
+                            }
+                            TextItemWrapOpportunity::None => {}
                         }
                         if overflow_break_allowed {
                             self.break_overflowing_text_item(&mut line_builder, &mut item);
@@ -1909,27 +1986,53 @@ impl<'context> InlineFormattingContext<'context> {
 
     pub(crate) fn run(&mut self) {
         assert!(self.facts(self.containing_block).children_are_inline());
-        self.generate_line_boxes();
-        if self.layout_mode == LayoutMode::Normal && !self.run.purpose.is_measurement() {
-            self.compute_inline_box_pieces();
-            self.fold_inline_ancestor_relative_insets_into_line_data();
-        }
-        self.automatic_content_block_size = {
-            let data = self.line_data();
-            let lines = &data.line_boxes;
-            if lines.iter().any(|line| line.has_block_level_box) {
-                lines
-                    .last()
-                    .map_or(CssPixels::default(), |line| line.physical_vertical_end())
-            } else {
-                lines
-                    .iter()
-                    .fold(CssPixels::default(), |sum, line| sum + line.physical_vertical_extent())
+        let iterator = inline_level_iterator::InlineLevelIterator::new(self);
+        // OPTIMIZATION: Under a min-content or max-content constraint every soft wrap opportunity breaks the line or
+        //               none does, so eligible content is measured from its items without building line boxes.
+        //               Earlier floats would shorten lines by an amount that depends on block positions the
+        //               measurement leaves unresolved.
+        let paragraph_measurement = if self.run.purpose == formatting_context::LayoutPurpose::IntrinsicInlineMeasurement
+            && !self.parent.has_floating_boxes()
+        {
+            match self.input.available_space.inline_size {
+                AvailableSize::MinContent => Some(ItemMeasurement::MinContent),
+                AvailableSize::MaxContent => Some(ItemMeasurement::MaxContent),
+                AvailableSize::Definite(_) | AvailableSize::Indefinite => None,
             }
+        } else {
+            None
         };
-        self.automatic_content_inline_size = self
-            .parent
-            .greatest_child_inline_size_including_floats(self.containing_block);
+        if let Some(inline_size) = paragraph_measurement
+            .and_then(|measurement| self.intrinsic_inline_size_from_items(iterator.items(), measurement))
+        {
+            self.min_content_inline_size_from_max_content_layout =
+                self.min_content_inline_size_from_max_content_items(iterator.items());
+            self.automatic_content_inline_size = inline_size;
+            self.run.records.note_omitted_line_layout();
+            self.callbacks.arena().note_intrinsic_inline_measurement();
+        } else {
+            self.generate_line_boxes(iterator);
+            if self.layout_mode == LayoutMode::Normal && !self.run.purpose.is_measurement() {
+                self.compute_inline_box_pieces();
+                self.fold_inline_ancestor_relative_insets_into_line_data();
+            }
+            self.automatic_content_block_size = {
+                let data = self.line_data();
+                let lines = &data.line_boxes;
+                if lines.iter().any(|line| line.has_block_level_box) {
+                    lines
+                        .last()
+                        .map_or(CssPixels::default(), |line| line.physical_vertical_end())
+                } else {
+                    lines
+                        .iter()
+                        .fold(CssPixels::default(), |sum, line| sum + line.physical_vertical_extent())
+                }
+            };
+            self.automatic_content_inline_size = self
+                .parent
+                .greatest_child_inline_size_including_floats(self.containing_block);
+        }
         let baselines =
             formatting_context::derive_baselines(self.run.records, &self.callbacks, self.containing_block, false);
         if self.containing_block == self.parent.root_box() {
@@ -2010,6 +2113,79 @@ pub(crate) struct SpaceUsedByFloats {
 
 fn breaks_between_graphemes(style: StyleValues<'_>) -> bool {
     style.overflow_wrap() == overflow_wrap::ANYWHERE || style.word_break() == word_break::BREAK_WORD
+}
+
+pub(crate) fn inline_content_is_measurable_from_items(
+    facts: &NodeFacts,
+    style: StyleValues<'_>,
+    inline_basis: CssPixels,
+) -> bool {
+    !facts.is_scroll_container()
+        && style.writing_mode() == writing_mode::HORIZONTAL_TB
+        && style.text_indent().to_px(inline_basis) == CssPixels::default()
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ItemMeasurement {
+    MinContent,
+    MaxContent,
+    MinContentFromMaxContentItems,
+}
+
+#[derive(Default)]
+struct LinesWithoutLineBoxes {
+    breaks_at_every_opportunity: bool,
+    greatest_inline_size: CssPixels,
+    inline_size: CssPixels,
+    has_fragments: bool,
+    ends_in_whitespace: bool,
+    trailing_whitespace_inline_size: CssPixels,
+}
+
+impl LinesWithoutLineBoxes {
+    fn new(breaks_at_every_opportunity: bool) -> Self {
+        Self {
+            breaks_at_every_opportunity,
+            ..Self::default()
+        }
+    }
+
+    fn is_empty_or_ends_in_whitespace(&self) -> bool {
+        !self.has_fragments || self.ends_in_whitespace
+    }
+
+    fn breaks_before_next_fragment(&self) -> bool {
+        self.breaks_at_every_opportunity && self.has_fragments
+    }
+
+    fn append(
+        &mut self,
+        border_box_inline_size: CssPixels,
+        ends_in_whitespace: bool,
+        trailing_whitespace_inline_size: CssPixels,
+    ) {
+        self.inline_size += border_box_inline_size;
+        self.has_fragments = true;
+        self.ends_in_whitespace = ends_in_whitespace;
+        self.trailing_whitespace_inline_size = trailing_whitespace_inline_size;
+    }
+
+    fn finish(&mut self) {
+        self.greatest_inline_size = self
+            .greatest_inline_size
+            .max(self.inline_size - self.trailing_whitespace_inline_size);
+        self.inline_size = CssPixels::default();
+        self.has_fragments = false;
+        self.ends_in_whitespace = false;
+        self.trailing_whitespace_inline_size = CssPixels::default();
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TextItemWrapOpportunity {
+    None,
+    BeforeWhitespaceSequence(CssPixels),
+    BeforeText,
 }
 
 pub(crate) fn line_physical_horizontal_extent(line: &line_box::LineBoxData) -> CssPixels {

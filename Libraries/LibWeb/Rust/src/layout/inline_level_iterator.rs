@@ -97,15 +97,6 @@ impl Item {
         self.border_start + self.padding_start + self.inline_size + self.padding_end + self.border_end
     }
 
-    pub(crate) fn has_box_model_metrics(&self) -> bool {
-        self.margin_start != CssPixels::default()
-            || self.border_start != CssPixels::default()
-            || self.padding_start != CssPixels::default()
-            || self.padding_end != CssPixels::default()
-            || self.border_end != CssPixels::default()
-            || self.margin_end != CssPixels::default()
-    }
-
     pub(crate) fn is_ascii_whitespace(&self, context: &inline_formatting_context::InlineFormattingContext<'_>) -> bool {
         assert_eq!(self.type_, ItemType::Text);
         let text = &context.callbacks.text_content(self.node).text;
@@ -114,10 +105,12 @@ impl Item {
             .all(|unit| *unit <= 0x7f && (*unit as u8).is_ascii_whitespace())
     }
 
-    pub(crate) fn contains_tab(&self, context: &inline_formatting_context::InlineFormattingContext<'_>) -> bool {
+    pub(crate) fn ends_in_ascii_space(&self, context: &inline_formatting_context::InlineFormattingContext<'_>) -> bool {
         assert_eq!(self.type_, ItemType::Text);
         let text = &context.callbacks.text_content(self.node).text;
-        text[self.offset_in_node..self.offset_in_node + self.length_in_node].contains(&(b'\t' as u16))
+        text[self.offset_in_node..self.offset_in_node + self.length_in_node]
+            .last()
+            .is_some_and(|unit| line_box_fragment::is_ascii_space(*unit))
     }
 
     pub(crate) fn allows_overflow_break(
@@ -885,6 +878,10 @@ impl InlineLevelIterator {
         InlineLevelIteratorGenerator::generate(context, AtomicInlineSizing::InlineSize)
     }
 
+    pub(crate) fn remaining_items(&self) -> &[Item] {
+        &self.items[self.next_item_index..]
+    }
+
     pub(crate) fn next(&mut self) -> Option<Item> {
         let index = self.next_item_index;
         if index >= self.items.len() {
@@ -910,43 +907,14 @@ impl InlineLevelIterator {
         &self,
         context: &inline_formatting_context::InlineFormattingContext<'_>,
     ) -> Option<CssPixels> {
-        self.next_sequence_inline_size(context, false)
+        sequence_inline_size(context, self.remaining_items(), false)
     }
 
     pub(crate) fn next_unbreakable_run_inline_size(
         &self,
         context: &inline_formatting_context::InlineFormattingContext<'_>,
     ) -> CssPixels {
-        self.next_sequence_inline_size(context, true).unwrap_or_default()
-    }
-
-    fn next_sequence_inline_size(
-        &self,
-        context: &inline_formatting_context::InlineFormattingContext<'_>,
-        stop_at_overflow_breakable_text: bool,
-    ) -> Option<CssPixels> {
-        let mut size = CssPixels::default();
-        for item in &self.items[self.next_item_index..] {
-            match item.type_ {
-                ItemType::ForcedBreak => return Some(CssPixels::default()),
-                ItemType::BlockLevelBox => break,
-                _ => {}
-            }
-            let style = context.style(context.style_source(item.node));
-            if style.text_wrap_mode() == text_wrap_mode::WRAP {
-                if item.type_ != ItemType::Text || item.is_collapsible_whitespace {
-                    break;
-                }
-                if item.is_ascii_whitespace(context) {
-                    break;
-                }
-                if stop_at_overflow_breakable_text && context.overflow_break_applies(item.node) {
-                    break;
-                }
-            }
-            size += item.border_box_inline_size();
-        }
-        (size > CssPixels::default()).then_some(size)
+        sequence_inline_size(context, self.remaining_items(), true).unwrap_or_default()
     }
 
     pub(crate) fn next_non_whitespace_text_allows_overflow_break(
@@ -961,4 +929,33 @@ impl InlineLevelIterator {
     pub(crate) fn take_visited_fragmented_inlines(&mut self) -> Vec<Node> {
         std::mem::take(&mut self.visited_fragmented_inlines)
     }
+}
+
+pub(crate) fn sequence_inline_size(
+    context: &inline_formatting_context::InlineFormattingContext<'_>,
+    items: &[Item],
+    stop_at_overflow_breakable_text: bool,
+) -> Option<CssPixels> {
+    let mut size = CssPixels::default();
+    for item in items {
+        match item.type_ {
+            ItemType::ForcedBreak => return Some(CssPixels::default()),
+            ItemType::BlockLevelBox => break,
+            _ => {}
+        }
+        let style = context.style(context.style_source(item.node));
+        if style.text_wrap_mode() == text_wrap_mode::WRAP {
+            if item.type_ != ItemType::Text || item.is_collapsible_whitespace {
+                break;
+            }
+            if item.is_ascii_whitespace(context) {
+                break;
+            }
+            if stop_at_overflow_breakable_text && context.overflow_break_applies(item.node) {
+                break;
+            }
+        }
+        size += item.border_box_inline_size();
+    }
+    (size > CssPixels::default()).then_some(size)
 }
