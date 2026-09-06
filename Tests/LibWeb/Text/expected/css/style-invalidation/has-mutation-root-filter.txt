@@ -17,14 +17,14 @@ PASS: actual mutation root keeps related :has anchor: empty pseudo-class argumen
 PASS: actual mutation root skips unrelated :has anchor: checked pseudo-class argument | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: actual mutation root keeps related :has anchor: checked pseudo-class argument | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: actual mutation root skips unrelated :has anchor: checked pseudo-class argument after unrelated disabled mutation | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: actual mutation root keeps related :has anchor: checked pseudo-class argument after unrelated disabled mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: actual mutation root keeps related :has anchor: checked pseudo-class argument after unrelated disabled mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: actual mutation root skips unrelated sibling-combinator :has anchor | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: actual mutation root keeps sibling-combinator :has anchor for child removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
+PASS: actual mutation root keeps sibling-combinator :has anchor for child removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: actual mutation root skips unrelated RHS sibling-combinator :has anchor: adjacent sibling argument | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: actual mutation root keeps RHS sibling-combinator :has anchor: adjacent sibling argument | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
+PASS: actual mutation root keeps RHS sibling-combinator :has anchor: adjacent sibling argument | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: actual mutation root skips unrelated RHS sibling-combinator :has anchor: subsequent sibling argument | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: actual mutation root keeps RHS sibling-combinator :has anchor: subsequent sibling argument | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
-PASS: batched :has mutation invalidates after earlier unrelated mutation: adjacent sibling argument | elementStyleRecomputations=4, elementStyleNoopRecomputations=3
-PASS: batched :has mutation invalidates after earlier unrelated mutation: subsequent sibling argument | elementStyleRecomputations=4, elementStyleNoopRecomputations=3
+PASS: actual mutation root keeps RHS sibling-combinator :has anchor: subsequent sibling argument | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: batched :has mutation invalidates after earlier unrelated mutation: adjacent sibling argument | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: batched :has mutation invalidates after earlier unrelated mutation: subsequent sibling argument | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: mixed-rule sibling scan preserves feature-filter skip: relative adjacent sibling argument | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: mixed-rule sibling scan preserves feature-filter skip: relative subsequent sibling argument | elementStyleRecomputations=0, elementStyleNoopRecomputations=0

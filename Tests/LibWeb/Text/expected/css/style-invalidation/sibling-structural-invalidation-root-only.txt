@@ -29,4 +29,4 @@ PASS: shadow host gains :is(:first-child) inherited color after previous removal
 PASS: shadow host gains :where(:last-child) inherited color after next removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: shadow host loses [data-state]:first-child inherited color after prepend | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: shadow host loses child selector inherited color after prepend | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: shadow host gains adjacent combinator inherited custom property after inserted anchor | elementStyleRecomputations=9, elementStyleNoopRecomputations=0
+PASS: shadow host gains adjacent combinator inherited custom property after inserted anchor | elementStyleRecomputations=4, elementStyleNoopRecomputations=0

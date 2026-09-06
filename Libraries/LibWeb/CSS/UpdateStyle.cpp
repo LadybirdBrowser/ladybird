@@ -4,12 +4,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashTable.h>
+#include <AK/QuickSort.h>
 #include <AK/ScopeGuard.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/Invalidation/SlotInvalidator.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
+#include <LibWeb/CSS/StyleInputRecord.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
@@ -225,6 +229,187 @@ static void verify_engine_computed_record_environment(DOM::Element& element, Sty
         actual->for_each_property([&](Utf16FlyString const& name, StyleProperty const&) { check(name); });
 }
 
+static RefPtr<CustomPropertyData const> custom_property_environment_base(RefPtr<CustomPropertyData const> data)
+{
+    if (data && data->is_animation_overlay())
+        return data->parent();
+    return data;
+}
+
+// Every custom property whose value differs between the environment an element held and the one
+// it holds now, over every name either declares. Names above them moved with an ancestor and were
+// propagated from there.
+static Vector<Utf16FlyString> changed_custom_property_names(CustomPropertyData const* old_data, CustomPropertyData const* new_data)
+{
+    Vector<Utf16FlyString> names;
+    HashTable<Utf16FlyString> seen;
+    auto consider = [&](Utf16FlyString const& name, StyleProperty const&) {
+        if (seen.set(name) != AK::HashSetResult::InsertedNewEntry)
+            return;
+        if (custom_property_value_moved(name, old_data, new_data))
+            names.append(name);
+    };
+    if (old_data)
+        old_data->for_each_property([&](auto const& name, auto const& property) { consider(name, property); });
+    if (new_data)
+        new_data->for_each_property([&](auto const& name, auto const& property) { consider(name, property); });
+    quick_sort(names);
+    return names;
+}
+
+static bool sorted_names_intersect(ReadonlySpan<Utf16FlyString> a, ReadonlySpan<Utf16FlyString> b)
+{
+    size_t i = 0;
+    size_t j = 0;
+    while (i < a.size() && j < b.size()) {
+        if (a[i] == b[j])
+            return true;
+        if (a[i] < b[j])
+            ++i;
+        else
+            ++j;
+    }
+    return false;
+}
+
+// An element's custom properties moved. Every styled descendant holds the environment it inherits
+// by identity, so each takes the moved one here, directly, and only the descendants whose cascades
+// read a name that changed value are asked to compute again. The engine is told nothing: the walk
+// is the propagation, in the flat tree the engine would have derived reactions over.
+static void propagate_custom_property_environment_move(DOM::Document& document, DOM::Element& origin, RefPtr<CustomPropertyData const> old_origin_data)
+{
+    // Nothing inherits from an element with nothing below it in the flat tree.
+    if (!origin.first_element_child() && !origin.shadow_root() && !is<HTML::HTMLSlotElement>(origin))
+        return;
+    auto& style_computer = document.style_computer();
+    auto& style_engine = style_computer.style_engine();
+    auto old_origin_base = custom_property_environment_base(move(old_origin_data));
+    auto new_origin_base = custom_property_environment_base(origin.custom_property_data({}));
+    auto changed_names = changed_custom_property_names(old_origin_base.ptr(), new_origin_base.ptr());
+
+    // Whether the element's cascades read a name that changed, through var(); an element whose
+    // computation reads past what any list of names can say is asked to compute again outright.
+    auto var_reads_a_changed_name = [&](DOM::Element& element) {
+        if (auto const* record = element.style_input_record()) {
+            if (!record->custom_property_reads_are_complete)
+                return true;
+            return sorted_names_intersect(record->custom_property_reads, changed_names);
+        }
+        // An element without a style input record has a record the engine computed: the engine
+        // knows whether that reads custom properties at all, and settles the reaction it gets.
+        return style_engine.node_style_reads_custom_properties(element.style_node_id());
+    };
+    // An element that has to compute again is recorded with a recompute reaction alone: its
+    // descendants are this walk's, or that computation's, to reach. (The engine fans an inherited
+    // custom-properties reaction out to every child of an applied reaction.)
+    auto reaction_for = [&](DOM::Element& element) -> Optional<u8> {
+        if (element.style_uses_if_css_function() || element.style_uses_inherit_css_function() || element.style_uses_custom_function()
+            || element.style_depends_on_style_container_query() || var_reads_a_changed_name(element))
+            return StyleEngine::RecomputeStyle;
+        return {};
+    };
+    auto mark = [&](DOM::Element& element, u8 reaction) {
+        style_engine.record_derived_element_style_input_change(element.style_node_id(), reaction);
+    };
+
+    Function<void(DOM::Element&, RefPtr<CustomPropertyData const>)> visit_children;
+    auto visit = [&](DOM::Element& element, DOM::Element& parent, RefPtr<CustomPropertyData const> const& old_parent_data) {
+        // An unstyled subtree materializes against whatever it inherits then.
+        if (!element.has_style())
+            return;
+        auto new_parent_inheritable = [&]() -> RefPtr<CustomPropertyData const> {
+            auto data = custom_property_environment_base(parent.custom_property_data({}));
+            return data ? data->inheritable(document) : nullptr;
+        }();
+        auto old_parent_inheritable = [&]() -> RefPtr<CustomPropertyData const> {
+            auto data = custom_property_environment_base(old_parent_data);
+            return data ? data->inheritable(document) : nullptr;
+        }();
+        auto existing = element.custom_property_data({});
+        bool const has_animation_overlay = existing && existing->is_animation_overlay();
+        auto existing_base = custom_property_environment_base(existing);
+        auto move_pseudo_element_environments = [&](RefPtr<CustomPropertyData const> const& moved) {
+            auto existing_inheritable = existing_base ? existing_base->inheritable(document) : nullptr;
+            auto moved_inheritable = moved ? moved->inheritable(document) : nullptr;
+            for (auto kind = 0; kind < to_underlying(PseudoElement::KnownPseudoElementCount); ++kind) {
+                auto pseudo_element = static_cast<PseudoElement>(kind);
+                auto pseudo_data = element.custom_property_data(pseudo_element);
+                if (!pseudo_data)
+                    continue;
+                if (pseudo_data.ptr() == existing_base.ptr())
+                    element.set_custom_property_data(pseudo_element, moved);
+                else if (pseudo_data.ptr() == existing_inheritable.ptr())
+                    element.set_custom_property_data(pseudo_element, moved_inheritable);
+                else
+                    mark(element, StyleEngine::RecomputeStyle);
+            }
+        };
+        // An element that has to compute again takes the moved environment in that computation,
+        // which reaches its own descendants in turn.
+        //
+        // An element declaring no custom property of its own holds the environment it inherits,
+        // whichever data it holds it in; its cascade declaring some now is a computation's to find.
+        bool const holds_inherited_environment = existing_base.ptr() == old_parent_inheritable.ptr()
+            || ((!existing_base || existing_base->declared_count() == 0) && !style_engine.node_declares_custom_properties(element.style_node_id()));
+        if (holds_inherited_environment && !has_animation_overlay) {
+            if (auto reaction = reaction_for(element); reaction.has_value()) {
+                mark(element, *reaction);
+                return;
+            }
+            if (new_parent_inheritable.ptr() != existing_base.ptr()) {
+                move_pseudo_element_environments(new_parent_inheritable);
+                element.set_custom_property_data({}, new_parent_inheritable);
+                element.republish_style_record_environment();
+            }
+            visit_children(element, existing_base);
+            return;
+        }
+        // The element declares custom properties of its own over the environment it inherits. Its
+        // declared values stand while it reads nothing that changed; a computation decides the rest.
+        if (!existing_base || existing_base->declared_count() == 0 || has_animation_overlay) {
+            mark(element, StyleEngine::RecomputeStyle);
+            return;
+        }
+        if (auto reaction = reaction_for(element); reaction.has_value()) {
+            mark(element, *reaction);
+            return;
+        }
+        OrderedHashMap<Utf16FlyString, StyleProperty> own_values;
+        size_t declared = 0;
+        for (auto const& [name, property] : existing_base->own_values()) {
+            if (declared++ >= existing_base->declared_count())
+                break;
+            own_values.set(name, property);
+        }
+        RefPtr<CustomPropertyData const> moved = CustomPropertyData::create(move(own_values), new_parent_inheritable);
+        move_pseudo_element_environments(moved);
+        element.set_custom_property_data({}, moved);
+        element.republish_style_record_environment();
+        visit_children(element, existing_base);
+    };
+    visit_children = [&](DOM::Element& parent, RefPtr<CustomPropertyData const> old_parent_data) {
+        for (auto* child = parent.first_child(); child; child = child->next_sibling()) {
+            auto* element = as_if<DOM::Element>(*child);
+            if (!element || element->assigned_slot())
+                continue;
+            visit(*element, parent, old_parent_data);
+        }
+        if (auto shadow_root = parent.shadow_root()) {
+            for (auto* child = shadow_root->first_child(); child; child = child->next_sibling()) {
+                if (auto* element = as_if<DOM::Element>(*child))
+                    visit(*element, parent, old_parent_data);
+            }
+        }
+        if (auto* slot = as_if<HTML::HTMLSlotElement>(parent)) {
+            for (auto const& node : slot->assigned_nodes()) {
+                if (auto* element = as_if<DOM::Element>(*node))
+                    visit(*element, parent, old_parent_data);
+            }
+        }
+    };
+    visit_children(origin, old_origin_base);
+}
+
 static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Document& document, Vector<StyleEngine::PublishedStyleDelta> const& reactions)
 {
     // Reactions are applied in preorder, so every element's inheritance inputs are ready when it is
@@ -302,6 +487,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             }
 
             auto previous_style_record = element->style_record_identity();
+            auto old_custom_property_data = element->custom_property_data({});
             bool const was_unstyled = !previous_style_record;
             auto const* previous_box_values = element->style_group<ComputedValues::BoxValues>();
             auto const previous_display = previous_box_values
@@ -494,8 +680,11 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             auto& style_engine = document.style_computer().style_engine();
             auto current_style_record = element->style_record_identity();
             u32 facts = 0;
+            // The environment moved: the element's descendants take it here, and the ones that read
+            // a moved name are recorded for their own computation. The engine derives no reactions
+            // for the move.
             if (did_change_custom_properties)
-                facts |= StyleEngine::DidChangeCustomProperties;
+                propagate_custom_property_environment_move(document, *element, old_custom_property_data);
             if (invalidation.is_none())
                 facts |= StyleEngine::InvalidationIsNone;
             if (invalidation.needs_layout_tree_rebuild())

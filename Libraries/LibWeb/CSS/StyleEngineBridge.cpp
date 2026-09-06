@@ -534,6 +534,15 @@ void StyleEngine::record_element_style_input_change(StyleNodeID style_node, u8 r
     }
 }
 
+void StyleEngine::record_derived_element_style_input_change(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups)
+{
+    if (style_node != 0 && reaction != 0) {
+        flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
+        request_frame_for_first_recorded_input(*this, m_style_computer);
+        record_derived_element_style_input(style_node, reaction, inherited_style_groups);
+    }
+}
+
 void StyleEngine::record_flat_tree_descendant_style_input_changes(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups)
 {
     if (style_node == 0 || reaction == 0)
