@@ -27,7 +27,7 @@ def build_vcpkg(vcpkg_checkout: pathlib.Path):
     git_repo = "https://github.com/microsoft/vcpkg.git"
     git_rev = vcpkg_json["builtin-baseline"]
 
-    build_dir = LADYBIRD_SOURCE_DIR / "Build"
+    build_dir = vcpkg_checkout.parent
     build_dir.mkdir(parents=True, exist_ok=True)
 
     if not vcpkg_checkout.is_dir():
