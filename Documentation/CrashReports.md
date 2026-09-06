@@ -14,6 +14,13 @@ Hyphens in the time keep filenames compatible with Windows; the random suffix
 avoids collisions. Retention includes reports saved with the older filenames.
 Nothing is uploaded automatically.
 
+The crash screen provides **Reload Page** and **View crash reports** actions.
+**Settings > Advanced > Crash reports > Open folder** is available even when no
+tab has crashed or no reports have been saved yet. Reload restores the failed
+page without adding a crash-screen history entry; Back and Forward continue to
+use the original session history. The crash overlay is native browser UI, so
+displaying it does not require the replacement renderer to load a crash document.
+
 Reports and filenames identify the helper type. Build information includes the
 full Git commit, tracked-source modification state, C++ compiler identity and
 version, macOS SDK version when applicable, CMake build options, and flags from
@@ -46,6 +53,11 @@ not include evaluated operands or runtime page data. It is saved before terminal
 formatting and backtrace generation, and remains available if those fail.
 
 ## Architecture
+
+After a crash, the browser displays a native AppKit or Qt overlay and retains
+the failed URL, title and committed history entry. The replacement WebContent
+process remains dormant until the user chooses a recovery action. The overlay
+provides reload and report-folder actions directly in the browser process.
 
 The browser creates an unlinked temporary file before spawning each helper and
 passes a descriptor to the child. The child cannot access the report directory.

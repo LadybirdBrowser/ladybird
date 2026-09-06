@@ -11,6 +11,7 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/HTML/AutoplayPolicy.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/CrashReport.h>
 #include <LibWebView/SearchEngine.h>
 #include <LibWebView/WebUI/SettingsUI.h>
 
@@ -45,6 +46,14 @@ static bool should_show_config_variable(ConfigVariableID id)
 
 void SettingsUI::register_interfaces()
 {
+    register_interface("showCrashReports"sv, [this](auto const&) {
+        if (!CrashReport::is_supported()) {
+            async_send_message("crashReportsStatus"sv, "Crash reporting is not available on this platform yet."_string);
+            return;
+        }
+        auto result = CrashReport::show_directory();
+        async_send_message("crashReportsStatus"sv, result.is_error() ? "Could not open the crash reports folder."_string : String {});
+    });
     register_interface("loadFeatures"sv, [this](auto const&) {
         load_features();
     });

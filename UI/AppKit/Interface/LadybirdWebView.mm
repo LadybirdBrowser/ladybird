@@ -13,6 +13,7 @@
 #include <LibWakeLock/DisplaySleepInhibitor.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/CrashReport.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
 
@@ -1255,6 +1256,12 @@ static NSImage* crash_overlay_icon()
         [stack setCustomSpacing:32 afterView:icon_view];
         [stack setCustomSpacing:16 afterView:title];
         [stack setCustomSpacing:24 afterView:message];
+        if (WebView::CrashReport::is_supported()) {
+            auto* reports_button = [NSButton buttonWithTitle:@"View crash reports"
+                                                      target:self
+                                                      action:@selector(showCrashReports:)];
+            [stack addArrangedSubview:reports_button];
+        }
         [stack setTranslatesAutoresizingMaskIntoConstraints:NO];
 
         _crash_overlay = [[NSBox alloc] init];
@@ -1280,6 +1287,15 @@ static NSImage* crash_overlay_icon()
 - (void)reloadFromCrashOverlay:(id)sender
 {
     m_web_view_bridge->reload();
+}
+
+- (void)showCrashReports:(id)sender
+{
+    if (WebView::CrashReport::show_directory().is_error()) {
+        auto* alert = [[NSAlert alloc] init];
+        [alert setMessageText:@"Could not open the crash reports folder."];
+        [alert beginSheetModalForWindow:[self window] completionHandler:nil];
+    }
 }
 
 #pragma mark - NSView
