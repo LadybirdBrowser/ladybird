@@ -282,8 +282,10 @@ impl<'a> SelectorCompiler<'a> {
         // enclosing scope is a constraint of its own. Within one scope the roots are alternatives.
         // An empty level list means one scope holding everything, which is what a caller with a
         // single `@scope` passes.
-        let levels: Vec<(usize, usize, usize, usize)> = if scope_levels.is_empty() {
-            vec![(0, scope_roots.len(), 0, scope_limits.len())]
+        let single_level = [(0, scope_roots.len(), 0, scope_limits.len())];
+        let nested_levels;
+        let levels: &[(usize, usize, usize, usize)] = if scope_levels.is_empty() {
+            &single_level
         } else {
             let mut spans = Vec::with_capacity(scope_levels.len());
             let mut root_start = 0usize;
@@ -295,7 +297,8 @@ impl<'a> SelectorCompiler<'a> {
                 root_start = root_end;
                 limit_start = limit_end;
             }
-            spans
+            nested_levels = spans;
+            &nested_levels
         };
 
         // https://drafts.csswg.org/css-cascade-6/#scoped-rules
