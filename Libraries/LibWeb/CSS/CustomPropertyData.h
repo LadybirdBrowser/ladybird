@@ -51,6 +51,10 @@ public:
     // ones, because absorption appends.
     [[nodiscard]] size_t declared_count() const { return m_declared_count; }
 
+    // Whether this environment declares the same names, in the same order, as another: what its
+    // declared name atoms are made of, whatever the values.
+    [[nodiscard]] bool declares_same_names(CustomPropertyData const&) const;
+
     // The engine's identities for the names this environment declares, sorted and deduplicated,
     // worked out once for the environment rather than once for each element handed it: a page whose
     // theme declares a thousand names hands the same thousand to every element under it. Atom ids

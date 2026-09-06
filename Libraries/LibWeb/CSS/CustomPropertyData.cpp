@@ -144,6 +144,19 @@ RefPtr<CustomPropertyData const> CustomPropertyData::inheritable_impl(RefPtr<Cus
     return CustomPropertyData::create(move(inheritable_own_values), move(inheritable_parent));
 }
 
+bool CustomPropertyData::declares_same_names(CustomPropertyData const& other) const
+{
+    if (m_declared_count != other.m_declared_count)
+        return false;
+    auto own = m_own_values.begin();
+    auto other_own = other.m_own_values.begin();
+    for (size_t index = 0; index < m_declared_count; ++index, ++own, ++other_own) {
+        if (own->key != other_own->key)
+            return false;
+    }
+    return true;
+}
+
 RefPtr<CustomPropertyData const> CustomPropertyData::inheritable(DOM::Document const& document) const
 {
     auto document_identity = reinterpret_cast<FlatPtr>(&document);
