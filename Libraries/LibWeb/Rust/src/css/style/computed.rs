@@ -3396,13 +3396,15 @@ impl ComputedGroupSets {
                 self.style_record_generation_is_live(style_record, final_style_record.base_generation()),
                 "base style-record is not live"
             );
-            let pin_count = self
-                .base_style_record_pins
-                .get_mut(&style_record)
-                .expect("base style-record is pinned");
+            let std::collections::hash_map::Entry::Occupied(mut entry) =
+                self.base_style_record_pins.entry(style_record)
+            else {
+                unreachable!("base style-record is pinned");
+            };
+            let pin_count = entry.get_mut();
             *pin_count = pin_count.checked_sub(1).expect("base style-record is pinned");
             if *pin_count == 0 {
-                self.base_style_record_pins.remove(&style_record);
+                entry.remove();
             }
             return;
         }
