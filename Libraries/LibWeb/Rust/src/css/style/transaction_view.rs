@@ -38,15 +38,12 @@ impl FeatureFluxColumn {
     pub(super) fn from_entries(mut entries: Vec<(StyleNodeID, DispatchKey)>) -> Self {
         entries.sort_unstable();
         entries.dedup();
-        let mut nodes_by_key: Vec<_> = entries.iter().map(|&(node, key)| (key, node)).collect();
-        nodes_by_key.sort_unstable();
-        let mut features = Self {
-            nodes_by_key,
-            ..Self::default()
-        };
+        let mut features = Self::default();
         for entries in entries.chunk_by(|left, right| left.0 == right.0) {
             features.push_node(entries[0].0, entries.iter().map(|&(_, key)| key));
         }
+        features.nodes_by_key = entries.into_iter().map(|(node, key)| (key, node)).collect();
+        features.nodes_by_key.sort_unstable();
         features
     }
 
