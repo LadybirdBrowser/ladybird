@@ -2195,7 +2195,7 @@ unsafe fn commit_entry_pass<'a>(
     // SAFETY: Host callbacks have returned; borrow the arena again for the epilogue, which
     // performs no host callbacks.
     let arena = unsafe { LayoutNodeArena::from_handle(host.arena) };
-    arena.sweep_stale_fc_run_cache_entries();
+    arena.end_layout_pass();
     arena.reset_layout_update_flags_in_subtree(commit_root);
     arena
 }

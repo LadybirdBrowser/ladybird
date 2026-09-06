@@ -67,6 +67,7 @@ pub(super) fn compute_inline_sizes(
             inline_formatting_context::ItemMeasurement::MaxContent,
         )?;
         let minimum = context.min_content_inline_size_from_max_content_items(iterator.items());
+        iterator.stash_for_reuse(&context);
         Some(IntrinsicInlineSizeMeasurement {
             automatic_content_inline_size: clamp_to_max_dimension_value(maximum),
             min_content_inline_size_from_max_content_layout: minimum.map(clamp_to_max_dimension_value),
