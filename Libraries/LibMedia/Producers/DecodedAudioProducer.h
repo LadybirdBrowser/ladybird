@@ -95,7 +95,7 @@ private:
         void flush_decoder();
         DecoderErrorOr<void> retrieve_next_block(AudioBlock&);
         bool handle_seek();
-        void resolve_seek(u32 seek_id, bool moved_position);
+        void resolve_seek(u32 seek_id);
         void push_data_and_decode_a_block();
 
         AudioProducerOutput peek();
