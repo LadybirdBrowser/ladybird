@@ -3613,13 +3613,10 @@ impl FactStaging {
 
     fn edit<R>(&mut self, node: StyleNodeID, edit: impl FnOnce(&mut StagedFactRow) -> R) -> Option<R> {
         let entry = self.rows.get(Self::index(node))? as usize;
-        let is_dirty = self.entries.get(entry)?.as_ref()?.dirty;
-        if !is_dirty {
+        let pair = self.entries.get_mut(entry)?.as_mut()?;
+        if !pair.dirty {
             let previous_dirty_capacity = self.dirty.capacity();
-            self.entries[entry]
-                .as_mut()
-                .expect("mapped fact staging entry must be live")
-                .dirty = true;
+            pair.dirty = true;
             self.dirty_count += 1;
             self.dirty.push((node, entry as u32));
             self.capacity_bytes = self
@@ -3632,9 +3629,6 @@ impl FactStaging {
                 )
                 .expect("fact staging byte count overflow");
         }
-        let pair = self.entries[entry]
-            .as_mut()
-            .expect("mapped fact staging entry must be live");
         let previous_payload_bytes = pair.after.capacity_bytes();
         let result = edit(&mut pair.after);
         self.capacity_bytes = self
