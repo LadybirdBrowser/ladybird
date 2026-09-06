@@ -243,7 +243,7 @@ void HistoryExecutor::run_ui_history_step_beforeunload_check(Vector<CrossProcess
     Vector<GC::Root<LocalNavigable>> navigables;
     navigables.ensure_capacity(navigable_ids.size());
     for (auto navigable_id : navigable_ids) {
-        if (auto navigable = local_navigable_with_id(navigable_id); navigable && !navigable->has_been_destroyed())
+        if (auto navigable = local_navigable_with_id(navigable_id); navigable && !navigable->has_been_destroyed() && navigable->active_document())
             navigables.append(*navigable);
     }
     check_if_unloading_is_canceled(move(navigables), {}, {}, {}, unload_prompt_shown,

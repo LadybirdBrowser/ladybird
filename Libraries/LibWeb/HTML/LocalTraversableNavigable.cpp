@@ -236,7 +236,7 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(Cross
     Vector<GC::Root<LocalNavigable>> navigables;
     navigables.ensure_capacity(navigables_crossing_documents.size());
     for (auto navigable_id : navigables_crossing_documents) {
-        if (auto navigable = local_navigable_with_id(navigable_id); navigable && !navigable->has_been_destroyed())
+        if (auto navigable = local_navigable_with_id(navigable_id); navigable && !navigable->has_been_destroyed() && navigable->active_document())
             navigables.append(*navigable);
     }
     check_if_unloading_is_canceled(move(navigables), *this, move(target_entry), user_involvement, UnloadPromptShown::No,
