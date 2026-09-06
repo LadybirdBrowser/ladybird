@@ -1834,10 +1834,10 @@ impl FeaturePostings {
 
     /// Discard every posting. Memory pressure reduces retained acceleration, never correctness.
     pub fn evict_all(&mut self) {
-        let keys: Vec<PostingKey> = self.postings.keys().copied().collect();
-        for key in keys {
-            self.remember_missing(key);
-        }
+        let missing_before = self.missing_capacity_bytes();
+        self.missing.extend(self.postings.keys().copied());
+        self.residency
+            .grow_committed(self.missing_capacity_bytes() - missing_before);
         let released =
             self.postings.values().map(Posting::capacity_bytes).sum::<u64>() + self.postings_capacity_bytes();
         self.residency.shrink_to(self.residency.bytes() - released);
