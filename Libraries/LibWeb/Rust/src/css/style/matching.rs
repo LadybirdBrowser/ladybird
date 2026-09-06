@@ -334,7 +334,9 @@ impl StyleEngine {
                 Lookup::Missing(_) => return false,
             }
         }
-        self.ensure_query_preorder_ranks(root);
+        if !candidates.is_empty() {
+            self.ensure_query_preorder_ranks(root);
+        }
         let ranks = &self.query_preorder_ranks;
         // A candidate without a rank lies outside the queried subtree.
         let mut ranked: Vec<(u32, StyleNodeID)> = candidates
