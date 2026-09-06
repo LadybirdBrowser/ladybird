@@ -90,7 +90,7 @@ public:
     void set_parent_compositor_context(Optional<Compositor::CompositorContextId>);
 
     bool is_closing() const { return m_closing; }
-    void set_closing(bool value) { m_closing = value; }
+    void set_closing(bool value);
     bool is_script_closable();
 
     void stop_loading();

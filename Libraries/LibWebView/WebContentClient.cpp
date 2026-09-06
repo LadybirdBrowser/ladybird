@@ -1063,6 +1063,23 @@ bool WebContentClient::continue_navigation_population_in_selected_process(Web::P
     return populate_in(*host.client, host.page_id);
 }
 
+void WebContentClient::did_change_replicated_navigable_state(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState state)
+{
+    // Only the process hosting a navigable's active document speaks for its state.
+    auto navigable = hosted_navigable_for_page(page_id, navigable_id);
+    if (!navigable.has_value())
+        return;
+
+    // A replacement process's bootstrap about:blank is not the traversable's committed entry; its state must not
+    // replace the canonical one.
+    if (navigable->is_top_level_traversable()) {
+        if (auto view = view_for_page_id(page_id); view.has_value() && !view->m_client_state.hosts_committed_entry)
+            return;
+    }
+
+    navigable->update_replicated_state(move(state));
+}
+
 void WebContentClient::did_create_child_frame(Web::PageId page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state)
 {
     auto* host = traversable_for_page(page_id);
