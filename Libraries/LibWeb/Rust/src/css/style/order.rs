@@ -33,26 +33,17 @@ impl OrderToken {
 
 /// One totally ordered axis: stylesheet order within a tree context, nested rule order within a
 /// sheet, or layer order within an origin.
+#[derive(Default)]
 pub struct OrderMaintenance {
     labels: Vec<u64>,
     free_entries: Vec<u32>,
     order: Vec<OrderToken>,
 }
 
-impl Default for OrderMaintenance {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl OrderMaintenance {
     #[must_use]
     pub fn new() -> Self {
-        Self {
-            labels: Vec::new(),
-            free_entries: Vec::new(),
-            order: Vec::new(),
-        }
+        Self::default()
     }
 
     #[must_use]
