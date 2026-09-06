@@ -2295,16 +2295,13 @@ impl StyleEngine {
             );
         }
         affected.sort_unstable_by_key(|affected| (affected.rule, affected.program));
-        let mut merged: Vec<RetainedAnswerPatchSelectionRule> = Vec::with_capacity(affected.len());
-        for affected in affected {
-            if let Some(previous) = merged.last_mut()
-                && (previous.rule, previous.program) == (affected.rule, affected.program)
-            {
-                previous.evaluate |= affected.evaluate;
-            } else {
-                merged.push(affected);
+        affected.dedup_by(|next, previous| {
+            if (previous.rule, previous.program) != (next.rule, next.program) {
+                return false;
             }
-        }
+            previous.evaluate |= next.evaluate;
+            true
+        });
         cascade_update_properties.extend(
             transaction
                 .rule_declaration_changes
@@ -2319,7 +2316,7 @@ impl StyleEngine {
             .map(|change| change.rule)
             .collect();
         Some(RetainedAnswerPatchSelection {
-            affected: merged,
+            affected,
             always_emit,
             orders_shifted,
             requires_full_match,
