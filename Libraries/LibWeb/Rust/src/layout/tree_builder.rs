@@ -3716,42 +3716,28 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
             FfiAnonymousTableBoxKind::Table
         };
 
-        let is_table_row_group = current_display.is_table_row_group()
-            || current_display.is_table_header_group()
-            || current_display.is_table_footer_group();
         // A table-row is misparented if its parent is neither a table-row-group nor a table-root box.
-        if !node_is_svg_content && !is_table_row_group && !current_display.is_table_inside() {
-            for_each_sequence_of_consecutive_children_matching(
-                host,
-                parent,
-                |child| node_has_flag(host.data(child), NodeFlag::HasStyle) && host.display(child).is_table_row(),
-                |sequence, nearest_sibling| {
-                    host.wrap_in_anonymous(sequence, nearest_sibling, anonymous_table_kind);
-                },
-            );
-        }
-
         // A table-column box is misparented if its parent is neither a table-column-group box nor a table-root box.
-        if !node_is_svg_content && !current_display.is_table_column_group() && !current_display.is_table_inside() {
-            for_each_sequence_of_consecutive_children_matching(
-                host,
-                parent,
-                |child| node_has_flag(host.data(child), NodeFlag::HasStyle) && host.display(child).is_table_column(),
-                |sequence, nearest_sibling| {
-                    host.wrap_in_anonymous(sequence, nearest_sibling, anonymous_table_kind);
-                },
-            );
-        }
-
         // A table-row-group, table-column-group, or table-caption box is misparented if its parent is not a table-root
         // box.
+        // The sequence spans misparented proper table children of every kind: the anonymous table-row generated
+        // around loose cells by step 1 and the table-row-group next to it belong to the same anonymous table.
         if !node_is_svg_content && !current_display.is_table_inside() {
+            let is_table_row_group = current_display.is_table_row_group_kind();
+            let is_table_column_group = current_display.is_table_column_group();
             for_each_sequence_of_consecutive_children_matching(
                 host,
                 parent,
                 |child| {
                     if !node_has_flag(host.data(child), NodeFlag::HasStyle) {
                         return false;
+                    }
+                    let display = host.display(child);
+                    if display.is_table_row() {
+                        return !is_table_row_group;
+                    }
+                    if display.is_table_column() {
+                        return !is_table_column_group;
                     }
                     let display = display_for_table_fixup(host, child);
                     is_table_track_group(display) || display.is_table_caption()
