@@ -5015,8 +5015,41 @@ impl ElementFactStore {
         };
         let row_bytes = self.rows.logical_bytes_of_row(row);
         let payload_bytes = self.rows.payload_bytes_of_row(row);
-        let facts = self.snapshot_row(node);
         self.remove_row_catalog_references(row);
+        let tag = self.rows.tag_of(row);
+        if !tag.is_none() {
+            self.postings.remove(SelectorPostingKey::TagName(tag), node);
+        }
+        let folded_tag = self.rows.folded_tag_of(row);
+        if !folded_tag.is_none() {
+            self.postings.remove(SelectorPostingKey::TagName(folded_tag), node);
+        }
+        let id = self.rows.id_of(row);
+        if !id.is_none() {
+            self.postings.remove(SelectorPostingKey::Id(id), node);
+        }
+        let directionality = self.rows.directionality_of(row);
+        if !directionality.is_none() {
+            self.postings
+                .remove(SelectorPostingKey::Directionality(directionality), node);
+        }
+        for &class in self.rows.classes_of(row) {
+            self.postings.remove(SelectorPostingKey::Class(class), node);
+        }
+        for &part in self.rows.parts_of(row) {
+            self.postings.remove(SelectorPostingKey::Part(part), node);
+        }
+        for &state in self.rows.custom_states_of(row) {
+            self.postings.remove(SelectorPostingKey::CustomState(state), node);
+        }
+        for &AttributeFact { name, value, .. } in self.rows.attributes_of(row) {
+            for key in self.attribute_name_keys(name) {
+                self.postings.remove(SelectorPostingKey::AttributeName(key), node);
+            }
+            if !value.is_none() {
+                self.postings.remove(SelectorPostingKey::AttributeValue(value), node);
+            }
+        }
         Rc::get_mut(&mut self.rows)
             .expect("forgetting a fact row requires unique primary rows")
             .forget_row(node);
@@ -5032,37 +5065,6 @@ impl ElementFactStore {
             .primary_stale_payload_bytes
             .checked_add(payload_bytes)
             .expect("primary stale fact payload byte count overflow");
-        if !facts.tag.is_none() {
-            self.postings.remove(SelectorPostingKey::TagName(facts.tag), node);
-        }
-        if !facts.folded_tag.is_none() {
-            self.postings
-                .remove(SelectorPostingKey::TagName(facts.folded_tag), node);
-        }
-        if !facts.id.is_none() {
-            self.postings.remove(SelectorPostingKey::Id(facts.id), node);
-        }
-        if !facts.directionality.is_none() {
-            self.postings
-                .remove(SelectorPostingKey::Directionality(facts.directionality), node);
-        }
-        for class in facts.classes {
-            self.postings.remove(SelectorPostingKey::Class(class), node);
-        }
-        for part in facts.parts {
-            self.postings.remove(SelectorPostingKey::Part(part), node);
-        }
-        for state in facts.custom_states {
-            self.postings.remove(SelectorPostingKey::CustomState(state), node);
-        }
-        for (name, value) in facts.attributes {
-            for key in self.attribute_name_keys(name) {
-                self.postings.remove(SelectorPostingKey::AttributeName(key), node);
-            }
-            if !value.is_none() {
-                self.postings.remove(SelectorPostingKey::AttributeValue(value), node);
-            }
-        }
         if let Some(metadata) = node
             .element_index()
             .and_then(|index| self.metadata.get_mut(index as usize))
