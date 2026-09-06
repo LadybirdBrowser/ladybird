@@ -837,10 +837,13 @@ impl StyleEngine {
                         declared.operator,
                         CascadeOperator::Revert | CascadeOperator::RevertLayer
                     )
-                    || self
-                        .winner_groups
-                        .winner_in_state(previous, declared.property)
-                        .is_some_and(|winner| self.winner_groups.continuation(winner.key.continuation).is_some())
+                {
+                    repair_properties.push(declared.property);
+                    continue;
+                }
+                let previous_winner = self.winner_groups.winner_in_state(previous, declared.property);
+                if previous_winner
+                    .is_some_and(|winner| self.winner_groups.continuation(winner.key.continuation).is_some())
                 {
                     repair_properties.push(declared.property);
                     continue;
@@ -873,7 +876,7 @@ impl StyleEngine {
                     if priority >= pending.priority {
                         *pending = winner;
                     }
-                } else if let Some(previous_winner) = self.winner_groups.winner_in_state(previous, declared.property) {
+                } else if let Some(previous_winner) = previous_winner {
                     if priority >= previous_winner.priority {
                         updates.push(PropertyWinnerUpdate {
                             property: declared.property,
