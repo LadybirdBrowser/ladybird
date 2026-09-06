@@ -449,8 +449,8 @@ where
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
                 entry.insert(self.winners.len());
+                self.sorted = self.sorted && self.winners.last().is_none_or(|winner| winner.key < key);
                 self.winners.push(Top1Winner { key, priority, payload });
-                self.sorted = false;
             }
         }
     }
