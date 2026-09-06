@@ -5559,10 +5559,9 @@ impl<'a> MatchEvaluator<'a> {
         let Some(parent) = self.parent_of(node) else {
             return Ok(false);
         };
-        let first = self.children_of(parent).next();
         let (parent_id, cached_prefix) = cache.preceding_sibling_prefix(program_id, relation, parent);
-        let mut prefix = cached_prefix.unwrap_or(PrecedingSiblingPrefix {
-            next: first,
+        let mut prefix = cached_prefix.unwrap_or_else(|| PrecedingSiblingPrefix {
+            next: self.children_of(parent).next(),
             answer: false,
         });
         let mut retried_from_start = false;
@@ -5585,7 +5584,7 @@ impl<'a> MatchEvaluator<'a> {
                     return Ok(false);
                 }
                 prefix = PrecedingSiblingPrefix {
-                    next: first,
+                    next: self.children_of(parent).next(),
                     answer: false,
                 };
                 incomplete = None;
