@@ -1,0 +1,70 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Test: table-layout: fixed - cell in the first row with specified width</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/tables.html#fixed-table-layout" />
+  <link rel="bookmark" href="http://lists.w3.org/Archives/Public/www-style/2011Oct/0502.html" title="[css21] Section 17.5.2.1 should be clarified" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/tables/fixed-table-layout-003b02-ref.xht" />
+
+  <meta name="assert" content="A cell in the first row with specified non-auto 'width' sets the width for its column in the absence of a column element with specified non-auto width. This test checks the 'border-collapse: separate' model with non-zero symetrical horizontal cell padding and with non-zero symetrical horizontal cell borders." />
+
+  <style type="text/css"><![CDATA[
+  div, table {font: 1.25em/1.2 serif;}
+
+  table
+  {
+  border-spacing: 0px;
+  border-collapse: separate;
+  table-layout: fixed;
+  width: 300px;
+  }
+
+  td {padding: 0px 24px;}
+
+  td#tested-cell
+  {
+  background-color: blue;
+  border-left: orange solid 36px;
+  border-right: orange solid 36px;
+  color: blue;
+  width: 80px;
+  }
+
+  div#reference
+  {
+  background-color: black;
+  color: black;
+  margin-left: 50px;
+  width: 200px;
+  }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if the 2 orange slivers and blue stripe are as a whole <strong>exactly as wide as</strong> the black stripe.</p>
+
+  <table>
+
+   <col />
+   <col />
+   <col />
+
+   <tr>
+    <td></td>
+    <td id="tested-cell">B02</td>
+    <td></td>
+   </tr>
+
+  </table>
+
+  <div id="reference">200px wide</div>
+
+ </body>
+</html>

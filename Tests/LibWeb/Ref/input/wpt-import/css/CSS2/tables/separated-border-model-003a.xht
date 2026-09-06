@@ -1,0 +1,64 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Test: table width as set when greater than sum of columns width</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/tables.html#separated-borders" title="17.6.1 The separated borders model" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/tables/../reference/ref-filled-green-100px-square.xht" />
+
+  <meta content="The width of an HTML/XHTML table is the distance between the left and right table border edges. The width of a table with 'table-layout' set to 'fixed' is the greater of the value of the 'width' property for the &lt;table&gt; element and the sum of the columns width (plus cell spacing and cell borders). If the table is wider than the sum of columns' width, then the extra (exceeding) space should be distributed over the columns." name="assert" />
+
+  <link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+  <style type="text/css"><![CDATA[
+  div#overlapped-red
+  {
+  background-color: red;
+  height: 100px;
+  left: auto;
+  position: absolute;
+  top: auto;
+  width: 100px;
+  z-index: -1;
+  }
+
+  table
+  {
+  background-color: red;
+  border-collapse: separate;
+  border-spacing: 0px;
+  table-layout: fixed;
+  width: 100px;
+  }
+
+  td
+  {
+  background-color: green;
+  color: green;
+  font: 20px/1 Ahem;
+  padding: 15px 1px;
+  }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+  <div id="overlapped-red"></div>
+
+  <table>
+    <tr>
+      <td>1</td><td>2</td>
+    </tr>
+    <tr>
+      <td>3</td><td>4</td>
+    </tr>
+  </table>
+
+ </body>
+</html>
