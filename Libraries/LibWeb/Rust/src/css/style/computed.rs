@@ -1227,8 +1227,19 @@ impl ComputedGroupSets {
             _ => return None,
         };
 
-        let mut groups = self.group_identities(old_record.groups);
-        groups[..INHERITED_GROUP_COUNT].copy_from_slice(parent_groups);
+        let mut groups: Vec<_> = parent_groups
+            .iter()
+            .copied()
+            .chain(
+                old_group_set
+                    .payloads
+                    .iter()
+                    .copied()
+                    .enumerate()
+                    .skip(INHERITED_GROUP_COUNT)
+                    .map(|(index, payload)| self.group_identity(index, payload)),
+            )
+            .collect();
         if let Some(table) = swapped_table
             && current_color_dependencies & !INHERITED_GROUP_MASK != 0
         {
