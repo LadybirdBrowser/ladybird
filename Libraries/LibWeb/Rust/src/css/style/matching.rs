@@ -1846,11 +1846,11 @@ impl StyleEngine {
         if let Some(incidences) = self.retained_selector_incidences.lookup(program) {
             return Some(Rc::clone(incidences));
         }
-        let (scope_program, dispatch) = self.ranked_scope_program(TreeScopeID::DOCUMENT);
-        let compiled = self.programs.get(program);
-        if compiled.can_leave_its_scope() {
+        if self.programs.get(program).can_leave_its_scope() {
             return None;
         }
+        let (scope_program, dispatch) = self.ranked_scope_program(TreeScopeID::DOCUMENT);
+        let compiled = self.programs.get(program);
         let mut incidences = Vec::new();
         for (entry_index, entry) in compiled.entries().iter().enumerate() {
             let posting_key = compiled.dispatch_key(entry);
@@ -1914,7 +1914,7 @@ impl StyleEngine {
                 match MatchEvaluator::new(&self.tree, self.facts.primary()).matches_entry_after_dispatch(
                     compiled,
                     entry,
-                    compiled.dispatch_key(entry),
+                    posting_key,
                     node,
                     &mut self.counters,
                 ) {
