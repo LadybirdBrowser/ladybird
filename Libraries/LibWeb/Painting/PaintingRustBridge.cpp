@@ -807,32 +807,19 @@ static Optional<u64> composited_context_id_for_navigable_container(HTML::Navigab
     return context_id->value();
 }
 
-template<typename Callback>
-static void for_each_child_navigable_including_pending_history_steps(HTML::LocalNavigable const& navigable, Callback callback)
-{
-    for (auto const& child_navigable : HTML::all_local_navigables()) {
-        if (child_navigable->parent().ptr() == &navigable)
-            callback(*child_navigable);
-    }
-}
-
 static void invalidate_navigable_containers_whose_composited_context_changed(DOM::Document& document)
 {
     if (!document.paint_state().has_painted_navigable_container_foreground())
         return;
-    auto navigable = document.navigable();
-    if (!navigable)
-        return;
-    for_each_child_navigable_including_pending_history_steps(*navigable, [&](HTML::LocalNavigable& child_navigable) {
-        auto container = child_navigable.container();
-        if (!container || !container->has_painted_foreground())
-            return;
+    for (auto* container : HTML::NavigableContainer::all_instances()) {
+        if (&container->document() != &document || !container->has_painted_foreground())
+            continue;
         auto const* layout_node = container->layout_node();
         if (!layout_node || !has_committed_box(*layout_node))
-            return;
+            continue;
         if (container->compositor_context_id_at_last_paint() != composited_context_id_for_navigable_container(*container))
             invalidate_paint_cache(*layout_node);
-    });
+    }
 }
 
 Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& context)
