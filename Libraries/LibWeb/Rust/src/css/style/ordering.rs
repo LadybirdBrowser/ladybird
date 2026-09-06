@@ -1116,6 +1116,9 @@ impl StyleEngine {
     }
 
     pub(super) fn cascade_context_scope(&self, rule: RuleID, tree_scope: TreeScopeID) -> TreeScopeID {
+        if tree_scope == TreeScopeID::DOCUMENT {
+            return tree_scope;
+        }
         let sheet = self.program.rule_sheet(rule);
         match self.program.attachment_in_scope(sheet, tree_scope).is_some() {
             true => tree_scope,
