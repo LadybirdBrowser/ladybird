@@ -4,11 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::rust_panic::abort_on_panic;
 use std::ffi::c_void;
 use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
-use std::panic::AssertUnwindSafe;
-use std::panic::catch_unwind;
 
 use crate::url::BasicParseOptions;
 use crate::url::Host;
@@ -93,13 +92,6 @@ pub struct RustBasicParseOptions {
 
 pub type FfiUrlResultFn = unsafe extern "C" fn(*mut c_void, *const RustFfiUrl);
 pub type FfiHostResultFn = unsafe extern "C" fn(*mut c_void, *const FfiUrlHost);
-
-fn abort_on_panic<F: FnOnce() -> R, R>(f: F) -> R {
-    match catch_unwind(AssertUnwindSafe(f)) {
-        Ok(result) => result,
-        Err(_) => std::process::abort(),
-    }
-}
 
 fn decode_utf8(slice: RustUrlByteSlice) -> String {
     if slice.data.is_null() {

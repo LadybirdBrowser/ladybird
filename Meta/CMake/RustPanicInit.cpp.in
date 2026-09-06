@@ -1,0 +1,20 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+extern "C" void ladybird_init_rust_panic_@ARG_CRATE_NAME@();
+
+namespace {
+
+struct RustPanicInitializer {
+    RustPanicInitializer()
+    {
+        ladybird_init_rust_panic_@ARG_CRATE_NAME@();
+    }
+};
+
+RustPanicInitializer s_rust_panic_initializer;
+
+}

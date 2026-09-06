@@ -4,13 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#[path = "../../../RustPanic.rs"]
+mod rust_panic;
+
+use crate::rust_panic::abort_on_panic;
 use encoding_rs::CoderResult;
 use encoding_rs::DecoderResult;
 use encoding_rs::EncoderResult;
 use encoding_rs::Encoding;
 use std::ffi::c_void;
-use std::panic::AssertUnwindSafe;
-use std::panic::catch_unwind;
 
 type FfiBytesFn = unsafe extern "C" fn(ctx: *mut c_void, data: *const u8, len: usize);
 type FfiUtf16Fn = unsafe extern "C" fn(ctx: *mut c_void, data: *const u16, len: usize);
@@ -18,23 +20,6 @@ type FfiCodePointFn = unsafe extern "C" fn(ctx: *mut c_void, code_point: u32);
 
 pub struct TextCodecRustStreamingDecoder {
     decoder: encoding_rs::Decoder,
-}
-
-fn abort_on_panic<F: FnOnce() -> R, R>(f: F) -> R {
-    match catch_unwind(AssertUnwindSafe(f)) {
-        Ok(result) => result,
-        Err(payload) => {
-            let message = if let Some(message) = payload.downcast_ref::<&str>() {
-                (*message).to_string()
-            } else if let Some(message) = payload.downcast_ref::<String>() {
-                message.clone()
-            } else {
-                "unknown panic".to_string()
-            };
-            eprintln!("Rust panic at FFI boundary: {message}");
-            std::process::abort();
-        }
-    }
 }
 
 unsafe fn bytes_from_raw<'a>(bytes: *const u8, len: usize) -> Option<&'a [u8]> {

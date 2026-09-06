@@ -111,8 +111,9 @@ ErrorOr<void> CrashReport::save(int wait_status, ByteString const& path)
         if (header.signal)
             builder.appendff("Captured signal: {} ({})\nSignal code: {}\n", signal_name(header.signal), header.signal, header.code);
         auto const& assertion = header.assertion;
-        if ((assertion.kind == 1 || assertion.kind == 2) && assertion.length <= assertion.message.size()) {
-            builder.append(assertion.kind == 1 ? "Verification failed: "sv : "Assertion failed: "sv);
+        if ((assertion.kind == 1 || assertion.kind == 2 || assertion.kind == 3) && assertion.length <= assertion.message.size()) {
+            builder.append(assertion.kind == 1 ? "Verification failed: "sv : assertion.kind == 2 ? "Assertion failed: "sv
+                                                                                                 : "Rust panic: "sv);
             for (u32 i = 0; i < assertion.length; ++i) {
                 auto ch = assertion.message[i];
                 builder.append(is_ascii_printable(ch) ? ch : '?');

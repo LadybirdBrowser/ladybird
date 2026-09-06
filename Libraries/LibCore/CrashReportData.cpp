@@ -42,7 +42,17 @@ static StringView sanitize_source_location(StringView location)
 Assertion sanitize_assertion(AK::AssertionFailureKind kind, char const* message)
 {
     Assertion assertion;
-    assertion.kind = kind == AK::AssertionFailureKind::Verification ? 1 : 2;
+    switch (kind) {
+    case AK::AssertionFailureKind::Verification:
+        assertion.kind = 1;
+        break;
+    case AK::AssertionFailureKind::Assertion:
+        assertion.kind = 2;
+        break;
+    case AK::AssertionFailureKind::RustPanic:
+        assertion.kind = 3;
+        break;
+    }
     auto append = [&](StringView text) {
         for (auto ch : text) {
             if (assertion.length == assertion.message.size()) {

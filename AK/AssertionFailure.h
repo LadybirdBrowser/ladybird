@@ -14,6 +14,7 @@ namespace AK {
 enum class AssertionFailureKind : u8 {
     Verification,
     Assertion,
+    RustPanic,
 };
 
 using AssertionFailureCallback = void (*)(AssertionFailureKind, char const*);
@@ -39,4 +40,11 @@ using AssertionBacktraceCallback = void (*)(ReadonlySpan<AssertionBacktraceFrame
 // Views are valid only during the callback. The callback must not allocate.
 void set_assertion_backtrace_callback(AssertionBacktraceCallback);
 
+// Bounded, thread-local panic text. A recovered panic is not considered active.
+// Suitable for the native crash handler after the Rust panic hook has run.
+char const* current_rust_panic_message();
+
 }
+
+extern "C" void ladybird_rust_panic(char const*, size_t, char const*, size_t, u32, u32, bool (*)());
+extern "C" void ladybird_rust_panic_will_abort();

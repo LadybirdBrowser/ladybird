@@ -11,6 +11,7 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/Platform.h>
 #include <AK/StringView.h>
+#include <stdio.h>
 
 #ifdef AK_OS_WINDOWS
 #    include <Windows.h>
@@ -21,7 +22,6 @@
 #    define EXECINFO_BACKTRACE
 #    define PRINT_ERROR(s) __android_log_write(ANDROID_LOG_WARN, "AK", (s))
 #else
-#    include <stdio.h>
 #    define PRINT_ERROR(s) (void)::fputs((s), stderr)
 #endif
 
@@ -44,6 +44,58 @@
 
 static AK::AssertionFailureCallback s_assertion_failure_callback;
 static AK::AssertionBacktraceCallback s_assertion_backtrace_callback;
+
+static thread_local Array<char, 8193> s_rust_panic_message;
+static thread_local bool (*s_rust_is_panicking)();
+
+void ladybird_rust_panic(char const* message, size_t message_length, char const* filename, size_t filename_length, u32 line, u32 column, bool (*is_panicking)())
+{
+    __atomic_store_n(&s_rust_is_panicking, nullptr, __ATOMIC_RELEASE);
+    size_t length = 0;
+    auto append = [&](StringView text) {
+        for (auto ch : text) {
+            if (length == s_rust_panic_message.size() - 1)
+                break;
+            s_rust_panic_message[length++] = ch ? ch : '?';
+        }
+    };
+    append({ message, min(message_length, 4096uz) });
+    if (message_length > 4096)
+        append(" [truncated]"sv);
+    if (filename_length) {
+        append(" at "sv);
+        if (filename_length > 4096) {
+            append("[location unavailable]"sv);
+        } else {
+            append({ filename, filename_length });
+            Array<char, 24> location;
+            auto count = snprintf(location.data(), location.size(), ":%u:%u", line, column);
+            if (count > 0)
+                append({ location.data(), min(static_cast<size_t>(count), location.size() - 1) });
+        }
+    }
+    s_rust_panic_message[length] = '\0';
+    // Resolve the Rust panic-counter read before the signal handler can need it.
+    (void)is_panicking();
+    __atomic_store_n(&s_rust_is_panicking, is_panicking, __ATOMIC_RELEASE);
+}
+
+char const* AK::current_rust_panic_message()
+{
+    auto is_panicking = __atomic_load_n(&s_rust_is_panicking, __ATOMIC_ACQUIRE);
+    if (is_panicking && is_panicking())
+        return s_rust_panic_message.data();
+    return nullptr;
+}
+
+void ladybird_rust_panic_will_abort()
+{
+    if (__atomic_load_n(&s_rust_is_panicking, __ATOMIC_ACQUIRE)) {
+        if (auto callback = __atomic_load_n(&s_assertion_failure_callback, __ATOMIC_ACQUIRE))
+            callback(AK::AssertionFailureKind::RustPanic, s_rust_panic_message.data());
+        dump_backtrace(1, 100);
+    }
+}
 
 void AK::set_assertion_failure_callback(AssertionFailureCallback callback)
 {

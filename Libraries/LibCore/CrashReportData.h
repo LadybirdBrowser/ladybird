@@ -28,7 +28,7 @@ struct Image {
 };
 
 struct Assertion {
-    u32 kind { 0 }; // 1: VERIFY, 2: ASSERT.
+    u32 kind { 0 }; // 1: VERIFY, 2: ASSERT, 3: Rust panic.
     u32 length { 0 };
     u32 truncated { 0 };
     Array<char, 2048> message {};

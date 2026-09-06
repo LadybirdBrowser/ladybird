@@ -8,6 +8,9 @@
 #[path = "../../../RustAllocator.rs"]
 mod rust_allocator;
 
+#[path = "../../../RustPanic.rs"]
+mod rust_panic;
+
 pub mod bsp_tree;
 pub mod color;
 pub mod corner_radii;
