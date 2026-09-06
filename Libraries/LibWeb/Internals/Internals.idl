@@ -127,6 +127,7 @@ interface Internals {
     DOMString takeLayoutTrace();
     unsigned long long tableCellMeasurementCacheMissCount();
     unsigned long long intrinsicMeasurementCount();
+    unsigned long long intrinsicInlineMeasurementCount();
     unsigned long long accumulatedVisualContextTreeBuildCount();
     undefined beginDisplayListTrace();
     DOMString takeDisplayListTrace();

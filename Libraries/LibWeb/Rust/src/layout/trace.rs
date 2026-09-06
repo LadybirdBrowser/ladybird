@@ -90,11 +90,11 @@ impl LayoutTrace {
                 FormattingContextType::InternalReplaced => "internal-replaced",
                 FormattingContextType::InternalDummy => "internal-dummy",
             };
-            let measurement = match (purpose, mode) {
-                (LayoutPurpose::Commit, LayoutMode::Normal) => "",
-                (LayoutPurpose::Commit, LayoutMode::IntrinsicSizing) => " (intrinsic)",
-                (LayoutPurpose::Measurement, LayoutMode::Normal) => " (measurement)",
-                (LayoutPurpose::Measurement, LayoutMode::IntrinsicSizing) => " (measurement, intrinsic)",
+            let measurement = match (purpose.is_measurement(), mode) {
+                (false, LayoutMode::Normal) => "",
+                (false, LayoutMode::IntrinsicSizing) => " (intrinsic)",
+                (true, LayoutMode::Normal) => " (measurement)",
+                (true, LayoutMode::IntrinsicSizing) => " (measurement, intrinsic)",
             };
             format!("{owner}/{context}{measurement} {}", action())
         })
