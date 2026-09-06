@@ -3529,7 +3529,10 @@ fn serialize_shorthand(
             return false;
         };
         let end_is_auto_placement = matches!(end, StyleValueData::GridTrackPlacement { kind: 0, .. });
-        if end_is_auto_placement || start == end {
+        // NB: When the start line is a lone <custom-ident>, omitting the end line would make it copy
+        //     that ident on re-parse, so "/ auto" must be kept.
+        let start_is_lone_custom_ident = crate::css::parser::grid_parser::is_custom_ident_placement(start);
+        if start == end || (end_is_auto_placement && !start_is_lone_custom_ident) {
             return serialize_style_value(sink, start, mode);
         }
         if !serialize_style_value(sink, start, mode) {

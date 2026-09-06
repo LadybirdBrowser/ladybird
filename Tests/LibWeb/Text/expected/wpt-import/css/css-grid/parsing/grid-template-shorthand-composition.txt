@@ -2,16 +2,15 @@ Harness status: OK
 
 Found 11 tests
 
-7 Pass
-4 Fail
+11 Pass
 Pass	grid-template-rows: none, grid-template-columns: none, and "grid-template-areas: none;" should be valid.
 Pass	grid-template-rows: auto, grid-template-columns: auto, and "grid-template-areas: none;" should be valid.
 Pass	grid-template-rows: [header-top] auto [header-bottom main-top] 1fr [main-bottom], grid-template-columns: auto 1fr auto, and "grid-template-areas: "a a a" "b b b";" should be valid.
-Fail	grid-template-rows: auto, grid-template-columns: auto, and "grid-template-areas: "a a a" "b b b";" should be valid.
-Fail	grid-template-rows: auto, grid-template-columns: auto auto, and "grid-template-areas: "a a a" "b b b";" should be valid.
+Pass	grid-template-rows: auto, grid-template-columns: auto, and "grid-template-areas: "a a a" "b b b";" should be valid.
+Pass	grid-template-rows: auto, grid-template-columns: auto auto, and "grid-template-areas: "a a a" "b b b";" should be valid.
 Pass	grid-template-rows: auto auto, grid-template-columns: auto, and "grid-template-areas: "a a a" "b b b";" should be valid.
 Pass	grid-template-rows: auto auto, grid-template-columns: auto auto, and "grid-template-areas: "a a a" "b b b";" should be valid.
-Fail	grid-template-rows: min-content, grid-template-columns: min-content, and "grid-template-areas: "a a a" "b b b" "c c c" "d d d";" should be valid.
-Fail	grid-template-rows: min-content, grid-template-columns: min-content auto auto auto, and "grid-template-areas: "a a a" "b b b" "c c c" "d d d";" should be valid.
+Pass	grid-template-rows: min-content, grid-template-columns: min-content, and "grid-template-areas: "a a a" "b b b" "c c c" "d d d";" should be valid.
+Pass	grid-template-rows: min-content, grid-template-columns: min-content auto auto auto, and "grid-template-areas: "a a a" "b b b" "c c c" "d d d";" should be valid.
 Pass	grid-template-rows: min-content auto auto auto, grid-template-columns: min-content, and "grid-template-areas: "a a a" "b b b" "c c c" "d d d";" should be valid.
 Pass	grid-template-rows: min-content auto auto auto, grid-template-columns: min-content auto auto auto, and "grid-template-areas: "a a a" "b b b" "c c c" "d d d";" should be valid.

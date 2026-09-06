@@ -760,7 +760,7 @@ fn auto_grid_track_placement() -> StyleValueData {
     }
 }
 
-fn is_custom_ident_placement(value: &StyleValueData) -> bool {
+pub(crate) fn is_custom_ident_placement(value: &StyleValueData) -> bool {
     matches!(
         value,
         StyleValueData::GridTrackPlacement {

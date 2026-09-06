@@ -697,6 +697,26 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
             return;
         }
 
+        // The areas form requires exactly one explicit row track per area row, and neither track
+        // list may contain repeat() or subgrid alongside area strings. Otherwise the longhands are
+        // not representable by the shorthand, which then serializes to the empty string.
+        if (rows_track_list.is_subgrid() || columns_track_list.is_subgrid())
+            return;
+        size_t row_track_count = 0;
+        for (auto const& entry : rows_track_list.list()) {
+            if (auto const* track = entry.get_pointer<ExplicitGridTrack>()) {
+                if (track->is_repeat())
+                    return;
+                ++row_track_count;
+            }
+        }
+        if (row_track_count != areas.row_count())
+            return;
+        for (auto const& entry : columns_track_list.list()) {
+            if (auto const* track = entry.get_pointer<ExplicitGridTrack>(); track && track->is_repeat())
+                return;
+        }
+
         auto rows_serialization = construct_rows_string();
         if (rows_serialization.is_empty())
             return;
