@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // A hidden document never starts an idle period, so idle callbacks registered without a timeout stay pending
+    // for as long as the document is hidden. Timed-out callbacks registered behind such a backlog must be found
+    // and removed without paying for the backlog: the time to run a batch of timed-out callbacks with a large
+    // backlog in front of them is compared against the same batch with no backlog at all.
+    asyncTest(async done => {
+        const backlogSize = 300000;
+        const batchSize = 2000;
+
+        const timeBatch = async () => {
+            let remaining = batchSize;
+            const { promise, resolve } = Promise.withResolvers();
+            const start = performance.now();
+            for (let i = 0; i < batchSize; ++i) {
+                requestIdleCallback(() => {
+                    if (--remaining === 0)
+                        resolve();
+                }, { timeout: 1 });
+            }
+            await promise;
+            return performance.now() - start;
+        };
+        const bestOfThree = async () => Math.min(await timeBatch(), await timeBatch(), await timeBatch());
+
+        await setSystemVisibilityState("hidden");
+        try {
+            const baseline = await bestOfThree();
+            for (let i = 0; i < backlogSize; ++i)
+                requestIdleCallback(() => {});
+            const withBacklog = await bestOfThree();
+            const ok = withBacklog < 4 * baseline + 100;
+            println(`timed-out callbacks behind a pending backlog cost the same as without one: ${ok}`);
+            if (!ok)
+                println(`baseline ${baseline.toFixed(1)} ms, with backlog ${withBacklog.toFixed(1)} ms`);
+        } finally {
+            await setSystemVisibilityState("visible");
+        }
+        done();
+    });
+</script>

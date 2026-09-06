@@ -858,7 +858,8 @@ void Window::start_an_idle_period()
     auto& pending_list = m_idle_request_callbacks;
     // 3. Let run_list be window's list of runnable idle callbacks.
     auto& run_list = m_runnable_idle_callbacks;
-    run_list.extend(pending_list);
+    for (auto& [handle, callback] : pending_list)
+        run_list.set(handle, move(callback));
     // 4. Clear pending_list.
     pending_list.clear();
 
@@ -911,22 +912,14 @@ void Window::invoke_idle_callback_timeout(u32 handle)
 {
     // 1. Let callback be the result of finding the entry in window's list of idle request callbacks or the list of
     //    runnable idle callbacks that is associated with the value given by the handle argument passed to the algorithm.
-    RefPtr<IdleCallback> callback;
-    auto take_callback = [&](auto& callbacks) {
-        for (size_t index = 0; index < callbacks.size(); ++index) {
-            if (callbacks[index]->handle() == handle) {
-                callback = callbacks.take(index);
-                return;
-            }
-        }
-    };
-    take_callback(m_idle_request_callbacks);
-    if (!callback)
-        take_callback(m_runnable_idle_callbacks);
+    auto taken = m_idle_request_callbacks.take(handle);
+    if (!taken.has_value())
+        taken = m_runnable_idle_callbacks.take(handle);
 
     // 2. If callback is not undefined:
-    if (!callback)
+    if (!taken.has_value())
         return;
+    auto callback = taken.release_value();
 
     callback->clear_timeout_timer_id();
 
@@ -2044,7 +2037,7 @@ u32 Window::request_idle_callback(IdleCallbackHandler callback, IdleRequestOptio
 
     // 4. Push callback to the end of window's list of idle request callbacks, associated with handle.
     auto idle_callback = adopt_ref(*new IdleCallback(move(callback), handle));
-    m_idle_request_callbacks.append(idle_callback);
+    m_idle_request_callbacks.set(handle, idle_callback);
 
     // 5. Return handle and then continue running this algorithm asynchronously.
 
@@ -2078,14 +2071,11 @@ void Window::cancel_idle_callback(u32 handle)
     //    that is associated with the value handle.
     // 3. If there is such an entry, remove it from both window's list of idle request callbacks and the list of runnable idle callbacks.
     auto remove_callback = [&](auto& callbacks) {
-        for (size_t index = 0; index < callbacks.size(); ++index) {
-            if (callbacks[index]->handle() != handle)
-                continue;
-            auto callback = callbacks.take(index);
-            if (callback->timeout_timer_id().has_value())
-                clear_timeout(*callback->timeout_timer_id());
+        auto callback = callbacks.take(handle);
+        if (!callback.has_value())
             return;
-        }
+        if ((*callback)->timeout_timer_id().has_value())
+            clear_timeout(*(*callback)->timeout_timer_id());
     };
     remove_callback(m_idle_request_callbacks);
     remove_callback(m_runnable_idle_callbacks);

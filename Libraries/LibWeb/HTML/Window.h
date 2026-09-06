@@ -10,6 +10,7 @@
 #include <AK/Badge.h>
 #include <AK/FlyString.h>
 #include <AK/Function.h>
+#include <AK/HashMap.h>
 #include <AK/IterationDecision.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
@@ -353,10 +354,12 @@ private:
 
     GC::Ptr<AnimationFrameCallbackDriver> m_animation_frame_callback_driver;
 
+    // NB: Both lists are keyed by handle — so a timeout or cancelIdleCallback() finds its callback without walking past
+    //     every other pending one — and ordered, so an idle period still runs them first-in first-out.
     // https://w3c.github.io/requestidlecallback/#dfn-list-of-idle-request-callbacks
-    Vector<NonnullRefPtr<IdleCallback>> m_idle_request_callbacks;
+    OrderedHashMap<u32, NonnullRefPtr<IdleCallback>> m_idle_request_callbacks;
     // https://w3c.github.io/requestidlecallback/#dfn-list-of-runnable-idle-callbacks
-    Vector<NonnullRefPtr<IdleCallback>> m_runnable_idle_callbacks;
+    OrderedHashMap<u32, NonnullRefPtr<IdleCallback>> m_runnable_idle_callbacks;
     // https://w3c.github.io/requestidlecallback/#dfn-idle-callback-identifier
     u32 m_idle_callback_identifier = 0;
 

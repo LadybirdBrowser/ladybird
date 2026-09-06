@@ -1,0 +1,7 @@
+handles increase: true
+order: first, second, third, registered from first
+after canceling b: a, c
+after x cancels z: x, y
+callback with a timeout that ran in an idle period ran 1 time(s)
+canceled callback with a timeout ran: false
+busy, timed out on the runnable list: true
