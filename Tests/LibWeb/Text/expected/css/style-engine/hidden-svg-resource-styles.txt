@@ -1,0 +1,8 @@
+inheritance-parent has style after hiding: true
+filter has style after hiding: true
+flood has style after hiding: true
+gradient has style after hiding: true
+stop has style after hiding: true
+ordinary hidden style is cleared: true
+hidden inherited style was updated: true
+hidden inherited color: rgb(0, 128, 0)

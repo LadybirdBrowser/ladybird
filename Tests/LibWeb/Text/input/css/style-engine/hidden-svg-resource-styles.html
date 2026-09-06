@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #ancestor { color: red; }
+</style>
+<div id="ancestor">
+    <div id="inheritance-parent">
+        <svg>
+            <filter id="filter"><feFlood id="flood" flood-color="currentColor" /></filter>
+            <linearGradient id="gradient"><stop id="stop" stop-color="currentColor" /></linearGradient>
+        </svg>
+    </div>
+    <span id="ordinary">ordinary hidden content</span>
+</div>
+<script>
+test(() => {
+    const resources = ["inheritance-parent", "filter", "flood", "gradient", "stop"].map(id => document.getElementById(id));
+    internals.updateStyle();
+    ancestor.style.display = "none";
+    internals.updateStyle();
+    for (const resource of resources)
+        println(`${resource.id} has style after hiding: ${internals.styleRecordIdentity(resource) !== 0}`);
+    println(`ordinary hidden style is cleared: ${internals.styleRecordIdentity(ordinary) === 0}`);
+
+    const flood = document.getElementById("flood");
+    const previousStyle = internals.styleRecordIdentity(flood);
+    ancestor.style.color = "green";
+    internals.updateStyle();
+    println(`hidden inherited style was updated: ${internals.styleRecordIdentity(flood) !== previousStyle}`);
+    println(`hidden inherited color: ${getComputedStyle(flood).color}`);
+});
+</script>

@@ -10,9 +10,9 @@
     test(() => {
         internals.updateStyle();
 
-        // Hiding the subtree discards the descendants' style records. Changing the root font size
-        // drops the style sharing cache, so on reappearance the second rect misses its own earlier
-        // entry and is built over its sibling's style.
+        // Hiding the subtree recomputes its SVG styles. Changing the root font size drops the
+        // style sharing cache, so rebuilding on reappearance must still preserve each rect's
+        // own presentation attributes.
         container.style.display = "none";
         internals.updateStyle();
         document.documentElement.style.fontSize = "17px";
