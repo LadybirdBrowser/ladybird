@@ -2200,8 +2200,8 @@ struct DispatchBucketDirectory {
 }
 
 impl DispatchBucketDirectory {
-    fn build(mut buckets: HashMap<DispatchKey, Vec<DispatchRow>>) -> Self {
-        let mut entries: Vec<_> = buckets.drain().collect();
+    fn build(buckets: HashMap<DispatchKey, Vec<DispatchRow>>) -> Self {
+        let mut entries: Vec<_> = buckets.into_iter().collect();
         entries.sort_unstable_by_key(|&(key, _)| key);
         let row_count = entries.iter().map(|(_, rows)| rows.len()).sum();
         let mut directory = Self {
