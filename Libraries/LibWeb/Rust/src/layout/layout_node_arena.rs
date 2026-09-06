@@ -517,6 +517,7 @@ pub(crate) struct LayoutNodeArena {
     dom_nodes_whose_bound_row_was_freed: Vec<*mut c_void>,
     fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore,
     pub(super) layout_trace: super::trace::LayoutTrace,
+    inline_item_stashes: RefCell<HashMap<NodeSlotId, super::inline_level_iterator::StashedInlineItems>>,
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
     // Reuse workspace allocations without making recording scratch part of the committed paint state.
@@ -583,6 +584,7 @@ impl LayoutNodeArena {
             dom_nodes_whose_bound_row_was_freed: Vec::new(),
             fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore::default(),
             layout_trace: super::trace::LayoutTrace::default(),
+            inline_item_stashes: RefCell::new(HashMap::default()),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
             recording_scratch: RefCell::new(crate::painting::record::scratch::RecordingScratch::default()),
@@ -628,10 +630,31 @@ impl LayoutNodeArena {
         &self.fc_run_cache_store
     }
 
+    /// The items borrow fonts for the current layout pass, so the stash is cleared when the pass ends.
+    pub(crate) fn store_inline_item_stash(
+        &self,
+        block_container: NodeSlotId,
+        stash: super::inline_level_iterator::StashedInlineItems,
+    ) {
+        self.inline_item_stashes.borrow_mut().insert(block_container, stash);
+    }
+
+    pub(crate) fn take_inline_item_stash(
+        &self,
+        block_container: NodeSlotId,
+    ) -> Option<super::inline_level_iterator::StashedInlineItems> {
+        self.inline_item_stashes.borrow_mut().remove(&block_container)
+    }
+
+    pub(crate) fn end_layout_pass(&self) {
+        self.inline_item_stashes.borrow_mut().clear();
+        self.sweep_stale_fc_run_cache_entries();
+    }
+
     /// Drops entries whose slot or epoch no longer matches.
     /// Checks only entries invalidated or stored since the previous sweep. Stale entries
     /// survive until commit so inline layout can reuse their undamaged line prefixes.
-    pub(crate) fn sweep_stale_fc_run_cache_entries(&self) {
+    fn sweep_stale_fc_run_cache_entries(&self) {
         self.fc_run_cache_store.sweep_pending_entries(|slot, validity| {
             let Some(metadata) = self.slot_metadata.get(slot as usize) else {
                 return false;
