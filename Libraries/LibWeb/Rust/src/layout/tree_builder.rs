@@ -2838,7 +2838,15 @@ fn insertion_parent_for_block_node(
 
     // Inline is fine for in-flow block children (interrupting blocks) and for out-of-flow children;
     // the inline formatting context emits items for both.
-    if !node_has_flag(layout.data(node), NodeFlag::Anonymous)
+    // Block-level pseudo-element boxes climb out of inline ancestors instead (see below). A table-internal
+    // pseudo-element box has to stay a child of its originating inline box though: table fixup generates one anonymous
+    // inline-table around the consecutive table-internal children of the inline, so e.g. a `display: table-cell`
+    // ::after joins the table of the table-cell siblings in the inline instead of starting a separate block-level
+    // table outside of it.
+    // https://drafts.csswg.org/css-tables-3/#fixup-algorithm
+    let is_table_internal_pseudo_element_box = node_has_flag(layout.data(node), NodeFlag::Anonymous)
+        && is_table_non_root_box_with_display(display_for_table_fixup(&layout, node));
+    if (!node_has_flag(layout.data(node), NodeFlag::Anonymous) || is_table_internal_pseudo_element_box)
         && node_is_inline_outside(&layout, parent)
         && layout
             .style(parent)
