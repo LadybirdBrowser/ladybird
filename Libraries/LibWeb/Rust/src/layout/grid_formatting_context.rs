@@ -574,6 +574,8 @@ pub(crate) struct PlacementResult {
 pub(crate) struct OccupationGrid {
     occupied: HashSet<(i32, i32)>,
     min_column_index: i32,
+    // NB: max < min means the axis has no tracks at all; an axis with no explicit tracks starts
+    //     out as max = -1 and only grows when items actually occupy it.
     max_column_index: i32,
     min_row_index: i32,
     max_row_index: i32,
@@ -584,9 +586,9 @@ impl OccupationGrid {
         Self {
             occupied: HashSet::default(),
             min_column_index: 0,
-            max_column_index: column_count.saturating_sub(1) as i32,
+            max_column_index: column_count as i32 - 1,
             min_row_index: 0,
-            max_row_index: row_count.saturating_sub(1) as i32,
+            max_row_index: row_count as i32 - 1,
         }
     }
 
@@ -762,13 +764,23 @@ pub(crate) fn place_items_with_grid(
     // 3.3. If the largest column span among all the items without a definite column position is larger
     // than the width of the implicit grid, add columns to the end of the implicit grid to accommodate
     // that column span.
+    // NB: For column flow the whole algorithm is transposed, so this step widens the row axis instead.
     for &index in &ordered_indices {
         if !remaining[index] {
             continue;
         }
-        let span = items[index].column.span;
-        if span.saturating_sub(1) > grid.max_column_index as usize {
-            grid.max_column_index = span.saturating_sub(1) as i32;
+        let item = items[index];
+        match flow {
+            AutoFlowAxis::Row => {
+                if item.column.start.is_none() {
+                    grid.max_column_index = grid.max_column_index.max(item.column.span as i32 - 1);
+                }
+            }
+            AutoFlowAxis::Column => {
+                if item.row.start.is_none() {
+                    grid.max_row_index = grid.max_row_index.max(item.row.span as i32 - 1);
+                }
+            }
         }
     }
 
@@ -845,12 +857,10 @@ pub(crate) fn place_items_with_grid(
 
     let explicit_column_start = grid.min_column_index.unsigned_abs() as usize;
     let explicit_row_start = grid.min_row_index.unsigned_abs() as usize;
-    let column_count = explicit_column_start
-        .saturating_add(grid.max_column_index.max(0) as usize)
-        .saturating_add(1);
-    let row_count = explicit_row_start
-        .saturating_add(grid.max_row_index.max(0) as usize)
-        .saturating_add(1);
+    // NB: An axis can end up with zero tracks (explicit list is none and no items occupy it);
+    //     no phantom track may be invented for it, so the resolved value can serialize as none.
+    let column_count = (grid.max_column_index - grid.min_column_index + 1).max(0) as usize;
+    let row_count = (grid.max_row_index - grid.min_row_index + 1).max(0) as usize;
     for item in &mut output {
         item.row -= grid.min_row_index;
         item.column -= grid.min_column_index;

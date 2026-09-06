@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 24 tests
 
-23 Pass
-1 Fail
-Fail	Property grid-template-columns value 'none' computes to '10px'
+24 Pass
+Pass	Property grid-template-columns value 'none' computes to '10px'
 Pass	Property grid-template-columns value '1px' computes to '10px 1px'
 Pass	Property grid-template-columns value '1px [a]' computes to '10px 1px [a]'
 Pass	Property grid-template-columns value '1px [a] 2px' computes to '10px 1px [a] 2px'

@@ -2,15 +2,14 @@ Harness status: OK
 
 Found 40 tests
 
-37 Pass
-3 Fail
+40 Pass
 Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithFixedElement' : grid-template-columns = '7px 11px', grid-template-rows = '17px 2px'
 Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithPercentElement' : grid-template-columns = '400px 800px', grid-template-rows = '150px 450px'
 Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithPercentWithoutSize' : grid-template-columns = '3.5px 7px', grid-template-rows = '4px 12px'
 Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithAutoElement' : grid-template-columns = '0px 17px', grid-template-rows = '0px 3px'
 Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithEMElement' : grid-template-columns = '100px 120px', grid-template-rows = '150px 170px'
 Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithThreeItems' : grid-template-columns = '15px 0px 100px', grid-template-rows = '120px 18px 0px'
-Fail	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithFitContentAndFitAvailable' : grid-template-columns = 'none', grid-template-rows = 'none'
+Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithFitContentAndFitAvailable' : grid-template-columns = 'none', grid-template-rows = 'none'
 Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithMinMaxContent' : grid-template-columns = '0px 0px', grid-template-rows = '0px 0px'
 Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithMinMaxContentWithChildrenElement' : grid-template-columns = '7px 17px', grid-template-rows = '16px 3px'
 Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithMinMaxAndFixed' : grid-template-columns = '240px 15px', grid-template-rows = '120px 210px'
@@ -30,7 +29,7 @@ Pass	Test getting and setting grid-template-rows and grid-template-columns throu
 Pass	Test getting and setting grid-template-rows and grid-template-columns through JS: grid-template-columns = '160px 640px', element.style.gridTemplateColumns = '16em 2fr', grid-template-rows = '600px 0px', element.style.gridTemplateRows = '14fr auto'
 Pass	Test getting and setting grid-template-rows and grid-template-columns through JS: grid-template-columns = '25px 20px', element.style.gridTemplateColumns = 'calc(25px) calc(2em)', grid-template-rows = '0px 60px', element.style.gridTemplateRows = 'auto calc(10%)'
 Pass	Test getting and setting grid-template-rows and grid-template-columns through JS: grid-template-columns = '345px 92px', element.style.gridTemplateColumns = 'calc(25px + 40%) minmax(min-content, calc(10% + 12px))', grid-template-rows = '100px 0px', element.style.gridTemplateRows = 'minmax(calc(75% - 350px), max-content) auto'
-Fail	Test setting wrong/invalid values through CSS
+Pass	Test setting wrong/invalid values through CSS
 Pass	Test setting bad JS values: grid-template-columns = 'none auto', grid-template-rows = 'none auto'
 Pass	Test setting bad JS values: grid-template-columns = 'none 16em', grid-template-rows = 'none 56%'
 Pass	Test setting bad JS values: grid-template-columns = 'none none', grid-template-rows = 'none none'
@@ -43,4 +42,4 @@ Pass	Test setting bad JS values: grid-template-columns = '10px calc(16px 30px)',
 Pass	Test setting bad JS values: grid-template-columns = 'minmax(min-content, calc() 250px', grid-template-rows = 'calc(2em('
 Pass	Test setting grid-template-columns and grid-template-rows to 'inherit' through JS
 Pass	Test the default value
-Fail	Test setting grid-template-columns and grid-template-rows to 'initial' through JS
+Pass	Test setting grid-template-columns and grid-template-rows to 'initial' through JS
