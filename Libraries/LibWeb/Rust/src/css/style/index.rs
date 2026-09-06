@@ -2563,15 +2563,12 @@ impl RuleDispatch {
     }
 
     pub(super) fn ancestor_dispatch_shape(&self) -> AncestorDispatchShape {
-        let mut keys: Vec<_> = self
-            .topology
-            .ancestors
-            .key_indices
-            .iter()
-            .map(|(&key, &index)| (index, key))
-            .collect();
-        keys.sort_unstable_by_key(|&(index, _)| index);
-        AncestorDispatchShape(keys.into_iter().map(|(_, key)| key).collect())
+        let key_indices = &self.topology.ancestors.key_indices;
+        let mut keys = vec![DispatchKey::Universal; key_indices.len()];
+        for (&key, &index) in key_indices {
+            keys[index as usize] = key;
+        }
+        AncestorDispatchShape(keys)
     }
 
     pub(super) fn share_ancestor_topology_with(&mut self, template: &Self) {
