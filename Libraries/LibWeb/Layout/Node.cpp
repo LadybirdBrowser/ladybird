@@ -878,6 +878,21 @@ void NodeWithStyle::set_overflow(CSS::Overflow overflow_x, CSS::Overflow overflo
     });
 }
 
+void NodeWithStyle::set_writing_mode_and_direction(CSS::WritingMode writing_mode, CSS::Direction direction)
+{
+    modify_computed_values([&](auto& values) {
+        values.set_writing_mode(writing_mode);
+        values.set_direction(direction);
+    });
+}
+
+void NodeWithStyle::set_scrollbar_width(CSS::ScrollbarWidth scrollbar_width)
+{
+    modify_computed_values([&](auto& values) {
+        values.set_scrollbar_width(scrollbar_width);
+    });
+}
+
 void NodeWithStyle::reset_table_box_computed_values_used_by_wrapper_to_init_values()
 {
     VERIFY(this->display().is_table_inside());

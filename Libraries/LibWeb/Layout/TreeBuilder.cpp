@@ -1290,6 +1290,14 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             VERIFY(document_pointer);
             // NB: Called during layout tree construction.
             return Node::slot_id(static_cast<DOM::Document*>(document_pointer)->unsafe_layout_node()); },
+        .document_element_layout_node = [](void* document_pointer) -> RustFFI::NodeSlotId {
+            VERIFY(document_pointer);
+            // NB: Called during layout tree construction.
+            auto* document_element = static_cast<DOM::Document*>(document_pointer)->document_element();
+            return Node::slot_id(document_element ? document_element->unsafe_layout_node() : nullptr); },
+        .apply_viewport_scrollbar_width = [](void* viewport_shell, u8 scrollbar_width) {
+            VERIFY(viewport_shell);
+            as<Viewport>(*static_cast<Node*>(viewport_shell)).set_scrollbar_width(static_cast<CSS::ScrollbarWidth>(scrollbar_width)); },
         .report_rebuild_outcome = [](void* builder_pointer, void* const* rebuilt_root_pointers, size_t rebuilt_root_count, bool layout_tree_update_escaped_rebuild_roots) {
             VERIFY(builder_pointer);
             VERIFY(rebuilt_root_pointers || rebuilt_root_count == 0);

@@ -3092,6 +3092,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/css/computed_value_types.rs"),
             manifest_dir.join("src/css/display.rs"),
             manifest_dir.join("src/layout/formatting_context.rs"),
+            manifest_dir.join("src/layout/viewport_propagation.rs"),
             manifest_dir.join("src/layout/flex_formatting_context.rs"),
             manifest_dir.join("src/layout/grid_formatting_context.rs"),
             manifest_dir.join("src/layout/svg_formatting_context.rs"),

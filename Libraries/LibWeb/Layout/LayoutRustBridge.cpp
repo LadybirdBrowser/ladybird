@@ -31,6 +31,7 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/AttributeNames.h>
+#include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/DominantBaseline.h>
@@ -441,6 +442,49 @@ LayoutRustBridge::LayoutRustBridge() = default;
 
 LayoutRustBridge::~LayoutRustBridge() = default;
 
+static bool style_has_any_containment(CSS::ComputedValues::BoxValues const& values)
+{
+    return values.size_containment || values.inline_size_containment || values.layout_containment || values.style_containment || values.paint_containment;
+}
+
+// The inputs of the principal writing mode and viewport overflow propagation. They are read from
+// the elements' own style records: the previous pass already rewrote their boxes' values, and a
+// display:none body has style but no box.
+static RustFFI::FfiViewportPropagationFacts viewport_propagation_facts(DOM::Document& document)
+{
+    RustFFI::FfiViewportPropagationFacts facts {};
+    facts.root_layout_node = RustFFI::NodeSlotId_INVALID;
+    facts.body_layout_node = RustFFI::NodeSlotId_INVALID;
+    auto* root_element = document.document_element();
+    if (!root_element || !root_element->unsafe_layout_node())
+        return facts;
+    auto const* root_box_values = root_element->style_group<CSS::ComputedValues::BoxValues>();
+    auto const* root_inherited_box_values = root_element->style_group<CSS::ComputedValues::InheritedBoxValues>();
+    VERIFY(root_box_values && root_inherited_box_values);
+    facts.root_layout_node = Node::slot_id(root_element->unsafe_layout_node());
+    facts.root_is_html_html_element = root_element->is_html_html_element();
+    facts.root_overflow_x = root_box_values->overflow_x;
+    facts.root_overflow_y = root_box_values->overflow_y;
+    facts.root_writing_mode = root_inherited_box_values->writing_mode;
+    facts.root_direction = root_inherited_box_values->direction;
+    facts.root_has_containment = style_has_any_containment(*root_box_values);
+
+    auto* body_element = root_element->first_child_of_type<HTML::HTMLBodyElement>();
+    auto const* body_box_values = body_element ? body_element->style_group<CSS::ComputedValues::BoxValues>() : nullptr;
+    auto const* body_inherited_box_values = body_element ? body_element->style_group<CSS::ComputedValues::InheritedBoxValues>() : nullptr;
+    if (!body_box_values || !body_inherited_box_values)
+        return facts;
+    facts.has_styled_body = true;
+    facts.body_layout_node = Node::slot_id(body_element->unsafe_layout_node());
+    facts.body_display_is_none = CSS::display_from_ffi_display(body_box_values->display).is_none();
+    facts.body_overflow_x = body_box_values->overflow_x;
+    facts.body_overflow_y = body_box_values->overflow_y;
+    facts.body_writing_mode = body_inherited_box_values->writing_mode;
+    facts.body_direction = body_inherited_box_values->direction;
+    facts.body_has_containment = style_has_any_containment(*body_box_values);
+    return facts;
+}
+
 void LayoutRustBridge::run_root_layout(Box& viewport, CSSPixels viewport_inline_size, CSSPixels viewport_block_size, bool should_collect_devtools_layout_data)
 {
     VERIFY(!m_commit_root);
@@ -448,6 +492,25 @@ void LayoutRustBridge::run_root_layout(Box& viewport, CSSPixels viewport_inline_
     ScopeGuard clear_commit_root = [&] {
         m_commit_root = nullptr;
     };
+
+    static_assert(to_underlying(CSS::Overflow::Auto) == 0);
+    static_assert(to_underlying(CSS::Overflow::Clip) == 1);
+    static_assert(to_underlying(CSS::Overflow::Hidden) == 2);
+    static_assert(to_underlying(CSS::Overflow::Visible) == 4);
+    auto facts = viewport_propagation_facts(viewport.document());
+    RustFFI::FfiViewportPropagationApplyCallbacks apply_callbacks {
+        .context = nullptr,
+        .apply_overflow = [](void*, void* shell, u8 overflow_x, u8 overflow_y) {
+            auto& node = as<NodeWithStyle>(*static_cast<Node*>(shell));
+            node.set_overflow(static_cast<CSS::Overflow>(overflow_x), static_cast<CSS::Overflow>(overflow_y)); },
+        .apply_writing_mode_and_direction = [](void*, void* shell, u8 writing_mode, u8 direction) {
+            auto& node = as<NodeWithStyle>(*static_cast<Node*>(shell));
+            node.set_writing_mode_and_direction(static_cast<CSS::WritingMode>(writing_mode), static_cast<CSS::Direction>(direction)); },
+    };
+    // The style rewrites enroll the affected boxes' text children for content sync, so the sync
+    // follows them, and both precede the pass, which caches decoded style.
+    RustFFI::rust_layout_propagate_root_styles_to_viewport(viewport.arena_handle(), Node::slot_id(&viewport), &facts, &apply_callbacks);
+    viewport.node_arena().sync_enrolled_content_for_layout();
 
     auto callbacks = formatting_context_callbacks();
     auto sink = commit_sink();

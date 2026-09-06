@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="../include.js"></script>
+    <script>
+        // A frameset is the document's body in the DOM sense, but overflow propagates to the
+        // viewport only from a body *element*, so the root element stays the origin here.
+        promiseTest(async () => {
+            await animationFrame();
+            println(`Viewport overflow with a frameset child: ${internals.viewportOverflowX()}`);
+        });
+    </script>
+</head>
+<frameset style="overflow: scroll"></frameset>
+</html>

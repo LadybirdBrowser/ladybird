@@ -1915,144 +1915,6 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed, Layout
     m_document->set_needs_repaint();
 }
 
-static void propagate_scrollbar_width_to_viewport(Element& root_element, Layout::Viewport& viewport)
-{
-    // https://drafts.csswg.org/css-scrollbars/#scrollbar-width
-    // UAs must apply the scrollbar-color value set on the root element to the viewport.
-    // NB: Called during layout tree construction.
-    auto scrollbar_width = root_element.unsafe_layout_node()->scrollbar_width();
-    viewport.modify_computed_values([&](auto& values) {
-        values.set_scrollbar_width(scrollbar_width);
-    });
-}
-
-// https://drafts.csswg.org/css-writing-modes-4/#principal-flow
-static void propagate_principal_writing_mode_to_viewport(Element& root_element, Layout::Viewport& viewport)
-{
-    // The principal writing mode of the document is determined by the used writing-mode, direction, and
-    // text-orientation values of the root element.
-    auto const* root_inherited_box_values = root_element.style_group<CSS::ComputedValues::InheritedBoxValues>();
-    VERIFY(root_inherited_box_values);
-    auto writing_mode = static_cast<CSS::WritingMode>(root_inherited_box_values->writing_mode);
-    auto direction = static_cast<CSS::Direction>(root_inherited_box_values->direction);
-
-    // As a special case for handling HTML documents, if the root element has a body child element [HTML] whose
-    // display value is not none, the used value of the of writing-mode and direction properties on root element
-    // are taken from the computed writing-mode and direction of the first such child element instead of from the
-    // root element's own values.
-    // NOTE: Using containment disables this special handling of the HTML body element.
-    auto* body_element = root_element.first_child_of_type<HTML::HTMLBodyElement>();
-    auto const* root_box_values = root_element.style_group<CSS::ComputedValues::BoxValues>();
-    VERIFY(root_box_values);
-    auto const* body_box_values = body_element ? body_element->style_group<CSS::ComputedValues::BoxValues>() : nullptr;
-    auto const* body_inherited_box_values = body_element ? body_element->style_group<CSS::ComputedValues::InheritedBoxValues>() : nullptr;
-    auto has_containment = [](CSS::ComputedValues::BoxValues const& values) {
-        return values.size_containment || values.inline_size_containment || values.layout_containment || values.style_containment || values.paint_containment;
-    };
-    bool propagation_is_disabled_by_containment = has_containment(*root_box_values)
-        || (body_box_values && has_containment(*body_box_values));
-    if (root_element.is_html_html_element() && !propagation_is_disabled_by_containment
-        && body_box_values && body_inherited_box_values && !CSS::display_from_ffi_display(body_box_values->display).is_none()) {
-        writing_mode = static_cast<CSS::WritingMode>(body_inherited_box_values->writing_mode);
-        direction = static_cast<CSS::Direction>(body_inherited_box_values->direction);
-    }
-    root_element.unsafe_layout_node()->modify_computed_values([&](auto& values) {
-        values.set_writing_mode(writing_mode);
-        values.set_direction(direction);
-    });
-
-    // https://drafts.csswg.org/css-writing-modes-4/#icb
-    // The principal writing mode is propagated to the initial containing block and to the viewport, thereby
-    // affecting the layout of the root element and the scrolling direction of the viewport.
-    viewport.modify_computed_values([&](auto& values) {
-        values.set_writing_mode(writing_mode);
-        values.set_direction(direction);
-    });
-}
-
-// https://drafts.csswg.org/css-overflow-3/#overflow-propagation
-static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewport& viewport)
-{
-    // https://drafts.csswg.org/css-contain-2/#contain-property
-    // Additionally, when any containments are active on either the HTML <html> or <body> elements, propagation of
-    // properties from the <body> element to the initial containing block, the viewport, or the canvas background, is
-    // disabled. Notably, this affects:
-    // - 'overflow' and its longhands (see CSS Overflow 3 § 3.3 Overflow Viewport Propagation)
-    auto* body_element = root_element.first_child_of_type<HTML::HTMLBodyElement>();
-    auto const* root_box_values = root_element.style_group<CSS::ComputedValues::BoxValues>();
-    VERIFY(root_box_values);
-    auto has_containment = [](CSS::ComputedValues::BoxValues const& values) {
-        return values.size_containment || values.inline_size_containment || values.layout_containment || values.style_containment || values.paint_containment;
-    };
-    auto const* body_box_values = body_element ? body_element->style_group<CSS::ComputedValues::BoxValues>() : nullptr;
-    bool body_element_can_propagate_overflow = body_element
-        && body_box_values
-        && !CSS::display_from_ffi_display(body_box_values->display).is_none()
-        && body_element->unsafe_layout_node();
-    bool body_propagation_is_disabled_by_containment = root_element.is_html_html_element() && has_containment(*root_box_values);
-    if (body_box_values && has_containment(*body_box_values))
-        body_propagation_is_disabled_by_containment = true;
-
-    // UAs must apply the overflow-* values set on the root element to the viewport
-    // when the root element’s display value is not none.
-    auto root_element_layout_node = root_element.unsafe_layout_node();
-    auto root_overflow_x = static_cast<CSS::Overflow>(root_box_values->overflow_x);
-    auto root_overflow_y = static_cast<CSS::Overflow>(root_box_values->overflow_y);
-
-    Element* overflow_origin_element = &root_element;
-
-    // However, when the root element is an [HTML] html element (including XML syntax for HTML)
-    // whose overflow value is visible (in both axes), and that element has as a child
-    // a body element whose display value is also not none,
-    // user agents must instead apply the overflow-* values of the first such child element to the viewport.
-    if (root_element.is_html_html_element() && !body_propagation_is_disabled_by_containment) {
-        if (root_overflow_x == CSS::Overflow::Visible && root_overflow_y == CSS::Overflow::Visible) {
-            if (body_element_can_propagate_overflow)
-                overflow_origin_element = body_element;
-        }
-    }
-
-    // If 'visible' is applied to the viewport, it must be interpreted as 'auto'. If 'clip' is applied to the viewport, it must be interpreted as 'hidden'.
-    auto const* overflow_origin_box_values = overflow_origin_element == &root_element ? root_box_values : body_box_values;
-    auto overflow_x_to_apply = static_cast<CSS::Overflow>(overflow_origin_box_values->overflow_x);
-    if (overflow_x_to_apply == CSS::Overflow::Visible) {
-        overflow_x_to_apply = CSS::Overflow::Auto;
-    } else if (overflow_x_to_apply == CSS::Overflow::Clip) {
-        overflow_x_to_apply = CSS::Overflow::Hidden;
-    }
-    auto overflow_y_to_apply = static_cast<CSS::Overflow>(overflow_origin_box_values->overflow_y);
-    if (overflow_y_to_apply == CSS::Overflow::Visible) {
-        overflow_y_to_apply = CSS::Overflow::Auto;
-    } else if (overflow_y_to_apply == CSS::Overflow::Clip) {
-        overflow_y_to_apply = CSS::Overflow::Hidden;
-    }
-    // Every node receives its final values exactly once: a steady-state pass then leaves
-    // every style group payload untouched instead of oscillating values within the pass.
-    viewport.modify_computed_values([&](auto& values) {
-        values.set_overflow_x(overflow_x_to_apply);
-        values.set_overflow_y(overflow_y_to_apply);
-    });
-
-    // UAs must apply the overflow-* values set on the root element to the viewport
-    // when the root element's display value is not none.
-    // The element from which the value is propagated must then have a used overflow value of visible.
-    // FIXME: Apply this to the used values, not the computed ones.
-    bool root_element_is_overflow_origin = overflow_origin_element == &root_element;
-    root_element_layout_node->modify_computed_values([&](auto& values) {
-        values.set_overflow_x(root_element_is_overflow_origin ? CSS::Overflow::Visible : root_overflow_x);
-        values.set_overflow_y(root_element_is_overflow_origin ? CSS::Overflow::Visible : root_overflow_y);
-    });
-    if (body_element_can_propagate_overflow) {
-        bool body_element_is_overflow_origin = overflow_origin_element == body_element;
-        auto body_overflow_x = static_cast<CSS::Overflow>(body_box_values->overflow_x);
-        auto body_overflow_y = static_cast<CSS::Overflow>(body_box_values->overflow_y);
-        body_element->unsafe_layout_node()->modify_computed_values([&](auto& values) {
-            values.set_overflow_x(body_element_is_overflow_origin ? CSS::Overflow::Visible : body_overflow_x);
-            values.set_overflow_y(body_element_is_overflow_origin ? CSS::Overflow::Visible : body_overflow_y);
-        });
-    }
-}
-
 void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutReason reason)
 {
     if (!node.is_connected())
@@ -2371,7 +2233,6 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
             break;
         }
 
-        auto* document_element = this->document_element();
         auto viewport_rect = navigable->viewport_rect();
 
         auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
@@ -2380,10 +2241,6 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
             auto tree_build_result = Layout::build_layout_tree(*this);
             set_layout_root(*tree_build_result.root);
             record_layout_tree_build(tree_build_result.rebuilt_subtree_roots.size(), tree_build_result.layout_tree_update_escaped_rebuild_roots);
-
-            // NB: Called during layout update.
-            if (document_element && document_element->unsafe_layout_node())
-                propagate_scrollbar_width_to_viewport(*document_element, *m_layout_root);
 
             if (tree_build_result.needs_another_build_pass)
                 continue;
@@ -2398,17 +2255,6 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
                 continue;
         }
 
-        if (document_element && document_element->unsafe_layout_node()) {
-            propagate_principal_writing_mode_to_viewport(*document_element, *m_layout_root);
-            propagate_overflow_to_viewport(*document_element, *m_layout_root);
-        } else {
-            m_layout_root->modify_computed_values([](auto& values) {
-                values.set_overflow_x(CSS::Overflow::Auto);
-                values.set_overflow_y(CSS::Overflow::Auto);
-            });
-        }
-
-        layout_node_arena().sync_enrolled_content_for_layout();
         Layout::LayoutRustBridge bridge;
         bridge.run_root_layout(
             *m_layout_root,

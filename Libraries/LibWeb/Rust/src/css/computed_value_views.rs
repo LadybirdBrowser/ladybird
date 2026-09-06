@@ -641,7 +641,6 @@ impl<'a> ComputedValuesView<'a> {
     }
 
     #[inline]
-    #[allow(dead_code)]
     pub(crate) fn misc_reset(self) -> &'a MiscResetValues {
         self.native_group(STYLE_GROUP_INDEX_MISC_RESET)
     }

@@ -697,6 +697,8 @@ public:
     void set_display(CSS::Display);
     void set_content(CSS::ContentData const&);
     void set_overflow(CSS::Overflow overflow_x, CSS::Overflow overflow_y);
+    void set_writing_mode_and_direction(CSS::WritingMode, CSS::Direction);
+    void set_scrollbar_width(CSS::ScrollbarWidth);
 
 private:
     CSS::ComputedStyleRecordView computed_style_record_view() const;

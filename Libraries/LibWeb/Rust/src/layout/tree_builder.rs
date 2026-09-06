@@ -125,6 +125,9 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub apply_replaced_display_adjustment: unsafe extern "C" fn(*mut c_void, FfiReplacedElementDisplayAdjustment),
     pub set_layout_root: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub document_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
+    pub document_element_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
+    /// Sets `scrollbar-width` on the viewport box's computed style.
+    pub apply_viewport_scrollbar_width: unsafe extern "C" fn(*mut c_void, u8),
     pub report_rebuild_outcome: unsafe extern "C" fn(*mut c_void, *const *mut c_void, usize, bool),
     pub layout: FfiTreeBuilderCallbacks,
     pub pseudo: FfiPseudoTreeBuilderCallbacks,
@@ -1820,6 +1823,26 @@ pub unsafe extern "C" fn rust_build_layout_tree(
             );
         } else {
             fixup_tables(&layout_host, document_layout_node);
+        }
+
+        // https://drafts.csswg.org/css-scrollbars/#scrollbar-width
+        // UAs must apply the scrollbar-color value set on the root element to the viewport.
+        // NB: Called during layout tree construction.
+        // SAFETY: The document remains live throughout the build.
+        let root_layout_node = unsafe { (host.callbacks.document_element_layout_node)(document) };
+        if !root_layout_node.is_invalid() {
+            let scrollbar_width = layout_host
+                .style(root_layout_node)
+                .expect("the document element's box publishes its style during the build")
+                .misc_reset()
+                .scrollbar_width;
+            // SAFETY: The viewport shell is live, and the build runs outside any layout pass.
+            unsafe {
+                (host.callbacks.apply_viewport_scrollbar_width)(
+                    layout_host.shell(document_layout_node),
+                    scrollbar_width,
+                );
+            }
         }
     }
 

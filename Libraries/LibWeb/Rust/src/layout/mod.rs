@@ -46,6 +46,7 @@ mod text_transform;
 mod tree_builder;
 mod tree_mutation;
 pub mod used_values;
+mod viewport_propagation;
 
 use crate::css::style::fast_hash::FastMap as HashMap;
 use crate::css::style::fast_hash::FastSet as HashSet;
