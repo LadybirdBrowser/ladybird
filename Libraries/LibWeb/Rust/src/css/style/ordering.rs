@@ -238,19 +238,26 @@ impl StyleEngine {
         let wants = |property| properties.is_none_or(|properties| properties.binary_search(&property).is_ok());
         candidates.clear();
         for entry in matches.iter().filter(|entry| entry.pseudo_element == pseudo) {
+            let mut priority_and_stratum_by_importance = [None; 2];
             for &declared in self.program.declared_properties_of(entry.rule) {
                 // A shorthand written with a substitution is declared whole beside the longhands
                 // it pends; the longhands are the winners, the shorthand names no column.
                 if !wants(declared.property) || !property_is_longhand(declared.property) {
                     continue;
                 }
-                let priority = self.cascade_priority_of(
-                    entry.rule,
-                    entry.tree_scope,
-                    entry.specificity,
-                    entry.scope_proximity,
-                    declared.important,
-                );
+                let (priority, stratum) = *priority_and_stratum_by_importance[declared.important as usize]
+                    .get_or_insert_with(|| {
+                        (
+                            self.cascade_priority_of(
+                                entry.rule,
+                                entry.tree_scope,
+                                entry.specificity,
+                                entry.scope_proximity,
+                                declared.important,
+                            ),
+                            self.cascade_stratum_of(entry.rule, entry.tree_scope, declared.important),
+                        )
+                    });
                 candidates.push(OrderedCascadeCandidate {
                     winner: PropertyWinner {
                         property: declared.property,
@@ -259,7 +266,7 @@ impl StyleEngine {
                         priority,
                         source: WinnerSource::Rule(entry.rule),
                     },
-                    stratum: self.cascade_stratum_of(entry.rule, entry.tree_scope, declared.important),
+                    stratum,
                 });
             }
         }
@@ -274,11 +281,18 @@ impl StyleEngine {
                 {
                     continue;
                 }
+                let mut priority_and_stratum_by_importance = [None; 2];
                 for &declared in declared_properties {
                     if !wants(declared.property) || !property_is_longhand(declared.property) {
                         continue;
                     }
-                    let priority = self.element_cascade_priority(node, kind, declared.important);
+                    let (priority, stratum) = *priority_and_stratum_by_importance[declared.important as usize]
+                        .get_or_insert_with(|| {
+                            (
+                                self.element_cascade_priority(node, kind, declared.important),
+                                self.element_cascade_stratum(node, kind, declared.important),
+                            )
+                        });
                     candidates.push(OrderedCascadeCandidate {
                         winner: PropertyWinner {
                             property: declared.property,
@@ -287,7 +301,7 @@ impl StyleEngine {
                             priority,
                             source: WinnerSource::Element(kind),
                         },
-                        stratum: self.element_cascade_stratum(node, kind, declared.important),
+                        stratum,
                     });
                 }
             }
