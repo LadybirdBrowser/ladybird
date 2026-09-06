@@ -4456,6 +4456,7 @@ impl StyleEngine {
             {
                 self.retained_selector_incidences
                     .lookup(selector_program)
+                    .cloned()
                     .or_else(|| {
                         program_joins
                             .iter()

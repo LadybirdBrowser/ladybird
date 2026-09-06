@@ -1771,7 +1771,7 @@ impl StyleEngine {
         document_root: StyleNodeID,
     ) -> Option<Rc<[RetainedSelectorIncidence]>> {
         if let Some(incidences) = self.retained_selector_incidences.lookup(program) {
-            return Some(incidences);
+            return Some(Rc::clone(incidences));
         }
         let mut incidences = Vec::new();
         for node in self.tree.preorder(document_root) {
@@ -1841,7 +1841,7 @@ impl StyleEngine {
         program: SelectorProgramID,
     ) -> Option<Rc<[RetainedSelectorIncidence]>> {
         if let Some(incidences) = self.retained_selector_incidences.lookup(program) {
-            return Some(incidences);
+            return Some(Rc::clone(incidences));
         }
         let (scope_program, dispatch) = self.ranked_scope_program(TreeScopeID::DOCUMENT);
         let compiled = self.programs.get(program);

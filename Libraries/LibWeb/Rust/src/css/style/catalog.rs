@@ -829,11 +829,8 @@ impl Default for RetainedSelectorIncidences {
 }
 
 impl RetainedSelectorIncidences {
-    pub(super) fn lookup(&self, program: SelectorProgramID) -> Option<Rc<[RetainedSelectorIncidence]>> {
-        self.by_program
-            .get(program.0 as usize)
-            .and_then(Option::as_ref)
-            .cloned()
+    pub(super) fn lookup(&self, program: SelectorProgramID) -> Option<&Rc<[RetainedSelectorIncidence]>> {
+        self.by_program.get(program.0 as usize).and_then(Option::as_ref)
     }
 
     pub(super) fn capacity_bytes(&self) -> u64 {
