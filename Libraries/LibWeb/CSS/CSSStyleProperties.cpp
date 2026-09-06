@@ -6,6 +6,7 @@
  */
 
 #include <AK/Atomic.h>
+#include <AK/QuickSort.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/CSS/CSSRule.h>
@@ -34,6 +35,7 @@
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
+#include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/LocalNavigable.h>
@@ -1993,6 +1995,38 @@ void CSSStyleProperties::set_declarations_from_text(Utf16View css_text)
     auto style = parse_css_property_declaration_block(parsing_params, css_text);
     set_the_declarations(style.properties, style.custom_properties);
     ++m_revision;
+}
+
+CSSStyleProperties::CustomPropertyReferences const& CSSStyleProperties::custom_property_references() const
+{
+    if (m_custom_property_references && m_custom_property_references_revision == m_revision)
+        return *m_custom_property_references;
+
+    auto references = make<CustomPropertyReferences>();
+    auto visit = [](void* context, u16 const* name, size_t name_length) {
+        static_cast<Vector<Utf16FlyString>*>(context)->append(Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(name), name_length }));
+    };
+    auto visit_value = [&](StyleValue const& value) {
+        if (!value.is_unresolved() || !value.as_unresolved().includes_var_function())
+            return;
+        if (!StyleValueFFI::rust_unresolved_style_value_visit_custom_property_references(value.rust_style_value_data(), &references->names, visit))
+            references->all_references_visible = false;
+    };
+    for (auto const& property : m_properties)
+        visit_value(*property.value);
+    for (auto const& [name, property] : m_custom_properties)
+        visit_value(*property.value);
+    quick_sort(references->names);
+    size_t unique_count = 0;
+    for (size_t index = 0; index < references->names.size(); ++index) {
+        if (index == 0 || references->names[index] != references->names[unique_count - 1])
+            references->names[unique_count++] = references->names[index];
+    }
+    references->names.shrink(unique_count);
+
+    m_custom_property_references = move(references);
+    m_custom_property_references_revision = m_revision;
+    return *m_custom_property_references;
 }
 
 }

@@ -1718,6 +1718,10 @@ impl StyleEngine {
         {
             return;
         }
+        // A state minted before the winner groups were evicted names nothing in the table now.
+        if cascade_state.0 != self.winner_groups.generation() {
+            return;
+        }
         let Some(parent) = self.tree.flat_tree_parent(node) else {
             return;
         };
@@ -3053,23 +3057,64 @@ impl StyleEngine {
     /// on, so the state bound by that cascade still describes the element's winners.
     pub(crate) fn retain_exact_cascade_state(&mut self, node: StyleNodeID) {
         let target = computed::ComputedStyleTarget::new(node, u8::MAX);
-        let Some((generation, state)) = self.computed_group_sets.cascade_state(target) else {
+        let Some(bound) = self.computed_group_sets.cascade_state(target) else {
             return;
         };
+        // A re-evaluation can mint a new state for the same winners; the reused style then carries
+        // the current one, so the next publication finds the winners it describes.
+        let Some(retained) = self.current_state_for_bound(node, bound) else {
+            return;
+        };
+        // A state bound before the winner groups were evicted describes nothing the table holds
+        // now; the next publication binds a fresh one.
+        if retained.0 != self.winner_groups.generation() {
+            return;
+        }
         verify_cascade_winners(self, |engine| {
             if let Lookup::Known(current) = engine
                 .winner_groups
                 .token_for(WinnerGroupKey::current(node, engine.program.version()))
             {
                 assert_eq!(
-                    current,
-                    (generation, state),
+                    current, retained,
                     "a reused style must keep the winner state its cascade bound"
                 );
             }
         });
-        self.computed_group_sets
-            .set_pending_cascade_state(target, (generation, state));
+        self.computed_group_sets.set_pending_cascade_state(target, retained);
+    }
+
+    /// The winner state the engine holds for a node now, when it describes the same winners as the
+    /// state the node's last cascade bound: the bound state itself, or one minted since for
+    /// winners that did not move. `None` when the winners moved or the current state is unknown.
+    fn current_state_for_bound(
+        &self,
+        node: StyleNodeID,
+        bound: (u64, CascadeStateID),
+    ) -> Option<(u64, CascadeStateID)> {
+        match self
+            .winner_groups
+            .token_for(WinnerGroupKey::current(node, self.program.version()))
+        {
+            Lookup::Known(current) if current == bound => Some(current),
+            Lookup::Known(current)
+                if current.0 == bound.0 && self.winner_groups.semantic_delta(Some(bound.1), current.1).is_empty() =>
+            {
+                Some(current)
+            }
+            Lookup::Known(_) => None,
+            _ => Some(bound),
+        }
+    }
+
+    /// Whether the winner state an element's last cascade bound is still the one its current
+    /// winners describe. A style handed back unchanged may only carry that state forward when it is.
+    pub(crate) fn exact_cascade_state_is_current(&self, node: StyleNodeID) -> bool {
+        let target = computed::ComputedStyleTarget::new(node, u8::MAX);
+        let Some(bound) = self.computed_group_sets.cascade_state(target) else {
+            return false;
+        };
+        self.current_state_for_bound(node, bound).is_some()
     }
 
     /// Bind an exact winner state to a style-sharing publication which consumes the same complete

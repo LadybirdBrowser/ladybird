@@ -109,7 +109,8 @@
     [106, "LookupSharedStyleRecord"],
     [107, "RememberSharedStyleRecord"],
     [108, "TakeSharedComputationContext"],
-    [109, "SetPseudoElementStyleDeferred"]
+    [109, "SetPseudoElementStyleDeferred"],
+    [110, "ExactCascadeStateIsCurrent"]
   ],
   "operations": [
     {"event": "TakeSharedComputationContext", "ffi": "style_engine_take_shared_computation_context", "cpp": "take_shared_computation_context", "return": "u64", "args": [["node", "style_node"], ["parent_record", "style_record"], ["environment", "u64"], ["shape", "u64_slice"], ["pseudo_elements", "u64"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return 0; }; let shape = shape.try_into().expect(\"a shared style shape has four words\"); let result = engine.take_shared_computation_context(node, parent_record, environment, shape, pseudo_elements).unwrap_or(0);"},
@@ -167,6 +168,7 @@
     { "event": "NodeDeclaresCustomProperties", "ffi": "style_engine_node_declares_custom_properties", "cpp": "node_declares_custom_properties", "return": "bool", "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return false; }; let result = engine.node_declares_custom_properties(node);" },
     { "event": "PrepareSharedExactCascadeState", "ffi": "style_engine_prepare_shared_exact_cascade_state", "cpp": "prepare_shared_exact_cascade_state", "return": "void", "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.prepare_shared_exact_cascade_state(node);" },
     { "event": "RetainExactCascadeState", "ffi": "style_engine_retain_exact_cascade_state", "cpp": "retain_exact_cascade_state", "return": "void", "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.retain_exact_cascade_state(node);" },
+    { "event": "ExactCascadeStateIsCurrent", "ffi": "style_engine_exact_cascade_state_is_current", "cpp": "exact_cascade_state_is_current", "return": "bool", "receiver": "const", "replay": false, "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return false; }; let result = engine.exact_cascade_state_is_current(node);" },
     { "event": "AcknowledgeEngineComputedRecord", "ffi": "style_engine_acknowledge_engine_computed_record", "cpp": "acknowledge_engine_computed_record", "return": "void", "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.acknowledge_engine_computed_record(node);" },
     { "event": "DiscardPendingExactCascadeState", "ffi": "style_engine_discard_pending_exact_cascade_state", "cpp": "discard_pending_exact_cascade_state", "return": "void", "args": [["node", "style_node"], ["pseudo_kind", "u8"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.discard_pending_exact_cascade_state(super::computed::ComputedStyleTarget::new(node, pseudo_kind));" },
     { "event": "PinStyleRecord", "ffi": "style_engine_pin_style_record", "cpp": "pin_style_record", "return": "void", "args": [["style_record", "style_record"]], "body": "engine.pin_style_record(style_record);" },

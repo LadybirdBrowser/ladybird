@@ -2345,6 +2345,20 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     // already holds. Nothing derived from the originating style needs to be compared or published
     // again in that case. Pseudo-element declarations are a separate cascade projected from the
     // originating element's matches, so they still have to consume that shared match result.
+    // Only the inherited custom-property environment moved, and no cascade of the element or its
+    // pseudo-elements read a name it moved: every style stands, and the descendants react to the
+    // environment.
+    if (old_computed_values && style_record_is_unchanged(style_record_delta) && !root_font_metrics_changed
+        && pseudo_element_inputs == PseudoElementInputs::Unchanged
+        && !(m_rendered_in_top_layer && !computed_style(CSS::PseudoElement::Backdrop))
+        && mode == StyleRecomputeMode::Normal && style_computer.last_materialization_kept_pseudo_element_styles()) {
+        counters.element_style_noop_recomputations++;
+        publish_custom_property_names();
+        if (did_change_custom_properties)
+            invalidate_descendant_styles_depending_on_style_container_query();
+        return {};
+    }
+
     if (old_computed_values && style_record_is_unchanged(style_record_delta) && !did_change_custom_properties && !root_font_metrics_changed) {
         if (pseudo_styles_are_unchanged) {
             counters.element_style_noop_recomputations++;

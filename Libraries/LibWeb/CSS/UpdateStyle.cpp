@@ -467,6 +467,14 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 auto pseudo_element_inputs = (reaction.reaction & StyleEngine::PseudoInputsMayHaveChanged)
                     ? DOM::Element::PseudoElementInputs::Changed
                     : DOM::Element::PseudoElementInputs::Unchanged;
+                // A reaction the engine derived from an ancestor's application, rather than from a
+                // published match answer, changes nothing the element's style input record does not
+                // name: the element may answer with its own last style when the record still holds.
+                bool const is_derived_reaction = !has_published_style_reaction && reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::Materialize;
+                document.style_computer().set_materializing_for_derived_reaction(is_derived_reaction);
+                ScopeGuard reset_derived_reaction = [&] {
+                    document.style_computer().set_materializing_for_derived_reaction(false);
+                };
                 invalidation = element->apply_style_engine_reaction(did_change_custom_properties, DOM::Element::StyleRecomputeMode::Normal, pseudo_element_inputs);
             } else if (needs_custom_property_recompute && element->refresh_inherited_custom_property_data()) {
                 did_change_custom_properties = true;
