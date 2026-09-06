@@ -6,6 +6,7 @@
 
 #include <AK/LexicalPath.h>
 #include <LibCore/ArgsParser.h>
+#include <LibCore/CrashHandler.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/LocalServer.h>
 #include <LibCore/Process.h>
@@ -135,6 +136,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     StringView cache_path;
     StringView mach_server_name {};
     Vector<ByteString> certificates;
+    int crash_report_fd = -1;
     bool enable_test_mode = false;
     bool expose_experimental_interfaces = false;
     bool expose_internals_object = false;
@@ -153,6 +155,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool file_origins_are_tuple_origins = false;
 
     Core::ArgsParser args_parser;
+    args_parser.add_option(crash_report_fd, "Descriptor for anonymous crash diagnostics", "crash-report-fd", 0, "fd");
     args_parser.add_option(config_path, "Ladybird configuration path", "config-path", 0, "config_path");
     args_parser.add_option(cache_path, "Path to the profile cache", "cache-path", 0, "path");
     args_parser.add_option(enable_test_mode, "Enable test mode", "test-mode");
@@ -188,6 +191,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(file_origins_are_tuple_origins, "Treat file:// URLs as having tuple origins", "tuple-file-origins");
 
     args_parser.parse(arguments);
+
+    if (crash_report_fd >= 0) {
+        if (auto result = Core::CrashHandler::initialize(crash_report_fd); result.is_error())
+            warnln("Could not install crash report handler: {}", result.error());
+    }
 
     if (wait_for_debugger) {
         Core::Process::wait_for_debugger_and_break();

@@ -169,21 +169,43 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
         arguments.append("--wait-for-debugger"sv);
 
     for (auto [i, path] : enumerate(candidate_server_paths)) {
-        Core::ProcessSpawnOptions options { .name = server_name, .arguments = arguments };
+        auto process_arguments = arguments;
+        Core::ProcessSpawnOptions options { .name = server_name, .arguments = process_arguments };
 
         if (browser_options.profile_helper_process == process_type && browser_options.profile_tool == ProfileTool::Callgrind) {
             options.executable = "valgrind"sv;
             options.search_for_executable_in_path = true;
-            arguments[2] = path;
+            process_arguments[2] = path;
         } else {
             options.executable = path;
         }
 
+        OwnPtr<CrashReport> crash_report;
+        OwnPtr<Core::File> crash_report_child_file;
+#if defined(AK_OS_MACOS) || defined(AK_OS_LINUX)
+        if (WebView::Application::web_content_options().is_test_mode == IsTestMode::No) {
+            auto report = CrashReport::create(process_type);
+            if (report.is_error()) {
+                warnln("Could not prepare {} crash reporting: {}", server_name, report.error());
+            } else {
+                crash_report = report.release_value();
+                // Reserve a distinct destination so dup2 clears close-on-exec
+                // in the child, including on the Linux fork/exec path.
+                auto child_fd = TRY(Core::System::fcntl(crash_report->fd(), F_DUPFD_CLOEXEC, 0));
+                crash_report_child_file = TRY(Core::File::adopt_fd(child_fd, Core::File::OpenMode::Write));
+                options.file_actions.append(Core::FileAction::DupFd { .write_fd = crash_report->fd(), .fd = child_fd });
+                process_arguments.append("--crash-report-fd"sv);
+                process_arguments.append(ByteString::number(crash_report_child_file->fd()));
+            }
+        }
+#endif
         bool capture_output = WebView::Application::the().should_capture_web_content_output();
         auto result = WebView::Process::spawn<ClientType>(process_type, move(options), capture_output, forward<ClientArguments>(client_arguments)...);
 
         if (!result.is_error()) {
             auto&& [process, client] = result.release_value();
+            if (crash_report)
+                process.set_crash_report(crash_report.release_nonnull());
 
             if (WebView::Application::the().claim_cpu_profiler(process_type)) {
                 auto profiler = TRY(launch_cpu_profiler(server_name, process.pid(), browser_options.profile_output));

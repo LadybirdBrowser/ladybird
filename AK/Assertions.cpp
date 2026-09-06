@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AssertionFailure.h>
 #include <AK/Assertions.h>
 #include <AK/Backtrace.h>
 #include <AK/Format.h>
@@ -41,6 +42,19 @@
 #    define ERRORLN warnln
 #endif
 
+static AK::AssertionFailureCallback s_assertion_failure_callback;
+static AK::AssertionBacktraceCallback s_assertion_backtrace_callback;
+
+void AK::set_assertion_failure_callback(AssertionFailureCallback callback)
+{
+    __atomic_store_n(&s_assertion_failure_callback, callback, __ATOMIC_RELEASE);
+}
+
+void AK::set_assertion_backtrace_callback(AssertionBacktraceCallback callback)
+{
+    __atomic_store_n(&s_assertion_backtrace_callback, callback, __ATOMIC_RELEASE);
+}
+
 extern "C" {
 
 #if defined(AK_HAS_CPPTRACE)
@@ -48,6 +62,26 @@ void dump_backtrace(unsigned frames_to_skip, unsigned max_depth)
 {
     // We should be using cpptrace for everything but android.
     auto stacktrace = cpptrace::generate_trace(frames_to_skip, max_depth);
+    if (auto callback = __atomic_load_n(&s_assertion_backtrace_callback, __ATOMIC_ACQUIRE)) {
+        Array<AK::AssertionBacktraceFrame, AK::maximum_assertion_backtrace_frames> frames;
+        auto count = min(frames.size(), stacktrace.frames.size());
+        FlatPtr address = 0;
+        for (size_t i = count; i-- > 0;) {
+            auto const& frame = stacktrace.frames[i];
+            // Inline entries precede their enclosing physical frame and have no raw address.
+            if (!frame.is_inline)
+                address = frame.raw_address;
+            frames[i] = {
+                address,
+                { frame.symbol.data(), frame.symbol.size() },
+                { frame.filename.data(), frame.filename.size() },
+                frame.line.value_or(0),
+                frame.column.value_or(0),
+                frame.is_inline,
+            };
+        }
+        callback(frames.span().trim(count));
+    }
     auto* var = getenv("LADYBIRD_BACKTRACE_SNIPPETS");
     bool print_snippets = var && strnlen(var, 1) > 0;
     static NeverDestroyed<cpptrace::formatter> formatter { cpptrace::formatter {}.snippets(print_snippets) };
@@ -167,6 +201,8 @@ void ak_verification_failed(char const* message)
     if (auto assertion_handler = get_custom_assertion_handler()) {
         assertion_handler(message);
     }
+    if (auto callback = __atomic_load_n(&s_assertion_failure_callback, __ATOMIC_ACQUIRE))
+        callback(AK::AssertionFailureKind::Verification, message);
     if (ak_colorize_output())
         ERRORLN("\033[31;1mVERIFICATION FAILED\033[0m: {}", message);
     else
@@ -180,6 +216,8 @@ void ak_assertion_failed(char const* message)
     if (auto assertion_handler = get_custom_assertion_handler()) {
         assertion_handler(message);
     }
+    if (auto callback = __atomic_load_n(&s_assertion_failure_callback, __ATOMIC_ACQUIRE))
+        callback(AK::AssertionFailureKind::Assertion, message);
     if (ak_colorize_output())
         ERRORLN("\033[31;1mASSERTION FAILED\033[0m: {}", message);
     else

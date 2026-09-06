@@ -13,6 +13,7 @@
 #include <LibCore/Process.h>
 #include <LibIPC/Connection.h>
 #include <LibIPC/Transport.h>
+#include <LibWebView/CrashReport.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/ProcessType.h>
 
@@ -50,6 +51,9 @@ public:
         return {};
     }
 
+    void set_crash_report(NonnullOwnPtr<CrashReport> report) { m_crash_report = move(report); }
+    void save_crash_report(Optional<int> exit_status);
+
     pid_t pid() const { return m_process.pid(); }
 
     ProcessOutputCapture& output_capture() { return m_output_capture; }
@@ -71,6 +75,7 @@ private:
     };
     static ErrorOr<ProcessAndIPCTransport> spawn_and_connect_to_process(Core::ProcessSpawnOptions const& options, bool capture_output);
 
+    OwnPtr<CrashReport> m_crash_report;
     Core::Process m_process;
     ProcessType m_type;
     Optional<Utf16String> m_title;

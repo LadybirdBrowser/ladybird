@@ -19,7 +19,6 @@
 #include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
-#include <LibCore/Process.h>
 #if !defined(AK_OS_MACOS)
 #    include <LibCore/Socket.h>
 #else
@@ -440,7 +439,7 @@ Web::WebDriver::Response WebDriverConnection::get_current_url()
 void WebDriverConnection::crash_current_page()
 {
     Core::deferred_invoke([] {
-        Core::Process::terminate_immediately(1);
+        VERIFY_NOT_REACHED();
     });
 }
 

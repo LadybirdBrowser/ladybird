@@ -23,6 +23,10 @@ set(TEST_SOURCES
     TestWebViewURL.cpp
 )
 
+if (APPLE OR LINUX)
+    list(APPEND TEST_SOURCES TestCrashReport.cpp)
+endif()
+
 foreach(source IN LISTS TEST_SOURCES)
     set(test_libraries LibDatabase LibWebView LibURL)
     if (source STREQUAL "TestProfile.cpp" OR source STREQUAL "TestDownloadSegmentation.cpp")
@@ -30,6 +34,10 @@ foreach(source IN LISTS TEST_SOURCES)
     endif()
     ladybird_test("${source}" LibWebView LIBS ${test_libraries})
 endforeach()
+
+if (TARGET TestCrashReport AND cpptrace_FOUND AND LADYBIRD_ENABLE_CPPTRACE)
+    target_compile_definitions(TestCrashReport PRIVATE TEST_HAS_CPPTRACE=1)
+endif()
 
 target_sources(TestNavigationLoader PRIVATE ${LADYBIRD_SOURCE_DIR}/Libraries/LibWebView/NavigationLoader.cpp)
 target_link_libraries(TestNavigationLoader PRIVATE LibRequests LibWeb)
@@ -65,6 +73,26 @@ if (NOT WIN32)
 endif()
 
 if (BUILD_TESTING AND NOT WIN32)
+    add_test(NAME TestBuildInformation COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-build-information.py)
+    if (APPLE OR LINUX)
+        add_test(
+            NAME TestWebDriverCrashReport
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-crash-report.py $<TARGET_FILE:WebDriver>
+        )
+        set_tests_properties(TestWebDriverCrashReport PROPERTIES TIMEOUT 120)
+        set(crash_report_helpers WebWorker RequestServer ImageDecoder Compositor)
+        if (ENABLE_CRANELIFT_JIT)
+            list(APPEND crash_report_helpers WasmCompiler)
+        endif()
+        foreach(helper IN LISTS crash_report_helpers)
+            add_test(
+                NAME Test${helper}CrashReport
+                COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-crash-report.py $<TARGET_FILE:WebDriver> --process ${helper}
+            )
+            set_tests_properties(Test${helper}CrashReport PROPERTIES TIMEOUT 120)
+        endforeach()
+    endif()
+
     add_test(
         NAME TestWebDriverDeleteSession
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-delete-session.py $<TARGET_FILE:WebDriver>
@@ -75,7 +103,7 @@ if (BUILD_TESTING AND NOT WIN32)
         NAME TestWebDriverSessionHistory
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-session-history.py $<TARGET_FILE:WebDriver>
     )
-    set_tests_properties(TestWebDriverSessionHistory PROPERTIES TIMEOUT 120)
+    set_tests_properties(TestWebDriverSessionHistory PROPERTIES TIMEOUT 120 ENVIRONMENT "XDG_DATA_HOME=${CMAKE_CURRENT_BINARY_DIR}/session-history-data")
 
     add_test(
         NAME TestWebDriverErrorKeepAlive
