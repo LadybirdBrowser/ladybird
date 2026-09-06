@@ -605,7 +605,7 @@ pub(super) struct SelectorDispatchMetadata {
 
 /// Derived acceleration is not part of a selector program's semantic identity.
 #[derive(Default)]
-struct CachedDispatchMetadata(Vec<SelectorDispatchMetadata>);
+struct CachedDispatchMetadata(Box<[SelectorDispatchMetadata]>);
 
 impl PartialEq for CachedDispatchMetadata {
     fn eq(&self, _other: &Self) -> bool {
