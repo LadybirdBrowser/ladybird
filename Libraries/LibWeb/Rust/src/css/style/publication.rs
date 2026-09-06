@@ -235,18 +235,14 @@ impl StyleEngine {
             self.abandon_engine_computed_record(node, scratch);
             return None;
         }
-        let element_uses_substitution = self.nodes_with_substituted_records.contains(&node);
-        let pseudo_states: Vec<_> = self
-            .winner_groups
-            .pseudo_states(node)
-            .filter_map(|(_, version, state, priority_current)| {
-                (version == self.program.version() && priority_current).then_some(state)
-            })
-            .collect();
-        let pseudo_uses_substitution = pseudo_states
-            .into_iter()
-            .any(|state| self.state_has_substitutions(node, state));
-        if element_uses_substitution || pseudo_uses_substitution {
+        let uses_substitution = self.nodes_with_substituted_records.contains(&node)
+            || self
+                .winner_groups
+                .pseudo_states(node)
+                .any(|(_, version, state, priority_current)| {
+                    version == self.program.version() && priority_current && self.state_has_substitutions(node, state)
+                });
+        if uses_substitution {
             self.nodes_with_substituted_records.insert(node);
         } else {
             self.nodes_with_substituted_records.remove(&node);
