@@ -86,7 +86,7 @@ public:
         Gfx::IntRect damage_rect;
     };
 
-    ContextState(Optional<u64> page_id, CompositorStateWebContentClient&, Web::Painting::CanvasSurfaceRegistry const&, bool async_scrolling_enabled, Function<void(Gfx::IntRect)> schedule_caret_repaint = {});
+    ContextState(Web::Compositor::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&, Web::Painting::CanvasSurfaceRegistry const&, bool async_scrolling_enabled, Function<void(Gfx::IntRect)> schedule_caret_repaint = {});
     ~ContextState();
 
     bool is_owned_by(CompositorStateWebContentClient const&) const;
@@ -136,6 +136,7 @@ public:
     Gfx::IntRect caret_damage_rect_for_testing() { return caret_damage_rect(); }
     ContextUpdateResult async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::Compositor::SnapContainerHandling);
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
+    bool has_pending_async_scroll_updates() const;
 
     void viewport_size_updated(Gfx::IntSize, Web::Compositor::WindowResizingInProgress);
     bool set_paused_debugger_overlay(bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<WebView::PausedDebuggerOverlayAction> hovered_action);
@@ -228,6 +229,7 @@ private:
 
     CompositorStateWebContentClient& m_web_content_client;
     Web::Painting::CanvasSurfaceRegistry const& m_canvas_surface_registry;
+    Web::Compositor::CompositorContextId m_context_id;
     Optional<u64> m_page_id;
     bool const m_async_scrolling_enabled { true };
 
@@ -251,9 +253,20 @@ private:
     ViewportScrollbarController m_viewport_scrollbar_controller;
 
     Vector<Web::Compositor::AsyncScrollOffset> m_pending_async_scroll_offsets;
+    // Offsets handed to WebContent that no snapshot of its has incorporated yet; the compositor keeps
+    // reapplying them over the main-thread state that arrives in the meantime.
+    struct UnreconciledAsyncScrollOffset {
+        u64 sequence { 0 };
+        Web::Compositor::AsyncScrollOffset offset;
+    };
+    Vector<UnreconciledAsyncScrollOffset> m_unreconciled_async_scroll_offsets;
+    u64 m_next_async_scroll_update_sequence { 0 };
+    void retire_reconciled_async_scroll_offsets(u64 adopted_sequence);
+    Vector<Web::Compositor::AsyncScrollOffset> unreconciled_async_scroll_offsets() const;
     Vector<Web::Compositor::AsyncScrollOperationID> m_completed_async_scroll_operation_ids;
     Vector<Web::Compositor::AsyncScrollOperationID> m_async_scroll_operation_ids_taken_over_by_user_input;
     bool m_user_scroll_gesture_ended { false };
+    bool m_published_user_scroll_gesture_in_progress { false };
     Vector<ActiveSmoothScrollAnimation> m_smooth_scroll_animations;
     Web::Compositor::AsyncScrollOperationID m_next_async_scroll_operation_id { 0 };
     Gfx::IntRect m_async_scrolling_viewport_rect;

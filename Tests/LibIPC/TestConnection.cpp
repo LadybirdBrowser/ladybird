@@ -33,14 +33,18 @@ constexpr int OTHER_MESSAGE_ID = 2;
 
 class TestMessage final : public IPC::Message {
 public:
-    explicit TestMessage(int id)
+    explicit TestMessage(int id, u64 sequence = 0, u32 magic = TEST_MAGIC)
         : m_id(id)
+        , m_sequence(sequence)
+        , m_magic(magic)
     {
     }
 
-    u32 endpoint_magic() const override { return TEST_MAGIC; }
+    u32 endpoint_magic() const override { return m_magic; }
     int message_id() const override { return m_id; }
     StringView message_name() const override { return "TestMessage"sv; }
+
+    u64 sequence() const { return m_sequence; }
 
     ErrorOr<IPC::MessageBuffer> encode() const override
     {
@@ -52,6 +56,8 @@ public:
 
 private:
     int m_id { 0 };
+    u64 m_sequence { 0 };
+    u32 m_magic { TEST_MAGIC };
 };
 
 class CountingStub final : public IPC::Stub {
@@ -59,13 +65,17 @@ public:
     u32 magic() const override { return TEST_MAGIC; }
     ByteString name() const override { return "CountingStub"; }
 
-    ErrorOr<OwnPtr<IPC::MessageBuffer>> handle(NonnullOwnPtr<IPC::Message>) override
+    ErrorOr<OwnPtr<IPC::MessageBuffer>> handle(NonnullOwnPtr<IPC::Message> message) override
     {
         ++m_handle_count;
+        if (on_message)
+            on_message(*message);
         return OwnPtr<IPC::MessageBuffer> {};
     }
 
     size_t handle_count() const { return m_handle_count; }
+
+    Function<void(IPC::Message const&)> on_message;
 
 private:
     size_t m_handle_count { 0 };
@@ -75,6 +85,8 @@ class TestConnection final : public IPC::ConnectionBase {
     C_OBJECT(TestConnection);
 
 public:
+    using ConnectionBase::handle_messages;
+
     void inject_unprocessed_message(NonnullOwnPtr<IPC::Message> message)
     {
         m_unprocessed_messages.append(move(message));
@@ -100,6 +112,69 @@ private:
     }
 };
 
+}
+
+TEST_CASE(taking_unprocessed_messages_includes_the_current_dispatch_batch)
+{
+    Core::EventLoop loop;
+    auto pair = TRY_OR_FAIL(IPC::Transport::create_paired());
+    CountingStub stub;
+    auto connection = TestConnection::construct(stub, move(pair.local));
+    size_t taken_count = 0;
+    stub.on_message = [&](IPC::Message const& message) {
+        if (message.message_id() != OTHER_MESSAGE_ID)
+            return;
+        // A synchronous request from this handler can receive more pushes before its
+        // response, but older pushes are still waiting in this dispatch batch.
+        connection->inject_unprocessed_message(make<TestMessage>(TARGET_MESSAGE_ID, 2));
+        auto taken = connection->take_unprocessed_messages(TEST_MAGIC, TARGET_MESSAGE_ID);
+        taken_count = taken.size();
+        for (size_t i = 0; i < taken.size(); ++i)
+            EXPECT_EQ(static_cast<TestMessage const&>(*taken[i]).sequence(), i + 1);
+    };
+    connection->inject_unprocessed_message(make<TestMessage>(OTHER_MESSAGE_ID));
+    connection->inject_unprocessed_message(make<TestMessage>(TARGET_MESSAGE_ID, 1));
+    connection->handle_messages();
+    EXPECT_EQ(taken_count, 2u);
+    EXPECT_EQ(stub.handle_count(), 1u);
+    EXPECT(connection->take_unprocessed_messages(TEST_MAGIC, TARGET_MESSAGE_ID).is_empty());
+}
+
+TEST_CASE(taking_unprocessed_messages_preserves_nested_batch_order_and_unrelated_messages)
+{
+    Core::EventLoop loop;
+    auto pair = TRY_OR_FAIL(IPC::Transport::create_paired());
+    CountingStub stub;
+    auto connection = TestConnection::construct(stub, move(pair.local));
+    constexpr int nested_message_id = 3;
+    constexpr int unrelated_message_id = 4;
+    Vector<int> dispatched;
+    size_t taken_count = 0;
+    stub.on_message = [&](IPC::Message const& message) {
+        dispatched.append(message.message_id());
+        if (message.message_id() == OTHER_MESSAGE_ID) {
+            connection->inject_unprocessed_message(make<TestMessage>(nested_message_id));
+            connection->inject_unprocessed_message(make<TestMessage>(TARGET_MESSAGE_ID, 2));
+            connection->inject_unprocessed_message(make<TestMessage>(unrelated_message_id));
+            connection->handle_messages();
+        } else if (message.message_id() == nested_message_id) {
+            connection->inject_unprocessed_message(make<TestMessage>(TARGET_MESSAGE_ID, 3));
+            connection->inject_unprocessed_message(make<TestMessage>(TARGET_MESSAGE_ID, 4, TEST_MAGIC + 1));
+            auto taken = connection->take_unprocessed_messages(TEST_MAGIC, TARGET_MESSAGE_ID);
+            taken_count = taken.size();
+            for (size_t i = 0; i < taken.size(); ++i)
+                EXPECT_EQ(static_cast<TestMessage const&>(*taken[i]).sequence(), i + 1);
+        }
+    };
+    connection->inject_unprocessed_message(make<TestMessage>(OTHER_MESSAGE_ID));
+    connection->inject_unprocessed_message(make<TestMessage>(TARGET_MESSAGE_ID, 1));
+    connection->inject_unprocessed_message(make<TestMessage>(unrelated_message_id));
+    connection->handle_messages();
+    EXPECT_EQ(taken_count, 3u);
+    EXPECT_EQ(dispatched, (Vector<int> { OTHER_MESSAGE_ID, nested_message_id, unrelated_message_id, unrelated_message_id }));
+    auto other_endpoint = connection->take_unprocessed_messages(TEST_MAGIC + 1, TARGET_MESSAGE_ID);
+    EXPECT_EQ(other_endpoint.size(), 1u);
+    EXPECT(connection->take_unprocessed_messages(TEST_MAGIC, TARGET_MESSAGE_ID).is_empty());
 }
 
 TEST_CASE(anonymous_buffer_size_uses_64_bits)

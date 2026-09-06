@@ -73,7 +73,7 @@ void CompositorState::create_context(Web::Compositor::CompositorContextId contex
         VERIFY(context_id == Web::Compositor::compositor_context_id_for_page(*page_id));
 
     auto& context = *m_contexts.ensure(context_id, [&] {
-        return make<ContextState>(page_id, web_content_client, m_canvas_surface_registry, m_async_scrolling_enabled, [this, context_id](Gfx::IntRect damage_rect) {
+        return make<ContextState>(context_id, page_id, web_content_client, m_canvas_surface_registry, m_async_scrolling_enabled, [this, context_id](Gfx::IntRect damage_rect) {
             schedule_caret_repaint(context_id, damage_rect);
         });
     });
@@ -457,6 +457,7 @@ Web::Compositor::AsyncScrollEnqueueResult CompositorState::async_scroll_by(Web::
     auto result = context->async_scroll_by(expected_document_id, position, delta, viewport_rect, snap_container_handling, operation_tracking);
     if (result.frame_to_present.has_value())
         schedule_present_frame(context_id, *context, *result.frame_to_present);
+    publish_pending_async_scroll_updates(context_id, *context);
     return result.enqueue_result;
 }
 
@@ -471,6 +472,7 @@ Web::Compositor::AsyncScrollEnqueueResult CompositorState::smooth_scroll_to(Web:
     auto result = context->smooth_scroll_to(stable_node_id, offset, main_thread_offset, viewport_rect, device_pixels_per_css_pixel, animation_kind);
     if (result.frame_to_present.has_value())
         schedule_present_frame(context_id, *context, *result.frame_to_present);
+    publish_pending_async_scroll_updates(context_id, *context);
     return result.enqueue_result;
 }
 
@@ -480,6 +482,7 @@ void CompositorState::cancel_smooth_scroll(Web::Compositor::CompositorContextId 
     if (!context)
         return;
     context->cancel_smooth_scroll(stable_node_id);
+    publish_pending_async_scroll_updates(context_id, *context);
 }
 
 bool CompositorState::async_scroll_by(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::Compositor::SnapContainerHandling snap_container_handling)
@@ -500,6 +503,13 @@ Web::Compositor::PendingAsyncScrollUpdates CompositorState::take_pending_async_s
     VERIFY(context);
 
     return context->take_pending_async_scroll_updates();
+}
+
+void CompositorState::publish_pending_async_scroll_updates(Web::Compositor::CompositorContextId context_id, ContextState& context)
+{
+    if (!context.has_pending_async_scroll_updates())
+        return;
+    context.web_content_client().async_scroll_updates(context_id, context.take_pending_async_scroll_updates());
 }
 
 void CompositorState::viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
@@ -738,6 +748,7 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id, 
 
         if (auto animation_frame = context.advance_smooth_scroll_animations(frame_time); animation_frame.has_value())
             context.queue_present_frame(ContextState::PendingFrame::repainting_changes(*animation_frame));
+        publish_pending_async_scroll_updates(context_id, context);
         if (context.has_active_visual_animations()) {
             context.advance_visual_animations(frame_time);
             // Visual animation damage deliberately covers the full viewport until we track the animated nodes' bounds
@@ -982,6 +993,7 @@ bool CompositorState::apply_context_update_result(
 {
     if (result.frame_to_present.has_value())
         schedule_present_frame(context_id, context, *result.frame_to_present);
+    publish_pending_async_scroll_updates(context_id, context);
     if (result.should_request_rendering_update)
         context.request_rendering_update();
     return result.accepted;

@@ -42,7 +42,18 @@ enum class PagePresentationRegistration {
     Yes,
 };
 
+// Where a reader of the compositor's async scroll updates takes them from: the ones the compositor pushed
+// (already here, in order with the input it forwarded), or the compositor's state as of now, asked for
+// synchronously, for a reader that routes input against the offsets the compositor holds this instant.
+enum class AsyncScrollUpdateFreshness : u8 {
+    Pushed,
+    FromCompositor,
+};
+
 struct PendingAsyncScrollUpdates {
+    // The publication these updates were handed out in, per context and increasing. A scroll state
+    // snapshot WebContent produces after adopting them carries it back.
+    u64 sequence { 0 };
     Vector<AsyncScrollOffset> scroll_offsets;
     Vector<AsyncScrollOperationID> completed_operation_ids;
     Vector<AsyncScrollOperationID> operation_ids_taken_over_by_user_input;
