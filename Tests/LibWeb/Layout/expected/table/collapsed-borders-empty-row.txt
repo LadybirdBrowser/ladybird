@@ -1,0 +1,23 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 90 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 74 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 70 0+0+714] [0+0+0 74 0+0+0] [BFC] children: not-inline
+        Box <table> at [13,13] table-box [0+10+0 60 0+10+0] [0+10+0 64 0+10+0] [TFC] children: not-inline
+          Box <tbody> at [13,13] table-row-group [0+0+0 60 0+0+0] [0+0+0 64 0+0+0] children: not-inline
+            Box <tr> at [13,13] table-row [0+0+0 60 0+0+0] [0+0+0 30 0+0+0] children: not-inline
+              BlockContainer <td> at [18,28] table-cell [0+10+0 20 0+10+0] [0+10+10 0 10+10+0] [BFC] children: not-inline
+              BlockContainer <td> at [48,28] table-cell [0+10+0 20 0+10+0] [0+10+10 0 10+10+0] [BFC] children: not-inline
+            Box <tr> at [13,43] table-row [0+0+0 60 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+              BlockContainer <(anonymous)> at [13,43] table-cell [0+0+0 30 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+              BlockContainer <(anonymous)> at [43,43] table-cell [0+0+0 30 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+            Box <tr.spacer> at [13,43] table-row [0+0+0 60 0+0+0] [0+0+0 4 0+0+0] children: not-inline
+              BlockContainer <(anonymous)> at [13,45] table-cell [0+0+0 30 0+0+0] [0+0+2 0 2+0+0] [BFC] children: not-inline
+              BlockContainer <(anonymous)> at [43,45] table-cell [0+0+0 30 0+0+0] [0+0+2 0 2+0+0] [BFC] children: not-inline
+            Box <tr> at [13,47] table-row [0+0+0 60 0+0+0] [0+0+0 30 0+0+0] children: not-inline
+              BlockContainer <td> at [18,62] table-cell [0+10+0 20 0+10+0] [0+10+10 0 10+10+0] [BFC] children: not-inline
+              BlockContainer <td> at [48,62] table-cell [0+10+0 20 0+10+0] [0+10+10 0 10+10+0] [BFC] children: not-inline
+      BlockContainer <(anonymous)> at [8,82] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x90] (z-index: auto)
