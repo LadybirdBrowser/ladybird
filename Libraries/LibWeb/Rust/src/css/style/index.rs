@@ -1911,15 +1911,19 @@ impl FeaturePostings {
     }
 
     fn forget_atoms(&mut self, atoms: &HashSet<StyleAtomID>) {
-        let posting_keys = self
-            .postings
-            .keys()
-            .copied()
-            .filter(|key| key.atom().is_some_and(|atom| atoms.contains(&atom)))
-            .collect::<Vec<_>>();
-        for key in posting_keys {
-            self.remove_posting(key);
+        let mut released = 0;
+        self.postings.retain(|key, posting| {
+            let keep = !key.atom().is_some_and(|atom| atoms.contains(&atom));
+            if !keep {
+                released += posting.capacity_bytes();
+            }
+            keep
+        });
+        if self.postings.is_empty() {
+            released += self.postings_capacity_bytes();
+            self.postings = HashMap::default();
         }
+        self.residency.shrink_to(self.residency.bytes() - released);
         self.missing
             .retain(|key| !key.atom().is_some_and(|atom| atoms.contains(&atom)));
         self.cardinality_limited
