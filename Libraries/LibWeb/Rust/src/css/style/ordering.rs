@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::cascade::{CascadeAttachment, Top1Winner};
+use super::cascade::{CascadeAttachment, CascadeContinuationID, Top1Winner};
 use super::*;
 
 #[derive(Clone, Copy)]
@@ -842,9 +842,7 @@ impl StyleEngine {
                     continue;
                 }
                 let previous_winner = self.winner_groups.winner_in_state(previous, declared.property);
-                if previous_winner
-                    .is_some_and(|winner| self.winner_groups.continuation(winner.key.continuation).is_some())
-                {
+                if previous_winner.is_some_and(|winner| winner.key.continuation != CascadeContinuationID::default()) {
                     repair_properties.push(declared.property);
                     continue;
                 }

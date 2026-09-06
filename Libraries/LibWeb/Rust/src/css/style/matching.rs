@@ -5,6 +5,7 @@
  */
 
 use super::batch_matcher::{append_selector_truth_matches, insert_scope_rule};
+use super::cascade::CascadeContinuationID;
 use super::selector::{AttributeCase, AttributeOperator};
 use super::*;
 
@@ -2533,7 +2534,7 @@ impl StyleEngine {
                 let Some(winner) = self.winner_groups.winner_in_state(previous, declared.property) else {
                     return false;
                 };
-                if self.winner_groups.continuation(winner.key.continuation).is_some() {
+                if winner.key.continuation != CascadeContinuationID::default() {
                     return false;
                 }
                 match delta.change {
@@ -3520,7 +3521,7 @@ impl StyleEngine {
                     self.counters.bump(Counter::TransitionProofWinnerGap);
                     return false;
                 };
-                if self.winner_groups.continuation(winner.key.continuation).is_some() {
+                if winner.key.continuation != CascadeContinuationID::default() {
                     self.counters.bump(Counter::TransitionProofOperatorOrContinuation);
                     return false;
                 }
