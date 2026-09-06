@@ -1420,9 +1420,9 @@ impl StyleEngine {
             && self
                 .computed_group_sets
                 .custom_property_environment_identity(node)
-                .is_some()
-            && self.computed_group_sets.custom_property_environment_identity(node)
-                == self.computed_group_sets.custom_property_environment_identity(parent)
+                .is_some_and(|environment| {
+                    self.computed_group_sets.custom_property_environment_identity(parent) == Some(environment)
+                })
     }
 
     /// The inherited groups a state's winners rebuild for their element: the groups its
