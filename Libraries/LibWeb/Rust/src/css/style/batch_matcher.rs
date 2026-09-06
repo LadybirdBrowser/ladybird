@@ -244,10 +244,7 @@ pub(super) fn scope_dispatch_shape_and_rules(
             for index in 0..compiled.entries().len() {
                 let metadata = compiled.dispatch_metadata(index);
                 let copies = if metadata.key == DispatchKey::Universal {
-                    let mut branch_keys = metadata.subject_dispatch_keys().to_vec();
-                    branch_keys.sort_unstable();
-                    branch_keys.dedup();
-                    branch_keys.len().max(1)
+                    metadata.subject_dispatch_keys().len().max(1)
                 } else {
                     1
                 };
@@ -327,13 +324,8 @@ pub(super) fn insert_scope_rule(
         // routing relies on, and it comes back empty rather than truncated, so an entry is
         // never unreachable from a key it needs.
         let branch_keys = match key {
-            DispatchKey::Universal if !subject_dispatch.is_empty() => {
-                let mut branch_keys = subject_dispatch.to_vec();
-                branch_keys.sort_unstable();
-                branch_keys.dedup();
-                branch_keys
-            }
-            _ => Vec::new(),
+            DispatchKey::Universal => subject_dispatch,
+            _ => &[],
         };
         if branch_keys.is_empty() {
             let dispatch_entry = dispatch.insert(key, template);
@@ -355,7 +347,7 @@ pub(super) fn insert_scope_rule(
             //     match per registered entry, so registering every copy would report the
             //     same rule once per branch key the element carries; the candidate walk
             //     deduplicates them by the rank the copies share instead.
-            for &branch_key in &branch_keys {
+            for &branch_key in branch_keys {
                 dispatch.insert(
                     branch_key,
                     super::index::DispatchEntry {

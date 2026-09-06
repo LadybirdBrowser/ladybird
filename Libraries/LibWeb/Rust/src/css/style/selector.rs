@@ -620,6 +620,7 @@ impl Hash for CachedDispatchMetadata {
 }
 
 impl SelectorDispatchMetadata {
+    /// Sorted, distinct keys through which this entry can be reached.
     #[must_use]
     pub(super) fn subject_dispatch_keys(&self) -> &[DispatchKey] {
         &self.subject_dispatch_keys
