@@ -1296,12 +1296,9 @@ impl StyleEngine {
                     self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
                     return None;
                 };
-                (
-                    parent_view.payloads.to_vec(),
-                    parent_view.dependency_flags & (1 << 2) != 0,
-                )
+                (parent_view.payloads, parent_view.dependency_flags & (1 << 2) != 0)
             }
-            None => (vec![std::ptr::null(); group_index::COUNT], false),
+            None => (&[std::ptr::null(); group_index::COUNT][..], false),
         };
         let Ok(used_color_scheme) = u8::try_from(table.effective_color_scheme()) else {
             self.counters.bump(Counter::EngineComputedRecordBailDrive);
