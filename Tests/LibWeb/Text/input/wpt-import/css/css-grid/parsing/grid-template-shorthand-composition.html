@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: grid-template-rows, grid-template-columns, and grid-template-areas properly set grid-template longhand</title>
+<link rel="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#propdef-grid-template">
+<meta name="assert" content="grid-template serializes properly when longhands are set.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+  function testValidGridTemplate(valueGridTemplateRows, valueGridTemplateColumns, valueGridAreas, serializedGridTemplateValue) {
+  test(()=>{
+    const root = document.children[0];
+    root.style.gridTemplateRows = "";
+    root.style.gridTemplateRows = valueGridTemplateRows;
+    root.style.gridTemplateColumns = "";
+    root.style.gridTemplateColumns = valueGridTemplateColumns;
+    root.style.gridTemplateAreas = "";
+    root.style.gridTemplateAreas = valueGridAreas;
+    assert_equals(root.style.gridTemplate, serializedGridTemplateValue);
+  }, `grid-template-rows: ${valueGridTemplateRows}, grid-template-columns: ${valueGridTemplateColumns}, and "grid-template-areas: ${valueGridAreas};" should be valid.`);
+}
+
+// `none`
+testValidGridTemplate("none",  "none", "none", "none");
+
+// `<'grid-template-rows'> / <'grid-template-columns'>`
+testValidGridTemplate("auto",  "auto", "none", "auto / auto");
+
+// `[ <line-names>? <string> <track-size>? <line-names>? ]+ [ / <explicit-track-list> ]?`
+testValidGridTemplate(
+  "[header-top] auto [header-bottom main-top] 1fr [main-bottom]",
+  "auto 1fr auto",
+  '"a a a" "b b b"',
+  '[header-top] "a a a" [header-bottom main-top] "b b b" 1fr [main-bottom] / auto 1fr auto',
+);
+testValidGridTemplate(
+  "auto",
+  "auto",
+  '"a a a" "b b b"',
+  "",
+);
+testValidGridTemplate(
+  "auto",
+  "auto auto",
+  '"a a a" "b b b"',
+  "",
+);
+testValidGridTemplate(
+  "auto auto",
+  "auto",
+  '"a a a" "b b b"',
+  '"a a a" "b b b" / auto',
+);
+testValidGridTemplate(
+  "auto auto",
+  "auto auto",
+  '"a a a" "b b b"',
+  '"a a a" "b b b" / auto auto',
+);
+testValidGridTemplate(
+  "min-content",
+  "min-content",
+  '"a a a" "b b b" "c c c" "d d d"',
+  "",
+);
+testValidGridTemplate(
+  "min-content",
+  "min-content auto auto auto",
+  '"a a a" "b b b" "c c c" "d d d"',
+  "",
+);
+testValidGridTemplate(
+  "min-content auto auto auto",
+  "min-content",
+  '"a a a" "b b b" "c c c" "d d d"',
+  '"a a a" min-content "b b b" "c c c" "d d d" / min-content',
+);
+testValidGridTemplate(
+  "min-content auto auto auto",
+  "min-content auto auto auto",
+  '"a a a" "b b b" "c c c" "d d d"',
+  '"a a a" min-content "b b b" "c c c" "d d d" / min-content auto auto auto',
+);
+</script>
+</body>
+</html>

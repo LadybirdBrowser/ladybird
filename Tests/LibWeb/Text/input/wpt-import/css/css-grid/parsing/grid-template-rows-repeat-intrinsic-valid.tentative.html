@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: parsing grid-template-rows with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-3/#masonry-intrinsic-repeat">
+<meta name="assert" content="grid-template-rows supports the full grammar 'none | <track-list> | <auto-track-list>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+// <auto-repeat>  = repeat( [ auto-fill | auto-fit ] , [ <line-names>? <intrinsic-or-fixed-size> ]+ <line-names>? )
+// <intrinsic-or-fixed-size> = [<fixed-size> | <intrinsic-size>]
+test_valid_value("grid-template-rows", 'repeat(auto-fill, auto)');
+test_valid_value("grid-template-rows", 'repeat(auto-fit, auto 100px auto)');
+test_valid_value("grid-template-rows", 'repeat(auto-fill, minmax(30px, 5fr) [two] auto)');
+test_valid_value("grid-template-rows", 'repeat(auto-fit, [three] auto [four])');
+test_valid_value("grid-template-rows", 'repeat(auto-fill, minmax(auto, auto))');
+
+test_valid_value("grid-template-rows", 'repeat(auto-fill, min-content)');
+test_valid_value("grid-template-rows", 'repeat(auto-fit, min-content 100px min-content)');
+test_valid_value("grid-template-rows", 'repeat(auto-fill, minmax(30px, 5fr) [two] min-content)');
+test_valid_value("grid-template-rows", 'repeat(auto-fit, [three] min-content [four])');
+test_valid_value("grid-template-rows", 'repeat(auto-fill, minmax(min-content, min-content))');
+
+test_valid_value("grid-template-rows", 'repeat(auto-fill, max-content)');
+test_valid_value("grid-template-rows", 'repeat(auto-fit, max-content 100px max-content)');
+test_valid_value("grid-template-rows", 'repeat(auto-fill, minmax(30px, 5fr) [two] max-content)');
+test_valid_value("grid-template-rows", 'repeat(auto-fit, [three] max-content [four])');
+test_valid_value("grid-template-rows", 'repeat(auto-fill, minmax(max-content, max-content))');
+
+test_valid_value("grid-template-rows", 'repeat(auto-fill, fit-content(200px))');
+test_valid_value("grid-template-rows", 'repeat(auto-fit, fit-content(200px) 100px fit-content(200px))');
+test_valid_value("grid-template-rows", 'repeat(auto-fill, minmax(30px, 5fr) [two] fit-content(200px))');
+test_valid_value("grid-template-rows", 'repeat(auto-fit, [three] fit-content(200px) [four])');
+
+test_valid_value("grid-template-rows", 'repeat(auto-fill, minmax(auto, min-content))');
+test_valid_value("grid-template-rows", 'repeat(auto-fill, minmax(min-content, max-content))');
+</script>
+</body>
+</html>

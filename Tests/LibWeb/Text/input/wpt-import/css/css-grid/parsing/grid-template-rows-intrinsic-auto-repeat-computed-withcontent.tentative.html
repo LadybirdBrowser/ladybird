@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Layout Test: getComputedStyle().gridTemplateColumns with intrinsic auto repeats</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#propdef-grid-template-rows">
+<meta name="assert" content="grid-template-rows computed value is the keyword none or a computed track list.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #target {
+    display: grid-lanes;
+    grid-lanes-direction: row;
+    font-size: 40px;
+    min-height: 200px;
+    height: 300px;
+    max-height: 400px;
+    min-width: 500px;
+    width: 600px;
+    max-width: 700px;
+  }
+  #child {
+    min-height: 20px;
+    height: 30px;
+    max-height: 40px;
+    min-width: 50px;
+    width: 60px;
+    max-width: 70px;
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="target">
+    <div id="child"></div>
+  </div>
+</div>
+<script>
+
+// <auto-repeat> = repeat( [ auto-fill | auto-fit ] , [ <line-names>? <intrinsic-or-fixed-size> ]+ <line-names>? )
+test_computed_value("grid-template-rows", 'repeat(auto-fill, auto)', '30px 30px 30px 30px 30px 30px 30px 30px 30px 30px');
+test_computed_value("grid-template-rows", 'repeat(auto-fit, [one] auto)',
+                    '[one] 300px [one] 0px [one] 0px [one] 0px [one] 0px [one] 0px [one] 0px [one] 0px [one] 0px [one] 0px');
+test_computed_value("grid-template-rows", 'repeat(auto-fill, min-content [two])',
+                    '30px [two] 30px [two] 30px [two] 30px [two] 30px [two] 30px [two] 30px [two] 30px [two] 30px [two] 30px [two]');
+test_computed_value("grid-template-rows", 'repeat(auto-fit, [three] max-content [four])',
+                    '[three] 30px [four three] 0px [four three] 0px [four three] 0px [four three] 0px [four three] 0px [four three] 0px [four three] 0px [four three] 0px [four three] 0px [four]');
+test_computed_value('grid-template-rows', '[a] 21px [b] repeat(auto-fill, [c] 22px [d] auto [e]) [f] 24px [g]',
+                    '[a] 21px [b c] 22px [d] 41.75px [e c] 22px [d] 41.75px [e c] 22px [d] 41.75px [e c] 22px [d] 41.75px [e f] 24px [g]');
+test_computed_value('grid-template-rows', '[a] 21px [b c] repeat(auto-fill, [d e] 22px [f g h] fit-content(200px) [i j k l]) [m n] 24px [o]',
+                    '[a] 21px [b c d e] 22px [f g h] 30px [i j k l d e] 22px [f g h] 30px [i j k l d e] 22px [f g h] 30px [i j k l d e] 22px [f g h] 30px [i j k l m n] 24px [o]');
+test_computed_value('grid-template-rows', '[a] repeat(2, [b] 20px [c d] 21px [e f g]) [h i] repeat(auto-fit, [j] auto [k l m] min-content [n o p q]) [r s]',
+                    '[a b] 20px [c d] 21px [e f g b] 20px [c d] 21px [e f g h i j] 0px [k l m] 0px [n o p q j] 0px [k l m] 30px [n o p q j] 158px [k l m] 30px [n o p q r s]');
+
+// <auto-track-list> =
+// [ <line-names>? [ <fixed-size> | <fixed-repeat> ] ]* <line-names>?
+// <auto-repeat>
+// [ <line-names>? [ <intrinsic-or-fixed-size> | <fixed-repeat> ] ]* <line-names>?
+
+test_computed_value("grid-template-rows", '[one] repeat(2, minmax(50px, auto)) [two] 30px [three] repeat(auto-fill, auto) 40px [four five] repeat(2, minmax(200px, auto)) [six]',
+                    '[one] 50px 50px [two] 30px [three] 30px 40px [four five] 200px 200px [six]');
+</script>
+</body>
+</html>

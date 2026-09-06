@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Layout Test: getComputedStyle().gridTemplateColumns</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#resolved-track-list" title="7.2.6. Resolved Value of a Track Listing">
+<meta name="assert" content="Checks the resolved value of grid-template-columns on a grid-lanes container with a leading implicit track.">
+<style>
+#target {
+  display: grid-lanes;
+  width: 1px;
+  font-size: 1px;
+}
+#item {
+  grid-column: auto / 1;
+  width: 10px;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<div id="target">
+  <div id="item"></div>
+</div>
+<script>
+// Can't use the test_computed_value from computed-testcommon.js
+// because grid-template-columns doesn't round-trip in this test.
+function grid_template_columns(specified, computed) {
+  test(() => {
+    const target = document.getElementById('target');
+    target.style.gridTemplateColumns = '';
+    target.style.gridTemplateColumns = specified;
+    assert_equals(getComputedStyle(target).gridTemplateColumns, computed);
+  }, `Property grid-template-columns value '${specified}' computes to '${computed}'`);
+}
+
+grid_template_columns("1px repeat(auto-fill, auto) 3px", "10px 1px 0px 3px");
+grid_template_columns("1px repeat(auto-fit, auto) 3px", "10px 1px 0px 3px");
+grid_template_columns("1px [a] repeat(auto-fill, min-content max-content) [b] 4px", "10px 1px [a] 0px 0px [b] 4px");
+grid_template_columns("1px [a] repeat(auto-fit, min-content max-content) [b] 4px", "10px 1px [a] 0px 0px [b] 4px");
+grid_template_columns("1px [a] repeat(auto-fill, [b] fit-content(200px) [c]) [d] 3px", "10px 1px [a b] 0px [c d] 3px");
+grid_template_columns("1px [a] repeat(auto-fit, [b] fit-content(200px) [c]) [d] 3px", "10px 1px [a b] 0px [c d] 3px");
+grid_template_columns("[a] 1px repeat(auto-fill, auto [b] auto) 4px [d]", "10px [a] 1px 0px [b] 0px 4px [d]");
+grid_template_columns("[a] 1px repeat(auto-fit, auto [b] auto) 4px [d]", "10px [a] 1px 0px [b] 0px 4px [d]");
+grid_template_columns("100% [a] repeat(auto-fill, [b] min-content [c]) [d] 300%", "10px 1px [a b] 0px [c d] 3px");
+grid_template_columns("100% [a] repeat(auto-fit, [b] min-content [c]) [d] 300%", "10px 1px [a b] 0px [c d] 3px");
+grid_template_columns("[a] 1em repeat(auto-fill, max-content [b] auto) 4em [d]", "10px [a] 1px 0px [b] 0px 4px [d]");
+grid_template_columns("[a] 1em repeat(auto-fit, max-content [b] auto) 4em [d]", "10px [a] 1px 0px [b] 0px 4px [d]");
+</script>

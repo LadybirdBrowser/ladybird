@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Fail
+Fail	Property grid-template-rows value 'repeat(auto-fill, auto)'
+Fail	Property grid-template-rows value 'repeat(auto-fit, [one] auto)'
+Fail	Property grid-template-rows value 'repeat(auto-fill, min-content [two])'
+Fail	Property grid-template-rows value 'repeat(auto-fit, [three] max-content [four])'
+Fail	Property grid-template-rows value '[a] 21px [b] repeat(auto-fill, [c] 22px [d] auto [e]) [f] 24px [g]'
+Fail	Property grid-template-rows value '[a] 21px [b c] repeat(auto-fill, [d e] 22px [f g h] fit-content(200px) [i j k l]) [m n] 24px [o]'
+Fail	Property grid-template-rows value '[a] repeat(2, [b] 20px [c d] 21px [e f g]) [h i] repeat(auto-fit, [j] auto [k l m] min-content [n o p q]) [r s]'
+Fail	Property grid-template-rows value '[one] repeat(2, minmax(50px, auto)) [two] 30px [three] repeat(auto-fill, auto) 40px [four five] repeat(2, minmax(200px, auto)) [six]'

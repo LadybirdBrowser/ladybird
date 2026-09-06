@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1214890">
+<body></body>
+<script>
+let value = '';
+for (let i = 0; i < 100000; ++i) {
+  value += ` repeat(1000, ${i}px)`;
+}
+document.body.style.gridTemplateColumns = value;
+document.body.textContent = 'PASS';
+</script>

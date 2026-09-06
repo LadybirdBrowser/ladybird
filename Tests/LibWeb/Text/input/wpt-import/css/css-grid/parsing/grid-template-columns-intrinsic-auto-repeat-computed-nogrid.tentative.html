@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Lanes Layout Test: getComputedStyle().gridTemplateColumns</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#resolved-track-list" title="7.2.6. Resolved Value of a Track Listing">
+<meta name="assert" content="Checks the resolved value of grid-template-columns on an element which is not a grid-lanes container.">
+<style>
+#target {
+  display: block;
+  height: 1px;
+  font-size: 1px;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<div id="target"></div>
+<script>
+test_computed_value("grid-template-columns", "1px repeat(auto-fill, auto) 3px", "none");
+test_computed_value("grid-template-columns", "1px repeat(auto-fit, auto) 3px", "none");
+test_computed_value("grid-template-columns", "1px [a] repeat(auto-fill, min-content max-content) [b] 4px", "none");
+test_computed_value("grid-template-columns", "1px [a] repeat(auto-fit, min-content max-content) [b] 4px", "none");
+test_computed_value("grid-template-columns", "1px [a] repeat(auto-fill, [b] fit-content(200px) [c]) [d] 3px", "none");
+test_computed_value("grid-template-columns", "1px [a] repeat(auto-fit, [b] fit-content(200px) [c]) [d] 3px", "none");
+test_computed_value("grid-template-columns", "[a] 1px repeat(auto-fill, auto [b] auto) 4px [d]", "none");
+test_computed_value("grid-template-columns", "[a] 1px repeat(auto-fit, auto [b] auto) 4px [d]", "none");
+test_computed_value("grid-template-columns", "100% [a] repeat(auto-fill, [b] min-content [c]) [d] 300%", "none");
+test_computed_value("grid-template-columns", "100% [a] repeat(auto-fit, [b] min-content [c]) [d] 300%", "none");
+test_computed_value("grid-template-columns", "[a] 1em repeat(auto-fill, max-content [b] auto) 4em [d]", "none");
+test_computed_value("grid-template-columns", "[a] 1em repeat(auto-fit, max-content [b] auto) 4em [d]", "none");
+</script>
