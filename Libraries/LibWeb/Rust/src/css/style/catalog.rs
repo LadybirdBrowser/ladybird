@@ -778,7 +778,6 @@ pub(super) fn prepare_selector_truth_set(
 pub(super) fn merge_retained_match_answers(answer: &mut Vec<RetainedRuleMatch>, suffix: &[RetainedRuleMatch]) {
     let mut answer_index = answer.len();
     let mut suffix_index = suffix.len();
-    answer.reserve(suffix_index);
     answer.extend_from_slice(suffix);
     let mut destination = answer.len();
     while answer_index != 0 && suffix_index != 0 {
