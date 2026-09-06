@@ -100,7 +100,6 @@ impl StyleEngine {
         sequences: &mut SequenceChanges,
         regions: &mut ImpactRegions,
     ) {
-        let routing = Rc::clone(&self.routing);
         // A declaration sourced from the element changes what wins on that element and nothing
         // else. There is no selector to transpose: the region is the element itself.
         if let InputKey::ElementDeclaration(node, _) = input.key {
@@ -160,6 +159,10 @@ impl StyleEngine {
             }
             _ => routing_keys_for_input(input),
         };
+        if keys.is_empty() {
+            return;
+        }
+        let routing = Rc::clone(&self.routing);
         let route_liveness = routing.route_liveness(&self.program, &self.programs);
         for key in keys {
             // A maintained relation already accounts for these selectors' complete changes.
