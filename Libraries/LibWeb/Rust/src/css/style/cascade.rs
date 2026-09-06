@@ -1004,6 +1004,12 @@ impl WinnerGroups {
     /// by `revert` and `revert-layer` operators.
     pub fn resolve_candidates(&mut self, candidates: &mut [CascadeCandidate]) -> Option<PropertyWinner> {
         // CascadePriority is the total declaration order, so equal keys are interchangeable here.
+        let candidate = candidates.iter().max_by_key(|candidate| candidate.priority)?;
+        if candidate.stratum.ceiling(candidate.winner.key.operator).is_none() {
+            let mut winner = candidate.winner;
+            winner.priority = candidate.priority;
+            return Some(winner);
+        }
         candidates.sort_unstable_by_key(|candidate| candidate.priority);
         self.resolve_candidates_below(candidates, &mut Vec::new())
     }
