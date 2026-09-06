@@ -822,7 +822,6 @@ impl StyleEngine {
 
         let mut repair_properties = Vec::new();
         let mut updates: Vec<PropertyWinnerUpdate> = Vec::new();
-        let mut update_priorities = Vec::new();
         for delta in deltas {
             let entry = *self.programs.entry(delta.entry).1;
             if entry.pseudo_element != pseudo {
@@ -869,10 +868,10 @@ impl StyleEngine {
                     priority,
                     source: WinnerSource::Rule(delta.rule),
                 };
-                if let Some(index) = updates.iter().position(|update| update.property == declared.property) {
-                    if priority >= update_priorities[index] {
-                        updates[index].winner = Some(winner);
-                        update_priorities[index] = priority;
+                if let Some(update) = updates.iter_mut().find(|update| update.property == declared.property) {
+                    let pending = update.winner.as_mut().expect("an added declaration carries a winner");
+                    if priority >= pending.priority {
+                        *pending = winner;
                     }
                 } else if let Some(previous_winner) = self.winner_groups.winner_in_state(previous, declared.property) {
                     if priority >= previous_winner.priority {
@@ -880,14 +879,12 @@ impl StyleEngine {
                             property: declared.property,
                             winner: Some(winner),
                         });
-                        update_priorities.push(priority);
                     }
                 } else {
                     updates.push(PropertyWinnerUpdate {
                         property: declared.property,
                         winner: Some(winner),
                     });
-                    update_priorities.push(priority);
                 }
             }
         }
