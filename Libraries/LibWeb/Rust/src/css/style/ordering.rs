@@ -259,7 +259,6 @@ impl StyleEngine {
                         priority,
                         source: WinnerSource::Rule(entry.rule),
                     },
-                    priority,
                     stratum: self.cascade_stratum_of(entry.rule, entry.tree_scope, declared.important),
                 });
             }
@@ -288,7 +287,6 @@ impl StyleEngine {
                             priority,
                             source: WinnerSource::Element(kind),
                         },
-                        priority,
                         stratum: self.element_cascade_stratum(node, kind, declared.important),
                     });
                 }

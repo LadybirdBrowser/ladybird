@@ -368,8 +368,6 @@ impl CascadeStratum {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CascadeCandidate {
     pub winner: PropertyWinner,
-    /// Needed only while reducing contenders, never after the winner is retained.
-    pub priority: CascadePriority,
     pub stratum: CascadeStratum,
 }
 
@@ -1004,13 +1002,11 @@ impl WinnerGroups {
     /// by `revert` and `revert-layer` operators.
     pub fn resolve_candidates(&mut self, candidates: &mut [CascadeCandidate]) -> Option<PropertyWinner> {
         // CascadePriority is the total declaration order, so equal keys are interchangeable here.
-        let candidate = candidates.iter().max_by_key(|candidate| candidate.priority)?;
+        let candidate = candidates.iter().max_by_key(|candidate| candidate.winner.priority)?;
         if candidate.stratum.ceiling(candidate.winner.key.operator).is_none() {
-            let mut winner = candidate.winner;
-            winner.priority = candidate.priority;
-            return Some(winner);
+            return Some(candidate.winner);
         }
-        candidates.sort_unstable_by_key(|candidate| candidate.priority);
+        candidates.sort_unstable_by_key(|candidate| candidate.winner.priority);
         self.resolve_candidates_below(candidates, &mut Vec::new())
     }
 
@@ -1024,7 +1020,6 @@ impl WinnerGroups {
             .rposition(|candidate| ceilings.iter().all(|&ceiling| candidate.stratum.is_below(ceiling)))?;
         let candidate = candidates[index];
         let mut winner = candidate.winner;
-        winner.priority = candidate.priority;
         let Some(ceiling) = candidate.stratum.ceiling(candidate.winner.key.operator) else {
             return Some(winner);
         };
@@ -2180,7 +2175,6 @@ mod tests {
         winner.priority = priority;
         CascadeCandidate {
             winner,
-            priority,
             stratum: CascadeStratum::new(origin, important, 0, layer, layer_rank, CascadeAttachment::StyleSheet),
         }
     }
