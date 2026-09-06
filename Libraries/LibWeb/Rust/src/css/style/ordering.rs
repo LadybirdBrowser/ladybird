@@ -1232,8 +1232,10 @@ impl StyleEngine {
         declaration_changes.retain(|change| {
             transaction
                 .inputs
-                .iter()
-                .any(|input| input.key == InputKey::RuleField(change.rule, RuleField::Declarations))
+                .binary_search_by_key(&InputKey::RuleField(change.rule, RuleField::Declarations), |input| {
+                    input.key
+                })
+                .is_ok()
         });
         transaction.install_rule_declaration_changes(
             declaration_changes
