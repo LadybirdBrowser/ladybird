@@ -1280,7 +1280,7 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
     if (throttling_class == TimerThrottlingClass::Chained) {
         auto step = GC::create_function(GC::Heap::the(), move(completion_step));
         completion_step = [this, step] {
-            if (document_is_hidden())
+            if (timers_are_throttled())
                 m_last_chained_timer_wake_up = HighResolutionTime::unsafe_shared_current_time();
             step->function()();
         };
@@ -1351,6 +1351,13 @@ bool WindowOrWorkerGlobalScopeMixin::document_is_hidden() const
     return document.is_fully_active() && document.hidden();
 }
 
+// Whether the document holds its timers back right now: it's hidden, and it isn't playing audio — a document playing
+// audio is doing what the user asked of it, as a music player is, so it keeps its timers, as it does in Chrome.
+bool WindowOrWorkerGlobalScopeMixin::timers_are_throttled() const
+{
+    return document_is_hidden() && !as<Window>(this_impl()).associated_document().is_playing_audio();
+}
+
 // A hidden document runs a delayed timer only at a wake-up. The wake-ups are one wake-up interval apart, on a grid
 // aligned to the time origin of the page's local root document — the same grid for every frame of the page, so all
 // of their timers run in one wake-up rather than each frame's in its own — and the timer runs at the first wake-up
@@ -1358,10 +1365,11 @@ bool WindowOrWorkerGlobalScopeMixin::document_is_hidden() const
 // intensive wake-up, an intensive interval apart on the same grid — though the next ordinary wake-up will do when no
 // chained timer has run for an intensive interval, so a page that wakes rarely isn't made to wait a whole one for a
 // single wake-up. That's Chrome's rule too. Returns the delay that takes the timer to its wake-up, or nothing when the
-// timer runs at its deadline as usual: the document is visible, the timer has no delay, or the global isn't a Window.
+// timer runs at its deadline as usual: the document is visible or playing audio, the timer has no delay, or the
+// global isn't a Window.
 Optional<i32> WindowOrWorkerGlobalScopeMixin::throttled_timer_delay(TimerThrottlingClass throttling_class, double deadline) const
 {
-    if (throttling_class == TimerThrottlingClass::Immediate || !document_is_hidden())
+    if (throttling_class == TimerThrottlingClass::Immediate || !timers_are_throttled())
         return {};
 
     auto& document = as<Window>(this_impl()).associated_document();
@@ -1405,9 +1413,10 @@ void WindowOrWorkerGlobalScopeMixin::realign_timers()
 // The page visibility change steps for timers: every timer still on the clock is re-armed for the document's new
 // visibility — a hidden document's delayed timers wait for their wake-up, and a visible document's fire at their own
 // deadlines, right away if those have passed. And the grace period before a hidden document's chained timers move
-// to the intensive tier starts over whenever the document hides, and is off while it's visible. Which grace period
-// applies is decided as the document hides — the shorter one if it had finished loading by then, the longer one if
-// it was still loading — so a document that finishes loading while hidden keeps the longer one, as in Chrome.
+// to the intensive tier starts over whenever the document hides, playing audio or not, and is off while it's
+// visible. Which grace period applies is decided as the document hides — the shorter one if it had finished loading
+// by then, the longer one if it was still loading — so a document that finishes loading while hidden keeps the
+// longer one, as in Chrome.
 void WindowOrWorkerGlobalScopeMixin::document_visibility_state_changed(Badge<DOM::Document>)
 {
     m_chained_timers_intensively_throttled = false;
@@ -1426,6 +1435,13 @@ void WindowOrWorkerGlobalScopeMixin::document_visibility_state_changed(Badge<DOM
     } else if (m_intensive_timer_throttling_grace_timer) {
         m_intensive_timer_throttling_grace_timer->stop();
     }
+    realign_timers();
+}
+
+// A document that starts or stops playing audio while hidden loses or regains its throttling (see
+// timers_are_throttled()); the grace period keeps running either way.
+void WindowOrWorkerGlobalScopeMixin::document_audio_play_state_changed(Badge<DOM::Document>)
+{
     realign_timers();
 }
 

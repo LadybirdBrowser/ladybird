@@ -262,6 +262,7 @@ public:
 
     void register_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id);
     void unregister_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id);
+    bool has_media_element_playing_audio(DOM::Document const&) const;
 
     void sync_media_element_video_sink_ticking();
     void restore_all_media_element_video_sinks();

@@ -99,6 +99,7 @@ public:
     i32 run_steps_after_a_timeout(i32 timeout, Function<void()> completion_step);
 
     void document_visibility_state_changed(Badge<DOM::Document>);
+    void document_audio_play_state_changed(Badge<DOM::Document>);
     void set_hidden_document_timer_wake_up_interval(Badge<Internals::Internals>, double milliseconds)
     {
         VERIFY(milliseconds > 0);
@@ -160,6 +161,7 @@ private:
     i32 run_timer_initialization_steps(TimerHandler handler, i32 timeout, GC::RootVector<JS::Value> arguments, Repeat repeat, Optional<i32> previous_id = {});
     void run_steps_after_a_timeout_impl(i32 timeout, TimerThrottlingClass, Function<void()> completion_step, Optional<i32> timer_key, Repeat repeat = Repeat::No);
     bool document_is_hidden() const;
+    bool timers_are_throttled() const;
     Optional<i32> throttled_timer_delay(TimerThrottlingClass, double deadline) const;
     void realign_timers();
 
