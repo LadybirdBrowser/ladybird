@@ -1003,12 +1003,11 @@ impl StyleSheetProgram {
     }
 
     #[must_use]
-    pub fn layer_order_matches(&self, scope: TreeScopeID, layers: &[CascadeLayerID]) -> bool {
-        let ranks = Self::layer_ranks_in_order(layers);
+    pub fn layer_ranks_match(&self, scope: TreeScopeID, ranks: &HashMap<CascadeLayerID, u32>) -> bool {
         self.layer_ranks
             .get(scope.0 as usize)
             .and_then(Option::as_ref)
-            .map_or(ranks.is_empty(), |current| current == &ranks)
+            .map_or(ranks.is_empty(), |current| current == ranks)
     }
 
     /// Put the named layers of `scope` in declaration order, ahead of its implicit outer layer.

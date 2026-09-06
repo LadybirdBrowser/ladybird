@@ -13,7 +13,7 @@ impl StyleEngine {
         let ranks = StyleSheetProgram::layer_ranks_in_order(layers);
         let pending_order = self.program_staging.layer_orders.after(scope);
         if pending_order.map_or_else(
-            || self.program.layer_order_matches(scope, layers),
+            || self.program.layer_ranks_match(scope, &ranks),
             |pending| pending == &ranks,
         ) {
             return;
