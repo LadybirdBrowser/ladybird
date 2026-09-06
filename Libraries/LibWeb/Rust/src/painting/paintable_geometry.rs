@@ -234,29 +234,37 @@ pub(crate) fn absolute_padding_box_rect(arena: &impl PaintableRowsRead, slot: No
     )
 }
 
+/// The border widths that lie within the box's border box. In the collapsing borders model, a collapsed border is
+/// centered on the grid line between two boxes, so only half of it belongs to each: "the border-box of the table
+/// includes half of the table border" and, for cells, "half the width of the collapsed border on each side".
+/// https://www.w3.org/TR/CSS22/tables.html#collapsing-borders
+/// The half is rounded the same way layout rounds it when placing the cells (`UsedValues::rounded_half_border`).
+pub(crate) fn committed_border_box_edges(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> FfiPixelBox {
+    let border = committed_border(arena, slot);
+    if !committed_uses_collapsing_borders_model(arena, slot) {
+        return border;
+    }
+    let two = CssPixels::from_integer(2);
+    FfiPixelBox {
+        top: border.top.div_as_fraction(two).round(),
+        right: border.right.div_as_fraction(two).round(),
+        bottom: border.bottom.div_as_fraction(two).round(),
+        left: border.left.div_as_fraction(two).round(),
+    }
+}
+
 pub(crate) fn absolute_border_box_rect(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixelRect {
     let data = arena.paintable_data(slot);
     if node_painting::is_inline(arena, slot) {
         return CssPixelRect::from(data.local_border_box_union).translated_by(absolute_rect(arena, slot).location());
     }
     let padded = absolute_padding_box_rect(arena, slot);
-    let border = committed_border(arena, slot);
-    let mut border_top = border.top;
-    let mut border_bottom = border.bottom;
-    let mut border_left = border.left;
-    let mut border_right = border.right;
-    if committed_uses_collapsing_borders_model(arena, slot) {
-        let two = CssPixels::from_integer(2);
-        border_top = border_top.div_as_fraction(two).round();
-        border_bottom = border_bottom.div_as_fraction(two).round();
-        border_left = border_left.div_as_fraction(two).round();
-        border_right = border_right.div_as_fraction(two).round();
-    }
+    let border = committed_border_box_edges(arena, slot);
     CssPixelRect::new(
-        padded.x - border_left,
-        padded.y - border_top,
-        padded.width + border_left + border_right,
-        padded.height + border_top + border_bottom,
+        padded.x - border.left,
+        padded.y - border.top,
+        padded.width + border.left + border.right,
+        padded.height + border.top + border.bottom,
     )
 }
 
