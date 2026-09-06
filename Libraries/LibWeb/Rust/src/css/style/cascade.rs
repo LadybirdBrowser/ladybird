@@ -171,6 +171,8 @@ impl CascadePriority {
 pub type PropertyID = u16;
 
 const WINNER_GROUP_PROPERTY_COUNT: PropertyID = 32;
+const INLINE_WINNER_GROUP_COUNT: usize =
+    crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID as usize / WINNER_GROUP_PROPERTY_COUNT as usize + 1;
 
 /// Canonical identity of a specified value. Two declarations that specify the same value share it,
 /// however differently they were written and whichever rule they came from.
@@ -1076,7 +1078,7 @@ impl WinnerGroups {
     /// Intern an already sorted state, reusing unchanged groups directly from its previous state.
     pub fn intern_sorted(&mut self, winners: &[PropertyWinner], previous: Option<CascadeStateID>) -> CascadeStateID {
         debug_assert!(winners.windows(2).all(|pair| pair[0].property < pair[1].property));
-        let mut groups = Vec::new();
+        let mut groups = SmallVec::new();
         let mut previous_group_index = 0;
         for winners in winners.chunk_by(|left, right| {
             left.property / WINNER_GROUP_PROPERTY_COUNT == right.property / WINNER_GROUP_PROPERTY_COUNT
@@ -1107,7 +1109,7 @@ impl WinnerGroups {
         self.intern_group_ids(groups)
     }
 
-    fn intern_group_ids(&mut self, groups: Vec<WinnerGroupRef>) -> CascadeStateID {
+    fn intern_group_ids(&mut self, groups: SmallVec<[WinnerGroupRef; INLINE_WINNER_GROUP_COUNT]>) -> CascadeStateID {
         let hash = content_hash(&groups);
         if let Some(id) = self
             .states
@@ -1164,7 +1166,7 @@ impl WinnerGroups {
             return (previous, CascadeWinnerDelta::default());
         }
 
-        let mut groups = self.states[previous].to_vec();
+        let mut groups = SmallVec::from_slice(&self.states[previous]);
         let mut changed_properties = Vec::new();
         let mut old_winners = Vec::new();
         let mut winners = Vec::new();
