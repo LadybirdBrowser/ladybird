@@ -24,8 +24,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <div.table> at [8,128] table-box [0+0+0 20 0+0+0] [0+0+0 80 0+0+0] [TFC] children: not-inline
             BlockContainer <div.caption> at [8,108] [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
             Box <(anonymous)> at [8,128] table-row [0+0+0 20 0+0+0] [0+0+0 80 0+0+0] children: not-inline
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
               BlockContainer <div.cell> at [8,156.390625] table-cell [0+0+0 20 0+0+0] [0+0+28.390625 23.203125 28.390625+0+0] [BFC] children: inline
                 frag 0 from BlockContainer start: 0, length: 0, rect: [8,156.390625 20x20] baseline: 20
                 BlockContainer <span.content> at [8,156.390625] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline

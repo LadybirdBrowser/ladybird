@@ -9,8 +9,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             frag 1 from TextNode start: 11, length: 14, rect: [42,19 140x10] baseline: 8
                 "BBBBBBBBB CCCC"
             TextNode <#text> (not painted)
-          BlockContainer <(anonymous)> (not painted) children: inline
-            TextNode <#text> (not painted)
           Box <tbody> at [11,33] table-row-group [0+0+0 202 0+0+0] [0+0+0 13 0+0+0] children: not-inline
             Box <tr> at [11,33] table-row [0+0+0 202 0+0+0] [0+0+0 13 0+0+0] children: not-inline
               BlockContainer <td> at [12,34] table-cell [0+0+1 200 1+0+0] [0+0+1 11 1+0+0] [BFC] children: inline

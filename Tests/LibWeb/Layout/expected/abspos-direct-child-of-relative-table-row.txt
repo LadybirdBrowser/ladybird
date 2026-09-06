@@ -9,8 +9,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                   "first"
               TextNode <#text> (not painted)
             BlockContainer <(anonymous)> at [87.359375,23] table-cell [0+0+0 120.640625 0+0+0] [0+0+15 0 15+0+0] [BFC] children: not-inline
-          BlockContainer <(anonymous)> (not painted) children: inline
-            TextNode <#text> (not painted)
           Box <div.row> at [8,38] positioned table-row [0+0+0 200 0+0+0] [0+0+0 30 0+0+0] children: not-inline
             BlockContainer <(anonymous)> at [8,50.796875] table-cell [0+0+0 79.359375 0+0+0] [0+0+12.796875 0 17.203125+0+0] [BFC] children: not-inline
               BlockContainer <(anonymous)> at [8,50.796875] [0+0+0 79.359375 0+0+0] [0+0+0 0 0+0+0] children: inline

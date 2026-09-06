@@ -3427,6 +3427,11 @@ fn is_table_non_root_box(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
     is_table_non_root_box_with_display(host.display(node))
 }
 
+fn is_table_non_root_box_sibling(host: &TreeBuilderHost<'_>, sibling: LayoutNode) -> bool {
+    // Text nodes carry their parent's style, so only boxes can be table-non-root boxes.
+    !sibling.is_invalid() && node_kind_is_box(host.data(sibling).kind.get()) && is_table_non_root_box(host, sibling)
+}
+
 fn is_tabular_container(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
     // https://drafts.csswg.org/css-tables-3/#tabular-container
     let display = host.display(node);
@@ -3501,21 +3506,31 @@ fn for_each_sequence_of_consecutive_children_matching(
     matcher: impl Fn(LayoutNode) -> bool,
     mut callback: impl FnMut(&[LayoutNode], LayoutNode),
 ) {
-    let mut sequence = Vec::new();
+    let mut sequence: Vec<LayoutNode> = Vec::new();
+    let mut end_sequence = |sequence: &mut Vec<LayoutNode>, mut nearest_sibling: LayoutNode| {
+        // Whitespace that follows the last matching child is not part of the sequence. The fixup algorithm only
+        // discards whitespace-only boxes that lie between two table-non-root boxes (step 1), so whitespace after the
+        // last box of the sequence stays outside the anonymous wrapper: in "a <cell>b</cell><cell>c</cell> d" the
+        // space before "d" is ordinary inline content next to the generated inline-table.
+        while sequence.last().is_some_and(|&last| !matcher(last)) {
+            nearest_sibling = sequence.pop().expect("a trailing whitespace node");
+        }
+        if !sequence.iter().all(|&node| is_ignorable_whitespace(host, node)) {
+            callback(sequence, nearest_sibling);
+        }
+        sequence.clear();
+    };
     let mut child = host.first_child(parent);
     while !child.is_invalid() {
         if matcher(child) || (!sequence.is_empty() && is_ignorable_whitespace(host, child)) {
             sequence.push(child);
         } else if !sequence.is_empty() {
-            if !sequence.iter().all(|&node| is_ignorable_whitespace(host, node)) {
-                callback(&sequence, child);
-            }
-            sequence.clear();
+            end_sequence(&mut sequence, child);
         }
         child = host.next_sibling(child);
     }
-    if !sequence.is_empty() && !sequence.iter().all(|&node| is_ignorable_whitespace(host, node)) {
-        callback(&sequence, NodeSlotId::INVALID);
+    if !sequence.is_empty() {
+        end_sequence(&mut sequence, NodeSlotId::INVALID);
     }
 }
 
@@ -3525,10 +3540,11 @@ fn remove_irrelevant_boxes(host: &TreeBuilderHost<'_>, root: LayoutNode) {
     // The following boxes are discarded as if they were display:none:
     let mut to_remove = Vec::new();
     host.for_each_in_inclusive_subtree(root, |node| {
-        let data = host.data(node);
+        // Whitespace checks below can refresh rendered text, so read the node data before them and not after.
+        let is_box = node_kind_is_box(host.data(node).kind.get());
 
         // 1. Children of a table-column.
-        if node_kind_is_box(data.kind.get()) && host.display(node).is_table_column() {
+        if is_box && host.display(node).is_table_column() {
             host.set_children_are_inline(node, false);
             let mut child = host.first_child(node);
             while !child.is_invalid() {
@@ -3538,7 +3554,7 @@ fn remove_irrelevant_boxes(host: &TreeBuilderHost<'_>, root: LayoutNode) {
         }
 
         // 2. Children of a table-column-group which are not a table-column.
-        if node_kind_is_box(data.kind.get()) && host.display(node).is_table_column_group() {
+        if is_box && host.display(node).is_table_column_group() {
             host.set_children_are_inline(node, false);
             let mut child = host.first_child(node);
             while !child.is_invalid() {
@@ -3549,15 +3565,38 @@ fn remove_irrelevant_boxes(host: &TreeBuilderHost<'_>, root: LayoutNode) {
             }
         }
 
-        // FIXME: 3. Anonymous inline boxes which contain only white space and are between two immediate siblings each
-        //           of which is a table-non-root box.
+        // Steps 1 and 2 already scheduled the children of table-column boxes and the non-column children of
+        // table-column-group boxes when visiting their parent; their whole subtree goes away with them.
+        let parent = host.parent(node);
+        if !parent.is_invalid() && node_kind_is_box(host.data(parent).kind.get()) {
+            let parent_display = host.display(parent);
+            if parent_display.is_table_column()
+                || (parent_display.is_table_column_group() && !host.display(node).is_table_column())
+            {
+                return TraversalDecision::SkipChildrenAndContinue;
+            }
+        }
+
+        // 3. Anonymous inline boxes which contain only white space and are between two immediate siblings each of
+        //    which is a table-non-root box.
+        // This is what keeps "<cell>b</cell> <cell>c</cell>" a single table with adjacent cells, regardless of whether
+        // the siblings live in a table, in a block (where the whitespace sits in an anonymous block wrapper) or in an
+        // inline box. The whitespace before the first and after the last table-non-root box of such a run is not
+        // discarded and remains ordinary inline content.
+        if !parent.is_invalid()
+            && is_table_non_root_box_sibling(host, host.previous_sibling(node))
+            && is_table_non_root_box_sibling(host, host.next_sibling(node))
+            && is_ignorable_whitespace(host, node)
+        {
+            to_remove.push(node);
+            return TraversalDecision::SkipChildrenAndContinue;
+        }
 
         // 4. Anonymous inline boxes which meet all of the following criteria:
         //    - they contain only white space
         //    - they are the first and/or last child of a tabular container
         //    - whose immediate sibling, if any, is a table-non-root box
-        let parent = host.parent(node);
-        if node_kind_is_box(data.kind.get())
+        if is_box
             && !parent.is_invalid()
             && is_tabular_container(host, parent)
             && !node_has_flag(host.data(parent), NodeFlag::Anonymous)

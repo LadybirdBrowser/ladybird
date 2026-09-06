@@ -6,8 +6,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <tbody> at [10,10] table-row-group [0+0+0 45.21875 0+0+0] [0+0+0 20 0+0+0] children: not-inline
             Box <tr> at [10,10] table-row [0+0+0 45.21875 0+0+0] [0+0+0 9 0+0+0] children: not-inline
               BlockContainer <td> at [11,14.5] table-cell [0+0+1 0 1+0+0] [0+0+4.5 0 4.5+0+0] [BFC] children: not-inline
-              BlockContainer <(anonymous)> (not painted) children: inline
-                TextNode <#text> (not painted)
               BlockContainer <td> at [16,12] table-cell [0+1+1 37.21875 1+1+0] [0+1+1 16 1+1+0] [BFC] children: inline
                 TextNode <#text> (not painted)
                 InlineNode <a> at [16,12] [0+0+0 37.21875 0+0+0] [0+0+0 16 0+0+0]
@@ -15,8 +13,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                       "Test"
                   TextNode <#text> (not painted)
                 TextNode <#text> (not painted)
-            BlockContainer <(anonymous)> (not painted) children: inline
-              TextNode <#text> (not painted)
             Box <tr> at [10,21] table-row [0+0+0 45.21875 0+0+0] [0+0+0 9 0+0+0] children: not-inline
               BlockContainer <td> at [11,25.5] table-cell [0+0+1 0 1+0+0] [0+0+4.5 0 4.5+0+0] [BFC] children: not-inline
 
