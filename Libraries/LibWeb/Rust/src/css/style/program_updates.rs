@@ -765,10 +765,11 @@ impl StyleEngine {
             .stage(rule, || self.program.rule_is_live(rule), live);
     }
 
-    pub(super) fn current_sheets_in_scope(&self, tree_scope: TreeScopeID) -> Vec<SheetID> {
+    pub(super) fn current_sheets_in_scope(&self, tree_scope: TreeScopeID) -> &[SheetID] {
         self.program_staging
             .sheets_in_scope
-            .current(tree_scope, || self.program.sheets_in_scope(tree_scope).to_vec())
+            .after(tree_scope)
+            .map_or_else(|| self.program.sheets_in_scope(tree_scope), Vec::as_slice)
     }
 
     pub(super) fn stage_sheets_in_scope(&mut self, tree_scope: TreeScopeID, sheets: Vec<SheetID>) {
@@ -780,7 +781,8 @@ impl StyleEngine {
             // that explicitly consume document author sheets still follow every document change.
             let non_author_changed = self
                 .current_sheets_in_scope(tree_scope)
-                .into_iter()
+                .iter()
+                .copied()
                 .filter(|&sheet| self.program.sheet_origin(sheet) != CascadeOrigin::Author)
                 .ne(sheets
                     .iter()

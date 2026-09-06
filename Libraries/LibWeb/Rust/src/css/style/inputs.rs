@@ -1701,7 +1701,7 @@ impl StyleEngine {
     /// Attach a compiled program at the end of a scope's sheet order.
     pub(super) fn attach_sheet(&mut self, sheet: SheetID, tree_scope: TreeScopeID) {
         self.restore_routing_for_reattached_sheet(sheet);
-        let mut sheets = self.current_sheets_in_scope(tree_scope);
+        let mut sheets = self.current_sheets_in_scope(tree_scope).to_vec();
         let previous_position = sheets.iter().position(|&candidate| candidate == sheet);
         let was_attached = previous_position.is_some();
         sheets.retain(|&candidate| candidate != sheet);
@@ -1718,7 +1718,7 @@ impl StyleEngine {
     /// does not determine cascade order.
     pub(super) fn attach_sheet_before(&mut self, sheet: SheetID, before: SheetID, tree_scope: TreeScopeID) {
         self.restore_routing_for_reattached_sheet(sheet);
-        let mut sheets = self.current_sheets_in_scope(tree_scope);
+        let mut sheets = self.current_sheets_in_scope(tree_scope).to_vec();
         let previous_position = sheets.iter().position(|&candidate| candidate == sheet);
         let was_attached = previous_position.is_some();
         sheets.retain(|&candidate| candidate != sheet);
@@ -1754,10 +1754,11 @@ impl StyleEngine {
     }
 
     pub fn detach_sheet(&mut self, sheet: SheetID, tree_scope: TreeScopeID) {
-        let mut sheets = self.current_sheets_in_scope(tree_scope);
+        let sheets = self.current_sheets_in_scope(tree_scope);
         let Some(position) = sheets.iter().position(|&candidate| candidate == sheet) else {
             return;
         };
+        let mut sheets = sheets.to_vec();
         sheets.remove(position);
         self.stage_sheets_in_scope(tree_scope, sheets);
         self.record_attachment(sheet, tree_scope, true, false);
