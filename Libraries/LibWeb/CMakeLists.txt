@@ -673,6 +673,7 @@ set(SOURCES
     HTML/PromiseRejectionEvent.cpp
     HTML/RadioButtonGroupRegistry.cpp
     HTML/RadioNodeList.cpp
+    HTML/RemoteNavigable.cpp
     HTML/ReplicatedNavigableState.cpp
     HTML/SandboxingFlagSet.cpp
     HTML/Scripting/Agent.cpp
