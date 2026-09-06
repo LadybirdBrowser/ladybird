@@ -2746,22 +2746,15 @@ impl RuleDispatch {
         ordered.sort_unstable();
 
         let mut cascade_orders_by_row = vec![0; self.entry_count()];
-        let mut group_start = 0;
-        while group_start < ordered.len() {
-            let mut group_end = group_start + 1;
-            while group_end < ordered.len()
-                && ordered[group_end].0 == ordered[group_start].0
-                && ordered[group_end].1 == ordered[group_start].1
-                && ordered[group_end].2 == ordered[group_start].2
-                && ordered[group_end].3 == ordered[group_start].3
-            {
-                group_end += 1;
-            }
+        let mut group_end = 0;
+        for group in ordered
+            .chunk_by(|left, right| left.0 == right.0 && left.1 == right.1 && left.2 == right.2 && left.3 == right.3)
+        {
+            group_end += group.len();
             let cascade_order = u32::try_from(group_end - 1).expect("dispatch entry space exhausted");
-            for ordered_entry in &ordered[group_start..group_end] {
+            for ordered_entry in group {
                 cascade_orders_by_row[ordered_entry.4.index()] = cascade_order;
             }
-            group_start = group_end;
         }
 
         self.rebuild_cascade_order_projection(&cascade_orders_by_row);
