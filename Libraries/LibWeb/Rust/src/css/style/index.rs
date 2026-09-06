@@ -3483,7 +3483,7 @@ pub struct ElementFactStore {
     element_declared_properties: ElementDeclarationRows,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq)]
 struct StagedFactRow {
     tag: StyleAtomID,
     /// The ASCII-lowercase folding of `tag`, held only when it differs from it. Type selectors
@@ -3717,17 +3717,14 @@ impl FactStaging {
             .filter_map(|&(node, entry)| (self.rows.get(Self::index(node)) == Some(entry)).then_some(node))
     }
 
-    fn dirty_rows(&self) -> Vec<(StyleNodeID, StagedFactRow)> {
-        self.dirty
-            .iter()
-            .filter_map(|&(node, entry)| {
-                if self.rows.get(Self::index(node)) != Some(entry) {
-                    return None;
-                }
-                let pair = self.entries.get(entry as usize)?.as_ref()?;
-                pair.dirty.then(|| (node, pair.after.clone()))
-            })
-            .collect()
+    fn dirty_rows(&self) -> impl Iterator<Item = (StyleNodeID, &StagedFactRow)> {
+        self.dirty.iter().filter_map(|&(node, entry)| {
+            if self.rows.get(Self::index(node)) != Some(entry) {
+                return None;
+            }
+            let pair = self.entries.get(entry as usize)?.as_ref()?;
+            pair.dirty.then_some((node, &pair.after))
+        })
     }
 
     fn mark_applied(&mut self) {
@@ -5312,8 +5309,8 @@ impl ElementFactStore {
             return;
         }
         self.sync_attribute_catalogs();
-        let staging = self.staging.dirty_rows();
-        for (node, facts) in staging {
+        let mut staging = std::mem::take(&mut self.staging);
+        for (node, facts) in staging.dirty_rows() {
             let previous = self.rows.row_of(node).map(|_| self.snapshot_row(node));
             let replaced_bytes = self
                 .rows
@@ -5326,11 +5323,11 @@ impl ElementFactStore {
             if let Some(previous) = &previous {
                 self.remove_row_catalog_references(previous);
             }
-            self.add_row_catalog_references(&facts);
+            self.add_row_catalog_references(facts);
             // A selector-free transaction may retain the active traversal's immutable primary
             // view. Preserve that view while advancing the authoritative rows for the next
             // transaction.
-            let stale_payload_bytes = Rc::make_mut(&mut self.rows).set_primary_row(node, &facts);
+            let stale_payload_bytes = Rc::make_mut(&mut self.rows).set_primary_row(node, facts);
             let row = self.rows.row_of(node).unwrap();
             let replacement_bytes = self.rows.logical_bytes_of_row(row);
             let replacement_payload_bytes = self.rows.payload_bytes_of_row(row);
@@ -5349,7 +5346,8 @@ impl ElementFactStore {
                 .checked_add(stale_payload_bytes)
                 .expect("primary stale fact payload byte count overflow");
         }
-        self.staging.mark_applied();
+        staging.mark_applied();
+        self.staging = staging;
         self.postings.update_selector_posting_limit(self.rows.live_row_count());
         let apply_capacity_bytes = self.apply_capacity_bytes();
         let current = self
@@ -6843,7 +6841,7 @@ mod tests {
         assert!(!rows.has_dirty());
         rows.insert(first, StagedFactRow::default(), None);
         assert_eq!(rows.keys().collect::<Vec<_>>(), vec![first]);
-        assert_eq!(rows.dirty_rows().len(), 1);
+        assert_eq!(rows.dirty_rows().count(), 1);
         assert_eq!(rows.capacity_bytes(), rows.recomputed_capacity_bytes());
 
         let directory_capacity = rows.rows.directory_capacity();
