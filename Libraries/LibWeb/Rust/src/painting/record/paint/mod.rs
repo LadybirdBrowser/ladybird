@@ -18,6 +18,7 @@ pub mod overlay;
 pub mod replaced;
 pub mod shadow;
 pub mod svg;
+pub mod table_backgrounds;
 pub mod table_borders;
 pub mod text;
 pub mod text_decoration;

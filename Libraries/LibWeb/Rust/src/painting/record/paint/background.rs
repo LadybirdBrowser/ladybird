@@ -26,6 +26,7 @@ use crate::painting::record::paint::background_resolution::{
     resolve_background_for_paint, resolve_background_layers,
 };
 use crate::painting::record::paint::gradient_resolution::{gradient_paint_value, record_gradient_fill};
+use crate::painting::record::paint::table_backgrounds;
 use crate::painting::visual_context::VisualContextTree;
 use libgfx_rust::{
     CompositingAndBlendingOperator, FloatRect, IntPoint, IntRect, IntSize, MaskKind, ScalingMode, ShouldAntiAlias,
@@ -66,6 +67,10 @@ impl LayerBackdrop {
 }
 
 pub(crate) fn paint_background(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
+    if table_backgrounds::paints_background_in_cells(recorder.display(paintable)) {
+        table_backgrounds::paint_table_part_background(recorder, paintable);
+        return;
+    }
     let Some(inputs) = resolve_background_for_paint(recorder, paintable) else {
         return;
     };

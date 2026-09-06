@@ -1,0 +1,110 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en-US"><head>
+    <title>CSS Test: table backgrounds</title>
+    <link rel="author" title="L. David Baron" href="https://dbaron.org/" />
+    <link rel="author" title="Mozilla Corporation" href="http://mozilla.com/" />
+    <link rel="help" href="http://www.w3.org/TR/CSS21/tables.html#table-layers" />
+    <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/tables/table-backgrounds-bs-colgroup-001-ref.xht"/>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta http-equiv="Content-Style-Type" content="text/css" />
+	<style type="text/css">
+
+	html, body { margin: 0; padding: 0; border: 0; font-size: 16px; }
+	body { padding: 15px; }
+
+	table {
+		margin: 0 3px 2px 4px; /* zero top to work around collapsing bug */
+		border: transparent solid;
+		border-width: 4px 2px 7px 3px;
+		padding: 3px 7px 8px 6px;
+		border-collapse: separate;
+		border-spacing: 2px 3px;
+	}
+
+	td {
+		border: transparent solid;
+		border-width: 2px 1px 4px 3px;
+		padding: 1px 2px 4px 3px;
+		empty-cells: show;
+	}
+
+	div { height: 10px; width: 50px; }
+
+	table.color colgroup.t { background-color: aqua; }
+
+	table.imagetl colgroup.t, table.imagebr colgroup.t {
+		background-image: url(support/repeatable-diagonal-gradient-with-ticks.png);
+	}
+
+	table.imagetl colgroup.t { background-position: top left; /* default */ }
+	table.imagebr colgroup.t { background-position: bottom right; /* default */ }
+
+	</style>
+</head>
+<body>
+
+<table class="color">
+	<colgroup><col /></colgroup>
+	<colgroup class="t">
+        <col />
+        <col class="t" />
+        <col />
+	</colgroup>
+	<colgroup><col /></colgroup>
+	<tbody>
+        <tr><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td></tr>
+	</tbody>
+	<tbody class="t">
+        <tr><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td></tr>
+        <tr class="t"><td><div></div></td><td><div></div></td><td class="t"><div></div></td><td><div></div></td><td><div></div></td></tr>
+        <tr><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td></tr>
+	</tbody>
+	<tbody>
+        <tr><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td></tr>
+	</tbody>
+</table>
+
+<table class="imagetl">
+	<colgroup><col /></colgroup>
+	<colgroup class="t">
+        <col />
+        <col class="t" />
+        <col />
+	</colgroup>
+	<colgroup><col /></colgroup>
+	<tbody>
+        <tr><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td></tr>
+	</tbody>
+	<tbody class="t">
+        <tr><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td></tr>
+        <tr class="t"><td><div></div></td><td><div></div></td><td class="t"><div></div></td><td><div></div></td><td><div></div></td></tr>
+        <tr><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td></tr>
+	</tbody>
+	<tbody>
+        <tr><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td></tr>
+	</tbody>
+</table>
+
+<table class="imagebr">
+	<colgroup><col /></colgroup>
+	<colgroup class="t">
+        <col />
+        <col class="t" />
+        <col />
+	</colgroup>
+	<colgroup><col /></colgroup>
+	<tbody>
+        <tr><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td></tr>
+	</tbody>
+	<tbody class="t">
+        <tr><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td></tr>
+        <tr class="t"><td><div></div></td><td><div></div></td><td class="t"><div></div></td><td><div></div></td><td><div></div></td></tr>
+        <tr><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td></tr>
+	</tbody>
+	<tbody>
+        <tr><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td><td><div></div></td></tr>
+	</tbody>
+</table>
+
+
+
+</body></html>
