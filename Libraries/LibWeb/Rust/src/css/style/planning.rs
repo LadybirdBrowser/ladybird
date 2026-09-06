@@ -1172,18 +1172,10 @@ impl SiblingEntry {
         routing: &'a RoutingRegistry,
         exact_tree_evaluation: Option<ExactTreeEvaluation>,
     ) -> RoutingSite<'a> {
-        let point = routing.route(self.route);
-        RoutingSite {
-            subject: routing.subject_dispatch_of(self.route),
-            subject_required: routing.subject_required_of(self.route),
-            position: routing.subject_position_of(self.route),
-            path: routing.path_of(self.route),
-            waypoints: routing.waypoints_of(self.route),
-            in_flux: None,
-            exact_entry: exact_tree_evaluation.map(|_| (routing.rule_of(self.route), point.entry)),
-            exact_tree_evaluation,
-            refresh_rule: Some((routing.rule_of(self.route), point.entry)),
-        }
+        let mut site = route_site(routing, self.route);
+        site.exact_entry = exact_tree_evaluation.and(site.refresh_rule);
+        site.exact_tree_evaluation = exact_tree_evaluation;
+        site
     }
 
     /// The same site for a walk that starts where the sibling step already landed.
@@ -1197,24 +1189,13 @@ impl SiblingEntry {
         routing: &'a RoutingRegistry,
         exact_tree_evaluation: Option<ExactTreeEvaluation>,
     ) -> RoutingSite<'a> {
-        let point = routing.route(self.route);
-        let path = routing.path_of(self.route);
-        let all_waypoints = routing.waypoints_of(self.route);
-        let waypoints = match all_waypoints.len() == path.len() {
-            true => &all_waypoints[1..],
-            false => all_waypoints,
-        };
-        RoutingSite {
-            subject: routing.subject_dispatch_of(self.route),
-            subject_required: routing.subject_required_of(self.route),
-            position: routing.subject_position_of(self.route),
-            path: &path[1..],
-            waypoints,
-            in_flux: None,
-            exact_entry: Some((routing.rule_of(self.route), point.entry)),
-            exact_tree_evaluation,
-            refresh_rule: Some((routing.rule_of(self.route), point.entry)),
+        let mut site = self.site(routing, exact_tree_evaluation);
+        if site.waypoints.len() == site.path.len() {
+            site.waypoints = &site.waypoints[1..];
         }
+        site.path = &site.path[1..];
+        site.exact_entry = site.refresh_rule;
+        site
     }
 }
 
@@ -1355,27 +1336,17 @@ impl SequenceEntryIndex {
 
 impl SequenceEntry {
     pub(super) fn site<'a>(&self, routing: &'a RoutingRegistry) -> RoutingSite<'a> {
-        let point = routing.route(self.route);
-        RoutingSite {
-            subject: routing.subject_dispatch_of(self.route),
-            subject_required: routing.subject_required_of(self.route),
-            position: routing.subject_position_of(self.route),
-            path: routing.path_of(self.route),
-            waypoints: routing.waypoints_of(self.route),
-            in_flux: None,
-            exact_entry: self
-                .can_compare_exactly
-                .then_some((routing.rule_of(self.route), point.entry)),
-            refresh_rule: Some((routing.rule_of(self.route), point.entry)),
-            exact_tree_evaluation: self
-                .can_compare_exactly
-                .then_some(ExactTreeEvaluation::BeforeSiblingRelations),
+        let mut site = route_site(routing, self.route);
+        if self.can_compare_exactly {
+            site.exact_entry = site.refresh_rule;
+            site.exact_tree_evaluation = Some(ExactTreeEvaluation::BeforeSiblingRelations);
         }
+        site
     }
 }
 
-/// The routing site of one relational route, which is how its regions are narrowed.
-pub(super) fn relational_route_site(routing: &RoutingRegistry, route: RouteID) -> RoutingSite<'_> {
+/// The routing site of one route, which is how its regions are narrowed.
+pub(super) fn route_site(routing: &RoutingRegistry, route: RouteID) -> RoutingSite<'_> {
     let point = routing.route(route);
     RoutingSite {
         subject: routing.subject_dispatch_of(route),

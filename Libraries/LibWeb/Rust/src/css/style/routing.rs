@@ -561,7 +561,7 @@ impl StyleEngine {
             // rather than from anything the change could be recognised as - and since that asks
             // nothing about the seam itself, once per transaction answers every seam.
             if anchor.argument_spans_siblings {
-                let site = relational_route_site(&routing, route);
+                let site = route_site(&routing, route);
                 self.route_from_possible_witnesses(program, anchor, &site, regions);
             }
         }
@@ -622,7 +622,7 @@ impl StyleEngine {
         let mut ancestor_predecessors: Option<Vec<StyleNodeID>> = None;
 
         for &LiveRelationalRoute { route, program, anchor } in live {
-            let site = relational_route_site(routing, route);
+            let site = route_site(routing, route);
             let anchor_posting = anchor
                 .anchor_dispatch
                 .has_selector_posting()
