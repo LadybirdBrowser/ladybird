@@ -1,0 +1,53 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Test: percentage width set on table-cell in 'table-layout: fixed' table</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/tables.html#fixed-table-layout" title="17.5.2.1 Fixed table layout" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/tables.html#separated-borders" title="17.6.1 The separated borders model" />
+  <link rel="bookmark" href="http://lists.w3.org/Archives/Public/www-style/2012Oct/0121.html" title="[CSS21] tables, percentages, and border-spacing" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/tables/../reference/ref-filled-green-100px-square.xht" />
+
+  <meta name="assert" content="A cell in the first row with a value other than 'auto' for the 'width' property determines the width for that column in the fixed table layout algorithm. The determination of the width of such column must nevertheless still take into account the horizontal padding and horizontal borders of such cell." />
+
+  <style type="text/css"><![CDATA[
+  table
+  {
+  border-spacing: 0px;
+  table-layout: fixed;
+  width: 100px;
+  }
+
+  td#middle-green-cell
+  {
+  background-color: green;
+  border-left: green solid 15px;
+  border-right: green solid 15px;
+  width: 50%;
+  }
+
+  td#left-red-cell, td#right-red-cell {background-color: red;}
+
+  td {padding: 50px 10px;}
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+  <table>
+      <tr>
+          <td id="left-red-cell"></td>
+          <td id="middle-green-cell"></td>
+          <td id="right-red-cell"></td>
+      </tr>
+  </table>
+
+ </body>
+</html>

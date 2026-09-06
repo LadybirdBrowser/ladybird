@@ -2389,9 +2389,15 @@ impl<'pass> TableFormattingContext<'pass> {
             // - the inline/block sizes of all spanned visible columns/rows
             // - the inline/block border spacing times the amount of spanned visible columns/rows minus one
             // FIXME: Account for visibility.
+            let cell_inline_size = span_inline + inline_spacing * (cell.column_span - 1);
+            // In fixed mode, columns are sized without regard to the padding and borders of cells that have no
+            // specified inline size (https://www.w3.org/TR/css-tables-3/#width-distribution-in-fixed-mode), so a
+            // column can be narrower than those. The cell still occupies exactly its columns, with an empty content
+            // box, as in other engines: shrink its used padding and borders to fit, so that the box painted for the
+            // cell stays within its columns.
+            Self::shrink_cell_offsets_to_fit(&used, collapsed, cell_inline_size);
             used.set_content_inline_size(
-                span_inline - used.border_box_left(collapsed) - used.border_box_right(collapsed)
-                    + inline_spacing * (cell.column_span - 1),
+                cell_inline_size - used.border_box_left(collapsed) - used.border_box_right(collapsed),
             );
 
             let outer_space = self.available_space;
@@ -2538,6 +2544,45 @@ impl<'pass> TableFormattingContext<'pass> {
                 self.rows[cell.row_index].reference_block_size =
                     self.rows[cell.row_index].reference_block_size.max(border_size);
                 self.rows[cell.row_index].baseline = self.rows[cell.row_index].baseline.max(baseline);
+            }
+        }
+    }
+
+    /// Shrinks the used padding, then the used borders, of a cell so that they fit within `inline_size`, the inline
+    /// size of the columns the cell spans. The end side goes first so that the content keeps its position relative to
+    /// the start of the cell for as long as possible.
+    fn shrink_cell_offsets_to_fit(used: &UsedValues, collapsed: bool, inline_size: CssPixels) {
+        let excess =
+            |used: &UsedValues| used.border_box_left(collapsed) + used.border_box_right(collapsed) - inline_size;
+        for padding in [&used.padding_right, &used.padding_left] {
+            let reduction = excess(used).min(padding.get()).max(CssPixels::default());
+            padding.set(padding.get() - reduction);
+        }
+        for is_start_side in [false, true] {
+            let remaining = excess(used);
+            if remaining <= CssPixels::default() {
+                return;
+            }
+            let border = if is_start_side {
+                &used.border_left
+            } else {
+                &used.border_right
+            };
+            // In the collapsing border model the cell's share of a border is half its used width, rounded.
+            let share = |used: &UsedValues| {
+                if is_start_side {
+                    used.border_left_collapsed(collapsed)
+                } else {
+                    used.border_right_collapsed(collapsed)
+                }
+            };
+            let allowed = (share(used) - remaining).max(CssPixels::default());
+            let mut width = if collapsed { allowed * 2usize } else { allowed };
+            border.set(width);
+            // Rounding of the half can leave the share above the allowed size by up to half a pixel.
+            while share(used) > allowed && width > CssPixels::default() {
+                width = (width - CssPixels::from_integer(1)).max(CssPixels::default());
+                border.set(width);
             }
         }
     }
