@@ -911,6 +911,23 @@ impl ComputedGroupSets {
         nodes
     }
 
+    fn intern_group(&mut self, index: usize, payload: *const c_void) -> (ComputedGroupID, bool) {
+        let hash = content_hash((index, payload as usize));
+        if let Some(identity) = self.groups.find(hash, |_identity, group| {
+            group.index == index && group.payload == payload
+        }) {
+            return (identity, false);
+        }
+        retain_group_payload(index, payload);
+        let identity = self.groups.take_free_identity().unwrap_or_else(|| {
+            ComputedGroupID(u32::try_from(self.groups.len()).expect("computed group identity space exhausted"))
+        });
+        self.groups.insert(hash, identity, ComputedGroup { index, payload });
+        self.group_set_nested_memory
+            .grow_committed(retained_group_payload_bytes(index, payload) as u64);
+        (identity, true)
+    }
+
     fn intern_group_set(&mut self, groups: &[ComputedGroupID]) -> (ComputedGroupSetID, bool) {
         let hash = content_hash(groups);
         if let Some(identity) = self.sets.find(hash, |_identity, set| {
@@ -1257,28 +1274,8 @@ impl ComputedGroupSets {
                 .expect("a supported currentcolor group rebuilds from its computed table");
                 let identity = if payload == old_payloads[group] {
                     groups[group]
-                } else if let Some(identity) = self
-                    .groups
-                    .find(content_hash((group, payload as usize)), |_identity, candidate| {
-                        candidate.index == group && candidate.payload == payload
-                    })
-                {
-                    identity
                 } else {
-                    retain_group_payload(group, payload);
-                    let identity = self.groups.take_free_identity().unwrap_or_else(|| {
-                        ComputedGroupID(
-                            u32::try_from(self.groups.len()).expect("computed group identity space exhausted"),
-                        )
-                    });
-                    self.groups.insert(
-                        content_hash((group, payload as usize)),
-                        identity,
-                        ComputedGroup { index: group, payload },
-                    );
-                    self.group_set_nested_memory
-                        .grow_committed(retained_group_payload_bytes(group, payload) as u64);
-                    identity
+                    self.intern_group(group, payload).0
                 };
                 release_group_payload(group, payload);
                 groups[group] = identity;
@@ -1453,32 +1450,13 @@ impl ComputedGroupSets {
             };
             // An equal payload keeps the old identity, as a C++ build adopts its parent's and
             // predecessor's identical payloads.
-            let identity = if payload == old_payloads[group]
-                || style_group_payloads_equal(group, old_payloads[group], payload)
-            {
-                canonicalized_groups += 1;
-                groups[group]
-            } else if let Some(identity) = self
-                .groups
-                .find(content_hash((group, payload as usize)), |_identity, candidate| {
-                    candidate.index == group && candidate.payload == payload
-                })
-            {
-                identity
-            } else {
-                retain_group_payload(group, payload);
-                let identity = self.groups.take_free_identity().unwrap_or_else(|| {
-                    ComputedGroupID(u32::try_from(self.groups.len()).expect("computed group identity space exhausted"))
-                });
-                self.groups.insert(
-                    content_hash((group, payload as usize)),
-                    identity,
-                    ComputedGroup { index: group, payload },
-                );
-                self.group_set_nested_memory
-                    .grow_committed(retained_group_payload_bytes(group, payload) as u64);
-                identity
-            };
+            let identity =
+                if payload == old_payloads[group] || style_group_payloads_equal(group, old_payloads[group], payload) {
+                    canonicalized_groups += 1;
+                    groups[group]
+                } else {
+                    self.intern_group(group, payload).0
+                };
             release_group_payload(group, payload);
             groups[group] = identity;
         }
@@ -1947,7 +1925,6 @@ impl ComputedGroupSets {
                 groups.push(identity);
                 continue;
             }
-            let key = (index, payload as usize);
             let previous_identity = previous_group_set
                 .and_then(|set| self.sets[set].payloads.get(index).copied())
                 .map(|payload| self.group_identity(index, payload));
@@ -1960,25 +1937,11 @@ impl ComputedGroupSets {
                     }
                     identity
                 }
-                None => match self.groups.find(content_hash(key), |_identity, group| {
-                    (group.index, group.payload as usize) == key
-                }) {
-                    Some(identity) => identity,
-                    None => {
-                        retain_group_payload(index, payload);
-                        let identity = self.groups.take_free_identity().unwrap_or_else(|| {
-                            ComputedGroupID(
-                                u32::try_from(self.groups.len()).expect("computed group identity space exhausted"),
-                            )
-                        });
-                        self.groups
-                            .insert(content_hash(key), identity, ComputedGroup { index, payload });
-                        self.group_set_nested_memory
-                            .grow_committed(retained_group_payload_bytes(index, payload) as u64);
-                        new_groups += 1;
-                        identity
-                    }
-                },
+                None => {
+                    let (identity, inserted) = self.intern_group(index, payload);
+                    new_groups += usize::from(inserted);
+                    identity
+                }
             };
             groups.push(identity);
         }
