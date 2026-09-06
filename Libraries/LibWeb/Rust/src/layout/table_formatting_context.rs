@@ -626,7 +626,11 @@ pub(crate) struct Row {
     pub(crate) base_block_size: CssPixels,
     pub(crate) reference_block_size: CssPixels,
     pub(crate) final_block_size: CssPixels,
-    pub(crate) baseline: CssPixels,
+    /// The baseline established by the row's baseline-aligned cells, if it has any (see row_baseline).
+    pub(crate) baseline: Option<CssPixels>,
+    /// The smallest bottom padding and border among the row's cells, which puts the bottom content edge of the lowest
+    /// cell (see row_baseline).
+    pub(crate) smallest_cell_block_end_offset: Option<CssPixels>,
     pub(crate) min_size: CssPixels,
     pub(crate) max_size: CssPixels,
     pub(crate) is_collapsed: bool,
@@ -642,7 +646,8 @@ impl Row {
             base_block_size: CssPixels::default(),
             reference_block_size: CssPixels::default(),
             final_block_size: CssPixels::default(),
-            baseline: CssPixels::default(),
+            baseline: None,
+            smallest_cell_block_end_offset: None,
             min_size: CssPixels::default(),
             max_size: CssPixels::default(),
             is_collapsed,
@@ -2403,26 +2408,46 @@ impl<'pass> TableFormattingContext<'pass> {
         }
     }
 
-    fn cell_box_baseline(&self, cell_box: Node, committing_run_baselines: Option<DerivedBaselines>) -> CssPixels {
-        let Some(content_baselines) = committing_run_baselines else {
-            return self.box_baseline(cell_box);
-        };
-        formatting_context::box_baseline_with_content_baselines(
-            &self.callbacks,
-            cell_box,
-            &self.used_values(cell_box),
-            formatting_context::BaselineSet::First,
-            content_baselines,
-        )
+    /// The baseline of a cell, from the top of its border box: "The baseline of a cell is the baseline of the first
+    /// in-flow line box in the cell, or the first in-flow table-row in the cell, whichever comes first. If there is no
+    /// such line box or table-row, the baseline is the bottom of content edge of the cell."
+    /// https://www.w3.org/TR/CSS22/tables.html#height-layout
+    /// The cell's own 'vertical-align' says where the cell goes in its row, not where its baseline is.
+    fn cell_baseline(&self, cell_box: Node, committing_run_baselines: Option<DerivedBaselines>) -> CssPixels {
+        let used = self.used_values(cell_box);
+        let content_baselines = committing_run_baselines.unwrap_or_else(|| used.content_baselines_from_cells());
+        let collapsed = used.uses_collapsing_borders_model.get();
+        used.border_box_top(collapsed) + content_baselines.first.unwrap_or_else(|| used.content_block_size.get())
     }
 
-    fn box_baseline(&self, node: Node) -> CssPixels {
-        formatting_context::box_baseline(
-            &self.callbacks,
-            node,
-            &self.used_values(node),
-            formatting_context::BaselineSet::First,
-        )
+    /// Whether a cell is aligned at the baseline of its row. Of the 'vertical-align' values, "the following values
+    /// apply to cells: baseline, top, middle, bottom", while sub, super, text-top, text-bottom, <length> and
+    /// <percentage> "do not apply to cells; the cell is aligned at the baseline instead".
+    /// https://www.w3.org/TR/CSS22/tables.html#height-layout
+    fn cell_is_baseline_aligned(style: &StyleValues<'_>) -> bool {
+        !style.vertical_align_is_keyword()
+            || !matches!(
+                style.vertical_align_keyword(),
+                vertical_align::TOP | vertical_align::MIDDLE | vertical_align::BOTTOM
+            )
+    }
+
+    /// Notes what a cell contributes to the baseline of its row (see row_baseline).
+    fn note_cell_in_row_baseline(&mut self, cell_index: usize, style: &StyleValues<'_>) {
+        let cell = self.cells[cell_index];
+        let used = self.used_values(cell.box_);
+        let block_end_offset = used.border_box_bottom(used.uses_collapsing_borders_model.get());
+        let row = &mut self.rows[cell.row_index];
+        if Self::cell_is_baseline_aligned(style) {
+            row.baseline = Some(
+                row.baseline
+                    .map_or(cell.baseline, |baseline| baseline.max(cell.baseline)),
+            );
+        }
+        row.smallest_cell_block_end_offset = Some(
+            row.smallest_cell_block_end_offset
+                .map_or(block_end_offset, |offset| offset.min(block_end_offset)),
+        );
     }
 
     fn measure_cell(
@@ -2604,10 +2629,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 self.cells[cell_index].outer_min_block_size = measured;
                 self.cells[cell_index].outer_max_block_size = measured;
             }
-            // https://drafts.csswg.org/css2/#height-layout
-            // The baseline of a cell is the baseline of the first in-flow line box in the cell, or the first in-flow
-            // table-row in the cell, whichever comes first.
-            let baseline = self.cell_box_baseline(cell.box_, content_baselines);
+            let baseline = self.cell_baseline(cell.box_, content_baselines);
             self.cells[cell_index].baseline = baseline;
             // Implements https://www.w3.org/TR/css-tables-3/#computing-the-table-height
 
@@ -2626,7 +2648,7 @@ impl<'pass> TableFormattingContext<'pass> {
                         .base_block_size
                         .max(self.rows[cell.row_index].min_size);
                 }
-                self.rows[cell.row_index].baseline = self.rows[cell.row_index].baseline.max(baseline);
+                self.note_cell_in_row_baseline(cell_index, &style);
             }
         }
 
@@ -2721,13 +2743,13 @@ impl<'pass> TableFormattingContext<'pass> {
             let content_baselines = self
                 .measure_cell(cell, &used, inner, false)
                 .map(|measured| measured.baselines);
-            let baseline = self.cell_box_baseline(cell.box_, content_baselines);
+            let baseline = self.cell_baseline(cell.box_, content_baselines);
             self.cells[cell_index].baseline = baseline;
             if !self.rows[cell.row_index].is_collapsed {
                 let border_size = used.border_box_block_size(collapsed);
                 self.rows[cell.row_index].reference_block_size =
                     self.rows[cell.row_index].reference_block_size.max(border_size);
-                self.rows[cell.row_index].baseline = self.rows[cell.row_index].baseline.max(baseline);
+                self.note_cell_in_row_baseline(cell_index, &style);
             }
         }
     }
@@ -2893,7 +2915,7 @@ impl<'pass> TableFormattingContext<'pass> {
             }
             let cell = self.cells[cell_index];
             let adopt_automatic_content_block_size = !self.style(cell.box_).height().is_percentage();
-            let intrinsic_block_padding = self.cell_intrinsic_block_padding(cell, collapsed);
+            let intrinsic_block_padding = Some(self.cell_intrinsic_block_padding(cell, collapsed));
             let used = self.used_values(cell.box_);
             let measured_content_block_size = used.content_block_size.get();
             // The first pass adopted the measured automatic block size so row sizing could read
@@ -2918,7 +2940,7 @@ impl<'pass> TableFormattingContext<'pass> {
         }
     }
 
-    fn cell_intrinsic_block_padding(&mut self, cell: TableCell, collapsed: bool) -> Option<(CssPixels, CssPixels)> {
+    fn cell_intrinsic_block_padding(&mut self, cell: TableCell, collapsed: bool) -> (CssPixels, CssPixels) {
         let row_size = self.compute_row_content_block_size(cell);
         let used = self.used_values(cell.box_);
         let style = self.style(cell.box_);
@@ -2926,44 +2948,35 @@ impl<'pass> TableFormattingContext<'pass> {
         // wrapped in an anonymous table-cell box per CSS Tables 3), the cell should be aligned to the top. This allows
         // the flex/grid container to fill the cell and handle alignment of its children via its own properties.
         if self.anonymous_cell_wraps_flex_or_grid(cell) {
-            return Some((CssPixels::default(), row_size - used.border_box_block_size(collapsed)));
-        }
-        if !style.vertical_align_is_keyword() {
-            return None;
+            return (CssPixels::default(), row_size - used.border_box_block_size(collapsed));
         }
         // The following image shows various alignment lines of a row:
         // https://www.w3.org/TR/css-tables-3/images/cell-align-explainer.png
         // https://drafts.csswg.org/css2/#height-layout
         // In the context of tables, values for vertical-align have the following meanings:
+        if Self::cell_is_baseline_aligned(&style) {
+            // The baseline of the cell is put at the same height as the baseline of the first of the rows it spans.
+            let padding_top = self.rows[cell.row_index].baseline.unwrap_or(cell.baseline) - cell.baseline;
+            return (
+                padding_top,
+                row_size - (used.border_box_block_size(collapsed) + padding_top),
+            );
+        }
         match style.vertical_align_keyword() {
             vertical_align::MIDDLE => {
                 // The center of the cell is aligned with the center of the rows it spans.
                 let difference = row_size - used.border_box_block_size(collapsed);
-                Some((difference / 2, difference / 2))
+                (difference / 2, difference / 2)
             }
             vertical_align::TOP => {
                 // The top of the cell box is aligned with the top of the first row it spans.
-                Some((CssPixels::default(), row_size - used.border_box_block_size(collapsed)))
+                (CssPixels::default(), row_size - used.border_box_block_size(collapsed))
             }
             vertical_align::BOTTOM => {
                 // The bottom of the cell box is aligned with the bottom of the last row it spans.
-                Some((row_size - used.border_box_block_size(collapsed), CssPixels::default()))
+                (row_size - used.border_box_block_size(collapsed), CssPixels::default())
             }
-            vertical_align::SUB
-            | vertical_align::SUPER
-            | vertical_align::TEXT_BOTTOM
-            | vertical_align::TEXT_TOP
-            | vertical_align::BASELINE => {
-                // These values do not apply to cells; the cell is aligned at the baseline instead.
-
-                // The baseline of the cell is put at the same height as the baseline of the first of the rows it spans.
-                let padding_top = self.rows[cell.row_index].baseline - cell.baseline;
-                Some((
-                    padding_top,
-                    row_size - (used.border_box_block_size(collapsed) + padding_top),
-                ))
-            }
-            _ => panic!("invalid vertical-align keyword"),
+            _ => unreachable!("every other value aligns the cell at the baseline"),
         }
     }
 
@@ -3127,13 +3140,70 @@ impl<'pass> TableFormattingContext<'pass> {
         }
     }
 
-    fn compute_and_store_baselines(&self, node: Node) {
-        let baselines = formatting_context::derive_baselines(self.records, &self.callbacks, node, false);
-        if node == self.table_box {
-            self.derived_baselines_of_root_box.set(baselines);
-        } else {
-            formatting_context::store_derived_baselines(&self.used_values(node), baselines);
+    /// The baseline of a row, from its top. The baseline-aligned cells "are positioned so their baselines align. This
+    /// will establish the baseline of the row." and "If a row has no cell box aligned to its baseline, the baseline
+    /// of that row is the bottom content edge of the lowest cell in the row."
+    /// https://www.w3.org/TR/CSS22/tables.html#height-layout
+    fn row_baseline(&self, row_index: usize) -> CssPixels {
+        let row = &self.rows[row_index];
+        if let Some(baseline) = row.baseline {
+            return baseline;
         }
+        // Every cell is as tall as its row, so the lowest content edge lies above the row's bottom by the smallest
+        // bottom padding and border among its cells. A row without cells has its baseline at its top, as in Blink.
+        row.smallest_cell_block_end_offset
+            .map_or(CssPixels::default(), |offset| {
+                (row.final_block_size - offset).max(CssPixels::default())
+            })
+    }
+
+    /// Stores the baselines of the rows, the row groups and the table box, which are what the table exports to
+    /// outside consumers (e.g. an inline-table participating in a line box): "The baseline of an 'inline-table' is the
+    /// baseline of the first row of the table." (https://www.w3.org/TR/CSS22/tables.html#height-layout) and its last
+    /// baseline is that of its last row. Rows and row groups are positioned in the coordinate space of the table
+    /// wrapper (see position_row_boxes), so each baseline is made relative to the content box it is stored on here.
+    fn store_table_part_baselines(&self) {
+        let baseline_in_wrapper = |row_index: usize| {
+            self.used_values(self.rows[row_index].box_).content_offset.get().y + self.row_baseline(row_index)
+        };
+        let baselines_of_rows = |rows: &[usize], content_block_offset: CssPixels| DerivedBaselines {
+            first: rows
+                .first()
+                .map(|&row_index| baseline_in_wrapper(row_index) - content_block_offset),
+            last: rows
+                .last()
+                .map(|&row_index| baseline_in_wrapper(row_index) - content_block_offset),
+        };
+        for row_index in 0..self.rows.len() {
+            let baseline = Some(self.row_baseline(row_index));
+            formatting_context::store_derived_baselines(
+                &self.used_values(self.rows[row_index].box_),
+                DerivedBaselines {
+                    first: baseline,
+                    last: baseline,
+                },
+            );
+        }
+        // Collapsed rows are removed from the display (https://www.w3.org/TR/CSS22/tables.html#dynamic-effects).
+        let visible_rows = (0..self.rows.len())
+            .filter(|&row_index| !self.rows[row_index].is_collapsed)
+            .collect::<Vec<_>>();
+        for group in self.row_groups_in_layout_order() {
+            let rows_in_group = visible_rows
+                .iter()
+                .copied()
+                .filter(|&row_index| self.parent(self.rows[row_index].box_) == group)
+                .collect::<Vec<_>>();
+            let used = self.used_values(group);
+            formatting_context::store_derived_baselines(
+                &used,
+                baselines_of_rows(&rows_in_group, used.content_offset.get().y),
+            );
+        }
+        self.derived_baselines_of_root_box.set(baselines_of_rows(
+            &visible_rows,
+            self.table_box_content_block_offset_in_wrapper,
+        ));
     }
 
     pub(super) fn run(
@@ -3184,16 +3254,7 @@ impl<'pass> TableFormattingContext<'pass> {
         self.position_column_boxes();
         self.materialize_collapsed_table_borders();
         table_used.set_content_block_size(self.table_block_size);
-        // Derive baselines for the table internals bottom-up (rows, then row groups, then the table box)
-        // now that all offsets are final, so the table exports its baseline to outside consumers
-        // (e.g. an inline-table participating in a line box).
-        for row in &self.rows {
-            self.compute_and_store_baselines(row.box_);
-        }
-        for group in self.matching_children(self.table_box, |display| display.is_table_row_group_kind()) {
-            self.compute_and_store_baselines(group);
-        }
-        self.compute_and_store_baselines(self.table_box);
+        self.store_table_part_baselines();
         self.automatic_content_block_size = self.table_block_size;
     }
 

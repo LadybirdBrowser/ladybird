@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    div { font-size: 0; }
+    .x { display: inline-block; width: 20px; height: 20px; background: gray; }
+    .table { display: inline-table; border-spacing: 0; }
+    .row { display: table-row; }
+    .cell { display: table-cell; padding: 0; font-size: 20px; line-height: 1; }
+</style>
+<!-- The baseline of an inline-table is the baseline of its first row, whatever the number of rows. -->
+<div><span class="x"></span><span class="table"><span class="row"><span class="cell">X</span></span><span class="row"><span class="cell">X</span></span></span></div>
+<!-- Borders, padding and border spacing of the table lie above the first row. -->
+<div><span class="x"></span><span class="table" style="border: 5px solid; padding: 3px; border-spacing: 2px"><span class="row"><span class="cell">X</span></span></span></div>
+<!-- A caption does not take part in the table's baseline. -->
+<div><span class="x"></span><table class="table"><caption style="font-size: 20px; line-height: 1">C</caption><tr><td class="cell" style="vertical-align: baseline">X</td></tr></table></div>
+<!-- A row without baseline-aligned cells has its baseline at the bottom content edge of its lowest cell, above the
+     bottom padding: the UA style sheet aligns cells to the middle. -->
+<div><span class="x"></span><table class="table"><tr><td class="cell" style="padding-bottom: 7px">X</td></tr></table></div>
+<!-- Only the baseline-aligned cells establish the baseline of a row. -->
+<div><span class="x"></span><table class="table"><tr><td class="cell" style="height: 40px; vertical-align: middle">X</td><td class="cell" style="vertical-align: baseline">X</td></tr></table></div>
