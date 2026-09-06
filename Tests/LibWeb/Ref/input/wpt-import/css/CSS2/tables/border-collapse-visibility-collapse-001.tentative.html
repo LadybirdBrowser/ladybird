@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<title>CSS Test: Table with collapsed borders and collapsed tracks</title>
+<link rel="author" title="Oriol Brufau" href="obrufau@igalia.com">
+<link rel="help" href="https://www.w3.org/TR/CSS21/tables.html#collapsing-borders">
+<link rel="help" href="https://www.w3.org/TR/CSS21/tables.html#dynamic-effects">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/tables/../reference/ref-filled-green-100px-square.xht">
+<style>
+td { border: 50px solid green; padding: 0; }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<table style="border-collapse: collapse; background: red">
+  <col style="visibility: collapse"></col>
+  <tr style="visibility: collapse">
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td></td>
+    <td></td>
+  </tr>
+</table>
