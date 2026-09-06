@@ -55,6 +55,9 @@
 #[path = "../../../RustAllocator.rs"]
 mod rust_allocator;
 
+#[path = "../../../RustPanic.rs"]
+mod rust_panic;
+
 /// Compile-time conversion of an ASCII string literal to `&'static [u16]`.
 ///
 /// Produces a static `[u16; N]` array, so comparisons like
@@ -97,6 +100,7 @@ pub(crate) fn u32_from_usize(value: usize) -> u32 {
     u32::try_from(value).expect("value exceeds u32::MAX")
 }
 
+use crate::rust_panic::abort_on_panic;
 use ast::StatementKind;
 use bytecode::generator::PendingSharedFunctionData;
 use parser::ParseError;
@@ -105,8 +109,6 @@ use parser::ProgramType;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::ffi::c_void;
-use std::panic::AssertUnwindSafe;
-use std::panic::catch_unwind;
 use std::rc::Rc;
 
 // Compile-time assertion: `ParsedProgram` travels between the parse worker
@@ -184,25 +186,6 @@ unsafe impl Send for CompiledFunction {}
 // =============================================================================
 // Internal helpers
 // =============================================================================
-
-/// Catch any Rust panics to prevent undefined behavior from unwinding across
-/// the FFI boundary. Aborts the process on panic.
-fn abort_on_panic<F: FnOnce() -> R, R>(f: F) -> R {
-    match catch_unwind(AssertUnwindSafe(f)) {
-        Ok(result) => result,
-        Err(payload) => {
-            let msg = if let Some(s) = payload.downcast_ref::<&str>() {
-                s.to_string()
-            } else if let Some(s) = payload.downcast_ref::<String>() {
-                s.clone()
-            } else {
-                "unknown panic".to_string()
-            };
-            eprintln!("Rust panic at FFI boundary: {msg}");
-            std::process::abort();
-        }
-    }
-}
 
 /// Write an AST dump string to FFI output pointers.
 ///

@@ -104,6 +104,11 @@ function(import_rust_crate)
     )
     add_dependencies(${ARG_CRATE_NAME} ${ARG_CRATE_NAME}-build)
 
+    configure_file("${CMAKE_CURRENT_FUNCTION_LIST_DIR}/RustPanicInit.cpp.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/${ARG_CRATE_NAME}_panic_init.cpp" @ONLY)
+    target_sources(${ARG_CRATE_NAME} INTERFACE
+        "${CMAKE_CURRENT_BINARY_DIR}/${ARG_CRATE_NAME}_panic_init.cpp")
+
     # Rust staticlibs bundle the standard library, which on Windows depends on system libraries.
     if (WIN32)
         set_target_properties(${ARG_CRATE_NAME} PROPERTIES

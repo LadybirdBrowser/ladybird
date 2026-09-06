@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::rust_panic::abort_on_panic;
 use calendrical_calculations::rata_die::RataDie;
 use icu_calendar::AnyCalendar;
 use icu_calendar::AnyCalendarKind;
@@ -11,8 +12,6 @@ use icu_calendar::Date;
 use icu_calendar::Iso;
 use icu_calendar::types::DateFields;
 use icu_calendar::types::Month;
-use std::panic::AssertUnwindSafe;
-use std::panic::catch_unwind;
 
 #[repr(C)]
 pub struct FfiISODate {
@@ -66,13 +65,6 @@ const EMPTY_CALENDAR_DATE: FfiCalendarDate = FfiCalendarDate {
     months_in_year: 0,
     in_leap_year: false,
 };
-
-fn abort_on_panic<F: FnOnce() -> R, R>(f: F) -> R {
-    match catch_unwind(AssertUnwindSafe(f)) {
-        Ok(result) => result,
-        Err(_) => std::process::abort(),
-    }
-}
 
 /// SAFETY: All FFI string inputs are ASCII calendar names (e.g. "chinese") or month codes (e.g. "M01").
 fn ascii_string_from_ffi<'a>(string: *const u8, length: usize) -> &'a str {

@@ -251,6 +251,8 @@ static void crash_signal_handler(int signal, siginfo_t* info, void* context)
     ReportHeader header { report_magic, signal, info ? info->si_code : 0, s_executable, {} };
     if (__atomic_load_n(&s_assertion_state, __ATOMIC_ACQUIRE) == 2)
         header.assertion = s_assertion;
+    else if (auto const* message = AK::current_rust_panic_message())
+        header.assertion = sanitize_assertion(AK::AssertionFailureKind::RustPanic, message);
     // Persist the reason first, even if unwinding is impossible or interrupted.
     write_record(&header, sizeof(header), 0);
 

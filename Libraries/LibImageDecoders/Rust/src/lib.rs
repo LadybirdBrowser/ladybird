@@ -8,5 +8,8 @@
 #[path = "../../../RustAllocator.rs"]
 mod rust_allocator;
 
+#[path = "../../../RustPanic.rs"]
+mod rust_panic;
+
 pub mod jpeg_xl;
 pub use jpeg_xl::*;
