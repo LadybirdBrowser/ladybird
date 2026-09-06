@@ -1387,6 +1387,13 @@ impl WinnerGroups {
             })
     }
 
+    pub(super) fn winner_count_in_state(&self, state: CascadeStateID) -> usize {
+        self.states[state]
+            .iter()
+            .map(|group| self.groups[group.winners].len())
+            .sum()
+    }
+
     pub fn winners_in_state(&self, state: CascadeStateID) -> impl Iterator<Item = PropertyWinner> + '_ {
         self.states[state].iter().flat_map(|&group| self.group_winners(group))
     }

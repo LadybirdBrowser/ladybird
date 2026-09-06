@@ -825,8 +825,7 @@ impl StyleEngine {
                 environment: parent_environment,
                 font_environment_generation: inputs.font_environment_generation,
             });
-        let delta = self.winner_groups.semantic_delta(None, state);
-        let delta_property_count = delta.properties().len() as u64;
+        let delta_property_count = self.winner_groups.winner_count_in_state(state) as u64;
         if !self.node_declares_custom_properties(node)
             && let Some(delta) = self.assign_cached_cold_record(
                 node,
@@ -846,7 +845,7 @@ impl StyleEngine {
         // full drive resolves the font and rebuilds every group from it. The other font-phase
         // longhands without a group carry feature and variation data the resolution does not
         // pass on yet.
-        for &property in delta.properties() {
+        for property in self.winner_groups.semantic_delta_properties(None, state) {
             if property_starts_animation_or_counter_environment(property)
                 || (computed_group_dependency_mask(property).is_none() && !font_resolution_selects_by(property))
             {
