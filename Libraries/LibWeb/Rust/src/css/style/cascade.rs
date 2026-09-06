@@ -1631,19 +1631,20 @@ impl WinnerGroups {
         program_version: ProgramVersion,
         memory: &mut MemoryController,
     ) -> Option<usize> {
+        if !self.admitting {
+            return None;
+        }
         let (_, state) = self
             .token_for(WinnerGroupKey::current(source, program_version))
             .sparse()
             .ok()?;
-        let pseudo_states: Vec<_> = self.pseudo_states(source).collect();
-        let scratch_bytes = (pseudo_states.capacity()
-            * size_of::<(PseudoElementTarget, ProgramVersion, CascadeStateID, bool)>())
-            as u64;
+        let pseudo_states: SmallVec<[_; 2]> = self.pseudo_states(source).collect();
+        let scratch_bytes = if pseudo_states.spilled() {
+            (pseudo_states.capacity() * size_of::<(PseudoElementTarget, ProgramVersion, CascadeStateID, bool)>()) as u64
+        } else {
+            0
+        };
         memory.reserve_required(MemoryCategory::BatchScratch, scratch_bytes);
-        if !self.admitting {
-            memory.release(MemoryCategory::BatchScratch, scratch_bytes);
-            return None;
-        }
         self.remove(target);
         assert!(self.set(target, state, program_version));
         for (pseudo, version, state, priority_current) in &pseudo_states {
