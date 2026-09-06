@@ -1,29 +1,29 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 106 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 90 0+0+8] children: not-inline
-      TableWrapper <(anonymous)> at [8,8] [0+0+0 615.65625 0+0+168.34375] [0+0+0 90 0+0+0] [BFC] children: not-inline
-        Box <table> at [9,9] table-box [0+1+0 613.65625 0+1+0] [0+1+0 88 0+1+0] [TFC] children: not-inline
-          Box <tbody> at [9,9] table-row-group [0+0+0 613.65625 0+0+0] [0+0+0 88 0+0+0] children: not-inline
-            Box <tr> at [9,9] table-row [0+0+0 613.65625 0+0+0] [0+0+0 44 0+0+0] children: not-inline
-              BlockContainer <td> at [11,11] table-cell [0+1+1 349.90625 1+1+0] [0+1+1 40 1+1+0] [BFC] children: inline
-                frag 0 from TextNode start: 0, length: 13, rect: [11,11 273.984375x40] baseline: 32
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 103 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 87 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 612.65625 0+0+171.34375] [0+0+0 87 0+0+0] [BFC] children: not-inline
+        Box <table> at [9,9] table-box [0+1+0 611.65625 0+1+0] [0+1+0 86 0+1+0] [TFC] children: not-inline
+          Box <tbody> at [9,9] table-row-group [0+0+0 611.65625 0+0+0] [0+0+0 86 0+0+0] children: not-inline
+            Box <tr> at [9,9] table-row [0+0+0 611.65625 0+0+0] [0+0+0 43 0+0+0] children: not-inline
+              BlockContainer <td> at [10,10] table-cell [0+1+1 349.90625 1+1+0] [0+1+1 40 1+1+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 13, rect: [10,10 273.984375x40] baseline: 32
                     "Text baseline"
                 TextNode <#text> (not painted)
-              BlockContainer <td.small-text> at [364.90625,35] table-cell [0+1+1 255.75 1+1+0] [0+1+25 10 7+1+0] [BFC] children: inline
-                frag 0 from TextNode start: 0, length: 12, rect: [364.90625,35 62.28125x10] baseline: 8
+              BlockContainer <td.small-text> at [362.90625,34] table-cell [0+1+1 255.75 1+1+0] [0+1+25 10 7+1+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 12, rect: [362.90625,34 62.28125x10] baseline: 8
                     "Smaller text"
                 TextNode <#text> (not painted)
-            Box <tr> at [9,53] table-row [0+0+0 613.65625 0+0+0] [0+0+0 44 0+0+0] children: not-inline
-              BlockContainer <td> at [11,55] table-cell [0+1+1 349.90625 1+1+0] [0+1+1 40 1+1+0] [BFC] children: inline
-                frag 0 from TextNode start: 0, length: 16, rect: [11,55 349.90625x40] baseline: 32
+            Box <tr> at [9,52] table-row [0+0+0 611.65625 0+0+0] [0+0+0 43 0+0+0] children: not-inline
+              BlockContainer <td> at [10,53] table-cell [0+1+1 349.90625 1+1+0] [0+1+1 40 1+1+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 16, rect: [10,53 349.90625x40] baseline: 32
                     "Another baseline"
                 TextNode <#text> (not painted)
-              BlockContainer <td> at [364.90625,55] table-cell [0+1+1 255.75 1+1+0] [0+1+1 40 1+1+0] [BFC] children: inline
-                frag 0 from TextNode start: 0, length: 12, rect: [364.90625,55 255.75x40] baseline: 32
+              BlockContainer <td> at [362.90625,53] table-cell [0+1+1 255.75 1+1+0] [0+1+1 40 1+1+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 12, rect: [362.90625,53 255.75x40] baseline: 32
                     "Regular text"
                 TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,98] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+      BlockContainer <(anonymous)> at [8,95] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x106] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x103] (z-index: auto)

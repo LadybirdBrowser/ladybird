@@ -1601,6 +1601,7 @@ impl<'pass> SizingContext<'pass> {
                     content_block_size: used.content_block_size.get(),
                     automatic_content_block_size: result.automatic_content_block_size,
                     uses_collapsing_borders_model: used.uses_collapsing_borders_model.get(),
+                    is_collapsed_borders_table_box: used.is_collapsed_borders_table_box.get(),
                     has_first_baseline: used.has_first_baseline.get(),
                     first_baseline: used.first_baseline.get(),
                     has_last_baseline: used.has_last_baseline.get(),
@@ -1647,6 +1648,8 @@ impl<'pass> SizingContext<'pass> {
         used.set_content_block_size(measurement.content_block_size);
         used.uses_collapsing_borders_model
             .set(measurement.uses_collapsing_borders_model);
+        used.is_collapsed_borders_table_box
+            .set(measurement.is_collapsed_borders_table_box);
         let baselines = DerivedBaselines {
             first: measurement.has_first_baseline.then_some(measurement.first_baseline),
             last: measurement.has_last_baseline.then_some(measurement.last_baseline),
