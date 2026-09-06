@@ -1,0 +1,19 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>CSS Test: Anonymous table objects</title>
+  <link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com"/>
+  <link rel="help" href="http://www.w3.org/TR/CSS21/tables.html#anonymous-boxes"/>
+  <link rel="help" href="https://github.com/servo/servo/issues/31649"/>
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/tables/table-anonymous-objects-213-ref.xht"/>
+  <meta assert="The table cell is wrapped inside an anonymous inline-level table,
+                so the text 'right' should appear at the right of 'left',
+                and the border should surround both of them."/>
+</head>
+<body>
+  <span style="border: solid; vertical-align: top">
+    left
+    <span style="display: table-cell">right</span>
+  </span>
+</body>
+</html>

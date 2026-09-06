@@ -638,6 +638,19 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         }
     }
 
+    // https://drafts.csswg.org/css2/#propdef-vertical-align
+    // The vertical-align of the block container establishing this formatting context positions the container itself
+    // (a table-cell within its row, an inline-level box within its parent's line box) and does not apply to the line
+    // boxes it holds: its direct text belongs to anonymous inline boxes, which take the initial value 'baseline' as
+    // vertical-align is not inherited (https://drafts.csswg.org/css2/#anonymous-block-level).
+    fn alignment_style<'a>(&self, style_source: Node, style: StyleValues<'a>) -> StyleValues<'a> {
+        if style_source == self.context().containing_block {
+            style.with_vertical_align_keyword(vertical_align::BASELINE)
+        } else {
+            style
+        }
+    }
+
     fn block_offset_for_alignment(
         &self,
         style: StyleValues,
@@ -859,13 +872,14 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             if self.line_relative_aligned_subtree_root(style_source).is_some() {
                 continue;
             }
-            let adjusted_baseline = if style.vertical_align_is_keyword() {
+            let alignment_style = self.alignment_style(style_source, style);
+            let adjusted_baseline = if alignment_style.vertical_align_is_keyword() {
                 fragment_baseline
             } else {
-                fragment_baseline + style.vertical_align_value().to_px(style.line_height())
+                fragment_baseline + alignment_style.vertical_align_value().to_px(style.line_height())
             };
             if adjusted_baseline > line_box_baseline {
-                if !self.facts(node).is_text_node() && style.vertical_align_is_keyword() {
+                if !self.facts(node).is_text_node() && alignment_style.vertical_align_is_keyword() {
                     // https://drafts.csswg.org/css2/#line-height
                     // The minimum height consists of a minimum height above the baseline and a minimum depth below
                     // it, exactly as if each line box starts with a zero-width inline box with the element's font and
@@ -873,7 +887,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                     should_align_strut_to_line_box_baseline |= has_line_relative_aligned_subtree
                         || ((style.display().is_inline_block()
                             || (style.display().is_inline_outside() && style.display().is_flex_inside()))
-                            && style.vertical_align_keyword() == vertical_align::BASELINE);
+                            && alignment_style.vertical_align_keyword() == vertical_align::BASELINE);
                 }
                 line_box_baseline = adjusted_baseline;
             }
@@ -931,7 +945,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             let alignment_style = if aligned_subtree.is_some_and(|(root, _)| root == snapshot.style_source) {
                 style.with_vertical_align_keyword(vertical_align::BASELINE)
             } else {
-                style
+                self.alignment_style(snapshot.style_source, style)
             };
             let parent_style = self.parent_style(snapshot.style_source);
             let mut new_block_offset =
@@ -1033,8 +1047,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                         + half_leading,
                 )
             };
-            if !style.vertical_align_is_keyword() {
-                inline_box_end += style.vertical_align_value().to_px(style.line_height());
+            if !alignment_style.vertical_align_is_keyword() {
+                inline_box_end += alignment_style.vertical_align_value().to_px(style.line_height());
             }
             if let Some((root, alignment)) = aligned_subtree {
                 if let Some(subtree) = aligned_subtrees.iter_mut().find(|subtree| subtree.root == root) {
