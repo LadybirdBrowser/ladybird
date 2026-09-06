@@ -431,30 +431,20 @@ impl StyleEngine {
                 continue;
             }
             let declared_properties = self.program.declared_properties_of(entry.rule);
-            let normal_priority = self.cascade_priority_of(
-                entry.rule,
-                entry.tree_scope,
-                entry.specificity,
-                entry.scope_proximity,
-                false,
-            );
-            let mut important_priority = None;
+            let mut priorities = [None; 2];
             for declared in declared_properties {
                 if !property_is_longhand(declared.property) {
                     continue;
                 }
-                let priority = match declared.important {
-                    true => *important_priority.get_or_insert_with(|| {
-                        self.cascade_priority_of(
-                            entry.rule,
-                            entry.tree_scope,
-                            entry.specificity,
-                            entry.scope_proximity,
-                            true,
-                        )
-                    }),
-                    false => normal_priority,
-                };
+                let priority = *priorities[declared.important as usize].get_or_insert_with(|| {
+                    self.cascade_priority_of(
+                        entry.rule,
+                        entry.tree_scope,
+                        entry.specificity,
+                        entry.scope_proximity,
+                        declared.important,
+                    )
+                });
                 match entry.pseudo_element {
                     Some(_) => top_1.consider(
                         (entry.pseudo_element, declared.property),
