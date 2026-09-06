@@ -1433,16 +1433,18 @@ impl StyleEngine {
             STYLE_GROUP_INDEX_INHERITED_SVG, STYLE_GROUP_INDEX_INHERITED_TEXT, STYLE_GROUP_INDEX_INHERITED_UI,
         };
         use crate::css::property_metadata::{property_id as prop, property_style_group_index};
-        self.winner_groups.winners_in_state(state).fold(0_u32, |mask, winner| {
-            let mask = mask | property_style_group_index(winner.property).map_or(0, |group| 1 << group);
-            if winner.property == prop::COLOR {
-                mask | (1 << STYLE_GROUP_INDEX_INHERITED_UI)
-                    | (1 << STYLE_GROUP_INDEX_INHERITED_SVG)
-                    | (1 << STYLE_GROUP_INDEX_INHERITED_TEXT)
-            } else {
-                mask
-            }
-        })
+        self.winner_groups
+            .properties_in_state(state)
+            .fold(0_u32, |mask, property| {
+                let mask = mask | property_style_group_index(property).map_or(0, |group| 1 << group);
+                if property == prop::COLOR {
+                    mask | (1 << STYLE_GROUP_INDEX_INHERITED_UI)
+                        | (1 << STYLE_GROUP_INDEX_INHERITED_SVG)
+                        | (1 << STYLE_GROUP_INDEX_INHERITED_TEXT)
+                } else {
+                    mask
+                }
+            })
     }
 
     /// The document element's record settled: the root font metrics the drives after it resolve

@@ -1408,10 +1408,10 @@ impl WinnerGroups {
                 .eq(self.states[right].iter().map(|group| group.winners))
     }
 
-    fn semantic_winners_in_state(&self, state: CascadeStateID) -> impl Iterator<Item = &SemanticPropertyWinner> {
+    pub(super) fn properties_in_state(&self, state: CascadeStateID) -> impl Iterator<Item = PropertyID> {
         self.states[state]
             .iter()
-            .flat_map(move |group| self.groups[group.winners].iter())
+            .flat_map(move |group| self.groups[group.winners].iter().map(|winner| winner.property))
     }
 
     /// Compare the semantic winners consumed by two computed-style publications.
@@ -1463,8 +1463,8 @@ impl WinnerGroups {
     /// exact semantic delta.
     pub(super) fn property_shape_hash(&self, state: CascadeStateID) -> u64 {
         let mut hasher = fast_hasher();
-        for winner in self.semantic_winners_in_state(state) {
-            winner.property.hash(&mut hasher);
+        for property in self.properties_in_state(state) {
+            property.hash(&mut hasher);
         }
         hasher.finish()
     }
