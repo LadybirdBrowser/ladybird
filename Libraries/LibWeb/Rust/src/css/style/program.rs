@@ -1070,12 +1070,15 @@ impl StyleSheetProgram {
     /// name sort after every named layer in the scope.
     #[must_use]
     pub fn layer_index(&self, scope: TreeScopeID, layer: CascadeLayerID) -> u32 {
-        let ranks = self.layer_ranks.get(scope.0 as usize).and_then(Option::as_ref);
-        ranks.and_then(|ranks| ranks.get(&layer).copied()).unwrap_or_else(|| {
-            ranks.map_or(0, |ranks| {
-                u32::try_from(ranks.len()).expect("cascade layer count exhausted")
-            })
-        })
+        let Some(ranks) = self.layer_ranks.get(scope.0 as usize).and_then(Option::as_ref) else {
+            return 0;
+        };
+        if layer != CascadeLayerID::UNLAYERED
+            && let Some(&rank) = ranks.get(&layer)
+        {
+            return rank;
+        }
+        u32::try_from(ranks.len()).expect("cascade layer count exhausted")
     }
 
     #[must_use]
