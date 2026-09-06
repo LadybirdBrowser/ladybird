@@ -74,14 +74,16 @@ impl StyleAtomID {
 }
 
 fn attribute_value_equals(value: &[u16], literal: &[u16], insensitive: bool) -> bool {
+    if !insensitive {
+        return value == literal;
+    }
     value.len() == literal.len()
         && value.iter().zip(literal).all(|(&left, &right)| {
             left == right
-                || (insensitive
-                    && match (u8::try_from(left), u8::try_from(right)) {
-                        (Ok(left), Ok(right)) => left.eq_ignore_ascii_case(&right),
-                        _ => false,
-                    })
+                || match (u8::try_from(left), u8::try_from(right)) {
+                    (Ok(left), Ok(right)) => left.eq_ignore_ascii_case(&right),
+                    _ => false,
+                }
         })
 }
 
