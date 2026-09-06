@@ -994,7 +994,7 @@ impl StyleEngine {
     }
 
     pub(super) fn settle_program(&mut self) {
-        self.program.settle_memory(&mut self.memory, &mut self.counters);
+        self.program.settle_memory(&mut self.memory);
     }
 
     #[must_use]

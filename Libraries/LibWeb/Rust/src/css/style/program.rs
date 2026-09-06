@@ -34,7 +34,6 @@ use super::column::Column;
 use super::fast_hash::FastMap as HashMap;
 use super::fast_hash::FastSet as HashSet;
 use super::index::StyleAtomID;
-use super::instrumentation::Counters;
 use super::memory::MemoryCategory;
 use super::memory::MemoryController;
 use super::order::OrderMaintenance;
@@ -1470,7 +1469,7 @@ impl StyleSheetProgram {
     }
 
     /// Reconcile the program's Tier-2 charge after a batch of edits.
-    pub fn settle_memory(&mut self, memory: &mut MemoryController, _counters: &mut Counters) {
+    pub fn settle_memory(&mut self, memory: &mut MemoryController) {
         let current = self.capacity_bytes();
         if current > self.charged_bytes {
             memory.reserve_required(MemoryCategory::RuleProgram, current - self.charged_bytes);
@@ -1792,12 +1791,11 @@ mod tests {
         use super::super::memory::DeviceClass;
 
         let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
-        let mut counters = Counters::new();
         let (mut program, sheet) = program_with_sheet();
         for _ in 0..100 {
             program.append_rule(sheet, None, RuleKind::Style);
         }
-        program.settle_memory(&mut memory, &mut counters);
+        program.settle_memory(&mut memory);
         assert_eq!(
             memory.bytes_in_category(MemoryCategory::RuleProgram),
             program.capacity_bytes()
