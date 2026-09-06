@@ -15,5 +15,10 @@ libunicode_rust = { path = "../../LibUnicode/Rust", default-features = false }
 default = []
 allocator = []
 
+# `cargo test` links a plain Rust binary with no LibUnicode C++ behind it, so the
+# unicode_* FFI callbacks the engine calls have to come from somewhere.
+[dev-dependencies]
+libunicode_rust = { path = "../../LibUnicode/Rust", default-features = false, features = ["ffi-stubs"] }
+
 [build-dependencies]
 cbindgen = "0.29"

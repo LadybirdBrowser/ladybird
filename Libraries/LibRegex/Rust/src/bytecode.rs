@@ -35,6 +35,10 @@ pub struct NamedGroupEntry {
 /// <https://tc39.es/ecma262/#sec-compilepattern>
 #[derive(Debug, Clone)]
 pub struct Program {
+    /// Compile-time information used to avoid redundant matching and backtracking.
+    pub(crate) optimization: crate::optimizer::Optimization,
+    /// Minimum number of UTF-16 code units consumed by a match.
+    pub minimum_length: usize,
     /// The bytecode instructions.
     pub instructions: Vec<Instruction>,
     /// Number of capture groups (not counting group 0).
@@ -237,6 +241,8 @@ impl Default for Program {
 impl Program {
     pub fn new() -> Self {
         Self {
+            optimization: Default::default(),
+            minimum_length: 0,
             instructions: Vec::new(),
             capture_count: 0,
             register_count: 2, // group 0 always exists
