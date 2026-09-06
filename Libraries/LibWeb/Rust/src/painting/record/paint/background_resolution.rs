@@ -13,7 +13,7 @@ use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::host::{FfiLayerImageList, FfiRootBackgroundSource};
 use crate::painting::paintable_geometry::{
-    absolute_border_box_rect, absolute_padding_box_rect, committed_border, committed_padding,
+    absolute_border_box_rect, absolute_padding_box_rect, committed_border_box_edges, committed_padding,
 };
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::PaintRecorder;
@@ -387,7 +387,9 @@ fn resolve_layers<'a>(
         radii: border_radii,
     };
     let padding = committed_padding(recorder.layout_arena, paintable);
-    let border = committed_border(recorder.layout_arena, paintable);
+    // The padding box and content box are inset from the border box by the border widths that the border box
+    // includes: half of each collapsed border in the collapsing borders model.
+    let border = committed_border_box_edges(recorder.layout_arena, paintable);
     let color_box = background_box_for(background_color_clip, border_box, padding, border);
     let layer_may_be_painted =
         |layer: &ComputedLayer<'_>| matches!(layer_type, LayerType::Mask) || layer.image.is_some();

@@ -234,7 +234,7 @@ fn paint_background_layers(
         radii: inputs.border_radii,
     };
     let padding = crate::painting::paintable_geometry::committed_padding(recorder.layout_arena, paintable);
-    let border = crate::painting::paintable_geometry::committed_border(recorder.layout_arena, paintable);
+    let border = crate::painting::paintable_geometry::committed_border_box_edges(recorder.layout_arena, paintable);
 
     if is_root_element {
         recorder.recorder.fill_animated_background_color(
