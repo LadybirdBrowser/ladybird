@@ -799,7 +799,7 @@ impl StyleEngine {
         deltas: &[SelectorTruthDelta],
         candidates: &mut Vec<OrderedCascadeCandidate>,
     ) -> bool {
-        let mut targets = Vec::new();
+        let mut targets: SmallVec<[Option<tree::PseudoElementTarget>; 3]> = SmallVec::new();
         for delta in deltas {
             let entry = self.programs.entry(delta.entry).1;
             if !targets.contains(&entry.pseudo_element) {
