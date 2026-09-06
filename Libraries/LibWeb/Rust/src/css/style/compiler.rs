@@ -315,11 +315,13 @@ impl<'a> SelectorCompiler<'a> {
 
         let mut inner = self.builder.entry_root(entry.entry);
         let mut innermost_root = None;
+        let mut scope_selectors = Vec::new();
         for (level, &(root_start, root_end, limit_start, limit_end)) in levels.iter().enumerate().rev() {
             let innermost = level + 1 == levels.len();
-            let mut roots = Vec::with_capacity(root_end - root_start + 1);
+            scope_selectors.clear();
+            scope_selectors.reserve(root_end - root_start + 1);
             if let Some(implicit) = implicit_root_of(level) {
-                roots.push(self.push_implicit_scope_root(implicit));
+                scope_selectors.push(self.push_implicit_scope_root(implicit));
             }
             for root_selector in &scope_roots[root_start..root_end] {
                 let compounds = &root_selector.compound_selectors;
@@ -331,21 +333,22 @@ impl<'a> SelectorCompiler<'a> {
                 // the scope enclosing it - which is bound while this level's candidates are tested.
                 // The outermost level has none unless this compile is itself inside a scope.
                 let bound = std::mem::replace(&mut self.scope_root_is_bound, level > 0 || outer_bound);
-                roots.push(self.compile_chain(compounds, compounds.len() - 1, &mut marker));
+                scope_selectors.push(self.compile_chain(compounds, compounds.len() - 1, &mut marker));
                 self.scope_root_is_bound = bound;
             }
             // An explicit `<scope-start>` whose selectors all failed parent substitution matches
             // no roots. An omitted start is represented by an implicit root above.
-            if roots.is_empty() {
+            if scope_selectors.is_empty() {
                 marker.get_or_insert(CompilationMarker::KnownNeverMatches(CompilationMarkerReason::Malformed));
                 inner = self.builder.push_never();
                 break;
             }
-            let root = self.builder.push_any_of(&roots);
+            let root = self.builder.push_any_of(&scope_selectors);
 
             // `:scope` inside a `<scope-end>` names the root of the scope that end belongs to,
             // which is this level's own.
-            let mut limits = Vec::with_capacity(limit_end - limit_start);
+            scope_selectors.clear();
+            scope_selectors.reserve(limit_end - limit_start);
             let bound = std::mem::replace(&mut self.scope_root_is_bound, true);
             for limit_selector in &scope_limits[limit_start..limit_end] {
                 let compounds = &limit_selector.compound_selectors;
@@ -353,10 +356,10 @@ impl<'a> SelectorCompiler<'a> {
                     marker.get_or_insert(CompilationMarker::KnownNeverMatches(CompilationMarkerReason::Malformed));
                     continue;
                 }
-                limits.push(self.compile_chain(compounds, compounds.len() - 1, &mut marker));
+                scope_selectors.push(self.compile_chain(compounds, compounds.len() - 1, &mut marker));
             }
             self.scope_root_is_bound = bound;
-            let limit = (!limits.is_empty()).then(|| self.builder.push_any_of(&limits));
+            let limit = (!scope_selectors.is_empty()).then(|| self.builder.push_any_of(&scope_selectors));
 
             // A scoped selector carries an implied `:scope ` prefix unless it names `:scope`, so
             // the subject is a strict descendant of the innermost root. An enclosing scope is
