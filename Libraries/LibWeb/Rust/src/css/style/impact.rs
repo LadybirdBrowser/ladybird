@@ -1264,9 +1264,12 @@ impl ImpactRegions {
         let mut keyed: Vec<(Vec<u32>, StyleNodeID)> = nodes
             .iter()
             .map(|&node| {
-                let mut path: Vec<StyleNodeID> = std::iter::once(node).chain(tree.ancestors(node)).collect();
+                let mut path: Vec<u32> = std::iter::once(node)
+                    .chain(tree.ancestors(node))
+                    .map(&mut ordinal_of)
+                    .collect();
                 path.reverse();
-                (path.into_iter().map(&mut ordinal_of).collect(), node)
+                (path, node)
             })
             .collect();
         keyed.sort_unstable_by(|left, right| right.0.cmp(&left.0));
