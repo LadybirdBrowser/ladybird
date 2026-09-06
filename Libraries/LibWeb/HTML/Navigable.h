@@ -16,6 +16,7 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/NavigateParams.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -67,6 +68,7 @@ public:
     virtual Optional<URL::URL> active_document_top_level_creation_url() const = 0;
     virtual Optional<URL::Origin> active_document_top_level_origin() const = 0;
     virtual bool active_document_has_cross_site_ancestor() const = 0;
+    virtual OpenerPolicy const& active_document_opener_policy() const = 0;
 
     virtual bool has_session_history_entry_and_ready_for_navigation() const = 0;
     virtual bool delays_the_load_event_of_its_container() const = 0;
