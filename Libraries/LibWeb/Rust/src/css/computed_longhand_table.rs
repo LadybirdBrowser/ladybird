@@ -403,14 +403,16 @@ impl ComputedLonghandTable {
     }
 
     fn rebuild_inheritance_dependent_view(&mut self) {
-        self.inheritance_dependent_view = self
-            .inheritance_dependent
-            .iter()
-            .map(|(property, value)| FfiTableInheritanceDependentValue {
-                property: *property,
-                value: value.pointer().cast(),
-            })
-            .collect();
+        self.inheritance_dependent_view.clear();
+        self.inheritance_dependent_view
+            .extend(
+                self.inheritance_dependent
+                    .iter()
+                    .map(|(property, value)| FfiTableInheritanceDependentValue {
+                        property: *property,
+                        value: value.pointer().cast(),
+                    }),
+            );
     }
 
     /// Reset the state a fresh drive must not inherit from the style its
