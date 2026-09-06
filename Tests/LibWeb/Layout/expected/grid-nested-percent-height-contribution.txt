@@ -1,10 +1,10 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 383.328125 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 383.328125 0+0+0] children: not-inline
-      Box <div.parent> at [0,0] [0+0+0 240 0+0+560] [0+0+0 383.328125 0+0+0] [GFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 370 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 370 0+0+0] children: not-inline
+      Box <div.parent> at [0,0] [0+0+0 240 0+0+560] [0+0+0 370 0+0+0] [GFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
-        Box <div.table> at [0,0] [0+0+0 240 0+0+0] [0+0+0 333.328125 0+0+0] [GFC] children: not-inline
+        Box <div.table> at [0,0] [0+0+0 240 0+0+0] [0+0+0 320 0+0+0] [GFC] children: not-inline
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
             TextNode <#text> (not painted)
           BlockContainer <div.card.first> at [0,0] [0+0+0 100 0+0+0] [0+0+0 80 0+0+0] [BFC] children: not-inline
@@ -15,16 +15,16 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             BlockContainer <div.content> at [0,100] [0+0+0 100 0+0+0] [0+0+0 40 0+0+0] children: not-inline
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
             TextNode <#text> (not painted)
-          BlockContainer <div.image> at [120,0] [0+0+0 100 0+0+0] [0+0+0 320 0+0+13.328125] [BFC] children: not-inline
+          BlockContainer <div.image> at [120,0] [0+0+0 100 0+0+0] [0+0+0 320 0+0+0] [BFC] children: not-inline
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
             TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
-        BlockContainer <div.next> at [0,353.328125] [0+0+0 240 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.next> at [0,340] [0+0+0 240 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [0,383.328125] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+      BlockContainer <(anonymous)> at [0,370] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x383.328125] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x370] (z-index: auto)

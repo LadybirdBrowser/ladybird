@@ -3595,97 +3595,6 @@ pub(crate) enum SpaceDistributionPhase {
     MaxContent,
 }
 
-fn distribute_spanning_base_size_for_indices(
-    tracks: &mut [Track<'_>],
-    spanned: &[usize],
-    item_size_contribution: CssPixels,
-    phase: SpaceDistributionPhase,
-    matcher: impl Fn(usize, &Track) -> bool,
-) -> Vec<CssPixels> {
-    let affected_positions = spanned
-        .iter()
-        .enumerate()
-        .filter_map(|(position, index)| matcher(position, &tracks[*index]).then_some(position))
-        .collect::<Vec<_>>();
-    let mut increases = vec![CssPixels::default(); spanned.len()];
-    if affected_positions.is_empty() {
-        return increases;
-    }
-
-    // 1. Find the space to distribute:
-    let spanned_size = spanned
-        .iter()
-        .fold(CssPixels::default(), |sum, index| sum + tracks[*index].base_size);
-    // Subtract the corresponding size of every spanned track from the item’s size contribution to find the item’s
-    // remaining size contribution.
-    let mut extra_space = CssPixels::default().max(item_size_contribution - spanned_size);
-
-    // 2. Distribute space up to limits:
-    while extra_space > CssPixels::default() {
-        if affected_positions
-            .iter()
-            .all(|position| tracks[spanned[*position]].base_size_frozen)
-        {
-            break;
-        }
-        // Find the item-incurred increase for each spanned track with an affected size by: distributing the space
-        // equally among such tracks, freezing a track’s item-incurred increase as its affected size + item-incurred
-        // increase reaches its limit
-        let increase_per_track = CssPixels::from_raw(1).max(extra_space / affected_positions.len());
-        for &position in &affected_positions {
-            let index = spanned[position];
-            if tracks[index].base_size_frozen {
-                continue;
-            }
-            let mut increase = increase_per_track.min(extra_space);
-            if let Some(growth_limit) = tracks[index].growth_limit {
-                let maximum_increase = growth_limit - tracks[index].base_size;
-                if increases[position] + increase >= maximum_increase {
-                    tracks[index].base_size_frozen = true;
-                    increase = maximum_increase - increases[position];
-                }
-            }
-            increases[position] += increase;
-            extra_space -= increase;
-        }
-    }
-
-    // 3. Distribute space beyond limits
-    if extra_space > CssPixels::default() {
-        // If space remains after all tracks are frozen, unfreeze and continue to
-        // distribute space to the item-incurred increase of...
-        let mut beyond_limits = affected_positions
-            .iter()
-            .copied()
-            .filter(|position| match phase {
-                // when accommodating minimum contributions or accommodating min-content contributions: any affected track
-                // that happens to also have an intrinsic max track sizing function
-                SpaceDistributionPhase::Minimum | SpaceDistributionPhase::MinContent => {
-                    tracks[spanned[*position]].max_is_intrinsic
-                }
-                // when accommodating max-content contributions into base sizes: any affected track that happens to also have
-                // a max-content max track sizing function;
-                SpaceDistributionPhase::MaxContent => tracks[spanned[*position]].max_is_max_content,
-            })
-            .collect::<Vec<_>>();
-        if beyond_limits.is_empty() {
-            // if there are no such tracks, then all affected tracks.
-            beyond_limits.clone_from(&affected_positions);
-        }
-
-        let increase_per_track = extra_space / beyond_limits.len();
-        for position in beyond_limits {
-            let increase = increase_per_track.min(extra_space);
-            increases[position] += increase;
-            extra_space -= increase;
-        }
-    }
-
-    // 4. For each affected track, if the track’s item-incurred increase is larger than the track’s planned increase
-    //    set the track’s planned increase to that value.
-    increases
-}
-
 #[derive(Clone, Debug)]
 pub(crate) struct ItemContribution {
     /// Indices into the axis's interleaved track-and-gap array, in span order.
@@ -3699,191 +3608,225 @@ pub(crate) struct ItemContribution {
     pub(crate) is_scroll_container: bool,
 }
 
-fn distribute_growth_limit(tracks: &mut [Track<'_>], spanned: &[usize], affected: &[usize], contribution: CssPixels) {
-    if affected.is_empty() {
-        return;
-    }
-    for &index in affected {
-        tracks[index].item_incurred_increase = CssPixels::default();
-    }
-    // 1. Find the space to distribute:
-    let accounted = spanned.iter().fold(CssPixels::default(), |sum, index| {
-        sum + tracks[*index].growth_limit.unwrap_or(tracks[*index].base_size)
-    });
-    // Subtract the corresponding size of every spanned track from the item’s size contribution to find the item’s
-    // remaining size contribution.
-    let mut extra = CssPixels::default().max(contribution - accounted);
-    // 2. Distribute space up to limits:
-    while extra > CssPixels::default() {
-        if affected.iter().all(|index| tracks[*index].growth_limit_frozen) {
-            break;
+/// Distributes one phase of item contributions into the base sizes of the affected tracks for a
+/// whole span group at once, per https://www.w3.org/TR/css-grid-2/#extra-space: each item computes
+/// an item-incurred increase per affected track, each affected track plans the largest increase any
+/// item incurred on it, and every planned increase is applied only after the whole group is done.
+fn distribute_base_sizes_for_span_group(
+    tracks: &mut [Track<'_>],
+    group: &[&ItemContribution],
+    phase: SpaceDistributionPhase,
+    available: AvailableSize,
+    matcher: impl Fn(&Track) -> bool,
+    contribution_of: impl Fn(&ItemContribution) -> CssPixels,
+) {
+    let mut planned = vec![CssPixels::default(); tracks.len()];
+    let mut incurred = vec![CssPixels::default(); tracks.len()];
+    let mut frozen = vec![false; tracks.len()];
+    for item in group {
+        let spanned = &item.spanned_tracks;
+        let affected = spanned
+            .iter()
+            .copied()
+            .filter(|&index| matcher(&tracks[index]))
+            .collect::<Vec<_>>();
+        if affected.is_empty() {
+            continue;
         }
-        // Find the item-incurred increase for each spanned track with an affected size by: distributing the space
-        // equally among such tracks, freezing a track’s item-incurred increase as its affected size + item-incurred
-        // increase reaches its limit
-        let per_track = CssPixels::from_raw(1).max(extra / affected.len());
-        for &index in affected {
-            if tracks[index].growth_limit_frozen {
-                continue;
+        for &index in spanned {
+            incurred[index] = CssPixels::default();
+            frozen[index] = false;
+        }
+        // 1. Find the space to distribute: subtract the base size of every spanned track from the
+        //    item's size contribution to find the item's remaining size contribution.
+        let spanned_size = spanned
+            .iter()
+            .fold(CssPixels::default(), |sum, &index| sum + tracks[index].base_size);
+        let mut space = CssPixels::default().max(contribution_of(item) - spanned_size);
+        // 2. Distribute space up to limits: for base sizes, a limit of the growth limit, capped by
+        //    the fit-content() argument for fit-content() tracks.
+        while space > CssPixels::default() {
+            let unfrozen = affected.iter().filter(|&&index| !frozen[index]).count();
+            if unfrozen == 0 {
+                break;
             }
-            let mut increase = per_track.min(extra);
-            if !tracks[index].infinitely_growable
-                && let Some(limit) = tracks[index].growth_limit
-            {
-                // For growth limits, the limit is infinity if it is marked as infinitely growable, and equal to the
-                // growth limit otherwise.
-                let maximum = limit - tracks[index].base_size;
-                if tracks[index].item_incurred_increase + increase >= maximum {
-                    tracks[index].growth_limit_frozen = true;
-                    increase = maximum - tracks[index].item_incurred_increase;
+            let per_track = CssPixels::from_raw(1).max(space / unfrozen);
+            for &index in &affected {
+                if frozen[index] {
+                    continue;
+                }
+                let mut increase = per_track.min(space);
+                let mut limit = tracks[index].growth_limit;
+                if tracks[index].max_sizing.is_fit_content() {
+                    let fit_limit = tracks[index].max_sizing.resolve(available);
+                    limit = Some(limit.map_or(fit_limit, |limit| limit.min(fit_limit)));
+                }
+                if let Some(limit) = limit {
+                    let room = limit - tracks[index].base_size;
+                    if incurred[index] + increase >= room {
+                        frozen[index] = true;
+                        increase = CssPixels::default().max(room - incurred[index]);
+                    }
+                }
+                incurred[index] += increase;
+                space -= increase;
+            }
+        }
+        // 3. Distribute space beyond limits:
+        if space > CssPixels::default() {
+            let mut beyond_limits = affected
+                .iter()
+                .copied()
+                .filter(|&index| match phase {
+                    // when accommodating minimum contributions or accommodating min-content contributions: any
+                    // affected track that happens to also have an intrinsic max track sizing function
+                    SpaceDistributionPhase::Minimum | SpaceDistributionPhase::MinContent => {
+                        tracks[index].max_is_intrinsic
+                    }
+                    // when accommodating max-content contributions: any affected track that happens to also
+                    // have a max-content max track sizing function (treating auto and fit-content() alike)
+                    SpaceDistributionPhase::MaxContent => {
+                        tracks[index].max_is_max_content
+                            || tracks[index].max_sizing.is_auto(available)
+                            || tracks[index].max_sizing.is_fit_content()
+                    }
+                })
+                .collect::<Vec<_>>();
+            if beyond_limits.is_empty() {
+                // if there are no such tracks, then all affected tracks.
+                beyond_limits.clone_from(&affected);
+            }
+            let per_track = space / beyond_limits.len();
+            for index in beyond_limits {
+                let increase = per_track.min(space);
+                incurred[index] += increase;
+                space -= increase;
+            }
+        }
+        // 4. For each affected track, if the track's item-incurred increase is larger than the
+        //    track's planned increase set the track's planned increase to that value.
+        for &index in &affected {
+            planned[index] = planned[index].max(incurred[index]);
+        }
+    }
+    // Update the tracks' affected sizes by adding in the planned increase.
+    for (track, planned) in tracks.iter_mut().zip(planned) {
+        track.base_size += planned;
+    }
+}
+
+/// The growth-limit counterpart of distribute_base_sizes_for_span_group. The up-to-limits limit is
+/// infinity for infinite or infinitely-growable growth limits, the fit-content() argument for
+/// fit-content() tracks, and the growth limit itself otherwise; the beyond-limits step reaches any
+/// affected track with an intrinsic max track sizing function.
+fn distribute_growth_limits_for_span_group(
+    tracks: &mut [Track<'_>],
+    group: &[&ItemContribution],
+    available: AvailableSize,
+    matcher: impl Fn(&Track) -> bool,
+    contribution_of: impl Fn(&ItemContribution) -> CssPixels,
+    mark_infinitely_growable: bool,
+    clamp_fit_content: bool,
+) {
+    let mut planned = vec![None::<CssPixels>; tracks.len()];
+    let mut incurred = vec![CssPixels::default(); tracks.len()];
+    let mut frozen = vec![false; tracks.len()];
+    for item in group {
+        let spanned = &item.spanned_tracks;
+        let affected = spanned
+            .iter()
+            .copied()
+            .filter(|&index| matcher(&tracks[index]))
+            .collect::<Vec<_>>();
+        if affected.is_empty() {
+            continue;
+        }
+        for &index in &affected {
+            incurred[index] = CssPixels::default();
+            frozen[index] = false;
+        }
+        // 1. Find the space to distribute: for growth limits, the corresponding size of a spanned
+        //    track is its growth limit, or its base size while the growth limit is still infinite.
+        let accounted = spanned.iter().fold(CssPixels::default(), |sum, &index| {
+            sum + tracks[index].growth_limit.unwrap_or(tracks[index].base_size)
+        });
+        let mut space = CssPixels::default().max(contribution_of(item) - accounted);
+        // 2. Distribute space up to limits:
+        while space > CssPixels::default() {
+            let unfrozen = affected.iter().filter(|&&index| !frozen[index]).count();
+            if unfrozen == 0 {
+                break;
+            }
+            let per_track = CssPixels::from_raw(1).max(space / unfrozen);
+            for &index in &affected {
+                if frozen[index] {
+                    continue;
+                }
+                let mut increase = per_track.min(space);
+                if !tracks[index].infinitely_growable
+                    && let Some(limit) = tracks[index].growth_limit
+                {
+                    let room = if tracks[index].max_sizing.is_fit_content() {
+                        CssPixels::default().max(tracks[index].max_sizing.resolve(available) - limit)
+                    } else {
+                        CssPixels::default()
+                    };
+                    if incurred[index] + increase >= room {
+                        frozen[index] = true;
+                        increase = CssPixels::default().max(room - incurred[index]);
+                    }
+                }
+                incurred[index] += increase;
+                space -= increase;
+            }
+        }
+        // 3. Distribute space beyond limits: any affected track that happens to also have an
+        //    intrinsic max track sizing function.
+        if space > CssPixels::default() {
+            let beyond_limits = affected
+                .iter()
+                .copied()
+                .filter(|&index| tracks[index].max_is_intrinsic)
+                .collect::<Vec<_>>();
+            if !beyond_limits.is_empty() {
+                let per_track = space / beyond_limits.len();
+                for index in beyond_limits {
+                    let increase = per_track.min(space);
+                    incurred[index] += increase;
+                    space -= increase;
                 }
             }
-            tracks[index].item_incurred_increase += increase;
-            extra -= increase;
+        }
+        // 4. For each affected track, if the track's item-incurred increase is larger than the
+        //    track's planned increase set the track's planned increase to that value.
+        for &index in &affected {
+            planned[index] = Some(planned[index].unwrap_or_default().max(incurred[index]));
         }
     }
-    // FIXME: 3. Distribute space beyond limits
-    // 4. For each affected track, if the track’s item-incurred increase is larger than the track’s planned increase
-    //    set the track’s planned increase to that value.
-    for &index in spanned {
-        tracks[index].planned_increase = tracks[index].planned_increase.max(tracks[index].item_incurred_increase);
-    }
-}
-
-fn distribute_base_for_item(
-    tracks: &mut [Track<'_>],
-    spanned: &[usize],
-    contribution: CssPixels,
-    phase: SpaceDistributionPhase,
-    matcher: impl Fn(&Track) -> bool,
-) {
-    let increases =
-        distribute_spanning_base_size_for_indices(tracks, spanned, contribution, phase, |_, track| matcher(track));
-    for (&index, increase) in spanned.iter().zip(increases) {
-        if matcher(&tracks[index]) {
-            tracks[index].item_incurred_increase = increase;
-        }
-        tracks[index].planned_increase = tracks[index].planned_increase.max(increase);
-    }
-}
-
-fn apply_planned_base_increases(tracks: &mut [Track<'_>], spanned: &[usize]) {
-    for &index in spanned {
-        tracks[index].base_size += tracks[index].planned_increase;
-        tracks[index].planned_increase = CssPixels::default();
-    }
-}
-
-fn grow_content_sized_tracks_for_item(tracks: &mut [Track<'_>], item: &ItemContribution, available: AvailableSize) {
-    let spanned = &item.spanned_tracks;
-    let has_flexible = spanned
-        .iter()
-        .any(|index| tracks[*index].max_sizing.flex_factor().is_some());
-    let has_intrinsic = spanned.iter().any(|index| {
-        tracks[*index].min_sizing.is_intrinsic(available) || tracks[*index].max_sizing.is_intrinsic(available)
-    });
-    if !has_intrinsic || has_flexible {
-        return;
-    }
-
-    // 1. For intrinsic minimums: First increase the base size of tracks with an intrinsic min track sizing
-    //    function by distributing extra space as needed to accommodate these items’ minimum contributions.
-    let minimum = if available.is_intrinsic_sizing_constraint() {
-        // If the grid container is being sized under a min- or max-content constraint, use the items’ limited
-        // min-content contributions in place of their minimum contributions here.
-        item.limited_min_content
-    } else {
-        item.minimum
-    };
-    distribute_base_for_item(tracks, spanned, minimum, SpaceDistributionPhase::Minimum, |track| {
-        track.min_sizing.is_intrinsic(available)
-    });
-    apply_planned_base_increases(tracks, spanned);
-
-    // 2. For content-based minimums: Next continue to increase the base size of tracks with a min track
-    //    sizing function of min-content or max-content by distributing extra space as needed to account for
-    //    these items' min-content contributions.
-    distribute_base_for_item(
-        tracks,
-        spanned,
-        item.min_content,
-        SpaceDistributionPhase::MinContent,
-        |track| track.min_sizing.is_min_content() || track.min_sizing.is_max_content(),
-    );
-    apply_planned_base_increases(tracks, spanned);
-
-    if available == AvailableSize::MaxContent {
-        // 3. For max-content minimums: Next, if the grid container is being sized under a max-content constraint,
-        //    continue to increase the base size of tracks with a min track sizing function of auto or max-content by
-        //    distributing extra space as needed to account for these items' limited max-content contributions.
-        distribute_base_for_item(
-            tracks,
-            spanned,
-            item.limited_max_content,
-            SpaceDistributionPhase::MaxContent,
-            |track| track.min_sizing.is_auto(available) || track.min_sizing.is_max_content(),
-        );
-        apply_planned_base_increases(tracks, spanned);
-    }
-
-    // 4. If at this point any track’s growth limit is now less than its base size, increase its growth limit to
-    //    match its base size.
-    for track in tracks.iter_mut() {
-        if !track.is_gap && track.growth_limit.is_some_and(|limit| limit < track.base_size) {
-            track.growth_limit = Some(track.base_size);
-        }
-    }
-
-    // 5. For intrinsic maximums: Next increase the growth limit of tracks with an intrinsic max track sizing
-    let affected = spanned
-        .iter()
-        .copied()
-        .filter(|index| tracks[*index].max_sizing.is_intrinsic(available))
-        .collect::<Vec<_>>();
-    distribute_growth_limit(tracks, spanned, &affected, item.min_content);
-    for &index in spanned {
-        if tracks[index].growth_limit.is_none() {
-            // If the affected size is an infinite growth limit, set it to the track’s base size plus the planned increase.
-            tracks[index].growth_limit = Some(tracks[index].base_size + tracks[index].planned_increase);
-            // Mark any tracks whose growth limit changed from infinite to finite in this step as infinitely growable
-            // for the next step.
-            tracks[index].infinitely_growable = true;
-        } else {
-            tracks[index].growth_limit = Some(tracks[index].growth_limit.unwrap() + tracks[index].planned_increase);
-        }
-        tracks[index].planned_increase = CssPixels::default();
-    }
-
-    // 6. For max-content maximums: Lastly continue to increase the growth limit of tracks with a max track
-    //    sizing function of max-content by distributing extra space as needed to account for these items' max-
-    //    content contributions. However, limit the growth of any fit-content() tracks by their fit-content() argument.
-    let affected = spanned
-        .iter()
-        .copied()
-        .filter(|index| {
-            tracks[*index].max_sizing.is_max_content()
-                || tracks[*index].max_sizing.is_auto(available)
-                || tracks[*index].max_sizing.is_fit_content()
-        })
-        .collect::<Vec<_>>();
-    distribute_growth_limit(tracks, spanned, &affected, item.max_content);
-    for &index in spanned {
-        let increase = tracks[index].planned_increase;
-        if let TrackSizingFunction::FitContent(_) = tracks[index].max_sizing {
-            let mut limit = tracks[index].growth_limit.unwrap() + increase;
-            limit = limit.max(tracks[index].base_size);
-            let fit_limit = tracks[index].max_sizing.resolve(available);
-            if limit > fit_limit {
-                limit = tracks[index].base_size.max(fit_limit);
+    // Update the tracks' affected sizes by adding in the planned increase.
+    for (track, planned) in tracks.iter_mut().zip(planned) {
+        let Some(increase) = planned else {
+            continue;
+        };
+        match track.growth_limit {
+            None => {
+                // If the affected size is an infinite growth limit, set it to the track's base size
+                // plus the planned increase; mark any track whose growth limit changed from infinite
+                // to finite in the intrinsic-maximums step as infinitely growable for the next step.
+                track.growth_limit = Some(track.base_size + increase);
+                if mark_infinitely_growable {
+                    track.infinitely_growable = true;
+                }
             }
-            tracks[index].growth_limit = Some(limit);
-        } else if tracks[index].growth_limit.is_none() {
-            // If the affected size is an infinite growth limit, set it to the track’s base size plus the planned increase.
-            tracks[index].growth_limit = Some(tracks[index].base_size + increase);
-        } else {
-            tracks[index].growth_limit = Some(tracks[index].growth_limit.unwrap() + increase);
+            Some(limit) => track.growth_limit = Some(limit + increase),
         }
-        tracks[index].planned_increase = CssPixels::default();
+        if clamp_fit_content && track.max_sizing.is_fit_content() {
+            // However, limit the growth of any fit-content() tracks by their fit-content() argument.
+            let fit_limit = track.max_sizing.resolve(available);
+            if track.growth_limit.is_some_and(|limit| limit > fit_limit) {
+                track.growth_limit = Some(track.base_size.max(fit_limit));
+            }
+        }
     }
 }
 
@@ -3907,10 +3850,126 @@ pub(crate) fn resolve_intrinsic_track_sizes(
     // 3. Increase sizes to accommodate spanning items crossing content-sized tracks: Next, consider the
     // items with a span of 2 that do not span a track with a flexible sizing function.
     // Repeat incrementally for items with greater spans until all items have been considered.
+    // NB: Each distribution phase runs over the whole span group before its planned increases are
+    //     applied, per 12.5.1; running all phases per item instead lets one item's minimums phase
+    //     see another item's later-phase growth and missizes the tracks.
     let max_span = items.iter().map(|item| item.span).max().unwrap_or(1).max(1);
     for span in 1..=max_span {
-        for item in items.iter().filter(|item| item.span == span) {
-            grow_content_sized_tracks_for_item(tracks, item, available);
+        let group = items
+            .iter()
+            .filter(|item| {
+                item.span == span
+                    && !item
+                        .spanned_tracks
+                        .iter()
+                        .any(|&index| tracks[index].max_sizing.flex_factor().is_some())
+                    && item.spanned_tracks.iter().any(|&index| {
+                        tracks[index].min_sizing.is_intrinsic(available)
+                            || tracks[index].max_sizing.is_intrinsic(available)
+                    })
+            })
+            .collect::<Vec<_>>();
+        if group.is_empty() {
+            continue;
+        }
+
+        // 1. For intrinsic minimums: First increase the base size of tracks with an intrinsic min track sizing
+        //    function by distributing extra space as needed to accommodate these items' minimum contributions.
+        //    If the grid container is being sized under a min- or max-content constraint, use the items' limited
+        //    min-content contributions in place of their minimum contributions here.
+        distribute_base_sizes_for_span_group(
+            tracks,
+            &group,
+            SpaceDistributionPhase::Minimum,
+            available,
+            |track| track.min_sizing.is_intrinsic(available),
+            |item| {
+                if available.is_intrinsic_sizing_constraint() {
+                    item.limited_min_content
+                } else {
+                    item.minimum
+                }
+            },
+        );
+
+        // 2. For content-based minimums: Next continue to increase the base size of tracks with a min track
+        //    sizing function of min-content or max-content by distributing extra space as needed to account for
+        //    these items' min-content contributions.
+        distribute_base_sizes_for_span_group(
+            tracks,
+            &group,
+            SpaceDistributionPhase::MinContent,
+            available,
+            |track| track.min_sizing.is_min_content() || track.min_sizing.is_max_content(),
+            |item| item.min_content,
+        );
+
+        // 3. For max-content minimums: Next, if the grid container is being sized under a max-content constraint,
+        //    continue to increase the base size of tracks with a min track sizing function of auto or max-content by
+        //    distributing extra space as needed to account for these items' limited max-content contributions.
+        if available == AvailableSize::MaxContent {
+            distribute_base_sizes_for_span_group(
+                tracks,
+                &group,
+                SpaceDistributionPhase::MaxContent,
+                available,
+                |track| track.min_sizing.is_auto(available) || track.min_sizing.is_max_content(),
+                |item| item.limited_max_content,
+            );
+        }
+        // In all cases, continue to increase the base size of tracks with a min track sizing function of
+        // max-content by distributing extra space as needed to account for these items' max-content
+        // contributions.
+        distribute_base_sizes_for_span_group(
+            tracks,
+            &group,
+            SpaceDistributionPhase::MaxContent,
+            available,
+            |track| track.min_sizing.is_max_content(),
+            |item| item.max_content,
+        );
+
+        // 4. If at this point any track's growth limit is now less than its base size, increase its growth limit to
+        //    match its base size.
+        for track in tracks.iter_mut() {
+            if !track.is_gap && track.growth_limit.is_some_and(|limit| limit < track.base_size) {
+                track.growth_limit = Some(track.base_size);
+            }
+        }
+
+        // 5. For intrinsic maximums: Next increase the growth limit of tracks with an intrinsic max track sizing
+        //    function by distributing extra space as needed to account for these items' min-content contributions.
+        distribute_growth_limits_for_span_group(
+            tracks,
+            &group,
+            available,
+            |track| track.max_sizing.is_intrinsic(available),
+            |item| item.min_content,
+            true,
+            false,
+        );
+
+        // 6. For max-content maximums: Lastly continue to increase the growth limit of tracks with a max track
+        //    sizing function of max-content by distributing extra space as needed to account for these items' max-
+        //    content contributions.
+        distribute_growth_limits_for_span_group(
+            tracks,
+            &group,
+            available,
+            |track| {
+                track.max_sizing.is_max_content()
+                    || track.max_sizing.is_auto(available)
+                    || track.max_sizing.is_fit_content()
+            },
+            |item| item.max_content,
+            false,
+            true,
+        );
+
+        // The infinitely-growable marks only last from the intrinsic-maximums step to the
+        // max-content-maximums step of the same span group.
+        for track in tracks.iter_mut() {
+            track.infinitely_growable = false;
         }
     }
 
@@ -4023,7 +4082,7 @@ pub(crate) fn maximize_tracks(tracks: &mut [Track<'_>], gap_size: CssPixels, ava
     };
     let mut growable = tracks
         .iter()
-        .filter(|track| !track.base_size_frozen && track.growth_limit.is_some_and(|limit| track.base_size < limit))
+        .filter(|track| track.growth_limit.is_some_and(|limit| track.base_size < limit))
         .count();
     // If the free space is positive, distribute it equally to the base sizes of all tracks, freezing
     // tracks as they reach their growth limits (and continuing to grow the unfrozen tracks as needed).
@@ -4031,9 +4090,6 @@ pub(crate) fn maximize_tracks(tracks: &mut [Track<'_>], gap_size: CssPixels, ava
         let per_track = free_space / growable;
         let old_free_space = free_space;
         for track in tracks.iter_mut() {
-            if track.base_size_frozen {
-                continue;
-            }
             let Some(limit) = track.growth_limit else {
                 continue;
             };
@@ -4683,11 +4739,7 @@ pub(crate) struct Track<'pass> {
     pub(crate) flex_factor: Option<f64>,
     pub(crate) max_is_intrinsic: bool,
     pub(crate) max_is_max_content: bool,
-    pub(crate) base_size_frozen: bool,
-    pub(crate) growth_limit_frozen: bool,
     pub(crate) infinitely_growable: bool,
-    pub(crate) planned_increase: CssPixels,
-    pub(crate) item_incurred_increase: CssPixels,
     pub(crate) is_gap: bool,
     pub(crate) is_auto_fit: bool,
     pub(crate) is_auto_repeat: bool,
@@ -4704,11 +4756,7 @@ impl<'pass> Track<'pass> {
             flex_factor: None,
             max_is_intrinsic: false,
             max_is_max_content: false,
-            base_size_frozen: false,
-            growth_limit_frozen: false,
             infinitely_growable: false,
-            planned_increase: CssPixels::default(),
-            item_incurred_increase: CssPixels::default(),
             is_gap: false,
             is_auto_fit: false,
             is_auto_repeat: false,
@@ -4725,11 +4773,7 @@ impl<'pass> Track<'pass> {
             flex_factor: None,
             max_is_intrinsic: true,
             max_is_max_content: false,
-            base_size_frozen: false,
-            growth_limit_frozen: false,
             infinitely_growable: false,
-            planned_increase: CssPixels::default(),
-            item_incurred_increase: CssPixels::default(),
             is_gap: false,
             is_auto_fit: false,
             is_auto_repeat: false,
@@ -4749,11 +4793,7 @@ impl<'pass> Track<'pass> {
             flex_factor: max_sizing.flex_factor(),
             max_is_intrinsic: false,
             max_is_max_content: max_sizing.is_max_content(),
-            base_size_frozen: false,
-            growth_limit_frozen: false,
             infinitely_growable: false,
-            planned_increase: CssPixels::default(),
-            item_incurred_increase: CssPixels::default(),
             is_gap: false,
             is_auto_fit: definition.is_auto_fit,
             is_auto_repeat: definition.is_auto_repeat,
@@ -4762,8 +4802,11 @@ impl<'pass> Track<'pass> {
     }
 
     pub(crate) fn gap(size: CssPixels) -> Self {
+        // https://www.w3.org/TR/css-grid-2/#gutters
+        // For the purpose of track sizing, each gutter is treated as an extra, empty, fixed-size
+        // track of the specified size, so its growth limit must equal its base size or spanning
+        // items' growth-limit distributions would treat the gap itself as distributable space.
         let mut track = Self::fixed(size);
-        track.growth_limit = Some(CssPixels::default());
         track.is_gap = true;
         track
     }
@@ -4782,11 +4825,7 @@ pub(crate) fn initialize_track_sizes(tracks: &mut [Track<'_>], available: Availa
     // Initialize each track’s base size and growth limit.
     let mut has_flexible_tracks = false;
     for track in tracks {
-        track.base_size_frozen = false;
-        track.growth_limit_frozen = false;
         track.infinitely_growable = false;
-        track.planned_increase = CssPixels::default();
-        track.item_incurred_increase = CssPixels::default();
         if track.is_gap {
             continue;
         }
