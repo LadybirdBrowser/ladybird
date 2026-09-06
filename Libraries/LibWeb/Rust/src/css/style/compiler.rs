@@ -1257,14 +1257,15 @@ impl<'a> SelectorCompiler<'a> {
             return Some(self.builder.push_never());
         }
 
+        if let [argument] = pseudo_class.argument_selector_list.as_ref() {
+            return self.compile_has_argument(argument, marker);
+        }
+
         let mut alternatives = Vec::with_capacity(pseudo_class.argument_selector_list.len());
         for argument in &pseudo_class.argument_selector_list {
             // An alternative that cannot be compiled cannot be dropped: the query holds when any one
             // of them does, so leaving one out would answer a narrower question than the rule asks.
             alternatives.push(self.compile_has_argument(argument, marker)?);
-        }
-        if alternatives.len() == 1 {
-            return Some(alternatives[0]);
         }
         Some(self.builder.push_any_of(&alternatives))
     }
