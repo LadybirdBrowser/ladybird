@@ -250,8 +250,9 @@ RustFFI::FfiReplacedContentFacts Box::build_replaced_content_facts_for_arena() c
 void Box::notify_content_navigable_of_committed_viewport()
 {
     if (auto content_navigable = as<HTML::NavigableContainer>(*dom_node()).content_navigable()) {
-        auto content_size = Painting::content_size(*this);
-        as<HTML::LocalNavigable>(*content_navigable).set_viewport_size(content_size);
+        // The UI process forwards the viewport of a navigable hosted by another process to that process.
+        if (auto* local_navigable = as_if<HTML::LocalNavigable>(*content_navigable))
+            local_navigable->set_viewport_size(Painting::content_size(*this));
         document().page().client().page_did_update_child_frame_viewport(content_navigable->id(), Painting::absolute_rect(*this));
     }
 }
