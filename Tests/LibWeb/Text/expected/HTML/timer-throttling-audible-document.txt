@@ -1,0 +1,7 @@
+the video is playing audio: true
+while the document plays audio, a delayed timer fires at its deadline: true
+while the document plays audio, an idle callback's timeout fires at its deadline: true
+the video is playing audio: false
+once the audio stops, a delayed timer waits for the wake-up: true
+the video is playing audio: true
+audio starting puts a waiting timer back on its deadline: true

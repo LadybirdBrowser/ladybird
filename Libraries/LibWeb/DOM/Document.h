@@ -746,6 +746,10 @@ public:
     bool hidden() const;
     HTML::VisibilityState visibility_state() const { return m_visibility_state; }
 
+    // Whether a media element of this document is producing audible output (see HTMLMediaElement::update_audio_play_state()).
+    bool is_playing_audio() const;
+    void media_element_audio_play_state_changed(Badge<HTML::HTMLMediaElement>);
+
     // https://html.spec.whatwg.org/multipage/interaction.html#update-the-visibility-state
     void update_the_visibility_state(HTML::VisibilityState);
 

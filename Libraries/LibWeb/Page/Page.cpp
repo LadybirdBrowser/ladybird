@@ -836,6 +836,16 @@ void Page::for_each_media_element(Callback&& callback)
     }
 }
 
+bool Page::has_media_element_playing_audio(DOM::Document const& document) const
+{
+    for (auto media_id : m_media_elements) {
+        auto* node = DOM::Node::from_unique_id(media_id);
+        if (node && &node->document() == &document && as<HTML::HTMLMediaElement>(*node).is_playing_audio())
+            return true;
+    }
+    return false;
+}
+
 void Page::sync_media_element_video_sink_ticking()
 {
     for_each_media_element([&](auto& media_element) {

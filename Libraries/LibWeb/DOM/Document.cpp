@@ -4767,6 +4767,19 @@ bool Document::hidden() const
     return m_visibility_state == HTML::VisibilityState::Hidden;
 }
 
+bool Document::is_playing_audio() const
+{
+    return page().has_media_element_playing_audio(*this);
+}
+
+// A hidden document playing audio keeps its timers on their own deadlines (see
+// WindowOrWorkerGlobalScopeMixin::timers_are_throttled()), so the Window has to hear when that starts or stops.
+void Document::media_element_audio_play_state_changed(Badge<HTML::HTMLMediaElement>)
+{
+    if (auto window = this->window(); window && &window->associated_document() == this)
+        window->document_audio_play_state_changed({});
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#update-the-visibility-state
 void Document::update_the_visibility_state(HTML::VisibilityState visibility_state)
 {

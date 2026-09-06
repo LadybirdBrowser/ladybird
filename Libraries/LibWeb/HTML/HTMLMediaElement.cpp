@@ -331,6 +331,13 @@ void HTMLMediaElement::adopted_from(DOM::Document& old_document)
     //     second fetch on top of it.
     m_document_observer->retarget_for_adoption(document());
 
+    // An element playing audio takes the timer exemption it earns its document along with it (see
+    // Document::is_playing_audio()).
+    if (m_is_playing_audio) {
+        old_document.media_element_audio_play_state_changed({});
+        document().media_element_audio_play_state_changed({});
+    }
+
     // https://html.spec.whatwg.org/multipage/media.html#delaying-the-load-event-flag
     // While the delaying-the-load-event flag is true, the element must delay the load event of its document.
     // NB: The flag delays the load event of the element's current node document, so it follows the element when it is
@@ -2917,6 +2924,7 @@ void HTMLMediaElement::update_audio_play_state()
     m_is_playing_audio = is_playing_audio;
     document().page().client().page_did_change_audio_play_state(
         m_is_playing_audio ? AudioPlayState::Playing : AudioPlayState::Paused);
+    document().media_element_audio_play_state_changed({});
 }
 
 void HTMLMediaElement::set_show_poster(bool show_poster)

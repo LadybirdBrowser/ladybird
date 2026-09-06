@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<video autoplay muted loop src="../../../Assets/test-webm.webm"></video>
+<script>
+    // A hidden document that's playing audio keeps its timers on their own deadlines — it's doing what the user asked
+    // of it, as a music player is. Once the audio stops, its timers wait for the wake-ups again.
+    asyncTest(async done => {
+        internals.setTestTimeout(15_000);
+        const wakeUpInterval = 500;
+        internals.setHiddenDocumentTimerWakeUpInterval(wakeUpInterval);
+
+        // performance.now() is coarsened down to a tenth of a millisecond, so a timer that fires right at a wake-up
+        // can read a hair less than it.
+        const coarsening = 0.1;
+        const wakeUpAtOrAfter = time => Math.ceil(time / wakeUpInterval) * wakeUpInterval;
+        // Spins until the current time sits early in a wake-up interval, so that a short timer's deadline lies well
+        // before the next wake-up and a wait for that wake-up can't be mistaken for the timer's own delay.
+        const waitForEarlyPhase = () => {
+            while (performance.now() % wakeUpInterval >= 60)
+                ;
+        };
+        const fireTime = delay => new Promise(resolve => setTimeout(() => resolve(performance.now()), delay));
+        const report = (what, ok, details) => {
+            println(`${what}: ${ok}`);
+            if (!ok)
+                println(`    ${JSON.stringify(details)}`);
+        };
+
+        const video = document.querySelector("video");
+        await new Promise(resolve => video.addEventListener("playing", resolve, { once: true }));
+        video.muted = false;
+        println(`the video is playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
+
+        await setSystemVisibilityState("hidden");
+        try {
+            waitForEarlyPhase();
+            let armedAt = performance.now();
+            let wakeUp = wakeUpAtOrAfter(armedAt + 10);
+            let firedAt = await fireTime(10);
+            report("while the document plays audio, a delayed timer fires at its deadline",
+                firedAt >= armedAt + 10 - coarsening && firedAt < wakeUp, { armedAt, wakeUp, firedAt });
+
+            waitForEarlyPhase();
+            armedAt = performance.now();
+            wakeUp = wakeUpAtOrAfter(armedAt + 10);
+            const idle = await new Promise(resolve => requestIdleCallback(
+                deadline => resolve({ firedAt: performance.now(), didTimeout: deadline.didTimeout }), { timeout: 10 }));
+            report("while the document plays audio, an idle callback's timeout fires at its deadline",
+                idle.didTimeout && idle.firedAt < wakeUp, { armedAt, wakeUp, idle });
+
+            video.muted = true;
+            println(`the video is playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
+            waitForEarlyPhase();
+            armedAt = performance.now();
+            wakeUp = wakeUpAtOrAfter(armedAt + 10);
+            firedAt = await fireTime(10);
+            report("once the audio stops, a delayed timer waits for the wake-up", firedAt >= wakeUp - coarsening,
+                { armedAt, wakeUp, firedAt });
+
+            waitForEarlyPhase();
+            armedAt = performance.now();
+            wakeUp = wakeUpAtOrAfter(armedAt + 10);
+            const armedWhileSilent = fireTime(10);
+            video.muted = false;
+            println(`the video is playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
+            firedAt = await armedWhileSilent;
+            report("audio starting puts a waiting timer back on its deadline",
+                firedAt >= armedAt + 10 - coarsening && firedAt < wakeUp, { armedAt, wakeUp, firedAt });
+        } finally {
+            video.pause();
+            await setSystemVisibilityState("visible");
+        }
+        done();
+    });
+</script>
