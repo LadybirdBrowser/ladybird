@@ -757,14 +757,15 @@ pub(crate) fn place_items_with_grid(
     // 3.2. Among all the items with a definite column position (explicitly positioned items, items
     // positioned in the previous step, and items not yet positioned but with a definite column) add
     // columns to the beginning and end of the implicit grid as necessary to accommodate those items.
-    // NOTE: "Explicitly positioned items" and "items positioned in the previous step" done in step 1
-    // and 2, respectively. Adding columns for "items not yet positioned but with a definite column"
-    // will be done in step 4.
+    // NOTE: "Explicitly positioned items" and "items positioned in the previous step" already widened
+    // the implicit grid in step 1 and 2, respectively; only "items not yet positioned but with a
+    // definite column" are handled here. This must happen before step 4, or auto-positioned items
+    // that precede them in order would wrap in a too-narrow implicit grid.
 
     // 3.3. If the largest column span among all the items without a definite column position is larger
     // than the width of the implicit grid, add columns to the end of the implicit grid to accommodate
     // that column span.
-    // NB: For column flow the whole algorithm is transposed, so this step widens the row axis instead.
+    // NB: For column flow the whole algorithm is transposed, so these steps widen the row axis instead.
     for &index in &ordered_indices {
         if !remaining[index] {
             continue;
@@ -772,12 +773,18 @@ pub(crate) fn place_items_with_grid(
         let item = items[index];
         match flow {
             AutoFlowAxis::Row => {
-                if item.column.start.is_none() {
+                if let Some(column) = item.column.start {
+                    grid.min_column_index = grid.min_column_index.min(column);
+                    grid.max_column_index = grid.max_column_index.max(column + item.column.span as i32 - 1);
+                } else {
                     grid.max_column_index = grid.max_column_index.max(item.column.span as i32 - 1);
                 }
             }
             AutoFlowAxis::Column => {
-                if item.row.start.is_none() {
+                if let Some(row) = item.row.start {
+                    grid.min_row_index = grid.min_row_index.min(row);
+                    grid.max_row_index = grid.max_row_index.max(row + item.row.span as i32 - 1);
+                } else {
                     grid.max_row_index = grid.max_row_index.max(item.row.span as i32 - 1);
                 }
             }

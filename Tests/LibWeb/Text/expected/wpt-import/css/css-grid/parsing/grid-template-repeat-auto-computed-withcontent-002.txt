@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 17 tests
 
-14 Pass
-3 Fail
+17 Pass
 Pass	Property grid-template-rows value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridRow = 3
-Fail	Property grid-template-rows value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridRow = 5
+Pass	Property grid-template-rows value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridRow = 5
 Pass	Property grid-template-rows value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridRow = 3 / 8
-Fail	Property grid-template-rows value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridRow = 4 / span 2
-Fail	Property grid-template-rows value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridRow = 4 / 5
+Pass	Property grid-template-rows value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridRow = 4 / span 2
+Pass	Property grid-template-rows value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridRow = 4 / 5
 Pass	Property grid-template-columns value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridColumn = 3
 Pass	Property grid-template-columns value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridColumn = 6
 Pass	Property grid-template-columns value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridColumn = 3 / 8
