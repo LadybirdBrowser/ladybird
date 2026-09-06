@@ -84,7 +84,7 @@ pub(crate) fn committed_inset(arena: &LayoutNodeArena, slot: NodeSlotId) -> FfiP
     })
 }
 
-pub(crate) fn committed_uses_collapsing_borders_model(arena: &LayoutNodeArena, slot: NodeSlotId) -> bool {
+pub(crate) fn committed_uses_collapsing_borders_model(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> bool {
     arena.with_committed_fragment_link(slot, |link| {
         link.is_some_and(|link| link.fragment.uses_collapsing_borders_model)
     })

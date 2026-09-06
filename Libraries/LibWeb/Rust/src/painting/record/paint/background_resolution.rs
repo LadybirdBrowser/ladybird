@@ -14,6 +14,7 @@ use crate::painting::border_radii::BorderRadii;
 use crate::painting::host::{FfiLayerImageList, FfiRootBackgroundSource};
 use crate::painting::paintable_geometry::{
     absolute_border_box_rect, absolute_padding_box_rect, committed_border_box_edges, committed_padding,
+    committed_uses_collapsing_borders_model,
 };
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::PaintRecorder;
@@ -181,11 +182,16 @@ pub(crate) fn background_paint_source_from_style_and_geometry(
 
     // HACK: If the Box has a border, use the bordered_rect to paint the background.
     //       This way if we have a border-radius there will be no gap between the filling and actual border.
-    let background_rect = if style_queries::has_css_borders(style) {
-        absolute_border_box_rect(layout_arena, slot)
-    } else {
-        absolute_padding_box_rect(layout_arena, slot)
-    };
+    // In the collapsing borders model the used borders of a table or cell come from border conflict resolution, not
+    // from its own style, and the border box is where its background belongs: "the border-box of the table includes
+    // half of the table border", and a cell's box likewise includes its half of the collapsed borders.
+    // https://www.w3.org/TR/CSS22/tables.html#collapsing-borders
+    let background_rect =
+        if style_queries::has_css_borders(style) || committed_uses_collapsing_borders_model(layout_arena, slot) {
+            absolute_border_box_rect(layout_arena, slot)
+        } else {
+            absolute_padding_box_rect(layout_arena, slot)
+        };
     Some(BackgroundPaintSource {
         layers_style_if_live: Some(style),
         image_list: FfiLayerImageList::Background,
