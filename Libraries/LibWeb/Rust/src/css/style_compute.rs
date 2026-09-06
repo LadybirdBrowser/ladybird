@@ -4671,10 +4671,7 @@ fn property_id_from_custom_ident(
 ) -> Option<u16> {
     let name = unsafe { ak::utf16_string_units(custom_ident.raw_word()) };
     match name {
-        ak::Utf16StringUnits::Ascii(name) => {
-            let name: Vec<u16> = name.iter().copied().map(u16::from).collect();
-            crate::css::property_metadata::property_id_from_name(&name)
-        }
+        ak::Utf16StringUnits::Ascii(name) => crate::css::property_metadata::property_id_from_name(name),
         ak::Utf16StringUnits::Utf16(name) => crate::css::property_metadata::property_id_from_name(name),
     }
 }

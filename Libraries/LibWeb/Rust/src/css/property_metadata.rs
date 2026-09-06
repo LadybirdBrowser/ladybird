@@ -30,22 +30,24 @@ pub(crate) fn property_name(property_id: u16) -> &'static str {
         .unwrap_or("<unknown>")
 }
 
-fn compare_property_name(candidate: &str, name: &[u16]) -> std::cmp::Ordering {
-    candidate
-        .bytes()
-        .map(u16::from)
-        .cmp(name.iter().copied().map(crate::css::ffi_support::ascii_lowercase))
+fn compare_property_name<T: Copy + Into<u16>>(candidate: &str, name: &[T]) -> std::cmp::Ordering {
+    candidate.bytes().map(u16::from).cmp(
+        name.iter()
+            .copied()
+            .map(Into::into)
+            .map(crate::css::ffi_support::ascii_lowercase),
+    )
 }
 
-pub(crate) fn is_custom_property_name(name: &[u16]) -> bool {
-    name.len() > 2 && name[0] == u16::from(b'-') && name[1] == u16::from(b'-')
+pub(crate) fn is_custom_property_name<T: Copy + Into<u16>>(name: &[T]) -> bool {
+    name.len() > 2 && name[0].into() == u16::from(b'-') && name[1].into() == u16::from(b'-')
 }
 
 // NB: This mirrors the property-name resolution formerly performed by
 //     CSS/Parser/RustSyntaxParsing.cpp:106 and CSS/Parser/RustQueryParsing.cpp:63.
 //     Legacy aliases are accepted by the generated table, while custom property
 //     names map to PropertyID::Custom.
-pub(crate) fn property_id_from_name(name: &[u16]) -> Option<u16> {
+pub(crate) fn property_id_from_name<T: Copy + Into<u16>>(name: &[T]) -> Option<u16> {
     if is_custom_property_name(name) {
         return Some(property_id::CUSTOM);
     }

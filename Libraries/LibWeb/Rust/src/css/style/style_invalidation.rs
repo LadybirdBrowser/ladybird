@@ -169,10 +169,7 @@ fn will_change_mentions(value: Option<&StyleValueData>, predicate: impl Fn(u16) 
         };
         crate::css::serialize::with_fly_string_units(custom_ident, |units| {
             let property = match units {
-                crate::css::serialize::StringUnits::Ascii(bytes) => {
-                    let units = bytes.iter().copied().map(u16::from).collect::<Vec<_>>();
-                    property_metadata::property_id_from_name(&units)
-                }
+                crate::css::serialize::StringUnits::Ascii(bytes) => property_metadata::property_id_from_name(bytes),
                 crate::css::serialize::StringUnits::Utf16(units) => property_metadata::property_id_from_name(units),
             };
             property.is_some_and(&predicate)
