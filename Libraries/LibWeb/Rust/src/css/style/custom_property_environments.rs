@@ -59,7 +59,7 @@ struct EngineEnvironment {
 /// values alive prevents later declarations from being allocated at the same addresses.
 struct MemoizedEnvironment {
     identity: u64,
-    written_values: Vec<RetainedStyleValueData>,
+    written_values: Box<[RetainedStyleValueData]>,
 }
 
 /// One substituted value and the written value whose identity names it. Keeping the written value
@@ -206,14 +206,12 @@ impl CustomPropertyEnvironments {
     ) {
         let environment = MemoizedEnvironment {
             identity,
-            written_values,
+            written_values: written_values.into_boxed_slice(),
         };
-        self.nested_capacity_bytes +=
-            (environment.written_values.capacity() * size_of::<RetainedStyleValueData>()) as u64;
+        self.nested_capacity_bytes += size_of_val(environment.written_values.as_ref()) as u64;
         match self.memo.entry(inputs) {
             Entry::Occupied(mut entry) => {
-                self.nested_capacity_bytes -=
-                    (entry.get().written_values.capacity() * size_of::<RetainedStyleValueData>()) as u64;
+                self.nested_capacity_bytes -= size_of_val(entry.get().written_values.as_ref()) as u64;
                 entry.insert(environment);
             }
             Entry::Vacant(entry) => {
@@ -283,7 +281,7 @@ impl CustomPropertyEnvironments {
             let retain = is_live(environment.identity) && (inputs.parent == 0 || is_live(inputs.parent));
             if !retain {
                 self.nested_capacity_bytes -= (inputs.cascaded.capacity() * size_of::<CascadedCustomProperty>()
-                    + environment.written_values.capacity() * size_of::<RetainedStyleValueData>())
+                    + size_of_val(environment.written_values.as_ref()))
                     as u64;
             }
             retain
@@ -317,7 +315,7 @@ mod tests {
                 .iter()
                 .map(|(inputs, environment)| {
                     inputs.cascaded.capacity() * size_of::<CascadedCustomProperty>()
-                        + environment.written_values.capacity() * size_of::<RetainedStyleValueData>()
+                        + size_of_val(environment.written_values.as_ref())
                 })
                 .sum::<usize>();
         assert_eq!(environments.nested_capacity_bytes, expected as u64);
