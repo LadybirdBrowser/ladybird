@@ -290,8 +290,13 @@ def configure_skia_jemalloc() -> list[str]:
 
 
 def configure_build_env(platform: Platform, preset: str, jobs: Optional[str] = None) -> tuple[Path, Path]:
+    ladybird_main_source_dir = find_main_ladybird_source_dir()
+
     os.environ["LADYBIRD_SOURCE_DIR"] = str(LADYBIRD_SOURCE_DIR)
+    os.environ["LADYBIRD_MAIN_SOURCE_DIR"] = str(ladybird_main_source_dir)
+
     build_root_dir = LADYBIRD_SOURCE_DIR / "Build"
+    main_build_root_dir = ladybird_main_source_dir / "Build"
 
     BUILD_PRESETS = {
         "All_Debug": build_root_dir / "alldebug",
@@ -303,12 +308,12 @@ def configure_build_env(platform: Platform, preset: str, jobs: Optional[str] = N
     }
 
     VCPKG_PRESETS = {
-        "All_Debug": build_root_dir / "vcpkg-debug",
-        "Debug": build_root_dir / "vcpkg-debug",
-        "Distribution": build_root_dir / "vcpkg-distribution",
-        "Fuzzers": build_root_dir / "vcpkg-distribution",
-        "Release": build_root_dir / "vcpkg-release",
-        "Sanitizer": build_root_dir / "vcpkg-sanitizer",
+        "All_Debug": main_build_root_dir / "vcpkg-debug",
+        "Debug": main_build_root_dir / "vcpkg-debug",
+        "Distribution": main_build_root_dir / "vcpkg-distribution",
+        "Fuzzers": main_build_root_dir / "vcpkg-distribution",
+        "Release": main_build_root_dir / "vcpkg-release",
+        "Sanitizer": main_build_root_dir / "vcpkg-sanitizer",
     }
 
     build_preset_dir = BUILD_PRESETS.get(preset, None)
@@ -354,6 +359,30 @@ def validate_cmake_version():
     if major < 3 or (major == 3 and minor < 30):
         print(f"CMake version {major}.{minor}.{patch} is too old. {cmake_install_message}", file=sys.stderr)
         sys.exit(1)
+
+
+def find_main_ladybird_source_dir() -> Path:
+    """
+    Detects if this checkout is a git worktree and, if so, finds the main worktree to be used for a shared vcpkg build.
+    """
+    git_path = LADYBIRD_SOURCE_DIR / ".git"
+    if not git_path.is_file():
+        return LADYBIRD_SOURCE_DIR
+
+    with open(git_path, "r") as git_file:
+        git_root = git_file.read()
+
+    segments = git_root.split(":", 1)
+    if len(segments) != 2:
+        return LADYBIRD_SOURCE_DIR
+
+    main_worktree = Path(segments[1].strip())
+    main_worktree = main_worktree.parent.parent
+
+    # Detect whether the main worktree is a full clone or a bare clone. In full clones, the current main worktree path
+    # should be the ".git" directory. If anyone has a very unusual git layout, we could instead parse the git config
+    # file (main_worktree / "config") to detect if the main worktree is bare.
+    return main_worktree.parent if main_worktree.name == ".git" else main_worktree
 
 
 def is_running_under_coding_agent() -> bool:
