@@ -1421,27 +1421,34 @@ impl WinnerGroups {
     /// priority changed.
     #[must_use]
     pub fn semantic_delta(&self, previous: Option<CascadeStateID>, current: CascadeStateID) -> CascadeWinnerDelta {
+        if previous == Some(current) {
+            return CascadeWinnerDelta::default();
+        }
+        CascadeWinnerDelta {
+            properties: self.semantic_delta_properties(previous, current).collect(),
+        }
+    }
+
+    /// Iterate changed properties in order without allocating a delta list.
+    pub(super) fn semantic_delta_properties(
+        &self,
+        previous: Option<CascadeStateID>,
+        current: CascadeStateID,
+    ) -> impl Iterator<Item = PropertyID> {
         let previous: &[WinnerGroupRef] = previous.map_or(&[], |state| &self.states[state]);
         let current = &self.states[current];
-        let mut properties = Vec::new();
-        for entry in merge_sorted_by(previous, current, |old, new| {
+        merge_sorted_by(previous, current, move |old, new| {
             self.group_bucket(*old).cmp(&self.group_bucket(*new))
-        }) {
-            match entry {
-                SortedMergeEntry::Both(old, new) => {
-                    if old.winners != new.winners {
-                        self.append_group_semantic_delta(Some(old.winners), Some(new.winners), &mut properties);
-                    }
-                }
-                SortedMergeEntry::Left(old) => {
-                    self.append_group_semantic_delta(Some(old.winners), None, &mut properties);
-                }
-                SortedMergeEntry::Right(new) => {
-                    self.append_group_semantic_delta(None, Some(new.winners), &mut properties);
-                }
+        })
+        .filter_map(|entry| match entry {
+            SortedMergeEntry::Both(old, new) if old.winners != new.winners => {
+                Some((Some(old.winners), Some(new.winners)))
             }
-        }
-        CascadeWinnerDelta { properties }
+            SortedMergeEntry::Both(..) => None,
+            SortedMergeEntry::Left(old) => Some((Some(old.winners), None)),
+            SortedMergeEntry::Right(new) => Some((None, Some(new.winners))),
+        })
+        .flat_map(move |(previous, current)| self.group_semantic_delta(previous, current))
     }
 
     /// Hash the set of properties represented by a state, deliberately leaving their values out.
@@ -1461,29 +1468,18 @@ impl WinnerGroups {
             .eq(self.semantic_winners_in_state(right).map(|winner| winner.property))
     }
 
-    fn append_group_semantic_delta(
+    fn group_semantic_delta(
         &self,
         previous: Option<WinnerGroupID>,
         current: Option<WinnerGroupID>,
-        properties: &mut Vec<PropertyID>,
-    ) {
+    ) -> impl Iterator<Item = PropertyID> {
         let previous: &[SemanticPropertyWinner] = previous.map_or(&[], |group| self.groups[group].winners.as_ref());
         let current: &[SemanticPropertyWinner] = current.map_or(&[], |group| self.groups[group].winners.as_ref());
-        for entry in merge_sorted_by(previous, current, |old, new| old.property.cmp(&new.property)) {
-            match entry {
-                SortedMergeEntry::Both(old, new) => {
-                    if old.key != new.key {
-                        properties.push(old.property);
-                    }
-                }
-                SortedMergeEntry::Left(old) => {
-                    properties.push(old.property);
-                }
-                SortedMergeEntry::Right(new) => {
-                    properties.push(new.property);
-                }
-            }
-        }
+        merge_sorted_by(previous, current, |old, new| old.property.cmp(&new.property)).filter_map(|entry| match entry {
+            SortedMergeEntry::Both(old, new) => (old.key != new.key).then_some(old.property),
+            SortedMergeEntry::Left(old) => Some(old.property),
+            SortedMergeEntry::Right(new) => Some(new.property),
+        })
     }
 
     #[must_use]

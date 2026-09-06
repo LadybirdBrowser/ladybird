@@ -931,9 +931,8 @@ impl StyleEngine {
                 })
                 .min_by_key(|donor| {
                     self.winner_groups
-                        .semantic_delta(Some(donor.state), state)
-                        .properties()
-                        .len()
+                        .semantic_delta_properties(Some(donor.state), state)
+                        .count()
                 })
         });
         if let Some(donor) = donor {
@@ -2029,10 +2028,8 @@ impl StyleEngine {
         // nothing the descendant inherits may move; custom properties inherit unless registered
         // otherwise, and a child's box-type transformation reads its parent's display.
         self.winner_groups
-            .semantic_delta(Some(previous_state), state)
-            .properties()
-            .iter()
-            .all(|&property| {
+            .semantic_delta_properties(Some(previous_state), state)
+            .all(|property| {
                 property != crate::css::property_metadata::property_id::CUSTOM
                     && property != crate::css::property_metadata::property_id::DISPLAY
                     && !crate::css::property_metadata::property_is_inherited(property)
