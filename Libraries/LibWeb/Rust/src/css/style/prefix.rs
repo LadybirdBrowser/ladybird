@@ -4551,17 +4551,20 @@ fn matches_feature(facts: &StyleNodeFacts, row: u32, feature: FeatureTest) -> bo
         FeatureTest::Attribute(test) => {
             let folds = !test.fold_in_namespace.is_none() && facts.namespace_of(row) == test.fold_in_namespace;
             facts.attributes_of(row).iter().any(|attribute| {
+                let value_matches = match test.operator {
+                    AttributeOperator::Presence => true,
+                    AttributeOperator::Exact => attribute.value == test.value_atom,
+                    _ => unreachable!("only atom-answerable features are canonicalized"),
+                };
+                if !value_matches {
+                    return false;
+                }
                 let forms = facts.attribute_name_forms(attribute.name);
                 let (written, folded) = match test.any_namespace {
                     true => (forms.local, forms.folded_local),
                     false => (attribute.name, forms.folded_name),
                 };
-                (written == test.name || (folds && folded == test.folded))
-                    && match test.operator {
-                        AttributeOperator::Presence => true,
-                        AttributeOperator::Exact => attribute.value == test.value_atom,
-                        _ => unreachable!("only atom-answerable features are canonicalized"),
-                    }
+                written == test.name || (folds && folded == test.folded)
             })
         }
     }
