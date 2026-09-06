@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .guard .target { color: rgb(0, 128, 0) }
+    .guard > .child { outline-color: rgb(0, 0, 255) }
+    .guard ~ .after .target { border-top-color: rgb(255, 0, 0) }
+</style>
+<div id="fixture">
+    <input id="field" placeholder="type here">
+    <div id="outer">
+        <div id="middle" class="child">
+            <span id="target" class="target"></span>
+        </div>
+    </div>
+    <div id="after" class="after"><span id="late" class="target"></span></div>
+    <div id="host"></div>
+</div>
+<script>
+    // The maintained selector prefix relation covers the document tree. Inputs from other tree
+    // scopes, such as the inline style a text control gives its placeholder when its value
+    // changes, or a class change inside a shadow tree, must not make the engine discard it.
+    const shadow = document.getElementById("host").attachShadow({ mode: "open" });
+    shadow.innerHTML = `<style>.guard .inner { color: rgb(9, 9, 9) }</style><div id="shadowOuter"><span id="shadowInner" class="inner"></span></div>`;
+
+    let forced = 0;
+
+    function snapshot() {
+        return Array.from(document.querySelectorAll("#fixture *"))
+            .map(element => {
+                const style = getComputedStyle(element);
+                return `${element.id}=${style.color}/${style.outlineColor}/${style.borderTopColor}`;
+            })
+            .concat(Array.from(shadow.querySelectorAll("*")).map(element => `${element.id}=${getComputedStyle(element).color}`))
+            .join(" ");
+    }
+
+    function settlesExactly(name, mutate) {
+        internals.updateStyle();
+        const before = internals.styleEngineCounters();
+        mutate();
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+        const maintained = after.prefixRelationUpdates - before.prefixRelationUpdates === 1
+            && after.prefixRelationBuilds - before.prefixRelationBuilds === 0;
+        const incremental = snapshot();
+        internals.setUserStyle(`/* force complete style ${forced++} */`);
+        internals.updateStyle();
+        const complete = snapshot();
+        internals.setUserStyle("");
+        println(`${name}: ${incremental === complete ? "settles exactly" : "STALE"}, relation ${maintained ? "maintained" : "REBUILT"}`);
+        if (incremental !== complete) {
+            println(`  incremental: ${incremental}`);
+            println(`  complete:    ${complete}`);
+        }
+        return incremental;
+    }
+
+    test(() => {
+        const field = document.getElementById("field");
+        const outer = document.getElementById("outer");
+        const middle = document.getElementById("middle");
+        const shadowOuter = shadow.getElementById("shadowOuter");
+
+        const guarded = settlesExactly("a value arrives in the text control as a guard does", () => {
+            field.value = "typed";
+            outer.classList.add("guard");
+        });
+        println(`guarded targets recolored: ${guarded.includes("target=rgb(0, 128, 0)")}`);
+        settlesExactly("the control is cleared as the guard moves to the child", () => {
+            field.value = "";
+            outer.classList.remove("guard");
+            middle.classList.add("guard");
+        });
+        const shadowGuarded = settlesExactly("a guard arrives inside the shadow tree as the document guard leaves", () => {
+            shadowOuter.classList.add("guard");
+            middle.classList.remove("guard");
+        });
+        println(`shadow guard recolored its inner element: ${shadowGuarded.includes("shadowInner=rgb(9, 9, 9)")}`);
+        const siblingGuarded = settlesExactly("the shadow guard leaves as a sibling guard arrives", () => {
+            shadowOuter.classList.remove("guard");
+            field.value = "again";
+            outer.classList.add("guard");
+        });
+        println(`sibling guard reached the later target: ${siblingGuarded.includes("late=rgb(0, 0, 0)/rgb(0, 0, 0)/rgb(255, 0, 0)")}`);
+    });
+</script>

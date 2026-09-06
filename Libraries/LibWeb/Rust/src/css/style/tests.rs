@@ -2001,6 +2001,33 @@ fn linear_document() -> (StyleEngine, Vec<StyleNodeID>) {
 }
 
 /// Builds `root -> outer -> inner -> target`.
+fn attach_shadow_tree(
+    engine: &mut StyleEngine,
+    host: StyleNodeID,
+    scope: TreeScopeID,
+    depth: usize,
+) -> Vec<StyleNodeID> {
+    let mut raw = vec![0_u32; depth + 1];
+    engine.allocate_style_nodes(&mut raw);
+    let nodes: Vec<_> = raw.iter().map(|&id| StyleNodeID::from_raw(id).unwrap()).collect();
+    engine.record_tree_delta(nodes[0], None, Some(TreeRelations::detached(scope)));
+    for pair in nodes.windows(2) {
+        engine.record_tree_delta(
+            pair[1],
+            None,
+            Some(TreeRelations {
+                parent: Some(pair[0]),
+                tree_scope: scope,
+                ..TreeRelations::detached(scope)
+            }),
+        );
+        set_atom_feature(engine, pair[1], LocalFeatureKey::TagName, StyleAtomID(100));
+    }
+    engine.set_shadow_root(host, nodes[0]);
+    engine.set_tree_scope_root(scope, nodes[0]);
+    nodes
+}
+
 fn nested_document() -> (StyleEngine, Vec<StyleNodeID>) {
     let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
     let mut raw = [0_u32; 4];
@@ -5637,6 +5664,160 @@ fn retained_prefix_transitions_supply_invalidation_and_matching() {
     assert!(engine.take_style_transaction_nodes(nodes[0], |nodes| planned.extend_from_slice(nodes)));
     assert_eq!(planned, vec![nodes[3].raw()]);
     assert_eq!(engine.memory().bytes_in_category(MemoryCategory::BatchScratch), 0);
+}
+
+#[test]
+fn a_foreign_scope_input_keeps_the_document_prefix_relation() {
+    let (mut engine, nodes) = nested_document();
+    let scope = TreeScopeID(1);
+    let shadow_child = attach_shadow_tree(&mut engine, nodes[3], scope, 1)[1];
+    let guard = StyleAtomID(200);
+    let target = StyleAtomID(201);
+    add_guard_target_rule(&mut engine, guard, target);
+    for (node, class) in [(nodes[1], guard), (nodes[3], target)] {
+        add_feature(&mut engine, node, LocalFeatureKey::Class(class));
+    }
+    let adopted_program = engine
+        .programs
+        .add(test_class_selector_program(".target", &[("target", target)], None));
+    let adopted_sheet = engine.add_sheet(StyleSheetObjectID(2), CascadeOrigin::Author);
+    let adopted_rule = engine.append_rule(adopted_sheet, None, RuleKind::Style);
+    engine.add_routing_rule(adopted_rule, adopted_program);
+    let mut version = engine.program.rule_version(adopted_rule);
+    version.selector_program = Some(adopted_program);
+    version.declaration_block = Some(DeclarationBlockID(1));
+    engine.replace_rule_version(adopted_rule, version);
+    discard_transaction(&mut engine);
+
+    engine.begin_published_match_answer_completion_batch(nodes[0], true);
+    assert_eq!(engine.match_element(nodes[3]).unwrap().len(), 1);
+    engine.end_published_match_answer_completion_batch();
+    assert_eq!(engine.counters().get(Counter::PrefixRelationBuilds), 1);
+
+    add_feature(&mut engine, shadow_child, LocalFeatureKey::Class(guard));
+    remove_feature(&mut engine, nodes[1], LocalFeatureKey::Class(guard));
+    let mut planned = Vec::new();
+    assert!(engine.take_style_transaction_nodes(nodes[0], |nodes| planned.extend_from_slice(nodes)));
+    assert_eq!(planned, vec![nodes[3].raw()]);
+    assert_eq!(engine.counters().get(Counter::PrefixRelationUpdates), 1);
+    assert_eq!(engine.counters().get(Counter::PrefixRelationBuilds), 1);
+
+    engine.begin_published_match_answer_completion_batch(nodes[0], true);
+    assert!(engine.match_element(nodes[3]).unwrap().is_empty());
+    engine.end_published_match_answer_completion_batch();
+    assert_eq!(engine.counters().get(Counter::PrefixRelationBuilds), 1);
+
+    engine.attach_sheet(adopted_sheet, scope);
+    add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(guard));
+    planned.clear();
+    assert!(engine.take_style_transaction_nodes(nodes[0], |nodes| planned.extend_from_slice(nodes)));
+    assert!(planned.contains(&nodes[3].raw()));
+    assert_eq!(engine.counters().get(Counter::PrefixRelationUpdates), 2);
+    assert_eq!(engine.counters().get(Counter::PrefixRelationBuilds), 1);
+
+    engine.begin_published_match_answer_completion_batch(nodes[0], true);
+    assert_eq!(engine.match_element(nodes[3]).unwrap().len(), 1);
+    engine.end_published_match_answer_completion_batch();
+    assert_eq!(engine.counters().get(Counter::PrefixRelationBuilds), 1);
+}
+
+#[test]
+fn a_maintained_relation_leaves_shadow_scope_routes_to_their_own_program() {
+    let (mut engine, nodes) = nested_document();
+    let scope = TreeScopeID(1);
+    let shadow = attach_shadow_tree(&mut engine, nodes[3], scope, 2);
+    let (shadow_outer, shadow_inner) = (shadow[1], shadow[2]);
+    let guard = StyleAtomID(200);
+    let target = StyleAtomID(201);
+    let inner = StyleAtomID(202);
+    add_guard_target_rule(&mut engine, guard, target);
+    let shadow_program = engine.programs.add(test_selector_program_with_metadata(
+        ".guard .inner",
+        &[("guard", guard), ("inner", inner)],
+        Some(Specificity {
+            classes: 2,
+            ..Specificity::default()
+        }),
+        None,
+    ));
+    let shadow_sheet = engine.add_sheet(StyleSheetObjectID(2), CascadeOrigin::Author);
+    engine.attach_sheet(shadow_sheet, scope);
+    let shadow_rule = engine.append_rule(shadow_sheet, None, RuleKind::Style);
+    engine.add_routing_rule(shadow_rule, shadow_program);
+    let mut version = engine.program.rule_version(shadow_rule);
+    version.selector_program = Some(shadow_program);
+    version.declaration_block = Some(DeclarationBlockID(2));
+    engine.replace_rule_version(shadow_rule, version);
+    for (node, class) in [(nodes[1], guard), (nodes[3], target), (shadow_inner, inner)] {
+        add_feature(&mut engine, node, LocalFeatureKey::Class(class));
+    }
+    discard_transaction(&mut engine);
+
+    engine.begin_published_match_answer_completion_batch(nodes[0], true);
+    assert_eq!(engine.match_element(nodes[3]).unwrap().len(), 1);
+    assert!(engine.match_element(shadow_inner).unwrap().is_empty());
+    engine.end_published_match_answer_completion_batch();
+    assert_eq!(engine.counters().get(Counter::PrefixRelationBuilds), 1);
+
+    add_feature(&mut engine, shadow_outer, LocalFeatureKey::Class(guard));
+    let mut planned = Vec::new();
+    assert!(engine.take_style_transaction_nodes(nodes[0], |nodes| planned.extend_from_slice(nodes)));
+    assert_eq!(planned, vec![shadow_inner.raw()]);
+    assert_eq!(engine.counters().get(Counter::PrefixRelationBuilds), 1);
+
+    engine.begin_published_match_answer_completion_batch(nodes[0], true);
+    assert_eq!(engine.match_element(shadow_inner).unwrap().len(), 1);
+    engine.end_published_match_answer_completion_batch();
+    assert_eq!(engine.counters().get(Counter::PrefixRelationBuilds), 1);
+}
+
+#[test]
+fn a_maintained_relation_leaves_shared_selector_shadow_routes_to_their_own_program() {
+    let (mut engine, nodes) = nested_document();
+    let scope = TreeScopeID(1);
+    let shadow = attach_shadow_tree(&mut engine, nodes[3], scope, 2);
+    let (shadow_outer, shadow_inner) = (shadow[1], shadow[2]);
+    let guard = StyleAtomID(200);
+    let target = StyleAtomID(201);
+    add_guard_target_rule(&mut engine, guard, target);
+    let program = engine.programs.add(test_selector_program_with_metadata(
+        ".guard .target",
+        &[("guard", guard), ("target", target)],
+        Some(Specificity {
+            classes: 2,
+            ..Specificity::default()
+        }),
+        None,
+    ));
+    let shadow_sheet = engine.add_sheet(StyleSheetObjectID(2), CascadeOrigin::Author);
+    engine.attach_sheet(shadow_sheet, scope);
+    let shadow_rule = engine.append_rule(shadow_sheet, None, RuleKind::Style);
+    engine.add_routing_rule(shadow_rule, program);
+    let mut version = engine.program.rule_version(shadow_rule);
+    version.selector_program = Some(program);
+    version.declaration_block = Some(DeclarationBlockID(2));
+    engine.replace_rule_version(shadow_rule, version);
+    for (node, class) in [(nodes[1], guard), (nodes[3], target), (shadow_inner, target)] {
+        add_feature(&mut engine, node, LocalFeatureKey::Class(class));
+    }
+    discard_transaction(&mut engine);
+
+    engine.begin_published_match_answer_completion_batch(nodes[0], true);
+    assert_eq!(engine.match_element(nodes[3]).unwrap().len(), 1);
+    assert!(engine.match_element(shadow_inner).unwrap().is_empty());
+    engine.end_published_match_answer_completion_batch();
+    assert_eq!(engine.counters().get(Counter::PrefixRelationBuilds), 1);
+
+    add_feature(&mut engine, shadow_outer, LocalFeatureKey::Class(guard));
+    let mut planned = Vec::new();
+    assert!(engine.take_style_transaction_nodes(nodes[0], |nodes| planned.extend_from_slice(nodes)));
+    assert_eq!(planned, vec![shadow_inner.raw()]);
+    assert_eq!(engine.counters().get(Counter::PrefixRelationBuilds), 1);
+
+    engine.begin_published_match_answer_completion_batch(nodes[0], true);
+    assert_eq!(engine.match_element(shadow_inner).unwrap().len(), 1);
+    engine.end_published_match_answer_completion_batch();
+    assert_eq!(engine.counters().get(Counter::PrefixRelationBuilds), 1);
 }
 
 #[test]

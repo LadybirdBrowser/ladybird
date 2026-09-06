@@ -4433,6 +4433,12 @@ impl PrefixStateCache {
             PrefixStateCacheLifecycle::CurrentRetained(coverage) => PrefixStateCacheLifecycle::Retained(coverage),
             previous @ (PrefixStateCacheLifecycle::Scratch(_) | PrefixStateCacheLifecycle::Retained(_)) => previous,
         };
+        for states in self.by_program.iter_mut().flatten() {
+            if let Some(relation) = states.relation.as_mut() {
+                // A key's routes change with the program.
+                relation.handled_routing_keys.clear();
+            }
+        }
     }
 
     pub(super) fn make_scratch(&mut self, memory: &mut MemoryController) {

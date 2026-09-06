@@ -1,0 +1,14 @@
+a guarded target moves into the shadow tree: settles exactly, relation maintained
+the document guard no longer reaches it: true
+a guard arrives around it inside the shadow tree: settles exactly, relation maintained
+it moves back under the document guard: settles exactly, relation maintained
+the document guard reaches it again: true
+the document guard leaves as the shadow guard does: settles exactly, relation maintained
+a guard arrives in the shadow tree sharing the document's selector: settles exactly, relation maintained
+the shadow tree's own guard rule reaches the node born there: true
+that guard leaves: settles exactly, relation maintained
+the other target moves into that shadow tree: settles exactly, relation maintained
+a guard arrives around it there: settles exactly, relation maintained
+the shadow tree's own guard rule reaches both: true
+it moves back as the document guard returns: settles exactly, relation maintained
+the document guard reaches both again: true

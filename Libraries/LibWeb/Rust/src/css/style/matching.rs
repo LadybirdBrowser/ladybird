@@ -2118,13 +2118,11 @@ impl StyleEngine {
             }
             let join_deltas = transaction.program_joins_for(input.key);
             if !join_deltas.is_empty() {
-                if matches!(
-                    input.key,
-                    InputKey::SheetAttachment(_, tree_scope)
-                        | InputKey::CascadeTopology(
-                            TopologyAxis::LayerOrder(tree_scope) | TopologyAxis::SheetOrder(tree_scope)
-                        ) if tree_scope != TreeScopeID::DOCUMENT
-                ) {
+                if input
+                    .key
+                    .program_tree_scope()
+                    .is_some_and(|scope| scope != TreeScopeID::DOCUMENT)
+                {
                     return None;
                 }
                 for delta in join_deltas {

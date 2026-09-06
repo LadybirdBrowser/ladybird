@@ -2831,14 +2831,19 @@ impl StyleEngine {
             caches.states.mark_full();
             caches.states.mark_current();
             caches.states.settle_memory(&mut self.memory);
+            // The relation answers for the document tree alone. A route reaching into another tree
+            // scope keeps those regions for its own program to route.
             let mut released_route_bytes = 0;
             pending.retain(|key, routed_regions| {
-                if eligible.binary_search(&key).is_ok() {
-                    released_route_bytes += (routed_regions.capacity() * size_of::<ImpactRegion>()) as u64;
-                    false
-                } else {
-                    true
+                if eligible.binary_search(&key).is_err() {
+                    return true;
                 }
+                routed_regions.retain(|region| region.lies_outside_document_scope(&self.tree));
+                if !routed_regions.is_empty() {
+                    return true;
+                }
+                released_route_bytes += (routed_regions.capacity() * size_of::<ImpactRegion>()) as u64;
+                false
             });
             self.memory.release(MemoryCategory::BatchScratch, released_route_bytes);
             return PrefixConvergenceOutcome {

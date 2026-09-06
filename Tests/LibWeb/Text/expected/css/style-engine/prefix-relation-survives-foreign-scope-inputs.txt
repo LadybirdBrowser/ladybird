@@ -1,0 +1,7 @@
+a value arrives in the text control as a guard does: settles exactly, relation maintained
+guarded targets recolored: true
+the control is cleared as the guard moves to the child: settles exactly, relation maintained
+a guard arrives inside the shadow tree as the document guard leaves: settles exactly, relation maintained
+shadow guard recolored its inner element: true
+the shadow guard leaves as a sibling guard arrives: settles exactly, relation maintained
+sibling guard reached the later target: true

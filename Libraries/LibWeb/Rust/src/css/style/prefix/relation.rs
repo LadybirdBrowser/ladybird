@@ -13,6 +13,7 @@
 use super::super::capacity::ShallowCapacityBytes;
 use super::super::fast_hash::FastSet as HashSet;
 use super::super::selector::RoutingKey;
+use super::super::tree::TreeScopeID;
 use super::{
     Column, Counter, Counters, DispatchKey, EntryID, HashMap, PrefixAutomaton, PrefixEvaluation, PrefixOutputKind,
     PrefixPredicate, PrefixStates, PrefixStepID, PrefixTransitionLookup, StyleNodeID, StyleNodeTree, matches_feature,
@@ -183,7 +184,10 @@ impl PrefixRelation {
         self.old_previous.clear();
         self.sibling_order_is_preserved = self.has_following_steps;
         for &node in changed {
-            if !tree.is_live(node) || self.position_of(Some(node)) != usize::MAX {
+            if !tree.is_live(node)
+                || self.position_of(Some(node)) != usize::MAX
+                || tree.tree_scope(node) != TreeScopeID::DOCUMENT
+            {
                 continue;
             }
             for node in tree.preorder(node) {
@@ -833,7 +837,7 @@ impl PrefixAutomaton {
             && tree.parent(root).is_none()
             && tree
                 .preorder(root)
-                .all(|node| tree.tree_scope(node) == super::super::tree::TreeScopeID::DOCUMENT)
+                .all(|node| tree.tree_scope(node) == TreeScopeID::DOCUMENT)
     }
 
     pub(in crate::css::style) fn build_relation(

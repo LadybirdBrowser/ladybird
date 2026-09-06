@@ -83,6 +83,27 @@ pub enum ImpactRegion {
 }
 
 impl ImpactRegion {
+    /// Whether the region lies outside the document tree scope.
+    #[must_use]
+    pub(super) fn lies_outside_document_scope(self, tree: &StyleNodeTree) -> bool {
+        match self {
+            Self::Empty | Self::Document => false,
+            Self::TreeScope(scope) => scope != TreeScopeID::DOCUMENT,
+            Self::HostedSubtrees(_) => true,
+            Self::Node(node)
+            | Self::Children(node)
+            | Self::Subtree(node)
+            | Self::StrictSubtree(node)
+            | Self::NextSibling(node)
+            | Self::FollowingSiblings(node)
+            | Self::FollowingSiblingSubtrees(node)
+            | Self::SiblingSequence(node)
+            | Self::Ancestors(node)
+            | Self::PreviousSibling(node)
+            | Self::PrecedingSiblings(node) => tree.tree_scope(node) != TreeScopeID::DOCUMENT,
+        }
+    }
+
     /// Widen a region by one inverse relation step.
     ///
     /// Each case answers "where can this relation reach, starting from everything already in the

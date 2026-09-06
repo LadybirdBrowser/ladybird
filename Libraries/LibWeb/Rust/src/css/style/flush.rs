@@ -342,30 +342,46 @@ impl StyleEngine {
             let _ = self.install_before_sibling_geometry(&mut transaction_fact_view);
         }
         let has_before_sibling_relations = transaction_fact_view.before_sibling_relations_available;
-        self.prefix_caches.borrow_mut().states.mark_previous();
         self.transaction_fact_view = Some(transaction_fact_view);
+        let mut caches = self.prefix_caches.borrow_mut();
+        caches.states.mark_previous();
         // The relation maintains document-scoped prefixes. Incomplete transitions and
         // tag changes, whose of-type effects extend to siblings, require cold reconstruction.
-        if self.prefix_caches.borrow().states.has_relation()
-            && (self
+        if caches.states.has_relation() {
+            let mut reconstruct = self
                 .transaction_fact_view
                 .as_ref()
-                .is_none_or(|view| view.prefix.is_none())
-                || !transaction.inputs.iter().all(|input| {
-                    input
-                        .key
-                        .style_node()
-                        .is_some_and(|node| self.tree.tree_scope(node) == TreeScopeID::DOCUMENT)
-                        && !matches!(
-                            input.key,
-                            InputKey::LocalFeature(_, LocalFeatureKey::TagName | LocalFeatureKey::FoldedTagName)
-                        )
-                }))
-        {
-            let mut caches = self.prefix_caches.borrow_mut();
-            caches.states.release();
-            caches.answers.release(&mut self.match_answers);
+                .is_none_or(|view| view.prefix.is_none());
+            let mut confined_elsewhere = false;
+            for input in &transaction.inputs {
+                if reconstruct {
+                    break;
+                }
+                let (tree_scope, maintained) = match input.key {
+                    InputKey::LocalFeature(node, LocalFeatureKey::TagName | LocalFeatureKey::FoldedTagName) => {
+                        (self.tree.tree_scope(node), false)
+                    }
+                    key => match key.style_node() {
+                        Some(node) => (self.tree.tree_scope(node), true),
+                        None => (key.program_tree_scope().unwrap_or(TreeScopeID::DOCUMENT), false),
+                    },
+                };
+                if tree_scope != TreeScopeID::DOCUMENT {
+                    confined_elsewhere = true;
+                } else if !maintained {
+                    reconstruct = true;
+                }
+            }
+            if reconstruct {
+                caches.states.release();
+                caches.answers.release(&mut self.match_answers);
+            } else if confined_elsewhere {
+                // The other scope's own retained transitions are not maintained.
+                caches.states.release_transition_states();
+                caches.answers.release(&mut self.match_answers);
+            }
         }
+        drop(caches);
         let fact_view_bytes = self
             .transaction_fact_view
             .as_ref()

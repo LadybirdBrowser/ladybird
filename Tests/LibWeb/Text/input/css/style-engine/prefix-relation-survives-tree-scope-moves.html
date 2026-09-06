@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .guard .target { color: rgb(0, 128, 0) }
+</style>
+<div id="fixture">
+    <div id="outer" class="guard"><span id="target" class="target"></span><span id="other" class="target"></span></div>
+    <div id="host"></div>
+    <div id="styledHost"></div>
+</div>
+<script>
+    // A node moving between the document and a shadow tree leaves or joins the maintained selector
+    // prefix relation without the engine discarding it, whether or not the shadow tree has its own
+    // style sheet. A shadow sheet repeating a document selector shares its program with the
+    // document rule, so the relation must not claim that rule's routes inside the shadow tree.
+    const shadow = document.getElementById("host").attachShadow({ mode: "open" });
+    shadow.innerHTML = `<div id="shadowOuter"></div>`;
+    const styledShadow = document.getElementById("styledHost").attachShadow({ mode: "open" });
+    styledShadow.innerHTML = `<style>.guard .target { color: rgb(9, 9, 9) }</style><div id="styledOuter"><span id="born" class="target"></span></div>`;
+
+    let forced = 0;
+
+    function snapshot() {
+        return Array.from(document.querySelectorAll("#fixture *"))
+            .concat(Array.from(shadow.querySelectorAll("*")), Array.from(styledShadow.querySelectorAll("*")))
+            .map(element => `${element.id}=${getComputedStyle(element).color}`)
+            .join(" ");
+    }
+
+    function settlesExactly(name, mutate) {
+        internals.updateStyle();
+        const before = internals.styleEngineCounters();
+        mutate();
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+        const maintained = after.prefixRelationUpdates - before.prefixRelationUpdates === 1
+            && after.prefixRelationBuilds - before.prefixRelationBuilds === 0;
+        const incremental = snapshot();
+        internals.setUserStyle(`/* force complete style ${forced++} */`);
+        internals.updateStyle();
+        const complete = snapshot();
+        internals.setUserStyle("");
+        println(`${name}: ${incremental === complete ? "settles exactly" : "STALE"}, relation ${maintained ? "maintained" : "REBUILT"}`);
+        if (incremental !== complete) {
+            println(`  incremental: ${incremental}`);
+            println(`  complete:    ${complete}`);
+        }
+        return incremental;
+    }
+
+    test(() => {
+        const outer = document.getElementById("outer");
+        const target = document.getElementById("target");
+        const other = document.getElementById("other");
+        const shadowOuter = shadow.getElementById("shadowOuter");
+        const styledOuter = styledShadow.getElementById("styledOuter");
+
+        const moved = settlesExactly("a guarded target moves into the shadow tree", () => shadowOuter.appendChild(target));
+        println(`the document guard no longer reaches it: ${moved.includes("target=rgb(0, 0, 0)")}`);
+        settlesExactly("a guard arrives around it inside the shadow tree", () => shadowOuter.classList.add("guard"));
+        const returned = settlesExactly("it moves back under the document guard", () => outer.appendChild(target));
+        println(`the document guard reaches it again: ${returned.includes("target=rgb(0, 128, 0)")}`);
+        settlesExactly("the document guard leaves as the shadow guard does", () => {
+            outer.classList.remove("guard");
+            shadowOuter.classList.remove("guard");
+        });
+
+        const bornGuarded = settlesExactly("a guard arrives in the shadow tree sharing the document's selector", () => styledOuter.classList.add("guard"));
+        println(`the shadow tree's own guard rule reaches the node born there: ${bornGuarded.includes("born=rgb(9, 9, 9)")}`);
+        settlesExactly("that guard leaves", () => styledOuter.classList.remove("guard"));
+        settlesExactly("the other target moves into that shadow tree", () => styledOuter.appendChild(other));
+        const styledGuarded = settlesExactly("a guard arrives around it there", () => styledOuter.classList.add("guard"));
+        println(`the shadow tree's own guard rule reaches both: ${styledGuarded.includes("born=rgb(9, 9, 9)") && styledGuarded.includes("other=rgb(9, 9, 9)")}`);
+        const bothReturned = settlesExactly("it moves back as the document guard returns", () => {
+            outer.classList.add("guard");
+            outer.appendChild(other);
+        });
+        println(`the document guard reaches both again: ${bothReturned.includes("target=rgb(0, 128, 0)") && bothReturned.includes("other=rgb(0, 128, 0)")}`);
+    });
+</script>

@@ -239,6 +239,18 @@ impl InputKey {
             | Self::CascadeTopology(..) => None,
         }
     }
+
+    /// The tree scope whose program this key changes, for keys that name one.
+    #[must_use]
+    pub fn program_tree_scope(self) -> Option<TreeScopeID> {
+        match self {
+            Self::SheetAttachment(_, tree_scope)
+            | Self::CascadeTopology(TopologyAxis::SheetOrder(tree_scope) | TopologyAxis::LayerOrder(tree_scope)) => {
+                Some(tree_scope)
+            }
+            _ => None,
+        }
+    }
 }
 
 /// The value of a journal key on one side of a mutation.

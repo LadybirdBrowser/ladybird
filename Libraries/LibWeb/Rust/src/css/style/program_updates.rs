@@ -1087,6 +1087,10 @@ impl StyleEngine {
                         _,
                         _,
                     ) => {}
+                    (key, _, _)
+                        if key
+                            .program_tree_scope()
+                            .is_some_and(|scope| scope != TreeScopeID::DOCUMENT) => {}
                     (
                         InputKey::LocalFeature(node, key),
                         InputValue::Feature(old_value),
