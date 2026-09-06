@@ -2397,6 +2397,9 @@ impl ComputedGroupSets {
         else {
             return false;
         };
+        if record.groups == node_set {
+            return true;
+        }
         // Reclamation interns an equal payload under a new identity, so the groups compare by
         // content past their identities.
         let record_groups = &self.sets[record.groups].payloads;
